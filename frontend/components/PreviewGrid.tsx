@@ -1,5 +1,9 @@
+/**
+ * Lightweight preview grid for the demo cards.
+ * Normalizes thumbnails so other parts of the app can swap in real imagery without reworking layout.
+ */
 import React, { useMemo } from "react";
-import { ReelPerformance } from "./PerformanceScatter";
+import { ReelPerformance } from "../features/performance/types";
 
 type Props = {
   items: ReelPerformance[];
@@ -21,6 +25,9 @@ const defaultImages = [
 const formatCompact = (value: number) =>
   new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 
+/**
+ * Display a grid of preview tiles for the provided items.
+ */
 export function PreviewGrid({ items, loading, fallbackImages = defaultImages }: Props) {
   const normalized = useMemo(() => {
     if (!items.length) return [];

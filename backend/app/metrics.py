@@ -1,3 +1,7 @@
+"""
+Metric utilities for reel performance.
+Computes derived fields and percentile scores for latest state rows.
+"""
 from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -33,7 +37,15 @@ def _hours_since_publish(publish_time: datetime, now: datetime) -> float:
 
 
 def compute_derived_metrics(states: Sequence[ReelLatestState], now: Optional[datetime] = None) -> List[DerivedReelMetrics]:
-    """Compute derived metrics for each latest reel state."""
+    """
+    Compute derived metrics for each latest reel state.
+
+    Args:
+        states: Latest state records to enrich.
+        now: Optional override for current timestamp, mainly for testing.
+    Returns:
+        List of DerivedReelMetrics with velocity and engagement calculations applied.
+    """
     now = now or datetime.now(timezone.utc)
     derived: List[DerivedReelMetrics] = []
     for state in states:
@@ -80,7 +92,14 @@ def _percentile_rank(values: List[float]) -> List[float]:
 
 
 def attach_percentiles(derived: List[DerivedReelMetrics]) -> List[dict]:
-    """Attach percentile ranks and performance score to derived metric dictionaries."""
+    """
+    Attach percentile ranks and performance score to derived metric dictionaries.
+
+    Args:
+        derived: Derived reel metrics to score.
+    Returns:
+        List of dictionaries ready for API responses with percentile and performance_score fields.
+    """
     if not derived:
         return []
 
@@ -116,4 +135,3 @@ def attach_percentiles(derived: List[DerivedReelMetrics]) -> List[dict]:
             }
         )
     return enriched
-

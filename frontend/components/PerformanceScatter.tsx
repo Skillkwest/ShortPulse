@@ -1,3 +1,7 @@
+/**
+ * Scatter chart for visualizing performance percentiles.
+ * Consumed by the performance analytics page and encapsulates all Recharts styling and tooltip logic.
+ */
 import React, { useMemo } from "react";
 import {
   CartesianGrid,
@@ -12,28 +16,16 @@ import {
   ZAxis,
 } from "recharts";
 import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
-
-export type ReelPerformance = {
-  reel_id: string;
-  reel_url: string;
-  platform: string;
-  publish_time: string;
-  latest_scraped_at: string;
-  views: number;
-  likes: number;
-  comments: number;
-  shares_or_saves?: number | null;
-  hours_since_publish: number;
-  views_per_hour: number;
-  engagement_rate: number;
-  views_percentile: number;
-  views_per_hour_percentile: number;
-  engagement_rate_percentile: number;
-  performance_score: number;
-  thumbnail_url?: string;
-  creator_username?: string | null;
-  caption_text?: string | null;
-};
+import { BREAKOUT_SCORE } from "../features/performance/constants";
+import { ReelPerformance } from "../features/performance/types";
+import {
+  formatCompact,
+  formatNumber,
+  formatPercentile,
+  formatRate,
+  prettifyUrl,
+} from "../features/performance/utils/formatters";
+import { median } from "../features/performance/utils/statistics";
 
 type Props = {
   data: ReelPerformance[];
@@ -43,28 +35,6 @@ type Props = {
 const AXIS_TICK = { fill: "var(--color-ash-70)", fontSize: 12 };
 const AXIS_LINE = { stroke: "var(--color-ash-40)" };
 const TICK_LINE = { stroke: "var(--color-ash-30)" };
-
-const formatNumber = (value: number) => value.toLocaleString();
-const formatPercentile = (value: number) => `${value.toFixed(1)}pctl`;
-const formatRate = (value: number) => `${(value * 100).toFixed(2)}%`;
-const formatCompact = (value: number) =>
-  new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
-const median = (values: number[]) => {
-  if (!values.length) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-};
-const prettifyUrl = (url: string) => {
-  try {
-    const { hostname, pathname } = new URL(url);
-    const slug = pathname.split("/").filter(Boolean).slice(-1)[0];
-    const host = hostname.replace(/^www\./, "");
-    return slug ? `${host}/${slug}` : host;
-  } catch {
-    return url.length > 42 ? `${url.slice(0, 42)}…` : url;
-  }
-};
 
 const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
   if (!active || !payload?.length) return null;
@@ -107,8 +77,11 @@ const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) =
   );
 };
 
+/**
+ * Render the performance scatter plot with highlight and baseline cohorts.
+ */
 export function PerformanceScatter({ data, loading }: Props) {
-  const highlightThreshold = 95;
+  const highlightThreshold = BREAKOUT_SCORE;
 
   const { highlighted, baseline } = useMemo(() => {
     const highlightedItems: ReelPerformance[] = [];

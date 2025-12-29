@@ -1,3 +1,4 @@
+"""Unit tests for derived metric calculations."""
 from datetime import datetime, timedelta, timezone
 
 from app.metrics import attach_percentiles, compute_derived_metrics
@@ -5,6 +6,7 @@ from app.models import ReelLatestState
 
 
 def make_state(reel_id: str, views: int, likes: int, comments: int, publish_hours_ago: int):
+    """Create a minimal ReelLatestState test fixture."""
     return ReelLatestState(
         reel_id=reel_id,
         platform="instagram",
@@ -19,6 +21,7 @@ def make_state(reel_id: str, views: int, likes: int, comments: int, publish_hour
 
 
 def test_percentile_ranks_and_score_ordering():
+    """Ensure percentile outputs exist and order aligns with expected velocity/engagement."""
     states = [
         make_state("a", views=1000, likes=100, comments=20, publish_hours_ago=10),  # strong
         make_state("b", views=500, likes=20, comments=5, publish_hours_ago=20),  # weaker

@@ -1,3 +1,7 @@
+"""
+Utility script to rebuild reels_latest_state from raw events.
+Intended for recovery or backfill scenarios outside the main ingestion loop.
+"""
 import logging
 
 from sqlalchemy import func
@@ -11,13 +15,23 @@ logger = logging.getLogger(__name__)
 
 
 def rebuild_latest_state(session: Session) -> int:
-    """Rebuilds reels_latest_state from reels_raw_events (latest by scraped_at per reel)."""
+    """
+    Rebuild reels_latest_state from reels_raw_events (latest by scraped_at per reel).
+
+    Args:
+        session: Active SQLAlchemy session.
+    Returns:
+        Number of rows written to reels_latest_state.
+    Side Effects:
+        Commits updates to the database.
+    """
     latest_scrape_subq = (
         session.query(
+            ReelRawEvent.user_id.label("user_id"),
             ReelRawEvent.reel_id.label("reel_id"),
             func.max(ReelRawEvent.scraped_at).label("max_scraped_at"),
         )
-        .group_by(ReelRawEvent.reel_id)
+        .group_by(ReelRawEvent.user_id, ReelRawEvent.reel_id)
         .subquery()
     )
 
@@ -25,7 +39,8 @@ def rebuild_latest_state(session: Session) -> int:
         session.query(ReelRawEvent)
         .join(
             latest_scrape_subq,
-            (ReelRawEvent.reel_id == latest_scrape_subq.c.reel_id)
+            (ReelRawEvent.user_id == latest_scrape_subq.c.user_id)
+            & (ReelRawEvent.reel_id == latest_scrape_subq.c.reel_id)
             & (ReelRawEvent.scraped_at == latest_scrape_subq.c.max_scraped_at),
         )
         .all()
@@ -39,6 +54,7 @@ def rebuild_latest_state(session: Session) -> int:
     for row in latest_rows:
         payload.append(
             {
+                "user_id": row.user_id,
                 "reel_id": row.reel_id,
                 "platform": row.platform,
                 "reel_url": row.reel_url,
@@ -57,7 +73,7 @@ def rebuild_latest_state(session: Session) -> int:
 
     insert_stmt = insert(ReelLatestState).values(payload)
     upsert_stmt = insert_stmt.on_conflict_do_update(
-        index_elements=[ReelLatestState.reel_id],
+        index_elements=[ReelLatestState.user_id, ReelLatestState.reel_id],
         set_={
             "platform": insert_stmt.excluded.platform,
             "reel_url": insert_stmt.excluded.reel_url,

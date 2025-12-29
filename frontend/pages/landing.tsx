@@ -1,3 +1,7 @@
+/**
+ * Marketing landing page for ShortPulse.
+ * Presents product positioning, feature highlights, testimonials, and pricing for visitors.
+ */
 import Head from "next/head";
 import Link from "next/link";
 import { useState } from "react";
@@ -56,6 +60,9 @@ const faqItems = [
   },
 ];
 
+/**
+ * Render the public landing experience with hero, feature, and pricing sections.
+ */
 export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 

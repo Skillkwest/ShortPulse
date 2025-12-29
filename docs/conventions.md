@@ -1,0 +1,28 @@
+# Code Conventions
+
+Purpose: unify coding standards across the refactored codebase.
+
+## File size and structure
+- Keep each file under ~500 lines; split between 300–500 lines when growing.
+- One responsibility per file; avoid mixed concerns (UI + data + logic).
+- Pages should orchestrate; business logic lives in feature `logic/` or `utils/`.
+
+## Comments and docs
+- Every file: top-level comment with purpose/responsibility.
+- Public exports: doc-style comment with purpose, inputs, outputs, and side effects.
+- Inline comments: only for intent/edge cases, not restating code.
+
+## Naming and organization
+- Types/constants first, helpers next, components last within features.
+- Prefer explicit, readable code over cleverness; small pure functions > large monoliths.
+- Keep sample/fixture data in `data/`; avoid embedding in components/pages.
+
+## Styling
+- Use the modular CSS files under `styles/`; do not add rules to the aggregator.
+- Choose the correct domain file; split when approaching size limits.
+- Maintain import order in `globals.css`.
+
+## Testing and safety
+- Avoid destructive commands (resets) without explicit user request.
+- Keep behavior identical during refactors unless requirements change.
+- Add or run tests when touching business logic where feasible; document gaps.

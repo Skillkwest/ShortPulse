@@ -1,3 +1,7 @@
+"""
+Pydantic schemas for API request/response contracts.
+Keeps FastAPI endpoints type-safe and documented.
+"""
 from datetime import datetime
 from typing import List, Optional
 

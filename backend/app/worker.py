@@ -1,3 +1,7 @@
+"""
+Standalone worker process for running the ingestion scheduler.
+Useful for deployments that keep the scheduler separate from the API process.
+"""
 import asyncio
 import logging
 
@@ -8,6 +12,12 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    """
+    Start the scheduler loop and keep it running until interrupted.
+
+    Side Effects:
+        Starts APScheduler and manages an asyncio event loop.
+    """
     ingestion_scheduler.start()
     logger.info("Ingestion worker started.")
     loop = asyncio.get_event_loop()

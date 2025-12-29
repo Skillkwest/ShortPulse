@@ -1,0 +1,53 @@
+/**
+ * Shared workspace utilities and cross-page treatments.
+ * Includes reusable overlays, hero cards, and plan palette tokens used by multiple pages.
+ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 5, 10, 0.7);
+  display: grid;
+  place-items: center;
+  z-index: 400;
+}
+
+.modal-card {
+  background: rgba(12, 15, 22, 0.96);
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  border-radius: 16px;
+  padding: 18px 20px;
+  min-width: 280px;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.5);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.hero-image-card {
+  position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: #f5f9ff;
+}
+
+.plan-free {
+  color: #f5f9ff;
+}
+
+.plan-media {
+  color: #4ea09e;
+}
+
+.plan-pro {
+  color: #64d0ff;
+}
+
+.plan-creative {
+  color: #ffcb66;
+}

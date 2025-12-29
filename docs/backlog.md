@@ -25,6 +25,7 @@ Use this as the running list of tasks and future ideas. Keep items concise and s
 - Make tooltips resilient to long URLs (truncate with ellipsis).
 - Add platform filter tabs (IG/TikTok/YT) driven by backend data once ingestion expands.
 - Integrate Media Library UI with Supabase storage/auth (RLS enforced) and add uploads/listing.
+- Fix Media Library blow-up modal aesthetics for images & videos: auto-resize preview container to match media aspect ratio, eliminate blank space, and keep the rounded corners consistent.
 
 ## Documentation
 - Write API endpoint reference with request/response examples.

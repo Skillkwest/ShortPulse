@@ -1,7 +1,12 @@
+/**
+ * Authentication page styled to mirror the provided reference.
+ * Provides email/password sign-in and sign-up backed by Supabase.
+ */
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { Eye, EyeSlash, LockSimple, PaperPlaneTilt, SignIn } from "phosphor-react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 
@@ -12,21 +17,37 @@ export default function AuthPage() {
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = ensureSupabaseClient();
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        router.replace("/dashboard");
+      }
+    });
+  }, [router]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     setLoading(true);
     try {
       const supabase = ensureSupabaseClient();
       if (mode === "signup") {
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { error: signUpError, data } = await supabase.auth.signUp({
           email,
           password,
         });
         if (signUpError) throw signUpError;
+        if (!data.session) {
+          setInfo("Check your email to confirm your account, then sign in.");
+          return;
+        }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -34,7 +55,7 @@ export default function AuthPage() {
         });
         if (signInError) throw signInError;
       }
-      router.push("/");
+      router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Unable to authenticate");
     } finally {
@@ -45,66 +66,70 @@ export default function AuthPage() {
   return (
     <>
       <Head>
-        <title>ShortPulse · Sign in</title>
+        <title>ShortPulse · {mode === "signin" ? "Sign in" : "Sign up"}</title>
       </Head>
-      <main className="page page-wide">
-        <div className="page-top">
-          <Link href="/" className="ghost-btn small">
-            ← Back to dashboard
-          </Link>
-        </div>
+      <main className="auth-shell">
+        <div className="auth-overlay" />
+        <form className="auth-card" onSubmit={onSubmit}>
+          <h1 className="auth-title">ShortPulse</h1>
+          <p className="auth-subtitle">Reel Performance Analytics</p>
 
-        <section className="panel auth-panel">
-          <h1 className="title">Sign {mode === "signin" ? "in" : "up"}</h1>
-          <p className="subdued">
-            Use your email and password to {mode === "signin" ? "access" : "create"} your ShortPulse workspace.
-          </p>
-          <form className="creator-form" onSubmit={onSubmit}>
-            <div className="input-chip">
-              <label className="tiny subdued" htmlFor="email">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="input-chip">
-              <label className="tiny subdued" htmlFor="password">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div className="creator-form-actions">
-              <button className="primary-btn" type="submit" disabled={loading}>
-                {loading ? "Working…" : mode === "signin" ? "Sign in" : "Sign up"}
-              </button>
-            </div>
-          </form>
-          {error && <p className="subdued tiny" style={{ marginTop: 8 }}>{error}</p>}
-          <div className="cap-chips" style={{ marginTop: 12 }}>
-            {mode === "signin" ? (
-              <button className="ghost-btn small" type="button" onClick={() => setMode("signup")}>
-                Need an account? Sign up
-              </button>
-            ) : (
-              <button className="ghost-btn small" type="button" onClick={() => setMode("signin")}>
-                Have an account? Sign in
-              </button>
-            )}
+          <label className="auth-label" htmlFor="email">
+            Email
+          </label>
+          <div className="auth-input">
+            <PaperPlaneTilt size={18} weight="bold" />
+            <input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
           </div>
-        </section>
+
+          <label className="auth-label" htmlFor="password">
+            Password
+          </label>
+          <div className="auth-input">
+            <LockSimple size={18} weight="bold" />
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              className="auth-eye"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeSlash size={18} weight="bold" /> : <Eye size={18} weight="bold" />}
+            </button>
+          </div>
+
+          {error ? <div className="auth-error">{error}</div> : null}
+          {info ? <div className="auth-info">{info}</div> : null}
+
+          <button className="auth-submit" type="submit" disabled={loading}>
+            <SignIn size={18} weight="bold" />
+            {loading ? "Loading..." : mode === "signin" ? "Sign In" : "Sign Up"}
+          </button>
+
+          <div className="auth-divider" />
+          <p className="auth-switch">
+            {mode === "signin" ? "Don't have an account?" : "Already have an account?"}{" "}
+            <button type="button" onClick={() => setMode(mode === "signin" ? "signup" : "signin")}>
+              {mode === "signin" ? "Sign up" : "Sign in"}
+            </button>
+          </p>
+        </form>
+
       </main>
     </>
   );
 }
-

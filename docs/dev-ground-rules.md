@@ -1,0 +1,40 @@
+# Dev Ground Rules
+
+Use this document to keep the expectations clear whenever I’m making changes in this repo.
+
+1. **All work lives inside `ShortPulse/`.** Never create sibling project directories or scatter files outside this folder. If I need scratch space, it goes somewhere under `ShortPulse/`.
+2. **Own the structure.** I’m responsible for keeping the repo tidy—if a new feature needs folders, I create them here, document them, and remove stray duplicates (like the extra backend folder we found earlier).
+3. **Document new rules.** When conventions evolve, append them to this file so future work stays consistent.
+4. **Prefer existing tooling before adding new dependencies.** If a capability already exists in `docs/`, shared components, or scripts, reuse or extend it rather than introducing redundant code.
+5. **Keep user data scoped.** Any backend or Supabase work must preserve per-user isolation by default (auth checks, RLS policies, namespaced storage paths).
+6. **Ship UI changes with matching styles.** When adding a page or component, wire the relevant CSS and reference the design palette/spacing so the experience stays cohesive with the rest of the app.
+7. **Surface impact in docs.** Major additions (routes, SOPs, security tweaks) deserve at least a note in the appropriate document (`docs/backlog.md`, `sop_*`, etc.) so future contributors know what changed.
+8. **Plan label palette is fixed.** Wherever plan info is shown, use: `Free` (white), `Media` (green `#4ea09e`), `Pro` (brand blue/teal), `Creative Suite` (amber). Default prototype plan is `Creative Suite` unless user metadata overrides.
+9. **Default to clean, readable modules.** Optimize for clarity over cleverness; code should stay easy to read, maintain, and extend.
+10. **Keep files short.** No single file should exceed ~500 lines; if a file approaches 300–500 lines, split it and keep one clear responsibility per file.
+11. **Separate concerns.** UI, logic, data access, and utilities live in their own files/modules—no god files, no mixed responsibilities, no generic dumping-ground utils.
+12. **Prefer explicit, small functions.** Short, well-named functions beat abstractions; preserve existing behavior during refactors.
+13. **Comment intentionally.** Every file needs a top-level comment covering purpose, responsibilities, and how it fits the system. Public functions get doc-style comments (purpose, inputs, outputs, side effects). Inline comments explain intent or edge cases—never restate obvious code.
+14. **Plan-first refactors.** For structural changes: audit first, propose the modular plan (folders/files and responsibilities), then execute incrementally and validate that structure/line limits are met.
+15. **Keep structure manageable.** Use feature/domain folders, avoid deep nesting and circular deps, isolate side effects, and keep business logic out of UI glue.
+
+## Canonical run commands (always respond with these)
+- **Backend startup** (run from repo root):
+  ```
+  cd "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/backend"
+  python3 -m venv .venv && source .venv/bin/activate
+  pip install -r requirements.txt
+  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+  ```
+- **Frontend startup** (new terminal):
+  ```
+  cd "/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/frontend"
+  npm run dev
+  ```
+- **Install steps are one-time** (or when dependencies change): `npm install` only when setting up a new environment or after package changes; do not repeat on every restart. If asked for the frontend command, provide `npm run dev` (plus the one-time `npm install` note only when relevant).
+
+_Suggestions for future rules_
+- Define how to handle large assets (where to store example data or design exports).
+- Specify when to add a runbook/sop entry alongside new features.
+- Outline branch naming or commit conventions for multi-contributor work.
+- Add a checklist for supabase security verifications before shipping auth-related changes.

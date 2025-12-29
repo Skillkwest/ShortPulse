@@ -1,3 +1,7 @@
+"""
+Database session and base model wiring.
+Provides SQLAlchemy engine, session factory, and FastAPI dependency for DB access.
+"""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -10,10 +14,16 @@ Base = declarative_base()
 
 
 def get_session():
-    """FastAPI dependency that yields a database session."""
+    """
+    FastAPI dependency that yields a database session.
+
+    Yields:
+        SQLAlchemy session with autocommit disabled.
+    Side Effects:
+        Closes the session after request handling.
+    """
     session = SessionLocal()
     try:
         yield session
     finally:
         session.close()
-

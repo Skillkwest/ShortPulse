@@ -12,6 +12,7 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - `styles/performance-responsive.css`: Detail/responsive tweaks and focus states for analytics surfaces.
 - `styles/landing-core.css`: Marketing nav/hero/core layout.
 - `styles/landing-sections.css`: Marketing feature/pricing/FAQ sections and responsive rules.
+- `styles/workspace-ai-studio.css`: AI Studio-specific layout overrides (preview column visibility, reference canvas grid spacing, dropzone controls, Studio Preview card styling).
 
 ## Adding styles
 - Prefer extending the feature sheet that matches the surface; avoid reintroducing a monolithic `globals.css`.

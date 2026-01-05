@@ -28,3 +28,8 @@ Purpose: describe how the frontend is structured after modularization so new wor
 2) Define types/constants first, then utils/logic, then components.
 3) Keep components presentational; let pages orchestrate state/fetching.
 4) Add doc comments to new files and exported functions/components.
+
+### AI Studio page (current state)
+- `frontend/pages/ai-studio.tsx` remains a page-level component while layout is iterated; preview column is currently hidden (`.studio-column` set to `display: none` in CSS) and the Reference Canvas expands.
+- Image regen “Drop Image” step includes primary + 3 secondary dropzones, each with hover “×” clear buttons and a header-level “Clear references” action.
+- Studio Preview card uses create-style wrapper; prompt textarea always visible and can receive text drops (images ignored). Generate seeds the preview prompt for image/video modes; Regenerate uses the preview prompt.

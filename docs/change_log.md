@@ -142,3 +142,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added repo meta docs: `LICENSE` (proprietary), `ROADMAP.md`, and `CHANGELOG.md` (wrapper pointing to this log).
 - Fixed frontend build issues (ESLint config + TypeScript fixes in `frontend/pages/dashboard.tsx`) and verified `npm run lint` + `npm run build` pass.
 - Updated env templates to reflect the client-only architecture and restored the `sop_performance_ai_detection.md` into canonical `docs/`.
+
+## 2026-01-17
+- Pruned duplicate changelog wrappers (`CHANGELOG.md`, `docs/CHANGELOG.md`) to keep `docs/change_log.md` as the single source of truth.
+- Updated README and docs index to point to the canonical changelog.

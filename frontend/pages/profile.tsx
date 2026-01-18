@@ -1,3 +1,7 @@
+/**
+ * Profile/account/billing page for authenticated users.
+ * Presents plan status, account settings, subscription info, and logout controls using Supabase auth state.
+ */
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";

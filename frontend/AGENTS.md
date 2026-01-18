@@ -6,6 +6,7 @@ Scope: `ShortPulse/frontend/` (Next.js pages router, client-only).
 - Prefer the feature module pattern described in `../docs/frontend-architecture.md` (`features/<name>/{types,constants,data,utils,logic,components}`).
 - Keep `pages/` thin (composition + orchestration only); push logic into `features/*/logic` or `features/*/utils`.
 - Use modular CSS under `styles/` and keep `styles/globals.css` as an import-only aggregator (see `../docs/styles-structure.md`).
+- See `../docs/agent-playbook.md` for the one-page checklist.
 
 ## Don’ts
 - Don’t edit `node_modules/` or generated output (`.next/`).
@@ -14,4 +15,3 @@ Scope: `ShortPulse/frontend/` (Next.js pages router, client-only).
 
 ## Validation
 - Prefer `npm run lint` and `npm run build` from `ShortPulse/frontend/` before finalizing changes.
-

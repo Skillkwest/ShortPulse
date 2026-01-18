@@ -1,3 +1,7 @@
+/**
+ * Media Library page for per-user uploads/downloads/deletes in the private Supabase bucket.
+ * Handles filtering, signed URL fetches, and UI orchestration while delegating storage to Supabase client helpers.
+ */
 import Head from "next/head";
 import Link from "next/link";
 import { CheckCircle, CloudArrowUp, DownloadSimple, MagnifyingGlass, Trash } from "phosphor-react";

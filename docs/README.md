@@ -15,6 +15,8 @@ Use this as the entry point for the project’s documentation.
 - `docs/styles-structure.md` (CSS organization)
 - `docs/testing-guide.md` (current testing expectations)
 - `docs/security-checklist.md` (Supabase + auth isolation)
+- `docs/routes.md` (route map + auth expectations)
+- `docs/agent-playbook.md` (one-pager for AI agents/contributors)
 - `docs/adr/README.md` (architecture decisions)
 - `docs/troubleshooting.md`
 - `docs/glossary.md`
@@ -36,12 +38,11 @@ Use this as the entry point for the project’s documentation.
 
 ## Planning / History
 - `docs/backlog.md`
-- `docs/change_log.md`
+- `docs/change_log.md` (canonical changelog)
 
 ## Repo Meta
 - `LICENSE`
 - `ROADMAP.md`
-- `CHANGELOG.md`
 - `.github/workflows/ci.yml`
 - `.github/CODEOWNERS`
 

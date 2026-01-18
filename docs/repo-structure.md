@@ -6,6 +6,7 @@ This document describes the **canonical layout** of the ShortPulse product repo 
 - `frontend/`: Next.js (pages router) client-only app.
 - `docs/`: Engineering + product documentation (start at `docs/README.md`).
 - `sql/`: Supabase bootstrap scripts used by the client app.
+- `assets/`: Design/reference artifacts (non-runtime) such as mockups, hero source images, and raw exports.
 
 ## Frontend layout
 - `frontend/pages/`: Route entry points (keep thin).
@@ -22,4 +23,3 @@ This document describes the **canonical layout** of the ShortPulse product repo 
 
 ## Non-goals
 - This repo currently runs **client-only**; don’t introduce a backend dependency without an explicit decision + ADR.
-

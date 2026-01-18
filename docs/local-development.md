@@ -9,7 +9,7 @@ ShortPulse runs as a client-only Next.js app.
   - Required tables/policies (see below)
 
 ## Environment variables
-1. Copy `ShortPulse/.env.example` to `ShortPulse/frontend/.env.local`
+1. Copy `ShortPulse/frontend/.env.example` to `ShortPulse/frontend/.env.local`.
 2. Set:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -34,4 +34,3 @@ cd ShortPulse/frontend
 npm run lint
 npm run build
 ```
-

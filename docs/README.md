@@ -9,6 +9,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/repo-structure.md` (where things go)
 - `docs/architecture-overview.md` (system at a glance)
 - `docs/local-development.md` (setup + commands)
+- `docs/supabase_auth_setup.md` (Supabase client setup + auth)
 - `docs/release-checklist.md` (pre-merge checklist)
 - `docs/frontend-architecture.md` (folder structure + feature pattern)
 - `docs/styles-structure.md` (CSS organization)

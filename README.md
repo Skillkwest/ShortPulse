@@ -8,7 +8,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - Analytics: In-browser scoring of a demo cohort with user-triggered refresh/rescore controls.
 
 ## Setup
-1) Copy `.env.example` to `frontend/.env.local` (or export the values in your shell) and set:
+1) Copy `frontend/.env.example` to `frontend/.env.local` (or export the values in your shell) and set:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 2) Install and run the frontend:

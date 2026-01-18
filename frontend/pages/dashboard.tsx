@@ -6,8 +6,9 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
+import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import type { User } from "@supabase/supabase-js";
-import { ChartBar, CloudArrowUp, FolderSimpleOpen, ShieldCheck, Sparkle, UsersThree } from "phosphor-react";
+import { ChartBar, CloudArrowUp, FolderSimple, ShieldCheck, Sparkle, UsersThree, type IconProps } from "phosphor-react";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 
 /**
@@ -52,7 +53,10 @@ export default function DashboardPage() {
   }, []);
 
   const displayName =
-    user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.email || "Guest";
+    (user?.user_metadata?.display_name as string | undefined) ??
+    (user?.user_metadata?.full_name as string | undefined) ??
+    user?.email ??
+    "Guest";
   const firstName = (displayName || "creator").split(" ")[0];
   const planTier = (user?.user_metadata?.plan as string | undefined)?.toLowerCase() || "creative";
   const planMap: Record<string, { label: string; className: string }> = {
@@ -63,14 +67,27 @@ export default function DashboardPage() {
   };
   const planMeta = planMap[planTier] || planMap.free;
   const initials =
-    (displayName || "")
+    displayName
       .split(" ")
-      .filter(Boolean)
-      .map((n) => n[0])
+      .filter((part) => part.trim().length > 0)
+      .map((part) => part[0])
       .join("")
       .slice(0, 2)
       .toUpperCase() || "SP";
-  const toolCards = [
+
+  type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
+  type ToolCard = {
+    title: string;
+    description: string;
+    href: string;
+    cta: string;
+    variant: string;
+    image?: string;
+    icon?: IconComponent;
+    disabled?: boolean;
+  };
+
+  const toolCards: ToolCard[] = [
     {
       title: "Saved Creators",
       description: "Curate the handles you monitor for benchmarking and alerts.",
@@ -87,7 +104,7 @@ export default function DashboardPage() {
       cta: "Open library →",
       variant: "tool-media",
       image: "/dashboard/media-library.png",
-      icon: FolderSimpleOpen,
+      icon: FolderSimple,
     },
     {
       title: "Performance Analytics",
@@ -99,10 +116,10 @@ export default function DashboardPage() {
       icon: ChartBar,
     },
     {
-      title: "AI Content Studio",
-      description: "AI-assisted hooks and prompts. Arriving soon for workspace pilots.",
-      href: "/creator-studio",
-      cta: "Go to studio →",
+      title: "AI Studio",
+      description: "Generate and iterate images/videos with prompt systems, models, and aspect control.",
+      href: "/ai-studio",
+      cta: "Open studio →",
       variant: "tool-creator",
       image: "/dashboard/creator-studio.png",
       icon: Sparkle,
@@ -110,12 +127,6 @@ export default function DashboardPage() {
   ];
 
   const heroCards = [
-    {
-      label: "Plan",
-      value: planMeta.label,
-      className: planMeta.className,
-      icon: ShieldCheck,
-    },
     {
       label: "Media Storage",
       value: "0 / 1 GB",
@@ -130,6 +141,12 @@ export default function DashboardPage() {
       label: "AI credits",
       value: "0 credits",
       icon: Sparkle,
+    },
+    {
+      label: "Plan",
+      value: planMeta.label,
+      className: planMeta.className,
+      icon: ShieldCheck,
     },
   ];
 
@@ -146,6 +163,15 @@ export default function DashboardPage() {
     }
   };
 
+  useEffect(() => {
+    document.body.classList.add("dashboard-body");
+    document.documentElement.classList.add("dashboard-body");
+    return () => {
+      document.body.classList.remove("dashboard-body");
+      document.documentElement.classList.remove("dashboard-body");
+    };
+  }, []);
+
   return (
     <>
       <Head>
@@ -157,10 +183,8 @@ export default function DashboardPage() {
       </Head>
       <main className="page page-wide dashboard-refresh">
         <header className="app-bar">
-          <Link href="/" className="brand-mark">
-            <span className="logo-dot" />
-            <span className="brand-name">ShortPulse</span>
-            <span className="brand-sub">Dashboard</span>
+          <Link href="/" className="brand-mark brand-mark-logo" aria-label="ShortPulse home">
+            <img src="/brand-logo.png" alt="ShortPulse logo" className="brand-logo" />
           </Link>
           <div className="app-bar-right">
             <div className="header-cards">
@@ -219,6 +243,8 @@ export default function DashboardPage() {
             </div>
             <div className="hero-visual">
               <img src="/dashboard/welcome-art.png" alt="Dashboard visual" className="hero-graphic" />
+            </div>
+            <div className="hero-quick-row">
               <Link href="/onboarding" className="hero-onboarding">
                 <div>
                   <p className="eyebrow tiny">Quick start</p>
@@ -226,6 +252,14 @@ export default function DashboardPage() {
                   <p className="subdued tiny">Guided walkthroughs for Creator Studio workflows.</p>
                 </div>
                 <span>Enter →</span>
+              </Link>
+              <Link href="/onboarding?section=workflows" className="hero-onboarding hero-workflow-card">
+                <div>
+                  <p className="eyebrow tiny">Workflows</p>
+                  <h3>AI Workflow Lessons</h3>
+                  <p className="subdued tiny">Deep dives on creation playbooks and applied prompts.</p>
+                </div>
+                <span>Explore →</span>
               </Link>
             </div>
           </div>

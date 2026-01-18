@@ -1,7 +1,7 @@
 /**
  * Static sample dataset for the performance analytics demo.
  * Keeps mock trending reels centralized so the page can focus on presentation and filtering logic.
- * Replace with live API results when the ingestion pipeline is connected.
+ * Replace with live API results if a data source is reintroduced.
  */
 import { SAMPLE_IMAGES } from "../constants";
 import { TrendingVideo } from "../types";

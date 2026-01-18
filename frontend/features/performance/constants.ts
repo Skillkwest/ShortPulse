@@ -5,8 +5,9 @@
  */
 import { DateOption, Niche } from "./types";
 
-export const SCRAPE_CADENCE = "Daily scrape · 00:00 UTC";
-export const SCRAPE_NOTE = "Scrape pipeline not yet wired; displaying sample cohort.";
+export const SCRAPE_CADENCE = "Manual refresh · user-triggered";
+export const SCRAPE_NOTE =
+  "Discover the top performing videos in your niche based on real user engagement metrics.";
 export const OUTLIER_MULTIPLIER_THRESHOLD = 3;
 export const BREAKOUT_SCORE = 95;
 

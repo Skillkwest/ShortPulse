@@ -1,0 +1,25 @@
+# Cursor / AI context ignore (ShortPulse repo)
+
+**/node_modules/
+**/.next/
+**/.turbo/
+**/.cache/
+**/dist/
+**/build/
+**/out/
+**/coverage/
+
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+
+**/.DS_Store
+**/.idea/
+**/.vscode/
+**/*.swp
+
+.env
+.env.*
+!**/.env.example
+

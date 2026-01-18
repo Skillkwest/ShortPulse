@@ -3,7 +3,14 @@ import { useEffect, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { ensureSupabaseClient } from "./supabaseClient";
 
-export const PROTECTED_ROUTES = ["/dashboard", "/performance", "/saved-creators", "/media-library", "/creator-studio"];
+export const PROTECTED_ROUTES = [
+  "/dashboard",
+  "/performance",
+  "/saved-creators",
+  "/media-library",
+  "/ai-studio",
+  "/creator-studio",
+];
 
 type UseProtectedRouteResult = {
   session: Session | null;

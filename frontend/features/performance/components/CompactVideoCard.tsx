@@ -34,18 +34,29 @@ export function CompactVideoCard({ video, onSelect }: CompactVideoCardProps) {
         <span className="rank-badge">#{video.rank}</span>
       </div>
       <div className="compact-body">
-        <h4 className="compact-title" title={video.caption_text || ""}>
-          {video.caption_text || "Untitled"}
-        </h4>
-        <div className="compact-metrics">
-          <span className="metric-views">{formatCompact(video.views)} views</span>
-          <span className="outlier-badge">{video.outlierMultiplier.toFixed(1)}× over median</span>
+        <div className="score-bar">
+          <span className="score-label">Performance score:</span>
+          <span className="score-value">{video.performance_score.toFixed(1)}</span>
         </div>
-        <div className="compact-meta">
-          <span className={`platform-pill tiny ${video.platform}`}>{video.platform_label}</span>
-          <span className="pill tiny">{video.category}</span>
-          <span className="pill tiny">{formatAgo(video.publish_time)}</span>
-          <span className="pill tiny">ER {formatPercent(video.engagement_rate)}</span>
+        <div className="metric-row primary">
+          <div>
+            <p className="metric-label">Views</p>
+            <p className="metric-value">{formatCompact(video.views)}</p>
+          </div>
+          <div className="metric-block">
+            <p className="metric-label">Outlier</p>
+            <p className="metric-value outlier">{video.outlierMultiplier.toFixed(1)}× over median</p>
+          </div>
+        </div>
+        <div className="metric-row secondary">
+          <div className="meta-group">
+            <span className="meta-label">Platform</span>
+            <span className={`platform-pill tiny ${video.platform}`}>{video.platform_label}</span>
+          </div>
+          <div className="meta-group">
+            <span className="meta-label">Niche</span>
+            <span className="pill tiny">{video.category}</span>
+          </div>
         </div>
       </div>
     </article>

@@ -25,6 +25,19 @@
   font-size: 20px;
 }
 
+.brand-mark.brand-mark-logo {
+  gap: 10px;
+}
+
+.brand-logo {
+  height: 64px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+  padding-left: 6px;
+  margin-left: 24px;
+}
+
 .brand-name {
   font-weight: 800;
 }

@@ -1,40 +1,41 @@
 # Data Dictionary
 
-Purpose: define core tables and derived metrics used by ShortPulse.
+Purpose: define the Supabase tables and demo analytics fields used by ShortPulse’s frontend-only experience.
 
-## Tables
-### reels_raw_events
+## Supabase tables
+### saved_creators
 - `id` (uuid, pk)
-- `reel_id` (string): Platform-specific id or shortcode.
-- `platform` (string): instagram | tiktok | youtube.
-- `reel_url` (string): Canonical URL to the reel/short.
-- `scraped_at` (timestamptz): When the event was ingested.
-- `publish_time` (timestamptz): When the content was published.
-- `views`, `likes`, `comments` (int): Raw counts at scrape time.
-- `shares_or_saves` (int, nullable): Shares or saves count when available.
-- `caption_text` (text, nullable)
-- `audio_id`, `audio_name` (string, nullable)
-- `duration_seconds` (float, nullable)
-- `apify_run_id` (string): Source run identifier.
-- `source_surface` (string): Source surface (default reels_feed).
-- `created_at` (timestamptz): Insert timestamp.
+- `handle` (text): Creator handle stored in normalized form.
+- `platform` (text): instagram | tiktok | youtube.
+- `followers` (int, default 0)
+- `avg_views` (int, default 0)
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `created_at` (timestamptz, default now)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
-### reels_latest_state
-- `reel_id` (pk): Same as raw events.
-- `platform`, `reel_url`: Canonical platform and URL.
-- `publish_time` (timestamptz): Original publish time.
-- `latest_views`, `latest_likes`, `latest_comments`, `latest_shares_or_saves` (int): Latest known counts.
-- `latest_scraped_at` (timestamptz): Timestamp of latest scrape.
-- `caption_text`, `audio_id`, `audio_name`, `duration_seconds` (nullable): Metadata.
-- `updated_at` (timestamptz): Auto-updated timestamp.
+### media_files
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `filename` (text): Friendly file name stored alongside the object.
+- `storage_path` (text): Full path in the `media_library` bucket (prefix with `auth.uid()`).
+- `file_type` (text): image | video (or MIME-derived fallback).
+- `file_size` (bigint, nullable): Bytes.
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `created_at` (timestamptz, default now)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
-## Derived metrics (computed in `app/metrics.py`)
-- `hours_since_publish`: Max of 1 minute and elapsed hours since publish.
-- `views_per_hour`: `latest_views / hours_since_publish`.
-- `engagement_rate`: `(likes + comments + shares_or_saves) / views` (0 if views is 0).
-- Percentiles: computed per cohort for `views`, `views_per_hour`, `engagement_rate` (0–100).
-- `performance_score`: weighted blend `0.45*engagement_percentile + 0.40*views_per_hour_percentile + 0.15*views_percentile`.
+### storage.objects (Supabase bucket)
+- Bucket: `media_library` (private).
+- Policy: allow select/insert/update/delete when bucket is `media_library` **and** the folder prefix matches `auth.uid()` (or service role).
+- See `sql/storage_policies.sql` for the full policy script.
 
-## Notes
-- Duplicate raw events are de-duplicated via `uq_reel_scrape_run` on `(reel_id, scraped_at, apify_run_id)`.
-- Latest state upserts on `reel_id` to keep the freshest snapshot per video.
+## Demo analytics fields (computed client-side)
+- `reel_id`, `reel_url`, `platform`, `platform_label`, `category`, `creator_username`
+- `publish_time`, `latest_scraped_at`
+- `views`, `likes`, `comments`, `shares_or_saves`
+- Derived per refresh:
+  - `hours_since_publish` (from `publish_time`)
+  - `views_per_hour` = `views / hours_since_publish`
+  - `engagement_rate` = `(likes + comments + shares_or_saves) / views` (0 if views is 0)
+  - Percentiles for `views`, `views_per_hour`, `engagement_rate`
+  - `performance_score` = `0.45*engagement_percentile + 0.40*views_per_hour_percentile + 0.15*views_percentile`
+- Additional fields used by UI: `completion_rate`, `click_through_rate`, `watch_time_seconds`, `trend_direction`, `rank`, `outlierMultiplier` (derived in-page).

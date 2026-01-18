@@ -17,6 +17,7 @@ export type PrimaryFilterBarProps = {
   onToggleOutliers: () => void;
   searchTerm: string;
   onSearchChange: (value: string) => void;
+  resultsCount: number;
 };
 
 /**
@@ -33,6 +34,7 @@ export function PrimaryFilterBar({
   onToggleOutliers,
   searchTerm,
   onSearchChange,
+  resultsCount,
 }: PrimaryFilterBarProps) {
   return (
     <section className="filter-bar">
@@ -84,17 +86,22 @@ export function PrimaryFilterBar({
         >
           Outliers
         </button>
-        <div className="search-chip primary">
-          <span className="search-icon" aria-hidden>
-            <MagnifyingGlass size={16} weight="bold" />
+        <div className="search-row">
+          <div className="search-chip primary">
+            <span className="search-icon" aria-hidden>
+              <MagnifyingGlass size={16} weight="bold" />
+            </span>
+            <input
+              type="text"
+              placeholder="Search keywords, niches, creators…"
+              aria-label="Search"
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+            />
+          </div>
+          <span className="pill tiny results-pill filter-results" aria-live="polite">
+            {resultsCount} results
           </span>
-          <input
-            type="text"
-            placeholder="Search keywords, niches, creators…"
-            aria-label="Search"
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
         </div>
       </div>
     </section>
@@ -110,6 +117,7 @@ export type ThresholdFilterBarProps = {
   onMinLikesChange: (value: string) => void;
   onMinFollowersChange: (value: string) => void;
   onMaxFollowersChange: (value: string) => void;
+  onClear: () => void;
 };
 
 /**
@@ -125,6 +133,7 @@ export function ThresholdFilterBar({
   onMinLikesChange,
   onMinFollowersChange,
   onMaxFollowersChange,
+  onClear,
 }: ThresholdFilterBarProps) {
   return (
     <section className="filter-bar sub">
@@ -178,6 +187,9 @@ export function ThresholdFilterBar({
           />
         </div>
       </div>
+      <button type="button" className="ghost-btn small clear-btn" onClick={onClear} aria-label="Clear filters">
+        Clear
+      </button>
     </section>
   );
 }

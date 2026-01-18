@@ -1,0 +1,8 @@
+# CODEOWNERS
+# This repo is currently single-maintainer; these entries exist to formalize ownership as it grows.
+
+/frontend/ @sleepyseamonster
+/docs/ @sleepyseamonster
+/sql/ @sleepyseamonster
+/.github/ @sleepyseamonster
+

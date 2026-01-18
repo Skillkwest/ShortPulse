@@ -13,6 +13,8 @@ This document defines the **official product specification** for the **Top Perfo
 
 This is the canonical reference. All future decisions must remain consistent with this document unless explicitly superseded.
 
+> **Current mode:** The backend ingestion system has been removed. The page now runs entirely on a client-side demo dataset with user-triggered refresh/rescore controls. References to ingestion below describe the intended future direction when live data is reintroduced.
+
 ---
 
 # 1. What This Page Is
@@ -420,4 +422,3 @@ The system is designed to scale into:
 This document is the authoritative Source of Truth for the design and implementation of the Top Performing Videos page in ShortPulse.
 
 End of document.
-

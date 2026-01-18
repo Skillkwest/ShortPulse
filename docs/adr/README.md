@@ -1,0 +1,14 @@
+# Architecture Decision Records (ADRs)
+
+ADRs capture **important, durable decisions** so the repo stays coherent as it grows.
+
+## When to write an ADR
+- Introducing or removing a major dependency/tooling (e.g., test framework, state management).
+- Changing architecture (e.g., client-only → backend, pages router → app router).
+- New cross-cutting patterns (e.g., feature module conventions, data contracts).
+
+## How to add one
+1. Copy `TEMPLATE.md` to a new file: `NNNN-title-in-kebab-case.md`
+2. Fill it out succinctly (1–2 pages is ideal).
+3. Link it from `docs/README.md` if it changes how people work.
+

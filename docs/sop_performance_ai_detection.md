@@ -68,3 +68,4 @@ Frontend handling:
 - Keep all ranking math server/data-side; the page consumes scored records and renders.
 - Persist `last_refresh_at` alongside `data_version` to keep the live indicator consistent.
 - When integrating real data, keep demo fallback values (`null`/`undefined`) valid to avoid UI blowups during rollout.
+

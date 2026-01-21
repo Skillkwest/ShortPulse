@@ -7,7 +7,13 @@
 @import "./workspace-shared.css";
 @import "./workspace-chrome.css";
 @import "./workspace-dashboard.css";
-@import "./workspace-ai-studio.css";
+@import "./ai-studio-layout.css";
+@import "./ai-studio-canvas.css";
+@import "./ai-studio-controls.css";
+@import "./ai-studio-dropzones.css";
+@import "./ai-studio-panels.css";
+@import "./ai-studio-modals.css";
+@import "./ai-studio-responsive.css";
 @import "./workspace-tools.css";
 @import "./workspace-media.css";
 @import "./workspace-profile.css";

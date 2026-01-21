@@ -1,0 +1,309 @@
+/**
+ * AI Studio canvas surfaces.
+ * Reference grid, preview surfaces, and prompt preview styling.
+ */
+.reference-canvas-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  width: 100%;
+  align-content: start;
+}
+
+.reference-canvas-scroll {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  max-height: 710px;
+  overflow-y: auto;
+}
+
+.reference-canvas-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.reference-canvas-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reference-canvas-scroll::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.25);
+  border-radius: 999px;
+}
+
+.reference-canvas-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.4);
+}
+
+.reference-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px 8px;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+  color: var(--ai-card-text-faint);
+}
+
+.reference-empty .preview-title {
+  color: #4c5159;
+}
+
+.reference-empty .subdued,
+.reference-empty .tiny {
+  color: #373c4a !important;
+}
+
+.reference-card {
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(17, 20, 27, 0.9), rgba(17, 20, 27, 0.95));
+  color: inherit;
+  text-align: left;
+  display: block;
+  aspect-ratio: 4 / 5;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.reference-card:hover {
+  transform: translateY(-1px);
+}
+
+.reference-card.is-active {
+  transform: translateY(-1px);
+  outline-color: rgba(37, 169, 191, 0.95);
+  box-shadow: 0 0 0 2px rgba(37, 169, 191, 0.25);
+}
+
+.reference-card.has-text {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  background: rgba(17, 20, 27, 0.92);
+  padding: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.reference-card-text {
+  color: var(--ai-card-text);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 10;
+  -webkit-box-orient: vertical;
+  max-height: 100%;
+  min-height: 0;
+  height: 100%;
+}
+
+.preview-surface {
+  position: relative;
+  border-radius: 14px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  height: 420px;
+  max-width: 420px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--ai-container-card-bg);
+}
+.preview-media-btn {
+  border-radius: 999px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(201, 205, 214, 0.2);
+  background: rgba(201, 205, 214, 0.06);
+  color: #f5f9ff;
+  font-size: 13px;
+  box-shadow: none;
+}
+.preview-media-btn:hover {
+  border-color: rgba(201, 205, 214, 0.4);
+}
+
+.preview-surface.reference-dropzone {
+  height: auto;
+  aspect-ratio: 4 / 5;
+  border-radius: 10px;
+  border-color: rgba(184, 202, 220, 0.4);
+  background: rgba(12, 15, 22, 0.9);
+}
+
+.preview-surface.reference-drop-layout {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  display: block;
+  padding: 0;
+  height: auto;
+  aspect-ratio: auto;
+  width: 100%;
+  max-width: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.reference-column {
+  display: flex;
+  justify-content: center;
+}
+
+.preview-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 600px;
+  padding: 16px;
+}
+
+.preview-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ai-card-text);
+}
+
+.ai-empty {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: 16px;
+  padding: 0 4px;
+}
+
+.preview-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.recreate-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 0px;
+  margin-top: 4px;
+}
+
+.studio-preview-square {
+  width: 68%;
+  aspect-ratio: 4 / 5;
+  border-radius: 14px;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  background: rgba(12, 15, 22, 0.85);
+  margin: 0 auto;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.studio-preview-square-image {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.studio-preview-square-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--ai-card-text-muted);
+}
+
+.prompt-preview-card {
+  margin-top: 0;
+  padding: 10px 12px;
+  background: rgba(12, 15, 22, 0.85);
+  border: 1px solid rgba(12, 15, 22, 0.85);
+  border-radius: 10px;
+  color: var(--ai-card-text);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 200px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.prompt-preview-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.prompt-preview-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.prompt-preview-card::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.25);
+  border-radius: 999px;
+}
+
+.prompt-preview-card::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.45);
+}
+
+.prompt-preview-input {
+  width: 100%;
+  min-height: 200px;
+  border: none;
+  background: transparent;
+  color: var(--ai-card-text);
+  font-size: 14px;
+  line-height: 1.4;
+  font-family: inherit;
+  resize: none;
+}
+
+.prompt-preview-input:focus {
+  outline: none;
+}
+
+.prompt-preview-input::placeholder {
+  color: var(--ai-card-text-faint);
+}
+
+.prompt-preview-label {
+  margin: 0;
+  color: var(--ai-card-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.prompt-preview-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ai-card-text);
+  white-space: pre-wrap;
+}

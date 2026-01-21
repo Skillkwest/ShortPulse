@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 /**
  * Lightweight preview grid for the demo cards.
  * Normalizes thumbnails so other parts of the app can swap in real imagery without reworking layout.

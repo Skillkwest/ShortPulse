@@ -2,7 +2,6 @@
  * Marketing landing page for ShortPulse.
  * Presents product positioning, feature highlights, testimonials, and pricing for visitors.
  */
-/* eslint-disable @next/next/no-img-element */
 import Head from "next/head";
 import Link from "next/link";
 import { useState } from "react";

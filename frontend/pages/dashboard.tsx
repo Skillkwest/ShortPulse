@@ -2,6 +2,7 @@
  * Dashboard shell for logged-in users.
  * Provides entry points to performance analytics, saved creators, and other workspace modules.
  */
+import Image from "next/image";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -184,7 +185,7 @@ export default function DashboardPage() {
       <main className="page page-wide dashboard-refresh">
         <header className="app-bar">
           <Link href="/" className="brand-mark brand-mark-logo" aria-label="ShortPulse home">
-            <img src="/brand-logo.png" alt="ShortPulse logo" className="brand-logo" />
+            <Image src="/brand-logo.png" alt="ShortPulse logo" className="brand-logo" width={160} height={46} priority />
           </Link>
           <div className="app-bar-right">
             <div className="header-cards">
@@ -242,7 +243,14 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="hero-visual">
-              <img src="/dashboard/welcome-art.png" alt="Dashboard visual" className="hero-graphic" />
+              <Image
+                src="/dashboard/welcome-art.png"
+                alt="Dashboard visual"
+                className="hero-graphic"
+                width={640}
+                height={520}
+                priority
+              />
             </div>
             <div className="hero-quick-row">
               <Link href="/onboarding" className="hero-onboarding">
@@ -282,7 +290,14 @@ export default function DashboardPage() {
                   ) : null}
                   {tool.image ? (
                     <div className="tool-card-hero">
-                      <img src={tool.image} alt={`${tool.title} visual`} />
+                      <Image
+                        src={tool.image}
+                        alt={`${tool.title} visual`}
+                        fill
+                        sizes="(max-width: 900px) 100vw, 320px"
+                        style={{ objectFit: "contain" }}
+                        priority={tool.title === "Saved Creators"}
+                      />
                     </div>
                   ) : null}
                   <div className="tool-card-body">

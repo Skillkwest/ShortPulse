@@ -1,135 +1,27 @@
-/**
- * AI Studio workspace page.
- * Photoshop-like layout with left toolbar, center preview/output rail, and right-side properties per tool.
- */
 import Head from "next/head";
 import Link from "next/link";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowClockwise, CloudArrowUp, ShieldCheck, Sparkle, UploadSimple } from "phosphor-react";
+
+import { CreateProperties } from "../components/ai-studio/CreateProperties";
+import { DetailModal } from "../components/ai-studio/DetailModal";
+import { OrganizeProperties } from "../components/ai-studio/OrganizeProperties";
+import { PreviewCard } from "../components/ai-studio/PreviewCard";
+import { ReferenceCanvas } from "../components/ai-studio/ReferenceCanvas";
+import { RecreateProperties } from "../components/ai-studio/RecreateProperties";
+import { Toolbar } from "../components/ai-studio/Toolbar";
 import {
-  ArrowClockwise,
-  ArrowFatLinesRight,
-  CloudArrowUp,
-  FloppyDisk,
-  ImageSquare,
-  MagicWand,
-  Plus,
-  ShieldCheck,
-  Sparkle,
-  SquaresFour,
-  UploadSimple,
-  VideoCamera,
-} from "phosphor-react";
-
-// --- Types ------------------------------------------------------------------
-
-type StudioMode = "enhance" | "image" | "video";
-
-type AspectOption = {
-  label: string;
-  value: string;
-};
-
-type PromptTemplate = {
-  id: string;
-  label: string;
-  text: string;
-};
-
-type StudioOutput = {
-  id: string;
-  prompt: string;
-  mode: StudioMode;
-  aspect: string;
-  model: string;
-  status: "ready" | "saved";
-  timestamp: string;
-  previewUrl?: string;
-  previewText?: string;
-};
-
-// --- Configurable options ---------------------------------------------------
-
-const aspectOptions: AspectOption[] = [
-  { label: "9:16 (Vertical)", value: "9:16" },
-  { label: "4:5 (Portrait)", value: "4:5" },
-  { label: "3:2 (Wide)", value: "3:2" },
-  { label: "16:9 (Landscape)", value: "16:9" },
-  { label: "1:1 (Square)", value: "1:1" },
-];
-
-const modelOptions = [
-  { value: "pulse-vision", label: "Pulse Vision v2" },
-  { value: "kinetic-video", label: "Kinetic v1" },
-  { value: "aura-diffusion", label: "Aura Diffusion" },
-];
-
-const promptTemplates: PromptTemplate[] = [
-  {
-    id: "product-demo",
-    label: "Product demo",
-    text: "Close-up vertical shot of the product in use with soft window light and a clean backdrop.",
-  },
-  {
-    id: "tutorial",
-    label: "Tutorial beat",
-    text: "Step-by-step short tutorial showing setup, middle action, and a clear call to action on-screen.",
-  },
-  {
-    id: "mood",
-    label: "Moodboard",
-    text: "Cinematic stills with shallow depth of field, teal accents, and tactile close-ups.",
-  },
-  {
-    id: "promo",
-    label: "Promo CTA",
-    text: "Hero shot centered, dark backdrop, crisp text overlay for a quick promo message.",
-  },
-];
+  aspectOptions,
+  modelOptions,
+  modeIconMap,
+  previewPlaceholders,
+  promptTemplates,
+  toolIcons,
+  toolList,
+} from "../components/ai-studio/config";
+import { StudioMode, StudioOutput, ToolId } from "../components/ai-studio/types";
 
 const randomId = () => Math.random().toString(36).slice(2);
-
-const previewPlaceholders = [
-  "/dashboard/ai-studio-hero.png",
-  "/dashboard/welcome-art.png",
-  "/brand-logo.png",
-  "/placeholder-portrait.png",
-  "/placeholder-portrait-2.png",
-];
-
-// --- Tool metadata ----------------------------------------------------------
-
-type ToolId = "create" | "edit" | "image-to-video" | "organize";
-
-const toolIcons: Record<ToolId, React.ComponentType<any>> = {
-  create: Sparkle,
-  edit: ImageSquare,
-  "image-to-video": VideoCamera,
-  organize: SquaresFour,
-};
-
-const toolList: { id: ToolId; label: string; desc: string }[] = [
-  { id: "create", label: "Create", desc: "Prompt and output type" },
-  { id: "edit", label: "Image to Image", desc: "Regenerate from a reference" },
-  { id: "image-to-video", label: "Image to Video", desc: "Animate a still image" },
-  { id: "organize", label: "Organize", desc: "Apply saved layouts" },
-];
-
-const modeLabel = (value: StudioMode) => {
-  switch (value) {
-    case "video":
-      return "Video";
-    case "image":
-      return "Image";
-    default:
-      return "Enhance";
-  }
-};
-
-const modeIconMap: Record<StudioMode, React.ComponentType<any>> = {
-  enhance: MagicWand,
-  image: ImageSquare,
-  video: VideoCamera,
-};
 
 /**
  * Render AI Studio with a tool sidebar, preview canvas, and properties pane.
@@ -488,595 +380,111 @@ export default function AiStudioPage() {
   };
 
   // --- Properties panel renderers ------------------------------------------
-  const renderCreateProperties = () => {
-    const isEnhanceMode = mode === "enhance";
-    const promptStepNumber = "3";
-
-    return (
-      <div className="tool-properties">
-        <div className="tool-header">
-          <p className="eyebrow">Create</p>
-          <p className="subdued tiny">Generate new content using text input.</p>
-        </div>
-        <div className="step-card">
-          <div className="step-card-header">
-            <span className="step-badge">1</span>
-            <div className="step-header-copy">
-              <p className="step-title">Select Generation Mode</p>
-              <span className="step-subtitle tiny">Select the output type you want to generate. </span>
-            </div>
-          </div>
-          <div className="create-controls top-row mode-toggle-row" role="group" aria-label="Select generation mode">
-            <button
-              type="button"
-              className={`ghost-btn small mode-toggle-btn ${mode === "enhance" ? "is-active" : ""}`}
-              aria-pressed={mode === "enhance"}
-              onClick={() => setMode("enhance")}
-            >
-              <MagicWand size={16} weight="regular" /> Prompt
-            </button>
-            <button
-              type="button"
-              className={`ghost-btn small mode-toggle-btn ${mode === "image" ? "is-active" : ""}`}
-              aria-pressed={mode === "image"}
-              onClick={() => setMode("image")}
-            >
-              <ImageSquare size={16} weight="regular" /> Image
-            </button>
-            <button
-              type="button"
-              className={`ghost-btn small mode-toggle-btn ${mode === "video" ? "is-active" : ""}`}
-              aria-pressed={mode === "video"}
-              onClick={() => setMode("video")}
-            >
-              <VideoCamera size={16} weight="regular" /> Video
-            </button>
-          </div>
-        </div>
-        {isEnhanceMode ? (
-          <div className="step-card">
-            <div className="step-card-header">
-              <span className="step-badge">2</span>
-              <div className="step-header-copy">
-                <p className="step-title">Describe Image Mode (Optional)</p>
-                <span className="step-subtitle tiny">Select a reference to generate a description of the image →</span>
-              </div>
-              <div className="step-header-actions">
-                <button
-                  type="button"
-                  className={`reference-toggle ${useReferenceImageIndicator ? "is-active" : ""}`}
-                  onClick={handleReferenceIndicatorToggle}
-                  disabled={!activeOutput?.previewUrl}
-                  aria-pressed={useReferenceImageIndicator}
-                  aria-label={
-                    useReferenceImageIndicator
-                      ? "Reference linked; click to unlink"
-                      : activeOutput?.previewUrl
-                        ? "Link selected reference"
-                        : "No image selected"
-                  }
-                >
-                  <span className="reference-toggle-track">
-                    <span className="reference-toggle-dot" aria-hidden="true" />
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="step-card">
-            <div className="step-card-header">
-              <span className="step-badge">2</span>
-              <div className="step-header-copy">
-                <p className="step-title">Choose frame & model</p>
-                <span className="step-subtitle tiny">Set the aspect ratio, then select the model.</span>
-              </div>
-            </div>
-            <div className="create-controls dual-controls">
-              <div className="control-row compact">
-                <label className="input-label">Aspect ratio</label>
-                <div className="select-shell fixed-select">
-                  <select value={aspect} onChange={(event) => setAspect(event.target.value)} className="model-select">
-                    {aspectOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="control-row compact">
-                <label className="input-label">Model</label>
-                <div className="select-shell fixed-select">
-                  <select value={model} onChange={(event) => setModel(event.target.value)} className="model-select">
-                    {modelOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        <div className="step-card prompt-step">
-          <div className="step-card-header">
-            <span className="step-badge">{promptStepNumber}</span>
-            <div className="step-header-copy">
-              <p className="step-title">Write Your Prompt</p>
-              <span className="step-subtitle tiny">Describe What you want to create, then click Generate.</span>
-            </div>
-          </div>
-          <textarea
-            ref={promptRef}
-            className="prompt-input"
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            rows={8}
-            placeholder={
-              mode === "enhance" ? "Type a simple prompt you want enhanced." : "Describe the image or video you want to create."
-            }
-          />
-          <div className="ai-control-strip">
-            <div className="ai-control-actions">
-              <button type="button" className="ghost-btn mini">
-                <CloudArrowUp size={12} weight="regular" /> Media library
-              </button>
-              <button type="button" className="ghost-btn mini" onClick={handleSavePromptReference}>
-                <FloppyDisk size={12} weight="regular" /> Save prompt
-              </button>
-            </div>
-            <button type="button" className="primary-btn" onClick={handleGenerate}>
-              {modeIconMap[mode] ? (
-                React.createElement(modeIconMap[mode], { size: 18, weight: "fill" })
-              ) : (
-                <Sparkle size={18} weight="fill" />
-              )}{" "}
-              Generate
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderRecreateProperties = (title: string, subtitle: string) => (
-    <div className="tool-properties">
-      <div className="tool-header">
-        <p className="eyebrow">{title}</p>
-        <p className="subdued tiny">{subtitle}</p>
-      </div>
-      <div className="reference-drop-layout-inner">
-        <div className="reference-dropzone-block image-block">
-          <div className="regenerate-step-card">
-            <div className="regenerate-step-header">
-              <span className="step-badge mini">1</span>
-              <div className="regenerate-step-copy">
-                <p className="step-title">Add Image</p>
-                <span className="step-subtitle tiny">Drag a reference from the canvas or upload one manually.</span>
-              </div>
-              <div className="reference-drop-header-actions">
-                <button type="button" className="ghost-btn mini" onClick={handleClearDropImages}>
-                  Clear
-                </button>
-              </div>
-            </div>
-            <div className="drop-image-row">
-              <div className="primary-drop">
-                <div
-                  className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""}`}
-                  onDrop={handleImageDrop}
-                  onDragOver={handleDragOver}
-                  onClick={() => referenceImageInputRef.current?.click()}
-                  style={referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined}
-                >
-                  {referenceImageUrl ? (
-                    <button
-                      type="button"
-                      className="dropzone-clear"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        clearReferenceImage(setReferenceImageUrl);
-                      }}
-                    >
-                      ×
-                    </button>
-                  ) : null}
-                  <div className="reference-drop-content image-drop-content">
-                    <UploadSimple size={22} weight="regular" />
-                    <p className="reference-drop-title">Click to upload an image</p>
-                  </div>
-                </div>
-              </div>
-              <div className="secondary-drop">
-                <div
-                  className={`reference-dropzone extra ${extraImageUrlOne ? "has-preview" : ""}`}
-                  onDrop={handleExtraImageDropOne}
-                  onDragOver={handleDragOver}
-                  onClick={() => extraImageOneInputRef.current?.click()}
-                  style={extraImageUrlOne ? { backgroundImage: `url(${extraImageUrlOne})` } : undefined}
-                >
-                  {extraImageUrlOne ? (
-                    <button
-                      type="button"
-                      className="dropzone-clear"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        clearReferenceImage(setExtraImageUrlOne);
-                      }}
-                    >
-                      ×
-                    </button>
-                  ) : (
-                    <Plus size={22} weight="regular" />
-                  )}
-                </div>
-              </div>
-              <div className="secondary-drop">
-                <div
-                  className={`reference-dropzone extra ${extraImageUrlTwo ? "has-preview" : ""}`}
-                  onDrop={handleExtraImageDropTwo}
-                  onDragOver={handleDragOver}
-                  onClick={() => extraImageTwoInputRef.current?.click()}
-                  style={extraImageUrlTwo ? { backgroundImage: `url(${extraImageUrlTwo})` } : undefined}
-                >
-                  {extraImageUrlTwo ? (
-                    <button
-                      type="button"
-                      className="dropzone-clear"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        clearReferenceImage(setExtraImageUrlTwo);
-                      }}
-                    >
-                      ×
-                    </button>
-                  ) : (
-                    <Plus size={22} weight="regular" />
-                  )}
-                </div>
-              </div>
-              <div className="secondary-drop">
-                <div
-                  className={`reference-dropzone extra ${extraImageUrlThree ? "has-preview" : ""}`}
-                  onDrop={handleExtraImageDropThree}
-                  onDragOver={handleDragOver}
-                  onClick={() => extraImageThreeInputRef.current?.click()}
-                  style={extraImageUrlThree ? { backgroundImage: `url(${extraImageUrlThree})` } : undefined}
-                >
-                  {extraImageUrlThree ? (
-                    <button
-                      type="button"
-                      className="dropzone-clear"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        clearReferenceImage(setExtraImageUrlThree);
-                      }}
-                    >
-                      ×
-                    </button>
-                  ) : (
-                    <Plus size={22} weight="regular" />
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="step-card recreate-frame-card">
-          <div className="step-card-header">
-            <span className="step-badge">2</span>
-            <div className="step-header-copy">
-              <p className="step-title">Choose Frame & Model</p>
-              <span className="step-subtitle tiny">Pick the target aspect ratio and AI model before you regenerate.</span>
-            </div>
-          </div>
-          <div className="create-controls dual-controls recreate-frame-controls">
-            <div className="control-row compact">
-              <label className="input-label">Aspect ratio</label>
-              <div className="select-shell fixed-select">
-                <select value={aspect} onChange={(event) => setAspect(event.target.value)} className="model-select">
-                  {aspectOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="control-row compact">
-              <label className="input-label">Model</label>
-              <div className="select-shell fixed-select">
-                <select value={model} onChange={(event) => setModel(event.target.value)} className="model-select">
-                  {modelOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="reference-dropzone-block prompt-block">
-          <div className="regenerate-step-card">
-            <div className="regenerate-step-header">
-              <span className="step-badge mini">3</span>
-              <div className="regenerate-step-copy">
-                <p className="step-title">Add Prompt</p>
-                <span className="step-subtitle tiny">Drop a saved prompt or describe the look you want to recreate.</span>
-              </div>
-            </div>
-            <div
-              className={`text-dropzone prompt-text-dropzone ${referenceText ? "has-text" : ""}`}
-              onDrop={handlePromptDrop}
-              onDragOver={handleDragOver}
-            >
-              <textarea
-                className="prompt-drop-input"
-                placeholder="Drag and drop a prompt from the Reference Canvas or start typing"
-                value={referenceText ?? ""}
-                onChange={(event) => setReferenceText(event.target.value)}
-              />
-            </div>
-            <div className="recreate-actions">
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={activeOutput ? handleSave : undefined}
-                disabled={!activeOutput || saved || activeOutput.status === "saved"}
-              >
-                <FloppyDisk size={18} weight="bold" /> {activeOutput?.status === "saved" ? "Saved" : "Save"}
-              </button>
-              <button type="button" className="ghost-btn" onClick={handleGenerate}>
-                <ArrowClockwise size={18} weight="bold" /> Regenerate
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderEditProperties = () =>
-    renderRecreateProperties("Recreate", "Recreate images using references.");
-
-  const renderImageToVideoProperties = () =>
-    renderRecreateProperties("Image to Video", "Animate still images using references and prompts.");
-
-  const renderOrganizeProperties = () => (
-    <div className="tool-properties">
-      <p className="eyebrow">Organize</p>
-      <div className="preset-list properties-list">
-        {promptTemplates.map((template) => (
-          <button
-            key={template.id}
-            type="button"
-            className="preset-card"
-            onClick={() => handleUsePreset(template.text)}
-          >
-            <span className="preset-label">{template.label}</span>
-            <span className="preset-text">{template.text}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
   const renderProperties = () => {
     switch (selectedTool) {
       case "create":
-        return renderCreateProperties();
+        return (
+          <CreateProperties
+            mode={mode}
+            aspect={aspect}
+            model={model}
+            prompt={prompt}
+            activeOutput={activeOutput}
+            useReferenceImageIndicator={useReferenceImageIndicator}
+            promptRef={promptRef}
+            aspectOptions={aspectOptions}
+            modelOptions={modelOptions}
+            modeIconMap={modeIconMap}
+            onModeChange={setMode}
+            onAspectChange={setAspect}
+            onModelChange={setModel}
+            onPromptChange={setPrompt}
+            onToggleReferenceIndicator={handleReferenceIndicatorToggle}
+            onSavePromptReference={handleSavePromptReference}
+            onGenerate={handleGenerate}
+          />
+        );
       case "edit":
-        return renderEditProperties();
+        return (
+          <RecreateProperties
+            title="Recreate"
+            subtitle="Recreate images using references."
+            aspect={aspect}
+            model={model}
+            referenceImageUrl={referenceImageUrl}
+            extraImageUrlOne={extraImageUrlOne}
+            extraImageUrlTwo={extraImageUrlTwo}
+            extraImageUrlThree={extraImageUrlThree}
+            referenceText={referenceText}
+            saved={saved}
+            activeOutput={activeOutput}
+            aspectOptions={aspectOptions}
+            modelOptions={modelOptions}
+            onAspectChange={setAspect}
+            onModelChange={setModel}
+            onClearDropImages={handleClearDropImages}
+            onPrimaryDrop={handleImageDrop}
+            onExtraOneDrop={handleExtraImageDropOne}
+            onExtraTwoDrop={handleExtraImageDropTwo}
+            onExtraThreeDrop={handleExtraImageDropThree}
+            onDragOver={handleDragOver}
+            onPrimaryClick={() => referenceImageInputRef.current?.click()}
+            onExtraOneClick={() => extraImageOneInputRef.current?.click()}
+            onExtraTwoClick={() => extraImageTwoInputRef.current?.click()}
+            onExtraThreeClick={() => extraImageThreeInputRef.current?.click()}
+            onRemovePrimary={() => clearReferenceImage(setReferenceImageUrl)}
+            onRemoveExtraOne={() => clearReferenceImage(setExtraImageUrlOne)}
+            onRemoveExtraTwo={() => clearReferenceImage(setExtraImageUrlTwo)}
+            onRemoveExtraThree={() => clearReferenceImage(setExtraImageUrlThree)}
+            onPromptDrop={handlePromptDrop}
+            onPromptTextChange={setReferenceText}
+            onSave={handleSave}
+            onGenerate={handleGenerate}
+          />
+        );
       case "image-to-video":
-        return renderImageToVideoProperties();
+        return (
+          <RecreateProperties
+            title="Image to Video"
+            subtitle="Animate still images using references and prompts."
+            aspect={aspect}
+            model={model}
+            referenceImageUrl={referenceImageUrl}
+            extraImageUrlOne={extraImageUrlOne}
+            extraImageUrlTwo={extraImageUrlTwo}
+            extraImageUrlThree={extraImageUrlThree}
+            referenceText={referenceText}
+            saved={saved}
+            activeOutput={activeOutput}
+            aspectOptions={aspectOptions}
+            modelOptions={modelOptions}
+            onAspectChange={setAspect}
+            onModelChange={setModel}
+            onClearDropImages={handleClearDropImages}
+            onPrimaryDrop={handleImageDrop}
+            onExtraOneDrop={handleExtraImageDropOne}
+            onExtraTwoDrop={handleExtraImageDropTwo}
+            onExtraThreeDrop={handleExtraImageDropThree}
+            onDragOver={handleDragOver}
+            onPrimaryClick={() => referenceImageInputRef.current?.click()}
+            onExtraOneClick={() => extraImageOneInputRef.current?.click()}
+            onExtraTwoClick={() => extraImageTwoInputRef.current?.click()}
+            onExtraThreeClick={() => extraImageThreeInputRef.current?.click()}
+            onRemovePrimary={() => clearReferenceImage(setReferenceImageUrl)}
+            onRemoveExtraOne={() => clearReferenceImage(setExtraImageUrlOne)}
+            onRemoveExtraTwo={() => clearReferenceImage(setExtraImageUrlTwo)}
+            onRemoveExtraThree={() => clearReferenceImage(setExtraImageUrlThree)}
+            onPromptDrop={handlePromptDrop}
+            onPromptTextChange={setReferenceText}
+            onSave={handleSave}
+            onGenerate={handleGenerate}
+          />
+        );
       case "organize":
-        return renderOrganizeProperties();
+        return <OrganizeProperties promptTemplates={promptTemplates} onUsePreset={handleUsePreset} />;
       default:
         return null;
     }
-  };
-
-  // --- Preview surfaces -----------------------------------------------------
-  // Studio Preview card layout; tweak sizing, drop targets, and prompt display here.
-  const renderPreviewCard = (
-    eyebrowLabel: string,
-    variant: "default" | "reference-drop" | "empty" = "default",
-    showMediaButton = false,
-    referenceImageUrl: string | null = null,
-    referenceText: string | null = null,
-    onReferenceDrop?: (url: string) => void,
-    onReferenceTextDrop?: (text: string) => void,
-    showHeader = true,
-    wrapContainer = true,
-  ) => {
-    const isReferenceDrop = variant === "reference-drop";
-    const showSurface = variant !== "empty";
-    const previewImage = activeOutput?.previewUrl || referenceImageUrl;
-    const activePromptText = referenceText ?? "";
-    const handleReferenceDrop = (event: React.DragEvent<HTMLDivElement>) => {
-      if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
-        return;
-      }
-      event.preventDefault();
-      const url = event.dataTransfer.getData("text/plain");
-      if (url && onReferenceDrop) {
-        onReferenceDrop(url);
-      }
-    };
-    const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-    };
-    const handleTextDrop = (event: React.DragEvent<HTMLDivElement>) => {
-      if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
-        return;
-      }
-      event.preventDefault();
-      const text = event.dataTransfer.getData("text/plain");
-      if (text && onReferenceTextDrop) {
-        onReferenceTextDrop(text);
-      }
-    };
-    const handleTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      if (onReferenceTextDrop) {
-        onReferenceTextDrop(event.target.value);
-      }
-    };
-    const cardBody = (
-      <>
-        {showHeader ? (
-          <div className={`panel-header ${showMediaButton ? "preview-header" : ""}`}>
-            <div>
-              <p className="eyebrow">{eyebrowLabel}</p>
-            </div>
-            {showMediaButton ? (
-              <div className="preview-header-actions">
-                <button type="button" className="ghost-btn mini preview-media-btn">
-                  <UploadSimple size={14} weight="regular" />
-                  Add files
-                </button>
-                <Link href="/media-library" className="ghost-btn mini preview-media-btn">
-                  <CloudArrowUp size={14} weight="regular" />
-                  Media library
-                </Link>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        {isReferenceDrop ? (
-          <div className="step-card studio-preview-card">
-            <div
-              className="studio-preview-square"
-              onDrop={handleReferenceDrop}
-              onDragOver={handleDragOver}
-            >
-              {previewImage ? (
-                <div className="studio-preview-square-image" style={{ backgroundImage: `url(${previewImage})` }} />
-              ) : (
-                <div className="studio-preview-square-empty">
-                  <ImageSquare size={24} weight="regular" />
-                  <p className="tiny">Generated images will appear here.</p>
-                </div>
-              )}
-            </div>
-            <div
-              className={`prompt-preview-card ${activePromptText ? "" : "is-empty"}`}
-              onDrop={handleTextDrop}
-              onDragOver={handleDragOver}
-            >
-              <textarea
-                className="prompt-preview-input"
-                value={activePromptText}
-                placeholder="Prompt preview will appear here."
-                onChange={handleTextChange}
-              />
-            </div>
-          </div>
-        ) : null}
-        {showSurface && !isReferenceDrop ? (
-          <div className="preview-surface">
-            <div className="ai-empty">
-              <p className="preview-title">Your preview appears here.</p>
-              <p className="subdued tiny">Select Generate from the left to create an image or video.</p>
-            </div>
-          </div>
-        ) : null}
-      </>
-    );
-
-    if (!wrapContainer) {
-      return cardBody;
-    }
-
-    return (
-      <div className="panel ai-panel ai-preview-panel reference-canvas-panel">
-        {cardBody}
-      </div>
-    );
-  };
-
-  // Reference Canvas grid (left column) — tweak drop behavior or card styling here.
-  const renderReferenceCanvas = (
-    outputs: StudioOutput[],
-    activeOutputId: string | null,
-    setActiveOutputId: (id: string) => void,
-    showHeader = true,
-    onExternalDrop?: (files: FileList) => void,
-  ) => {
-    const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      if (event.dataTransfer.files && event.dataTransfer.files.length > 0 && onExternalDrop) {
-        onExternalDrop(event.dataTransfer.files);
-      }
-    };
-
-    const handleCanvasDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-      if (event.dataTransfer.types.includes("Files")) {
-        event.preventDefault();
-      }
-    };
-
-    return (
-      <div
-        className="panel ai-panel ai-preview-panel reference-canvas-panel"
-        onDrop={handleCanvasDrop}
-        onDragOver={handleCanvasDragOver}
-      >
-        {showHeader ? (
-          <div className="panel-header preview-header">
-            <div>
-              <p className="eyebrow">Reference Canvas</p>
-            </div>
-            <div className="preview-header-actions">
-              <button type="button" className="ghost-btn mini preview-media-btn">
-                <UploadSimple size={14} weight="regular" />
-                Add files
-              </button>
-              <Link href="/media-library" className="ghost-btn mini preview-media-btn">
-                <CloudArrowUp size={14} weight="regular" />
-                Media library
-              </Link>
-            </div>
-          </div>
-        ) : null}
-        <div className="reference-canvas-scroll">
-          <div className="reference-canvas-grid">
-            {outputs.length === 0 ? (
-              <div className="reference-empty">
-                <p className="preview-title">Upload or generate to see your media here.</p>
-                <p className="subdued tiny">New prompts, images, and videos will appear in this canvas.</p>
-              </div>
-            ) : (
-              outputs.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`reference-card ${item.previewUrl ? "has-preview" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""}`}
-                  style={item.previewUrl ? { backgroundImage: `url(${item.previewUrl})` } : undefined}
-                  onClick={() => setActiveOutputId(item.id)}
-                  onDoubleClick={() => setDetailOutputId(item.id)}
-                  draggable={!!item.previewUrl || !!item.previewText}
-                  onDragStart={(event) => {
-                    if (item.previewUrl) {
-                      event.dataTransfer.setData("text/plain", item.previewUrl);
-                    }
-                    if (item.previewText) {
-                      event.dataTransfer.setData("text/plain", item.previewText);
-                    }
-                  }}
-                >
-                  {item.previewText ? <div className="reference-card-text">{item.previewText}</div> : null}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -1156,37 +564,7 @@ export default function AiStudioPage() {
         </section>
 
         <div className="ai-layout">
-          <aside className="panel ai-panel ai-toolbar ai-toolbar-floating">
-            <div className="toolbar-logo-card">
-              <img src="/brand-logo.png" alt="Brand logo" />
-            </div>
-            <Link href="/dashboard" className="ghost-btn small toolbar-back-link">
-              ← Back to dashboard
-            </Link>
-            <div className="toolbar-brand toolbar-title-only">
-              <div>
-                <p className="eyebrow">Tools</p>
-              </div>
-            </div>
-            <div className="toolbar-list">
-              {toolList.map((tool) => {
-                const IconComponent = toolIcons[tool.id];
-                return (
-                  <button
-                    key={tool.id}
-                    type="button"
-                    className={`toolbar-item ${selectedTool === tool.id ? "is-active" : ""}`}
-                    onClick={() => setSelectedTool(tool.id)}
-                  >
-                    {IconComponent ? <IconComponent size={18} weight="bold" /> : null}
-                    <div className="toolbar-copy">
-                      <span className="toolbar-label">{tool.label}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
+          <Toolbar tools={toolList} toolIcons={toolIcons} selectedTool={selectedTool} onSelect={setSelectedTool} />
 
           <div className="ai-content">
             <section className="ai-shell">
@@ -1213,26 +591,31 @@ export default function AiStudioPage() {
                     </Link>
                   </div>
                 </div>
-                {/* Reference Canvas column — tweak grid/drop behavior in renderReferenceCanvas */}
-                {renderReferenceCanvas(outputs, activeOutputId, setActiveOutputId, false, handleReferenceCanvasFiles)}
+                <ReferenceCanvas
+                  outputs={outputs}
+                  activeOutputId={activeOutputId}
+                  onSelect={(id) => setActiveOutputId(id)}
+                  onOpenDetail={setDetailOutputId}
+                  showHeader={false}
+                  onExternalDrop={handleReferenceCanvasFiles}
+                />
               </div>
 
               <div className="ai-preview-column studio-column">
               <div className="studio-preview-header-row">
                 <p className="eyebrow">Studio Preview</p>
               </div>
-                {/* Studio preview column — adjust square/prompt presentation in renderPreviewCard */}
-                {renderPreviewCard(
-                  "Studio Preview",
-                  "reference-drop",
-                  false,
-                  referenceImageUrl,
-                  referenceText,
-                  setReferenceImageUrl,
-                  setReferenceText,
-                  false,
-                  false,
-                )}
+                <PreviewCard
+                  eyebrowLabel="Studio Preview"
+                  variant="reference-drop"
+                  showMediaButton={false}
+                  previewImage={referenceImageUrl}
+                  referenceText={referenceText}
+                  onReferenceDrop={setReferenceImageUrl}
+                  onReferenceTextDrop={setReferenceText}
+                  showHeader={false}
+                  wrapContainer={false}
+                />
                 <div className="step-card regenerate-card">
                   <div className="preview-card-actions">
                     <button type="button" className="ghost-btn" onClick={handleRegenerate}>
@@ -1246,7 +629,7 @@ export default function AiStudioPage() {
           </div>
         </div>
       </main>
-      {renderDetailModal()}
+      <DetailModal detailOutput={detailOutput} onClose={() => setDetailOutputId(null)} />
     </>
   );
 }

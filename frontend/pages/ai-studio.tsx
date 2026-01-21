@@ -8,6 +8,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowClockwise,
   ArrowFatLinesRight,
+  Activity,
+  CaretDown,
   CloudArrowUp,
   FloppyDisk,
   ImageSquare,
@@ -25,8 +27,10 @@ import {
 type StudioMode = "enhance" | "image" | "video";
 
 type AspectOption = {
-  label: string;
   value: string;
+  ratioLabel: string;
+  name: string;
+  orientation: "square" | "vertical" | "horizontal" | "widescreen";
 };
 
 type PromptTemplate = {
@@ -50,17 +54,28 @@ type StudioOutput = {
 // --- Configurable options ---------------------------------------------------
 
 const aspectOptions: AspectOption[] = [
-  { label: "9:16 (Vertical)", value: "9:16" },
-  { label: "4:5 (Portrait)", value: "4:5" },
-  { label: "3:2 (Wide)", value: "3:2" },
-  { label: "16:9 (Landscape)", value: "16:9" },
-  { label: "1:1 (Square)", value: "1:1" },
+  { value: "1:1", ratioLabel: "1:1", name: "Square", orientation: "square" },
+  { value: "16:9", ratioLabel: "16:9", name: "Widescreen", orientation: "widescreen" },
+  { value: "9:16", ratioLabel: "9:16", name: "Social story", orientation: "vertical" },
+  { value: "2:3", ratioLabel: "2:3", name: "Portrait", orientation: "vertical" },
+  { value: "3:4", ratioLabel: "3:4", name: "Traditional", orientation: "vertical" },
+  { value: "1:2", ratioLabel: "1:2", name: "Vertical", orientation: "vertical" },
+  { value: "2:1", ratioLabel: "2:1", name: "Horizontal", orientation: "horizontal" },
+  { value: "4:5", ratioLabel: "4:5", name: "Social post", orientation: "vertical" },
+  { value: "3:2", ratioLabel: "3:2", name: "Standard", orientation: "horizontal" },
+  { value: "4:3", ratioLabel: "4:3", name: "Classic", orientation: "horizontal" },
 ];
 
 const modelOptions = [
   { value: "pulse-vision", label: "Pulse Vision v2" },
   { value: "kinetic-video", label: "Kinetic v1" },
   { value: "aura-diffusion", label: "Aura Diffusion" },
+  { value: "lumen-pro", label: "Lumen Pro" },
+  { value: "vortex-hd", label: "Vortex HD" },
+  { value: "studio-core", label: "Studio Core" },
+  { value: "nebula-gen", label: "Nebula Gen" },
+  { value: "flux-motion", label: "Flux Motion" },
+  { value: "echo-style", label: "Echo Style" },
 ];
 
 const promptTemplates: PromptTemplate[] = [
@@ -98,20 +113,23 @@ const previewPlaceholders = [
 
 // --- Tool metadata ----------------------------------------------------------
 
-type ToolId = "create" | "edit" | "image-to-video" | "organize";
+type ToolId = "create" | "edit-parent" | "image-to-image" | "image-to-video";
 
 const toolIcons: Record<ToolId, React.ComponentType<any>> = {
   create: Sparkle,
-  edit: ImageSquare,
+  "edit-parent": Activity,
+  "image-to-image": ImageSquare,
   "image-to-video": VideoCamera,
-  organize: SquaresFour,
 };
 
 const toolList: { id: ToolId; label: string; desc: string }[] = [
   { id: "create", label: "Create", desc: "Prompt and output type" },
-  { id: "edit", label: "Image to Image", desc: "Regenerate from a reference" },
+  { id: "edit-parent", label: "Pulse", desc: "Show edit tools" },
+];
+
+const editChildTools: { id: ToolId; label: string; desc: string }[] = [
+  { id: "image-to-image", label: "Image to Image", desc: "Regenerate from a reference" },
   { id: "image-to-video", label: "Image to Video", desc: "Animate a still image" },
-  { id: "organize", label: "Organize", desc: "Apply saved layouts" },
 ];
 
 const modeLabel = (value: StudioMode) => {
@@ -137,10 +155,11 @@ const modeIconMap: Record<StudioMode, React.ComponentType<any>> = {
 export default function AiStudioPage() {
   // --- Refs & core state ----------------------------------------------------
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
+  const aspectDropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Creation inputs
   const [mode, setMode] = useState<StudioMode>("image");
-  const [aspect, setAspect] = useState<string>(aspectOptions[0]?.value ?? "9:16");
+  const [aspect, setAspect] = useState<string>("9:16");
   const [model, setModel] = useState<string>(modelOptions[0]?.value ?? "pulse-vision");
   const [prompt, setPrompt] = useState<string>("");
 
@@ -150,7 +169,8 @@ export default function AiStudioPage() {
   const [saved, setSaved] = useState(false);
 
   // UI selections and references (shared across tools)
-  const [selectedTool, setSelectedTool] = useState<ToolId>("create");
+  const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
+  const [showEditTools, setShowEditTools] = useState<boolean>(false);
   const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
   const [extraImageUrlOne, setExtraImageUrlOne] = useState<string | null>(null);
   const [extraImageUrlTwo, setExtraImageUrlTwo] = useState<string | null>(null);
@@ -158,11 +178,19 @@ export default function AiStudioPage() {
   const [referenceText, setReferenceText] = useState<string | null>(null);
   const [useReferenceImageIndicator, setUseReferenceImageIndicator] = useState<boolean>(false);
   const [detailOutputId, setDetailOutputId] = useState<string | null>(null);
+  const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
+  const [modelModalAnchor, setModelModalAnchor] = useState<string | null>(null);
+  const [modelModalPosition, setModelModalPosition] = useState<{ top: number; left: number } | null>(null);
+  const [isAspectMenuOpen, setIsAspectMenuOpen] = useState<boolean>(false);
 
   // --- Derived state --------------------------------------------------------
   const activeOutput = useMemo(
     () => outputs.find((item) => item.id === activeOutputId) ?? outputs[0] ?? null,
     [activeOutputId, outputs],
+  );
+  const currentModelLabel = useMemo(
+    () => modelOptions.find((opt) => opt.value === model)?.label ?? "Select model",
+    [model],
   );
 
   // --- Lifecycle ------------------------------------------------------------
@@ -189,15 +217,45 @@ export default function AiStudioPage() {
   }, [activeOutput?.previewUrl]);
 
   useEffect(() => {
-    if (!detailOutputId) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (aspectDropdownRef.current && !aspectDropdownRef.current.contains(event.target as Node)) {
+        setIsAspectMenuOpen(false);
+      }
+    };
+    if (isAspectMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isAspectMenuOpen]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setDetailOutputId(null);
+        handleCloseModelModal();
       }
     };
+
+    const handleReposition = () => {
+      if (!isModelModalOpen || !modelModalAnchor) return;
+      const anchorEl = document.querySelector<HTMLElement>(`[data-model-anchor='${modelModalAnchor}']`);
+      if (anchorEl) {
+        const position = computeModalPosition(anchorEl);
+        setModelModalPosition(position);
+      } else {
+        handleCloseModelModal();
+      }
+    };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [detailOutputId]);
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [detailOutputId, isModelModalOpen, modelModalAnchor]);
 
   // --- Output + prompt actions ---------------------------------------------
   const handleGenerate = () => {
@@ -491,6 +549,7 @@ export default function AiStudioPage() {
   const renderCreateProperties = () => {
     const isEnhanceMode = mode === "enhance";
     const promptStepNumber = "3";
+    const selectedAspect = aspectOptions.find((option) => option.value === aspect);
 
     return (
       <div className="tool-properties">
@@ -513,7 +572,7 @@ export default function AiStudioPage() {
               aria-pressed={mode === "enhance"}
               onClick={() => setMode("enhance")}
             >
-              <MagicWand size={16} weight="regular" /> Prompt
+              Text
             </button>
             <button
               type="button"
@@ -521,7 +580,7 @@ export default function AiStudioPage() {
               aria-pressed={mode === "image"}
               onClick={() => setMode("image")}
             >
-              <ImageSquare size={16} weight="regular" /> Image
+              Image
             </button>
             <button
               type="button"
@@ -529,7 +588,7 @@ export default function AiStudioPage() {
               aria-pressed={mode === "video"}
               onClick={() => setMode("video")}
             >
-              <VideoCamera size={16} weight="regular" /> Video
+              Video
             </button>
           </div>
         </div>
@@ -575,27 +634,58 @@ export default function AiStudioPage() {
             <div className="create-controls dual-controls">
               <div className="control-row compact">
                 <label className="input-label">Aspect ratio</label>
-                <div className="select-shell fixed-select">
-                  <select value={aspect} onChange={(event) => setAspect(event.target.value)} className="model-select">
-                    {aspectOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                <div className="aspect-dropdown" ref={aspectDropdownRef}>
+                  <button
+                    type="button"
+                    className="aspect-trigger"
+                    onClick={() => setIsAspectMenuOpen((open) => !open)}
+                    aria-haspopup="listbox"
+                    aria-expanded={isAspectMenuOpen}
+                  >
+                    <span className={`aspect-shape ${selectedAspect?.orientation ?? "horizontal"}`} aria-hidden="true" />
+                    <span className="aspect-meta">
+                      <span className="aspect-ratio">{selectedAspect?.ratioLabel ?? aspect}</span>
+                      <span className="aspect-name tiny subdued">{selectedAspect?.name ?? ""}</span>
+                    </span>
+                    <CaretDown size={16} weight="bold" className="aspect-caret" aria-hidden="true" />
+                  </button>
+                  {isAspectMenuOpen ? (
+                    <div className="aspect-menu" role="listbox">
+                      {aspectOptions.map((option) => {
+                        const isActive = option.value === aspect;
+                        return (
+                          <button
+                            type="button"
+                            key={option.value}
+                            className={`aspect-menu-item ${isActive ? "is-active" : ""}`}
+                            role="option"
+                            aria-selected={isActive}
+                            onClick={() => {
+                              setAspect(option.value);
+                              setIsAspectMenuOpen(false);
+                            }}
+                          >
+                            <span className={`aspect-shape ${option.orientation}`} aria-hidden="true" />
+                            <span className="aspect-ratio">{option.ratioLabel}</span>
+                            <span className="aspect-name">{option.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <div className="control-row compact">
                 <label className="input-label">Model</label>
-                <div className="select-shell fixed-select">
-                  <select value={model} onChange={(event) => setModel(event.target.value)} className="model-select">
-                    {modelOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <button
+                  type="button"
+                  className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""}`}
+                  data-model-anchor="create-model"
+                  onClick={(event) => handleOpenModelModal("create-model", event.currentTarget)}
+                >
+                  <span className="model-picker-title">Select model here</span>
+                  <span className="model-picker-value">{currentModelLabel}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -641,244 +731,290 @@ export default function AiStudioPage() {
     );
   };
 
-  const renderRecreateProperties = (title: string, subtitle: string) => (
-    <div className="tool-properties">
-      <div className="tool-header">
-        <p className="eyebrow">{title}</p>
-        <p className="subdued tiny">{subtitle}</p>
-      </div>
-      <div className="reference-drop-layout-inner">
-        <div className="reference-dropzone-block image-block">
-          <div className="regenerate-step-card">
-            <div className="regenerate-step-header">
-              <span className="step-badge mini">1</span>
-              <div className="regenerate-step-copy">
-                <p className="step-title">Add Image</p>
-                <span className="step-subtitle tiny">Drag a reference from the canvas or upload one manually.</span>
+  const renderRecreateProperties = (title: string, subtitle: string) => {
+    const selectedAspect = aspectOptions.find((option) => option.value === aspect);
+    return (
+      <div className="tool-properties">
+        <div className="tool-header">
+          <p className="eyebrow">{title}</p>
+          <p className="subdued tiny">{subtitle}</p>
+        </div>
+        <div className="reference-drop-layout-inner">
+          <div className="reference-dropzone-block image-block">
+            <div className="regenerate-step-card">
+              <div className="regenerate-step-header">
+                <span className="step-badge mini">1</span>
+                <div className="regenerate-step-copy">
+                  <p className="step-title">Add Image</p>
+                  <span className="step-subtitle tiny">Drag a reference from the canvas or upload one manually.</span>
+                </div>
+                <div className="reference-drop-header-actions">
+                  <button type="button" className="ghost-btn mini" onClick={handleClearDropImages}>
+                    Clear
+                  </button>
+                </div>
               </div>
-              <div className="reference-drop-header-actions">
-                <button type="button" className="ghost-btn mini" onClick={handleClearDropImages}>
-                  Clear
-                </button>
-              </div>
-            </div>
-            <div className="drop-image-row">
-              <div className="primary-drop">
-                <div
-                  className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""}`}
-                  onDrop={handleImageDrop}
-                  onDragOver={handleDragOver}
-                  onClick={() => referenceImageInputRef.current?.click()}
-                  style={referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined}
-                >
-                  {referenceImageUrl ? (
-                    <button
-                      type="button"
-                      className="dropzone-clear"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        clearReferenceImage(setReferenceImageUrl);
-                      }}
-                    >
-                      ×
-                    </button>
-                  ) : null}
-                  <div className="reference-drop-content image-drop-content">
-                    <UploadSimple size={22} weight="regular" />
-                    <p className="reference-drop-title">Click to upload an image</p>
+              <div className="drop-image-row">
+                <div className="primary-drop">
+                  <div
+                    className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""}`}
+                    onDrop={handleImageDrop}
+                    onDragOver={handleDragOver}
+                    onClick={() => referenceImageInputRef.current?.click()}
+                    style={referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined}
+                  >
+                    {referenceImageUrl ? (
+                      <button
+                        type="button"
+                        className="dropzone-clear"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          clearReferenceImage(setReferenceImageUrl);
+                        }}
+                      >
+                        ×
+                      </button>
+                    ) : null}
+                    <div className="reference-drop-content image-drop-content">
+                      <UploadSimple size={22} weight="regular" />
+                      <p className="reference-drop-title">Click to upload an image</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="secondary-drop">
+                  <div
+                    className={`reference-dropzone extra ${extraImageUrlOne ? "has-preview" : ""}`}
+                    onDrop={handleExtraImageDropOne}
+                    onDragOver={handleDragOver}
+                    onClick={() => extraImageOneInputRef.current?.click()}
+                    style={extraImageUrlOne ? { backgroundImage: `url(${extraImageUrlOne})` } : undefined}
+                  >
+                    {extraImageUrlOne ? (
+                      <button
+                        type="button"
+                        className="dropzone-clear"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          clearReferenceImage(setExtraImageUrlOne);
+                        }}
+                      >
+                        ×
+                      </button>
+                    ) : (
+                      <Plus size={22} weight="regular" />
+                    )}
+                  </div>
+                </div>
+                <div className="secondary-drop">
+                  <div
+                    className={`reference-dropzone extra ${extraImageUrlTwo ? "has-preview" : ""}`}
+                    onDrop={handleExtraImageDropTwo}
+                    onDragOver={handleDragOver}
+                    onClick={() => extraImageTwoInputRef.current?.click()}
+                    style={extraImageUrlTwo ? { backgroundImage: `url(${extraImageUrlTwo})` } : undefined}
+                  >
+                    {extraImageUrlTwo ? (
+                      <button
+                        type="button"
+                        className="dropzone-clear"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          clearReferenceImage(setExtraImageUrlTwo);
+                        }}
+                      >
+                        ×
+                      </button>
+                    ) : (
+                      <Plus size={22} weight="regular" />
+                    )}
+                  </div>
+                </div>
+                <div className="secondary-drop">
+                  <div
+                    className={`reference-dropzone extra ${extraImageUrlThree ? "has-preview" : ""}`}
+                    onDrop={handleExtraImageDropThree}
+                    onDragOver={handleDragOver}
+                    onClick={() => extraImageThreeInputRef.current?.click()}
+                    style={extraImageUrlThree ? { backgroundImage: `url(${extraImageUrlThree})` } : undefined}
+                  >
+                    {extraImageUrlThree ? (
+                      <button
+                        type="button"
+                        className="dropzone-clear"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          clearReferenceImage(setExtraImageUrlThree);
+                        }}
+                      >
+                        ×
+                      </button>
+                    ) : (
+                      <Plus size={22} weight="regular" />
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="secondary-drop">
-                <div
-                  className={`reference-dropzone extra ${extraImageUrlOne ? "has-preview" : ""}`}
-                  onDrop={handleExtraImageDropOne}
-                  onDragOver={handleDragOver}
-                  onClick={() => extraImageOneInputRef.current?.click()}
-                  style={extraImageUrlOne ? { backgroundImage: `url(${extraImageUrlOne})` } : undefined}
-                >
-                  {extraImageUrlOne ? (
-                    <button
-                      type="button"
-                      className="dropzone-clear"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        clearReferenceImage(setExtraImageUrlOne);
-                      }}
-                    >
-                      ×
-                    </button>
-                  ) : (
-                    <Plus size={22} weight="regular" />
-                  )}
+            </div>
+          </div>
+          <div className="step-card recreate-frame-card">
+            <div className="step-card-header">
+              <span className="step-badge">2</span>
+              <div className="step-header-copy">
+                <p className="step-title">Choose Frame & Model</p>
+                <span className="step-subtitle tiny">Pick the target aspect ratio and AI model before you regenerate.</span>
+              </div>
+            </div>
+            <div className="create-controls dual-controls recreate-frame-controls">
+              <div className="control-row compact">
+                <label className="input-label">Aspect ratio</label>
+                <div className="aspect-dropdown" ref={aspectDropdownRef}>
+                  <button
+                    type="button"
+                    className="aspect-trigger"
+                    onClick={() => setIsAspectMenuOpen((open) => !open)}
+                    aria-haspopup="listbox"
+                    aria-expanded={isAspectMenuOpen}
+                  >
+                    <span
+                      className={`aspect-shape ${selectedAspect?.orientation ?? "horizontal"} ratio-${selectedAspect?.value.replace(":", "-") ?? "16-9"}`}
+                      aria-hidden="true"
+                    />
+                    <span className="aspect-meta">
+                      <span className="aspect-ratio">{selectedAspect?.ratioLabel ?? aspect}</span>
+                      <span className="aspect-name tiny subdued">{selectedAspect?.name ?? ""}</span>
+                    </span>
+                    <CaretDown size={16} weight="bold" className="aspect-caret" aria-hidden="true" />
+                  </button>
+                  {isAspectMenuOpen ? (
+                    <div className="aspect-menu" role="listbox">
+                      {aspectOptions.map((option) => {
+                        const isActive = option.value === aspect;
+                        return (
+                          <button
+                            type="button"
+                            key={option.value}
+                            className={`aspect-menu-item ${isActive ? "is-active" : ""}`}
+                            role="option"
+                            aria-selected={isActive}
+                            onClick={() => {
+                              setAspect(option.value);
+                              setIsAspectMenuOpen(false);
+                            }}
+                          >
+                            <span
+                              className={`aspect-shape ${option.orientation} ratio-${option.value.replace(":", "-")}`}
+                              aria-hidden="true"
+                            />
+                            <span className="aspect-ratio">{option.ratioLabel}</span>
+                            <span className="aspect-name">{option.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
               </div>
-              <div className="secondary-drop">
-                <div
-                  className={`reference-dropzone extra ${extraImageUrlTwo ? "has-preview" : ""}`}
-                  onDrop={handleExtraImageDropTwo}
-                  onDragOver={handleDragOver}
-                  onClick={() => extraImageTwoInputRef.current?.click()}
-                  style={extraImageUrlTwo ? { backgroundImage: `url(${extraImageUrlTwo})` } : undefined}
+              <div className="control-row compact">
+                <label className="input-label">Model</label>
+                <button
+                  type="button"
+                  className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "recreate-model" ? "is-open" : ""}`}
+                  data-model-anchor="recreate-model"
+                  onClick={(event) => handleOpenModelModal("recreate-model", event.currentTarget)}
                 >
-                  {extraImageUrlTwo ? (
-                    <button
-                      type="button"
-                      className="dropzone-clear"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        clearReferenceImage(setExtraImageUrlTwo);
-                      }}
-                    >
-                      ×
-                    </button>
-                  ) : (
-                    <Plus size={22} weight="regular" />
-                  )}
-                </div>
-              </div>
-              <div className="secondary-drop">
-                <div
-                  className={`reference-dropzone extra ${extraImageUrlThree ? "has-preview" : ""}`}
-                  onDrop={handleExtraImageDropThree}
-                  onDragOver={handleDragOver}
-                  onClick={() => extraImageThreeInputRef.current?.click()}
-                  style={extraImageUrlThree ? { backgroundImage: `url(${extraImageUrlThree})` } : undefined}
-                >
-                  {extraImageUrlThree ? (
-                    <button
-                      type="button"
-                      className="dropzone-clear"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        clearReferenceImage(setExtraImageUrlThree);
-                      }}
-                    >
-                      ×
-                    </button>
-                  ) : (
-                    <Plus size={22} weight="regular" />
-                  )}
-                </div>
+                  <span className="model-picker-title">Select model here</span>
+                  <span className="model-picker-value">{currentModelLabel}</span>
+                </button>
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="step-card recreate-frame-card">
-          <div className="step-card-header">
-            <span className="step-badge">2</span>
-            <div className="step-header-copy">
-              <p className="step-title">Choose Frame & Model</p>
-              <span className="step-subtitle tiny">Pick the target aspect ratio and AI model before you regenerate.</span>
-            </div>
-          </div>
-          <div className="create-controls dual-controls recreate-frame-controls">
-            <div className="control-row compact">
-              <label className="input-label">Aspect ratio</label>
-              <div className="select-shell fixed-select">
-                <select value={aspect} onChange={(event) => setAspect(event.target.value)} className="model-select">
-                  {aspectOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+          <div className="reference-dropzone-block prompt-block">
+            <div className="regenerate-step-card">
+              <div className="regenerate-step-header">
+                <span className="step-badge mini">3</span>
+                <div className="regenerate-step-copy">
+                  <p className="step-title">Add Prompt</p>
+                  <span className="step-subtitle tiny">Drop a saved prompt or describe the look you want to recreate.</span>
+                </div>
               </div>
-            </div>
-            <div className="control-row compact">
-              <label className="input-label">Model</label>
-              <div className="select-shell fixed-select">
-                <select value={model} onChange={(event) => setModel(event.target.value)} className="model-select">
-                  {modelOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="reference-dropzone-block prompt-block">
-          <div className="regenerate-step-card">
-            <div className="regenerate-step-header">
-              <span className="step-badge mini">3</span>
-              <div className="regenerate-step-copy">
-                <p className="step-title">Add Prompt</p>
-                <span className="step-subtitle tiny">Drop a saved prompt or describe the look you want to recreate.</span>
-              </div>
-            </div>
-            <div
-              className={`text-dropzone prompt-text-dropzone ${referenceText ? "has-text" : ""}`}
-              onDrop={handlePromptDrop}
-              onDragOver={handleDragOver}
-            >
-              <textarea
-                className="prompt-drop-input"
-                placeholder="Drag and drop a prompt from the Reference Canvas or start typing"
-                value={referenceText ?? ""}
-                onChange={(event) => setReferenceText(event.target.value)}
-              />
-            </div>
-            <div className="recreate-actions">
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={activeOutput ? handleSave : undefined}
-                disabled={!activeOutput || saved || activeOutput.status === "saved"}
+              <div
+                className={`text-dropzone prompt-text-dropzone ${referenceText ? "has-text" : ""}`}
+                onDrop={handlePromptDrop}
+                onDragOver={handleDragOver}
               >
-                <FloppyDisk size={18} weight="bold" /> {activeOutput?.status === "saved" ? "Saved" : "Save"}
-              </button>
-              <button type="button" className="ghost-btn" onClick={handleGenerate}>
-                <ArrowClockwise size={18} weight="bold" /> Regenerate
-              </button>
+                <textarea
+                  className="prompt-drop-input"
+                  placeholder="Drag and drop a prompt from the Reference Grid or start typing"
+                  value={referenceText ?? ""}
+                  onChange={(event) => setReferenceText(event.target.value)}
+                />
+              </div>
+              <div className="recreate-actions">
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={activeOutput ? handleSave : undefined}
+                  disabled={!activeOutput || saved || activeOutput.status === "saved"}
+                >
+                  <FloppyDisk size={18} weight="bold" /> {activeOutput?.status === "saved" ? "Saved" : "Save"}
+                </button>
+                <button type="button" className="ghost-btn" onClick={handleGenerate}>
+                  <ArrowClockwise size={18} weight="bold" /> Regenerate
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderEditProperties = () =>
-    renderRecreateProperties("Recreate", "Recreate images using references.");
+  const renderEditProperties = () => renderRecreateProperties("Recreate", "Recreate images using references.");
 
   const renderImageToVideoProperties = () =>
     renderRecreateProperties("Image to Video", "Animate still images using references and prompts.");
 
-  const renderOrganizeProperties = () => (
-    <div className="tool-properties">
-      <p className="eyebrow">Organize</p>
-      <div className="preset-list properties-list">
-        {promptTemplates.map((template) => (
-          <button
-            key={template.id}
-            type="button"
-            className="preset-card"
-            onClick={() => handleUsePreset(template.text)}
-          >
-            <span className="preset-label">{template.label}</span>
-            <span className="preset-text">{template.text}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
   const renderProperties = () => {
+    if (!selectedTool) {
+      return null;
+    }
     switch (selectedTool) {
       case "create":
         return renderCreateProperties();
-      case "edit":
+      case "image-to-image":
         return renderEditProperties();
       case "image-to-video":
         return renderImageToVideoProperties();
-      case "organize":
-        return renderOrganizeProperties();
       default:
         return null;
     }
+  };
+
+  const handleCloseModelModal = () => {
+    setIsModelModalOpen(false);
+    setModelModalAnchor(null);
+  };
+  const handleSelectModelFromModal = (value: string) => {
+    setModel(value);
+    setIsModelModalOpen(false);
+    setModelModalAnchor(null);
+  };
+
+  const computeModalPosition = (target: HTMLElement) => {
+    const rect = target.getBoundingClientRect();
+    const scrollY = window.scrollY || 0;
+    const scrollX = window.scrollX || 0;
+    const offsetX = 16;
+    const top = rect.top + scrollY + rect.height / 2;
+    const left = rect.right + scrollX + offsetX;
+    return { top, left, caretOffset: rect.height / 2 };
+  };
+
+  const handleOpenModelModal = (anchorId: string, target: HTMLElement) => {
+    const position = computeModalPosition(target);
+    setModelModalAnchor(anchorId);
+    setModelModalPosition(position);
+    setIsModelModalOpen(true);
   };
 
   // --- Preview surfaces -----------------------------------------------------
@@ -999,7 +1135,7 @@ export default function AiStudioPage() {
     );
   };
 
-  // Reference Canvas grid (left column) — tweak drop behavior or card styling here.
+  // Reference Grid (left column) — tweak drop behavior or card styling here.
   const renderReferenceCanvas = (
     outputs: StudioOutput[],
     activeOutputId: string | null,
@@ -1029,7 +1165,7 @@ export default function AiStudioPage() {
         {showHeader ? (
           <div className="panel-header preview-header">
             <div>
-              <p className="eyebrow">Reference Canvas</p>
+              <p className="eyebrow">Reference Grid</p>
             </div>
             <div className="preview-header-actions">
               <button type="button" className="ghost-btn mini preview-media-btn">
@@ -1048,7 +1184,7 @@ export default function AiStudioPage() {
             {outputs.length === 0 ? (
               <div className="reference-empty">
                 <p className="preview-title">Upload or generate to see your media here.</p>
-                <p className="subdued tiny">New prompts, images, and videos will appear in this canvas.</p>
+                <p className="subdued tiny">New prompts, images, and videos will appear in this grid.</p>
               </div>
             ) : (
               outputs.map((item) => (
@@ -1126,34 +1262,7 @@ export default function AiStudioPage() {
           {/* intentionally empty; toolbar contains navigation */}
         </div>
 
-        <section className="ai-hero panel hero-banner ai-amber-hero">
-          <div className="hero-text">
-            <h1>AI Studio</h1>
-            <p className="subdued">
-              Choose a tool, set your frame, and preview outputs.
-            </p>
-          </div>
-          <div className="hero-right hero-stats">
-            <div className="header-stat-card hero-stat">
-              <div className="status-icon compact">
-                <Sparkle size={16} weight="bold" />
-              </div>
-              <div className="header-card-body">
-                <p className="metric-label tiny">AI credits</p>
-                <p className="status-value small">48 / 100</p>
-              </div>
-            </div>
-            <div className="header-stat-card hero-stat">
-              <div className="status-icon compact">
-                <ShieldCheck size={16} weight="bold" />
-              </div>
-              <div className="header-card-body">
-                <p className="metric-label tiny">Plan</p>
-                <p className="status-value small plan-creative">Creative Suite</p>
-              </div>
-            </div>
-          </div>
-        </section>
+        <section className="ai-hero panel hero-banner ai-amber-hero" />
 
         <div className="ai-layout">
           <aside className="panel ai-panel ai-toolbar ai-toolbar-floating">
@@ -1171,12 +1280,27 @@ export default function AiStudioPage() {
             <div className="toolbar-list">
               {toolList.map((tool) => {
                 const IconComponent = toolIcons[tool.id];
+                const isEditParent = tool.id === "edit-parent";
+                const isEditChildSelected =
+                  selectedTool === "image-to-image" || selectedTool === "image-to-video";
+                const isActive =
+                  selectedTool === tool.id || (isEditParent && (showEditTools || isEditChildSelected));
                 return (
                   <button
                     key={tool.id}
                     type="button"
-                    className={`toolbar-item ${selectedTool === tool.id ? "is-active" : ""}`}
-                    onClick={() => setSelectedTool(tool.id)}
+                    className={`toolbar-item ${isActive ? "is-active" : ""}`}
+                    onClick={() => {
+                      if (isEditParent) {
+                        setShowEditTools(true);
+                        if (!isEditChildSelected) {
+                          setSelectedTool("image-to-image");
+                        }
+                        return;
+                      }
+                      setShowEditTools(false);
+                      setSelectedTool(tool.id);
+                    }}
                   >
                     {IconComponent ? <IconComponent size={18} weight="bold" /> : null}
                     <div className="toolbar-copy">
@@ -1185,17 +1309,38 @@ export default function AiStudioPage() {
                   </button>
                 );
               })}
+              {showEditTools
+                ? editChildTools.map((tool) => {
+                    const IconComponent = toolIcons[tool.id];
+                    const isActive = selectedTool === tool.id;
+                    return (
+                      <button
+                        key={tool.id}
+                        type="button"
+                        className={`toolbar-item toolbar-item-child ${isActive ? "is-active" : ""}`}
+                        onClick={() => setSelectedTool(tool.id)}
+                      >
+                        {IconComponent ? <IconComponent size={18} weight="bold" /> : null}
+                        <div className="toolbar-copy">
+                          <span className="toolbar-label">{tool.label}</span>
+                        </div>
+                      </button>
+                    );
+                  })
+                : null}
             </div>
           </aside>
 
           <div className="ai-content">
             <section className="ai-shell">
-              <aside className="panel ai-panel ai-properties">{renderProperties()}</aside>
+              {selectedTool ? (
+                <aside className="panel ai-panel ai-properties">{renderProperties()}</aside>
+              ) : null}
 
               <div className="ai-preview-column reference-column">
                 <div className="preview-column-header">
                   <div>
-                    <p className="eyebrow">Reference Canvas</p>
+                    <p className="eyebrow">Reference Grid</p>
                     <p className="tiny subdued">Double-click a reference to expand.</p>
                   </div>
                   <div className="preview-header-actions">
@@ -1213,7 +1358,7 @@ export default function AiStudioPage() {
                     </Link>
                   </div>
                 </div>
-                {/* Reference Canvas column — tweak grid/drop behavior in renderReferenceCanvas */}
+                {/* Reference grid column — tweak grid/drop behavior in renderReferenceCanvas */}
                 {renderReferenceCanvas(outputs, activeOutputId, setActiveOutputId, false, handleReferenceCanvasFiles)}
               </div>
 
@@ -1246,6 +1391,40 @@ export default function AiStudioPage() {
           </div>
         </div>
       </main>
+      {isModelModalOpen ? (
+        <div className="model-modal-backdrop" onClick={handleCloseModelModal}>
+          <div
+            className="model-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+            style={
+              modelModalPosition
+                ? { top: `${modelModalPosition.top}px`, left: `${modelModalPosition.left}px` }
+                : undefined
+            }
+          >
+            <div className="model-modal-header">
+              <p className="model-modal-title">Models</p>
+              <button type="button" className="ghost-btn mini model-modal-close" onClick={handleCloseModelModal}>
+                Close
+              </button>
+            </div>
+            <div className="model-modal-grid">
+              {modelOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className="model-chip"
+                  onClick={() => handleSelectModelFromModal(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
       {renderDetailModal()}
     </>
   );

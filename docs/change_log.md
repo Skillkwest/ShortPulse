@@ -122,6 +122,13 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Replaced the prompt drop surface with a typed textarea (scrollable, matching Create textarea sizing/styling) and aligned its height to the Create Step 3 input.
 - Show the generated prompt under Studio Preview as a scrollable card (label removed) and styled the Studio Preview column with the same card treatment and spacing as the Create column while leaving the Reference Canvas un-carded.
 
+## 2027-01-19 (AI Studio toolbar + model picker overhaul)
+- Simplified the AI Studio toolbar to top-level Create and Pulse actions with nested Image to Image / Image to Video that reveal only when Pulse is selected; default state now hides cards until a tool is chosen.
+- Restored the header container in a condensed form (half height), removed the title/helper copy and plan/credit stat cards, and flattened the header/logo borders to blend with their backgrounds.
+- Enlarged primary toolbar labels, compacted edit child buttons, and made the Generate button taller with larger text.
+- Replaced model dropdowns with a “Select model here” button that opens an anchored modal of nine dummy models; modal now stays aligned to the trigger, includes a left-edge pointer to the trigger, and repositions on resize/scroll.
+- Centered the Reference Canvas empty state and right-aligned media actions; darkened UI text and dropzone borders per recent polish.
+
 ## 2027-01-05 (AI Studio reference details & cleanup)
 - Removed the Recent panel from `/ai-studio` to give more room to the workspace and Reference Canvas.
 - Added a reference detail modal: double-clicking a canvas card opens media details; prompt references use a simplified text-first layout with a scrollable prompt body, while image/video references keep the preview + metadata layout. Save-to-Media button is UI-only.

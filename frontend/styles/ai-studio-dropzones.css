@@ -98,7 +98,18 @@
 .step-badge.mini {
   width: 24px;
   height: 24px;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
   font-size: 12px;
+  background: var(--color-teal);
+  color: #0c1417;
+  box-shadow: 0 8px 16px rgba(37, 169, 191, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.ai-studio-page .step-badge.mini {
+  background: var(--ai-accent);
+  color: #0b1820;
+  box-shadow: 0 8px 16px var(--ai-accent-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
 .regenerate-step-copy {
@@ -138,11 +149,18 @@
   max-width: none;
   margin: 0;
   align-self: stretch;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .reference-dropzone,
 .reference-dropzone.extra {
   position: relative;
+}
+
+.reference-dropzone.is-dragging,
+.reference-dropzone.extra.is-dragging {
+  border-color: rgba(37, 169, 191, 0.95);
+  box-shadow: 0 0 0 2px rgba(37, 169, 191, 0.25);
 }
 
 .dropzone-clear {
@@ -327,4 +345,3 @@
   font-size: 14px;
   color: var(--ai-card-text-muted);
 }
-

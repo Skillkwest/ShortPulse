@@ -183,8 +183,11 @@ body.media-library-body {
 .dashboard-body,
 html.dashboard-body,
 body.dashboard-body {
-  background: var(--color-bg) !important;
-  background-image: none !important;
+  background-color: var(--color-bg) !important;
+  background-image: url("/dashboard/back.png") !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-position: left center !important;
 }
 
 .saved-top-row {
@@ -432,10 +435,10 @@ body.dashboard-body {
 .hero-primary {
   position: relative;
   border-radius: 28px;
-  border: 1px solid rgba(37, 169, 191, 0.18);
+  border: 1px solid transparent;
   padding: 32px 0 32px 32px;
-  background: radial-gradient(circle at 15% 20%, rgba(37, 169, 191, 0.22), transparent 60%), radial-gradient(circle at 75% 0%, rgba(37, 169, 191, 0.12), transparent 50%), rgba(7, 10, 16, 0.92);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  background: transparent;
+  box-shadow: none;
   overflow: visible;
 
   /* ==== Kirk's changes please review ==== */

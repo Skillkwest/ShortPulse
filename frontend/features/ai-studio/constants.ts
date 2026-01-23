@@ -4,7 +4,8 @@
  */
 import { AspectOption, PromptTemplate, ToolId } from "./types";
 
-export type ModelOption = { value: string; label: string };
+export type ModelMediaType = "image" | "video" | "edit" | "multi";
+export type ModelOption = { value: string; label: string; mediaType?: ModelMediaType };
 export type ToolConfig = { id: ToolId; label: string; desc: string };
 
 export const aspectOptions: AspectOption[] = [
@@ -18,19 +19,45 @@ export const aspectOptions: AspectOption[] = [
   { value: "4:5", ratioLabel: "4:5", name: "Social post", orientation: "vertical" },
   { value: "3:2", ratioLabel: "3:2", name: "Standard", orientation: "horizontal" },
   { value: "4:3", ratioLabel: "4:3", name: "Classic", orientation: "horizontal" },
+  { value: "21:9", ratioLabel: "21:9", name: "Ultra-wide", orientation: "widescreen" },
 ];
 
 export const modelOptions: ModelOption[] = [
-  { value: "pulse-vision", label: "Pulse Vision v2" },
-  { value: "kinetic-video", label: "Kinetic v1" },
-  { value: "aura-diffusion", label: "Aura Diffusion" },
-  { value: "lumen-pro", label: "Lumen Pro" },
-  { value: "vortex-hd", label: "Vortex HD" },
-  { value: "studio-core", label: "Studio Core" },
-  { value: "nebula-gen", label: "Nebula Gen" },
-  { value: "flux-motion", label: "Flux Motion" },
-  { value: "echo-style", label: "Echo Style" },
+  { value: "nano-banana-pro", label: "Nano Banana Pro (Image)", mediaType: "image" },
+  { value: "veo-3", label: "Veo 3 (Video)", mediaType: "video" },
+  { value: "flux-kontext", label: "Flux Kontext (Image editing)", mediaType: "edit" },
+  { value: "kling-2.5-turbo", label: "Kling 2.5 Turbo (Video/Image-to-video)", mediaType: "video" },
+  { value: "gpt-image-1", label: "4o Image (GPT Image 1)", mediaType: "image" },
+  { value: "seedream/4.5-text-to-image", label: "Seedream 4.5 (Image)", mediaType: "image" },
+  { value: "fal/flux-dev", label: "Fal Flux Dev (Image)", mediaType: "image" },
 ];
+
+// Kie.ai expects one of these aspect ratios; anything else falls back to "auto" when sending requests.
+export const keiAllowedAspects = new Set([
+  "1:1",
+  "2:3",
+  "3:2",
+  "3:4",
+  "4:3",
+  "4:5",
+  "5:4",
+  "9:16",
+  "16:9",
+  "21:9",
+  "auto",
+]);
+
+// GPT-4o Image only allows these sizes.
+export const gptImageAllowedAspects = new Set(["1:1", "3:2", "2:3"]);
+
+// Map our aspect strings to Fal image_size enum values.
+export const falImageSizeMap: Record<string, string> = {
+  "1:1": "square",
+  "3:4": "portrait_4_3",
+  "4:3": "landscape_4_3",
+  "16:9": "landscape_16_9",
+  "9:16": "portrait_16_9",
+};
 
 export const promptTemplates: PromptTemplate[] = [
   {
@@ -63,12 +90,24 @@ export const previewPlaceholders = [
   "/placeholder-portrait-2.png",
 ];
 
-export const toolList: ToolConfig[] = [
+export const primaryToolList: ToolConfig[] = [
   { id: "create", label: "Create", desc: "Prompt and output type" },
   { id: "edit-parent", label: "Pulse", desc: "Show edit tools" },
 ];
 
+export const lowerToolList: ToolConfig[] = [
+  { id: "templates", label: "Templates", desc: "Browse AI templates" },
+  { id: "workflows", label: "Workflows", desc: "Open workflow templates" },
+];
+
+export const creationsToolList: ToolConfig[] = [
+  { id: "my-generations", label: "My Generations", desc: "See your outputs" },
+  { id: "community", label: "Community", desc: "Browse shared creations" },
+];
+
 export const editChildTools: ToolConfig[] = [
-  { id: "image-to-image", label: "Image to Image", desc: "Regenerate from a reference" },
-  { id: "image-to-video", label: "Image to Video", desc: "Animate a still image" },
+  { id: "image-to-image", label: "Image", desc: "Regenerate from a reference" },
+  { id: "image-to-video", label: "Video", desc: "Animate a still image" },
+  { id: "enhance", label: "Enhance", desc: "Upscale and polish outputs" },
+  { id: "character", label: "Character", desc: "Build character variants" },
 ];

@@ -11,3 +11,4 @@ backend/.venv
 dist/
 build/
 *.sqlite
+frontend/.env.local

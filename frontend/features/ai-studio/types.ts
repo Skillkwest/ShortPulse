@@ -23,10 +23,25 @@ export type StudioOutput = {
   mode: StudioMode;
   aspect: string;
   model: string;
+  modelId?: string;
   status: "ready" | "saved";
   timestamp: string;
+  taskId?: string;
+  taskState?: "pending" | "running" | "success" | "fail";
+  errorMessage?: string | null;
+  resultUrls?: string[];
   previewUrl?: string;
   previewText?: string;
 };
 
-export type ToolId = "create" | "edit-parent" | "image-to-image" | "image-to-video";
+export type ToolId =
+  | "create"
+  | "workflows"
+  | "templates"
+  | "my-generations"
+  | "community"
+  | "edit-parent"
+  | "enhance"
+  | "character"
+  | "image-to-image"
+  | "image-to-video";

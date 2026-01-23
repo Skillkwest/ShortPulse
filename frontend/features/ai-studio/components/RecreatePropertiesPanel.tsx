@@ -2,10 +2,11 @@
  * Regenerate/Image-to-video properties panel.
  * Provides reference dropzones, aspect/model selection, and prompt capture for regen flows.
  */
-import React, { useRef } from "react";
-import { ArrowClockwise, FloppyDisk, Plus, UploadSimple } from "phosphor-react";
+import React, { useRef, useState } from "react";
+import { CloudArrowUp, FloppyDisk, Plus, Sparkle, UploadSimple } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
+import { extractDragDropPayload, isImageDragTransfer } from "../utils/dragDrop";
 
 type RecreatePropertiesPanelProps = {
   title: string;
@@ -18,8 +19,6 @@ type RecreatePropertiesPanelProps = {
   aspectOptions: AspectOption[];
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
-  canSave: boolean;
-  saveLabel: string;
   onAspectChange: (value: string) => void;
   onModelPickerOpen: (anchorId: string, target: HTMLElement) => void;
   onPrimaryImageChange: (url: string | null) => void;
@@ -28,26 +27,7 @@ type RecreatePropertiesPanelProps = {
   onPromptTextChange: (value: string) => void;
   onSave: () => void;
   onRegenerate: () => void;
-};
-
-const dropHasFile = (event: React.DragEvent<HTMLDivElement>) => {
-  const files = event.dataTransfer.files;
-  return files && files.length > 0;
-};
-
-const getImageFromDrop = (event: React.DragEvent<HTMLDivElement>) => {
-  const files = event.dataTransfer.files;
-  const textUrl = event.dataTransfer.getData("text/plain");
-  if (files && files.length > 0) {
-    const imageFile = Array.from(files).find((file) => file.type.startsWith("image/"));
-    if (imageFile) {
-      return URL.createObjectURL(imageFile);
-    }
-  }
-  if (textUrl) {
-    return textUrl;
-  }
-  return null;
+  resolvePreviewUrlById?: (id: string | null) => string | null;
 };
 
 /**
@@ -64,8 +44,6 @@ export function RecreatePropertiesPanel({
   aspectOptions,
   isModelModalOpen,
   modelModalAnchor,
-  canSave,
-  saveLabel,
   onAspectChange,
   onModelPickerOpen,
   onPrimaryImageChange,
@@ -74,11 +52,14 @@ export function RecreatePropertiesPanel({
   onPromptTextChange,
   onSave,
   onRegenerate,
+  resolvePreviewUrlById,
 }: RecreatePropertiesPanelProps) {
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraOneInputRef = useRef<HTMLInputElement | null>(null);
   const extraTwoInputRef = useRef<HTMLInputElement | null>(null);
   const extraThreeInputRef = useRef<HTMLInputElement | null>(null);
+  const [primaryDragActive, setPrimaryDragActive] = useState(false);
+  const [extraDragActive, setExtraDragActive] = useState([false, false, false]);
 
   const handleFileSelection =
     (setter: (url: string | null) => void) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,24 +72,79 @@ export function RecreatePropertiesPanel({
 
   const handlePromptDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const text = event.dataTransfer.getData("text/plain");
-    if (text) {
-      onPromptTextChange(text);
+    const { promptText } = extractDragDropPayload(event.dataTransfer);
+    if (promptText) {
+      onPromptTextChange(promptText);
     }
   };
 
   const handleImageDrop = (setter: (url: string | null) => void) => (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const url = getImageFromDrop(event);
-    if (url) {
-      setter(url);
+    const { imageUrl, fromFile, referenceId } = extractDragDropPayload(event.dataTransfer);
+    let nextUrl = imageUrl;
+
+    // If we only got a blob and we have a reference id, resolve from state.
+    if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
+      nextUrl = resolvePreviewUrlById(referenceId);
+    }
+
+    if (nextUrl && (fromFile || !nextUrl.startsWith("blob:"))) {
+      setter(nextUrl);
     }
   };
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    if (dropHasFile(event)) {
+  const setExtraDragActiveAt = (index: number, value: boolean) => {
+    setExtraDragActive((prev) => prev.map((item, idx) => (idx === index ? value : item)));
+  };
+
+  const allowImageDrag = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isImageDragTransfer(event.dataTransfer)) {
       event.preventDefault();
+      return true;
     }
+    return false;
+  };
+
+  const handlePrimaryDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    setPrimaryDragActive(false);
+    handleImageDrop(onPrimaryImageChange)(event);
+  };
+
+  const handleExtraDrop = (index: number) => (event: React.DragEvent<HTMLDivElement>) => {
+    setExtraDragActiveAt(index, false);
+    handleImageDrop((url) => onExtraImageChange(index, url))(event);
+  };
+
+  const handlePrimaryDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (allowImageDrag(event)) {
+      setPrimaryDragActive(true);
+    }
+  };
+
+  const handlePrimaryDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (allowImageDrag(event)) {
+      setPrimaryDragActive(true);
+    }
+  };
+
+  const handlePrimaryDragLeave = () => {
+    setPrimaryDragActive(false);
+  };
+
+  const handleExtraDragEnter = (index: number) => (event: React.DragEvent<HTMLDivElement>) => {
+    if (allowImageDrag(event)) {
+      setExtraDragActiveAt(index, true);
+    }
+  };
+
+  const handleExtraDragOver = (index: number) => (event: React.DragEvent<HTMLDivElement>) => {
+    if (allowImageDrag(event)) {
+      setExtraDragActiveAt(index, true);
+    }
+  };
+
+  const handleExtraDragLeave = (index: number) => () => {
+    setExtraDragActiveAt(index, false);
   };
 
   return (
@@ -135,9 +171,11 @@ export function RecreatePropertiesPanel({
             <div className="drop-image-row">
               <div className="primary-drop">
                 <div
-                  className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""}`}
-                  onDrop={handleImageDrop(onPrimaryImageChange)}
-                  onDragOver={handleDragOver}
+                  className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${primaryDragActive ? "is-dragging" : ""}`}
+                  onDrop={handlePrimaryDrop}
+                  onDragEnter={handlePrimaryDragEnter}
+                  onDragOver={handlePrimaryDragOver}
+                  onDragLeave={handlePrimaryDragLeave}
                   onClick={() => primaryInputRef.current?.click()}
                   style={referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined}
                 >
@@ -164,9 +202,11 @@ export function RecreatePropertiesPanel({
                 return (
                   <div className="secondary-drop" key={`extra-drop-${index}`}>
                     <div
-                      className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""}`}
-                      onDrop={handleImageDrop((url) => onExtraImageChange(index, url))}
-                      onDragOver={handleDragOver}
+                      className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${extraDragActive[index] ? "is-dragging" : ""}`}
+                      onDrop={handleExtraDrop(index)}
+                      onDragEnter={handleExtraDragEnter(index)}
+                      onDragOver={handleExtraDragOver(index)}
+                      onDragLeave={handleExtraDragLeave(index)}
                       onClick={() => inputRef.current?.click()}
                       style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
                     >
@@ -239,12 +279,24 @@ export function RecreatePropertiesPanel({
                 onChange={(event) => onPromptTextChange(event.target.value)}
               />
             </div>
-            <div className="recreate-actions">
-              <button type="button" className="primary-btn" onClick={canSave ? onSave : undefined} disabled={!canSave}>
-                <FloppyDisk size={18} weight="bold" /> {saveLabel}
-              </button>
-              <button type="button" className="ghost-btn" onClick={onRegenerate}>
-                <ArrowClockwise size={18} weight="bold" /> Regenerate
+            <div className="ai-control-strip">
+              <div className="ai-control-actions">
+                <button type="button" className="ghost-btn mini">
+                  <CloudArrowUp size={12} weight="regular" /> Media library
+                </button>
+                <button type="button" className="ghost-btn mini" onClick={onSave}>
+                  <FloppyDisk size={12} weight="regular" /> Save prompt
+                </button>
+              </div>
+              <button
+                type="button"
+                className="primary-btn primary-btn-wide recreate-generate-btn"
+                onClick={onRegenerate}
+              >
+                <span className="primary-btn-label">Generate</span>
+                <span className="primary-btn-credits">
+                  12 <Sparkle size={18} weight="fill" />
+                </span>
               </button>
             </div>
           </div>

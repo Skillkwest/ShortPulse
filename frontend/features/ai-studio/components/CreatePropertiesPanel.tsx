@@ -24,6 +24,10 @@ type CreatePropertiesPanelProps = {
   onGenerate: () => void;
   onSavePrompt: () => void;
   onToggleReferenceIndicator: () => void;
+  costCredits?: number | null;
+  balanceCredits?: number | null;
+  balanceLoading?: boolean;
+  isPromptGenerating?: boolean;
 };
 
 const modeIconMap: Record<StudioMode, React.ComponentType<any>> = {
@@ -52,8 +56,14 @@ export function CreatePropertiesPanel({
   onGenerate,
   onSavePrompt,
   onToggleReferenceIndicator,
+  costCredits,
+  balanceCredits,
+  balanceLoading,
+  isPromptGenerating = false,
 }: CreatePropertiesPanelProps) {
   const isEnhanceMode = mode === "enhance";
+  const shouldHidePromptStep = isEnhanceMode && useReferenceImageIndicator;
+  const showPromptInput = !shouldHidePromptStep;
   const promptStepNumber = "3";
 
   return (
@@ -102,7 +112,7 @@ export function CreatePropertiesPanel({
           <div className="step-card-header">
             <span className="step-badge">2</span>
             <div className="step-header-copy">
-              <p className="step-title">Describe Image Mode (Optional)</p>
+              <p className="step-title">Image to Text Mode (Optional)</p>
               <span className="step-subtitle tiny">Select a reference to generate a description of the image →</span>
             </div>
             <div className="step-header-actions">
@@ -164,34 +174,52 @@ export function CreatePropertiesPanel({
             <span className="step-subtitle tiny">Describe what you want to create, then click Generate.</span>
           </div>
         </div>
-        <textarea
-          ref={promptRef}
-          className="prompt-input"
-          value={prompt}
-          onChange={(event) => onPromptChange(event.target.value)}
-          rows={8}
-          placeholder={
-            mode === "enhance"
-              ? "Type a simple prompt you want enhanced."
-              : "Describe the image or video you want to create."
-          }
-        />
+        {showPromptInput ? (
+          <textarea
+            ref={promptRef}
+            className="prompt-input"
+            value={prompt}
+            onChange={(event) => onPromptChange(event.target.value)}
+            rows={8}
+            placeholder={
+              mode === "enhance"
+                ? "Type a simple prompt you want enhanced."
+                : "Describe the image or video you want to create."
+            }
+          />
+        ) : (
+          <div className="prompt-placeholder">
+            <p className="prompt-placeholder-highlight">Image to Text Mode is active.</p>
+            <p>The selected image will generate the prompt automatically.</p>
+          </div>
+        )}
         <div className="ai-control-strip">
           <div className="ai-control-actions">
             <button type="button" className="ghost-btn mini">
               <CloudArrowUp size={12} weight="regular" /> Media library
             </button>
-            <button type="button" className="ghost-btn mini" onClick={onSavePrompt}>
+            <button type="button" className="ghost-btn mini" onClick={onSavePrompt} disabled={shouldHidePromptStep}>
               <FloppyDisk size={12} weight="regular" /> Save prompt
             </button>
           </div>
-          <button type="button" className="primary-btn" onClick={onGenerate}>
+          <button
+            type="button"
+            className="primary-btn primary-btn-wide"
+            onClick={onGenerate}
+            disabled={isEnhanceMode && isPromptGenerating}
+          >
             {modeIconMap[mode] ? (
               React.createElement(modeIconMap[mode], { size: 18, weight: "fill" })
             ) : (
               <Sparkle size={18} weight="fill" />
-            )}{" "}
-            Generate
+            )}
+            <span className="primary-btn-label">
+              {isEnhanceMode && isPromptGenerating ? "Generating…" : "Generate "}
+            </span>
+            <span className="primary-btn-credits">
+              {costCredits ? costCredits : 12}{" "}
+              <Sparkle size={18} weight="fill" />
+            </span>
           </button>
         </div>
       </div>

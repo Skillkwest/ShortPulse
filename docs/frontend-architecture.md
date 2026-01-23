@@ -30,6 +30,8 @@ Purpose: describe how the frontend is structured after modularization so new wor
 4) Add doc comments to new files and exported functions/components.
 
 ### AI Studio page (current state)
-- `frontend/pages/ai-studio.tsx` remains a page-level component while layout is iterated; preview column is currently hidden (`.studio-column` set to `display: none` in CSS) and the Reference Canvas expands.
-- Image regen “Drop Image” step includes primary + 3 secondary dropzones, each with hover “×” clear buttons and a header-level “Clear references” action.
-- Studio Preview card uses create-style wrapper; prompt textarea always visible and can receive text drops (images ignored). Generate seeds the preview prompt for image/video modes; Regenerate uses the preview prompt.
+- Page is now a thin orchestrator (`frontend/pages/ai-studio.tsx`) that wires feature components from `frontend/features/ai-studio/`.
+- Feature module includes types/constants, a state hook (`hooks/useAiStudioState`), and scoped components (toolbar, create/regen panels, aspect picker, reference canvas, preview, anchored model modal, detail modal).
+- CSS is split across `styles/ai-studio-*.css` (layout, canvas, controls, dropzones, panels, modals, responsive) imported via `globals.css`.
+- Preview column remains hidden by CSS (`.studio-column { display: none; }`) so the Reference Canvas can expand until the preview experience is finalized.
+- Image regen/Image-to-video steps keep the primary + three secondary dropzones, each with hover “×” clear buttons and a header-level “Clear” action; prompt textarea stays drop-enabled and matches Create step sizing.

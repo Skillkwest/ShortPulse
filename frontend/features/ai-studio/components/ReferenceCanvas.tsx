@@ -6,6 +6,7 @@ import Link from "next/link";
 import React from "react";
 import { CloudArrowUp, UploadSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
+import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
 
 type ReferenceCanvasProps = {
   outputs: StudioOutput[];
@@ -30,16 +31,42 @@ export function ReferenceCanvas({
   onTriggerFileSelect,
 }: ReferenceCanvasProps) {
   const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!onDropFiles) return;
+    const files = event.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
+    if (imageFiles.length === 0) return;
     event.preventDefault();
-    if (event.dataTransfer.files && event.dataTransfer.files.length > 0 && onDropFiles) {
-      onDropFiles(event.dataTransfer.files);
-    }
+    const dt = new DataTransfer();
+    imageFiles.forEach((file) => dt.items.add(file));
+    onDropFiles(dt.files);
   };
 
   const handleCanvasDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     if (event.dataTransfer.types.includes("Files")) {
       event.preventDefault();
     }
+  };
+
+  const handleCardDragStart = (event: React.DragEvent<HTMLButtonElement>, item: StudioOutput) => {
+    prepareReferenceDrag(event, item, { dragImage: event.currentTarget as HTMLElement });
+  };
+
+  const handleCardDragEnd = (event: React.DragEvent<HTMLButtonElement>) => {
+    clearDragState(event);
+  };
+
+  const renderStatusChip = (item: StudioOutput) => {
+    const state = item.taskState;
+    if (!state) return null;
+    if (state === "fail") {
+      return (
+        <span className="reference-status-chip is-fail" title={item.errorMessage ?? undefined}>
+          Failed
+        </span>
+      );
+    }
+    return null;
   };
 
   return (
@@ -73,27 +100,36 @@ export function ReferenceCanvas({
               <p className="subdued tiny">New prompts, images, and videos will appear in this grid.</p>
             </div>
           ) : (
-            outputs.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`reference-card ${item.previewUrl ? "has-preview" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""}`}
-                style={item.previewUrl ? { backgroundImage: `url(${item.previewUrl})` } : undefined}
-                onClick={() => onSelectOutput(item.id)}
-                onDoubleClick={() => onOpenDetails(item.id)}
-                draggable={!!item.previewUrl || !!item.previewText}
-                onDragStart={(event) => {
-                  if (item.previewUrl) {
-                    event.dataTransfer.setData("text/plain", item.previewUrl);
-                  }
-                  if (item.previewText) {
-                    event.dataTransfer.setData("text/plain", item.previewText);
-                  }
-                }}
-              >
-                {item.previewText ? <div className="reference-card-text">{item.previewText}</div> : null}
-              </button>
-            ))
+            outputs.map((item) => {
+              const isLoading =
+                item.taskState === "running" ||
+                item.taskState === "pending" ||
+                (item.taskState === "success" && !item.previewUrl && !item.previewText);
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`reference-card ${item.previewUrl ? "has-preview" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""}`}
+                  style={item.previewUrl ? { backgroundImage: `url(${item.previewUrl})` } : undefined}
+                  onClick={() => onSelectOutput(item.id)}
+                  onDoubleClick={() => onOpenDetails(item.id)}
+                  draggable={!!item.previewUrl || !!item.previewText}
+                  onDragStart={(event) => {
+                    handleCardDragStart(event, item);
+                  }}
+                  onDragEnd={handleCardDragEnd}
+                >
+                  {renderStatusChip(item)}
+                  {isLoading ? (
+                    <div className="reference-loading">
+                      <div className="reference-spinner" />
+                    </div>
+                  ) : null}
+                  {item.previewText ? <div className="reference-card-text">{item.previewText}</div> : null}
+                </button>
+              );
+            })
           )}
         </div>
       </div>

@@ -37,6 +37,8 @@ export function StudioPreview({
   onTriggerFileSelect,
 }: StudioPreviewProps) {
   const previewImage = activeOutput?.previewUrl || referenceImageUrl;
+  const taskState = activeOutput?.taskState;
+  const errorMessage = activeOutput?.errorMessage;
   const handleReferenceDrop = (event: React.DragEvent<HTMLDivElement>) => {
     if (preventFileDrop(event)) {
       return;
@@ -105,6 +107,12 @@ export function StudioPreview({
         </div>
         <div className="step-card regenerate-card">
           <div className="preview-card-actions">
+            {taskState ? (
+              <div className={`status-chip ${taskState === "fail" ? "is-fail" : "is-running"}`}>
+                {taskState === "fail" ? "Failed" : "Processing"}
+              </div>
+            ) : null}
+            {errorMessage ? <p className="status-error">{errorMessage}</p> : null}
             <button type="button" className="ghost-btn" onClick={onRegenerate}>
               <ArrowClockwise size={18} weight="bold" /> Regenerate
             </button>

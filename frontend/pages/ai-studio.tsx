@@ -4,7 +4,7 @@
  */
 import Head from "next/head";
 import Link from "next/link";
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { CloudArrowUp, UploadSimple } from "phosphor-react";
 import { AiStudioToolbar } from "../features/ai-studio/components/AiStudioToolbar";
 import { CreatePropertiesPanel } from "../features/ai-studio/components/CreatePropertiesPanel";
@@ -13,9 +13,11 @@ import { ModelModal } from "../features/ai-studio/components/ModelModal";
 import { ReferenceCanvas } from "../features/ai-studio/components/ReferenceCanvas";
 import { RecreatePropertiesPanel } from "../features/ai-studio/components/RecreatePropertiesPanel";
 import { StudioPreview } from "../features/ai-studio/components/StudioPreview";
-import { aspectOptions } from "../features/ai-studio/constants";
+import { aspectOptions, modelOptions } from "../features/ai-studio/constants";
 import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
 import { ToolId } from "../features/ai-studio/types";
+import { useCredits } from "../features/ai-studio/hooks/useCredits";
+import { computeCostForModel, getModelConfig } from "../features/ai-studio/logic/pricing";
 
 export default function AiStudioPage() {
   const {
@@ -50,6 +52,7 @@ export default function AiStudioPage() {
     isModelModalOpen,
     modelModalAnchor,
     modelModalPosition,
+    isPromptGenerating,
     generateOutput,
     regenerateOutput,
     saveActiveOutput,
@@ -59,6 +62,8 @@ export default function AiStudioPage() {
     clearReferenceImages,
     openModelModal,
     closeModelModal,
+    resolvePreviewUrlById,
+    updateOutputPrompt,
   } = useAiStudioState();
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -72,7 +77,12 @@ export default function AiStudioPage() {
     closeModelModal();
   };
 
-  const handleToolSelect = (tool: ToolId) => setSelectedTool(tool);
+  const handleToolSelect = (tool: ToolId | null) => {
+    setSelectedTool(tool);
+    if (!tool) {
+      setShowEditTools(false);
+    }
+  };
 
   const handleFileBrowserSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -84,9 +94,6 @@ export default function AiStudioPage() {
 
   const handleReferenceCanvasFiles = (files: FileList) => addOutputsFromFiles(files);
   const triggerFilePicker = () => referenceCanvasFileInputRef.current?.click();
-
-  const canSave = Boolean(activeOutput) && !saved && activeOutput?.status !== "saved";
-  const saveLabel = activeOutput?.status === "saved" ? "Saved" : "Save";
 
   const renderProperties = () => {
     switch (selectedTool) {
@@ -106,15 +113,16 @@ export default function AiStudioPage() {
             onAspectChange={setAspect}
             onModelPickerOpen={handleOpenModelModal}
             onPromptChange={setPrompt}
-            onGenerate={generateOutput}
+            onGenerate={handleGenerate}
             onSavePrompt={savePromptReference}
             onToggleReferenceIndicator={toggleReferenceIndicator}
+            isPromptGenerating={isPromptGenerating}
           />
         );
       case "image-to-image":
         return (
           <RecreatePropertiesPanel
-            title="Recreate"
+            title="Image to Image"
             subtitle="Recreate images using references."
             aspect={aspect}
             modelLabel={currentModelLabel}
@@ -124,8 +132,6 @@ export default function AiStudioPage() {
             aspectOptions={aspectOptions}
             isModelModalOpen={isModelModalOpen}
             modelModalAnchor={modelModalAnchor}
-            canSave={canSave}
-            saveLabel={saveLabel}
             onAspectChange={setAspect}
             onModelPickerOpen={handleOpenModelModal}
             onPrimaryImageChange={setReferenceImageUrl}
@@ -133,7 +139,8 @@ export default function AiStudioPage() {
             onClearImages={clearReferenceImages}
             onPromptTextChange={setReferenceText}
             onSave={saveActiveOutput}
-            onRegenerate={generateOutput}
+            onRegenerate={regenerateOutput}
+            resolvePreviewUrlById={resolvePreviewUrlById}
           />
         );
       case "image-to-video":
@@ -149,8 +156,6 @@ export default function AiStudioPage() {
             aspectOptions={aspectOptions}
             isModelModalOpen={isModelModalOpen}
             modelModalAnchor={modelModalAnchor}
-            canSave={canSave}
-            saveLabel={saveLabel}
             onAspectChange={setAspect}
             onModelPickerOpen={handleOpenModelModal}
             onPrimaryImageChange={setReferenceImageUrl}
@@ -158,12 +163,55 @@ export default function AiStudioPage() {
             onClearImages={clearReferenceImages}
             onPromptTextChange={setReferenceText}
             onSave={saveActiveOutput}
-            onRegenerate={generateOutput}
+            onRegenerate={regenerateOutput}
+            resolvePreviewUrlById={resolvePreviewUrlById}
           />
         );
       default:
         return null;
     }
+  };
+
+  const isTemplateView =
+    selectedTool === "templates" || selectedTool === "workflows" || selectedTool === "my-generations" || selectedTool === "community";
+
+  const modelMediaFilter = useMemo(() => {
+    if (selectedTool === "create") {
+      if (mode === "image") return "image";
+      if (mode === "video") return "video";
+    }
+    if (selectedTool === "image-to-video") return "video";
+    if (selectedTool === "image-to-image") return "image";
+    return null;
+  }, [mode, selectedTool]);
+
+  const filteredModelOptions = useMemo(() => {
+    if (!modelMediaFilter) return modelOptions;
+    return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === modelMediaFilter || opt.mediaType === "multi");
+  }, [modelMediaFilter]);
+
+  const { balanceCents, balanceLoading, debit } = useCredits();
+  const balanceCredits = useMemo(() => {
+    if (balanceCents == null) return null;
+    return Math.max(0, Math.floor(balanceCents)); // cents == credits
+  }, [balanceCents]);
+  const modelConfig = useMemo(() => getModelConfig(model), [model]);
+
+  const currentCost = useMemo(() => {
+    if (selectedTool === "create" && mode === "image") {
+      return computeCostForModel(model, { aspect });
+    }
+    return null;
+  }, [aspect, mode, model, selectedTool]);
+
+  const currentCostCredits = currentCost?.credits ?? null;
+
+  const handleGenerate = () => {
+    if (currentCostCredits) {
+      const memo = `${modelConfig?.label ?? model} generation`;
+      debit(currentCostCredits, memo, `out-${Date.now()}`).catch(() => {});
+    }
+    generateOutput();
   };
 
   return (
@@ -182,9 +230,22 @@ export default function AiStudioPage() {
           onChange={handleFileBrowserSelection}
         />
 
-        <section className="ai-hero panel hero-banner ai-amber-hero" />
+        <section className="ai-hero panel hero-banner ai-amber-hero">
+          <div className="hero-text">
+            <p className="eyebrow">AI Studio</p>
+            <p className="tiny subdued">Prompt, generate, preview, and save from a single space.</p>
+          </div>
+          <div className="hero-right">
+            <div className="ai-credit-inline header-embedded">
+              <span className="credit-label">Credits</span>
+              <span className="credit-value">
+                {balanceLoading ? "…" : balanceCredits != null ? balanceCredits.toLocaleString() : "—"}
+              </span>
+            </div>
+          </div>
+        </section>
 
-        <div className="ai-layout">
+        <div className={`ai-layout${isTemplateView ? " templates-active" : ""}`}>
           <AiStudioToolbar
             selectedTool={selectedTool}
             showEditTools={showEditTools}
@@ -192,8 +253,8 @@ export default function AiStudioPage() {
             onToggleEditTools={setShowEditTools}
           />
 
-          <div className="ai-content">
-            <section className="ai-shell">
+        <div className="ai-content">
+            <section className={`ai-shell ${selectedTool ? "" : "ai-shell-wide"}`}>
               {selectedTool ? <aside className="panel ai-panel ai-properties">{renderProperties()}</aside> : null}
 
               <div className="ai-preview-column reference-column">
@@ -246,8 +307,13 @@ export default function AiStudioPage() {
         position={modelModalPosition}
         onClose={closeModelModal}
         onSelect={handleSelectModelFromModal}
+        options={filteredModelOptions}
       />
-      <DetailModal output={detailOutput} onClose={() => setDetailOutputId(null)} />
+      <DetailModal
+        output={detailOutput}
+        onClose={() => setDetailOutputId(null)}
+        onUpdatePrompt={updateOutputPrompt}
+      />
     </>
   );
 }

@@ -1,0 +1,197 @@
+/**
+ * AI Studio overlays.
+ * Reference detail modal and supporting elements.
+ */
+.reference-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 8, 14, 0.72);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 40;
+  padding: 24px;
+}
+
+.reference-modal {
+  background: radial-gradient(circle at 20% 20%, rgba(245, 185, 66, 0.08), transparent 35%),
+    radial-gradient(circle at 80% 0%, rgba(37, 169, 191, 0.08), transparent 45%),
+    rgba(12, 15, 22, 0.95);
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.6);
+  border-radius: 14px;
+  width: min(960px, 96vw);
+  max-width: 960px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  padding: 18px;
+}
+.reference-modal.prompt-only {
+  grid-template-columns: 1fr;
+  max-width: 720px;
+}
+
+.reference-modal-media {
+  background: rgba(11, 13, 18, 0.9);
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+}
+
+.reference-modal-media-frame {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 12px;
+  background: rgba(12, 15, 22, 0.9);
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reference-modal-media-frame.text-only {
+  background: linear-gradient(135deg, rgba(37, 169, 191, 0.12), rgba(245, 185, 66, 0.1));
+  color: var(--ai-card-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+
+.reference-modal-prompt {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.reference-modal-media-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.reference-modal-details {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.reference-modal-details.prompt-only {
+  width: 100%;
+}
+.prompt-only-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reference-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.reference-modal-close {
+  border: 1px solid rgba(201, 205, 214, 0.22);
+  background: rgba(12, 15, 22, 0.85);
+  color: var(--ai-card-text);
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.12s ease;
+}
+.reference-modal-close:hover {
+  border-color: rgba(245, 185, 66, 0.7);
+  background: rgba(245, 185, 66, 0.15);
+  transform: translateY(-1px);
+}
+.reference-modal-close:active {
+  transform: translateY(0);
+}
+
+.reference-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.reference-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: rgba(12, 15, 22, 0.78);
+  border-radius: 10px;
+}
+
+.reference-detail-row.column {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.reference-detail-label {
+  color: var(--ai-card-text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.reference-detail-value {
+  color: var(--ai-card-text);
+  font-weight: 600;
+}
+
+.reference-detail-value.prompt-block {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(12, 15, 22, 0.82);
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  white-space: pre-wrap;
+}
+
+.reference-modal-prompt-box {
+  width: 100%;
+  min-height: 180px;
+  max-height: 320px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background: rgba(12, 15, 22, 0.9);
+  color: var(--ai-card-text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-y: auto;
+}
+.reference-modal-prompt-box::-webkit-scrollbar {
+  width: 6px;
+}
+.reference-modal-prompt-box::-webkit-scrollbar-track {
+  background: transparent;
+}
+.reference-modal-prompt-box::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.25);
+  border-radius: 999px;
+}
+.reference-modal-prompt-box::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.45);
+}
+
+.reference-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: auto;
+}

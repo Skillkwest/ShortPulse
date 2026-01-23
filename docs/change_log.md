@@ -118,6 +118,13 @@ Append new entries at the end of this file; each entry should include date (UTC)
 
 ## 2027-01-04 (AI Studio create/recreate polish)
 - Added subtitles and spacing refinements to the Create and Recreate tool headers; tightened header/subtitle gaps for consistency.
+
+## 2027-01-05 (AI Studio accent + controls polish)
+- Centralized AI Studio accent theming behind a single `--ai-accent-base` variable to drive badges, toolbar icons, hover outlines, and primary/active button gradients; updated borders and hover states to inherit from the shared token.
+- Refined badge and toolbar UX: step badges now have fixed square dimensions (no oval deformation on resize) and optional onboarding badges are hidden until the onboarding flow is reintroduced.
+- Button polish: Generate button enlarged with inline credit count + sparkle indicator, hover lift increased, text color aligned with active tab styling, and accent gradients applied to mode toggles/primary actions.
+- Control affordances: aspect ratio and model selectors now share the accent-hover outline/motion, and drop-zone/selection borders respect the unified accent variable.
+- Documentation-only note: placeholder media fetch failures remain known during prototyping; no functional change yet.
 - Flattened the Recreate flow: pulled action buttons into Step 3, stacked the drop zones vertically with two extra image slots, and added plus-only placeholders; resized and fine-tuned drop zone spacing and aspect ratios.
 - Replaced the prompt drop surface with a typed textarea (scrollable, matching Create textarea sizing/styling) and aligned its height to the Create Step 3 input.
 - Show the generated prompt under Studio Preview as a scrollable card (label removed) and styled the Studio Preview column with the same card treatment and spacing as the Create column while leaving the Reference Canvas un-carded.
@@ -153,3 +160,20 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2026-01-17
 - Pruned duplicate changelog wrappers (`CHANGELOG.md`, `docs/CHANGELOG.md`) to keep `docs/change_log.md` as the single source of truth.
 - Updated README and docs index to point to the canonical changelog.
+
+## 2026-01-21
+- Modularized `/ai-studio`: moved state/logic into `frontend/features/ai-studio/` (types/constants, state hook, toolbar/create/regen panels, reference canvas, preview, anchored model + detail modals) and kept the page as a slim orchestrator.
+- Split the monolithic `workspace-ai-studio.css` into scoped sheets (`ai-studio-layout/canvas/controls/dropzones/panels/modals/responsive.css`) and wired them through `globals.css`.
+- Updated docs to reflect the new AI Studio structure and style split (`docs/frontend-architecture.md`, `docs/styles-structure.md`); linted frontend (existing Next `<img>` warnings remain in unrelated pages).
+
+## 2027-01-22 (AI Studio toolbar + regen/footer refresh)
+- Rebuilt the AI Studio toolbar into labeled sections (Generate, Shortcuts, Creations) with new shortcut/creation entries (Templates, Workflows, My Generations, Community) and added Pulse child tools (Image, Video, Enhance, Character) plus a conditional child divider; unified icon colors via `--ai-accent` and refreshed active/hover styling.
+- Added hide-layout modes for template-like tools: selecting Templates, Workflows, My Generations, or Community now collapses the content columns while keeping the rail visible.
+- Updated recreate (image/video) footer to mirror Create: media-library and save-prompt ghost buttons plus a larger Generate CTA; brightened prompt text and tweaked Generate sizing for better alignment.
+- Introduced toolbar profile/section spacing tweaks, kept accent-driven iconography (including Globe for Community and Person for Character), and ensured Pulse children render above shortcut sections.
+
+## 2027-01-23 (AI Studio integrations, credits, and UX polish)
+- Wired Kie.ai and Fal.ai model integrations through server-side proxies, added model filtering by mode (image vs. video), and mapped aspect ratios to provider-specific size params (Fal Flux Dev uses width/height aligned to the selected aspect).
+- Added a Supabase-backed credit system (ledger + hook) with auto-seed, per-generation debit for Fal Flux Dev, and a live credit display embedded in the AI Studio header; Generate buttons show dynamic costs.
+- Improved media UX: reference detail modal now renders full images with object-fit contain (no cropping) and matches item aspect; Reference Grid shows animated spinners for in-progress items and ignores non-image drops to prevent blank cards.
+- Hardened drag/drop flows: prefer state URLs over blob URLs, filter non-image drops in the grid, and surface status/error chips with clearer overlay behavior.

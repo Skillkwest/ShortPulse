@@ -12,7 +12,13 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - `styles/performance-responsive.css`: Detail/responsive tweaks and focus states for analytics surfaces.
 - `styles/landing-core.css`: Marketing nav/hero/core layout.
 - `styles/landing-sections.css`: Marketing feature/pricing/FAQ sections and responsive rules.
-- `styles/workspace-ai-studio.css`: AI Studio-specific layout overrides (preview column visibility, reference canvas grid spacing, dropzone controls, Studio Preview card styling).
+- `styles/ai-studio-layout.css`: AI Studio chrome (page shell, hero strip, toolbar/column layout).
+- `styles/ai-studio-canvas.css`: Reference grid and preview surfaces for AI Studio.
+- `styles/ai-studio-controls.css`: Step cards, toggles, and aspect/model selectors.
+- `styles/ai-studio-dropzones.css`: Regen dropzones and reference upload layouts.
+- `styles/ai-studio-panels.css`: Prompt inputs, presets, history blocks, and model picker.
+- `styles/ai-studio-modals.css`: Reference detail modal styling.
+- `styles/ai-studio-responsive.css`: AI Studio responsive breakpoints.
 
 ## Adding styles
 - Prefer extending the feature sheet that matches the surface; avoid reintroducing a monolithic `globals.css`.
@@ -25,5 +31,6 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 1) foundation
 2) ui-patterns
 3) workspace
-4) performance (core/detail/responsive)
-5) landing (core/sections)
+4) ai-studio (layout/canvas/controls/dropzones/panels/modals/responsive)
+5) performance (core/detail/responsive)
+6) landing (core/sections)

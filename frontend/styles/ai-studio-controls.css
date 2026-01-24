@@ -7,8 +7,8 @@
   border-color: rgba(245, 185, 66, 0.6);
   color: #1a140c;
   padding: 14px 20px;
-  font-size: 17px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 700;
   min-height: 52px;
 }
 
@@ -47,20 +47,24 @@
 
 .aspect-meta {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
   min-width: 0;
+  align-items: baseline;
 }
 
 .aspect-ratio {
-  font-weight: 800;
-  font-size: 15px;
+  font-weight: 600;
+  font-size: 14px;
   color: #f7fafc;
+  flex-shrink: 0;
 }
 
 .aspect-name {
   font-size: 13px;
   color: #a6adb8;
+  white-space: nowrap;
 }
 
 .aspect-caret {
@@ -97,6 +101,7 @@
   cursor: pointer;
   text-align: left;
   line-height: 1.2;
+  font-size: 15px;
 }
 
 .aspect-menu-item .aspect-name {
@@ -212,8 +217,8 @@
 }
 
 .aspect-ratio {
-  font-weight: 700;
-  font-size: 15px;
+  font-weight: 600;
+  font-size: 14px;
   color: #f7fafc;
 }
 
@@ -315,8 +320,8 @@
   line-height: 1;
   background: var(--color-teal);
   color: #0c1417;
-  font-weight: 800;
-  font-size: 13px;
+  font-weight: 700;
+  font-size: 12px;
   display: grid;
   place-items: center;
   box-shadow: 0 10px 20px rgba(37, 169, 191, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.32);
@@ -336,15 +341,16 @@
 
 .step-title {
   margin: 0;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.01em;
   color: #b1b6be;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .step-subtitle {
   color: var(--ai-card-text-muted);
-  font-size: 15px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .upload-step-body {

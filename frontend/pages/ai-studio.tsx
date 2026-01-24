@@ -4,7 +4,7 @@
  */
 import Head from "next/head";
 import Link from "next/link";
-import React, { useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { CloudArrowUp, UploadSimple } from "phosphor-react";
 import { AiStudioToolbar } from "../features/ai-studio/components/AiStudioToolbar";
 import { CreatePropertiesPanel } from "../features/ai-studio/components/CreatePropertiesPanel";
@@ -17,7 +17,12 @@ import { aspectOptions, modelOptions } from "../features/ai-studio/constants";
 import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
 import { ToolId } from "../features/ai-studio/types";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
-import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel, getModelConfig } from "../features/ai-studio/logic/pricing";
+import {
+  buildDefaultPricingParams,
+  computeCostForModel,
+  getModelConfig,
+} from "../features/ai-studio/logic/pricing";
+import type { PricingParams } from "../features/ai-studio/logic/pricingTypes";
 import { estimatePromptTokens, estimateDescribeTokens } from "../features/ai-studio/logic/tokenEstimates";
 import { TEXT_PROMPT_MODEL_ID } from "../features/ai-studio/logic/promptGeneration";
 
@@ -74,6 +79,7 @@ export default function AiStudioPage() {
     updateOutputPrompt,
     uiError,
     setUiError,
+    getDefaultDurationSeconds,
   } = useAiStudioState({ onDebitCredits: debit });
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -190,6 +196,20 @@ export default function AiStudioPage() {
   const isTemplateView =
     selectedTool === "templates" || selectedTool === "workflows" || selectedTool === "my-generations" || selectedTool === "community";
 
+  const defaultPricingParams = useMemo(
+    () => (model ? buildDefaultPricingParams(model) : {}),
+    [model],
+  );
+
+  const costParamsForModel = useCallback(
+    (overrides: Omit<PricingParams, "modelId"> = {}) => ({
+      ...defaultPricingParams,
+      aspect,
+      ...overrides,
+    }),
+    [aspect, defaultPricingParams],
+  );
+
   const modelMediaFilter = useMemo(() => {
     if (selectedTool === "create") {
       if (mode === "image") return "image";
@@ -218,11 +238,11 @@ export default function AiStudioPage() {
     if (selectedTool === "create") {
       if (mode === "image") {
         if (!model) return null;
-        return computeCostForModel(model, { aspect });
+        return computeCostForModel(model, costParamsForModel());
       }
       if (mode === "video") {
         if (!model) return null;
-        return computeCostForModel(model, { aspect, durationSeconds: DEFAULT_KLING_DURATION_SECONDS });
+        return computeCostForModel(model, costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }));
       }
       if (mode === "enhance") {
         if (isDescribeMode) {
@@ -233,17 +253,18 @@ export default function AiStudioPage() {
       return null;
     }
 
-    if (selectedTool === "image-to-video") {
-      if (!model) return null;
-      return computeCostForModel(model, { aspect, durationSeconds: DEFAULT_KLING_DURATION_SECONDS });
-    }
+  if (selectedTool === "image-to-video") {
+    if (!model) return null;
+    return computeCostForModel(model, costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }));
+  }
 
     return null;
   }, [
-    aspect,
     estimatedDescribeTokens,
     estimatedTextTokens,
     isDescribeMode,
+    costParamsForModel,
+    getDefaultDurationSeconds,
     mode,
     model,
     selectedTool,

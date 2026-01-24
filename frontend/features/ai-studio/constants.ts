@@ -9,30 +9,29 @@ export type ModelOption = { value: string; label: string; mediaType?: ModelMedia
 export type ToolConfig = { id: ToolId; label: string; desc: string };
 
 export const aspectOptions: AspectOption[] = [
-  { value: "1:1", ratioLabel: "1:1", name: "Square", orientation: "square" },
-  { value: "16:9", ratioLabel: "16:9", name: "Widescreen", orientation: "widescreen" },
-  { value: "9:16", ratioLabel: "9:16", name: "Social story", orientation: "vertical" },
-  { value: "2:3", ratioLabel: "2:3", name: "Portrait", orientation: "vertical" },
+  { value: "9:16", ratioLabel: "9:16", name: "Vertical", orientation: "vertical" },
+  { value: "4:5", ratioLabel: "4:5", name: "Social Post", orientation: "vertical" },
   { value: "3:4", ratioLabel: "3:4", name: "Traditional", orientation: "vertical" },
-  { value: "1:2", ratioLabel: "1:2", name: "Vertical", orientation: "vertical" },
-  { value: "2:1", ratioLabel: "2:1", name: "Horizontal", orientation: "horizontal" },
-  { value: "4:5", ratioLabel: "4:5", name: "Social post", orientation: "vertical" },
-  { value: "3:2", ratioLabel: "3:2", name: "Standard", orientation: "horizontal" },
+  { value: "1:1", ratioLabel: "1:1", name: "Square", orientation: "square" },
   { value: "4:3", ratioLabel: "4:3", name: "Classic", orientation: "horizontal" },
-  { value: "21:9", ratioLabel: "21:9", name: "Ultra-wide", orientation: "widescreen" },
+  { value: "3:2", ratioLabel: "3:2", name: "Standard", orientation: "horizontal" },
+  { value: "16:9", ratioLabel: "16:9", name: "Landscape", orientation: "widescreen" },
 ];
 
 // When you add/remove image models here, update `docs/sop_image_generation.md` → “Supported image models”.
 export const modelOptions: ModelOption[] = [
-  { value: "nano-banana-pro", label: "Nano Banana Pro (Image)", mediaType: "image" },
-  { value: "veo-3", label: "Veo 3 (Video)", mediaType: "video" },
-  { value: "flux-kontext", label: "Flux Kontext (Image editing)", mediaType: "edit" },
-  { value: "kling-2.5-turbo", label: "Kling 2.5 Turbo (Video/Image-to-video)", mediaType: "video" },
-  { value: "fal/kling-video-v1.6", label: "Kling 1.6 (Image to Video)", mediaType: "video" },
-  { value: "fal/kling-video-v1.6-text", label: "Kling 1.6 (Text to Video)", mediaType: "video" },
-  { value: "gpt-image-1", label: "4o Image (GPT Image 1)", mediaType: "image" },
-  { value: "seedream/4.5-text-to-image", label: "Seedream 4.5 (Image)", mediaType: "image" },
-  { value: "fal/flux-dev", label: "Fal Flux Dev (Image)", mediaType: "image" },
+  { value: "fal/kling-video-v1.6", label: "Kling 1.6", mediaType: "video" },
+  { value: "fal/kling-video-v1.6-text", label: "Kling 1.6 (Text)", mediaType: "video" },
+  { value: "kling/v2-5-turbo-text-to-video-pro", label: "Kling 2.5 Turbo Pro", mediaType: "video" },
+  { value: "kling-2.6/text-to-video", label: "Kling 2.6 Pro", mediaType: "video" },
+  { value: "veo3", label: "Google Veo 3.1", mediaType: "video" },
+  { value: "fal/flux-2-max", label: "FLUX.2 Max", mediaType: "image" },
+  { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
+  { value: "fal/flux-2", label: "FLUX.2", mediaType: "image" },
+  { value: "fal/imagen4/preview/fast", label: "Imagen 4 Fast", mediaType: "image" },
+  { value: "google/nano-banana", label: "Nano Banana", mediaType: "image" },
+  { value: "nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
+  { value: "seedream/4.5-text-to-image", label: "Seedream 4.5", mediaType: "image" },
 ];
 
 // Kie.ai expects one of these aspect ratios; anything else falls back to "auto" when sending requests.
@@ -46,15 +45,13 @@ export const keiAllowedAspects = new Set([
   "5:4",
   "9:16",
   "16:9",
-  "21:9",
   "auto",
 ]);
 
 // Kling image-to-video supports a limited aspect list.
 export const klingAllowedAspects = new Set(["16:9", "9:16", "1:1"]);
 
-// GPT-4o Image only allows these sizes.
-export const gptImageAllowedAspects = new Set(["1:1", "3:2", "2:3"]);
+export const imagenFastAllowedAspects = new Set(["1:1", "16:9", "9:16", "4:3", "3:4"]);
 
 // Map our aspect strings to Fal image_size enum values.
 export const falImageSizeMap: Record<string, string> = {

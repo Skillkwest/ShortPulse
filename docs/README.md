@@ -21,6 +21,22 @@ Use this as the entry point for the project’s documentation.
 - `docs/troubleshooting.md`
 - `docs/glossary.md`
 
+## API Reference
+- `docs/api-responses.md` (Responses generation API reference)
+- `docs/api-chat-completions.md` (Chat Completions endpoint reference)
+- `docs/api-fal-kling-video.md` (Fal.ai Kling Video text-to-video guide)
+- `docs/api-kie-kling-2-5.md` (Kie.ai Kling 2.5 Turbo text-to-video guide)
+- `docs/api-kie-kling-2-6-image-to-video.md` (Kie.ai Kling 2.6 image-to-video guide)
+- `docs/api-kie-veo3.md` (Kie.ai Veo 3.1 video generation guide)
+- `docs/api-fal-flux-2.md` (Fal.ai FLUX 2 text-to-image guide)
+- `docs/api-fal-flux-2-pro.md` (Fal.ai FLUX 2 PRO text-to-image guide)
+- `docs/api-fal-flux-2-max.md` (Fal.ai FLUX 2 MAX text-to-image guide)
+- `docs/api-fal-imagen4-fast.md` (Fal.ai Imagen 4 Fast text-to-image guide)
+- `docs/api-kie-nano-banana.md` (Kie.ai Nano Banana image generation guide)
+- `docs/api-kie-nano-banana-pro.md` (Kie.ai Nano Banana Pro image generation guide)
+- `docs/api-kie-seedream-4-5.md` (Kie.ai Seedream 4.5 text-to-image guide)
+- `docs/sop_new_model_ingestion.md` (SOP for adding new AI Studio models)
+
 ## Product / Domain
 - `docs/data-dictionary.md` (tables + field meanings)
 - `docs/shortflow_outlier_source_of_truth.md` (outlier model definition)
@@ -34,6 +50,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/sop_saved_creators.md`
 - `docs/sop_media_library_ui.md`
 - `docs/sop_performance_ai_detection.md`
+- `docs/sop_ai_studio_index.md` (hub for AI Studio SOPs: text/image/video)
 - `docs/shortpulse_ai_studio.md`
 
 ## Planning / History

@@ -65,7 +65,7 @@ export function AiStudioToolbar({
         <img src="/brand-logo.png" alt="Brand logo" />
       </div>
       <Link href="/dashboard" className="ghost-btn small toolbar-back-link">
-        <House size={16} weight="bold" />
+        <House size={16} weight="regular" />
         Back to dashboard
       </Link>
       {showOnboardingSteps ? (
@@ -105,7 +105,7 @@ export function AiStudioToolbar({
                 className={`toolbar-item ${isActive ? "is-active" : ""}`}
                 onClick={handleClick}
               >
-                {IconComponent ? <IconComponent size={18} weight="bold" /> : null}
+                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
                 <div className="toolbar-copy">
                   <span className="toolbar-label">{tool.label}</span>
                 </div>
@@ -125,17 +125,17 @@ export function AiStudioToolbar({
               const IconComponent = toolIcons[tool.id];
               const isActive = selectedTool === tool.id;
               return (
-                <button
-                  key={tool.id}
-                  type="button"
-                  className={`toolbar-item toolbar-item-child ${isActive ? "is-active" : ""}`}
-                  onClick={() => onSelectTool(tool.id)}
-                >
-                  {IconComponent ? <IconComponent size={18} weight="bold" /> : null}
-                  <div className="toolbar-copy">
-                    <span className="toolbar-label">{tool.label}</span>
-                  </div>
-                </button>
+              <button
+                key={tool.id}
+                type="button"
+                className={`toolbar-item toolbar-item-child ${isActive ? "is-active" : ""}`}
+                onClick={() => onSelectTool(tool.id)}
+              >
+                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
+                <div className="toolbar-copy">
+                  <span className="toolbar-label">{tool.label}</span>
+                </div>
+              </button>
               );
             })
           : null}
@@ -155,7 +155,7 @@ export function AiStudioToolbar({
                   onSelectTool(tool.id);
                 }}
               >
-                {IconComponent ? <IconComponent size={18} weight="bold" /> : null}
+                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
                 <div className="toolbar-copy">
                   <span className="toolbar-label">{tool.label}</span>
                 </div>
@@ -179,7 +179,7 @@ export function AiStudioToolbar({
                   onSelectTool(tool.id);
                 }}
               >
-                {IconComponent ? <IconComponent size={18} weight="bold" /> : null}
+                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
                 <div className="toolbar-copy">
                   <span className="toolbar-label">{tool.label}</span>
                 </div>

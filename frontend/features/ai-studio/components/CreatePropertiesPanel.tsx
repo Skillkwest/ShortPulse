@@ -161,7 +161,6 @@ export function CreatePropertiesPanel({
                 data-model-anchor="create-model"
                 onClick={(event) => onModelPickerOpen("create-model", event.currentTarget)}
               >
-                <span className="model-picker-title">Select model here</span>
                 <span className="model-picker-value">{modelLabel}</span>
               </button>
             </div>

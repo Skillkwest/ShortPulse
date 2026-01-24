@@ -92,9 +92,12 @@ export function RecreatePropertiesPanel({
       nextUrl = resolvePreviewUrlById(referenceId);
     }
 
-    if (nextUrl && (fromFile || !nextUrl.startsWith("blob:"))) {
-      setter(nextUrl);
-    }
+    if (!nextUrl) return;
+
+    const isBlobUrl = nextUrl.startsWith("blob:");
+    const canAcceptBlob = fromFile || Boolean(referenceId); // allow reference grid drags that use object URLs
+
+    if (!isBlobUrl || canAcceptBlob) setter(nextUrl);
   };
 
   const setExtraDragActiveAt = (index: number, value: boolean) => {
@@ -256,7 +259,6 @@ export function RecreatePropertiesPanel({
                 data-model-anchor="recreate-model"
                 onClick={(event) => onModelPickerOpen("recreate-model", event.currentTarget)}
               >
-                <span className="model-picker-title">Select model here</span>
                 <span className="model-picker-value">{modelLabel}</span>
               </button>
             </div>

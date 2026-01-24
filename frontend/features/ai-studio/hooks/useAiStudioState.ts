@@ -3,23 +3,40 @@
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { gptImageAllowedAspects, keiAllowedAspects, klingAllowedAspects, modelOptions } from "../constants";
+import { keiAllowedAspects, klingAllowedAspects, modelOptions } from "../constants";
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput, ToolId } from "../types";
 import {
   createKeiTask,
   fetchKeiTaskStatus,
   KeiTaskStatus,
-  createKeiGpt4oTask,
 } from "../../../lib/keiClient";
-import { fetchFalKlingStatus, fetchFalStatus, submitFalFlux, submitFalKling, submitFalKlingText } from "../../../lib/falClient";
-import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel, falSizeForAspect } from "../logic/pricing";
+import {
+  fetchFalFlux2MaxStatus,
+  fetchFalFlux2ProStatus,
+  fetchFalFlux2Status,
+  fetchFalKlingStatus,
+  fetchFalStatus,
+  fetchImagen4FastStatus,
+  submitFalFlux2,
+  submitFalFlux2Max,
+  submitFalFlux2Pro,
+  submitFalKling,
+  submitFalKlingText,
+  submitImagen4Fast,
+} from "../../../lib/falClient";
+import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
+import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel, falSizeForAspect, getModelConfig } from "../logic/pricing";
 import { postGeneratePrompt, TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { postDescribeImage, prepareImageUrl } from "../logic/imageDescription";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
 
+const KLING_16_DEFAULT_DURATION_SECONDS = 5;
+const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
+type KlingAspect = FalKlingTextSubmitRequest["aspect_ratio"];
+
 type ModelModalPosition = { top: number; left: number };
-type Provider = "kei" | "fal" | "fal-kling";
+type Provider = "kei" | "fal" | "fal-flux2" | "fal-flux2-pro" | "fal-flux2-max" | "fal-imagen4-fast" | "fal-kling";
 
 const computeModalPosition = (target: HTMLElement): ModelModalPosition => {
   const rect = target.getBoundingClientRect();
@@ -35,7 +52,9 @@ const resolveModelLabel = (value?: string) =>
   value ? modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})` : "Select model here";
 
 const normalizeAspectForKei = (value: string) => (keiAllowedAspects.has(value) ? value : "auto");
-const normalizeAspectForGptImage = (value: string) => (gptImageAllowedAspects.has(value) ? value : "1:1");
+const resolveKlingAspectRatio = (value: string): KlingAspect =>
+  (klingAllowedAspects.has(value) ? (value as KlingAspect) : "16:9");
+const resolveKlingDuration = (seconds: number): FalKlingTextSubmitRequest["duration"] => (seconds <= 5 ? 5 : 10);
 const extractFalUrls = (status: any): string[] => {
   const direct = status?.images;
   if (Array.isArray(direct) && direct[0]?.url) return direct.map((img) => img?.url).filter(Boolean) as string[];
@@ -121,11 +140,15 @@ type AiStudioStateOptions = {
 
 export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) => {
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
+  const defaultImageModel = useMemo(() => modelOptions.find((opt) => opt.mediaType === "image")?.value ?? null, []);
+  const defaultVideoModel = useMemo(() => modelOptions.find((opt) => opt.mediaType === "video")?.value ?? null, []);
 
   // Creation inputs
   const [mode, setMode] = useState<StudioMode>("image");
   const [aspect, setAspect] = useState<string>("9:16");
-  const [model, setModel] = useState<string | null>(null);
+  const [model, setModelState] = useState<string | null>(null);
+  const [lastImageModel, setLastImageModel] = useState<string | null>(null);
+  const [lastVideoModel, setLastVideoModel] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<string>("");
 
   // Output management
@@ -162,6 +185,54 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   );
   const currentModelLabel = useMemo(() => resolveModelLabel(model ?? undefined), [model]);
 
+  const modelMediaFilter = useMemo(() => {
+    if (selectedTool === "create") {
+      if (mode === "image") return "image";
+      if (mode === "video") return "video";
+    }
+    if (selectedTool === "image-to-video") return "video";
+    if (selectedTool === "image-to-image") return "image";
+    return null;
+  }, [mode, selectedTool]);
+
+  const allowedModelOptions = useMemo(() => {
+    if (!modelMediaFilter) return modelOptions;
+    return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === modelMediaFilter || opt.mediaType === "multi");
+  }, [modelMediaFilter]);
+
+  const getMediaTypeForModel = useCallback((value: string | null) => {
+    if (!value) return null;
+    return modelOptions.find((opt) => opt.value === value)?.mediaType ?? null;
+  }, []);
+
+  const rememberModel = useCallback(
+    (value: string | null) => {
+      const mediaType = getMediaTypeForModel(value);
+      if (mediaType === "image") {
+        setLastImageModel(value);
+      } else if (mediaType === "video") {
+        setLastVideoModel(value);
+      }
+    },
+    [getMediaTypeForModel],
+  );
+
+  const setModel = useCallback(
+    (value: string | null) => {
+      setModelState(value);
+      rememberModel(value);
+    },
+    [rememberModel],
+  );
+
+  const getDefaultDurationSeconds = useCallback((modelId: string | null) => {
+    if (!modelId) return VIDEO_DEFAULT_DURATION_SECONDS;
+    const config = getModelConfig(modelId);
+    if (config?.defaultDurationSeconds) return config.defaultDurationSeconds;
+    if (modelId === "fal/kling-video-v1.6" || modelId === "fal/kling-video-v1.6-text") return KLING_16_DEFAULT_DURATION_SECONDS;
+    return VIDEO_DEFAULT_DURATION_SECONDS;
+  }, []);
+
   // --- Lifecycle ----------------------------------------------------------
   useEffect(() => {
     document.body.classList.add("ai-studio-body");
@@ -187,14 +258,48 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
 
   // Clamp aspect ratios when switching to a model with stricter constraints.
   useEffect(() => {
-    if (model === "gpt-image-1" && !gptImageAllowedAspects.has(aspect)) {
-      setAspect("1:1");
-    } else if (model === "seedream/4.5-text-to-image" && !keiAllowedAspects.has(aspect)) {
-      setAspect("1:1");
-    } else if ((model === "fal/kling-video-v1.6" || model === "fal/kling-video-v1.6-text") && !klingAllowedAspects.has(aspect)) {
-      setAspect("16:9");
+    if (!model) return;
+    const config = getModelConfig(model);
+    if (!config?.allowedAspects?.length) return;
+    if (config.allowedAspects.includes(aspect)) return;
+    const fallbackAspect = config.allowedAspects.includes(config.defaultAspect)
+      ? config.defaultAspect
+      : config.allowedAspects[0];
+    if (fallbackAspect) {
+      setAspect(fallbackAspect);
     }
   }, [aspect, model]);
+
+  // Keep model selection aligned with the current mode/tool filter and remember last picks per media type.
+  useEffect(() => {
+    if (!modelMediaFilter) return;
+    const allowedValues = new Set(allowedModelOptions.map((opt) => opt.value));
+
+    if (model && allowedValues.has(model)) {
+      rememberModel(model);
+      return;
+    }
+
+    let preferred: string | null = null;
+    if (modelMediaFilter === "video") {
+      preferred = lastVideoModel ?? defaultVideoModel;
+    } else if (modelMediaFilter === "image") {
+      preferred = lastImageModel ?? defaultImageModel;
+    }
+
+    const fallback = preferred && allowedValues.has(preferred) ? preferred : allowedModelOptions[0]?.value ?? null;
+    setModel(fallback ?? null);
+  }, [
+    allowedModelOptions,
+    defaultImageModel,
+    defaultVideoModel,
+    lastImageModel,
+    lastVideoModel,
+    model,
+    modelMediaFilter,
+    rememberModel,
+    setModel,
+  ]);
 
   // Escape closes modals; model modal repositions on viewport changes.
   useEffect(() => {
@@ -266,9 +371,17 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           const status =
             provider === "fal"
               ? await fetchFalStatus(taskId)
-              : provider === "fal-kling"
-                ? await fetchFalKlingStatus(taskId)
-                : await fetchKeiTaskStatus(taskId);
+              : provider === "fal-flux2"
+                ? await fetchFalFlux2Status(taskId)
+              : provider === "fal-flux2-pro"
+                ? await fetchFalFlux2ProStatus(taskId)
+                : provider === "fal-flux2-max"
+                  ? await fetchFalFlux2MaxStatus(taskId)
+                  : provider === "fal-imagen4-fast"
+                    ? await fetchImagen4FastStatus(taskId)
+                  : provider === "fal-kling"
+                    ? await fetchFalKlingStatus(taskId)
+                    : await fetchKeiTaskStatus(taskId);
           const stateRaw =
             (status as any)?.status?.toString().toLowerCase() ??
             (status as any)?.state?.toString().toLowerCase() ??
@@ -460,13 +573,18 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       if (!model) return;
       const id = `out-${randomId()}`;
       const modelLabel = resolveModelLabel(model);
-      const isGptImageModel = model === "gpt-image-1";
       const isSeedreamModel = model === "seedream/4.5-text-to-image";
-      const isFalModel = model === "fal/flux-dev";
+      const isFalFlux2Model = model === "fal/flux-2";
+      const isFalFlux2ProModel = model === "fal/flux-2-pro";
+      const isFalFlux2MaxModel = model === "fal/flux-2-max";
+      const isGoogleNanoBananaModel = model === "google/nano-banana";
+      const isImagen4FastModel = model === "fal/imagen4/preview/fast";
       const isKlingModel = model === "fal/kling-video-v1.6";
       const isKlingTextModel = model === "fal/kling-video-v1.6-text";
-      const isKling25Model = model === "kling-2.5-turbo";
-      const isVeoModel = model === "veo-3";
+      const isKling25Model = model === "kling/v2-5-turbo-text-to-video-pro";
+      const isVeoModel = model === "veo3";
+      const isKling26Model = model === "kling-2.6/text-to-video";
+      const modelConfig = model ? getModelConfig(model) : null;
 
       // Normalize image inputs (supports blob/data URLs from drops).
       const preparedImageInputs = (
@@ -489,10 +607,10 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         taskState: "pending",
         timestamp: "Submitting...",
         errorMessage: null,
-        previewUrl: isKlingModel || isKling25Model ? preparedImageInputs[0] ?? undefined : undefined,
+        previewUrl: isKlingModel ? preparedImageInputs[0] ?? undefined : undefined,
       };
 
-      if ((isKlingModel || isKling25Model) && preparedImageInputs.length === 0) {
+      if (isKlingModel && preparedImageInputs.length === 0) {
         setOutputs((prev) => [
           {
             ...nextOutput,
@@ -513,11 +631,12 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       setSaved(false);
 
       try {
-        if (isKlingTextModel || isVeoModel) {
+        if (isKlingTextModel) {
+          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(model));
           const { request_id } = await submitFalKlingText({
             prompt: cleanedPrompt,
-            aspect_ratio: klingAllowedAspects.has(aspect) ? aspect : "16:9",
-            duration: DEFAULT_KLING_DURATION_SECONDS.toString(),
+            aspect_ratio: resolveKlingAspectRatio(aspect),
+            duration: klingDuration,
             negative_prompt: "blur, distort, and low quality",
             cfg_scale: 0.5,
           });
@@ -531,11 +650,73 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           return;
         }
 
-        if (isKlingModel || isKling25Model) {
+        if (isKling25Model) {
+          const { taskId } = await createKeiTask({
+            model,
+            input: {
+              prompt: cleanedPrompt,
+              duration: getDefaultDurationSeconds(model).toString(),
+              aspect_ratio: resolveKlingAspectRatio(aspect),
+              negative_prompt: "blur, distort, and low quality",
+              cfg_scale: 0.5,
+            },
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(taskId, id);
+          return;
+        }
+
+        if (isKling26Model) {
+          const { taskId } = await createKeiTask({
+            model,
+            input: {
+              prompt: cleanedPrompt,
+              duration: getDefaultDurationSeconds(model).toString(),
+              aspect_ratio: normalizeAspectForKei(aspect),
+              sound: true,
+            },
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(taskId, id);
+          return;
+        }
+
+        if (isVeoModel) {
+          const { taskId } = await createKeiTask({
+            model,
+            input: {
+              prompt: cleanedPrompt,
+              duration: getDefaultDurationSeconds(model).toString(),
+              aspect_ratio: normalizeAspectForKei(aspect),
+              generationType: "TEXT_2_VIDEO",
+            },
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(taskId, id);
+          return;
+        }
+
+        if (isKlingModel) {
+          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(model));
           const { request_id } = await submitFalKling({
             prompt: cleanedPrompt,
             image_url: preparedImageInputs[0],
-            duration: DEFAULT_KLING_DURATION_SECONDS.toString(),
+            duration: klingDuration,
             negative_prompt: "blur, distort, and low quality",
             cfg_scale: 0.5,
           });
@@ -549,13 +730,16 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           return;
         }
 
-        if (isFalModel) {
+        if (isFalFlux2Model) {
           const size = falSizeForAspect(aspect);
-          const falResp = await submitFalFlux({
+          const falResp = await submitFalFlux2({
             prompt: cleanedPrompt,
             image_size: { width: size.width, height: size.height },
             num_images: 1,
-            output_format: "jpeg",
+            output_format: "png",
+            guidance_scale: 15,
+            num_inference_steps: 41,
+            enable_safety_checker: true,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -563,38 +747,98 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(falResp.request_id, id, 0, "fal");
+          startPollingTask(falResp.request_id, id, 0, "fal-flux2");
           return;
         }
 
-        const { taskId } = isGptImageModel
-          ? await createKeiGpt4oTask({
-              prompt: cleanedPrompt,
-              filesUrl: preparedImageInputs.slice(0, 5),
-              size: normalizeAspectForGptImage(aspect),
-              isEnhance: false,
-              enableFallback: false,
-              uploadCn: false,
+        if (isImagen4FastModel) {
+          const normalizedAspect = modelConfig?.allowedAspects?.includes(aspect)
+            ? aspect
+            : modelConfig?.defaultAspect ?? "1:1";
+          const falResp = await submitImagen4Fast({
+            prompt: cleanedPrompt,
+            aspect_ratio: normalizedAspect as "1:1",
+            num_images: 1,
+            output_format: "png",
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: falResp.request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(falResp.request_id, id, 0, "fal-imagen4-fast");
+          return;
+        }
+
+        if (isFalFlux2MaxModel) {
+          const size = falSizeForAspect(aspect);
+          const falResp = await submitFalFlux2Max({
+            prompt: cleanedPrompt,
+            image_size: { width: size.width, height: size.height },
+            num_images: 1,
+            output_format: "png",
+            safety_tolerance: "5",
+            enable_safety_checker: false,
+          } as any);
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: falResp.request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(falResp.request_id, id, 0, "fal-flux2-max");
+          return;
+        }
+
+        if (isFalFlux2ProModel) {
+          const size = falSizeForAspect(aspect);
+          const falResp = await submitFalFlux2Pro({
+            prompt: cleanedPrompt,
+            image_size: { width: size.width, height: size.height },
+            num_images: 1,
+            output_format: "png",
+            safety_tolerance: "5",
+            enable_safety_checker: false,
+          } as any);
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: falResp.request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(falResp.request_id, id, 0, "fal-flux2-pro");
+          return;
+        }
+
+        const { taskId } = isSeedreamModel
+          ? await createKeiTask({
+              model,
+              input: {
+                prompt: cleanedPrompt,
+                aspect_ratio: keiAllowedAspects.has(aspect) ? aspect : "1:1",
+                quality: "basic",
+              },
             })
-          : isSeedreamModel
+          : isGoogleNanoBananaModel
             ? await createKeiTask({
                 model,
                 input: {
                   prompt: cleanedPrompt,
-                  aspect_ratio: keiAllowedAspects.has(aspect) ? aspect : "1:1",
-                  quality: "basic",
+                  image_size: normalizeAspectForKei(aspect),
+                  output_format: "png",
                 },
               })
-          : await createKeiTask({
-              model,
-              input: {
-                prompt: cleanedPrompt,
-                image_input: preparedImageInputs,
-                aspect_ratio: normalizeAspectForKei(aspect),
-                resolution: "1K",
-                output_format: "png",
-              },
-            });
+            : await createKeiTask({
+                model,
+                input: {
+                  prompt: cleanedPrompt,
+                  image_input: preparedImageInputs,
+                  aspect_ratio: normalizeAspectForKei(aspect),
+                  resolution: "1K",
+                  output_format: "png",
+                },
+              });
 
         updateOutputById(id, (item) => ({
           ...item,
@@ -614,7 +858,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         }));
       }
     },
-    [aspect, model, mode, setOutputs, startPollingTask, updateOutputById],
+    [aspect, getDefaultDurationSeconds, model, mode, setOutputs, startPollingTask, updateOutputById],
   );
 
   const generateOutput = useCallback(() => {
@@ -773,5 +1017,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     updateOutputPrompt,
     uiError,
     setUiError,
+    getDefaultDurationSeconds,
   };
 };

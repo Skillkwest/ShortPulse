@@ -1,6 +1,7 @@
 # SOP: Video Generation Workflows
 
 This SOP documents how ShortPulse generates videos from text prompts or image references, how the UI and API interact, and how to maintain and improve the flow.
+See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coordination across AI Studio verticals.
 
 ## Scope
 - Video generation in AI Studio’s Create → Video and Image-to-Video flows.
@@ -80,10 +81,11 @@ This SOP documents how ShortPulse generates videos from text prompts or image re
 
 | Provider | Model id | Allowed aspects (examples) | Notes |
 | --- | --- | --- | --- |
-| Fal | `fal/kling-video-v1.6` | 16:9 enforced; reference image required | Image-to-video; default duration 10s; debits on click at $0.095/s (95 credits for 10s). |
-| Fal | `fal/kling-video-v1.6-text` | 16:9 enforced; no reference required | Text-to-video; default duration 10s; debits on click at $0.095/s (95 credits for 10s). |
-| Kie | `veo-3` (if enabled) | Provider defaults; treat 16:9 as safe default | Text-to-video; debits on click. |
-| Kie | `kling-2.5-turbo` (if enabled) | Provider-enforced (likely 16:9) | Image-to-video; debits on click. |
+| Fal | `fal/kling-video-v1.6` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Image-to-video; default duration 5s; per-second pricing ($0.095/s → 48 credits at 5s). |
+| Fal | `fal/kling-video-v1.6-text` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Text-to-video; default duration 5s; per-second pricing ($0.095/s → 48 credits at 5s). |
+| Kie | `kling/v2-5-turbo-text-to-video-pro` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Per-duration pricing ($0.35 for 5s + $0.07/additional s); defaults to 10s (70 credits). |
+| Kie | `kling-2.6/text-to-video` | 16:9 default (allowed: 1:1, 16:9, 9:16) | Per-second pricing; defaults to 10s with audio on ($0.14/s → 140 credits). |
+| Kie | `veo3` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Per-second pricing; defaults to 8s @ 1080p with audio on ($0.40/s → 320 credits); 4K/audio-on is higher. |
 
 ## Maintenance rules
 
@@ -98,3 +100,8 @@ This SOP documents how ShortPulse generates videos from text prompts or image re
 - Show both estimated and actual debits in Reference cards when provider usage is returned.  
 - Add retry affordance on failed video cards and clearer messaging when a required reference is missing.  
 - Consider pre-validating aspect/model combinations per provider to avoid submission errors.
+
+## Upcoming flows / additions
+- Additional image-to-video providers: document whether a primary reference is mandatory, the default duration/audio/resolution from `modelRegistry.ts`, and the credit/debit timing before enabling in UI.
+- If a text-to-video provider requires image/context inputs, surface that requirement in the Generate disabled copy and add it to this table when live.
+- Video-to-Video: plan to ingest a source clip (drag/drop + file picker), respect model defaults for aspect/duration/audio from `modelRegistry.ts`, and clarify pricing (per-second of output vs. input). Document trim/segment support and whether references beyond the source video are allowed before enabling.

@@ -28,6 +28,7 @@ Current docs:
 - `docs/adr/`: architecture decision records (ADRs).
 - `docs/design/`: design rationale docs (palette, systems).
 - `docs/brainstorming/`: non-authoritative early concepts and research notes.
+- `docs/sop_ai_studio_index.md`: hub for AI Studio vertical SOPs (text/image/video) and shared defaults.
 
 Recommended additions:
 - Light-weight frontend test harness once priority components stabilize.

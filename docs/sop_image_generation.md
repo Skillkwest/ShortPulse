@@ -1,6 +1,7 @@
 # SOP: Image Generation (Text-to-Image) Workflows
 
 This SOP documents how ShortPulse generates images from text prompts, how the UI and API interact, and how to maintain and improve the flow.
+See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cross-vertical coordination.
 
 ## Scope
 - Image generation in AI Studio’s Create → Image flow.
@@ -66,10 +67,14 @@ This SOP documents how ShortPulse generates images from text prompts, how the UI
 
 | Provider | Model id | Allowed aspects (examples) | Notes |
 | --- | --- | --- | --- |
-| Fal | `fal/flux-dev` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Pure text-to-image; debits on click; outputs JPEG. |
+| Fal | `fal/flux-2` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; defaults guidance 15, steps 41; debits on click; outputs PNG. |
+| Fal | `fal/flux-2-pro` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; least-restrictive safety (checker off, tolerance 5); debits per tiered MP cost; outputs PNG. |
+| Fal | `fal/flux-2-max` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; least-restrictive safety (checker off, tolerance 5); debits per tiered MP cost (0.07 first MP, 0.03 each additional); outputs PNG. |
+| Fal | `fal/imagen4/preview/fast` | 1:1 enforced if invalid aspect | Text-to-image; flat per-image pricing; outputs PNG. |
 | Fal | `fal/kling-video-v1.6` | 16:9 enforced for video (uses reference image) | Image-to-video; requires an image reference; debits on click. |
+| Kie | `google/nano-banana` | 1:1 default, supports portrait/landscape variants | Text-to-image; flat per-image pricing; outputs PNG. |
+| Kie | `nano-banana-pro` | 4:5 default, supports portrait/landscape variants | Text-to-image; per-image pricing; 4K doubles price; outputs PNG. |
 | Kie | `seedream/4.5-text-to-image` | 1:1 enforced if invalid aspect | Text-to-image; debits on click. |
-| Kie | `gpt-image-1` | 1:1 enforced if invalid aspect | GPT-image; debits on click; uses Kie proxy client. |
 
 ## Maintenance rules
 
@@ -84,3 +89,7 @@ This SOP documents how ShortPulse generates images from text prompts, how the UI
 - Error surfacing: add per-card retry affordance and friendlier inline messaging on the prompt form.  
 - Caching: consider reusing the last refined prompt when switching from enhance → image to reduce duplicate API calls.  
 - Accessibility: ensure drag/drop surfaces have keyboard equivalents (e.g., “Choose file” button focusable with Enter/Space).
+
+## Upcoming flows (prepare ahead)
+- Image-to-Image: will require at least one reference image; reuse the same Reference Grid/Studio Preview ingestion path and cost/debit rules as text-to-image. Confirm aspect clamping using the model’s `allowedAspects` from `modelRegistry.ts` and document any reference count limits here.
+- Image-to-Video: align with the video SOP defaults (duration/audio/aspect from `modelRegistry.ts`), require a primary reference image, and surface the per-model reference requirement in the Generate disabled state copy. Update this section when the flow is wired.

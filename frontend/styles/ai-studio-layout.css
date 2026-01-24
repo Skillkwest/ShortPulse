@@ -15,6 +15,10 @@
   --ai-card-text: #7c828a;
   --ai-card-text-muted: #666c74;
   --ai-card-text-faint: #555b63;
+  /* Toolbar font settings */
+  --ai-toolbar-font-size: 12px;
+  --ai-toolbar-font-weight: 100;
+  --ai-toolbar-label-size: 14px;
 }
 
 .ai-studio-body,
@@ -47,6 +51,7 @@ body.ai-studio-body {
   /* Adjust the the gap between the left sidebar and the main body. */
   padding-left: calc(var(--ai-rail-width) + 18px);
   color: var(--ai-card-text);
+  font-size: 14px;
   --ai-accent-base: #25a9bf; /* single knob for AI Studio accents */
   --ai-accent-start: var(--ai-accent-base); /* left side of gradients */
   --ai-accent: var(--ai-accent-base); /* right side / solid accent */
@@ -227,6 +232,7 @@ body.ai-studio-body {
   width: calc(100% - 24px);
   justify-content: center;
   font-size: 15px;
+  font-weight: 500;
   padding: 10px 18px;
   min-height: 44px;
   border: 1px solid rgba(201, 205, 214, 0.2);
@@ -253,7 +259,7 @@ body.ai-studio-body {
   border-radius: 50%;
   background: var(--ai-accent);
   color: #0b1820;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 12px;
   display: grid;
   place-items: center;
@@ -262,7 +268,7 @@ body.ai-studio-body {
 .toolbar-step-label {
   color: #f5f9ff;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .ai-studio-page .toolbar-item svg,
@@ -427,7 +433,8 @@ body.ai-studio-body {
   border-radius: 6px;
   padding: 8px 12px;
   min-height: 38px;
-  font-size: 13px;
+  font-size: var(--ai-toolbar-font-size);
+  font-weight: var(--ai-toolbar-font-weight);
   border: 1px solid transparent;
   background: transparent;
   color: #f5f9ff;
@@ -500,7 +507,7 @@ body.ai-studio-body {
 }
 
 .toolbar-profile-name {
-  font-weight: 600;
+  font-weight: 500;
   font-size: 16px;
 }
 .toolbar-footer {
@@ -536,13 +543,18 @@ body.ai-studio-body {
 }
 
 .toolbar-item .toolbar-label {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: var(--ai-toolbar-label-size);
+  font-weight: var(--ai-toolbar-font-weight);
 }
 
 .toolbar-item.toolbar-item-child .toolbar-label {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--ai-toolbar-label-size);
+  font-weight: var(--ai-toolbar-font-weight);
+}
+
+.toolbar-item.toolbar-item-secondary .toolbar-label {
+  font-size: var(--ai-toolbar-label-size);
+  font-weight: var(--ai-toolbar-font-weight);
 }
 
 .toolbar-dot {
@@ -580,7 +592,7 @@ body.ai-studio-body {
 }
 
 .toolbar-label {
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .ai-preview-panel {

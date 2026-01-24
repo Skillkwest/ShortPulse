@@ -73,6 +73,7 @@
   background-position: center;
   background-repeat: no-repeat;
   position: relative;
+  z-index: 0;
 }
 
 .reference-card:hover {
@@ -89,6 +90,17 @@
   transform: translateY(-2px);
   outline-color: rgba(37, 169, 191, 0.95);
   box-shadow: 0 0 0 2px rgba(37, 169, 191, 0.25);
+  z-index: 1;
+}
+
+.reference-card.is-active::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid rgba(37, 169, 191, 0.95);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .reference-card.has-text {
@@ -111,6 +123,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  z-index: 0;
 }
 
 .reference-card-text {

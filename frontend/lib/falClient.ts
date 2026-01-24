@@ -1,5 +1,5 @@
 /**
- * Thin client for Fal.ai interactions (flux/dev text-to-image + Kling video).
+ * Thin client for Fal.ai interactions (flux/dev, flux-2, flux-2-pro, flux-2-max text-to-image + Kling video).
  * Proxies through Next API routes to keep keys server-side.
  */
 export type FalSubmitRequest = {
@@ -53,6 +53,13 @@ export type FalKlingStatusResponse = {
   request_id?: string;
 };
 
+export type Imagen4FastSubmitRequest = {
+  prompt: string;
+  aspect_ratio?: "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
+  num_images?: number;
+  output_format?: "jpeg" | "png" | "webp";
+};
+
 const FAL_API_BASE = "/api/fal";
 
 const fetchWithTimeout = async (input: RequestInfo | URL, init?: RequestInit & { timeoutMs?: number }) => {
@@ -90,6 +97,98 @@ export const submitFalFlux = async (payload: FalSubmitRequest): Promise<FalSubmi
 
 export const fetchFalStatus = async (requestId: string): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
+export const submitFalFlux2 = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal FLUX 2 did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalFlux2Status = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
+export const submitFalFlux2Pro = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2pro-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal FLUX 2 PRO did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalFlux2ProStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2pro-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
+export const submitFalFlux2Max = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2max-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal FLUX 2 MAX did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalFlux2MaxStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2max-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
+export const submitImagen4Fast = async (payload: Imagen4FastSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/imagen4fast-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Imagen 4 Fast did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchImagen4FastStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/imagen4fast-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ requestId }),

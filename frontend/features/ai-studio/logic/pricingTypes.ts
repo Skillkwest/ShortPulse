@@ -1,4 +1,17 @@
-export type PricingStrategyId = "fal-per-mp" | "gpt41nano-per-token" | "fal-kling-video-per-request";
+export type PricingStrategyId =
+  | "fal-per-mp"
+  | "fal-flux2-per-mp"
+  | "fal-flux2-max-per-mp"
+  | "fal-flux2-pro-per-mp"
+  | "imagen4-fast-per-image"
+  | "google-nano-banana-per-image"
+  | "gpt41nano-per-token"
+  | "fal-kling-video-per-request"
+  | "nano-banana-per-image"
+  | "seedream-per-image"
+  | "kling-2.5-per-duration"
+  | "veo-3-per-second"
+  | "kling-2.6-per-second";
 
 export type PricingParams = {
   modelId: string;
@@ -6,6 +19,9 @@ export type PricingParams = {
   inputTokens?: number;
   outputTokens?: number;
   durationSeconds?: number;
+  resolution?: string;
+  webSearch?: boolean;
+  audio?: boolean;
 };
 
 export type CostBreakdown = {

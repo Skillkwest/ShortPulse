@@ -1,8 +1,8 @@
 import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel } from "../pricing";
 import { falImageSizeMap } from "../modelSizes";
 
-describe("computeCostForModel (Fal Flux Dev)", () => {
-  const modelId = "fal/flux-dev";
+describe("computeCostForModel (FLUX.2)", () => {
+  const modelId = "fal/flux-2";
 
   it("uses explicit aspect when available", () => {
     const cost = computeCostForModel(modelId, { aspect: "16:9" });
@@ -21,9 +21,9 @@ describe("computeCostForModel (Fal Flux Dev)", () => {
   it("rounds up credits per MP", () => {
     const cost = computeCostForModel(modelId, { aspect: "1:1" });
     expect(cost?.megapixels).toBeGreaterThan(1);
-    // Credits: ceil(mp) * 2.5 then ceil
-    const roundedMp = Math.ceil((falImageSizeMap["1:1"].width * falImageSizeMap["1:1"].height) / 1_000_000);
-    const expectedCredits = Math.ceil(2.5 * roundedMp);
+    const mp = (falImageSizeMap["1:1"].width * falImageSizeMap["1:1"].height) / 1_000_000;
+    const usdRaw = mp * 0.012;
+    const expectedCredits = Math.ceil(usdRaw / 0.01);
     expect(cost?.credits).toBe(expectedCredits);
   });
 });
@@ -52,8 +52,98 @@ describe("computeCostForModel (Kling video)", () => {
     expect(cost?.usd).toBeCloseTo(0.95, 2);
   });
 
-  it("defaults to duration when not provided", () => {
+  it("rounds up credits for shorter runs at the same per-second rate", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 5 });
+    // 5s -> 0.095 * 5 = 0.475 -> credits = ceil(47.5) = 48
+    expect(cost?.credits).toBe(48);
+    expect(cost?.usd).toBeCloseTo(0.48, 2);
+  });
+
+  it("defaults to model config duration when not provided", () => {
     const cost = computeCostForModel(modelId, {});
-    expect(cost?.credits).toBe(95);
+    expect(cost?.credits).toBe(48);
+  });
+});
+
+describe("computeCostForModel (Kling 2.5 Turbo Pro)", () => {
+  const modelId = "kling/v2-5-turbo-text-to-video-pro";
+
+  it("uses base $0.35 for 5s (35 credits)", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 5 });
+    expect(cost?.credits).toBe(35);
+    expect(cost?.usd).toBeCloseTo(0.35, 2);
+  });
+
+  it("adds $0.07 per extra second and defaults to 10s (70 credits)", () => {
+    const cost = computeCostForModel(modelId, {});
+    expect(cost?.credits).toBe(70);
+    expect(cost?.usd).toBeCloseTo(0.7, 2);
+  });
+});
+
+describe("computeCostForModel (Google Veo 3.1)", () => {
+  const modelId = "veo3";
+
+  it("defaults to 8s with audio at 1080p (8 * $0.40 = 320 credits)", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 8, resolution: "1080p", audio: true });
+    expect(cost?.credits).toBe(320);
+    expect(cost?.usd).toBeCloseTo(3.2, 2);
+  });
+
+  it("charges 0.60/sec for 4K with audio", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 5, resolution: "4k", audio: true });
+    expect(cost?.credits).toBe(300);
+  });
+});
+
+describe("computeCostForModel (Kling 2.6 Text to Video)", () => {
+  const modelId = "kling-2.6/text-to-video";
+
+  it("defaults to 10s with audio (10 * $0.14 = 140 credits)", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 10, audio: true });
+    expect(cost?.credits).toBe(140);
+    expect(cost?.usd).toBeCloseTo(1.4, 2);
+  });
+
+  it("allows audio off pricing at 7 credits/sec", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 10, audio: false });
+    expect(cost?.credits).toBe(70);
+  });
+});
+
+describe("computeCostForModel (Nano Banana Pro)", () => {
+  const modelId = "nano-banana-pro";
+
+  it("charges 15 credits per standard run", () => {
+    const cost = computeCostForModel(modelId, { resolution: "1K" });
+    expect(cost).not.toBeNull();
+    expect(cost?.credits).toBe(15);
+    expect(cost?.usd).toBeCloseTo(0.15, 2);
+  });
+
+  it("doubles the price for 4K renders", () => {
+    const cost = computeCostForModel(modelId, { resolution: "4K" });
+    expect(cost?.credits).toBe(30);
+  });
+
+  it("adds a web search surcharge", () => {
+    const cost = computeCostForModel(modelId, { resolution: "1K", webSearch: true });
+    expect(cost?.credits).toBe(17);
+  });
+});
+
+describe("computeCostForModel (Seedream 4.5)", () => {
+  const modelId = "seedream/4.5-text-to-image";
+
+  it("charges 4 credits per standard run", () => {
+    const cost = computeCostForModel(modelId, { resolution: "1K" });
+    expect(cost).not.toBeNull();
+    expect(cost?.credits).toBe(4);
+    expect(cost?.usd).toBeCloseTo(0.04, 2);
+  });
+
+  it("doubles the price for 4K renders", () => {
+    const cost = computeCostForModel(modelId, { resolution: "4K" });
+    expect(cost?.credits).toBe(8);
   });
 });

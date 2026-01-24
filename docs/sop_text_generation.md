@@ -1,6 +1,7 @@
 # SOP: Text Generation Workflows
 
 This SOP keeps ShortPulse’s text-oriented AI features predictable, debuggable, and easy to tune. It covers both prompt enhancement (Create → Text) and image reverse-prompting so that engineers can trace requests from the UI to OpenAI and back again.
+See `docs/sop_ai_studio_index.md` for the shared structure, defaults, and links across AI Studio verticals.
 
 ## Audit (strengths, gaps, decisions)
 - Strengths: Single canonical prompt source in `frontend/lib/agentPromptsConfig.ts`; strict loader contract (`AgentPromptId`) that the TS compiler can validate; UI state (`useAiStudioState`) auto-wires responses into textareas and Reference Grid without copy/paste; token usage captured for cost visibility.

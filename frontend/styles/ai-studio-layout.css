@@ -23,6 +23,24 @@ body.ai-studio-body {
   background: var(--color-bg) !important;
 }
 
+.ai-studio-page .ai-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border: 1px solid #f15454;
+  background: linear-gradient(90deg, rgba(241, 84, 84, 0.12), rgba(241, 84, 84, 0.2));
+  color: #ffecec;
+  border-radius: 10px;
+}
+
+.ai-studio-page .ai-error-banner .ai-error-text {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .ai-studio-page {
   max-width: 2000px;
   padding: 10px 24px 24px;

@@ -2,25 +2,12 @@
  * Generates an improved text prompt using OpenAI.
  * System prompt + API key are provided via environment variables to keep secrets server-side.
  */
-import path from "path";
-import { readFile } from "fs/promises";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
+import { AgentPromptId } from "../../../lib/agentPromptsConfig";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-const SYSTEM_INSTRUCTIONS_PATH = path.join(process.cwd(), "docs", "openai-agent-system-instructions.md");
-
-const loadSystemPrompt = async (): Promise<string | null> => {
-  try {
-    const text = await readFile(SYSTEM_INSTRUCTIONS_PATH, "utf-8");
-    const fencedMatch = text.match(/```([\\s\\S]*?)```/);
-    const candidate = fencedMatch ? fencedMatch[1] : text;
-    const trimmed = candidate.trim();
-    if (trimmed.length) return trimmed;
-  } catch {
-    // ignore; fallback to env
-  }
-  return null;
-};
+const TEXT_ENHANCER_ID: AgentPromptId = "OPENAI_PROMPT_SYSTEM";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -28,10 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
-  let systemPrompt = await loadSystemPrompt();
-  if (!systemPrompt) {
-    systemPrompt = process.env.OPENAI_PROMPT_SYSTEM ?? null;
-  }
+  const systemPrompt = loadAgentPrompt(TEXT_ENHANCER_ID, process.env.OPENAI_PROMPT_SYSTEM);
   if (!apiKey) {
     return res.status(500).json({ error: "OPENAI_API_KEY is not set" });
   }
@@ -52,12 +36,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+        model: process.env.OPENAI_MODEL ?? "gpt-4.1-nano",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt },
         ],
-        temperature: 0.7,
+        temperature: 0.6,
+        max_tokens: 2000,
       }),
     });
 
@@ -68,11 +53,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const data = await response.json();
     const nextPrompt = data?.choices?.[0]?.message?.content?.trim?.() ?? null;
+    const promptTokens = data?.usage?.prompt_tokens;
+    const completionTokens = data?.usage?.completion_tokens;
     if (!nextPrompt) {
       return res.status(502).json({ error: "No prompt returned" });
     }
 
-    return res.status(200).json({ prompt: nextPrompt });
+    return res.status(200).json({
+      prompt: nextPrompt,
+      usage: {
+        inputTokens: typeof promptTokens === "number" ? promptTokens : undefined,
+        outputTokens: typeof completionTokens === "number" ? completionTokens : undefined,
+      },
+    });
   } catch (error) {
     return res.status(500).json({ error: "Prompt generation failed", detail: String(error) });
   }

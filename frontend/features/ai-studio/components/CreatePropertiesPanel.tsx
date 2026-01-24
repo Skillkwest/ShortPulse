@@ -28,6 +28,7 @@ type CreatePropertiesPanelProps = {
   balanceCredits?: number | null;
   balanceLoading?: boolean;
   isPromptGenerating?: boolean;
+  isGenerateDisabled?: boolean;
 };
 
 const modeIconMap: Record<StudioMode, React.ComponentType<any>> = {
@@ -60,6 +61,7 @@ export function CreatePropertiesPanel({
   balanceCredits,
   balanceLoading,
   isPromptGenerating = false,
+  isGenerateDisabled = false,
 }: CreatePropertiesPanelProps) {
   const isEnhanceMode = mode === "enhance";
   const shouldHidePromptStep = isEnhanceMode && useReferenceImageIndicator;
@@ -87,7 +89,7 @@ export function CreatePropertiesPanel({
             aria-pressed={mode === "enhance"}
             onClick={() => onModeChange("enhance")}
           >
-            Text
+            Text Prompt
           </button>
           <button
             type="button"
@@ -206,7 +208,7 @@ export function CreatePropertiesPanel({
             type="button"
             className="primary-btn primary-btn-wide"
             onClick={onGenerate}
-            disabled={isEnhanceMode && isPromptGenerating}
+            disabled={isGenerateDisabled || (isEnhanceMode && isPromptGenerating)}
           >
             {modeIconMap[mode] ? (
               React.createElement(modeIconMap[mode], { size: 18, weight: "fill" })
@@ -217,8 +219,7 @@ export function CreatePropertiesPanel({
               {isEnhanceMode && isPromptGenerating ? "Generating…" : "Generate "}
             </span>
             <span className="primary-btn-credits">
-              {costCredits ? costCredits : 12}{" "}
-              <Sparkle size={18} weight="fill" />
+              {costCredits != null ? costCredits : "—"} <Sparkle size={18} weight="fill" />
             </span>
           </button>
         </div>

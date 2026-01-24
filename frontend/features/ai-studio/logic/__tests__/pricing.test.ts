@@ -1,4 +1,4 @@
-import { computeCostForModel } from "../pricing";
+import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel } from "../pricing";
 import { falImageSizeMap } from "../modelSizes";
 
 describe("computeCostForModel (Fal Flux Dev)", () => {
@@ -38,5 +38,22 @@ describe("computeCostForModel (GPT-4.1 Nano)", () => {
     // credits = ceil(0.0000675 / 0.01) = 1
     expect(cost?.credits).toBe(1);
     expect(cost?.usd).toBeCloseTo(0.01); // credit conversion rounds up to $0.01 minimum
+  });
+});
+
+describe("computeCostForModel (Kling video)", () => {
+  const modelId = "fal/kling-video-v1.6";
+
+  it("calculates credits using duration with per-second pricing", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: DEFAULT_KLING_DURATION_SECONDS });
+    expect(cost).not.toBeNull();
+    // USD = 0.095 per second; 10 seconds -> 0.95 -> credits = ceil(0.95 / 0.01) = 95
+    expect(cost?.credits).toBe(95);
+    expect(cost?.usd).toBeCloseTo(0.95, 2);
+  });
+
+  it("defaults to duration when not provided", () => {
+    const cost = computeCostForModel(modelId, {});
+    expect(cost?.credits).toBe(95);
   });
 });

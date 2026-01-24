@@ -17,9 +17,17 @@ import { aspectOptions, modelOptions } from "../features/ai-studio/constants";
 import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
 import { ToolId } from "../features/ai-studio/types";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
-import { computeCostForModel, getModelConfig } from "../features/ai-studio/logic/pricing";
+import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel, getModelConfig } from "../features/ai-studio/logic/pricing";
+import { estimatePromptTokens, estimateDescribeTokens } from "../features/ai-studio/logic/tokenEstimates";
+import { TEXT_PROMPT_MODEL_ID } from "../features/ai-studio/logic/promptGeneration";
 
 export default function AiStudioPage() {
+  const { balanceCents, balanceLoading, debit } = useCredits();
+  const balanceCredits = useMemo(() => {
+    if (balanceCents == null) return null;
+    return Math.max(0, Math.floor(balanceCents)); // cents == credits
+  }, [balanceCents]);
+
   const {
     promptRef,
     mode,
@@ -64,7 +72,9 @@ export default function AiStudioPage() {
     closeModelModal,
     resolvePreviewUrlById,
     updateOutputPrompt,
-  } = useAiStudioState();
+    uiError,
+    setUiError,
+  } = useAiStudioState({ onDebitCredits: debit });
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -94,6 +104,7 @@ export default function AiStudioPage() {
 
   const handleReferenceCanvasFiles = (files: FileList) => addOutputsFromFiles(files);
   const triggerFilePicker = () => referenceCanvasFileInputRef.current?.click();
+  const dismissError = () => setUiError(null);
 
   const renderProperties = () => {
     switch (selectedTool) {
@@ -117,6 +128,8 @@ export default function AiStudioPage() {
             onSavePrompt={savePromptReference}
             onToggleReferenceIndicator={toggleReferenceIndicator}
             isPromptGenerating={isPromptGenerating}
+            costCredits={currentCostCredits}
+            isGenerateDisabled={isGenerateDisabled}
           />
         );
       case "image-to-image":
@@ -163,7 +176,9 @@ export default function AiStudioPage() {
             onClearImages={clearReferenceImages}
             onPromptTextChange={setReferenceText}
             onSave={saveActiveOutput}
-            onRegenerate={regenerateOutput}
+            onRegenerate={handleRegenerateWithDebit}
+            costCredits={currentCostCredits}
+            isGenerateDisabled={isGenerateDisabled}
             resolvePreviewUrlById={resolvePreviewUrlById}
           />
         );
@@ -190,28 +205,91 @@ export default function AiStudioPage() {
     return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === modelMediaFilter || opt.mediaType === "multi");
   }, [modelMediaFilter]);
 
-  const { balanceCents, balanceLoading, debit } = useCredits();
-  const balanceCredits = useMemo(() => {
-    if (balanceCents == null) return null;
-    return Math.max(0, Math.floor(balanceCents)); // cents == credits
-  }, [balanceCents]);
-  const modelConfig = useMemo(() => getModelConfig(model), [model]);
+  const isDescribeMode = selectedTool === "create" && mode === "enhance" && useReferenceImageIndicator;
+  const requiresModelSelection =
+    (selectedTool === "create" && mode !== "enhance") || selectedTool === "image-to-video";
+  const isModelSelected = Boolean(model);
+  const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
+
+  const estimatedTextTokens = useMemo(() => estimatePromptTokens(prompt), [prompt]);
+  const estimatedDescribeTokens = useMemo(() => (prompt ? estimatePromptTokens(prompt) : estimateDescribeTokens()), [prompt]);
 
   const currentCost = useMemo(() => {
-    if (selectedTool === "create" && mode === "image") {
-      return computeCostForModel(model, { aspect });
+    if (selectedTool === "create") {
+      if (mode === "image") {
+        if (!model) return null;
+        return computeCostForModel(model, { aspect });
+      }
+      if (mode === "video") {
+        if (!model) return null;
+        return computeCostForModel(model, { aspect, durationSeconds: DEFAULT_KLING_DURATION_SECONDS });
+      }
+      if (mode === "enhance") {
+        if (isDescribeMode) {
+          return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedDescribeTokens);
+        }
+        return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedTextTokens);
+      }
+      return null;
     }
+
+    if (selectedTool === "image-to-video") {
+      if (!model) return null;
+      return computeCostForModel(model, { aspect, durationSeconds: DEFAULT_KLING_DURATION_SECONDS });
+    }
+
     return null;
-  }, [aspect, mode, model, selectedTool]);
+  }, [
+    aspect,
+    estimatedDescribeTokens,
+    estimatedTextTokens,
+    isDescribeMode,
+    mode,
+    model,
+    selectedTool,
+  ]);
 
   const currentCostCredits = currentCost?.credits ?? null;
+  const costedFlow =
+    (selectedTool === "create" && (mode === "image" || mode === "video")) || selectedTool === "image-to-video";
+  const hasSufficientCreditsForCost =
+    !costedFlow || balanceCredits == null || currentCostCredits == null
+      ? true
+      : balanceCredits >= currentCostCredits;
+  const requiresVideoReference =
+    selectedTool === "image-to-video" && (model === "fal/kling-video-v1.6" || model === "kling-2.5-turbo");
+  const hasVideoReference = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
+
+  const isGenerateDisabled =
+    (requiresModelSelection && !isModelSelected) ||
+    (isDescribeMode && !hasDescribeImage) ||
+    (costedFlow && !hasSufficientCreditsForCost) ||
+    (requiresVideoReference && !hasVideoReference);
+
+  const modelConfig = useMemo(() => (model ? getModelConfig(model) : null), [model]);
 
   const handleGenerate = () => {
-    if (currentCostCredits) {
+    if (isGenerateDisabled) return;
+    if (
+      selectedTool === "create" &&
+      (mode === "image" || mode === "video") &&
+      currentCostCredits &&
+      model &&
+      hasSufficientCreditsForCost
+    ) {
       const memo = `${modelConfig?.label ?? model} generation`;
       debit(currentCostCredits, memo, `out-${Date.now()}`).catch(() => {});
     }
     generateOutput();
+  };
+
+  const handleRegenerateWithDebit = () => {
+    if (isGenerateDisabled) return;
+    if (selectedTool === "image-to-video" && currentCostCredits && model && hasSufficientCreditsForCost) {
+      const memo = `${modelConfig?.label ?? model} generation`;
+      debit(currentCostCredits, memo, `out-${Date.now()}`).catch(() => {});
+    }
+    regenerateOutput();
   };
 
   return (
@@ -229,6 +307,17 @@ export default function AiStudioPage() {
           style={{ display: "none" }}
           onChange={handleFileBrowserSelection}
         />
+
+        {uiError ? (
+          <div className="ai-error-banner" role="alert">
+            <div className="ai-error-text">
+              <strong>Error:</strong> {uiError}
+            </div>
+            <button type="button" className="ghost-btn mini" onClick={dismissError} aria-label="Dismiss error">
+              Dismiss
+            </button>
+          </div>
+        ) : null}
 
         <section className="ai-hero panel hero-banner ai-amber-hero">
           <div className="hero-text">
@@ -297,6 +386,7 @@ export default function AiStudioPage() {
                 onReferenceTextChange={setReferenceText}
                 onRegenerate={regenerateOutput}
                 onTriggerFileSelect={triggerFilePicker}
+                onDropFiles={handleReferenceCanvasFiles}
               />
             </section>
           </div>

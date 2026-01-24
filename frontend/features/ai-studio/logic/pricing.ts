@@ -6,6 +6,7 @@ import { CostBreakdown, PricingParams } from "./pricingTypes";
 export { getModelConfig } from "./modelRegistry";
 export { listModelConfigs } from "./modelRegistry";
 export { falImageSizeMap } from "./modelSizes";
+export { DEFAULT_KLING_DURATION_SECONDS } from "./pricingStrategies";
 export type { CostBreakdown } from "./pricingTypes";
 
 export const falSizeForAspect = (aspect: string) =>

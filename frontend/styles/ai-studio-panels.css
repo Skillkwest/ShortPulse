@@ -77,7 +77,7 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 20px;
+  padding: 14px 0px;
 }
 
 .ai-studio-page .primary-btn:hover {
@@ -85,7 +85,7 @@
 }
 
 .ai-studio-page .primary-btn.primary-btn-wide {
-  min-width: 220px;
+  min-width: 190px;
   justify-content: center;
 }
 

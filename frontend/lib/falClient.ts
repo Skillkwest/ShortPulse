@@ -1,5 +1,5 @@
 /**
- * Thin client for Fal.ai interactions (flux/dev text-to-image).
+ * Thin client for Fal.ai interactions (flux/dev text-to-image + Kling video).
  * Proxies through Next API routes to keep keys server-side.
  */
 export type FalSubmitRequest = {
@@ -22,6 +22,35 @@ export type FalStatusResponse = {
     images?: { url: string; content_type?: string; width?: number; height?: number }[];
     prompt?: string;
   };
+};
+
+export type FalKlingSubmitRequest = {
+  prompt: string;
+  image_url: string;
+  duration?: "5" | "10" | 5 | 10;
+  negative_prompt?: string;
+  cfg_scale?: number;
+};
+
+export type FalKlingSubmitResponse = { request_id: string };
+
+export type FalKlingTextSubmitRequest = {
+  prompt: string;
+  duration?: "5" | "10" | 5 | 10;
+  aspect_ratio?: "16:9" | "9:16" | "1:1";
+  negative_prompt?: string;
+  cfg_scale?: number;
+};
+
+export type FalKlingStatusResponse = {
+  status?: string;
+  state?: string;
+  error?: string;
+  data?: {
+    video?: { url?: string; content_type?: string };
+  };
+  video?: { url?: string; content_type?: string };
+  request_id?: string;
 };
 
 const FAL_API_BASE = "/api/fal";
@@ -66,4 +95,41 @@ export const fetchFalStatus = async (requestId: string): Promise<FalStatusRespon
     body: JSON.stringify({ requestId }),
   });
   return handleJson<FalStatusResponse>(response);
+};
+
+export const submitFalKling = async (payload: FalKlingSubmitRequest): Promise<FalKlingSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal Kling did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const submitFalKlingText = async (payload: FalKlingTextSubmitRequest): Promise<FalKlingSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-text-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal Kling text-to-video did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalKlingStatus = async (requestId: string): Promise<FalKlingStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalKlingStatusResponse>(response);
 };

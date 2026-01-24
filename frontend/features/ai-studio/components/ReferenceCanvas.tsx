@@ -8,6 +8,8 @@ import { CloudArrowUp, UploadSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
 
+const isVideoUrl = (url: string) => /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
+
 type ReferenceCanvasProps = {
   outputs: StudioOutput[];
   activeOutputId: string | null;
@@ -106,12 +108,14 @@ export function ReferenceCanvas({
                 item.taskState === "pending" ||
                 (item.taskState === "success" && !item.previewUrl && !item.previewText);
 
+              const isVideoPreview = item.previewUrl ? isVideoUrl(item.previewUrl) : false;
+              const cardStyle = !isVideoPreview && item.previewUrl ? { backgroundImage: `url(${item.previewUrl})` } : undefined;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  className={`reference-card ${item.previewUrl ? "has-preview" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""}`}
-                  style={item.previewUrl ? { backgroundImage: `url(${item.previewUrl})` } : undefined}
+                  className={`reference-card ${item.previewUrl ? "has-preview" : ""} ${isVideoPreview ? "has-video" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""}`}
+                  style={cardStyle}
                   onClick={() => onSelectOutput(item.id)}
                   onDoubleClick={() => onOpenDetails(item.id)}
                   draggable={!!item.previewUrl || !!item.previewText}
@@ -120,6 +124,9 @@ export function ReferenceCanvas({
                   }}
                   onDragEnd={handleCardDragEnd}
                 >
+                  {isVideoPreview && item.previewUrl ? (
+                    <video className="reference-card-video" src={item.previewUrl} autoPlay muted loop playsInline />
+                  ) : null}
                   {renderStatusChip(item)}
                   {isLoading ? (
                     <div className="reference-loading">

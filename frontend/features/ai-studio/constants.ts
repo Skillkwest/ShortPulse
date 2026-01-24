@@ -22,11 +22,14 @@ export const aspectOptions: AspectOption[] = [
   { value: "21:9", ratioLabel: "21:9", name: "Ultra-wide", orientation: "widescreen" },
 ];
 
+// When you add/remove image models here, update `docs/sop_image_generation.md` → “Supported image models”.
 export const modelOptions: ModelOption[] = [
   { value: "nano-banana-pro", label: "Nano Banana Pro (Image)", mediaType: "image" },
   { value: "veo-3", label: "Veo 3 (Video)", mediaType: "video" },
   { value: "flux-kontext", label: "Flux Kontext (Image editing)", mediaType: "edit" },
   { value: "kling-2.5-turbo", label: "Kling 2.5 Turbo (Video/Image-to-video)", mediaType: "video" },
+  { value: "fal/kling-video-v1.6", label: "Kling 1.6 (Image to Video)", mediaType: "video" },
+  { value: "fal/kling-video-v1.6-text", label: "Kling 1.6 (Text to Video)", mediaType: "video" },
   { value: "gpt-image-1", label: "4o Image (GPT Image 1)", mediaType: "image" },
   { value: "seedream/4.5-text-to-image", label: "Seedream 4.5 (Image)", mediaType: "image" },
   { value: "fal/flux-dev", label: "Fal Flux Dev (Image)", mediaType: "image" },
@@ -46,6 +49,9 @@ export const keiAllowedAspects = new Set([
   "21:9",
   "auto",
 ]);
+
+// Kling image-to-video supports a limited aspect list.
+export const klingAllowedAspects = new Set(["16:9", "9:16", "1:1"]);
 
 // GPT-4o Image only allows these sizes.
 export const gptImageAllowedAspects = new Set(["1:1", "3:2", "2:3"]);

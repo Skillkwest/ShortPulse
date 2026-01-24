@@ -177,3 +177,14 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added a Supabase-backed credit system (ledger + hook) with auto-seed, per-generation debit for Fal Flux Dev, and a live credit display embedded in the AI Studio header; Generate buttons show dynamic costs.
 - Improved media UX: reference detail modal now renders full images with object-fit contain (no cropping) and matches item aspect; Reference Grid shows animated spinners for in-progress items and ignores non-image drops to prevent blank cards.
 - Hardened drag/drop flows: prefer state URLs over blob URLs, filter non-image drops in the grid, and surface status/error chips with clearer overlay behavior.
+
+## 2027-01-24 (AI Studio prompt + describe consolidation)
+- Prompts: removed redundant prompt docs (`docs/ai-agent-prompts.md`, `docs/openai-agent-system-instructions.md`) and codified `frontend/lib/agentPromptsConfig.ts` as the single source of truth. Updated the SOP to reflect gpt-4.1-nano defaults and prompt ownership.
+- Image-to-Text: when the toggle is on, the describe-image agent (Agent 2) always runs—even if the prompt box has text—so the textarea is populated from the describe result. Imported images dropped into Reference Grid/Studio Preview now seed the describe flow.
+- Errors & credits: added a dismissible error banner in AI Studio; Generate buttons show computed credit estimates (or “—” if unknown). Image/video runs debit credits immediately; prompt-refine/describe flows debit after API responses using observed/estimated tokens.
+- API defaults: `/api/ai/generate-prompt` and `/api/ai/describe-image` default to `gpt-4.1-nano` when env vars are unset.
+
+## 2027-01-25 (Credit gating + documentation reminder)
+- Image/video generation requires a sufficient credit balance before debiting; the Generate CTA disables and the SOP now notes the credit check so the banner can prompt a top-up.
+- Added a comment near `modelOptions` reminding maintainers to keep the `docs/sop_image_generation.md` supported-model table in sync when adding providers/models.
+- Video pipeline hardening: added routing for Kling text-to-video and related models, and allowed dropped/imported images (blob/data URLs) to be used for image-to-video submissions by normalizing inputs before provider calls.

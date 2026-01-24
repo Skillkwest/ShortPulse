@@ -2,7 +2,7 @@
  * Detail modal for reference items (prompt/image/video).
  * Supports prompt-only view and media preview with metadata.
  */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StudioOutput } from "../types";
 
 type DetailModalProps = {
@@ -15,24 +15,52 @@ type DetailModalProps = {
  * Renders the detail modal for a selected reference.
  */
 export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProps) {
-  if (!output) return null;
-  const mediaType = output.mode === "image" ? "Image" : output.mode === "video" ? "Video" : "Prompt";
-  const isPromptOnly = output.mode === "enhance";
+  const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const promptOnlyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const mediaType = output?.mode === "image" ? "Image" : output?.mode === "video" ? "Video" : "Prompt";
+  const isPromptOnly = output?.mode === "enhance";
   const aspectStyle =
-    output.aspect && output.aspect.includes(":")
+    output?.aspect && output.aspect.includes(":")
       ? { aspectRatio: output.aspect.replace(":", " / ") }
       : undefined;
-  const [draftPrompt, setDraftPrompt] = useState(output.prompt ?? "");
+  const [draftPrompt, setDraftPrompt] = useState(output?.prompt ?? "");
   useEffect(() => {
-    setDraftPrompt(output.prompt ?? "");
-  }, [output.prompt, output.id]);
+    setDraftPrompt(output?.prompt ?? "");
+  }, [output?.prompt, output?.id]);
 
-  const canSave = useMemo(() => draftPrompt.trim().length > 0 && draftPrompt.trim() !== (output.prompt ?? "").trim(), [draftPrompt, output.prompt]);
+  const canSave = useMemo(
+    () => draftPrompt.trim().length > 0 && draftPrompt.trim() !== (output?.prompt ?? "").trim(),
+    [draftPrompt, output?.prompt],
+  );
+
+  const isPromptEditable = Boolean(isPromptOnly);
+
+  const syncTextareaHeight = useCallback((element: HTMLTextAreaElement | null) => {
+    if (!element) return;
+    const minHeight = Number(element.dataset.minHeight || 180);
+    const maxHeight = Number(element.dataset.maxHeight || 420);
+    element.style.height = "auto";
+    const nextHeight = Math.min(Math.max(element.scrollHeight, minHeight), maxHeight);
+    element.style.height = `${nextHeight}px`;
+  }, []);
+
+  useEffect(() => {
+    syncTextareaHeight(promptTextareaRef.current);
+    syncTextareaHeight(promptOnlyTextareaRef.current);
+  }, [draftPrompt, syncTextareaHeight]);
 
   const handleSavePrompt = () => {
-    if (!output.id || !draftPrompt.trim()) return;
+    if (!isPromptEditable || !output?.id || !draftPrompt.trim()) return;
     onUpdatePrompt(output.id, draftPrompt);
   };
+
+  const handlePromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!isPromptEditable) return;
+    setDraftPrompt(event.target.value);
+  };
+
+  if (!output) return null;
 
   return (
     <div className="reference-modal-backdrop" onClick={onClose}>
@@ -59,13 +87,18 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
               <span className="reference-detail-label">Prompt</span>
               <textarea
                 className="reference-modal-prompt-box editable"
+                ref={promptOnlyTextareaRef}
+                data-min-height="180"
+                data-max-height="420"
                 value={draftPrompt}
-                onChange={(event) => setDraftPrompt(event.target.value)}
+                onChange={handlePromptChange}
+                readOnly={!isPromptEditable}
+                aria-readonly={!isPromptEditable}
                 rows={6}
               />
             </div>
             <div className="reference-modal-actions">
-              <button type="button" className="ghost-btn" onClick={handleSavePrompt} disabled={!canSave}>
+              <button type="button" className="ghost-btn" onClick={handleSavePrompt} disabled={!canSave || !isPromptEditable}>
                 Save changes
               </button>
               <button type="button" className="primary-btn">Save to Media Library</button>
@@ -108,14 +141,19 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
                   <span className="reference-detail-label">Prompt</span>
                   <textarea
                     className="reference-detail-value prompt-block editable"
+                    ref={promptTextareaRef}
+                    data-min-height="200"
+                    data-max-height="420"
                     value={draftPrompt}
-                    onChange={(event) => setDraftPrompt(event.target.value)}
+                    onChange={handlePromptChange}
+                    readOnly={!isPromptEditable}
+                    aria-readonly={!isPromptEditable}
                     rows={6}
                   />
                 </div>
               </div>
               <div className="reference-modal-actions">
-                <button type="button" className="ghost-btn" onClick={handleSavePrompt} disabled={!canSave}>
+                <button type="button" className="ghost-btn" onClick={handleSavePrompt} disabled={!canSave || !isPromptEditable}>
                   Save changes
                 </button>
                 <button type="button" className="primary-btn">Save to Media Library</button>

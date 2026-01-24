@@ -4,6 +4,8 @@ import { CostBreakdown, PricingParams, PricingStrategyId } from "./pricingTypes"
 
 const FAL_COST_PER_MP_USD = 0.025;
 const CREDIT_VALUE_USD = 0.01;
+const KLING_VIDEO_COST_PER_SECOND_USD = 0.095;
+export const DEFAULT_KLING_DURATION_SECONDS = 10;
 
 type StrategyFn = (params: PricingParams) => CostBreakdown | null;
 
@@ -39,7 +41,25 @@ const computeGpt41NanoPerTokenCost: StrategyFn = ({ inputTokens = 0, outputToken
   };
 };
 
+const computeFalKlingPerRequestCost: StrategyFn = () => {
+  return null;
+};
+
+const computeFalKlingPerDurationCost: StrategyFn = ({ durationSeconds }) => {
+  const duration = Number.isFinite(durationSeconds) && durationSeconds ? durationSeconds : DEFAULT_KLING_DURATION_SECONDS;
+  const usd = duration * KLING_VIDEO_COST_PER_SECOND_USD;
+  const credits = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
+  return {
+    credits,
+    usd: credits * CREDIT_VALUE_USD,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+  };
+};
+
 export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-per-mp": computeFalPerMpCost,
   "gpt41nano-per-token": computeGpt41NanoPerTokenCost,
+  "fal-kling-video-per-request": computeFalKlingPerDurationCost,
 };

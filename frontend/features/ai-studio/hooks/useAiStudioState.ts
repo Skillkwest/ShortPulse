@@ -3,7 +3,7 @@
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { falImageSizeMap, keiAllowedAspects, modelOptions, gptImageAllowedAspects } from "../constants";
+import { gptImageAllowedAspects, keiAllowedAspects, klingAllowedAspects, modelOptions } from "../constants";
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput, ToolId } from "../types";
 import {
@@ -12,11 +12,14 @@ import {
   KeiTaskStatus,
   createKeiGpt4oTask,
 } from "../../../lib/keiClient";
-import { fetchFalStatus, submitFalFlux } from "../../../lib/falClient";
-import { falSizeForAspect } from "../logic/pricing";
-import { postGeneratePrompt } from "../logic/promptGeneration";
+import { fetchFalKlingStatus, fetchFalStatus, submitFalFlux, submitFalKling, submitFalKlingText } from "../../../lib/falClient";
+import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel, falSizeForAspect } from "../logic/pricing";
+import { postGeneratePrompt, TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
+import { postDescribeImage, prepareImageUrl } from "../logic/imageDescription";
+import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
 
 type ModelModalPosition = { top: number; left: number };
+type Provider = "kei" | "fal" | "fal-kling";
 
 const computeModalPosition = (target: HTMLElement): ModelModalPosition => {
   const rect = target.getBoundingClientRect();
@@ -28,13 +31,11 @@ const computeModalPosition = (target: HTMLElement): ModelModalPosition => {
   return { top, left };
 };
 
-const resolveModelLabel = (value: string) =>
-  modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})`;
+const resolveModelLabel = (value?: string) =>
+  value ? modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})` : "Select model here";
 
 const normalizeAspectForKei = (value: string) => (keiAllowedAspects.has(value) ? value : "auto");
 const normalizeAspectForGptImage = (value: string) => (gptImageAllowedAspects.has(value) ? value : "1:1");
-const mapAspectToFalSize = (value: string) => falImageSizeMap[value] ?? "landscape_4_3";
-
 const extractFalUrls = (status: any): string[] => {
   const direct = status?.images;
   if (Array.isArray(direct) && direct[0]?.url) return direct.map((img) => img?.url).filter(Boolean) as string[];
@@ -45,23 +46,68 @@ const extractFalUrls = (status: any): string[] => {
   return [];
 };
 
+const extractFalMediaUrls = (status: any): string[] => {
+  const imageUrls = extractFalUrls(status);
+  if (imageUrls.length) return imageUrls;
+  const videos = status?.videos || status?.data?.videos || status?.output?.videos || status?.result?.videos;
+  if (Array.isArray(videos) && videos[0]?.url) {
+    return videos.map((vid) => vid?.url).filter(Boolean) as string[];
+  }
+  const videoUrl =
+    status?.video?.url ||
+    status?.data?.video?.url ||
+    status?.output?.video?.url ||
+    status?.result?.video?.url ||
+    status?.data?.result?.video?.url ||
+    status?.video_url ||
+    status?.data?.video_url ||
+    status?.output?.video_url ||
+    status?.result?.video_url ||
+    status?.data?.result?.video_url;
+  return videoUrl ? [videoUrl] : [];
+};
+
 const extractResultUrls = (resultJson: KeiTaskStatus["resultJson"], fallback?: unknown): string[] => {
   if (!resultJson && fallback && typeof fallback === "object") {
     const urls = (fallback as any)?.resultUrls || (fallback as any)?.info?.result_urls;
     if (Array.isArray(urls)) return urls as string[];
+    const videos = (fallback as any)?.videos || (fallback as any)?.data?.videos || (fallback as any)?.output?.videos;
+    if (Array.isArray(videos) && videos[0]?.url) {
+      return videos.map((vid: any) => vid?.url).filter(Boolean) as string[];
+    }
+    const videoUrl =
+      (fallback as any)?.video?.url ||
+      (fallback as any)?.data?.video?.url ||
+      (fallback as any)?.output?.video?.url ||
+      (fallback as any)?.video_url ||
+      (fallback as any)?.data?.video_url ||
+      (fallback as any)?.output?.video_url;
+    if (videoUrl) return [videoUrl];
   }
   if (!resultJson) return [];
   if (typeof resultJson === "string") {
     try {
       const parsed = JSON.parse(resultJson);
-      return Array.isArray((parsed as any)?.resultUrls) ? (parsed as any).resultUrls : [];
+      return extractResultUrls(parsed as any);
     } catch (error) {
       return [];
     }
   }
-  if (typeof resultJson === "object" && "resultUrls" in resultJson) {
-    const urls = (resultJson as { resultUrls?: unknown }).resultUrls;
-    return Array.isArray(urls) ? (urls as string[]) : [];
+  if (typeof resultJson === "object" && resultJson) {
+    const urls = (resultJson as any)?.resultUrls || (resultJson as any)?.info?.result_urls;
+    if (Array.isArray(urls)) return urls as string[];
+    const videos = (resultJson as any)?.videos || (resultJson as any)?.data?.videos || (resultJson as any)?.output?.videos;
+    if (Array.isArray(videos) && videos[0]?.url) {
+      return videos.map((vid: any) => vid?.url).filter(Boolean) as string[];
+    }
+    const videoUrl =
+      (resultJson as any)?.video?.url ||
+      (resultJson as any)?.data?.video?.url ||
+      (resultJson as any)?.output?.video?.url ||
+      (resultJson as any)?.video_url ||
+      (resultJson as any)?.data?.video_url ||
+      (resultJson as any)?.output?.video_url;
+    if (videoUrl) return [videoUrl];
   }
   return [];
 };
@@ -69,13 +115,17 @@ const extractResultUrls = (resultJson: KeiTaskStatus["resultJson"], fallback?: u
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
  */
-export const useAiStudioState = () => {
+type AiStudioStateOptions = {
+  onDebitCredits?: (credits: number, reason: string, refId?: string) => Promise<void> | void;
+};
+
+export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) => {
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Creation inputs
   const [mode, setMode] = useState<StudioMode>("image");
   const [aspect, setAspect] = useState<string>("9:16");
-  const [model, setModel] = useState<string>(modelOptions[0]?.value ?? "nano-banana-pro");
+  const [model, setModel] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<string>("");
 
   // Output management
@@ -99,6 +149,7 @@ export const useAiStudioState = () => {
   const [modelModalAnchor, setModelModalAnchor] = useState<string | null>(null);
   const [modelModalPosition, setModelModalPosition] = useState<ModelModalPosition | null>(null);
   const [isPromptGenerating, setIsPromptGenerating] = useState<boolean>(false);
+  const [uiError, setUiError] = useState<string | null>(null);
   const pollTimersRef = useRef<Record<string, number>>({});
 
   const activeOutput = useMemo(
@@ -109,7 +160,7 @@ export const useAiStudioState = () => {
     () => outputs.find((item) => item.id === detailOutputId) ?? null,
     [detailOutputId, outputs],
   );
-  const currentModelLabel = useMemo(() => resolveModelLabel(model), [model]);
+  const currentModelLabel = useMemo(() => resolveModelLabel(model ?? undefined), [model]);
 
   // --- Lifecycle ----------------------------------------------------------
   useEffect(() => {
@@ -140,6 +191,8 @@ export const useAiStudioState = () => {
       setAspect("1:1");
     } else if (model === "seedream/4.5-text-to-image" && !keiAllowedAspects.has(aspect)) {
       setAspect("1:1");
+    } else if ((model === "fal/kling-video-v1.6" || model === "fal/kling-video-v1.6-text") && !klingAllowedAspects.has(aspect)) {
+      setAspect("16:9");
     }
   }, [aspect, model]);
 
@@ -206,11 +259,16 @@ export const useAiStudioState = () => {
   }, [updateOutputById]);
 
   const startPollingTask = useCallback(
-    (taskId: string, outputId: string, attempt = 0, provider: "kei" | "fal" = "kei") => {
+    (taskId: string, outputId: string, attempt = 0, provider: Provider = "kei") => {
       const delay = Math.min(6000, 1200 + attempt * 400);
       const timeoutId = window.setTimeout(async () => {
         try {
-          const status = provider === "fal" ? await fetchFalStatus(taskId) : await fetchKeiTaskStatus(taskId);
+          const status =
+            provider === "fal"
+              ? await fetchFalStatus(taskId)
+              : provider === "fal-kling"
+                ? await fetchFalKlingStatus(taskId)
+                : await fetchKeiTaskStatus(taskId);
           const stateRaw =
             (status as any)?.status?.toString().toLowerCase() ??
             (status as any)?.state?.toString().toLowerCase() ??
@@ -220,7 +278,7 @@ export const useAiStudioState = () => {
           if (state === "success" || state === "completed") {
             const falImages = (status as any)?.data?.images;
             const falUrl = Array.isArray(falImages) ? falImages[0]?.url : undefined;
-            const falUrls = falUrl ? [falUrl] : extractFalUrls(status);
+            const falUrls = falUrl ? [falUrl] : extractFalMediaUrls(status);
             const resultUrls = (status as any)?.resultUrls?.length
               ? (status as any)?.resultUrls
               : extractResultUrls((status as any)?.resultJson, (status as any)?.raw);
@@ -288,32 +346,107 @@ export const useAiStudioState = () => {
 
   const submitTask = useCallback(
     async (promptText: string, imageInputs: string[]) => {
+      setUiError(null);
       const cleanedPrompt = promptText.trim();
-      if (!cleanedPrompt) return;
+      const allowEmptyPrompt = mode === "enhance" && useReferenceImageIndicator;
+      if (!cleanedPrompt && !allowEmptyPrompt) return;
       // Text mode uses AI prompt refinement and saves to the grid without image/video generation.
       if (mode === "enhance") {
+        // Image-to-text describe flow (Agent 2) when reference toggle is on.
+        if (useReferenceImageIndicator) {
+          // Force describe-image workflow and ignore user-typed prompt input when toggle is active.
+          const fallbackPreview = outputs.find((item) => item.previewUrl)?.previewUrl;
+          const rawImageUrl = activeOutput?.previewUrl || referenceImageUrl || imageInputs[0] || fallbackPreview;
+          const imageUrl = await prepareImageUrl(rawImageUrl ?? "");
+          if (!imageUrl) {
+            setUiError("Image describe requires an uploaded or generated image. Add a reference from the grid first.");
+            setIsPromptGenerating(false);
+            return;
+          }
+          setSaved(false);
+          setIsPromptGenerating(true);
+          try {
+            const result = await postDescribeImage(imageUrl);
+            const description = result?.description;
+            if (description) {
+              setPrompt(description);
+              const promptId = `prompt-${randomId()}`;
+              const promptReference: StudioOutput = {
+                id: promptId,
+                prompt: description,
+                mode,
+                aspect,
+                model: "Image Describer (Agent 2)",
+                modelId: "OPENAI_PROMPT_IMAGE_DESCRIBE",
+                status: "saved",
+                timestamp: "Saved prompt",
+                previewText: description,
+              };
+              setOutputs((prev) => [promptReference, ...prev]);
+              setActiveOutputId(promptId);
+              setSaved(true);
+              if (onDebitCredits) {
+                const tokenEstimate =
+                  result?.usage?.inputTokens || result?.usage?.outputTokens
+                    ? {
+                        inputTokens: result?.usage?.inputTokens ?? 0,
+                        outputTokens: result?.usage?.outputTokens ?? 0,
+                      }
+                    : estimateDescribeTokens(description);
+                const cost = computeCostForModel(TEXT_PROMPT_MODEL_ID, tokenEstimate);
+                if (cost?.credits) {
+                  const reason = "Image describer (Agent 2)";
+                  Promise.resolve(onDebitCredits(cost.credits, reason, promptId)).catch(() => {});
+                }
+              }
+            } else {
+              setUiError("Image description failed. Check the image and try again.");
+            }
+          } finally {
+            setIsPromptGenerating(false);
+          }
+          return;
+        }
+
         setSaved(false);
         setIsPromptGenerating(true);
         let finalPrompt = cleanedPrompt;
+        let observedTokens = estimatePromptTokens(cleanedPrompt);
         try {
-          const refinedPrompt = await postGeneratePrompt(cleanedPrompt);
-          if (refinedPrompt) {
-            setPrompt(refinedPrompt);
-            finalPrompt = refinedPrompt;
+          const result = await postGeneratePrompt(cleanedPrompt);
+          if (result?.prompt) {
+            setPrompt(result.prompt);
+            finalPrompt = result.prompt;
+            observedTokens = {
+              inputTokens: result?.usage?.inputTokens ?? observedTokens.inputTokens,
+              outputTokens: result?.usage?.outputTokens ?? observedTokens.outputTokens,
+            };
+          } else {
+            setUiError("Prompt generation failed. Verify API key/model and try again.");
           }
-        } catch {
-          // no-op; fall back to user-provided prompt
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Prompt generation failed.";
+          setUiError(message);
+          // fall back to user-provided prompt
         } finally {
           setIsPromptGenerating(false);
         }
         const promptId = `prompt-${randomId()}`;
+
+        if (onDebitCredits) {
+          const cost = computeCostForModel(TEXT_PROMPT_MODEL_ID, observedTokens);
+          if (cost?.credits) {
+            const reason = `${TEXT_PROMPT_MODEL_ID} prompt refinement`;
+            Promise.resolve(onDebitCredits(cost.credits, reason, promptId)).catch(() => {});
+          }
+        }
         const promptReference: StudioOutput = {
           id: promptId,
           prompt: finalPrompt,
           mode,
           aspect,
-          model: resolveModelLabel(model),
-          modelId: model,
+          model: resolveModelLabel(TEXT_PROMPT_MODEL_ID),
+          modelId: TEXT_PROMPT_MODEL_ID,
           status: "saved",
           timestamp: "Saved prompt",
           previewText: finalPrompt,
@@ -324,11 +457,26 @@ export const useAiStudioState = () => {
         return;
       }
 
+      if (!model) return;
       const id = `out-${randomId()}`;
       const modelLabel = resolveModelLabel(model);
       const isGptImageModel = model === "gpt-image-1";
       const isSeedreamModel = model === "seedream/4.5-text-to-image";
       const isFalModel = model === "fal/flux-dev";
+      const isKlingModel = model === "fal/kling-video-v1.6";
+      const isKlingTextModel = model === "fal/kling-video-v1.6-text";
+      const isKling25Model = model === "kling-2.5-turbo";
+      const isVeoModel = model === "veo-3";
+
+      // Normalize image inputs (supports blob/data URLs from drops).
+      const preparedImageInputs = (
+        await Promise.all(
+          imageInputs.map(async (url) => {
+            const normalized = await prepareImageUrl(url);
+            return normalized ?? null;
+          }),
+        )
+      ).filter((url): url is string => Boolean(url));
 
       const nextOutput: StudioOutput = {
         id,
@@ -341,13 +489,66 @@ export const useAiStudioState = () => {
         taskState: "pending",
         timestamp: "Submitting...",
         errorMessage: null,
+        previewUrl: isKlingModel || isKling25Model ? preparedImageInputs[0] ?? undefined : undefined,
       };
+
+      if ((isKlingModel || isKling25Model) && preparedImageInputs.length === 0) {
+        setOutputs((prev) => [
+          {
+            ...nextOutput,
+            taskState: "fail",
+            status: "ready",
+            timestamp: "Missing image",
+            errorMessage: "Image-to-video requires an image URL.",
+          },
+          ...prev,
+        ]);
+        setActiveOutputId(id);
+        setSaved(false);
+        return;
+      }
 
       setOutputs((prev) => [nextOutput, ...prev]);
       setActiveOutputId(id);
       setSaved(false);
 
       try {
+        if (isKlingTextModel || isVeoModel) {
+          const { request_id } = await submitFalKlingText({
+            prompt: cleanedPrompt,
+            aspect_ratio: klingAllowedAspects.has(aspect) ? aspect : "16:9",
+            duration: DEFAULT_KLING_DURATION_SECONDS.toString(),
+            negative_prompt: "blur, distort, and low quality",
+            cfg_scale: 0.5,
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(request_id, id, 0, "fal-kling");
+          return;
+        }
+
+        if (isKlingModel || isKling25Model) {
+          const { request_id } = await submitFalKling({
+            prompt: cleanedPrompt,
+            image_url: preparedImageInputs[0],
+            duration: DEFAULT_KLING_DURATION_SECONDS.toString(),
+            negative_prompt: "blur, distort, and low quality",
+            cfg_scale: 0.5,
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(request_id, id, 0, "fal-kling");
+          return;
+        }
+
         if (isFalModel) {
           const size = falSizeForAspect(aspect);
           const falResp = await submitFalFlux({
@@ -369,7 +570,7 @@ export const useAiStudioState = () => {
         const { taskId } = isGptImageModel
           ? await createKeiGpt4oTask({
               prompt: cleanedPrompt,
-              filesUrl: imageInputs.slice(0, 5),
+              filesUrl: preparedImageInputs.slice(0, 5),
               size: normalizeAspectForGptImage(aspect),
               isEnhance: false,
               enableFallback: false,
@@ -388,7 +589,7 @@ export const useAiStudioState = () => {
               model,
               input: {
                 prompt: cleanedPrompt,
-                image_input: imageInputs,
+                image_input: preparedImageInputs,
                 aspect_ratio: normalizeAspectForKei(aspect),
                 resolution: "1K",
                 output_format: "png",
@@ -417,9 +618,7 @@ export const useAiStudioState = () => {
   );
 
   const generateOutput = useCallback(() => {
-    const imageInputs = [referenceImageUrl, ...extraImageUrls]
-      .filter((url): url is string => Boolean(url) && url.startsWith("http"))
-      .slice(0, 8);
+    const imageInputs = [referenceImageUrl, ...extraImageUrls].filter((url): url is string => Boolean(url)).slice(0, 8);
     submitTask(prompt, imageInputs);
   }, [extraImageUrls, prompt, referenceImageUrl, submitTask]);
 
@@ -431,7 +630,7 @@ export const useAiStudioState = () => {
       referenceImageUrl,
       ...extraImageUrls,
     ];
-    const imageInputs = referencePool.filter((url): url is string => Boolean(url) && url.startsWith("http")).slice(0, 8);
+    const imageInputs = referencePool.filter((url): url is string => Boolean(url)).slice(0, 8);
     submitTask(promptToUse, imageInputs);
   }, [activeOutput?.previewUrl, extraImageUrls, referenceImageUrl, referenceText, submitTask, useReferenceImageIndicator]);
 
@@ -449,13 +648,14 @@ export const useAiStudioState = () => {
     const cleanedPrompt = prompt.trim();
     if (!cleanedPrompt) return;
     const id = `prompt-${randomId()}`;
+    const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
     const promptReference: StudioOutput = {
       id,
       prompt: cleanedPrompt,
       mode,
       aspect,
-      model: resolveModelLabel(model),
-      modelId: model,
+      model: placeholderModelLabel,
+      modelId: model ?? undefined,
       status: "saved",
       timestamp: "Saved prompt",
       previewText: cleanedPrompt,
@@ -571,5 +771,7 @@ export const useAiStudioState = () => {
     openModelModal,
     closeModelModal,
     updateOutputPrompt,
+    uiError,
+    setUiError,
   };
 };

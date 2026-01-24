@@ -28,6 +28,8 @@ type RecreatePropertiesPanelProps = {
   onSave: () => void;
   onRegenerate: () => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
+  costCredits?: number | null;
+  isGenerateDisabled?: boolean;
 };
 
 /**
@@ -53,6 +55,8 @@ export function RecreatePropertiesPanel({
   onSave,
   onRegenerate,
   resolvePreviewUrlById,
+  costCredits,
+  isGenerateDisabled = false,
 }: RecreatePropertiesPanelProps) {
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraOneInputRef = useRef<HTMLInputElement | null>(null);
@@ -159,7 +163,7 @@ export function RecreatePropertiesPanel({
             <div className="regenerate-step-header">
               <span className="step-badge mini">1</span>
               <div className="regenerate-step-copy">
-                <p className="step-title">Add Image</p>
+                <p className="step-title">Add Reference Image</p>
                 <span className="step-subtitle tiny">Drag a reference from the canvas or upload one manually.</span>
               </div>
               <div className="reference-drop-header-actions">
@@ -263,7 +267,7 @@ export function RecreatePropertiesPanel({
             <div className="regenerate-step-header">
               <span className="step-badge mini">3</span>
               <div className="regenerate-step-copy">
-                <p className="step-title">Add Prompt</p>
+                <p className="step-title">Write Your Prompt</p>
                 <span className="step-subtitle tiny">Drop a saved prompt or describe the look you want to recreate.</span>
               </div>
             </div>
@@ -292,10 +296,11 @@ export function RecreatePropertiesPanel({
                 type="button"
                 className="primary-btn primary-btn-wide recreate-generate-btn"
                 onClick={onRegenerate}
+                disabled={isGenerateDisabled}
               >
                 <span className="primary-btn-label">Generate</span>
                 <span className="primary-btn-credits">
-                  12 <Sparkle size={18} weight="fill" />
+                  {costCredits != null ? costCredits : "—"} <Sparkle size={18} weight="fill" />
                 </span>
               </button>
             </div>

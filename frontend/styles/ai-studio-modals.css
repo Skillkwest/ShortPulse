@@ -26,6 +26,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 18px;
   padding: 18px;
+  font-family: var(--font-primary);
 }
 .reference-modal.prompt-only {
   grid-template-columns: 1fr;
@@ -56,7 +57,7 @@
 
 .reference-modal-media-frame.text-only {
   background: linear-gradient(135deg, rgba(37, 169, 191, 0.12), rgba(245, 185, 66, 0.1));
-  color: var(--ai-card-text);
+  color: var(--color-ash);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -150,30 +151,41 @@
 }
 
 .reference-detail-value {
-  color: var(--ai-card-text);
+  color: var(--color-ash);
   font-weight: 600;
 }
 
 .reference-detail-value.prompt-block {
-  padding: 8px 10px;
+  width: 100%;
+  min-height: 200px;
+  height: auto;
+  padding: 12px 14px;
+  color: var(--color-ash);
+  line-height: 1.5;
+  font-size: 14px;
+  font-family: var(--font-primary);
   border-radius: 10px;
   background: rgba(12, 15, 22, 0.82);
   border: 1px solid rgba(201, 205, 214, 0.16);
   white-space: pre-wrap;
+  overflow: auto;
+  resize: none;
 }
 
 .reference-modal-prompt-box {
   width: 100%;
   min-height: 180px;
-  max-height: 320px;
+  height: auto;
   padding: 12px;
   border-radius: 10px;
   border: 1px solid rgba(201, 205, 214, 0.16);
   background: rgba(12, 15, 22, 0.9);
-  color: var(--ai-card-text);
+  color: var(--color-ash);
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-y: auto;
+  resize: none;
+  font-family: var(--font-primary);
 }
 .reference-modal-prompt-box::-webkit-scrollbar {
   width: 6px;

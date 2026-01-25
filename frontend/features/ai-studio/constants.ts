@@ -4,9 +4,26 @@
  */
 import { AspectOption, PromptTemplate, ToolId } from "./types";
 
-export type ModelMediaType = "image" | "video" | "edit" | "multi";
+export type ModelMediaType = "image" | "video" | "image-to-video" | "edit" | "multi";
 export type ModelOption = { value: string; label: string; mediaType?: ModelMediaType };
 export type ToolConfig = { id: ToolId; label: string; desc: string };
+
+// Map model ids to their logo assets used in selectors and chips.
+export const modelLogos: Record<string, string> = {
+  "fal/flux-2": "/flux%20LOGO.png",
+  "fal/flux-2-pro": "/flux%20LOGO.png",
+  "fal/flux-2-max": "/flux%20LOGO.png",
+  "fal/imagen4/preview/fast": "/Google%20LOGO.png",
+  "fal-ai/nano-banana": "/Google%20LOGO.png",
+  "fal-ai/nano-banana-pro": "/Google%20LOGO.png",
+  "fal-ai/bytedance/seedream/v4.5/text-to-image": "/Seedream%20LOGO.png",
+  "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": "/Kling%20LOGO.png",
+  "fal-ai/kling-video/v2.5-turbo/pro/text-to-video": "/Kling%20LOGO.png",
+  "fal-ai/kling-video/v2.6/pro/text-to-video": "/Kling%20LOGO.png",
+  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": "/Seedream%20LOGO.png",
+  "fal-ai/veo3.1": "/Google%20LOGO.png",
+  "fal-ai/sora-2/text-to-video/pro": "/Sora%202%20LOGO.png",
+};
 
 export const aspectOptions: AspectOption[] = [
   { value: "9:16", ratioLabel: "9:16", name: "Vertical", orientation: "vertical" },
@@ -20,20 +37,50 @@ export const aspectOptions: AspectOption[] = [
 
 // When you add/remove image models here, update `docs/sop_image_generation.md` → “Supported image models”.
 export const modelOptions: ModelOption[] = [
-  { value: "fal/kling-video-v1.6", label: "Kling 1.6", mediaType: "video" },
-  { value: "kling/v2-5-turbo-text-to-video-pro", label: "Kling 2.5 Turbo", mediaType: "video" },
-  { value: "kling-2.6/text-to-video", label: "Kling 2.6 Pro", mediaType: "video" },
+  { value: "fal-ai/kling-video/v2.5-turbo/pro/image-to-video", label: "Kling 2.5 Turbo", mediaType: "image-to-video" },
+  {
+    value: "fal-ai/kling-video/v2.5-turbo/pro/text-to-video",
+    label: "Kling 2.5 Turbo (Text to Video)",
+    mediaType: "video",
+  },
+  { value: "fal-ai/kling-video/v2.6/pro/text-to-video", label: "Kling 2.6 Pro", mediaType: "video" },
   { value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video", label: "Seedance 1.5 Pro", mediaType: "video" },
-  { value: "veo3", label: "Google Veo 3.1", mediaType: "video" },
-  { value: "sora-2-pro-text-to-video", label: "Sora 2 Pro", mediaType: "video" },
+  { value: "fal-ai/veo3.1", label: "Google Veo 3.1", mediaType: "video" },
+  { value: "fal-ai/sora-2/text-to-video/pro", label: "Sora 2 Pro", mediaType: "video" },
   { value: "fal/flux-2-max", label: "FLUX.2 Max", mediaType: "image" },
   { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
   { value: "fal/flux-2", label: "FLUX.2", mediaType: "image" },
   { value: "fal/imagen4/preview/fast", label: "Imagen 4 Fast", mediaType: "image" },
-  { value: "google/nano-banana", label: "Nano Banana", mediaType: "image" },
-  { value: "nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
-  { value: "seedream/4.5-text-to-image", label: "Seedream 4.5", mediaType: "image" },
+  { value: "fal-ai/nano-banana", label: "Nano Banana", mediaType: "image" },
+  { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
+  { value: "fal-ai/bytedance/seedream/v4.5/text-to-image", label: "Seedream 4.5", mediaType: "image" },
 ];
+
+export const falNanoBananaAllowedAspects = new Set([
+  "21:9",
+  "16:9",
+  "3:2",
+  "4:3",
+  "5:4",
+  "1:1",
+  "4:5",
+  "3:4",
+  "2:3",
+  "9:16",
+]);
+
+export const falNanoBananaProAllowedAspects = new Set([
+  "21:9",
+  "16:9",
+  "3:2",
+  "4:3",
+  "5:4",
+  "1:1",
+  "4:5",
+  "3:4",
+  "2:3",
+  "9:16",
+]);
 
 // Kie.ai expects one of these aspect ratios; anything else falls back to "auto" when sending requests.
 export const keiAllowedAspects = new Set([

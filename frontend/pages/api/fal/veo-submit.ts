@@ -1,10 +1,10 @@
 /**
- * Proxies Fal.ai Kling 1.6 image-to-video submit requests.
+ * Proxies Fal.ai Veo 3.1 text-to-video submit requests.
  * Keeps FAL_KEY server-side and passes the payload through to the queue endpoint.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const FAL_KLING_SUBMIT_URL = "https://queue.fal.run/fal-ai/kling-video/v1.6/standard/image-to-video";
+const FAL_VEO_SUBMIT_URL = "https://queue.fal.run/fal-ai/veo3.1";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -19,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 20000);
   try {
-    const upstream = await fetch(FAL_KLING_SUBMIT_URL, {
+    const upstream = await fetch(FAL_VEO_SUBMIT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const data = await upstream.json();
     return res.status(upstream.status).json(data);
   } catch (error) {
-    return res.status(500).json({ error: "Fal Kling submit failed", detail: String(error) });
+    return res.status(500).json({ error: "Fal Veo submit failed", detail: String(error) });
   } finally {
     clearTimeout(timeoutId);
   }

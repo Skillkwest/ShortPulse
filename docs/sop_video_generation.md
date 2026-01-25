@@ -81,12 +81,10 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 
 | Provider | Model id | Allowed aspects (examples) | Notes |
 | --- | --- | --- | --- |
-| Fal | `fal/kling-video-v1.6` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Image-to-video; default duration 5s; per-second pricing ($0.095/s → 48 credits at 5s). |
-| Fal | `fal/kling-video-v1.6-text` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Text-to-video; default duration 5s; per-second pricing ($0.095/s → 48 credits at 5s). |
-| Kie | `kling/v2-5-turbo-text-to-video-pro` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Per-duration pricing ($0.35 for 5s + $0.07/additional s); defaults to 10s (70 credits). |
-| Kie | `kling-2.6/text-to-video` | 16:9 default (allowed: 1:1, 16:9, 9:16) | Per-second pricing; defaults to 10s with audio on ($0.14/s → 140 credits). |
-| Kie | `veo3` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Per-second pricing; defaults to 8s @ 1080p with audio on ($0.40/s → 320 credits); 4K/audio-on is higher. |
-| Kie | `sora-2-pro-text-to-video` | 16:9 default (allowed: 16:9, 9:16) | Tiered pricing (credits = `ceil(usd / 0.01)`): Standard 10s = 150 cr, 15s = 270 cr; High 10s = 330 cr (default), 15s = 630 cr. Defaults: 10s, 1080p/high, audio on. |
+| Fal | `fal-ai/kling-video/v2.5-turbo/pro/image-to-video` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Image-to-video queue; requires an `image_url` reference; per-duration pricing ($0.35 for 5s + $0.07/additional s), defaults to 10s (70 credits) and proxies through `/api/fal/kling-v25-image-to-video-*`. |
+| Fal | `fal-ai/kling-video/v2.6/pro/text-to-video` | 16:9 default (allowed: 1:1, 16:9, 9:16) | Per-second pricing ($0.14/s audio-on, $0.07/s audio-off); defaults to 10s with `generate_audio: true` (140 credits). |
+| Fal | `fal-ai/veo3.1` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Per-second pricing (unchanged); defaults to 8s @ 1080p with audio on (still billed via `veo-3-per-second`); 4K/audio-on is higher. |
+| Fal | `fal-ai/sora-2/text-to-video/pro` | 16:9 default (allowed: 16:9, 9:16) | Tiered pricing (credits = `ceil(usd / 0.01)`): Standard tier uses 10s pricing (150 cr) for <=10s requests; High tier 10s = 330 cr (default). Queue accepts 4/8/12s; ShortPulse requests 8s by default (audio on) and polls Fal queue. |
 | Fal | `fal-ai/bytedance/seedance/v1.5/pro/text-to-video` | 16:9 default (allowed: 16:9, 9:16, 1:1, 4:3, 3:4, 21:9) | Token-based pricing (`tokens = width*height*24*duration/1024`): audio $2.4 per 1M tokens, no-audio $1.2 per 1M. Defaults: 10s, 1080p (fall back 720p→480p), audio on. |
 
 ## Maintenance rules

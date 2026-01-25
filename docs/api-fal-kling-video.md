@@ -1,6 +1,6 @@
 # Kling Video Text-to-Video API Reference
 
-ShortPulse developers can reference this guide when working with Fal.ai's Kling Text-to-Video models (v1.6 and related variants) via the queue API. The document covers authentication, request lifecycle, schema options, and variant request bodies so you can orchestrate generation jobs in a sandbox-friendly way.
+ShortPulse developers can reference this guide when working with Fal.ai's Kling Text-to-Video queue API (the newer v2.6 pro model plus the legacy v1.6 image-based variant). The document covers authentication, request lifecycle, schema options, and variant request bodies so you can orchestrate generation jobs in a sandbox-friendly way.
 
 ## Authentication
 
@@ -11,8 +11,8 @@ ShortPulse developers can reference this guide when working with Fal.ai's Kling 
 
 1. **Submit** the job:
    ```bash
-   response=$(curl --request POST \
-     --url https://queue.fal.run/fal-ai/kling-video/v1.6/pro/text-to-video \
+response=$(curl --request POST \
+  --url https://queue.fal.run/fal-ai/kling-video/v2.6/pro/text-to-video \
      --header "Authorization: Key $FAL_KEY" \
      --header "Content-Type: application/json" \
      --data '{
@@ -35,22 +35,24 @@ ShortPulse developers can reference this guide when working with Fal.ai's Kling 
 
 ‍Long-running requests should rely on queue polling or webhooks rather than blocking; the queue API encapsulates retries/status updates for you.
 
-## Default schema (Text to Video v1.6 / pro)
+## Default schema (Text to Video v2.6 Pro)
 
 - `prompt` (string, required): Scene description for the video.
-- `duration` (`DurationEnum`): `"5"` or `"10"` seconds (default `"5"`).
+- `duration` (`DurationEnum`): `"5"` or `"10"` seconds (API default `"5"`). ShortPulse defaults to `"10"` when invoking Kling 2.6 Pro text-to-video.
 - `aspect_ratio` (`AspectRatioEnum`): `16:9`, `9:16`, or `1:1` (default `16:9`).
 - `negative_prompt` (string): Defaults to `"blur, distort, and low quality"`.
 - `cfg_scale` (float): Guidance strength (default `0.5`).
+- `generate_audio` (boolean): Native audio is supported; ShortPulse sets this to `true` so the model emits English or translated voice by default (English/named glyphs should use lowercase for regular speech, uppercase for acronyms or proper nouns).
 
 **Example request body**:
 ```json
 {
   "prompt": "A stylish woman walks down a Tokyo street filled with warm glowing neon...",
-  "duration": "5",
+  "duration": "10",
   "aspect_ratio": "16:9",
   "negative_prompt": "blur, distort, and low quality",
-  "cfg_scale": 0.5
+  "cfg_scale": 0.5,
+  "generate_audio": true
 }
 ```
 
@@ -62,6 +64,55 @@ ShortPulse developers can reference this guide when working with Fal.ai's Kling 
   }
 }
 ```
+
+## Image-to-Video (Kling 2.5 Turbo Pro)
+
+- **Proxy submit**: `POST /api/fal/kling-v25-image-to-video-submit` with the payload below, which forwards to Fal.ai’s queue.
+- **Fal queue**: `POST https://queue.fal.run/fal-ai/kling-video/v2.5-turbo/pro/image-to-video`.
+
+### Request schema
+
+- `prompt` (string, required): Reference-free text describing the motion you want the video to capture.
+- `image_url` (string, required): URL or data URI for the input image that will drive the animation.
+- `duration` (`DurationEnum`): `"5"` or `"10"` seconds. ShortPulse sets `"10"` as the default output length.
+- `aspect_ratio` (enum): `16:9`, `9:16`, or `1:1` (default `16:9`).
+- `negative_prompt`: Defaults to `"blur, distort, and low quality"`.
+- `cfg_scale`: Float guidance (default `0.5`).
+- `tail_image_url` (string, optional): Image for the final frame.
+
+### Example request
+
+```json
+{
+  "prompt": "A racing car launches across a neon-lit city street.",
+  "image_url": "https://example.com/reference.png",
+  "duration": "10",
+  "aspect_ratio": "16:9",
+  "negative_prompt": "blur, distort, and low quality",
+  "cfg_scale": 0.5
+}
+```
+
+### Example response
+
+```json
+{
+  "video": {
+    "url": "https://storage.googleapis.com/falserverless/model_tests/kling/kling-v2.5-turbo-pro-image-to-video-output.mp4"
+  }
+}
+```
+
+## Status & callbacks
+
+- Use `POST /api/fal/kling-v25-image-to-video-status` with `{ "requestId": "..." }` to poll the job.
+- The proxy fetches `/requests/$REQUEST_ID/status` and, when done, `/requests/$REQUEST_ID` from Fal.ai.
+- Responses include `status`, `taskId`, and the same `video.url` payload so ShortPulse can update the output card.
+
+## Notes
+
+- This flow requires a reference image before submission; the queue generates the video based on that image plus the prompt.
+- Keep `FAL_KEY` server-side by routing both submit & status through the ShortPulse proxies.
 
 ## Variant request bodies
 
@@ -86,3 +137,4 @@ These variant objects expand Kling Video capabilities (image prompts, audio cont
 1. Use the queue endpoints (`submit`, `status`, `get result`) for every job to track progress instead of guessing when it's done.
 2. Tag requests with metadata on your proxy layer (not via Fal.ai) so you can correlate queue results with ShortPulse features.
 3. Cache the downloaded video URL or store it in Supabase once completed; avoid re-running the generation unless the prompt changes.
+4. ShortPulse submissions default to `duration: 10s` and `generate_audio: true` for the Kling 2.6 Pro route, so downstream tooling can assume a single-second tier and include the audio track in previews.

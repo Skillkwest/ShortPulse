@@ -171,9 +171,9 @@
 .model-picker-btn {
   width: 100%;
   border: 1px solid rgba(201, 205, 214, 0.16);
-  border-radius: 12px;
+  border-radius: 10px;
   background: linear-gradient(135deg, rgba(22, 26, 34, 0.95), rgba(17, 20, 27, 0.95));
-  padding: 12px 14px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -204,9 +204,28 @@
 }
 
 .model-picker-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-size: 15px;
   font-weight: 600;
   color: #f5f9ff;
+}
+
+.model-picker-value img {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.create-controls.dual-controls {
+  display: grid;
+  grid-template-columns: 0.8fr 1fr;
+  gap: 12px;
+}
+
+.create-controls.dual-controls.recreate-frame-controls {
+  grid-template-columns: 0.85fr 1.15fr;
 }
 
 .model-picker-row {
@@ -920,4 +939,15 @@
   color: #ff9b9b;
   font-size: 12px;
   margin: 0;
+}
+
+.inline-error-hint {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(241, 84, 84, 0.45);
+  background: linear-gradient(120deg, rgba(241, 84, 84, 0.14), rgba(241, 84, 84, 0.08));
+  color: #ffecec;
+  font-size: 13px;
+  line-height: 1.4;
 }

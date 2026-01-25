@@ -11,7 +11,6 @@ const FLUX2_MAX_ADDITIONAL_MP_USD = 0.03;
 const IMAGEN4_FAST_PER_IMAGE_USD = 0.02;
 const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
 const CREDIT_VALUE_USD = 0.01;
-const KLING_VIDEO_COST_PER_SECOND_USD = 0.095;
 export const DEFAULT_KLING_DURATION_SECONDS = 10;
 const KLING_25_BASE_USD_FOR_5S = 0.35;
 const KLING_25_ADDITIONAL_PER_SECOND_USD = 0.07;
@@ -179,19 +178,6 @@ const computeNanoBananaPerImageCost: StrategyFn = ({ resolution, webSearch }) =>
   };
 };
 
-const computeFalKlingPerDurationCost: StrategyFn = (params) => {
-  const duration = resolveDefaultDuration(params, DEFAULT_KLING_DURATION_SECONDS);
-  const usd = duration * KLING_VIDEO_COST_PER_SECOND_USD;
-  const credits = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
-    megapixels: 0,
-    width: 0,
-    height: 0,
-  };
-};
-
 const computeKling25PerDurationCost: StrategyFn = (params) => {
   const duration = resolveDefaultDuration(params, DEFAULT_KLING_DURATION_SECONDS);
   const clampedDuration = Math.max(5, duration);
@@ -312,7 +298,6 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "imagen4-fast-per-image": computeImagen4FastPerImageCost,
   "google-nano-banana-per-image": computeGoogleNanoBananaPerImageCost,
   "gpt41nano-per-token": computeGpt41NanoPerTokenCost,
-  "fal-kling-video-per-request": computeFalKlingPerDurationCost,
   "nano-banana-per-image": computeNanoBananaPerImageCost,
   "seedream-per-image": computeSeedreamPerImageCost,
   "kling-2.5-per-duration": computeKling25PerDurationCost,

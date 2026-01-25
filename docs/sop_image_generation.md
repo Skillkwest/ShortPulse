@@ -71,10 +71,9 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 | Fal | `fal/flux-2-pro` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; least-restrictive safety (checker off, tolerance 5); debits per tiered MP cost; outputs PNG. |
 | Fal | `fal/flux-2-max` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; least-restrictive safety (checker off, tolerance 5); debits per tiered MP cost (0.07 first MP, 0.03 each additional); outputs PNG. |
 | Fal | `fal/imagen4/preview/fast` | 1:1 enforced if invalid aspect | Text-to-image; flat per-image pricing; outputs PNG. |
-| Fal | `fal/kling-video-v1.6` | 16:9 enforced for video (uses reference image) | Image-to-video; requires an image reference; debits on click. |
-| Kie | `google/nano-banana` | 1:1 default, supports portrait/landscape variants | Text-to-image; flat per-image pricing; outputs PNG. |
-| Kie | `nano-banana-pro` | 4:5 default, supports portrait/landscape variants | Text-to-image; per-image pricing; 4K doubles price; outputs PNG. |
-| Kie | `seedream/4.5-text-to-image` | 1:1 enforced if invalid aspect | Text-to-image; debits on click. |
+| Fal | `fal-ai/nano-banana` | 1:1 default (allowed: 21:9, 16:9, 3:2, 4:3, 5:4, 4:5, 3:4, 2:3, 9:16) | Text-to-image via the Fal queue; flat per-image pricing (4 credits) and PNG outputs, proxied through `/api/fal/nano-banana-*`. |
+| Fal | `fal-ai/nano-banana-pro` | 4:5 default (wide/portrait variants allowed via the allowed list) | Text-to-image via the Fal queue with flat per-image pricing (4K doubles cost, web-search adds a surcharge) and PNG outputs; proxied through `/api/fal/nano-banana-pro-*`. |
+| Fal | `fal-ai/bytedance/seedream/v4.5/text-to-image` | 1:1 enforced if invalid aspect | Text-to-image via Fal queue; safety checker on; debits on click. |
 
 ## Maintenance rules
 

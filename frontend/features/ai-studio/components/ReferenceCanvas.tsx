@@ -3,7 +3,7 @@
  * Supports drag/drop into other surfaces and exposes a detail action on double click.
  */
 import Link from "next/link";
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { CloudArrowUp, UploadSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
@@ -32,6 +32,15 @@ export function ReferenceCanvas({
   onDropFiles,
   onTriggerFileSelect,
 }: ReferenceCanvasProps) {
+  const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
+
+  const markLoaded = useCallback((id: string) => {
+    setLoadedMap((prev) => {
+      if (prev[id]) return prev;
+      return { ...prev, [id]: true };
+    });
+  }, []);
+
   const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
     if (!onDropFiles) return;
     const files = event.dataTransfer.files;
@@ -61,13 +70,6 @@ export function ReferenceCanvas({
   const renderStatusChip = (item: StudioOutput) => {
     const state = item.taskState;
     if (!state) return null;
-    if (state === "fail") {
-      return (
-        <span className="reference-status-chip is-fail" title={item.errorMessage ?? undefined}>
-          Failed
-        </span>
-      );
-    }
     return null;
   };
 
@@ -103,10 +105,14 @@ export function ReferenceCanvas({
             </div>
           ) : (
             outputs.map((item) => {
+              const isFailing = item.taskState === "fail";
               const isLoading =
-                item.taskState === "running" ||
-                item.taskState === "pending" ||
-                (item.taskState === "success" && !item.previewUrl && !item.previewText);
+                !isFailing &&
+                (item.taskState === "running" ||
+                  item.taskState === "pending" ||
+                  (item.taskState === "success" && !item.previewUrl && !item.previewText));
+              const isLoaded = loadedMap[item.id];
+              const showSpinner = isLoading || (!isLoaded && !item.previewText);
 
               const isVideoPreview = item.previewUrl ? isVideoUrl(item.previewUrl) : false;
               const cardStyle = !isVideoPreview && item.previewUrl ? { backgroundImage: `url(${item.previewUrl})` } : undefined;
@@ -125,13 +131,38 @@ export function ReferenceCanvas({
                   onDragEnd={handleCardDragEnd}
                 >
                   {isVideoPreview && item.previewUrl ? (
-                    <video className="reference-card-video" src={item.previewUrl} autoPlay muted loop playsInline />
+                    <video
+                      className="reference-card-video"
+                      src={item.previewUrl}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      onLoadedData={() => markLoaded(item.id)}
+                    />
                   ) : null}
-                  {renderStatusChip(item)}
-                  {isLoading ? (
+                  {isFailing ? (
+                    <div className="reference-fail-overlay">
+                      <div className="fail-icon" aria-hidden="true">!</div>
+                      <div className="fail-title">Generation failed</div>
+                      {item.errorMessage ? (
+                        <div className="fail-subtitle">{item.errorMessage.replace(/fal(\.ai)?/gi, "the provider")}</div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {showSpinner ? (
                     <div className="reference-loading">
                       <div className="reference-spinner" />
                     </div>
+                  ) : null}
+                  {!isVideoPreview && item.previewUrl ? (
+                    <img
+                      src={item.previewUrl}
+                      alt=""
+                      className="reference-preload"
+                      onLoad={() => markLoaded(item.id)}
+                      onError={() => markLoaded(item.id)}
+                    />
                   ) : null}
                   {item.previewText ? <div className="reference-card-text">{item.previewText}</div> : null}
                 </button>

@@ -7,9 +7,10 @@
   border-color: rgba(245, 185, 66, 0.6);
   color: #1a140c;
   padding: 14px 20px;
-  font-size: 15px;
+  font-size: 19px;
   font-weight: 700;
-  min-height: 52px;
+  min-height: 60px;
+  box-shadow: 0 5px 0px rgba(18, 68, 93, 0.929);
 }
 
 .ai-panel .primary-btn:hover {
@@ -35,8 +36,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 12px 12px;
+  border-radius: 10px;
   border: 1px solid rgba(201, 205, 214, 0.16);
   background: rgba(20, 23, 30, 0.9);
   color: #eef2f7;

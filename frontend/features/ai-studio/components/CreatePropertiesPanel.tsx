@@ -6,10 +6,12 @@ import React from "react";
 import { CloudArrowUp, FloppyDisk, ImageSquare, MagicWand, Sparkle, VideoCamera } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { StudioMode } from "../types";
+import { modelLogos } from "../constants";
 
 type CreatePropertiesPanelProps = {
   mode: StudioMode;
   aspect: string;
+  modelId: string | null;
   modelLabel: string;
   prompt: string;
   promptRef: React.RefObject<HTMLTextAreaElement>;
@@ -29,6 +31,7 @@ type CreatePropertiesPanelProps = {
   balanceLoading?: boolean;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
+  guardrailReason?: string | null;
 };
 
 const modeIconMap: Record<StudioMode, React.ComponentType<any>> = {
@@ -43,6 +46,7 @@ const modeIconMap: Record<StudioMode, React.ComponentType<any>> = {
 export function CreatePropertiesPanel({
   mode,
   aspect,
+  modelId,
   modelLabel,
   prompt,
   promptRef,
@@ -62,11 +66,13 @@ export function CreatePropertiesPanel({
   balanceLoading,
   isPromptGenerating = false,
   isGenerateDisabled = false,
+  guardrailReason = null,
 }: CreatePropertiesPanelProps) {
   const isEnhanceMode = mode === "enhance";
   const shouldHidePromptStep = isEnhanceMode && useReferenceImageIndicator;
   const showPromptInput = !shouldHidePromptStep;
   const promptStepNumber = "3";
+  const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
 
   return (
     <div className="tool-properties">
@@ -162,7 +168,10 @@ export function CreatePropertiesPanel({
                 onClick={(event) => onModelPickerOpen("create-model", event.currentTarget)}
               >
                 <div className="model-picker-row">
-                  <span className="model-picker-value">{modelLabel}</span>
+                  <span className="model-picker-value">
+                    {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
+                    {modelLabel}
+                  </span>
                   <span className="model-chip-pill model-picker-pill">
                     <span aria-hidden="true" className="model-chip-icon">✦</span>
                     <span className="model-chip-credits">{costCredits != null ? costCredits : "—"}</span>
@@ -228,6 +237,11 @@ export function CreatePropertiesPanel({
             </span>
           </button>
         </div>
+        {isGenerateDisabled && guardrailReason ? (
+          <div className="inline-error-hint" role="status">
+            {guardrailReason}
+          </div>
+        ) : null}
       </div>
     </div>
   );

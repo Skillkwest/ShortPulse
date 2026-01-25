@@ -51,52 +51,53 @@ const modelMeta: Record<string, ModelMeta> = {
     logo: "G",
     tags: ["Image"],
   },
-  "fal/kling-video-v1.6": {
+  "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": {
     provider: "Kling",
-    description: "Kling 1.6 for fast text-to-video generation with balanced fidelity.",
+    description: "Kling 2.5 Turbo Pro image-to-video with cinematic motion detail.",
     tags: ["Video"],
   },
-  "kling/v2-5-turbo-text-to-video-pro": {
+  "fal-ai/kling-video/v2.5-turbo/pro/text-to-video": {
     provider: "Kling",
-    description: "Kling 2.5 Turbo Pro with higher motion detail and stability.",
+    description: "Kling 2.5 Turbo text-to-video (defaults to 10s, $0.35 for 5s + $0.07 per extra second).",
     tags: ["Video"],
   },
-  "kling-2.6/text-to-video": {
+  "fal-ai/kling-video/v2.6/pro/text-to-video": {
     provider: "Kling",
-    description: "Kling 2.6 Pro for cinematic motion and smoother camera moves.",
+    description: "Kling 2.6 Pro via Fal queue with cinematic motion, native audio, and smooth camera moves.",
     tags: ["Video"],
+    verified: true,
   },
-  "sora-2-pro-text-to-video": {
-    provider: "Kie.ai",
-    description: "Sora 2 Pro text-to-video with HD motion, physics, and native audio up to 15s.",
+  "fal-ai/sora-2/text-to-video/pro": {
+    provider: "OpenAI via Fal",
+    description: "Sora 2 Pro text-to-video via Fal queue with HD motion, physics, and native audio.",
     tags: ["Video"],
+    verified: true,
   },
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": {
     provider: "ByteDance",
     description: "Seedance 1.5 Pro for cinema-quality video with synchronized audio and camera control.",
     tags: ["Video"],
   },
-  veo3: {
-    provider: "Google",
-    description: "Veo 3.1 for cinematic video generation with strong motion coherence.",
+  "fal-ai/veo3.1": {
+    provider: "Google via Fal",
+    description: "Veo 3.1 via Fal queue for cinematic video with strong motion coherence and audio.",
     tags: ["Video"],
+    verified: true,
   },
-  "google/nano-banana": {
+  "fal-ai/bytedance/seedream/v4.5/text-to-image": {
+    provider: "ByteDance via Fal",
+    description: "Seedream 4.5 text-to-image on Fal for unified image gen/edit with rich detail.",
+    tags: ["Image"],
+    verified: true,
+  },
+  "fal-ai/nano-banana": {
     provider: "Google",
-    description: "Nano Banana tuned for vibrant colors and social-ready outputs.",
-    logo: "G",
+    description: "Nano Banana via Fal queue for vibrant, fast image generation.",
     tags: ["Image"],
   },
-  "nano-banana-pro": {
+  "fal-ai/nano-banana-pro": {
     provider: "Google",
-    description: "Nano Banana Pro with finer detail and better low-light handling.",
-    logo: "G",
-    tags: ["Image"],
-  },
-  "seedream/4.5-text-to-image": {
-    provider: "Seedream",
-    description: "Seedream 4.5 for stylized, cinematic looks and softer gradients.",
-    logo: "S",
+    description: "Nano Banana Pro (Nano Banana 2) via Fal queue with higher-resolution detail.",
     tags: ["Image"],
   },
 };
@@ -108,6 +109,10 @@ const sectionLogos: Record<string, string> = {
   "Kie.ai": "/Sora%202%20LOGO.png",
   ByteDance: "/Seedream%20LOGO.png",
   Seedream: "/Seedream%20LOGO.png",
+  "Google via Fal": "/Google%20LOGO.png",
+  "OpenAI via Fal": "/Sora%202%20LOGO.png",
+  "ByteDance via Fal": "/Seedream%20LOGO.png",
+  Fal: "/brand-logo.png",
 };
 
 /**
@@ -139,6 +144,12 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
         // no-op: ignore malformed storage
       }
     }
+    // Reset any lingering tooltips when the modal opens.
+    setChipTooltip(null);
+    if (tooltipTimerRef.current) {
+      window.clearTimeout(tooltipTimerRef.current);
+      tooltipTimerRef.current = null;
+    }
   }, [isOpen]);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -156,7 +167,7 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
   const fluxOptions = fluxOrder
     .map((value) => filteredOptions.find((option) => option.value === value))
     .filter((item): item is ModelOption => Boolean(item));
-  const googleOrder = ["fal/imagen4/preview/fast", "google/nano-banana", "nano-banana-pro"];
+  const googleOrder = ["fal/imagen4/preview/fast", "fal-ai/nano-banana", "fal-ai/nano-banana-pro"];
   const googleOptions = googleOrder
     .map((value) => filteredOptions.find((option) => option.value === value))
     .filter((item): item is ModelOption => Boolean(item));

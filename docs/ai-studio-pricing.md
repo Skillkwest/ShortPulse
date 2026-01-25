@@ -12,7 +12,7 @@ Short version: Models declare their own metadata (provider, aspects, size maps, 
 - Model config includes `pricingStrategy` and optional `sizeMap` for strategies that need dimensions.
 - `computeCostForModel(modelId, { aspect })` returns `{ credits, usd, megapixels, width, height } | null`.
 - UIs and hooks stay dumb: pick a model, pass parameters, render the returned cost.
-- Defaults for duration/resolution/audio are read from `modelRegistry` (e.g., Kling 1.6 → 5s, Veo 3.1 → 8s @ 1080p with audio) and reused by cost chips and debit logic. Use `buildDefaultPricingParams(modelId)` when you need a consistent baseline.
+- Defaults for duration/resolution/audio are read from `modelRegistry` (e.g., Veo 3.1 → 8s @ 1080p with audio) and reused by cost chips and debit logic. Use `buildDefaultPricingParams(modelId)` when you need a consistent baseline.
 
 ## Adding a model
 1) Add a `ModelConfig` entry in `modelRegistry.ts` with `defaultAspect`, `allowedAspects`, and `pricingStrategy`.
@@ -25,13 +25,13 @@ Short version: Models declare their own metadata (provider, aspects, size maps, 
 - `fal-flux2-pro-per-mp`: $0.03 for the first MP + $0.015 each additional MP, then converted to credits at $0.01 each.
 - `fal-flux2-max-per-mp`: $0.07 for the first MP + $0.03 each additional MP, then converted to credits at $0.01 each.
 - `imagen4-fast-per-image`: $0.02 flat per image (2 credits).
-- `google-nano-banana-per-image`: $0.039 flat per image (4 credits).
-- `nano-banana-per-image`: $0.15 per image (15 credits). 4K renders double to $0.30 (30 credits) and enabling web search adds $0.015 (1.5 credits); resolution/web search flags are passed via the pricing parameters (default resolution 1K).
+- `google-nano-banana-per-image`: $0.039 flat per image (4 credits); currently used by the `fal-ai/nano-banana` queue.
+- `nano-banana-per-image`: $0.15 per image (15 credits). 4K renders double to $0.30 (30 credits) and enabling web search adds $0.015 (1.5 credits); resolution/web search flags are passed via the pricing parameters (default resolution 1K). Currently used by the `fal-ai/nano-banana-pro` queue.
 - `seedream-per-image`: $0.04 per image (4 credits). 4K renders double to $0.08 (8 credits); no web-search surcharge is applied for this model.
-- `fal-kling-video-per-request`: $0.095 per second; defaults to the model’s configured duration (Kling 1.6 → 5s) when duration is omitted.
-- `kling-2.5-per-duration`: $0.35 for 5s, plus $0.07 for each additional second; defaults to 10s (70 credits) when duration is omitted.
-- `kling-2.6-per-second`: $0.14 per second with audio on (default), $0.07 per second with audio off; defaults to 10s.
+- `kling-2.5-per-duration`: $0.35 for 5s, plus $0.07 for each additional second; defaults to 10s (70 credits) when duration is omitted. Currently used by the `fal-ai/kling-video/v2.5-turbo/pro/image-to-video` queue.
+- `kling-2.6-per-second`: $0.14 per second with audio on (default), $0.07 per second with audio off; defaults to 10s. This strategy powers `fal-ai/kling-video/v2.6/pro/text-to-video`, where ShortPulse forces `generate_audio = true`.
 - `veo-3-per-second`: 1080p w/ audio $0.40 per second (default), 4K w/ audio $0.60 per second; audio-off tiers are $0.20/$0.40 per second. Defaults to 8s @ 1080p with audio on.
+- `sora-2-pro-per-second`: Tiered per-second pricing (standard vs high) using 10s/15s tiers; powers `fal-ai/sora-2/text-to-video/pro` with audio on. We request 8s by default (queue supports 4/8/12s) while charging at the 10s tier for consistency.
 - `gpt41nano-per-token`: $0.10 per 1M input tokens + $0.025 per 1M output tokens, converted to credits at $0.01 each (minimum 1 credit per request).
 
 ### GPT-4.1 Nano (text)

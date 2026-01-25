@@ -1,10 +1,10 @@
 /**
- * Proxies Fal.ai Kling 1.6 text-to-video submit requests.
- * Keeps FAL_KEY server-side and passes the payload through to the queue endpoint.
+ * Proxies Fal.ai Kling v2.5 Turbo text-to-video submit requests.
+ * Keeps FAL_KEY server-side and relays payloads to the queue endpoint.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const FAL_KLING_TEXT_SUBMIT_URL = "https://queue.fal.run/fal-ai/kling-video/v1.6/pro/text-to-video";
+const FAL_KLING_V25_TEXT_SUBMIT_URL = "https://queue.fal.run/fal-ai/kling-video/v2.5-turbo/pro/text-to-video";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -19,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 20000);
   try {
-    const upstream = await fetch(FAL_KLING_TEXT_SUBMIT_URL, {
+    const upstream = await fetch(FAL_KLING_V25_TEXT_SUBMIT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const data = await upstream.json();
     return res.status(upstream.status).json(data);
   } catch (error) {
-    return res.status(500).json({ error: "Fal Kling text-to-video submit failed", detail: String(error) });
+    return res.status(500).json({ error: "Fal Kling v2.5 text-to-video submit failed", detail: String(error) });
   } finally {
     clearTimeout(timeoutId);
   }

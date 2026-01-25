@@ -1,10 +1,10 @@
 /**
- * Proxies Fal.ai Kling queue status + result fetch.
+ * Proxies Fal.ai Seedream 4.5 text-to-image status + result fetch.
  * Accepts { requestId }, returns status as-is, and fetches the result when completed.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const FAL_KLING_STATUS_URL = "https://queue.fal.run/fal-ai/kling-video/requests";
+const FAL_SEEDREAM_STATUS_URL = "https://queue.fal.run/fal-ai/bytedance/requests";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 20000);
   try {
-    const statusResp = await fetch(`${FAL_KLING_STATUS_URL}/${requestId}/status`, {
+    const statusResp = await fetch(`${FAL_SEEDREAM_STATUS_URL}/${requestId}/status`, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },
       signal: controller.signal,
@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(statusResp.status).json(statusJson);
     }
 
-    const resultResp = await fetch(`${FAL_KLING_STATUS_URL}/${requestId}`, {
+    const resultResp = await fetch(`${FAL_SEEDREAM_STATUS_URL}/${requestId}`, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },
       signal: controller.signal,
@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ...resultJson,
     });
   } catch (error) {
-    return res.status(500).json({ error: "Fal Kling status failed", detail: String(error) });
+    return res.status(500).json({ error: "Fal Seedream status failed", detail: String(error) });
   } finally {
     clearTimeout(timeoutId);
   }

@@ -41,32 +41,8 @@ describe("computeCostForModel (GPT-4.1 Nano)", () => {
   });
 });
 
-describe("computeCostForModel (Kling video)", () => {
-  const modelId = "fal/kling-video-v1.6";
-
-  it("calculates credits using duration with per-second pricing", () => {
-    const cost = computeCostForModel(modelId, { durationSeconds: DEFAULT_KLING_DURATION_SECONDS });
-    expect(cost).not.toBeNull();
-    // USD = 0.095 per second; 10 seconds -> 0.95 -> credits = ceil(0.95 / 0.01) = 95
-    expect(cost?.credits).toBe(95);
-    expect(cost?.usd).toBeCloseTo(0.95, 2);
-  });
-
-  it("rounds up credits for shorter runs at the same per-second rate", () => {
-    const cost = computeCostForModel(modelId, { durationSeconds: 5 });
-    // 5s -> 0.095 * 5 = 0.475 -> credits = ceil(47.5) = 48
-    expect(cost?.credits).toBe(48);
-    expect(cost?.usd).toBeCloseTo(0.48, 2);
-  });
-
-  it("defaults to model config duration when not provided", () => {
-    const cost = computeCostForModel(modelId, {});
-    expect(cost?.credits).toBe(48);
-  });
-});
-
 describe("computeCostForModel (Kling 2.5 Turbo Pro)", () => {
-  const modelId = "kling/v2-5-turbo-text-to-video-pro";
+  const modelId = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
 
   it("uses base $0.35 for 5s (35 credits)", () => {
     const cost = computeCostForModel(modelId, { durationSeconds: 5 });
@@ -81,8 +57,18 @@ describe("computeCostForModel (Kling 2.5 Turbo Pro)", () => {
   });
 });
 
+describe("computeCostForModel (Kling 2.5 Turbo Text to Video)", () => {
+  const modelId = "fal-ai/kling-video/v2.5-turbo/pro/text-to-video";
+
+  it("defaults to 10s (base $0.35 + 5s * $0.07 = 70 credits)", () => {
+    const cost = computeCostForModel(modelId, {});
+    expect(cost?.credits).toBe(70);
+    expect(cost?.usd).toBeCloseTo(0.7, 2);
+  });
+});
+
 describe("computeCostForModel (Google Veo 3.1)", () => {
-  const modelId = "veo3";
+  const modelId = "fal-ai/veo3.1";
 
   it("defaults to 8s with audio at 1080p (8 * $0.40 = 320 credits)", () => {
     const cost = computeCostForModel(modelId, { durationSeconds: 8, resolution: "1080p", audio: true });
@@ -97,7 +83,7 @@ describe("computeCostForModel (Google Veo 3.1)", () => {
 });
 
 describe("computeCostForModel (Kling 2.6 Text to Video)", () => {
-  const modelId = "kling-2.6/text-to-video";
+  const modelId = "fal-ai/kling-video/v2.6/pro/text-to-video";
 
   it("defaults to 10s with audio (10 * $0.14 = 140 credits)", () => {
     const cost = computeCostForModel(modelId, { durationSeconds: 10, audio: true });
@@ -112,7 +98,7 @@ describe("computeCostForModel (Kling 2.6 Text to Video)", () => {
 });
 
 describe("computeCostForModel (Nano Banana Pro)", () => {
-  const modelId = "nano-banana-pro";
+  const modelId = "fal-ai/nano-banana-pro";
 
   it("charges 15 credits per standard run", () => {
     const cost = computeCostForModel(modelId, { resolution: "1K" });
@@ -133,7 +119,7 @@ describe("computeCostForModel (Nano Banana Pro)", () => {
 });
 
 describe("computeCostForModel (Seedream 4.5)", () => {
-  const modelId = "seedream/4.5-text-to-image";
+  const modelId = "fal-ai/bytedance/seedream/v4.5/text-to-image";
 
   it("charges 4 credits per standard run", () => {
     const cost = computeCostForModel(modelId, { resolution: "1K" });

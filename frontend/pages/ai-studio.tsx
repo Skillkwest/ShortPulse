@@ -4,7 +4,7 @@
  */
 import Head from "next/head";
 import Link from "next/link";
-import React, { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CloudArrowUp, UploadSimple } from "phosphor-react";
 import { AiStudioToolbar } from "../features/ai-studio/components/AiStudioToolbar";
 import { CreatePropertiesPanel } from "../features/ai-studio/components/CreatePropertiesPanel";
@@ -83,6 +83,7 @@ export default function AiStudioPage() {
   } = useAiStudioState({ onDebitCredits: debit });
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [dismissedFailureIds, setDismissedFailureIds] = useState<Set<string>>(new Set());
 
   const handleOpenModelModal = (anchorId: string, target: HTMLElement) => {
     openModelModal(anchorId, target);
@@ -112,6 +113,39 @@ export default function AiStudioPage() {
   const triggerFilePicker = () => referenceCanvasFileInputRef.current?.click();
   const dismissError = () => setUiError(null);
 
+  const failedOutputs = useMemo(
+    () => outputs.filter((item) => item.taskState === "fail" && item.errorMessage),
+    [outputs],
+  );
+
+  const visibleFailures = useMemo(
+    () => failedOutputs.filter((item) => !dismissedFailureIds.has(item.id)),
+    [dismissedFailureIds, failedOutputs],
+  );
+
+  useEffect(() => {
+    setDismissedFailureIds((prev) => {
+      if (!prev.size) return prev;
+      const activeIds = new Set(failedOutputs.map((item) => item.id));
+      const filtered = Array.from(prev).filter((id) => activeIds.has(id));
+      if (filtered.length === prev.size) return prev;
+      return new Set(filtered);
+    });
+  }, [failedOutputs]);
+
+  const dismissFailure = (id: string) => {
+    setDismissedFailureIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  };
+
+  const focusFailure = (id: string) => {
+    setActiveOutputId(id);
+    setDetailOutputId(id);
+  };
+
   const renderProperties = () => {
     switch (selectedTool) {
       case "create":
@@ -119,6 +153,7 @@ export default function AiStudioPage() {
           <CreatePropertiesPanel
             mode={mode}
             aspect={aspect}
+            modelId={model}
             modelLabel={currentModelLabel}
             prompt={prompt}
             promptRef={promptRef}
@@ -136,6 +171,7 @@ export default function AiStudioPage() {
             isPromptGenerating={isPromptGenerating}
             costCredits={currentCostCredits}
             isGenerateDisabled={isGenerateDisabled}
+            guardrailReason={generationGuardrail}
           />
         );
       case "image-to-image":
@@ -144,6 +180,7 @@ export default function AiStudioPage() {
             title="Image to Image"
             subtitle="Recreate images using references."
             aspect={aspect}
+            modelId={model}
             modelLabel={currentModelLabel}
             referenceImageUrl={referenceImageUrl}
             extraImageUrls={extraImageUrls}
@@ -160,6 +197,7 @@ export default function AiStudioPage() {
             onSave={saveActiveOutput}
             onRegenerate={regenerateOutput}
             costCredits={currentCostCredits}
+            guardrailReason={generationGuardrail}
             resolvePreviewUrlById={resolvePreviewUrlById}
           />
         );
@@ -169,6 +207,7 @@ export default function AiStudioPage() {
             title="Image to Video"
             subtitle="Animate still images using references and prompts."
             aspect={aspect}
+            modelId={model}
             modelLabel={currentModelLabel}
             referenceImageUrl={referenceImageUrl}
             extraImageUrls={extraImageUrls}
@@ -186,6 +225,7 @@ export default function AiStudioPage() {
             onRegenerate={handleRegenerateWithDebit}
             costCredits={currentCostCredits}
             isGenerateDisabled={isGenerateDisabled}
+            guardrailReason={generationGuardrail}
             resolvePreviewUrlById={resolvePreviewUrlById}
           />
         );
@@ -259,10 +299,10 @@ export default function AiStudioPage() {
       return computeCostForModel(model, costParamsForModel());
     }
 
-  if (selectedTool === "image-to-video") {
-    if (!model) return null;
-    return computeCostForModel(model, costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }));
-  }
+    if (selectedTool === "image-to-video") {
+      if (!model) return null;
+      return computeCostForModel(model, costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }));
+    }
 
     return null;
   }, [
@@ -284,19 +324,42 @@ export default function AiStudioPage() {
       ? true
       : balanceCredits >= currentCostCredits;
   const requiresVideoReference =
-    selectedTool === "image-to-video" && (model === "fal/kling-video-v1.6" || model === "kling-2.5-turbo");
+    selectedTool === "image-to-video" &&
+    model === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
   const hasVideoReference = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
 
-  const isGenerateDisabled =
-    (requiresModelSelection && !isModelSelected) ||
-    (isDescribeMode && !hasDescribeImage) ||
-    (costedFlow && !hasSufficientCreditsForCost) ||
-    (requiresVideoReference && !hasVideoReference);
+  const generationGuardrail = useMemo(() => {
+    if (requiresModelSelection && !isModelSelected) return "Select a model before running a generation.";
+    if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
+    if (costedFlow && !hasSufficientCreditsForCost) return "You do not have enough credits for this run.";
+    if (requiresVideoReference && !hasVideoReference) return "Image-to-video requires at least one reference image.";
+    return null;
+  }, [
+    costedFlow,
+    hasDescribeImage,
+    hasSufficientCreditsForCost,
+    isDescribeMode,
+    isModelSelected,
+    requiresModelSelection,
+    requiresVideoReference,
+    hasVideoReference,
+  ]);
+
+  const isGenerateDisabled = Boolean(generationGuardrail);
 
   const modelConfig = useMemo(() => (model ? getModelConfig(model) : null), [model]);
 
+  const handleBlockedGeneration = () => {
+    if (generationGuardrail) {
+      setUiError(generationGuardrail);
+    }
+  };
+
   const handleGenerate = () => {
-    if (isGenerateDisabled) return;
+    if (isGenerateDisabled) {
+      handleBlockedGeneration();
+      return;
+    }
     if (
       selectedTool === "create" &&
       (mode === "image" || mode === "video") &&
@@ -311,7 +374,10 @@ export default function AiStudioPage() {
   };
 
   const handleRegenerateWithDebit = () => {
-    if (isGenerateDisabled) return;
+    if (isGenerateDisabled) {
+      handleBlockedGeneration();
+      return;
+    }
     if (selectedTool === "image-to-video" && currentCostCredits && model && hasSufficientCreditsForCost) {
       const memo = `${modelConfig?.label ?? model} generation`;
       debit(currentCostCredits, memo, `out-${Date.now()}`).catch(() => {});
@@ -361,6 +427,51 @@ export default function AiStudioPage() {
           </div>
         </section>
 
+        {visibleFailures.length ? (
+          <div className="ai-error-stack" role="alert" aria-live="polite">
+            <div className="ai-error-stack-header">
+              <div>
+                <p className="eyebrow">Generation issues</p>
+                <p className="tiny subdued">We could not finish these runs. Inspect, adjust the model, then try again.</p>
+              </div>
+              <span className="error-count-pill">{visibleFailures.length}</span>
+            </div>
+            <div className="ai-error-card-grid">
+              {visibleFailures.map((item) => {
+                const modelLabel = item.model || item.modelId || "Generation";
+                const promptPreview = item.prompt.length > 140 ? `${item.prompt.slice(0, 140)}…` : item.prompt;
+                const isNanoBanana =
+                  (item.modelId ?? "").toLowerCase().includes("nano-banana") ||
+                  (item.model ?? "").toLowerCase().includes("nano banana");
+                return (
+                  <div key={item.id} className="ai-error-card">
+                    <div className="ai-error-card-body">
+                      <p className="ai-error-card-title">{modelLabel} failed</p>
+                      <p className="ai-error-card-message">{item.errorMessage}</p>
+                      <p className="ai-error-card-meta">
+                        Prompt: <span className="ai-error-card-prompt">{promptPreview}</span>
+                      </p>
+                      {isNanoBanana ? (
+                        <p className="ai-error-card-hint">
+                          Nano Banana is unstable right now. Try FLUX.2 Pro or Seedream 4.5 instead.
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="ai-error-card-actions">
+                      <button type="button" className="ghost-btn mini" onClick={() => focusFailure(item.id)}>
+                        Inspect
+                      </button>
+                      <button type="button" className="ghost-btn mini" onClick={() => dismissFailure(item.id)}>
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         <div className={`ai-layout${isTemplateView ? " templates-active" : ""}`}>
           <AiStudioToolbar
             selectedTool={selectedTool}
@@ -369,7 +480,7 @@ export default function AiStudioPage() {
             onToggleEditTools={setShowEditTools}
           />
 
-        <div className="ai-content">
+          <div className="ai-content">
             <section className={`ai-shell ${selectedTool ? "" : "ai-shell-wide"}`}>
               {selectedTool ? <aside className="panel ai-panel ai-properties">{renderProperties()}</aside> : null}
 

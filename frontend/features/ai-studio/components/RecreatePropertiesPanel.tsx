@@ -7,11 +7,13 @@ import { CloudArrowUp, FloppyDisk, Plus, Sparkle, UploadSimple } from "phosphor-
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
 import { extractDragDropPayload, isImageDragTransfer } from "../utils/dragDrop";
+import { modelLogos } from "../constants";
 
 type RecreatePropertiesPanelProps = {
   title: string;
   subtitle: string;
   aspect: string;
+  modelId: string | null;
   modelLabel: string;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
@@ -30,6 +32,7 @@ type RecreatePropertiesPanelProps = {
   resolvePreviewUrlById?: (id: string | null) => string | null;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
+  guardrailReason?: string | null;
 };
 
 /**
@@ -39,6 +42,7 @@ export function RecreatePropertiesPanel({
   title,
   subtitle,
   aspect,
+  modelId,
   modelLabel,
   referenceImageUrl,
   extraImageUrls,
@@ -57,6 +61,7 @@ export function RecreatePropertiesPanel({
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
+  guardrailReason = null,
 }: RecreatePropertiesPanelProps) {
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraOneInputRef = useRef<HTMLInputElement | null>(null);
@@ -64,6 +69,7 @@ export function RecreatePropertiesPanel({
   const extraThreeInputRef = useRef<HTMLInputElement | null>(null);
   const [primaryDragActive, setPrimaryDragActive] = useState(false);
   const [extraDragActive, setExtraDragActive] = useState([false, false, false]);
+  const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
 
   const handleFileSelection =
     (setter: (url: string | null) => void) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,7 +266,10 @@ export function RecreatePropertiesPanel({
                 onClick={(event) => onModelPickerOpen("recreate-model", event.currentTarget)}
               >
                 <div className="model-picker-row">
-                  <span className="model-picker-value">{modelLabel}</span>
+                  <span className="model-picker-value">
+                    {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
+                    {modelLabel}
+                  </span>
                   <span className="model-chip-pill model-picker-pill">
                     <span aria-hidden="true" className="model-chip-icon">✦</span>
                     <span className="model-chip-credits">{costCredits != null ? costCredits : "—"}</span>
@@ -312,6 +321,11 @@ export function RecreatePropertiesPanel({
                 </span>
               </button>
             </div>
+            {isGenerateDisabled && guardrailReason ? (
+              <div className="inline-error-hint" role="status">
+                {guardrailReason}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

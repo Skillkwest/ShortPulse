@@ -3,7 +3,13 @@
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { keiAllowedAspects, klingAllowedAspects, modelOptions } from "../constants";
+import {
+  falNanoBananaAllowedAspects,
+  falNanoBananaProAllowedAspects,
+  keiAllowedAspects,
+  klingAllowedAspects,
+  modelOptions,
+} from "../constants";
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput, ToolId } from "../types";
 import {
@@ -16,14 +22,28 @@ import {
   fetchFalFlux2ProStatus,
   fetchFalFlux2Status,
   fetchFalKlingStatus,
+  fetchFalKlingV25Status,
+  fetchFalNanoBananaStatus,
+  fetchFalNanoBananaProStatus,
   fetchFalStatus,
   fetchImagen4FastStatus,
+  fetchFalSoraStatus,
+  fetchFalSeedanceStatus,
+  fetchFalSeedreamStatus,
+  fetchFalVeoStatus,
   submitFalFlux2,
   submitFalFlux2Max,
   submitFalFlux2Pro,
-  submitFalKling,
-  submitFalKlingText,
+  submitFalKlingV26Text,
+  submitFalKlingV25,
+  submitFalKlingV25Text,
+  submitFalSeedance,
+  submitFalSeedream,
+  submitFalVeo,
   submitImagen4Fast,
+  submitFalNanoBanana,
+  submitFalNanoBananaPro,
+  submitFalSoraPro,
 } from "../../../lib/falClient";
 import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
 import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel, falSizeForAspect, getModelConfig } from "../logic/pricing";
@@ -31,12 +51,25 @@ import { postGeneratePrompt, TEXT_PROMPT_MODEL_ID } from "../logic/promptGenerat
 import { postDescribeImage, prepareImageUrl } from "../logic/imageDescription";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
 
-const KLING_16_DEFAULT_DURATION_SECONDS = 5;
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
 type KlingAspect = FalKlingTextSubmitRequest["aspect_ratio"];
 
 type ModelModalPosition = { top: number; left: number };
-type Provider = "kei" | "fal" | "fal-flux2" | "fal-flux2-pro" | "fal-flux2-max" | "fal-imagen4-fast" | "fal-kling";
+type Provider =
+  | "kei"
+  | "fal"
+  | "fal-flux2"
+  | "fal-flux2-pro"
+  | "fal-flux2-max"
+  | "fal-imagen4-fast"
+  | "fal-kling"
+  | "fal-kling-25"
+  | "fal-nano-banana"
+  | "fal-nano-banana-pro"
+  | "fal-sora"
+  | "fal-seedance"
+  | "fal-seedream"
+  | "fal-veo";
 
 const computeModalPosition = (target: HTMLElement): ModelModalPosition => {
   const rect = target.getBoundingClientRect();
@@ -52,9 +85,26 @@ const resolveModelLabel = (value?: string) =>
   value ? modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})` : "Select model here";
 
 const normalizeAspectForKei = (value: string) => (keiAllowedAspects.has(value) ? value : "auto");
+const normalizeAspectForFalNanoBanana = (value: string) =>
+  falNanoBananaAllowedAspects.has(value) ? value : "1:1";
+const normalizeAspectForFalNanoBananaPro = (value: string) =>
+  falNanoBananaProAllowedAspects.has(value) ? value : "4:5";
 const resolveKlingAspectRatio = (value: string): KlingAspect =>
   (klingAllowedAspects.has(value) ? (value as KlingAspect) : "16:9");
 const resolveKlingDuration = (seconds: number): FalKlingTextSubmitRequest["duration"] => (seconds <= 5 ? 5 : 10);
+const resolveSoraDuration = (seconds: number): 4 | 8 | 12 => {
+  if (seconds <= 4) return 4;
+  if (seconds <= 8) return 8;
+  return 12;
+};
+const resolveSeedreamImageSize = (aspect: string): string => {
+  const normalized = aspect.trim();
+  if (normalized === "1:1") return "square";
+  if (normalized === "3:4" || normalized === "4:5" || normalized === "5:4") return "portrait_4_3";
+  if (normalized === "4:3" || normalized === "3:2" || normalized === "21:9" || normalized === "16:9") return "landscape_16_9";
+  if (normalized === "9:16" || normalized === "2:3") return "portrait_16_9";
+  return "landscape_16_9";
+};
 const extractFalUrls = (status: any): string[] => {
   const direct = status?.images;
   if (Array.isArray(direct) && direct[0]?.url) return direct.map((img) => img?.url).filter(Boolean) as string[];
@@ -190,15 +240,32 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       if (mode === "image") return "image";
       if (mode === "video") return "video";
     }
-    if (selectedTool === "image-to-video") return "video";
+    if (selectedTool === "image-to-video") return "image-to-video";
     if (selectedTool === "image-to-image") return "image";
     return null;
   }, [mode, selectedTool]);
 
   const allowedModelOptions = useMemo(() => {
-    if (!modelMediaFilter) return modelOptions;
-    return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === modelMediaFilter || opt.mediaType === "multi");
-  }, [modelMediaFilter]);
+    if (selectedTool === "image-to-video") {
+      return modelOptions.filter(
+        (opt) =>
+          !opt.mediaType ||
+          opt.mediaType === "image-to-video" ||
+          opt.mediaType === "video" ||
+          opt.mediaType === "multi",
+      );
+    }
+    if (selectedTool === "create" && mode === "video") {
+      return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === "video" || opt.mediaType === "multi");
+    }
+    if (selectedTool === "create" && mode === "image") {
+      return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi");
+    }
+    if (selectedTool === "image-to-image") {
+      return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi");
+    }
+    return modelOptions;
+  }, [mode, selectedTool]);
 
   const getMediaTypeForModel = useCallback((value: string | null) => {
     if (!value) return null;
@@ -229,7 +296,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     if (!modelId) return VIDEO_DEFAULT_DURATION_SECONDS;
     const config = getModelConfig(modelId);
     if (config?.defaultDurationSeconds) return config.defaultDurationSeconds;
-    if (modelId === "fal/kling-video-v1.6" || modelId === "fal/kling-video-v1.6-text") return KLING_16_DEFAULT_DURATION_SECONDS;
     return VIDEO_DEFAULT_DURATION_SECONDS;
   }, []);
 
@@ -363,6 +429,29 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     }));
   }, [updateOutputById]);
 
+  const notifyGenerationFailure = useCallback(
+    (outputId: string, message: string) => {
+      let contextLabel: string | null = null;
+      setOutputs((prev) =>
+        prev.map((item) => {
+          if (item.id !== outputId) return item;
+          contextLabel = item.model ?? item.modelId ?? "Generation";
+          return {
+            ...item,
+            taskState: "fail",
+            status: "ready",
+            timestamp: "Failed",
+            errorMessage: message,
+          };
+        }),
+      );
+      clearPollTimer(outputId);
+      const label = contextLabel ?? "Generation";
+      setUiError(message ? `${label} failed: ${message}` : `${label} failed to complete.`);
+    },
+    [clearPollTimer, setOutputs, setUiError],
+  );
+
   const startPollingTask = useCallback(
     (taskId: string, outputId: string, attempt = 0, provider: Provider = "kei") => {
       const delay = Math.min(6000, 1200 + attempt * 400);
@@ -373,15 +462,29 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
               ? await fetchFalStatus(taskId)
               : provider === "fal-flux2"
                 ? await fetchFalFlux2Status(taskId)
-              : provider === "fal-flux2-pro"
-                ? await fetchFalFlux2ProStatus(taskId)
-                : provider === "fal-flux2-max"
-                  ? await fetchFalFlux2MaxStatus(taskId)
-                  : provider === "fal-imagen4-fast"
-                    ? await fetchImagen4FastStatus(taskId)
-                  : provider === "fal-kling"
-                    ? await fetchFalKlingStatus(taskId)
-                    : await fetchKeiTaskStatus(taskId);
+                : provider === "fal-flux2-pro"
+                  ? await fetchFalFlux2ProStatus(taskId)
+                  : provider === "fal-flux2-max"
+                    ? await fetchFalFlux2MaxStatus(taskId)
+                    : provider === "fal-imagen4-fast"
+                      ? await fetchImagen4FastStatus(taskId)
+            : provider === "fal-kling"
+              ? await fetchFalKlingStatus(taskId)
+              : provider === "fal-kling-25"
+                ? await fetchFalKlingV25Status(taskId)
+                : provider === "fal-seedance"
+                  ? await fetchFalSeedanceStatus(taskId)
+                  : provider === "fal-sora"
+                    ? await fetchFalSoraStatus(taskId)
+                    : provider === "fal-seedream"
+                      ? await fetchFalSeedreamStatus(taskId)
+                    : provider === "fal-veo"
+                      ? await fetchFalVeoStatus(taskId)
+                      : provider === "fal-nano-banana"
+                        ? await fetchFalNanoBananaStatus(taskId)
+                        : provider === "fal-nano-banana-pro"
+                        ? await fetchFalNanoBananaProStatus(taskId)
+                        : await fetchKeiTaskStatus(taskId);
           const stateRaw =
             (status as any)?.status?.toString().toLowerCase() ??
             (status as any)?.state?.toString().toLowerCase() ??
@@ -395,13 +498,32 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             const resultUrls = (status as any)?.resultUrls?.length
               ? (status as any)?.resultUrls
               : extractResultUrls((status as any)?.resultJson, (status as any)?.raw);
+
+            // If Fal reports success but no media URLs are present yet, keep polling a few extra times.
+            const allUrls = falUrls.length ? falUrls : resultUrls;
+            const hasMedia = allUrls.length > 0;
+            const shouldRetryForMedia = !hasMedia && attempt < 3;
+            if (shouldRetryForMedia) {
+              updateOutputById(outputId, (item) => ({
+                ...item,
+                taskState: "running",
+                status: "processing",
+                timestamp: "Waiting for media...",
+              }));
+              pollTimersRef.current[outputId] = window.setTimeout(
+                () => startPollingTask(taskId, outputId, attempt + 1, provider),
+                delay,
+              );
+              return;
+            }
+
             updateOutputById(outputId, (item) => ({
               ...item,
               taskState: "success",
               status: "ready",
               timestamp: "Just now",
-              resultUrls: falUrls.length ? falUrls : resultUrls,
-              previewUrl: falUrls[0] ?? resultUrls[0] ?? item.previewUrl,
+              resultUrls: allUrls,
+              previewUrl: allUrls[0] ?? item.previewUrl,
               errorMessage: null,
             }));
             clearPollTimer(outputId);
@@ -409,18 +531,12 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           }
 
           if (state === "fail" || state === "error") {
-            updateOutputById(outputId, (item) => ({
-              ...item,
-              taskState: "fail",
-              status: "ready",
-              timestamp: "Failed",
-              errorMessage:
-                (status as any)?.failMsg ||
-                (status as any)?.failCode ||
-                (status as any)?.error ||
-                "Generation failed",
-            }));
-            clearPollTimer(outputId);
+            const failureMessage =
+              (status as any)?.failMsg ||
+              (status as any)?.failCode ||
+              (status as any)?.error ||
+              "Generation failed";
+            notifyGenerationFailure(outputId, failureMessage);
             return;
           }
 
@@ -436,14 +552,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unable to check status";
           if (attempt >= 4 || message.includes("404")) {
-            updateOutputById(outputId, (item) => ({
-              ...item,
-              taskState: "fail",
-              status: "ready",
-              timestamp: "Failed",
-              errorMessage: message,
-            }));
-            clearPollTimer(outputId);
+            notifyGenerationFailure(outputId, message);
             return;
           }
           pollTimersRef.current[outputId] = window.setTimeout(
@@ -454,7 +563,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       }, delay);
       pollTimersRef.current[outputId] = timeoutId;
     },
-    [clearPollTimer, updateOutputById],
+    [clearPollTimer, notifyGenerationFailure, updateOutputById],
   );
 
   const submitTask = useCallback(
@@ -462,7 +571,10 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       setUiError(null);
       const cleanedPrompt = promptText.trim();
       const allowEmptyPrompt = mode === "enhance" && useReferenceImageIndicator;
-      if (!cleanedPrompt && !allowEmptyPrompt) return;
+      if (!cleanedPrompt && !allowEmptyPrompt) {
+        setUiError("Add a prompt to start a generation.");
+        return;
+      }
       // Text mode uses AI prompt refinement and saves to the grid without image/video generation.
       if (mode === "enhance") {
         // Image-to-text describe flow (Agent 2) when reference toggle is on.
@@ -570,20 +682,25 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         return;
       }
 
-      if (!model) return;
+      if (!model) {
+        setUiError("Pick a model to generate.");
+        return;
+      }
       const id = `out-${randomId()}`;
       const modelLabel = resolveModelLabel(model);
-      const isSeedreamModel = model === "seedream/4.5-text-to-image";
+      const isSeedreamModel = model === "fal-ai/bytedance/seedream/v4.5/text-to-image";
       const isFalFlux2Model = model === "fal/flux-2";
       const isFalFlux2ProModel = model === "fal/flux-2-pro";
       const isFalFlux2MaxModel = model === "fal/flux-2-max";
-      const isGoogleNanoBananaModel = model === "google/nano-banana";
+      const isFalNanoBananaModel = model === "fal-ai/nano-banana";
+      const isFalNanoBananaProModel = model === "fal-ai/nano-banana-pro";
       const isImagen4FastModel = model === "fal/imagen4/preview/fast";
-      const isKlingModel = model === "fal/kling-video-v1.6";
-      const isKlingTextModel = model === "fal/kling-video-v1.6-text";
-      const isKling25Model = model === "kling/v2-5-turbo-text-to-video-pro";
-      const isVeoModel = model === "veo3";
-      const isKling26Model = model === "kling-2.6/text-to-video";
+      const isSeedanceModel = model === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video";
+      const isKling25ImageModel = model === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
+      const isKling25TextModel = model === "fal-ai/kling-video/v2.5-turbo/pro/text-to-video";
+      const isVeoModel = model === "fal-ai/veo3.1";
+      const isKling26Model = model === "fal-ai/kling-video/v2.6/pro/text-to-video";
+      const isSoraModel = model === "fal-ai/sora-2/text-to-video/pro";
       const modelConfig = model ? getModelConfig(model) : null;
 
       // Normalize image inputs (supports blob/data URLs from drops).
@@ -607,10 +724,10 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         taskState: "pending",
         timestamp: "Submitting...",
         errorMessage: null,
-        previewUrl: isKlingModel ? preparedImageInputs[0] ?? undefined : undefined,
+        previewUrl: isKling25ImageModel ? preparedImageInputs[0] ?? undefined : undefined,
       };
 
-      if (isKlingModel && preparedImageInputs.length === 0) {
+      if (isKling25ImageModel && preparedImageInputs.length === 0) {
         setOutputs((prev) => [
           {
             ...nextOutput,
@@ -631,9 +748,29 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       setSaved(false);
 
       try {
-        if (isKlingTextModel) {
+        if (isKling25ImageModel) {
           const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(model));
-          const { request_id } = await submitFalKlingText({
+          const { request_id } = await submitFalKlingV25({
+            prompt: cleanedPrompt,
+            image_url: preparedImageInputs[0],
+            duration: klingDuration.toString(),
+            aspect_ratio: resolveKlingAspectRatio(aspect),
+            negative_prompt: "blur, distort, and low quality",
+            cfg_scale: 0.5,
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(request_id, id, 0, "fal-kling-25");
+          return;
+        }
+
+        if (isKling25TextModel) {
+          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(model));
+          const { request_id } = await submitFalKlingV25Text({
             prompt: cleanedPrompt,
             aspect_ratio: resolveKlingAspectRatio(aspect),
             duration: klingDuration,
@@ -650,75 +787,38 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           return;
         }
 
-        if (isKling25Model) {
-          const { taskId } = await createKeiTask({
-            model,
-            input: {
-              prompt: cleanedPrompt,
-              duration: getDefaultDurationSeconds(model).toString(),
-              aspect_ratio: resolveKlingAspectRatio(aspect),
-              negative_prompt: "blur, distort, and low quality",
-              cfg_scale: 0.5,
-            },
+        if (isSeedanceModel) {
+          const normalizedAspect =
+            modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16" || aspect === "1:1")
+              ? aspect
+              : modelConfig?.defaultAspect ?? "16:9";
+          const { request_id } = await submitFalSeedance({
+            prompt: cleanedPrompt,
+            duration: getDefaultDurationSeconds(model).toString(),
+            aspect_ratio: normalizedAspect as "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9",
+            negative_prompt: "blur, distort, and low quality",
+            cfg_scale: 0.5,
+            generate_audio: true,
           });
           updateOutputById(id, (item) => ({
             ...item,
-            taskId,
+            taskId: request_id,
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(taskId, id);
+          startPollingTask(request_id, id, 0, "fal-seedance");
           return;
         }
 
         if (isKling26Model) {
-          const { taskId } = await createKeiTask({
-            model,
-            input: {
-              prompt: cleanedPrompt,
-              duration: getDefaultDurationSeconds(model).toString(),
-              aspect_ratio: normalizeAspectForKei(aspect),
-              sound: true,
-            },
-          });
-          updateOutputById(id, (item) => ({
-            ...item,
-            taskId,
-            taskState: "running",
-            timestamp: "Submitted",
-          }));
-          startPollingTask(taskId, id);
-          return;
-        }
-
-        if (isVeoModel) {
-          const { taskId } = await createKeiTask({
-            model,
-            input: {
-              prompt: cleanedPrompt,
-              duration: getDefaultDurationSeconds(model).toString(),
-              aspect_ratio: normalizeAspectForKei(aspect),
-              generationType: "TEXT_2_VIDEO",
-            },
-          });
-          updateOutputById(id, (item) => ({
-            ...item,
-            taskId,
-            taskState: "running",
-            timestamp: "Submitted",
-          }));
-          startPollingTask(taskId, id);
-          return;
-        }
-
-        if (isKlingModel) {
           const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(model));
-          const { request_id } = await submitFalKling({
+          const { request_id } = await submitFalKlingV26Text({
             prompt: cleanedPrompt,
-            image_url: preparedImageInputs[0],
+            aspect_ratio: resolveKlingAspectRatio(aspect),
             duration: klingDuration,
             negative_prompt: "blur, distort, and low quality",
             cfg_scale: 0.5,
+            generate_audio: true,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -727,6 +827,56 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             timestamp: "Submitted",
           }));
           startPollingTask(request_id, id, 0, "fal-kling");
+          return;
+        }
+
+        if (isSoraModel) {
+          const soraDuration = resolveSoraDuration(getDefaultDurationSeconds(model));
+          const normalizedAspect =
+            modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16")
+              ? aspect
+              : (modelConfig?.defaultAspect as "16:9" | "9:16" | undefined) ?? "16:9";
+          const resolution = modelConfig?.defaultResolution?.toLowerCase().includes("720") ? "720p" : "1080p";
+          const { request_id } = await submitFalSoraPro({
+            prompt: cleanedPrompt,
+            aspect_ratio: normalizedAspect as "16:9" | "9:16",
+            duration: soraDuration,
+            resolution: resolution as "720p" | "1080p",
+            delete_video: true,
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(request_id, id, 0, "fal-sora");
+          return;
+        }
+
+        if (isVeoModel) {
+          const normalizedAspect = modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16")
+            ? aspect
+            : (modelConfig?.defaultAspect as "16:9" | "9:16" | undefined) ?? "16:9";
+          const resolution = modelConfig?.defaultResolution?.toLowerCase().includes("4k")
+            ? "4k"
+            : modelConfig?.defaultResolution?.toLowerCase().includes("720")
+              ? "720p"
+              : "1080p";
+          const { request_id } = await submitFalVeo({
+            prompt: cleanedPrompt,
+            aspect_ratio: normalizedAspect as "16:9" | "9:16",
+            duration: `${Math.max(4, Math.min(8, getDefaultDurationSeconds(model)))}s`,
+            resolution: resolution as "720p" | "1080p" | "4k",
+            generate_audio: true,
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(request_id, id, 0, "fal-veo");
           return;
         }
 
@@ -811,34 +961,52 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           return;
         }
 
-        const { taskId } = isSeedreamModel
-          ? await createKeiTask({
-              model,
-              input: {
-                prompt: cleanedPrompt,
-                aspect_ratio: keiAllowedAspects.has(aspect) ? aspect : "1:1",
-                quality: "basic",
-              },
-            })
-          : isGoogleNanoBananaModel
-            ? await createKeiTask({
-                model,
-                input: {
-                  prompt: cleanedPrompt,
-                  image_size: normalizeAspectForKei(aspect),
-                  output_format: "png",
-                },
-              })
-            : await createKeiTask({
-                model,
-                input: {
-                  prompt: cleanedPrompt,
-                  image_input: preparedImageInputs,
-                  aspect_ratio: normalizeAspectForKei(aspect),
-                  resolution: "1K",
-                  output_format: "png",
-                },
-              });
+        let taskId: string;
+        let pollingProvider: Provider = "kei";
+
+        if (isSeedreamModel) {
+          const image_size = resolveSeedreamImageSize(aspect);
+          const response = await submitFalSeedream({
+            prompt: cleanedPrompt,
+            image_size,
+            num_images: 1,
+            enable_safety_checker: true,
+            output_format: "png",
+          });
+          taskId = response.request_id;
+          pollingProvider = "fal-seedream";
+        } else if (isFalNanoBananaModel) {
+          const response = await submitFalNanoBanana({
+            prompt: cleanedPrompt,
+            num_images: 1,
+            aspect_ratio: normalizeAspectForFalNanoBanana(aspect),
+            output_format: "png",
+          });
+          taskId = response.request_id;
+          pollingProvider = "fal-nano-banana";
+        } else if (isFalNanoBananaProModel) {
+          const response = await submitFalNanoBananaPro({
+            prompt: cleanedPrompt,
+            num_images: 1,
+            aspect_ratio: normalizeAspectForFalNanoBananaPro(aspect),
+            output_format: "png",
+            resolution: modelConfig?.defaultResolution ?? "1K",
+          });
+          taskId = response.request_id;
+          pollingProvider = "fal-nano-banana-pro";
+        } else {
+          const result = await createKeiTask({
+            model,
+            input: {
+              prompt: cleanedPrompt,
+              image_input: preparedImageInputs,
+              aspect_ratio: normalizeAspectForKei(aspect),
+              resolution: "1K",
+              output_format: "png",
+            },
+          });
+          taskId = result.taskId;
+        }
 
         updateOutputById(id, (item) => ({
           ...item,
@@ -847,18 +1015,13 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           timestamp: "Submitted",
         }));
 
-        startPollingTask(taskId, id);
+        startPollingTask(taskId, id, 0, pollingProvider);
       } catch (error) {
-        updateOutputById(id, (item) => ({
-          ...item,
-          taskState: "fail",
-          status: "ready",
-          timestamp: "Failed",
-          errorMessage: error instanceof Error ? error.message : "Failed to start generation",
-        }));
+        const message = error instanceof Error ? error.message : "Failed to start generation";
+        notifyGenerationFailure(id, message);
       }
     },
-    [aspect, getDefaultDurationSeconds, model, mode, setOutputs, startPollingTask, updateOutputById],
+    [aspect, getDefaultDurationSeconds, model, mode, notifyGenerationFailure, setOutputs, startPollingTask, updateOutputById],
   );
 
   const generateOutput = useCallback(() => {

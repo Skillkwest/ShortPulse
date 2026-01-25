@@ -6,7 +6,6 @@ export type PricingStrategyId =
   | "imagen4-fast-per-image"
   | "google-nano-banana-per-image"
   | "gpt41nano-per-token"
-  | "fal-kling-video-per-request"
   | "nano-banana-per-image"
   | "seedream-per-image"
   | "kling-2.5-per-duration"

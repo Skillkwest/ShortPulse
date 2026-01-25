@@ -28,6 +28,8 @@ Use this as the entry point for the project’s documentation.
 - `docs/api-kie-kling-2-5.md` (Kie.ai Kling 2.5 Turbo text-to-video guide)
 - `docs/api-kie-kling-2-6-image-to-video.md` (Kie.ai Kling 2.6 image-to-video guide)
 - `docs/api-kie-veo3.md` (Kie.ai Veo 3.1 video generation guide)
+- `docs/api-kie-sora-2-pro.md` (Kie.ai Sora 2 Pro text-to-video guide)
+- `docs/api-kie-seedance-1-5-pro.md` (Kie.ai Seedance 1.5 Pro video generation guide)
 - `docs/api-fal-flux-2.md` (Fal.ai FLUX 2 text-to-image guide)
 - `docs/api-fal-flux-2-pro.md` (Fal.ai FLUX 2 PRO text-to-image guide)
 - `docs/api-fal-flux-2-max.md` (Fal.ai FLUX 2 MAX text-to-image guide)

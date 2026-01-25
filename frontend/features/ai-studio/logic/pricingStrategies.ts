@@ -21,6 +21,18 @@ const VEO_AUDIO_RATE_4K_USD_PER_SECOND = 0.6;
 const VEO_NO_AUDIO_RATE_4K_USD_PER_SECOND = 0.4;
 const KLING_26_RATE_AUDIO_OFF_USD_PER_SECOND = 0.07;
 const KLING_26_RATE_AUDIO_ON_USD_PER_SECOND = 0.14;
+const SORA2_PRO_STANDARD_10S_USD_PER_SECOND = 0.15; // 150 credits / 10s
+const SORA2_PRO_STANDARD_15S_USD_PER_SECOND = 0.18; // 270 credits / 15s
+const SORA2_PRO_HIGH_10S_USD_PER_SECOND = 0.33; // 330 credits / 10s
+const SORA2_PRO_HIGH_15S_USD_PER_SECOND = 0.42; // 630 credits / 15s
+const SEEDANCE_AUDIO_RATE_USD_PER_M_TOKEN = 2.4;
+const SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN = 1.2;
+const SEEDANCE_DEFAULT_FPS = 24;
+const SEEDANCE_RESOLUTION_MAP = {
+  "1080p": { width: 1920, height: 1080 },
+  "720p": { width: 1280, height: 720 },
+  "480p": { width: 854, height: 480 },
+};
 
 type StrategyFn = (params: PricingParams) => CostBreakdown | null;
 
@@ -233,6 +245,65 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
   };
 };
 
+const computeSora2ProPerSecondCost: StrategyFn = (params) => {
+  const duration = resolveDefaultDuration(params, 10);
+  // Kie supports 10s or 15s; clamp to those tiers for pricing consistency.
+  const tierDuration = duration <= 10 ? 10 : 15;
+  const res = resolveDefaultResolution(params, "High").toLowerCase();
+  const isStandard = res.includes("720") || res.includes("standard");
+  const usdPerSecond = isStandard
+    ? (tierDuration === 10 ? SORA2_PRO_STANDARD_10S_USD_PER_SECOND : SORA2_PRO_STANDARD_15S_USD_PER_SECOND)
+    : (tierDuration === 10 ? SORA2_PRO_HIGH_10S_USD_PER_SECOND : SORA2_PRO_HIGH_15S_USD_PER_SECOND);
+  const usd = usdPerSecond * tierDuration;
+  const credits = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
+  return {
+    credits,
+    usd: credits * CREDIT_VALUE_USD,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+  };
+};
+
+const resolveSeedanceDuration = (value?: number) => {
+  if (!Number.isFinite(value)) return 10;
+  if (value <= 4) return 4;
+  if (value <= 5) return 5;
+  if (value <= 6) return 6;
+  if (value <= 7) return 7;
+  if (value <= 8) return 8;
+  if (value <= 9) return 9;
+  if (value <= 10) return 10;
+  if (value <= 11) return 11;
+  return 12;
+};
+
+const computeSeedancePerSecondCost: StrategyFn = (params) => {
+  const duration = resolveSeedanceDuration(params.durationSeconds);
+  const res = resolveDefaultResolution(params, "1080p").toLowerCase();
+  const resolutionKey = res.includes("1080")
+    ? "1080p"
+    : res.includes("720") || res.includes("high")
+      ? "720p"
+      : "480p";
+  const resolution = SEEDANCE_RESOLUTION_MAP[resolutionKey];
+  if (!resolution) return null;
+
+  const hasAudio = resolveDefaultAudio(params, true);
+  const ratePerMillionTokens = hasAudio ? SEEDANCE_AUDIO_RATE_USD_PER_M_TOKEN : SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN;
+  const tokens = (resolution.width * resolution.height * SEEDANCE_DEFAULT_FPS * duration) / 1024;
+  const usdRaw = (tokens / 1_000_000) * ratePerMillionTokens;
+  const credits = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
+
+  return {
+    credits,
+    usd: credits * CREDIT_VALUE_USD,
+    megapixels: 0,
+    width: resolution.width,
+    height: resolution.height,
+  };
+};
+
 export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-per-mp": computeFalPerMpCost,
   "fal-flux2-per-mp": computeFlux2PerMpCost,
@@ -247,4 +318,6 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "kling-2.5-per-duration": computeKling25PerDurationCost,
   "kling-2.6-per-second": computeKling26PerSecondCost,
   "veo-3-per-second": computeVeoPerSecondCost,
+  "sora-2-pro-per-second": computeSora2ProPerSecondCost,
+  "seedance-1.5-per-second": computeSeedancePerSecondCost,
 };

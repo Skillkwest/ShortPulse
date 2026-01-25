@@ -21,10 +21,11 @@ export const aspectOptions: AspectOption[] = [
 // When you add/remove image models here, update `docs/sop_image_generation.md` → “Supported image models”.
 export const modelOptions: ModelOption[] = [
   { value: "fal/kling-video-v1.6", label: "Kling 1.6", mediaType: "video" },
-  { value: "fal/kling-video-v1.6-text", label: "Kling 1.6 (Text)", mediaType: "video" },
-  { value: "kling/v2-5-turbo-text-to-video-pro", label: "Kling 2.5 Turbo Pro", mediaType: "video" },
+  { value: "kling/v2-5-turbo-text-to-video-pro", label: "Kling 2.5 Turbo", mediaType: "video" },
   { value: "kling-2.6/text-to-video", label: "Kling 2.6 Pro", mediaType: "video" },
+  { value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video", label: "Seedance 1.5 Pro", mediaType: "video" },
   { value: "veo3", label: "Google Veo 3.1", mediaType: "video" },
+  { value: "sora-2-pro-text-to-video", label: "Sora 2 Pro", mediaType: "video" },
   { value: "fal/flux-2-max", label: "FLUX.2 Max", mediaType: "image" },
   { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
   { value: "fal/flux-2", label: "FLUX.2", mediaType: "image" },

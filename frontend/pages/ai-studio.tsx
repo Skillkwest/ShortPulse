@@ -159,6 +159,7 @@ export default function AiStudioPage() {
             onPromptTextChange={setReferenceText}
             onSave={saveActiveOutput}
             onRegenerate={regenerateOutput}
+            costCredits={currentCostCredits}
             resolvePreviewUrlById={resolvePreviewUrlById}
           />
         );
@@ -251,6 +252,11 @@ export default function AiStudioPage() {
         return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedTextTokens);
       }
       return null;
+    }
+
+    if (selectedTool === "image-to-image") {
+      if (!model) return null;
+      return computeCostForModel(model, costParamsForModel());
     }
 
   if (selectedTool === "image-to-video") {

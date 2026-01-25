@@ -42,16 +42,18 @@
 }
 .drop-image-row {
   display: flex;
-  gap: 0;
+  gap: 10px;
   align-items: center;
   transform-origin: top;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .primary-drop {
-  flex: 1.1;
+  flex: 0 0 auto;
   display: flex;
   justify-content: center;
-  margin-right: 16px;
+  width: clamp(115px, 20vw, 145px);
 }
 
 .secondary-drop {
@@ -59,7 +61,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-right: 8px;
+  width: clamp(85px, 10vw, 105px);
 }
 
 .secondary-drop:last-child {
@@ -143,8 +145,8 @@
   display: grid;
   place-items: center;
   aspect-ratio: unset;
-  height: 200px;
-  min-height: unset;
+  height: auto;
+  min-height: 0;
   width: 100%;
   max-width: none;
   margin: 0;
@@ -215,15 +217,16 @@
 }
 
 .primary-drop .reference-dropzone {
-  width: 41%;
-  max-width: 112px;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
+  aspect-ratio: 4 / 5;
 }
 
 .secondary-drop .reference-dropzone {
-  width: 47.5%;
-  max-width: 135px;
-  min-width: 95px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
   margin: 0 auto;
   aspect-ratio: 4 / 5;
   height: auto;

@@ -86,6 +86,8 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 | Kie | `kling/v2-5-turbo-text-to-video-pro` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Per-duration pricing ($0.35 for 5s + $0.07/additional s); defaults to 10s (70 credits). |
 | Kie | `kling-2.6/text-to-video` | 16:9 default (allowed: 1:1, 16:9, 9:16) | Per-second pricing; defaults to 10s with audio on ($0.14/s → 140 credits). |
 | Kie | `veo3` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Per-second pricing; defaults to 8s @ 1080p with audio on ($0.40/s → 320 credits); 4K/audio-on is higher. |
+| Kie | `sora-2-pro-text-to-video` | 16:9 default (allowed: 16:9, 9:16) | Tiered pricing (credits = `ceil(usd / 0.01)`): Standard 10s = 150 cr, 15s = 270 cr; High 10s = 330 cr (default), 15s = 630 cr. Defaults: 10s, 1080p/high, audio on. |
+| Fal | `fal-ai/bytedance/seedance/v1.5/pro/text-to-video` | 16:9 default (allowed: 16:9, 9:16, 1:1, 4:3, 3:4, 21:9) | Token-based pricing (`tokens = width*height*24*duration/1024`): audio $2.4 per 1M tokens, no-audio $1.2 per 1M. Defaults: 10s, 1080p (fall back 720p→480p), audio on. |
 
 ## Maintenance rules
 

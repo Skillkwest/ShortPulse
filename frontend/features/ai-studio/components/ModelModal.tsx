@@ -2,7 +2,8 @@
  * Anchored model picker modal.
  * Positions next to the invoking control and lists available generation models with cost badges.
  */
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { MagnifyingGlass } from "phosphor-react";
 import { modelOptions, ModelOption } from "../constants";
 import { buildDefaultPricingParams, computeCostForModel } from "../logic/pricing";
 
@@ -14,41 +15,246 @@ type ModelModalProps = {
   options?: ModelOption[];
 };
 
+type ModelMeta = {
+  provider?: string;
+  description?: string;
+  logo?: string;
+  tags?: string[];
+  verified?: boolean;
+};
+
+const modelMeta: Record<string, ModelMeta> = {
+  "fal/flux-2": {
+    provider: "Flux",
+    description: "Fast, balanced image generation with clean lighting and sharp detail.",
+    logo: "Flux",
+    tags: ["Image"],
+    verified: true,
+  },
+  "fal/flux-2-pro": {
+    provider: "Flux",
+    description: "Higher fidelity Flux model with better texture and contrast control.",
+    logo: "Flux",
+    tags: ["Image"],
+    verified: true,
+  },
+  "fal/flux-2-max": {
+    provider: "Flux",
+    description: "Maximum quality Flux with enhanced realism and upscale-friendly detail.",
+    logo: "Flux",
+    tags: ["Image"],
+    verified: true,
+  },
+  "fal/imagen4/preview/fast": {
+    provider: "Google",
+    description: "Imagen 4 Fast for crisp results with speedy turnaround.",
+    logo: "G",
+    tags: ["Image"],
+  },
+  "fal/kling-video-v1.6": {
+    provider: "Kling",
+    description: "Kling 1.6 for fast text-to-video generation with balanced fidelity.",
+    tags: ["Video"],
+  },
+  "kling/v2-5-turbo-text-to-video-pro": {
+    provider: "Kling",
+    description: "Kling 2.5 Turbo Pro with higher motion detail and stability.",
+    tags: ["Video"],
+  },
+  "kling-2.6/text-to-video": {
+    provider: "Kling",
+    description: "Kling 2.6 Pro for cinematic motion and smoother camera moves.",
+    tags: ["Video"],
+  },
+  "sora-2-pro-text-to-video": {
+    provider: "Kie.ai",
+    description: "Sora 2 Pro text-to-video with HD motion, physics, and native audio up to 15s.",
+    tags: ["Video"],
+  },
+  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": {
+    provider: "ByteDance",
+    description: "Seedance 1.5 Pro for cinema-quality video with synchronized audio and camera control.",
+    tags: ["Video"],
+  },
+  veo3: {
+    provider: "Google",
+    description: "Veo 3.1 for cinematic video generation with strong motion coherence.",
+    tags: ["Video"],
+  },
+  "google/nano-banana": {
+    provider: "Google",
+    description: "Nano Banana tuned for vibrant colors and social-ready outputs.",
+    logo: "G",
+    tags: ["Image"],
+  },
+  "nano-banana-pro": {
+    provider: "Google",
+    description: "Nano Banana Pro with finer detail and better low-light handling.",
+    logo: "G",
+    tags: ["Image"],
+  },
+  "seedream/4.5-text-to-image": {
+    provider: "Seedream",
+    description: "Seedream 4.5 for stylized, cinematic looks and softer gradients.",
+    logo: "S",
+    tags: ["Image"],
+  },
+};
+
+const sectionLogos: Record<string, string> = {
+  Flux: "/flux%20LOGO.png",
+  Google: "/Google%20LOGO.png",
+  Kling: "/Kling%20LOGO.png",
+  "Kie.ai": "/Sora%202%20LOGO.png",
+  ByteDance: "/Seedream%20LOGO.png",
+  Seedream: "/Seedream%20LOGO.png",
+};
+
 /**
  * Renders the floating model selection modal.
  */
 export function ModelModal({ isOpen, position, onClose, onSelect, options = modelOptions }: ModelModalProps) {
-  if (!isOpen) return null;
+  const [searchQuery, setSearchQuery] = useState("");
+  const [recentValues, setRecentValues] = useState<string[]>([]);
+  const [chipTooltip, setChipTooltip] = useState<{
+    modelId: string;
+    left: number;
+    top: number;
+    placement: "above" | "below";
+    arrowOffset: number;
+  } | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const tooltipTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("aiStudioRecentModels");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setRecentValues(parsed);
+        }
+      } catch {
+        // no-op: ignore malformed storage
+      }
+    }
+  }, [isOpen]);
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredOptions = useMemo(
+    () =>
+      normalizedQuery
+        ? options.filter((option) => option.label.toLowerCase().includes(normalizedQuery))
+        : options,
+    [normalizedQuery, options],
+  );
+
+  const optionMap = useMemo(() => new Map(filteredOptions.map((option) => [option.value, option])), [filteredOptions]);
 
   const fluxOrder = ["fal/flux-2", "fal/flux-2-pro", "fal/flux-2-max"];
   const fluxOptions = fluxOrder
-    .map((value) => options.find((option) => option.value === value))
+    .map((value) => filteredOptions.find((option) => option.value === value))
     .filter((item): item is ModelOption => Boolean(item));
   const googleOrder = ["fal/imagen4/preview/fast", "google/nano-banana", "nano-banana-pro"];
   const googleOptions = googleOrder
-    .map((value) => options.find((option) => option.value === value))
+    .map((value) => filteredOptions.find((option) => option.value === value))
     .filter((item): item is ModelOption => Boolean(item));
   const handledValues = new Set([...fluxOrder, ...googleOrder]);
-  const otherOptions = options.filter((option) => !handledValues.has(option.value));
+  const otherOptions = filteredOptions.filter((option) => !handledValues.has(option.value));
+  const orderedOptions = [...fluxOptions, ...googleOptions, ...otherOptions];
+  const recentOptions = recentValues
+    .map((value) => optionMap.get(value))
+    .filter((item): item is ModelOption => Boolean(item));
 
-  const renderSection = (title: string, subtitle: string, items: ModelOption[]) => {
+  const handleSelect = (value: string) => {
+    setRecentValues((prev) => {
+      const next = [value, ...prev.filter((item) => item !== value)].slice(0, 5);
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem("aiStudioRecentModels", JSON.stringify(next));
+        } catch {
+          // ignore storage failures
+        }
+      }
+      return next;
+    });
+    onSelect(value);
+  };
+
+  const handleChipTooltipShow = (modelId: string) => (event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const modalRect = modalRef.current?.getBoundingClientRect();
+    const tooltipWidth = 300;
+    const estimatedHeight = 200;
+    const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+    if (!modalRect) return;
+
+    const modalGutter = 10;
+    const safeLeft = modalGutter;
+    const safeRight = modalRect.width - modalGutter;
+
+    const centerX = rect.left - modalRect.left + rect.width / 2;
+    const preferredTop = rect.top - modalRect.top - estimatedHeight - 12;
+    const spaceAbove = rect.top - modalRect.top;
+    const spaceBelow = modalRect.bottom - rect.bottom;
+    const placeBelow = false;
+    const top = rect.top - modalRect.top;
+
+    const unclampedLeft = centerX - tooltipWidth / 2;
+    const left = clamp(unclampedLeft, safeLeft, safeRight - tooltipWidth);
+    const arrowOffset = clamp(centerX - left, 16, tooltipWidth - 16);
+
+    if (tooltipTimerRef.current) {
+      window.clearTimeout(tooltipTimerRef.current);
+    }
+    tooltipTimerRef.current = window.setTimeout(
+      () => setChipTooltip({ modelId, left, top, placement: placeBelow ? "below" : "above", arrowOffset }),
+      500,
+    );
+  };
+
+  const handleChipTooltipHide = () => {
+    if (tooltipTimerRef.current) {
+      window.clearTimeout(tooltipTimerRef.current);
+      tooltipTimerRef.current = null;
+    }
+    setChipTooltip(null);
+  };
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const renderSection = (title: string, items: ModelOption[]) => {
     if (!items.length) return null;
     return (
       <div className="model-modal-section">
-        <div className="model-modal-subheader">
-          <p className="model-modal-section-title">{title}</p>
-          <p className="model-modal-section-subtitle">{subtitle}</p>
-        </div>
         <div className="model-modal-grid">
           {items.map((option) => (
             <button
               key={option.value}
               type="button"
               className="model-chip"
-              onClick={() => onSelect(option.value)}
+              onClick={() => handleSelect(option.value)}
+              onMouseEnter={handleChipTooltipShow(option.value)}
+              onMouseLeave={handleChipTooltipHide}
             >
               <div className="model-chip-row">
-                <span className="model-chip-title">{option.label}</span>
+                <div className="model-chip-content">
+                  {modelMeta[option.value]?.provider && sectionLogos[modelMeta[option.value]?.provider ?? ""] ? (
+                    <img
+                      className="model-chip-logo-img"
+                      src={sectionLogos[modelMeta[option.value]?.provider ?? ""]}
+                      alt=""
+                      aria-hidden
+                    />
+                  ) : null}
+                  <div className="model-chip-text">
+                    <span className="model-chip-title">{option.label}</span>
+                  </div>
+                </div>
                 <span className="model-chip-pill">
                   <span aria-hidden="true" className="model-chip-icon">✦</span>
                   <span className="model-chip-credits">{formatCredits(option.value)}</span>
@@ -73,18 +279,64 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
         className="model-modal"
         role="dialog"
         aria-modal="true"
+        ref={modalRef}
         onClick={(event) => event.stopPropagation()}
         style={position ? { top: `${position.top}px`, left: `${position.left}px` } : undefined}
       >
         <div className="model-modal-header">
-          <p className="model-modal-title">Models</p>
-          <button type="button" className="ghost-btn mini model-modal-close" onClick={onClose}>
-            Close
-          </button>
+          <div className="model-modal-title-group">
+            <p className="model-modal-title">Models</p>
+          </div>
+          <div className="model-modal-header-actions">
+            <div className="model-modal-search">
+              <MagnifyingGlass aria-hidden className="model-search-icon" size={14} weight="bold" />
+              <input
+                className="model-search-input"
+                type="search"
+                placeholder="Search models"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </div>
+            <button type="button" className="ghost-btn mini model-modal-close" onClick={onClose} aria-label="Close model picker">
+              Close
+            </button>
+          </div>
         </div>
-        {renderSection("Flux", "Newest FLUX image models", fluxOptions)}
-        {renderSection("Google", "Imagen + Nano Banana", googleOptions)}
-        {renderSection("Other models", "Video + additional image backends", otherOptions)}
+        {renderSection("Models", orderedOptions)}
+        {chipTooltip ? (
+          <div
+            className={`model-chip-tooltip ${chipTooltip.placement === "below" ? "is-below" : "is-above"}`}
+            style={{ top: chipTooltip.top, left: chipTooltip.left, ["--tooltip-arrow-offset" as any]: `${chipTooltip.arrowOffset}px` }}
+            role="tooltip"
+          >
+            <div className="model-chip-tooltip-header">
+              <div>
+                <p className="model-chip-tooltip-title">{options.find((opt) => opt.value === chipTooltip.modelId)?.label}</p>
+                {modelMeta[chipTooltip.modelId]?.provider ? (
+                  <p className="model-chip-tooltip-provider">{modelMeta[chipTooltip.modelId]?.provider}</p>
+                ) : null}
+              </div>
+            </div>
+            {modelMeta[chipTooltip.modelId]?.description ? (
+              <p className="model-chip-tooltip-description">{modelMeta[chipTooltip.modelId]?.description}</p>
+            ) : null}
+            <div className="model-chip-tooltip-meta">
+              {modelMeta[chipTooltip.modelId]?.tags?.length ? (
+                <div className="model-chip-tooltip-tags">
+                  {modelMeta[chipTooltip.modelId]?.tags?.map((tag) => (
+                    <span key={`${chipTooltip.modelId}-${tag}`} className="model-chip-tag">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <span className="model-chip-tooltip-credits">
+                <span aria-hidden="true" className="model-chip-tooltip-sparkle">✦</span> {formatCredits(chipTooltip.modelId)} credits
+              </span>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

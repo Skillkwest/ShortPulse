@@ -21,10 +21,14 @@ import {
   fetchFalFlux2MaxStatus,
   fetchFalFlux2ProStatus,
   fetchFalFlux2Status,
+  fetchFalFlux2EditStatus,
+  fetchFalFlux2ProEditStatus,
   fetchFalKlingStatus,
   fetchFalKlingV25Status,
   fetchFalNanoBananaStatus,
+  fetchFalNanoBananaEditStatus,
   fetchFalNanoBananaProStatus,
+  fetchFalNanoBananaProEditStatus,
   fetchFalStatus,
   fetchImagen4FastStatus,
   fetchFalSoraStatus,
@@ -32,6 +36,8 @@ import {
   fetchFalSeedreamStatus,
   fetchFalVeoStatus,
   submitFalFlux2,
+  submitFalFlux2Edit,
+  submitFalFlux2ProEdit,
   submitFalFlux2Max,
   submitFalFlux2Pro,
   submitFalKlingV26Text,
@@ -42,7 +48,9 @@ import {
   submitFalVeo,
   submitImagen4Fast,
   submitFalNanoBanana,
+  submitFalNanoBananaEdit,
   submitFalNanoBananaPro,
+  submitFalNanoBananaProEdit,
   submitFalSoraPro,
 } from "../../../lib/falClient";
 import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
@@ -59,13 +67,17 @@ type Provider =
   | "kei"
   | "fal"
   | "fal-flux2"
+  | "fal-flux2-edit"
   | "fal-flux2-pro"
+  | "fal-flux2-pro-edit"
   | "fal-flux2-max"
   | "fal-imagen4-fast"
   | "fal-kling"
   | "fal-kling-25"
   | "fal-nano-banana"
+  | "fal-nano-banana-edit"
   | "fal-nano-banana-pro"
+  | "fal-nano-banana-pro-edit"
   | "fal-sora"
   | "fal-seedance"
   | "fal-seedream"
@@ -259,10 +271,20 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === "video" || opt.mediaType === "multi");
     }
     if (selectedTool === "create" && mode === "image") {
-      return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi");
+      return modelOptions.filter((opt) => {
+        const matchesMedia = !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi";
+        if (!matchesMedia) return false;
+        const config = getModelConfig(opt.value);
+        return Boolean(config?.supportsTextToImage);
+      });
     }
     if (selectedTool === "image-to-image") {
-      return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi");
+      return modelOptions.filter((opt) => {
+        const matchesMedia = !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi";
+        if (!matchesMedia) return false;
+        const config = getModelConfig(opt.value);
+        return Boolean(config?.supportsImageToImage);
+      });
     }
     return modelOptions;
   }, [mode, selectedTool]);
@@ -462,29 +484,37 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
               ? await fetchFalStatus(taskId)
               : provider === "fal-flux2"
                 ? await fetchFalFlux2Status(taskId)
+                : provider === "fal-flux2-edit"
+                  ? await fetchFalFlux2EditStatus(taskId)
                 : provider === "fal-flux2-pro"
                   ? await fetchFalFlux2ProStatus(taskId)
+                : provider === "fal-flux2-pro-edit"
+                  ? await fetchFalFlux2ProEditStatus(taskId)
                   : provider === "fal-flux2-max"
                     ? await fetchFalFlux2MaxStatus(taskId)
                     : provider === "fal-imagen4-fast"
                       ? await fetchImagen4FastStatus(taskId)
             : provider === "fal-kling"
               ? await fetchFalKlingStatus(taskId)
-              : provider === "fal-kling-25"
-                ? await fetchFalKlingV25Status(taskId)
-                : provider === "fal-seedance"
-                  ? await fetchFalSeedanceStatus(taskId)
-                  : provider === "fal-sora"
-                    ? await fetchFalSoraStatus(taskId)
-                    : provider === "fal-seedream"
-                      ? await fetchFalSeedreamStatus(taskId)
-                    : provider === "fal-veo"
-                      ? await fetchFalVeoStatus(taskId)
-                      : provider === "fal-nano-banana"
-                        ? await fetchFalNanoBananaStatus(taskId)
-                        : provider === "fal-nano-banana-pro"
-                        ? await fetchFalNanoBananaProStatus(taskId)
-                        : await fetchKeiTaskStatus(taskId);
+          : provider === "fal-kling-25"
+            ? await fetchFalKlingV25Status(taskId)
+            : provider === "fal-seedance"
+              ? await fetchFalSeedanceStatus(taskId)
+              : provider === "fal-sora"
+                ? await fetchFalSoraStatus(taskId)
+            : provider === "fal-seedream"
+              ? await fetchFalSeedreamStatus(taskId)
+            : provider === "fal-veo"
+              ? await fetchFalVeoStatus(taskId)
+              : provider === "fal-nano-banana"
+                ? await fetchFalNanoBananaStatus(taskId)
+                : provider === "fal-nano-banana-edit"
+                  ? await fetchFalNanoBananaEditStatus(taskId)
+                : provider === "fal-nano-banana-pro"
+                ? await fetchFalNanoBananaProStatus(taskId)
+                : provider === "fal-nano-banana-pro-edit"
+                  ? await fetchFalNanoBananaProEditStatus(taskId)
+                : await fetchKeiTaskStatus(taskId);
           const stateRaw =
             (status as any)?.status?.toString().toLowerCase() ??
             (status as any)?.state?.toString().toLowerCase() ??
@@ -690,10 +720,14 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const modelLabel = resolveModelLabel(model);
       const isSeedreamModel = model === "fal-ai/bytedance/seedream/v4.5/text-to-image";
       const isFalFlux2Model = model === "fal/flux-2";
+      const isFalFlux2EditModel = model === "fal/flux-2/edit";
       const isFalFlux2ProModel = model === "fal/flux-2-pro";
+      const isFalFlux2ProEditModel = model === "fal/flux-2-pro/edit";
       const isFalFlux2MaxModel = model === "fal/flux-2-max";
       const isFalNanoBananaModel = model === "fal-ai/nano-banana";
+      const isFalNanoBananaEditModel = model === "fal-ai/nano-banana/edit";
       const isFalNanoBananaProModel = model === "fal-ai/nano-banana-pro";
+      const isFalNanoBananaProEditModel = model === "fal-ai/nano-banana-pro/edit";
       const isImagen4FastModel = model === "fal/imagen4/preview/fast";
       const isSeedanceModel = model === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video";
       const isKling25ImageModel = model === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
@@ -712,6 +746,11 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           }),
         )
       ).filter((url): url is string => Boolean(url));
+      const pulseReferenceImageUrl =
+        selectedTool === "image-to-image" && preparedImageInputs.length > 0
+          ? preparedImageInputs[0]
+          : undefined;
+      const falReferencePayload = pulseReferenceImageUrl ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) } : {};
 
       const nextOutput: StudioOutput = {
         id,
@@ -765,6 +804,51 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             timestamp: "Submitted",
           }));
           startPollingTask(request_id, id, 0, "fal-kling-25");
+          return;
+        }
+
+        if (isFalNanoBananaEditModel) {
+          if (!preparedImageInputs.length) {
+            notifyGenerationFailure(id, "Nano Banana Edit requires at least one reference image.");
+            return;
+          }
+          const response = await submitFalNanoBananaEdit({
+            prompt: cleanedPrompt,
+            num_images: 1,
+            aspect_ratio: falNanoBananaAllowedAspects.has(aspect) ? aspect : "auto",
+            output_format: "png",
+            image_urls: preparedImageInputs.slice(0, 8),
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: response.request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(response.request_id, id, 0, "fal-nano-banana-edit");
+          return;
+        }
+
+        if (isFalNanoBananaProEditModel) {
+          if (!preparedImageInputs.length) {
+            notifyGenerationFailure(id, "Nano Banana Pro Edit requires at least one reference image.");
+            return;
+          }
+          const response = await submitFalNanoBananaProEdit({
+            prompt: cleanedPrompt,
+            num_images: 1,
+            aspect_ratio: falNanoBananaProAllowedAspects.has(aspect) ? aspect : "auto",
+            output_format: "png",
+            resolution: modelConfig?.defaultResolution ?? "1K",
+            image_urls: preparedImageInputs.slice(0, 8),
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: response.request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(response.request_id, id, 0, "fal-nano-banana-pro-edit");
           return;
         }
 
@@ -890,6 +974,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             guidance_scale: 15,
             num_inference_steps: 41,
             enable_safety_checker: true,
+            ...falReferencePayload,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -898,6 +983,59 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             timestamp: "Submitted",
           }));
           startPollingTask(falResp.request_id, id, 0, "fal-flux2");
+          return;
+        }
+
+        if (isFalFlux2EditModel) {
+          if (!preparedImageInputs.length) {
+            notifyGenerationFailure(id, "FLUX.2 Edit requires at least one reference image.");
+            return;
+          }
+          const size = falSizeForAspect(aspect);
+          const falResp = await submitFalFlux2Edit({
+            prompt: cleanedPrompt,
+            image_size: { width: size.width, height: size.height },
+            num_images: 1,
+            output_format: "png",
+            guidance_scale: 2.5,
+            num_inference_steps: 28,
+            enable_safety_checker: false,
+            image_urls: preparedImageInputs.slice(0, 4),
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: falResp.request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(falResp.request_id, id, 0, "fal-flux2-edit");
+          return;
+        }
+
+        if (isFalFlux2ProEditModel) {
+          if (!preparedImageInputs.length) {
+            notifyGenerationFailure(id, "FLUX.2 Pro Edit requires at least one reference image.");
+            return;
+          }
+          const size = falSizeForAspect(aspect);
+          const falResp = await submitFalFlux2ProEdit({
+            prompt: cleanedPrompt,
+            image_size: { width: size.width, height: size.height },
+            num_images: 1,
+            output_format: "png",
+            guidance_scale: 2.5,
+            num_inference_steps: 28,
+            safety_tolerance: "5",
+            enable_safety_checker: false,
+            image_urls: preparedImageInputs.slice(0, 4),
+          } as any);
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: falResp.request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(falResp.request_id, id, 0, "fal-flux2-pro-edit");
           return;
         }
 
@@ -910,6 +1048,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             aspect_ratio: normalizedAspect as "1:1",
             num_images: 1,
             output_format: "png",
+            ...falReferencePayload,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -930,6 +1069,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             output_format: "png",
             safety_tolerance: "5",
             enable_safety_checker: false,
+            ...falReferencePayload,
           } as any);
           updateOutputById(id, (item) => ({
             ...item,
@@ -950,6 +1090,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             output_format: "png",
             safety_tolerance: "5",
             enable_safety_checker: false,
+            ...falReferencePayload,
           } as any);
           updateOutputById(id, (item) => ({
             ...item,
@@ -972,6 +1113,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             num_images: 1,
             enable_safety_checker: true,
             output_format: "png",
+            ...falReferencePayload,
           });
           taskId = response.request_id;
           pollingProvider = "fal-seedream";
@@ -981,6 +1123,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             num_images: 1,
             aspect_ratio: normalizeAspectForFalNanoBanana(aspect),
             output_format: "png",
+            ...falReferencePayload,
           });
           taskId = response.request_id;
           pollingProvider = "fal-nano-banana";
@@ -991,6 +1134,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             aspect_ratio: normalizeAspectForFalNanoBananaPro(aspect),
             output_format: "png",
             resolution: modelConfig?.defaultResolution ?? "1K",
+            ...falReferencePayload,
           });
           taskId = response.request_id;
           pollingProvider = "fal-nano-banana-pro";
@@ -1021,7 +1165,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         notifyGenerationFailure(id, message);
       }
     },
-    [aspect, getDefaultDurationSeconds, model, mode, notifyGenerationFailure, setOutputs, startPollingTask, updateOutputById],
+    [aspect, getDefaultDurationSeconds, model, mode, notifyGenerationFailure, selectedTool, setOutputs, startPollingTask, updateOutputById],
   );
 
   const generateOutput = useCallback(() => {

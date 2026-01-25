@@ -413,14 +413,14 @@
   border: 1px solid var(--ai-container-card-border);
   border-radius: 10px;
   color: #f5f9ff;
-  font-weight: 600;
-  font-size: 14px;
-  padding: 10px 15px;
+  font-weight: 650;
+  font-size: 15px;
+  padding: 12px 14px;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.16s ease, transform 0.12s ease, box-shadow 0.16s ease, background 0.16s ease, box-shadow 0.2s ease;
   width: 100%;
-  max-width: 250px;
+  max-width: 255px;
 }
 
 .model-chip:hover {
@@ -446,12 +446,12 @@
 .model-chip-content {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
 .model-chip-logo-img {
-  height: 18px;
+  height: 22px;
   width: auto;
   object-fit: contain;
   display: block;

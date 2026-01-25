@@ -4,11 +4,14 @@
  */
 export type FalSubmitRequest = {
   prompt: string;
+  image_url?: string;
   image_size?: string | { width: number; height: number };
+  image_urls?: string[];
   num_inference_steps?: number;
   guidance_scale?: number;
   num_images?: number;
   enable_safety_checker?: boolean;
+  safety_tolerance?: string | number;
   output_format?: "jpeg" | "png";
   acceleration?: "none" | "regular" | "high";
 };
@@ -81,6 +84,16 @@ export type FalSeedanceSubmitRequest = {
   negative_prompt?: string;
   cfg_scale?: number;
   generate_audio?: boolean;
+};
+
+export type FalNanoBananaEditSubmitRequest = {
+  prompt: string;
+  num_images?: number;
+  aspect_ratio?: string;
+  output_format?: "jpeg" | "png" | "webp";
+  sync_mode?: boolean;
+  image_urls: string[];
+  limit_generations?: boolean;
 };
 
 export type Imagen4FastSubmitRequest = {
@@ -157,6 +170,29 @@ export const fetchFalFlux2Status = async (requestId: string): Promise<FalStatusR
   return handleJson<FalStatusResponse>(response);
 };
 
+export const submitFalFlux2Edit = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2-edit-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal FLUX 2 Edit did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalFlux2EditStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2-edit-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
 export const submitFalFlux2Pro = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2pro-submit`, {
     method: "POST",
@@ -173,6 +209,29 @@ export const submitFalFlux2Pro = async (payload: FalSubmitRequest): Promise<FalS
 
 export const fetchFalFlux2ProStatus = async (requestId: string): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2pro-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
+export const submitFalFlux2ProEdit = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2pro-edit-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal FLUX 2 PRO Edit did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalFlux2ProEditStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2pro-edit-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ requestId }),
@@ -260,6 +319,31 @@ export const fetchFalNanoBananaStatus = async (requestId: string): Promise<FalSt
   return handleJson<FalStatusResponse>(response);
 };
 
+export const submitFalNanoBananaEdit = async (
+  payload: FalNanoBananaEditSubmitRequest,
+): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-edit-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal Nano Banana Edit did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalNanoBananaEditStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-edit-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
 export type FalNanoBananaProSubmitRequest = {
   prompt: string;
   num_images?: number;
@@ -270,6 +354,7 @@ export type FalNanoBananaProSubmitRequest = {
   sync_mode?: boolean;
   limit_generations?: boolean;
   enable_web_search?: boolean;
+  image_urls?: string[];
 };
 
 export const submitFalNanoBananaPro = async (
@@ -290,6 +375,31 @@ export const submitFalNanoBananaPro = async (
 
 export const fetchFalNanoBananaProStatus = async (requestId: string): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-pro-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
+export const submitFalNanoBananaProEdit = async (
+  payload: FalNanoBananaProSubmitRequest & { image_urls: string[] },
+): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-pro-edit-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal Nano Banana Pro Edit did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalNanoBananaProEditStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-pro-edit-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ requestId }),

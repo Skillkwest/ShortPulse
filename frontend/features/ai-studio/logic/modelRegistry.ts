@@ -16,6 +16,9 @@ export type ModelConfig = {
   defaultDurationSeconds?: number;
   defaultResolution?: string;
   defaultAudio?: boolean;
+  supportsTextToImage?: boolean;
+  supportsImageToImage?: boolean;
+  supportsImageToVideo?: boolean;
 };
 
 const registry: Record<string, ModelConfig> = {
@@ -28,6 +31,18 @@ const registry: Record<string, ModelConfig> = {
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
     pricingStrategy: "fal-flux2-per-mp",
     sizeMap: falImageSizeMap,
+    supportsTextToImage: true,
+  },
+  "fal/flux-2/edit": {
+    id: "fal/flux-2/edit",
+    label: "FLUX.2 Edit",
+    provider: "fal",
+    mediaType: "image",
+    defaultAspect: "4:3",
+    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    pricingStrategy: "fal-flux2-per-mp",
+    sizeMap: falImageSizeMap,
+    supportsImageToImage: true,
   },
   "fal/flux-2-pro": {
     id: "fal/flux-2-pro",
@@ -38,6 +53,18 @@ const registry: Record<string, ModelConfig> = {
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
     pricingStrategy: "fal-flux2-pro-per-mp",
     sizeMap: falImageSizeMap,
+    supportsTextToImage: true,
+  },
+  "fal/flux-2-pro/edit": {
+    id: "fal/flux-2-pro/edit",
+    label: "FLUX.2 Pro Edit",
+    provider: "fal",
+    mediaType: "image",
+    defaultAspect: "4:3",
+    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    pricingStrategy: "fal-flux2-pro-per-mp",
+    sizeMap: falImageSizeMap,
+    supportsImageToImage: true,
   },
   "fal/flux-2-max": {
     id: "fal/flux-2-max",
@@ -48,6 +75,7 @@ const registry: Record<string, ModelConfig> = {
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
     pricingStrategy: "fal-flux2-max-per-mp",
     sizeMap: falImageSizeMap,
+    supportsTextToImage: true,
   },
   "fal/imagen4/preview/fast": {
     id: "fal/imagen4/preview/fast",
@@ -58,6 +86,7 @@ const registry: Record<string, ModelConfig> = {
     allowedAspects: ["1:1", "16:9", "9:16", "4:3", "3:4"],
     pricingStrategy: "imagen4-fast-per-image",
     sizeMap: falImageSizeMap,
+    supportsTextToImage: true,
   },
   "fal-ai/nano-banana": {
     id: "fal-ai/nano-banana",
@@ -67,6 +96,17 @@ const registry: Record<string, ModelConfig> = {
     defaultAspect: "1:1",
     allowedAspects: ["21:9", "16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16"],
     pricingStrategy: "google-nano-banana-per-image",
+    supportsTextToImage: true,
+  },
+  "fal-ai/nano-banana/edit": {
+    id: "fal-ai/nano-banana/edit",
+    label: "Nano Banana Edit",
+    provider: "fal",
+    mediaType: "image",
+    defaultAspect: "auto",
+    allowedAspects: ["auto", "21:9", "16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16"],
+    pricingStrategy: "google-nano-banana-per-image",
+    supportsImageToImage: true,
   },
   "fal-ai/nano-banana-pro": {
     id: "fal-ai/nano-banana-pro",
@@ -74,9 +114,21 @@ const registry: Record<string, ModelConfig> = {
     provider: "fal",
     mediaType: "image",
     defaultAspect: "4:5",
-    allowedAspects: ["21:9", "16:9", "3:2", "4:3", "5:4", "4:5", "3:4", "2:3", "9:16", "1:1"],
+    allowedAspects: ["21:9", "16:9", "3:2", "4:3", "5:4", "4:5", "3:4", "2:3", "9:16", "1:1", "auto"],
     pricingStrategy: "nano-banana-per-image",
     defaultResolution: "1K",
+    supportsTextToImage: true,
+  },
+  "fal-ai/nano-banana-pro/edit": {
+    id: "fal-ai/nano-banana-pro/edit",
+    label: "Nano Banana Pro Edit",
+    provider: "fal",
+    mediaType: "image",
+    defaultAspect: "auto",
+    allowedAspects: ["auto", "21:9", "16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16"],
+    pricingStrategy: "nano-banana-per-image",
+    defaultResolution: "1K",
+    supportsImageToImage: true,
   },
   "fal-ai/bytedance/seedream/v4.5/text-to-image": {
     id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
@@ -86,6 +138,7 @@ const registry: Record<string, ModelConfig> = {
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
     pricingStrategy: "seedream-per-image",
+    supportsTextToImage: true,
   },
   "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": {
     id: "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",

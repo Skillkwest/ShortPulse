@@ -11,11 +11,15 @@ export type ToolConfig = { id: ToolId; label: string; desc: string };
 // Map model ids to their logo assets used in selectors and chips.
 export const modelLogos: Record<string, string> = {
   "fal/flux-2": "/flux%20LOGO.png",
+  "fal/flux-2/edit": "/flux%20LOGO.png",
   "fal/flux-2-pro": "/flux%20LOGO.png",
+  "fal/flux-2-pro/edit": "/flux%20LOGO.png",
   "fal/flux-2-max": "/flux%20LOGO.png",
   "fal/imagen4/preview/fast": "/Google%20LOGO.png",
   "fal-ai/nano-banana": "/Google%20LOGO.png",
+  "fal-ai/nano-banana/edit": "/Google%20LOGO.png",
   "fal-ai/nano-banana-pro": "/Google%20LOGO.png",
+  "fal-ai/nano-banana-pro/edit": "/Google%20LOGO.png",
   "fal-ai/bytedance/seedream/v4.5/text-to-image": "/Seedream%20LOGO.png",
   "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": "/Kling%20LOGO.png",
   "fal-ai/kling-video/v2.5-turbo/pro/text-to-video": "/Kling%20LOGO.png",
@@ -47,12 +51,16 @@ export const modelOptions: ModelOption[] = [
   { value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video", label: "Seedance 1.5 Pro", mediaType: "video" },
   { value: "fal-ai/veo3.1", label: "Google Veo 3.1", mediaType: "video" },
   { value: "fal-ai/sora-2/text-to-video/pro", label: "Sora 2 Pro", mediaType: "video" },
+  { value: "fal/flux-2-pro/edit", label: "FLUX.2 Pro Edit", mediaType: "image" },
+  { value: "fal/flux-2/edit", label: "FLUX.2 Edit", mediaType: "image" },
   { value: "fal/flux-2-max", label: "FLUX.2 Max", mediaType: "image" },
   { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
   { value: "fal/flux-2", label: "FLUX.2", mediaType: "image" },
   { value: "fal/imagen4/preview/fast", label: "Imagen 4 Fast", mediaType: "image" },
   { value: "fal-ai/nano-banana", label: "Nano Banana", mediaType: "image" },
+  { value: "fal-ai/nano-banana/edit", label: "Nano Banana Edit", mediaType: "image" },
   { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
+  { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro Edit", mediaType: "image" },
   { value: "fal-ai/bytedance/seedream/v4.5/text-to-image", label: "Seedream 4.5", mediaType: "image" },
 ];
 
@@ -67,6 +75,7 @@ export const falNanoBananaAllowedAspects = new Set([
   "3:4",
   "2:3",
   "9:16",
+  "auto",
 ]);
 
 export const falNanoBananaProAllowedAspects = new Set([
@@ -80,6 +89,7 @@ export const falNanoBananaProAllowedAspects = new Set([
   "3:4",
   "2:3",
   "9:16",
+  "auto",
 ]);
 
 // Kie.ai expects one of these aspect ratios; anything else falls back to "auto" when sending requests.

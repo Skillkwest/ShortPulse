@@ -43,6 +43,9 @@ export function ReferenceCanvas({
 
   const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
     if (!onDropFiles) return;
+    // Ignore drops that originate from existing reference cards to avoid creating duplicates/empties.
+    const internalRefId = event.dataTransfer.getData("text/reference-id");
+    if (internalRefId) return;
     const files = event.dataTransfer.files;
     if (!files || files.length === 0) return;
     const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));

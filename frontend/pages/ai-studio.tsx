@@ -262,9 +262,24 @@ export default function AiStudioPage() {
   }, [mode, selectedTool]);
 
   const filteredModelOptions = useMemo(() => {
-    if (!modelMediaFilter) return modelOptions;
-    return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === modelMediaFilter || opt.mediaType === "multi");
-  }, [modelMediaFilter]);
+    let options = modelOptions;
+    if (modelMediaFilter) {
+      options = options.filter((opt) => !opt.mediaType || opt.mediaType === modelMediaFilter || opt.mediaType === "multi");
+    }
+    if (selectedTool === "image-to-image") {
+      options = options.filter((opt) => {
+        const config = getModelConfig(opt.value);
+        return config?.supportsImageToImage;
+      });
+    }
+    if (selectedTool === "create" && mode === "image") {
+      options = options.filter((opt) => {
+        const config = getModelConfig(opt.value);
+        return config?.supportsTextToImage;
+      });
+    }
+    return options;
+  }, [mode, modelMediaFilter, selectedTool]);
 
   const isDescribeMode = selectedTool === "create" && mode === "enhance" && useReferenceImageIndicator;
   const requiresModelSelection =
@@ -326,11 +341,24 @@ export default function AiStudioPage() {
   const requiresVideoReference =
     selectedTool === "image-to-video" &&
     model === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
-  const hasVideoReference = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
+  const hasReferenceImages = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
+  const hasVideoReference = hasReferenceImages;
+  const isPulseImageToolActive = selectedTool === "image-to-image" && mode === "image";
+  const requiresReferenceModel =
+    model === "fal-ai/nano-banana/edit" ||
+    model === "fal-ai/nano-banana-pro/edit" ||
+    model === "fal/flux-2/edit" ||
+    model === "fal/flux-2-pro/edit";
 
   const generationGuardrail = useMemo(() => {
     if (requiresModelSelection && !isModelSelected) return "Select a model before running a generation.";
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
+    if (isPulseImageToolActive && !hasReferenceImages) {
+      return "Pulse Image mode requires at least one reference image from the drop zone.";
+    }
+    if (requiresReferenceModel && !hasReferenceImages) {
+      return "This image-to-image model requires at least one reference image.";
+    }
     if (costedFlow && !hasSufficientCreditsForCost) return "You do not have enough credits for this run.";
     if (requiresVideoReference && !hasVideoReference) return "Image-to-video requires at least one reference image.";
     return null;
@@ -338,11 +366,14 @@ export default function AiStudioPage() {
     costedFlow,
     hasDescribeImage,
     hasSufficientCreditsForCost,
+    hasReferenceImages,
     isDescribeMode,
     isModelSelected,
     requiresModelSelection,
     requiresVideoReference,
     hasVideoReference,
+    isPulseImageToolActive,
+    requiresReferenceModel,
   ]);
 
   const isGenerateDisabled = Boolean(generationGuardrail);

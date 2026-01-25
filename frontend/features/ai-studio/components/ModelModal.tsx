@@ -38,6 +38,13 @@ const modelMeta: Record<string, ModelMeta> = {
     tags: ["Image"],
     verified: true,
   },
+  "fal/flux-2-pro/edit": {
+    provider: "Flux",
+    description: "Flux 2 Pro image-to-image/edit with higher fidelity and relaxed safety by default.",
+    logo: "Flux",
+    tags: ["Image"],
+    verified: true,
+  },
   "fal/flux-2-max": {
     provider: "Flux",
     description: "Maximum quality Flux with enhanced realism and upscale-friendly detail.",
@@ -163,11 +170,17 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
 
   const optionMap = useMemo(() => new Map(filteredOptions.map((option) => [option.value, option])), [filteredOptions]);
 
-  const fluxOrder = ["fal/flux-2", "fal/flux-2-pro", "fal/flux-2-max"];
+  const fluxOrder = ["fal/flux-2", "fal/flux-2-pro", "fal/flux-2-pro/edit", "fal/flux-2-max"];
   const fluxOptions = fluxOrder
     .map((value) => filteredOptions.find((option) => option.value === value))
     .filter((item): item is ModelOption => Boolean(item));
-  const googleOrder = ["fal/imagen4/preview/fast", "fal-ai/nano-banana", "fal-ai/nano-banana-pro"];
+  const googleOrder = [
+    "fal/imagen4/preview/fast",
+    "fal-ai/nano-banana",
+    "fal-ai/nano-banana/edit",
+    "fal-ai/nano-banana-pro",
+    "fal-ai/nano-banana-pro/edit",
+  ];
   const googleOptions = googleOrder
     .map((value) => filteredOptions.find((option) => option.value === value))
     .filter((item): item is ModelOption => Boolean(item));

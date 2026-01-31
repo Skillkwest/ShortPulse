@@ -113,7 +113,7 @@ export const prepareReferenceDrag = (
 ) => {
   const transfer = event.dataTransfer;
   transfer.effectAllowed = "copy";
-  const promptText = dedupeText(output.previewText ?? output.prompt);
+  const promptText = dedupeText(output.prompt ?? output.previewText);
   if (output.previewUrl) {
     transfer.setData("text/uri-list", output.previewUrl);
     transfer.setData("image/url", output.previewUrl);

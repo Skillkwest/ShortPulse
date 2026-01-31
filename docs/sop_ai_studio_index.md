@@ -6,6 +6,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Text generation: `docs/sop_text_generation.md` — prompt refinement and image-to-text describe flows.
 - Image generation: `docs/sop_image_generation.md` — text-to-image today; will house image-to-image/image-to-video notes.
 - Video generation: `docs/sop_video_generation.md` — text-to-video and image-to-video.
+- Agent collaboration: `docs/sop_ai_studio_agent.md` — chat-based assistant that replaces prompt textareas, sees the reference grid, and applies prompts to generation.
 
 ## Shared primitives (do not duplicate)
 - Model metadata: `frontend/features/ai-studio/logic/modelRegistry.ts` (provider, mediaType, defaultAspect, allowedAspects, pricingStrategy, defaultDurationSeconds/resolution/audio).

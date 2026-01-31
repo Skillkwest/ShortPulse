@@ -3,28 +3,20 @@
  * Orchestrates toolbar, properties panels, reference grid, and preview surfaces using the feature module.
  */
 import Head from "next/head";
-import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CloudArrowUp, UploadSimple } from "phosphor-react";
-import { AiStudioToolbar } from "../features/ai-studio/components/AiStudioToolbar";
-import { CreatePropertiesPanel } from "../features/ai-studio/components/CreatePropertiesPanel";
-import { DetailModal } from "../features/ai-studio/components/DetailModal";
-import { ModelModal } from "../features/ai-studio/components/ModelModal";
-import { ReferenceCanvas } from "../features/ai-studio/components/ReferenceCanvas";
-import { RecreatePropertiesPanel } from "../features/ai-studio/components/RecreatePropertiesPanel";
-import { StudioPreview } from "../features/ai-studio/components/StudioPreview";
+import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPageContent";
 import { aspectOptions, modelOptions } from "../features/ai-studio/constants";
 import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
+import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWorkflow";
 import { ToolId } from "../features/ai-studio/types";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
-import {
-  buildDefaultPricingParams,
-  computeCostForModel,
-  getModelConfig,
-} from "../features/ai-studio/logic/pricing";
+import { buildDefaultPricingParams, getModelConfig } from "../features/ai-studio/logic/pricing";
 import type { PricingParams } from "../features/ai-studio/logic/pricingTypes";
-import { estimatePromptTokens, estimateDescribeTokens } from "../features/ai-studio/logic/tokenEstimates";
-import { TEXT_PROMPT_MODEL_ID } from "../features/ai-studio/logic/promptGeneration";
+import { useAiAgent } from "../features/ai-agent/useAiAgent";
+import type { AgentActions, AgentMessage } from "../features/ai-agent/types";
+import { postGeneratePrompt } from "../features/ai-studio/logic/promptGeneration";
+import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
+import { filterModelOptions } from "../features/ai-studio/logic/stateParsers";
 
 export default function AiStudioPage() {
   const { balanceCents, balanceLoading, debit } = useCredits();
@@ -32,6 +24,33 @@ export default function AiStudioPage() {
     if (balanceCents == null) return null;
     return Math.max(0, Math.floor(balanceCents)); // cents == credits
   }, [balanceCents]);
+
+  // Character workflow state (used when Character tool is active)
+  const {
+    identity,
+    aspect: characterAspect,
+    modelId: characterModelId,
+    engine: characterEngine,
+    prompt: characterPrompt,
+    poseId: characterPoseId,
+    results: characterResults,
+    isBuildingIdentity,
+    isGenerating: isCharacterGenerating,
+    error: characterError,
+    hasWebGpu: characterHasWebGpu,
+    modelsAvailable: characterModelsAvailable,
+    capabilityMessage: characterCapabilityMessage,
+    setPrompt: setCharacterPrompt,
+    setAspect: setCharacterAspect,
+    setModelId: setCharacterModelId,
+    setEngine: setCharacterEngine,
+    setPoseId: setCharacterPoseId,
+    addReferences: addCharacterReferences,
+    removeReference: removeCharacterReference,
+    buildIdentity: buildCharacterIdentity,
+    generate: generateCharacter,
+    clearError: clearCharacterError,
+  } = useCharacterWorkflow();
 
   const {
     promptRef,
@@ -80,11 +99,23 @@ export default function AiStudioPage() {
     uiError,
     setUiError,
     getDefaultDurationSeconds,
+    getAgentContext,
+    addAgentPromptReference,
   } = useAiStudioState({ onDebitCredits: debit });
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
   const [dismissedFailureIds, setDismissedFailureIds] = useState<Set<string>>(new Set());
-
+  const [beginnerMode, setBeginnerMode] = useState<boolean>(true);
+  const agentFlag = process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
+  const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(true);
+  const agentEnabled = agentFlag || agentSessionEnabled;
+  const { messages: agentMessages, isSending: agentIsSending, error: agentError, send: sendToAgent } = useAiAgent({
+    enabled: true, // allow first-click activation; API will gate if truly disabled server-side
+  });
+  const [agentInput, setAgentInput] = useState("");
+  const [agentActions, setAgentActions] = useState<AgentActions | undefined>(undefined);
+  const [isAgentChatOpen, setIsAgentChatOpen] = useState(false);
+  const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
   const handleOpenModelModal = (anchorId: string, target: HTMLElement) => {
     openModelModal(anchorId, target);
   };
@@ -101,15 +132,111 @@ export default function AiStudioPage() {
     }
   };
 
+  const handleAgentSend = async (
+    textOverride?: string,
+    options?: { captureResult?: boolean },
+  ): Promise<{ prompt: string; referenceTitle?: string | null } | void> => {
+    const rawInput = typeof textOverride === "string" ? textOverride : agentInput;
+    const trimmed = rawInput.trim();
+    const fallback = trimmed || prompt.trim();
+    if (!fallback) return;
+    if (!agentSessionEnabled) setAgentSessionEnabled(true);
+    if (!trimmed) {
+      setAgentInput(fallback);
+    }
+    let { actions } = await sendToAgent({ text: fallback, context: getAgentContext() });
+    let refinedPrompt: string | null = null;
+
+    // If the agent didn't return an apply_prompt, fall back to prompt refinement to keep the flow unblocked.
+    if (!actions?.apply_prompt) {
+      const refined = await postGeneratePrompt(fallback);
+      if (refined?.prompt) {
+        refinedPrompt = refined.prompt;
+        actions = {
+          ...actions,
+          apply_prompt: refined.prompt,
+          referenceCard: { title: actions?.referenceCard?.title ?? "Refined Prompt", prompt: refined.prompt },
+        };
+      }
+    }
+
+    const appliedPrompt = actions?.apply_prompt ?? refinedPrompt ?? fallback;
+
+    setPrompt(appliedPrompt);
+    setLatestAgentPrompt(appliedPrompt);
+
+    setAgentActions(actions);
+    setAgentInput("");
+
+    if (options?.captureResult) {
+      return { prompt: appliedPrompt, referenceTitle: actions?.referenceCard?.title };
+    }
+  };
+
+  const handleAgentApplyPrompt = (promptText: string) => {
+    setPrompt(promptText);
+    setLatestAgentPrompt(promptText);
+  };
+
+  const handleAgentSelectVariation = (promptText: string) => {
+    setAgentInput(promptText);
+  };
+
+  const handleAgentMessageClick = useCallback(
+    (message: AgentMessage) => {
+      addAgentPromptReference(message.content);
+    },
+    [addAgentPromptReference],
+  );
+
+  const handleExpandChat = () => {
+    if (!agentSessionEnabled) setAgentSessionEnabled(true);
+    setIsAgentChatOpen((prev) => !prev);
+  };
+
+  const handleAgentAddToGrid = () => {
+    if (latestAgentPrompt) {
+      addAgentPromptReference(latestAgentPrompt, agentActions?.referenceCard?.title);
+    }
+    setIsAgentChatOpen(false);
+  };
+
+  const handleAgentUsePrompt = () => {
+    if (latestAgentPrompt) {
+      setPrompt(latestAgentPrompt);
+      addAgentPromptReference(latestAgentPrompt, agentActions?.referenceCard?.title);
+    }
+    setIsAgentChatOpen(false);
+  };
+
+  const handleModeChange = (nextMode: StudioMode) => {
+    setMode(nextMode);
+    setIsAgentChatOpen(false);
+  };
+
+  const handleCloseAgentChat = () => {
+    setIsAgentChatOpen(false);
+  };
+
   const handleFileBrowserSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
-      addOutputsFromFiles(files);
+      if (selectedTool === "character") {
+        addCharacterReferences(files);
+      } else {
+        addOutputsFromFiles(files);
+      }
     }
     event.target.value = "";
   };
 
-  const handleReferenceCanvasFiles = (files: FileList) => addOutputsFromFiles(files);
+  const handleReferenceCanvasFiles = (files: FileList) => {
+    if (selectedTool === "character") {
+      addCharacterReferences(files);
+    } else {
+      addOutputsFromFiles(files);
+    }
+  };
   const triggerFilePicker = () => referenceCanvasFileInputRef.current?.click();
   const dismissError = () => setUiError(null);
 
@@ -133,6 +260,18 @@ export default function AiStudioPage() {
     });
   }, [failedOutputs]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("aiStudioBeginnerMode");
+    if (stored === "off") setBeginnerMode(false);
+    if (stored === "on") setBeginnerMode(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("aiStudioBeginnerMode", beginnerMode ? "on" : "off");
+  }, [beginnerMode]);
+
   const dismissFailure = (id: string) => {
     setDismissedFailureIds((prev) => {
       const next = new Set(prev);
@@ -144,94 +283,6 @@ export default function AiStudioPage() {
   const focusFailure = (id: string) => {
     setActiveOutputId(id);
     setDetailOutputId(id);
-  };
-
-  const renderProperties = () => {
-    switch (selectedTool) {
-      case "create":
-        return (
-          <CreatePropertiesPanel
-            mode={mode}
-            aspect={aspect}
-            modelId={model}
-            modelLabel={currentModelLabel}
-            prompt={prompt}
-            promptRef={promptRef}
-            useReferenceImageIndicator={useReferenceImageIndicator}
-            hasReferencePreview={Boolean(activeOutput?.previewUrl)}
-            isModelModalOpen={isModelModalOpen}
-            modelModalAnchor={modelModalAnchor}
-            onModeChange={setMode}
-            onAspectChange={setAspect}
-            onModelPickerOpen={handleOpenModelModal}
-            onPromptChange={setPrompt}
-            onGenerate={handleGenerate}
-            onSavePrompt={savePromptReference}
-            onToggleReferenceIndicator={toggleReferenceIndicator}
-            isPromptGenerating={isPromptGenerating}
-            costCredits={currentCostCredits}
-            isGenerateDisabled={isGenerateDisabled}
-            guardrailReason={generationGuardrail}
-          />
-        );
-      case "image-to-image":
-        return (
-          <RecreatePropertiesPanel
-            title="Image to Image"
-            subtitle="Recreate images using references."
-            aspect={aspect}
-            modelId={model}
-            modelLabel={currentModelLabel}
-            referenceImageUrl={referenceImageUrl}
-            extraImageUrls={extraImageUrls}
-            referenceText={referenceText}
-            aspectOptions={aspectOptions}
-            isModelModalOpen={isModelModalOpen}
-            modelModalAnchor={modelModalAnchor}
-            onAspectChange={setAspect}
-            onModelPickerOpen={handleOpenModelModal}
-            onPrimaryImageChange={setReferenceImageUrl}
-            onExtraImageChange={setExtraImageUrl}
-            onClearImages={clearReferenceImages}
-            onPromptTextChange={setReferenceText}
-            onSave={saveActiveOutput}
-            onRegenerate={regenerateOutput}
-            costCredits={currentCostCredits}
-            guardrailReason={generationGuardrail}
-            resolvePreviewUrlById={resolvePreviewUrlById}
-          />
-        );
-      case "image-to-video":
-        return (
-          <RecreatePropertiesPanel
-            title="Image to Video"
-            subtitle="Animate still images using references and prompts."
-            aspect={aspect}
-            modelId={model}
-            modelLabel={currentModelLabel}
-            referenceImageUrl={referenceImageUrl}
-            extraImageUrls={extraImageUrls}
-            referenceText={referenceText}
-            aspectOptions={aspectOptions}
-            isModelModalOpen={isModelModalOpen}
-            modelModalAnchor={modelModalAnchor}
-            onAspectChange={setAspect}
-            onModelPickerOpen={handleOpenModelModal}
-            onPrimaryImageChange={setReferenceImageUrl}
-            onExtraImageChange={setExtraImageUrl}
-            onClearImages={clearReferenceImages}
-            onPromptTextChange={setReferenceText}
-            onSave={saveActiveOutput}
-            onRegenerate={handleRegenerateWithDebit}
-            costCredits={currentCostCredits}
-            isGenerateDisabled={isGenerateDisabled}
-            guardrailReason={generationGuardrail}
-            resolvePreviewUrlById={resolvePreviewUrlById}
-          />
-        );
-      default:
-        return null;
-    }
   };
 
   const isTemplateView =
@@ -251,134 +302,26 @@ export default function AiStudioPage() {
     [aspect, defaultPricingParams],
   );
 
-  const modelMediaFilter = useMemo(() => {
-    if (selectedTool === "create") {
-      if (mode === "image") return "image";
-      if (mode === "video") return "video";
-    }
-    if (selectedTool === "image-to-video") return "video";
-    if (selectedTool === "image-to-image") return "image";
-    return null;
-  }, [mode, selectedTool]);
+  const filteredModelOptions = useMemo(
+    () => filterModelOptions(mode, selectedTool, modelOptions, getModelConfig),
+    [mode, selectedTool],
+  );
 
-  const filteredModelOptions = useMemo(() => {
-    let options = modelOptions;
-    if (modelMediaFilter) {
-      options = options.filter((opt) => !opt.mediaType || opt.mediaType === modelMediaFilter || opt.mediaType === "multi");
-    }
-    if (selectedTool === "image-to-image") {
-      options = options.filter((opt) => {
-        const config = getModelConfig(opt.value);
-        return config?.supportsImageToImage;
-      });
-    }
-    if (selectedTool === "create" && mode === "image") {
-      options = options.filter((opt) => {
-        const config = getModelConfig(opt.value);
-        return config?.supportsTextToImage;
-      });
-    }
-    return options;
-  }, [mode, modelMediaFilter, selectedTool]);
-
-  const isDescribeMode = selectedTool === "create" && mode === "enhance" && useReferenceImageIndicator;
-  const requiresModelSelection =
-    (selectedTool === "create" && mode !== "enhance") || selectedTool === "image-to-video";
-  const isModelSelected = Boolean(model);
-  const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
-
-  const estimatedTextTokens = useMemo(() => estimatePromptTokens(prompt), [prompt]);
-  const estimatedDescribeTokens = useMemo(() => (prompt ? estimatePromptTokens(prompt) : estimateDescribeTokens()), [prompt]);
-
-  const currentCost = useMemo(() => {
-    if (selectedTool === "create") {
-      if (mode === "image") {
-        if (!model) return null;
-        return computeCostForModel(model, costParamsForModel());
-      }
-      if (mode === "video") {
-        if (!model) return null;
-        return computeCostForModel(model, costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }));
-      }
-      if (mode === "enhance") {
-        if (isDescribeMode) {
-          return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedDescribeTokens);
-        }
-        return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedTextTokens);
-      }
-      return null;
-    }
-
-    if (selectedTool === "image-to-image") {
-      if (!model) return null;
-      return computeCostForModel(model, costParamsForModel());
-    }
-
-    if (selectedTool === "image-to-video") {
-      if (!model) return null;
-      return computeCostForModel(model, costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }));
-    }
-
-    return null;
-  }, [
-    estimatedDescribeTokens,
-    estimatedTextTokens,
-    isDescribeMode,
-    costParamsForModel,
-    getDefaultDurationSeconds,
-    mode,
-    model,
-    selectedTool,
-  ]);
-
-  const currentCostCredits = currentCost?.credits ?? null;
-  const costedFlow =
-    (selectedTool === "create" && (mode === "image" || mode === "video")) || selectedTool === "image-to-video";
-  const hasSufficientCreditsForCost =
-    !costedFlow || balanceCredits == null || currentCostCredits == null
-      ? true
-      : balanceCredits >= currentCostCredits;
-  const requiresVideoReference =
-    selectedTool === "image-to-video" &&
-    model === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
-  const hasReferenceImages = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
-  const hasVideoReference = hasReferenceImages;
-  const isPulseImageToolActive = selectedTool === "image-to-image" && mode === "image";
-  const requiresReferenceModel =
-    model === "fal-ai/nano-banana/edit" ||
-    model === "fal-ai/nano-banana-pro/edit" ||
-    model === "fal/flux-2/edit" ||
-    model === "fal/flux-2-pro/edit";
-
-  const generationGuardrail = useMemo(() => {
-    if (requiresModelSelection && !isModelSelected) return "Select a model before running a generation.";
-    if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
-    if (isPulseImageToolActive && !hasReferenceImages) {
-      return "Pulse Image mode requires at least one reference image from the drop zone.";
-    }
-    if (requiresReferenceModel && !hasReferenceImages) {
-      return "This image-to-image model requires at least one reference image.";
-    }
-    if (costedFlow && !hasSufficientCreditsForCost) return "You do not have enough credits for this run.";
-    if (requiresVideoReference && !hasVideoReference) return "Image-to-video requires at least one reference image.";
-    return null;
-  }, [
-    costedFlow,
-    hasDescribeImage,
-    hasSufficientCreditsForCost,
-    hasReferenceImages,
-    isDescribeMode,
-    isModelSelected,
-    requiresModelSelection,
-    requiresVideoReference,
-    hasVideoReference,
-    isPulseImageToolActive,
-    requiresReferenceModel,
-  ]);
-
-  const isGenerateDisabled = Boolean(generationGuardrail);
-
-  const modelConfig = useMemo(() => (model ? getModelConfig(model) : null), [model]);
+  const { currentCostCredits, hasSufficientCreditsForCost, generationGuardrail, isGenerateDisabled, modelConfig } =
+    useAiStudioViewModel({
+      mode,
+      model,
+      aspect,
+      prompt,
+      referenceImageUrl,
+      activeOutput,
+      extraImageUrls,
+      selectedTool,
+      useReferenceImageIndicator,
+      getDefaultDurationSeconds,
+      balanceCredits,
+      costParamsForModel,
+    });
 
   const handleBlockedGeneration = () => {
     if (generationGuardrail) {
@@ -404,6 +347,18 @@ export default function AiStudioPage() {
     generateOutput();
   };
 
+  const handlePrimarySubmit = () => {
+    if (selectedTool === "create" && mode === "enhance") {
+      handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
+        if (result?.prompt) {
+          addAgentPromptReference(result.prompt, result.referenceTitle);
+        }
+      });
+      return;
+    }
+    handleGenerate();
+  };
+
   const handleRegenerateWithDebit = () => {
     if (isGenerateDisabled) {
       handleBlockedGeneration();
@@ -416,162 +371,195 @@ export default function AiStudioPage() {
     regenerateOutput();
   };
 
+  const propertiesCreate = {
+    mode,
+    aspect,
+    modelId: model,
+    modelLabel: currentModelLabel,
+    prompt,
+    promptRef,
+    agentEnabled,
+    agentMessages,
+    agentActions,
+    agentInput,
+    agentIsSending,
+    agentError: agentError ?? undefined,
+    stagedPrompt: latestAgentPrompt,
+    onAgentInputChange: setAgentInput,
+    onAgentSend: handleAgentSend,
+    onAgentApplyPrompt: handleAgentApplyPrompt,
+    onAgentSelectVariation: handleAgentSelectVariation,
+    onAgentMessageClick: handleAgentMessageClick,
+    useReferenceImageIndicator,
+    hasReferencePreview: Boolean(activeOutput?.previewUrl),
+    isModelModalOpen,
+    modelModalAnchor,
+    onModeChange: handleModeChange,
+    onAspectChange: setAspect,
+    onModelPickerOpen: handleOpenModelModal,
+    onPromptChange: setPrompt,
+    onToggleReferenceIndicator: toggleReferenceIndicator,
+    isPromptGenerating,
+    costCredits: currentCostCredits,
+    isGenerateDisabled,
+    guardrailReason: generationGuardrail,
+    onExpandChat: handleExpandChat,
+    shouldDisableSave: useReferenceImageIndicator && mode === "enhance",
+    onGenerate: handlePrimarySubmit,
+    onSavePrompt: savePromptReference,
+    onOpenMediaLibrary: () => window.open("/media-library", "_self"),
+    agentChatOpen: isAgentChatOpen,
+  } as const;
+
   return (
     <>
       <Head>
         <title>ShortPulse · AI Studio</title>
         <meta name="description" content="AI Studio — prompt, generate, preview, save." />
       </Head>
-      <main className="page page-wide ai-studio-page">
-        <input
-          ref={referenceCanvasFileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          style={{ display: "none" }}
-          onChange={handleFileBrowserSelection}
-        />
-
-        {uiError ? (
-          <div className="ai-error-banner" role="alert">
-            <div className="ai-error-text">
-              <strong>Error:</strong> {uiError}
-            </div>
-            <button type="button" className="ghost-btn mini" onClick={dismissError} aria-label="Dismiss error">
-              Dismiss
-            </button>
-          </div>
-        ) : null}
-
-        <section className="ai-hero panel hero-banner ai-amber-hero">
-          <div className="hero-text">
-            <p className="eyebrow">AI Studio</p>
-            <p className="tiny subdued">Prompt, generate, preview, and save from a single space.</p>
-          </div>
-          <div className="hero-right">
-            <div className="ai-credit-inline header-embedded">
-              <span className="credit-label">Credits</span>
-              <span className="credit-value">
-                {balanceLoading ? "…" : balanceCredits != null ? balanceCredits.toLocaleString() : "—"}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {visibleFailures.length ? (
-          <div className="ai-error-stack" role="alert" aria-live="polite">
-            <div className="ai-error-stack-header">
-              <div>
-                <p className="eyebrow">Generation issues</p>
-                <p className="tiny subdued">We could not finish these runs. Inspect, adjust the model, then try again.</p>
-              </div>
-              <span className="error-count-pill">{visibleFailures.length}</span>
-            </div>
-            <div className="ai-error-card-grid">
-              {visibleFailures.map((item) => {
-                const modelLabel = item.model || item.modelId || "Generation";
-                const promptPreview = item.prompt.length > 140 ? `${item.prompt.slice(0, 140)}…` : item.prompt;
-                const isNanoBanana =
-                  (item.modelId ?? "").toLowerCase().includes("nano-banana") ||
-                  (item.model ?? "").toLowerCase().includes("nano banana");
-                return (
-                  <div key={item.id} className="ai-error-card">
-                    <div className="ai-error-card-body">
-                      <p className="ai-error-card-title">{modelLabel} failed</p>
-                      <p className="ai-error-card-message">{item.errorMessage}</p>
-                      <p className="ai-error-card-meta">
-                        Prompt: <span className="ai-error-card-prompt">{promptPreview}</span>
-                      </p>
-                      {isNanoBanana ? (
-                        <p className="ai-error-card-hint">
-                          Nano Banana is unstable right now. Try FLUX.2 Pro or Seedream 4.5 instead.
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="ai-error-card-actions">
-                      <button type="button" className="ghost-btn mini" onClick={() => focusFailure(item.id)}>
-                        Inspect
-                      </button>
-                      <button type="button" className="ghost-btn mini" onClick={() => dismissFailure(item.id)}>
-                        Dismiss
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-
-        <div className={`ai-layout${isTemplateView ? " templates-active" : ""}`}>
-          <AiStudioToolbar
-            selectedTool={selectedTool}
-            showEditTools={showEditTools}
-            onSelectTool={handleToolSelect}
-            onToggleEditTools={setShowEditTools}
-          />
-
-          <div className="ai-content">
-            <section className={`ai-shell ${selectedTool ? "" : "ai-shell-wide"}`}>
-              {selectedTool ? <aside className="panel ai-panel ai-properties">{renderProperties()}</aside> : null}
-
-              <div className="ai-preview-column reference-column">
-                <div className="preview-column-header">
-                  <div>
-                    <p className="eyebrow">Reference Grid</p>
-                    <p className="tiny subdued">Double-click a reference to expand.</p>
-                  </div>
-                  <div className="preview-header-actions">
-                    <button
-                      type="button"
-                      className="ghost-btn mini preview-media-btn"
-                      onClick={triggerFilePicker}
-                    >
-                      <UploadSimple size={14} weight="regular" />
-                      Add files
-                    </button>
-                    <Link href="/media-library" className="ghost-btn mini preview-media-btn">
-                      <CloudArrowUp size={14} weight="regular" />
-                      Media library
-                    </Link>
-                  </div>
-                </div>
-                <ReferenceCanvas
-                  outputs={outputs}
-                  activeOutputId={activeOutputId}
-                  showHeader={false}
-                  onSelectOutput={setActiveOutputId}
-                  onOpenDetails={setDetailOutputId}
-                  onDropFiles={handleReferenceCanvasFiles}
-                  onTriggerFileSelect={triggerFilePicker}
-                />
-              </div>
-
-              <StudioPreview
-                activeOutput={activeOutput}
-                referenceImageUrl={referenceImageUrl}
-                referenceText={referenceText}
-                onReferenceImageChange={setReferenceImageUrl}
-                onReferenceTextChange={setReferenceText}
-                onRegenerate={regenerateOutput}
-                onTriggerFileSelect={triggerFilePicker}
-                onDropFiles={handleReferenceCanvasFiles}
-              />
-            </section>
-          </div>
-        </div>
-      </main>
-      <ModelModal
-        isOpen={isModelModalOpen}
-        position={modelModalPosition}
-        onClose={closeModelModal}
-        onSelect={handleSelectModelFromModal}
-        options={filteredModelOptions}
-      />
-      <DetailModal
-        output={detailOutput}
-        onClose={() => setDetailOutputId(null)}
-        onUpdatePrompt={updateOutputPrompt}
+      <AiStudioPageContent
+        referenceCanvasFileInputRef={referenceCanvasFileInputRef}
+        onFileBrowserSelection={handleFileBrowserSelection}
+        uiError={uiError}
+        characterError={characterError}
+        onDismissUiError={dismissError}
+        onDismissCharacterError={clearCharacterError}
+        beginnerMode={beginnerMode}
+        onBeginnerModeChange={setBeginnerMode}
+        balanceCredits={balanceCredits}
+        balanceLoading={balanceLoading}
+        visibleFailures={visibleFailures}
+        onDismissFailure={dismissFailure}
+        onInspectFailure={focusFailure}
+        selectedTool={selectedTool}
+        showEditTools={showEditTools}
+        onSelectTool={handleToolSelect}
+        onToggleEditTools={setShowEditTools}
+        propertiesCreate={propertiesCreate}
+        propertiesCharacter={{
+          identity,
+          aspect: characterAspect,
+          modelId: characterModelId,
+          engine: characterEngine,
+          prompt: characterPrompt,
+          poseId: characterPoseId,
+          isBuildingIdentity,
+          isGenerating: isCharacterGenerating,
+          identityToken: identity.identityToken,
+          quality: identity.quality,
+          hasWebGpu: characterHasWebGpu,
+          modelsAvailable: characterModelsAvailable,
+          capabilityMessage: characterCapabilityMessage,
+          canBuildIdentity: identity.references.length > 0,
+          onPromptChange: setCharacterPrompt,
+          onAspectChange: setCharacterAspect,
+          onModelChange: (value) => setCharacterModelId(value as any),
+          onEngineChange: setCharacterEngine,
+          onPoseChange: setCharacterPoseId,
+          onUploadClick: triggerFilePicker,
+          onDropFiles: (files) => addCharacterReferences(files),
+          onRemoveReference: removeCharacterReference,
+          onBuildIdentity: buildCharacterIdentity,
+          onGenerate: () => generateCharacter(),
+        }}
+        propertiesRecreate={{
+          variant: "image-to-image",
+          aspect,
+          modelId: model,
+          modelLabel: currentModelLabel,
+          referenceImageUrl,
+          extraImageUrls,
+          referenceText,
+          aspectOptions,
+          isModelModalOpen,
+          modelModalAnchor,
+          onAspectChange: setAspect,
+          onModelPickerOpen: handleOpenModelModal,
+          onPrimaryImageChange: setReferenceImageUrl,
+          onExtraImageChange: setExtraImageUrl,
+          onClearImages: clearReferenceImages,
+          onPromptTextChange: setReferenceText,
+          onSave: saveActiveOutput,
+          onRegenerate: regenerateOutput,
+          costCredits: currentCostCredits,
+          guardrailReason: generationGuardrail,
+          resolvePreviewUrlById,
+        }}
+        propertiesRecreateVideo={{
+          variant: "image-to-video",
+          aspect,
+          modelId: model,
+          modelLabel: currentModelLabel,
+          referenceImageUrl,
+          extraImageUrls,
+          referenceText,
+          aspectOptions,
+          isModelModalOpen,
+          modelModalAnchor,
+          onAspectChange: setAspect,
+          onModelPickerOpen: handleOpenModelModal,
+          onPrimaryImageChange: setReferenceImageUrl,
+          onExtraImageChange: setExtraImageUrl,
+          onClearImages: clearReferenceImages,
+          onPromptTextChange: setReferenceText,
+          onSave: saveActiveOutput,
+          onRegenerate: handleRegenerateWithDebit,
+          costCredits: currentCostCredits,
+          guardrailReason: generationGuardrail,
+          resolvePreviewUrlById,
+          isGenerateDisabled,
+        }}
+        propertiesEnhance={{
+          costCredits: currentCostCredits,
+          isGenerateDisabled,
+          resolvePreviewUrlById,
+          onOpenMediaLibrary: () => window.open("/media-library", "_self"),
+          onTriggerFileSelect: triggerFilePicker,
+        }}
+        isTemplateView={isTemplateView}
+        referenceCanvasProps={{
+          outputs,
+          activeOutputId,
+          showHeader: false,
+          onSelectOutput: setActiveOutputId,
+          onOpenDetails: setDetailOutputId,
+        }}
+        studioPreviewProps={{
+          activeOutput,
+          referenceImageUrl,
+          referenceText,
+          onReferenceImageChange: setReferenceImageUrl,
+          onReferenceTextChange: setReferenceText,
+          onRegenerate: regenerateOutput,
+        }}
+        detailModalOutput={detailOutput}
+        onDetailClose={() => setDetailOutputId(null)}
+        onUpdateOutputPrompt={updateOutputPrompt}
+        modelModalState={{
+          isOpen: isModelModalOpen,
+          position: modelModalPosition,
+          options: filteredModelOptions,
+          onClose: closeModelModal,
+          onSelect: handleSelectModelFromModal,
+        }}
+        agentChat={{
+          isOpen: isAgentChatOpen,
+          agentMessages,
+          agentInput,
+          agentActions,
+          agentIsSending,
+          latestAgentPrompt,
+          onInputChange: setAgentInput,
+          onSend: handleAgentSend,
+          onApplyPrompt: handleAgentApplyPrompt,
+          onSelectVariation: handleAgentSelectVariation,
+          onAddToGrid: handleAgentAddToGrid,
+          onUsePrompt: handleAgentUsePrompt,
+          onClose: handleCloseAgentChat,
+          onMessageClick: handleAgentMessageClick,
+        }}
+        handleReferenceCanvasFiles={handleReferenceCanvasFiles}
+        triggerFilePicker={triggerFilePicker}
       />
     </>
   );

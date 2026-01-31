@@ -25,8 +25,10 @@ import { ToolId } from "../types";
 type AiStudioToolbarProps = {
   selectedTool: ToolId | null;
   showEditTools: boolean;
+  beginnerMode: boolean;
   onSelectTool: (tool: ToolId | null) => void;
   onToggleEditTools: (show: boolean) => void;
+  onToggleBeginnerMode: (enabled: boolean) => void;
   showOnboardingSteps?: boolean;
 };
 
@@ -49,8 +51,10 @@ const toolIcons: Record<ToolId, React.ComponentType<any>> = {
 export function AiStudioToolbar({
   selectedTool,
   showEditTools,
+  beginnerMode,
   onSelectTool,
   onToggleEditTools,
+  onToggleBeginnerMode,
   showOnboardingSteps = false,
 }: AiStudioToolbarProps) {
   const isEditChildSelected =
@@ -187,14 +191,31 @@ export function AiStudioToolbar({
             );
           })}
         </div>
-        <div className="toolbar-divider toolbar-divider-secondary" aria-hidden="true" />
+      <div className="toolbar-divider toolbar-divider-secondary" aria-hidden="true" />
+    </div>
+    <div className="toolbar-footer">
+      <div className="toolbar-beginner-toggle">
+        <div className="toolbar-beginner-copy">
+          <span className="toolbar-label">Beginner mode</span>
+          <span className="tiny subdued helper-text">Show helper text in AI Studio panels.</span>
+        </div>
+        <button
+          type="button"
+          className={`reference-toggle beginner-toggle ${beginnerMode ? "is-active" : ""}`}
+          aria-pressed={beginnerMode}
+          aria-label={beginnerMode ? "Disable beginner mode" : "Enable beginner mode"}
+          onClick={() => onToggleBeginnerMode(!beginnerMode)}
+        >
+          <span className="reference-toggle-track" aria-hidden="true">
+            <span className="reference-toggle-dot" />
+          </span>
+        </button>
       </div>
-      <div className="toolbar-footer">
-        <Link href="/profile" className="toolbar-profile-link">
-          <span className="toolbar-profile-avatar">KI</span>
-          <span className="toolbar-profile-name">Kirk</span>
-        </Link>
-      </div>
+      <Link href="/profile" className="toolbar-profile-link">
+        <span className="toolbar-profile-avatar">KI</span>
+        <span className="toolbar-profile-name">Kirk</span>
+      </Link>
+    </div>
     </aside>
   );
 }

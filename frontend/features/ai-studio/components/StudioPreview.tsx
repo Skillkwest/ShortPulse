@@ -102,7 +102,7 @@ export function StudioPreview({
             ) : (
               <div className="studio-preview-square-empty">
                 <ImageSquare size={24} weight="regular" />
-                <p className="tiny">Generated images will appear here.</p>
+                <p className="tiny helper-text">Generated images will appear here.</p>
               </div>
             )}
           </div>

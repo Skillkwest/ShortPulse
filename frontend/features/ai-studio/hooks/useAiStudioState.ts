@@ -3,13 +3,7 @@
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  falNanoBananaAllowedAspects,
-  falNanoBananaProAllowedAspects,
-  keiAllowedAspects,
-  klingAllowedAspects,
-  modelOptions,
-} from "../constants";
+import { modelOptions } from "../constants";
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput, ToolId } from "../types";
 import {
@@ -18,23 +12,6 @@ import {
   KeiTaskStatus,
 } from "../../../lib/keiClient";
 import {
-  fetchFalFlux2MaxStatus,
-  fetchFalFlux2ProStatus,
-  fetchFalFlux2Status,
-  fetchFalFlux2EditStatus,
-  fetchFalFlux2ProEditStatus,
-  fetchFalKlingStatus,
-  fetchFalKlingV25Status,
-  fetchFalNanoBananaStatus,
-  fetchFalNanoBananaEditStatus,
-  fetchFalNanoBananaProStatus,
-  fetchFalNanoBananaProEditStatus,
-  fetchFalStatus,
-  fetchImagen4FastStatus,
-  fetchFalSoraStatus,
-  fetchFalSeedanceStatus,
-  fetchFalSeedreamStatus,
-  fetchFalVeoStatus,
   submitFalFlux2,
   submitFalFlux2Edit,
   submitFalFlux2ProEdit,
@@ -53,145 +30,37 @@ import {
   submitFalNanoBananaProEdit,
   submitFalSoraPro,
 } from "../../../lib/falClient";
-import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
 import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel, falSizeForAspect, getModelConfig } from "../logic/pricing";
 import { postGeneratePrompt, TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { postDescribeImage, prepareImageUrl } from "../logic/imageDescription";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
+import type { AgentContext } from "../../ai-agent/types";
+import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
+import {
+  Provider,
+  computeModalPosition,
+  extractFalMediaUrls,
+  extractResultUrls,
+  isVideoUrl,
+  mapAgentMedia,
+  mapAgentReferences,
+  normalizeAspectForFalNanoBanana,
+  normalizeAspectForFalNanoBananaPro,
+  normalizeAspectForKei,
+  resolvePreviewUrlById,
+  resolveKlingAspectRatio,
+  resolveKlingDuration,
+  resolveModelLabel,
+  resolveSeedreamImageSize,
+  resolveSoraDuration,
+  mapUploadsFromFiles,
+} from "../logic/stateParsers";
+import { useAiStudioTasks } from "./useAiStudioTasks";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
 type KlingAspect = FalKlingTextSubmitRequest["aspect_ratio"];
 
 type ModelModalPosition = { top: number; left: number };
-type Provider =
-  | "kei"
-  | "fal"
-  | "fal-flux2"
-  | "fal-flux2-edit"
-  | "fal-flux2-pro"
-  | "fal-flux2-pro-edit"
-  | "fal-flux2-max"
-  | "fal-imagen4-fast"
-  | "fal-kling"
-  | "fal-kling-25"
-  | "fal-nano-banana"
-  | "fal-nano-banana-edit"
-  | "fal-nano-banana-pro"
-  | "fal-nano-banana-pro-edit"
-  | "fal-sora"
-  | "fal-seedance"
-  | "fal-seedream"
-  | "fal-veo";
-
-const computeModalPosition = (target: HTMLElement): ModelModalPosition => {
-  const rect = target.getBoundingClientRect();
-  const scrollY = window.scrollY || 0;
-  const scrollX = window.scrollX || 0;
-  const offsetX = 16;
-  const top = rect.top + scrollY + rect.height / 2;
-  const left = rect.right + scrollX + offsetX;
-  return { top, left };
-};
-
-const resolveModelLabel = (value?: string) =>
-  value ? modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})` : "Select model here";
-
-const normalizeAspectForKei = (value: string) => (keiAllowedAspects.has(value) ? value : "auto");
-const normalizeAspectForFalNanoBanana = (value: string) =>
-  falNanoBananaAllowedAspects.has(value) ? value : "1:1";
-const normalizeAspectForFalNanoBananaPro = (value: string) =>
-  falNanoBananaProAllowedAspects.has(value) ? value : "4:5";
-const resolveKlingAspectRatio = (value: string): KlingAspect =>
-  (klingAllowedAspects.has(value) ? (value as KlingAspect) : "16:9");
-const resolveKlingDuration = (seconds: number): FalKlingTextSubmitRequest["duration"] => (seconds <= 5 ? 5 : 10);
-const resolveSoraDuration = (seconds: number): 4 | 8 | 12 => {
-  if (seconds <= 4) return 4;
-  if (seconds <= 8) return 8;
-  return 12;
-};
-const resolveSeedreamImageSize = (aspect: string): string => {
-  const normalized = aspect.trim();
-  if (normalized === "1:1") return "square";
-  if (normalized === "3:4" || normalized === "4:5" || normalized === "5:4") return "portrait_4_3";
-  if (normalized === "4:3" || normalized === "3:2" || normalized === "21:9" || normalized === "16:9") return "landscape_16_9";
-  if (normalized === "9:16" || normalized === "2:3") return "portrait_16_9";
-  return "landscape_16_9";
-};
-const extractFalUrls = (status: any): string[] => {
-  const direct = status?.images;
-  if (Array.isArray(direct) && direct[0]?.url) return direct.map((img) => img?.url).filter(Boolean) as string[];
-  const nested = status?.data?.images;
-  if (Array.isArray(nested) && nested[0]?.url) return nested.map((img) => img?.url).filter(Boolean) as string[];
-  const output = status?.output?.images;
-  if (Array.isArray(output) && output[0]?.url) return output.map((img) => img?.url).filter(Boolean) as string[];
-  return [];
-};
-
-const extractFalMediaUrls = (status: any): string[] => {
-  const imageUrls = extractFalUrls(status);
-  if (imageUrls.length) return imageUrls;
-  const videos = status?.videos || status?.data?.videos || status?.output?.videos || status?.result?.videos;
-  if (Array.isArray(videos) && videos[0]?.url) {
-    return videos.map((vid) => vid?.url).filter(Boolean) as string[];
-  }
-  const videoUrl =
-    status?.video?.url ||
-    status?.data?.video?.url ||
-    status?.output?.video?.url ||
-    status?.result?.video?.url ||
-    status?.data?.result?.video?.url ||
-    status?.video_url ||
-    status?.data?.video_url ||
-    status?.output?.video_url ||
-    status?.result?.video_url ||
-    status?.data?.result?.video_url;
-  return videoUrl ? [videoUrl] : [];
-};
-
-const extractResultUrls = (resultJson: KeiTaskStatus["resultJson"], fallback?: unknown): string[] => {
-  if (!resultJson && fallback && typeof fallback === "object") {
-    const urls = (fallback as any)?.resultUrls || (fallback as any)?.info?.result_urls;
-    if (Array.isArray(urls)) return urls as string[];
-    const videos = (fallback as any)?.videos || (fallback as any)?.data?.videos || (fallback as any)?.output?.videos;
-    if (Array.isArray(videos) && videos[0]?.url) {
-      return videos.map((vid: any) => vid?.url).filter(Boolean) as string[];
-    }
-    const videoUrl =
-      (fallback as any)?.video?.url ||
-      (fallback as any)?.data?.video?.url ||
-      (fallback as any)?.output?.video?.url ||
-      (fallback as any)?.video_url ||
-      (fallback as any)?.data?.video_url ||
-      (fallback as any)?.output?.video_url;
-    if (videoUrl) return [videoUrl];
-  }
-  if (!resultJson) return [];
-  if (typeof resultJson === "string") {
-    try {
-      const parsed = JSON.parse(resultJson);
-      return extractResultUrls(parsed as any);
-    } catch (error) {
-      return [];
-    }
-  }
-  if (typeof resultJson === "object" && resultJson) {
-    const urls = (resultJson as any)?.resultUrls || (resultJson as any)?.info?.result_urls;
-    if (Array.isArray(urls)) return urls as string[];
-    const videos = (resultJson as any)?.videos || (resultJson as any)?.data?.videos || (resultJson as any)?.output?.videos;
-    if (Array.isArray(videos) && videos[0]?.url) {
-      return videos.map((vid: any) => vid?.url).filter(Boolean) as string[];
-    }
-    const videoUrl =
-      (resultJson as any)?.video?.url ||
-      (resultJson as any)?.data?.video?.url ||
-      (resultJson as any)?.output?.video?.url ||
-      (resultJson as any)?.video_url ||
-      (resultJson as any)?.data?.video_url ||
-      (resultJson as any)?.output?.video_url;
-    if (videoUrl) return [videoUrl];
-  }
-  return [];
-};
 
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
@@ -206,7 +75,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const defaultVideoModel = useMemo(() => modelOptions.find((opt) => opt.mediaType === "video")?.value ?? null, []);
 
   // Creation inputs
-  const [mode, setMode] = useState<StudioMode>("image");
+  const [mode, setMode] = useState<StudioMode>("enhance");
   const [aspect, setAspect] = useState<string>("9:16");
   const [model, setModelState] = useState<string | null>(null);
   const [lastImageModel, setLastImageModel] = useState<string | null>(null);
@@ -428,28 +297,9 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   );
 
   // --- Output + prompt actions -------------------------------------------
-  const clearPollTimer = useCallback((outputId: string) => {
-    const timeoutId = pollTimersRef.current[outputId];
-    if (timeoutId) {
-      window.clearTimeout(timeoutId);
-      delete pollTimersRef.current[outputId];
-    }
-  }, []);
-
   const updateOutputById = useCallback((id: string, updater: (item: StudioOutput) => StudioOutput) => {
     setOutputs((prev) => prev.map((item) => (item.id === id ? updater(item) : item)));
   }, []);
-
-  const updateOutputPrompt = useCallback((id: string, promptText: string) => {
-    const nextPrompt = promptText.trim();
-    if (!nextPrompt) return;
-    updateOutputById(id, (item) => ({
-      ...item,
-      prompt: nextPrompt,
-      previewText: item.previewText ? nextPrompt : item.previewText,
-      timestamp: "Edited",
-    }));
-  }, [updateOutputById]);
 
   const notifyGenerationFailure = useCallback(
     (outputId: string, message: string) => {
@@ -467,250 +317,45 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           };
         }),
       );
-      clearPollTimer(outputId);
       const label = contextLabel ?? "Generation";
       setUiError(message ? `${label} failed: ${message}` : `${label} failed to complete.`);
     },
-    [clearPollTimer, setOutputs, setUiError],
+    [setOutputs, setUiError],
   );
 
-  const startPollingTask = useCallback(
-    (taskId: string, outputId: string, attempt = 0, provider: Provider = "kei") => {
-      const delay = Math.min(6000, 1200 + attempt * 400);
-      const timeoutId = window.setTimeout(async () => {
-        try {
-          const status =
-            provider === "fal"
-              ? await fetchFalStatus(taskId)
-              : provider === "fal-flux2"
-                ? await fetchFalFlux2Status(taskId)
-                : provider === "fal-flux2-edit"
-                  ? await fetchFalFlux2EditStatus(taskId)
-                : provider === "fal-flux2-pro"
-                  ? await fetchFalFlux2ProStatus(taskId)
-                : provider === "fal-flux2-pro-edit"
-                  ? await fetchFalFlux2ProEditStatus(taskId)
-                  : provider === "fal-flux2-max"
-                    ? await fetchFalFlux2MaxStatus(taskId)
-                    : provider === "fal-imagen4-fast"
-                      ? await fetchImagen4FastStatus(taskId)
-            : provider === "fal-kling"
-              ? await fetchFalKlingStatus(taskId)
-          : provider === "fal-kling-25"
-            ? await fetchFalKlingV25Status(taskId)
-            : provider === "fal-seedance"
-              ? await fetchFalSeedanceStatus(taskId)
-              : provider === "fal-sora"
-                ? await fetchFalSoraStatus(taskId)
-            : provider === "fal-seedream"
-              ? await fetchFalSeedreamStatus(taskId)
-            : provider === "fal-veo"
-              ? await fetchFalVeoStatus(taskId)
-              : provider === "fal-nano-banana"
-                ? await fetchFalNanoBananaStatus(taskId)
-                : provider === "fal-nano-banana-edit"
-                  ? await fetchFalNanoBananaEditStatus(taskId)
-                : provider === "fal-nano-banana-pro"
-                ? await fetchFalNanoBananaProStatus(taskId)
-                : provider === "fal-nano-banana-pro-edit"
-                  ? await fetchFalNanoBananaProEditStatus(taskId)
-                : await fetchKeiTaskStatus(taskId);
-          const stateRaw =
-            (status as any)?.status?.toString().toLowerCase() ??
-            (status as any)?.state?.toString().toLowerCase() ??
-            "pending";
-          const state = stateRaw === "succeeded" ? "success" : stateRaw;
+  const { startPollingTask, clearPollTimer } = useAiStudioTasks({
+    updateOutputById,
+    notifyGenerationFailure,
+    setUiError,
+  });
 
-          if (state === "success" || state === "completed") {
-            const falImages = (status as any)?.data?.images;
-            const falUrl = Array.isArray(falImages) ? falImages[0]?.url : undefined;
-            const falUrls = falUrl ? [falUrl] : extractFalMediaUrls(status);
-            const resultUrls = (status as any)?.resultUrls?.length
-              ? (status as any)?.resultUrls
-              : extractResultUrls((status as any)?.resultJson, (status as any)?.raw);
+  const updateOutputPrompt = useCallback((id: string, promptText: string) => {
+    const nextPrompt = promptText.trim();
+    if (!nextPrompt) return;
+    updateOutputById(id, (item) => ({
+      ...item,
+      prompt: nextPrompt,
+      previewText: item.previewText ? nextPrompt : item.previewText,
+      timestamp: "Edited",
+    }));
+  }, [updateOutputById]);
 
-            // If Fal reports success but no media URLs are present yet, keep polling a few extra times.
-            const allUrls = falUrls.length ? falUrls : resultUrls;
-            const hasMedia = allUrls.length > 0;
-            const shouldRetryForMedia = !hasMedia && attempt < 3;
-            if (shouldRetryForMedia) {
-              updateOutputById(outputId, (item) => ({
-                ...item,
-                taskState: "running",
-                status: "processing",
-                timestamp: "Waiting for media...",
-              }));
-              pollTimersRef.current[outputId] = window.setTimeout(
-                () => startPollingTask(taskId, outputId, attempt + 1, provider),
-                delay,
-              );
-              return;
-            }
-
-            updateOutputById(outputId, (item) => ({
-              ...item,
-              taskState: "success",
-              status: "ready",
-              timestamp: "Just now",
-              resultUrls: allUrls,
-              previewUrl: allUrls[0] ?? item.previewUrl,
-              errorMessage: null,
-            }));
-            clearPollTimer(outputId);
-            return;
-          }
-
-          if (state === "fail" || state === "error") {
-            const failureMessage =
-              (status as any)?.failMsg ||
-              (status as any)?.failCode ||
-              (status as any)?.error ||
-              "Generation failed";
-            notifyGenerationFailure(outputId, failureMessage);
-            return;
-          }
-
-          updateOutputById(outputId, (item) => ({
-            ...item,
-            taskState: (state as StudioOutput["taskState"]) ?? "running",
-            timestamp: "Processing...",
-          }));
-          pollTimersRef.current[outputId] = window.setTimeout(
-            () => startPollingTask(taskId, outputId, attempt + 1, provider),
-            delay,
-          );
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Unable to check status";
-          if (attempt >= 4 || message.includes("404")) {
-            notifyGenerationFailure(outputId, message);
-            return;
-          }
-          pollTimersRef.current[outputId] = window.setTimeout(
-            () => startPollingTask(taskId, outputId, attempt + 1, provider),
-            delay,
-          );
-        }
-      }, delay);
-      pollTimersRef.current[outputId] = timeoutId;
-    },
-    [clearPollTimer, notifyGenerationFailure, updateOutputById],
-  );
 
   const submitTask = useCallback(
     async (promptText: string, imageInputs: string[]) => {
       setUiError(null);
       const cleanedPrompt = promptText.trim();
-      const allowEmptyPrompt = mode === "enhance" && useReferenceImageIndicator;
-      if (!cleanedPrompt && !allowEmptyPrompt) {
+      if (mode === "enhance") {
+        // Enhance (text prompt) is handled exclusively by the chat agent upstream.
+        // Avoid invoking legacy refine/describe pipelines from here.
+        setIsPromptGenerating(false);
+        return;
+      }
+      if (!cleanedPrompt) {
         setUiError("Add a prompt to start a generation.");
         return;
       }
-      // Text mode uses AI prompt refinement and saves to the grid without image/video generation.
-      if (mode === "enhance") {
-        // Image-to-text describe flow (Agent 2) when reference toggle is on.
-        if (useReferenceImageIndicator) {
-          // Force describe-image workflow and ignore user-typed prompt input when toggle is active.
-          const fallbackPreview = outputs.find((item) => item.previewUrl)?.previewUrl;
-          const rawImageUrl = activeOutput?.previewUrl || referenceImageUrl || imageInputs[0] || fallbackPreview;
-          const imageUrl = await prepareImageUrl(rawImageUrl ?? "");
-          if (!imageUrl) {
-            setUiError("Image describe requires an uploaded or generated image. Add a reference from the grid first.");
-            setIsPromptGenerating(false);
-            return;
-          }
-          setSaved(false);
-          setIsPromptGenerating(true);
-          try {
-            const result = await postDescribeImage(imageUrl);
-            const description = result?.description;
-            if (description) {
-              setPrompt(description);
-              const promptId = `prompt-${randomId()}`;
-              const promptReference: StudioOutput = {
-                id: promptId,
-                prompt: description,
-                mode,
-                aspect,
-                model: "Image Describer (Agent 2)",
-                modelId: "OPENAI_PROMPT_IMAGE_DESCRIBE",
-                status: "saved",
-                timestamp: "Saved prompt",
-                previewText: description,
-              };
-              setOutputs((prev) => [promptReference, ...prev]);
-              setActiveOutputId(promptId);
-              setSaved(true);
-              if (onDebitCredits) {
-                const tokenEstimate =
-                  result?.usage?.inputTokens || result?.usage?.outputTokens
-                    ? {
-                        inputTokens: result?.usage?.inputTokens ?? 0,
-                        outputTokens: result?.usage?.outputTokens ?? 0,
-                      }
-                    : estimateDescribeTokens(description);
-                const cost = computeCostForModel(TEXT_PROMPT_MODEL_ID, tokenEstimate);
-                if (cost?.credits) {
-                  const reason = "Image describer (Agent 2)";
-                  Promise.resolve(onDebitCredits(cost.credits, reason, promptId)).catch(() => {});
-                }
-              }
-            } else {
-              setUiError("Image description failed. Check the image and try again.");
-            }
-          } finally {
-            setIsPromptGenerating(false);
-          }
-          return;
-        }
 
-        setSaved(false);
-        setIsPromptGenerating(true);
-        let finalPrompt = cleanedPrompt;
-        let observedTokens = estimatePromptTokens(cleanedPrompt);
-        try {
-          const result = await postGeneratePrompt(cleanedPrompt);
-          if (result?.prompt) {
-            setPrompt(result.prompt);
-            finalPrompt = result.prompt;
-            observedTokens = {
-              inputTokens: result?.usage?.inputTokens ?? observedTokens.inputTokens,
-              outputTokens: result?.usage?.outputTokens ?? observedTokens.outputTokens,
-            };
-          } else {
-            setUiError("Prompt generation failed. Verify API key/model and try again.");
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Prompt generation failed.";
-          setUiError(message);
-          // fall back to user-provided prompt
-        } finally {
-          setIsPromptGenerating(false);
-        }
-        const promptId = `prompt-${randomId()}`;
-
-        if (onDebitCredits) {
-          const cost = computeCostForModel(TEXT_PROMPT_MODEL_ID, observedTokens);
-          if (cost?.credits) {
-            const reason = `${TEXT_PROMPT_MODEL_ID} prompt refinement`;
-            Promise.resolve(onDebitCredits(cost.credits, reason, promptId)).catch(() => {});
-          }
-        }
-        const promptReference: StudioOutput = {
-          id: promptId,
-          prompt: finalPrompt,
-          mode,
-          aspect,
-          model: resolveModelLabel(TEXT_PROMPT_MODEL_ID),
-          modelId: TEXT_PROMPT_MODEL_ID,
-          status: "saved",
-          timestamp: "Saved prompt",
-          previewText: finalPrompt,
-        };
-        setOutputs((prev) => [promptReference, ...prev]);
-        setActiveOutputId(promptId);
-        setSaved(true);
-        return;
-      }
 
       if (!model) {
         setUiError("Pick a model to generate.");
@@ -1165,7 +810,21 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         notifyGenerationFailure(id, message);
       }
     },
-    [aspect, getDefaultDurationSeconds, model, mode, notifyGenerationFailure, selectedTool, setOutputs, startPollingTask, updateOutputById],
+    [
+      activeOutput,
+      aspect,
+      getDefaultDurationSeconds,
+      model,
+      mode,
+      notifyGenerationFailure,
+      onDebitCredits,
+      outputs,
+      referenceImageUrl,
+      selectedTool,
+      startPollingTask,
+      updateOutputById,
+      useReferenceImageIndicator,
+    ],
   );
 
   const generateOutput = useCallback(() => {
@@ -1215,25 +874,36 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setActiveOutputId(id);
   }, [prompt, mode, aspect, model]);
 
+  const addAgentPromptReference = useCallback(
+    (promptText: string, title?: string | null) => {
+      const cleanedPrompt = promptText?.trim();
+      if (!cleanedPrompt) return;
+      const id = `prompt-${randomId()}`;
+      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
+      const previewLabel = title?.trim() || cleanedPrompt;
+      const promptReference: StudioOutput = {
+        id,
+        prompt: cleanedPrompt,
+        mode,
+        aspect,
+        model: placeholderModelLabel,
+        modelId: model ?? undefined,
+        status: "saved",
+        timestamp: "Agent",
+        previewText: previewLabel,
+      };
+      setOutputs((prev) => [promptReference, ...prev]);
+      setActiveOutputId(id);
+      setPrompt(cleanedPrompt);
+    },
+    [prompt, mode, aspect, model],
+  );
+
   const addOutputsFromFiles = useCallback(
     (files: FileList) => {
-      const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
-      if (!imageFiles.length) return;
+      const newEntries = mapUploadsFromFiles(files, mode, aspect, model, resolveModelLabel, randomId);
+      if (!newEntries.length) return;
       setOutputs((prev) => {
-        const newEntries: StudioOutput[] = imageFiles.map((file) => {
-          const url = URL.createObjectURL(file);
-          return {
-            id: `upload-${randomId()}`,
-            prompt: file.name,
-            mode,
-            aspect,
-            model: resolveModelLabel(model),
-            modelId: model,
-            status: "ready",
-            timestamp: "Dropped",
-            previewUrl: url,
-          };
-        });
         setActiveOutputId(newEntries[0].id);
         return [...newEntries, ...prev];
       });
@@ -1251,11 +921,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setExtraImageUrls([null, null, null]);
   }, []);
 
-  const resolvePreviewUrlById = useCallback(
-    (id: string | null | undefined) => outputs.find((item) => item.id === id)?.previewUrl ?? null,
-    [outputs],
-  );
-
   const setExtraImageUrl = useCallback((index: number, url: string | null) => {
     setExtraImageUrls((prev) => {
       const next: [string | null, string | null, string | null] = [...prev];
@@ -1263,6 +928,24 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       return next;
     });
   }, []);
+
+  const agentReferences = useMemo(
+    () => mapAgentReferences(outputs, activeOutputId),
+    [outputs, activeOutputId],
+  );
+
+  const agentMedia = useMemo(() => mapAgentMedia(outputs), [outputs]);
+
+  const getAgentContext = useCallback((): AgentContext => {
+    return {
+      activePrompt: prompt || null,
+      modelId: model,
+      mode,
+      references: agentReferences,
+      media: agentMedia,
+      selectedReferenceIds: activeOutputId ? [activeOutputId] : [],
+    };
+  }, [activeOutputId, agentMedia, agentReferences, model, mode, prompt]);
 
   const openModelModal = useCallback((anchorId: string, target: HTMLElement) => {
     setModelModalAnchor(anchorId);
@@ -1316,6 +999,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     regenerateOutput,
     saveActiveOutput,
     savePromptReference,
+    addAgentPromptReference,
     addOutputsFromFiles,
     toggleReferenceIndicator,
     clearReferenceImages,
@@ -1325,5 +1009,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     uiError,
     setUiError,
     getDefaultDurationSeconds,
+    getAgentContext,
   };
 };

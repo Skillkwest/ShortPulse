@@ -10,6 +10,7 @@ export const PROTECTED_ROUTES = [
   "/media-library",
   "/ai-studio",
   "/creator-studio",
+  "/character",
   "/admin",
 ];
 

@@ -193,6 +193,9 @@
 .drop-image-row .reference-dropzone {
   height: auto;
   min-height: 0;
+  aspect-ratio: 4 / 5;
+  max-width: 240px;
+  background-color: var(--ai-container-card-bg);
 }
 
 .text-dropzone {
@@ -218,14 +221,14 @@
 
 .primary-drop .reference-dropzone {
   width: 100%;
-  max-width: none;
+  max-width: 240px;
   margin: 0 auto;
   aspect-ratio: 4 / 5;
 }
 
 .secondary-drop .reference-dropzone {
   width: 100%;
-  max-width: none;
+  max-width: 240px;
   min-width: 0;
   margin: 0 auto;
   aspect-ratio: 4 / 5;
@@ -273,10 +276,11 @@
 }
 
 .reference-dropzone.has-preview {
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
   border: none;
+  background-color: var(--ai-container-card-bg);
 }
 
 .reference-dropzone.has-preview .reference-drop-content {
@@ -308,6 +312,68 @@
   padding: 12px;
   text-align: center;
   color: var(--ai-card-text-muted);
+}
+
+.enhance-drop-wrapper {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: stretch;
+  flex-wrap: wrap;
+}
+
+.enhance-drop-column {
+  flex: 1;
+  min-width: 0;
+}
+
+.enhance-drop-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+  align-items: stretch;
+}
+
+.enhance-drop-actions .ghost-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.enhance-dropzone {
+  max-width: clamp(180px, 22vw, 240px);
+  width: 100%;
+  min-height: clamp(180px, 24vw, 250px);
+  aspect-ratio: 4 / 5;
+  position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.enhance-drop-content {
+  gap: 6px;
+}
+
+
+
+.enhance-video-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(12, 18, 26, 0.9);
+  color: #d7e6f4;
+  font-size: 13px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.enhance-video-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
 }
 
 .reference-drop-title {

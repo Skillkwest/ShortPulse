@@ -56,6 +56,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/sop_media_library_ui.md`
 - `docs/sop_performance_ai_detection.md`
 - `docs/sop_ai_studio_index.md` (hub for AI Studio SOPs: text/image/video)
+- `docs/sop_ai_studio_agent.md` (AI Studio agent/chat workflow)
 - `docs/shortpulse_ai_studio.md`
 
 ## Planning / History

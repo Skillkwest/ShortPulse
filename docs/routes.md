@@ -11,6 +11,7 @@ Reference for pages, auth expectations, and ownership.
 | `/saved-creators` | Yes | CRUD for per-user creator list | Writes to `saved_creators` table (RLS). |
 | `/media-library` | Yes | Private bucket file manager | Uses `media_library` bucket + `media_files` table (RLS). |
 | `/ai-studio` | Yes | Creative canvas (prompt/image/video) | `/creator-studio` forwards here. |
+| `/character` | Yes | Character tool (identity ingest + consistent image gen) | Frontend-triggered; Fal proxy by default. |
 | `/profile` | Yes | Profile/account/billing UI | Logout modal; plan badges. |
 | `/onboarding` | No | Lightweight onboarding shell | Links to dashboard/features. |
 | `/creator-studio` | Yes | Legacy alias to AI Studio | Re-export of `/ai-studio`. |

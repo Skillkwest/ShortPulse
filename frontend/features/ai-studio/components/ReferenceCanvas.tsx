@@ -104,7 +104,7 @@ export function ReferenceCanvas({
           {outputs.length === 0 ? (
             <div className="reference-empty">
               <p className="preview-title">Upload or generate to see your media here.</p>
-              <p className="subdued tiny">New prompts, images, and videos will appear in this grid.</p>
+              <p className="subdued tiny helper-text">New prompts, images, and videos will appear in this grid.</p>
             </div>
           ) : (
             outputs.map((item) => {

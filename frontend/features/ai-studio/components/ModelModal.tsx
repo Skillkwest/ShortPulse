@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MagnifyingGlass } from "phosphor-react";
-import { modelOptions, ModelOption } from "../constants";
+import { modelLogos, modelOptions, ModelOption } from "../constants";
 import { buildDefaultPricingParams, computeCostForModel } from "../logic/pricing";
 
 type ModelModalProps = {
@@ -102,9 +102,21 @@ const modelMeta: Record<string, ModelMeta> = {
     description: "Nano Banana via Fal queue for vibrant, fast image generation.",
     tags: ["Image"],
   },
+  "fal-ai/nano-banana/edit": {
+    provider: "Google",
+    description: "Nano Banana Edit for rapid image-to-image tweaks that keep colors vivid.",
+    logo: "Google",
+    tags: ["Image"],
+  },
   "fal-ai/nano-banana-pro": {
     provider: "Google",
     description: "Nano Banana Pro (Nano Banana 2) via Fal queue with higher-resolution detail.",
+    tags: ["Image"],
+  },
+  "fal-ai/nano-banana-pro/edit": {
+    provider: "Google",
+    description: "Nano Banana Pro Edit for precise reference-based changes with finer detail control.",
+    logo: "Google",
     tags: ["Image"],
   },
 };
@@ -120,6 +132,18 @@ const sectionLogos: Record<string, string> = {
   "OpenAI via Fal": "/Sora%202%20LOGO.png",
   "ByteDance via Fal": "/Seedream%20LOGO.png",
   Fal: "/brand-logo.png",
+};
+
+const resolveModelLogo = (modelId: string) => {
+  const explicitLogo = modelLogos[modelId];
+  if (explicitLogo) {
+    return explicitLogo;
+  }
+  const fallbackKey = modelMeta[modelId]?.logo ?? modelMeta[modelId]?.provider;
+  if (!fallbackKey) {
+    return undefined;
+  }
+  return sectionLogos[fallbackKey];
 };
 
 /**
@@ -256,36 +280,34 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
     return (
       <div className="model-modal-section">
         <div className="model-modal-grid">
-          {items.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className="model-chip"
-              onClick={() => handleSelect(option.value)}
-              onMouseEnter={handleChipTooltipShow(option.value)}
-              onMouseLeave={handleChipTooltipHide}
-            >
-              <div className="model-chip-row">
-                <div className="model-chip-content">
-                  {modelMeta[option.value]?.provider && sectionLogos[modelMeta[option.value]?.provider ?? ""] ? (
-                    <img
-                      className="model-chip-logo-img"
-                      src={sectionLogos[modelMeta[option.value]?.provider ?? ""]}
-                      alt=""
-                      aria-hidden
-                    />
-                  ) : null}
-                  <div className="model-chip-text">
-                    <span className="model-chip-title">{option.label}</span>
+          {items.map((option) => {
+            const logoSrc = resolveModelLogo(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                className="model-chip"
+                onClick={() => handleSelect(option.value)}
+                onMouseEnter={handleChipTooltipShow(option.value)}
+                onMouseLeave={handleChipTooltipHide}
+              >
+                <div className="model-chip-row">
+                  <div className="model-chip-content">
+                    {logoSrc ? (
+                      <img className="model-chip-logo-img" src={logoSrc} alt="" aria-hidden />
+                    ) : null}
+                    <div className="model-chip-text">
+                      <span className="model-chip-title">{option.label}</span>
+                    </div>
                   </div>
+                  <span className="model-chip-pill">
+                    <span aria-hidden="true" className="model-chip-icon">✦</span>
+                    <span className="model-chip-credits">{formatCredits(option.value)}</span>
+                  </span>
                 </div>
-                <span className="model-chip-pill">
-                  <span aria-hidden="true" className="model-chip-icon">✦</span>
-                  <span className="model-chip-credits">{formatCredits(option.value)}</span>
-                </span>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       </div>
     );

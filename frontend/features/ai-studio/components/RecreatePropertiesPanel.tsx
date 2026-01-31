@@ -164,7 +164,7 @@ export function RecreatePropertiesPanel({
     <div className="tool-properties">
       <div className="tool-header">
         <p className="eyebrow">{title}</p>
-        <p className="subdued tiny">{subtitle}</p>
+        <p className="subdued tiny helper-text">{subtitle}</p>
       </div>
       <div className="reference-drop-layout-inner">
         <div className="reference-dropzone-block image-block">
@@ -173,7 +173,7 @@ export function RecreatePropertiesPanel({
               <span className="step-badge mini">1</span>
               <div className="regenerate-step-copy">
                 <p className="step-title">Add Reference Image</p>
-                <span className="step-subtitle tiny">Drag a reference from the canvas or upload one manually.</span>
+                <span className="step-subtitle tiny helper-text">Drag a reference from the canvas or upload one manually.</span>
               </div>
               <div className="reference-drop-header-actions">
                 <button type="button" className="ghost-btn mini" onClick={onClearImages}>
@@ -206,7 +206,7 @@ export function RecreatePropertiesPanel({
                   ) : null}
                   <div className="reference-drop-content image-drop-content">
                     <UploadSimple size={22} weight="regular" />
-                    <p className="reference-drop-title">Click to upload an image</p>
+                    <p className="reference-drop-title helper-text">Click to upload an image</p>
                   </div>
                 </div>
               </div>
@@ -249,7 +249,7 @@ export function RecreatePropertiesPanel({
             <span className="step-badge">2</span>
             <div className="step-header-copy">
               <p className="step-title">Choose Frame & Model</p>
-              <span className="step-subtitle tiny">Pick the target aspect ratio and AI model before you regenerate.</span>
+              <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you regenerate.</span>
             </div>
           </div>
           <div className="create-controls dual-controls recreate-frame-controls">
@@ -285,7 +285,7 @@ export function RecreatePropertiesPanel({
               <span className="step-badge mini">3</span>
               <div className="regenerate-step-copy">
                 <p className="step-title">Write Your Prompt</p>
-                <span className="step-subtitle tiny">Drop a saved prompt or describe the look you want to recreate.</span>
+                <span className="step-subtitle tiny helper-text">Drop a saved prompt or describe the look you want to recreate.</span>
               </div>
             </div>
             <div

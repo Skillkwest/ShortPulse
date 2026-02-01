@@ -117,6 +117,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
         </div>
       ) : null}
       {showActions ? renderAssistantActions(actions, { onApplyPrompt, onSelectVariation }) : null}
+      {isSending ? <p className="agent-thinking" aria-live="polite">Thinking…</p> : null}
       {showInput ? (
         <div className="agent-input-row pill-agent-input-row">
           <AgentInputBar

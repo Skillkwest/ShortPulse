@@ -7,10 +7,54 @@ import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
 import type { AgentContext, AgentMessage, AgentResponse } from "../../../features/ai-agent/types";
 
 const OPENAI_URL = (process.env.OPENAI_API_BASE || "https://api.openai.com/v1") + "/chat/completions";
-const DEFAULT_MODEL = "gpt-4.1-mini";
+// More capable default; can be overridden via OPENAI_MODEL env.
+const DEFAULT_MODEL = "gpt-4.1";
 const MAX_MESSAGES = 24;
 const MAX_IMAGE_BYTES = 350 * 1024;
 const MAX_MEDIA = 3;
+const canonicalPromptStore = new Map<string, string>();
+
+const stopwords = new Set([
+  "the",
+  "and",
+  "with",
+  "from",
+  "into",
+  "onto",
+  "over",
+  "under",
+  "a",
+  "an",
+  "of",
+  "in",
+  "on",
+  "to",
+  "for",
+  "by",
+  "at",
+  "as",
+  "is",
+  "are",
+  "was",
+  "were",
+]);
+
+const significantTokens = (text: string, limit = 6): string[] => {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 4 && !stopwords.has(t))
+    .sort((a, b) => b.length - a.length)
+    .slice(0, limit);
+};
+
+const preservesContext = (canonical: string, updated: string): boolean => {
+  const sig = significantTokens(canonical);
+  if (!sig.length) return true;
+  const updatedText = updated.toLowerCase();
+  const present = sig.filter((t) => updatedText.includes(t));
+  return present.length >= Math.max(3, Math.ceil(sig.length / 2));
+};
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
@@ -80,6 +124,10 @@ const buildOpenAiMessages = (messages: AgentMessage[], context: AgentContext, sy
     { role: "system", content: `CONTEXT:\n${JSON.stringify(context)}` },
   ];
 
+  if (context.lastAssistantMessage) {
+    chat.push({ role: "assistant", content: context.lastAssistantMessage });
+  }
+
   if (context.media && context.media.length) {
     chat.push({
       role: "user",
@@ -101,6 +149,15 @@ const buildOpenAiMessages = (messages: AgentMessage[], context: AgentContext, sy
   });
   return chat;
 };
+const buildThinkerMessages = (payload: any, prompt: string): OpenAIChatMessage[] => [
+  { role: "system", content: prompt },
+  { role: "user", content: JSON.stringify(payload) },
+];
+
+const buildFormatterMessages = (semantic: any, prompt: string): OpenAIChatMessage[] => [
+  { role: "system", content: prompt },
+  { role: "user", content: JSON.stringify(semantic) },
+];
 
 const parseAgentJson = (raw: string): AgentResponse | null => {
   const candidates: string[] = [];
@@ -143,6 +200,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "OPENAI_API_KEY is not set" });
   }
   const systemPrompt = loadAgentPrompt("STUDIO_AGENT_SYSTEM", process.env.STUDIO_AGENT_SYSTEM);
+  const thinkerPrompt = loadAgentPrompt("STUDIO_AGENT_THINKER", process.env.STUDIO_AGENT_THINKER);
+  const formatterPrompt = loadAgentPrompt("STUDIO_AGENT_FORMATTER", process.env.STUDIO_AGENT_FORMATTER);
   if (!systemPrompt) {
     return res.status(500).json({ error: "STUDIO_AGENT_SYSTEM prompt missing" });
   }
@@ -151,6 +210,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // conversationId is currently informational (could be logged/audited later)
   const conversationId = typeof req.body?.conversationId === "string" ? req.body.conversationId : null;
   const context = safeContext(req.body?.context);
+  const incomingCanonical =
+    typeof req.body?.canonicalPrompt === "string" && req.body.canonicalPrompt.trim().length
+      ? req.body.canonicalPrompt.trim()
+      : null;
+  const storedCanonical = conversationId ? canonicalPromptStore.get(conversationId) ?? null : null;
+  const canonicalPrompt = incomingCanonical ?? storedCanonical ?? null;
+  const effectiveCanonical = canonicalPrompt ?? context.lastAssistantMessage ?? null;
 
   if (!messages.length) {
     return res.status(400).json({ error: "messages are required" });
@@ -159,6 +225,111 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const openAiMessages = buildOpenAiMessages(messages, context, systemPrompt);
 
   try {
+    const useV2 = process.env.NEXT_PUBLIC_AGENT_V2 !== "false";
+
+    if (useV2 && thinkerPrompt && formatterPrompt) {
+      const contextType =
+        context.media && context.media.length
+          ? "image"
+          : context.activePrompt || context.references?.length
+            ? "prompt"
+            : "chat";
+
+      const thinkerPayload = {
+        context_type: contextType,
+        canonical_prompt: effectiveCanonical,
+        user_input: messages[messages.length - 1]?.content ?? "",
+        edit_instructions:
+          effectiveCanonical && (messages[messages.length - 1]?.content ?? "").trim().length
+            ? `Edit the canonical prompt in place.\nCanonical prompt:\n${effectiveCanonical}\n\nUser change:\n${messages[messages.length - 1]?.content ?? ""}`
+            : null,
+        context_payload:
+          contextType === "prompt"
+            ? context.activePrompt ?? context.references?.[0]?.promptSnippet ?? ""
+            : contextType === "image"
+              ? "image provided"
+              : context.lastAssistantMessage ?? "",
+        mode_hint: context.modeHint ?? null,
+      };
+
+      const thinkerMessages = buildThinkerMessages(thinkerPayload, thinkerPrompt);
+
+      const thinkerResp = await fetch(OPENAI_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+          messages: thinkerMessages,
+        }),
+      });
+
+      if (!thinkerResp.ok) {
+        const detail = await thinkerResp.text();
+        return res.status(thinkerResp.status).json({ error: "Upstream error (thinker)", detail });
+      }
+
+      const thinkerData = await thinkerResp.json();
+      const thinkerRaw = thinkerData?.choices?.[0]?.message?.content ?? "";
+      let semantic: any = null;
+      try {
+        semantic = JSON.parse(thinkerRaw);
+      } catch (_e) {
+        semantic = { status: "ready", prompt_text: thinkerRaw, change_summary: "", question: null };
+      }
+
+      const formatterMessages = buildFormatterMessages(semantic, formatterPrompt);
+
+      const formatterResp = await fetch(OPENAI_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+          messages: formatterMessages,
+        }),
+      });
+
+      if (!formatterResp.ok) {
+        const detail = await formatterResp.text();
+        return res.status(formatterResp.status).json({ error: "Upstream error (formatter)", detail });
+      }
+
+      const formatterData = await formatterResp.json();
+      const formatterRaw = formatterData?.choices?.[0]?.message?.content ?? "";
+      const parsed = parseAgentJson(formatterRaw) ?? { message: formatterRaw || "No response", actions: undefined };
+      const nextCanonical =
+        parsed?.actions?.apply_prompt ??
+        parsed?.message ??
+        effectiveCanonical ??
+        null;
+
+      // Validate context preservation; if drift detected, fall back to prior canonical.
+      if (effectiveCanonical && nextCanonical && !preservesContext(effectiveCanonical, nextCanonical)) {
+        parsed.message = parsed.message || "Preserved prior prompt to avoid drift.";
+        parsed.actions = parsed.actions ?? {};
+        parsed.actions.apply_prompt = effectiveCanonical;
+        parsed.actions.referenceCard = parsed.actions.referenceCard ?? { title: "Prompt", prompt: effectiveCanonical };
+      }
+
+      if (conversationId && nextCanonical) {
+        canonicalPromptStore.set(conversationId, nextCanonical);
+      }
+
+      return res.status(200).json({
+        ...parsed,
+        usage: {
+          inputTokens: formatterData?.usage?.prompt_tokens,
+          outputTokens: formatterData?.usage?.completion_tokens,
+        },
+        canonicalPrompt: nextCanonical,
+      });
+    }
+
     const response = await fetch(OPENAI_URL, {
       method: "POST",
       headers: {
@@ -168,8 +339,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
         messages: openAiMessages,
-        temperature: 0.4,
-        max_tokens: 600,
       }),
     });
 
@@ -188,12 +357,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : "";
 
     const parsed = parseAgentJson(contentText) ?? { message: contentText || "No response", actions: undefined };
+    const nextCanonical =
+      parsed?.actions?.apply_prompt ??
+      parsed?.message ??
+      canonicalPrompt ??
+      null;
+
+    if (conversationId && nextCanonical) {
+      canonicalPromptStore.set(conversationId, nextCanonical);
+    }
+
     return res.status(200).json({
       ...parsed,
       usage: {
         inputTokens: data?.usage?.prompt_tokens,
         outputTokens: data?.usage?.completion_tokens,
       },
+      canonicalPrompt: nextCanonical,
     });
   } catch (error) {
     return res.status(500).json({ error: "Agent call failed", detail: String(error) });

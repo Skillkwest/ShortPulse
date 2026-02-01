@@ -961,7 +961,8 @@
   box-shadow: 0 3px 8px rgba(7, 155, 168, 0.35);
 }
 
-.agent-send-prefab {
+.agent-send-prefab,
+.agent-save-prefab {
   width: 60px;
   height: 60px;
   border-radius: 14px;
@@ -975,12 +976,14 @@
   box-shadow: 0 4px 1px #25a8bf41;
   transition: box-shadow 0.16s ease, transform 0.12s ease;
 }
-.agent-send-prefab:hover:not(:disabled) {
+.agent-send-prefab:hover:not(:disabled),
+.agent-save-prefab:hover:not(:disabled) {
   box-shadow: 0 5px 12px rgba(4, 234, 255, 0.088);
   transform: translateY(2px);
   cursor: pointer;
 }
-.agent-send-prefab:disabled {
+.agent-send-prefab:disabled,
+.agent-save-prefab:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
@@ -1048,6 +1051,18 @@
   outline: none;
   font-family: var(--font-primary);
   font-weight: 400;
+}
+.agent-thinking {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: rgba(245, 249, 255, 0.7);
+  animation: pulse-thinking 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-thinking {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
 }
 .agent-input-prefab-field::placeholder {
   color: rgba(245, 249, 255, 0.6);

@@ -33,38 +33,10 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
   const [error, setError] = useState<string | null>(null);
   const messagesRef = useRef<AgentMessage[]>(initialMessages);
   const conversationIdRef = useRef<string>(conversationId || randomId());
-  const persistHistory = useRef<boolean>(persist);
+  const canonicalPromptRef = useRef<string | null>(null);
 
   useEffect(() => {
     messagesRef.current = messages;
-  }, [messages]);
-
-  // Hydrate from session storage on mount
-  useEffect(() => {
-    if (!persistHistory.current || typeof window === "undefined") return;
-    try {
-      const key = `aiAgentChat:${conversationIdRef.current}`;
-      const raw = window.sessionStorage.getItem(key);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed?.messages)) {
-        setMessages(parsed.messages as AgentMessage[]);
-        messagesRef.current = parsed.messages as AgentMessage[];
-      }
-    } catch {
-      // ignore hydration errors
-    }
-  }, []);
-
-  // Persist whenever messages change
-  useEffect(() => {
-    if (!persistHistory.current || typeof window === "undefined") return;
-    try {
-      const key = `aiAgentChat:${conversationIdRef.current}`;
-      window.sessionStorage.setItem(key, JSON.stringify({ messages }));
-    } catch {
-      // ignore persist errors
-    }
   }, [messages]);
 
   const send = useCallback(
@@ -93,13 +65,14 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
         previousPrompt && previousPrompt.trim().length
           ? ({ role: "assistant", content: previousPrompt.trim() } as AgentMessage)
           : null;
-        const apiMessages = [...baseHistory, ...(syntheticPrev ? [syntheticPrev] : []), { role: "user", content: userPayload }];
+      const apiMessages = [...baseHistory, ...(syntheticPrev ? [syntheticPrev] : []), { role: "user", content: userPayload }];
 
-        const body: AgentApiRequest = {
-          messages: apiMessages,
-          context: context ? buildAgentContext(context) : undefined,
-          conversationId: conversationIdRef.current,
-        };
+      const body: AgentApiRequest = {
+        messages: apiMessages,
+        context: context ? buildAgentContext(context) : undefined,
+        conversationId: conversationIdRef.current,
+        canonicalPrompt: canonicalPromptRef.current,
+      };
         const response = await fetch("/api/ai/studio-agent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -126,6 +99,12 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
             };
             data = { ...data, actions };
           }
+        }
+
+        if (data?.canonicalPrompt) {
+          canonicalPromptRef.current = data.canonicalPrompt;
+        } else if (actions?.apply_prompt) {
+          canonicalPromptRef.current = actions.apply_prompt ?? null;
         }
 
         const assistantContent = actions?.apply_prompt ?? data?.message ?? "";

@@ -41,8 +41,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt },
         ],
-        temperature: 0.6,
-        max_tokens: 2000,
       }),
     });
 

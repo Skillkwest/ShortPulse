@@ -7,6 +7,8 @@ type AgentInputBarProps = {
   disabled?: boolean;
   className?: string;
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  thinking?: boolean;
+  thinkingLabel?: string;
 };
 
 export function AgentInputBar({
@@ -16,6 +18,8 @@ export function AgentInputBar({
   disabled = false,
   className = "",
   onKeyDown,
+  thinking = false,
+  thinkingLabel = "Thinking…",
 }: AgentInputBarProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -29,6 +33,11 @@ export function AgentInputBar({
 
   return (
     <div className={`agent-input-prefab ${className}`.trim()}>
+      {thinking ? (
+        <div className="agent-input-prefab-overlay" aria-live="polite">
+          <div className="agent-input-prefab-thinking">{thinkingLabel}</div>
+        </div>
+      ) : null}
       <textarea
         className="agent-input-prefab-field"
         rows={2}
@@ -37,6 +46,7 @@ export function AgentInputBar({
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         disabled={disabled}
+        aria-busy={thinking}
         ref={ref}
       />
     </div>

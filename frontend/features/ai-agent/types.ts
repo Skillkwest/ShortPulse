@@ -58,10 +58,12 @@ export type AgentResponse = {
     inputTokens?: number;
     outputTokens?: number;
   };
+  canonicalPrompt?: string | null;
 };
 
 export type AgentApiRequest = {
   messages: AgentMessage[];
   context?: AgentContext;
   conversationId?: string;
+  canonicalPrompt?: string | null;
 };

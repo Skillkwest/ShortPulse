@@ -13,6 +13,7 @@ import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { buildDefaultPricingParams, getModelConfig } from "../features/ai-studio/logic/pricing";
 import type { PricingParams } from "../features/ai-studio/logic/pricingTypes";
 import { useAiAgent } from "../features/ai-agent/useAiAgent";
+import { randomId } from "../features/ai-studio/logic/ids";
 import type { AgentActions, AgentMessage } from "../features/ai-agent/types";
 import { postGeneratePrompt } from "../features/ai-studio/logic/promptGeneration";
 import { postDescribeImage, prepareImageUrl } from "../features/ai-studio/logic/imageDescription";
@@ -25,6 +26,7 @@ export default function AiStudioPage() {
     if (balanceCents == null) return null;
     return Math.max(0, Math.floor(balanceCents)); // cents == credits
   }, [balanceCents]);
+  const [agentConversationId] = useState<string>(() => randomId());
 
   // Character workflow state (used when Character tool is active)
   const {
@@ -112,6 +114,7 @@ export default function AiStudioPage() {
   const agentEnabled = agentFlag || agentSessionEnabled;
   const { messages: agentMessages, isSending: agentIsSending, error: agentError, send: sendToAgent } = useAiAgent({
     enabled: true, // allow first-click activation; API will gate if truly disabled server-side
+    conversationId: agentConversationId,
   });
   const [agentInput, setAgentInput] = useState("");
   const [agentActions, setAgentActions] = useState<AgentActions | undefined>(undefined);
@@ -361,6 +364,13 @@ export default function AiStudioPage() {
       addOutputsFromFiles(files);
     }
   };
+
+  const handleSelectOutput = useCallback(
+    (id: string) => {
+      setActiveOutputId((prev) => (prev === id ? null : id));
+    },
+    [setActiveOutputId],
+  );
   const triggerFilePicker = () => referenceCanvasFileInputRef.current?.click();
   const dismissError = () => setUiError(null);
 
@@ -504,7 +514,7 @@ export default function AiStudioPage() {
   };
 
   const handleRegenerateWithDebit = () => {
-    if (isGenerateDisabled) {
+    if (isGenerateDisabled || agentIsSending) {
       handleBlockedGeneration();
       return;
     }
@@ -546,7 +556,7 @@ export default function AiStudioPage() {
     onToggleReferenceIndicator: toggleReferenceIndicator,
     isPromptGenerating,
     costCredits: currentCostCredits,
-    isGenerateDisabled,
+    isGenerateDisabled: isGenerateDisabled || agentIsSending,
     guardrailReason: generationGuardrail,
     onExpandChat: handleExpandChat,
     onCloseAgentChat: handleCloseAgentChat,
@@ -653,11 +663,11 @@ export default function AiStudioPage() {
           costCredits: currentCostCredits,
           guardrailReason: generationGuardrail,
           resolvePreviewUrlById,
-          isGenerateDisabled,
+          isGenerateDisabled: isGenerateDisabled || agentIsSending,
         }}
         propertiesEnhance={{
           costCredits: currentCostCredits,
-          isGenerateDisabled,
+          isGenerateDisabled: isGenerateDisabled || agentIsSending,
           resolvePreviewUrlById,
           onOpenMediaLibrary: () => window.open("/media-library", "_self"),
           onTriggerFileSelect: triggerFilePicker,
@@ -667,7 +677,7 @@ export default function AiStudioPage() {
           outputs,
           activeOutputId,
           showHeader: false,
-          onSelectOutput: setActiveOutputId,
+          onSelectOutput: handleSelectOutput,
           onOpenDetails: setDetailOutputId,
           onDescribeImage: (output) => handleDescribeReference(output.id),
           onSaveToLibrary: (output) => handleSaveReference(output.id),

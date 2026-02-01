@@ -48,8 +48,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             ],
           },
         ],
-        temperature: 0.9,
-        max_tokens: 8000,
       }),
     });
 

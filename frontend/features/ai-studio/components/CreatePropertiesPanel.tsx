@@ -17,6 +17,7 @@ import { StudioMode } from "../types";
 import { modelLogos } from "../constants";
 import { AgentChatPanel } from "../../ai-agent/components/AgentChatPanel";
 import { AgentSendButton } from "../../ai-agent/components/AgentSendButton";
+import { AgentSaveButton } from "../../ai-agent/components/AgentSaveButton";
 import { AgentGenerateButton } from "../../ai-agent/components/AgentGenerateButton";
 import { MiniGenerateButton } from "../../ai-agent/components/MiniGenerateButton";
 import { AgentInputBar } from "../../ai-agent/components/AgentInputBar";
@@ -354,7 +355,7 @@ export function CreatePropertiesPanel({
                     aria-pressed={promptMode === "enhanced"}
                     onClick={() => setPromptMode("enhanced")}
                   >
-                    Enhance prompt
+                    Prompt
                   </button>
                   <button
                     type="button"
@@ -409,6 +410,11 @@ export function CreatePropertiesPanel({
                         className="agent-input-prefab-inline"
                       />
                       <div className="agent-inline-actions">
+                        <AgentSaveButton
+                          onClick={onSavePrompt}
+                          disabled={shouldDisableSave}
+                          ariaLabel="Save prompt"
+                        />
                         <AgentSendButton
                           onClick={onAgentSend ?? (() => {})}
                           disabled={agentIsSending}
@@ -436,21 +442,27 @@ export function CreatePropertiesPanel({
                       placeholder="Describe what you want, then enhance it."
                     />
                   </div>
-                  <div className="enhanced-actions-row">
-                    <div className="ai-control-actions">
-                      <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
-                        <CloudArrowUp size={12} weight="regular" /> Media library
-                      </button>
+                    <div className="enhanced-actions-row">
+                      <div className="ai-control-actions">
+                        <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
+                          <CloudArrowUp size={12} weight="regular" /> Media library
+                        </button>
                       <button type="button" className="ghost-btn mini" onClick={onSavePrompt} disabled={shouldDisableSave}>
                         <FloppyDisk size={12} weight="regular" /> Save prompt
                       </button>
                     </div>
-                    <div className="enhanced-action-buttons agent-inline-actions">
-                      <AgentSendButton
-                        onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}
-                        disabled={agentIsSending}
-                        ariaLabel="Send to agent"
-                        className="prompt-fab-send"
+                        <div className="enhanced-action-buttons agent-inline-actions">
+                          <AgentSaveButton
+                            onClick={onSavePrompt}
+                            disabled={shouldDisableSave}
+                            ariaLabel="Save prompt"
+                            className="prompt-fab-save"
+                          />
+                          <AgentSendButton
+                            onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}
+                            disabled={agentIsSending}
+                            ariaLabel="Send to agent"
+                            className="prompt-fab-send"
                       />
                       <MiniGenerateButton
                         cost={costValue}

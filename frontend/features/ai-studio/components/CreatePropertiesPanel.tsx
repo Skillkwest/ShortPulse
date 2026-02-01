@@ -10,6 +10,7 @@ import {
   FloppyDisk,
   ImageSquare,
   MagicWand,
+  Trash,
   VideoCamera,
 } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
@@ -58,14 +59,13 @@ type CreatePropertiesPanelProps = {
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
-  onAgentApplyPrompt?: (prompt: string) => void;
-  onAgentSelectVariation?: (prompt: string) => void;
   onAgentMessageClick?: (message: AgentMessage) => void;
   onGenerate: () => void;
   onSavePrompt: () => void;
   onOpenMediaLibrary?: () => void;
   shouldDisableSave?: boolean;
   onCloseAgentChat?: () => void;
+  onClearAgentChat?: () => void;
 };
 
 type ComposeSendCardProps = {
@@ -80,8 +80,6 @@ type ComposeSendCardProps = {
   prompt: string;
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
-  onAgentApplyPrompt?: (prompt: string) => void;
-  onAgentSelectVariation?: (prompt: string) => void;
   onPromptChange: (value: string) => void;
   onGenerate: () => void;
   onSavePrompt: () => void;
@@ -152,8 +150,6 @@ export function CreatePropertiesPanel({
   onAgentInputChange,
   onAgentSend,
   onAgentEnhanceSend,
-  onAgentApplyPrompt,
-  onAgentSelectVariation,
   onAgentMessageClick,
   agentChatOpen = false,
   onSavePrompt,
@@ -167,6 +163,7 @@ export function CreatePropertiesPanel({
   isGenerateDisabled = false,
   guardrailReason = null,
   onCloseAgentChat,
+  onClearAgentChat,
 }: CreatePropertiesPanelProps) {
   const handleEnhancedPromptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
@@ -188,6 +185,12 @@ export function CreatePropertiesPanel({
   const primaryActionBusyLabel = isEnhanceMode ? "Sending…" : "Generating…";
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">("enhanced");
   const canExpandChat = agentMessages.length > 0;
+  const isTextPromptMode = mode === "enhance";
+  const isChatPromptMode = promptMode === "chat";
+  const showMiniGenerateButton = !(mode === "enhance" && promptMode === "enhanced");
+  const hideSaveAndMini = isTextPromptMode && isChatPromptMode;
+  const hideSaveButton = hideSaveAndMini || (mode === "image" && promptMode === "chat");
+  const promptThinking = Boolean(agentIsSending || isPromptGenerating);
   const costValue = costCredits != null ? costCredits : "—";
   const [collapsedSteps, setCollapsedSteps] = React.useState<{ mode: boolean; model: boolean; prompt: boolean }>({
     mode: false,
@@ -365,19 +368,33 @@ export function CreatePropertiesPanel({
                   >
                     Chat
                   </button>
+                  <div className={`prompt-chat-actions ${promptMode === "chat" ? "is-active" : ""}`}>
+                    {onExpandChat ? (
+                      <button
+                        type="button"
+                        className={`ghost-btn mini prompt-expand-btn ${agentChatOpen ? "is-chat-open" : ""}`}
+                        onClick={canExpandChat ? onExpandChat : undefined}
+                        aria-label="Expand chat"
+                        disabled={!canExpandChat}
+                        aria-disabled={!canExpandChat}
+                      >
+                        <ArrowsOutSimple size={20} weight="bold" aria-hidden />
+                      </button>
+                    ) : null}
+                    {onClearAgentChat ? (
+                      <button
+                        type="button"
+                        className="ghost-btn mini prompt-clear-btn"
+                        onClick={onClearAgentChat}
+                        aria-label="Clear chat"
+                        disabled={agentMessages.length === 0 && !stagedPrompt}
+                        aria-disabled={agentMessages.length === 0 && !stagedPrompt}
+                      >
+                        <Trash size={18} weight="bold" aria-hidden />
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-                {onExpandChat ? (
-                  <button
-                    type="button"
-                    className="ghost-btn mini prompt-expand-btn"
-                    onClick={canExpandChat ? onExpandChat : undefined}
-                    aria-label="Expand chat"
-                    disabled={!canExpandChat}
-                    aria-disabled={!canExpandChat}
-                  >
-                    <ArrowsOutSimple size={20} weight="bold" aria-hidden />
-                  </button>
-                ) : null}
               </div>
               {promptMode === "chat" ? (
                 agentChatOpen ? null : (
@@ -387,15 +404,11 @@ export function CreatePropertiesPanel({
                         <AgentChatPanel
                           messages={agentMessages}
                           input={agentInput}
-                          actions={agentActions}
                           sendLabel={primaryActionLabel}
                           isSending={agentIsSending}
                           showInput={false}
-                          showActions={true}
                           onInputChange={(value) => onAgentInputChange?.(value)}
                           onSend={onAgentSend ?? (() => {})}
-                          onApplyPrompt={onAgentApplyPrompt}
-                          onSelectVariation={onAgentSelectVariation}
                           onMessageClick={onAgentMessageClick}
                         />
                       </div>
@@ -409,48 +422,57 @@ export function CreatePropertiesPanel({
                         onKeyDown={handleAgentInputKeyDown}
                         className="agent-input-prefab-inline"
                       />
-                      <div className="agent-inline-actions">
+                    <div className="agent-inline-actions">
+                      {!hideSaveButton ? (
                         <AgentSaveButton
                           onClick={onSavePrompt}
                           disabled={shouldDisableSave}
                           ariaLabel="Save prompt"
                         />
-                        <AgentSendButton
-                          onClick={onAgentSend ?? (() => {})}
-                          disabled={agentIsSending}
-                          ariaLabel="Send to agent"
-                        />
+                      ) : null}
+                      <AgentSendButton
+                        onClick={onAgentSend ?? (() => {})}
+                        disabled={agentIsSending}
+                        ariaLabel="Send to agent"
+                      />
+                      {!hideSaveAndMini && showMiniGenerateButton ? (
                         <MiniGenerateButton
                           cost={costValue}
                           onClick={handleCostGenerate}
                           disabled={isGenerateDisabled || isPromptGenerating}
                           ariaLabel="Generate with current prompt"
                         />
-                      </div>
+                      ) : null}
+                    </div>
                     </div>
                   </>
                 )
               ) : (
                 <>
                   <div className="step2-input-row enhanced-mode">
-                    <textarea
-                      className="prompt-input agent-step-textarea enhanced-prompt-input"
-                      value={prompt}
-                      onChange={(event) => onPromptChange(event.target.value)}
-                      onKeyDown={handleEnhancedPromptKeyDown}
-                      rows={6}
-                      placeholder="Describe what you want, then enhance it."
-                    />
+                    <div className="prompt-enhanced-wrapper">
+                      {promptThinking ? (
+                        <div className="prompt-thinking-overlay" aria-live="polite">
+                          <span className="prompt-thinking-text">Thinking…</span>
+                        </div>
+                      ) : null}
+                      <textarea
+                        className="prompt-input agent-step-textarea enhanced-prompt-input"
+                        value={prompt}
+                        onChange={(event) => onPromptChange(event.target.value)}
+                        onKeyDown={handleEnhancedPromptKeyDown}
+                        rows={6}
+                        placeholder="Describe what you want, then enhance it."
+                        aria-busy={promptThinking}
+                      />
+                    </div>
                   </div>
                     <div className="enhanced-actions-row">
                       <div className="ai-control-actions">
                         <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
                           <CloudArrowUp size={12} weight="regular" /> Media library
                         </button>
-                      <button type="button" className="ghost-btn mini" onClick={onSavePrompt} disabled={shouldDisableSave}>
-                        <FloppyDisk size={12} weight="regular" /> Save prompt
-                      </button>
-                    </div>
+                      </div>
                         <div className="enhanced-action-buttons agent-inline-actions">
                           <AgentSaveButton
                             onClick={onSavePrompt}
@@ -463,13 +485,15 @@ export function CreatePropertiesPanel({
                             disabled={agentIsSending}
                             ariaLabel="Send to agent"
                             className="prompt-fab-send"
-                      />
-                      <MiniGenerateButton
-                        cost={costValue}
-                        onClick={handleCostGenerate}
-                        disabled={isGenerateDisabled || isPromptGenerating}
-                        ariaLabel="Generate with current prompt"
-                      />
+                          />
+                      {showMiniGenerateButton ? (
+                        <MiniGenerateButton
+                          cost={costValue}
+                          onClick={handleCostGenerate}
+                          disabled={isGenerateDisabled || isPromptGenerating}
+                          ariaLabel="Generate with current prompt"
+                        />
+                      ) : null}
                     </div>
                   </div>
                 </>
@@ -500,8 +524,6 @@ export function ComposeSendCard({
   prompt,
   onAgentInputChange,
   onAgentSend,
-  onAgentApplyPrompt,
-  onAgentSelectVariation,
   onPromptChange,
   onGenerate,
   onSavePrompt,
@@ -514,6 +536,7 @@ export function ComposeSendCard({
   const primaryActionLabel = "Generate";
   const primaryActionBusyLabel = mode === "enhance" ? "Sending…" : "Generating…";
   const costValue = costCredits != null ? costCredits : "—";
+  const promptThinking = agentIsSending || isPromptGenerating;
 
   return (
     <div className="step-card prompt-step">

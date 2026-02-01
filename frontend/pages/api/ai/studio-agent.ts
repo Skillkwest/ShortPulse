@@ -310,10 +310,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Validate context preservation; if drift detected, fall back to prior canonical.
       if (effectiveCanonical && nextCanonical && !preservesContext(effectiveCanonical, nextCanonical)) {
+        // eslint-disable-next-line no-console
+        console.warn("[studio-agent] drift detected; restoring canonical prompt");
         parsed.message = parsed.message || "Preserved prior prompt to avoid drift.";
         parsed.actions = parsed.actions ?? {};
         parsed.actions.apply_prompt = effectiveCanonical;
         parsed.actions.referenceCard = parsed.actions.referenceCard ?? { title: "Prompt", prompt: effectiveCanonical };
+      }
+
+      // Guarantee an apply_prompt so the client always receives a refined prompt.
+      if (!parsed.actions?.apply_prompt || !parsed.actions.apply_prompt.trim()) {
+        const fallbackPrompt = nextCanonical ?? effectiveCanonical ?? context.activePrompt ?? messages[messages.length - 1]?.content ?? "";
+        parsed.actions = parsed.actions ?? {};
+        parsed.actions.apply_prompt = fallbackPrompt;
+        parsed.message = parsed.message || fallbackPrompt;
       }
 
       if (conversationId && nextCanonical) {
@@ -362,6 +372,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       parsed?.message ??
       canonicalPrompt ??
       null;
+
+    // Guarantee an apply_prompt for the single-agent path too.
+    if (!parsed.actions?.apply_prompt || !parsed.actions.apply_prompt.trim()) {
+      const fallbackPrompt = nextCanonical ?? canonicalPrompt ?? context.activePrompt ?? messages[messages.length - 1]?.content ?? "";
+      parsed.actions = parsed.actions ?? {};
+      parsed.actions.apply_prompt = fallbackPrompt;
+      parsed.message = parsed.message || fallbackPrompt;
+    }
 
     if (conversationId && nextCanonical) {
       canonicalPromptStore.set(conversationId, nextCanonical);

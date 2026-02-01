@@ -27,6 +27,7 @@ export default function AiStudioPage() {
     return Math.max(0, Math.floor(balanceCents)); // cents == credits
   }, [balanceCents]);
   const [agentConversationId] = useState<string>(() => randomId());
+  const [isPromptRefining, setIsPromptRefining] = useState(false);
 
   // Character workflow state (used when Character tool is active)
   const {
@@ -112,7 +113,7 @@ export default function AiStudioPage() {
   const agentFlag = process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
   const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(true);
   const agentEnabled = agentFlag || agentSessionEnabled;
-  const { messages: agentMessages, isSending: agentIsSending, error: agentError, send: sendToAgent } = useAiAgent({
+  const { messages: agentMessages, isSending: agentIsSending, error: agentError, send: sendToAgent, reset: resetAgentChat } = useAiAgent({
     enabled: true, // allow first-click activation; API will gate if truly disabled server-side
     conversationId: agentConversationId,
   });
@@ -187,25 +188,12 @@ export default function AiStudioPage() {
       previousPrompt: latestAgentPrompt ?? null,
       context: mediaPatchedContext,
     });
-    let refinedPrompt: string | null = null;
+    const appliedPrompt = actions?.applyPrompt ?? latestAgentPrompt ?? prompt;
 
-    // If the agent didn't return an apply_prompt, fall back to prompt refinement to keep the flow unblocked.
-    if (!actions?.apply_prompt) {
-      const refined = await postGeneratePrompt(fallback);
-      if (refined?.prompt) {
-        refinedPrompt = refined.prompt;
-        actions = {
-          ...actions,
-          apply_prompt: refined.prompt,
-          referenceCard: { title: actions?.referenceCard?.title ?? "Refined Prompt", prompt: refined.prompt },
-        };
-      }
+    if (actions?.applyPrompt) {
+      setPrompt(appliedPrompt);
+      setLatestAgentPrompt(appliedPrompt);
     }
-
-    const appliedPrompt = actions?.apply_prompt ?? refinedPrompt ?? fallback;
-
-    setPrompt(appliedPrompt);
-    setLatestAgentPrompt(appliedPrompt);
 
     setAgentActions(actions);
     setAgentInput("");
@@ -217,20 +205,25 @@ export default function AiStudioPage() {
 
   const handleAgentEnhanceSend = async () => {
     if (!prompt.trim()) return;
-    // Primary: dedicated prompt refiner
-    const refined = await postGeneratePrompt(prompt);
-    if (refined?.prompt) {
-      setPrompt(refined.prompt);
-      setLatestAgentPrompt(refined.prompt);
-      addAgentPromptReference(refined.prompt, refined.prompt ? "Refined prompt" : undefined);
-      return;
-    }
-    // Fallback: chat agent with enhance hint
-    await handleAgentSend(prompt, { captureResult: true, modeHint: "enhance" }).then((result) => {
-      if (result?.prompt) {
-        addAgentPromptReference(result.prompt, result.referenceTitle);
+    setIsPromptRefining(true);
+    try {
+      // Primary: dedicated prompt refiner
+      const refined = await postGeneratePrompt(prompt);
+      if (refined?.prompt) {
+        setPrompt(refined.prompt);
+        setLatestAgentPrompt(refined.prompt);
+        addAgentPromptReference(refined.prompt, refined.prompt ? "Refined prompt" : undefined);
+        return;
       }
-    });
+      // Fallback: chat agent with enhance hint
+      await handleAgentSend(prompt, { captureResult: true, modeHint: "enhance" }).then((result) => {
+        if (result?.prompt) {
+          addAgentPromptReference(result.prompt, result.referenceTitle);
+        }
+      });
+    } finally {
+      setIsPromptRefining(false);
+    }
   };
 
   const handleDescribeReference = async (outputId: string) => {
@@ -299,15 +292,6 @@ export default function AiStudioPage() {
     });
   };
 
-  const handleAgentApplyPrompt = (promptText: string) => {
-    setPrompt(promptText);
-    setLatestAgentPrompt(promptText);
-  };
-
-  const handleAgentSelectVariation = (promptText: string) => {
-    setAgentInput(promptText);
-  };
-
   const handleAgentMessageClick = useCallback(
     (message: AgentMessage) => {
       addAgentPromptReference(message.content);
@@ -325,6 +309,14 @@ export default function AiStudioPage() {
     if (latestAgentPrompt) {
       addAgentPromptReference(latestAgentPrompt, agentActions?.referenceCard?.title);
     }
+    setIsAgentChatOpen(false);
+  };
+
+  const handleClearAgentChat = () => {
+    resetAgentChat();
+    setLatestAgentPrompt(null);
+    setAgentActions(undefined);
+    setAgentInput("");
     setIsAgentChatOpen(false);
   };
 
@@ -542,8 +534,6 @@ export default function AiStudioPage() {
     onAgentInputChange: setAgentInput,
     onAgentSend: handleAgentSend,
     onAgentEnhanceSend: handleAgentEnhanceSend,
-    onAgentApplyPrompt: handleAgentApplyPrompt,
-    onAgentSelectVariation: handleAgentSelectVariation,
     onAgentMessageClick: handleAgentMessageClick,
     useReferenceImageIndicator,
     hasReferencePreview: Boolean(activeOutput?.previewUrl),
@@ -555,11 +545,14 @@ export default function AiStudioPage() {
     onPromptChange: setPrompt,
     onToggleReferenceIndicator: toggleReferenceIndicator,
     isPromptGenerating,
+    // Treat refine send as a prompt-generating busy state for overlays.
+    isPromptGenerating: isPromptGenerating || isPromptRefining,
     costCredits: currentCostCredits,
     isGenerateDisabled: isGenerateDisabled || agentIsSending,
     guardrailReason: generationGuardrail,
     onExpandChat: handleExpandChat,
     onCloseAgentChat: handleCloseAgentChat,
+    onClearAgentChat: handleClearAgentChat,
     shouldDisableSave: useReferenceImageIndicator && mode === "enhance",
     onGenerate: handlePrimarySubmit,
     onSavePrompt: savePromptReference,
@@ -713,8 +706,6 @@ export default function AiStudioPage() {
           latestAgentPrompt,
           onInputChange: setAgentInput,
           onSend: handleAgentSend,
-          onApplyPrompt: handleAgentApplyPrompt,
-          onSelectVariation: handleAgentSelectVariation,
           onAddToGrid: handleAgentAddToGrid,
           onUsePrompt: handleAgentUsePrompt,
           onClose: handleCloseAgentChat,

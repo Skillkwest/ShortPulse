@@ -4,7 +4,6 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentActions, AgentApiRequest, AgentContext, AgentMessage, AgentResponse } from "./types";
-import { postGeneratePrompt } from "../ai-studio/logic/promptGeneration";
 import { buildAgentContext } from "./logic/contextBuilder";
 import { randomId } from "../ai-studio/logic/ids";
 
@@ -25,6 +24,22 @@ type SendParams = {
 type SendResult = {
   response: AgentResponse | null;
   actions: AgentActions | undefined;
+};
+
+const normalizeActions = (raw?: AgentActions | Record<string, any>): AgentActions | undefined => {
+  if (!raw) return undefined;
+  const applyPrompt = (raw as any).applyPrompt ?? (raw as any).apply_prompt ?? null;
+  const referenceCard = (raw as any).referenceCard ?? (raw as any).reference_card ?? undefined;
+  const variations = (raw as any).variations ?? undefined;
+  const describeTargets = (raw as any).describeTargets ?? (raw as any).describe_targets ?? undefined;
+  const questions = (raw as any).questions ?? undefined;
+  return {
+    applyPrompt,
+    referenceCard,
+    variations,
+    describeTargets,
+    questions,
+  };
 };
 
 export const useAiAgent = ({ initialMessages = [], enabled = true, conversationId, persist = true }: UseAiAgentOptions = {}) => {
@@ -86,35 +101,25 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
         }
 
         let data = (await response.json()) as AgentResponse;
-        let actions = data?.actions;
-
-        // Fallback: if agent didn’t supply apply_prompt, run refine to keep UX unblocked.
-        if (!actions?.apply_prompt) {
-          const refined = await postGeneratePrompt(trimmed);
-          if (refined?.prompt) {
-            actions = {
-              ...actions,
-              apply_prompt: refined.prompt,
-              reference_card: { title: actions?.reference_card?.title ?? "Refined Prompt", prompt: refined.prompt },
-            };
-            data = { ...data, actions };
-          }
-        }
+        let actions = normalizeActions(data?.actions);
 
         if (data?.canonicalPrompt) {
           canonicalPromptRef.current = data.canonicalPrompt;
-        } else if (actions?.apply_prompt) {
-          canonicalPromptRef.current = actions.apply_prompt ?? null;
+        } else if (actions?.applyPrompt) {
+          canonicalPromptRef.current = actions.applyPrompt ?? null;
         }
 
-        const assistantContent = actions?.apply_prompt ?? data?.message ?? "";
-        const assistantMessage: AgentMessage = {
-          role: "assistant",
-          content: assistantContent,
-        };
-        const nextAssistantMessages = [...messagesRef.current.slice(-23), assistantMessage];
-        setMessages(nextAssistantMessages);
-        messagesRef.current = nextAssistantMessages;
+        // The agent’s role here is to refine/iterate prompts. Always surface the refined prompt in the chat thread.
+        const applyPromptText = actions?.applyPrompt?.trim() ?? "";
+        const messageText = data?.message?.trim() ?? "";
+        const assistantContent = applyPromptText || messageText;
+
+        if (assistantContent) {
+          const assistantMessage: AgentMessage = { role: "assistant", content: assistantContent };
+          const nextAssistantMessages = [...messagesRef.current.slice(-23), assistantMessage];
+          setMessages(nextAssistantMessages);
+          messagesRef.current = nextAssistantMessages;
+        }
         return { response: data ?? null, actions };
       } catch (err) {
         setError(typeof err === "string" ? err : "Agent request failed");
@@ -135,5 +140,13 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
     [messages, isSending, error],
   );
 
-  return { ...state, send };
+  const reset = useCallback(() => {
+    setMessages([]);
+    messagesRef.current = [];
+    canonicalPromptRef.current = null;
+    conversationIdRef.current = randomId();
+    setError(null);
+  }, []);
+
+  return { ...state, send, reset };
 };

@@ -87,8 +87,6 @@ type AgentChatProps = {
   latestAgentPrompt: string | null;
   onInputChange: (value: string) => void;
   onSend: () => void;
-  onApplyPrompt: (prompt: string) => void;
-  onSelectVariation: (prompt: string) => void;
   onAddToGrid: () => void;
   onUsePrompt: () => void;
   onClose: () => void;
@@ -330,12 +328,9 @@ export function AiStudioPageContent({
                   <div className="preview-column-header">
                     <div>
                       <p className="eyebrow">Agent Chat</p>
-                      <p className="tiny subdued helper-text">Iterate with the agent, then add to the grid.</p>
+                      <p className="tiny subdued helper-text">Click a chat bubble to add that text to the reference grid as a new prompt.</p>
                     </div>
                     <div className="preview-header-actions">
-                      <button type="button" className="ghost-btn mini" onClick={agentChat.onUsePrompt} disabled={!agentChat.latestAgentPrompt}>
-                        Use prompt
-                      </button>
                       <button
                         type="button"
                         className="ghost-btn mini"
@@ -344,23 +339,20 @@ export function AiStudioPageContent({
                       >
                         Add to grid
                       </button>
-                      <button type="button" className="ghost-btn mini" onClick={agentChat.onClose}>
-                        Close
+                      <button type="button" className="ghost-btn mini agent-chat-close-btn" onClick={agentChat.onClose} aria-label="Close agent chat">
+                        ×
                       </button>
                     </div>
                   </div>
-                  <AgentChatPanel
-                    messages={agentChat.agentMessages}
-                    input={agentChat.agentInput}
-                    actions={agentChat.agentActions}
-                    sendLabel="Send"
-                    isSending={agentChat.agentIsSending}
-                    onInputChange={agentChat.onInputChange}
-                    onSend={agentChat.onSend}
-                    onApplyPrompt={agentChat.onApplyPrompt}
-                    onSelectVariation={agentChat.onSelectVariation}
-                    onMessageClick={agentChat.onMessageClick}
-                  />
+                    <AgentChatPanel
+                      messages={agentChat.agentMessages}
+                      input={agentChat.agentInput}
+                      sendLabel="Send"
+                      isSending={agentChat.agentIsSending}
+                      onInputChange={agentChat.onInputChange}
+                      onSend={agentChat.onSend}
+                      onMessageClick={agentChat.onMessageClick}
+                    />
                 </div>
               ) : (
                 <>

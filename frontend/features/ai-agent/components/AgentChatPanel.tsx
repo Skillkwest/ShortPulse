@@ -3,10 +3,9 @@
  * UI stays minimal so existing panel styles remain dominant.
  */
 import React, { useCallback, useEffect, useRef } from "react";
-import { Sparkle } from "phosphor-react";
 import { AgentSendButton } from "./AgentSendButton";
 import { AgentInputBar } from "./AgentInputBar";
-import type { AgentActions, AgentMessage } from "../types";
+import type { AgentMessage } from "../types";
 
 type AgentChatPanelProps = {
   messages: AgentMessage[];
@@ -14,33 +13,12 @@ type AgentChatPanelProps = {
   sendLabel?: string;
   disabled?: boolean;
   isSending?: boolean;
-  actions?: AgentActions;
   stagedPrompt?: string | null;
   showMessages?: boolean;
-  showActions?: boolean;
   showInput?: boolean;
   onInputChange: (value: string) => void;
   onSend: () => void;
-  onApplyPrompt?: (prompt: string) => void;
-  onSelectVariation?: (prompt: string) => void;
   onMessageClick?: (message: AgentMessage) => void;
-};
-
-const renderAssistantActions = (
-  actions: AgentActions | undefined,
-  handlers: { onApplyPrompt?: (prompt: string) => void; onSelectVariation?: (prompt: string) => void },
-) => {
-  if (!actions) return null;
-  const { applyPrompt } = actions;
-  return (
-    <div className="agent-actions-row">
-      {applyPrompt ? (
-        <button type="button" className="primary-btn mini" onClick={() => handlers.onApplyPrompt?.(applyPrompt)}>
-          <Sparkle size={14} weight="fill" /> Apply prompt
-        </button>
-      ) : null}
-    </div>
-  );
 };
 
 export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
@@ -49,15 +27,11 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   sendLabel = "Send",
   disabled = false,
   isSending = false,
-  actions,
   stagedPrompt = null,
   showMessages = true,
-  showActions = true,
   showInput = true,
   onInputChange,
   onSend,
-  onApplyPrompt,
-  onSelectVariation,
   onMessageClick,
 }) => {
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -90,14 +64,13 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
 
   return (
     <div className="agent-chat-panel">
-      {showMessages ? (
+      {showMessages && (stagedPrompt || messages.length > 0) ? (
         <div className="agent-messages" aria-live="polite" ref={messagesRef}>
           {stagedPrompt ? (
             <div className="agent-message agent-assistant">
               <p className="tiny">{stagedPrompt}</p>
             </div>
           ) : null}
-          {messages.length === 0 ? <p className="tiny subdued helper-text">Ask the agent for a prompt or describe a reference.</p> : null}
           {messages.map((message, index) => {
             const isClickable = Boolean(onMessageClick);
             const key = message.id || `${message.role}-${index}-${message.content.slice(0, 12)}`;
@@ -116,7 +89,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           })}
         </div>
       ) : null}
-      {showActions ? renderAssistantActions(actions, { onApplyPrompt, onSelectVariation }) : null}
       {isSending ? <p className="agent-thinking" aria-live="polite">Thinking…</p> : null}
       {showInput ? (
         <div className="agent-input-row pill-agent-input-row">
@@ -126,8 +98,11 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
             placeholder="Tell the agent what you want or ask it to describe a reference."
             disabled={disabled}
             className="agent-input-prefab-inline"
+            thinking={isSending}
           />
-          <AgentSendButton onClick={onSend} disabled={disabled || isSending} ariaLabel="Send message" />
+          <div className="agent-inline-actions">
+            <AgentSendButton onClick={onSend} disabled={disabled || isSending} ariaLabel={sendLabel} />
+          </div>
         </div>
       ) : null}
     </div>

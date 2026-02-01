@@ -29,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const visionModel = process.env.OPENAI_VISION_MODEL || "gpt-4.1-nano";
+    const visionModel = process.env.OPENAI_VISION_MODEL || "gpt-4.1";
     const response = await fetch(OPENAI_URL, {
       method: "POST",
       headers: {

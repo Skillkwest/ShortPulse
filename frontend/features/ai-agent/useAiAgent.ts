@@ -17,6 +17,8 @@ type UseAiAgentOptions = {
 
 type SendParams = {
   text: string;
+  payloadText?: string;
+  previousPrompt?: string | null;
   context?: AgentContext;
 };
 
@@ -66,7 +68,7 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
   }, [messages]);
 
   const send = useCallback(
-    async ({ text, context }: SendParams): Promise<SendResult> => {
+    async ({ text, payloadText, previousPrompt, context }: SendParams): Promise<SendResult> => {
       if (!enabled) {
         setError("Agent is disabled");
         return { response: null, actions: undefined };
@@ -76,16 +78,25 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
         return { response: null, actions: undefined };
       }
 
-      const userMessage: AgentMessage = { role: "user", content: trimmed };
-      const nextMessages = [...messagesRef.current, userMessage].slice(-24);
-      setMessages(nextMessages);
-      messagesRef.current = nextMessages;
+      // UI-visible history (keep the user's raw text)
+      const uiUserMessage: AgentMessage = { role: "user", content: trimmed };
+      const nextUiMessages = [...messagesRef.current, uiUserMessage].slice(-24);
+      setMessages(nextUiMessages);
+      messagesRef.current = nextUiMessages;
       setIsSending(true);
       setError(null);
 
       try {
+      const userPayload = payloadText?.trim() || trimmed;
+      const baseHistory = messagesRef.current.slice(-12); // small window for API
+      const syntheticPrev =
+        previousPrompt && previousPrompt.trim().length
+          ? ({ role: "assistant", content: previousPrompt.trim() } as AgentMessage)
+          : null;
+        const apiMessages = [...baseHistory, ...(syntheticPrev ? [syntheticPrev] : []), { role: "user", content: userPayload }];
+
         const body: AgentApiRequest = {
-          messages: nextMessages.length ? nextMessages : messagesRef.current,
+          messages: apiMessages,
           context: context ? buildAgentContext(context) : undefined,
           conversationId: conversationIdRef.current,
         };

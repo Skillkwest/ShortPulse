@@ -34,6 +34,10 @@ export type AgentContext = {
   media?: AgentMediaPreview[];
   creditBalance?: number | null;
   selectedReferenceIds?: string[];
+  focusedSource?: "image" | "prompt" | "agent-output";
+  focusedReferenceId?: string | null;
+  lastAssistantMessage?: string | null;
+  modeHint?: "chat" | "enhance" | "describe";
 };
 
 export type AgentActions = {

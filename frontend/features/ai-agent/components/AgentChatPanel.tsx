@@ -3,7 +3,9 @@
  * UI stays minimal so existing panel styles remain dominant.
  */
 import React, { useCallback, useEffect, useRef } from "react";
-import { PaperPlaneTilt, Sparkle } from "phosphor-react";
+import { Sparkle } from "phosphor-react";
+import { AgentSendButton } from "./AgentSendButton";
+import { AgentInputBar } from "./AgentInputBar";
 import type { AgentActions, AgentMessage } from "../types";
 
 type AgentChatPanelProps = {
@@ -117,21 +119,14 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       {showActions ? renderAssistantActions(actions, { onApplyPrompt, onSelectVariation }) : null}
       {showInput ? (
         <div className="agent-input-row pill-agent-input-row">
-          <textarea
-            className="prompt-input agent-step-textarea"
-            rows={3}
+          <AgentInputBar
             value={input}
-            onChange={(event) => onInputChange(event.target.value)}
+            onChange={onInputChange}
             placeholder="Tell the agent what you want or ask it to describe a reference."
+            disabled={disabled}
+            className="agent-input-prefab-inline"
           />
-          <button
-            type="button"
-            className="primary-btn agent-send-btn step2-send-btn"
-            onClick={onSend}
-            disabled={disabled || isSending}
-          >
-            <PaperPlaneTilt size={18} weight="bold" aria-hidden />
-          </button>
+          <AgentSendButton onClick={onSend} disabled={disabled || isSending} ariaLabel="Send message" />
         </div>
       ) : null}
     </div>

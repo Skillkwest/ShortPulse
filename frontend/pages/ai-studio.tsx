@@ -8,13 +8,14 @@ import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPa
 import { aspectOptions, modelOptions } from "../features/ai-studio/constants";
 import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
 import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWorkflow";
-import { ToolId } from "../features/ai-studio/types";
+import { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { buildDefaultPricingParams, getModelConfig } from "../features/ai-studio/logic/pricing";
 import type { PricingParams } from "../features/ai-studio/logic/pricingTypes";
 import { useAiAgent } from "../features/ai-agent/useAiAgent";
 import type { AgentActions, AgentMessage } from "../features/ai-agent/types";
 import { postGeneratePrompt } from "../features/ai-studio/logic/promptGeneration";
+import { postDescribeImage, prepareImageUrl } from "../features/ai-studio/logic/imageDescription";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
 import { filterModelOptions } from "../features/ai-studio/logic/stateParsers";
 
@@ -116,6 +117,10 @@ export default function AiStudioPage() {
   const [agentActions, setAgentActions] = useState<AgentActions | undefined>(undefined);
   const [isAgentChatOpen, setIsAgentChatOpen] = useState(false);
   const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
+  const latestAssistantMessage = useMemo(
+    () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
+    [agentMessages],
+  );
   const handleOpenModelModal = (anchorId: string, target: HTMLElement) => {
     openModelModal(anchorId, target);
   };
@@ -134,7 +139,7 @@ export default function AiStudioPage() {
 
   const handleAgentSend = async (
     textOverride?: string,
-    options?: { captureResult?: boolean },
+    options?: { captureResult?: boolean; selectedOverride?: StudioOutput | null; modeHint?: "chat" | "enhance" | "describe" },
   ): Promise<{ prompt: string; referenceTitle?: string | null } | void> => {
     const rawInput = typeof textOverride === "string" ? textOverride : agentInput;
     const trimmed = rawInput.trim();
@@ -144,7 +149,41 @@ export default function AiStudioPage() {
     if (!trimmed) {
       setAgentInput(fallback);
     }
-    let { actions } = await sendToAgent({ text: fallback, context: getAgentContext() });
+    const baseContext = getAgentContext({
+      lastAssistantMessage: latestAssistantMessage,
+      selectedOverride: options?.selectedOverride,
+      modeHint: options?.modeHint,
+    });
+    if (latestAgentPrompt) {
+      baseContext.activePrompt = latestAgentPrompt;
+      baseContext.lastAssistantMessage = latestAgentPrompt;
+    }
+    let mediaPatchedContext = baseContext;
+
+    if (baseContext.focusedSource === "image" && activeOutput?.previewUrl && !activeOutput?.previewUrl.startsWith("https://")) {
+      // Convert blob/object URLs to data URLs for vision payloads.
+      const safeUrl = await prepareImageUrl(activeOutput.previewUrl);
+      if (safeUrl) {
+        mediaPatchedContext = {
+          ...baseContext,
+          media: [
+            {
+              id: activeOutput.id,
+              kind: "image",
+              dataUrl: safeUrl,
+              url: activeOutput.previewUrl,
+              thumbnailAlt: activeOutput.prompt ?? activeOutput.previewText ?? null,
+            },
+          ],
+        };
+      }
+    }
+
+    let { actions } = await sendToAgent({
+      text: fallback,
+      previousPrompt: latestAgentPrompt ?? null,
+      context: mediaPatchedContext,
+    });
     let refinedPrompt: string | null = null;
 
     // If the agent didn't return an apply_prompt, fall back to prompt refinement to keep the flow unblocked.
@@ -173,6 +212,90 @@ export default function AiStudioPage() {
     }
   };
 
+  const handleAgentEnhanceSend = async () => {
+    if (!prompt.trim()) return;
+    // Primary: dedicated prompt refiner
+    const refined = await postGeneratePrompt(prompt);
+    if (refined?.prompt) {
+      setPrompt(refined.prompt);
+      setLatestAgentPrompt(refined.prompt);
+      addAgentPromptReference(refined.prompt, refined.prompt ? "Refined prompt" : undefined);
+      return;
+    }
+    // Fallback: chat agent with enhance hint
+    await handleAgentSend(prompt, { captureResult: true, modeHint: "enhance" }).then((result) => {
+      if (result?.prompt) {
+        addAgentPromptReference(result.prompt, result.referenceTitle);
+      }
+    });
+  };
+
+  const handleDescribeReference = async (outputId: string) => {
+    if (!outputId) return;
+    const target = outputs.find((item) => item.id === outputId) ?? null;
+    setActiveOutputId(outputId);
+    if (!target?.previewUrl) return;
+
+    // Primary: dedicated describe-image endpoint
+    const safeUrl = await prepareImageUrl(target.previewUrl);
+    const described = safeUrl ? await postDescribeImage(safeUrl) : null;
+    if (described?.description) {
+      addAgentPromptReference(described.description, "Image describe");
+      setPrompt(described.description);
+      setLatestAgentPrompt(described.description);
+      return;
+    }
+
+    // Fallback: chat agent with describe hint
+    const result = await handleAgentSend("Describe this image", {
+      captureResult: true,
+      selectedOverride: target,
+      modeHint: "describe",
+    });
+    if (result?.prompt) {
+      addAgentPromptReference(result.prompt, result.referenceTitle);
+      setPrompt(result.prompt);
+      setLatestAgentPrompt(result.prompt);
+    }
+  };
+
+  const handleDownloadReference = (outputId: string) => {
+    const target = outputs.find((item) => item.id === outputId);
+    if (!target?.previewUrl || typeof window === "undefined") return;
+    const link = document.createElement("a");
+    link.href = target.previewUrl;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.download = target.prompt || "reference";
+    link.click();
+  };
+
+  const handleSaveReference = (outputId: string) => {
+    if (!outputId) return;
+    setActiveOutputId(outputId);
+    // Reuse existing persistence hook; assumes active output save writes to media library.
+    saveActiveOutput();
+  };
+
+  const handleGenerateFromPromptReference = async (outputId: string) => {
+    const target = outputs.find((item) => item.id === outputId);
+    const promptText = target?.prompt ?? target?.previewText ?? "";
+    if (!promptText.trim()) return;
+    setActiveOutputId(outputId);
+    setSelectedTool("create");
+    setMode("image");
+    if (target?.modelId) {
+      setModel(target.modelId);
+    }
+    setPrompt(promptText);
+    setLatestAgentPrompt(promptText);
+    handleGenerate(promptText, {
+      modeOverride: "image",
+      toolOverride: "create",
+      costOverrideCredits: promptGenerateCostCredits ?? modelPickerCostCredits ?? currentCostCredits,
+    });
+  };
+
   const handleAgentApplyPrompt = (promptText: string) => {
     setPrompt(promptText);
     setLatestAgentPrompt(promptText);
@@ -185,6 +308,7 @@ export default function AiStudioPage() {
   const handleAgentMessageClick = useCallback(
     (message: AgentMessage) => {
       addAgentPromptReference(message.content);
+      setIsAgentChatOpen(false);
     },
     [addAgentPromptReference],
   );
@@ -307,7 +431,16 @@ export default function AiStudioPage() {
     [mode, selectedTool],
   );
 
-  const { currentCostCredits, hasSufficientCreditsForCost, generationGuardrail, isGenerateDisabled, modelConfig } =
+  const {
+    currentCostCredits,
+    modelPickerCostCredits,
+    promptGenerateCostCredits,
+    describeCostCredits,
+    hasSufficientCreditsForCost,
+    generationGuardrail,
+    isGenerateDisabled,
+    modelConfig,
+  } =
     useAiStudioViewModel({
       mode,
       model,
@@ -329,22 +462,33 @@ export default function AiStudioPage() {
     }
   };
 
-  const handleGenerate = () => {
-    if (isGenerateDisabled) {
+  const handleGenerate = (
+    promptOverride?: string | null,
+    options?: { modeOverride?: StudioMode; toolOverride?: ToolId | null; costOverrideCredits?: number | null },
+  ) => {
+    const effectiveMode = options?.modeOverride ?? mode;
+    const effectiveTool = options?.toolOverride ?? selectedTool;
+    const costToDebit = options?.costOverrideCredits ?? currentCostCredits;
+    const hasCreditsForDebit =
+      costToDebit == null || balanceCredits == null ? true : balanceCredits >= costToDebit;
+
+    if (!options && isGenerateDisabled) {
       handleBlockedGeneration();
       return;
     }
+
     if (
-      selectedTool === "create" &&
-      (mode === "image" || mode === "video") &&
-      currentCostCredits &&
+      effectiveTool === "create" &&
+      (effectiveMode === "image" || effectiveMode === "video") &&
+      costToDebit &&
       model &&
-      hasSufficientCreditsForCost
+      hasCreditsForDebit
     ) {
       const memo = `${modelConfig?.label ?? model} generation`;
-      debit(currentCostCredits, memo, `out-${Date.now()}`).catch(() => {});
+      debit(costToDebit, memo, `out-${Date.now()}`).catch(() => {});
     }
-    generateOutput();
+
+    generateOutput(promptOverride, { modeOverride: effectiveMode, selectedToolOverride: effectiveTool });
   };
 
   const handlePrimarySubmit = () => {
@@ -387,6 +531,7 @@ export default function AiStudioPage() {
     stagedPrompt: latestAgentPrompt,
     onAgentInputChange: setAgentInput,
     onAgentSend: handleAgentSend,
+    onAgentEnhanceSend: handleAgentEnhanceSend,
     onAgentApplyPrompt: handleAgentApplyPrompt,
     onAgentSelectVariation: handleAgentSelectVariation,
     onAgentMessageClick: handleAgentMessageClick,
@@ -404,6 +549,7 @@ export default function AiStudioPage() {
     isGenerateDisabled,
     guardrailReason: generationGuardrail,
     onExpandChat: handleExpandChat,
+    onCloseAgentChat: handleCloseAgentChat,
     shouldDisableSave: useReferenceImageIndicator && mode === "enhance",
     onGenerate: handlePrimarySubmit,
     onSavePrompt: savePromptReference,
@@ -435,7 +581,7 @@ export default function AiStudioPage() {
         showEditTools={showEditTools}
         onSelectTool={handleToolSelect}
         onToggleEditTools={setShowEditTools}
-        propertiesCreate={propertiesCreate}
+    propertiesCreate={propertiesCreate}
         propertiesCharacter={{
           identity,
           aspect: characterAspect,
@@ -523,6 +669,12 @@ export default function AiStudioPage() {
           showHeader: false,
           onSelectOutput: setActiveOutputId,
           onOpenDetails: setDetailOutputId,
+          onDescribeImage: (output) => handleDescribeReference(output.id),
+          onSaveToLibrary: (output) => handleSaveReference(output.id),
+          onDownload: (output) => handleDownloadReference(output.id),
+          onGeneratePrompt: (output) => handleGenerateFromPromptReference(output.id),
+          generateCostCredits: promptGenerateCostCredits,
+          describeCostCredits,
         }}
         studioPreviewProps={{
           activeOutput,

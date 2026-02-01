@@ -4,7 +4,7 @@
  */
 import Link from "next/link";
 import React, { useCallback, useState } from "react";
-import { CloudArrowUp, UploadSimple } from "phosphor-react";
+import { CloudArrowUp, DownloadSimple, Sparkle, UploadSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
 
@@ -18,6 +18,12 @@ type ReferenceCanvasProps = {
   onOpenDetails: (id: string) => void;
   onDropFiles?: (files: FileList) => void;
   onTriggerFileSelect?: () => void;
+  onDescribeImage?: (output: StudioOutput) => void;
+  onSaveToLibrary?: (output: StudioOutput) => void;
+  onDownload?: (output: StudioOutput) => void;
+  onGeneratePrompt?: (output: StudioOutput) => void;
+  generateCostCredits?: number | null;
+  describeCostCredits?: number | null;
 };
 
 /**
@@ -31,6 +37,12 @@ export function ReferenceCanvas({
   onOpenDetails,
   onDropFiles,
   onTriggerFileSelect,
+  onDescribeImage,
+  onSaveToLibrary,
+  onDownload,
+  onGeneratePrompt,
+  generateCostCredits,
+  describeCostCredits,
 }: ReferenceCanvasProps) {
   const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
 
@@ -62,11 +74,11 @@ export function ReferenceCanvas({
     }
   };
 
-  const handleCardDragStart = (event: React.DragEvent<HTMLButtonElement>, item: StudioOutput) => {
+  const handleCardDragStart = (event: React.DragEvent<HTMLElement>, item: StudioOutput) => {
     prepareReferenceDrag(event, item, { dragImage: event.currentTarget as HTMLElement });
   };
 
-  const handleCardDragEnd = (event: React.DragEvent<HTMLButtonElement>) => {
+  const handleCardDragEnd = (event: React.DragEvent<HTMLElement>) => {
     clearDragState(event);
   };
 
@@ -118,14 +130,23 @@ export function ReferenceCanvas({
               const showSpinner = isLoading || (!isLoaded && !item.previewText);
 
               const isVideoPreview = item.previewUrl ? isVideoUrl(item.previewUrl) : false;
+              const isImagePreview = item.previewUrl ? !isVideoPreview : false;
+              const isPromptOnly = !item.previewUrl && !!item.previewText;
               const cardStyle = !isVideoPreview && item.previewUrl ? { backgroundImage: `url(${item.previewUrl})` } : undefined;
               return (
-                <button
+                <div
                   key={item.id}
-                  type="button"
                   className={`reference-card ${item.previewUrl ? "has-preview" : ""} ${isVideoPreview ? "has-video" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""}`}
                   style={cardStyle}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onSelectOutput(item.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelectOutput(item.id);
+                    }
+                  }}
                   onDoubleClick={() => onOpenDetails(item.id)}
                   draggable={!!item.previewUrl || !!item.previewText}
                   onDragStart={(event) => {
@@ -158,6 +179,38 @@ export function ReferenceCanvas({
                       <div className="reference-spinner" />
                     </div>
                   ) : null}
+                  {(onSaveToLibrary && (isImagePreview || isPromptOnly)) || (onDownload && isImagePreview) ? (
+                    <div className="reference-card-actions" aria-label="Reference actions">
+                      {onSaveToLibrary ? (
+                        <button
+                          type="button"
+                          className="reference-card-action-btn"
+                          aria-label="Save to media library"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onSelectOutput(item.id);
+                            onSaveToLibrary(item);
+                          }}
+                        >
+                          <CloudArrowUp size={16} weight="bold" aria-hidden />
+                        </button>
+                      ) : null}
+                      {onDownload && isImagePreview ? (
+                        <button
+                          type="button"
+                          className="reference-card-action-btn"
+                          aria-label="Download reference"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onSelectOutput(item.id);
+                            onDownload(item);
+                          }}
+                        >
+                          <DownloadSimple size={16} weight="bold" aria-hidden />
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {!isVideoPreview && item.previewUrl ? (
                     <img
                       src={item.previewUrl}
@@ -168,7 +221,45 @@ export function ReferenceCanvas({
                     />
                   ) : null}
                   {item.previewText ? <div className="reference-card-text">{item.previewText}</div> : null}
-                </button>
+                  {isImagePreview && onDescribeImage ? (
+                    <button
+                      type="button"
+                      className="reference-describe-pill"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSelectOutput(item.id);
+                        onDescribeImage(item);
+                      }}
+                    >
+                      <span className="reference-pill-label">
+                        <Sparkle size={14} weight="fill" aria-hidden />
+                        <span>Describe</span>
+                        {typeof describeCostCredits === "number" ? (
+                          <span className="reference-pill-cost">+{describeCostCredits}</span>
+                        ) : null}
+                      </span>
+                    </button>
+                  ) : null}
+                  {isPromptOnly && onGeneratePrompt ? (
+                    <button
+                      type="button"
+                      className="reference-generate-pill"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSelectOutput(item.id);
+                        onGeneratePrompt(item);
+                      }}
+                    >
+                      <span className="reference-pill-label">
+                        <Sparkle size={14} weight="fill" aria-hidden />
+                        <span>Generate</span>
+                        {typeof generateCostCredits === "number" ? (
+                          <span className="reference-pill-cost">+{generateCostCredits}</span>
+                        ) : null}
+                      </span>
+                    </button>
+                  ) : null}
+                </div>
               );
             })
           )}

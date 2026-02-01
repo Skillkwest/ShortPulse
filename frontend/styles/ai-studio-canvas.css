@@ -103,6 +103,149 @@
   z-index: 2;
 }
 
+.reference-card .reference-describe-pill {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--ai-accent-start, rgba(52, 200, 255, 0.9)), var(--ai-accent, rgba(37, 169, 191, 0.95)));
+  color: #0b1820;
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1.1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 24px rgba(37, 169, 191, 0.35);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+  z-index: 3;
+}
+
+.reference-card .reference-generate-pill {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--ai-accent-start, rgba(52, 200, 255, 0.9)), var(--ai-accent, rgba(37, 169, 191, 0.95)));
+  color: #0b1820;
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1.1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 24px rgba(37, 169, 191, 0.35);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.reference-pill-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reference-pill-cost {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(12, 18, 26, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: inherit;
+}
+
+.reference-card:hover .reference-generate-pill {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reference-card .reference-generate-pill:hover {
+  box-shadow: 0 14px 30px rgba(37, 169, 191, 0.45);
+}
+
+.reference-card .reference-generate-pill:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 2px;
+}
+
+.reference-card:hover .reference-describe-pill {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.reference-card .reference-describe-pill:hover {
+  box-shadow: 0 14px 30px rgba(37, 169, 191, 0.45);
+}
+
+.reference-card .reference-describe-pill:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 2px;
+}
+
+.reference-card-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 6px;
+  z-index: 3;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  pointer-events: none;
+}
+
+.reference-card:hover .reference-card-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.reference-card-action-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(18, 22, 32, 0.9);
+  color: #f5f9ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;
+}
+
+.reference-card-action-btn:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: linear-gradient(135deg, rgb(37, 168, 191), rgb(52, 201, 255));
+  color: #e7f6ff;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 12px 22px rgba(37, 169, 191, 0.45);
+}
+
+.reference-card-action-btn:focus-visible {
+  outline: 2px solid rgba(52, 200, 255, 0.9);
+  outline-offset: 2px;
+}
+
 .reference-card.has-text {
   display: flex;
   align-items: flex-start;

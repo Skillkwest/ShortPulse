@@ -46,13 +46,16 @@ type CreateSectionProps = {
   isGenerateDisabled: boolean;
   guardrailReason: string | null;
   shouldDisableSave: boolean;
+  onStepActionClick?: (step: "mode" | "model" | "prompt") => void;
   onModeChange: (mode: StudioMode) => void;
   onAspectChange: (value: string) => void;
   onModelPickerOpen: (anchorId: string, target: HTMLElement) => void;
   onPromptChange: (value: string) => void;
   onToggleReferenceIndicator: () => void;
+  onCloseAgentChat?: () => void;
   onAgentInputChange: (value: string) => void;
   onAgentSend: () => void;
+  onAgentEnhanceSend?: () => void;
   onAgentApplyPrompt: (prompt: string) => void;
   onAgentSelectVariation: (prompt: string) => void;
   onAgentMessageClick: (message: AgentMessage) => void;
@@ -175,6 +178,7 @@ export function AiStudioPageContent({
           <CreatePropertiesPanel
             {...propertiesCreate}
             agentChatOpen={agentChat.isOpen}
+            onAgentEnhanceSend={propertiesCreate.onAgentEnhanceSend}
           />
           {propertiesCreate.mode !== "enhance" ? (
             <ComposeSendCard

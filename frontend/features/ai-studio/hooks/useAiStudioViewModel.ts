@@ -92,6 +92,19 @@ export const useAiStudioViewModel = ({
   ]);
 
   const currentCostCredits = currentCost?.credits ?? null;
+  // Cost shown in the model picker (and what we also want on prompt-card Generate pills)
+  const modelPickerCostCredits = useMemo(() => {
+    if (!model) return null;
+    const breakdown = computeCostForModel(model, costParamsForModel());
+    return breakdown?.credits ?? null;
+  }, [model, costParamsForModel]);
+
+  const promptGenerateCostCredits = useMemo(() => {
+    if (!model) return null;
+    const breakdown = computeCostForModel(model, costParamsForModel({ aspect }));
+    return breakdown?.credits ?? null;
+  }, [aspect, costParamsForModel, model]);
+
   const costedFlow =
     (selectedTool === "create" && (mode === "image" || mode === "video")) || selectedTool === "image-to-video";
   const hasReferenceImages = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
@@ -140,11 +153,20 @@ export const useAiStudioViewModel = ({
   ]);
 
   const isGenerateDisabled = Boolean(generationGuardrail);
+  const describeCostCredits = useMemo(() => {
+    const breakdown = computeCostForModel(TEXT_PROMPT_MODEL_ID, estimateDescribeTokens());
+    return breakdown?.credits ?? null;
+    // estimateDescribeTokens is stable; no dependencies needed
+  }, []);
+
   const modelConfig = useMemo(() => (model ? getModelConfig(model) : null), [model]);
 
   return {
     currentCost,
     currentCostCredits,
+    modelPickerCostCredits,
+    promptGenerateCostCredits,
+    describeCostCredits,
     hasSufficientCreditsForCost,
     generationGuardrail,
     isGenerateDisabled,

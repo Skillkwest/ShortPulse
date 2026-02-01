@@ -49,12 +49,10 @@ const safeContext = (context?: AgentContext): AgentContext => {
   const media =
     context.media
       ?.filter((item) => {
+        // Only allow images for vision payloads; videos are excluded.
+        if (item?.kind && item.kind !== "image") return false;
         const isDataUrl = typeof item?.dataUrl === "string" && item.dataUrl.startsWith("data:");
-        const isHttpsUrl =
-          typeof item?.url === "string" &&
-          item.url.startsWith("https://") &&
-          !item.url.toLowerCase().includes("x-amz-signature") &&
-          !item.url.toLowerCase().includes("token=");
+        const isHttpsUrl = typeof item?.url === "string" && item.url.startsWith("https://");
         if (!isDataUrl && !isHttpsUrl) return false;
         if (isDataUrl && estimateBase64Bytes(item.dataUrl as string) > MAX_IMAGE_BYTES) return false;
         return true;
@@ -69,6 +67,10 @@ const safeContext = (context?: AgentContext): AgentContext => {
     references: Array.isArray(context.references) ? context.references.slice(0, 24) : [],
     media,
     selectedReferenceIds: Array.isArray(context.selectedReferenceIds) ? context.selectedReferenceIds.slice(0, 8) : [],
+    focusedSource: context.focusedSource ?? undefined,
+    focusedReferenceId: context.focusedReferenceId ?? null,
+    lastAssistantMessage: context.lastAssistantMessage ?? null,
+    modeHint: context.modeHint ?? undefined,
   };
 };
 

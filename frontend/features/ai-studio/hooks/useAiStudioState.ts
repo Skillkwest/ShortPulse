@@ -34,7 +34,7 @@ import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel, falSizeForAspect, 
 import { postGeneratePrompt, TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { postDescribeImage, prepareImageUrl } from "../logic/imageDescription";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
-import type { AgentContext } from "../../ai-agent/types";
+import type { AgentContext, AgentMediaPreview, AgentReferenceSummary } from "../../ai-agent/types";
 import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
 import {
   Provider,
@@ -42,8 +42,6 @@ import {
   extractFalMediaUrls,
   extractResultUrls,
   isVideoUrl,
-  mapAgentMedia,
-  mapAgentReferences,
   normalizeAspectForFalNanoBanana,
   normalizeAspectForFalNanoBananaPro,
   normalizeAspectForKei,
@@ -342,10 +340,17 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
 
 
   const submitTask = useCallback(
-    async (promptText: string, imageInputs: string[]) => {
+    async (
+      promptArg: string | null | undefined,
+      imageInputs: string[],
+      options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null },
+    ) => {
       setUiError(null);
-      const cleanedPrompt = promptText.trim();
-      if (mode === "enhance") {
+      const effectiveMode = options?.modeOverride ?? mode;
+      const effectiveTool = options?.selectedToolOverride ?? selectedTool;
+      const cleanedPrompt = (promptArg ?? prompt).trim();
+
+      if (effectiveMode === "enhance") {
         // Enhance (text prompt) is handled exclusively by the chat agent upstream.
         // Avoid invoking legacy refine/describe pipelines from here.
         setIsPromptGenerating(false);
@@ -392,7 +397,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         )
       ).filter((url): url is string => Boolean(url));
       const pulseReferenceImageUrl =
-        selectedTool === "image-to-image" && preparedImageInputs.length > 0
+        effectiveTool === "image-to-image" && preparedImageInputs.length > 0
           ? preparedImageInputs[0]
           : undefined;
       const falReferencePayload = pulseReferenceImageUrl ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) } : {};
@@ -400,7 +405,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const nextOutput: StudioOutput = {
         id,
         prompt: cleanedPrompt,
-        mode,
+        mode: effectiveMode,
         aspect,
         model: modelLabel,
         modelId: model,
@@ -819,6 +824,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       notifyGenerationFailure,
       onDebitCredits,
       outputs,
+      prompt,
       referenceImageUrl,
       selectedTool,
       startPollingTask,
@@ -827,10 +833,18 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     ],
   );
 
-  const generateOutput = useCallback(() => {
-    const imageInputs = [referenceImageUrl, ...extraImageUrls].filter((url): url is string => Boolean(url)).slice(0, 8);
-    submitTask(prompt, imageInputs);
-  }, [extraImageUrls, prompt, referenceImageUrl, submitTask]);
+  const generateOutput = useCallback(
+    (
+      promptOverride?: string | null,
+      options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null },
+    ) => {
+      const imageInputs = [referenceImageUrl, ...extraImageUrls]
+        .filter((url): url is string => Boolean(url))
+        .slice(0, 8);
+      submitTask(promptOverride ?? prompt, imageInputs, options);
+    },
+    [extraImageUrls, prompt, referenceImageUrl, submitTask],
+  );
 
   const regenerateOutput = useCallback(() => {
     const promptToUse = referenceText?.trim();
@@ -880,7 +894,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       if (!cleanedPrompt) return;
       const id = `prompt-${randomId()}`;
       const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
-      const previewLabel = title?.trim() || cleanedPrompt;
       const promptReference: StudioOutput = {
         id,
         prompt: cleanedPrompt,
@@ -890,7 +903,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         modelId: model ?? undefined,
         status: "saved",
         timestamp: "Agent",
-        previewText: previewLabel,
+        // Always show the actual prompt text on the reference card.
+        previewText: cleanedPrompt,
       };
       setOutputs((prev) => [promptReference, ...prev]);
       setActiveOutputId(id);
@@ -929,23 +943,82 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     });
   }, []);
 
-  const agentReferences = useMemo(
-    () => mapAgentReferences(outputs, activeOutputId),
-    [outputs, activeOutputId],
+  const getAgentContext = useCallback(
+    (options?: {
+      lastAssistantMessage?: string | null;
+      selectedOverride?: StudioOutput | null;
+      modeHint?: "chat" | "enhance" | "describe";
+    }): AgentContext => {
+      const selected = options?.selectedOverride ?? activeOutput ?? null;
+      const selectedReferenceIds = selected ? [selected.id] : [];
+
+      // Default fallback: rely on the latest assistant output.
+      let focusedSource: AgentContext["focusedSource"] = "agent-output";
+      let focusedReferenceId: string | null = null;
+      let media: AgentMediaPreview[] = [];
+      let references: AgentReferenceSummary[] = [];
+      let activePromptValue: string | null = null;
+
+      if (selected) {
+        focusedReferenceId = selected.id;
+        const hasImage = selected.previewUrl && !isVideoUrl(selected.previewUrl);
+        if (hasImage) {
+          // Vision-first: supply the selected image for description; keep prompt metadata secondary.
+          focusedSource = "image";
+          media = [
+            {
+              id: selected.id,
+              kind: "image",
+              url: selected.previewUrl as string,
+              thumbnailAlt: selected.prompt ?? selected.previewText ?? null,
+            },
+          ];
+          references = [
+            {
+              id: selected.id,
+              kind: "prompt",
+              promptSnippet: selected.prompt ?? selected.previewText ?? null,
+              aspect: selected.aspect ?? null,
+              caption: selected.previewText ?? null,
+            },
+          ];
+        } else {
+          // Prompt-selected (includes video cards; we read prompt text, no media).
+          focusedSource = "prompt";
+          const promptSnippet = selected.prompt ?? selected.previewText ?? null;
+          activePromptValue = promptSnippet;
+          references = promptSnippet
+            ? [
+                {
+                  id: selected.id,
+                  kind: "prompt",
+                  promptSnippet,
+                  aspect: selected.aspect ?? null,
+                  caption: selected.previewText ?? null,
+                },
+              ]
+            : [];
+        }
+      } else {
+        // No selection: use the last assistant chat message if provided.
+        activePromptValue = options?.lastAssistantMessage ?? null;
+      }
+
+      return {
+        activePrompt: activePromptValue,
+        modelId: model,
+        mode,
+        references,
+        media,
+        selectedReferenceIds,
+        focusedSource,
+        focusedReferenceId,
+        lastAssistantMessage: options?.lastAssistantMessage ?? null,
+        modeHint: options?.modeHint ?? undefined,
+      };
+    },
+    [activeOutput, model, mode],
   );
-
-  const agentMedia = useMemo(() => mapAgentMedia(outputs), [outputs]);
-
-  const getAgentContext = useCallback((): AgentContext => {
-    return {
-      activePrompt: prompt || null,
-      modelId: model,
-      mode,
-      references: agentReferences,
-      media: agentMedia,
-      selectedReferenceIds: activeOutputId ? [activeOutputId] : [],
-    };
-  }, [activeOutputId, agentMedia, agentReferences, model, mode, prompt]);
 
   const openModelModal = useCallback((anchorId: string, target: HTMLElement) => {
     setModelModalAnchor(anchorId);

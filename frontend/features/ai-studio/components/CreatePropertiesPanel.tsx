@@ -3,11 +3,23 @@
  * Handles mode selection, aspect/model choices, and prompt entry for generation.
  */
 import React from "react";
-import { ArrowsOutSimple, CloudArrowUp, FloppyDisk, ImageSquare, MagicWand, PaperPlaneTilt, Sparkle, VideoCamera } from "phosphor-react";
+import {
+  ArrowsOutSimple,
+  CaretDown,
+  CloudArrowUp,
+  FloppyDisk,
+  ImageSquare,
+  MagicWand,
+  VideoCamera,
+} from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { StudioMode } from "../types";
 import { modelLogos } from "../constants";
 import { AgentChatPanel } from "../../ai-agent/components/AgentChatPanel";
+import { AgentSendButton } from "../../ai-agent/components/AgentSendButton";
+import { AgentGenerateButton } from "../../ai-agent/components/AgentGenerateButton";
+import { MiniGenerateButton } from "../../ai-agent/components/MiniGenerateButton";
+import { AgentInputBar } from "../../ai-agent/components/AgentInputBar";
 import type { AgentActions, AgentMessage } from "../../ai-agent/types";
 
 type CreatePropertiesPanelProps = {
@@ -40,9 +52,11 @@ type CreatePropertiesPanelProps = {
   isGenerateDisabled?: boolean;
   guardrailReason?: string | null;
   onExpandChat?: () => void;
+  onStepActionClick?: (step: "mode" | "model" | "prompt") => void;
   agentChatOpen?: boolean;
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
+  onAgentEnhanceSend?: () => void;
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentMessageClick?: (message: AgentMessage) => void;
@@ -50,6 +64,7 @@ type CreatePropertiesPanelProps = {
   onSavePrompt: () => void;
   onOpenMediaLibrary?: () => void;
   shouldDisableSave?: boolean;
+  onCloseAgentChat?: () => void;
 };
 
 type ComposeSendCardProps = {
@@ -75,6 +90,30 @@ type ComposeSendCardProps = {
   guardrailReason?: string | null;
   shouldDisableSave?: boolean;
 };
+
+type StepHeaderActionButtonProps = {
+  label: string;
+  isCollapsed?: boolean;
+  onClick: () => void;
+};
+
+const StepHeaderActionButton: React.FC<StepHeaderActionButtonProps> = ({ label, isCollapsed = false, onClick }) => {
+  return (
+    <button
+      type="button"
+      className="ghost-btn mini step-utility-btn"
+      aria-label={label}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      aria-expanded={!isCollapsed}
+    >
+      <CaretDown size={16} weight="bold" aria-hidden />
+    </button>
+  );
+};
+
 const modeIconMap: Record<StudioMode, React.ComponentType<any>> = {
   enhance: MagicWand,
   image: ImageSquare,
@@ -108,8 +147,10 @@ export function CreatePropertiesPanel({
   agentError,
   stagedPrompt = null,
   onExpandChat,
+  onStepActionClick,
   onAgentInputChange,
   onAgentSend,
+  onAgentEnhanceSend,
   onAgentApplyPrompt,
   onAgentSelectVariation,
   onAgentMessageClick,
@@ -124,7 +165,19 @@ export function CreatePropertiesPanel({
   isPromptGenerating = false,
   isGenerateDisabled = false,
   guardrailReason = null,
+  onCloseAgentChat,
 }: CreatePropertiesPanelProps) {
+  const handleEnhancedPromptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
+    event.preventDefault();
+    onAgentEnhanceSend?.();
+  };
+  const handleAgentInputKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
+    event.preventDefault();
+    onAgentSend?.();
+  };
+
   const isEnhanceMode = mode === "enhance";
   const shouldHidePromptStep = isEnhanceMode && useReferenceImageIndicator;
   const showPromptInput = !shouldHidePromptStep;
@@ -134,6 +187,33 @@ export function CreatePropertiesPanel({
   const primaryActionBusyLabel = isEnhanceMode ? "Sending…" : "Generating…";
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">("enhanced");
   const canExpandChat = agentMessages.length > 0;
+  const costValue = costCredits != null ? costCredits : "—";
+  const [collapsedSteps, setCollapsedSteps] = React.useState<{ mode: boolean; model: boolean; prompt: boolean }>({
+    mode: false,
+    model: false,
+    prompt: false,
+  });
+
+  const toggleStep = (step: "mode" | "model" | "prompt") => {
+    setCollapsedSteps((prev) => ({ ...prev, [step]: !prev[step] }));
+    onStepActionClick?.(step);
+  };
+
+  const expandIfCollapsed = (step: "mode" | "model" | "prompt") => {
+    setCollapsedSteps((prev) => {
+      if (!prev[step]) {
+        return prev;
+      }
+      const next = { ...prev, [step]: false };
+      onStepActionClick?.(step);
+      return next;
+    });
+  };
+
+  const handleCostGenerate = () => {
+    onCloseAgentChat?.();
+    onGenerate();
+  };
 
   return (
     <div className="tool-properties">
@@ -141,79 +221,112 @@ export function CreatePropertiesPanel({
         <p className="eyebrow">Create</p>
         <p className="subdued tiny helper-text">Generate new content using text input.</p>
       </div>
-      <div className="step-card">
+      <div
+        className={`step-card ${collapsedSteps.mode ? "is-collapsed" : ""}`}
+        onClick={() => expandIfCollapsed("mode")}
+        role="group"
+        aria-label="Select generation mode section"
+      >
         <div className="step-card-header">
           <span className="step-badge">1</span>
           <div className="step-header-copy">
             <p className="step-title">Select Generation Mode</p>
             <span className="step-subtitle tiny helper-text">Select the output type you want to generate. </span>
           </div>
+          <div className="step-header-actions">
+            <StepHeaderActionButton
+              label="Open generation mode options"
+              isCollapsed={collapsedSteps.mode}
+              onClick={() => toggleStep("mode")}
+            />
+          </div>
         </div>
-        <div className="create-controls top-row mode-toggle-row" role="group" aria-label="Select generation mode">
-          <button
-            type="button"
-            className={`ghost-btn small mode-toggle-btn ${mode === "enhance" ? "is-active" : ""}`}
-            aria-pressed={mode === "enhance"}
-            onClick={() => onModeChange("enhance")}
-          >
-            Text Prompt
-          </button>
-          <button
-            type="button"
-            className={`ghost-btn small mode-toggle-btn ${mode === "image" ? "is-active" : ""}`}
-            aria-pressed={mode === "image"}
-            onClick={() => onModeChange("image")}
-          >
-            Image
-          </button>
-          <button
-            type="button"
-            className={`ghost-btn small mode-toggle-btn ${mode === "video" ? "is-active" : ""}`}
-            aria-pressed={mode === "video"}
-            onClick={() => onModeChange("video")}
-          >
-            Video
-          </button>
-        </div>
+        {!collapsedSteps.mode ? (
+          <div className="create-controls top-row mode-toggle-row" role="group" aria-label="Select generation mode">
+            <button
+              type="button"
+              className={`ghost-btn small mode-toggle-btn ${mode === "enhance" ? "is-active" : ""}`}
+              aria-pressed={mode === "enhance"}
+              onClick={() => onModeChange("enhance")}
+            >
+              Text Prompt
+            </button>
+            <button
+              type="button"
+              className={`ghost-btn small mode-toggle-btn ${mode === "image" ? "is-active" : ""}`}
+              aria-pressed={mode === "image"}
+              onClick={() => onModeChange("image")}
+            >
+              Image
+            </button>
+            <button
+              type="button"
+              className={`ghost-btn small mode-toggle-btn ${mode === "video" ? "is-active" : ""}`}
+              aria-pressed={mode === "video"}
+              onClick={() => onModeChange("video")}
+            >
+              Video
+            </button>
+          </div>
+        ) : null}
       </div>
       {!isEnhanceMode ? (
-        <div className="step-card">
+        <div
+          className={`step-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
+          onClick={() => expandIfCollapsed("model")}
+          role="group"
+          aria-label="Choose frame and model section"
+        >
           <div className="step-card-header">
             <span className="step-badge">2</span>
             <div className="step-header-copy">
               <p className="step-title">Choose frame & model</p>
               <span className="step-subtitle tiny helper-text">Set the aspect ratio, then select the model.</span>
             </div>
-          </div>
-          <div className="create-controls dual-controls">
-            <div className="control-row compact">
-              <label className="input-label">Aspect ratio</label>
-              <AspectDropdown aspect={aspect} onSelect={onAspectChange} />
-            </div>
-            <div className="control-row compact">
-              <label className="input-label">Model</label>
-              <button
-                type="button"
-                className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""}`}
-                data-model-anchor="create-model"
-                onClick={(event) => onModelPickerOpen("create-model", event.currentTarget)}
-              >
-                <div className="model-picker-row">
-                  <span className="model-picker-value">
-                    {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
-                    {modelLabel}
-                  </span>
-                  <span className="model-chip-pill model-picker-pill">
-                    <span aria-hidden="true" className="model-chip-icon">✦</span>
-                    <span className="model-chip-credits">{costCredits != null ? costCredits : "—"}</span>
-                  </span>
-                </div>
-              </button>
+            <div className="step-header-actions">
+              <StepHeaderActionButton
+                label="Open aspect ratio and model options"
+                isCollapsed={collapsedSteps.model}
+                onClick={() => toggleStep("model")}
+              />
             </div>
           </div>
+          {!collapsedSteps.model ? (
+            <div className="create-controls dual-controls">
+              <div className="control-row compact">
+                <label className="input-label">Aspect ratio</label>
+                <AspectDropdown aspect={aspect} onSelect={onAspectChange} />
+              </div>
+              <div className="control-row compact">
+                <label className="input-label">Model</label>
+                <button
+                  type="button"
+                  className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""}`}
+                  data-model-anchor="create-model"
+                  onClick={(event) => onModelPickerOpen("create-model", event.currentTarget)}
+                >
+                  <div className="model-picker-row">
+                    <span className="model-picker-value">
+                      {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
+                      {modelLabel}
+                    </span>
+                    <span className="model-chip-pill model-picker-pill">
+                      <span aria-hidden="true" className="model-chip-icon">✦</span>
+                      <span className="model-chip-credits">{costCredits != null ? costCredits : "—"}</span>
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
-      <div className="step-card prompt-step">
+      <div
+        className={`step-card prompt-step ${collapsedSteps.prompt ? "is-collapsed" : ""}`}
+        onClick={() => expandIfCollapsed("prompt")}
+        role="group"
+        aria-label="Write your prompt section"
+      >
         <div className="step-card-header">
           <span className="step-badge">{promptStepNumber}</span>
           <div className="step-header-copy">
@@ -222,120 +335,142 @@ export function CreatePropertiesPanel({
               Draft the prompt you want to use, or switch to Chat to have the agent craft one for you.
             </span>
           </div>
-        </div>
-        {agentEnabled ? (
-          <div className="prompt-mode-row">
-            <div className="prompt-mode-toggle-row prompt-mode-toggle-standalone" role="group" aria-label="Prompt options">
-              <button
-                type="button"
-                className={`ghost-btn small mode-toggle-btn ${promptMode === "enhanced" ? "is-active" : ""}`}
-                aria-pressed={promptMode === "enhanced"}
-                onClick={() => setPromptMode("enhanced")}
-              >
-                Enhance prompt
-              </button>
-              <button
-                type="button"
-                className={`ghost-btn small mode-toggle-btn ${promptMode === "chat" ? "is-active" : ""}`}
-                aria-pressed={promptMode === "chat"}
-                onClick={() => setPromptMode("chat")}
-              >
-                Chat
-              </button>
-            </div>
-            {onExpandChat ? (
-              <button
-                type="button"
-                className="ghost-btn mini prompt-expand-btn"
-                onClick={canExpandChat ? onExpandChat : undefined}
-                aria-label="Expand chat"
-                disabled={!canExpandChat}
-                aria-disabled={!canExpandChat}
-              >
-                <ArrowsOutSimple size={20} weight="bold" aria-hidden />
-              </button>
-            ) : null}
+          <div className="step-header-actions">
+            <StepHeaderActionButton
+              label="Open prompt tools"
+              isCollapsed={collapsedSteps.prompt}
+              onClick={() => toggleStep("prompt")}
+            />
           </div>
-        ) : null}
-        {agentEnabled ? (
-          promptMode === "chat" ? (
-            agentChatOpen ? null : (
-              <>
-                {agentMessages.length > 0 || stagedPrompt ? (
-                  <div className="agent-chat-wrapper">
-                    <AgentChatPanel
-                      messages={agentMessages}
-                      input={agentInput}
-                      actions={agentActions}
-                      sendLabel={primaryActionLabel}
-                      isSending={agentIsSending}
-                      showInput={false}
-                      showActions={true}
-                      onInputChange={(value) => onAgentInputChange?.(value)}
-                      onSend={onAgentSend ?? (() => {})}
-                      onApplyPrompt={onAgentApplyPrompt}
-                      onSelectVariation={onAgentSelectVariation}
-                      onMessageClick={onAgentMessageClick}
-                    />
-                  </div>
-                ) : null}
-                <div className="step2-input-row">
-                  <textarea
-                    className="prompt-input agent-step-textarea"
-                    value={agentInput}
-                    onChange={(event) => onAgentInputChange?.(event.target.value)}
-                    rows={3}
-                    placeholder="Tell the agent what you want or ask it to describe a reference."
-                  />
+        </div>
+        {!collapsedSteps.prompt ? (
+          agentEnabled ? (
+            <>
+              <div className="prompt-mode-row">
+                <div className="prompt-mode-toggle-row prompt-mode-toggle-standalone" role="group" aria-label="Prompt options">
                   <button
                     type="button"
-                    className="primary-btn agent-send-btn step2-send-btn"
-                    onClick={onAgentSend ?? (() => {})}
-                    disabled={agentIsSending}
+                    className={`ghost-btn small mode-toggle-btn ${promptMode === "enhanced" ? "is-active" : ""}`}
+                    aria-pressed={promptMode === "enhanced"}
+                    onClick={() => setPromptMode("enhanced")}
                   >
-                    <PaperPlaneTilt size={20} weight="bold" aria-hidden />
+                    Enhance prompt
+                  </button>
+                  <button
+                    type="button"
+                    className={`ghost-btn small mode-toggle-btn ${promptMode === "chat" ? "is-active" : ""}`}
+                    aria-pressed={promptMode === "chat"}
+                    onClick={() => setPromptMode("chat")}
+                  >
+                    Chat
                   </button>
                 </div>
-              </>
-            )
-          ) : (
-            <>
-              <div className="step2-input-row enhanced-mode">
-                <textarea
-                  className="prompt-input agent-step-textarea enhanced-prompt-input"
-                  value={prompt}
-                  onChange={(event) => onPromptChange(event.target.value)}
-                  rows={6}
-                  placeholder="Describe what you want, then enhance it."
-                />
-              </div>
-              <div className="enhanced-actions-row">
-                <div className="ai-control-actions">
-                  <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
-                    <CloudArrowUp size={12} weight="regular" /> Media library
+                {onExpandChat ? (
+                  <button
+                    type="button"
+                    className="ghost-btn mini prompt-expand-btn"
+                    onClick={canExpandChat ? onExpandChat : undefined}
+                    aria-label="Expand chat"
+                    disabled={!canExpandChat}
+                    aria-disabled={!canExpandChat}
+                  >
+                    <ArrowsOutSimple size={20} weight="bold" aria-hidden />
                   </button>
-                  <button type="button" className="ghost-btn mini" onClick={onSavePrompt} disabled={shouldDisableSave}>
-                    <FloppyDisk size={12} weight="regular" /> Save prompt
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  className="primary-btn enhanced-generate-btn"
-                  onClick={onGenerate}
-                  disabled={isGenerateDisabled || isPromptGenerating}
-                >
-                  <Sparkle size={18} weight="fill" aria-hidden /> {isPromptGenerating ? primaryActionBusyLabel : "Generate"}
-                </button>
+                ) : null}
               </div>
+              {promptMode === "chat" ? (
+                agentChatOpen ? null : (
+                  <>
+                    {agentMessages.length > 0 || stagedPrompt ? (
+                      <div className="agent-chat-wrapper">
+                        <AgentChatPanel
+                          messages={agentMessages}
+                          input={agentInput}
+                          actions={agentActions}
+                          sendLabel={primaryActionLabel}
+                          isSending={agentIsSending}
+                          showInput={false}
+                          showActions={true}
+                          onInputChange={(value) => onAgentInputChange?.(value)}
+                          onSend={onAgentSend ?? (() => {})}
+                          onApplyPrompt={onAgentApplyPrompt}
+                          onSelectVariation={onAgentSelectVariation}
+                          onMessageClick={onAgentMessageClick}
+                        />
+                      </div>
+                    ) : null}
+                    <div className="step2-input-row">
+                      <AgentInputBar
+                        value={agentInput}
+                        onChange={(value) => onAgentInputChange?.(value)}
+                        placeholder="Tell the agent what you want or ask it to describe a reference."
+                        disabled={agentIsSending}
+                        onKeyDown={handleAgentInputKeyDown}
+                        className="agent-input-prefab-inline"
+                      />
+                      <div className="agent-inline-actions">
+                        <AgentSendButton
+                          onClick={onAgentSend ?? (() => {})}
+                          disabled={agentIsSending}
+                          ariaLabel="Send to agent"
+                        />
+                        <MiniGenerateButton
+                          cost={costValue}
+                          onClick={handleCostGenerate}
+                          disabled={isGenerateDisabled || isPromptGenerating}
+                          ariaLabel="Generate with current prompt"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )
+              ) : (
+                <>
+                  <div className="step2-input-row enhanced-mode">
+                    <textarea
+                      className="prompt-input agent-step-textarea enhanced-prompt-input"
+                      value={prompt}
+                      onChange={(event) => onPromptChange(event.target.value)}
+                      onKeyDown={handleEnhancedPromptKeyDown}
+                      rows={6}
+                      placeholder="Describe what you want, then enhance it."
+                    />
+                  </div>
+                  <div className="enhanced-actions-row">
+                    <div className="ai-control-actions">
+                      <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
+                        <CloudArrowUp size={12} weight="regular" /> Media library
+                      </button>
+                      <button type="button" className="ghost-btn mini" onClick={onSavePrompt} disabled={shouldDisableSave}>
+                        <FloppyDisk size={12} weight="regular" /> Save prompt
+                      </button>
+                    </div>
+                    <div className="enhanced-action-buttons agent-inline-actions">
+                      <AgentSendButton
+                        onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}
+                        disabled={agentIsSending}
+                        ariaLabel="Send to agent"
+                        className="prompt-fab-send"
+                      />
+                      <MiniGenerateButton
+                        cost={costValue}
+                        onClick={handleCostGenerate}
+                        disabled={isGenerateDisabled || isPromptGenerating}
+                        ariaLabel="Generate with current prompt"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </>
+          ) : (
+            <div className="prompt-placeholder helper-text">
+              <p className="prompt-placeholder-highlight">Image to Text Mode is active.</p>
+              <p>The selected image will generate the prompt automatically.</p>
+            </div>
           )
-        ) : (
-          <div className="prompt-placeholder helper-text">
-            <p className="prompt-placeholder-highlight">Image to Text Mode is active.</p>
-            <p>The selected image will generate the prompt automatically.</p>
-          </div>
-        )}
-        {agentEnabled && agentError ? <div className="inline-error-hint">{agentError}</div> : null}
+        ) : null}
+        {agentEnabled && agentError && !collapsedSteps.prompt ? <div className="inline-error-hint">{agentError}</div> : null}
       </div>
     </div>
   );
@@ -364,16 +499,17 @@ export function ComposeSendCard({
   guardrailReason = null,
   shouldDisableSave = false,
 }: ComposeSendCardProps) {
-  const primaryActionLabel = mode === "enhance" ? "Send" : "Generate";
+  const primaryActionLabel = "Generate";
   const primaryActionBusyLabel = mode === "enhance" ? "Sending…" : "Generating…";
+  const costValue = costCredits != null ? costCredits : "—";
 
   return (
     <div className="step-card prompt-step">
       <div className="step-card-header">
-        <span className="step-badge">3</span>
+        <span className="step-badge">4</span>
         <div className="step-header-copy">
-          <p className="step-title">Compose & Send</p>
-          <span className="step-subtitle tiny helper-text">Write your message or prompt, send to the agent, or generate.</span>
+          <p className="step-title">Generate</p>
+          <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>
         </div>
       </div>
       {isGenerateDisabled && guardrailReason ? (
@@ -382,45 +518,13 @@ export function ComposeSendCard({
         </div>
       ) : null}
       {agentEnabled && agentError ? <div className="inline-error-hint">{agentError}</div> : null}
-
-      <div className="step3-input-row">
-        <textarea
-          ref={promptRef}
-          className="prompt-input"
-          value={prompt}
-          onChange={(event) => onPromptChange(event.target.value)}
-          rows={4}
-          placeholder="Describe what you want to create"
+      <div className="generate-actions-row">
+        <AgentGenerateButton
+          onClick={onGenerate}
+          disabled={isGenerateDisabled || isPromptGenerating}
+          isBusy={isPromptGenerating}
+          cost={costValue}
         />
-      </div>
-
-      <div className="compose-actions-row">
-        <div className="compose-meta">
-          <span className="tiny subdued">Cost</span>
-          <span className="tiny credit-chip">{costCredits != null ? `${costCredits} credits` : "—"}</span>
-          {agentEnabled && agentMessages.length ? (
-            <span className="tiny subdued">Agent ready</span>
-          ) : null}
-        </div>
-        <div className="compose-buttons">
-          <button
-            type="button"
-            className="ghost-btn small"
-            onClick={onAgentSend ?? (() => {})}
-            disabled={agentEnabled ? agentIsSending : true}
-            aria-disabled={!agentEnabled}
-          >
-            <PaperPlaneTilt size={16} weight="bold" aria-hidden /> {agentIsSending ? primaryActionBusyLabel : primaryActionLabel}
-          </button>
-          <button
-            type="button"
-            className="primary-btn"
-            onClick={onGenerate}
-            disabled={isGenerateDisabled || isPromptGenerating}
-          >
-            {isPromptGenerating ? primaryActionBusyLabel : primaryActionLabel}
-          </button>
-        </div>
       </div>
     </div>
   );

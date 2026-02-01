@@ -19,9 +19,11 @@
 
 .mode-toggle-row {
   margin-bottom: 4px;
-  gap: 4px;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
   align-items: stretch;
+  width: 100%;
   background: rgba(12, 15, 22, 0.85);
   border: 1px solid rgba(201, 205, 214, 0.12);
   border-radius: 12px;
@@ -76,12 +78,13 @@
   border: 1px solid transparent;
   background: rgba(34, 37, 44, 0.9);
   color: #e9edf2;
-  min-width: 140px;
-  padding: 12px 14px;
+  min-width: 0;
+  width: 100%;
+  padding: 12px 12px;
   font-size: 14px !important;
   font-weight: 600;
   line-height: 1.2;
-  flex: 1;
+  flex: 1 1 auto;
   text-align: center;
   box-shadow: none;
 }
@@ -691,7 +694,7 @@
 }
 .ai-properties {
   padding: 16px;
-  min-height: 460px;
+  min-height: 300px;
 }
 
 .tool-properties {
@@ -883,7 +886,7 @@
 }
 
 .step2-input-row {
-  margin-top: 10px;
+  margin-top: 4px;
   display: flex;
   gap: 10px;
   align-items: center;
@@ -896,9 +899,9 @@
 .step2-input-row .prompt-input {
   flex: 1;
   margin: 0;
-  height: 68px;
-  min-height: 68px;
-  padding: 24px 35px;
+  height: 60px;
+  min-height: 60px;
+  padding: 18px 30px;
   border-radius: 999px;
   border: none; /*1px solid rgba(55, 61, 62, 0.275);*/
   background:  #262a2f;
@@ -910,7 +913,7 @@
 
 .step2-input-row.enhanced-mode .enhanced-prompt-input {
   height: auto;
-  min-height: 200px;
+  min-height: 160px;
   border-radius: 10px;
   padding: 16px;
   background: var(--color-bg, #090a10);
@@ -927,7 +930,7 @@
 .step2-input-row .agent-send-btn {
   width: 44px;
   height: 44px;
-  border-radius: ;
+  border-radius: 999px;
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -958,9 +961,131 @@
   box-shadow: 0 3px 8px rgba(7, 155, 168, 0.35);
 }
 
+.agent-send-prefab {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #25a8bf7c;
+  background: #6e818d2f;
+  color: #25a8bf;
+  box-shadow: 0 4px 1px #25a8bf41;
+  transition: box-shadow 0.16s ease, transform 0.12s ease;
+}
+.agent-send-prefab:hover:not(:disabled) {
+  box-shadow: 0 5px 12px rgba(4, 234, 255, 0.088);
+  transform: translateY(2px);
+  cursor: pointer;
+}
+.agent-send-prefab:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.prompt-fab-send {
+  margin-left: auto;
+}
+
+.agent-inline-actions {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.agent-cost-prefab {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid #25a8bf7c;
+  background: #6e818d2f;
+  color: #25a8bf;
+  font-family: "Satoshi", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  box-shadow: 0 4px 1px #25a8bf41;
+  transition: transform 0.12s ease, box-shadow 0.16s ease, border-color 0.18s ease;
+}
+.agent-cost-prefab:hover:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 5px 12px rgba(4, 234, 255, 0.088);
+  cursor: pointer;
+}
+.agent-cost-prefab:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.agent-input-prefab {
+  flex: 1;
+  border-radius: 14px;
+  /*border: 1px solid #25a8bf7c;*/
+  background: #6e818d2f;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+  padding: 3px 10px;
+  display: flex;
+}
+.agent-input-prefab-inline {
+  margin: 0;
+}
+.agent-input-prefab-field {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #f5f9ff;
+  resize: none;
+  min-height: 44px;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 14px 20px;
+  outline: none;
+  font-family: var(--font-primary);
+  font-weight: 400;
+}
+.agent-input-prefab-field::placeholder {
+  color: rgba(245, 249, 255, 0.6);
+  font-family: var(--font-primary);
+}
+.agent-input-prefab-field:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.agent-input-prefab-field::-webkit-scrollbar {
+  width: 6px;
+}
+.agent-input-prefab-field::-webkit-scrollbar-track {
+  background: transparent;
+}
+.agent-input-prefab-field::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.25);
+  border-radius: 999px;
+}
+.agent-input-prefab-field::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.4);
+}
+
+.chat-action-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.generate-actions-row {
+  display: flex;
+  justify-content: stretch;
+  margin-top: 12px;
+}
+
 .enhanced-prompt-input {
   border-radius: 10px;
-  min-height: 180px;
+  min-height: 150px;
   height: auto;
   padding: 14px 16px;
   background: rgba(12, 15, 22, 0.9);
@@ -977,6 +1102,62 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+/* Compose/Generate card */
+.compose-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.enhanced-action-buttons {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.enhanced-action-buttons .agent-generate-prefab {
+  justify-content: center;
+  gap: 10px;
+  min-width: 150px;
+}
+
+.agent-generate-prefab {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+  padding: 15px 25px;
+  border-radius: 12px;
+  border: 1px solid rgba(37, 169, 191, 0.6);
+  background: linear-gradient(135deg, var(--ai-accent-start, rgba(52, 200, 255, 0.92)), var(--ai-accent, rgba(37, 169, 191, 0.95)));
+  color: #0b1820;
+  font-weight: 700;
+  box-shadow: 0 4px 1px rgba(37, 169, 191, 0.35);
+  transition: box-shadow 0.16s ease, transform 0.12s ease;
+}
+.agent-generate-prefab:hover:not(:disabled) {
+  box-shadow: 0 5px 12px rgba(4, 234, 255, 0.088);
+  transform: translateY(1px);
+  cursor: pointer;
+}
+.agent-generate-prefab:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.agent-generate-prefab .agent-generate-label {
+  font-size: 22px;
+  letter-spacing: 0.01em;
+  flex: 1;
+  text-align: center;
+}
+.agent-generate-prefab .generate-pill {
+  margin-left: auto;
 }
 
 .enhanced-generate-btn {

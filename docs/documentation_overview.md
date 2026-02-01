@@ -22,6 +22,7 @@ Current docs:
 - `docs/shortpulse_ai_studio.md`: AI Studio purpose, scope, and route reference.
 - `docs/sop_performance_ai_detection.md`: performance analytics scoring vs. AI labeling contract (non-ranking).
 - `docs/sop_media_library_ui.md`, `docs/sop_saved_creators.md`: UI and data flow specifics for those pages.
+- `docs/sop_ai_studio_agent_chat_ops.md`: operational runbook for AI Studio chat agent (UI entry points, context pipeline, fallbacks, validation).
 - `docs/supabase_full_schema.sql`: combined Supabase schema for `saved_creators`, `media_files`, and the private media bucket policies.
 - Frontend routes: `/dashboard`, `/performance`, `/ai-studio`, `/media-library`, `/saved-creators`, `/profile` (see README for summary).
 - Dark UI palette: avoid any #21211e / #1f201c / #1e1e1b range; use #1c1f20 as the panel/base tone across surfaces.

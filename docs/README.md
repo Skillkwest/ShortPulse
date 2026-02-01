@@ -57,6 +57,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/sop_performance_ai_detection.md`
 - `docs/sop_ai_studio_index.md` (hub for AI Studio SOPs: text/image/video)
 - `docs/sop_ai_studio_agent.md` (AI Studio agent/chat workflow)
+- `docs/sop_ai_studio_agent_chat_ops.md` (Agent chat UI entry points, context pipeline, fallbacks, verification)
 - `docs/shortpulse_ai_studio.md`
 
 ## Planning / History

@@ -1,6 +1,6 @@
 # SOP: AI Studio Agent Collaboration
 
-Purpose: define how the new chat-based agent replaces prompt textareas across AI Studio, how it receives context (references, prompts, media), and how to run/maintain the flow safely.
+Purpose: define how the new chat-based agent replaces prompt textareas across AI Studio, how it receives context (references, prompts, media), and how to run/maintain the flow safely. For UI entry points and runbook details, see `docs/sop_ai_studio_agent_chat_ops.md`.
 
 ## Scope
 - In scope: AI Studio (Create, Recreate/Image-to-Image/Image-to-Video, detail modal, Studio Preview prompt preview) prompt inputs now mediated by the agent. Agent can describe references, propose prompts, and hand off a chosen prompt to generation.

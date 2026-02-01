@@ -57,53 +57,61 @@
 .prompt-chat-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
+  gap: 1px;
+  padding: 4px 4px;
   border: 1px solid transparent;
-  border-radius: 10px;
-  transition: border-color 0.12s ease;
+  border-radius: 12px;
+  background: transparent;
+  transition: border-color 0.12s ease, background 0.12s ease;
 }
 
 .prompt-chat-actions.is-active {
   border-color: var(--ai-accent, rgba(37, 169, 191, 0.75));
 }
 .prompt-expand-btn {
-  width: 32px;
-  height: 32px;
+  width: 45px;
+  height: 36px;
   padding: 0;
   text-transform: none;
   border-radius: 50%;
-  border: 1px solid transparent;
-  background: rgba(34, 37, 44, 0.9);
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: rgba(34, 37, 44, 0.95);
   box-shadow: none;
   transition: border-color 0.12s ease, background 0.12s ease;
   min-width: unset;
-  width: auto;
   flex: none;
   margin-left: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
+.prompt-expand-btn svg {
+  width: 16px;
+  height: 16px;
+}
 .prompt-clear-btn {
-  width: 32px;
-  height: 32px;
+  width: 45px;
+  height: 36px;
   padding: 0;
   border-radius: 50%;
-  border: 1px solid transparent;
-  background: rgba(34, 37, 44, 0.9);
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: rgba(34, 37, 44, 0.95);
   color: #e9edf2;
   min-width: unset;
-  width: auto;
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: border-color 0.12s ease, background 0.12s ease, opacity 0.12s ease;
 }
+.prompt-clear-btn svg {
+  width: 16px;
+  height: 16px;
+}
 .prompt-clear-btn:hover {
   border-color: var(--ai-accent, rgba(37, 169, 191, 0.5));
   background: rgba(40, 44, 52, 0.95);
+  cursor: pointer;
 }
 .prompt-clear-btn:disabled,
 .prompt-clear-btn[aria-disabled="true"] {

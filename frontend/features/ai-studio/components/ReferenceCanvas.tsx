@@ -249,6 +249,9 @@ export function ReferenceCanvas({
                         onSelectOutput(item.id);
                         onGeneratePrompt(item);
                       }}
+                      onDoubleClick={(event) => {
+                        event.stopPropagation();
+                      }}
                     >
                       <span className="reference-pill-label">
                         <Sparkle size={14} weight="fill" aria-hidden />

@@ -446,7 +446,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           const { request_id } = await submitFalKlingV25({
             prompt: cleanedPrompt,
             image_url: preparedImageInputs[0],
-            duration: klingDuration.toString(),
+            duration: klingDuration,
             aspect_ratio: resolveKlingAspectRatio(aspect),
             negative_prompt: "blur, distort, and low quality",
             cfg_scale: 0.5,
@@ -493,7 +493,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             num_images: 1,
             aspect_ratio: falNanoBananaProAllowedAspects.has(aspect) ? aspect : "auto",
             output_format: "png",
-            resolution: modelConfig?.defaultResolution ?? "1K",
+            resolution: (modelConfig?.defaultResolution as any) ?? "1K",
             image_urls: preparedImageInputs.slice(0, 8),
           });
           updateOutputById(id, (item) => ({
@@ -787,7 +787,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             num_images: 1,
             aspect_ratio: normalizeAspectForFalNanoBananaPro(aspect),
             output_format: "png",
-            resolution: modelConfig?.defaultResolution ?? "1K",
+            resolution: (modelConfig?.defaultResolution as any) ?? "1K",
             ...falReferencePayload,
           });
           taskId = response.request_id;
@@ -872,15 +872,15 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setSaved(true);
   }, [activeOutput]);
 
-  const savePromptReference = useCallback(() => {
-    const cleanedPrompt = prompt.trim();
+  const savePromptReference = useCallback((customPrompt?: string) => {
+    const cleanedPrompt = (typeof customPrompt === "string" ? customPrompt : prompt).trim();
     if (!cleanedPrompt) return;
     const id = `prompt-${randomId()}`;
     const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
     const promptReference: StudioOutput = {
       id,
       prompt: cleanedPrompt,
-      mode,
+      mode: "enhance",
       aspect,
       model: placeholderModelLabel,
       modelId: model ?? undefined,
@@ -901,7 +901,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const promptReference: StudioOutput = {
         id,
         prompt: cleanedPrompt,
-        mode,
+        mode: "enhance",
         aspect,
         model: placeholderModelLabel,
         modelId: model ?? undefined,

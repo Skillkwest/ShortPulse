@@ -5,7 +5,7 @@
 .reference-canvas-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 2px;
+  gap: 3px;
   width: 100%;
   align-content: start;
   padding-left: 3px;
@@ -41,7 +41,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 20px 8px;
+  padding: 20px 12px;
   text-align: center;
   align-items: center;
   justify-content: center;
@@ -78,7 +78,9 @@
 }
 
 .reference-card:hover {
-  transform: translateY(-2px);
+  background-color: rgba(25, 29, 38, 0.95);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
 }
 
 .reference-card.is-dragging {
@@ -88,21 +90,21 @@
 }
 
 .reference-card.is-active {
-  transform: translateY(-2px);
-  outline-color: rgba(37, 169, 191, 0.95);
-  box-shadow: 0 0 0 2px rgba(37, 169, 191, 0.25);
+  inset: 1px solid rgba(37, 169, 191, 0.95);
+  /*outline-color: rgba(37, 169, 191, 0.95);*/
+  box-shadow: 0 0 0 2px rgba(37, 168, 191, 0.75);
   z-index: 1;
 }
 
-.reference-card.is-active::after {
+/*.reference-card.is-active::after {
   content: "";
   position: absolute;
-  inset: -2px;
+  inset: 1px solid rgba(37, 169, 191, 0.95);
   border-radius: inherit;
-  border: 2px solid rgba(37, 169, 191, 0.95);
+  border: 1px solid rgba(37, 169, 191, 0.95);
   pointer-events: none;
   z-index: 2;
-}
+}*/
 
 .reference-card .reference-describe-pill {
   position: absolute;
@@ -121,10 +123,9 @@
   font-size: 12px;
   line-height: 1.1;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 12px 24px rgba(37, 169, 191, 0.35);
+  box-shadow: 0 8px 20px rgba(37, 169, 191, 0.35);
   opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+  transition: opacity 0.16s ease, box-shadow 0.16s ease;
   z-index: 3;
 }
 
@@ -145,10 +146,9 @@
   font-size: 12px;
   line-height: 1.1;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 12px 24px rgba(37, 169, 191, 0.35);
+  box-shadow: 0 8px 20px rgba(37, 169, 191, 0.35);
   opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+  transition: opacity 0.16s ease, box-shadow 0.16s ease;
   z-index: 3;
   pointer-events: none;
 }
@@ -174,7 +174,6 @@
 
 .reference-card:hover .reference-generate-pill {
   opacity: 1;
-  transform: translateY(0);
 }
 
 .reference-card .reference-generate-pill:hover {
@@ -188,7 +187,6 @@
 
 .reference-card:hover .reference-describe-pill {
   opacity: 1;
-  transform: translateY(0);
   pointer-events: auto;
 }
 
@@ -209,14 +207,12 @@
   gap: 6px;
   z-index: 3;
   opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 0.16s ease, transform 0.16s ease;
+  transition: opacity 0.16s ease;
   pointer-events: none;
 }
 
 .reference-card:hover .reference-card-actions {
   opacity: 1;
-  transform: translateY(0);
   pointer-events: auto;
 }
 
@@ -238,7 +234,7 @@
   border-color: rgba(255, 255, 255, 0.35);
   background: linear-gradient(135deg, rgb(37, 168, 191), rgb(52, 201, 255));
   color: #e7f6ff;
-  transform: translateY(-1px) scale(1.02);
+  transform: translateY(-1px);
   box-shadow: 0 12px 22px rgba(37, 169, 191, 0.45);
 }
 
@@ -277,6 +273,7 @@
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 18;
+  line-clamp: 18;
   -webkit-box-orient: vertical;
   max-height: 100%;
   min-height: 0;

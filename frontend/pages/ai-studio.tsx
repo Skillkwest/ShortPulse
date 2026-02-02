@@ -222,8 +222,9 @@ export default function AiStudioPage() {
       }
       // Fallback: chat agent with enhance hint
       const result = await handleAgentSend(prompt, { captureResult: true, modeHint: "enhance" });
-      if (result && result.prompt) {
-        addAgentPromptReference(result.prompt, result.referenceTitle);
+      const captureRes = result as { prompt: string; referenceTitle?: string } | undefined;
+      if (captureRes?.prompt) {
+        addAgentPromptReference(captureRes.prompt, captureRes.referenceTitle);
       }
     } finally {
       setIsPromptRefining(false);
@@ -425,6 +426,7 @@ export default function AiStudioPage() {
 
   const costParamsForModel = useCallback(
     (overrides: Omit<PricingParams, "modelId"> = {}) => ({
+      modelId: model ?? "",
       ...defaultPricingParams,
       aspect,
       ...overrides,
@@ -500,8 +502,9 @@ export default function AiStudioPage() {
   const handlePrimarySubmit = () => {
     if (selectedTool === "create" && mode === "enhance") {
       handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
-        if (result?.prompt) {
-          addAgentPromptReference(result.prompt, result.referenceTitle);
+        const agentRes = result as { prompt: string; referenceTitle?: string } | undefined;
+        if (agentRes?.prompt) {
+          addAgentPromptReference(agentRes.prompt, agentRes.referenceTitle);
         }
       });
       return;
@@ -633,7 +636,7 @@ export default function AiStudioPage() {
           onExtraImageChange: setExtraImageUrl,
           onClearImages: clearReferenceImages,
           onPromptTextChange: setReferenceText,
-          onSave: saveActiveOutput,
+          onSave: () => savePromptReference(referenceText ?? ""),
           onRegenerate: regenerateOutput,
           costCredits: currentCostCredits,
           guardrailReason: generationGuardrail,

@@ -144,8 +144,8 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
               <span className="art-meta-item">{mediaType}</span>
               {output.aspect && <span className="art-meta-divider">/</span>}
               {output.aspect && <span className="art-meta-item">{output.aspect}</span>}
-              {(output.modelId || output.model) && <span className="art-meta-divider">/</span>}
-              <span className="art-meta-item truncate-model">{output.modelId ?? output.model}</span>
+              {(output.model || output.modelId) && <span className="art-meta-divider">/</span>}
+              <span className="art-meta-item truncate-model">{output.model ?? output.modelId}</span>
             </div>
 
             <div className="art-modal-action-row">
@@ -170,7 +170,7 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
 
         {isPromptOnly && (
           <div className="art-prompt-only-header">
-            <span className="reference-filename">Refine Prompt</span>
+            <span className="reference-filename">Prompt</span>
             <button type="button" className="art-close-btn" onClick={onClose}>×</button>
           </div>
         )}

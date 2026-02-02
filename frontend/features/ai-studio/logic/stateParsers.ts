@@ -103,7 +103,7 @@ export const mapUploadsFromFiles = (files: FileList, mode: any, aspect: string, 
       aspect,
       model: resolveModelLabelFn(model ?? undefined),
       modelId: model,
-      status: "ready",
+      status: "ready" as const,
       timestamp: "Dropped",
       previewUrl: url,
     };
@@ -113,7 +113,7 @@ export const mapUploadsFromFiles = (files: FileList, mode: any, aspect: string, 
 export const filterModelOptions = (
   mode: string,
   selectedTool: string | null,
-  options: { value: string; mediaType?: string | null }[],
+  options: { value: string; label: string; mediaType?: string | null }[],
   getModelConfig: (id: string) => any,
 ) => {
   const mediaFilter = (() => {

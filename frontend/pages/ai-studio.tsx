@@ -14,7 +14,7 @@ import { buildDefaultPricingParams, getModelConfig } from "../features/ai-studio
 import type { PricingParams } from "../features/ai-studio/logic/pricingTypes";
 import { useAiAgent } from "../features/ai-agent/useAiAgent";
 import { randomId } from "../features/ai-studio/logic/ids";
-import type { AgentActions, AgentMessage } from "../features/ai-agent/types";
+import type { AgentActions, AgentContext, AgentMessage } from "../features/ai-agent/types";
 import { postGeneratePrompt } from "../features/ai-studio/logic/promptGeneration";
 import { postDescribeImage, prepareImageUrl } from "../features/ai-studio/logic/imageDescription";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
@@ -135,6 +135,19 @@ export default function AiStudioPage() {
     closeModelModal();
   };
 
+  const shouldRunPromptRefinerFirst = useCallback(
+    (text: string, context: AgentContext) => {
+      const trimmed = text.trim();
+      const wordCount = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
+      const hasReferenceContext = (context.references?.length ?? 0) > 0 || (context.media?.length ?? 0) > 0;
+      const hasExistingPrompt = Boolean(context.activePrompt?.trim());
+      const hasRecentAssistant = Boolean(context.lastAssistantMessage?.trim());
+      const isVeryShort = wordCount < 6 || trimmed.length < 30;
+      return !hasReferenceContext && !hasExistingPrompt && !hasRecentAssistant && isVeryShort;
+    },
+    [],
+  );
+
   const handleToolSelect = (tool: ToolId | null) => {
     setSelectedTool(tool);
     if (!tool) {
@@ -164,6 +177,7 @@ export default function AiStudioPage() {
       baseContext.lastAssistantMessage = latestAgentPrompt;
     }
     let mediaPatchedContext = baseContext;
+    let refinedPrompt: string | null = null;
 
     if (baseContext.focusedSource === "image" && activeOutput?.previewUrl && !activeOutput?.previewUrl.startsWith("https://")) {
       // Convert blob/object URLs to data URLs for vision payloads.
@@ -184,9 +198,26 @@ export default function AiStudioPage() {
       }
     }
 
+    if (shouldRunPromptRefinerFirst(fallback, mediaPatchedContext)) {
+      try {
+        const refined = await postGeneratePrompt(fallback);
+        if (refined?.prompt) {
+          refinedPrompt = refined.prompt.trim();
+          mediaPatchedContext = {
+            ...mediaPatchedContext,
+            activePrompt: refinedPrompt,
+            lastAssistantMessage: refinedPrompt,
+          };
+        }
+      } catch {
+        // If refinement fails, continue with the original input.
+      }
+    }
+
     let { actions } = await sendToAgent({
       text: fallback,
-      previousPrompt: latestAgentPrompt ?? null,
+      payloadText: refinedPrompt ?? fallback,
+      previousPrompt: latestAgentPrompt ?? refinedPrompt ?? null,
       context: mediaPatchedContext,
     });
     const appliedPrompt = actions?.applyPrompt ?? latestAgentPrompt ?? prompt;

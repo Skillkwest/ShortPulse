@@ -20,7 +20,7 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const mediaType = output?.mode === "image" ? "Image" : output?.mode === "video" ? "Video" : "Prompt";
-  const isPromptOnly = output?.mode === "enhance";
+  const isPromptOnly = output?.mode === "enhance" && !output.previewUrl;
   const aspectStyle =
     output?.aspect && output.aspect.includes(":")
       ? { aspectRatio: output.aspect.replace(":", " / ") }
@@ -122,119 +122,113 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
 
   return (
     <div className="reference-modal-backdrop" onClick={onClose}>
+      {/* Background blurred reflect */}
+      {output.previewUrl && (
+        <div
+          className="reference-modal-bg-reflect"
+          style={{ backgroundImage: `url(${output.previewUrl})` }}
+        />
+      )}
+
       <div
-        className={`reference-modal ${isPromptOnly ? "prompt-only" : ""}`}
+        className={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label="Reference details"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="reference-modal-topbar">
-          <div>
-            <p className="reference-filename">{isPromptOnly ? "Prompt" : "Media preview"}</p>
-            {isPromptOnly ? (
-              <span className="reference-subtitle tiny helper-text">Edit and save back to your references.</span>
-            ) : null}
-          </div>
-          <div className="reference-topbar-actions">
-            {!isPromptOnly && output.previewUrl ? (
-              <button type="button" className="reference-icon-btn" onClick={handleDownload}>
-                Download
-              </button>
-            ) : null}
-            {!isPromptOnly ? (
+        {/* Floating Top Bar (Controls) */}
+        {!isPromptOnly && (
+          <div className="art-modal-top-controls">
+            <div className="art-modal-meta-pill">
+              <span className="art-meta-item">{mediaType}</span>
+              {output.aspect && <span className="art-meta-divider">/</span>}
+              {output.aspect && <span className="art-meta-item">{output.aspect}</span>}
+              {(output.modelId || output.model) && <span className="art-meta-divider">/</span>}
+              <span className="art-meta-item truncate-model">{output.modelId ?? output.model}</span>
+            </div>
+
+            <div className="art-modal-action-row">
+              {output.previewUrl && (
+                <button type="button" className="art-action-btn" onClick={handleDownload} title="Download">
+                  Download
+                </button>
+              )}
               <button
                 type="button"
-                className="reference-icon-btn"
+                className="art-action-btn"
                 onClick={() => handleCopy(draftPrompt || output.prompt, "prompt")}
-                disabled={!draftPrompt && !output.prompt}
               >
-                {copiedField === "prompt" ? "Copied" : "Copy prompt"}
+                {copiedField === "prompt" ? "Copied!" : "Copy Prompt"}
               </button>
-            ) : null}
-            {!isPromptOnly && output.model ? (
-              <button type="button" className="reference-icon-btn" onClick={() => handleCopy(output.model, "model")}>
-                {copiedField === "model" ? "Copied" : "Copy model"}
+              <button type="button" className="art-close-btn" onClick={onClose}>
+                ×
               </button>
-            ) : null}
-            <button type="button" className="reference-modal-close" aria-label="Close" onClick={onClose}>
-              ×
-            </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className={`reference-modal-body ${isPromptOnly ? "prompt-only" : ""}`}>
+        {isPromptOnly && (
+          <div className="art-prompt-only-header">
+            <span className="reference-filename">Refine Prompt</span>
+            <button type="button" className="art-close-btn" onClick={onClose}>×</button>
+          </div>
+        )}
+
+        <div className="art-modal-main-content">
           {isPromptOnly ? (
-            <div className="prompt-only-body">
+            <div className="art-prompt-only-container">
               <textarea
-                className="prompt-only-textarea"
+                className="art-prompt-textarea large"
                 ref={promptOnlyTextareaRef}
-                data-min-height="220"
-                data-max-height="620"
                 value={draftPrompt}
                 onChange={handlePromptChange}
                 readOnly={!isPromptEditable}
-                aria-readonly={!isPromptEditable}
-                rows={8}
+                rows={12}
+                placeholder="Describe your adjustments..."
               />
-              <div className="reference-modal-actions prompt-only-actions">
-                <button type="button" className="ghost-btn" onClick={handleSavePrompt} disabled={!canSave || !isPromptEditable}>
-                  Save changes
+              <div className="art-modal-footer">
+                <button
+                  type="button"
+                  className="primary-btn wide"
+                  onClick={handleSavePrompt}
+                  disabled={!canSave || !isPromptEditable}
+                >
+                  Save & Apply Changes
                 </button>
-                <button type="button" className="primary-btn">Save to Media Library</button>
               </div>
             </div>
           ) : (
             <>
-              {output.previewUrl ? (
-                <div className="reference-modal-media" style={aspectStyle}>
-                  <img className="reference-modal-media-image" src={output.previewUrl} alt={output.prompt} />
-                </div>
-              ) : (
-                <div className="reference-modal-media text-only">
-                  <p className="reference-modal-prompt">{output.previewText ?? output.prompt}</p>
-                </div>
-              )}
-              <div className="reference-meta-panel">
-                <div className="reference-meta-grid">
-                  {metaItems.map((item) => (
-                    <div key={item.label} className="reference-meta-card">
-                      <span className="reference-detail-label">{item.label}</span>
-                      <span className="reference-detail-value mono">{item.value}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="reference-prompt-card">
-                  <div className="reference-card-head">
-                    <span className="reference-detail-label">Prompt</span>
-                    <div className="reference-card-actions">
-                      <button
-                        type="button"
-                        className="reference-icon-btn"
-                        onClick={() => handleCopy(draftPrompt || output.prompt, "prompt")}
-                        disabled={!draftPrompt && !output.prompt}
-                      >
-                        {copiedField === "prompt" ? "Copied" : "Copy prompt"}
+              <div className="art-image-vessel">
+                {output.previewUrl ? (
+                  <img className="art-hero-image" src={output.previewUrl} alt={output.prompt} />
+                ) : (
+                  <div className="art-text-placeholder">
+                    <p>{output.previewText ?? output.prompt}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Floating Prompt Blade */}
+              <div className="art-prompt-blade">
+                <div className="art-blade-inner">
+                  <div className="art-blade-header">
+                    <span className="art-label">PROMPT</span>
+                    {canSave && (
+                      <button type="button" className="art-mini-save" onClick={handleSavePrompt}>
+                        Update
                       </button>
-                    </div>
+                    )}
                   </div>
                   <textarea
-                    className="reference-detail-value prompt-block editable"
+                    className="art-blade-textarea"
                     ref={promptTextareaRef}
-                    data-min-height="200"
-                    data-max-height="420"
                     value={draftPrompt}
                     onChange={handlePromptChange}
                     readOnly={!isPromptEditable}
-                    aria-readonly={!isPromptEditable}
-                    rows={6}
+                    rows={3}
                   />
-                </div>
-                <div className="reference-modal-actions floating">
-                  <button type="button" className="ghost-btn" onClick={handleSavePrompt} disabled={!canSave || !isPromptEditable}>
-                    Save changes
-                  </button>
-                  <button type="button" className="primary-btn">Save to Media Library</button>
                 </div>
               </div>
             </>

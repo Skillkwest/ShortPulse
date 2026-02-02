@@ -12,16 +12,53 @@ export type ImageDescriptionResult = {
 
 export const prepareImageUrl = async (imageUrl: string): Promise<string | null> => {
   if (!imageUrl?.trim()) return null;
+
+  // Function to resize and compress image
+  const optimizeImage = async (url: string): Promise<string | null> => {
+    try {
+      return await new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          const MAX_DIM = 2048; // Max dimension for compatibility & speed
+
+          if (width > MAX_DIM || height > MAX_DIM) {
+            if (width > height) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            } else {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(url); // Fallback to original
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          // Convert to JPEG with 0.85 quality for good balance
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          resolve(dataUrl);
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+    } catch (e) {
+      return url; // Fallback
+    }
+  };
+
   if (imageUrl.startsWith("blob:")) {
     try {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const reader = new FileReader();
-      return await new Promise((resolve) => {
-        reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-      });
+      // For blobs, we optimize them
+      return await optimizeImage(imageUrl);
     } catch (_error) {
       return null;
     }

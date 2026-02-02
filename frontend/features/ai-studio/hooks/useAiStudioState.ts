@@ -3,7 +3,11 @@
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { modelOptions } from "../constants";
+import {
+  falNanoBananaAllowedAspects,
+  falNanoBananaProAllowedAspects,
+  modelOptions,
+} from "../constants";
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput, ToolId } from "../types";
 import {
@@ -350,7 +354,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
       const cleanedPrompt = (promptArg ?? prompt).trim();
 
-      if (effectiveMode === "enhance") {
+      if (effectiveTool === "create" && effectiveMode === "enhance") {
         // Enhance (text prompt) is handled exclusively by the chat agent upstream.
         // Avoid invoking legacy refine/describe pipelines from here.
         setIsPromptGenerating(false);
@@ -989,14 +993,14 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           activePromptValue = promptSnippet;
           references = promptSnippet
             ? [
-                {
-                  id: selected.id,
-                  kind: "prompt",
-                  promptSnippet,
-                  aspect: selected.aspect ?? null,
-                  caption: selected.previewText ?? null,
-                },
-              ]
+              {
+                id: selected.id,
+                kind: "prompt",
+                promptSnippet,
+                aspect: selected.aspect ?? null,
+                caption: selected.previewText ?? null,
+              },
+            ]
             : [];
         }
       } else {

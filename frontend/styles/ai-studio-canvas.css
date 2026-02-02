@@ -8,6 +8,7 @@
   gap: 2px;
   width: 100%;
   align-content: start;
+  padding-left: 3px;
 }
 
 .reference-canvas-scroll {
@@ -353,6 +354,12 @@
   font-size: 12px;
   color: rgba(255, 236, 236, 0.8);
   line-height: 1.4;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.reference-fail-overlay .fail-subtitle::first-letter {
+  text-transform: uppercase;
 }
 
 .reference-loading {
@@ -378,6 +385,7 @@
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -396,6 +404,7 @@
   place-items: center;
   background: var(--ai-container-card-bg);
 }
+
 .preview-media-btn {
   border-radius: 999px;
   padding: 6px 12px;
@@ -408,6 +417,7 @@
   font-size: 13px;
   box-shadow: none;
 }
+
 .preview-media-btn:hover {
   border-color: rgba(201, 205, 214, 0.4);
 }

@@ -127,7 +127,7 @@ export function ReferenceCanvas({
                   item.taskState === "pending" ||
                   (item.taskState === "success" && !item.previewUrl && !item.previewText));
               const isLoaded = loadedMap[item.id];
-              const showSpinner = isLoading || (!isLoaded && !item.previewText);
+              const showSpinner = !isFailing && (isLoading || (!isLoaded && !item.previewText));
 
               const isVideoPreview = item.previewUrl ? isVideoUrl(item.previewUrl) : false;
               const isImagePreview = item.previewUrl ? !isVideoPreview : false;

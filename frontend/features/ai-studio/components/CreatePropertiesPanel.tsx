@@ -4,10 +4,7 @@
  */
 import React from "react";
 import {
-  ArrowsOutSimple,
   CaretDown,
-  CloudArrowUp,
-  FloppyDisk,
   ImageSquare,
   MagicWand,
   Trash,
@@ -16,13 +13,11 @@ import {
 import { AspectDropdown } from "./AspectDropdown";
 import { StudioMode } from "../types";
 import { modelLogos } from "../constants";
-import { AgentChatPanel } from "../../ai-agent/components/AgentChatPanel";
-import { AgentSendButton } from "../../ai-agent/components/AgentSendButton";
 import { AgentSaveButton } from "../../ai-agent/components/AgentSaveButton";
 import { AgentGenerateButton } from "../../ai-agent/components/AgentGenerateButton";
-import { MiniGenerateButton } from "../../ai-agent/components/MiniGenerateButton";
-import { AgentInputBar } from "../../ai-agent/components/AgentInputBar";
+
 import type { AgentActions, AgentMessage } from "../../ai-agent/types";
+import { PromptStep } from "./PromptStep";
 
 type CreatePropertiesPanelProps = {
   mode: StudioMode;
@@ -165,16 +160,7 @@ export function CreatePropertiesPanel({
   onCloseAgentChat,
   onClearAgentChat,
 }: CreatePropertiesPanelProps) {
-  const handleEnhancedPromptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
-    event.preventDefault();
-    onAgentEnhanceSend?.();
-  };
-  const handleAgentInputKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
-    event.preventDefault();
-    onAgentSend?.();
-  };
+
 
   const isEnhanceMode = mode === "enhance";
   const shouldHidePromptStep = isEnhanceMode && useReferenceImageIndicator;
@@ -183,14 +169,7 @@ export function CreatePropertiesPanel({
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const primaryActionLabel = isEnhanceMode ? "Send" : "Generate";
   const primaryActionBusyLabel = isEnhanceMode ? "Sending…" : "Generating…";
-  const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">("enhanced");
-  const canExpandChat = agentMessages.length > 0;
   const isTextPromptMode = mode === "enhance";
-  const isChatPromptMode = promptMode === "chat";
-  const showMiniGenerateButton = !(mode === "enhance" && promptMode === "enhanced");
-  const hideSaveAndMini = isTextPromptMode && isChatPromptMode;
-  const hideSaveButton = hideSaveAndMini || (mode === "image" && promptMode === "chat");
-  const promptThinking = Boolean(agentIsSending || isPromptGenerating);
   const costValue = costCredits != null ? costCredits : "—";
   const [collapsedSteps, setCollapsedSteps] = React.useState<{ mode: boolean; model: boolean; prompt: boolean }>({
     mode: false,
@@ -325,189 +304,37 @@ export function CreatePropertiesPanel({
           ) : null}
         </div>
       ) : null}
-      <div
-        className={`step-card prompt-step ${collapsedSteps.prompt ? "is-collapsed" : ""}`}
-        onClick={() => expandIfCollapsed("prompt")}
-        role="group"
-        aria-label="Write your prompt section"
-      >
-        <div className="step-card-header">
-          <span className="step-badge">{promptStepNumber}</span>
-          <div className="step-header-copy">
-            <p className="step-title">Write your prompt</p>
-            <span className="step-subtitle tiny helper-text">
-              Draft the prompt you want to use, or switch to Chat to have the agent craft one for you.
-            </span>
-          </div>
-          <div className="step-header-actions">
-            <StepHeaderActionButton
-              label="Open prompt tools"
-              isCollapsed={collapsedSteps.prompt}
-              onClick={() => toggleStep("prompt")}
-            />
-          </div>
-        </div>
-        {!collapsedSteps.prompt ? (
-          agentEnabled ? (
-            <>
-              <div className="prompt-mode-row">
-                <div className="prompt-mode-toggle-row prompt-mode-toggle-standalone" role="group" aria-label="Prompt options">
-                  <button
-                    type="button"
-                    className={`ghost-btn small mode-toggle-btn ${promptMode === "enhanced" ? "is-active" : ""}`}
-                    aria-pressed={promptMode === "enhanced"}
-                    onClick={() => setPromptMode("enhanced")}
-                  >
-                    Prompt
-                  </button>
-                  <button
-                    type="button"
-                    className={`ghost-btn small mode-toggle-btn ${promptMode === "chat" ? "is-active" : ""}`}
-                    aria-pressed={promptMode === "chat"}
-                    onClick={() => setPromptMode("chat")}
-                  >
-                    Chat
-                  </button>
-                  <div className={`prompt-chat-actions ${promptMode === "chat" ? "is-active" : ""}`}>
-                    {onExpandChat ? (
-                      <button
-                        type="button"
-                        className={`ghost-btn mini prompt-expand-btn ${agentChatOpen ? "is-chat-open" : ""}`}
-                        onClick={canExpandChat ? onExpandChat : undefined}
-                        aria-label="Expand chat"
-                        disabled={!canExpandChat}
-                        aria-disabled={!canExpandChat}
-                      >
-                        <ArrowsOutSimple size={20} weight="bold" aria-hidden />
-                      </button>
-                    ) : null}
-                    {onClearAgentChat ? (
-                      <button
-                        type="button"
-                        className="ghost-btn mini prompt-clear-btn"
-                        onClick={onClearAgentChat}
-                        aria-label="Clear chat"
-                        disabled={agentMessages.length === 0 && !stagedPrompt}
-                        aria-disabled={agentMessages.length === 0 && !stagedPrompt}
-                      >
-                        <Trash size={18} weight="bold" aria-hidden />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-              {promptMode === "chat" ? (
-                agentChatOpen ? null : (
-                  <>
-                    {agentMessages.length > 0 || stagedPrompt ? (
-                      <div className="agent-chat-wrapper">
-                        <AgentChatPanel
-                          messages={agentMessages}
-                          input={agentInput}
-                          sendLabel={primaryActionLabel}
-                          isSending={agentIsSending}
-                          showInput={false}
-                          onInputChange={(value) => onAgentInputChange?.(value)}
-                          onSend={onAgentSend ?? (() => {})}
-                          onMessageClick={onAgentMessageClick}
-                        />
-                      </div>
-                    ) : null}
-                    <div className="step2-input-row">
-                      <AgentInputBar
-                        value={agentInput}
-                        onChange={(value) => onAgentInputChange?.(value)}
-                        placeholder="Tell the agent what you want or ask it to describe a reference."
-                        disabled={agentIsSending}
-                        onKeyDown={handleAgentInputKeyDown}
-                        className="agent-input-prefab-inline"
-                      />
-                    <div className="agent-inline-actions">
-                      {!hideSaveButton ? (
-                        <AgentSaveButton
-                          onClick={onSavePrompt}
-                          disabled={shouldDisableSave}
-                          ariaLabel="Save prompt"
-                        />
-                      ) : null}
-                      <AgentSendButton
-                        onClick={onAgentSend ?? (() => {})}
-                        disabled={agentIsSending}
-                        ariaLabel="Send to agent"
-                      />
-                      {!hideSaveAndMini && showMiniGenerateButton ? (
-                        <MiniGenerateButton
-                          cost={costValue}
-                          onClick={handleCostGenerate}
-                          disabled={isGenerateDisabled || isPromptGenerating}
-                          ariaLabel="Generate with current prompt"
-                        />
-                      ) : null}
-                    </div>
-                    </div>
-                  </>
-                )
-              ) : (
-                <>
-                  <div className="step2-input-row enhanced-mode">
-                    <div className="prompt-enhanced-wrapper">
-                      {promptThinking ? (
-                        <div className="prompt-thinking-overlay" aria-live="polite">
-                          <span className="prompt-thinking-text">Thinking…</span>
-                        </div>
-                      ) : null}
-                      <textarea
-                        className="prompt-input agent-step-textarea enhanced-prompt-input"
-                        value={prompt}
-                        onChange={(event) => onPromptChange(event.target.value)}
-                        onKeyDown={handleEnhancedPromptKeyDown}
-                        rows={6}
-                        placeholder="Describe what you want, then enhance it."
-                        aria-busy={promptThinking}
-                      />
-                    </div>
-                  </div>
-                    <div className="enhanced-actions-row">
-                      <div className="ai-control-actions">
-                        <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
-                          <CloudArrowUp size={12} weight="regular" /> Media library
-                        </button>
-                      </div>
-                        <div className="enhanced-action-buttons agent-inline-actions">
-                          <AgentSaveButton
-                            onClick={onSavePrompt}
-                            disabled={shouldDisableSave}
-                            ariaLabel="Save prompt"
-                            className="prompt-fab-save"
-                          />
-                          <AgentSendButton
-                            onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}
-                            disabled={agentIsSending}
-                            ariaLabel="Send to agent"
-                            className="prompt-fab-send"
-                          />
-                      {showMiniGenerateButton ? (
-                        <MiniGenerateButton
-                          cost={costValue}
-                          onClick={handleCostGenerate}
-                          disabled={isGenerateDisabled || isPromptGenerating}
-                          ariaLabel="Generate with current prompt"
-                        />
-                      ) : null}
-                    </div>
-                  </div>
-                </>
-              )}
-            </>
-          ) : (
-            <div className="prompt-placeholder helper-text">
-              <p className="prompt-placeholder-highlight">Image to Text Mode is active.</p>
-              <p>The selected image will generate the prompt automatically.</p>
-            </div>
-          )
-        ) : null}
-        {agentEnabled && agentError && !collapsedSteps.prompt ? <div className="inline-error-hint">{agentError}</div> : null}
-      </div>
+      <PromptStep
+        stepNumber={promptStepNumber}
+        title="Write your prompt"
+        subtitle="Draft the prompt you want to use, or switch to Chat to have the agent craft one for you."
+        prompt={prompt}
+        onPromptChange={onPromptChange}
+        agentEnabled={agentEnabled}
+        agentMessages={agentMessages}
+        agentActions={agentActions}
+        agentInput={agentInput}
+        agentIsSending={agentIsSending}
+        agentError={agentError}
+        stagedPrompt={stagedPrompt}
+        agentChatOpen={agentChatOpen}
+        onAgentInputChange={onAgentInputChange}
+        onAgentSend={onAgentSend}
+        onAgentEnhanceSend={onAgentEnhanceSend}
+        onAgentMessageClick={onAgentMessageClick}
+        onExpandChat={onExpandChat}
+        onCloseAgentChat={onCloseAgentChat}
+        onClearAgentChat={onClearAgentChat}
+        onGenerate={handleCostGenerate}
+        onSavePrompt={onSavePrompt}
+        onOpenMediaLibrary={onOpenMediaLibrary}
+        isCollapsed={collapsedSteps.prompt}
+        onToggleCollapse={() => toggleStep("prompt")}
+        costCredits={costCredits}
+        isGenerating={isPromptGenerating}
+        isGenerateDisabled={isGenerateDisabled}
+        shouldDisableSave={shouldDisableSave}
+      />
     </div>
   );
 }

@@ -172,21 +172,21 @@ export function AiStudioPageContent({
     switch (selectedTool) {
       case "create":
         return (
-        <>
-          <CreatePropertiesPanel
-            {...propertiesCreate}
-            agentChatOpen={agentChat.isOpen}
-            onAgentEnhanceSend={propertiesCreate.onAgentEnhanceSend}
-          />
-          {propertiesCreate.mode !== "enhance" ? (
-            <ComposeSendCard
+          <>
+            <CreatePropertiesPanel
               {...propertiesCreate}
-              onGenerate={propertiesCreate.onGenerate}
-              onSavePrompt={propertiesCreate.onSavePrompt}
-              shouldDisableSave={propertiesCreate.shouldDisableSave}
+              agentChatOpen={agentChat.isOpen}
+              onAgentEnhanceSend={propertiesCreate.onAgentEnhanceSend}
             />
-          ) : null}
-        </>
+            {propertiesCreate.mode !== "enhance" ? (
+              <ComposeSendCard
+                {...propertiesCreate}
+                onGenerate={propertiesCreate.onGenerate}
+                onSavePrompt={propertiesCreate.onSavePrompt}
+                shouldDisableSave={propertiesCreate.shouldDisableSave}
+              />
+            ) : null}
+          </>
         );
       case "character":
         return <CharacterPropertiesPanel {...propertiesCharacter} />;
@@ -225,21 +225,7 @@ export function AiStudioPageContent({
           onChange={onFileBrowserSelection}
         />
 
-        {uiError || characterError ? (
-          <div className="ai-error-banner" role="alert">
-            <div className="ai-error-text">
-              <strong>Error:</strong> {uiError ?? characterError}
-            </div>
-            <button
-              type="button"
-              className="ghost-btn mini"
-              onClick={uiError ? onDismissUiError : onDismissCharacterError}
-              aria-label="Dismiss error"
-            >
-              Dismiss
-            </button>
-          </div>
-        ) : null}
+
 
         <section className="ai-hero panel hero-banner ai-amber-hero">
           <div className="hero-text">
@@ -344,15 +330,15 @@ export function AiStudioPageContent({
                       </button>
                     </div>
                   </div>
-                    <AgentChatPanel
-                      messages={agentChat.agentMessages}
-                      input={agentChat.agentInput}
-                      sendLabel="Send"
-                      isSending={agentChat.agentIsSending}
-                      onInputChange={agentChat.onInputChange}
-                      onSend={agentChat.onSend}
-                      onMessageClick={agentChat.onMessageClick}
-                    />
+                  <AgentChatPanel
+                    messages={agentChat.agentMessages}
+                    input={agentChat.agentInput}
+                    sendLabel="Send"
+                    isSending={agentChat.agentIsSending}
+                    onInputChange={agentChat.onInputChange}
+                    onSend={agentChat.onSend}
+                    onMessageClick={agentChat.onMessageClick}
+                  />
                 </div>
               ) : (
                 <>

@@ -107,7 +107,7 @@ const FAL_API_BASE = "/api/fal";
 
 const fetchWithTimeout = async (input: RequestInfo | URL, init?: RequestInit & { timeoutMs?: number }) => {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), init?.timeoutMs ?? 15000);
+  const timeoutId = window.setTimeout(() => controller.abort(), init?.timeoutMs ?? 60000);
   try {
     return await fetch(input, { ...init, signal: controller.signal });
   } finally {

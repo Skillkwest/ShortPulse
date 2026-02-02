@@ -303,6 +303,14 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setOutputs((prev) => prev.map((item) => (item.id === id ? updater(item) : item)));
   }, []);
 
+
+  const deleteOutput = useCallback((id: string) => {
+    setOutputs((prev) => prev.filter((item) => item.id !== id));
+    if (activeOutputId === id) {
+      setActiveOutputId(null);
+    }
+  }, [activeOutputId]);
+
   const notifyGenerationFailure = useCallback(
     (outputId: string, message: string) => {
       let contextLabel: string | null = null;
@@ -1083,6 +1091,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     openModelModal,
     closeModelModal,
     updateOutputPrompt,
+    deleteOutput,
     uiError,
     setUiError,
     getDefaultDurationSeconds,

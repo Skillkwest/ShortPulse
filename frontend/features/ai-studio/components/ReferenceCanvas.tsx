@@ -4,7 +4,7 @@
  */
 import Link from "next/link";
 import React, { useCallback, useState } from "react";
-import { CloudArrowUp, DownloadSimple, Sparkle, UploadSimple } from "phosphor-react";
+import { CloudArrowUp, DownloadSimple, Sparkle, UploadSimple, X } from "phosphor-react";
 import { StudioOutput } from "../types";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
 
@@ -22,6 +22,7 @@ type ReferenceCanvasProps = {
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
   onGeneratePrompt?: (output: StudioOutput) => void;
+  onDeleteOutput?: (id: string) => void;
   generateCostCredits?: number | null;
   describeCostCredits?: number | null;
 };
@@ -41,6 +42,7 @@ export function ReferenceCanvas({
   onSaveToLibrary,
   onDownload,
   onGeneratePrompt,
+  onDeleteOutput,
   generateCostCredits,
   describeCostCredits,
 }: ReferenceCanvasProps) {
@@ -207,6 +209,19 @@ export function ReferenceCanvas({
                           }}
                         >
                           <DownloadSimple size={16} weight="bold" aria-hidden />
+                        </button>
+                      ) : null}
+                      {isPromptOnly && onDeleteOutput ? (
+                        <button
+                          type="button"
+                          className="reference-card-action-btn"
+                          aria-label="Delete text reference"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDeleteOutput(item.id);
+                          }}
+                        >
+                          <X size={16} weight="bold" aria-hidden />
                         </button>
                       ) : null}
                     </div>

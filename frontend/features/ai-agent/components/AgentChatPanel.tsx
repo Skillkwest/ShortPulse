@@ -62,6 +62,16 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     [handleMessageClick],
   );
 
+  const handleInputKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key !== "Enter" || event.shiftKey) return;
+      event.preventDefault();
+      if (disabled || isSending) return;
+      onSend();
+    },
+    [disabled, isSending, onSend],
+  );
+
   return (
     <div className="agent-chat-panel">
       {showMessages && (stagedPrompt || messages.length > 0) ? (
@@ -98,7 +108,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
             placeholder="Tell the agent what you want or ask it to describe a reference."
             disabled={disabled}
             className="agent-input-prefab-inline"
-            thinking={isSending}
+            onKeyDown={handleInputKeyDown}
           />
           <div className="agent-inline-actions">
             <AgentSendButton onClick={onSend} disabled={disabled || isSending} ariaLabel={sendLabel} />

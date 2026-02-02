@@ -100,6 +100,7 @@ export default function AiStudioPage() {
     closeModelModal,
     resolvePreviewUrlById,
     updateOutputPrompt,
+    deleteOutput,
     uiError,
     setUiError,
     getDefaultDurationSeconds,
@@ -222,9 +223,8 @@ export default function AiStudioPage() {
       }
       // Fallback: chat agent with enhance hint
       const result = await handleAgentSend(prompt, { captureResult: true, modeHint: "enhance" });
-      const captureRes = result as { prompt: string; referenceTitle?: string } | undefined;
-      if (captureRes?.prompt) {
-        addAgentPromptReference(captureRes.prompt, captureRes.referenceTitle);
+      if (result && typeof result === "object" && "prompt" in result) {
+        addAgentPromptReference(result.prompt, result.referenceTitle ?? undefined);
       }
     } finally {
       setIsPromptRefining(false);
@@ -714,6 +714,7 @@ export default function AiStudioPage() {
           onSaveToLibrary: (output) => handleSaveReference(output.id),
           onDownload: (output) => handleDownloadReference(output.id),
           onGeneratePrompt: (output) => handleGenerateFromPromptReference(output.id),
+          onDeleteOutput: deleteOutput,
           generateCostCredits: promptGenerateCostCredits,
           describeCostCredits,
         }}

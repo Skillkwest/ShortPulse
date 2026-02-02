@@ -296,7 +296,7 @@ body.ai-studio-body {
   overflow: auto;
   z-index: 12;
   border-radius: 0;
-  padding: 16px 12px 20px;
+  padding: 12px 10px 14px;
   border-right: 1px solid rgba(201, 205, 214, 0.08);
 }
 
@@ -304,12 +304,12 @@ body.ai-studio-body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 10px 12px;
+  padding: 6px 10px;
   border-radius: 10px;
   margin: 0 0 12px;
   background: transparent;
   border: none;
-  min-height: 64px;
+  min-height: 52px;
 }
 
 .ai-toolbar .toolbar-brand {
@@ -464,8 +464,8 @@ body.ai-studio-body {
 .ai-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 8px;
+  padding: 12px;
 }
 
 .ai-layout.templates-active .reference-column {
@@ -509,7 +509,7 @@ body.ai-studio-body {
 .toolbar-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .toolbar-divider {
@@ -517,21 +517,20 @@ body.ai-studio-body {
   height: 1px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
-  margin: 14px 0;
+  margin: 10px 0;
   opacity: 0.5;
 }
 
 .toolbar-divider-children {
-  margin: 10px 0 6px;
+  margin: 6px 0 4px;
   opacity: 0.35;
 }
 
 .toolbar-lower {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-top: 6px;
   gap: 4px;
+  padding-top: 4px;
 }
 
 .toolbar-creations {
@@ -558,8 +557,8 @@ body.ai-studio-body {
   gap: 6px;
   position: relative;
   border-radius: 6px;
-  padding: 8px 12px;
-  min-height: 38px;
+  padding: 6px 10px;
+  min-height: 34px;
   font-size: var(--ai-toolbar-font-size);
   font-weight: var(--ai-toolbar-font-weight);
   border: 1px solid transparent;
@@ -585,8 +584,8 @@ body.ai-studio-body {
 
 .toolbar-item.toolbar-item-child {
   margin-left: 10px;
-  min-height: 34px;
-  padding: 6px 10px;
+  min-height: 30px;
+  padding: 4px 8px;
   border-radius: 6px;
 }
 
@@ -606,8 +605,8 @@ body.ai-studio-body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
-  margin-bottom: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(16, 19, 28, 0.86);
@@ -644,7 +643,7 @@ body.ai-studio-body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px;
+  padding: 10px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(16, 19, 28, 0.9);
@@ -659,8 +658,8 @@ body.ai-studio-body {
 }
 
 .toolbar-profile-avatar {
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -674,7 +673,7 @@ body.ai-studio-body {
 
 .toolbar-profile-name {
   font-weight: 500;
-  font-size: 16px;
+  font-size: 15px;
 }
 .toolbar-footer {
   margin-top: auto;
@@ -691,6 +690,8 @@ body.ai-studio-body {
   border: 1px solid rgba(201, 205, 214, 0.25);
   background: rgba(16, 19, 28, 0.8);
   transition: border-color 0.15s ease, background-color 0.15s ease;
+  padding: 8px 10px;
+  min-height: 34px;
 }
 
 .toolbar-settings-btn svg {

@@ -117,7 +117,7 @@ export const filterModelOptions = (
   getModelConfig: (id: string) => any,
 ) => {
   const mediaFilter = (() => {
-    if (selectedTool === "create") {
+    if (selectedTool === "create" || selectedTool === "text") {
       if (mode === "image") return "image";
       if (mode === "video") return "video";
     }
@@ -136,7 +136,7 @@ export const filterModelOptions = (
       return config?.supportsImageToImage;
     });
   }
-  if (selectedTool === "create" && mode === "image") {
+  if ((selectedTool === "create" || selectedTool === "text") && mode === "image") {
     filtered = filtered.filter((opt) => {
       const config = getModelConfig(opt.value);
       return config?.supportsTextToImage;

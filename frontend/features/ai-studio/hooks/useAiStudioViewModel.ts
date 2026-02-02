@@ -38,9 +38,9 @@ export const useAiStudioViewModel = ({
   balanceCredits,
   costParamsForModel,
 }: ViewModelInput) => {
-  const isDescribeMode = selectedTool === "create" && mode === "enhance" && useReferenceImageIndicator;
+  const isDescribeMode = (selectedTool === "create" || selectedTool === "text") && mode === "enhance" && useReferenceImageIndicator;
   const requiresModelSelection =
-    (selectedTool === "create" && mode !== "enhance") || selectedTool === "image-to-video";
+    ((selectedTool === "create" || selectedTool === "text") && mode !== "enhance") || selectedTool === "image-to-video";
   const isModelSelected = Boolean(model);
   const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
 
@@ -51,7 +51,7 @@ export const useAiStudioViewModel = ({
   );
 
   const currentCost = useMemo(() => {
-    if (selectedTool === "create") {
+    if (selectedTool === "create" || selectedTool === "text") {
       if (mode === "image") {
         if (!model) return null;
         return computeCostForModel(model, costParamsForModel());
@@ -106,7 +106,7 @@ export const useAiStudioViewModel = ({
   }, [aspect, costParamsForModel, model]);
 
   const costedFlow =
-    (selectedTool === "create" && (mode === "image" || mode === "video")) || selectedTool === "image-to-video";
+    ((selectedTool === "create" || selectedTool === "text") && (mode === "image" || mode === "video")) || selectedTool === "image-to-video";
   const hasReferenceImages = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
 
   const requiresVideoReference =
@@ -126,7 +126,7 @@ export const useAiStudioViewModel = ({
       : balanceCredits >= currentCostCredits;
 
   const generationGuardrail = useMemo(() => {
-    if (selectedTool === "create" && mode === "enhance") return null;
+    if ((selectedTool === "create" || selectedTool === "text") && mode === "enhance") return null;
     if (requiresModelSelection && !isModelSelected) return "Select a model before running a generation.";
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
     if (isPulseImageToolActive && !hasReferenceImages) {

@@ -171,6 +171,7 @@ export function AiStudioPageContent({
   const renderProperties = () => {
     switch (selectedTool) {
       case "create":
+      case "text":
         return (
           <>
             <CreatePropertiesPanel
@@ -208,6 +209,15 @@ export function AiStudioPageContent({
         );
       case "enhance":
         return <EnhancePropertiesPanel {...propertiesEnhance} />;
+      case "edit":
+        return (
+          <div style={{ padding: "24px" }}>
+            <h3 style={{ marginBottom: "12px" }}>Edit Interface</h3>
+            <p style={{ color: "var(--ai-card-text)", fontSize: "14px" }}>
+              Edit interface coming soon...
+            </p>
+          </div>
+        );
       default:
         return null;
     }

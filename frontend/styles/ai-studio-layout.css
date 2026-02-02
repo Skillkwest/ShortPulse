@@ -570,6 +570,16 @@ body.ai-studio-body {
   overflow: hidden;
 }
 
+.toolbar-item[data-tool-id="edit-parent"] .toolbar-label {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+.toolbar-item[data-tool-id="edit"] .toolbar-label {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
 .toolbar-item::before {
   content: "";
   position: absolute;

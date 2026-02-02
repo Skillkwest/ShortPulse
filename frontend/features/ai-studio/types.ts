@@ -44,4 +44,6 @@ export type ToolId =
   | "enhance"
   | "character"
   | "image-to-image"
-  | "image-to-video";
+  | "image-to-video"
+  | "text"
+  | "edit";

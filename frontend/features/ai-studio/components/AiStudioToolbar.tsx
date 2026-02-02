@@ -5,21 +5,22 @@
 import Link from "next/link";
 import React from "react";
 import {
-  Activity,
   Globe,
   FlowArrow,
   Gear,
   House,
   ImageSquare,
   MagicWand,
+  Pencil,
   Person,
   Sparkle,
   SquaresFour,
   StackSimple,
+  TextT,
   UsersThree,
   VideoCamera,
 } from "phosphor-react";
-import { creationsToolList, editChildTools, lowerToolList, primaryToolList } from "../constants";
+import { creationsToolList, editChildTools, editToolList, lowerToolList, primaryToolList } from "../constants";
 import { ToolId } from "../types";
 
 type AiStudioToolbarProps = {
@@ -38,11 +39,13 @@ const toolIcons: Record<ToolId, React.ComponentType<any>> = {
   templates: SquaresFour,
   "my-generations": StackSimple,
   community: Globe,
-  "edit-parent": Activity,
+  "edit-parent": Sparkle,
+  text: TextT,
   "image-to-image": ImageSquare,
   "image-to-video": VideoCamera,
   enhance: MagicWand,
   character: Person,
+  edit: Pencil,
 };
 
 /**
@@ -58,6 +61,7 @@ export function AiStudioToolbar({
   showOnboardingSteps = false,
 }: AiStudioToolbarProps) {
   const isEditChildSelected =
+    selectedTool === "text" ||
     selectedTool === "image-to-image" ||
     selectedTool === "image-to-video" ||
     selectedTool === "enhance" ||
@@ -79,7 +83,7 @@ export function AiStudioToolbar({
         </div>
       ) : null}
       <div className="toolbar-list">
-        <p className="toolbar-section-label">Generate</p>
+        <p className="toolbar-section-label">Create</p>
         {primaryToolList.map((tool, index) => {
           const IconComponent = toolIcons[tool.id];
           const isEditParent = tool.id === "edit-parent";
@@ -93,7 +97,7 @@ export function AiStudioToolbar({
             if (isEditParent) {
               onToggleEditTools(true);
               if (!isEditChildSelected) {
-                onSelectTool("image-to-image");
+                onSelectTool("text");
               } else {
                 onSelectTool(tool.id);
               }
@@ -107,6 +111,7 @@ export function AiStudioToolbar({
               <button
                 type="button"
                 className={`toolbar-item ${isActive ? "is-active" : ""}`}
+                data-tool-id={tool.id}
                 onClick={handleClick}
               >
                 {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
@@ -143,6 +148,29 @@ export function AiStudioToolbar({
               );
             })
           : null}
+        <div className="toolbar-divider" aria-hidden="true" />
+        <p className="toolbar-section-label">Edit</p>
+        {editToolList.map((tool) => {
+          const IconComponent = toolIcons[tool.id];
+          const isActive = selectedTool === tool.id;
+          return (
+            <button
+              key={tool.id}
+              type="button"
+              className={`toolbar-item ${isActive ? "is-active" : ""}`}
+              data-tool-id={tool.id}
+              onClick={() => {
+                onToggleEditTools(false);
+                onSelectTool(tool.id);
+              }}
+            >
+              {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
+              <div className="toolbar-copy">
+                <span className="toolbar-label">{tool.label}</span>
+              </div>
+            </button>
+          );
+        })}
         <div className="toolbar-divider" aria-hidden="true" />
         <div className="toolbar-lower">
           <p className="toolbar-section-label">Shortcuts</p>

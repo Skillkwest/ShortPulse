@@ -153,7 +153,11 @@ export const previewPlaceholders = [
 
 export const primaryToolList: ToolConfig[] = [
   { id: "create", label: "Create", desc: "Prompt and output type" },
-  { id: "edit-parent", label: "Pulse", desc: "Show edit tools" },
+  { id: "edit-parent", label: "Generate", desc: "Show edit tools" },
+];
+
+export const editToolList: ToolConfig[] = [
+  { id: "edit", label: "Edit", desc: "Edit and refine content" },
 ];
 
 export const lowerToolList: ToolConfig[] = [
@@ -167,6 +171,7 @@ export const creationsToolList: ToolConfig[] = [
 ];
 
 export const editChildTools: ToolConfig[] = [
+  { id: "text", label: "Text", desc: "Create from text prompts" },
   { id: "image-to-image", label: "Image", desc: "Regenerate from a reference" },
   { id: "image-to-video", label: "Video", desc: "Animate a still image" },
   { id: "enhance", label: "Enhance", desc: "Upscale and polish outputs" },

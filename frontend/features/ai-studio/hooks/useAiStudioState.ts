@@ -119,7 +119,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const currentModelLabel = useMemo(() => resolveModelLabel(model ?? undefined), [model]);
 
   const modelMediaFilter = useMemo(() => {
-    if (selectedTool === "create") {
+    if (selectedTool === "create" || selectedTool === "text") {
       if (mode === "image") return "image";
       if (mode === "video") return "video";
     }
@@ -138,10 +138,10 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           opt.mediaType === "multi",
       );
     }
-    if (selectedTool === "create" && mode === "video") {
+    if ((selectedTool === "create" || selectedTool === "text") && mode === "video") {
       return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === "video" || opt.mediaType === "multi");
     }
-    if (selectedTool === "create" && mode === "image") {
+    if ((selectedTool === "create" || selectedTool === "text") && mode === "image") {
       return modelOptions.filter((opt) => {
         const matchesMedia = !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi";
         if (!matchesMedia) return false;
@@ -362,7 +362,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
       const cleanedPrompt = (promptArg ?? prompt).trim();
 
-      if (effectiveTool === "create" && effectiveMode === "enhance") {
+      if ((effectiveTool === "create" || effectiveTool === "text") && effectiveMode === "enhance") {
         // Enhance (text prompt) is handled exclusively by the chat agent upstream.
         // Avoid invoking legacy refine/describe pipelines from here.
         setIsPromptGenerating(false);

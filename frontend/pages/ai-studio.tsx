@@ -517,7 +517,7 @@ export default function AiStudioPage() {
     }
 
     if (
-      effectiveTool === "create" &&
+      (effectiveTool === "create" || effectiveTool === "text") &&
       (effectiveMode === "image" || effectiveMode === "video") &&
       costToDebit &&
       model &&
@@ -531,7 +531,7 @@ export default function AiStudioPage() {
   };
 
   const handlePrimarySubmit = () => {
-    if (selectedTool === "create" && mode === "enhance") {
+    if ((selectedTool === "create" || selectedTool === "text") && mode === "enhance") {
       handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
         const agentRes = result as { prompt: string; referenceTitle?: string } | undefined;
         if (agentRes?.prompt) {

@@ -16,7 +16,9 @@ export function AgentGenerateButton({ onClick, disabled = false, isBusy = false,
         <span aria-hidden="true" className="model-chip-icon">
           ✦
         </span>
-        <span className="model-chip-credits">{cost}</span>
+        <span className="model-chip-credits">
+          {cost} <span className="model-chip-credits-label">credits</span>
+        </span>
       </span>
     </button>
   );

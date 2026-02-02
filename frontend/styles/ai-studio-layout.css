@@ -8,7 +8,7 @@
  */
 :root {
   /* Adjust the Width of the left sidebar. */
-  --ai-rail-width: 230px;
+  --ai-rail-width: 200px;
   --ai-gutter: 16px;
   --ai-container-card-bg: rgba(201, 205, 214, 0.02);
   --ai-container-card-border: rgba(201, 205, 214, 0.02);
@@ -304,10 +304,11 @@ body.ai-studio-body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 6px 10px;
+  padding: 12px 10px;
   border-radius: 10px;
-  margin: 0 0 12px;
+  margin: 0 0 0px;
   background: transparent;
+  
   border: none;
   min-height: 52px;
 }
@@ -324,13 +325,12 @@ body.ai-studio-body {
 }
 
 .toolbar-back-link {
-  margin: 8px 12px 12px;
-  width: calc(100% - 24px);
+  margin: 12px auto 6px;
+  width: 120px;
   justify-content: center;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
-  padding: 10px 18px;
-  min-height: 44px;
+  min-height: 38px;
   border: 1px solid rgba(201, 205, 214, 0.2);
   border-radius: 10px;
 }
@@ -406,9 +406,11 @@ body.ai-studio-body {
   border-color: rgba(20, 22, 28, 0.96);
 }
 
+/* AI Studio main shell layout */
 .ai-shell {
   display: grid;
-  grid-template-columns: minmax(380px, 1.25fr) minmax(0, 1.75fr);
+  /* Adjust the relative widths of the two main columns. */
+  grid-template-columns: minmax(500px, 0.9fr) minmax(0, 1.75fr);
   gap: var(--ai-gutter);
   align-items: start;
   grid-auto-rows: auto;
@@ -463,7 +465,7 @@ body.ai-studio-body {
 .ai-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
   padding: 12px;
 }
 
@@ -508,7 +510,7 @@ body.ai-studio-body {
 .toolbar-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .toolbar-divider {
@@ -516,7 +518,7 @@ body.ai-studio-body {
   height: 1px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
-  margin: 10px 0;
+  margin: 18px 0;
   opacity: 0.5;
 }
 
@@ -610,12 +612,12 @@ body.ai-studio-body {
 
 /* Generate button - blue/cyan gradient */
 .toolbar-item[data-tool-id="edit-parent"] {
-  background: linear-gradient(135deg, #1e40af 0%, #0891b2 50%, #06b6d4 100%);
+  background: linear-gradient(135deg, #0c409f 0%, #0891b2 50%, #06b6d4 100%);
 }
 
 /* Edit button - magenta/yellow gradient */
 .toolbar-item[data-tool-id="edit"] {
-  background: linear-gradient(135deg, #db2777 0%, #e11d48 40%, #f59e0b 100%);
+  background: linear-gradient(135deg, #e10328 0%, #f43f5e 40%, #ffb300 100%);
 }
 
 .toolbar-item[data-tool-id="edit-parent"]::before,
@@ -636,7 +638,7 @@ body.ai-studio-body {
 
 /* Edit button hover - brighter magenta/yellow with warm glow */
 .toolbar-item[data-tool-id="edit"]:hover {
-  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 40%, #fbbf24 100%);
+  background: linear-gradient(135deg, #e10328 0%, #f43f5e 40%, #fbbf24 100%);
   transform: translateY(-2px);
   box-shadow:
     0 8px 20px rgba(219, 39, 119, 0.35),
@@ -670,7 +672,7 @@ body.ai-studio-body {
 
 /* Canvas button - purple/indigo gradient */
 .toolbar-item[data-tool-id="canvas"] {
-  background: linear-gradient(135deg, #7c5cff 0%, #4b3fe6 100%);
+  background: linear-gradient(135deg, #992ac9 0%, #433aa9 100%);
   margin: 6px 0;
   padding: 10px 14px;
   border: none;
@@ -683,17 +685,17 @@ body.ai-studio-body {
 
 /* Canvas button hover */
 .toolbar-item[data-tool-id="canvas"]:hover {
-  background: linear-gradient(135deg, #8b6fd4 0%, #5f52d4 100%);
+  background: linear-gradient(135deg, #b32ba9 0%, #4135ab 100%);
   transform: translateY(-2px);
   box-shadow:
-    0 8px 20px rgba(124, 92, 255, 0.3),
-    0 4px 12px rgba(75, 63, 230, 0.35),
-    0 0 0 1px rgba(167, 139, 247, 0.2);
+    0 8px 20px rgba(153, 20, 242, 0.178),
+    0 4px 12px rgba(166, 63, 230, 0.35),
+    0 0 0 1px rgba(213, 86, 245, 0.2);
 }
 
 /* Canvas button active - dual borders (dark + purple) */
 .toolbar-item[data-tool-id="canvas"].is-active {
-  background: linear-gradient(135deg, #6b4fd4 0%, #3d2fa8 100%);
+  background: linear-gradient(135deg, #b32ba9 0%, #3d2fa8 100%);
   transform: scale(1);
   border: 2px solid rgba(0, 0, 0, 0.4);
   box-shadow:
@@ -748,6 +750,10 @@ body.ai-studio-body {
   transition: opacity 0.15s ease;
 }
 
+.toolbar-item.toolbar-item-child::before {
+  display: none;
+}
+
 .toolbar-item.toolbar-item-child {
   margin-left: 10px;
   min-height: 30px;
@@ -758,8 +764,8 @@ body.ai-studio-body {
 
 /* Sub-button hover state - very subtle highlight */
 .toolbar-item.toolbar-item-child:hover {
-  background: rgba(6, 182, 212, 0.08);
-  border-color: rgba(6, 182, 212, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: transparent;
 }
 
 /* Sub-button active/selected state - subtle cyan gradient */
@@ -794,6 +800,10 @@ body.ai-studio-body {
   color: var(--ai-accent);
   width: 16px;
   height: 16px;
+}
+
+.toolbar-item.toolbar-item-child svg {
+  color: currentColor;
 }
 
 .toolbar-footer {

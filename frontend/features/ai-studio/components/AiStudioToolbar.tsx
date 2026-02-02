@@ -76,8 +76,9 @@ export function AiStudioToolbar({
       </div>
       <Link href="/dashboard" className="ghost-btn small toolbar-back-link">
         <House size={16} weight="regular" />
-        Back to dashboard
+        Dashboard
       </Link>
+      <div className="toolbar-divider" aria-hidden="true" />
       <div className="toolbar-list">
         {primaryToolList.map((tool, index) => {
           const IconComponent = toolIcons[tool.id];
@@ -123,17 +124,17 @@ export function AiStudioToolbar({
               const IconComponent = toolIcons[tool.id];
               const isActive = selectedTool === tool.id;
               return (
-              <button
-                key={tool.id}
-                type="button"
-                className={`toolbar-item toolbar-item-child ${isActive ? "is-active" : ""}`}
-                onClick={() => onSelectTool(tool.id)}
-              >
-                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
-                <div className="toolbar-copy">
-                  <span className="toolbar-label">{tool.label}</span>
-                </div>
-              </button>
+                <button
+                  key={tool.id}
+                  type="button"
+                  className={`toolbar-item toolbar-item-child ${isActive ? "is-active" : ""}`}
+                  onClick={() => onSelectTool(tool.id)}
+                >
+                  {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
+                  <div className="toolbar-copy">
+                    <span className="toolbar-label">{tool.label}</span>
+                  </div>
+                </button>
               );
             })
           : null}
@@ -147,6 +148,12 @@ export function AiStudioToolbar({
               className={`toolbar-item ${isActive ? "is-active" : ""}`}
               data-tool-id={tool.id}
               onClick={() => {
+                const isToggleablePrimary = tool.id === "edit" || tool.id === "canvas";
+                if (isToggleablePrimary && isActive) {
+                  onToggleEditTools(false);
+                  onSelectTool(null);
+                  return;
+                }
                 onToggleEditTools(false);
                 onSelectTool(tool.id);
               }}

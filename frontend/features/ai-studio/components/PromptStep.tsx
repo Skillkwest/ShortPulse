@@ -139,12 +139,9 @@ export function PromptStep({
 
   const canExpandChat = agentMessages.length > 0;
   const isChatPromptMode = promptMode === "chat";
-  const showMiniGenerateButton = typeof onGenerate === 'function'; // Always show if generate handler exists
+  const showMiniGenerateButton = typeof onGenerate === "function"; // Always show if generate handler exists
   const promptThinking = Boolean(agentIsSending || isGenerating);
   const costValue = costCredits != null ? costCredits : "—";
-
-  // Hide save button in chat mode to avoid clutter, similar to original logic
-  const hideSaveButton = isChatPromptMode; 
 
   return (
     <div
@@ -257,7 +254,7 @@ export function PromptStep({
                         disabled={agentIsSending}
                         ariaLabel="Send to agent"
                       />
-                        {showMiniGenerateButton && !hideSaveButton ? (
+                        {showMiniGenerateButton ? (
                         <MiniGenerateButton
                           cost={costValue}
                           onClick={handleCostGenerate}

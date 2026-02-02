@@ -3,7 +3,7 @@
  * Provides reference dropzones, aspect/model selection, and prompt capture for regen flows.
  */
 import React, { useRef, useState } from "react";
-import { CloudArrowUp, FloppyDisk, Plus, Sparkle, UploadSimple } from "phosphor-react";
+import { CloudArrowUp, FloppyDisk, Plus, UploadSimple } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
 import { extractDragDropPayload, isImageDragTransfer } from "../utils/dragDrop";
@@ -11,6 +11,7 @@ import { modelLogos } from "../constants";
 import { PromptStep } from "./PromptStep";
 import type { AgentActions, AgentMessage } from "../../ai-agent/types";
 import { CaretDown } from "phosphor-react";
+import { AgentGenerateButton } from "../../ai-agent/components/AgentGenerateButton";
 
 type RecreatePropertiesPanelProps = {
   title: string;
@@ -28,7 +29,6 @@ type RecreatePropertiesPanelProps = {
   onModelPickerOpen: (anchorId: string, target: HTMLElement) => void;
   onPrimaryImageChange: (url: string | null) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
-  onClearImages: () => void;
   onPromptTextChange: (value: string) => void;
   onSave: () => void;
   onRegenerate: () => void;
@@ -101,7 +101,6 @@ export function RecreatePropertiesPanel({
   onModelPickerOpen,
   onPrimaryImageChange,
   onExtraImageChange,
-  onClearImages,
   onPromptTextChange,
   onSave,
   onRegenerate,
@@ -259,10 +258,7 @@ export function RecreatePropertiesPanel({
                 <p className="step-title">Add Reference Image</p>
                 <span className="step-subtitle tiny helper-text">Drag a reference from the canvas or upload one manually.</span>
               </div>
-              <div className="reference-drop-header-actions">
-                <button type="button" className="ghost-btn mini" onClick={(e) => { e.stopPropagation(); onClearImages(); }}>
-                  Clear
-                </button>
+            <div className="reference-drop-header-actions">
                 <StepHeaderActionButton
                   label="Open reference options"
                   isCollapsed={collapsedSteps.reference}
@@ -437,17 +433,12 @@ export function RecreatePropertiesPanel({
           </div>
           {!collapsedSteps.generate ? (
             <div className="create-controls single-control">
-              <button
-                type="button"
-                className="primary-btn primary-btn-wide recreate-generate-btn"
+              <AgentGenerateButton
                 onClick={onRegenerate}
                 disabled={isGenerateDisabled}
-              >
-                <span className="primary-btn-label">Generate</span>
-                <span className="primary-btn-credits">
-                  {costCredits != null ? costCredits : "—"} <Sparkle size={18} weight="fill" />
-                </span>
-              </button>
+                isBusy={agentIsSending}
+                cost={costCredits != null ? costCredits : "—"}
+              />
               {isGenerateDisabled && guardrailReason && !agentIsSending ? (
                 <div className="inline-error-hint step-card-error" role="status">
                   {guardrailReason}

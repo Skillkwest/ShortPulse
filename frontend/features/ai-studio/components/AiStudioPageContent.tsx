@@ -15,7 +15,7 @@ import { ReferenceCanvas } from "./ReferenceCanvas";
 import { RecreatePropertiesPanel } from "./RecreatePropertiesPanel";
 import { StudioPreview } from "./StudioPreview";
 import { CharacterPropertiesPanel } from "../../character/components/CharacterPropertiesPanel";
-import { CharacterPreview } from "../../character/components/CharacterPreview";
+import { CharacterPanel } from "./CharacterPanel";
 import { AgentChatPanel } from "../../ai-agent/components/AgentChatPanel";
 import type { AgentActions, AgentMessage } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
@@ -169,6 +169,7 @@ export function AiStudioPageContent({
   handleReferenceCanvasFiles,
   triggerFilePicker,
 }: AiStudioPageContentProps) {
+  void propertiesCharacter;
   const renderProperties = () => {
     switch (selectedTool) {
       case "create":
@@ -180,41 +181,16 @@ export function AiStudioPageContent({
               agentChatOpen={agentChat.isOpen}
               onAgentEnhanceSend={propertiesCreate.onAgentEnhanceSend}
             />
-            {propertiesCreate.mode !== "enhance" ? (
-              <ComposeSendCard
-                {...propertiesCreate}
-                onGenerate={propertiesCreate.onGenerate}
-                onSavePrompt={propertiesCreate.onSavePrompt}
-                shouldDisableSave={propertiesCreate.shouldDisableSave}
-              />
-            ) : null}
+            <ComposeSendCard
+              {...propertiesCreate}
+              onGenerate={propertiesCreate.onGenerate}
+              onSavePrompt={propertiesCreate.onSavePrompt}
+              shouldDisableSave={propertiesCreate.shouldDisableSave}
+            />
           </>
         );
       case "character":
-        return (
-          <div style={{ padding: "24px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-              <User size={24} weight="bold" color="#06b6d4" />
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>Character</h3>
-            </div>
-            <p style={{ color: "var(--ai-card-text)", fontSize: "14px", lineHeight: "1.5", margin: 0 }}>
-              Create consistent characters across multiple generations. Define character traits, appearance, and style to maintain visual continuity in your creative projects.
-            </p>
-            <div
-              style={{
-                marginTop: "24px",
-                padding: "16px",
-                borderRadius: "10px",
-                background: "rgba(6, 182, 212, 0.08)",
-                border: "1px solid rgba(6, 182, 212, 0.2)",
-              }}
-            >
-              <p style={{ color: "var(--ai-card-text)", fontSize: "13px", margin: 0, fontStyle: "italic" }}>
-                Consistent Character Creation coming soon.
-              </p>
-            </div>
-          </div>
-        );
+        return <CharacterPanel />;
       case "image-to-image":
         return (
           <RecreatePropertiesPanel
@@ -353,15 +329,7 @@ export function AiStudioPageContent({
             <section className={`ai-shell ${selectedTool ? "" : "ai-shell-wide"}`}>
               {selectedTool ? <aside className="panel ai-panel ai-properties">{renderProperties()}</aside> : null}
 
-              {selectedTool === "character" ? (
-                <div className="ai-preview-column reference-column">
-                  <CharacterPreview
-                    identity={propertiesCharacter.identity}
-                    results={propertiesCharacter.results}
-                    onUploadClick={triggerFilePicker}
-                  />
-                </div>
-              ) : agentChat.isOpen ? (
+              {agentChat.isOpen ? (
                 <div className="ai-preview-column reference-column">
                   <div className="preview-column-header">
                     <div>

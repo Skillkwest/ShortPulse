@@ -80,6 +80,7 @@ export type PromptStepProps = {
   onDrop?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
   onDragOver?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
   className?: string;
+  beginnerMode?: boolean;
 };
 
 export function PromptStep({
@@ -115,6 +116,7 @@ export function PromptStep({
   onDrop,
   onDragOver,
   className = "",
+  beginnerMode = false,
 }: PromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">("enhanced");
   
@@ -161,7 +163,7 @@ export function PromptStep({
           e.stopPropagation();
           onToggleCollapse();
       }}>
-        <span className="step-badge">{stepNumber}</span>
+        {beginnerMode && <span className="step-badge">{stepNumber}</span>}
         <div className="step-header-copy">
           <p className="step-title">{title}</p>
           <span className="step-subtitle tiny helper-text">{subtitle}</span>
@@ -195,32 +197,32 @@ export function PromptStep({
                 >
                   Chat
                 </button>
-                <div className={`prompt-chat-actions ${promptMode === "chat" ? "is-active" : ""}`}>
-                  {onExpandChat ? (
-                    <button
-                      type="button"
-                      className={`ghost-btn mini prompt-expand-btn ${agentChatOpen ? "is-chat-open" : ""}`}
-                      onClick={(e) => { e.stopPropagation(); if (canExpandChat) onExpandChat(); }}
-                      aria-label="Expand chat"
-                      disabled={!canExpandChat}
-                      aria-disabled={!canExpandChat}
-                    >
-                      <ArrowsOutSimple size={20} weight="bold" aria-hidden />
-                    </button>
-                  ) : null}
-                  {onClearAgentChat ? (
-                    <button
-                      type="button"
-                      className="ghost-btn mini prompt-clear-btn"
-                      onClick={(e) => { e.stopPropagation(); onClearAgentChat(); }}
-                      aria-label="Clear chat"
-                      disabled={agentMessages.length === 0 && !stagedPrompt}
-                      aria-disabled={agentMessages.length === 0 && !stagedPrompt}
-                    >
-                      <Trash size={18} weight="bold" aria-hidden />
-                    </button>
-                  ) : null}
-                </div>
+              </div>
+              <div className={`prompt-chat-actions ${promptMode === "chat" ? "is-active" : ""}`}>
+                {onExpandChat ? (
+                  <button
+                    type="button"
+                    className={`ghost-btn mini prompt-expand-btn ${agentChatOpen ? "is-chat-open" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); if (canExpandChat) onExpandChat(); }}
+                    aria-label="Expand chat"
+                    disabled={!canExpandChat}
+                    aria-disabled={!canExpandChat}
+                  >
+                    <ArrowsOutSimple size={20} weight="bold" aria-hidden />
+                  </button>
+                ) : null}
+                {onClearAgentChat ? (
+                  <button
+                    type="button"
+                    className="ghost-btn mini prompt-clear-btn"
+                    onClick={(e) => { e.stopPropagation(); onClearAgentChat(); }}
+                    aria-label="Clear chat"
+                    disabled={agentMessages.length === 0 && !stagedPrompt}
+                    aria-disabled={agentMessages.length === 0 && !stagedPrompt}
+                  >
+                    <Trash size={18} weight="bold" aria-hidden />
+                  </button>
+                ) : null}
               </div>
             </div>
             {promptMode === "chat" ? (

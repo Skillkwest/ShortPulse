@@ -373,31 +373,61 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         return;
       }
 
+      // Intelligent API fallback: if no reference images provided, automatically use text-based APIs
+      const hasReferenceImages = imageInputs && imageInputs.length > 0;
+      let finalTool = effectiveTool;
+      let finalModel = model;
 
-      if (!model) {
+      if (!hasReferenceImages) {
+        // Fallback to text-based generation when no references exist
+        if (effectiveTool === "image-to-image") {
+          finalTool = "text"; // Fallback to text-to-image
+          // Map image-to-image models to their text-to-image equivalents
+          const imageToTextModelMap: Record<string, string> = {
+            "fal/flux-2-pro/edit": "fal/flux-2-pro",
+            "fal/flux-2/edit": "fal/flux-2",
+            "fal-ai/nano-banana/edit": "fal-ai/nano-banana",
+            "fal-ai/nano-banana-pro/edit": "fal-ai/nano-banana-pro",
+          };
+          if (model && imageToTextModelMap[model]) {
+            finalModel = imageToTextModelMap[model];
+          }
+        } else if (effectiveTool === "image-to-video") {
+          finalTool = "text"; // Fallback to text-to-video (will use video mode)
+          // Map image-to-video models to their text-to-video equivalents
+          const imageToVideoTextMap: Record<string, string> = {
+            "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": "fal-ai/kling-video/v2.5-turbo/pro/text-to-video",
+          };
+          if (model && imageToVideoTextMap[model]) {
+            finalModel = imageToVideoTextMap[model];
+          }
+        }
+      }
+
+      if (!finalModel) {
         setUiError("Pick a model to generate.");
         return;
       }
       const id = `out-${randomId()}`;
-      const modelLabel = resolveModelLabel(model);
-      const isSeedreamModel = model === "fal-ai/bytedance/seedream/v4.5/text-to-image";
-      const isFalFlux2Model = model === "fal/flux-2";
-      const isFalFlux2EditModel = model === "fal/flux-2/edit";
-      const isFalFlux2ProModel = model === "fal/flux-2-pro";
-      const isFalFlux2ProEditModel = model === "fal/flux-2-pro/edit";
-      const isFalFlux2MaxModel = model === "fal/flux-2-max";
-      const isFalNanoBananaModel = model === "fal-ai/nano-banana";
-      const isFalNanoBananaEditModel = model === "fal-ai/nano-banana/edit";
-      const isFalNanoBananaProModel = model === "fal-ai/nano-banana-pro";
-      const isFalNanoBananaProEditModel = model === "fal-ai/nano-banana-pro/edit";
-      const isImagen4FastModel = model === "fal/imagen4/preview/fast";
-      const isSeedanceModel = model === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video";
-      const isKling25ImageModel = model === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
-      const isKling25TextModel = model === "fal-ai/kling-video/v2.5-turbo/pro/text-to-video";
-      const isVeoModel = model === "fal-ai/veo3.1";
-      const isKling26Model = model === "fal-ai/kling-video/v2.6/pro/text-to-video";
-      const isSoraModel = model === "fal-ai/sora-2/text-to-video/pro";
-      const modelConfig = model ? getModelConfig(model) : null;
+      const modelLabel = resolveModelLabel(finalModel);
+      const isSeedreamModel = finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image";
+      const isFalFlux2Model = finalModel === "fal/flux-2";
+      const isFalFlux2EditModel = finalModel === "fal/flux-2/edit";
+      const isFalFlux2ProModel = finalModel === "fal/flux-2-pro";
+      const isFalFlux2ProEditModel = finalModel === "fal/flux-2-pro/edit";
+      const isFalFlux2MaxModel = finalModel === "fal/flux-2-max";
+      const isFalNanoBananaModel = finalModel === "fal-ai/nano-banana";
+      const isFalNanoBananaEditModel = finalModel === "fal-ai/nano-banana/edit";
+      const isFalNanoBananaProModel = finalModel === "fal-ai/nano-banana-pro";
+      const isFalNanoBananaProEditModel = finalModel === "fal-ai/nano-banana-pro/edit";
+      const isImagen4FastModel = finalModel === "fal/imagen4/preview/fast";
+      const isSeedanceModel = finalModel === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video";
+      const isKling25ImageModel = finalModel === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
+      const isKling25TextModel = finalModel === "fal-ai/kling-video/v2.5-turbo/pro/text-to-video";
+      const isVeoModel = finalModel === "fal-ai/veo3.1";
+      const isKling26Model = finalModel === "fal-ai/kling-video/v2.6/pro/text-to-video";
+      const isSoraModel = finalModel === "fal-ai/sora-2/text-to-video/pro";
+      const modelConfig = finalModel ? getModelConfig(finalModel) : null;
 
       // Normalize image inputs (supports blob/data URLs from drops).
       const preparedImageInputs = (
@@ -409,7 +439,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         )
       ).filter((url): url is string => Boolean(url));
       const pulseReferenceImageUrl =
-        effectiveTool === "image-to-image" && preparedImageInputs.length > 0
+        finalTool === "image-to-image" && preparedImageInputs.length > 0
           ? preparedImageInputs[0]
           : undefined;
       const falReferencePayload = pulseReferenceImageUrl ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) } : {};
@@ -420,7 +450,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         mode: effectiveMode,
         aspect,
         model: modelLabel,
-        modelId: model,
+        modelId: finalModel,
         status: "ready",
         taskState: "pending",
         timestamp: "Submitting...",
@@ -450,7 +480,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
 
       try {
         if (isKling25ImageModel) {
-          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(model));
+          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(finalModel));
           const { request_id } = await submitFalKlingV25({
             prompt: cleanedPrompt,
             image_url: preparedImageInputs[0],
@@ -515,7 +545,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         }
 
         if (isKling25TextModel) {
-          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(model));
+          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(finalModel));
           const { request_id } = await submitFalKlingV25Text({
             prompt: cleanedPrompt,
             aspect_ratio: resolveKlingAspectRatio(aspect),
@@ -540,7 +570,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
               : modelConfig?.defaultAspect ?? "16:9";
           const { request_id } = await submitFalSeedance({
             prompt: cleanedPrompt,
-            duration: getDefaultDurationSeconds(model).toString(),
+            duration: getDefaultDurationSeconds(finalModel).toString(),
             aspect_ratio: normalizedAspect as "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9",
             negative_prompt: "blur, distort, and low quality",
             cfg_scale: 0.5,
@@ -557,7 +587,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         }
 
         if (isKling26Model) {
-          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(model));
+          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(finalModel));
           const { request_id } = await submitFalKlingV26Text({
             prompt: cleanedPrompt,
             aspect_ratio: resolveKlingAspectRatio(aspect),
@@ -577,7 +607,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         }
 
         if (isSoraModel) {
-          const soraDuration = resolveSoraDuration(getDefaultDurationSeconds(model));
+          const soraDuration = resolveSoraDuration(getDefaultDurationSeconds(finalModel));
           const normalizedAspect =
             modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16")
               ? aspect
@@ -612,7 +642,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           const { request_id } = await submitFalVeo({
             prompt: cleanedPrompt,
             aspect_ratio: normalizedAspect as "16:9" | "9:16",
-            duration: `${Math.max(4, Math.min(8, getDefaultDurationSeconds(model)))}s`,
+            duration: `${Math.max(4, Math.min(8, getDefaultDurationSeconds(finalModel)))}s`,
             resolution: resolution as "720p" | "1080p" | "4k",
             generate_audio: true,
           });
@@ -802,7 +832,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           pollingProvider = "fal-nano-banana-pro";
         } else {
           const result = await createKeiTask({
-            model,
+            model: finalModel,
             input: {
               prompt: cleanedPrompt,
               image_input: preparedImageInputs,

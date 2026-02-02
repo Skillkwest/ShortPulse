@@ -52,6 +52,7 @@ type RecreatePropertiesPanelProps = {
   onExpandChat?: () => void;
   onCloseAgentChat?: () => void;
   onClearAgentChat?: () => void;
+  beginnerMode?: boolean;
 };
 
 type StepHeaderActionButtonProps = {
@@ -123,6 +124,7 @@ export function RecreatePropertiesPanel({
   onExpandChat,
   onCloseAgentChat,
   onClearAgentChat,
+  beginnerMode = false,
 }: RecreatePropertiesPanelProps) {
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraOneInputRef = useRef<HTMLInputElement | null>(null);
@@ -252,7 +254,7 @@ export function RecreatePropertiesPanel({
             onClick={() => expandIfCollapsed("reference")}
           >
             <div className="regenerate-step-header">
-              <span className="step-badge mini">1</span>
+              {beginnerMode && <span className="step-badge mini">1</span>}
               <div className="regenerate-step-copy">
                 <p className="step-title">Add Reference Image</p>
                 <span className="step-subtitle tiny helper-text">Drag a reference from the canvas or upload one manually.</span>
@@ -338,7 +340,7 @@ export function RecreatePropertiesPanel({
           onClick={() => expandIfCollapsed("model")}
         >
           <div className="step-card-header">
-            <span className="step-badge">2</span>
+            {beginnerMode && <span className="step-badge">2</span>}
             <div className="step-header-copy">
               <p className="step-title">Choose Frame & Model</p>
               <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you regenerate.</span>
@@ -412,6 +414,7 @@ export function RecreatePropertiesPanel({
             onDrop={handlePromptDrop as any}
             onDragOver={(e) => e.preventDefault()}
             className="regenerate-step-card"
+            beginnerMode={beginnerMode}
           />
         </div>
         <div
@@ -419,7 +422,7 @@ export function RecreatePropertiesPanel({
           onClick={() => expandIfCollapsed("generate")}
         >
           <div className="step-card-header">
-            <span className="step-badge">4</span>
+            {beginnerMode && <span className="step-badge">4</span>}
             <div className="step-header-copy">
               <p className="step-title">Generate</p>
               <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>

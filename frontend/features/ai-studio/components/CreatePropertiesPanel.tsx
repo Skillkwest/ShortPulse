@@ -61,6 +61,7 @@ type CreatePropertiesPanelProps = {
   shouldDisableSave?: boolean;
   onCloseAgentChat?: () => void;
   onClearAgentChat?: () => void;
+  beginnerMode?: boolean;
 };
 
 type ComposeSendCardProps = {
@@ -83,6 +84,7 @@ type ComposeSendCardProps = {
   isGenerateDisabled?: boolean;
   guardrailReason?: string | null;
   shouldDisableSave?: boolean;
+  beginnerMode?: boolean;
 };
 
 type StepHeaderActionButtonProps = {
@@ -159,6 +161,7 @@ export function CreatePropertiesPanel({
   guardrailReason = null,
   onCloseAgentChat,
   onClearAgentChat,
+  beginnerMode = false,
 }: CreatePropertiesPanelProps) {
 
 
@@ -211,7 +214,7 @@ export function CreatePropertiesPanel({
         aria-label="Select generation mode section"
       >
         <div className="step-card-header">
-          <span className="step-badge">1</span>
+          {beginnerMode && <span className="step-badge">1</span>}
           <div className="step-header-copy">
             <p className="step-title">Select Generation Mode</p>
             <span className="step-subtitle tiny helper-text">Select the output type you want to generate. </span>
@@ -261,7 +264,7 @@ export function CreatePropertiesPanel({
           aria-label="Choose frame and model section"
         >
           <div className="step-card-header">
-            <span className="step-badge">2</span>
+            {beginnerMode && <span className="step-badge">2</span>}
             <div className="step-header-copy">
               <p className="step-title">Choose frame & model</p>
               <span className="step-subtitle tiny helper-text">Set the aspect ratio, then select the model.</span>
@@ -334,6 +337,7 @@ export function CreatePropertiesPanel({
         isGenerating={isPromptGenerating}
         isGenerateDisabled={isGenerateDisabled}
         shouldDisableSave={shouldDisableSave}
+        beginnerMode={beginnerMode}
       />
     </div>
   );
@@ -359,6 +363,7 @@ export function ComposeSendCard({
   isGenerateDisabled = false,
   guardrailReason = null,
   shouldDisableSave = false,
+  beginnerMode = false,
 }: ComposeSendCardProps) {
   const primaryActionLabel = "Generate";
   const primaryActionBusyLabel = mode === "enhance" ? "Sending…" : "Generating…";
@@ -368,7 +373,7 @@ export function ComposeSendCard({
   return (
     <div className="step-card prompt-step">
       <div className="step-card-header">
-        <span className="step-badge">4</span>
+        {beginnerMode && <span className="step-badge">4</span>}
         <div className="step-header-copy">
           <p className="step-title">Generate</p>
           <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>

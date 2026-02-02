@@ -4,8 +4,9 @@
  */
 import React from "react";
 import Link from "next/link";
-import { CloudArrowUp, UploadSimple } from "phosphor-react";
+import { CloudArrowUp, Selection, UploadSimple, User } from "phosphor-react";
 import { AiStudioToolbar } from "./AiStudioToolbar";
+import { CanvasPanel } from "./CanvasPanel";
 import { CreatePropertiesPanel, ComposeSendCard } from "./CreatePropertiesPanel";
 import { DetailModal } from "./DetailModal";
 import { EnhancePropertiesPanel } from "./EnhancePropertiesPanel";
@@ -190,7 +191,30 @@ export function AiStudioPageContent({
           </>
         );
       case "character":
-        return <CharacterPropertiesPanel {...propertiesCharacter} />;
+        return (
+          <div style={{ padding: "24px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <User size={24} weight="bold" color="#06b6d4" />
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>Character</h3>
+            </div>
+            <p style={{ color: "var(--ai-card-text)", fontSize: "14px", lineHeight: "1.5", margin: 0 }}>
+              Create consistent characters across multiple generations. Define character traits, appearance, and style to maintain visual continuity in your creative projects.
+            </p>
+            <div
+              style={{
+                marginTop: "24px",
+                padding: "16px",
+                borderRadius: "10px",
+                background: "rgba(6, 182, 212, 0.08)",
+                border: "1px solid rgba(6, 182, 212, 0.2)",
+              }}
+            >
+              <p style={{ color: "var(--ai-card-text)", fontSize: "13px", margin: 0, fontStyle: "italic" }}>
+                Consistent Character Creation coming soon.
+              </p>
+            </div>
+          </div>
+        );
       case "image-to-image":
         return (
           <RecreatePropertiesPanel
@@ -212,12 +236,30 @@ export function AiStudioPageContent({
       case "edit":
         return (
           <div style={{ padding: "24px" }}>
-            <h3 style={{ marginBottom: "12px" }}>Edit Interface</h3>
-            <p style={{ color: "var(--ai-card-text)", fontSize: "14px" }}>
-              Edit interface coming soon...
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <Selection size={24} weight="bold" color="#fbbf24" />
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>Edit</h3>
+            </div>
+            <p style={{ color: "var(--ai-card-text)", fontSize: "14px", lineHeight: "1.5", margin: 0 }}>
+              Advanced editing tools for precise control over your generated content. Refine, adjust, and perfect your creations with intuitive selection and modification tools.
             </p>
+            <div
+              style={{
+                marginTop: "24px",
+                padding: "16px",
+                borderRadius: "10px",
+                background: "rgba(251, 191, 36, 0.08)",
+                border: "1px solid rgba(251, 191, 36, 0.2)",
+              }}
+            >
+              <p style={{ color: "var(--ai-card-text)", fontSize: "13px", margin: 0, fontStyle: "italic" }}>
+                Edit tools coming soon.
+              </p>
+            </div>
           </div>
         );
+      case "canvas":
+        return <CanvasPanel />;
       default:
         return null;
     }
@@ -240,7 +282,6 @@ export function AiStudioPageContent({
         <section className="ai-hero panel hero-banner ai-amber-hero">
           <div className="hero-text">
             <p className="eyebrow">AI Studio</p>
-            <p className="tiny subdued helper-text">Prompt, generate, preview, and save from a single space.</p>
           </div>
           <div className="hero-right">
             <div className="ai-credit-inline header-embedded">
@@ -305,6 +346,7 @@ export function AiStudioPageContent({
             onSelectTool={onSelectTool}
             onToggleEditTools={onToggleEditTools}
             onToggleBeginnerMode={onBeginnerModeChange}
+            showOnboardingSteps={beginnerMode}
           />
 
           <div className="ai-content">

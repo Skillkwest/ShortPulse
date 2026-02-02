@@ -317,11 +317,10 @@ body.ai-studio-body {
 }
 
 .toolbar-logo img {
-  max-width: 160px;
-  max-height: 46px;
-  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
-  filter: brightness(1.05);
+  filter: brightness(1);
 }
 
 .toolbar-back-link {
@@ -570,14 +569,171 @@ body.ai-studio-body {
   overflow: hidden;
 }
 
-.toolbar-item[data-tool-id="edit-parent"] .toolbar-label {
-  font-size: 16px !important;
-  font-weight: 600 !important;
+/* Temporarily hide Create button */
+.toolbar-item[data-tool-id="create"] {
+  display: none;
 }
 
-.toolbar-item[data-tool-id="edit"] .toolbar-label {
-  font-size: 16px !important;
+/* Primary workflow buttons: Generate and Edit */
+.toolbar-item[data-tool-id="edit-parent"],
+.toolbar-item[data-tool-id="edit"] {
+  margin: 6px 0;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 24px;
+  position: relative;
+  min-height: 40px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .toolbar-item[data-tool-id="edit-parent"],
+  .toolbar-item[data-tool-id="edit"],
+  .toolbar-item[data-tool-id="canvas"] {
+    transition: none;
+  }
+
+  .toolbar-item[data-tool-id="edit-parent"]:hover,
+  .toolbar-item[data-tool-id="edit"]:hover,
+  .toolbar-item[data-tool-id="canvas"]:hover {
+    transform: none;
+  }
+
+  .toolbar-item[data-tool-id="edit-parent"].is-active,
+  .toolbar-item[data-tool-id="edit"].is-active,
+  .toolbar-item[data-tool-id="canvas"].is-active {
+    transform: none;
+  }
+}
+
+/* Generate button - blue/cyan gradient */
+.toolbar-item[data-tool-id="edit-parent"] {
+  background: linear-gradient(135deg, #1e40af 0%, #0891b2 50%, #06b6d4 100%);
+}
+
+/* Edit button - magenta/yellow gradient */
+.toolbar-item[data-tool-id="edit"] {
+  background: linear-gradient(135deg, #db2777 0%, #e11d48 40%, #f59e0b 100%);
+}
+
+.toolbar-item[data-tool-id="edit-parent"]::before,
+.toolbar-item[data-tool-id="edit"]::before,
+.toolbar-item[data-tool-id="canvas"]::before {
+  display: none;
+}
+
+/* Generate button hover - lighter blue/cyan gradient with gradient-aware glow */
+.toolbar-item[data-tool-id="edit-parent"]:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 50%, #22d3ee 100%);
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 20px rgba(30, 64, 175, 0.3),
+    0 4px 12px rgba(6, 182, 212, 0.35),
+    0 0 0 1px rgba(34, 211, 238, 0.2);
+}
+
+/* Edit button hover - brighter magenta/yellow with warm glow */
+.toolbar-item[data-tool-id="edit"]:hover {
+  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 40%, #fbbf24 100%);
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 20px rgba(219, 39, 119, 0.35),
+    0 4px 12px rgba(251, 191, 36, 0.3),
+    0 0 0 1px rgba(251, 191, 36, 0.15);
+}
+
+/* Generate button active - dual borders (dark + cyan) */
+.toolbar-item[data-tool-id="edit-parent"].is-active {
+  background: linear-gradient(135deg, #1e3a8a 0%, #0e7490 50%, #0891b2 100%);
+  transform: scale(1);
+  border: 2px solid rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 0 0 3px #25a9bf,
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  padding: 8px 12px;
+}
+
+/* Edit button active - dual borders (dark + yellow) */
+.toolbar-item[data-tool-id="edit"].is-active {
+  background: linear-gradient(135deg, #db2777 0%, #e11d48 40%, #f59e0b 100%);
+  transform: scale(1);
+  border: 2px solid rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 0 0 3px rgba(251, 191, 36, 0.9),
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  padding: 8px 12px;
+}
+
+/* Canvas button - purple/indigo gradient */
+.toolbar-item[data-tool-id="canvas"] {
+  background: linear-gradient(135deg, #7c5cff 0%, #4b3fe6 100%);
+  margin: 6px 0;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 24px;
+  position: relative;
+  min-height: 40px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* Canvas button hover */
+.toolbar-item[data-tool-id="canvas"]:hover {
+  background: linear-gradient(135deg, #8b6fd4 0%, #5f52d4 100%);
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 20px rgba(124, 92, 255, 0.3),
+    0 4px 12px rgba(75, 63, 230, 0.35),
+    0 0 0 1px rgba(167, 139, 247, 0.2);
+}
+
+/* Canvas button active - dual borders (dark + purple) */
+.toolbar-item[data-tool-id="canvas"].is-active {
+  background: linear-gradient(135deg, #6b4fd4 0%, #3d2fa8 100%);
+  transform: scale(1);
+  border: 2px solid rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 0 0 3px #a78bf7,
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  padding: 8px 12px;
+}
+
+/* Keyboard focus states for accessibility */
+.toolbar-item[data-tool-id="edit-parent"]:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 3px;
+}
+
+.toolbar-item[data-tool-id="edit"]:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 3px;
+}
+
+.toolbar-item[data-tool-id="canvas"]:focus-visible {
+  outline: 2px solid #a78bf7;
+  outline-offset: 3px;
+}
+
+.toolbar-item[data-tool-id="edit-parent"] svg,
+.toolbar-item[data-tool-id="edit"] svg,
+.toolbar-item[data-tool-id="canvas"] svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: #ffffff !important;
+}
+
+.toolbar-item[data-tool-id="edit-parent"] .toolbar-label,
+.toolbar-item[data-tool-id="edit"] .toolbar-label,
+.toolbar-item[data-tool-id="canvas"] .toolbar-label {
+  font-size: 14px !important;
   font-weight: 600 !important;
+  letter-spacing: 0.3px;
+  color: #ffffff !important;
 }
 
 .toolbar-item::before {
@@ -597,6 +753,41 @@ body.ai-studio-body {
   min-height: 30px;
   padding: 4px 8px;
   border-radius: 6px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sub-button hover state - very subtle highlight */
+.toolbar-item.toolbar-item-child:hover {
+  background: rgba(6, 182, 212, 0.08);
+  border-color: rgba(6, 182, 212, 0.2);
+}
+
+/* Sub-button active/selected state - subtle cyan gradient */
+.toolbar-item.toolbar-item-child.is-active {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.15), rgba(6, 182, 212, 0.15));
+  border-color: rgba(6, 182, 212, 0.3);
+}
+
+.toolbar-item.toolbar-item-child.is-active svg {
+  color: var(--ai-accent);
+}
+
+.toolbar-item.toolbar-item-child.is-active .toolbar-label {
+  color: #f5f9ff;
+  font-weight: 600;
+}
+
+/* Focus state for sub-buttons */
+.toolbar-item.toolbar-item-child:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
+/* Respect reduced motion for sub-buttons */
+@media (prefers-reduced-motion: reduce) {
+  .toolbar-item.toolbar-item-child {
+    transition: none;
+  }
 }
 
 .toolbar-item svg {
@@ -615,12 +806,12 @@ body.ai-studio-body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 16px 18px;
   margin-bottom: 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(16, 19, 28, 0.86);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 10px 20px rgba(0, 0, 0, 0.32);
+  border-radius: 14px;
+  border: 1px solid var(--ai-container-card-border);
+  background: var(--ai-container-card-bg);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
 .toolbar-beginner-copy {

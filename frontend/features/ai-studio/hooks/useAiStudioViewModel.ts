@@ -129,27 +129,18 @@ export const useAiStudioViewModel = ({
     if ((selectedTool === "create" || selectedTool === "text") && mode === "enhance") return null;
     if (requiresModelSelection && !isModelSelected) return "Select a model before running a generation.";
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
-    if (isPulseImageToolActive && !hasReferenceImages) {
-      return "Pulse Image mode requires at least one reference image from the drop zone.";
-    }
-    if (requiresReferenceModel && !hasReferenceImages) {
-      return "This image-to-image model requires at least one reference image.";
-    }
+    // Removed reference image guardrails - system will automatically fallback to text-to-image/text-to-video when no references exist
     if (costedFlow && !hasSufficientCreditsForCost) return "You do not have enough credits for this run.";
-    if (requiresVideoReference && !hasVideoReference) return "Image-to-video requires at least one reference image.";
     return null;
   }, [
     costedFlow,
     hasDescribeImage,
     hasSufficientCreditsForCost,
-    hasReferenceImages,
     isDescribeMode,
     isModelSelected,
     requiresModelSelection,
-    requiresVideoReference,
-    hasVideoReference,
-    isPulseImageToolActive,
-    requiresReferenceModel,
+    mode,
+    selectedTool,
   ]);
 
   const isGenerateDisabled = Boolean(generationGuardrail);

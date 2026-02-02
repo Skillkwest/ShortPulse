@@ -30,70 +30,63 @@
   padding: 6px;
 }
 .prompt-mode-row {
-  margin-top: 4px;
+  margin-top: 0;
+  margin-bottom: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   justify-content: space-between;
   width: 100%;
 }
 .prompt-mode-toggle-row {
   display: inline-flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: nowrap;
   align-items: stretch;
   background: rgba(12, 15, 22, 0.85);
   border: 1px solid rgba(201, 205, 214, 0.12);
-  border-radius: 12px;
-  padding: 6px;
+  border-radius: 10px;
+  padding: 3px;
   flex: 1;
   min-width: 280px;
-}
-.prompt-mode-toggle-row .prompt-expand-btn,
-.prompt-mode-toggle-row .prompt-clear-btn {
-  margin-left: 4px;
 }
 
 .prompt-chat-actions {
   display: inline-flex;
   align-items: center;
-  gap: 1px;
-  padding: 4px 4px;
-  border: 1px solid transparent;
-  border-radius: 12px;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
   background: transparent;
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 
-.prompt-chat-actions.is-active {
-  border-color: var(--ai-accent, rgba(37, 169, 191, 0.75));
-}
 .prompt-expand-btn {
-  width: 45px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   text-transform: none;
-  border-radius: 50%;
+  border-radius: 8px;
   border: 1px solid rgba(201, 205, 214, 0.12);
   background: rgba(34, 37, 44, 0.95);
   box-shadow: none;
   transition: border-color 0.12s ease, background 0.12s ease;
   min-width: unset;
   flex: none;
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 .prompt-expand-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 .prompt-clear-btn {
-  width: 45px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border-radius: 50%;
+  border-radius: 8px;
   border: 1px solid rgba(201, 205, 214, 0.12);
   background: rgba(34, 37, 44, 0.95);
   color: #e9edf2;
@@ -105,8 +98,8 @@
   transition: border-color 0.12s ease, background 0.12s ease, opacity 0.12s ease;
 }
 .prompt-clear-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 .prompt-clear-btn:hover {
   border-color: var(--ai-accent, rgba(37, 169, 191, 0.5));

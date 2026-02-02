@@ -15,6 +15,7 @@ type EnhancePropertiesPanelProps = {
   resolvePreviewUrlById?: (id: string | null) => string | null;
   onOpenMediaLibrary?: () => void;
   onTriggerFileSelect?: () => void;
+  beginnerMode?: boolean;
 };
 
 export function EnhancePropertiesPanel({
@@ -24,6 +25,7 @@ export function EnhancePropertiesPanel({
   resolvePreviewUrlById,
   onOpenMediaLibrary,
   onTriggerFileSelect,
+  beginnerMode = false,
 }: EnhancePropertiesPanelProps) {
   const [mode, setMode] = useState<EnhanceMode>("image");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -144,7 +146,7 @@ export function EnhancePropertiesPanel({
 
       <div className="step-card">
         <div className="step-card-header">
-          <span className="step-badge">1</span>
+          {beginnerMode && <span className="step-badge">1</span>}
           <div className="step-header-copy">
             <p className="step-title">Choose what to upscale</p>
             <span className="step-subtitle tiny helper-text">Select the content type before adding a reference.</span>
@@ -172,7 +174,7 @@ export function EnhancePropertiesPanel({
 
       <div className="step-card">
         <div className="step-card-header">
-          <span className="step-badge">2</span>
+          {beginnerMode && <span className="step-badge">2</span>}
           <div className="step-header-copy">
             <p className="step-title">Add your reference</p>
             <span className="step-subtitle tiny helper-text">
@@ -248,7 +250,7 @@ export function EnhancePropertiesPanel({
 
       <div className="step-card">
         <div className="step-card-header">
-          <span className="step-badge">3</span>
+          {beginnerMode && <span className="step-badge">3</span>}
           <div className="step-header-copy">
             <p className="step-title">Generate upscale</p>
             <span className="step-subtitle tiny helper-text">

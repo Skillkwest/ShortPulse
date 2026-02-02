@@ -46,4 +46,5 @@ export type ToolId =
   | "image-to-image"
   | "image-to-video"
   | "text"
-  | "edit";
+  | "edit"
+  | "canvas";

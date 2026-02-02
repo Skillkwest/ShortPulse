@@ -597,6 +597,7 @@ export default function AiStudioPage() {
     agentChatOpen: isAgentChatOpen,
     onAgentApplyPrompt: () => { },
     onAgentSelectVariation: () => { },
+    beginnerMode,
   } as const;
 
   return (
@@ -687,6 +688,7 @@ export default function AiStudioPage() {
           onCloseAgentChat: handleCloseAgentChat,
           onClearAgentChat: handleClearAgentChat,
           agentChatOpen: isAgentChatOpen,
+          beginnerMode,
         }}
         propertiesRecreateVideo={{
           variant: "image-to-video",
@@ -726,6 +728,7 @@ export default function AiStudioPage() {
           onCloseAgentChat: handleCloseAgentChat,
           onClearAgentChat: handleClearAgentChat,
           agentChatOpen: isAgentChatOpen,
+          beginnerMode,
         }}
         propertiesEnhance={{
           costCredits: currentCostCredits,
@@ -733,6 +736,7 @@ export default function AiStudioPage() {
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id),
           onOpenMediaLibrary: () => window.open("/media-library", "_self"),
           onTriggerFileSelect: triggerFilePicker,
+          beginnerMode,
         }}
         isTemplateView={isTemplateView}
         referenceCanvasProps={{

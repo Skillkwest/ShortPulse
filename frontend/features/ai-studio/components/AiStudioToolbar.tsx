@@ -8,11 +8,12 @@ import {
   Globe,
   FlowArrow,
   Gear,
+  Graph,
   House,
   ImageSquare,
   MagicWand,
-  Pencil,
   Person,
+  Selection,
   Sparkle,
   SquaresFour,
   StackSimple,
@@ -45,7 +46,8 @@ const toolIcons: Record<ToolId, React.ComponentType<any>> = {
   "image-to-video": VideoCamera,
   enhance: MagicWand,
   character: Person,
-  edit: Pencil,
+  edit: Selection,
+  canvas: Graph,
 };
 
 /**
@@ -76,14 +78,7 @@ export function AiStudioToolbar({
         <House size={16} weight="regular" />
         Back to dashboard
       </Link>
-      {showOnboardingSteps ? (
-        <div className="toolbar-onboarding">
-          <span className="toolbar-step-badge">1</span>
-          <span className="toolbar-step-label">Create new content</span>
-        </div>
-      ) : null}
       <div className="toolbar-list">
-        <p className="toolbar-section-label">Create</p>
         {primaryToolList.map((tool, index) => {
           const IconComponent = toolIcons[tool.id];
           const isEditParent = tool.id === "edit-parent";
@@ -119,12 +114,6 @@ export function AiStudioToolbar({
                   <span className="toolbar-label">{tool.label}</span>
                 </div>
               </button>
-              {showOnboardingSteps && index === 0 ? (
-                <div className="toolbar-onboarding toolbar-onboarding-inline">
-                  <span className="toolbar-step-badge">2</span>
-                  <span className="toolbar-step-label">Edit content</span>
-                </div>
-              ) : null}
             </React.Fragment>
           );
         })}
@@ -148,8 +137,6 @@ export function AiStudioToolbar({
               );
             })
           : null}
-        <div className="toolbar-divider" aria-hidden="true" />
-        <p className="toolbar-section-label">Edit</p>
         {editToolList.map((tool) => {
           const IconComponent = toolIcons[tool.id];
           const isActive = selectedTool === tool.id;
@@ -225,7 +212,6 @@ export function AiStudioToolbar({
       <div className="toolbar-beginner-toggle">
         <div className="toolbar-beginner-copy">
           <span className="toolbar-label">Beginner mode</span>
-          <span className="tiny subdued helper-text">Show helper text in AI Studio panels.</span>
         </div>
         <button
           type="button"

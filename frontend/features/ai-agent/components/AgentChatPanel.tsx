@@ -22,6 +22,7 @@ type AgentChatPanelProps = {
   onMessageClick?: (message: AgentMessage) => void;
   onGenerate?: () => void;
   generateCost?: number | string;
+  beginnerMode?: boolean;
 };
 
 export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
@@ -38,6 +39,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   onMessageClick,
   onGenerate,
   generateCost,
+  beginnerMode = false,
 }) => {
   const messagesRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +119,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           />
           <div className="agent-inline-actions">
             <AgentSendButton onClick={onSend} disabled={disabled || isSending} ariaLabel={sendLabel} />
-            {onGenerate ? (
+            {onGenerate && !beginnerMode ? (
               <MiniGenerateButton
                 cost={generateCost != null ? generateCost : "—"}
                 onClick={onGenerate}

@@ -352,8 +352,9 @@ export function AiStudioPageContent({
                     onInputChange={agentChat.onInputChange}
                     onSend={agentChat.onSend}
                     onGenerate={agentChat.onAddToGrid}
-                    generateCost={propertiesCreate.costCredits}
+                    generateCost={propertiesText.costCredits}
                     onMessageClick={agentChat.onMessageClick}
+                    beginnerMode={beginnerMode}
                   />
                 </div>
               ) : (

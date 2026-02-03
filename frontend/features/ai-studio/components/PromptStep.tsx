@@ -135,7 +135,7 @@ export function PromptStep({
 
   const canExpandChat = agentMessages.length > 0;
   const isChatPromptMode = promptMode === "chat";
-  const showMiniGenerateButton = typeof onGenerate === "function"; // Always show if generate handler exists
+  const showMiniGenerateButton = typeof onGenerate === "function" && !beginnerMode; // Hide in beginner mode
   const promptThinking = Boolean(agentIsSending || isGenerating);
   const costValue = costCredits != null ? costCredits : "—";
 

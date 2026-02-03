@@ -132,9 +132,8 @@ export function ReferencePropertiesPanel({
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraOneInputRef = useRef<HTMLInputElement | null>(null);
   const extraTwoInputRef = useRef<HTMLInputElement | null>(null);
-  const extraThreeInputRef = useRef<HTMLInputElement | null>(null);
   const [primaryDragActive, setPrimaryDragActive] = useState(false);
-  const [extraDragActive, setExtraDragActive] = useState([false, false, false]);
+  const [extraDragActive, setExtraDragActive] = useState([false, false]);
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
 
   const [collapsedSteps, setCollapsedSteps] = React.useState<{ reference: boolean; model: boolean; prompt: boolean; generate: boolean }>({
@@ -263,7 +262,7 @@ export function ReferencePropertiesPanel({
       <div className="reference-drop-layout-inner">
         <div className="reference-dropzone-block image-block">
           <div
-            className={`reference-step-card ${collapsedSteps.reference ? "is-collapsed" : ""}`}
+            className={`reference-step-card ${collapsedSteps.reference ? "is-collapsed" : ""} ${isVideoVariant ? "is-video-refs" : "is-image-refs"}`}
             onClick={() => expandIfCollapsed("reference")}
           >
             <div className="reference-step-header">
@@ -358,7 +357,7 @@ export function ReferencePropertiesPanel({
                     </div>
                   </>
                 ) : (
-                  [extraOneInputRef, extraTwoInputRef, extraThreeInputRef].map((inputRef, index) => {
+                  [extraOneInputRef, extraTwoInputRef].map((inputRef, index) => {
                     const previewUrl = extraImageUrls[index];
                     return (
                       <div className="secondary-drop" key={`extra-drop-${index}`}>
@@ -476,16 +475,6 @@ export function ReferencePropertiesPanel({
               </div>
             </div>
           ) : null}
-          {!collapsedSteps.model ? (
-            <div className="reference-model-actions">
-              <AgentGenerateButton
-                onClick={onRegenerate}
-                disabled={isGenerateDisabled}
-                isBusy={agentIsSending}
-                cost={costCredits != null ? costCredits : "—"}
-              />
-            </div>
-          ) : null}
         </div>
         <div
           className={`step-card reference-generate-step ${collapsedSteps.generate ? "is-collapsed" : ""}`}
@@ -542,13 +531,6 @@ export function ReferencePropertiesPanel({
         accept="image/*"
         style={{ display: "none" }}
         onChange={handleFileSelection((url) => onExtraImageChange(1, url))}
-      />
-      <input
-        ref={extraThreeInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handleFileSelection((url) => onExtraImageChange(2, url))}
       />
     </div>
   );

@@ -92,6 +92,7 @@ type AgentChatProps = {
   onUsePrompt: () => void;
   onClose: () => void;
   onMessageClick?: (message: AgentMessage) => void;
+  generateCost?: number | string | null;
 };
 
 type AiStudioPageContentProps = {
@@ -109,9 +110,9 @@ type AiStudioPageContentProps = {
   onDismissFailure: (id: string) => void;
   onInspectFailure: (id: string) => void;
   selectedTool: ToolId | null;
-  showEditTools: boolean;
+  showCreateTools: boolean;
   onSelectTool: (tool: ToolId | null) => void;
-  onToggleEditTools: (value: boolean) => void;
+  onToggleCreateTools: (value: boolean) => void;
   propertiesCreate: CreateSectionProps;
   propertiesCharacter: CharacterSectionProps;
   propertiesRecreate: RecreateSectionProps;
@@ -150,9 +151,9 @@ export function AiStudioPageContent({
   onDismissFailure,
   onInspectFailure,
   selectedTool,
-  showEditTools,
+  showCreateTools,
   onSelectTool,
-  onToggleEditTools,
+  onToggleCreateTools,
   propertiesCreate,
   propertiesCharacter,
   propertiesRecreate,
@@ -317,10 +318,10 @@ export function AiStudioPageContent({
         <div className={`ai-layout${isTemplateView ? " templates-active" : ""}`}>
           <AiStudioToolbar
             selectedTool={selectedTool}
-            showEditTools={showEditTools}
+            showCreateTools={showCreateTools}
             beginnerMode={beginnerMode}
             onSelectTool={onSelectTool}
-            onToggleEditTools={onToggleEditTools}
+            onToggleCreateTools={onToggleCreateTools}
             onToggleBeginnerMode={onBeginnerModeChange}
             showOnboardingSteps={beginnerMode}
           />
@@ -357,6 +358,8 @@ export function AiStudioPageContent({
                     isSending={agentChat.agentIsSending}
                     onInputChange={agentChat.onInputChange}
                     onSend={agentChat.onSend}
+                    onGenerate={agentChat.onAddToGrid}
+                    generateCost={propertiesCreate.costCredits}
                     onMessageClick={agentChat.onMessageClick}
                   />
                 </div>

@@ -1,6 +1,6 @@
 /**
  * Toolbar for AI Studio tools.
- * Handles top-level create/edit selection and exposes edit child actions.
+ * Handles top-level create selection and exposes create child actions.
  */
 import Link from "next/link";
 import React from "react";
@@ -21,15 +21,15 @@ import {
   UsersThree,
   VideoCamera,
 } from "phosphor-react";
-import { creationsToolList, editChildTools, editToolList, lowerToolList, primaryToolList } from "../constants";
+import { createChildTools, creationsToolList, editToolList, lowerToolList, primaryToolList } from "../constants";
 import { ToolId } from "../types";
 
 type AiStudioToolbarProps = {
   selectedTool: ToolId | null;
-  showEditTools: boolean;
+  showCreateTools: boolean;
   beginnerMode: boolean;
   onSelectTool: (tool: ToolId | null) => void;
-  onToggleEditTools: (show: boolean) => void;
+  onToggleCreateTools: (show: boolean) => void;
   onToggleBeginnerMode: (enabled: boolean) => void;
   showOnboardingSteps?: boolean;
 };
@@ -40,7 +40,6 @@ const toolIcons: Record<ToolId, React.ComponentType<any>> = {
   templates: SquaresFour,
   "my-generations": StackSimple,
   community: Globe,
-  "edit-parent": Sparkle,
   text: TextT,
   "image-to-image": ImageSquare,
   "image-to-video": VideoCamera,
@@ -55,14 +54,14 @@ const toolIcons: Record<ToolId, React.ComponentType<any>> = {
  */
 export function AiStudioToolbar({
   selectedTool,
-  showEditTools,
+  showCreateTools,
   beginnerMode,
   onSelectTool,
-  onToggleEditTools,
+  onToggleCreateTools,
   onToggleBeginnerMode,
   showOnboardingSteps = false,
 }: AiStudioToolbarProps) {
-  const isEditChildSelected =
+  const isCreateChildSelected =
     selectedTool === "text" ||
     selectedTool === "image-to-image" ||
     selectedTool === "image-to-video" ||
@@ -80,26 +79,26 @@ export function AiStudioToolbar({
       </Link>
       <div className="toolbar-divider" aria-hidden="true" />
       <div className="toolbar-list">
-        {primaryToolList.map((tool, index) => {
+        {primaryToolList.map((tool) => {
           const IconComponent = toolIcons[tool.id];
-          const isEditParent = tool.id === "edit-parent";
-          const isActive = selectedTool === tool.id || (isEditParent && (showEditTools || isEditChildSelected));
+          const isCreateParent = tool.id === "create";
+          const isActive = selectedTool === tool.id || (isCreateParent && (showCreateTools || isCreateChildSelected));
           const handleClick = () => {
             if (isActive) {
-              onToggleEditTools(false);
+              onToggleCreateTools(false);
               onSelectTool(null);
               return;
             }
-            if (isEditParent) {
-              onToggleEditTools(true);
-              if (!isEditChildSelected) {
+            if (isCreateParent) {
+              onToggleCreateTools(true);
+              if (!isCreateChildSelected) {
                 onSelectTool("text");
               } else {
                 onSelectTool(tool.id);
               }
               return;
             }
-            onToggleEditTools(false);
+            onToggleCreateTools(false);
             onSelectTool(tool.id);
           };
           return (
@@ -118,9 +117,9 @@ export function AiStudioToolbar({
             </React.Fragment>
           );
         })}
-        {showEditTools ? <div className="toolbar-divider toolbar-divider-children" aria-hidden="true" /> : null}
-        {showEditTools
-          ? editChildTools.map((tool) => {
+        {showCreateTools ? <div className="toolbar-divider toolbar-divider-children" aria-hidden="true" /> : null}
+        {showCreateTools
+          ? createChildTools.map((tool) => {
               const IconComponent = toolIcons[tool.id];
               const isActive = selectedTool === tool.id;
               return (
@@ -150,11 +149,11 @@ export function AiStudioToolbar({
               onClick={() => {
                 const isToggleablePrimary = tool.id === "edit" || tool.id === "canvas";
                 if (isToggleablePrimary && isActive) {
-                  onToggleEditTools(false);
+                  onToggleCreateTools(false);
                   onSelectTool(null);
                   return;
                 }
-                onToggleEditTools(false);
+                onToggleCreateTools(false);
                 onSelectTool(tool.id);
               }}
             >
@@ -177,10 +176,10 @@ export function AiStudioToolbar({
                 type="button"
                 className={`toolbar-item toolbar-item-secondary ${isActive ? "is-active" : ""}`}
                 onClick={() => {
-                  onToggleEditTools(false);
-                  onSelectTool(tool.id);
-                }}
-              >
+                onToggleCreateTools(false);
+                onSelectTool(tool.id);
+              }}
+            >
                 {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
                 <div className="toolbar-copy">
                   <span className="toolbar-label">{tool.label}</span>
@@ -201,7 +200,7 @@ export function AiStudioToolbar({
                 type="button"
                 className={`toolbar-item toolbar-item-secondary ${isActive ? "is-active" : ""}`}
                 onClick={() => {
-                  onToggleEditTools(false);
+                  onToggleCreateTools(false);
                   onSelectTool(tool.id);
                 }}
               >

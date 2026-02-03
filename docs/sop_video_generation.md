@@ -42,10 +42,10 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 ## Image-to-Video workflow (Recreate → Image to Video)
 
 1. User opens the Image-to-Video tool (RecreatePropertiesPanel) and selects aspect + model.  
-2. User drops/uploads a primary reference image (required) and optionally extra images.  
+2. User drops/uploads two reference frames (required): **First frame** (primary dropzone) and **Last frame** (second primary dropzone). Extra secondary dropzones are hidden in this flow.  
 3. User enters or drops a prompt into the prompt textarea.  
-4. Generate CTA shows estimated credits; disabled if reference or model is missing or credits are insufficient.  
-5. On click, the flow mirrors Create → Video: debit, submit with reference image(s), poll, and render the output in Reference Grid/Studio Preview.
+4. Generate CTA shows estimated credits; disabled if either frame or the model is missing or credits are insufficient.  
+5. On click, the flow mirrors Create → Video: debit, submit with the two reference frames, poll, and render the output in Reference Grid/Studio Preview.  
 
 ## Reference handling
 

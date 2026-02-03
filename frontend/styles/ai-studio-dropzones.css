@@ -44,9 +44,12 @@
   display: flex;
   gap: 10px;
   align-items: center;
+  justify-content: center;
   transform-origin: top;
   flex-wrap: nowrap;
   overflow: hidden;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .primary-drop {
@@ -76,6 +79,12 @@
 
 .recreate-frame-controls {
   margin-top: 10px;
+}
+
+.recreate-model-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .regenerate-step-card {
@@ -196,6 +205,43 @@
   aspect-ratio: 4 / 5;
   max-width: 200px;
   background-color: var(--ai-container-card-bg);
+}
+
+.reference-swap-control {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  color: #fdfefe;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+}
+
+.reference-swap-control svg {
+  width: 26px;
+  height: 26px;
+  color: inherit;
+}
+
+.reference-swap-control:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.reference-swap-control:not(:disabled):hover,
+.reference-swap-control:not(:disabled):focus-visible {
+  background: rgba(52, 200, 255, 0.18);
+  border: 1px solid rgba(52, 200, 255, 0.35);
+}
+
+.reference-swap-control:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(52, 200, 255, 0.35);
 }
 
 .text-dropzone {

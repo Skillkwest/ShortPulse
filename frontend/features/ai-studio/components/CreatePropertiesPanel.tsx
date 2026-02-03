@@ -168,7 +168,7 @@ export function CreatePropertiesPanel({
   const isEnhanceMode = mode === "enhance";
   const shouldHidePromptStep = isEnhanceMode && useReferenceImageIndicator;
   const showPromptInput = !shouldHidePromptStep;
-  const promptStepNumber = isEnhanceMode ? "2" : "3";
+  const promptStepNumber = "2";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const primaryActionLabel = isEnhanceMode ? "Send" : "Generate";
   const primaryActionBusyLabel = isEnhanceMode ? "Sending…" : "Generating…";
@@ -256,6 +256,38 @@ export function CreatePropertiesPanel({
           </div>
         ) : null}
       </div>
+      <PromptStep
+        stepNumber={promptStepNumber}
+        title="Write your prompt"
+        subtitle="Draft the prompt you want to use, or switch to Chat to have the agent craft one for you."
+        prompt={prompt}
+        onPromptChange={onPromptChange}
+        agentEnabled={agentEnabled}
+        agentMessages={agentMessages}
+        agentActions={agentActions}
+        agentInput={agentInput}
+        agentIsSending={agentIsSending}
+        agentError={agentError}
+        stagedPrompt={stagedPrompt}
+        agentChatOpen={agentChatOpen}
+        onAgentInputChange={onAgentInputChange}
+        onAgentSend={onAgentSend}
+        onAgentEnhanceSend={onAgentEnhanceSend}
+        onAgentMessageClick={onAgentMessageClick}
+        onExpandChat={onExpandChat}
+        onCloseAgentChat={onCloseAgentChat}
+        onClearAgentChat={onClearAgentChat}
+        onGenerate={handleCostGenerate}
+        onSavePrompt={onSavePrompt}
+        onOpenMediaLibrary={onOpenMediaLibrary}
+        isCollapsed={collapsedSteps.prompt}
+        onToggleCollapse={() => toggleStep("prompt")}
+        costCredits={costCredits}
+        isGenerating={isPromptGenerating}
+        isGenerateDisabled={isGenerateDisabled}
+        shouldDisableSave={shouldDisableSave}
+        beginnerMode={beginnerMode}
+      />
       {!isEnhanceMode ? (
         <div
           className={`step-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
@@ -264,7 +296,7 @@ export function CreatePropertiesPanel({
           aria-label="Choose frame and model section"
         >
           <div className="step-card-header">
-            {beginnerMode && <span className="step-badge">2</span>}
+            {beginnerMode && <span className="step-badge">3</span>}
             <div className="step-header-copy">
               <p className="step-title">Choose frame & model</p>
               <span className="step-subtitle tiny helper-text">Set the aspect ratio, then select the model.</span>
@@ -307,38 +339,6 @@ export function CreatePropertiesPanel({
           ) : null}
         </div>
       ) : null}
-      <PromptStep
-        stepNumber={promptStepNumber}
-        title="Write your prompt"
-        subtitle="Draft the prompt you want to use, or switch to Chat to have the agent craft one for you."
-        prompt={prompt}
-        onPromptChange={onPromptChange}
-        agentEnabled={agentEnabled}
-        agentMessages={agentMessages}
-        agentActions={agentActions}
-        agentInput={agentInput}
-        agentIsSending={agentIsSending}
-        agentError={agentError}
-        stagedPrompt={stagedPrompt}
-        agentChatOpen={agentChatOpen}
-        onAgentInputChange={onAgentInputChange}
-        onAgentSend={onAgentSend}
-        onAgentEnhanceSend={onAgentEnhanceSend}
-        onAgentMessageClick={onAgentMessageClick}
-        onExpandChat={onExpandChat}
-        onCloseAgentChat={onCloseAgentChat}
-        onClearAgentChat={onClearAgentChat}
-        onGenerate={handleCostGenerate}
-        onSavePrompt={onSavePrompt}
-        onOpenMediaLibrary={onOpenMediaLibrary}
-        isCollapsed={collapsedSteps.prompt}
-        onToggleCollapse={() => toggleStep("prompt")}
-        costCredits={costCredits}
-        isGenerating={isPromptGenerating}
-        isGenerateDisabled={isGenerateDisabled}
-        shouldDisableSave={shouldDisableSave}
-        beginnerMode={beginnerMode}
-      />
     </div>
   );
 }

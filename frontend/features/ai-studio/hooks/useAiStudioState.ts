@@ -91,7 +91,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
 
   // UI selections and references (shared across tools)
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
-  const [showEditTools, setShowEditTools] = useState<boolean>(false);
+  const [showCreateTools, setShowCreateTools] = useState<boolean>(false);
   const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
   const [extraImageUrls, setExtraImageUrls] = useState<[string | null, string | null, string | null]>([
     null,
@@ -1094,8 +1094,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setSaved,
     selectedTool,
     setSelectedTool,
-    showEditTools,
-    setShowEditTools,
+    showCreateTools,
+    setShowCreateTools,
     referenceImageUrl,
     setReferenceImageUrl,
     extraImageUrls,

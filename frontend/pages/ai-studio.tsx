@@ -74,8 +74,8 @@ export default function AiStudioPage() {
     saved,
     selectedTool,
     setSelectedTool,
-    showEditTools,
-    setShowEditTools,
+    showCreateTools,
+    setShowCreateTools,
     referenceImageUrl,
     setReferenceImageUrl,
     extraImageUrls,
@@ -150,7 +150,7 @@ export default function AiStudioPage() {
   const handleToolSelect = (tool: ToolId | null) => {
     setSelectedTool(tool);
     if (!tool) {
-      setShowEditTools(false);
+      setShowCreateTools(false);
     }
   };
 
@@ -605,7 +605,7 @@ export default function AiStudioPage() {
         <title>ShortPulse · AI Studio</title>
         <meta name="description" content="AI Studio — prompt, generate, preview, save." />
       </Head>
-      <AiStudioPageContent
+        <AiStudioPageContent
         referenceCanvasFileInputRef={referenceCanvasFileInputRef}
         onFileBrowserSelection={handleFileBrowserSelection}
         uiError={uiError}
@@ -620,9 +620,9 @@ export default function AiStudioPage() {
         onDismissFailure={dismissFailure}
         onInspectFailure={focusFailure}
         selectedTool={selectedTool}
-        showEditTools={showEditTools}
-        onSelectTool={handleToolSelect}
-        onToggleEditTools={setShowEditTools}
+          showCreateTools={showCreateTools}
+          onSelectTool={handleToolSelect}
+          onToggleCreateTools={setShowCreateTools}
         propertiesCreate={propertiesCreate}
         propertiesCharacter={{
           identity,
@@ -668,6 +668,7 @@ export default function AiStudioPage() {
           onPromptTextChange: setReferenceText,
           onSave: () => savePromptReference(referenceText ?? ""),
           onRegenerate: regenerateOutput,
+          onOpenMediaLibrary: () => window.open("/media-library", "_self"),
           costCredits: currentCostCredits,
           guardrailReason: generationGuardrail,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
@@ -706,6 +707,7 @@ export default function AiStudioPage() {
           onPromptTextChange: setReferenceText,
           onSave: saveActiveOutput,
           onRegenerate: handleRegenerateWithDebit,
+          onOpenMediaLibrary: () => window.open("/media-library", "_self"),
           costCredits: currentCostCredits,
           guardrailReason: generationGuardrail,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
@@ -781,6 +783,7 @@ export default function AiStudioPage() {
           onUsePrompt: handleAgentUsePrompt,
           onClose: handleCloseAgentChat,
           onMessageClick: handleAgentMessageClick,
+          generateCost: currentCostCredits,
         }}
         handleReferenceCanvasFiles={handleReferenceCanvasFiles}
         triggerFilePicker={triggerFilePicker}

@@ -3,7 +3,8 @@
  * Presents upscale mode toggles, reference dropzone, and generate action for image/video enhancement.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { CloudArrowUp, ImageSquare, Sparkle, UploadSimple, VideoCamera } from "phosphor-react";
+import { ImageSquare, Sparkle, UploadSimple, VideoCamera } from "phosphor-react";
+import { GreyMediaLibraryButton } from "./GreyMediaLibraryButton";
 import { extractDragDropPayload, isImageDragTransfer } from "../utils/dragDrop";
 
 type EnhanceMode = "image" | "video";
@@ -240,10 +241,7 @@ export function EnhancePropertiesPanel({
               <UploadSimple size={14} weight="regular" />
               Add files
             </button>
-            <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
-              <CloudArrowUp size={14} weight="regular" />
-              Media library
-            </button>
+            <GreyMediaLibraryButton onClick={onOpenMediaLibrary} />
           </div>
         </div>
         </div>

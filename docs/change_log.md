@@ -199,3 +199,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Introduced Google Veo 3.1 (Fal) with 8s default, 1080p/audio-on pricing; wired Fal queue submission and per-second cost strategy.
 - Added Kling 2.6 Pro (Fal) with 10s default, per-second pricing ($0.07/sec audio off, $0.14/sec audio on) and Fal queue payload (sound flag).
 - Updated model order in selectors (Kling 2.6 ahead of Veo) and ensured env template documents KEI/FAL keys.
+
+## 2026-02-03
+- Updated Image-to-Video (Recreate) UI to use two primary reference frames (First frame + Last frame) and hide secondary dropzones for video models; added on-card labels for clarity.
+- Added MiniGenerateButton to the Agent Chat input row beside Send for faster prompt generation actions.
+- Updated `docs/sop_video_generation.md` to reflect the first/last frame workflow requirement for image-to-video.

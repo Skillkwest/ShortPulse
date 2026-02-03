@@ -3,18 +3,14 @@
  * Handles text input ("Enhanced"), Chat mode, and Agent interactions.
  */
 import React, { useRef } from "react";
-import {
-  ArrowsOutSimple,
-  CaretDown,
-  CloudArrowUp,
-  Trash,
-} from "phosphor-react";
+import { ArrowsOutSimple, CaretDown, Trash } from "phosphor-react";
 import { AgentChatPanel } from "../../ai-agent/components/AgentChatPanel";
 import { AgentSendButton } from "../../ai-agent/components/AgentSendButton";
 import { AgentSaveButton } from "../../ai-agent/components/AgentSaveButton";
 import { MiniGenerateButton } from "../../ai-agent/components/MiniGenerateButton";
 import { AgentInputBar } from "../../ai-agent/components/AgentInputBar";
 import type { AgentActions, AgentMessage } from "../../ai-agent/types";
+import { GreyMediaLibraryButton } from "./GreyMediaLibraryButton";
 
 type StepHeaderActionButtonProps = {
   label: string;
@@ -289,9 +285,7 @@ export function PromptStep({
                 <div className="enhanced-actions-row">
                   <div className="ai-control-actions">
                     {onOpenMediaLibrary ? (
-                      <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
-                        <CloudArrowUp size={12} weight="regular" /> Media library
-                      </button>
+                      <GreyMediaLibraryButton onClick={onOpenMediaLibrary} />
                     ) : null}
                   </div>
                   <div className="enhanced-action-buttons agent-inline-actions">

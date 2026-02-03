@@ -40,7 +40,6 @@ export type ToolId =
   | "templates"
   | "my-generations"
   | "community"
-  | "edit-parent"
   | "enhance"
   | "character"
   | "image-to-image"

@@ -1,6 +1,6 @@
 /**
  * AI Studio dropzones and reference inputs.
- * Drop layouts for regen/image-to-video flows.
+ * Drop layouts for reference image/video flows.
  */
 .reference-drop-layout {
   display: grid;
@@ -71,23 +71,23 @@
   margin-right: 0;
 }
 
-.recreate-frame-card {
+.reference-frame-card {
   background: var(--ai-container-card-bg);
   border: 1px solid var(--ai-container-card-border);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
 }
 
-.recreate-frame-controls {
+.reference-frame-controls {
   margin-top: 10px;
 }
 
-.recreate-model-actions {
+.reference-model-actions {
   margin-top: 14px;
   display: flex;
   justify-content: flex-end;
 }
 
-.regenerate-step-card {
+.reference-step-card {
   background: var(--ai-container-card-bg);
   border: 1px solid var(--ai-container-card-border);
   border-radius: 12px;
@@ -100,7 +100,7 @@
   min-height: 0;
 }
 
-.regenerate-step-header {
+.reference-step-header {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -123,24 +123,24 @@
   box-shadow: 0 8px 16px var(--ai-accent-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
-.regenerate-step-copy {
+.reference-step-copy {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.regenerate-step-copy .step-title {
+.reference-step-copy .step-title {
   margin: 0;
 }
 
-.regenerate-step-card .reference-dropzone,
-.regenerate-step-card .text-dropzone {
+.reference-step-card .reference-dropzone,
+.reference-step-card .text-dropzone {
   height: 100%;
   min-height: 0;
   flex: 1;
 }
 
-.regenerate-step-card .reference-dropzone {
+.reference-step-card .reference-dropzone {
   aspect-ratio: 4 / 5;
 }
 
@@ -358,68 +358,6 @@
   padding: 12px;
   text-align: center;
   color: var(--ai-card-text-muted);
-}
-
-.enhance-drop-wrapper {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  justify-content: stretch;
-  flex-wrap: wrap;
-}
-
-.enhance-drop-column {
-  flex: 1;
-  min-width: 0;
-}
-
-.enhance-drop-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex-shrink: 0;
-  align-items: stretch;
-}
-
-.enhance-drop-actions .ghost-btn {
-  width: 100%;
-  justify-content: center;
-}
-
-.enhance-dropzone {
-  max-width: clamp(180px, 22vw, 240px);
-  width: 100%;
-  min-height: clamp(180px, 24vw, 250px);
-  aspect-ratio: 4 / 5;
-  position: relative;
-  overflow: hidden;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-.enhance-drop-content {
-  gap: 6px;
-}
-
-
-
-.enhance-video-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(12, 18, 26, 0.9);
-  color: #d7e6f4;
-  font-size: 13px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-}
-
-.enhance-video-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 320px;
 }
 
 .reference-drop-title {

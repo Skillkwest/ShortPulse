@@ -1,6 +1,6 @@
 /**
- * Regenerate/Image-to-video properties panel.
- * Provides reference dropzones, aspect/model selection, and prompt capture for regen flows.
+ * Reference properties panel for AI Studio.
+ * Provides reference dropzones, aspect/model selection, and prompt capture for image/video workflows.
  */
 import React, { useRef, useState } from "react";
 import { ArrowFatLinesRight, Plus, UploadSimple } from "phosphor-react";
@@ -13,8 +13,8 @@ import type { AgentActions, AgentMessage } from "../../ai-agent/types";
 import { CaretDown } from "phosphor-react";
 import { AgentGenerateButton } from "../../ai-agent/components/AgentGenerateButton";
 
-type RecreatePropertiesPanelProps = {
-  variant: "image-to-image" | "image-to-video";
+type ReferencePropertiesPanelProps = {
+  variant: "image" | "video";
   title: string;
   subtitle: string;
   aspect: string;
@@ -85,9 +85,9 @@ const StepHeaderActionButton: React.FC<StepHeaderActionButtonProps> = ({
 };
 
 /**
- * Renders reference/image-to-video tool controls.
+ * Renders reference-based image/video tool controls.
  */
-export function RecreatePropertiesPanel({
+export function ReferencePropertiesPanel({
   variant,
   title,
   subtitle,
@@ -128,7 +128,7 @@ export function RecreatePropertiesPanel({
   onCloseAgentChat,
   onClearAgentChat,
   beginnerMode = false,
-}: RecreatePropertiesPanelProps) {
+}: ReferencePropertiesPanelProps) {
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraOneInputRef = useRef<HTMLInputElement | null>(null);
   const extraTwoInputRef = useRef<HTMLInputElement | null>(null);
@@ -252,7 +252,7 @@ export function RecreatePropertiesPanel({
     setExtraDragActiveAt(index, false);
   };
 
-  const isVideoVariant = variant === "image-to-video";
+  const isVideoVariant = variant === "video";
 
   return (
     <div className="tool-properties">
@@ -263,12 +263,12 @@ export function RecreatePropertiesPanel({
       <div className="reference-drop-layout-inner">
         <div className="reference-dropzone-block image-block">
           <div
-            className={`regenerate-step-card ${collapsedSteps.reference ? "is-collapsed" : ""}`}
+            className={`reference-step-card ${collapsedSteps.reference ? "is-collapsed" : ""}`}
             onClick={() => expandIfCollapsed("reference")}
           >
-            <div className="regenerate-step-header">
+            <div className="reference-step-header">
               {beginnerMode && <span className="step-badge mini">1</span>}
-              <div className="regenerate-step-copy">
+              <div className="reference-step-copy">
                 <p className="step-title">{isVideoVariant ? "Add Reference Frames" : "Add Reference Image"}</p>
                 <span className="step-subtitle tiny helper-text">
                   {isVideoVariant
@@ -398,7 +398,7 @@ export function RecreatePropertiesPanel({
           <PromptStep
             stepNumber="2"
             title="Write Your Prompt"
-            subtitle="Drop a saved prompt or describe the look you want to recreate."
+            subtitle="Drop a saved prompt or describe the look you want to match."
             prompt={referenceText ?? ""}
             onPromptChange={onPromptTextChange}
             agentEnabled={agentEnabled}
@@ -422,23 +422,23 @@ export function RecreatePropertiesPanel({
             isCollapsed={collapsedSteps.prompt}
             onToggleCollapse={() => toggleStep("prompt")}
             costCredits={costCredits}
-            isGenerating={false} // Recreate doesn't have a specific prompt generating state in top-level prop, but could pass isGeneratorDisabled
+            isGenerating={false} // Reference flows don't have a specific prompt generating state in top-level prop, but could pass isGeneratorDisabled
             isGenerateDisabled={isGenerateDisabled}
             onDrop={handlePromptDrop as any}
             onDragOver={(e) => e.preventDefault()}
-            className="regenerate-step-card"
+            className="reference-step-card"
             beginnerMode={beginnerMode}
           />
         </div>
         <div
-          className={`step-card recreate-frame-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
+          className={`step-card reference-frame-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
           onClick={() => expandIfCollapsed("model")}
         >
           <div className="step-card-header">
             {beginnerMode && <span className="step-badge">3</span>}
             <div className="step-header-copy">
               <p className="step-title">Choose Frame & Model</p>
-              <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you regenerate.</span>
+              <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you generate.</span>
             </div>
             <div className="step-header-actions">
               <StepHeaderActionButton
@@ -449,7 +449,7 @@ export function RecreatePropertiesPanel({
             </div>
           </div>
           {!collapsedSteps.model ? (
-            <div className="create-controls dual-controls recreate-frame-controls">
+            <div className="create-controls dual-controls reference-frame-controls">
               <div className="control-row compact">
                 <label className="input-label">Aspect ratio</label>
                 <AspectDropdown aspect={aspect} onSelect={onAspectChange} options={aspectOptions} />
@@ -458,9 +458,9 @@ export function RecreatePropertiesPanel({
                 <label className="input-label">Model</label>
                 <button
                   type="button"
-                  className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "recreate-model" ? "is-open" : ""}`}
-                  data-model-anchor="recreate-model"
-                  onClick={(event) => onModelPickerOpen("recreate-model", event.currentTarget)}
+                  className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""}`}
+                  data-model-anchor="reference-model"
+                  onClick={(event) => onModelPickerOpen("reference-model", event.currentTarget)}
                 >
                   <div className="model-picker-row">
                     <span className="model-picker-value">
@@ -477,7 +477,7 @@ export function RecreatePropertiesPanel({
             </div>
           ) : null}
           {!collapsedSteps.model ? (
-            <div className="recreate-model-actions">
+            <div className="reference-model-actions">
               <AgentGenerateButton
                 onClick={onRegenerate}
                 disabled={isGenerateDisabled}
@@ -488,7 +488,7 @@ export function RecreatePropertiesPanel({
           ) : null}
         </div>
         <div
-          className={`step-card recreate-generate-step ${collapsedSteps.generate ? "is-collapsed" : ""}`}
+          className={`step-card reference-generate-step ${collapsedSteps.generate ? "is-collapsed" : ""}`}
           onClick={() => expandIfCollapsed("generate")}
         >
           <div className="step-card-header">

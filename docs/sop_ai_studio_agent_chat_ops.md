@@ -3,15 +3,15 @@
 Purpose: operational playbook for the AI Studio chat agent—where it lives in the UI, how context is built, how actions are applied, and how to validate or debug it without touching the model prompts themselves.
 
 ## Scope
-- In scope: AI Studio chat/agent surfaces in Create → Prompt step (inline chat mode), the expanded Agent Chat column, Enhance (prompt refinement) fallback to the agent, and the Describe fallback when the dedicated endpoint fails.
+- In scope: AI Studio chat/agent surfaces in Create → Prompt step (inline chat mode), the expanded Agent Chat column, Text (prompt refinement) fallback to the agent, and the Describe fallback when the dedicated endpoint fails.
 - Out of scope: Character tool agent flows (none today), media library ingestion, and non-studio routes.
 
 ## UI entry points
-- Inline prompt step (`CreatePropertiesPanel`): “Prompt / Chat” toggle. Chat mode shows a compact message stack plus an input row; the Enhance toggle still uses the prompt textarea.
+- Inline prompt step (`TextPropertiesPanel`): “Prompt / Chat” toggle. Chat mode shows a compact message stack plus an input row; the Text toggle still uses the prompt textarea.
 - Expand to column (`AiStudioPageContent`): `ArrowsOut` opens the Agent Chat column, replacing the reference grid. Clicking a chat bubble adds that text to the Reference Grid as a prompt card (`addAgentPromptReference`).
 - Generate card (`ComposeSendCard`): generation uses whichever prompt is active; the agent is only involved if chat applied a prompt.
 - Prompt save: Save buttons persist the current prompt (including agent-applied text) to the reference grid.
-- Describe & Enhance fallbacks: “Describe” on a reference uses `/api/ai/describe-image` first, then falls back to the agent with `modeHint="describe"`; “Enhance” uses `/api/ai/generate-prompt` first, then falls back to the agent with `modeHint="enhance"`.
+- Describe & Text fallbacks: “Describe” on a reference uses `/api/ai/describe-image` first, then falls back to the agent with `modeHint="describe"`; “Refine prompt” uses `/api/ai/generate-prompt` first, then falls back to the agent with `modeHint="text"`.
 
 ## System prerequisites & gates
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-4.1`), optional `OPENAI_API_BASE`.
@@ -30,9 +30,9 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 - **Iterate in Chat mode (Create tool):**
   - Send → agent returns an updated single prompt; prompt state updates; “Generate” uses it.
   - Message click → adds a prompt card to Reference Grid and closes chat.
-- **Enhance path (Prompt tab):**
+- **Refine prompt path (Prompt tab):**
   - Primary: `/api/ai/generate-prompt`; on success, saves a “Refined prompt” card and sets prompt.
-  - Fallback: agent with `modeHint="enhance"`; captures `applyPrompt` and saves a card with optional `referenceCard.title`.
+  - Fallback: agent with `modeHint="text"`; captures `applyPrompt` and saves a card with optional `referenceCard.title`.
 - **Describe a reference:**
   - Primary: `/api/ai/describe-image` on the active output image.
   - Fallback: agent with `modeHint="describe"` and focused image context; result becomes prompt + prompt card.
@@ -48,7 +48,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 ## Operational checklist (per release or after prompt/model updates)
 - ✅ Agent on/off: flip `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` false → chat hides; API still guarded by `STUDIO_AGENT_ENABLED`.
 - ✅ Happy path: send chat → prompt updates → generate succeeds (image + video).
-- ✅ Enhance fallback: force `/api/ai/generate-prompt` failure (unset key) → chat fallback returns a prompt.
+- ✅ Text fallback: force `/api/ai/generate-prompt` failure (unset key) → chat fallback returns a prompt.
 - ✅ Describe fallback: run Describe on an image with describe API disabled → chat returns a usable description.
 - ✅ Oversize media: drop a >350 KB image → request should omit media and return a text-only refinement.
 - ✅ Drift guard: send canonical prompt “sunset bike” then “make it a car” and ensure preserved details unless explicitly changed.

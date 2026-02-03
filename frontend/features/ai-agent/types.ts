@@ -29,7 +29,7 @@ export type AgentMediaPreview = {
 export type AgentContext = {
   activePrompt?: string | null;
   modelId?: string | null;
-  mode?: "enhance" | "image" | "video";
+  mode?: "text" | "image" | "video";
   references?: AgentReferenceSummary[];
   media?: AgentMediaPreview[];
   creditBalance?: number | null;
@@ -37,7 +37,7 @@ export type AgentContext = {
   focusedSource?: "image" | "prompt" | "agent-output";
   focusedReferenceId?: string | null;
   lastAssistantMessage?: string | null;
-  modeHint?: "chat" | "enhance" | "describe";
+  modeHint?: "chat" | "text" | "describe" | "reference";
 };
 
 export type AgentActions = {

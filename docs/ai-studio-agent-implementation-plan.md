@@ -21,8 +21,8 @@ Goal: replace prompt textareas with an agent chat that sees the reference grid a
 - Provide lightweight selector in `ReferenceCanvas` to export the N most recent items and the current selection.
 
 ## Phase 2 — UI swaps (prompt → chat)
-- `CreatePropertiesPanel`: replace prompt textarea with `AgentChatPanel`; keep “Save prompt”/cost display; legacy textarea rendered only when feature flag is off.
-- `RecreatePropertiesPanel`: same swap in the prompt block; ensure drag/drop prompt text still populates the chat input.
+- `TextPropertiesPanel`: replace prompt textarea with `AgentChatPanel`; keep “Save prompt”/cost display; legacy textarea rendered only when feature flag is off.
+- `ReferencePropertiesPanel`: same swap in the prompt block; ensure drag/drop prompt text still populates the chat input.
 - `StudioPreview`: swap prompt preview box with a compact chat view for quick iterations; “Regenerate” uses last applied prompt from agent.
 - `DetailModal`: add an Agent tab scoped to the selected card; prefill context with that card only.
 - Accessibility: preserve labels/aria from existing textareas; ensure keyboard submit and screen-reader annunciation.

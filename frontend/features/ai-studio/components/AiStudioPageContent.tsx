@@ -7,12 +7,11 @@ import Link from "next/link";
 import { CloudArrowUp, Selection, UploadSimple, User } from "phosphor-react";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { CanvasPanel } from "./CanvasPanel";
-import { CreatePropertiesPanel, ComposeSendCard } from "./CreatePropertiesPanel";
+import { TextPropertiesPanel, ComposeSendCard } from "./TextPropertiesPanel";
 import { DetailModal } from "./DetailModal";
-import { EnhancePropertiesPanel } from "./EnhancePropertiesPanel";
 import { ModelModal } from "./ModelModal";
 import { ReferenceCanvas } from "./ReferenceCanvas";
-import { RecreatePropertiesPanel } from "./RecreatePropertiesPanel";
+import { ReferencePropertiesPanel } from "./ReferencePropertiesPanel";
 import { StudioPreview } from "./StudioPreview";
 import { CharacterPropertiesPanel } from "../../character/components/CharacterPropertiesPanel";
 import { CharacterPanel } from "./CharacterPanel";
@@ -24,7 +23,7 @@ import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 
 type FailureCard = Pick<StudioOutput, "id" | "model" | "modelId" | "prompt" | "errorMessage">;
 
-type CreateSectionProps = {
+type TextSectionProps = {
   mode: StudioMode;
   aspect: string;
   modelId: string | null;
@@ -69,15 +68,13 @@ type CreateSectionProps = {
 
 type CharacterSectionProps = React.ComponentProps<typeof CharacterPropertiesPanel>;
 
-type RecreateSectionProps = Omit<React.ComponentProps<typeof RecreatePropertiesPanel>, "title" | "subtitle"> & {
-  variant: "image-to-image" | "image-to-video";
+type ReferenceSectionProps = Omit<React.ComponentProps<typeof ReferencePropertiesPanel>, "title" | "subtitle"> & {
+  variant: "image" | "video";
   onRegenerate: () => void;
   guardrailReason: string | null;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
 };
-
-type EnhanceSectionProps = React.ComponentProps<typeof EnhancePropertiesPanel>;
 
 type AgentChatProps = {
   isOpen: boolean;
@@ -113,11 +110,10 @@ type AiStudioPageContentProps = {
   showCreateTools: boolean;
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (value: boolean) => void;
-  propertiesCreate: CreateSectionProps;
+  propertiesText: TextSectionProps;
   propertiesCharacter: CharacterSectionProps;
-  propertiesRecreate: RecreateSectionProps;
-  propertiesRecreateVideo: RecreateSectionProps;
-  propertiesEnhance: EnhanceSectionProps;
+  propertiesImage: ReferenceSectionProps;
+  propertiesVideo: ReferenceSectionProps;
   isTemplateView: boolean;
   referenceCanvasProps: ReferenceCanvasProps;
   studioPreviewProps: React.ComponentProps<typeof StudioPreview>;
@@ -154,11 +150,10 @@ export function AiStudioPageContent({
   showCreateTools,
   onSelectTool,
   onToggleCreateTools,
-  propertiesCreate,
+  propertiesText,
   propertiesCharacter,
-  propertiesRecreate,
-  propertiesRecreateVideo,
-  propertiesEnhance,
+  propertiesImage,
+  propertiesVideo,
   isTemplateView,
   referenceCanvasProps,
   studioPreviewProps,
@@ -177,39 +172,37 @@ export function AiStudioPageContent({
       case "text":
         return (
           <>
-            <CreatePropertiesPanel
-              {...propertiesCreate}
+            <TextPropertiesPanel
+              {...propertiesText}
               agentChatOpen={agentChat.isOpen}
-              onAgentEnhanceSend={propertiesCreate.onAgentEnhanceSend}
+              onAgentEnhanceSend={propertiesText.onAgentEnhanceSend}
             />
             <ComposeSendCard
-              {...propertiesCreate}
-              onGenerate={propertiesCreate.onGenerate}
-              onSavePrompt={propertiesCreate.onSavePrompt}
-              shouldDisableSave={propertiesCreate.shouldDisableSave}
+              {...propertiesText}
+              onGenerate={propertiesText.onGenerate}
+              onSavePrompt={propertiesText.onSavePrompt}
+              shouldDisableSave={propertiesText.shouldDisableSave}
             />
           </>
         );
       case "character":
         return <CharacterPanel />;
-      case "image-to-image":
+      case "image":
         return (
-          <RecreatePropertiesPanel
-            title="Image to Image"
-            subtitle="Recreate images using references."
-            {...propertiesRecreate}
+          <ReferencePropertiesPanel
+            title="Image"
+            subtitle="Generate images using reference inputs."
+            {...propertiesImage}
           />
         );
-      case "image-to-video":
+      case "video":
         return (
-          <RecreatePropertiesPanel
-            title="Image to Video"
-            subtitle="Animate still images using references and prompts."
-            {...propertiesRecreateVideo}
+          <ReferencePropertiesPanel
+            title="Video"
+            subtitle="Animate still images using reference inputs and prompts."
+            {...propertiesVideo}
           />
         );
-      case "enhance":
-        return <EnhancePropertiesPanel {...propertiesEnhance} />;
       case "edit":
         return (
           <div style={{ padding: "24px" }}>

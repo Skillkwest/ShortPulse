@@ -4,7 +4,7 @@ This SOP documents how ShortPulse generates videos from text prompts or image re
 See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coordination across AI Studio verticals.
 
 ## Scope
-- Video generation in AI Studio’s Create → Video and Image-to-Video flows.
+- Video generation in AI Studio’s Create → Video flow (text-to-video and image-to-video models).
 - Model selection and cost estimation/debit for video runs.
 - Reference handling (drag/drop) and output book-keeping.
 - Text/describe flows are covered in `docs/sop_text_generation.md`; this SOP focuses on video behaviors.
@@ -14,8 +14,8 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 | Component | Role |
 | --- | --- |
 | `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Central state/actions: handles prompt, aspect, model selection, submits generation, polls task status, debits credits, and manages outputs/reference images/videos. |
-| `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx` | UI for Create flow (mode toggle, aspect, model picker, prompt textarea, Generate CTA showing estimated credits). |
-| `frontend/features/ai-studio/components/RecreatePropertiesPanel.tsx` | UI for Image-to-Video (reference drops, prompt textarea, aspect/model picker, Generate CTA). |
+| `frontend/features/ai-studio/components/TextPropertiesPanel.tsx` | UI for Text flow (mode toggle, aspect, model picker, prompt textarea, Generate CTA showing estimated credits). |
+| `frontend/features/ai-studio/components/ReferencePropertiesPanel.tsx` | UI for Video (reference drops, prompt textarea, aspect/model picker, Generate CTA). |
 | `frontend/features/ai-studio/components/StudioPreview.tsx` | Shows latest output/reference preview and allows drag/drop to seed regeneration; accepts dropped image files for image-to-video. |
 | `frontend/features/ai-studio/components/ReferenceCanvas.tsx` | Reference grid (draggable cards) and file drop surface for seeding references; renders inline video previews when outputs are mp4s. |
 | `frontend/features/ai-studio/logic/*` | Pricing (`pricing.ts`), token estimates, drag/drop utilities, and provider clients (Fal/Kie). |
@@ -29,7 +29,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 
 ## Video generation workflow (Create → Video)
 
-1. User selects mode “Video” in CreatePropertiesPanel and chooses aspect + model (video-capable options filtered by mode).  
+1. User selects Create → Video; ReferencePropertiesPanel renders with aspect + model (video-capable options filtered by mode).  
 2. User enters a prompt (and optionally prepares an image reference if the model requires/accepts it).  
 3. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect })`; disabled until a model is selected or the user lacks sufficient credits.  
 4. On click:  
@@ -39,9 +39,9 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 5. Reference Grid prepends the new output card; Studio Preview shows the latest video thumbnail/preview if available.  
 6. Save/Media Library buttons remain available for downstream use.
 
-## Image-to-Video workflow (Recreate → Image to Video)
+## Reference-based video workflow (Create → Video, image-to-video models)
 
-1. User opens the Image-to-Video tool (RecreatePropertiesPanel) and selects aspect + model.  
+1. User opens the Video tool (ReferencePropertiesPanel) and selects aspect + model.  
 2. User drops/uploads two reference frames (required): **First frame** (primary dropzone) and **Last frame** (second primary dropzone). Extra secondary dropzones are hidden in this flow.  
 3. User enters or drops a prompt into the prompt textarea.  
 4. Generate CTA shows estimated credits; disabled if either frame or the model is missing or credits are insufficient.  
@@ -50,7 +50,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 ## Reference handling
 
 - Users can drag existing reference cards (images) or drop external image files into Reference Canvas or Studio Preview; dropped files become `StudioOutput` entries with object URLs.  
-- Image-to-Video requires at least one reference image; Create → Video may be text-only unless a specific model demands an image.  
+- Image-to-video models require at least one reference image; Create → Video may be text-only unless a specific model demands an image.  
 - Drag/drop ignores non-image payloads and prefers real URLs over blobs when available.
 
 ## Result ingestion & previews
@@ -67,9 +67,9 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 
 ## Error handling & UX
 
-- Prominent dismissible error banner surfaces API/flow failures (missing reference for image-to-video models, upstream errors).  
+- Prominent dismissible error banner surfaces API/flow failures (missing reference for reference-required video models, upstream errors).  
 - Reference Grid cards show failure chips for failed tasks; Studio Preview shows status/error text.  
-- Generate is disabled when required inputs are missing (e.g., model or reference image for image-to-video) or when the credit balance is below the computed cost.
+- Generate is disabled when required inputs are missing (e.g., model or reference image for reference-required models) or when the credit balance is below the computed cost.
 
 ## Model usage
 
@@ -92,7 +92,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 1. Keep prompts in `frontend/lib/agentPromptsConfig.ts` for text/describe only; video flows do not use agent prompts.  
 2. When adding video models, update `modelOptions`, `pricing.ts`, and aspect constraints; ensure the cost estimator and debit memo are correct, update the table above, and keep model filtering accurate.  
 3. Align SOP defaults with code (credit gating, debit timing, model filtering).  
-4. Run `npm run lint` after changes; smoke-test Create → Video and Image-to-Video flows (reference required when applicable, prompt entry, generate, output appears, credit debited, no errors).
+4. Run `npm run lint` after changes; smoke-test Create → Video with text-only and reference-required models (prompt entry, generate, output appears, credit debited, no errors).
 
 ## Known gaps / improvements
 

@@ -7,18 +7,15 @@ import React from "react";
 import {
   Globe,
   FlowArrow,
-  Gear,
   Graph,
   House,
   ImageSquare,
-  MagicWand,
   Person,
   Selection,
   Sparkle,
   SquaresFour,
   StackSimple,
   TextT,
-  UsersThree,
   VideoCamera,
 } from "phosphor-react";
 import { createChildTools, creationsToolList, editToolList, lowerToolList, primaryToolList } from "../constants";
@@ -41,16 +38,15 @@ const toolIcons: Record<ToolId, React.ComponentType<any>> = {
   "my-generations": StackSimple,
   community: Globe,
   text: TextT,
-  "image-to-image": ImageSquare,
-  "image-to-video": VideoCamera,
-  enhance: MagicWand,
+  image: ImageSquare,
+  video: VideoCamera,
   character: Person,
   edit: Selection,
   canvas: Graph,
 };
 
 /**
- * Renders the AI Studio toolbar with primary and nested edit options.
+ * Renders the AI Studio toolbar with primary and nested create options.
  */
 export function AiStudioToolbar({
   selectedTool,
@@ -63,9 +59,8 @@ export function AiStudioToolbar({
 }: AiStudioToolbarProps) {
   const isCreateChildSelected =
     selectedTool === "text" ||
-    selectedTool === "image-to-image" ||
-    selectedTool === "image-to-video" ||
-    selectedTool === "enhance" ||
+    selectedTool === "image" ||
+    selectedTool === "video" ||
     selectedTool === "character";
 
   return (

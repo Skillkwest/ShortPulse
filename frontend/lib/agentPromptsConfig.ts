@@ -254,7 +254,7 @@ Input is a JSON object:
   "user_input": "<latest user text>",
   "edit_instructions": "<optional combined string: edit canonical_prompt in place with user change>",
   "context_payload": "<prompt text or image note>",
-  "mode_hint": "chat" | "enhance" | "describe" | null
+  "mode_hint": "chat" | "text" | "describe" | null
 }
 
 Rules:

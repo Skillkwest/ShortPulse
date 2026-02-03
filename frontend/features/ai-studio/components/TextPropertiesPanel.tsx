@@ -1,6 +1,6 @@
 /**
- * Create properties panel for AI Studio.
- * Handles mode selection, aspect/model choices, and prompt entry for generation.
+ * Text properties panel for AI Studio.
+ * Handles prompt entry, mode selection, and model/aspect choices for text-first generation.
  */
 import React from "react";
 import {
@@ -19,7 +19,7 @@ import { AgentGenerateButton } from "../../ai-agent/components/AgentGenerateButt
 import type { AgentActions, AgentMessage } from "../../ai-agent/types";
 import { PromptStep } from "./PromptStep";
 
-type CreatePropertiesPanelProps = {
+type TextPropertiesPanelProps = {
   mode: StudioMode;
   aspect: string;
   modelId: string | null;
@@ -111,7 +111,7 @@ const StepHeaderActionButton: React.FC<StepHeaderActionButtonProps> = ({ label, 
 };
 
 const modeIconMap: Record<StudioMode, React.ComponentType<any>> = {
-  enhance: MagicWand,
+  text: MagicWand,
   image: ImageSquare,
   video: VideoCamera,
 };
@@ -119,7 +119,7 @@ const modeIconMap: Record<StudioMode, React.ComponentType<any>> = {
 /**
  * Renders the Create tool controls.
  */
-export function CreatePropertiesPanel({
+export function TextPropertiesPanel({
   mode,
   aspect,
   modelId,
@@ -162,17 +162,17 @@ export function CreatePropertiesPanel({
   onCloseAgentChat,
   onClearAgentChat,
   beginnerMode = false,
-}: CreatePropertiesPanelProps) {
+}: TextPropertiesPanelProps) {
 
 
-  const isEnhanceMode = mode === "enhance";
-  const shouldHidePromptStep = isEnhanceMode && useReferenceImageIndicator;
+  const isTextMode = mode === "text";
+  const shouldHidePromptStep = isTextMode && useReferenceImageIndicator;
   const showPromptInput = !shouldHidePromptStep;
   const promptStepNumber = "2";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
-  const primaryActionLabel = isEnhanceMode ? "Send" : "Generate";
-  const primaryActionBusyLabel = isEnhanceMode ? "Sending…" : "Generating…";
-  const isTextPromptMode = mode === "enhance";
+  const primaryActionLabel = isTextMode ? "Send" : "Generate";
+  const primaryActionBusyLabel = isTextMode ? "Sending…" : "Generating…";
+  const isTextPromptMode = mode === "text";
   const costValue = costCredits != null ? costCredits : "—";
   const [collapsedSteps, setCollapsedSteps] = React.useState<{ mode: boolean; model: boolean; prompt: boolean }>({
     mode: false,
@@ -204,8 +204,8 @@ export function CreatePropertiesPanel({
   return (
     <div className="tool-properties">
       <div className="tool-header">
-        <p className="eyebrow">Create</p>
-        <p className="subdued tiny helper-text">Generate new content using text input.</p>
+        <p className="eyebrow">Text</p>
+        <p className="subdued tiny helper-text">Generate new content using text prompts.</p>
       </div>
       <div
         className={`step-card ${collapsedSteps.mode ? "is-collapsed" : ""}`}
@@ -231,9 +231,9 @@ export function CreatePropertiesPanel({
           <div className="create-controls top-row mode-toggle-row" role="group" aria-label="Select generation mode">
             <button
               type="button"
-              className={`ghost-btn small mode-toggle-btn ${mode === "enhance" ? "is-active" : ""}`}
-              aria-pressed={mode === "enhance"}
-              onClick={() => onModeChange("enhance")}
+              className={`ghost-btn small mode-toggle-btn ${mode === "text" ? "is-active" : ""}`}
+              aria-pressed={mode === "text"}
+              onClick={() => onModeChange("text")}
             >
               Text Prompt
             </button>
@@ -288,7 +288,7 @@ export function CreatePropertiesPanel({
         shouldDisableSave={shouldDisableSave}
         beginnerMode={beginnerMode}
       />
-      {!isEnhanceMode ? (
+      {!isTextMode ? (
         <div
           className={`step-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
           onClick={() => expandIfCollapsed("model")}
@@ -366,7 +366,7 @@ export function ComposeSendCard({
   beginnerMode = false,
 }: ComposeSendCardProps) {
   const primaryActionLabel = "Generate";
-  const primaryActionBusyLabel = mode === "enhance" ? "Sending…" : "Generating…";
+  const primaryActionBusyLabel = mode === "text" ? "Sending…" : "Generating…";
   const costValue = costCredits != null ? costCredits : "—";
   const promptThinking = agentIsSending || isPromptGenerating;
 

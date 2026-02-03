@@ -156,7 +156,7 @@ export default function AiStudioPage() {
 
   const handleAgentSend = async (
     textOverride?: string,
-    options?: { captureResult?: boolean; selectedOverride?: StudioOutput | null; modeHint?: "chat" | "enhance" | "describe" | "recreate" },
+    options?: { captureResult?: boolean; selectedOverride?: StudioOutput | null; modeHint?: "chat" | "text" | "describe" | "reference" },
   ): Promise<{ prompt: string; referenceTitle?: string | null } | void> => {
     const rawInput = typeof textOverride === "string" ? textOverride : agentInput;
     const trimmed = rawInput.trim();
@@ -169,7 +169,7 @@ export default function AiStudioPage() {
     const baseContext = getAgentContext({
       lastAssistantMessage: latestAssistantMessage,
       selectedOverride: options?.selectedOverride,
-      modeHint: options?.modeHint as any,
+      modeHint: options?.modeHint,
     });
     if (latestAgentPrompt) {
       baseContext.activePrompt = latestAgentPrompt;
@@ -221,9 +221,9 @@ export default function AiStudioPage() {
     });
     const appliedPrompt = actions?.applyPrompt ?? latestAgentPrompt ?? prompt;
 
-    // Apply strict prompt update if tool-specific context demands it (create vs recreate).
+    // Apply strict prompt update if tool-specific context demands it (create vs reference).
     if (actions?.applyPrompt) {
-      if (options?.modeHint === "recreate") {
+      if (options?.modeHint === "reference") {
         setReferenceText(appliedPrompt);
       } else {
         setPrompt(appliedPrompt);
@@ -251,8 +251,8 @@ export default function AiStudioPage() {
         addAgentPromptReference(refined.prompt, refined.prompt ? "Refined prompt" : undefined);
         return;
       }
-      // Fallback: chat agent with enhance hint
-      const result = await handleAgentSend(prompt, { captureResult: true, modeHint: "enhance" });
+      // Fallback: chat agent with text hint
+      const result = await handleAgentSend(prompt, { captureResult: true, modeHint: "text" });
       if (result && typeof result === "object" && "prompt" in result) {
         addAgentPromptReference(result.prompt, result.referenceTitle ?? undefined);
       }
@@ -530,7 +530,7 @@ export default function AiStudioPage() {
   };
 
   const handlePrimarySubmit = () => {
-    if ((selectedTool === "create" || selectedTool === "text") && mode === "enhance") {
+    if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
       handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
         const agentRes = result as { prompt: string; referenceTitle?: string } | undefined;
         if (agentRes?.prompt) {
@@ -547,14 +547,14 @@ export default function AiStudioPage() {
       handleBlockedGeneration();
       return;
     }
-    if (selectedTool === "image-to-video" && currentCostCredits && model && hasSufficientCreditsForCost) {
+    if (selectedTool === "video" && currentCostCredits && model && hasSufficientCreditsForCost) {
       const memo = `${modelConfig?.label ?? model} generation`;
       debit(currentCostCredits, memo, `out-${Date.now()}`).catch(() => { });
     }
     regenerateOutput();
   };
 
-  const propertiesCreate = {
+  const propertiesText = {
     mode,
     aspect,
     modelId: model,
@@ -589,7 +589,7 @@ export default function AiStudioPage() {
     onExpandChat: handleExpandChat,
     onCloseAgentChat: handleCloseAgentChat,
     onClearAgentChat: handleClearAgentChat,
-    shouldDisableSave: useReferenceImageIndicator && mode === "enhance",
+    shouldDisableSave: useReferenceImageIndicator && mode === "text",
     onGenerate: handlePrimarySubmit,
     onSavePrompt: savePromptReference,
     onOpenMediaLibrary: () => window.open("/media-library", "_self"),
@@ -623,7 +623,7 @@ export default function AiStudioPage() {
           showCreateTools={showCreateTools}
           onSelectTool={handleToolSelect}
           onToggleCreateTools={setShowCreateTools}
-        propertiesCreate={propertiesCreate}
+        propertiesText={propertiesText}
         propertiesCharacter={{
           identity,
           aspect: characterAspect,
@@ -650,8 +650,8 @@ export default function AiStudioPage() {
           onBuildIdentity: buildCharacterIdentity,
           onGenerate: () => generateCharacter(),
         }}
-        propertiesRecreate={{
-          variant: "image-to-image",
+        propertiesImage={{
+          variant: "image",
           aspect,
           modelId: model,
           modelLabel: currentModelLabel,
@@ -680,8 +680,8 @@ export default function AiStudioPage() {
           agentError: agentError ?? undefined,
           stagedPrompt: latestAgentPrompt,
           onAgentInputChange: setAgentInput,
-          onAgentSend: () => handleAgentSend(agentInput || referenceText || "", { modeHint: "recreate" }),
-          onAgentEnhanceSend: () => handleAgentSend(referenceText || "", { captureResult: true, modeHint: "recreate" }),
+          onAgentSend: () => handleAgentSend(agentInput || referenceText || "", { modeHint: "reference" }),
+          onAgentEnhanceSend: () => handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
           onAgentMessageClick: handleAgentMessageClick,
           onExpandChat: handleExpandChat,
           onCloseAgentChat: handleCloseAgentChat,
@@ -689,8 +689,8 @@ export default function AiStudioPage() {
           agentChatOpen: isAgentChatOpen,
           beginnerMode,
         }}
-        propertiesRecreateVideo={{
-          variant: "image-to-video",
+        propertiesVideo={{
+          variant: "video",
           aspect,
           modelId: model,
           modelLabel: currentModelLabel,
@@ -720,21 +720,13 @@ export default function AiStudioPage() {
           agentError: agentError ?? undefined,
           stagedPrompt: latestAgentPrompt,
           onAgentInputChange: setAgentInput,
-          onAgentSend: () => handleAgentSend(agentInput || referenceText || "", { modeHint: "recreate" }),
-          onAgentEnhanceSend: () => handleAgentSend(referenceText || "", { captureResult: true, modeHint: "recreate" }),
+          onAgentSend: () => handleAgentSend(agentInput || referenceText || "", { modeHint: "reference" }),
+          onAgentEnhanceSend: () => handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
           onAgentMessageClick: handleAgentMessageClick,
           onExpandChat: handleExpandChat,
           onCloseAgentChat: handleCloseAgentChat,
           onClearAgentChat: handleClearAgentChat,
           agentChatOpen: isAgentChatOpen,
-          beginnerMode,
-        }}
-        propertiesEnhance={{
-          costCredits: currentCostCredits,
-          isGenerateDisabled: isGenerateDisabled || agentIsSending,
-          resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id),
-          onOpenMediaLibrary: () => window.open("/media-library", "_self"),
-          onTriggerFileSelect: triggerFilePicker,
           beginnerMode,
         }}
         isTemplateView={isTemplateView}

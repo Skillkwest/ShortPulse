@@ -1,6 +1,6 @@
 /**
  * Shared prompt step component for AI Studio.
- * Handles text input ("Enhanced"), Chat mode, and Agent interactions.
+ * Handles text input ("Text"), Chat mode, and Agent interactions.
  */
 import React, { useRef } from "react";
 import { ArrowsOutSimple, CaretDown, Trash } from "phosphor-react";
@@ -277,7 +277,7 @@ export function PromptStep({
                       onChange={(event) => onPromptChange(event.target.value)}
                       onKeyDown={handleEnhancedPromptKeyDown}
                       rows={6}
-                      placeholder="Describe what you want, then enhance it."
+                      placeholder="Describe what you want, then refine it."
                       aria-busy={promptThinking}
                     />
                   </div>

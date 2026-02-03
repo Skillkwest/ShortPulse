@@ -333,7 +333,7 @@
   gap: 12px;
 }
 
-.create-controls.dual-controls.recreate-frame-controls {
+.create-controls.dual-controls.reference-frame-controls {
   grid-template-columns: 0.85fr 1.15fr;
 }
 
@@ -468,13 +468,6 @@
   .model-modal-grid {
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   }
-}
-
-.enhance-mode-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
 }
 
 .model-modal-section {
@@ -1572,19 +1565,6 @@
   align-items: center;
   gap: 8px;
   margin-right: auto;
-}
-
-.recreate-generate-btn {
-  padding: 10px 22px;
-}
-
-.recreate-generate-btn .primary-btn-label {
-  font-size: 14px;
-}
-
-.recreate-generate-btn svg {
-  width: 22px;
-  height: 22px;
 }
 
 .ai-mode-toggle {

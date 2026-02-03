@@ -121,8 +121,8 @@ export const filterModelOptions = (
       if (mode === "image") return "image";
       if (mode === "video") return "video";
     }
-    if (selectedTool === "image-to-video") return "video";
-    if (selectedTool === "image-to-image") return "image";
+    if (selectedTool === "video") return "video";
+    if (selectedTool === "image") return "image";
     return null;
   })();
 
@@ -130,7 +130,7 @@ export const filterModelOptions = (
   if (mediaFilter) {
     filtered = filtered.filter((opt) => !opt.mediaType || opt.mediaType === mediaFilter || opt.mediaType === "multi");
   }
-  if (selectedTool === "image-to-image") {
+  if (selectedTool === "image") {
     filtered = filtered.filter((opt) => {
       const config = getModelConfig(opt.value);
       return config?.supportsImageToImage;

@@ -14,7 +14,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 | Component | Role |
 | --- | --- |
 | `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Central state/actions: handles prompt, aspect, model selection, submits generation, polls task status, debits credits, and manages outputs/reference images. |
-| `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx` | UI for Create flow (mode toggle, aspect, model picker, prompt textarea, Generate CTA showing estimated credits). |
+| `frontend/features/ai-studio/components/TextPropertiesPanel.tsx` | UI for Text flow (mode toggle, aspect, model picker, prompt textarea, Generate CTA showing estimated credits). |
 | `frontend/features/ai-studio/components/StudioPreview.tsx` | Shows latest output/reference preview and allows drag/drop to seed regeneration; accepts dropped image files. |
 | `frontend/features/ai-studio/components/ReferenceCanvas.tsx` | Reference grid (draggable cards) and file drop surface for seeding references. |
 | `frontend/features/ai-studio/logic/*` | Pricing (`pricing.ts`), prompt/token estimates, drag/drop utilities, and provider clients (Fal/Kie). |
@@ -29,7 +29,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 
 ## Image generation workflow (Create → Image)
 
-1. User selects mode “Image” in CreatePropertiesPanel and chooses aspect + model (Fal/Kie options filtered by mode).  
+1. User selects mode “Image” in TextPropertiesPanel and chooses aspect + model (Fal/Kie options filtered by mode).  
 2. User enters a prompt (optionally informed by previously described prompts).  
 3. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect })`; disabled until a model is selected or the user lacks sufficient credits.  
 4. On click:  
@@ -90,7 +90,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 
 - Credit UX: consider showing both estimated and actual debits (when available) in the Reference card or banner.  
 - Error surfacing: add per-card retry affordance and friendlier inline messaging on the prompt form.  
-- Caching: consider reusing the last refined prompt when switching from enhance → image to reduce duplicate API calls.  
+- Caching: consider reusing the last refined prompt when switching from text → image to reduce duplicate API calls.  
 - Accessibility: ensure drag/drop surfaces have keyboard equivalents (e.g., “Choose file” button focusable with Enter/Space).
 
 ## Upcoming flows (prepare ahead)

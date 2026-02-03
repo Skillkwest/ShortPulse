@@ -485,14 +485,6 @@
   margin-top: 10px;
 }
 
-.recreate-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  padding-top: 0px;
-  margin-top: 4px;
-}
-
 .studio-preview-square {
   width: 68%;
   aspect-ratio: 4 / 5;

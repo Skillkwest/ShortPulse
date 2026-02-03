@@ -77,7 +77,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const defaultVideoModel = useMemo(() => modelOptions.find((opt) => opt.mediaType === "video")?.value ?? null, []);
 
   // Creation inputs
-  const [mode, setMode] = useState<StudioMode>("enhance");
+  const [mode, setMode] = useState<StudioMode>("text");
   const [aspect, setAspect] = useState<string>("9:16");
   const [model, setModelState] = useState<string | null>(null);
   const [lastImageModel, setLastImageModel] = useState<string | null>(null);
@@ -123,13 +123,13 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       if (mode === "image") return "image";
       if (mode === "video") return "video";
     }
-    if (selectedTool === "image-to-video") return "image-to-video";
-    if (selectedTool === "image-to-image") return "image";
+    if (selectedTool === "video") return "image-to-video";
+    if (selectedTool === "image") return "image";
     return null;
   }, [mode, selectedTool]);
 
   const allowedModelOptions = useMemo(() => {
-    if (selectedTool === "image-to-video") {
+    if (selectedTool === "video") {
       return modelOptions.filter(
         (opt) =>
           !opt.mediaType ||
@@ -149,7 +149,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         return Boolean(config?.supportsTextToImage);
       });
     }
-    if (selectedTool === "image-to-image") {
+    if (selectedTool === "image") {
       return modelOptions.filter((opt) => {
         const matchesMedia = !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi";
         if (!matchesMedia) return false;
@@ -362,8 +362,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
       const cleanedPrompt = (promptArg ?? prompt).trim();
 
-      if ((effectiveTool === "create" || effectiveTool === "text") && effectiveMode === "enhance") {
-        // Enhance (text prompt) is handled exclusively by the chat agent upstream.
+      if ((effectiveTool === "create" || effectiveTool === "text") && effectiveMode === "text") {
+        // Text prompts are handled exclusively by the chat agent upstream.
         // Avoid invoking legacy refine/describe pipelines from here.
         setIsPromptGenerating(false);
         return;
@@ -380,7 +380,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
 
       if (!hasReferenceImages) {
         // Fallback to text-based generation when no references exist
-        if (effectiveTool === "image-to-image") {
+        if (effectiveTool === "image") {
           finalTool = "text"; // Fallback to text-to-image
           // Map image-to-image models to their text-to-image equivalents
           const imageToTextModelMap: Record<string, string> = {
@@ -392,7 +392,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           if (model && imageToTextModelMap[model]) {
             finalModel = imageToTextModelMap[model];
           }
-        } else if (effectiveTool === "image-to-video") {
+        } else if (effectiveTool === "video") {
           finalTool = "text"; // Fallback to text-to-video (will use video mode)
           // Map image-to-video models to their text-to-video equivalents
           const imageToVideoTextMap: Record<string, string> = {
@@ -439,7 +439,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         )
       ).filter((url): url is string => Boolean(url));
       const pulseReferenceImageUrl =
-        finalTool === "image-to-image" && preparedImageInputs.length > 0
+        finalTool === "image" && preparedImageInputs.length > 0
           ? preparedImageInputs[0]
           : undefined;
       const falReferencePayload = pulseReferenceImageUrl ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) } : {};
@@ -465,7 +465,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "fail",
             status: "ready",
             timestamp: "Missing image",
-            errorMessage: "Image-to-video requires an image URL.",
+            errorMessage: "Video generation requires an image URL.",
           },
           ...prev,
         ]);
@@ -918,7 +918,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     const promptReference: StudioOutput = {
       id,
       prompt: cleanedPrompt,
-      mode: "enhance",
+      mode: "text",
       aspect,
       model: placeholderModelLabel,
       modelId: model ?? undefined,
@@ -939,7 +939,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const promptReference: StudioOutput = {
         id,
         prompt: cleanedPrompt,
-        mode: "enhance",
+        mode: "text",
         aspect,
         model: placeholderModelLabel,
         modelId: model ?? undefined,
@@ -989,7 +989,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     (options?: {
       lastAssistantMessage?: string | null;
       selectedOverride?: StudioOutput | null;
-      modeHint?: "chat" | "enhance" | "describe";
+      modeHint?: "chat" | "text" | "describe" | "reference";
     }): AgentContext => {
       const selected = options?.selectedOverride ?? activeOutput ?? null;
       const selectedReferenceIds = selected ? [selected.id] : [];

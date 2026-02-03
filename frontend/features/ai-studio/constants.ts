@@ -172,7 +172,7 @@ export const creationsToolList: ToolConfig[] = [
 
 export const createChildTools: ToolConfig[] = [
   { id: "text", label: "Text", desc: "Create from text prompts" },
-  { id: "image-to-image", label: "Image", desc: "Regenerate from a reference" },
-  { id: "image-to-video", label: "Video", desc: "Animate a still image" },
+  { id: "image", label: "Image", desc: "Generate from a reference" },
+  { id: "video", label: "Video", desc: "Animate a still image" },
   { id: "character", label: "Character", desc: "Build character variants" },
 ];

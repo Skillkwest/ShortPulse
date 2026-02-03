@@ -38,9 +38,9 @@ export const useAiStudioViewModel = ({
   balanceCredits,
   costParamsForModel,
 }: ViewModelInput) => {
-  const isDescribeMode = (selectedTool === "create" || selectedTool === "text") && mode === "enhance" && useReferenceImageIndicator;
+  const isDescribeMode = (selectedTool === "create" || selectedTool === "text") && mode === "text" && useReferenceImageIndicator;
   const requiresModelSelection =
-    ((selectedTool === "create" || selectedTool === "text") && mode !== "enhance") || selectedTool === "image-to-video";
+    ((selectedTool === "create" || selectedTool === "text") && mode !== "text") || selectedTool === "video";
   const isModelSelected = Boolean(model);
   const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
 
@@ -60,7 +60,7 @@ export const useAiStudioViewModel = ({
         if (!model) return null;
         return computeCostForModel(model, costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }));
       }
-      if (mode === "enhance") {
+      if (mode === "text") {
         if (isDescribeMode) {
           return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedDescribeTokens);
         }
@@ -69,12 +69,12 @@ export const useAiStudioViewModel = ({
       return null;
     }
 
-    if (selectedTool === "image-to-image") {
+    if (selectedTool === "image") {
       if (!model) return null;
       return computeCostForModel(model, costParamsForModel());
     }
 
-    if (selectedTool === "image-to-video") {
+    if (selectedTool === "video") {
       if (!model) return null;
       return computeCostForModel(model, costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }));
     }
@@ -106,14 +106,14 @@ export const useAiStudioViewModel = ({
   }, [aspect, costParamsForModel, model]);
 
   const costedFlow =
-    ((selectedTool === "create" || selectedTool === "text") && (mode === "image" || mode === "video")) || selectedTool === "image-to-video";
+    ((selectedTool === "create" || selectedTool === "text") && (mode === "image" || mode === "video")) || selectedTool === "video";
   const hasReferenceImages = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
 
   const requiresVideoReference =
-    selectedTool === "image-to-video" &&
+    selectedTool === "video" &&
     model === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
   const hasVideoReference = hasReferenceImages;
-  const isPulseImageToolActive = selectedTool === "image-to-image" && mode === "image";
+  const isPulseImageToolActive = selectedTool === "image" && mode === "image";
   const requiresReferenceModel =
     model === "fal-ai/nano-banana/edit" ||
     model === "fal-ai/nano-banana-pro/edit" ||
@@ -126,7 +126,7 @@ export const useAiStudioViewModel = ({
       : balanceCredits >= currentCostCredits;
 
   const generationGuardrail = useMemo(() => {
-    if ((selectedTool === "create" || selectedTool === "text") && mode === "enhance") return null;
+    if ((selectedTool === "create" || selectedTool === "text") && mode === "text") return null;
     if (requiresModelSelection && !isModelSelected) return "Select a model before running a generation.";
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
     // Removed reference image guardrails - system will automatically fallback to text-to-image/text-to-video when no references exist

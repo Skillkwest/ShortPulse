@@ -3,7 +3,7 @@
 Purpose: define how the new chat-based agent replaces prompt textareas across AI Studio, how it receives context (references, prompts, media), and how to run/maintain the flow safely. For UI entry points and runbook details, see `docs/sop_ai_studio_agent_chat_ops.md`.
 
 ## Scope
-- In scope: AI Studio (Create, Recreate/Image-to-Image/Image-to-Video, detail modal, Studio Preview prompt preview) prompt inputs now mediated by the agent. Agent can describe references, propose prompts, and hand off a chosen prompt to generation.
+- In scope: AI Studio (Create → Text/Image/Video, detail modal, Studio Preview prompt preview) prompt inputs now mediated by the agent. Agent can describe references, propose prompts, and hand off a chosen prompt to generation.
 - Out of scope for this phase: Character tool identity/token flows, performance dashboards, Media Library ingestion.
 
 ## Key components
@@ -13,7 +13,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 | `frontend/pages/api/ai/studio-agent.ts` | API route that brokers chat completions with vision; applies request guards and returns structured actions. |
 | `frontend/features/ai-agent/{types,logic,useAiAgent.ts,components/AgentChatPanel.tsx}` | New feature module: manages chat state, context assembly, media downscaling, and action parsing. |
 | `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Supplies prompt/model/reference state to the agent and receives applied prompts. |
-| `frontend/features/ai-studio/components/{CreatePropertiesPanel,RecreatePropertiesPanel,DetailModal,StudioPreview}` | Replace prompt textareas with `AgentChatPanel` embeds; surface “Apply prompt”/“Generate” actions. |
+| `frontend/features/ai-studio/components/{TextPropertiesPanel,ReferencePropertiesPanel,DetailModal,StudioPreview}` | Replace prompt textareas with `AgentChatPanel` embeds; surface “Apply prompt”/“Generate” actions. |
 | `frontend/features/ai-studio/components/ReferenceCanvas.tsx` | Supplies lightweight reference metadata (id, type, prompt, preview URL) to the agent context. |
 
 ## Prerequisites
@@ -29,7 +29,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
   - `context`: {
     `activePrompt`: string;
     `modelId`: string | null;
-    `mode`: "enhance" | "image" | "video";
+    `mode`: "text" | "image" | "video";
     `references`: array of `{ id, kind: "image" | "video" | "prompt", promptSnippet?: string, aspect?: string, caption?: string }`;
     `media`: array of `{ id, kind: "image" | "video", dataUrl?: string, thumbnailAlt?: string }` where `dataUrl` is optional and capped by guardrails;
     `creditBalance`: number | null;

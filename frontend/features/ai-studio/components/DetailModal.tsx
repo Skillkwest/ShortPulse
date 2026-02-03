@@ -20,7 +20,7 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const mediaType = output?.mode === "image" ? "Image" : output?.mode === "video" ? "Video" : "Prompt";
-  const isPromptOnly = output?.mode === "enhance" && !output.previewUrl;
+  const isPromptOnly = output?.mode === "text" && !output.previewUrl;
   const aspectStyle =
     output?.aspect && output.aspect.includes(":")
       ? { aspectRatio: output.aspect.replace(":", " / ") }

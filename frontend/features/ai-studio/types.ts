@@ -2,7 +2,7 @@
  * Types for the AI Studio feature surface.
  * Keeps mode, aspect, prompt, and output structures shared between components.
  */
-export type StudioMode = "enhance" | "image" | "video";
+export type StudioMode = "text" | "image" | "video";
 
 export type AspectOption = {
   value: string;
@@ -40,10 +40,9 @@ export type ToolId =
   | "templates"
   | "my-generations"
   | "community"
-  | "enhance"
   | "character"
-  | "image-to-image"
-  | "image-to-video"
+  | "image"
+  | "video"
   | "text"
   | "edit"
   | "canvas";

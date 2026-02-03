@@ -300,6 +300,20 @@ body.ai-studio-body {
   border-right: 1px solid rgba(201, 205, 214, 0.08);
 }
 
+.ai-toolbar-floating::-webkit-scrollbar {
+  width: 6px;
+}
+.ai-toolbar-floating::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ai-toolbar-floating::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.25);
+  border-radius: 999px;
+}
+.ai-toolbar-floating::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.4);
+}
+
 .toolbar-logo {
   display: flex;
   justify-content: center;

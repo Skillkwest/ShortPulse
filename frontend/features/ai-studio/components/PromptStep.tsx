@@ -3,14 +3,14 @@
  * Handles text input ("Text"), Chat mode, and Agent interactions.
  */
 import React, { useRef } from "react";
-import { ArrowsOutSimple, CaretDown, Trash } from "phosphor-react";
+import { ArrowsOutSimple, BookmarkSimple, CaretDown, CloudArrowUp, Trash } from "phosphor-react";
 import { AgentChatPanel } from "../../ai-agent/components/AgentChatPanel";
 import { AgentSendButton } from "../../ai-agent/components/AgentSendButton";
 import { AgentSaveButton } from "../../ai-agent/components/AgentSaveButton";
 import { MiniGenerateButton } from "../../ai-agent/components/MiniGenerateButton";
 import { AgentInputBar } from "../../ai-agent/components/AgentInputBar";
 import type { AgentActions, AgentMessage } from "../../ai-agent/types";
-import { GreyMediaLibraryButton } from "./GreyMediaLibraryButton";
+import { PromptLibraryButton } from "./PromptLibraryButton";
 
 type StepHeaderActionButtonProps = {
   label: string;
@@ -235,11 +235,11 @@ export function PromptStep({
                       />
                     </div>
                   ) : null}
-                  <div className="step2-input-row">
+                  <div className="step2-input-row prompt-actions-compact">
                     <AgentInputBar
                       value={agentInput}
                       onChange={(value) => onAgentInputChange?.(value)}
-                      placeholder="Tell the agent what you want or ask it to describe a reference."
+                      placeholder="Tell the agent what you want to make."
                       disabled={agentIsSending}
                       onKeyDown={handleAgentInputKeyDown}
                       className="agent-input-prefab-inline"
@@ -282,11 +282,25 @@ export function PromptStep({
                     />
                   </div>
                 </div>
-                <div className="enhanced-actions-row">
+                <div className="enhanced-actions-row prompt-actions-compact">
                   <div className="ai-control-actions">
                     {onOpenMediaLibrary ? (
-                      <GreyMediaLibraryButton onClick={onOpenMediaLibrary} />
+                      <PromptLibraryButton
+                        onClick={onOpenMediaLibrary}
+                        className="prompt-media-btn"
+                        aria-label="Open media library"
+                        label="Media Library"
+                        icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
+                        tone="library"
+                      />
                     ) : null}
+                    <PromptLibraryButton
+                      className="prompt-media-btn"
+                      aria-label="Save prompt to media library"
+                      label="Save Prompt"
+                      icon={<BookmarkSimple size={16} weight="regular" aria-hidden />}
+                      tone="save"
+                    />
                   </div>
                   <div className="enhanced-action-buttons agent-inline-actions">
                     <AgentSaveButton

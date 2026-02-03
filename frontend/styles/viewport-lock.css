@@ -1,0 +1,20 @@
+/**
+ * Viewport lock styles.
+ * Freezes the app to its initial viewport size so window resizing clips instead of reflowing.
+ */
+:root {
+  --app-fixed-width: 100vw;
+  --app-fixed-height: 100vh;
+}
+
+html,
+body,
+#__next {
+  width: var(--app-fixed-width);
+  height: var(--app-fixed-height);
+  min-width: var(--app-fixed-width);
+  min-height: var(--app-fixed-height);
+  max-width: var(--app-fixed-width);
+  max-height: var(--app-fixed-height);
+  overflow: hidden;
+}

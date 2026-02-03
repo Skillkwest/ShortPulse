@@ -3,7 +3,7 @@
  */
 .auth-shell {
   position: relative;
-  min-height: 100vh;
+  min-height: var(--app-fixed-height);
   display: grid;
   place-items: center;
   background: radial-gradient(120% 120% at 10% 20%, rgba(21, 43, 82, 0.25), transparent),
@@ -23,7 +23,7 @@
 
 .auth-card {
   position: relative;
-  width: min(520px, 92vw);
+  width: min(520px, calc(var(--app-fixed-width) * 0.92));
   background: #141821;
   border: 1px solid rgba(73, 84, 100, 0.45);
   border-radius: 18px;

@@ -276,7 +276,7 @@
   display: block;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1200px) and (max-device-width: 1200px) {
   .character-page .studio-grid {
     grid-template-columns: 1fr;
   }

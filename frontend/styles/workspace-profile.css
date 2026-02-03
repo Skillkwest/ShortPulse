@@ -9,7 +9,7 @@
   padding: 64px 72px 96px 420px;
   background: #0f1115;
   background-image: none;
-  min-height: 100vh;
+  min-height: var(--app-fixed-height);
 }
 
 .profile-page-shell,
@@ -479,7 +479,7 @@
   color: var(--color-teal);
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1200px) and (max-device-width: 1200px) {
   .profile-page.page {
     padding: 32px 24px 64px 24px;
   }
@@ -496,7 +496,7 @@
   }
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1080px) and (max-device-width: 1080px) {
   .profile-page .profile-shell {
     grid-template-columns: 1fr;
   }

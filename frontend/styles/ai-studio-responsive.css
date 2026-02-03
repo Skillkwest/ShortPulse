@@ -2,7 +2,7 @@
  * AI Studio responsive rules.
  * Media queries for layout adjustments.
  */
-@media (max-width: 1200px) {
+@media (max-width: 1200px) and (max-device-width: 1200px) {
   .ai-shell {
     grid-template-columns: 220px 1fr;
     grid-template-areas:
@@ -15,13 +15,13 @@
   }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 960px) and (max-device-width: 960px) {
   .ai-shell {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px) and (max-device-width: 768px) {
   .preview-surface {
     height: 300px;
   }

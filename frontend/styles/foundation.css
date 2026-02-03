@@ -33,7 +33,7 @@ body {
   font-family: var(--font-primary);
   background: linear-gradient(160deg, rgba(18, 21, 29, 0.96), rgba(12, 15, 22, 0.94));
   color: var(--color-ash);
-  min-height: 100vh;
+  min-height: var(--app-fixed-height);
 }
 
 a {
@@ -148,7 +148,7 @@ p {
   margin-top: 18px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px) and (max-device-width: 768px) {
   .workspace-grid {
     grid-template-columns: 1fr;
   }

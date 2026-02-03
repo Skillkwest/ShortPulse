@@ -491,7 +491,7 @@ body.ai-studio-body {
   position: sticky;
   top: 60px;
   align-self: flex-start;
-  max-height: calc(100vh - 60px);
+  max-height: calc(var(--app-fixed-height) - 60px);
   overflow: auto;
   padding-right: 4px;
 }

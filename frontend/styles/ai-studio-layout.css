@@ -15,6 +15,8 @@
   --ai-card-text: #7c828a;
   --ai-card-text-muted: #666c74;
   --ai-card-text-faint: #555b63;
+  --ai-dropzone-bg: rgb(14, 16, 19);
+  --ai-dropzone-bg-hover: rgba(22, 26, 30, 0.95);
   /* Toolbar font settings */
   --ai-toolbar-font-size: 12px;
   --ai-toolbar-font-weight: 100;
@@ -298,27 +300,29 @@ body.ai-studio-body {
   border-radius: 0;
   padding: 12px 10px 14px;
   border-right: 1px solid rgba(201, 205, 214, 0.08);
+  scrollbar-color: rgba(201, 205, 214, 0.3) transparent;
+  scrollbar-width: thin;
 }
 
 .ai-toolbar-floating::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 .ai-toolbar-floating::-webkit-scrollbar-track {
   background: transparent;
 }
 .ai-toolbar-floating::-webkit-scrollbar-thumb {
-  background: rgba(201, 205, 214, 0.25);
+  background: rgba(201, 205, 214, 0.3);
   border-radius: 999px;
 }
 .ai-toolbar-floating::-webkit-scrollbar-thumb:hover {
-  background: rgba(201, 205, 214, 0.4);
+  background: rgba(201, 205, 214, 0.45);
 }
 
 .toolbar-logo {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 12px 10px;
+  padding: 14px 10px;
   border-radius: 10px;
   margin: 0 0 0px;
   background: transparent;
@@ -342,7 +346,7 @@ body.ai-studio-body {
   margin: 12px auto 6px;
   width: 120px;
   justify-content: center;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 500;
   min-height: 38px;
   border: 1px solid rgba(201, 205, 214, 0.2);
@@ -766,7 +770,7 @@ body.ai-studio-body {
 .toolbar-item.toolbar-item-child {
   margin-left: 10px;
   min-height: 30px;
-  padding: 4px 8px;
+  padding: 8px 8px;
   border-radius: 6px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -824,39 +828,39 @@ body.ai-studio-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px;
-  margin-bottom: 10px;
-  border-radius: 14px;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: 12px;
   border: 1px solid var(--ai-container-card-border);
   background: var(--ai-container-card-bg);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
 }
 
 .toolbar-beginner-copy {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .toolbar-beginner-toggle .toolbar-label {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .toolbar-beginner-toggle .beginner-toggle {
   flex-shrink: 0;
-  width: 56px;
-  height: 30px;
+  width: 48px;
+  height: 26px;
 }
 
 .toolbar-beginner-toggle .reference-toggle-dot {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
 }
 
 .toolbar-beginner-toggle .reference-toggle.is-active .reference-toggle-dot {
-  transform: translate(28px, -50%);
+  transform: translate(24px, -50%);
 }
 
 .toolbar-profile-link {

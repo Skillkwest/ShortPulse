@@ -7,6 +7,8 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - `styles/foundation.css`: Resets, tokens, typography, layout primitives, base page shells.
 - `styles/ui-patterns.css`: Buttons, chips, panels, stat cards, preview tiles, shared UI atoms.
 - `styles/workspace.css`: Dashboard/workspace chrome, module tiles, creator panels, auth/media layout.
+- `styles/prefabs-agent.css`: Core styling for agent prefabs shared across features.
+- `styles/prefabs-agent-variants.css`: Compact/variant treatments for agent prefabs (chat shell, compact buttons).
 - `styles/performance-core.css`: Analytics chart shell, tooltips, filter bars, compact list cards.
 - `styles/performance-detail.css`: Modal, trend cards, selection/detail treatments.
 - `styles/performance-responsive.css`: Detail/responsive tweaks and focus states for analytics surfaces.
@@ -16,7 +18,11 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - `styles/ai-studio-canvas.css`: Reference grid and preview surfaces for AI Studio.
 - `styles/ai-studio-controls.css`: Step cards, toggles, and aspect/model selectors.
 - `styles/ai-studio-dropzones.css`: Regen dropzones and reference upload layouts.
-- `styles/ai-studio-panels.css`: Prompt inputs, presets, history blocks, and model picker.
+- `styles/ai-studio-properties.css`: Properties panel scaffolding, control rows, selects.
+- `styles/ai-studio-prompts.css`: Prompt inputs, mode toggles, prompt actions.
+- `styles/ai-studio-prompt-actions.css`: Prompt CTAs, library buttons, action strips.
+- `styles/ai-studio-model-picker.css`: Model picker button, modal, chips, tooltips.
+- `styles/ai-studio-history.css`: Presets, history cards, status chips, inline error hints.
 - `styles/ai-studio-modals.css`: Reference detail modal styling.
 - `styles/ai-studio-responsive.css`: AI Studio responsive breakpoints.
 
@@ -30,7 +36,10 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 `globals.css` imports in this order to maintain token availability and predictable overrides:
 1) foundation
 2) ui-patterns
-3) workspace
-4) ai-studio (layout/canvas/controls/dropzones/panels/modals/responsive)
-5) performance (core/detail/responsive)
-6) landing (core/sections)
+3) workspace (shared/chrome/dashboard/tools/media/profile)
+4) ai-studio (layout/canvas/controls/dropzones)
+5) prefabs (agent core + variants)
+6) ai-studio (properties/prompts/prompt-actions/model-picker/history/modals/responsive)
+7) performance (core/detail/responsive)
+8) landing (core/sections)
+9) auth + viewport lock

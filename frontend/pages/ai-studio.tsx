@@ -14,7 +14,7 @@ import { buildDefaultPricingParams, getModelConfig } from "../features/ai-studio
 import type { PricingParams } from "../features/ai-studio/logic/pricingTypes";
 import { useAiAgent } from "../features/ai-agent/useAiAgent";
 import { randomId } from "../features/ai-studio/logic/ids";
-import type { AgentActions, AgentContext, AgentMessage } from "../features/ai-agent/types";
+import type { AgentActions, AgentContext, AgentMessage } from "../prefabs/agent";
 import { postGeneratePrompt } from "../features/ai-studio/logic/promptGeneration";
 import { postDescribeImage, prepareImageUrl } from "../features/ai-studio/logic/imageDescription";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";

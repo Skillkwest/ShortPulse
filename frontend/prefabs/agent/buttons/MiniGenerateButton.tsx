@@ -1,3 +1,7 @@
+/**
+ * Compact generate button prefab for inline agent controls (cost pill).
+ * Designed for reuse wherever we show a quick generate-with-cost action.
+ */
 import React, { forwardRef, useMemo } from "react";
 import { Sparkle } from "phosphor-react";
 

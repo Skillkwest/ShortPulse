@@ -1,0 +1,149 @@
+/**
+ * AI Studio properties panels and control rows.
+ * Base layout scaffolding for the properties column and form controls.
+ */
+.stacked-controls {
+  flex-direction: column;
+}
+
+.dual-controls {
+  flex-wrap: nowrap;
+  gap: 18px;
+  align-items: flex-end;
+}
+
+.dual-controls .control-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.control-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-row.compact {
+  gap: 4px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding: 0px 0px 5px;
+}
+
+.control-row.compact > .input-label {
+  font-size: 13px;
+  min-width: 80px;
+}
+
+.fixed-select {
+  width: 150px;
+}
+
+.fixed-select .model-select {
+  background: rgba(12, 15, 22, 0.9);
+  color: #f5f9ff;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 13px;
+  appearance: none;
+  outline: none;
+  background-image: linear-gradient(45deg, transparent 50%, #f8f8f8 50%), linear-gradient(135deg, #f8f8f8 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% + 2px), calc(100% - 14px) calc(50% + 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  transition: border-color 0.12s ease, transform 0.12s ease, box-shadow 0.16s ease;
+}
+
+.fixed-select .model-select option {
+  background: rgba(12, 15, 22, 0.95);
+  color: #f5f9ff;
+}
+
+.fixed-select .model-select {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2) inset;
+}
+
+.ai-studio-page .fixed-select .model-select:hover {
+  border-color: var(--ai-accent, rgba(37, 169, 191, 0.6));
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px var(--ai-accent-shadow, rgba(37, 169, 191, 0.25));
+}
+
+.create-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.create-controls.dual-controls {
+  display: grid;
+  grid-template-columns: 0.8fr 1fr;
+  gap: 12px;
+}
+
+.create-controls.dual-controls.reference-frame-controls {
+  grid-template-columns: 0.85fr 1.15fr;
+}
+
+.ai-control-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.ai-mode-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.select-shell {
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background: rgba(11, 14, 21, 0.9);
+  border-radius: 10px;
+}
+
+.model-select {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #f5f9ff;
+  padding: 10px;
+  font-size: 14px;
+}
+
+.aspect-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-properties {
+  padding: 16px;
+  min-height: 300px;
+}
+
+.tool-properties {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.tool-header .subdued {
+  margin: -2px 0 0 0;
+  line-height: 1.1;
+}
+
+.properties-list {
+  max-height: 520px;
+  overflow: auto;
+  padding-right: 4px;
+}

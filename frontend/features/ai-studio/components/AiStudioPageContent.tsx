@@ -15,7 +15,7 @@ import { ReferencePropertiesPanel } from "./ReferencePropertiesPanel";
 import { StudioPreview } from "./StudioPreview";
 import { CharacterPropertiesPanel } from "../../character/components/CharacterPropertiesPanel";
 import { CharacterPanel } from "./CharacterPanel";
-import { AgentChatPanel } from "../../ai-agent/components/AgentChatPanel";
+import { AgentChatPanel } from "../../../prefabs/agent";
 import type { AgentActions, AgentMessage } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { PricingParams } from "../logic/pricingTypes";

@@ -3,7 +3,7 @@
  * Manages chat state locally and exposes a send helper with structured responses.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AgentActions, AgentApiRequest, AgentContext, AgentMessage, AgentResponse } from "./types";
+import type { AgentActions, AgentApiRequest, AgentContext, AgentMessage, AgentResponse } from "../../prefabs/agent";
 import { buildAgentContext } from "./logic/contextBuilder";
 import { randomId } from "../ai-studio/logic/ids";
 

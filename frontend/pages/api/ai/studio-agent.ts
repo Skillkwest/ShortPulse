@@ -4,7 +4,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
-import type { AgentContext, AgentMessage, AgentResponse } from "../../../features/ai-agent/types";
+import type { AgentContext, AgentMessage, AgentResponse } from "../../../prefabs/agent";
 
 const OPENAI_URL = (process.env.OPENAI_API_BASE || "https://api.openai.com/v1") + "/chat/completions";
 // More capable default; can be overridden via OPENAI_MODEL env.

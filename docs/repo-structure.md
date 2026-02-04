@@ -12,6 +12,7 @@ This document describes the **canonical layout** of the ShortPulse product repo 
 - `frontend/pages/`: Route entry points (keep thin).
 - `frontend/features/`: Feature modules following the documented pattern.
 - `frontend/components/`: Shared UI components reused across features.
+- `frontend/prefabs/`: Prefab UI kits grouped by domain (e.g., agent controls) for cross-feature reuse.
 - `frontend/lib/`: Cross-cutting clients/helpers (e.g., Supabase client, auth guard).
 - `frontend/styles/`: Modular CSS imported via `frontend/styles/globals.css`.
 - `frontend/public/`: Runtime assets served by Next.js.

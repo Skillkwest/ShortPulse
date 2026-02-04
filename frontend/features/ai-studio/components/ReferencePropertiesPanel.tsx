@@ -3,15 +3,15 @@
  * Provides reference dropzones, aspect/model selection, and prompt capture for image/video workflows.
  */
 import React, { useRef, useState } from "react";
-import { ArrowFatLinesRight, Plus, UploadSimple } from "phosphor-react";
+import { ArrowFatLinesRight, BracketsSquare, Plus, UploadSimple } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
 import { extractDragDropPayload, isImageDragTransfer } from "../utils/dragDrop";
 import { modelLogos } from "../constants";
 import { PromptStep } from "./PromptStep";
-import type { AgentActions, AgentMessage } from "../../ai-agent/types";
 import { CaretDown } from "phosphor-react";
-import { AgentGenerateButton } from "../../ai-agent/components/AgentGenerateButton";
+import { AgentGenerateButton } from "../../../prefabs/agent";
+import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
 
 type ReferencePropertiesPanelProps = {
   variant: "image" | "video";
@@ -357,37 +357,42 @@ export function ReferencePropertiesPanel({
                     </div>
                   </>
                 ) : (
-                  [extraOneInputRef, extraTwoInputRef].map((inputRef, index) => {
-                    const previewUrl = extraImageUrls[index];
-                    return (
-                      <div className="secondary-drop" key={`extra-drop-${index}`}>
-                        <div
-                          className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${extraDragActive[index] ? "is-dragging" : ""}`}
-                          onDrop={handleExtraDrop(index)}
-                          onDragEnter={handleExtraDragEnter(index)}
-                          onDragOver={handleExtraDragOver(index)}
-                          onDragLeave={handleExtraDragLeave(index)}
-                          onClick={() => inputRef.current?.click()}
-                          style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
-                        >
-                          {previewUrl ? (
-                            <button
-                              type="button"
-                              className="dropzone-clear"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onExtraImageChange(index, null);
-                              }}
-                            >
-                              ×
-                            </button>
-                          ) : (
-                            <Plus size={22} weight="regular" />
-                          )}
+                  <>
+                    <div className="reference-drop-divider" aria-hidden="true">
+                      <BracketsSquare size={22} weight="bold" />
+                    </div>
+                    {[extraOneInputRef, extraTwoInputRef].map((inputRef, index) => {
+                      const previewUrl = extraImageUrls[index];
+                      return (
+                        <div className="secondary-drop" key={`extra-drop-${index}`}>
+                          <div
+                            className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${extraDragActive[index] ? "is-dragging" : ""}`}
+                            onDrop={handleExtraDrop(index)}
+                            onDragEnter={handleExtraDragEnter(index)}
+                            onDragOver={handleExtraDragOver(index)}
+                            onDragLeave={handleExtraDragLeave(index)}
+                            onClick={() => inputRef.current?.click()}
+                            style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
+                          >
+                            {previewUrl ? (
+                              <button
+                                type="button"
+                                className="dropzone-clear"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onExtraImageChange(index, null);
+                                }}
+                              >
+                                ×
+                              </button>
+                            ) : (
+                              <Plus size={22} weight="regular" />
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })}
+                  </>
                 )}
               </div>
             ) : null}

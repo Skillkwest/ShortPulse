@@ -1,6 +1,6 @@
 /**
  * Types for the AI Studio Agent collaboration layer.
- * Kept small so UI/state modules can reuse them without tight coupling.
+ * Shared by UI prefabs, feature logic, and API handlers.
  */
 export type AgentMessageRole = "user" | "assistant" | "system" | "observation";
 

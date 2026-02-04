@@ -8,6 +8,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/conventions.md` (code/style conventions)
 - `docs/repo-structure.md` (where things go)
 - `docs/architecture-overview.md` (system at a glance)
+- `docs/prefabs.md` (shared prefab UI kits)
 - `docs/local-development.md` (setup + commands)
 - `docs/supabase_auth_setup.md` (Supabase client setup + auth)
 - `docs/release-checklist.md` (pre-merge checklist)

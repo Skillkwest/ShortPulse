@@ -2,7 +2,7 @@
  * Helpers to build the context payload sent to the agent API.
  * Keeps filtering and size caps in one place so UI code stays lean.
  */
-import type { AgentContext, AgentMediaPreview, AgentReferenceSummary } from "../types";
+import type { AgentContext, AgentMediaPreview, AgentReferenceSummary } from "../../../prefabs/agent";
 
 const MAX_MEDIA_ITEMS = 3;
 

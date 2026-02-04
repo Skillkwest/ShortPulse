@@ -3,9 +3,9 @@
  * UI stays minimal so existing panel styles remain dominant.
  */
 import React, { useCallback, useEffect, useRef } from "react";
-import { AgentSendButton } from "./AgentSendButton";
-import { AgentInputBar } from "./AgentInputBar";
-import { MiniGenerateButton } from "./MiniGenerateButton";
+import { AgentSendButton } from "../buttons/AgentSendButton";
+import { AgentInputBar } from "../inputs/AgentInputBar";
+import { MiniGenerateButton } from "../buttons/MiniGenerateButton";
 import type { AgentMessage } from "../types";
 
 type AgentChatPanelProps = {

@@ -5,11 +5,12 @@ Goal: replace prompt textareas with an agent chat that sees the reference grid a
 ## Phase 0 — Foundations (scaffolding)
 - Create feature flag `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`; default off in production until verified.
 - Add `frontend/features/ai-agent/` with:
-  - `types.ts`: `AgentMessage`, `AgentContext`, `AgentAction` shapes matching `sop_ai_studio_agent.md`.
   - `logic/contextBuilder.ts`: collects prompt/model/mode + reference summaries + compressed media blobs (max 3).
   - `logic/mediaDownscale.ts`: canvas-based JPEG resize (512px edge, q=0.6) with byte cap check.
   - `useAiAgent.ts`: manages chat state, merges new messages, calls API, parses JSON response, emits actions to callers.
-  - `components/AgentChatPanel.tsx`: reusable chat UI + action chips + Apply/Generate buttons.
+- Add `frontend/prefabs/agent/` with:
+  - `types.ts`: `AgentMessage`, `AgentContext`, `AgentAction` shapes matching `sop_ai_studio_agent.md` (shared by UI + API).
+  - `buttons/`, `inputs/`, `panels/`: reusable chat UI + action controls.
 - API route: `frontend/pages/api/ai/studio-agent.ts`
   - Validate feature flag/key/payload size; reject if missing.
   - Call OpenAI (or configured base/model) with `STUDIO_AGENT_SYSTEM` system prompt, `messages`, `context`.

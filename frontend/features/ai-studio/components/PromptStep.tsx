@@ -4,12 +4,14 @@
  */
 import React, { useRef } from "react";
 import { ArrowsOutSimple, BookmarkSimple, CaretDown, CloudArrowUp, Trash } from "phosphor-react";
-import { AgentChatPanel } from "../../ai-agent/components/AgentChatPanel";
-import { AgentSendButton } from "../../ai-agent/components/AgentSendButton";
-import { AgentSaveButton } from "../../ai-agent/components/AgentSaveButton";
-import { MiniGenerateButton } from "../../ai-agent/components/MiniGenerateButton";
-import { AgentInputBar } from "../../ai-agent/components/AgentInputBar";
-import type { AgentActions, AgentMessage } from "../../ai-agent/types";
+import {
+  AgentChatPanel,
+  AgentSendButton,
+  AgentSaveButton,
+  MiniGenerateButton,
+  AgentInputBar,
+} from "../../../prefabs/agent";
+import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
 import { PromptLibraryButton } from "./PromptLibraryButton";
 
 type StepHeaderActionButtonProps = {

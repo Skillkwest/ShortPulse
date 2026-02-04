@@ -5,6 +5,7 @@
 import Link from "next/link";
 import React, { useCallback, useState } from "react";
 import { CloudArrowUp, DownloadSimple, Sparkle, UploadSimple, X } from "phosphor-react";
+import { PromptLibraryButton } from "./PromptLibraryButton";
 import { StudioOutput } from "../types";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
 
@@ -106,10 +107,17 @@ export function ReferenceCanvas({
               <UploadSimple size={14} weight="regular" />
               Add files
             </button>
-            <Link href="/media-library" className="ghost-btn mini preview-media-btn">
-              <CloudArrowUp size={14} weight="regular" />
-              Media library
-            </Link>
+            <PromptLibraryButton
+              onClick={(event) => {
+                event.preventDefault();
+                window.location.href = "/media-library";
+              }}
+              className="prompt-media-btn preview-media-btn"
+              aria-label="Open media library"
+              label="Media Library"
+              icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
+              tone="library"
+            />
           </div>
         </div>
       ) : null}

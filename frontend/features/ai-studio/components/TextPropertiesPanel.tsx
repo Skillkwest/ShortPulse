@@ -13,10 +13,8 @@ import {
 import { AspectDropdown } from "./AspectDropdown";
 import { StudioMode } from "../types";
 import { modelLogos } from "../constants";
-import { AgentSaveButton } from "../../ai-agent/components/AgentSaveButton";
-import { AgentGenerateButton } from "../../ai-agent/components/AgentGenerateButton";
-
-import type { AgentActions, AgentMessage } from "../../ai-agent/types";
+import { AgentSaveButton, AgentGenerateButton } from "../../../prefabs/agent";
+import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
 
 type TextPropertiesPanelProps = {

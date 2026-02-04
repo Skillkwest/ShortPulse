@@ -1,3 +1,7 @@
+/**
+ * Auto-resizing textarea prefab used across agent/chat surfaces.
+ * Keeps sizing + padding consistent while remaining drop-in.
+ */
 import React, { useEffect, useRef } from "react";
 
 type AgentInputBarProps = {

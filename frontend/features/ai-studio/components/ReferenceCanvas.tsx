@@ -128,8 +128,8 @@ export function ReferenceCanvas({
         <div className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}>
           {outputs.length === 0 ? (
             <div className="reference-empty">
-              <p className="preview-title">Upload or generate to see your media here.</p>
-              <p className="subdued tiny helper-text">New prompts, images, and videos will appear in this grid.</p>
+              <p className="preview-title">Upload or generate to see your references here.</p>
+              <p className="subdued tiny helper-text">New text prompts, images, and videos will appear in this grid.</p>
             </div>
           ) : (
             outputs.map((item) => {

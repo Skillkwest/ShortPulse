@@ -146,10 +146,11 @@
   transition: box-shadow 0.16s ease, transform 0.12s ease;
 }
 .agent-enhance-prefab {
-  flex-direction: column;
-  gap: 4px;
-  font-size: 10px;
-  width: 120px !important;
+  flex-direction: row;
+  gap: 6px;
+  font-size: 12px;
+  min-width: 110px;
+  justify-content: center;
   letter-spacing: 0.02em;
 }
 .agent-enhance-label {

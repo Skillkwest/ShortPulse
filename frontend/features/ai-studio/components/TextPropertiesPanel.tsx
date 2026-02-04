@@ -211,13 +211,15 @@ export function TextPropertiesPanel({
             <p className="step-title">Select Generation Mode</p>
             <span className="step-subtitle tiny helper-text">Select the output type you want to generate. </span>
           </div>
-          <div className="step-header-actions">
-            <StepHeaderActionButton
-              label="Open generation mode options"
-              isCollapsed={collapsedSteps.mode}
-              onClick={() => toggleStep("mode")}
-            />
-          </div>
+          {!beginnerMode ? (
+            <div className="step-header-actions">
+              <StepHeaderActionButton
+                label="Open generation mode options"
+                isCollapsed={collapsedSteps.mode}
+                onClick={() => toggleStep("mode")}
+              />
+            </div>
+          ) : null}
         </div>
         {!collapsedSteps.mode ? (
           <div className="create-controls top-row mode-toggle-row" role="group" aria-label="Select generation mode">
@@ -251,7 +253,7 @@ export function TextPropertiesPanel({
       <PromptStep
         stepNumber={promptStepNumber}
         title="Write your prompt"
-        subtitle="Draft the prompt you want to use, or switch to Chat to have the agent craft one for you."
+        subtitle="Start typing your prompt or drag & drop a prompt from the reference grid."
         prompt={prompt}
         onPromptChange={onPromptChange}
         agentEnabled={agentEnabled}
@@ -291,13 +293,15 @@ export function TextPropertiesPanel({
               <p className="step-title">Choose frame & model</p>
               <span className="step-subtitle tiny helper-text">Set the aspect ratio, then select the model.</span>
             </div>
-            <div className="step-header-actions">
-              <StepHeaderActionButton
-                label="Open aspect ratio and model options"
-                isCollapsed={collapsedSteps.model}
-                onClick={() => toggleStep("model")}
-              />
-            </div>
+            {!beginnerMode ? (
+              <div className="step-header-actions">
+                <StepHeaderActionButton
+                  label="Open aspect ratio and model options"
+                  isCollapsed={collapsedSteps.model}
+                  onClick={() => toggleStep("model")}
+                />
+              </div>
+            ) : null}
           </div>
           {!collapsedSteps.model ? (
             <div className="create-controls dual-controls">

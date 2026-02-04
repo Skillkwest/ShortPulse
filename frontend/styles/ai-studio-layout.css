@@ -417,10 +417,10 @@ body.ai-studio-body {
 .ai-hero.panel.ai-amber-hero {
   position: fixed;
   top: 0;
-  left: 0;
+  left: var(--ai-rail-width);
   right: 0;
   z-index: 8;
-  padding-left: calc(var(--ai-rail-width) + 18px);
+  padding-left: 18px;
   padding-right: 24px;
   border-radius: 0;
   backdrop-filter: blur(6px);
@@ -435,7 +435,7 @@ body.ai-studio-body {
 .ai-shell {
   display: grid;
   /* Adjust the relative widths of the two main columns. */
-  grid-template-columns: minmax(500px, 0.8fr) minmax(0, 2fr);
+  grid-template-columns: minmax(500px, 1.1fr) minmax(0, 2fr);
   gap: var(--ai-gutter);
   align-items: start;
   grid-auto-rows: auto;
@@ -612,6 +612,10 @@ body.ai-studio-body {
   margin: 12px 0;
   opacity: 0.6;
 }
+.toolbar-divider {
+  position: relative;
+  z-index: 2;
+}
 .toolbar-item {
   display: flex;
   align-items: center;
@@ -634,8 +638,8 @@ body.ai-studio-body {
 /* Primary workflow buttons: Create and Edit */
 .toolbar-item[data-tool-id="create"],
 .toolbar-item[data-tool-id="edit"] {
-  margin: 6px 0;
-  margin-bottom: 16px;
+  margin: 4px 0;
+  margin-bottom: 12px;
   padding: 10px 14px;
   border: none;
   border-radius: 24px;
@@ -643,6 +647,7 @@ body.ai-studio-body {
   min-height: 40px;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  z-index: 1;
 }
 
 .ai-toolbar.create-active .toolbar-divider.toolbar-divider-children {
@@ -716,6 +721,7 @@ body.ai-studio-body {
     0 4px 12px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
   padding: 8px 12px;
+  margin-top: 12px;
 }
 
 /* Edit button active - dual borders (dark + yellow) */
@@ -733,7 +739,7 @@ body.ai-studio-body {
 /* Canvas button - purple/indigo gradient */
 .toolbar-item[data-tool-id="canvas"] {
   background: linear-gradient(135deg, #992ac9 0%, #433aa9 100%);
-  margin: 6px 0;
+  margin: 4px 0;
   padding: 10px 14px;
   border: none;
   border-radius: 24px;

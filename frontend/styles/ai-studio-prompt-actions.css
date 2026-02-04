@@ -91,6 +91,13 @@
   font-size: 12.5px;
   gap: 8px;
 }
+.prompt-actions-compact .prompt-library-btn.is-icon-only {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  padding: 0;
+  justify-content: center;
+}
 
 .prompt-library-btn {
   display: inline-flex;
@@ -110,10 +117,18 @@
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
+.prompt-library-btn.is-icon-only {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  padding: 0;
+  border-radius: 14px;
+  justify-content: center;
+}
 
 .prompt-library-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .prompt-library-btn--library,

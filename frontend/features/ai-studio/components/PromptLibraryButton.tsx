@@ -6,6 +6,7 @@ type PromptLibraryButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & 
   label: string;
   icon: React.ReactNode;
   tone?: PromptLibraryButtonTone;
+  showLabel?: boolean;
 };
 
 /**
@@ -15,17 +16,18 @@ export function PromptLibraryButton({
   label,
   icon,
   tone = "library",
+  showLabel = true,
   className = "",
   ...props
 }: PromptLibraryButtonProps) {
   return (
     <button
       type="button"
-      className={`prompt-library-btn prompt-library-btn--${tone} ${className}`.trim()}
+      className={`prompt-library-btn prompt-library-btn--${tone}${showLabel ? "" : " is-icon-only"} ${className}`.trim()}
       {...props}
     >
       {icon}
-      <span>{label}</span>
+      {showLabel ? <span>{label}</span> : null}
     </button>
   );
 }

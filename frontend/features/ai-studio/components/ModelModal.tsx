@@ -327,7 +327,6 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
         aria-modal="true"
         ref={modalRef}
         onClick={(event) => event.stopPropagation()}
-        style={position ? { top: `${position.top}px`, left: `${position.left}px` } : undefined}
       >
         <div className="model-modal-header">
           <div className="model-modal-title-group">

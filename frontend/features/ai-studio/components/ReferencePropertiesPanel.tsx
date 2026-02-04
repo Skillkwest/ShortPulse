@@ -264,7 +264,7 @@ export function ReferencePropertiesPanel({
           <PromptStep
             stepNumber="1"
             title="Write Your Prompt"
-            subtitle="Drop a saved prompt or describe the look you want to match."
+            subtitle="Start typing your prompt or drag & drop a prompt from the reference grid."
             prompt={referenceText ?? ""}
             onPromptChange={onPromptTextChange}
             agentEnabled={agentEnabled}
@@ -304,17 +304,19 @@ export function ReferencePropertiesPanel({
                 <p className="step-title">{isVideoVariant ? "Add Reference Frames" : "Add Reference Image"}</p>
                 <span className="step-subtitle tiny helper-text">
                   {isVideoVariant
-                    ? "Provide first and last frame references; drop from canvas or upload."
+                    ? "Provide first and last frame reference images for your video."
                     : "Drag a reference from the canvas or upload one manually."}
                 </span>
               </div>
-            <div className="reference-drop-header-actions">
+            { !beginnerMode ? (
+              <div className="reference-drop-header-actions">
                 <StepHeaderActionButton
                   label="Open reference options"
                   isCollapsed={collapsedSteps.reference}
                   onClick={() => toggleStep("reference")}
                 />
               </div>
+            ) : null }
             </div>
             {!collapsedSteps.reference ? (
               <div className="drop-image-row">
@@ -441,13 +443,15 @@ export function ReferencePropertiesPanel({
               <p className="step-title">Choose Frame & Model</p>
               <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you generate.</span>
             </div>
-            <div className="step-header-actions">
-              <StepHeaderActionButton
-                label="Open model options"
-                isCollapsed={collapsedSteps.model}
-                onClick={() => toggleStep("model")}
-              />
-            </div>
+            {!beginnerMode ? (
+              <div className="step-header-actions">
+                <StepHeaderActionButton
+                  label="Open model options"
+                  isCollapsed={collapsedSteps.model}
+                  onClick={() => toggleStep("model")}
+                />
+              </div>
+            ) : null}
           </div>
           {!collapsedSteps.model ? (
             <div className="create-controls dual-controls reference-frame-controls">
@@ -482,20 +486,15 @@ export function ReferencePropertiesPanel({
           className={`step-card reference-generate-step ${collapsedSteps.generate ? "is-collapsed" : ""}`}
           onClick={() => expandIfCollapsed("generate")}
         >
-          <div className="step-card-header">
-            {beginnerMode && <span className="step-badge">4</span>}
-            <div className="step-header-copy">
-              <p className="step-title">Generate</p>
-              <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>
+          {beginnerMode ? (
+            <div className="step-card-header">
+              <span className="step-badge">4</span>
+              <div className="step-header-copy">
+                <p className="step-title">Generate</p>
+                <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>
+              </div>
             </div>
-            <div className="step-header-actions">
-              <StepHeaderActionButton
-                label="Open generate options"
-                isCollapsed={collapsedSteps.generate}
-                onClick={() => toggleStep("generate")}
-              />
-            </div>
-          </div>
+          ) : null}
           {!collapsedSteps.generate ? (
             <div className="create-controls single-control">
               <AgentGenerateButton

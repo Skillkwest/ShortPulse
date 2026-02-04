@@ -3,7 +3,7 @@
  * Handles text input ("Text"), Chat mode, and Agent interactions.
  */
 import React, { useRef } from "react";
-import { ArrowsOutSimple, BookmarkSimple, CaretDown, CloudArrowUp, Trash } from "phosphor-react";
+import { ArrowsOutSimple, BookmarkSimple, CaretDown, CloudArrowDown, CloudArrowUp, Trash } from "phosphor-react";
 import {
   AgentChatPanel,
   AgentEnhanceButton,
@@ -150,23 +150,25 @@ export function PromptStep({
       onDrop={onDrop as any}
       onDragOver={onDragOver as any}
     >
-      <div className="step-card-header" onClick={(e) => {
+        <div className="step-card-header" onClick={(e) => {
           e.stopPropagation();
           onToggleCollapse();
-      }}>
-        {beginnerMode && <span className="step-badge">{stepNumber}</span>}
-        <div className="step-header-copy">
-          <p className="step-title">{effectiveTitle}</p>
-          <span className="step-subtitle tiny helper-text">{subtitle}</span>
+        }}>
+          {beginnerMode && <span className="step-badge">{stepNumber}</span>}
+          <div className="step-header-copy">
+            <p className="step-title">{effectiveTitle}</p>
+            <span className="step-subtitle tiny helper-text">{subtitle}</span>
+          </div>
+          {!beginnerMode ? (
+            <div className="step-header-actions">
+              <StepHeaderActionButton
+                label="Open prompt tools"
+                isCollapsed={isCollapsed}
+                onClick={onToggleCollapse}
+              />
+            </div>
+          ) : null}
         </div>
-        <div className="step-header-actions">
-          <StepHeaderActionButton
-            label="Open prompt tools"
-            isCollapsed={isCollapsed}
-            onClick={onToggleCollapse}
-          />
-        </div>
-      </div>
       {!isCollapsed ? (
         agentEnabled ? (
           <>
@@ -282,7 +284,14 @@ export function PromptStep({
                       className="prompt-media-btn"
                       aria-label="Open media library"
                       label="Media Library"
-                      icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
+                      showLabel={beginnerMode}
+                      icon={
+                        beginnerMode ? (
+                          <CloudArrowDown size={16} weight="regular" aria-hidden />
+                        ) : (
+                          <CloudArrowUp size={16} weight="regular" aria-hidden />
+                        )
+                      }
                       tone="library"
                     />
                   ) : null}
@@ -291,27 +300,19 @@ export function PromptStep({
                       className="prompt-media-btn"
                       aria-label="Save prompt to media library"
                       label="Save Prompt"
+                      showLabel={false}
                       icon={<BookmarkSimple size={16} weight="regular" aria-hidden />}
                       tone="save"
                     />
                   ) : null}
                 </div>
                   <div className="enhanced-action-buttons agent-inline-actions">
-                    {beginnerMode ? (
-                      <AgentEnhanceButton
-                        onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}
-                        disabled={agentIsSending}
-                        ariaLabel="Enhance prompt"
-                        className="prompt-fab-send"
-                      />
-                    ) : (
-                      <AgentSendButton
-                        onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}
-                        disabled={agentIsSending}
-                        ariaLabel="Send to agent"
-                        className="prompt-fab-send"
-                      />
-                    )}
+                    <AgentEnhanceButton
+                      onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}
+                      disabled={agentIsSending}
+                      ariaLabel="Enhance prompt"
+                      className="prompt-fab-send"
+                    />
                     <AgentSaveButton
                       onClick={onSavePrompt}
                       disabled={shouldDisableSave}

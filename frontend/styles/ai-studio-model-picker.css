@@ -76,30 +76,26 @@
 }
 
 .model-modal {
-  position: absolute;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background: var(--color-bg);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
-  width: min(860px, calc(var(--app-fixed-width) * 0.94));
-  padding: 22px 22px 7px;
-  transform: translate(0, -50%);
-  overflow: visible;
+  width: min(900px, 92vw);
+  max-height: 80vh;
+  padding: 22px 22px 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   backdrop-filter: blur(14px);
+  z-index: 60;
 }
 
 .model-modal::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: -14px;
-  width: 18px;
-  height: 18px;
-  background: var(--color-bg);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  transform: translate(-50%, -50%) rotate(45deg);
-  box-shadow: 0 12px 18px rgba(0, 0, 0, 0.42);
+  display: none;
 }
 
 .model-modal-header {

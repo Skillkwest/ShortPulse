@@ -21,6 +21,7 @@ Short version: Models declare their own metadata (provider, aspects, size maps, 
 4) Write tests covering the size map and cost output.
 
 ## Current strategies
+- `fal-flux1-schnell-per-mp`: $0.003 per MP, credits at $0.01 each. Uses the model’s `sizeMap`.
 - `fal-flux2-per-mp`: $0.012 per MP, credits at $0.01 each. Uses the model’s `sizeMap`.
 - `fal-flux2-pro-per-mp`: $0.03 for the first MP + $0.015 each additional MP, then converted to credits at $0.01 each.
 - `fal-flux2-max-per-mp`: $0.07 for the first MP + $0.03 each additional MP, then converted to credits at $0.01 each.

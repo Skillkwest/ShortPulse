@@ -3,6 +3,7 @@ import { resolveAspectSize } from "./modelSizes";
 import { CostBreakdown, PricingParams, PricingStrategyId } from "./pricingTypes";
 
 const FAL_COST_PER_MP_USD = 0.025;
+const FLUX1_SCHNELL_COST_PER_MP_USD = 0.003;
 const FLUX2_COST_PER_MP_USD = 0.012;
 const FLUX2_PRO_FIRST_MP_USD = 0.03;
 const FLUX2_PRO_ADDITIONAL_MP_USD = 0.015;
@@ -65,6 +66,21 @@ const computeFalPerMpCost: StrategyFn = ({ modelId, aspect }) => {
   const megapixels = (size.width * size.height) / 1_000_000;
   const roundedMp = Math.ceil(megapixels);
   const credits = Math.ceil((FAL_COST_PER_MP_USD / CREDIT_VALUE_USD) * roundedMp);
+  const usd = credits * CREDIT_VALUE_USD;
+
+  return { credits, usd, megapixels, width: size.width, height: size.height };
+};
+
+const computeFlux1SchnellPerMpCost: StrategyFn = ({ modelId, aspect }) => {
+  const config = getModelConfig(modelId);
+  if (!config?.sizeMap) return null;
+
+  const size = resolveAspectSize(aspect, config.sizeMap, config.defaultAspect);
+  if (!size) return null;
+
+  const megapixels = (size.width * size.height) / 1_000_000;
+  const usdRaw = megapixels * FLUX1_SCHNELL_COST_PER_MP_USD;
+  const credits = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
   const usd = credits * CREDIT_VALUE_USD;
 
   return { credits, usd, megapixels, width: size.width, height: size.height };
@@ -292,6 +308,7 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
 
 export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-per-mp": computeFalPerMpCost,
+  "fal-flux1-schnell-per-mp": computeFlux1SchnellPerMpCost,
   "fal-flux2-per-mp": computeFlux2PerMpCost,
   "fal-flux2-max-per-mp": computeFlux2MaxPerMpCost,
   "fal-flux2-pro-per-mp": computeFlux2ProPerMpCost,

@@ -194,7 +194,7 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
 
   const optionMap = useMemo(() => new Map(filteredOptions.map((option) => [option.value, option])), [filteredOptions]);
 
-  const fluxOrder = ["fal/flux-2", "fal/flux-2-pro", "fal/flux-2-pro/edit", "fal/flux-2-max"];
+  const fluxOrder = ["fal-ai/flux-1/schnell", "fal/flux-2", "fal/flux-2-pro", "fal/flux-2-pro/edit", "fal/flux-2-max"];
   const fluxOptions = fluxOrder
     .map((value) => filteredOptions.find((option) => option.value === value))
     .filter((item): item is ModelOption => Boolean(item));

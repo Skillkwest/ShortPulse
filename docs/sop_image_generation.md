@@ -67,6 +67,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 
 | Provider | Model id | Allowed aspects (examples) | Notes |
 | --- | --- | --- | --- |
+| Fal | `fal-ai/flux-1/schnell` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; defaults guidance 3.5, steps 4; debits per MP; outputs JPEG. |
 | Fal | `fal/flux-2` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; defaults guidance 15, steps 41; debits on click; outputs PNG. |
 | Fal | `fal/flux-2/edit` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Image-to-image/edit; requires `image_urls`; safety checker off; per-MP pricing (same as FLUX.2); proxied through `/api/fal/flux2-edit-*`. |
 | Fal | `fal/flux-2-pro` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; least-restrictive safety (checker off, tolerance 5); debits per tiered MP cost; outputs PNG. |

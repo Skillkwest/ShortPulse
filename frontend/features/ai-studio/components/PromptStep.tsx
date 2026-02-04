@@ -3,7 +3,7 @@
  * Handles text input ("Text"), Chat mode, and Agent interactions.
  */
 import React, { useRef } from "react";
-import { ArrowsOutSimple, BookmarkSimple, CaretDown, CloudArrowDown, CloudArrowUp, Trash } from "phosphor-react";
+import { ArrowsOutSimple, CaretDown, CloudArrowDown, CloudArrowUp, FloppyDisk, Trash } from "phosphor-react";
 import {
   AgentChatPanel,
   AgentEnhanceButton,
@@ -318,7 +318,7 @@ export function PromptStep({
                       aria-label="Save prompt to media library"
                       label="Save Prompt"
                       showLabel={false}
-                      icon={<BookmarkSimple size={16} weight="regular" aria-hidden />}
+                      icon={<FloppyDisk size={16} weight="regular" aria-hidden />}
                       tone="save"
                     />
                   ) : null}

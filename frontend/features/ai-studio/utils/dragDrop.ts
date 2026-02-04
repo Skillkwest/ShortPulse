@@ -1,6 +1,8 @@
 import { StudioOutput } from "../types";
 
 const imageUrlPattern = /^(data:image\/|blob:|https?:\/\/)/i;
+const videoUrlPattern = /^(data:video\/|blob:|https?:\/\/)/i;
+const videoExtensionPattern = /\.(mp4|webm|mov|m4v)(\?|$)/i;
 
 const dedupeText = (value?: string) => (value ? value.trim() : "");
 
@@ -9,6 +11,11 @@ const getFirstUriListValue = (value: string) => value.split("\n").map((item) => 
 const findImageFile = (files?: FileList) => {
   if (!files) return null;
   return Array.from(files).find((file) => file.type.startsWith("image/")) ?? null;
+};
+
+const findVideoFile = (files?: FileList) => {
+  if (!files) return null;
+  return Array.from(files).find((file) => file.type.startsWith("video/")) ?? null;
 };
 
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
@@ -20,11 +27,26 @@ export type DragDropPayload = {
   fromFile?: boolean;
 };
 
+export type VideoDragDropPayload = {
+  videoUrl: string | null;
+  promptText: string | null;
+  referenceId?: string | null;
+  fromFile?: boolean;
+};
+
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
 
 export const looksLikeImageUrl = (value?: string) => {
   if (!value) return false;
   return imageUrlPattern.test(value.trim());
+};
+
+export const looksLikeVideoUrl = (value?: string) => {
+  if (!value) return false;
+  const trimmed = value.trim();
+  if (trimmed.startsWith("data:video/")) return true;
+  if (trimmed.startsWith("blob:")) return true;
+  return videoUrlPattern.test(trimmed) && (videoExtensionPattern.test(trimmed) || trimmed.includes("/video") || trimmed.includes("video="));
 };
 
 export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload => {
@@ -91,6 +113,70 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
   };
 };
 
+export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDropPayload => {
+  const videoFile = findVideoFile(transfer.files);
+  const referenceUrl = transfer.getData("text/reference-url");
+  const referenceId = transfer.getData("text/reference-id") || null;
+
+  if (videoFile) {
+    return {
+      videoUrl: URL.createObjectURL(videoFile),
+      promptText: null,
+      referenceId,
+      fromFile: true,
+    };
+  }
+
+  const uriListValue = transfer.getData("text/uri-list");
+  if (uriListValue) {
+    const cleanUri = getFirstUriListValue(uriListValue);
+    if (cleanUri && looksLikeVideoUrl(cleanUri)) {
+      return {
+        videoUrl: isBlobUrl(cleanUri) && looksLikeVideoUrl(referenceUrl) ? referenceUrl : cleanUri,
+        promptText: extractPromptText(transfer),
+        referenceId,
+        fromFile: false,
+      };
+    }
+  }
+
+  const imageUrl = transfer.getData("image/url");
+  if (imageUrl && looksLikeVideoUrl(imageUrl)) {
+    return {
+      videoUrl: isBlobUrl(imageUrl) && looksLikeVideoUrl(referenceUrl) ? referenceUrl : imageUrl.trim(),
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+    };
+  }
+
+  const rawText = transfer.getData("text/plain");
+  if (rawText && looksLikeVideoUrl(rawText)) {
+    return {
+      videoUrl: isBlobUrl(rawText) && looksLikeVideoUrl(referenceUrl) ? referenceUrl : rawText.trim(),
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+    };
+  }
+
+  if (looksLikeVideoUrl(referenceUrl)) {
+    return {
+      videoUrl: referenceUrl.trim(),
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+    };
+  }
+
+  return {
+    videoUrl: null,
+    promptText: extractPromptText(transfer),
+    referenceId,
+    fromFile: false,
+  };
+};
+
 const extractPromptText = (transfer: DataTransfer) => {
   const promptText =
     transfer.getData("text/prompt") ||
@@ -104,6 +190,18 @@ export const isImageDragTransfer = (transfer: DataTransfer) => {
   if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) return true;
   const plainText = transfer.getData("text/plain");
   return looksLikeImageUrl(plainText);
+};
+
+export const isVideoDragTransfer = (transfer: DataTransfer) => {
+  const videoFile = findVideoFile(transfer.files);
+  if (videoFile) return true;
+  if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) {
+    const uriList = transfer.getData("text/uri-list");
+    const imageUrl = transfer.getData("image/url");
+    if (looksLikeVideoUrl(uriList) || looksLikeVideoUrl(imageUrl)) return true;
+  }
+  const plainText = transfer.getData("text/plain");
+  return looksLikeVideoUrl(plainText);
 };
 
 export const prepareReferenceDrag = (

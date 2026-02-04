@@ -15,6 +15,7 @@ import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
 export type Provider =
   | "kei"
   | "fal"
+  | "fal-flux1-schnell"
   | "fal-flux2"
   | "fal-flux2-edit"
   | "fal-flux2-pro"
@@ -129,6 +130,9 @@ export const filterModelOptions = (
   let filtered = options;
   if (mediaFilter) {
     filtered = filtered.filter((opt) => !opt.mediaType || opt.mediaType === mediaFilter || opt.mediaType === "multi");
+  }
+  if ((selectedTool === "create" || selectedTool === "text") && mode === "image") {
+    filtered = filtered.filter((opt) => opt.value !== "fal/flux-2-pro");
   }
   if (selectedTool === "image") {
     filtered = filtered.filter((opt) => {

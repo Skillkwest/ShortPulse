@@ -161,6 +161,29 @@ export const submitFalFlux2 = async (payload: FalSubmitRequest): Promise<FalSubm
   return { request_id: requestId };
 };
 
+export const submitFalFlux1Schnell = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux1schnell-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal FLUX 1 Schnell did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalFlux1SchnellStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux1schnell-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
 export const fetchFalFlux2Status = async (requestId: string): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2-status`, {
     method: "POST",

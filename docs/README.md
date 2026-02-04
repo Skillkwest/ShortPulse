@@ -35,6 +35,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/api-fal-flux-2-pro.md` (Fal.ai FLUX 2 PRO text-to-image guide)
 - `docs/api-fal-flux-2-pro-edit.md` (Fal.ai FLUX 2 PRO Edit image-to-image guide)
 - `docs/api-fal-flux-2-max.md` (Fal.ai FLUX 2 MAX text-to-image guide)
+- `docs/api-fal-flux-1-schnell.md` (Fal.ai FLUX 1 Schnell text-to-image guide)
 - `docs/api-fal-imagen4-fast.md` (Fal.ai Imagen 4 Fast text-to-image guide)
 - `docs/api-fal-nano-banana.md` (Fal.ai Nano Banana image generation guide)
 - `docs/api-fal-nano-banana-edit.md` (Fal.ai Nano Banana Edit image-to-image guide)

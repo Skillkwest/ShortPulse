@@ -19,8 +19,8 @@
   gap: 10px;
   align-items: stretch;
   width: 100%;
-  --reference-drop-border: 1px dashed rgba(140, 150, 160, 0.382);
-  --reference-drop-border-hover: #25a8bf82;
+  --reference-drop-border: 1px dashed rgba(160, 170, 182, 0.45);
+  --reference-drop-border-hover: rgba(37, 169, 191, 0.55);
   --reference-drop-border-active: rgba(37, 169, 191, 0.95);
   --reference-drop-shadow-active: 0 0 0 2px rgba(37, 169, 191, 0.25);
   --reference-drop-bg: #101215;
@@ -57,9 +57,17 @@
 .reference-drop-header-actions {
   margin-left: auto;
 }
+
+.reference-mode-toggle-row {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  width: 100%;
+  max-width: none;
+  gap: 4px;
+}
 .drop-image-row {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
   justify-content: center;
   transform-origin: top;
@@ -67,6 +75,19 @@
   overflow: hidden;
   width: 100%;
   margin: 0 auto;
+}
+
+.motion-plus {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(235, 241, 249, 0.75);
+  flex: 0 0 auto;
 }
 
 .reference-drop-divider {
@@ -143,6 +164,13 @@
   margin-bottom: auto;
 }
 
+.reference-step-card.is-video-refs {
+  --reference-drop-aspect: 4 / 5;
+  --reference-drop-max-width: 270px;
+  --reference-drop-primary-width: clamp(120px, calc(var(--app-fixed-width) * 0.22), 150px);
+  --reference-drop-secondary-width: clamp(90px, calc(var(--app-fixed-width) * 0.12), 115px);
+}
+
 .reference-step-header {
   display: flex;
   align-items: center;
@@ -174,6 +202,24 @@
 
 .reference-step-copy .step-title {
   margin: 0;
+}
+
+.dropzone-tag {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  padding: 2px 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(235, 241, 249, 0.9);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .reference-drop-layout-inner .reference-step-card .reference-dropzone,
@@ -230,6 +276,7 @@
   line-height: 1;
   cursor: pointer;
   padding: 0;
+  z-index: 2;
 }
 
 .reference-drop-layout-inner .reference-dropzone.has-preview:hover .dropzone-clear {
@@ -350,6 +397,50 @@
   display: none;
 }
 
+.reference-mode-toggle-row .mode-toggle-btn {
+  padding: 8px 10px;
+  font-size: 12px !important;
+}
+
+.reference-mode-toggle-row .mode-toggle-btn.is-active {
+  box-shadow: 0 6px 14px rgba(37, 169, 191, 0.18);
+  border-color: rgba(52, 201, 255, 0.3);
+}
+
+.motion-drop-row .dropzone-tag {
+  font-size: 14px;
+}
+
+.motion-drop-row .dropzone-tag svg {
+  opacity: 0.9;
+}
+
+.motion-drop-row .primary-drop:first-child .reference-dropzone {
+  border-color: rgba(52, 200, 255, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(52, 200, 255, 0.12);
+}
+
+.reference-drop-layout-inner .reference-dropzone.has-video {
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  background: rgba(12, 15, 22, 0.92);
+  background-image: none !important;
+}
+
+.reference-drop-layout-inner .reference-dropzone.has-video .reference-drop-content {
+  display: none;
+}
+
+.reference-drop-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
 
 .reference-drop-layout-inner .reference-drop-content {
   display: flex;
@@ -360,6 +451,39 @@
   padding: 12px;
   text-align: center;
   color: var(--ai-card-text-muted);
+}
+
+.reference-drop-layout-inner .motion-drop-content {
+  gap: 6px;
+  text-align: left;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.motion-drop-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ai-card-text);
+}
+
+.motion-drop-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ai-card-text);
+}
+
+.motion-drop-subtitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ai-card-text-muted);
+  line-height: 1.35;
 }
 
 .reference-drop-layout-inner .reference-drop-title {

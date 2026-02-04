@@ -1,5 +1,6 @@
 export type PricingStrategyId =
   | "fal-per-mp"
+  | "fal-flux1-schnell-per-mp"
   | "fal-flux2-per-mp"
   | "fal-flux2-max-per-mp"
   | "fal-flux2-pro-per-mp"

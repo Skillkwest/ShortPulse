@@ -3,10 +3,10 @@
  * Provides reference dropzones, aspect/model selection, and prompt capture for image/video workflows.
  */
 import React, { useRef, useState } from "react";
-import { ArrowFatLinesRight, BracketsSquare, Plus, UploadSimple } from "phosphor-react";
+import { ArrowFatLinesRight, BracketsSquare, ImageSquare, Plus, UploadSimple, VideoCamera } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
-import { extractDragDropPayload, isImageDragTransfer } from "../utils/dragDrop";
+import { extractDragDropPayload, extractVideoDragDropPayload, isImageDragTransfer, isVideoDragTransfer } from "../utils/dragDrop";
 import { modelLogos } from "../constants";
 import { PromptStep } from "./PromptStep";
 import { CaretDown } from "phosphor-react";
@@ -23,6 +23,12 @@ type ReferencePropertiesPanelProps = {
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   referenceText: string | null;
+  videoReferenceMode?: "standard" | "keyframes" | "motion";
+  onVideoReferenceModeChange?: (value: "standard" | "keyframes" | "motion") => void;
+  motionCharacterUrl?: string | null;
+  motionReferenceVideoUrl?: string | null;
+  onMotionCharacterChange?: (url: string | null) => void;
+  onMotionReferenceVideoChange?: (url: string | null) => void;
   aspectOptions: AspectOption[];
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
@@ -97,6 +103,12 @@ export function ReferencePropertiesPanel({
   referenceImageUrl,
   extraImageUrls,
   referenceText,
+  videoReferenceMode,
+  onVideoReferenceModeChange,
+  motionCharacterUrl,
+  motionReferenceVideoUrl,
+  onMotionCharacterChange,
+  onMotionReferenceVideoChange,
   aspectOptions,
   isModelModalOpen,
   modelModalAnchor,
@@ -132,8 +144,12 @@ export function ReferencePropertiesPanel({
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraOneInputRef = useRef<HTMLInputElement | null>(null);
   const extraTwoInputRef = useRef<HTMLInputElement | null>(null);
+  const motionImageInputRef = useRef<HTMLInputElement | null>(null);
+  const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
   const [primaryDragActive, setPrimaryDragActive] = useState(false);
   const [extraDragActive, setExtraDragActive] = useState([false, false]);
+  const [motionImageDragActive, setMotionImageDragActive] = useState(false);
+  const [motionVideoDragActive, setMotionVideoDragActive] = useState(false);
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
 
   const [collapsedSteps, setCollapsedSteps] = React.useState<{ reference: boolean; model: boolean; prompt: boolean; generate: boolean }>({
@@ -171,6 +187,16 @@ export function ReferencePropertiesPanel({
       event.target.value = "";
     };
 
+  const handleVideoFileSelection =
+    (setter?: (url: string | null) => void) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (!setter) return;
+      const file = event.target.files?.[0];
+      if (!file || !file.type.startsWith("video/")) return;
+      const url = URL.createObjectURL(file);
+      setter(url);
+      event.target.value = "";
+    };
+
   const handlePromptDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const { promptText } = extractDragDropPayload(event.dataTransfer);
@@ -197,6 +223,27 @@ export function ReferencePropertiesPanel({
     if (!isBlobUrl || canAcceptBlob) setter(nextUrl);
   };
 
+  const handleVideoDrop = (setter?: (url: string | null) => void) => (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!setter) return;
+    const { videoUrl, fromFile, referenceId } = extractVideoDragDropPayload(event.dataTransfer);
+    let nextUrl = videoUrl;
+
+    if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
+      const resolved = resolvePreviewUrlById(referenceId);
+      if (resolved) {
+        nextUrl = resolved;
+      }
+    }
+
+    if (!nextUrl) return;
+
+    const isBlobUrl = nextUrl.startsWith("blob:");
+    const canAcceptBlob = fromFile || Boolean(referenceId);
+
+    if (!isBlobUrl || canAcceptBlob) setter(nextUrl);
+  };
+
   const setExtraDragActiveAt = (index: number, value: boolean) => {
     setExtraDragActive((prev) => prev.map((item, idx) => (idx === index ? value : item)));
   };
@@ -209,9 +256,31 @@ export function ReferencePropertiesPanel({
     return false;
   };
 
+  const allowVideoDrag = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isVideoDragTransfer(event.dataTransfer)) {
+      event.preventDefault();
+      return true;
+    }
+    return false;
+  };
+
   const handlePrimaryDrop = (event: React.DragEvent<HTMLDivElement>) => {
     setPrimaryDragActive(false);
     handleImageDrop(onPrimaryImageChange)(event);
+  };
+
+  const handleMotionImageDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    setMotionImageDragActive(false);
+    if (onMotionCharacterChange) {
+      handleImageDrop(onMotionCharacterChange)(event);
+    }
+  };
+
+  const handleMotionVideoDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    setMotionVideoDragActive(false);
+    if (onMotionReferenceVideoChange) {
+      handleVideoDrop(onMotionReferenceVideoChange)(event);
+    }
   };
 
   const handleExtraDrop = (index: number) => (event: React.DragEvent<HTMLDivElement>) => {
@@ -235,6 +304,38 @@ export function ReferencePropertiesPanel({
     setPrimaryDragActive(false);
   };
 
+  const handleMotionImageDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (allowImageDrag(event)) {
+      setMotionImageDragActive(true);
+    }
+  };
+
+  const handleMotionImageDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (allowImageDrag(event)) {
+      setMotionImageDragActive(true);
+    }
+  };
+
+  const handleMotionImageDragLeave = () => {
+    setMotionImageDragActive(false);
+  };
+
+  const handleMotionVideoDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (allowVideoDrag(event)) {
+      setMotionVideoDragActive(true);
+    }
+  };
+
+  const handleMotionVideoDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (allowVideoDrag(event)) {
+      setMotionVideoDragActive(true);
+    }
+  };
+
+  const handleMotionVideoDragLeave = () => {
+    setMotionVideoDragActive(false);
+  };
+
   const handleExtraDragEnter = (index: number) => (event: React.DragEvent<HTMLDivElement>) => {
     if (allowImageDrag(event)) {
       setExtraDragActiveAt(index, true);
@@ -252,6 +353,26 @@ export function ReferencePropertiesPanel({
   };
 
   const isVideoVariant = variant === "video";
+  const activeVideoMode = videoReferenceMode ?? "standard";
+  const isMotionMode = isVideoVariant && activeVideoMode === "motion";
+  const isKeyframesMode = isVideoVariant && activeVideoMode === "keyframes";
+  const isStandardMode = !isVideoVariant || activeVideoMode === "standard";
+  const motionCharacterValue = motionCharacterUrl ?? null;
+  const motionVideoValue = motionReferenceVideoUrl ?? null;
+  const referenceStepTitle = isVideoVariant
+    ? isMotionMode
+      ? "Add Motion References"
+      : isKeyframesMode
+        ? "Add Reference Frames"
+        : "Add Reference Image"
+    : "Add Reference Images";
+  const referenceStepSubtitle = isVideoVariant
+    ? isMotionMode
+      ? "Upload a character image and a motion reference video."
+      : isKeyframesMode
+        ? "Upload or drag and drop images from the reference grid."
+        : "Upload or drag and drop a single image for standard image-to-video."
+    : "Upload or drag and drop images from the reference grid.";
 
   return (
     <div className="tool-properties reference-properties-panel">
@@ -293,152 +414,12 @@ export function ReferencePropertiesPanel({
             beginnerMode={beginnerMode}
           />
         </div>
-        <div className="reference-dropzone-block image-block">
-          <div
-            className={`reference-step-card ${collapsedSteps.reference ? "is-collapsed" : ""} ${isVideoVariant ? "is-video-refs" : "is-image-refs"}`}
-            onClick={() => expandIfCollapsed("reference")}
-          >
-            <div className="reference-step-header">
-              {beginnerMode && <span className="step-badge mini">2</span>}
-              <div className="reference-step-copy">
-                <p className="step-title">{isVideoVariant ? "Add Reference Frames" : "Add Reference Images"}</p>
-                <span className="step-subtitle tiny helper-text">
-                  {isVideoVariant
-                    ? "Upload or drag and drop a images from the reference grid."
-                    : "Upload or drag and drop a images from the reference grid."}
-                </span>
-              </div>
-            { !beginnerMode ? (
-              <div className="reference-drop-header-actions">
-                <StepHeaderActionButton
-                  label="Open reference options"
-                  isCollapsed={collapsedSteps.reference}
-                  onClick={() => toggleStep("reference")}
-                />
-              </div>
-            ) : null }
-            </div>
-            {!collapsedSteps.reference ? (
-              <div className="drop-image-row">
-                <div className="primary-drop">
-                  <div
-                    className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${primaryDragActive ? "is-dragging" : ""}`}
-                    onDrop={handlePrimaryDrop}
-                    onDragEnter={handlePrimaryDragEnter}
-                    onDragOver={handlePrimaryDragOver}
-                    onDragLeave={handlePrimaryDragLeave}
-                    onClick={() => primaryInputRef.current?.click()}
-                    style={referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined}
-                  >
-                    {isVideoVariant ? <span className="dropzone-tag">First frame</span> : null}
-                    {referenceImageUrl ? (
-                      <button
-                        type="button"
-                        className="dropzone-clear"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onPrimaryImageChange(null);
-                        }}
-                      >
-                        ×
-                      </button>
-                    ) : null}
-                    <div className="reference-drop-content image-drop-content">
-                      <UploadSimple size={22} weight="regular" />
-                      <p className="reference-drop-title helper-text">Click to upload an image</p>
-                    </div>
-                  </div>
-                </div>
-                {isVideoVariant ? (
-                  <>
-                    <button
-                      type="button"
-                      className="reference-swap-control"
-                      onClick={handleSwapFrames}
-                      disabled={!canSwapFrames}
-                      aria-label="Swap first and last frame references"
-                    >
-                      <ArrowFatLinesRight size={24} weight="regular" aria-hidden />
-                    </button>
-                    <div className="primary-drop">
-                      <div
-                        className={`reference-dropzone ${extraImageUrls[0] ? "has-preview" : ""} ${extraDragActive[0] ? "is-dragging" : ""}`}
-                        onDrop={handleExtraDrop(0)}
-                        onDragEnter={handleExtraDragEnter(0)}
-                        onDragOver={handleExtraDragOver(0)}
-                        onDragLeave={handleExtraDragLeave(0)}
-                        onClick={() => extraOneInputRef.current?.click()}
-                        style={extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined}
-                      >
-                        <span className="dropzone-tag">Last frame</span>
-                        {extraImageUrls[0] ? (
-                          <button
-                            type="button"
-                            className="dropzone-clear"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onExtraImageChange(0, null);
-                            }}
-                          >
-                            ×
-                          </button>
-                        ) : (
-                          <div className="reference-drop-content image-drop-content">
-                            <UploadSimple size={22} weight="regular" />
-                            <p className="reference-drop-title helper-text">Click to upload an image</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="reference-drop-divider" aria-hidden="true">
-                      <BracketsSquare size={22} weight="bold" />
-                    </div>
-                    {[extraOneInputRef, extraTwoInputRef].map((inputRef, index) => {
-                      const previewUrl = extraImageUrls[index];
-                      return (
-                        <div className="secondary-drop" key={`extra-drop-${index}`}>
-                          <div
-                            className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${extraDragActive[index] ? "is-dragging" : ""}`}
-                            onDrop={handleExtraDrop(index)}
-                            onDragEnter={handleExtraDragEnter(index)}
-                            onDragOver={handleExtraDragOver(index)}
-                            onDragLeave={handleExtraDragLeave(index)}
-                            onClick={() => inputRef.current?.click()}
-                            style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
-                          >
-                            {previewUrl ? (
-                              <button
-                                type="button"
-                                className="dropzone-clear"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  onExtraImageChange(index, null);
-                                }}
-                              >
-                                ×
-                              </button>
-                            ) : (
-                              <Plus size={22} weight="regular" />
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
-              </div>
-            ) : null}
-          </div>
-        </div>
         <div
           className={`step-card reference-frame-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
           onClick={() => expandIfCollapsed("model")}
         >
           <div className="step-card-header">
-            {beginnerMode && <span className="step-badge">3</span>}
+            {beginnerMode && <span className="step-badge">2</span>}
             <div className="step-header-copy">
               <p className="step-title">Choose Frame & Model</p>
               <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you generate.</span>
@@ -481,6 +462,260 @@ export function ReferencePropertiesPanel({
               </div>
             </div>
           ) : null}
+        </div>
+        <div className="reference-dropzone-block image-block">
+          <div
+            className={`reference-step-card ${collapsedSteps.reference ? "is-collapsed" : ""} ${isVideoVariant ? "is-video-refs" : "is-image-refs"}`}
+            onClick={() => expandIfCollapsed("reference")}
+          >
+            <div className="reference-step-header">
+              {beginnerMode && <span className="step-badge mini">3</span>}
+              <div className="reference-step-copy">
+                <p className="step-title">{referenceStepTitle}</p>
+                <span className="step-subtitle tiny helper-text">
+                  {referenceStepSubtitle}
+                </span>
+              </div>
+            { !beginnerMode ? (
+              <div className="reference-drop-header-actions">
+                <StepHeaderActionButton
+                  label="Open reference options"
+                  isCollapsed={collapsedSteps.reference}
+                  onClick={() => toggleStep("reference")}
+                />
+              </div>
+            ) : null }
+            </div>
+            {!collapsedSteps.reference ? (
+              <>
+                {isVideoVariant ? (
+                  <div className="reference-mode-toggle-row prompt-mode-toggle-row full-width" role="tablist" aria-label="Video reference mode">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={activeVideoMode === "standard"}
+                      className={`mode-toggle-btn ${activeVideoMode === "standard" ? "is-active" : ""}`}
+                      onClick={() => onVideoReferenceModeChange?.("standard")}
+                    >
+                      Standard
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={activeVideoMode === "keyframes"}
+                      className={`mode-toggle-btn ${activeVideoMode === "keyframes" ? "is-active" : ""}`}
+                      onClick={() => onVideoReferenceModeChange?.("keyframes")}
+                    >
+                      Keyframes
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={activeVideoMode === "motion"}
+                      className={`mode-toggle-btn ${activeVideoMode === "motion" ? "is-active" : ""}`}
+                      onClick={() => onVideoReferenceModeChange?.("motion")}
+                    >
+                      Motion Control
+                    </button>
+                  </div>
+                ) : null}
+                {isMotionMode ? (
+                  <div className="drop-image-row motion-drop-row">
+                    <div className="primary-drop">
+                      <div
+                        className={`reference-dropzone ${motionCharacterValue ? "has-preview" : ""} ${motionImageDragActive ? "is-dragging" : ""}`}
+                        onDrop={handleMotionImageDrop}
+                        onDragEnter={handleMotionImageDragEnter}
+                        onDragOver={handleMotionImageDragOver}
+                        onDragLeave={handleMotionImageDragLeave}
+                        onClick={() => motionImageInputRef.current?.click()}
+                        style={motionCharacterValue ? { backgroundImage: `url(${motionCharacterValue})` } : undefined}
+                      >
+                        {motionCharacterValue ? (
+                          <button
+                            type="button"
+                            className="dropzone-clear"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onMotionCharacterChange?.(null);
+                            }}
+                          >
+                            ×
+                          </button>
+                        ) : null}
+                        <div className="reference-drop-content motion-drop-content">
+                          <span className="motion-drop-icon" aria-hidden="true">
+                            <ImageSquare size={18} weight="bold" />
+                          </span>
+                          <p className="motion-drop-title">Add your character</p>
+                          <p className="motion-drop-subtitle">Image with visible face and body</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="motion-plus" aria-hidden="true">
+                      <Plus size={25} weight="thin" />
+                    </div>
+                    <div className="primary-drop">
+                      <div
+                        className={`reference-dropzone ${motionVideoValue ? "has-preview has-video" : ""} ${motionVideoDragActive ? "is-dragging" : ""}`}
+                        onDrop={handleMotionVideoDrop}
+                        onDragEnter={handleMotionVideoDragEnter}
+                        onDragOver={handleMotionVideoDragOver}
+                        onDragLeave={handleMotionVideoDragLeave}
+                        onClick={() => motionVideoInputRef.current?.click()}
+                      >
+                        {motionVideoValue ? (
+                          <button
+                            type="button"
+                            className="dropzone-clear"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onMotionReferenceVideoChange?.(null);
+                            }}
+                          >
+                            ×
+                          </button>
+                        ) : null}
+                        {motionVideoValue ? (
+                          <video
+                            className="reference-drop-video"
+                            src={motionVideoValue}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                          />
+                        ) : null}
+                        <div className="reference-drop-content motion-drop-content">
+                          <span className="motion-drop-icon" aria-hidden="true">
+                            <VideoCamera size={18} weight="bold" />
+                          </span>
+                          <p className="motion-drop-title">Add motion to copy</p>
+                          <p className="motion-drop-subtitle">Video duration: 3-30 seconds</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="drop-image-row">
+                    <div className="primary-drop">
+                      <div
+                        className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${primaryDragActive ? "is-dragging" : ""}`}
+                        onDrop={handlePrimaryDrop}
+                        onDragEnter={handlePrimaryDragEnter}
+                        onDragOver={handlePrimaryDragOver}
+                        onDragLeave={handlePrimaryDragLeave}
+                        onClick={() => primaryInputRef.current?.click()}
+                        style={referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined}
+                      >
+                        {isVideoVariant ? (
+                          <span className="dropzone-tag">
+                            {isStandardMode ? "Reference image" : "First frame"}
+                          </span>
+                        ) : null}
+                        {referenceImageUrl ? (
+                          <button
+                            type="button"
+                            className="dropzone-clear"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onPrimaryImageChange(null);
+                            }}
+                          >
+                            ×
+                          </button>
+                        ) : null}
+                        <div className="reference-drop-content image-drop-content">
+                          <UploadSimple size={22} weight="regular" />
+                          <p className="reference-drop-title helper-text">Click to upload an image</p>
+                        </div>
+                      </div>
+                    </div>
+                    {isVideoVariant && isKeyframesMode ? (
+                      <>
+                        <button
+                          type="button"
+                          className="reference-swap-control"
+                          onClick={handleSwapFrames}
+                          disabled={!canSwapFrames}
+                          aria-label="Swap first and last frame references"
+                        >
+                          <ArrowFatLinesRight size={24} weight="regular" aria-hidden />
+                        </button>
+                        <div className="primary-drop">
+                          <div
+                            className={`reference-dropzone ${extraImageUrls[0] ? "has-preview" : ""} ${extraDragActive[0] ? "is-dragging" : ""}`}
+                            onDrop={handleExtraDrop(0)}
+                            onDragEnter={handleExtraDragEnter(0)}
+                            onDragOver={handleExtraDragOver(0)}
+                            onDragLeave={handleExtraDragLeave(0)}
+                            onClick={() => extraOneInputRef.current?.click()}
+                            style={extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined}
+                          >
+                            <span className="dropzone-tag">Last frame</span>
+                            {extraImageUrls[0] ? (
+                              <button
+                                type="button"
+                                className="dropzone-clear"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onExtraImageChange(0, null);
+                                }}
+                              >
+                                ×
+                              </button>
+                            ) : (
+                              <div className="reference-drop-content image-drop-content">
+                                <UploadSimple size={22} weight="regular" />
+                                <p className="reference-drop-title helper-text">Click to upload an image</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    ) : !isVideoVariant ? (
+                      <>
+                        <div className="reference-drop-divider" aria-hidden="true">
+                          <BracketsSquare size={22} weight="bold" />
+                        </div>
+                        {[extraOneInputRef, extraTwoInputRef].map((inputRef, index) => {
+                          const previewUrl = extraImageUrls[index];
+                          return (
+                            <div className="secondary-drop" key={`extra-drop-${index}`}>
+                              <div
+                                className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${extraDragActive[index] ? "is-dragging" : ""}`}
+                                onDrop={handleExtraDrop(index)}
+                                onDragEnter={handleExtraDragEnter(index)}
+                                onDragOver={handleExtraDragOver(index)}
+                                onDragLeave={handleExtraDragLeave(index)}
+                                onClick={() => inputRef.current?.click()}
+                                style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
+                              >
+                                {previewUrl ? (
+                                  <button
+                                    type="button"
+                                    className="dropzone-clear"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      onExtraImageChange(index, null);
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                ) : (
+                                  <Plus size={22} weight="regular" />
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    ) : null}
+                  </div>
+                )}
+              </>
+            ) : null}
+          </div>
         </div>
         <div
           className={`step-card reference-generate-step ${collapsedSteps.generate ? "is-collapsed" : ""}`}
@@ -532,6 +767,20 @@ export function ReferencePropertiesPanel({
         accept="image/*"
         style={{ display: "none" }}
         onChange={handleFileSelection((url) => onExtraImageChange(1, url))}
+      />
+      <input
+        ref={motionImageInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handleFileSelection((url) => onMotionCharacterChange?.(url))}
+      />
+      <input
+        ref={motionVideoInputRef}
+        type="file"
+        accept="video/*"
+        style={{ display: "none" }}
+        onChange={handleVideoFileSelection(onMotionReferenceVideoChange)}
       />
     </div>
   );

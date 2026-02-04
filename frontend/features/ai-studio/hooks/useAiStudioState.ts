@@ -17,6 +17,7 @@ import {
 } from "../../../lib/keiClient";
 import {
   submitFalFlux2,
+  submitFalFlux1Schnell,
   submitFalFlux2Edit,
   submitFalFlux2ProEdit,
   submitFalFlux2Max,
@@ -98,7 +99,9 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     null,
     null,
   ]);
-  const [referenceText, setReferenceText] = useState<string | null>(null);
+  const [videoReferenceMode, setVideoReferenceMode] = useState<"standard" | "keyframes" | "motion">("standard");
+  const [motionCharacterUrl, setMotionCharacterUrl] = useState<string | null>(null);
+  const [motionReferenceVideoUrl, setMotionReferenceVideoUrl] = useState<string | null>(null);
   const [useReferenceImageIndicator, setUseReferenceImageIndicator] = useState<boolean>(false);
   const [detailOutputId, setDetailOutputId] = useState<string | null>(null);
   const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
@@ -117,6 +120,12 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     [detailOutputId, outputs],
   );
   const currentModelLabel = useMemo(() => resolveModelLabel(model ?? undefined), [model]);
+  const setSharedPrompt = useCallback((value: string) => {
+    setPrompt((prev) => (prev === value ? prev : value));
+  }, []);
+
+  const referenceText = prompt;
+  const setReferenceText = setSharedPrompt;
 
   const modelMediaFilter = useMemo(() => {
     if (selectedTool === "create" || selectedTool === "text") {
@@ -411,6 +420,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const id = `out-${randomId()}`;
       const modelLabel = resolveModelLabel(finalModel);
       const isSeedreamModel = finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image";
+      const isFalFlux1SchnellModel = finalModel === "fal-ai/flux-1/schnell";
       const isFalFlux2Model = finalModel === "fal/flux-2";
       const isFalFlux2EditModel = finalModel === "fal/flux-2/edit";
       const isFalFlux2ProModel = finalModel === "fal/flux-2-pro";
@@ -678,6 +688,28 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           return;
         }
 
+        if (isFalFlux1SchnellModel) {
+          const size = falSizeForAspect(aspect);
+          const falResp = await submitFalFlux1Schnell({
+            prompt: cleanedPrompt,
+            image_size: { width: size.width, height: size.height },
+            num_images: 1,
+            output_format: "jpeg",
+            guidance_scale: 3.5,
+            num_inference_steps: 4,
+            enable_safety_checker: true,
+            acceleration: "regular",
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: falResp.request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(falResp.request_id, id, 0, "fal-flux1-schnell");
+          return;
+        }
+
         if (isFalFlux2EditModel) {
           if (!preparedImageInputs.length) {
             notifyGenerationFailure(id, "FLUX.2 Edit requires at least one reference image.");
@@ -889,7 +921,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   );
 
   const regenerateOutput = useCallback(() => {
-    const promptToUse = referenceText?.trim();
+    const promptToUse = prompt.trim();
     if (!promptToUse) return;
     const referencePool = [
       ...(useReferenceImageIndicator && activeOutput?.previewUrl ? [activeOutput.previewUrl] : []),
@@ -898,7 +930,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     ];
     const imageInputs = referencePool.filter((url): url is string => Boolean(url)).slice(0, 8);
     submitTask(promptToUse, imageInputs);
-  }, [activeOutput?.previewUrl, extraImageUrls, referenceImageUrl, referenceText, submitTask, useReferenceImageIndicator]);
+  }, [activeOutput?.previewUrl, extraImageUrls, referenceImageUrl, prompt, submitTask, useReferenceImageIndicator]);
 
   const saveActiveOutput = useCallback(() => {
     if (!activeOutput) return;
@@ -950,9 +982,9 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       };
       setOutputs((prev) => [promptReference, ...prev]);
       setActiveOutputId(id);
-      setPrompt(cleanedPrompt);
+      setSharedPrompt(cleanedPrompt);
     },
-    [prompt, mode, aspect, model],
+    [prompt, mode, aspect, model, setSharedPrompt],
   );
 
   const addOutputsFromFiles = useCallback(
@@ -975,6 +1007,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const clearReferenceImages = useCallback(() => {
     setReferenceImageUrl(null);
     setExtraImageUrls([null, null, null]);
+    setMotionCharacterUrl(null);
+    setMotionReferenceVideoUrl(null);
   }, []);
 
   const setExtraImageUrl = useCallback((index: number, url: string | null) => {
@@ -1100,8 +1134,15 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setReferenceImageUrl,
     extraImageUrls,
     setExtraImageUrl,
+    videoReferenceMode,
+    setVideoReferenceMode,
+    motionCharacterUrl,
+    setMotionCharacterUrl,
+    motionReferenceVideoUrl,
+    setMotionReferenceVideoUrl,
     referenceText,
     setReferenceText,
+    setSharedPrompt,
     resolvePreviewUrlById,
     useReferenceImageIndicator,
     detailOutput,

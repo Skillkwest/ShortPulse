@@ -22,6 +22,17 @@ export type ModelConfig = {
 };
 
 const registry: Record<string, ModelConfig> = {
+  "fal-ai/flux-1/schnell": {
+    id: "fal-ai/flux-1/schnell",
+    label: "FLUX.1 Schnell",
+    provider: "fal",
+    mediaType: "image",
+    defaultAspect: "4:3",
+    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    pricingStrategy: "fal-flux1-schnell-per-mp",
+    sizeMap: falImageSizeMap,
+    supportsTextToImage: true,
+  },
   "fal/flux-2": {
     id: "fal/flux-2",
     label: "FLUX.2",

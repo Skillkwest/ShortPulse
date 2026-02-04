@@ -66,7 +66,6 @@ export default function AiStudioPage() {
     setModel,
     currentModelLabel,
     prompt,
-    setPrompt,
     outputs,
     activeOutput,
     activeOutputId,
@@ -80,8 +79,14 @@ export default function AiStudioPage() {
     setReferenceImageUrl,
     extraImageUrls,
     setExtraImageUrl,
+    videoReferenceMode,
+    setVideoReferenceMode,
+    motionCharacterUrl,
+    setMotionCharacterUrl,
+    motionReferenceVideoUrl,
+    setMotionReferenceVideoUrl,
     referenceText,
-    setReferenceText,
+    setSharedPrompt,
     useReferenceImageIndicator,
     detailOutput,
     setDetailOutputId,
@@ -223,11 +228,7 @@ export default function AiStudioPage() {
 
     // Apply strict prompt update if tool-specific context demands it (create vs reference).
     if (actions?.applyPrompt) {
-      if (options?.modeHint === "reference") {
-        setReferenceText(appliedPrompt);
-      } else {
-        setPrompt(appliedPrompt);
-      }
+      setSharedPrompt(appliedPrompt);
       setLatestAgentPrompt(appliedPrompt);
     }
 
@@ -246,7 +247,7 @@ export default function AiStudioPage() {
       // Primary: dedicated prompt refiner
       const refined = await postGeneratePrompt(prompt);
       if (refined?.prompt) {
-        setPrompt(refined.prompt);
+        setSharedPrompt(refined.prompt);
         setLatestAgentPrompt(refined.prompt);
         addAgentPromptReference(refined.prompt, refined.prompt ? "Refined prompt" : undefined);
         return;
@@ -272,7 +273,7 @@ export default function AiStudioPage() {
     const described = safeUrl ? await postDescribeImage(safeUrl) : null;
     if (described?.description) {
       addAgentPromptReference(described.description, "Image describe");
-      setPrompt(described.description);
+      setSharedPrompt(described.description);
       setLatestAgentPrompt(described.description);
       return;
     }
@@ -285,7 +286,7 @@ export default function AiStudioPage() {
     });
     if (result?.prompt) {
       addAgentPromptReference(result.prompt, result.referenceTitle);
-      setPrompt(result.prompt);
+      setSharedPrompt(result.prompt);
       setLatestAgentPrompt(result.prompt);
     }
   };
@@ -318,7 +319,7 @@ export default function AiStudioPage() {
     if (target?.modelId) {
       setModel(target.modelId);
     }
-    setPrompt(promptText);
+    setSharedPrompt(promptText);
     setLatestAgentPrompt(promptText);
     handleGenerate(promptText, {
       modeOverride: "image",
@@ -357,7 +358,7 @@ export default function AiStudioPage() {
 
   const handleAgentUsePrompt = () => {
     if (latestAgentPrompt) {
-      setPrompt(latestAgentPrompt);
+      setSharedPrompt(latestAgentPrompt);
       addAgentPromptReference(latestAgentPrompt, agentActions?.referenceCard?.title);
     }
     setIsAgentChatOpen(false);
@@ -526,7 +527,8 @@ export default function AiStudioPage() {
       debit(costToDebit, memo, `out-${Date.now()}`).catch(() => { });
     }
 
-    generateOutput(promptOverride, { modeOverride: effectiveMode, selectedToolOverride: effectiveTool });
+    const promptToUse = typeof promptOverride === "string" ? promptOverride : prompt;
+    generateOutput(promptToUse, { modeOverride: effectiveMode, selectedToolOverride: effectiveTool });
   };
 
   const handlePrimarySubmit = () => {
@@ -539,7 +541,7 @@ export default function AiStudioPage() {
       });
       return;
     }
-    handleGenerate();
+    handleGenerate(prompt);
   };
 
   const handleRegenerateWithDebit = () => {
@@ -579,7 +581,7 @@ export default function AiStudioPage() {
     onModeChange: handleModeChange,
     onAspectChange: setAspect,
     onModelPickerOpen: handleOpenModelModal,
-    onPromptChange: setPrompt,
+    onPromptChange: setSharedPrompt,
     onToggleReferenceIndicator: toggleReferenceIndicator,
     // Treat refine send as a prompt-generating busy state for overlays.
     isPromptGenerating: isPromptGenerating || isPromptRefining,
@@ -665,7 +667,7 @@ export default function AiStudioPage() {
           onModelPickerOpen: handleOpenModelModal,
           onPrimaryImageChange: setReferenceImageUrl,
           onExtraImageChange: setExtraImageUrl,
-          onPromptTextChange: setReferenceText,
+          onPromptTextChange: setSharedPrompt,
           onSave: () => savePromptReference(referenceText ?? ""),
           onRegenerate: regenerateOutput,
           onOpenMediaLibrary: () => window.open("/media-library", "_self"),
@@ -696,6 +698,12 @@ export default function AiStudioPage() {
           modelLabel: currentModelLabel,
           referenceImageUrl,
           extraImageUrls,
+          videoReferenceMode,
+          onVideoReferenceModeChange: setVideoReferenceMode,
+          motionCharacterUrl,
+          onMotionCharacterChange: setMotionCharacterUrl,
+          motionReferenceVideoUrl,
+          onMotionReferenceVideoChange: setMotionReferenceVideoUrl,
           referenceText,
           aspectOptions,
           isModelModalOpen,
@@ -704,7 +712,7 @@ export default function AiStudioPage() {
           onModelPickerOpen: handleOpenModelModal,
           onPrimaryImageChange: setReferenceImageUrl,
           onExtraImageChange: setExtraImageUrl,
-          onPromptTextChange: setReferenceText,
+          onPromptTextChange: setSharedPrompt,
           onSave: saveActiveOutput,
           onRegenerate: handleRegenerateWithDebit,
           onOpenMediaLibrary: () => window.open("/media-library", "_self"),
@@ -750,7 +758,7 @@ export default function AiStudioPage() {
           referenceImageUrl,
           referenceText,
           onReferenceImageChange: setReferenceImageUrl,
-          onReferenceTextChange: setReferenceText,
+          onReferenceTextChange: setSharedPrompt,
           onRegenerate: regenerateOutput,
         }}
         detailModalOutput={detailOutput}

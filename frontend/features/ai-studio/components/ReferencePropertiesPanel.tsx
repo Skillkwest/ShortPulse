@@ -254,7 +254,7 @@ export function ReferencePropertiesPanel({
   const isVideoVariant = variant === "video";
 
   return (
-    <div className="tool-properties">
+    <div className="tool-properties reference-properties-panel">
       <div className="tool-header">
         <p className="eyebrow">{title}</p>
         <p className="subdued tiny helper-text">{subtitle}</p>

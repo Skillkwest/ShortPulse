@@ -3,7 +3,7 @@
  * Keeps visual parity across prompt/chat surfaces while remaining reusable.
  */
 import React from "react";
-import { FloppyDisk } from "phosphor-react";
+import { PushPin } from "phosphor-react";
 
 type AgentSaveButtonProps = {
   onClick: () => void;
@@ -29,7 +29,7 @@ export function AgentSaveButton({
       disabled={disabled}
       aria-label={ariaLabel}
     >
-      <FloppyDisk size={18} weight="bold" aria-hidden />
+      <PushPin size={18} weight="bold" aria-hidden />
     </button>
   );
 }

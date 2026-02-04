@@ -18,6 +18,7 @@
   --ai-dropzone-bg: rgb(14, 16, 19);
   --ai-dropzone-bg-hover: rgba(22, 26, 30, 0.95);
   /* Toolbar font settings */
+  --ai-toolbar-secondary-fg: #8c95a390;
   --ai-toolbar-font-size: 12px;
   --ai-toolbar-font-weight: 100;
   --ai-toolbar-label-size: 14px;
@@ -787,6 +788,36 @@ body.ai-studio-body {
   outline-offset: 3px;
 }
 
+.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) {
+  background: transparent;
+  border: 1px solid var(--ai-toolbar-secondary-fg);
+  box-shadow: none;
+  color: var(--ai-toolbar-secondary-fg);
+}
+
+.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) svg,
+.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible) svg,
+.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible) svg,
+.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible) svg,
+.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible) svg,
+.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) svg {
+  color: var(--ai-toolbar-secondary-fg) !important;
+}
+
+.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label,
+.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label,
+.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label,
+.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label,
+.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label,
+.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label {
+  color: var(--ai-toolbar-secondary-fg) !important;
+}
+
 .toolbar-item[data-tool-id="create"] svg,
 .toolbar-item[data-tool-id="edit"] svg,
 .toolbar-item[data-tool-id="canvas"] svg {
@@ -1029,7 +1060,7 @@ body.ai-studio-body {
 }
 
 .toolbar-item.toolbar-item-secondary {
-  color: #8c95a3;
+  color: var(--ai-toolbar-secondary-fg);
 }
 
 .toolbar-item.toolbar-item-secondary svg {

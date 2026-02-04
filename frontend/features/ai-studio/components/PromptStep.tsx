@@ -279,21 +279,27 @@ export function PromptStep({
                 <div className="enhanced-actions-row prompt-actions-compact">
                 <div className="ai-control-actions">
                   {onOpenMediaLibrary ? (
-                    <PromptLibraryButton
-                      onClick={onOpenMediaLibrary}
-                      className="prompt-media-btn"
-                      aria-label="Open media library"
-                      label="Media Library"
-                      showLabel={beginnerMode}
-                      icon={
-                        beginnerMode ? (
-                          <CloudArrowDown size={16} weight="regular" aria-hidden />
-                        ) : (
-                          <CloudArrowUp size={16} weight="regular" aria-hidden />
-                        )
-                      }
-                      tone="library"
-                    />
+                    beginnerMode ? (
+                      <button
+                        type="button"
+                        className="prompt-media-btn beginner-media-library-btn"
+                        onClick={onOpenMediaLibrary}
+                        aria-label="Open media library"
+                      >
+                        <CloudArrowDown size={18} weight="bold" aria-hidden />
+                        <span>Media Library</span>
+                      </button>
+                    ) : (
+                      <PromptLibraryButton
+                        onClick={onOpenMediaLibrary}
+                        className="prompt-media-btn"
+                        aria-label="Open media library"
+                        label="Media Library"
+                        showLabel={false}
+                        icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
+                        tone="library"
+                      />
+                    )
                   ) : null}
                   {!beginnerMode ? (
                     <PromptLibraryButton

@@ -1,0 +1,26 @@
+/**
+ * AI Studio text properties panel.
+ * Text-mode workflow controls (mode toggle, prompt actions, generate row) scoped to the text panel.
+ */
+.text-properties-panel {
+  /* Panel-specific hook to keep text styles grouped in one place. */
+}
+
+.text-properties-panel .mode-toggle-row {
+  margin-bottom: 4px;
+  display: inline-flex;
+  gap: 4px;
+  width: 100%;
+  align-items: stretch;
+  background: rgba(12, 15, 22, 0.85);
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  border-radius: 10px;
+  padding: 4px;
+  flex-wrap: nowrap;
+}
+
+.generate-actions-row {
+  display: flex;
+  justify-content: stretch;
+  margin-top: 12px;
+}

@@ -194,7 +194,7 @@ export function TextPropertiesPanel({
   };
 
   return (
-    <div className="tool-properties">
+    <div className="tool-properties text-properties-panel">
       <div className="tool-header">
         <p className="eyebrow">Text</p>
         <p className="subdued tiny helper-text">Generate new content using text prompts.</p>
@@ -208,7 +208,7 @@ export function TextPropertiesPanel({
         <div className="step-card-header">
           {beginnerMode && <span className="step-badge">1</span>}
           <div className="step-header-copy">
-            <p className="step-title">Select Generation Mode</p>
+            <p className="step-title">{beginnerMode ? "Select Generation Mode" : "Choose Generation Mode"}</p>
             <span className="step-subtitle tiny helper-text">Select the output type you want to generate. </span>
           </div>
           {!beginnerMode ? (
@@ -365,7 +365,7 @@ export function ComposeSendCard({
   const promptThinking = agentIsSending || isPromptGenerating;
 
   return (
-    <div className="step-card prompt-step">
+    <div className="step-card prompt-step generate-step-card">
       <div className="step-card-header">
         {beginnerMode && <span className="step-badge">3</span>}
         <div className="step-header-copy">
@@ -373,19 +373,19 @@ export function ComposeSendCard({
           <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>
         </div>
       </div>
-      {isGenerateDisabled && guardrailReason ? (
-        <div className="inline-error-hint" role="status">
-          {guardrailReason}
-        </div>
-      ) : null}
-      {agentEnabled && agentError ? <div className="inline-error-hint">{agentError}</div> : null}
-      <div className="generate-actions-row">
+      <div className="create-controls single-control">
         <AgentGenerateButton
           onClick={onGenerate}
           disabled={isGenerateDisabled || isPromptGenerating}
           isBusy={isPromptGenerating}
           cost={costValue}
         />
+        {isGenerateDisabled && guardrailReason ? (
+          <div className="inline-error-hint" role="status">
+            {guardrailReason}
+          </div>
+        ) : null}
+        {agentEnabled && agentError ? <div className="inline-error-hint">{agentError}</div> : null}
       </div>
     </div>
   );

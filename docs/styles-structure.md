@@ -18,7 +18,8 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - `styles/ai-studio-coming-soon.css`: Temporary placeholders for templates, workflows, and gallery views.
 - `styles/ai-studio-canvas.css`: Reference grid and preview surfaces for AI Studio.
 - `styles/ai-studio-controls.css`: Step cards, toggles, and aspect/model selectors.
-- `styles/ai-studio-dropzones.css`: Regen dropzones and reference upload layouts.
+- `styles/ai-studio-reference-properties.css`: Reference panel dropzones, frame/model controls, and upload layouts.
+- `styles/ai-studio-text-properties.css`: Text panel toggles, prompt actions, and generation controls.
 - `styles/ai-studio-properties.css`: Properties panel scaffolding, control rows, selects.
 - `styles/ai-studio-prompts.css`: Prompt inputs, mode toggles, prompt actions.
 - `styles/ai-studio-prompt-actions.css`: Prompt CTAs, library buttons, action strips.
@@ -38,9 +39,9 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 1) foundation
 2) ui-patterns
 3) workspace (shared/chrome/dashboard/tools/media/profile)
-4) ai-studio (layout/coming-soon/canvas/controls/dropzones)
+4) ai-studio (layout/coming-soon/canvas/controls/reference-properties)
 5) prefabs (agent core + variants)
-6) ai-studio (properties/prompts/prompt-actions/model-picker/history/modals/responsive)
+6) ai-studio (properties/text-properties/prompts/prompt-actions/model-picker/history/modals/responsive)
 7) performance (core/detail/responsive)
 8) landing (core/sections)
 9) auth + viewport lock

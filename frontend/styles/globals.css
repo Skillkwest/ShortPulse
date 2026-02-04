@@ -11,10 +11,11 @@
 @import "./ai-studio-coming-soon.css";
 @import "./ai-studio-canvas.css";
 @import "./ai-studio-controls.css";
-@import "./ai-studio-dropzones.css";
+@import "./ai-studio-reference-properties.css";
 @import "./prefabs-agent.css";
 @import "./prefabs-agent-variants.css";
 @import "./ai-studio-properties.css";
+@import "./ai-studio-text-properties.css";
 @import "./ai-studio-prompts.css";
 @import "./ai-studio-prompt-actions.css";
 @import "./ai-studio-model-picker.css";

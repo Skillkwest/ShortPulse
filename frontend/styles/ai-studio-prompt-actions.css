@@ -67,12 +67,6 @@
   gap: 10px;
 }
 
-.generate-actions-row {
-  display: flex;
-  justify-content: stretch;
-  margin-top: 12px;
-}
-
 .enhanced-actions-row {
   margin-top: 0px;
   display: flex;
@@ -97,6 +91,41 @@
   min-width: 46px;
   padding: 0;
   justify-content: center;
+}
+
+.prompt-actions-compact .beginner-media-library-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 60px;
+  height: 60px;
+  min-width: 110px;
+  padding: 0;
+  border-radius: 14px;
+  border: 1px solid #25a8bf7c;
+  background: #6e818d2f;
+  color: #25a8bf;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 1px #25a8bf41;
+  transition: box-shadow 0.16s ease, transform 0.12s ease;
+}
+
+.prompt-actions-compact .beginner-media-library-btn:hover:not(:disabled) {
+  box-shadow: 0 5px 12px rgba(4, 234, 255, 0.088);
+  transform: translateY(2px);
+  cursor: pointer;
+}
+
+.prompt-actions-compact .beginner-media-library-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.prompt-actions-compact .beginner-media-library-btn svg {
+  color: currentColor;
 }
 
 .prompt-library-btn {

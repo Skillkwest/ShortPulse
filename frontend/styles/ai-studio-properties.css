@@ -83,10 +83,6 @@
   gap: 12px;
 }
 
-.create-controls.dual-controls.reference-frame-controls {
-  grid-template-columns: 0.85fr 1.15fr;
-}
-
 .ai-control-actions {
   display: flex;
   align-items: center;

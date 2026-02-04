@@ -64,9 +64,19 @@ export function AiStudioToolbar({
     selectedTool === "character";
   const isCreateButtonActive = selectedTool === "create";
   const isCreateExpanded = showCreateTools || isCreateChildSelected || isCreateButtonActive;
+  const activePrimary: "create" | "edit" | "canvas" | null = isCreateExpanded
+    ? "create"
+    : selectedTool === "edit"
+      ? "edit"
+      : selectedTool === "canvas"
+        ? "canvas"
+        : null;
 
   return (
-    <aside className={`panel ai-panel ai-toolbar ai-toolbar-floating${isCreateExpanded ? " create-active" : ""}`}>
+    <aside
+      className={`panel ai-panel ai-toolbar ai-toolbar-floating${isCreateExpanded ? " create-active" : ""}`}
+      data-primary-active={activePrimary || undefined}
+    >
       <div className="toolbar-logo">
         <img src="/brand-logo.png" alt="Brand logo" />
       </div>

@@ -145,6 +145,16 @@
   box-shadow: 0 4px 1px #25a8bf41;
   transition: box-shadow 0.16s ease, transform 0.12s ease;
 }
+.agent-enhance-prefab {
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  width: 120px !important;
+  letter-spacing: 0.02em;
+}
+.agent-enhance-label {
+  line-height: 1;
+}
 .agent-send-prefab:hover:not(:disabled),
 .agent-save-prefab:hover:not(:disabled) {
   box-shadow: 0 5px 12px rgba(4, 234, 255, 0.088);

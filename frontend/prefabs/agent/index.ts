@@ -4,6 +4,7 @@
  */
 export * from "./types";
 export * from "./buttons/AgentSendButton";
+export * from "./buttons/AgentEnhanceButton";
 export * from "./buttons/AgentSaveButton";
 export * from "./buttons/AgentGenerateButton";
 export * from "./buttons/MiniGenerateButton";

@@ -12,8 +12,8 @@ export function CharacterPanel() {
         <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>Character</h3>
       </div>
       <p style={{ color: "var(--ai-card-text)", fontSize: "14px", lineHeight: "1.5", margin: 0 }}>
-        Create consistent characters across series of generations. Define traits, poses, and style tweaks once, then reuse them
-        for future runs to keep your cast aligned.
+        Create consistent characters across series of generations. Capture traits, poses, and styling notes once so you can reference
+        them later when refining your cast.
       </p>
       <div
         style={{
@@ -25,7 +25,7 @@ export function CharacterPanel() {
         }}
       >
         <p style={{ color: "var(--ai-card-text)", fontSize: "13px", margin: 0, fontStyle: "italic" }}>
-          Consistent Character Creation coming soon.
+          Keep a quick reminder of the details that matter for each character.
         </p>
       </div>
     </div>

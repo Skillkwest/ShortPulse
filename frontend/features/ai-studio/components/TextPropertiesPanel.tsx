@@ -171,7 +171,6 @@ export function TextPropertiesPanel({
   const primaryActionLabel = isTextMode ? "Send" : "Generate";
   const primaryActionBusyLabel = isTextMode ? "Sending…" : "Generating…";
   const isTextPromptMode = mode === "text";
-  const costValue = costCredits != null ? costCredits : "—";
   const [collapsedSteps, setCollapsedSteps] = React.useState<{ mode: boolean; model: boolean; prompt: boolean }>({
     mode: false,
     model: false,
@@ -192,11 +191,6 @@ export function TextPropertiesPanel({
       onStepActionClick?.(step);
       return next;
     });
-  };
-
-  const handleCostGenerate = () => {
-    onCloseAgentChat?.();
-    onGenerate();
   };
 
   return (
@@ -275,14 +269,11 @@ export function TextPropertiesPanel({
         onExpandChat={onExpandChat}
         onCloseAgentChat={onCloseAgentChat}
         onClearAgentChat={onClearAgentChat}
-        onGenerate={handleCostGenerate}
         onSavePrompt={onSavePrompt}
         onOpenMediaLibrary={onOpenMediaLibrary}
         isCollapsed={collapsedSteps.prompt}
         onToggleCollapse={() => toggleStep("prompt")}
-        costCredits={costCredits}
         isGenerating={isPromptGenerating}
-        isGenerateDisabled={isGenerateDisabled}
         shouldDisableSave={shouldDisableSave}
         beginnerMode={beginnerMode}
         className={isTextMode ? "step2-text-mode" : ""}
@@ -374,7 +365,7 @@ export function ComposeSendCard({
       <div className="step-card-header">
         {beginnerMode && <span className="step-badge">3</span>}
         <div className="step-header-copy">
-          <p className="step-title">Generate</p>
+          {beginnerMode ? <p className="step-title">Generate</p> : null}
           <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>
         </div>
       </div>

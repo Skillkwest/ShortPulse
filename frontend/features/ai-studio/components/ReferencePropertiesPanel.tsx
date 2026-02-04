@@ -282,14 +282,11 @@ export function ReferencePropertiesPanel({
             onExpandChat={onExpandChat}
             onCloseAgentChat={onCloseAgentChat}
             onClearAgentChat={onClearAgentChat}
-            onGenerate={onRegenerate}
             onSavePrompt={onSave}
             onOpenMediaLibrary={onOpenMediaLibrary}
             isCollapsed={collapsedSteps.prompt}
             onToggleCollapse={() => toggleStep("prompt")}
-            costCredits={costCredits}
             isGenerating={false} // Reference flows don't have a specific prompt generating state in top-level prop, but could pass isGeneratorDisabled
-            isGenerateDisabled={isGenerateDisabled}
             onDrop={handlePromptDrop as any}
             onDragOver={(e) => e.preventDefault()}
             className="reference-step-card"

@@ -6,9 +6,9 @@ import React, { useRef } from "react";
 import { ArrowsOutSimple, BookmarkSimple, CaretDown, CloudArrowUp, Trash } from "phosphor-react";
 import {
   AgentChatPanel,
+  AgentEnhanceButton,
   AgentSendButton,
   AgentSaveButton,
-  MiniGenerateButton,
   AgentInputBar,
 } from "../../../prefabs/agent";
 import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
@@ -64,15 +64,12 @@ export type PromptStepProps = {
   onCloseAgentChat?: () => void;
   onClearAgentChat?: () => void;
   // Actions
-  onGenerate: () => void;
   onSavePrompt: () => void;
   onOpenMediaLibrary?: () => void;
   // State / UI
   isCollapsed: boolean;
   onToggleCollapse: () => void;
-  costCredits?: number | null;
   isGenerating?: boolean;
-  isGenerateDisabled?: boolean;
   shouldDisableSave?: boolean;
   // Drag and Drop support
   onDrop?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
@@ -102,14 +99,11 @@ export function PromptStep({
   onExpandChat,
   onCloseAgentChat,
   onClearAgentChat,
-  onGenerate,
   onSavePrompt,
   onOpenMediaLibrary,
   isCollapsed,
   onToggleCollapse,
-  costCredits,
   isGenerating = false,
-  isGenerateDisabled = false,
   shouldDisableSave = false,
   onDrop,
   onDragOver,
@@ -139,16 +133,9 @@ export function PromptStep({
     onAgentSend?.();
   };
 
-  const handleCostGenerate = () => {
-    onCloseAgentChat?.();
-    onGenerate();
-  };
-
   const canExpandChat = agentMessages.length > 0;
   const isChatPromptMode = promptMode === "chat";
-  const showMiniGenerateButton = typeof onGenerate === "function" && !beginnerMode; // Hide in beginner mode
   const promptThinking = Boolean(agentIsSending || isGenerating);
-  const costValue = costCredits != null ? costCredits : "—";
 
   return (
     <div
@@ -263,14 +250,6 @@ export function PromptStep({
                         disabled={agentIsSending}
                         ariaLabel="Send to agent"
                       />
-                        {showMiniGenerateButton ? (
-                        <MiniGenerateButton
-                          cost={costValue}
-                          onClick={handleCostGenerate}
-                          disabled={isGenerateDisabled || isGenerating}
-                          ariaLabel="Generate with current prompt"
-                        />
-                      ) : null}
                     </div>
                   </div>
                 </>
@@ -318,26 +297,27 @@ export function PromptStep({
                   ) : null}
                 </div>
                   <div className="enhanced-action-buttons agent-inline-actions">
+                    {beginnerMode ? (
+                      <AgentEnhanceButton
+                        onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}
+                        disabled={agentIsSending}
+                        ariaLabel="Enhance prompt"
+                        className="prompt-fab-send"
+                      />
+                    ) : (
+                      <AgentSendButton
+                        onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}
+                        disabled={agentIsSending}
+                        ariaLabel="Send to agent"
+                        className="prompt-fab-send"
+                      />
+                    )}
                     <AgentSaveButton
                       onClick={onSavePrompt}
                       disabled={shouldDisableSave}
                       ariaLabel="Save prompt"
                       className="prompt-fab-save"
                     />
-                    <AgentSendButton
-                      onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}
-                      disabled={agentIsSending}
-                      ariaLabel="Send to agent"
-                      className="prompt-fab-send"
-                    />
-                    {showMiniGenerateButton ? (
-                      <MiniGenerateButton
-                        cost={costValue}
-                        onClick={handleCostGenerate}
-                        disabled={isGenerateDisabled || isGenerating}
-                        ariaLabel="Generate with current prompt"
-                      />
-                    ) : null}
                   </div>
                 </div>
               </>

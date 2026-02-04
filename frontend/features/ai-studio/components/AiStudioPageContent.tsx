@@ -124,7 +124,6 @@ type AgentChatProps = {
   onUsePrompt: () => void;
   onClose: () => void;
   onMessageClick?: (message: AgentMessage) => void;
-  generateCost?: number | string | null;
 };
 
 type AiStudioPageContentProps = {
@@ -390,8 +389,6 @@ export function AiStudioPageContent({
                     isSending={agentChat.agentIsSending}
                     onInputChange={agentChat.onInputChange}
                     onSend={agentChat.onSend}
-                    onGenerate={agentChat.onAddToGrid}
-                    generateCost={propertiesText.costCredits}
                     onMessageClick={agentChat.onMessageClick}
                     beginnerMode={beginnerMode}
                   />

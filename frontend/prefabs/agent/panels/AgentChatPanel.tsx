@@ -5,7 +5,6 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { AgentSendButton } from "../buttons/AgentSendButton";
 import { AgentInputBar } from "../inputs/AgentInputBar";
-import { MiniGenerateButton } from "../buttons/MiniGenerateButton";
 import type { AgentMessage } from "../types";
 
 type AgentChatPanelProps = {
@@ -20,8 +19,6 @@ type AgentChatPanelProps = {
   onInputChange: (value: string) => void;
   onSend: () => void;
   onMessageClick?: (message: AgentMessage) => void;
-  onGenerate?: () => void;
-  generateCost?: number | string;
   beginnerMode?: boolean;
 };
 
@@ -37,8 +34,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   onInputChange,
   onSend,
   onMessageClick,
-  onGenerate,
-  generateCost,
   beginnerMode = false,
 }) => {
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -119,14 +114,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           />
           <div className="agent-inline-actions">
             <AgentSendButton onClick={onSend} disabled={disabled || isSending} ariaLabel={sendLabel} />
-            {onGenerate && !beginnerMode ? (
-              <MiniGenerateButton
-                cost={generateCost != null ? generateCost : "—"}
-                onClick={onGenerate}
-                disabled={disabled || isSending}
-                ariaLabel="Generate with current prompt"
-              />
-            ) : null}
           </div>
         </div>
       ) : null}

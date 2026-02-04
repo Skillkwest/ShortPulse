@@ -117,7 +117,16 @@ export function PromptStep({
   beginnerMode = false,
 }: PromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">("enhanced");
-  
+
+  // When beginner mode is on, force enhanced mode and hide chat-specific controls.
+  React.useEffect(() => {
+    if (beginnerMode && promptMode !== "enhanced") {
+      setPromptMode("enhanced");
+    }
+  }, [beginnerMode, promptMode]);
+
+  const effectiveTitle = beginnerMode ? "Write your prompt" : "Choose Prompt Mode";
+
   const handleEnhancedPromptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
     event.preventDefault();
@@ -150,7 +159,7 @@ export function PromptStep({
         if (isCollapsed) onToggleCollapse();
       }}
       role="group"
-      aria-label={`${title} section`}
+      aria-label={`${effectiveTitle} section`}
       onDrop={onDrop as any}
       onDragOver={onDragOver as any}
     >
@@ -160,7 +169,7 @@ export function PromptStep({
       }}>
         {beginnerMode && <span className="step-badge">{stepNumber}</span>}
         <div className="step-header-copy">
-          <p className="step-title">{title}</p>
+          <p className="step-title">{effectiveTitle}</p>
           <span className="step-subtitle tiny helper-text">{subtitle}</span>
         </div>
         <div className="step-header-actions">
@@ -174,52 +183,54 @@ export function PromptStep({
       {!isCollapsed ? (
         agentEnabled ? (
           <>
-            <div className="prompt-mode-row">
-              <div className="prompt-mode-toggle-row prompt-mode-toggle-standalone" role="group" aria-label="Prompt options">
-                <button
-                  type="button"
-                  className={`ghost-btn small mode-toggle-btn ${promptMode === "enhanced" ? "is-active" : ""}`}
-                  aria-pressed={promptMode === "enhanced"}
-                  onClick={(e) => { e.stopPropagation(); setPromptMode("enhanced"); }}
-                >
-                  Prompt
-                </button>
-                <button
-                  type="button"
-                  className={`ghost-btn small mode-toggle-btn ${promptMode === "chat" ? "is-active" : ""}`}
-                  aria-pressed={promptMode === "chat"}
-                  onClick={(e) => { e.stopPropagation(); setPromptMode("chat"); }}
-                >
-                  Chat
-                </button>
-              </div>
-              <div className={`prompt-chat-actions ${promptMode === "chat" ? "is-active" : ""}`}>
-                {onExpandChat ? (
+            {(!beginnerMode) ? (
+              <div className="prompt-mode-row">
+                <div className="prompt-mode-toggle-row prompt-mode-toggle-standalone" role="group" aria-label="Prompt options">
                   <button
                     type="button"
-                    className={`ghost-btn mini prompt-expand-btn ${agentChatOpen ? "is-chat-open" : ""}`}
-                    onClick={(e) => { e.stopPropagation(); if (canExpandChat) onExpandChat(); }}
-                    aria-label="Expand chat"
-                    disabled={!canExpandChat}
-                    aria-disabled={!canExpandChat}
+                    className={`ghost-btn small mode-toggle-btn ${promptMode === "enhanced" ? "is-active" : ""}`}
+                    aria-pressed={promptMode === "enhanced"}
+                    onClick={(e) => { e.stopPropagation(); setPromptMode("enhanced"); }}
                   >
-                    <ArrowsOutSimple size={20} weight="bold" aria-hidden />
+                    Prompt
                   </button>
-                ) : null}
-                {onClearAgentChat ? (
                   <button
                     type="button"
-                    className="ghost-btn mini prompt-clear-btn"
-                    onClick={(e) => { e.stopPropagation(); onClearAgentChat(); }}
-                    aria-label="Clear chat"
-                    disabled={agentMessages.length === 0 && !stagedPrompt}
-                    aria-disabled={agentMessages.length === 0 && !stagedPrompt}
+                    className={`ghost-btn small mode-toggle-btn ${promptMode === "chat" ? "is-active" : ""}`}
+                    aria-pressed={promptMode === "chat"}
+                    onClick={(e) => { e.stopPropagation(); setPromptMode("chat"); }}
                   >
-                    <Trash size={18} weight="bold" aria-hidden />
+                    Chat
                   </button>
-                ) : null}
+                </div>
+                <div className={`prompt-chat-actions ${promptMode === "chat" ? "is-active" : ""}`}>
+                  {onExpandChat ? (
+                    <button
+                      type="button"
+                      className={`ghost-btn mini prompt-expand-btn ${agentChatOpen ? "is-chat-open" : ""}`}
+                      onClick={(e) => { e.stopPropagation(); if (canExpandChat) onExpandChat(); }}
+                      aria-label="Expand chat"
+                      disabled={!canExpandChat}
+                      aria-disabled={!canExpandChat}
+                    >
+                      <ArrowsOutSimple size={20} weight="bold" aria-hidden />
+                    </button>
+                  ) : null}
+                  {onClearAgentChat ? (
+                    <button
+                      type="button"
+                      className="ghost-btn mini prompt-clear-btn"
+                      onClick={(e) => { e.stopPropagation(); onClearAgentChat(); }}
+                      aria-label="Clear chat"
+                      disabled={agentMessages.length === 0 && !stagedPrompt}
+                      aria-disabled={agentMessages.length === 0 && !stagedPrompt}
+                    >
+                      <Trash size={18} weight="bold" aria-hidden />
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            ) : null}
             {promptMode === "chat" ? (
               agentChatOpen ? null : (
                 <>
@@ -285,17 +296,18 @@ export function PromptStep({
                   </div>
                 </div>
                 <div className="enhanced-actions-row prompt-actions-compact">
-                  <div className="ai-control-actions">
-                    {onOpenMediaLibrary ? (
-                      <PromptLibraryButton
-                        onClick={onOpenMediaLibrary}
-                        className="prompt-media-btn"
-                        aria-label="Open media library"
-                        label="Media Library"
-                        icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
-                        tone="library"
-                      />
-                    ) : null}
+                <div className="ai-control-actions">
+                  {onOpenMediaLibrary ? (
+                    <PromptLibraryButton
+                      onClick={onOpenMediaLibrary}
+                      className="prompt-media-btn"
+                      aria-label="Open media library"
+                      label="Media Library"
+                      icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
+                      tone="library"
+                    />
+                  ) : null}
+                  {!beginnerMode ? (
                     <PromptLibraryButton
                       className="prompt-media-btn"
                       aria-label="Save prompt to media library"
@@ -303,7 +315,8 @@ export function PromptStep({
                       icon={<BookmarkSimple size={16} weight="regular" aria-hidden />}
                       tone="save"
                     />
-                  </div>
+                  ) : null}
+                </div>
                   <div className="enhanced-action-buttons agent-inline-actions">
                     <AgentSaveButton
                       onClick={onSavePrompt}

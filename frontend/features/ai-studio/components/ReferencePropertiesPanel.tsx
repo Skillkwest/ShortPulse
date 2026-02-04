@@ -260,13 +260,49 @@ export function ReferencePropertiesPanel({
         <p className="subdued tiny helper-text">{subtitle}</p>
       </div>
       <div className="reference-drop-layout-inner">
+        <div className="reference-dropzone-block prompt-block">
+          <PromptStep
+            stepNumber="1"
+            title="Write Your Prompt"
+            subtitle="Drop a saved prompt or describe the look you want to match."
+            prompt={referenceText ?? ""}
+            onPromptChange={onPromptTextChange}
+            agentEnabled={agentEnabled}
+            agentMessages={agentMessages}
+            agentActions={agentActions}
+            agentInput={agentInput}
+            agentIsSending={agentIsSending}
+            agentError={agentError}
+            stagedPrompt={stagedPrompt}
+            agentChatOpen={agentChatOpen}
+            onAgentInputChange={onAgentInputChange}
+            onAgentSend={onAgentSend}
+            onAgentEnhanceSend={onAgentEnhanceSend}
+            onAgentMessageClick={onAgentMessageClick}
+            onExpandChat={onExpandChat}
+            onCloseAgentChat={onCloseAgentChat}
+            onClearAgentChat={onClearAgentChat}
+            onGenerate={onRegenerate}
+            onSavePrompt={onSave}
+            onOpenMediaLibrary={onOpenMediaLibrary}
+            isCollapsed={collapsedSteps.prompt}
+            onToggleCollapse={() => toggleStep("prompt")}
+            costCredits={costCredits}
+            isGenerating={false} // Reference flows don't have a specific prompt generating state in top-level prop, but could pass isGeneratorDisabled
+            isGenerateDisabled={isGenerateDisabled}
+            onDrop={handlePromptDrop as any}
+            onDragOver={(e) => e.preventDefault()}
+            className="reference-step-card"
+            beginnerMode={beginnerMode}
+          />
+        </div>
         <div className="reference-dropzone-block image-block">
           <div
             className={`reference-step-card ${collapsedSteps.reference ? "is-collapsed" : ""} ${isVideoVariant ? "is-video-refs" : "is-image-refs"}`}
             onClick={() => expandIfCollapsed("reference")}
           >
             <div className="reference-step-header">
-              {beginnerMode && <span className="step-badge mini">1</span>}
+              {beginnerMode && <span className="step-badge mini">2</span>}
               <div className="reference-step-copy">
                 <p className="step-title">{isVideoVariant ? "Add Reference Frames" : "Add Reference Image"}</p>
                 <span className="step-subtitle tiny helper-text">
@@ -397,42 +433,6 @@ export function ReferencePropertiesPanel({
               </div>
             ) : null}
           </div>
-        </div>
-        <div className="reference-dropzone-block prompt-block">
-          <PromptStep
-            stepNumber="2"
-            title="Write Your Prompt"
-            subtitle="Drop a saved prompt or describe the look you want to match."
-            prompt={referenceText ?? ""}
-            onPromptChange={onPromptTextChange}
-            agentEnabled={agentEnabled}
-            agentMessages={agentMessages}
-            agentActions={agentActions}
-            agentInput={agentInput}
-            agentIsSending={agentIsSending}
-            agentError={agentError}
-            stagedPrompt={stagedPrompt}
-            agentChatOpen={agentChatOpen}
-            onAgentInputChange={onAgentInputChange}
-            onAgentSend={onAgentSend}
-            onAgentEnhanceSend={onAgentEnhanceSend}
-            onAgentMessageClick={onAgentMessageClick}
-            onExpandChat={onExpandChat}
-            onCloseAgentChat={onCloseAgentChat}
-            onClearAgentChat={onClearAgentChat}
-            onGenerate={onRegenerate}
-            onSavePrompt={onSave}
-            onOpenMediaLibrary={onOpenMediaLibrary}
-            isCollapsed={collapsedSteps.prompt}
-            onToggleCollapse={() => toggleStep("prompt")}
-            costCredits={costCredits}
-            isGenerating={false} // Reference flows don't have a specific prompt generating state in top-level prop, but could pass isGeneratorDisabled
-            isGenerateDisabled={isGenerateDisabled}
-            onDrop={handlePromptDrop as any}
-            onDragOver={(e) => e.preventDefault()}
-            className="reference-step-card"
-            beginnerMode={beginnerMode}
-          />
         </div>
         <div
           className={`step-card reference-frame-card ${collapsedSteps.model ? "is-collapsed" : ""}`}

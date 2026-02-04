@@ -11,6 +11,10 @@
   padding-left: 3px;
 }
 
+.reference-canvas-grid--wide {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
 .reference-canvas-scroll {
   width: 100%;
   padding: 4px 0;

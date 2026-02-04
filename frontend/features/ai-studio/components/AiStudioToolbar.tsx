@@ -62,9 +62,11 @@ export function AiStudioToolbar({
     selectedTool === "image" ||
     selectedTool === "video" ||
     selectedTool === "character";
+  const isCreateButtonActive = selectedTool === "create";
+  const isCreateExpanded = showCreateTools || isCreateChildSelected || isCreateButtonActive;
 
   return (
-    <aside className="panel ai-panel ai-toolbar ai-toolbar-floating">
+    <aside className={`panel ai-panel ai-toolbar ai-toolbar-floating${isCreateExpanded ? " create-active" : ""}`}>
       <div className="toolbar-logo">
         <img src="/brand-logo.png" alt="Brand logo" />
       </div>
@@ -112,26 +114,27 @@ export function AiStudioToolbar({
             </React.Fragment>
           );
         })}
-        {showCreateTools ? <div className="toolbar-divider toolbar-divider-children" aria-hidden="true" /> : null}
-        {showCreateTools
-          ? createChildTools.map((tool) => {
-              const IconComponent = toolIcons[tool.id];
-              const isActive = selectedTool === tool.id;
-              return (
-                <button
-                  key={tool.id}
-                  type="button"
-                  className={`toolbar-item toolbar-item-child ${isActive ? "is-active" : ""}`}
-                  onClick={() => onSelectTool(tool.id)}
-                >
-                  {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
-                  <div className="toolbar-copy">
-                    <span className="toolbar-label">{tool.label}</span>
-                  </div>
-                </button>
-              );
-            })
-          : null}
+        <div className={`toolbar-create-children ${isCreateExpanded ? "is-open" : ""}`} aria-hidden={!isCreateExpanded}>
+          {createChildTools.map((tool) => {
+            const IconComponent = toolIcons[tool.id];
+            const isActive = selectedTool === tool.id;
+            return (
+              <button
+                key={tool.id}
+                type="button"
+                className={`toolbar-item toolbar-item-child ${isActive ? "is-active" : ""}`}
+                onClick={() => onSelectTool(tool.id)}
+              >
+                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
+                <div className="toolbar-copy">
+                  <span className="toolbar-label">{tool.label}</span>
+                </div>
+              </button>
+            );
+          })}
+          <div className="toolbar-divider toolbar-divider-children" aria-hidden="true" />
+          <div className="toolbar-create-spacer" aria-hidden="true" />
+        </div>
         {editToolList.map((tool) => {
           const IconComponent = toolIcons[tool.id];
           const isActive = selectedTool === tool.id;
@@ -206,9 +209,9 @@ export function AiStudioToolbar({
               </button>
             );
           })}
+          <div className="toolbar-divider toolbar-divider-secondary" aria-hidden="true" />
         </div>
-      <div className="toolbar-divider toolbar-divider-secondary" aria-hidden="true" />
-    </div>
+      </div>
     <div className="toolbar-footer">
       <div className="toolbar-beginner-toggle">
         <div className="toolbar-beginner-copy">

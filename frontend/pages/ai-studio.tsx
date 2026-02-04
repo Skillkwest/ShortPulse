@@ -743,6 +743,7 @@ export default function AiStudioPage() {
           onDeleteOutput: deleteOutput,
           generateCostCredits: promptGenerateCostCredits,
           describeCostCredits,
+          selectedTool,
         }}
         studioPreviewProps={{
           activeOutput,

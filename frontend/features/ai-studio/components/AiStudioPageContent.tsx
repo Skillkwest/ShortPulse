@@ -4,7 +4,7 @@
  */
 import React from "react";
 import Link from "next/link";
-import { CloudArrowUp, Selection, UploadSimple, User } from "phosphor-react";
+import { CloudArrowUp, FlowArrow, Globe, Selection, SquaresFour, StackSimple, UploadSimple } from "phosphor-react";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { CanvasPanel } from "./CanvasPanel";
 import { TextPropertiesPanel, ComposeSendCard } from "./TextPropertiesPanel";
@@ -22,6 +22,41 @@ import type { PricingParams } from "../logic/pricingTypes";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 
 type FailureCard = Pick<StudioOutput, "id" | "model" | "modelId" | "prompt" | "errorMessage">;
+
+type ComingSoonToolId = "templates" | "workflows" | "my-generations" | "community";
+
+const comingSoonCopy: Record<
+  ComingSoonToolId,
+  { title: string; summary: string; detail: string; icon: React.ComponentType<any> }
+> = {
+  templates: {
+    title: "Templates",
+    summary: "Preset model and setting bundles for common generation tasks.",
+    detail: "Templates allow you to select pre-set models and selections for specific generative tasks.",
+    icon: SquaresFour,
+  },
+  workflows: {
+    title: "Workflows",
+    summary: "Reusable Canvas Node Builder pipelines for advanced automations.",
+    detail: "Workflows will be a library of pre-made Canvas Node Builder workflows.",
+    icon: FlowArrow,
+  },
+  "my-generations": {
+    title: "My Generations",
+    summary: "Your personal gallery for every asset you have generated.",
+    detail: "My Generations is where you can see all of your generated content in a gallery.",
+    icon: StackSimple,
+  },
+  community: {
+    title: "Community",
+    summary: "Browse the shared gallery from other creators.",
+    detail: "Community is where you can see community members' generated content in the gallery.",
+    icon: Globe,
+  },
+};
+
+const isComingSoonTool = (tool: ToolId | null): tool is ComingSoonToolId =>
+  tool === "templates" || tool === "workflows" || tool === "my-generations" || tool === "community";
 
 type TextSectionProps = {
   mode: StudioMode;
@@ -166,6 +201,10 @@ export function AiStudioPageContent({
   triggerFilePicker,
 }: AiStudioPageContentProps) {
   void propertiesCharacter;
+  const selectedComingSoonTool = isComingSoonTool(selectedTool) ? selectedTool : null;
+  const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
+  const ComingSoonIcon = comingSoon ? comingSoon.icon : null;
+
   const renderProperties = () => {
     switch (selectedTool) {
       case "create":
@@ -380,17 +419,38 @@ export function AiStudioPageContent({
                         </Link>
                       </div>
                     </div>
-                    <ReferenceCanvas
-                      {...referenceCanvasProps}
-                      onDropFiles={handleReferenceCanvasFiles}
-                      onTriggerFileSelect={triggerFilePicker}
-                    />
+                  <ReferenceCanvas
+                    {...referenceCanvasProps}
+                    onDropFiles={handleReferenceCanvasFiles}
+                    onTriggerFileSelect={triggerFilePicker}
+                    selectedTool={selectedTool}
+                  />
                   </div>
 
                   <StudioPreview {...studioPreviewProps} onDropFiles={handleReferenceCanvasFiles} onTriggerFileSelect={triggerFilePicker} />
                 </>
               )}
             </section>
+            {comingSoon ? (
+              <section className="ai-coming-soon" aria-live="polite">
+                <div className="panel ai-panel ai-coming-soon-card" data-tool={selectedComingSoonTool}>
+                  <div className="ai-coming-soon-header">
+                    <div className="ai-coming-soon-title-block">
+                      <span className="ai-coming-soon-icon" aria-hidden="true">
+                        {ComingSoonIcon ? <ComingSoonIcon size={22} weight="bold" /> : null}
+                      </span>
+                      <div>
+                        <p className="eyebrow">AI Studio</p>
+                        <h2 className="ai-coming-soon-title">{comingSoon.title}</h2>
+                      </div>
+                    </div>
+                    <span className="ai-coming-soon-pill">Coming soon</span>
+                  </div>
+                  <p className="ai-coming-soon-summary">{comingSoon.summary}</p>
+                  <p className="ai-coming-soon-detail">{comingSoon.detail}</p>
+                </div>
+              </section>
+            ) : null}
           </div>
         </div>
       </main>

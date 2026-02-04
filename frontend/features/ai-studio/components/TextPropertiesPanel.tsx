@@ -285,6 +285,7 @@ export function TextPropertiesPanel({
         isGenerateDisabled={isGenerateDisabled}
         shouldDisableSave={shouldDisableSave}
         beginnerMode={beginnerMode}
+        className={isTextMode ? "step2-text-mode" : ""}
       />
       {!isTextMode ? (
         <div

@@ -204,3 +204,4 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated Image-to-Video (Recreate) UI to use two primary reference frames (First frame + Last frame) and hide secondary dropzones for video models; added on-card labels for clarity.
 - Added MiniGenerateButton to the Agent Chat input row beside Send for faster prompt generation actions.
 - Updated `docs/sop_video_generation.md` to reflect the first/last frame workflow requirement for image-to-video.
+- Temporarily hid the AI Studio toolbar “Creations” section (My Generations/Community); the toolbar file still contains the buttons and this note should be the reminder to revert once they need to be visible again.

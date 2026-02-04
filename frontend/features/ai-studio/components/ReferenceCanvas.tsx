@@ -8,6 +8,7 @@ import { CloudArrowUp, DownloadSimple, Sparkle, UploadSimple, X } from "phosphor
 import { PromptLibraryButton } from "./PromptLibraryButton";
 import { StudioOutput } from "../types";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
+import type { ToolId } from "../types";
 
 const isVideoUrl = (url: string) => /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
 
@@ -17,6 +18,7 @@ type ReferenceCanvasProps = {
   showHeader?: boolean;
   onSelectOutput: (id: string) => void;
   onOpenDetails: (id: string) => void;
+  selectedTool: ToolId | null;
   onDropFiles?: (files: FileList) => void;
   onTriggerFileSelect?: () => void;
   onDescribeImage?: (output: StudioOutput) => void;
@@ -37,6 +39,7 @@ export function ReferenceCanvas({
   showHeader = true,
   onSelectOutput,
   onOpenDetails,
+  selectedTool,
   onDropFiles,
   onTriggerFileSelect,
   onDescribeImage,
@@ -122,7 +125,7 @@ export function ReferenceCanvas({
         </div>
       ) : null}
       <div className="reference-canvas-scroll">
-        <div className="reference-canvas-grid">
+        <div className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}>
           {outputs.length === 0 ? (
             <div className="reference-empty">
               <p className="preview-title">Upload or generate to see your media here.</p>

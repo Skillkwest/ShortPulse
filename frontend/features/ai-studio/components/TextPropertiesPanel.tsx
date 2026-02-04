@@ -359,6 +359,9 @@ export function ComposeSendCard({
   shouldDisableSave = false,
   beginnerMode = false,
 }: ComposeSendCardProps) {
+  if (mode === "text") {
+    return null;
+  }
   const primaryActionLabel = "Generate";
   const primaryActionBusyLabel = mode === "text" ? "Sending…" : "Generating…";
   const costValue = costCredits != null ? costCredits : "—";

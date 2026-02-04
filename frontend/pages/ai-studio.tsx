@@ -756,6 +756,7 @@ export default function AiStudioPage() {
         detailModalOutput={detailOutput}
         onDetailClose={() => setDetailOutputId(null)}
         onUpdateOutputPrompt={updateOutputPrompt}
+        onDeleteOutput={deleteOutput}
         modelModalState={{
           isOpen: isModelModalOpen,
           position: modelModalPosition,

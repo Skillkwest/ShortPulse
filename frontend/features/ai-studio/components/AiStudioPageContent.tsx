@@ -154,6 +154,7 @@ type AiStudioPageContentProps = {
   detailModalOutput: StudioOutput | null;
   onDetailClose: () => void;
   onUpdateOutputPrompt: (id: string, prompt: string) => void;
+  onDeleteOutput: (id: string) => void;
   modelModalState: {
     isOpen: boolean;
     position: { top: number; left: number } | null;
@@ -194,6 +195,7 @@ export function AiStudioPageContent({
   detailModalOutput,
   onDetailClose,
   onUpdateOutputPrompt,
+  onDeleteOutput,
   modelModalState,
   agentChat,
   handleReferenceCanvasFiles,
@@ -297,6 +299,9 @@ export function AiStudioPageContent({
               <span className="credit-value">
                 {balanceLoading ? "…" : balanceCredits != null ? balanceCredits.toLocaleString() : "—"}
               </span>
+              <Link href="/profile?section=account" className="header-profile-link" aria-label="Account settings">
+                <span className="header-profile-avatar">KI</span>
+              </Link>
             </div>
           </div>
         </section>
@@ -462,6 +467,7 @@ export function AiStudioPageContent({
         output={detailModalOutput}
         onClose={onDetailClose}
         onUpdatePrompt={onUpdateOutputPrompt}
+        onDeleteOutput={onDeleteOutput}
       />
     </>
   );

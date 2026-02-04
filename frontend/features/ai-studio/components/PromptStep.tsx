@@ -136,6 +136,17 @@ export function PromptStep({
   const canExpandChat = agentMessages.length > 0;
   const isChatPromptMode = promptMode === "chat";
   const promptThinking = Boolean(agentIsSending || isGenerating);
+  const lastAssistantMessage = React.useMemo(
+    () => [...agentMessages].reverse().find((message) => message.role === "assistant")?.content ?? null,
+    [agentMessages],
+  );
+
+  React.useEffect(() => {
+    if (promptMode !== "chat") return;
+    if (!lastAssistantMessage) return;
+    if (prompt === lastAssistantMessage) return;
+    onPromptChange(lastAssistantMessage);
+  }, [promptMode, lastAssistantMessage, prompt, onPromptChange]);
 
   return (
     <div
@@ -290,20 +301,20 @@ export function PromptStep({
                         <span>Media Library</span>
                       </button>
                     ) : (
-                      <PromptLibraryButton
+                      <button
+                        type="button"
+                        className="prompt-media-btn beginner-media-library-btn"
                         onClick={onOpenMediaLibrary}
-                        className="prompt-media-btn"
                         aria-label="Open media library"
-                        label="Media Library"
-                        showLabel={false}
-                        icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
-                        tone="library"
-                      />
+                      >
+                        <CloudArrowDown size={18} weight="bold" aria-hidden />
+                        <span>Media Library</span>
+                      </button>
                     )
                   ) : null}
                   {!beginnerMode ? (
                     <PromptLibraryButton
-                      className="prompt-media-btn"
+                      className="prompt-media-btn prompt-save-btn"
                       aria-label="Save prompt to media library"
                       label="Save Prompt"
                       showLabel={false}

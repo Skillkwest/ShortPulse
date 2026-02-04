@@ -301,11 +301,11 @@ export function ReferencePropertiesPanel({
             <div className="reference-step-header">
               {beginnerMode && <span className="step-badge mini">2</span>}
               <div className="reference-step-copy">
-                <p className="step-title">{isVideoVariant ? "Add Reference Frames" : "Add Reference Image"}</p>
+                <p className="step-title">{isVideoVariant ? "Add Reference Frames" : "Add Reference Images"}</p>
                 <span className="step-subtitle tiny helper-text">
                   {isVideoVariant
-                    ? "Provide first and last frame reference images for your video."
-                    : "Drag a reference from the canvas or upload one manually."}
+                    ? "Upload or drag and drop a images from the reference grid."
+                    : "Upload or drag and drop a images from the reference grid."}
                 </span>
               </div>
             { !beginnerMode ? (

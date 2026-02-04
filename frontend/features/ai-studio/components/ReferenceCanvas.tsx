@@ -225,7 +225,7 @@ export function ReferenceCanvas({
                       {isPromptOnly && onDeleteOutput ? (
                         <button
                           type="button"
-                          className="reference-card-action-btn"
+                          className="reference-card-action-btn reference-card-action-btn--danger"
                           aria-label="Delete text reference"
                           onClick={(event) => {
                             event.stopPropagation();

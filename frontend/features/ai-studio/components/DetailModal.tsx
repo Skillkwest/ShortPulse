@@ -3,21 +3,24 @@
  * Supports prompt-only view and media preview with metadata.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TrashSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 
 type DetailModalProps = {
   output: StudioOutput | null;
   onClose: () => void;
   onUpdatePrompt: (id: string, prompt: string) => void;
+  onDeleteOutput: (id: string) => void;
 };
 
 /**
  * Renders the detail modal for a selected reference.
  */
-export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProps) {
+export function DetailModal({ output, onClose, onUpdatePrompt, onDeleteOutput }: DetailModalProps) {
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   const mediaType = output?.mode === "image" ? "Image" : output?.mode === "video" ? "Video" : "Prompt";
   const isPromptOnly = output?.mode === "text" && !output.previewUrl;
@@ -28,6 +31,7 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
   const [draftPrompt, setDraftPrompt] = useState(output?.prompt ?? "");
   useEffect(() => {
     setDraftPrompt(output?.prompt ?? "");
+    setIsDeleteConfirmOpen(false);
   }, [output?.prompt, output?.id]);
 
   const canSave = useMemo(
@@ -112,6 +116,21 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
     link.click();
   }, [filename, output?.previewUrl]);
 
+  const handleRequestDelete = () => {
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleCancelDelete = () => {
+    setIsDeleteConfirmOpen(false);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!output?.id) return;
+    onDeleteOutput(output.id);
+    setIsDeleteConfirmOpen(false);
+    onClose();
+  };
+
   if (!output) return null;
 
   const metaItems = [
@@ -154,6 +173,10 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
                   Download
                 </button>
               )}
+              <button type="button" className="art-action-btn art-action-btn-danger" onClick={handleRequestDelete}>
+                <TrashSimple size={16} weight="bold" aria-hidden />
+                Delete
+              </button>
               <button
                 type="button"
                 className="art-action-btn"
@@ -171,7 +194,13 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
         {isPromptOnly && (
           <div className="art-prompt-only-header">
             <span className="reference-filename">Prompt</span>
-            <button type="button" className="art-close-btn" onClick={onClose}>×</button>
+            <div className="art-modal-action-row">
+              <button type="button" className="art-action-btn art-action-btn-danger" onClick={handleRequestDelete}>
+                <TrashSimple size={16} weight="bold" aria-hidden />
+                Delete
+              </button>
+              <button type="button" className="art-close-btn" onClick={onClose}>×</button>
+            </div>
           </div>
         )}
 
@@ -235,6 +264,22 @@ export function DetailModal({ output, onClose, onUpdatePrompt }: DetailModalProp
           )}
         </div>
       </div>
+      {isDeleteConfirmOpen ? (
+        <div className="art-confirm-backdrop" onClick={handleCancelDelete}>
+          <div className="art-confirm-card" onClick={(event) => event.stopPropagation()}>
+            <p className="art-confirm-title">Delete this reference?</p>
+            <p className="art-confirm-copy">Are you sure you want to delete this? Yes or no?</p>
+            <div className="art-confirm-actions">
+              <button type="button" className="art-action-btn" onClick={handleCancelDelete}>
+                No
+              </button>
+              <button type="button" className="art-action-btn art-action-btn-danger" onClick={handleConfirmDelete}>
+                Yes, delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

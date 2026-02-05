@@ -328,8 +328,20 @@
   cursor: pointer;
   transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
+.ai-studio-page[data-beginner-mode="on"] .reference-toggle {
+  border-color: rgba(4, 183, 135, 0.8);
+}
+
 .reference-toggle:hover:not(:disabled) {
   border-color: rgba(245, 185, 66, 0.6);
+}
+
+.ai-studio-page[data-beginner-mode="off"] .reference-toggle:hover:not(:disabled) {
+  border-color: rgba(4, 183, 135, 0.9);
+}
+
+.ai-studio-page[data-beginner-mode="on"] .reference-toggle:hover:not(:disabled) {
+  border-color: rgba(4, 183, 135, 0.95);
 }
 .reference-toggle.is-active {
   background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.8));
@@ -362,6 +374,16 @@
   background: #1a140c;
 }
 
+.ai-studio-page[data-beginner-mode="on"] .reference-toggle.is-active {
+  background: linear-gradient(135deg, rgba(4, 183, 135, 0.96), rgba(14, 213, 100, 0.658));
+  border-color: rgba(4, 183, 135, 0.96);
+  box-shadow: 0 6px 18px rgba(7, 143, 64, 0.34);
+}
+
+.ai-studio-page[data-beginner-mode="on"] .reference-toggle.is-active .reference-toggle-dot {
+  background: #071a18;
+}
+
 .step-badge {
   width: 28px;
   height: 28px;
@@ -388,6 +410,12 @@
   background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.9));
   color: #1a140c;
   box-shadow: 0 6px 18px rgba(245, 185, 66, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.ai-studio-page[data-beginner-mode="on"] .step-badge {
+  background: linear-gradient(135deg, rgba(4, 183, 135, 0.96), rgba(14, 213, 100, 0.658));
+  color: #000000;
+  box-shadow: 0 6px 18px rgba(7, 143, 64, 0.34), inset 0 1px 0 rgba(5, 175, 84, 0.813);
 }
 
 .step-header-copy {

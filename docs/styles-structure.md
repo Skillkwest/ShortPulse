@@ -6,7 +6,12 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - `styles/globals.css`: Aggregator; only imports other CSS files.
 - `styles/foundation.css`: Resets, tokens, typography, layout primitives, base page shells.
 - `styles/ui-patterns.css`: Buttons, chips, panels, stat cards, preview tiles, shared UI atoms.
-- `styles/workspace.css`: Dashboard/workspace chrome, module tiles, creator panels, auth/media layout.
+- `styles/workspace-shared.css`: Shared workspace primitives across routes.
+- `styles/workspace-chrome.css`: Workspace shell, nav, and page chrome.
+- `styles/workspace-dashboard.css`: Dashboard layout and tiles.
+- `styles/workspace-tools.css`: Tools/feature card styling.
+- `styles/workspace-media.css`: Media Library surfaces.
+- `styles/workspace-profile.css`: Profile/account/billing surfaces.
 - `styles/prefabs-agent.css`: Core styling for agent prefabs shared across features.
 - `styles/prefabs-agent-variants.css`: Compact/variant treatments for agent prefabs (chat shell, compact buttons).
 - `styles/performance-core.css`: Analytics chart shell, tooltips, filter bars, compact list cards.
@@ -31,8 +36,11 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 ## Adding styles
 - Prefer extending the feature sheet that matches the surface; avoid reintroducing a monolithic `globals.css`.
 - If a new surface does not fit existing files, add a new CSS file and import it from `globals.css`.
-- Keep each file well under 500 lines; split by concern if approaching the limit.
+- Aim to keep each file under ~500 lines; if it grows beyond that, document why and plan a split.
 - Avoid deep selectors; keep class-based styling aligned with React components.
+
+## Palette constraints
+- Avoid the dark tones `#21211e`, `#1f201c`, and `#1e1e1b`; use `#1c1f20` as the panel/base tone across surfaces.
 
 ## Import order
 `globals.css` imports in this order to maintain token availability and predictable overrides:

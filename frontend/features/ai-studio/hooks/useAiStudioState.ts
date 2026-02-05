@@ -10,6 +10,7 @@ import {
 } from "../constants";
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput, ToolId } from "../types";
+import type { ModelModalContext } from "../components/ModelModal";
 import {
   createKeiTask,
   fetchKeiTaskStatus,
@@ -26,9 +27,11 @@ import {
   submitFalKlingV26Text,
   submitFalKlingV25,
   submitFalKlingV25Text,
+  submitFalKlingMotionControl,
   submitFalSeedance,
   submitFalSeedream,
   submitFalVeo,
+  submitFalVeoFirstLast,
   submitImagen4Fast,
   submitFalNanoBanana,
   submitFalNanoBananaEdit,
@@ -110,6 +113,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const [detailOutputId, setDetailOutputId] = useState<string | null>(null);
   const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
   const [modelModalAnchor, setModelModalAnchor] = useState<string | null>(null);
+  const [modelModalContext, setModelModalContext] = useState<ModelModalContext | null>(null);
   const [modelModalPosition, setModelModalPosition] = useState<ModelModalPosition | null>(null);
   const [isPromptGenerating, setIsPromptGenerating] = useState<boolean>(false);
   const [uiError, setUiError] = useState<string | null>(null);
@@ -241,6 +245,36 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       setAspect(fallbackAspect);
     }
   }, [aspect, model]);
+
+  useEffect(() => {
+    if (!model) return;
+    const config = getModelConfig(model);
+    if (!config) return;
+    const isVideoModel =
+      config.mediaType === "video" || config.mediaType === "image-to-video" || config.mediaType === "multi";
+    if (!isVideoModel) return;
+    if (typeof config.defaultDurationSeconds === "number") {
+      setVideoDurationSeconds(config.defaultDurationSeconds);
+    }
+    if (config.defaultResolution) {
+      setVideoResolution(config.defaultResolution);
+    }
+    if (config.defaultAudio !== undefined) {
+      setVideoGenerateAudio(config.defaultAudio);
+    }
+  }, [model]);
+
+  // Ensure motion control models surface the motion reference UI.
+  useEffect(() => {
+    if (!model) return;
+    if (model === "fal-ai/kling-video/v2.6/pro/motion-control" && videoReferenceMode !== "motion") {
+      setVideoReferenceMode("motion");
+      return;
+    }
+    if (model === "fal-ai/veo3.1/first-last-frame-to-video" && videoReferenceMode !== "keyframes") {
+      setVideoReferenceMode("keyframes");
+    }
+  }, [model, videoReferenceMode]);
 
   // Keep model selection aligned with the current mode/tool filter and remember last picks per media type.
   useEffect(() => {
@@ -388,10 +422,11 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
 
       // Intelligent API fallback: if no reference images provided, automatically use text-based APIs
       const hasReferenceImages = imageInputs && imageInputs.length > 0;
+      const hasMotionReferences = Boolean(motionCharacterUrl && motionReferenceVideoUrl);
       let finalTool = effectiveTool;
       let finalModel = model;
 
-      if (!hasReferenceImages) {
+      if (!hasReferenceImages && !hasMotionReferences) {
         // Fallback to text-based generation when no references exist
         if (effectiveTool === "image") {
           finalTool = "text"; // Fallback to text-to-image
@@ -410,6 +445,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           // Map image-to-video models to their text-to-video equivalents
           const imageToVideoTextMap: Record<string, string> = {
             "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": "fal-ai/kling-video/v2.5-turbo/pro/text-to-video",
+            "fal-ai/veo3.1/first-last-frame-to-video": "fal-ai/veo3.1",
           };
           if (model && imageToVideoTextMap[model]) {
             finalModel = imageToVideoTextMap[model];
@@ -439,10 +475,18 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const isSeedanceModel = finalModel === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video";
       const isKling25ImageModel = finalModel === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
       const isKling25TextModel = finalModel === "fal-ai/kling-video/v2.5-turbo/pro/text-to-video";
+      const isKlingMotionControlModel = finalModel === "fal-ai/kling-video/v2.6/pro/motion-control";
+      const isVeoFirstLastFrameModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
       const isVeoModel = finalModel === "fal-ai/veo3.1";
       const isKling26Model = finalModel === "fal-ai/kling-video/v2.6/pro/text-to-video";
       const isSoraModel = finalModel === "fal-ai/sora-2/text-to-video/pro";
       const modelConfig = finalModel ? getModelConfig(finalModel) : null;
+      const useVideoSettings = selectedTool === "video";
+      const requestedDurationSeconds = useVideoSettings
+        ? videoDurationSeconds
+        : getDefaultDurationSeconds(finalModel);
+      const requestedResolution = useVideoSettings ? videoResolution : modelConfig?.defaultResolution;
+      const requestedAudio = useVideoSettings ? videoGenerateAudio : modelConfig?.defaultAudio ?? true;
 
       // Normalize image inputs (supports blob/data URLs from drops).
       const preparedImageInputs = (
@@ -470,10 +514,16 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         taskState: "pending",
         timestamp: "Submitting...",
         errorMessage: null,
-        previewUrl: isKling25ImageModel ? preparedImageInputs[0] ?? undefined : undefined,
+        previewUrl:
+          isKlingMotionControlModel
+            ? motionCharacterUrl ?? undefined
+            : isVeoFirstLastFrameModel || isKling25ImageModel
+              ? preparedImageInputs[0] ?? undefined
+              : undefined,
       };
 
-      if (isKling25ImageModel && preparedImageInputs.length === 0) {
+      const requiresImageReference = isKling25ImageModel;
+      if (requiresImageReference && preparedImageInputs.length === 0) {
         setOutputs((prev) => [
           {
             ...nextOutput,
@@ -489,13 +539,45 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         return;
       }
 
+      if (isKlingMotionControlModel && (!motionCharacterUrl || !motionReferenceVideoUrl)) {
+        setOutputs((prev) => [
+          {
+            ...nextOutput,
+            taskState: "fail",
+            status: "ready",
+            timestamp: "Missing motion references",
+            errorMessage: "Motion control requires a character image and a motion reference video.",
+          },
+          ...prev,
+        ]);
+        setActiveOutputId(id);
+        setSaved(false);
+        return;
+      }
+
+      if (isVeoFirstLastFrameModel && preparedImageInputs.length < 2) {
+        setOutputs((prev) => [
+          {
+            ...nextOutput,
+            taskState: "fail",
+            status: "ready",
+            timestamp: "Missing frames",
+            errorMessage: "First/Last Frame generation requires both a first and last frame image.",
+          },
+          ...prev,
+        ]);
+        setActiveOutputId(id);
+        setSaved(false);
+        return;
+      }
+
       setOutputs((prev) => [nextOutput, ...prev]);
       setActiveOutputId(id);
       setSaved(false);
 
       try {
         if (isKling25ImageModel) {
-          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(finalModel));
+          const klingDuration = resolveKlingDuration(requestedDurationSeconds);
           const { request_id } = await submitFalKlingV25({
             prompt: cleanedPrompt,
             image_url: preparedImageInputs[0],
@@ -511,6 +593,33 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             timestamp: "Submitted",
           }));
           startPollingTask(request_id, id, 0, "fal-kling-25");
+          return;
+        }
+
+        if (isKlingMotionControlModel) {
+          const characterUrl = motionCharacterUrl ? await prepareImageUrl(motionCharacterUrl) : null;
+          if (!characterUrl) {
+            notifyGenerationFailure(id, "Motion control requires a valid character image URL.");
+            return;
+          }
+          if (motionReferenceVideoUrl?.startsWith("blob:")) {
+            notifyGenerationFailure(id, "Motion control requires a hosted video URL (no local blobs).");
+            return;
+          }
+          const { request_id } = await submitFalKlingMotionControl({
+            prompt: cleanedPrompt,
+            image_url: characterUrl,
+            video_url: motionReferenceVideoUrl as string,
+            keep_original_sound: true,
+            character_orientation: "video",
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(request_id, id, 0, "fal-kling");
           return;
         }
 
@@ -560,13 +669,14 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         }
 
         if (isKling25TextModel) {
-          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(finalModel));
+          const klingDuration = resolveKlingDuration(requestedDurationSeconds);
           const { request_id } = await submitFalKlingV25Text({
             prompt: cleanedPrompt,
             aspect_ratio: resolveKlingAspectRatio(aspect),
             duration: klingDuration,
             negative_prompt: "blur, distort, and low quality",
             cfg_scale: 0.5,
+            generate_audio: requestedAudio,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -585,11 +695,11 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
               : modelConfig?.defaultAspect ?? "16:9";
           const { request_id } = await submitFalSeedance({
             prompt: cleanedPrompt,
-            duration: getDefaultDurationSeconds(finalModel).toString(),
+            duration: requestedDurationSeconds.toString(),
             aspect_ratio: normalizedAspect as "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9",
             negative_prompt: "blur, distort, and low quality",
             cfg_scale: 0.5,
-            generate_audio: true,
+            generate_audio: requestedAudio,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -602,14 +712,14 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         }
 
         if (isKling26Model) {
-          const klingDuration = resolveKlingDuration(getDefaultDurationSeconds(finalModel));
+          const klingDuration = resolveKlingDuration(requestedDurationSeconds);
           const { request_id } = await submitFalKlingV26Text({
             prompt: cleanedPrompt,
             aspect_ratio: resolveKlingAspectRatio(aspect),
             duration: klingDuration,
             negative_prompt: "blur, distort, and low quality",
             cfg_scale: 0.5,
-            generate_audio: true,
+            generate_audio: requestedAudio,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -621,13 +731,41 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           return;
         }
 
+        if (isVeoFirstLastFrameModel) {
+          const normalizedAspect = aspect === "16:9" || aspect === "9:16" ? aspect : "auto";
+          const durationSeconds = requestedDurationSeconds;
+          const duration = durationSeconds <= 4 ? "4s" : durationSeconds <= 6 ? "6s" : "8s";
+          const resolution = requestedResolution?.toLowerCase().includes("4k")
+            ? "4k"
+            : requestedResolution?.toLowerCase().includes("1080")
+              ? "1080p"
+              : "720p";
+          const { request_id } = await submitFalVeoFirstLast({
+            prompt: cleanedPrompt,
+            first_frame_url: preparedImageInputs[0],
+            last_frame_url: preparedImageInputs[1],
+            aspect_ratio: normalizedAspect as "auto" | "16:9" | "9:16",
+            duration,
+            resolution,
+            generate_audio: requestedAudio,
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(request_id, id, 0, "fal-veo");
+          return;
+        }
+
         if (isSoraModel) {
-          const soraDuration = resolveSoraDuration(getDefaultDurationSeconds(finalModel));
+          const soraDuration = resolveSoraDuration(requestedDurationSeconds);
           const normalizedAspect =
             modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16")
               ? aspect
-              : (modelConfig?.defaultAspect as "16:9" | "9:16" | undefined) ?? "16:9";
-          const resolution = modelConfig?.defaultResolution?.toLowerCase().includes("720") ? "720p" : "1080p";
+            : (modelConfig?.defaultAspect as "16:9" | "9:16" | undefined) ?? "16:9";
+          const resolution = requestedResolution?.toLowerCase().includes("720") ? "720p" : "1080p";
           const { request_id } = await submitFalSoraPro({
             prompt: cleanedPrompt,
             aspect_ratio: normalizedAspect as "16:9" | "9:16",
@@ -649,17 +787,17 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           const normalizedAspect = modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16")
             ? aspect
             : (modelConfig?.defaultAspect as "16:9" | "9:16" | undefined) ?? "16:9";
-          const resolution = modelConfig?.defaultResolution?.toLowerCase().includes("4k")
+          const resolution = requestedResolution?.toLowerCase().includes("4k")
             ? "4k"
-            : modelConfig?.defaultResolution?.toLowerCase().includes("720")
+            : requestedResolution?.toLowerCase().includes("720")
               ? "720p"
               : "1080p";
           const { request_id } = await submitFalVeo({
             prompt: cleanedPrompt,
             aspect_ratio: normalizedAspect as "16:9" | "9:16",
-            duration: `${Math.max(4, Math.min(8, getDefaultDurationSeconds(finalModel)))}s`,
+            duration: `${Math.max(4, Math.min(8, requestedDurationSeconds))}s`,
             resolution: resolution as "720p" | "1080p" | "4k",
-            generate_audio: true,
+            generate_audio: requestedAudio,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -924,6 +1062,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       onDebitCredits,
       outputs,
       prompt,
+      motionCharacterUrl,
+      motionReferenceVideoUrl,
       referenceImageUrl,
       selectedTool,
       startPollingTask,
@@ -1121,15 +1261,20 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     [activeOutput, model, mode],
   );
 
-  const openModelModal = useCallback((anchorId: string, target: HTMLElement) => {
-    setModelModalAnchor(anchorId);
-    setModelModalPosition(computeModalPosition(target));
-    setIsModelModalOpen(true);
-  }, []);
+  const openModelModal = useCallback(
+    (anchorId: string, target: HTMLElement, context: ModelModalContext | null = null) => {
+      setModelModalAnchor(anchorId);
+      setModelModalContext(context);
+      setModelModalPosition(computeModalPosition(target));
+      setIsModelModalOpen(true);
+    },
+    [],
+  );
 
   const closeModelModal = useCallback(() => {
     setIsModelModalOpen(false);
     setModelModalAnchor(null);
+    setModelModalContext(null);
   }, []);
 
   return {
@@ -1181,6 +1326,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setDetailOutputId,
     isModelModalOpen,
     modelModalAnchor,
+    modelModalContext,
     modelModalPosition,
     generateOutput,
     regenerateOutput,

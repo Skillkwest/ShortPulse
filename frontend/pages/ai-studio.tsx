@@ -7,18 +7,20 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPageContent";
 import { aspectOptions, modelOptions } from "../features/ai-studio/constants";
 import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
+import type { ModelModalContext } from "../features/ai-studio/components/ModelModal";
 import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWorkflow";
 import { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
-import { buildDefaultPricingParams, getModelConfig } from "../features/ai-studio/logic/pricing";
+import { buildDefaultPricingParams, computeCostForModel, getModelConfig } from "../features/ai-studio/logic/pricing";
 import type { PricingParams } from "../features/ai-studio/logic/pricingTypes";
 import { useAiAgent } from "../features/ai-agent/useAiAgent";
 import { randomId } from "../features/ai-studio/logic/ids";
 import type { AgentActions, AgentContext, AgentMessage } from "../prefabs/agent";
-import { postGeneratePrompt } from "../features/ai-studio/logic/promptGeneration";
+import { postGeneratePrompt, TEXT_PROMPT_MODEL_ID } from "../features/ai-studio/logic/promptGeneration";
 import { postDescribeImage, prepareImageUrl } from "../features/ai-studio/logic/imageDescription";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
 import { filterModelOptions } from "../features/ai-studio/logic/stateParsers";
+import { estimatePromptTokens } from "../features/ai-studio/logic/tokenEstimates";
 
 export default function AiStudioPage() {
   const { balanceCents, balanceLoading, debit } = useCredits();
@@ -98,6 +100,7 @@ export default function AiStudioPage() {
     setDetailOutputId,
     isModelModalOpen,
     modelModalAnchor,
+    modelModalContext,
     modelModalPosition,
     isPromptGenerating,
     generateOutput,
@@ -136,8 +139,12 @@ export default function AiStudioPage() {
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
     [agentMessages],
   );
-  const handleOpenModelModal = (anchorId: string, target: HTMLElement) => {
-    openModelModal(anchorId, target);
+  const handleOpenModelModal = (
+    anchorId: string,
+    target: HTMLElement,
+    context: ModelModalContext | null = null,
+  ) => {
+    openModelModal(anchorId, target, context);
   };
 
   const handleSelectModelFromModal = (value: string) => {
@@ -250,18 +257,24 @@ export default function AiStudioPage() {
     if (!prompt.trim()) return;
     setIsPromptRefining(true);
     try {
+      const debitPromptRefine = () => {
+        if (promptRefineCostCredits == null) return;
+        debit(promptRefineCostCredits, "Prompt refine", `prompt-${Date.now()}`).catch(() => {});
+      };
       // Primary: dedicated prompt refiner
       const refined = await postGeneratePrompt(prompt);
       if (refined?.prompt) {
         setSharedPrompt(refined.prompt);
         setLatestAgentPrompt(refined.prompt);
         addAgentPromptReference(refined.prompt, refined.prompt ? "Refined prompt" : undefined);
+        debitPromptRefine();
         return;
       }
       // Fallback: chat agent with text hint
       const result = await handleAgentSend(prompt, { captureResult: true, modeHint: "text" });
       if (result && typeof result === "object" && "prompt" in result) {
         addAgentPromptReference(result.prompt, result.referenceTitle ?? undefined);
+        debitPromptRefine();
       }
     } finally {
       setIsPromptRefining(false);
@@ -273,6 +286,10 @@ export default function AiStudioPage() {
     const target = outputs.find((item) => item.id === outputId) ?? null;
     setActiveOutputId(outputId);
     if (!target?.previewUrl) return;
+    const debitDescribe = () => {
+      if (describeCostCredits == null) return;
+      debit(describeCostCredits, "Image describe", `describe-${Date.now()}`).catch(() => {});
+    };
 
     // Primary: dedicated describe-image endpoint
     const safeUrl = await prepareImageUrl(target.previewUrl);
@@ -281,6 +298,7 @@ export default function AiStudioPage() {
       addAgentPromptReference(described.description, "Image describe");
       setSharedPrompt(described.description);
       setLatestAgentPrompt(described.description);
+      debitDescribe();
       return;
     }
 
@@ -294,6 +312,7 @@ export default function AiStudioPage() {
       addAgentPromptReference(result.prompt, result.referenceTitle);
       setSharedPrompt(result.prompt);
       setLatestAgentPrompt(result.prompt);
+      debitDescribe();
     }
   };
 
@@ -497,9 +516,17 @@ export default function AiStudioPage() {
       selectedTool,
       useReferenceImageIndicator,
       getDefaultDurationSeconds,
+      videoDurationSeconds,
+      videoResolution,
+      videoGenerateAudio,
       balanceCredits,
       costParamsForModel,
     });
+
+  const promptRefineCostCredits = useMemo(() => {
+    const breakdown = computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatePromptTokens(prompt));
+    return breakdown?.credits ?? null;
+  }, [prompt]);
 
   const handleBlockedGeneration = () => {
     if (generationGuardrail) {
@@ -523,8 +550,9 @@ export default function AiStudioPage() {
     }
 
     if (
-      (effectiveTool === "create" || effectiveTool === "text") &&
-      (effectiveMode === "image" || effectiveMode === "video") &&
+      (((effectiveTool === "create" || effectiveTool === "text") && (effectiveMode === "image" || effectiveMode === "video")) ||
+        effectiveTool === "image" ||
+        effectiveTool === "video") &&
       costToDebit &&
       model &&
       hasCreditsForDebit
@@ -556,6 +584,18 @@ export default function AiStudioPage() {
       return;
     }
     if (selectedTool === "video" && currentCostCredits && model && hasSufficientCreditsForCost) {
+      const memo = `${modelConfig?.label ?? model} generation`;
+      debit(currentCostCredits, memo, `out-${Date.now()}`).catch(() => { });
+    }
+    regenerateOutput();
+  };
+
+  const handleImageRegenerateWithDebit = () => {
+    if (isGenerateDisabled || agentIsSending) {
+      handleBlockedGeneration();
+      return;
+    }
+    if (currentCostCredits && model && hasSufficientCreditsForCost) {
       const memo = `${modelConfig?.label ?? model} generation`;
       debit(currentCostCredits, memo, `out-${Date.now()}`).catch(() => { });
     }
@@ -675,9 +715,10 @@ export default function AiStudioPage() {
           onExtraImageChange: setExtraImageUrl,
           onPromptTextChange: setSharedPrompt,
           onSave: () => savePromptReference(referenceText ?? ""),
-          onRegenerate: regenerateOutput,
+          onRegenerate: handleImageRegenerateWithDebit,
           onOpenMediaLibrary: () => window.open("/media-library", "_self"),
           costCredits: currentCostCredits,
+          isGenerateDisabled: isGenerateDisabled || agentIsSending,
           guardrailReason: generationGuardrail,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
           agentEnabled,
@@ -781,6 +822,8 @@ export default function AiStudioPage() {
           isOpen: isModelModalOpen,
           position: modelModalPosition,
           options: filteredModelOptions,
+          anchorId: modelModalAnchor,
+          context: modelModalContext,
           onClose: closeModelModal,
           onSelect: handleSelectModelFromModal,
         }}

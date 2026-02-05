@@ -20,6 +20,9 @@ type ViewModelInput = {
   selectedTool: ToolId | null;
   useReferenceImageIndicator: boolean;
   getDefaultDurationSeconds: (modelId: string | null) => number;
+  videoDurationSeconds: number;
+  videoResolution: string;
+  videoGenerateAudio: boolean;
   balanceCredits: number | null;
   costParamsForModel: (overrides?: Omit<PricingParams, "modelId">) => PricingParams;
 };
@@ -35,14 +38,20 @@ export const useAiStudioViewModel = ({
   selectedTool,
   useReferenceImageIndicator,
   getDefaultDurationSeconds,
+  videoDurationSeconds,
+  videoResolution,
+  videoGenerateAudio,
   balanceCredits,
   costParamsForModel,
 }: ViewModelInput) => {
   const isDescribeMode = (selectedTool === "create" || selectedTool === "text") && mode === "text" && useReferenceImageIndicator;
   const requiresModelSelection =
-    ((selectedTool === "create" || selectedTool === "text") && mode !== "text") || selectedTool === "video";
+    ((selectedTool === "create" || selectedTool === "text") && mode !== "text") ||
+    selectedTool === "video" ||
+    selectedTool === "image";
   const isModelSelected = Boolean(model);
   const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
+  const isVideoTool = selectedTool === "video";
 
   const estimatedTextTokens = useMemo(() => estimatePromptTokens(prompt), [prompt]);
   const estimatedDescribeTokens = useMemo(
@@ -76,7 +85,10 @@ export const useAiStudioViewModel = ({
 
     if (selectedTool === "video") {
       if (!model) return null;
-      return computeCostForModel(model, costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }));
+      return computeCostForModel(
+        model,
+        costParamsForModel({ durationSeconds: videoDurationSeconds, resolution: videoResolution, audio: videoGenerateAudio }),
+      );
     }
 
     return null;
@@ -89,15 +101,25 @@ export const useAiStudioViewModel = ({
     mode,
     model,
     selectedTool,
+    videoDurationSeconds,
+    videoResolution,
+    videoGenerateAudio,
   ]);
 
   const currentCostCredits = currentCost?.credits ?? null;
   // Cost shown in the model picker (and what we also want on prompt-card Generate pills)
   const modelPickerCostCredits = useMemo(() => {
     if (!model) return null;
-    const breakdown = computeCostForModel(model, costParamsForModel());
+    const breakdown = computeCostForModel(
+      model,
+      costParamsForModel(
+        isVideoTool
+          ? { durationSeconds: videoDurationSeconds, resolution: videoResolution, audio: videoGenerateAudio }
+          : {},
+      ),
+    );
     return breakdown?.credits ?? null;
-  }, [model, costParamsForModel]);
+  }, [costParamsForModel, isVideoTool, model, videoDurationSeconds, videoGenerateAudio, videoResolution]);
 
   const promptGenerateCostCredits = useMemo(() => {
     if (!model) return null;
@@ -106,7 +128,9 @@ export const useAiStudioViewModel = ({
   }, [aspect, costParamsForModel, model]);
 
   const costedFlow =
-    ((selectedTool === "create" || selectedTool === "text") && (mode === "image" || mode === "video")) || selectedTool === "video";
+    ((selectedTool === "create" || selectedTool === "text") && (mode === "image" || mode === "video")) ||
+    selectedTool === "video" ||
+    selectedTool === "image";
   const hasReferenceImages = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
 
   const requiresVideoReference =

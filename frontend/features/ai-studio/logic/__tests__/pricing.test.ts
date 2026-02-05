@@ -97,6 +97,21 @@ describe("computeCostForModel (Kling 2.6 Text to Video)", () => {
   });
 });
 
+describe("computeCostForModel (Kling 2.6 Motion Control)", () => {
+  const modelId = "fal-ai/kling-video/v2.6/pro/motion-control";
+
+  it("defaults to 10s ($0.112/sec = 112 credits)", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 10 });
+    expect(cost?.credits).toBe(112);
+    expect(cost?.usd).toBeCloseTo(1.12, 2);
+  });
+
+  it("charges $0.112/sec for shorter durations", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 5 });
+    expect(cost?.credits).toBe(56);
+  });
+});
+
 describe("computeCostForModel (Nano Banana Pro)", () => {
   const modelId = "fal-ai/nano-banana-pro";
 

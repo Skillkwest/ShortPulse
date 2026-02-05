@@ -13,7 +13,7 @@ Purpose: centralize pre-styled UI elements that multiple features/pages rely on 
 - The element would otherwise force a feature-to-feature dependency.
 
 ## Guidelines
-- Keep each file under ~500 lines; split core vs. variants if needed.
+- Aim to keep each file under ~500 lines; if it grows beyond that, document why and plan a split.
 - Add top-level comments plus doc comments on exported components.
 - Co-locate domain types; export everything through `index.ts` and use relative imports from the current file location.
 - Prefer extending existing prefab styles before adding new files; update `globals.css` import order when introducing new sheets.

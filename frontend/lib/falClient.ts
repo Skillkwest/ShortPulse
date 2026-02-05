@@ -36,6 +36,14 @@ export type FalKlingTextSubmitRequest = {
   generate_audio?: boolean;
 };
 
+export type FalKlingMotionControlSubmitRequest = {
+  prompt: string;
+  image_url: string;
+  video_url: string;
+  keep_original_sound?: boolean;
+  character_orientation?: "image" | "video";
+};
+
 export type FalKlingStatusResponse = {
   status?: string;
   state?: string;
@@ -59,6 +67,19 @@ export type FalVeoSubmitRequest = {
   prompt: string;
   aspect_ratio?: "16:9" | "9:16";
   duration?: "4s" | "6s" | "8s" | string;
+  negative_prompt?: string;
+  resolution?: "720p" | "1080p" | "4k";
+  generate_audio?: boolean;
+  seed?: number;
+  auto_fix?: boolean;
+};
+
+export type FalVeoFirstLastSubmitRequest = {
+  prompt: string;
+  first_frame_url: string;
+  last_frame_url: string;
+  aspect_ratio?: "auto" | "16:9" | "9:16";
+  duration?: "4s" | "6s" | "8s";
   negative_prompt?: string;
   resolution?: "720p" | "1080p" | "4k";
   generate_audio?: boolean;
@@ -481,7 +502,34 @@ export const submitFalKlingV26Text = async (payload: FalKlingTextSubmitRequest):
   return { request_id: requestId };
 };
 
+const FAL_KLING_MOTION_CONTROL_SUBMIT = `${FAL_API_BASE}/kling-v26-motion-control-submit`;
+
+export const submitFalKlingMotionControl = async (
+  payload: FalKlingMotionControlSubmitRequest,
+): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(FAL_KLING_MOTION_CONTROL_SUBMIT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal Kling 2.6 motion control did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
 export const fetchFalKlingStatus = async (requestId: string): Promise<FalKlingStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalKlingStatusResponse>(response);
+};
+
+export const fetchFalKlingV26Status = async (requestId: string): Promise<FalKlingStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -523,6 +571,20 @@ export const submitFalVeo = async (payload: FalVeoSubmitRequest): Promise<FalSub
   const requestId = data.request_id || (data as any).requestId;
   if (!requestId) {
     throw new Error("Fal Veo did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const submitFalVeoFirstLast = async (payload: FalVeoFirstLastSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-first-last-frame-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal Veo first/last frame did not return a request_id");
   }
   return { request_id: requestId };
 };

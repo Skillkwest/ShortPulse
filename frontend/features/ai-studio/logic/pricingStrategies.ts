@@ -22,6 +22,7 @@ const VEO_AUDIO_RATE_4K_USD_PER_SECOND = 0.6;
 const VEO_NO_AUDIO_RATE_4K_USD_PER_SECOND = 0.4;
 const KLING_26_RATE_AUDIO_OFF_USD_PER_SECOND = 0.07;
 const KLING_26_RATE_AUDIO_ON_USD_PER_SECOND = 0.14;
+const KLING_26_MOTION_USD_PER_SECOND = 0.112;
 const SORA2_PRO_STANDARD_10S_USD_PER_SECOND = 0.15; // 150 credits / 10s
 const SORA2_PRO_STANDARD_15S_USD_PER_SECOND = 0.18; // 270 credits / 15s
 const SORA2_PRO_HIGH_10S_USD_PER_SECOND = 0.33; // 330 credits / 10s
@@ -240,6 +241,19 @@ const computeKling26PerSecondCost: StrategyFn = (params) => {
   };
 };
 
+const computeKling26MotionPerSecondCost: StrategyFn = (params) => {
+  const duration = resolveDefaultDuration(params, DEFAULT_KLING_DURATION_SECONDS);
+  const usd = KLING_26_MOTION_USD_PER_SECOND * duration;
+  const credits = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
+  return {
+    credits,
+    usd: credits * CREDIT_VALUE_USD,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+  };
+};
+
 const computeVeoPerSecondCost: StrategyFn = (params) => {
   const duration = resolveDefaultDuration(params, 8);
   const res = resolveDefaultResolution(params, "1080p").toLowerCase();
@@ -336,6 +350,7 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "seedream-per-image": computeSeedreamPerImageCost,
   "kling-2.5-per-duration": computeKling25PerDurationCost,
   "kling-2.6-per-second": computeKling26PerSecondCost,
+  "kling-2.6-motion-per-second": computeKling26MotionPerSecondCost,
   "veo-3-per-second": computeVeoPerSecondCost,
   "sora-2-pro-per-second": computeSora2ProPerSecondCost,
   "seedance-1.5-per-second": computeSeedancePerSecondCost,

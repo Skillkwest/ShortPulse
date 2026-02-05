@@ -8,10 +8,12 @@ import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
 import { extractDragDropPayload, extractVideoDragDropPayload, isImageDragTransfer, isVideoDragTransfer } from "../utils/dragDrop";
 import { modelLogos } from "../constants";
+import { stripEditLabel } from "../utils/modelLabels";
 import { PromptStep } from "./PromptStep";
 import { CaretDown } from "phosphor-react";
 import { AgentGenerateButton } from "../../../prefabs/agent";
 import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
+import type { ModelModalContext } from "./ModelModal";
 
 type ReferencePropertiesPanelProps = {
   variant: "image" | "video";
@@ -39,7 +41,7 @@ type ReferencePropertiesPanelProps = {
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
   onAspectChange: (value: string) => void;
-  onModelPickerOpen: (anchorId: string, target: HTMLElement) => void;
+  onModelPickerOpen: (anchorId: string, target: HTMLElement, context?: ModelModalContext | null) => void;
   onPrimaryImageChange: (url: string | null) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
@@ -483,12 +485,18 @@ export function ReferencePropertiesPanel({
                   type="button"
                   className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""}`}
                   data-model-anchor="reference-model"
-                  onClick={(event) => onModelPickerOpen("reference-model", event.currentTarget)}
+                  onClick={(event) =>
+                    onModelPickerOpen(
+                      "reference-model",
+                      event.currentTarget,
+                      variant === "image" ? "reference-image" : "reference-video",
+                    )
+                  }
                 >
                   <div className="model-picker-row">
                     <span className="model-picker-value">
                       {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
-                      {modelLabel}
+                      {stripEditLabel(modelLabel)}
                     </span>
                     <span className="model-chip-pill model-picker-pill">
                       <span aria-hidden="true" className="model-chip-icon">✦</span>

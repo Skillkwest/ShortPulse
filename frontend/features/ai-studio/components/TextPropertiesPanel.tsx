@@ -13,6 +13,7 @@ import {
 import { AspectDropdown } from "./AspectDropdown";
 import { StudioMode } from "../types";
 import { modelLogos } from "../constants";
+import type { ModelModalContext } from "./ModelModal";
 import { AgentSaveButton, AgentGenerateButton } from "../../../prefabs/agent";
 import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
@@ -37,7 +38,7 @@ type TextPropertiesPanelProps = {
   modelModalAnchor: string | null;
   onModeChange: (mode: StudioMode) => void;
   onAspectChange: (value: string) => void;
-  onModelPickerOpen: (anchorId: string, target: HTMLElement) => void;
+  onModelPickerOpen: (anchorId: string, target: HTMLElement, context?: ModelModalContext | null) => void;
   onPromptChange: (value: string) => void;
   onToggleReferenceIndicator: () => void;
   costCredits?: number | null;
@@ -182,6 +183,12 @@ export function TextPropertiesPanel({
     onStepActionClick?.(step);
   };
 
+  const handleCreateModelOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const context: ModelModalContext | null =
+      mode === "image" ? "text-image" : mode === "video" ? "text-video" : null;
+    onModelPickerOpen("create-model", event.currentTarget, context);
+  };
+
   const expandIfCollapsed = (step: "mode" | "model" | "prompt") => {
     setCollapsedSteps((prev) => {
       if (!prev[step]) {
@@ -315,7 +322,7 @@ export function TextPropertiesPanel({
                   type="button"
                   className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""}`}
                   data-model-anchor="create-model"
-                  onClick={(event) => onModelPickerOpen("create-model", event.currentTarget)}
+                  onClick={handleCreateModelOpen}
                 >
                   <div className="model-picker-row">
                     <span className="model-picker-value">

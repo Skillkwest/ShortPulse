@@ -9,10 +9,10 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 
 ## Manual product smoke
 - Auth: sign in/out works; protected routes redirect to `/auth` when unauthenticated
-- Saved Creators: add/edit/remove a handle; data is user-scoped
 - Media Library: upload/list/download/delete/rename; storage paths are user-scoped
-- Performance: data actions rail works; charts/cards render; no console errors
 - AI Studio: core workflow renders; drag/drop surfaces behave as expected (per current UI)
+- Dashboard + Profile: core layout, settings/billing sections, and logout flow behave as expected
+- Credits & pricing: model cost display matches selected model, and debits are recorded for generation runs
 
 ## Supabase safety (when schema/policies change)
 - RLS enabled and policies enforce `user_id = auth.uid()` for user-owned tables
@@ -23,3 +23,6 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 - Update `README.md` and relevant `docs/sop_*.md`
 - If it’s a durable architectural decision, write an ADR in `docs/adr/`
 
+## Post‑MVP checks (run when these surfaces are enabled)
+- Saved Creators: add/edit/remove a handle; data is user-scoped
+- Performance: data actions rail works; charts/cards render; no console errors

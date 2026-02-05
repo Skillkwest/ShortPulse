@@ -2,10 +2,13 @@
  * Anchored model picker modal.
  * Positions next to the invoking control and lists available generation models with cost badges.
  */
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MagnifyingGlass } from "phosphor-react";
 import { modelLogos, modelOptions, ModelOption } from "../constants";
 import { buildDefaultPricingParams, computeCostForModel } from "../logic/pricing";
+import { stripEditLabel } from "../utils/modelLabels";
+
+export type ModelModalContext = "reference-image" | "reference-video" | "text-image" | "text-video";
 
 type ModelModalProps = {
   isOpen: boolean;
@@ -13,6 +16,8 @@ type ModelModalProps = {
   onClose: () => void;
   onSelect: (value: string) => void;
   options?: ModelOption[];
+  anchorId?: string | null;
+  context?: ModelModalContext | null;
 };
 
 type ModelMeta = {
@@ -74,6 +79,17 @@ const modelMeta: Record<string, ModelMeta> = {
     tags: ["Video"],
     verified: true,
   },
+  "fal-ai/kling-video/v2.6/pro/motion-control": {
+    provider: "Kling",
+    description: "Kling 2.6 Motion Control (Pro) transfers movement from a reference video to a character image.",
+    tags: ["Video"],
+  },
+  "fal-ai/veo3.1/first-last-frame-to-video": {
+    provider: "Google via Fal",
+    description: "Veo 3.1 first/last frame-to-video for animating between two reference frames.",
+    tags: ["Video"],
+    verified: true,
+  },
   "fal-ai/sora-2/text-to-video/pro": {
     provider: "OpenAI via Fal",
     description: "Sora 2 Pro text-to-video via Fal queue with HD motion, physics, and native audio.",
@@ -121,6 +137,8 @@ const modelMeta: Record<string, ModelMeta> = {
   },
 };
 
+const isImageToImageModel = (modelId: string) => /\/edit(\b|\/|$)/i.test(modelId) || /image-to-image/i.test(modelId);
+
 const sectionLogos: Record<string, string> = {
   Flux: "/flux%20LOGO.png",
   Google: "/Google%20LOGO.png",
@@ -146,10 +164,24 @@ const resolveModelLogo = (modelId: string) => {
   return sectionLogos[fallbackKey];
 };
 
+const contextTitleMap: Record<ModelModalContext, string> = {
+  "reference-image": "Image-to-Image",
+  "reference-video": "Image-to-Video",
+  "text-image": "Text-to-Image",
+  "text-video": "Text-to-Video",
+};
+
+const contextTooltipTagMap: Record<ModelModalContext, string> = {
+  "reference-image": "Image-to-Image",
+  "reference-video": "Image-to-Video",
+  "text-image": "Text-to-Image",
+  "text-video": "Text-to-Video",
+};
+
 /**
  * Renders the floating model selection modal.
  */
-export function ModelModal({ isOpen, position, onClose, onSelect, options = modelOptions }: ModelModalProps) {
+export function ModelModal({ isOpen, position, onClose, onSelect, options = modelOptions, anchorId, context }: ModelModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [recentValues, setRecentValues] = useState<string[]>([]);
   const [chipTooltip, setChipTooltip] = useState<{
@@ -193,6 +225,13 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
   );
 
   const optionMap = useMemo(() => new Map(filteredOptions.map((option) => [option.value, option])), [filteredOptions]);
+  const getDisplayLabel = useCallback(
+    (value: string) => {
+      const option = optionMap.get(value);
+      return option ? stripEditLabel(option.label) : value;
+    },
+    [optionMap],
+  );
 
   const fluxOrder = ["fal-ai/flux-1/schnell", "fal/flux-2", "fal/flux-2-pro", "fal/flux-2-pro/edit", "fal/flux-2-max"];
   const fluxOptions = fluxOrder
@@ -214,6 +253,8 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
   const recentOptions = recentValues
     .map((value) => optionMap.get(value))
     .filter((item): item is ModelOption => Boolean(item));
+  const modalTitle = context && contextTitleMap[context] ? contextTitleMap[context] : "Models";
+  const tooltipContextTag = context ? contextTooltipTagMap[context] : undefined;
 
   const handleSelect = (value: string) => {
     setRecentValues((prev) => {
@@ -297,7 +338,7 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
                       <img className="model-chip-logo-img" src={logoSrc} alt="" aria-hidden />
                     ) : null}
                     <div className="model-chip-text">
-                      <span className="model-chip-title">{option.label}</span>
+                      <span className="model-chip-title">{getDisplayLabel(option.value)}</span>
                     </div>
                   </div>
                   <span className="model-chip-pill">
@@ -330,7 +371,7 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
       >
         <div className="model-modal-header">
           <div className="model-modal-title-group">
-            <p className="model-modal-title">Models</p>
+            <p className="model-modal-title">{modalTitle}</p>
           </div>
           <div className="model-modal-header-actions">
             <div className="model-modal-search">
@@ -348,16 +389,18 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
             </button>
           </div>
         </div>
-        {renderSection("Models", orderedOptions)}
+        <div className="model-modal-scroll">
+          {renderSection("Models", orderedOptions)}
+        </div>
         {chipTooltip ? (
           <div
             className={`model-chip-tooltip ${chipTooltip.placement === "below" ? "is-below" : "is-above"}`}
             style={{ top: chipTooltip.top, left: chipTooltip.left, ["--tooltip-arrow-offset" as any]: `${chipTooltip.arrowOffset}px` }}
             role="tooltip"
           >
-            <div className="model-chip-tooltip-header">
-              <div>
-                <p className="model-chip-tooltip-title">{options.find((opt) => opt.value === chipTooltip.modelId)?.label}</p>
+                <div className="model-chip-tooltip-header">
+                  <div>
+                    <p className="model-chip-tooltip-title">{getDisplayLabel(chipTooltip.modelId)}</p>
                 {modelMeta[chipTooltip.modelId]?.provider ? (
                   <p className="model-chip-tooltip-provider">{modelMeta[chipTooltip.modelId]?.provider}</p>
                 ) : null}
@@ -367,15 +410,27 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
               <p className="model-chip-tooltip-description">{modelMeta[chipTooltip.modelId]?.description}</p>
             ) : null}
             <div className="model-chip-tooltip-meta">
-              {modelMeta[chipTooltip.modelId]?.tags?.length ? (
-                <div className="model-chip-tooltip-tags">
-                  {modelMeta[chipTooltip.modelId]?.tags?.map((tag) => (
-                    <span key={`${chipTooltip.modelId}-${tag}`} className="model-chip-tag">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
+              {(() => {
+                const tagSet = new Set<string>(modelMeta[chipTooltip.modelId]?.tags ?? []);
+                if (tooltipContextTag) {
+                  tagSet.add(tooltipContextTag);
+                } else if (isImageToImageModel(chipTooltip.modelId)) {
+                  tagSet.add("Image-to-Image");
+                }
+                const tooltipTags = Array.from(tagSet);
+                if (!tooltipTags.length) {
+                  return null;
+                }
+                return (
+                  <div className="model-chip-tooltip-tags">
+                    {tooltipTags.map((tag) => (
+                      <span key={`${chipTooltip.modelId}-${tag}`} className="model-chip-tag">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
               <span className="model-chip-tooltip-credits">
                 <span aria-hidden="true" className="model-chip-tooltip-sparkle">✦</span> {formatCredits(chipTooltip.modelId)} credits
               </span>

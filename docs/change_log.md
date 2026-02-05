@@ -119,6 +119,14 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2027-01-04 (AI Studio create/recreate polish)
 - Added subtitles and spacing refinements to the Create and Recreate tool headers; tightened header/subtitle gaps for consistency.
 
+## 2026-02-05
+- Added MVP stabilization plan and aligned docs to current MVP scope (post‑MVP notes, route map, release checklist, testing guidance, and palette rule placement).
+- Expanded doc index coverage and cleaned stale SOP references; clarified file-size guidance as advisory.
+
+## 2026-02-05 (later)
+- Phase 1 pricing work: credits now debit for image tool runs and prompt refine/describe flows; video duration/resolution/audio controls are wired into pricing and submissions; model media type supports image-to-video.
+- Added Change Impact Auditor agent doc and two maintenance skills (pricing audit + doc index).
+
 ## 2027-01-05 (AI Studio accent + controls polish)
 - Centralized AI Studio accent theming behind a single `--ai-accent-base` variable to drive badges, toolbar icons, hover outlines, and primary/active button gradients; updated borders and hover states to inherit from the shared token.
 - Refined badge and toolbar UX: step badges now have fixed square dimensions (no oval deformation on resize) and optional onboarding badges are hidden until the onboarding flow is reintroduced.

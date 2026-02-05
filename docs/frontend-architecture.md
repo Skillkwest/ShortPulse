@@ -23,12 +23,12 @@ Purpose: describe how the frontend is structured after modularization so new wor
 - Purpose: concentrate reusable, pre-styled building blocks so features don’t depend on each other.
 - Location: `frontend/prefabs/<domain>/` with `buttons/`, `inputs/`, `panels/`, `types.ts`, and `index.ts` for exports (start with `prefabs/agent`).
 - Styling: use `styles/prefabs-agent.css` (core) and `styles/prefabs-agent-variants.css` (compact/variant tweaks) imported in `styles/globals.css`.
-- When to add: the same control/layout is used by multiple features or pages; keep files under ~500 lines and document intent with top-level comments.
+- When to add: the same control/layout is used by multiple features or pages; aim for ~500 lines or less and document intent with top-level comments.
 
 ## Page responsibilities
 - Import feature modules and shared components; avoid embedding data or helpers.
 - Maintain small state orchestration; delegate rendering to feature components.
-- Keep files well under 500 lines by extracting new concerns into feature modules.
+- Aim to keep files under ~500 lines by extracting new concerns into feature modules when practical.
 
 ## Adding a new feature
 1) Create `features/<feature>/` with the folders above.

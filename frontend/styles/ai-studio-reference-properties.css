@@ -65,6 +65,10 @@
   max-width: none;
   gap: 4px;
 }
+
+.ai-studio-page[data-beginner-mode="on"] .reference-mode-toggle-row {
+  display: none;
+}
 .drop-image-row {
   display: flex;
   gap: 12px;
@@ -223,6 +227,12 @@
   box-shadow: 0 6px 18px rgba(245, 185, 66, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
+.ai-studio-page[data-beginner-mode="on"] .step-badge.mini {
+  background: linear-gradient(135deg, rgba(4, 183, 135, 0.96), rgba(14, 213, 100, 0.658));
+  color: #000000;
+  box-shadow: 0 6px 18px rgba(7, 143, 64, 0.34), inset 0 1px 0 rgba(5, 175, 84, 0.813);
+}
+
 .reference-step-copy {
   display: flex;
   flex-direction: column;
@@ -231,6 +241,22 @@
 
 .reference-step-copy .step-title {
   margin: 0;
+}
+
+.ai-studio-page[data-beginner-mode="on"] .reference-drop-divider {
+  display: none;
+}
+
+.ai-studio-page[data-beginner-mode="on"] .secondary-drop {
+  display: none;
+}
+
+.ai-studio-page[data-beginner-mode="on"] .reference-dropzone.extra {
+  display: none;
+}
+
+.ai-studio-page[data-beginner-mode="off"] .primary-drop .reference-drop-content .helper-text {
+  display: block !important;
 }
 
 .dropzone-tag {

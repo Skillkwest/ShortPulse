@@ -9,7 +9,7 @@ import { AiStudioToolbar } from "./AiStudioToolbar";
 import { CanvasPanel } from "./CanvasPanel";
 import { TextPropertiesPanel, ComposeSendCard } from "./TextPropertiesPanel";
 import { DetailModal } from "./DetailModal";
-import { ModelModal } from "./ModelModal";
+import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { ReferenceCanvas } from "./ReferenceCanvas";
 import { ReferencePropertiesPanel } from "./ReferencePropertiesPanel";
 import { StudioPreview } from "./StudioPreview";
@@ -84,7 +84,7 @@ type TextSectionProps = {
   onStepActionClick?: (step: "mode" | "model" | "prompt") => void;
   onModeChange: (mode: StudioMode) => void;
   onAspectChange: (value: string) => void;
-  onModelPickerOpen: (anchorId: string, target: HTMLElement) => void;
+  onModelPickerOpen: (anchorId: string, target: HTMLElement, context?: ModelModalContext | null) => void;
   onPromptChange: (value: string) => void;
   onToggleReferenceIndicator: () => void;
   onCloseAgentChat?: () => void;
@@ -161,6 +161,8 @@ type AiStudioPageContentProps = {
     options: { value: string; label: string; mediaType?: string | null }[];
     onClose: () => void;
     onSelect: (value: string) => void;
+    anchorId?: string | null;
+    context?: ModelModalContext | null;
   };
   agentChat: AgentChatProps;
   handleReferenceCanvasFiles: (files: FileList) => void;
@@ -465,13 +467,15 @@ export function AiStudioPageContent({
           </div>
         </div>
       </main>
-      <ModelModal
-        isOpen={modelModalState.isOpen}
-        position={modelModalState.position}
-        onClose={modelModalState.onClose}
-        onSelect={modelModalState.onSelect}
-        options={modelModalState.options}
-      />
+        <ModelModal
+          isOpen={modelModalState.isOpen}
+          position={modelModalState.position}
+          onClose={modelModalState.onClose}
+          onSelect={modelModalState.onSelect}
+          options={modelModalState.options}
+          anchorId={modelModalState.anchorId}
+          context={modelModalState.context}
+        />
       <DetailModal
         output={detailModalOutput}
         onClose={onDetailClose}

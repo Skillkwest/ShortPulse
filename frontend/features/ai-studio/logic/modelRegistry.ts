@@ -8,7 +8,7 @@ export type ModelConfig = {
   id: string;
   label: string;
   provider: "fal" | "kei" | "openai" | "other";
-  mediaType: "image" | "video" | "multi" | "text";
+  mediaType: "image" | "video" | "image-to-video" | "multi" | "text";
   defaultAspect: string;
   allowedAspects: string[];
   pricingStrategy: PricingStrategyId;
@@ -194,6 +194,18 @@ const registry: Record<string, ModelConfig> = {
     defaultResolution: "1080p",
     defaultAudio: true,
   },
+  "fal-ai/veo3.1/first-last-frame-to-video": {
+    id: "fal-ai/veo3.1/first-last-frame-to-video",
+    label: "Google Veo 3.1 (First/Last Frame)",
+    provider: "fal",
+    mediaType: "image-to-video",
+    defaultAspect: "16:9",
+    allowedAspects: ["16:9", "9:16"],
+    pricingStrategy: "veo-3-per-second",
+    defaultDurationSeconds: 8,
+    defaultResolution: "720p",
+    defaultAudio: true,
+  },
   "fal-ai/kling-video/v2.6/pro/text-to-video": {
     id: "fal-ai/kling-video/v2.6/pro/text-to-video",
     label: "Kling 2.6 Pro",
@@ -204,6 +216,16 @@ const registry: Record<string, ModelConfig> = {
     pricingStrategy: "kling-2.6-per-second",
     defaultDurationSeconds: 10,
     defaultAudio: true,
+  },
+  "fal-ai/kling-video/v2.6/pro/motion-control": {
+    id: "fal-ai/kling-video/v2.6/pro/motion-control",
+    label: "Kling 2.6 Motion Control (Pro)",
+    provider: "fal",
+    mediaType: "image-to-video",
+    defaultAspect: "16:9",
+    allowedAspects: ["1:1", "16:9", "9:16"],
+    pricingStrategy: "kling-2.6-motion-per-second",
+    defaultDurationSeconds: 10,
   },
   "fal-ai/sora-2/text-to-video/pro": {
     id: "fal-ai/sora-2/text-to-video/pro",

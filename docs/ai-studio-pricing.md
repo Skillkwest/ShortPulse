@@ -31,7 +31,8 @@ Short version: Models declare their own metadata (provider, aspects, size maps, 
 - `seedream-per-image`: $0.04 per image (4 credits). 4K renders double to $0.08 (8 credits); no web-search surcharge is applied for this model.
 - `kling-2.5-per-duration`: $0.35 for 5s, plus $0.07 for each additional second; defaults to 10s (70 credits) when duration is omitted. Currently used by the `fal-ai/kling-video/v2.5-turbo/pro/image-to-video` queue.
 - `kling-2.6-per-second`: $0.14 per second with audio on (default), $0.07 per second with audio off; defaults to 10s. This strategy powers `fal-ai/kling-video/v2.6/pro/text-to-video`, where ShortPulse forces `generate_audio = true`.
-- `veo-3-per-second`: 1080p w/ audio $0.40 per second (default), 4K w/ audio $0.60 per second; audio-off tiers are $0.20/$0.40 per second. Defaults to 8s @ 1080p with audio on.
+- `kling-2.6-motion-per-second`: $0.112 per second; defaults to 10s. This strategy powers `fal-ai/kling-video/v2.6/pro/motion-control`.
+- `veo-3-per-second`: 1080p w/ audio $0.40 per second (default), 4K w/ audio $0.60 per second; audio-off tiers are $0.20/$0.40 per second. Defaults to 8s @ 1080p with audio on. Used by `fal-ai/veo3.1` and `fal-ai/veo3.1/first-last-frame-to-video`.
 - `sora-2-pro-per-second`: Tiered per-second pricing (standard vs high) using 10s/15s tiers; powers `fal-ai/sora-2/text-to-video/pro` with audio on. We request 8s by default (queue supports 4/8/12s) while charging at the 10s tier for consistency.
 - `gpt41nano-per-token`: $0.10 per 1M input tokens + $0.025 per 1M output tokens, converted to credits at $0.01 each (minimum 1 credit per request).
 

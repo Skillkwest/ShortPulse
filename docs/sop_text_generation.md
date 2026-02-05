@@ -26,7 +26,6 @@ See `docs/sop_ai_studio_index.md` for the shared structure, defaults, and links 
 | `frontend/lib/agentPromptLoader.ts` | Loads a prompt by ID, preferring the config but falling back to an env var emergency override to avoid app breakage. |
 | `frontend/pages/api/ai/generate-prompt.ts` | HTTP POST handler that sends `prompt` + system message to OpenAI chat completions and returns the refined prompt. |
 | `frontend/pages/api/ai/describe-image.ts` | HTTP POST handler that sends an image + system instructions to OpenAI vision (`gpt-4.1-nano` by default) and returns the reverse prompt. |
-| `docs/openai-agent-system-instructions.md` | Legacy/optional doc for quick edits; prefer changing `frontend/lib/agentPromptsConfig.ts` directly and treat this doc as deprecated once the TS source is updated. |
 
 ## Environment prerequisites
 

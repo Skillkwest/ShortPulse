@@ -368,65 +368,74 @@ export function AiStudioPageContent({
 
               {agentChat.isOpen ? (
                 <div className="ai-preview-column reference-column">
-                  <div className="preview-column-header">
-                    <div>
-                      <p className="eyebrow">Agent Chat</p>
-                      <p className="tiny subdued helper-text">Click a chat bubble to add that text to the reference grid as a new prompt.</p>
-                    </div>
-                    <div className="preview-header-actions">
-                      <button
-                        type="button"
-                        className="ghost-btn mini"
-                        onClick={agentChat.onAddToGrid}
-                        disabled={!agentChat.latestAgentPrompt}
-                      >
-                        Add to grid
-                      </button>
-                      <button type="button" className="ghost-btn mini agent-chat-close-btn" onClick={agentChat.onClose} aria-label="Close agent chat">
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                  <AgentChatPanel
-                    messages={agentChat.agentMessages}
-                    input={agentChat.agentInput}
-                    sendLabel="Send"
-                    isSending={agentChat.agentIsSending}
-                    onInputChange={agentChat.onInputChange}
-                    onSend={agentChat.onSend}
-                    onMessageClick={agentChat.onMessageClick}
-                    beginnerMode={beginnerMode}
-                  />
-                </div>
-              ) : (
-                <>
-                  <div className="ai-preview-column reference-column">
+                  <div className="reference-column-sticky">
                     <div className="preview-column-header">
                       <div>
-                        <p className="eyebrow">Reference Grid</p>
-                        <p className="tiny subdued helper-text">Double-click a reference to expand.</p>
+                        <p className="eyebrow">Agent Chat</p>
+                        <p className="tiny subdued helper-text">Click a chat bubble to add that text to the reference grid as a new prompt.</p>
                       </div>
                       <div className="preview-header-actions">
                         <button
                           type="button"
-                          className="ghost-btn mini preview-media-btn"
-                          onClick={triggerFilePicker}
+                          className="ghost-btn mini"
+                          onClick={agentChat.onAddToGrid}
+                          disabled={!agentChat.latestAgentPrompt}
                         >
-                          <UploadSimple size={14} weight="regular" />
-                          Add files
+                          Add to grid
                         </button>
-                        <Link href="/media-library" className="ghost-btn mini preview-media-btn">
-                          <CloudArrowUp size={14} weight="regular" />
-                          Media library
-                        </Link>
+                        <button
+                          type="button"
+                          className="ghost-btn mini agent-chat-close-btn"
+                          onClick={agentChat.onClose}
+                          aria-label="Close agent chat"
+                        >
+                          ×
+                        </button>
                       </div>
                     </div>
-                  <ReferenceCanvas
-                    {...referenceCanvasProps}
-                    onDropFiles={handleReferenceCanvasFiles}
-                    onTriggerFileSelect={triggerFilePicker}
-                    selectedTool={selectedTool}
-                  />
+                    <AgentChatPanel
+                      messages={agentChat.agentMessages}
+                      input={agentChat.agentInput}
+                      sendLabel="Send"
+                      isSending={agentChat.agentIsSending}
+                      onInputChange={agentChat.onInputChange}
+                      onSend={agentChat.onSend}
+                      onMessageClick={agentChat.onMessageClick}
+                      beginnerMode={beginnerMode}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="ai-preview-column reference-column">
+                    <div className="reference-column-sticky">
+                      <div className="preview-column-header">
+                        <div>
+                          <p className="eyebrow">Reference Grid</p>
+                          <p className="tiny subdued helper-text">Double-click a reference to expand.</p>
+                        </div>
+                        <div className="preview-header-actions">
+                          <button
+                            type="button"
+                            className="ghost-btn mini preview-media-btn"
+                            onClick={triggerFilePicker}
+                          >
+                            <UploadSimple size={14} weight="regular" />
+                            Add files
+                          </button>
+                          <Link href="/media-library" className="ghost-btn mini preview-media-btn">
+                            <CloudArrowUp size={14} weight="regular" />
+                            Media library
+                          </Link>
+                        </div>
+                      </div>
+                      <ReferenceCanvas
+                        {...referenceCanvasProps}
+                        onDropFiles={handleReferenceCanvasFiles}
+                        onTriggerFileSelect={triggerFilePicker}
+                        selectedTool={selectedTool}
+                      />
+                    </div>
                   </div>
 
                   <StudioPreview {...studioPreviewProps} onDropFiles={handleReferenceCanvasFiles} onTriggerFileSelect={triggerFilePicker} />

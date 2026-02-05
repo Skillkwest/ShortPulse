@@ -119,6 +119,16 @@
 .ai-properties {
   padding: 16px;
   min-height: 300px;
+  max-height: 100%;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ai-properties::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .tool-properties {

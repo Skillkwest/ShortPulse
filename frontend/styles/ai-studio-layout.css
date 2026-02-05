@@ -28,6 +28,8 @@
 html.ai-studio-body,
 body.ai-studio-body {
   background: var(--color-bg) !important;
+  /* AI Studio uses internal column scrollers; hide browser-level scrolling by default. */
+  overflow: hidden;
 }
 
 .ai-studio-page .ai-error-banner {
@@ -153,6 +155,10 @@ body.ai-studio-body {
   --ai-accent: var(--ai-accent-base); /* right side / solid accent */
   --ai-accent-strong: var(--ai-accent-base); /* optional second tone */
   --ai-accent-shadow: rgba(52, 201, 255, 0.176); /* glow */
+  height: var(--app-fixed-height);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .ai-studio-page[data-beginner-mode="off"] .helper-text {
@@ -297,6 +303,8 @@ body.ai-studio-body {
 .ai-layout {
   position: relative;
   display: flex;
+  flex: 1;
+  min-height: 0;
 }
 
 .ai-header-bar {
@@ -433,6 +441,7 @@ body.ai-studio-body {
   flex: 1;
   margin-left: 0;
   padding: 0;
+  min-height: 0;
 }
 
 .page-top {
@@ -467,10 +476,14 @@ body.ai-studio-body {
   display: grid;
   /* Adjust the relative widths of the two main columns. */
   grid-template-columns: minmax(500px, 1.1fr) minmax(0, 2fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--ai-gutter);
   align-items: start;
   grid-auto-rows: auto;
   margin-bottom: 5px;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
 }
 
 .ai-shell.ai-shell-wide {
@@ -530,12 +543,31 @@ body.ai-studio-body {
 }
 
 .ai-preview-column.reference-column {
+  position: relative;
+  align-self: flex-start;
+  height: 100%;
+  max-height: 100%;
+  overflow: visible;
+  padding-right: 4px;
+}
+
+.reference-column-sticky {
   position: sticky;
   top: 60px;
   align-self: flex-start;
-  max-height: calc(var(--app-fixed-height) - 60px);
-  overflow: auto;
-  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.reference-column .reference-canvas-panel {
+  flex: 1;
+  min-height: 0;
 }
 
 .reference-column .preview-column-header {

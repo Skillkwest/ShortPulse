@@ -19,7 +19,9 @@
   width: 100%;
   padding: 4px 0;
   margin: 0;
-  max-height: 710px;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
   overflow-y: auto;
 }
 

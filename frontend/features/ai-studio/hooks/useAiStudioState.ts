@@ -17,6 +17,7 @@ import {
 } from "../../../lib/keiClient";
 import {
   submitFalFlux2,
+  submitFalFlux2Klein,
   submitFalFlux1Schnell,
   submitFalFlux2Edit,
   submitFalFlux2ProEdit,
@@ -102,6 +103,9 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const [videoReferenceMode, setVideoReferenceMode] = useState<"standard" | "keyframes" | "motion">("standard");
   const [motionCharacterUrl, setMotionCharacterUrl] = useState<string | null>(null);
   const [motionReferenceVideoUrl, setMotionReferenceVideoUrl] = useState<string | null>(null);
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(6);
+  const [videoResolution, setVideoResolution] = useState<string>("1080p");
+  const [videoGenerateAudio, setVideoGenerateAudio] = useState<boolean>(false);
   const [useReferenceImageIndicator, setUseReferenceImageIndicator] = useState<boolean>(false);
   const [detailOutputId, setDetailOutputId] = useState<string | null>(null);
   const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
@@ -422,6 +426,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const isSeedreamModel = finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image";
       const isFalFlux1SchnellModel = finalModel === "fal-ai/flux-1/schnell";
       const isFalFlux2Model = finalModel === "fal/flux-2";
+      const isFalFlux2KleinModel = finalModel === "fal-ai/flux-2/klein/9b";
       const isFalFlux2EditModel = finalModel === "fal/flux-2/edit";
       const isFalFlux2ProModel = finalModel === "fal/flux-2-pro";
       const isFalFlux2ProEditModel = finalModel === "fal/flux-2-pro/edit";
@@ -707,6 +712,26 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             timestamp: "Submitted",
           }));
           startPollingTask(falResp.request_id, id, 0, "fal-flux1-schnell");
+          return;
+        }
+
+        if (isFalFlux2KleinModel) {
+          const size = falSizeForAspect(aspect);
+          const falResp = await submitFalFlux2Klein({
+            prompt: cleanedPrompt,
+            image_size: { width: size.width, height: size.height },
+            num_images: 1,
+            output_format: "jpeg",
+            num_inference_steps: 4,
+            enable_safety_checker: true,
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: falResp.request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(falResp.request_id, id, 0, "fal-flux2-klein");
           return;
         }
 
@@ -1140,6 +1165,12 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setMotionCharacterUrl,
     motionReferenceVideoUrl,
     setMotionReferenceVideoUrl,
+    videoDurationSeconds,
+    setVideoDurationSeconds,
+    videoResolution,
+    setVideoResolution,
+    videoGenerateAudio,
+    setVideoGenerateAudio,
     referenceText,
     setReferenceText,
     setSharedPrompt,

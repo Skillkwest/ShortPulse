@@ -24,6 +24,7 @@ import {
   fetchFalFlux2MaxStatus,
   fetchFalFlux2ProStatus,
   fetchFalFlux2Status,
+  fetchFalFlux2KleinStatus,
   fetchFalFlux1SchnellStatus,
   fetchFalFlux2EditStatus,
   fetchFalFlux2ProEditStatus,
@@ -59,6 +60,8 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalFlux1SchnellStatus(taskId);
     case "fal-flux2":
       return fetchFalFlux2Status(taskId);
+    case "fal-flux2-klein":
+      return fetchFalFlux2KleinStatus(taskId);
     case "fal-flux2-edit":
       return fetchFalFlux2EditStatus(taskId);
     case "fal-flux2-pro":

@@ -17,6 +17,7 @@ export type Provider =
   | "fal"
   | "fal-flux1-schnell"
   | "fal-flux2"
+  | "fal-flux2-klein"
   | "fal-flux2-edit"
   | "fal-flux2-pro"
   | "fal-flux2-pro-edit"

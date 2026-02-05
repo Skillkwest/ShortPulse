@@ -370,7 +370,7 @@ export function ComposeSendCard({
   return (
     <div className="step-card prompt-step generate-step-card">
       <div className="step-card-header">
-        {beginnerMode && <span className="step-badge">3</span>}
+        {beginnerMode && <span className="step-badge">4</span>}
         <div className="step-header-copy">
           {beginnerMode ? <p className="step-title">Generate</p> : null}
           <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>

@@ -285,6 +285,29 @@ export const fetchFalFlux2MaxStatus = async (requestId: string): Promise<FalStat
   return handleJson<FalStatusResponse>(response);
 };
 
+export const submitFalFlux2Klein = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2klein-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal FLUX 2 Klein did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalFlux2KleinStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2klein-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
 export const submitImagen4Fast = async (payload: Imagen4FastSubmitRequest): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/imagen4fast-submit`, {
     method: "POST",

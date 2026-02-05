@@ -11,6 +11,7 @@ export type ToolConfig = { id: ToolId; label: string; desc: string };
 // Map model ids to their logo assets used in selectors and chips.
 export const modelLogos: Record<string, string> = {
   "fal-ai/flux-1/schnell": "/flux%20LOGO.png",
+  "fal-ai/flux-2/klein/9b": "/flux%20LOGO.png",
   "fal/flux-2": "/flux%20LOGO.png",
   "fal/flux-2/edit": "/flux%20LOGO.png",
   "fal/flux-2-pro": "/flux%20LOGO.png",
@@ -58,6 +59,7 @@ export const modelOptions: ModelOption[] = [
   { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
   { value: "fal/flux-2", label: "FLUX.2", mediaType: "image" },
   { value: "fal-ai/flux-1/schnell", label: "FLUX.1 Schnell", mediaType: "image" },
+  { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
   { value: "fal/imagen4/preview/fast", label: "Imagen 4 Fast", mediaType: "image" },
   { value: "fal-ai/nano-banana", label: "Nano Banana", mediaType: "image" },
   { value: "fal-ai/nano-banana/edit", label: "Nano Banana Edit", mediaType: "image" },

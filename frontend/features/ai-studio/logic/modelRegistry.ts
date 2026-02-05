@@ -33,6 +33,17 @@ const registry: Record<string, ModelConfig> = {
     sizeMap: falImageSizeMap,
     supportsTextToImage: true,
   },
+  "fal-ai/flux-2/klein/9b": {
+    id: "fal-ai/flux-2/klein/9b",
+    label: "FLUX.2 Lite",
+    provider: "fal",
+    mediaType: "image",
+    defaultAspect: "4:3",
+    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    pricingStrategy: "fal-flux2-klein-per-mp",
+    sizeMap: falImageSizeMap,
+    supportsTextToImage: true,
+  },
   "fal/flux-2": {
     id: "fal/flux-2",
     label: "FLUX.2",

@@ -272,6 +272,16 @@ export function CharacterPropertiesPanel({
           rows={7}
           placeholder="e.g., cinematic portrait, rim lighting, teal/orange, leather jacket"
         />
+      </div>
+
+      <div className="step-card generate-step-card">
+        <div className="step-card-header">
+          <span className="step-badge">4</span>
+          <div className="step-header-copy">
+            <p className="step-title">Generate</p>
+            <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>
+          </div>
+        </div>
         <button
           type="button"
           className="primary-btn primary-btn-wide"

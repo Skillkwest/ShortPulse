@@ -29,6 +29,12 @@ type ReferencePropertiesPanelProps = {
   motionReferenceVideoUrl?: string | null;
   onMotionCharacterChange?: (url: string | null) => void;
   onMotionReferenceVideoChange?: (url: string | null) => void;
+  videoDurationSeconds?: number;
+  videoResolution?: string;
+  videoGenerateAudio?: boolean;
+  onVideoDurationChange?: (value: number) => void;
+  onVideoResolutionChange?: (value: string) => void;
+  onVideoGenerateAudioChange?: (value: boolean) => void;
   aspectOptions: AspectOption[];
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
@@ -90,6 +96,15 @@ const StepHeaderActionButton: React.FC<StepHeaderActionButtonProps> = ({
   );
 };
 
+const VIDEO_DURATION_OPTIONS = [4, 6, 8, 10, 12];
+const VIDEO_RESOLUTION_OPTIONS = [
+  { value: "720p", label: "720p (HD)" },
+  { value: "1080p", label: "1080p (Full HD)" },
+  { value: "1k", label: "1K (1024px wide)" },
+  { value: "2k", label: "2K (1440p)" },
+  { value: "4k", label: "4K (2160p)" },
+];
+
 /**
  * Renders reference-based image/video tool controls.
  */
@@ -109,6 +124,12 @@ export function ReferencePropertiesPanel({
   motionReferenceVideoUrl,
   onMotionCharacterChange,
   onMotionReferenceVideoChange,
+  videoDurationSeconds,
+  videoResolution,
+  videoGenerateAudio,
+  onVideoDurationChange,
+  onVideoResolutionChange,
+  onVideoGenerateAudioChange,
   aspectOptions,
   isModelModalOpen,
   modelModalAnchor,
@@ -152,18 +173,25 @@ export function ReferencePropertiesPanel({
   const [motionVideoDragActive, setMotionVideoDragActive] = useState(false);
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
 
-  const [collapsedSteps, setCollapsedSteps] = React.useState<{ reference: boolean; model: boolean; prompt: boolean; generate: boolean }>({
+  const [collapsedSteps, setCollapsedSteps] = React.useState<{
+    reference: boolean;
+    model: boolean;
+    prompt: boolean;
+    videoSettings: boolean;
+    generate: boolean;
+  }>({
     reference: false,
     model: false,
     prompt: false,
+    videoSettings: false,
     generate: false,
   });
 
-  const toggleStep = (step: "reference" | "model" | "prompt" | "generate") => {
+  const toggleStep = (step: "reference" | "model" | "prompt" | "videoSettings" | "generate") => {
     setCollapsedSteps((prev) => ({ ...prev, [step]: !prev[step] }));
   };
 
-  const expandIfCollapsed = (step: "reference" | "model" | "prompt" | "generate") => {
+  const expandIfCollapsed = (step: "reference" | "model" | "prompt" | "videoSettings" | "generate") => {
     setCollapsedSteps((prev) => {
       if (!prev[step]) return prev;
       return { ...prev, [step]: false };
@@ -373,6 +401,14 @@ export function ReferencePropertiesPanel({
         ? "Upload or drag and drop images from the reference grid."
         : "Upload or drag and drop a single image for standard image-to-video."
     : "Upload or drag and drop images from the reference grid.";
+  const promptOrder = isVideoVariant ? 4 : 2;
+  const modelOrder = isVideoVariant ? 2 : 3;
+  const referenceOrder = isVideoVariant ? 1 : 1;
+  const videoSettingsOrder = isVideoVariant ? 3 : 0;
+  const generateOrder = isVideoVariant ? 5 : 4;
+  const videoDurationValue = videoDurationSeconds ?? 6;
+  const videoResolutionValue = videoResolution ?? "1080p";
+  const videoGenerateAudioValue = Boolean(videoGenerateAudio);
 
   return (
     <div className="tool-properties reference-properties-panel">
@@ -381,9 +417,9 @@ export function ReferencePropertiesPanel({
         <p className="subdued tiny helper-text">{subtitle}</p>
       </div>
       <div className="reference-drop-layout-inner">
-        <div className="reference-dropzone-block prompt-block">
+        <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
           <PromptStep
-            stepNumber="1"
+            stepNumber={isVideoVariant ? "4" : "2"}
             title="Write Your Prompt"
             subtitle="Start typing your prompt or drag & drop a prompt from the reference grid."
             prompt={referenceText ?? ""}
@@ -417,9 +453,10 @@ export function ReferencePropertiesPanel({
         <div
           className={`step-card reference-frame-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
           onClick={() => expandIfCollapsed("model")}
+          style={{ order: modelOrder }}
         >
           <div className="step-card-header">
-            {beginnerMode && <span className="step-badge">2</span>}
+            {beginnerMode && <span className="step-badge">{isVideoVariant ? "2" : "3"}</span>}
             <div className="step-header-copy">
               <p className="step-title">Choose Frame & Model</p>
               <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you generate.</span>
@@ -463,13 +500,13 @@ export function ReferencePropertiesPanel({
             </div>
           ) : null}
         </div>
-        <div className="reference-dropzone-block image-block">
+        <div className="reference-dropzone-block image-block" style={{ order: referenceOrder }}>
           <div
             className={`reference-step-card ${collapsedSteps.reference ? "is-collapsed" : ""} ${isVideoVariant ? "is-video-refs" : "is-image-refs"}`}
             onClick={() => expandIfCollapsed("reference")}
           >
             <div className="reference-step-header">
-              {beginnerMode && <span className="step-badge mini">3</span>}
+              {beginnerMode && <span className="step-badge mini">{isVideoVariant ? "1" : "1"}</span>}
               <div className="reference-step-copy">
                 <p className="step-title">{referenceStepTitle}</p>
                 <span className="step-subtitle tiny helper-text">
@@ -717,13 +754,87 @@ export function ReferencePropertiesPanel({
             ) : null}
           </div>
         </div>
+        {isVideoVariant ? (
+          <div
+            className={`step-card video-settings-card ${collapsedSteps.videoSettings ? "is-collapsed" : ""}`}
+            onClick={() => expandIfCollapsed("videoSettings")}
+            style={{ order: videoSettingsOrder }}
+          >
+            <div className="step-card-header">
+              {beginnerMode && <span className="step-badge">3</span>}
+              <div className="step-header-copy">
+                <p className="step-title">Choose video settings</p>
+                <span className="step-subtitle tiny helper-text">Set duration, resolution, and audio output before generating.</span>
+              </div>
+              {!beginnerMode ? (
+                <div className="step-header-actions">
+                  <StepHeaderActionButton
+                    label="Open video settings"
+                    isCollapsed={collapsedSteps.videoSettings}
+                    onClick={() => toggleStep("videoSettings")}
+                  />
+                </div>
+              ) : null}
+            </div>
+            {!collapsedSteps.videoSettings ? (
+              <div className="create-controls video-settings-controls">
+                <div className="control-row compact fixed-select">
+                  <label className="input-label">Duration</label>
+                  <select
+                    className="model-select"
+                    value={videoDurationValue}
+                    onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
+                  >
+                    {VIDEO_DURATION_OPTIONS.map((seconds) => (
+                      <option value={seconds} key={`duration-${seconds}`}>
+                        {seconds} seconds
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="control-row compact fixed-select">
+                  <label className="input-label">Resolution</label>
+                  <select
+                    className="model-select"
+                    value={videoResolutionValue}
+                    onChange={(event) => onVideoResolutionChange?.(event.target.value)}
+                  >
+                    {VIDEO_RESOLUTION_OPTIONS.map((option) => (
+                      <option value={option.value} key={`resolution-${option.value}`}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="video-settings-toggle-row">
+                  <div className="video-settings-toggle-copy">
+                    <span className="input-label">Generate audio</span>
+                    <span className="tiny helper-text">Include ambient audio in the output.</span>
+                  </div>
+                  <button
+                    type="button"
+                    className={`reference-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
+                    aria-pressed={videoGenerateAudioValue}
+                    aria-label={videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"}
+                    onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
+                  >
+                    <span className="reference-toggle-track" aria-hidden="true">
+                      <span className="reference-toggle-dot" />
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div
           className={`step-card reference-generate-step ${collapsedSteps.generate ? "is-collapsed" : ""}`}
           onClick={() => expandIfCollapsed("generate")}
+          style={{ order: generateOrder }}
         >
           {beginnerMode ? (
             <div className="step-card-header">
-              <span className="step-badge">4</span>
+              <span className="step-badge">{isVideoVariant ? "5" : "4"}</span>
               <div className="step-header-copy">
                 <p className="step-title">Generate</p>
                 <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>

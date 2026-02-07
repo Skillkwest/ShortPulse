@@ -329,10 +329,6 @@ export function TextPropertiesPanel({
                       {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
                       {modelLabel}
                     </span>
-                    <span className="model-chip-pill model-picker-pill">
-                      <span aria-hidden="true" className="model-chip-icon">✦</span>
-                      <span className="model-chip-credits">{costCredits != null ? costCredits : "—"}</span>
-                    </span>
                   </div>
                 </button>
               </div>
@@ -390,11 +386,7 @@ export function ComposeSendCard({
           isBusy={isPromptGenerating}
           cost={costValue}
         />
-        {isGenerateDisabled && guardrailReason ? (
-          <div className="inline-error-hint" role="status">
-            {guardrailReason}
-          </div>
-        ) : null}
+        {/* Guardrail warning intentionally hidden; disabled button communicates state. */}
         {agentEnabled && agentError ? <div className="inline-error-hint">{agentError}</div> : null}
       </div>
     </div>

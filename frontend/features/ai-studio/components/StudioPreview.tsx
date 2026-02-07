@@ -3,7 +3,6 @@
  * Shows the latest output or reference drop plus a prompt preview input for regen flows.
  */
 import React from "react";
-import Link from "next/link";
 import { ArrowClockwise, CloudArrowUp, ImageSquare, UploadSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 
@@ -18,6 +17,7 @@ type StudioPreviewProps = {
   onRegenerate: () => void;
   onTriggerFileSelect?: () => void;
   onDropFiles?: (files: FileList) => void;
+  onOpenMediaLibrary?: () => void;
 };
 
 const preventFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -39,6 +39,7 @@ export function StudioPreview({
   onRegenerate,
   onTriggerFileSelect,
   onDropFiles,
+  onOpenMediaLibrary,
 }: StudioPreviewProps) {
   const previewMedia = activeOutput?.previewUrl || referenceImageUrl;
   const isVideoPreview = previewMedia ? isVideoUrl(previewMedia) : false;
@@ -85,10 +86,10 @@ export function StudioPreview({
               <UploadSimple size={14} weight="regular" />
               Add files
             </button>
-            <Link href="/media-library" className="ghost-btn mini preview-media-btn">
+            <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
               <CloudArrowUp size={14} weight="regular" />
               Media library
-            </Link>
+            </button>
           </div>
         </div>
         <div className="step-card studio-preview-card">

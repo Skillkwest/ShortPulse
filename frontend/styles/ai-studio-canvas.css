@@ -260,6 +260,13 @@
   outline-offset: 2px;
 }
 
+.reference-card-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 .reference-card.has-text {
   display: flex;
   align-items: flex-start;
@@ -329,6 +336,44 @@
 .reference-status-chip.is-fail {
   border-color: rgba(255, 116, 116, 0.7);
   background: linear-gradient(135deg, rgba(255, 116, 116, 0.18), rgba(255, 153, 153, 0.12));
+  color: #ffecec;
+}
+
+.reference-save-chip {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  background: rgba(10, 12, 20, 0.85);
+  color: #f5f9ff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.reference-save-chip.is-saving {
+  border-color: rgba(80, 186, 255, 0.5);
+  background: linear-gradient(135deg, rgba(76, 140, 255, 0.18), rgba(76, 225, 255, 0.1));
+}
+
+.reference-save-chip.is-saved {
+  border-color: #62dc9a;
+  background: radial-gradient(circle, rgba(84, 255, 190, 0.95), rgba(38, 202, 141, 0.9));
+  color: #051b0f;
+  box-shadow: 0 8px 20px rgba(38, 202, 141, 0.45), 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+
+.reference-save-chip.is-failed {
+  border-color: rgba(255, 116, 116, 0.7);
+  background: linear-gradient(135deg, rgba(255, 116, 116, 0.2), rgba(255, 153, 153, 0.12));
   color: #ffecec;
 }
 

@@ -24,6 +24,12 @@ export type StudioOutput = {
   aspect: string;
   model: string;
   modelId?: string;
+  provider?: string;
+  generationId?: string;
+  savedMediaIds?: string[];
+  promptId?: string;
+  saveState?: "idle" | "saving" | "saved" | "failed";
+  saveError?: string | null;
   status: "ready" | "saved";
   timestamp: string;
   taskId?: string;

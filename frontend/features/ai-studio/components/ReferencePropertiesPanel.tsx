@@ -499,10 +499,6 @@ export function ReferencePropertiesPanel({
                         {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
                         {stripEditLabel(modelLabel)}
                       </span>
-                      <span className="model-chip-pill model-picker-pill">
-                        <span aria-hidden="true" className="model-chip-icon">✦</span>
-                        <span className="model-chip-credits">{costCredits != null ? costCredits : "—"}</span>
-                      </span>
                     </div>
                   </button>
                 </div>
@@ -863,11 +859,7 @@ export function ReferencePropertiesPanel({
                 isBusy={agentIsSending}
                 cost={costCredits != null ? costCredits : "—"}
               />
-              {isGenerateDisabled && guardrailReason && !agentIsSending ? (
-                <div className="inline-error-hint step-card-error" role="status">
-                  {guardrailReason}
-                </div>
-              ) : null}
+              {/* Guardrail warning intentionally hidden; disabled button communicates state. */}
             </div>
           ) : null}
         </div>

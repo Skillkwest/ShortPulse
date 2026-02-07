@@ -14,13 +14,28 @@ type MediaRow = {
   storage_path: string;
   file_type: "image" | "video" | string;
   file_size: number | null;
+  source?: "upload" | "ai_studio" | string | null;
+  source_ref?: string | null;
+  prompt_id?: string | null;
+  metadata?: Record<string, unknown> | null;
+  updated_at?: string;
   created_at: string;
   signedUrl?: string;
   status?: "uploading" | "ready";
 };
 
-type MediaFilter = "images" | "videos";
-type MediaFilterFull = "all" | MediaFilter;
+type PromptRow = {
+  id: string;
+  title: string | null;
+  prompt_text: string;
+  mode: "text" | "image" | "video" | string;
+  model_id: string | null;
+  source: "manual" | "ai_studio" | "agent" | string;
+  created_at: string;
+  updated_at: string;
+};
+
+type MediaTab = "uploaded_images" | "uploaded_videos" | "saved_prompts" | "ai_generations";
 
 const BUCKET = "media_library";
 
@@ -43,14 +58,52 @@ const fileTypeFromMime = (mime: string) => {
   return "image";
 };
 
+const isVideoFile = (fileType?: string | null) => (fileType || "").startsWith("video");
+
+const logMediaEvent = async (
+  eventType: string,
+  entityType: string,
+  entityId: string,
+  metadata: Record<string, unknown> = {},
+) => {
+  try {
+    const supabase = ensureSupabaseClient();
+    const { data } = await supabase.auth.getSession();
+    const userId = data.session?.user?.id;
+    if (!userId) return;
+    const { error } = await supabase.from("media_events").insert({
+      user_id: userId,
+      event_type: eventType,
+      entity_type: entityType,
+      entity_id: entityId,
+      metadata,
+    });
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.warn("Media event log failed", error);
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("Media event log error", err);
+  }
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return "Unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+};
+
 export default function MediaLibrary() {
   const [files, setFiles] = useState<MediaRow[]>([]);
+  const [prompts, setPrompts] = useState<PromptRow[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<MediaFilterFull>("all");
+  const [activeTab, setActiveTab] = useState<MediaTab>("uploaded_images");
   const [search, setSearch] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [aspectMap, setAspectMap] = useState<Record<string, number>>({});
@@ -81,6 +134,10 @@ export default function MediaLibrary() {
   }, []);
 
   useEffect(() => {
+    setSelectedIds([]);
+  }, [activeTab]);
+
+  useEffect(() => {
     let active = true;
     const load = async () => {
       try {
@@ -91,13 +148,15 @@ export default function MediaLibrary() {
           setError("Not signed in");
           return;
         }
-        const { data, error: fetchError } = await supabase
-          .from("media_files")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (fetchError) throw fetchError;
+        const [mediaResponse, promptResponse] = await Promise.all([
+          supabase.from("media_files").select("*").order("created_at", { ascending: false }),
+          supabase.from("media_prompts").select("*").order("created_at", { ascending: false }),
+        ]);
+        if (mediaResponse.error) throw mediaResponse.error;
+        if (promptResponse.error) throw promptResponse.error;
 
-        const rows = data || [];
+        const rows = mediaResponse.data || [];
+        const promptRows = promptResponse.data || [];
         const signed = await Promise.all(
           rows.map(async (row) => {
             const { data: signedData, error: signedError } = await supabase.storage
@@ -109,12 +168,14 @@ export default function MediaLibrary() {
             }
             return {
               ...row,
+              source: row.source ?? "upload",
               signedUrl: signedData?.signedUrl,
             } as MediaRow;
           }),
         );
         if (active) {
           setFiles(signed);
+          setPrompts(promptRows as PromptRow[]);
         }
       } catch (err: any) {
         setError(err?.message || "Unable to load media");
@@ -178,6 +239,7 @@ export default function MediaLibrary() {
         storage_path: "",
         file_type: fileTypeFromMime(file.type || "application/octet-stream"),
         file_size: file.size,
+        source: "upload",
         created_at: new Date().toISOString(),
         status: "uploading",
       }));
@@ -208,6 +270,7 @@ export default function MediaLibrary() {
             storage_path: path,
             file_type: fileTypeFromMime(mimeType),
             file_size: file.size,
+            source: "upload",
           })
           .select("*")
           .single();
@@ -220,6 +283,14 @@ export default function MediaLibrary() {
           .createSignedUrl(path, 3600);
         if (signedError) {
           throw signedError;
+        }
+
+        if (inserted?.id) {
+          void logMediaEvent("upload", "media_file", inserted.id, {
+            storage_path: path,
+            file_type: fileTypeFromMime(mimeType),
+            file_size: file.size,
+          });
         }
 
         uploads.push({
@@ -252,23 +323,42 @@ export default function MediaLibrary() {
     }
   };
 
-  const filteredFiles = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return files.filter((f) => {
-      const matchesType =
-        filter === "all"
-          ? true
-          : filter === "images"
-            ? (f.file_type || "").startsWith("image")
-            : (f.file_type || "").startsWith("video");
-      const matchesSearch = !term || f.filename.toLowerCase().includes(term) || (f.storage_path || "").toLowerCase().includes(term);
-      return matchesType && matchesSearch;
-    });
-  }, [files, filter, search]);
+  const searchTerm = useMemo(() => search.trim().toLowerCase(), [search]);
+  const uploadFiles = useMemo(() => files.filter((f) => (f.source ?? "upload") === "upload"), [files]);
+  const uploadedImages = useMemo(() => uploadFiles.filter((f) => !isVideoFile(f.file_type)), [uploadFiles]);
+  const uploadedVideos = useMemo(() => uploadFiles.filter((f) => isVideoFile(f.file_type)), [uploadFiles]);
+  const aiGenerationFiles = useMemo(() => files.filter((f) => (f.source ?? "upload") === "ai_studio"), [files]);
 
-  const handleSelectFilter = (next: MediaFilterFull) => {
-    setFilter(next);
-  };
+  const filteredMedia = useMemo(() => {
+    const base =
+      activeTab === "uploaded_images"
+        ? uploadedImages
+        : activeTab === "uploaded_videos"
+          ? uploadedVideos
+          : activeTab === "ai_generations"
+            ? aiGenerationFiles
+            : [];
+    if (!searchTerm) return base;
+    return base.filter((f) => {
+      const name = f.filename?.toLowerCase() ?? "";
+      const path = f.storage_path?.toLowerCase() ?? "";
+      return name.includes(searchTerm) || path.includes(searchTerm);
+    });
+  }, [activeTab, aiGenerationFiles, searchTerm, uploadedImages, uploadedVideos]);
+
+  const filteredPrompts = useMemo(() => {
+    if (activeTab !== "saved_prompts") return [];
+    if (!searchTerm) return prompts;
+    return prompts.filter((p) => {
+      const title = p.title?.toLowerCase() ?? "";
+      const text = p.prompt_text?.toLowerCase() ?? "";
+      return title.includes(searchTerm) || text.includes(searchTerm);
+    });
+  }, [activeTab, prompts, searchTerm]);
+
+  const isPromptTab = activeTab === "saved_prompts";
+  const visibleCount = isPromptTab ? filteredPrompts.length : filteredMedia.length;
+  const countLabel = isPromptTab ? "prompts" : "files";
 
   const triggerFilePicker = () => {
     fileInputRef.current?.click();
@@ -284,8 +374,22 @@ export default function MediaLibrary() {
       if (deleteError) throw deleteError;
       setFiles((prev) => prev.filter((f) => f.id !== row.id));
       setSelectedIds((prev) => prev.filter((id) => id !== row.id));
+      void logMediaEvent("delete", "media_file", row.id, { storage_path: row.storage_path });
     } catch (err: any) {
       setError(err?.message || "Unable to delete media");
+    }
+  };
+
+  const deletePrompt = async (row: PromptRow) => {
+    setError(null);
+    try {
+      const supabase = ensureSupabaseClient();
+      const { error: deleteError } = await supabase.from("media_prompts").delete().eq("id", row.id);
+      if (deleteError) throw deleteError;
+      setPrompts((prev) => prev.filter((p) => p.id !== row.id));
+      void logMediaEvent("delete", "media_prompt", row.id);
+    } catch (err: any) {
+      setError(err?.message || "Unable to delete prompt");
     }
   };
 
@@ -307,7 +411,7 @@ export default function MediaLibrary() {
   };
 
   const selectAllVisible = () => {
-    setSelectedIds(filteredFiles.filter((f) => f.status !== "uploading").map((f) => f.id));
+    setSelectedIds(filteredMedia.filter((f) => f.status !== "uploading").map((f) => f.id));
   };
 
   const deleteSelected = async () => {
@@ -329,6 +433,9 @@ export default function MediaLibrary() {
       }
       setFiles((prev) => prev.filter((f) => !selectedIds.includes(f.id)));
       setSelectedIds([]);
+      targets.forEach((target) => {
+        void logMediaEvent("delete", "media_file", target.id, { storage_path: target.storage_path });
+      });
     } catch (err: any) {
       setError(err?.message || "Unable to delete selected media");
     } finally {
@@ -355,6 +462,7 @@ export default function MediaLibrary() {
     setModalError(null);
     setRenameSuccess(false);
     try {
+      const previousName = focusedFile.filename;
       const supabase = ensureSupabaseClient();
       const { error } = await supabase.from("media_files").update({ filename: renameValue.trim() }).eq("id", focusedFile.id);
       if (error) throw error;
@@ -362,6 +470,10 @@ export default function MediaLibrary() {
       setFocusedFile((prev) => (prev ? { ...prev, filename: renameValue.trim() } : prev));
       setRenameSuccess(true);
       setTimeout(() => setRenameSuccess(false), 1800);
+      void logMediaEvent("rename", "media_file", focusedFile.id, {
+        from: previousName,
+        to: renameValue.trim(),
+      });
     } catch (err: any) {
       setModalError(err?.message || "Unable to rename file");
     } finally {
@@ -472,33 +584,40 @@ export default function MediaLibrary() {
           <div className="filter-tabs">
             <button
               type="button"
-              className={`pill-toggle big ${filter === "all" ? "active" : ""}`}
-              onClick={() => handleSelectFilter("all")}
+              className={`pill-toggle big ${activeTab === "uploaded_images" ? "active" : ""}`}
+              onClick={() => setActiveTab("uploaded_images")}
             >
-              All
+              Uploaded Images
             </button>
             <button
               type="button"
-              className={`pill-toggle big ${filter === "images" ? "active" : ""}`}
-              onClick={() => handleSelectFilter("images")}
+              className={`pill-toggle big ${activeTab === "uploaded_videos" ? "active" : ""}`}
+              onClick={() => setActiveTab("uploaded_videos")}
             >
-              Images
+              Uploaded Videos
             </button>
             <button
               type="button"
-              className={`pill-toggle big ${filter === "videos" ? "active" : ""}`}
-              onClick={() => handleSelectFilter("videos")}
+              className={`pill-toggle big ${activeTab === "saved_prompts" ? "active" : ""}`}
+              onClick={() => setActiveTab("saved_prompts")}
             >
-              Videos
+              Saved Prompts
+            </button>
+            <button
+              type="button"
+              className={`pill-toggle big ${activeTab === "ai_generations" ? "active" : ""}`}
+              onClick={() => setActiveTab("ai_generations")}
+            >
+              AI Studio Generations
             </button>
           </div>
-          <span className="pill tiny filter-count">{filteredFiles.length} files</span>
+          <span className="pill tiny filter-count">{visibleCount} {countLabel}</span>
           <div className="search-wrap">
             <div className="search-input">
               <MagnifyingGlass size={16} weight="bold" />
               <input
                 type="text"
-                placeholder="Search media by name or file"
+                placeholder={isPromptTab ? "Search saved prompts" : "Search media by name or file"}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -511,38 +630,89 @@ export default function MediaLibrary() {
             <div className="section-heading minimal">
               <div>
                 <p className="eyebrow">
-                  {filter === "all" ? "All media" : filter === "images" ? "Images" : "Videos"}
+                  {activeTab === "uploaded_images"
+                    ? "Uploaded images"
+                    : activeTab === "uploaded_videos"
+                      ? "Uploaded videos"
+                      : activeTab === "saved_prompts"
+                        ? "Saved prompts"
+                        : "AI Studio generations"}
                 </p>
-                <h3>Your uploaded {filter === "all" ? "media" : filter === "images" ? "images" : "videos"}</h3>
+                <h3>
+                  {activeTab === "uploaded_images"
+                    ? "Your uploaded images"
+                    : activeTab === "uploaded_videos"
+                      ? "Your uploaded videos"
+                      : activeTab === "saved_prompts"
+                        ? "Your saved prompts"
+                        : "AI Studio generations"}
+                </h3>
               </div>
             </div>
-          <div className="gallery-btns">
-            {selectedIds.length ? (
-              <button type="button" className="ghost-btn" onClick={() => setSelectedIds([])}>
-                Deselect all
-              </button>
+            {!isPromptTab ? (
+              <div className="gallery-btns">
+                {selectedIds.length ? (
+                  <button type="button" className="ghost-btn" onClick={() => setSelectedIds([])}>
+                    Deselect all
+                  </button>
+                ) : null}
+                <button type="button" className="ghost-btn" onClick={selectAllVisible} disabled={!filteredMedia.length}>
+                  Select all
+                </button>
+                <button
+                  type="button"
+                  className="danger-btn"
+                  onClick={deleteSelected}
+                  disabled={!selectedIds.length || bulkDeleting}
+                >
+                  Delete
+                </button>
+              </div>
             ) : null}
-            <button type="button" className="ghost-btn" onClick={selectAllVisible} disabled={!filteredFiles.length}>
-              Select all
-            </button>
-            <button
-              type="button"
-                className="danger-btn"
-                onClick={deleteSelected}
-                disabled={!selectedIds.length || bulkDeleting}
-              >
-                Delete
-              </button>
-            </div>
           </div>
           {loading && <div className="subdued tiny">Loading media…</div>}
-          {!loading && !filteredFiles.length && (
-            <div className="subdued tiny">No {filter === "all" ? "media" : filter} uploaded yet.</div>
+          {!loading && isPromptTab && !filteredPrompts.length && (
+            <div className="subdued tiny">No prompts saved yet.</div>
           )}
-          <div className="media-grid media-grid-fixed media-grid-shell">
-            {filteredFiles.map((file) => {
+          {!loading && !isPromptTab && !filteredMedia.length && (
+            <div className="subdued tiny">
+              {activeTab === "uploaded_images"
+                ? "No images uploaded yet."
+                : activeTab === "uploaded_videos"
+                  ? "No videos uploaded yet."
+                  : "No AI Studio generations saved yet."}
+            </div>
+          )}
+          {isPromptTab ? (
+            <div className="prompt-grid">
+              {filteredPrompts.map((promptItem) => (
+                <div className="prompt-card" key={promptItem.id}>
+                  <div className="prompt-card-header">
+                    <div>
+                      <p className="metric-label">{promptItem.title || "Saved prompt"}</p>
+                      <p className="metric-value tiny">{formatDate(promptItem.created_at)}</p>
+                    </div>
+                    <span className="pill tiny">{promptItem.mode}</span>
+                  </div>
+                  <p className="prompt-card-body">{promptItem.prompt_text}</p>
+                  <div className="prompt-card-footer">
+                    <span className="metric-label tiny">{promptItem.model_id || "Model not set"}</span>
+                    <button
+                      type="button"
+                      className="ghost-btn prompt-delete-btn"
+                      onClick={() => deletePrompt(promptItem)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="media-grid media-grid-fixed media-grid-shell">
+              {filteredMedia.map((file) => {
               const aspectRatio =
-                aspectMap[file.id] || (file.file_type.startsWith("video") ? 9 / 16 : 4 / 5);
+                aspectMap[file.id] || (isVideoFile(file.file_type) ? 9 / 16 : 4 / 5);
               return (
                 <div
                   className={`media-card ${file.status === "uploading" ? "is-uploading" : ""} ${
@@ -580,7 +750,7 @@ export default function MediaLibrary() {
                       <p className="tiny subdued">Uploading…</p>
                     </div>
                   ) : file.signedUrl ? (
-                    file.file_type.startsWith("video") ? (
+                    isVideoFile(file.file_type) ? (
                       <video
                         className="media-thumb"
                         controls
@@ -607,12 +777,13 @@ export default function MediaLibrary() {
                       <p className="metric-label">{file.filename}</p>
                       <p className="metric-value tiny">{formatBytes(file.file_size)}</p>
                     </div>
-                    <span className="pill tiny">{file.file_type.startsWith("video") ? "Video" : "Image"}</span>
+                    <span className="pill tiny">{isVideoFile(file.file_type) ? "Video" : "Image"}</span>
                   </div>
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
         </section>
       </main>
 
@@ -624,9 +795,9 @@ export default function MediaLibrary() {
               ×
             </button>
             <div className="modal-body">
-              <div className="modal-preview" style={{ aspectRatio: aspectMap[focusedFile.id] || (focusedFile.file_type.startsWith("video") ? 9 / 16 : 4 / 5) }}>
+              <div className="modal-preview" style={{ aspectRatio: aspectMap[focusedFile.id] || (isVideoFile(focusedFile.file_type) ? 9 / 16 : 4 / 5) }}>
                 {focusedFile.signedUrl ? (
-                  focusedFile.file_type.startsWith("video") ? (
+                  isVideoFile(focusedFile.file_type) ? (
                     <video src={focusedFile.signedUrl} controls />
                   ) : (
                     <img src={focusedFile.signedUrl} alt={focusedFile.filename} />

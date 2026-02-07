@@ -155,6 +155,9 @@ type AiStudioPageContentProps = {
   onDetailClose: () => void;
   onUpdateOutputPrompt: (id: string, prompt: string) => void;
   onDeleteOutput: (id: string) => void;
+  onDetailDownload?: (id: string) => void;
+  onDetailSavePrompt?: (promptText: string) => void;
+  onOpenMediaLibrary?: () => void;
   modelModalState: {
     isOpen: boolean;
     position: { top: number; left: number } | null;
@@ -198,6 +201,9 @@ export function AiStudioPageContent({
   onDetailClose,
   onUpdateOutputPrompt,
   onDeleteOutput,
+  onDetailDownload,
+  onDetailSavePrompt,
+  onOpenMediaLibrary,
   modelModalState,
   agentChat,
   handleReferenceCanvasFiles,
@@ -425,10 +431,10 @@ export function AiStudioPageContent({
                             <UploadSimple size={14} weight="regular" />
                             Add files
                           </button>
-                          <Link href="/media-library" className="ghost-btn mini preview-media-btn">
+                          <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
                             <CloudArrowUp size={14} weight="regular" />
                             Media library
-                          </Link>
+                          </button>
                         </div>
                       </div>
                       <ReferenceCanvas
@@ -436,11 +442,17 @@ export function AiStudioPageContent({
                         onDropFiles={handleReferenceCanvasFiles}
                         onTriggerFileSelect={triggerFilePicker}
                         selectedTool={selectedTool}
+                        onOpenMediaLibrary={onOpenMediaLibrary}
                       />
                     </div>
                   </div>
 
-                  <StudioPreview {...studioPreviewProps} onDropFiles={handleReferenceCanvasFiles} onTriggerFileSelect={triggerFilePicker} />
+                  <StudioPreview
+                    {...studioPreviewProps}
+                    onDropFiles={handleReferenceCanvasFiles}
+                    onTriggerFileSelect={triggerFilePicker}
+                    onOpenMediaLibrary={onOpenMediaLibrary}
+                  />
                 </>
               )}
             </section>
@@ -481,6 +493,8 @@ export function AiStudioPageContent({
         onClose={onDetailClose}
         onUpdatePrompt={onUpdateOutputPrompt}
         onDeleteOutput={onDeleteOutput}
+        onDownloadReference={onDetailDownload}
+        onSavePrompt={onDetailSavePrompt}
       />
     </>
   );

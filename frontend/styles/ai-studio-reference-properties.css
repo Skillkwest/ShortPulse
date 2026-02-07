@@ -484,6 +484,11 @@
   box-shadow: none;
 }
 
+.motion-drop-row .primary-drop:first-child .reference-dropzone:hover {
+  border-color: var(--reference-drop-border-hover);
+  background: var(--reference-drop-bg-hover);
+}
+
 .reference-drop-layout-inner .reference-dropzone.has-video {
   border: 1px solid rgba(201, 205, 214, 0.18);
   background: rgba(12, 15, 22, 0.92);
@@ -533,6 +538,7 @@
   align-items: center;
   justify-content: center;
   color: var(--ai-card-text);
+  line-height: 0;
 }
 
 .motion-drop-title {

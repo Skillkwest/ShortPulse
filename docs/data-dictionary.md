@@ -19,9 +19,54 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `storage_path` (text): Full path in the `media_library` bucket (prefix with `auth.uid()`).
 - `file_type` (text): image | video (or MIME-derived fallback).
 - `file_size` (bigint, nullable): Bytes.
+- `source` (text, default `upload`): upload | ai_studio.
+- `source_ref` (uuid, nullable): References `ai_generations.id` when source is `ai_studio`.
+- `prompt_id` (uuid, nullable): References `media_prompts.id` when saved from a prompt.
+- `metadata` (jsonb, default `{}`): Provider/model metadata and any generation context.
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `created_at` (timestamptz, default now)
+- `updated_at` (timestamptz, default now)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
+### media_prompts
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `title` (text, nullable): Optional friendly label.
+- `prompt_text` (text): Saved prompt body.
+- `mode` (text): text | image | video.
+- `model_id` (text, nullable): Model at save time.
+- `source` (text, default `manual`): manual | ai_studio | agent.
+- `created_at` (timestamptz, default now)
+- `updated_at` (timestamptz, default now)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
+### ai_generations
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `mode` (text): image | video.
+- `provider` (text): fal | kei | ...
+- `model_id` (text): Model used to generate.
+- `prompt_text` (text): Prompt used for the generation.
+- `aspect` (text, nullable)
+- `duration_seconds` (int, nullable)
+- `resolution` (text, nullable)
+- `request_id` (text, nullable)
+- `status` (text, default `pending`): pending | running | success | fail.
+- `error_message` (text, nullable)
+- `created_at` (timestamptz, default now)
+- `completed_at` (timestamptz, nullable)
+- `metadata` (jsonb, default `{}`): Provider payload summary.
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
+### media_events
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `event_type` (text): upload | delete | rename | prompt_saved | generation_saved | generation_failed.
+- `entity_type` (text): media_file | media_prompt | ai_generation.
+- `entity_id` (uuid): Row id the event refers to.
+- `metadata` (jsonb, default `{}`): Event payload details.
+- `created_at` (timestamptz, default now)
+- RLS: select + insert allowed only when `user_id = auth.uid()`.
 
 ### storage.objects (Supabase bucket)
 - Bucket: `media_library` (private).

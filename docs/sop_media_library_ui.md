@@ -19,6 +19,11 @@ Keep the Media Library page visually aligned with Saved Creators and dashboard c
 - `.upload-side` padding 20px, grid gap 14px for uniform vertical rhythm between eyebrow, title, CTA, status.
 - `.upload-storage` padding 14px; uses flex with even spacing between copy and upgrade button.
 
+## Tabs
+- Tabs (pill toggles) are: **Uploaded Images**, **Uploaded Videos**, **Saved Prompts**, **AI Studio Generations**.
+- AI Studio generations appear only in the AI Studio tab (not in uploaded images/videos).
+- Saved Prompts is a text-only grid; prompts are saved manually.
+
 ## Upgrade Button (Need More Storage?)
 - Base color: brand amber `#F5B942` text, amber border/gradient, soft outer shadow.
 - Hover: slight lift (`translateY(-2px)`) and warmer amber glow (`rgba(255,190,89,0.28)` shadow, `rgba(255,190,89,0.35)` outer); color remains `#F5B942`.

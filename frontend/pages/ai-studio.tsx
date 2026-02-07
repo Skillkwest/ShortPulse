@@ -19,8 +19,10 @@ import type { AgentActions, AgentContext, AgentMessage } from "../prefabs/agent"
 import { postGeneratePrompt, TEXT_PROMPT_MODEL_ID } from "../features/ai-studio/logic/promptGeneration";
 import { postDescribeImage, prepareImageUrl } from "../features/ai-studio/logic/imageDescription";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
+import { ensureSupabaseClient } from "../lib/supabaseClient";
 import { filterModelOptions } from "../features/ai-studio/logic/stateParsers";
 import { estimatePromptTokens } from "../features/ai-studio/logic/tokenEstimates";
+import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
 
 export default function AiStudioPage() {
   const { balanceCents, balanceLoading, debit } = useCredits();
@@ -106,8 +108,11 @@ export default function AiStudioPage() {
     generateOutput,
     regenerateOutput,
     saveActiveOutput,
+    saveReferenceToLibrary,
     savePromptReference,
     addOutputsFromFiles,
+    addLibraryMediaReference,
+    addLibraryPromptReference,
     toggleReferenceIndicator,
     openModelModal,
     closeModelModal,
@@ -135,6 +140,7 @@ export default function AiStudioPage() {
   const [agentActions, setAgentActions] = useState<AgentActions | undefined>(undefined);
   const [isAgentChatOpen, setIsAgentChatOpen] = useState(false);
   const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
   const latestAssistantMessage = useMemo(
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
     [agentMessages],
@@ -315,21 +321,61 @@ export default function AiStudioPage() {
     }
   };
 
-  const handleDownloadReference = (outputId: string) => {
+  const handleDownloadReference = async (outputId: string) => {
     const target = outputs.find((item) => item.id === outputId);
-    if (!target?.previewUrl || typeof window === "undefined") return;
-    const link = document.createElement("a");
-    link.href = target.previewUrl;
-    link.target = "_blank";
-    link.rel = "noreferrer";
-    link.download = target.prompt || "reference";
-    link.click();
+    if (!target || typeof window === "undefined") return;
+    try {
+      const supabase = ensureSupabaseClient();
+      let fileRecord: { storage_path: string; filename: string } | null = null;
+
+      if (target.savedMediaIds?.length) {
+        const { data } = await supabase
+          .from("media_files")
+          .select("storage_path, filename, created_at")
+          .in("id", target.savedMediaIds)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        fileRecord = data?.[0] ?? null;
+      } else if (target.generationId) {
+        const { data } = await supabase
+          .from("media_files")
+          .select("storage_path, filename")
+          .eq("source_ref", target.generationId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        fileRecord = data?.[0] ?? null;
+      }
+
+      if (fileRecord?.storage_path) {
+        const { data, error } = await supabase.storage.from("media_library").download(fileRecord.storage_path);
+        if (error) throw error;
+        const blob = data as Blob;
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileRecord.filename || target.prompt || "reference";
+        link.click();
+        window.URL.revokeObjectURL(url);
+        return;
+      }
+
+      if (target.previewUrl) {
+        const link = document.createElement("a");
+        link.href = target.previewUrl;
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        link.download = target.prompt || "reference";
+        link.click();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to download media.";
+      setUiError(message);
+    }
   };
 
   const handleSaveReference = (outputId: string) => {
     if (!outputId) return;
-    // Reuse existing persistence hook; assumes active output save writes to media library.
-    saveActiveOutput(outputId);
+    saveReferenceToLibrary(outputId);
   };
 
   const handleGenerateFromPromptReference = async (outputId: string) => {
@@ -377,6 +423,14 @@ export default function AiStudioPage() {
     setAgentInput("");
     setIsAgentChatOpen(false);
   };
+
+  const handleOpenMediaLibrary = useCallback(() => {
+    setIsMediaLibraryOpen(true);
+  }, []);
+
+  const handleCloseMediaLibrary = useCallback(() => {
+    setIsMediaLibraryOpen(false);
+  }, []);
 
   const handleAgentUsePrompt = () => {
     if (latestAgentPrompt) {
@@ -636,7 +690,7 @@ export default function AiStudioPage() {
     shouldDisableSave: useReferenceImageIndicator && mode === "text",
     onGenerate: handlePrimarySubmit,
     onSavePrompt: savePromptReference,
-    onOpenMediaLibrary: () => window.open("/media-library", "_self"),
+    onOpenMediaLibrary: handleOpenMediaLibrary,
     agentChatOpen: isAgentChatOpen,
     onAgentApplyPrompt: () => { },
     onAgentSelectVariation: () => { },
@@ -712,7 +766,7 @@ export default function AiStudioPage() {
           onPromptTextChange: setSharedPrompt,
           onSave: () => savePromptReference(referenceText ?? ""),
           onRegenerate: handleImageRegenerateWithDebit,
-          onOpenMediaLibrary: () => window.open("/media-library", "_self"),
+          onOpenMediaLibrary: handleOpenMediaLibrary,
           costCredits: currentCostCredits,
           isGenerateDisabled: isGenerateDisabled || agentIsSending,
           guardrailReason: generationGuardrail,
@@ -764,7 +818,7 @@ export default function AiStudioPage() {
           onPromptTextChange: setSharedPrompt,
           onSave: saveActiveOutput,
           onRegenerate: handleRegenerateWithDebit,
-          onOpenMediaLibrary: () => window.open("/media-library", "_self"),
+          onOpenMediaLibrary: handleOpenMediaLibrary,
           costCredits: currentCostCredits,
           guardrailReason: generationGuardrail,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
@@ -814,6 +868,9 @@ export default function AiStudioPage() {
         onDetailClose={() => setDetailOutputId(null)}
         onUpdateOutputPrompt={updateOutputPrompt}
         onDeleteOutput={deleteOutput}
+        onDetailDownload={handleDownloadReference}
+        onDetailSavePrompt={savePromptReference}
+        onOpenMediaLibrary={handleOpenMediaLibrary}
         modelModalState={{
           isOpen: isModelModalOpen,
           position: modelModalPosition,
@@ -840,6 +897,12 @@ export default function AiStudioPage() {
         }}
         handleReferenceCanvasFiles={handleReferenceCanvasFiles}
         triggerFilePicker={triggerFilePicker}
+      />
+      <MediaLibraryModal
+        isOpen={isMediaLibraryOpen}
+        onClose={handleCloseMediaLibrary}
+        onSelectMedia={(payload) => addLibraryMediaReference(payload)}
+        onSelectPrompt={(payload) => addLibraryPromptReference(payload)}
       />
     </>
   );

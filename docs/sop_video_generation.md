@@ -37,7 +37,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
    - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal/Kie video) with aspect-mapped sizing and any reference inputs required by the model.  
    - Task polling updates status; success stores `resultUrls`, sets `previewUrl` (video URL), and clears errors. Failures set `errorMessage` and stop polling.  
 5. Reference Grid prepends the new output card; Studio Preview shows the latest video thumbnail/preview if available.  
-6. Save/Media Library buttons remain available for downstream use.
+6. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
 
 ## Reference-based video workflow (Create → Video, image-to-video models)
 

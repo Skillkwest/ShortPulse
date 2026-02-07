@@ -46,6 +46,8 @@ type TaskCallbacks = {
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   notifyGenerationFailure: (outputId: string, message: string) => void;
   setUiError: (message: string | null) => void;
+  onGenerationSuccess?: (payload: { outputId: string; taskId: string; provider: Provider; resultUrls: string[] }) => void;
+  onGenerationFailure?: (payload: { outputId: string; taskId?: string; provider: Provider; message: string }) => void;
 };
 
 const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
@@ -100,7 +102,13 @@ const extractMediaByProvider = (provider: Provider, status: any) => {
   return extractFalMediaUrls(status);
 };
 
-export function useAiStudioTasks({ updateOutputById, notifyGenerationFailure, setUiError }: TaskCallbacks) {
+export function useAiStudioTasks({
+  updateOutputById,
+  notifyGenerationFailure,
+  setUiError,
+  onGenerationSuccess,
+  onGenerationFailure,
+}: TaskCallbacks) {
   const pollTimersRef = useRef<Record<string, number>>({});
 
   const clearPollTimer = useCallback((outputId: string) => {
@@ -150,6 +158,14 @@ export function useAiStudioTasks({ updateOutputById, notifyGenerationFailure, se
               previewUrl: allUrls[0] ?? item.previewUrl,
               errorMessage: null,
             }));
+            if (onGenerationSuccess) {
+              onGenerationSuccess({
+                outputId,
+                taskId,
+                provider,
+                resultUrls: allUrls,
+              });
+            }
             clearPollTimer(outputId);
             return;
           }
@@ -161,6 +177,14 @@ export function useAiStudioTasks({ updateOutputById, notifyGenerationFailure, se
               status?.error ||
               "Generation failed";
             notifyGenerationFailure(outputId, failureMessage);
+            if (onGenerationFailure) {
+              onGenerationFailure({
+                outputId,
+                taskId,
+                provider,
+                message: failureMessage,
+              });
+            }
             clearPollTimer(outputId);
             return;
           }
@@ -178,6 +202,14 @@ export function useAiStudioTasks({ updateOutputById, notifyGenerationFailure, se
           const message = error instanceof Error ? error.message : "Unable to check status";
           if (attempt >= 4 || message.includes("404")) {
             notifyGenerationFailure(outputId, message);
+            if (onGenerationFailure) {
+              onGenerationFailure({
+                outputId,
+                taskId,
+                provider,
+                message,
+              });
+            }
             clearPollTimer(outputId);
             return;
           }

@@ -2,9 +2,8 @@
  * Reference grid for saved outputs and uploads.
  * Supports drag/drop into other surfaces and exposes a detail action on double click.
  */
-import Link from "next/link";
 import React, { useCallback, useState } from "react";
-import { CloudArrowUp, DownloadSimple, Sparkle, UploadSimple, X } from "phosphor-react";
+import { ArrowClockwise, CheckCircle, CloudArrowUp, DownloadSimple, Sparkle, UploadSimple, X } from "phosphor-react";
 import { PromptLibraryButton } from "./PromptLibraryButton";
 import { StudioOutput } from "../types";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
@@ -21,6 +20,7 @@ type ReferenceCanvasProps = {
   selectedTool: ToolId | null;
   onDropFiles?: (files: FileList) => void;
   onTriggerFileSelect?: () => void;
+  onOpenMediaLibrary?: () => void;
   onDescribeImage?: (output: StudioOutput) => void;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
@@ -42,6 +42,7 @@ export function ReferenceCanvas({
   selectedTool,
   onDropFiles,
   onTriggerFileSelect,
+  onOpenMediaLibrary,
   onDescribeImage,
   onSaveToLibrary,
   onDownload,
@@ -88,10 +89,26 @@ export function ReferenceCanvas({
     clearDragState(event);
   };
 
-  const renderStatusChip = (item: StudioOutput) => {
-    const state = item.taskState;
-    if (!state) return null;
-    return null;
+  const renderSaveChip = (item: StudioOutput) => {
+    if (!item.saveState || item.saveState === "idle") return null;
+    const label =
+      item.saveState === "saving"
+        ? "Saving..."
+        : item.saveState === "saved"
+          ? "Saved"
+          : "Save failed";
+    if (item.saveState === "saved") {
+      return (
+        <div className={`reference-save-chip is-${item.saveState}`} aria-label="Saved">
+          <CheckCircle size={16} weight="fill" aria-hidden />
+        </div>
+      );
+    }
+    return (
+      <div className={`reference-save-chip is-${item.saveState}`}>
+        <span>{label}</span>
+      </div>
+    );
   };
 
   return (
@@ -113,7 +130,7 @@ export function ReferenceCanvas({
             <PromptLibraryButton
               onClick={(event) => {
                 event.preventDefault();
-                window.location.href = "/media-library";
+                onOpenMediaLibrary?.();
               }}
               className="prompt-media-btn preview-media-btn"
               aria-label="Open media library"
@@ -146,6 +163,9 @@ export function ReferenceCanvas({
               const isImagePreview = item.previewUrl ? !isVideoPreview : false;
               const isPromptOnly = !item.previewUrl && !!item.previewText;
               const cardStyle = !isVideoPreview && item.previewUrl ? { backgroundImage: `url(${item.previewUrl})` } : undefined;
+              const saveDisabled = item.saveState === "saving";
+              const saveLabel = item.saveState === "failed" ? "Retry save" : "Save to media library";
+              const saveIcon = item.saveState === "failed" ? <ArrowClockwise size={16} weight="bold" aria-hidden /> : <CloudArrowUp size={16} weight="bold" aria-hidden />;
               return (
                 <div
                   key={item.id}
@@ -192,23 +212,25 @@ export function ReferenceCanvas({
                       <div className="reference-spinner" />
                     </div>
                   ) : null}
-                  {(onSaveToLibrary && (isImagePreview || isPromptOnly)) || (onDownload && isImagePreview) ? (
+                  {renderSaveChip(item)}
+                  {(onSaveToLibrary && (isImagePreview || isPromptOnly || isVideoPreview)) || (onDownload && (isImagePreview || isVideoPreview)) ? (
                     <div className="reference-card-actions" aria-label="Reference actions">
                       {onSaveToLibrary ? (
                         <button
                           type="button"
                           className="reference-card-action-btn"
-                          aria-label="Save to media library"
+                          aria-label={saveLabel}
+                          disabled={saveDisabled}
                           onClick={(event) => {
                             event.stopPropagation();
                             onSelectOutput(item.id);
                             onSaveToLibrary(item);
                           }}
                         >
-                          <CloudArrowUp size={16} weight="bold" aria-hidden />
+                          {saveIcon}
                         </button>
                       ) : null}
-                      {onDownload && isImagePreview ? (
+                      {onDownload && (isImagePreview || isVideoPreview) ? (
                         <button
                           type="button"
                           className="reference-card-action-btn"

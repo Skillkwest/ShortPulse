@@ -3,7 +3,7 @@
  * Handles text input ("Text"), Chat mode, and Agent interactions.
  */
 import React, { useRef } from "react";
-import { ArrowsOutSimple, CaretDown, CloudArrowDown, CloudArrowUp, FloppyDisk, Trash } from "phosphor-react";
+import { ArrowsOutSimple, CaretDown, FloppyDisk, Trash } from "phosphor-react";
 import {
   AgentChatPanel,
   AgentEnhanceButton,
@@ -100,7 +100,6 @@ export function PromptStep({
   onCloseAgentChat,
   onClearAgentChat,
   onSavePrompt,
-  onOpenMediaLibrary,
   isCollapsed,
   onToggleCollapse,
   isGenerating = false,
@@ -288,41 +287,18 @@ export function PromptStep({
                   </div>
                 </div>
                 <div className="enhanced-actions-row prompt-actions-compact">
-                <div className="ai-control-actions">
-                  {onOpenMediaLibrary ? (
-                    beginnerMode ? (
-                      <button
-                        type="button"
-                        className="prompt-media-btn beginner-media-library-btn"
-                        onClick={onOpenMediaLibrary}
-                        aria-label="Open media library"
-                      >
-                        <CloudArrowDown size={18} weight="bold" aria-hidden />
-                        <span>Media Library</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="prompt-media-btn beginner-media-library-btn"
-                        onClick={onOpenMediaLibrary}
-                        aria-label="Open media library"
-                      >
-                        <CloudArrowDown size={18} weight="bold" aria-hidden />
-                        <span>Media Library</span>
-                      </button>
-                    )
-                  ) : null}
-                  {!beginnerMode ? (
-                    <PromptLibraryButton
-                      className="prompt-media-btn prompt-save-btn"
-                      aria-label="Save prompt to media library"
-                      label="Save Prompt"
-                      showLabel={false}
-                      icon={<FloppyDisk size={16} weight="regular" aria-hidden />}
-                      tone="save"
-                    />
-                  ) : null}
-                </div>
+                  <div className="ai-control-actions">
+                    {!beginnerMode ? (
+                      <PromptLibraryButton
+                        className="prompt-media-btn prompt-save-btn"
+                        aria-label="Save prompt to media library"
+                        label="Save Prompt"
+                        showLabel={false}
+                        icon={<FloppyDisk size={16} weight="regular" aria-hidden />}
+                        tone="save"
+                      />
+                    ) : null}
+                  </div>
                   <div className="enhanced-action-buttons agent-inline-actions">
                     <AgentEnhanceButton
                       onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}

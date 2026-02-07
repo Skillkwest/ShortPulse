@@ -111,6 +111,8 @@ export const mapUploadsFromFiles = (files: FileList, mode: any, aspect: string, 
       status: "ready" as const,
       timestamp: "Dropped",
       previewUrl: url,
+      saveState: "idle" as const,
+      saveError: null,
     };
   });
 };

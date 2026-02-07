@@ -62,6 +62,13 @@ import {
   resolveSoraDuration,
   mapUploadsFromFiles,
 } from "../logic/stateParsers";
+import {
+  createGenerationRecord,
+  logMediaEvent,
+  saveMediaUrlToLibrary,
+  savePromptRecord,
+  updateGenerationRecord,
+} from "../logic/mediaLibraryPersistence";
 import { useAiStudioTasks } from "./useAiStudioTasks";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
@@ -90,6 +97,11 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const [outputs, setOutputs] = useState<StudioOutput[]>([]);
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const outputsRef = useRef<StudioOutput[]>([]);
+
+  useEffect(() => {
+    outputsRef.current = outputs;
+  }, [outputs]);
 
   // UI selections and references (tracked per workflow)
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
@@ -237,6 +249,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
 
   // Keep motion control mode and model in sync without locking other tabs.
   useEffect(() => {
+    if (selectedTool !== "video") return;
     const previousMode = lastVideoReferenceModeRef.current;
     if (videoReferenceMode !== previousMode) {
       lastVideoReferenceModeRef.current = videoReferenceMode;
@@ -268,7 +281,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     if (model === KLING_MOTION_CONTROL_MODEL && videoReferenceMode !== "motion") {
       setVideoReferenceMode("motion");
     }
-  }, [model, setModel, setVideoReferenceMode, videoReferenceMode]);
+  }, [model, selectedTool, setModel, setVideoReferenceMode, videoReferenceMode]);
 
   // Clear model selections that are not valid for the current tool.
   useEffect(() => {
@@ -327,6 +340,207 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setOutputs((prev) => prev.map((item) => (item.id === id ? updater(item) : item)));
   }, []);
 
+  const findOutputById = useCallback((id: string) => outputsRef.current.find((item) => item.id === id) ?? null, []);
+
+  const markOutputSaved = useCallback(
+    (outputId: string, mediaFileIds?: string[], options?: { showPill?: boolean }) => {
+      const showPill = options?.showPill ?? true;
+      updateOutputById(outputId, (item) => ({
+        ...item,
+        status: "saved",
+        timestamp: "Saved",
+        saveState: showPill ? "saved" : item.saveState,
+        saveError: showPill ? null : item.saveError,
+        savedMediaIds: mediaFileIds?.length ? mediaFileIds : item.savedMediaIds,
+      }));
+    },
+    [updateOutputById],
+  );
+
+  const markOutputSaveFailed = useCallback(
+    (outputId: string, message: string, options?: { showPill?: boolean }) => {
+      const showPill = options?.showPill ?? true;
+      updateOutputById(outputId, (item) => ({
+        ...item,
+        saveState: showPill ? "failed" : item.saveState,
+        saveError: showPill ? message : item.saveError,
+      }));
+    },
+    [updateOutputById],
+  );
+
+  const ensureGenerationRecord = useCallback(
+    async ({
+      outputId,
+      provider,
+      taskId,
+      durationSeconds,
+      resolution,
+      metadata,
+    }: {
+      outputId: string;
+      provider: Provider;
+      taskId?: string;
+      durationSeconds?: number;
+      resolution?: string | null;
+      metadata?: Record<string, unknown>;
+    }) => {
+      const output = findOutputById(outputId);
+      if (!output) return null;
+      if (output.generationId) {
+        try {
+          await updateGenerationRecord(output.generationId, {
+            provider,
+            modelId: output.modelId ?? output.model,
+            promptText: output.prompt,
+            aspect: output.aspect,
+            durationSeconds,
+            resolution: resolution ?? null,
+            requestId: taskId ?? output.taskId ?? null,
+            status: "running",
+            metadata,
+          });
+        } catch (_error) {
+          return output.generationId;
+        }
+        return output.generationId;
+      }
+
+      try {
+        const generationId = await createGenerationRecord({
+          mode: output.mode,
+          provider,
+          modelId: output.modelId ?? output.model,
+          promptText: output.prompt,
+          aspect: output.aspect,
+          durationSeconds,
+          resolution: resolution ?? null,
+          requestId: taskId ?? output.taskId ?? null,
+          status: "running",
+          metadata,
+        });
+        if (generationId) {
+          updateOutputById(outputId, (item) => ({ ...item, generationId }));
+        }
+        return generationId;
+      } catch (_error) {
+        return null;
+      }
+    },
+    [createGenerationRecord, findOutputById, updateGenerationRecord, updateOutputById],
+  );
+
+  const persistPromptSave = useCallback(
+    async ({ promptText, modelId }: { promptText: string; modelId?: string | null }) => {
+      try {
+        const promptId = await savePromptRecord({
+          promptText,
+          mode: "text",
+          modelId: modelId ?? null,
+          source: "manual",
+        });
+        if (promptId) {
+          try {
+            await logMediaEvent({
+              eventType: "prompt_saved",
+              entityType: "media_prompt",
+              entityId: promptId,
+            });
+          } catch (_error) {
+            // best-effort logging only
+          }
+        }
+        return promptId;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to save prompt.";
+        setUiError(message);
+        return null;
+      }
+    },
+    [logMediaEvent, savePromptRecord, setUiError],
+  );
+
+  const persistMediaUrls = useCallback(
+    async ({
+      outputId,
+      urls,
+      provider,
+      source,
+      generationId,
+    }: {
+      outputId: string;
+      urls: string[];
+      provider: Provider;
+      source: "upload" | "ai_studio";
+      generationId?: string | null;
+    }) => {
+      const output = findOutputById(outputId);
+      if (!output) return { mediaFileIds: [], errors: ["Output not found"] };
+      const mediaFileIds: string[] = [];
+      const errors: string[] = [];
+
+      for (let index = 0; index < urls.length; index += 1) {
+        try {
+          const result = await saveMediaUrlToLibrary({
+            url: urls[index],
+            promptText: output.prompt,
+            mode: output.mode,
+            source,
+            fileTypeHint: isVideoUrl(urls[index]) ? "video" : "image",
+            provider,
+            modelId: output.modelId ?? null,
+            generationId: generationId ?? null,
+            promptId: output.promptId ?? null,
+            index,
+            metadata: {
+              task_id: output.taskId ?? null,
+            },
+          });
+          if (result?.mediaFileId) {
+            mediaFileIds.push(result.mediaFileId);
+            try {
+              const eventType = source === "ai_studio" ? "generation_saved" : "upload";
+              await logMediaEvent({
+                eventType,
+                entityType: "media_file",
+                entityId: result.mediaFileId,
+                metadata: {
+                  output_id: output.id,
+                  provider,
+                  storage_path: result.storagePath,
+                },
+              });
+            } catch (_error) {
+              // best-effort logging only
+            }
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Unable to save media.";
+          errors.push(message);
+        }
+      }
+
+      if (errors.length && generationId && source === "ai_studio") {
+        try {
+          await logMediaEvent({
+            eventType: "generation_failed",
+            entityType: "ai_generation",
+            entityId: generationId,
+            metadata: {
+              stage: "storage_upload",
+              errors,
+            },
+          });
+        } catch (_error) {
+          // best-effort logging only
+        }
+      }
+
+      return { mediaFileIds, errors };
+    },
+    [findOutputById, logMediaEvent, saveMediaUrlToLibrary],
+  );
+
 
   const deleteOutput = useCallback((id: string) => {
     setOutputs((prev) => prev.filter((item) => item.id !== id));
@@ -357,10 +571,102 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     [setOutputs, setUiError],
   );
 
+  const handleGenerationSuccess = useCallback(
+    async ({ outputId, taskId, provider, resultUrls }: { outputId: string; taskId: string; provider: Provider; resultUrls: string[] }) => {
+      const output = findOutputById(outputId);
+      if (!output) return;
+      if (output.savedMediaIds?.length) return;
+      const generationId =
+        output.generationId ??
+        (await ensureGenerationRecord({
+          outputId,
+          provider,
+          taskId,
+        }));
+      const urls = resultUrls.filter(Boolean);
+      if (!urls.length) return;
+      const { mediaFileIds, errors } = await persistMediaUrls({
+        outputId,
+        urls,
+        provider,
+        source: "ai_studio",
+        generationId: generationId ?? null,
+      });
+      if (mediaFileIds.length) {
+        markOutputSaved(outputId, mediaFileIds, { showPill: false });
+      } else if (errors.length) {
+        const message = errors[0] ?? "Unable to save media.";
+        markOutputSaveFailed(outputId, message, { showPill: false });
+      }
+      if (generationId) {
+        try {
+          await updateGenerationRecord(generationId, {
+            provider,
+            modelId: output.modelId ?? output.model,
+            promptText: output.prompt,
+            aspect: output.aspect,
+            requestId: taskId,
+            status: "success",
+            metadata: {
+              result_urls: urls,
+              media_file_ids: mediaFileIds,
+            },
+          });
+        } catch (_error) {
+          // best-effort update
+        }
+      }
+    },
+    [ensureGenerationRecord, findOutputById, markOutputSaveFailed, markOutputSaved, persistMediaUrls, updateGenerationRecord, updateOutputById],
+  );
+
+  const handleGenerationFailure = useCallback(
+    async ({ outputId, taskId, provider, message }: { outputId: string; taskId?: string; provider: Provider; message: string }) => {
+      const output = findOutputById(outputId);
+      if (!output) return;
+      const generationId =
+        output.generationId ??
+        (await ensureGenerationRecord({
+          outputId,
+          provider,
+          taskId,
+        }));
+      if (generationId) {
+        try {
+          await updateGenerationRecord(generationId, {
+            provider,
+            modelId: output.modelId ?? output.model,
+            promptText: output.prompt,
+            aspect: output.aspect,
+            requestId: taskId ?? output.taskId,
+            status: "fail",
+            metadata: {
+              error: message,
+            },
+          });
+          await logMediaEvent({
+            eventType: "generation_failed",
+            entityType: "ai_generation",
+            entityId: generationId,
+            metadata: {
+              error: message,
+              provider,
+            },
+          });
+        } catch (_error) {
+          // best-effort updates
+        }
+      }
+    },
+    [ensureGenerationRecord, findOutputById, logMediaEvent, updateGenerationRecord],
+  );
+
   const { startPollingTask, clearPollTimer } = useAiStudioTasks({
     updateOutputById,
     notifyGenerationFailure,
     setUiError,
+    onGenerationSuccess: handleGenerationSuccess,
+    onGenerationFailure: handleGenerationFailure,
   });
 
   const updateOutputPrompt = useCallback((id: string, promptText: string) => {
@@ -402,8 +708,14 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const hasMotionReferences = Boolean(motionCharacterUrl && motionReferenceVideoUrl);
       let finalTool = effectiveTool;
       let finalModel = model;
+      const isMotionControlVideo = effectiveTool === "video" && videoReferenceMode === "motion";
 
-      if (!hasReferenceImages && !hasMotionReferences) {
+      if (isMotionControlVideo) {
+        finalTool = "video";
+        finalModel = KLING_MOTION_CONTROL_MODEL;
+      }
+
+      if (!isMotionControlVideo && !hasReferenceImages && !hasMotionReferences) {
         // Fallback to text-based generation when no references exist
         if (effectiveTool === "image") {
           finalTool = "text"; // Fallback to text-to-image
@@ -491,6 +803,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         taskState: "pending",
         timestamp: "Submitting...",
         errorMessage: null,
+        saveState: "idle",
+        saveError: null,
         previewUrl:
           isKlingMotionControlModel
             ? motionCharacterUrl ?? undefined
@@ -549,6 +863,24 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       setSaved(false);
 
       try {
+        const startPollingWithGeneration = (taskId: string, outputId: string, provider: Provider) => {
+          updateOutputById(outputId, (item) => (item.provider ? item : { ...item, provider }));
+          startPollingTask(taskId, outputId, 0, provider);
+          void ensureGenerationRecord({
+            outputId,
+            provider,
+            taskId,
+            durationSeconds: requestedDurationSeconds,
+            resolution: requestedResolution ?? null,
+            metadata: {
+              tool: effectiveTool,
+              audio: requestedAudio,
+              resolution: requestedResolution ?? null,
+              duration_seconds: requestedDurationSeconds,
+            },
+          });
+        };
+
         if (isKling3ImageModel) {
           const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
           const endImageUrl =
@@ -571,7 +903,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(request_id, id, 0, "fal-kling-3");
+          startPollingWithGeneration(request_id, id, "fal-kling-3");
           return;
         }
 
@@ -591,7 +923,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(request_id, id, 0, "fal-kling-25");
+          startPollingWithGeneration(request_id, id, "fal-kling-25");
           return;
         }
 
@@ -618,7 +950,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(request_id, id, 0, "fal-kling");
+          startPollingWithGeneration(request_id, id, "fal-kling");
           return;
         }
 
@@ -640,7 +972,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(response.request_id, id, 0, "fal-nano-banana-edit");
+          startPollingWithGeneration(response.request_id, id, "fal-nano-banana-edit");
           return;
         }
 
@@ -663,7 +995,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(response.request_id, id, 0, "fal-nano-banana-pro-edit");
+          startPollingWithGeneration(response.request_id, id, "fal-nano-banana-pro-edit");
           return;
         }
 
@@ -683,7 +1015,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(request_id, id, 0, "fal-kling");
+          startPollingWithGeneration(request_id, id, "fal-kling");
           return;
         }
 
@@ -703,7 +1035,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(request_id, id, 0, "fal-kling");
+          startPollingWithGeneration(request_id, id, "fal-kling");
           return;
         }
 
@@ -726,7 +1058,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(request_id, id, 0, "fal-seedance");
+          startPollingWithGeneration(request_id, id, "fal-seedance");
           return;
         }
 
@@ -746,7 +1078,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(request_id, id, 0, "fal-kling");
+          startPollingWithGeneration(request_id, id, "fal-kling");
           return;
         }
 
@@ -774,7 +1106,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(request_id, id, 0, "fal-veo");
+          startPollingWithGeneration(request_id, id, "fal-veo");
           return;
         }
 
@@ -798,7 +1130,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(request_id, id, 0, "fal-sora");
+          startPollingWithGeneration(request_id, id, "fal-sora");
           return;
         }
 
@@ -824,7 +1156,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(request_id, id, 0, "fal-veo");
+          startPollingWithGeneration(request_id, id, "fal-veo");
           return;
         }
 
@@ -846,7 +1178,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(falResp.request_id, id, 0, "fal-flux2");
+          startPollingWithGeneration(falResp.request_id, id, "fal-flux2");
           return;
         }
 
@@ -866,7 +1198,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(falResp.request_id, id, 0, "fal-flux2-klein");
+          startPollingWithGeneration(falResp.request_id, id, "fal-flux2-klein");
           return;
         }
 
@@ -892,7 +1224,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(falResp.request_id, id, 0, "fal-flux2-edit");
+          startPollingWithGeneration(falResp.request_id, id, "fal-flux2-edit");
           return;
         }
 
@@ -919,7 +1251,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(falResp.request_id, id, 0, "fal-flux2-pro-edit");
+          startPollingWithGeneration(falResp.request_id, id, "fal-flux2-pro-edit");
           return;
         }
 
@@ -940,7 +1272,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskState: "running",
             timestamp: "Submitted",
           }));
-          startPollingTask(falResp.request_id, id, 0, "fal-flux2-pro");
+          startPollingWithGeneration(falResp.request_id, id, "fal-flux2-pro");
           return;
         }
 
@@ -1001,7 +1333,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           timestamp: "Submitted",
         }));
 
-        startPollingTask(taskId, id, 0, pollingProvider);
+        startPollingWithGeneration(taskId, id, pollingProvider);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to start generation";
         notifyGenerationFailure(id, message);
@@ -1022,8 +1354,12 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       referenceImageUrl,
       selectedTool,
       startPollingTask,
+      ensureGenerationRecord,
       updateOutputById,
       useReferenceImageIndicator,
+      videoDurationSeconds,
+      videoResolution,
+      videoGenerateAudio,
       videoReferenceMode,
     ],
   );
@@ -1044,6 +1380,14 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     [imageExtraImageUrls, imageReferenceImageUrl, videoExtraImageUrls, videoReferenceImageUrl],
   );
 
+  const buildImageReferenceInputs = useCallback((primary: string | null, extras: (string | null)[]) => {
+    const orderedExtras = extras.filter((url): url is string => Boolean(url && url !== primary));
+    if (primary) {
+      return [primary, ...orderedExtras];
+    }
+    return orderedExtras;
+  }, []);
+
   const generateOutput = useCallback(
     (
       promptOverride?: string | null,
@@ -1051,39 +1395,137 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     ) => {
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
       const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } = resolveReferenceInputsForTool(effectiveTool);
-      const imageInputs = [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url)).slice(0, 8);
+      const baseInputs =
+        effectiveTool === "image"
+          ? buildImageReferenceInputs(referenceUrl, extraUrls)
+          : [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url));
+      const imageInputs = baseInputs.slice(0, 8);
       submitTask(promptOverride ?? prompt, imageInputs, options);
     },
-    [prompt, resolveReferenceInputsForTool, selectedTool, submitTask],
+    [buildImageReferenceInputs, prompt, resolveReferenceInputsForTool, selectedTool, submitTask],
   );
 
   const regenerateOutput = useCallback(() => {
     const promptToUse = prompt.trim();
     if (!promptToUse) return;
     const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } = resolveReferenceInputsForTool(selectedTool);
-    const referencePool = [
-      ...(useReferenceImageIndicator && activeOutput?.previewUrl ? [activeOutput.previewUrl] : []),
-      referenceUrl,
-      ...extraUrls,
-    ];
-    const imageInputs = referencePool.filter((url): url is string => Boolean(url)).slice(0, 8);
+    const referencePool =
+      selectedTool === "image"
+        ? buildImageReferenceInputs(referenceUrl, extraUrls)
+        : [
+            ...(useReferenceImageIndicator && activeOutput?.previewUrl ? [activeOutput.previewUrl] : []),
+            referenceUrl,
+            ...extraUrls,
+          ].filter((url): url is string => Boolean(url));
+    const imageInputs = referencePool.slice(0, 8);
     submitTask(promptToUse, imageInputs);
-  }, [activeOutput?.previewUrl, prompt, resolveReferenceInputsForTool, selectedTool, submitTask, useReferenceImageIndicator]);
+  }, [
+    activeOutput?.previewUrl,
+    buildImageReferenceInputs,
+    prompt,
+    resolveReferenceInputsForTool,
+    selectedTool,
+    submitTask,
+    useReferenceImageIndicator,
+  ]);
+
+  const persistOutputSave = useCallback(
+    async (outputId: string) => {
+      const output = findOutputById(outputId);
+      if (!output) return;
+      updateOutputById(outputId, (item) => ({
+        ...item,
+        saveState: "saving",
+        saveError: null,
+      }));
+      if (output.savedMediaIds?.length) {
+        await new Promise((resolve) => window.setTimeout(resolve, 260));
+        markOutputSaved(outputId, output.savedMediaIds);
+        return;
+      }
+
+      const promptOnly = output.previewText && !output.previewUrl;
+      if (promptOnly) {
+        if (output.promptId) {
+          await new Promise((resolve) => window.setTimeout(resolve, 220));
+          updateOutputById(outputId, (item) => ({
+            ...item,
+            status: "saved",
+            timestamp: "Saved prompt",
+            saveState: "saved",
+            saveError: null,
+          }));
+          return;
+        }
+        const promptId = await persistPromptSave({ promptText: output.previewText, modelId: output.modelId ?? null });
+        if (promptId) {
+          updateOutputById(outputId, (item) => ({
+            ...item,
+            promptId,
+            status: "saved",
+            timestamp: "Saved prompt",
+            saveState: "saved",
+            saveError: null,
+          }));
+          return;
+        }
+        markOutputSaveFailed(outputId, "Unable to save prompt.");
+        return;
+      }
+
+      const urls = output.resultUrls?.length ? output.resultUrls : output.previewUrl ? [output.previewUrl] : [];
+      if (!urls.length) {
+        markOutputSaveFailed(outputId, "No media available to save.");
+        setUiError("No media available to save.");
+        return;
+      }
+      const provider = (output.provider ?? "kei") as Provider;
+      const source = output.generationId || output.taskId ? "ai_studio" : "upload";
+      const generationId =
+        source === "ai_studio"
+          ? output.generationId ??
+            (await ensureGenerationRecord({
+              outputId,
+              provider,
+              taskId: output.taskId,
+            }))
+          : null;
+      const { mediaFileIds, errors } = await persistMediaUrls({
+        outputId,
+        urls,
+        provider,
+        source,
+        generationId: generationId ?? null,
+      });
+      if (mediaFileIds.length) {
+        markOutputSaved(outputId, mediaFileIds);
+        return;
+      }
+      if (errors.length) {
+        markOutputSaveFailed(outputId, errors[0] ?? "Unable to save media to the library.");
+      }
+      setUiError("Unable to save media to the library.");
+    },
+    [ensureGenerationRecord, findOutputById, markOutputSaveFailed, markOutputSaved, persistMediaUrls, persistPromptSave, setUiError, updateOutputById],
+  );
 
   const saveActiveOutput = useCallback(
     (outputId?: string | null) => {
       const targetId = outputId ?? activeOutput?.id ?? null;
       if (!targetId) return;
-      setOutputs((prev) =>
-        prev.map((item) =>
-          item.id === targetId ? { ...item, status: "saved", timestamp: "Saved" } : item,
-        ),
-      );
+      void persistOutputSave(targetId);
       if (!outputId) {
         setSaved(true);
       }
     },
-    [activeOutput?.id],
+    [activeOutput?.id, persistOutputSave],
+  );
+
+  const saveReferenceToLibrary = useCallback(
+    (outputId: string) => {
+      void persistOutputSave(outputId);
+    },
+    [persistOutputSave],
   );
 
   const savePromptReference = useCallback((customPrompt?: string) => {
@@ -1101,9 +1543,19 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       status: "saved",
       timestamp: "Saved prompt",
       previewText: cleanedPrompt,
+      saveState: "saving",
+      saveError: null,
     };
     setOutputs((prev) => [promptReference, ...prev]);
-  }, [prompt, mode, aspect, model]);
+    void (async () => {
+      const promptId = await persistPromptSave({ promptText: cleanedPrompt, modelId: model ?? null });
+      if (!promptId) {
+        markOutputSaveFailed(id, "Unable to save prompt.");
+        return;
+      }
+      updateOutputById(id, (item) => ({ ...item, promptId, saveState: "saved", saveError: null }));
+    })();
+  }, [aspect, markOutputSaveFailed, model, persistPromptSave, prompt, updateOutputById]);
 
   const addAgentPromptReference = useCallback(
     (promptText: string, title?: string | null) => {
@@ -1122,11 +1574,62 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         timestamp: "Agent",
         // Always show the actual prompt text on the reference card.
         previewText: cleanedPrompt,
+        saveState: "idle",
+        saveError: null,
       };
       setOutputs((prev) => [promptReference, ...prev]);
       setSharedPrompt(cleanedPrompt);
     },
     [prompt, mode, aspect, model, setSharedPrompt],
+  );
+
+  const addLibraryMediaReference = useCallback(
+    (payload: { id: string; url: string; fileType: "image" | "video"; filename?: string | null; source?: string | null }) => {
+      if (!payload.url) return;
+      const id = `library-${randomId()}`;
+      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
+      const nextOutput: StudioOutput = {
+        id,
+        prompt: payload.filename ?? "Media reference",
+        mode: payload.fileType === "video" ? "video" : "image",
+        aspect,
+        model: placeholderModelLabel,
+        modelId: model ?? undefined,
+        status: "ready",
+        timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
+        previewUrl: payload.url,
+        saveState: "idle",
+        saveError: null,
+        savedMediaIds: payload.id ? [payload.id] : undefined,
+      };
+      setOutputs((prev) => [nextOutput, ...prev]);
+    },
+    [aspect, model],
+  );
+
+  const addLibraryPromptReference = useCallback(
+    (payload: { id: string; promptText: string; title?: string | null }) => {
+      const cleanedPrompt = payload.promptText?.trim();
+      if (!cleanedPrompt) return;
+      const id = `prompt-library-${randomId()}`;
+      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
+      const promptReference: StudioOutput = {
+        id,
+        prompt: cleanedPrompt,
+        mode: "text",
+        aspect,
+        model: placeholderModelLabel,
+        modelId: model ?? undefined,
+        status: "saved",
+        timestamp: "Library",
+        previewText: cleanedPrompt,
+        saveState: "idle",
+        saveError: null,
+        promptId: payload.id,
+      };
+      setOutputs((prev) => [promptReference, ...prev]);
+    },
+    [aspect, model],
   );
 
   const addOutputsFromFiles = useCallback(
@@ -1329,8 +1832,11 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     generateOutput,
     regenerateOutput,
     saveActiveOutput,
+    saveReferenceToLibrary,
     savePromptReference,
     addAgentPromptReference,
+    addLibraryMediaReference,
+    addLibraryPromptReference,
     addOutputsFromFiles,
     toggleReferenceIndicator,
     clearReferenceImages,

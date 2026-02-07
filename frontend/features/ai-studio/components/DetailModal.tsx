@@ -3,20 +3,30 @@
  * Supports prompt-only view and media preview with metadata.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TrashSimple } from "phosphor-react";
+import { FloppyDisk, TrashSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
+import { PromptLibraryButton } from "./PromptLibraryButton";
 
 type DetailModalProps = {
   output: StudioOutput | null;
   onClose: () => void;
   onUpdatePrompt: (id: string, prompt: string) => void;
   onDeleteOutput: (id: string) => void;
+  onDownloadReference?: (id: string) => void;
+  onSavePrompt?: (promptText: string) => void;
 };
 
 /**
  * Renders the detail modal for a selected reference.
  */
-export function DetailModal({ output, onClose, onUpdatePrompt, onDeleteOutput }: DetailModalProps) {
+export function DetailModal({
+  output,
+  onClose,
+  onUpdatePrompt,
+  onDeleteOutput,
+  onDownloadReference,
+  onSavePrompt,
+}: DetailModalProps) {
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -34,12 +44,13 @@ export function DetailModal({ output, onClose, onUpdatePrompt, onDeleteOutput }:
     setIsDeleteConfirmOpen(false);
   }, [output?.prompt, output?.id]);
 
-  const canSave = useMemo(
-    () => draftPrompt.trim().length > 0 && draftPrompt.trim() !== (output?.prompt ?? "").trim(),
-    [draftPrompt, output?.prompt],
-  );
-
   const isPromptEditable = Boolean(isPromptOnly);
+  const trimmedPrompt = draftPrompt.trim();
+  const hasPromptEdits = trimmedPrompt !== (output?.prompt ?? "").trim();
+  const canSave = useMemo(
+    () => Boolean(trimmedPrompt) && (Boolean(onSavePrompt) || (isPromptEditable && hasPromptEdits)),
+    [hasPromptEdits, isPromptEditable, onSavePrompt, trimmedPrompt],
+  );
 
   const syncTextareaHeight = useCallback((element: HTMLTextAreaElement | null) => {
     if (!element) return;
@@ -83,8 +94,13 @@ export function DetailModal({ output, onClose, onUpdatePrompt, onDeleteOutput }:
   }, [output]);
 
   const handleSavePrompt = () => {
-    if (!isPromptEditable || !output?.id || !draftPrompt.trim()) return;
-    onUpdatePrompt(output.id, draftPrompt);
+    if (!trimmedPrompt) return;
+    if (isPromptEditable && output?.id && hasPromptEdits) {
+      onUpdatePrompt(output.id, draftPrompt);
+    }
+    if (onSavePrompt) {
+      onSavePrompt(draftPrompt);
+    }
   };
 
   const handlePromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -107,6 +123,10 @@ export function DetailModal({ output, onClose, onUpdatePrompt, onDeleteOutput }:
   );
 
   const handleDownload = useCallback(() => {
+    if (output?.id && onDownloadReference) {
+      onDownloadReference(output.id);
+      return;
+    }
     if (!output?.previewUrl || typeof window === "undefined") return;
     const link = document.createElement("a");
     link.href = output.previewUrl;
@@ -114,7 +134,7 @@ export function DetailModal({ output, onClose, onUpdatePrompt, onDeleteOutput }:
     link.rel = "noreferrer";
     link.download = filename || "media";
     link.click();
-  }, [filename, output?.previewUrl]);
+  }, [filename, onDownloadReference, output?.id, output?.previewUrl]);
 
   const handleRequestDelete = () => {
     setIsDeleteConfirmOpen(true);
@@ -184,6 +204,14 @@ export function DetailModal({ output, onClose, onUpdatePrompt, onDeleteOutput }:
               >
                 {copiedField === "prompt" ? "Copied!" : "Copy Prompt"}
               </button>
+              <PromptLibraryButton
+                tone="save"
+                label="Save prompt"
+                icon={<FloppyDisk size={16} weight="regular" aria-hidden />}
+                onClick={handleSavePrompt}
+                disabled={!canSave}
+                className="prompt-save-modal-btn"
+              />
               <button type="button" className="art-close-btn" onClick={onClose}>
                 ×
               </button>

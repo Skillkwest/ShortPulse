@@ -323,20 +323,22 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
                 onMouseEnter={handleChipTooltipShow(option.value)}
                 onMouseLeave={handleChipTooltipHide}
               >
-                <div className="model-chip-row">
-                  <div className="model-chip-content">
-                    {logoSrc ? (
-                      <img className="model-chip-logo-img" src={logoSrc} alt="" aria-hidden />
-                    ) : null}
-                    <div className="model-chip-text">
-                      <span className="model-chip-title">{getDisplayLabel(option.value)}</span>
-                    </div>
-                  </div>
-                  <span className="model-chip-pill">
-                    <span aria-hidden="true" className="model-chip-icon">✦</span>
-                    <span className="model-chip-credits">{formatCredits(option.value)}</span>
-                  </span>
+            <div className="model-chip-row">
+              <div className="model-chip-content">
+                {logoSrc ? (
+                  <img className="model-chip-logo-img" src={logoSrc} alt="" aria-hidden />
+                ) : null}
+                <div className="model-chip-text">
+                  <span className="model-chip-title">{getDisplayLabel(option.value)}</span>
                 </div>
+              </div>
+              <span className="model-chip-pill">
+                <span aria-hidden="true" className="model-chip-icon">
+                  ✦
+                </span>
+                <span className="model-chip-credits">{formatCredits(option.value)}</span>
+              </span>
+            </div>
               </button>
             );
           })}

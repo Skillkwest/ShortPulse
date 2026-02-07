@@ -37,7 +37,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
    - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal/Kie) with aspect-mapped sizing; no agent prompts are involved.
    - Task polling updates status; success stores `resultUrls`, sets `previewUrl`, and clears errors. Failures set `errorMessage` and stop polling.  
 5. Reference Grid prepends the new output card; Studio Preview shows the latest image.  
-6. Save/Media Library buttons remain available for downstream use.
+6. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
 
 ## Reference handling
 

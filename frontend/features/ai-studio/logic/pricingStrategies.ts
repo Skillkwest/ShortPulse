@@ -13,14 +13,10 @@ const FLUX2_PRO_ADDITIONAL_MP_USD = 0.015;
 const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
 const CREDIT_VALUE_USD = 0.01;
 export const DEFAULT_KLING_DURATION_SECONDS = 10;
-const KLING_25_BASE_USD_FOR_5S = 0.35;
-const KLING_25_ADDITIONAL_PER_SECOND_USD = 0.07;
 const VEO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.4;
 const VEO_NO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.2;
 const VEO_AUDIO_RATE_4K_USD_PER_SECOND = 0.6;
 const VEO_NO_AUDIO_RATE_4K_USD_PER_SECOND = 0.4;
-const KLING_26_RATE_AUDIO_OFF_USD_PER_SECOND = 0.07;
-const KLING_26_RATE_AUDIO_ON_USD_PER_SECOND = 0.14;
 const KLING_26_MOTION_USD_PER_SECOND = 0.112;
 const KLING_3_RATE_AUDIO_OFF_USD_PER_SECOND = 0.224;
 const KLING_3_RATE_AUDIO_ON_USD_PER_SECOND = 0.336;
@@ -176,36 +172,6 @@ const computeNanoBananaPerImageCost: StrategyFn = ({ resolution, webSearch }) =>
   };
 };
 
-const computeKling25PerDurationCost: StrategyFn = (params) => {
-  const duration = resolveDefaultDuration(params, DEFAULT_KLING_DURATION_SECONDS);
-  const clampedDuration = Math.max(5, duration);
-  const additionalSeconds = Math.max(0, clampedDuration - 5);
-  const usd = KLING_25_BASE_USD_FOR_5S + additionalSeconds * KLING_25_ADDITIONAL_PER_SECOND_USD;
-  const credits = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
-    megapixels: 0,
-    width: 0,
-    height: 0,
-  };
-};
-
-const computeKling26PerSecondCost: StrategyFn = (params) => {
-  const duration = resolveDefaultDuration(params, 10);
-  const hasAudio = resolveDefaultAudio(params, true);
-  const usdPerSecond = hasAudio ? KLING_26_RATE_AUDIO_ON_USD_PER_SECOND : KLING_26_RATE_AUDIO_OFF_USD_PER_SECOND;
-  const usd = usdPerSecond * duration;
-  const credits = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
-    megapixels: 0,
-    width: 0,
-    height: 0,
-  };
-};
-
 const computeKling26MotionPerSecondCost: StrategyFn = (params) => {
   const duration = resolveDefaultDuration(params, DEFAULT_KLING_DURATION_SECONDS);
   const usd = KLING_26_MOTION_USD_PER_SECOND * duration;
@@ -328,8 +294,6 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "gpt41nano-per-token": computeGpt41NanoPerTokenCost,
   "nano-banana-per-image": computeNanoBananaPerImageCost,
   "seedream-per-image": computeSeedreamPerImageCost,
-  "kling-2.5-per-duration": computeKling25PerDurationCost,
-  "kling-2.6-per-second": computeKling26PerSecondCost,
   "kling-2.6-motion-per-second": computeKling26MotionPerSecondCost,
   "kling-3-per-second": computeKling3PerSecondCost,
   "veo-3-per-second": computeVeoPerSecondCost,

@@ -32,6 +32,7 @@ export default function AiStudioPage() {
   }, [balanceCents]);
   const [agentConversationId] = useState<string>(() => randomId());
   const [isPromptRefining, setIsPromptRefining] = useState(false);
+  const [describeInFlightCount, setDescribeInFlightCount] = useState(0);
 
   // Character workflow state (used when Character tool is active)
   const {
@@ -71,6 +72,7 @@ export default function AiStudioPage() {
     currentModelLabel,
     prompt,
     outputs,
+    setOutputs,
     activeOutput,
     activeOutputId,
     setActiveOutputId,
@@ -89,6 +91,10 @@ export default function AiStudioPage() {
     setMotionCharacterUrl,
     motionReferenceVideoUrl,
     setMotionReferenceVideoUrl,
+    motionCharacterOrientation,
+    setMotionCharacterOrientation,
+    motionKeepOriginalSound,
+    setMotionKeepOriginalSound,
     videoDurationSeconds,
     setVideoDurationSeconds,
     videoResolution,
@@ -296,28 +302,91 @@ export default function AiStudioPage() {
       debit(describeCostCredits, "Image describe", `describe-${Date.now()}`).catch(() => {});
     };
 
-    // Primary: dedicated describe-image endpoint
-    const safeUrl = await prepareImageUrl(target.previewUrl);
-    const described = safeUrl ? await postDescribeImage(safeUrl) : null;
-    if (described?.description) {
-      addAgentPromptReference(described.description, "Image describe");
-      setSharedPrompt(described.description);
-      setLatestAgentPrompt(described.description);
-      debitDescribe();
-      return;
-    }
+    const placeholderId = `describe-${randomId()}`;
+    const placeholderModelLabel = model ? (getModelConfig(model)?.label ?? model) : "Model pending selection";
+    setOutputs((prev) => [
+      {
+        id: placeholderId,
+        prompt: "Describing image…",
+        mode: "text",
+        aspect,
+        model: placeholderModelLabel,
+        modelId: model ?? undefined,
+        status: "ready",
+        timestamp: "Describing…",
+        taskState: "running",
+        saveState: "idle",
+        saveError: null,
+      },
+      ...prev,
+    ]);
+    setActiveOutputId(placeholderId);
+    setDescribeInFlightCount((count) => count + 1);
 
-    // Fallback: chat agent with describe hint
-    const result = await handleAgentSend("Describe this image", {
-      captureResult: true,
-      selectedOverride: target,
-      modeHint: "describe",
-    });
-    if (result?.prompt) {
-      addAgentPromptReference(result.prompt, result.referenceTitle);
-      setSharedPrompt(result.prompt);
-      setLatestAgentPrompt(result.prompt);
+    const resolvePlaceholder = (text: string, title?: string) => {
+      const cleaned = text.trim();
+      if (!cleaned) return;
+      setOutputs((prev) =>
+        prev.map((item) =>
+          item.id === placeholderId
+            ? {
+                ...item,
+                prompt: cleaned,
+                previewText: cleaned,
+                status: "ready",
+                timestamp: title ?? "Image describe",
+                taskState: "success",
+                saveState: "idle",
+                saveError: null,
+                errorMessage: null,
+              }
+            : item,
+        ),
+      );
+      setSharedPrompt(cleaned);
+      setLatestAgentPrompt(cleaned);
       debitDescribe();
+    };
+
+    const failPlaceholder = (message: string) => {
+      setOutputs((prev) =>
+        prev.map((item) =>
+          item.id === placeholderId
+            ? {
+                ...item,
+                taskState: "fail",
+                timestamp: "Failed",
+                errorMessage: message,
+              }
+            : item,
+        ),
+      );
+    };
+
+    try {
+      // Primary: dedicated describe-image endpoint
+      const safeUrl = await prepareImageUrl(target.previewUrl);
+      const described = safeUrl ? await postDescribeImage(safeUrl) : null;
+      if (described?.description) {
+        resolvePlaceholder(described.description, "Image describe");
+        return;
+      }
+
+      // Fallback: chat agent with describe hint
+      const result = await handleAgentSend("Describe this image", {
+        captureResult: true,
+        selectedOverride: target,
+        modeHint: "describe",
+      });
+      if (result?.prompt) {
+        resolvePlaceholder(result.prompt, result.referenceTitle ?? "Image describe");
+        return;
+      }
+      failPlaceholder("Unable to describe this image.");
+    } catch (error: any) {
+      failPlaceholder(error?.message || "Unable to describe this image.");
+    } finally {
+      setDescribeInFlightCount((count) => Math.max(0, count - 1));
     }
   };
 
@@ -540,10 +609,16 @@ export default function AiStudioPage() {
     [aspect, defaultPricingParams],
   );
 
-  const filteredModelOptions = useMemo(
-    () => filterModelOptions(mode, selectedTool, modelOptions, getModelConfig),
-    [mode, selectedTool],
-  );
+  const filteredModelOptions = useMemo(() => {
+    const base = filterModelOptions(mode, selectedTool, modelOptions, getModelConfig);
+    if (selectedTool === "video" && videoReferenceMode === "standard") {
+      return base.filter((opt) => opt.mediaType === "image-to-video");
+    }
+    if (selectedTool === "video" && videoReferenceMode === "keyframes") {
+      return base.filter((opt) => opt.value === "fal-ai/veo3.1/first-last-frame-to-video");
+    }
+    return base;
+  }, [mode, selectedTool, videoReferenceMode]);
 
   const {
     currentCostCredits,
@@ -680,7 +755,7 @@ export default function AiStudioPage() {
     onPromptChange: setSharedPrompt,
     onToggleReferenceIndicator: toggleReferenceIndicator,
     // Treat refine send as a prompt-generating busy state for overlays.
-    isPromptGenerating: isPromptGenerating || isPromptRefining,
+    isPromptGenerating: isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: currentCostCredits,
     isGenerateDisabled: isGenerateDisabled || agentIsSending,
     guardrailReason: generationGuardrail,
@@ -801,6 +876,10 @@ export default function AiStudioPage() {
           onMotionCharacterChange: setMotionCharacterUrl,
           motionReferenceVideoUrl,
           onMotionReferenceVideoChange: setMotionReferenceVideoUrl,
+          motionCharacterOrientation,
+          onMotionCharacterOrientationChange: setMotionCharacterOrientation,
+          motionKeepOriginalSound,
+          onMotionKeepOriginalSoundChange: setMotionKeepOriginalSound,
           videoDurationSeconds,
           videoResolution,
           videoGenerateAudio,
@@ -845,6 +924,7 @@ export default function AiStudioPage() {
           outputs,
           activeOutputId,
           showHeader: false,
+          disablePromptGenerate: !model,
           onSelectOutput: handleSelectOutput,
           onOpenDetails: setDetailOutputId,
           onDescribeImage: (output) => handleDescribeReference(output.id),

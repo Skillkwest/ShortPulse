@@ -26,8 +26,6 @@ Short version: Models declare their own metadata (provider, aspects, size maps, 
 - `google-nano-banana-per-image`: $0.039 flat per image (4 credits); currently used by the `fal-ai/nano-banana` queue.
 - `nano-banana-per-image`: $0.15 per image (15 credits). 4K renders double to $0.30 (30 credits) and enabling web search adds $0.015 (1.5 credits); resolution/web search flags are passed via the pricing parameters (default resolution 1K). Currently used by the `fal-ai/nano-banana-pro` queue.
 - `seedream-per-image`: $0.04 per image (4 credits). 4K renders double to $0.08 (8 credits); no web-search surcharge is applied for this model.
-- `kling-2.5-per-duration`: $0.35 for 5s, plus $0.07 for each additional second; defaults to 10s (70 credits) when duration is omitted. Currently used by the `fal-ai/kling-video/v2.5-turbo/pro/image-to-video` queue.
-- `kling-2.6-per-second`: $0.14 per second with audio on (default), $0.07 per second with audio off; defaults to 10s. This strategy powers `fal-ai/kling-video/v2.6/pro/text-to-video`, where ShortPulse forces `generate_audio = true`.
 - `kling-2.6-motion-per-second`: $0.112 per second; defaults to 10s. This strategy powers `fal-ai/kling-video/v2.6/pro/motion-control`.
 - `kling-3-per-second`: $0.224 per second with audio off, $0.336 per second with audio on (default), $0.392 per second when voice control is used with audio; defaults to 10s. This strategy powers `fal-ai/kling-video/v3/pro/image-to-video` and `fal-ai/kling-video/v3/pro/text-to-video`.
 - `veo-3-per-second`: 1080p w/ audio $0.40 per second (default), 4K w/ audio $0.60 per second; audio-off tiers are $0.20/$0.40 per second. Defaults to 8s @ 1080p with audio on. Used by `fal-ai/veo3.1` and `fal-ai/veo3.1/first-last-frame-to-video`.
@@ -40,5 +38,5 @@ Short version: Models declare their own metadata (provider, aspects, size maps, 
 - Model config lives in `modelRegistry.ts` with strategy `gpt41nano-per-token`. Aspects are unused for text.
 
 ## Tests
-- `frontend/features/ai-studio/logic/__tests__/pricing.test.ts` covers Fal/flux variants, Kling defaults, and token pricing.
+- `frontend/features/ai-studio/logic/__tests__/pricing.test.ts` covers Fal/flux variants, Kling defaults (motion control + v3), and token pricing.
 - `frontend/features/ai-studio/logic/__tests__/modelPricingCoverage.test.ts` ensures every registered model with a pricing strategy returns a non-null cost with its default params.

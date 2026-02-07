@@ -34,6 +34,12 @@ export function DetailModal({
 
   const mediaType = output?.mode === "image" ? "Image" : output?.mode === "video" ? "Video" : "Prompt";
   const isPromptOnly = output?.mode === "text" && !output.previewUrl;
+  const isUploadedReference = useMemo(() => {
+    if (!output?.previewUrl) return false;
+    if (output?.id?.startsWith("upload-")) return true;
+    if (output?.timestamp === "Dropped") return true;
+    return false;
+  }, [output?.id, output?.previewUrl, output?.timestamp]);
   const aspectStyle =
     output?.aspect && output.aspect.includes(":")
       ? { aspectRatio: output.aspect.replace(":", " / ") }
@@ -170,7 +176,7 @@ export function DetailModal({
       )}
 
       <div
-        className={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""}`}
+        className={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""} ${isUploadedReference ? "is-uploaded" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label="Reference details"
@@ -183,8 +189,10 @@ export function DetailModal({
               <span className="art-meta-item">{mediaType}</span>
               {output.aspect && <span className="art-meta-divider">/</span>}
               {output.aspect && <span className="art-meta-item">{output.aspect}</span>}
-              {(output.model || output.modelId) && <span className="art-meta-divider">/</span>}
-              <span className="art-meta-item truncate-model">{output.model ?? output.modelId}</span>
+              {!isUploadedReference && (output.model || output.modelId) && <span className="art-meta-divider">/</span>}
+              {!isUploadedReference && (
+                <span className="art-meta-item truncate-model">{output.model ?? output.modelId}</span>
+              )}
             </div>
 
             <div className="art-modal-action-row">
@@ -197,21 +205,25 @@ export function DetailModal({
                 <TrashSimple size={16} weight="bold" aria-hidden />
                 Delete
               </button>
-              <button
-                type="button"
-                className="art-action-btn"
-                onClick={() => handleCopy(draftPrompt || output.prompt, "prompt")}
-              >
-                {copiedField === "prompt" ? "Copied!" : "Copy Prompt"}
-              </button>
-              <PromptLibraryButton
-                tone="save"
-                label="Save prompt"
-                icon={<FloppyDisk size={16} weight="regular" aria-hidden />}
-                onClick={handleSavePrompt}
-                disabled={!canSave}
-                className="prompt-save-modal-btn"
-              />
+              {!isUploadedReference ? (
+                <button
+                  type="button"
+                  className="art-action-btn"
+                  onClick={() => handleCopy(draftPrompt || output.prompt, "prompt")}
+                >
+                  {copiedField === "prompt" ? "Copied!" : "Copy Prompt"}
+                </button>
+              ) : null}
+              {!isUploadedReference ? (
+                <PromptLibraryButton
+                  tone="save"
+                  label="Save prompt"
+                  icon={<FloppyDisk size={16} weight="regular" aria-hidden />}
+                  onClick={handleSavePrompt}
+                  disabled={!canSave}
+                  className="prompt-save-modal-btn"
+                />
+              ) : null}
               <button type="button" className="art-close-btn" onClick={onClose}>
                 ×
               </button>
@@ -272,7 +284,7 @@ export function DetailModal({
                 <div className="art-blade-inner">
                   <div className="art-blade-header">
                     <span className="art-label">PROMPT</span>
-                    {canSave && (
+                    {canSave && !isUploadedReference && (
                       <button type="button" className="art-mini-save" onClick={handleSavePrompt}>
                         Update
                       </button>

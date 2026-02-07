@@ -21,7 +21,6 @@ export type Provider =
   | "fal-flux2-pro"
   | "fal-flux2-pro-edit"
   | "fal-kling"
-  | "fal-kling-25"
   | "fal-nano-banana"
   | "fal-kling-3"
   | "fal-nano-banana-edit"

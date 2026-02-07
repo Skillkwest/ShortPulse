@@ -29,8 +29,12 @@ type ReferencePropertiesPanelProps = {
   onVideoReferenceModeChange?: (value: "standard" | "keyframes" | "motion") => void;
   motionCharacterUrl?: string | null;
   motionReferenceVideoUrl?: string | null;
+  motionCharacterOrientation?: "image" | "video";
+  motionKeepOriginalSound?: boolean;
   onMotionCharacterChange?: (url: string | null) => void;
   onMotionReferenceVideoChange?: (url: string | null) => void;
+  onMotionCharacterOrientationChange?: (value: "image" | "video") => void;
+  onMotionKeepOriginalSoundChange?: (value: boolean) => void;
   videoDurationSeconds?: number;
   videoResolution?: string;
   videoGenerateAudio?: boolean;
@@ -124,8 +128,12 @@ export function ReferencePropertiesPanel({
   onVideoReferenceModeChange,
   motionCharacterUrl,
   motionReferenceVideoUrl,
+  motionCharacterOrientation,
+  motionKeepOriginalSound,
   onMotionCharacterChange,
   onMotionReferenceVideoChange,
+  onMotionCharacterOrientationChange,
+  onMotionKeepOriginalSoundChange,
   videoDurationSeconds,
   videoResolution,
   videoGenerateAudio,
@@ -411,6 +419,8 @@ export function ReferencePropertiesPanel({
   const videoDurationValue = videoDurationSeconds ?? 6;
   const videoResolutionValue = videoResolution ?? "1080p";
   const videoGenerateAudioValue = Boolean(videoGenerateAudio);
+  const motionOrientationValue = motionCharacterOrientation ?? "video";
+  const motionKeepSoundValue = motionKeepOriginalSound ?? true;
 
   return (
     <div className="tool-properties reference-properties-panel">
@@ -484,7 +494,7 @@ export function ReferencePropertiesPanel({
                   <label className="input-label">Model</label>
                   <button
                     type="button"
-                    className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""}`}
+                    className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""}`}
                     data-model-anchor="reference-model"
                     onClick={(event) =>
                       onModelPickerOpen(
@@ -800,6 +810,21 @@ export function ReferencePropertiesPanel({
                     </select>
                   </div>
                 ) : null}
+                {isMotionMode ? (
+                  <div className="control-row compact fixed-select">
+                    <label className="input-label">Character orientation</label>
+                    <select
+                      className="model-select"
+                      value={motionOrientationValue}
+                      onChange={(event) =>
+                        onMotionCharacterOrientationChange?.(event.target.value as "image" | "video")
+                      }
+                    >
+                      <option value="video">Match video orientation</option>
+                      <option value="image">Match image orientation</option>
+                    </select>
+                  </div>
+                ) : null}
                 <div className="control-row compact fixed-select">
                   <label className="input-label">Resolution</label>
                   <select
@@ -826,6 +851,25 @@ export function ReferencePropertiesPanel({
                       aria-pressed={videoGenerateAudioValue}
                       aria-label={videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"}
                       onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
+                    >
+                      <span className="reference-toggle-track" aria-hidden="true">
+                        <span className="reference-toggle-dot" />
+                      </span>
+                    </button>
+                  </div>
+                ) : null}
+                {isMotionMode ? (
+                  <div className="video-settings-toggle-row">
+                    <div className="video-settings-toggle-copy">
+                      <span className="input-label">Keep original sound</span>
+                      <span className="tiny helper-text">Preserve the input video's audio track.</span>
+                    </div>
+                    <button
+                      type="button"
+                      className={`reference-toggle ${motionKeepSoundValue ? "is-active" : ""}`}
+                      aria-pressed={motionKeepSoundValue}
+                      aria-label={motionKeepSoundValue ? "Disable original sound" : "Enable original sound"}
+                      onClick={() => onMotionKeepOriginalSoundChange?.(!motionKeepSoundValue)}
                     >
                       <span className="reference-toggle-track" aria-hidden="true">
                         <span className="reference-toggle-dot" />

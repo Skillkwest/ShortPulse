@@ -22,9 +22,6 @@ export const modelLogos: Record<string, string> = {
   "fal-ai/bytedance/seedream/v4.5/text-to-image": "/Seedream%20LOGO.png",
   "fal-ai/kling-video/v3/pro/text-to-video": "/Kling%20LOGO.png",
   "fal-ai/kling-video/v3/pro/image-to-video": "/Kling%20LOGO.png",
-  "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": "/Kling%20LOGO.png",
-  "fal-ai/kling-video/v2.5-turbo/pro/text-to-video": "/Kling%20LOGO.png",
-  "fal-ai/kling-video/v2.6/pro/text-to-video": "/Kling%20LOGO.png",
   "fal-ai/kling-video/v2.6/pro/motion-control": "/Kling%20LOGO.png",
   "fal-ai/veo3.1/first-last-frame-to-video": "/Google%20LOGO.png",
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": "/Seedream%20LOGO.png",
@@ -46,13 +43,6 @@ export const aspectOptions: AspectOption[] = [
 export const modelOptions: ModelOption[] = [
   { value: "fal-ai/kling-video/v3/pro/text-to-video", label: "Kling 3.0 (Text to Video)", mediaType: "video" },
   { value: "fal-ai/kling-video/v3/pro/image-to-video", label: "Kling 3.0", mediaType: "image-to-video" },
-  { value: "fal-ai/kling-video/v2.5-turbo/pro/image-to-video", label: "Kling 2.5 Turbo", mediaType: "image-to-video" },
-  {
-    value: "fal-ai/kling-video/v2.5-turbo/pro/text-to-video",
-    label: "Kling 2.5 Turbo (Text to Video)",
-    mediaType: "video",
-  },
-  { value: "fal-ai/kling-video/v2.6/pro/text-to-video", label: "Kling 2.6 Pro", mediaType: "video" },
   {
     value: "fal-ai/kling-video/v2.6/pro/motion-control",
     label: "Kling 2.6 Motion Control (Pro)",

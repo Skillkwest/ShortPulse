@@ -320,7 +320,7 @@ export function TextPropertiesPanel({
                 <label className="input-label">Model</label>
                 <button
                   type="button"
-                  className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""}`}
+                  className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""}`}
                   data-model-anchor="create-model"
                   onClick={handleCreateModelOpen}
                 >

@@ -182,12 +182,29 @@
   color: inherit;
 }
 
-.reference-card:hover .reference-generate-pill {
+.reference-card.is-active .reference-generate-pill {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .reference-card .reference-generate-pill:hover {
   box-shadow: 0 14px 30px rgba(37, 169, 191, 0.45);
+}
+
+.reference-card .reference-generate-pill:disabled {
+  opacity: 0.85;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(78, 86, 104, 0.55), rgba(46, 52, 66, 0.65));
+  color: rgba(231, 236, 245, 0.7);
+  box-shadow: none;
+  transform: none;
+}
+
+.reference-card .reference-generate-pill:disabled .reference-pill-cost {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(12, 18, 26, 0.14);
+  color: rgba(231, 236, 245, 0.7);
 }
 
 .reference-card .reference-generate-pill:focus-visible {
@@ -195,7 +212,7 @@
   outline-offset: 2px;
 }
 
-.reference-card:hover .reference-describe-pill {
+.reference-card.is-active .reference-describe-pill {
   opacity: 1;
   pointer-events: auto;
 }
@@ -221,7 +238,7 @@
   pointer-events: none;
 }
 
-.reference-card:hover .reference-card-actions {
+.reference-card.is-active .reference-card-actions {
   opacity: 1;
   pointer-events: auto;
 }
@@ -365,10 +382,13 @@
 }
 
 .reference-save-chip.is-saved {
-  border-color: #62dc9a;
-  background: radial-gradient(circle, rgba(84, 255, 190, 0.95), rgba(38, 202, 141, 0.9));
-  color: #051b0f;
-  box-shadow: 0 8px 20px rgba(38, 202, 141, 0.45), 0 0 0 2px rgba(255, 255, 255, 0.1);
+  padding: 6px;
+  border-color: rgba(110, 231, 183, 0.75);
+  background: rgba(10, 14, 18, 0.86);
+  color: #6ee7b7;
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(110, 231, 183, 0.16) inset;
 }
 
 .reference-save-chip.is-failed {

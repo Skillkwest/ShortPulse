@@ -36,6 +36,12 @@
   box-shadow: 0 12px 24px var(--ai-accent-shadow, rgba(37, 169, 191, 0.25));
 }
 
+.model-picker-btn.is-empty {
+  border-color: var(--ai-accent, rgba(37, 169, 191, 0.6));
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px var(--ai-accent-shadow, rgba(37, 169, 191, 0.25));
+}
+
 .model-picker-title {
   font-size: 12px;
   letter-spacing: 0.02em;

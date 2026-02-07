@@ -50,11 +50,6 @@ const modelMeta: Record<string, ModelMeta> = {
     tags: ["Image"],
     verified: true,
   },
-  "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": {
-    provider: "Kling",
-    description: "Kling 2.5 Turbo Pro image-to-video with cinematic motion detail.",
-    tags: ["Video"],
-  },
   "fal-ai/kling-video/v3/pro/image-to-video": {
     provider: "Kling",
     description: "Kling 3.0 Pro image-to-video with cinematic visuals, native audio, and optional voice control.",
@@ -64,17 +59,6 @@ const modelMeta: Record<string, ModelMeta> = {
     provider: "Kling",
     description: "Kling 3.0 Pro text-to-video with multi-shot support, cinematic motion, and native audio.",
     tags: ["Video"],
-  },
-  "fal-ai/kling-video/v2.5-turbo/pro/text-to-video": {
-    provider: "Kling",
-    description: "Kling 2.5 Turbo text-to-video (defaults to 10s, $0.35 for 5s + $0.07 per extra second).",
-    tags: ["Video"],
-  },
-  "fal-ai/kling-video/v2.6/pro/text-to-video": {
-    provider: "Kling",
-    description: "Kling 2.6 Pro via Fal queue with cinematic motion, native audio, and smooth camera moves.",
-    tags: ["Video"],
-    verified: true,
   },
   "fal-ai/kling-video/v2.6/pro/motion-control": {
     provider: "Kling",

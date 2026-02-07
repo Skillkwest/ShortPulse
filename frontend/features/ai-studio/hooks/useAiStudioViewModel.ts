@@ -133,9 +133,6 @@ export const useAiStudioViewModel = ({
     selectedTool === "image";
   const hasReferenceImages = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
 
-  const requiresVideoReference =
-    selectedTool === "video" &&
-    model === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
   const hasVideoReference = hasReferenceImages;
   const isPulseImageToolActive = selectedTool === "image" && mode === "image";
   const requiresReferenceModel =

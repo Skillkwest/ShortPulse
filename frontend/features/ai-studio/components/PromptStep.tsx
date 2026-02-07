@@ -3,7 +3,7 @@
  * Handles text input ("Text"), Chat mode, and Agent interactions.
  */
 import React, { useRef } from "react";
-import { ArrowsOutSimple, CaretDown, FloppyDisk, Trash } from "phosphor-react";
+import { ArrowsOutSimple, CaretDown, Trash } from "phosphor-react";
 import {
   AgentChatPanel,
   AgentEnhanceButton,
@@ -12,7 +12,6 @@ import {
   AgentInputBar,
 } from "../../../prefabs/agent";
 import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
-import { PromptLibraryButton } from "./PromptLibraryButton";
 
 type StepHeaderActionButtonProps = {
   label: string;
@@ -203,7 +202,7 @@ export function PromptStep({
                   </button>
                 </div>
                 <div className={`prompt-chat-actions ${promptMode === "chat" ? "is-active" : ""}`}>
-                  {onExpandChat ? (
+                  {promptMode === "chat" && onExpandChat ? (
                     <button
                       type="button"
                       className={`ghost-btn mini prompt-expand-btn ${agentChatOpen ? "is-chat-open" : ""}`}
@@ -215,7 +214,7 @@ export function PromptStep({
                       <ArrowsOutSimple size={20} weight="bold" aria-hidden />
                     </button>
                   ) : null}
-                  {onClearAgentChat ? (
+                  {promptMode === "chat" && onClearAgentChat ? (
                     <button
                       type="button"
                       className="ghost-btn mini prompt-clear-btn"
@@ -287,18 +286,6 @@ export function PromptStep({
                   </div>
                 </div>
                 <div className="enhanced-actions-row prompt-actions-compact">
-                  <div className="ai-control-actions">
-                    {!beginnerMode ? (
-                      <PromptLibraryButton
-                        className="prompt-media-btn prompt-save-btn"
-                        aria-label="Save prompt to media library"
-                        label="Save Prompt"
-                        showLabel={false}
-                        icon={<FloppyDisk size={16} weight="regular" aria-hidden />}
-                        tone="save"
-                      />
-                    ) : null}
-                  </div>
                   <div className="enhanced-action-buttons agent-inline-actions">
                     <AgentEnhanceButton
                       onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}

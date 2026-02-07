@@ -422,34 +422,6 @@ export const fetchFalNanoBananaProEditStatus = async (requestId: string): Promis
   return handleJson<FalStatusResponse>(response);
 };
 
-export const submitFalKlingV25Text = async (payload: FalKlingTextSubmitRequest): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-v25-text-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
-  if (!requestId) {
-    throw new Error("Fal Kling v2.5 text-to-video did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const submitFalKlingV26Text = async (payload: FalKlingTextSubmitRequest): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-v26-text-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
-  if (!requestId) {
-    throw new Error("Fal Kling v2.6 text-to-video did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
 export const submitFalKlingV3Text = async (payload: FalKlingV3TextSubmitRequest): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-v3-text-submit`, {
     method: "POST",
@@ -491,14 +463,6 @@ export const fetchFalKlingStatus = async (requestId: string): Promise<FalKlingSt
   return handleJson<FalKlingStatusResponse>(response);
 };
 
-export const fetchFalKlingV26Status = async (requestId: string): Promise<FalKlingStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalKlingStatusResponse>(response);
-};
 
 export const submitFalSoraPro = async (payload: FalSoraSubmitRequest): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/sora-submit`, {
@@ -608,42 +572,6 @@ export const fetchFalSeedanceStatus = async (requestId: string): Promise<FalStat
 
 const FAL_KLING_V3_SUBMIT = `${FAL_API_BASE}/kling-v3-image-to-video-submit`;
 const FAL_KLING_V3_STATUS = `${FAL_API_BASE}/kling-v3-image-to-video-status`;
-
-export type FalKlingV25SubmitRequest = {
-  prompt: string;
-  image_url: string;
-  duration?: "5" | "10" | number;
-  aspect_ratio?: "16:9" | "9:16" | "1:1";
-  negative_prompt?: string;
-  cfg_scale?: number;
-  tail_image_url?: string;
-};
-
-const FAL_KLING_V25_SUBMIT = `${FAL_API_BASE}/kling-v25-image-to-video-submit`;
-const FAL_KLING_V25_STATUS = `${FAL_API_BASE}/kling-v25-image-to-video-status`;
-
-export const submitFalKlingV25 = async (payload: FalKlingV25SubmitRequest): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(FAL_KLING_V25_SUBMIT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
-  if (!requestId) {
-    throw new Error("Fal Kling 2.5 did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalKlingV25Status = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(FAL_KLING_V25_STATUS, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
 
 export const submitFalKlingV3ImageToVideo = async (
   payload: FalKlingV3ImageToVideoSubmitRequest,

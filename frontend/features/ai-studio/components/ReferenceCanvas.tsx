@@ -3,7 +3,7 @@
  * Supports drag/drop into other surfaces and exposes a detail action on double click.
  */
 import React, { useCallback, useState } from "react";
-import { ArrowClockwise, CheckCircle, CloudArrowUp, DownloadSimple, Sparkle, UploadSimple, X } from "phosphor-react";
+import { ArrowClockwise, CheckCircle, CloudArrowUp, DownloadSimple, FloppyDisk, Sparkle, UploadSimple, X } from "phosphor-react";
 import { PromptLibraryButton } from "./PromptLibraryButton";
 import { StudioOutput } from "../types";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
@@ -11,13 +11,14 @@ import type { ToolId } from "../types";
 
 const isVideoUrl = (url: string) => /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
 
-type ReferenceCanvasProps = {
+export type ReferenceCanvasProps = {
   outputs: StudioOutput[];
   activeOutputId: string | null;
   showHeader?: boolean;
   onSelectOutput: (id: string) => void;
   onOpenDetails: (id: string) => void;
   selectedTool: ToolId | null;
+  disablePromptGenerate?: boolean;
   onDropFiles?: (files: FileList) => void;
   onTriggerFileSelect?: () => void;
   onOpenMediaLibrary?: () => void;
@@ -40,6 +41,7 @@ export function ReferenceCanvas({
   onSelectOutput,
   onOpenDetails,
   selectedTool,
+  disablePromptGenerate = false,
   onDropFiles,
   onTriggerFileSelect,
   onOpenMediaLibrary,
@@ -89,7 +91,7 @@ export function ReferenceCanvas({
     clearDragState(event);
   };
 
-  const renderSaveChip = (item: StudioOutput) => {
+  const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
     if (!item.saveState || item.saveState === "idle") return null;
     const label =
       item.saveState === "saving"
@@ -98,6 +100,7 @@ export function ReferenceCanvas({
           ? "Saved"
           : "Save failed";
     if (item.saveState === "saved") {
+      if (!isSelected) return null;
       return (
         <div className={`reference-save-chip is-${item.saveState}`} aria-label="Saved">
           <CheckCircle size={16} weight="fill" aria-hidden />
@@ -165,7 +168,12 @@ export function ReferenceCanvas({
               const cardStyle = !isVideoPreview && item.previewUrl ? { backgroundImage: `url(${item.previewUrl})` } : undefined;
               const saveDisabled = item.saveState === "saving";
               const saveLabel = item.saveState === "failed" ? "Retry save" : "Save to media library";
-              const saveIcon = item.saveState === "failed" ? <ArrowClockwise size={16} weight="bold" aria-hidden /> : <CloudArrowUp size={16} weight="bold" aria-hidden />;
+                  const saveIcon =
+                    item.saveState === "failed" ? (
+                      <ArrowClockwise size={16} weight="bold" aria-hidden />
+                    ) : (
+                      <FloppyDisk size={16} weight="bold" aria-hidden />
+                    );
               return (
                 <div
                   key={item.id}
@@ -212,7 +220,7 @@ export function ReferenceCanvas({
                       <div className="reference-spinner" />
                     </div>
                   ) : null}
-                  {renderSaveChip(item)}
+                  {renderSaveChip(item, activeOutputId === item.id)}
                   {(onSaveToLibrary && (isImagePreview || isPromptOnly || isVideoPreview)) || (onDownload && (isImagePreview || isVideoPreview)) ? (
                     <div className="reference-card-actions" aria-label="Reference actions">
                       {onSaveToLibrary ? (
@@ -244,11 +252,11 @@ export function ReferenceCanvas({
                           <DownloadSimple size={16} weight="bold" aria-hidden />
                         </button>
                       ) : null}
-                      {isPromptOnly && onDeleteOutput ? (
+                      {onDeleteOutput ? (
                         <button
                           type="button"
                           className="reference-card-action-btn reference-card-action-btn--danger"
-                          aria-label="Delete text reference"
+                          aria-label="Remove reference from grid"
                           onClick={(event) => {
                             event.stopPropagation();
                             onDeleteOutput(item.id);
@@ -288,12 +296,15 @@ export function ReferenceCanvas({
                       </span>
                     </button>
                   ) : null}
-                  {isPromptOnly && onGeneratePrompt ? (
+                  {isPromptOnly && onGeneratePrompt && activeOutputId === item.id ? (
                     <button
                       type="button"
                       className="reference-generate-pill"
+                      disabled={disablePromptGenerate}
+                      aria-disabled={disablePromptGenerate}
                       onClick={(event) => {
                         event.stopPropagation();
+                        if (disablePromptGenerate) return;
                         onSelectOutput(item.id);
                         onGeneratePrompt(item);
                       }}

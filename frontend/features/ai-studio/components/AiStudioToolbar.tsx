@@ -17,6 +17,7 @@ import {
   StackSimple,
   TextT,
   VideoCamera,
+  CloudArrowUp,
 } from "phosphor-react";
 import { createChildTools, creationsToolList, editToolList, lowerToolList, primaryToolList } from "../constants";
 import { ToolId } from "../types";
@@ -83,6 +84,10 @@ export function AiStudioToolbar({
       <Link href="/dashboard" className="ghost-btn small toolbar-back-link">
         <House size={16} weight="regular" />
         Dashboard
+      </Link>
+      <Link href="/media-library" className="ghost-btn small toolbar-back-link toolbar-back-link-secondary">
+        <CloudArrowUp size={16} weight="regular" />
+        Media Library
       </Link>
       <div className="toolbar-divider" aria-hidden="true" />
       <div className="toolbar-list">

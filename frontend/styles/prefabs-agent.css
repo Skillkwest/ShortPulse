@@ -26,11 +26,30 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: 0;
-  padding: 0 12px 0 0;
+  padding: 0;
   box-shadow: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable both-edges;
+}
+
+.agent-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.agent-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.agent-messages::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.35);
+  border-radius: 999px;
+}
+
+.agent-messages::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.55);
 }
 
 /* Keep chat history compact inside the Create panel without capping the Agent Chat column */

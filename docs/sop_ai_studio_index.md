@@ -29,9 +29,6 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 | fal-ai/bytedance/seedream/v4.5/text-to-image | Aspect: 1:1 (broad set allowed) | Per-image pricing, 4K doubles cost; proxied via Fal queue with safety checker on. |
 | fal-ai/kling-video/v3/pro/image-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s; `generate_audio: true` by default | Per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Image-to-video with required start image. |
 | fal-ai/kling-video/v3/pro/text-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s; `generate_audio: true` by default | Per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Text-to-video with multi-shot support. |
-| fal-ai/kling-video/v2.5-turbo/pro/image-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s | Fal image-to-video queue; per-duration pricing (base 5s + increments) with a required reference image. |
-| fal-ai/kling-video/v2.5-turbo/pro/text-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s | Fal text-to-video queue; per-duration pricing (base 5s + increments). |
-| fal-ai/kling-video/v2.6/pro/text-to-video | Aspect: 16:9 default (allowed: 1:1, 16:9, 9:16); Duration: 10s; `generate_audio: true` by default | Per-second pricing (`$0.14/s` with audio, `$0.07/s` without); defaults to 10s and includes audio. |
 | fal-ai/sora-2/text-to-video/pro | Aspect: 16:9 default (allowed: 16:9, 9:16); Duration: 8s default (queue accepts 4/8/12s); Resolution: 1080p; Audio: on | Per-second tiered pricing (uses 10s high-tier rates by default); proxied via Fal queue. |
 | fal-ai/veo3.1 | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 8s; Resolution: 1080p; Audio: on | Per-second pricing (same tiers as before); proxied via Fal queue. |
 | gpt-4.1-nano | Aspect: n/a; Token-based | Used for prompt refine + describe flows. |

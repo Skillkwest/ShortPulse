@@ -22,9 +22,6 @@ import {
   submitFalFlux2Edit,
   submitFalFlux2ProEdit,
   submitFalFlux2Pro,
-  submitFalKlingV26Text,
-  submitFalKlingV25,
-  submitFalKlingV25Text,
   submitFalKlingV3ImageToVideo,
   submitFalKlingV3Text,
   submitFalKlingMotionControl,
@@ -121,6 +118,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const [videoReferenceMode, setVideoReferenceMode] = useState<"standard" | "keyframes" | "motion">("standard");
   const [motionCharacterUrl, setMotionCharacterUrl] = useState<string | null>(null);
   const [motionReferenceVideoUrl, setMotionReferenceVideoUrl] = useState<string | null>(null);
+  const [motionCharacterOrientation, setMotionCharacterOrientation] = useState<"image" | "video">("video");
+  const [motionKeepOriginalSound, setMotionKeepOriginalSound] = useState<boolean>(true);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(6);
   const [videoResolution, setVideoResolution] = useState<string>("1080p");
   const [videoGenerateAudio, setVideoGenerateAudio] = useState<boolean>(false);
@@ -343,12 +342,16 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const findOutputById = useCallback((id: string) => outputsRef.current.find((item) => item.id === id) ?? null, []);
 
   const markOutputSaved = useCallback(
-    (outputId: string, mediaFileIds?: string[], options?: { showPill?: boolean }) => {
+    (
+      outputId: string,
+      mediaFileIds?: string[],
+      options?: { showPill?: boolean; timestamp?: string; status?: "ready" | "saved" },
+    ) => {
       const showPill = options?.showPill ?? true;
       updateOutputById(outputId, (item) => ({
         ...item,
-        status: "saved",
-        timestamp: "Saved",
+        status: options?.status ?? "saved",
+        timestamp: options?.timestamp ?? "Saved",
         saveState: showPill ? "saved" : item.saveState,
         saveError: showPill ? null : item.saveError,
         savedMediaIds: mediaFileIds?.length ? mediaFileIds : item.savedMediaIds,
@@ -585,6 +588,11 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         }));
       const urls = resultUrls.filter(Boolean);
       if (!urls.length) return;
+      updateOutputById(outputId, (item) => ({
+        ...item,
+        saveState: "saving",
+        saveError: null,
+      }));
       const { mediaFileIds, errors } = await persistMediaUrls({
         outputId,
         urls,
@@ -593,10 +601,10 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         generationId: generationId ?? null,
       });
       if (mediaFileIds.length) {
-        markOutputSaved(outputId, mediaFileIds, { showPill: false });
+        markOutputSaved(outputId, mediaFileIds, { showPill: true });
       } else if (errors.length) {
         const message = errors[0] ?? "Unable to save media.";
-        markOutputSaveFailed(outputId, message, { showPill: false });
+        markOutputSaveFailed(outputId, message, { showPill: true });
       }
       if (generationId) {
         try {
@@ -733,7 +741,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           finalTool = "text"; // Fallback to text-to-video (will use video mode)
           // Map image-to-video models to their text-to-video equivalents
           const imageToVideoTextMap: Record<string, string> = {
-            "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": "fal-ai/kling-video/v2.5-turbo/pro/text-to-video",
             "fal-ai/kling-video/v3/pro/image-to-video": "fal-ai/kling-video/v3/pro/text-to-video",
             "fal-ai/veo3.1/first-last-frame-to-video": "fal-ai/veo3.1",
           };
@@ -762,12 +769,9 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const isSeedanceModel = finalModel === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video";
       const isKling3TextModel = finalModel === "fal-ai/kling-video/v3/pro/text-to-video";
       const isKling3ImageModel = finalModel === "fal-ai/kling-video/v3/pro/image-to-video";
-      const isKling25ImageModel = finalModel === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
-      const isKling25TextModel = finalModel === "fal-ai/kling-video/v2.5-turbo/pro/text-to-video";
       const isKlingMotionControlModel = finalModel === "fal-ai/kling-video/v2.6/pro/motion-control";
       const isVeoFirstLastFrameModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
       const isVeoModel = finalModel === "fal-ai/veo3.1";
-      const isKling26Model = finalModel === "fal-ai/kling-video/v2.6/pro/text-to-video";
       const isSoraModel = finalModel === "fal-ai/sora-2/text-to-video/pro";
       const modelConfig = finalModel ? getModelConfig(finalModel) : null;
       const useVideoSettings = selectedTool === "video";
@@ -808,12 +812,12 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         previewUrl:
           isKlingMotionControlModel
             ? motionCharacterUrl ?? undefined
-            : isVeoFirstLastFrameModel || isKling25ImageModel || isKling3ImageModel
+            : isVeoFirstLastFrameModel || isKling3ImageModel
               ? preparedImageInputs[0] ?? undefined
               : undefined,
       };
 
-      const requiresImageReference = isKling25ImageModel || isKling3ImageModel;
+      const requiresImageReference = isKling3ImageModel;
       if (requiresImageReference && preparedImageInputs.length === 0) {
         setOutputs((prev) => [
           {
@@ -907,26 +911,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           return;
         }
 
-        if (isKling25ImageModel) {
-          const klingDuration = resolveKlingDuration(requestedDurationSeconds);
-          const { request_id } = await submitFalKlingV25({
-            prompt: cleanedPrompt,
-            image_url: preparedImageInputs[0],
-            duration: klingDuration,
-            aspect_ratio: resolveKlingAspectRatio(aspect),
-            negative_prompt: "blur, distort, and low quality",
-            cfg_scale: 0.5,
-          });
-          updateOutputById(id, (item) => ({
-            ...item,
-            taskId: request_id,
-            taskState: "running",
-            timestamp: "Submitted",
-          }));
-          startPollingWithGeneration(request_id, id, "fal-kling-25");
-          return;
-        }
-
         if (isKlingMotionControlModel) {
           const characterUrl = motionCharacterUrl ? await prepareImageUrl(motionCharacterUrl) : null;
           if (!characterUrl) {
@@ -941,8 +925,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             prompt: cleanedPrompt,
             image_url: characterUrl,
             video_url: motionReferenceVideoUrl as string,
-            keep_original_sound: true,
-            character_orientation: "video",
+            keep_original_sound: motionKeepOriginalSound,
+            character_orientation: motionCharacterOrientation,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -999,26 +983,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           return;
         }
 
-        if (isKling25TextModel) {
-          const klingDuration = resolveKlingDuration(requestedDurationSeconds);
-          const { request_id } = await submitFalKlingV25Text({
-            prompt: cleanedPrompt,
-            aspect_ratio: resolveKlingAspectRatio(aspect),
-            duration: klingDuration,
-            negative_prompt: "blur, distort, and low quality",
-            cfg_scale: 0.5,
-            generate_audio: requestedAudio,
-          });
-          updateOutputById(id, (item) => ({
-            ...item,
-            taskId: request_id,
-            taskState: "running",
-            timestamp: "Submitted",
-          }));
-          startPollingWithGeneration(request_id, id, "fal-kling");
-          return;
-        }
-
         if (isKling3TextModel) {
           const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
           const { request_id } = await submitFalKlingV3Text({
@@ -1059,26 +1023,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             timestamp: "Submitted",
           }));
           startPollingWithGeneration(request_id, id, "fal-seedance");
-          return;
-        }
-
-        if (isKling26Model) {
-          const klingDuration = resolveKlingDuration(requestedDurationSeconds);
-          const { request_id } = await submitFalKlingV26Text({
-            prompt: cleanedPrompt,
-            aspect_ratio: resolveKlingAspectRatio(aspect),
-            duration: klingDuration,
-            negative_prompt: "blur, distort, and low quality",
-            cfg_scale: 0.5,
-            generate_audio: requestedAudio,
-          });
-          updateOutputById(id, (item) => ({
-            ...item,
-            taskId: request_id,
-            taskState: "running",
-            timestamp: "Submitted",
-          }));
-          startPollingWithGeneration(request_id, id, "fal-kling");
           return;
         }
 
@@ -1448,25 +1392,13 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       if (promptOnly) {
         if (output.promptId) {
           await new Promise((resolve) => window.setTimeout(resolve, 220));
-          updateOutputById(outputId, (item) => ({
-            ...item,
-            status: "saved",
-            timestamp: "Saved prompt",
-            saveState: "saved",
-            saveError: null,
-          }));
+          markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
           return;
         }
         const promptId = await persistPromptSave({ promptText: output.previewText, modelId: output.modelId ?? null });
         if (promptId) {
-          updateOutputById(outputId, (item) => ({
-            ...item,
-            promptId,
-            status: "saved",
-            timestamp: "Saved prompt",
-            saveState: "saved",
-            saveError: null,
-          }));
+          updateOutputById(outputId, (item) => ({ ...item, promptId }));
+          markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
           return;
         }
         markOutputSaveFailed(outputId, "Unable to save prompt.");
@@ -1553,9 +1485,10 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         markOutputSaveFailed(id, "Unable to save prompt.");
         return;
       }
-      updateOutputById(id, (item) => ({ ...item, promptId, saveState: "saved", saveError: null }));
+      updateOutputById(id, (item) => ({ ...item, promptId }));
+      markOutputSaved(id, undefined, { timestamp: "Saved prompt" });
     })();
-  }, [aspect, markOutputSaveFailed, model, persistPromptSave, prompt, updateOutputById]);
+  }, [aspect, markOutputSaveFailed, markOutputSaved, model, persistPromptSave, prompt, updateOutputById]);
 
   const addAgentPromptReference = useCallback(
     (promptText: string, title?: string | null) => {
@@ -1570,7 +1503,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         aspect,
         model: placeholderModelLabel,
         modelId: model ?? undefined,
-        status: "saved",
+        status: "ready",
         timestamp: "Agent",
         // Always show the actual prompt text on the reference card.
         previewText: cleanedPrompt,
@@ -1811,6 +1744,10 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setMotionCharacterUrl,
     motionReferenceVideoUrl,
     setMotionReferenceVideoUrl,
+    motionCharacterOrientation,
+    setMotionCharacterOrientation,
+    motionKeepOriginalSound,
+    setMotionKeepOriginalSound,
     videoDurationSeconds,
     setVideoDurationSeconds,
     videoResolution,

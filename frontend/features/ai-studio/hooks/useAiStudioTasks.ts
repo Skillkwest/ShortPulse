@@ -8,9 +8,6 @@ import {
   submitFalFlux2Edit,
   submitFalFlux2ProEdit,
   submitFalFlux2Pro,
-  submitFalKlingV26Text,
-  submitFalKlingV25,
-  submitFalKlingV25Text,
   submitFalSeedance,
   submitFalSeedream,
   submitFalVeo,
@@ -25,7 +22,6 @@ import {
   fetchFalFlux2EditStatus,
   fetchFalFlux2ProEditStatus,
   fetchFalKlingStatus,
-  fetchFalKlingV25Status,
   fetchFalKlingV3ImageToVideoStatus,
   fetchFalNanoBananaStatus,
   fetchFalNanoBananaEditStatus,
@@ -36,7 +32,6 @@ import {
   fetchFalSeedanceStatus,
   fetchFalSeedreamStatus,
   fetchFalVeoStatus,
-  fetchFalKlingV26Status,
 } from "../../../lib/falClient";
 import { createKeiTask, fetchKeiTaskStatus } from "../../../lib/keiClient";
 import { extractFalMediaUrls, extractResultUrls, Provider } from "../logic/stateParsers";
@@ -66,12 +61,8 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalFlux2ProEditStatus(taskId);
     case "fal-kling":
       return fetchFalKlingStatus(taskId);
-    case "fal-kling-25":
-      return fetchFalKlingV25Status(taskId);
     case "fal-kling-3":
       return fetchFalKlingV3ImageToVideoStatus(taskId);
-    case "fal-kling-26":
-      return fetchFalKlingV26Status(taskId);
     case "fal-seedance":
       return fetchFalSeedanceStatus(taskId);
     case "fal-sora":

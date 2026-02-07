@@ -196,18 +196,16 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2027-01-25 (Credit gating + documentation reminder)
 - Image/video generation requires a sufficient credit balance before debiting; the Generate CTA disables and the SOP now notes the credit check so the banner can prompt a top-up.
 - Added a comment near `modelOptions` reminding maintainers to keep the `docs/sop_image_generation.md` supported-model table in sync when adding providers/models.
-- Video pipeline hardening: added routing for Kling text-to-video and related models, and allowed dropped/imported images (blob/data URLs) to be used for image-to-video submissions by normalizing inputs before provider calls.
+- Video pipeline hardening: added routing for text-to-video models and allowed dropped/imported images (blob/data URLs) to be used for image-to-video submissions by normalizing inputs before provider calls.
 
 ## 2026-01-24 (AI model references)
 - Added a dedicated `docs/api-responses.md` guide covering the OpenAI Responses API payloads, tools, and best practices alongside `docs/api-chat-completions.md` in the docs index.
-- Documented Fal.ai model workflows (`docs/api-fal-kling-video.md`, `docs/api-fal-kling-2-5-image-to-video.md`, `docs/api-fal-veo3.md`, `docs/api-fal-flux-dev.md`, `docs/api-fal-nano-banana-pro.md`, `docs/api-fal-seedream-4-5.md`, `docs/api-fal-seedance-1-5-pro.md`) so every queue/task/callback path is captured plus the backend `kei/task-status` proxy.
+- Documented Fal.ai model workflows (`docs/api-fal-veo3.md`, `docs/api-fal-flux-dev.md`, `docs/api-fal-nano-banana-pro.md`, `docs/api-fal-seedream-4-5.md`, `docs/api-fal-seedance-1-5-pro.md`) so every queue/task/callback path is captured plus the backend `kei/task-status` proxy.
 - Added the new API references to `docs/README.md` under the API Reference section for a single navigation surface.
 
 ## 2027-01-27 (AI Studio model pricing + integrations)
-- Added Kling 2.5 Turbo Pro (Fal) image-to-video queue with per-duration pricing and default 10s runs; enforced per-model duration defaults in cost estimates/debits.
 - Introduced Google Veo 3.1 (Fal) with 8s default, 1080p/audio-on pricing; wired Fal queue submission and per-second cost strategy.
-- Added Kling 2.6 Pro (Fal) with 10s default, per-second pricing ($0.07/sec audio off, $0.14/sec audio on) and Fal queue payload (sound flag).
-- Updated model order in selectors (Kling 2.6 ahead of Veo) and ensured env template documents KEI/FAL keys.
+- Updated model order in selectors and ensured env template documents KEI/FAL keys.
 
 ## 2026-02-03
 - Updated Image-to-Video (Recreate) UI to use two primary reference frames (First frame + Last frame) and hide secondary dropzones for video models; added on-card labels for clarity.

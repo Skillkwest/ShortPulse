@@ -660,6 +660,15 @@ body.ai-studio-body {
   margin-top: 18px;
 }
 
+.toolbar-child-divider {
+  height: 1px;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0));
+  margin: 12px 0;
+  opacity: 0.35;
+}
+
 .toolbar-lower {
   display: flex;
   flex-direction: column;
@@ -708,8 +717,9 @@ body.ai-studio-body {
   overflow: hidden;
 }
 
-/* Primary workflow buttons: Create and Edit */
+/* Primary workflow buttons: Create, Kling, and Edit */
 .toolbar-item[data-tool-id="create"],
+.toolbar-item[data-tool-id="kling"],
 .toolbar-item[data-tool-id="edit"] {
   margin: 4px 0;
   margin-bottom: 12px;
@@ -730,26 +740,30 @@ body.ai-studio-body {
 /* Respect user motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .toolbar-item[data-tool-id="create"],
+  .toolbar-item[data-tool-id="kling"],
   .toolbar-item[data-tool-id="edit"],
   .toolbar-item[data-tool-id="canvas"] {
     transition: none;
   }
 
   .toolbar-item[data-tool-id="create"]:hover,
+  .toolbar-item[data-tool-id="kling"]:hover,
   .toolbar-item[data-tool-id="edit"]:hover,
   .toolbar-item[data-tool-id="canvas"]:hover {
     transform: none;
   }
 
   .toolbar-item[data-tool-id="create"].is-active,
+  .toolbar-item[data-tool-id="kling"].is-active,
   .toolbar-item[data-tool-id="edit"].is-active,
   .toolbar-item[data-tool-id="canvas"].is-active {
     transform: none;
   }
 }
 
-/* Create button - blue/cyan gradient */
-.toolbar-item[data-tool-id="create"] {
+/* Create & Kling button - blue/cyan gradient */
+.toolbar-item[data-tool-id="create"],
+.toolbar-item[data-tool-id="kling"] {
   background: linear-gradient(135deg, #0c409f 0%, #0891b2 50%, #06b6d4 100%);
 }
 
@@ -759,13 +773,15 @@ body.ai-studio-body {
 }
 
 .toolbar-item[data-tool-id="create"]::before,
+.toolbar-item[data-tool-id="kling"]::before,
 .toolbar-item[data-tool-id="edit"]::before,
 .toolbar-item[data-tool-id="canvas"]::before {
   display: none;
 }
 
-/* Create button hover - lighter blue/cyan gradient with gradient-aware glow */
-.toolbar-item[data-tool-id="create"]:hover {
+/* Create & Kling button hover - lighter blue/cyan gradient with gradient-aware glow */
+.toolbar-item[data-tool-id="create"]:hover,
+.toolbar-item[data-tool-id="kling"]:hover {
   background: linear-gradient(135deg, #2563eb 0%, #06b6d4 50%, #22d3ee 100%);
   transform: translateY(-2px);
   box-shadow:
@@ -784,8 +800,9 @@ body.ai-studio-body {
     0 0 0 1px rgba(251, 191, 36, 0.15);
 }
 
-/* Create button active - dual borders (dark + cyan) */
-.toolbar-item[data-tool-id="create"].is-active {
+/* Create & Kling button active - dual borders (dark + cyan) */
+.toolbar-item[data-tool-id="create"].is-active,
+.toolbar-item[data-tool-id="kling"].is-active {
   background: linear-gradient(135deg, #2563eb 0%, #06b6d4 50%, #22d3ee 100%);
   transform: scale(1);
   border: 2px solid rgba(0, 0, 0, 0.4);
@@ -845,7 +862,8 @@ body.ai-studio-body {
 }
 
 /* Keyboard focus states for accessibility */
-.toolbar-item[data-tool-id="create"]:focus-visible {
+.toolbar-item[data-tool-id="create"]:focus-visible,
+.toolbar-item[data-tool-id="kling"]:focus-visible {
   outline: 2px solid #22d3ee;
   outline-offset: 3px;
 }
@@ -891,6 +909,7 @@ body.ai-studio-body {
 }
 
 .toolbar-item[data-tool-id="create"] svg,
+.toolbar-item[data-tool-id="kling"] svg,
 .toolbar-item[data-tool-id="edit"] svg,
 .toolbar-item[data-tool-id="canvas"] svg {
   width: 18px !important;
@@ -899,6 +918,7 @@ body.ai-studio-body {
 }
 
 .toolbar-item[data-tool-id="create"] .toolbar-label,
+.toolbar-item[data-tool-id="kling"] .toolbar-label,
 .toolbar-item[data-tool-id="edit"] .toolbar-label,
 .toolbar-item[data-tool-id="canvas"] .toolbar-label {
   font-size: 14px !important;

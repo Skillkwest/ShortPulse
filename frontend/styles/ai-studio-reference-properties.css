@@ -594,3 +594,121 @@
   font-size: 14px;
   color: var(--ai-card-text-muted);
 }
+
+/* Kling 3.0 styling refinements */
+.kling-shot-row {
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  background: rgba(12, 15, 22, 0.9);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 8px 18px rgba(0, 0, 0, 0.24);
+  width: 100%;
+  max-width: 720px;
+}
+
+.kling-shot-row .shot-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kling-shot-row .shot-index {
+  font-weight: 700;
+  color: #e5f6ff;
+  background: rgba(37, 169, 191, 0.16);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 169, 191, 0.35);
+  font-size: 12px;
+}
+
+.kling-shot-row textarea {
+  width: 100%;
+  min-height: 120px;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background: rgba(12, 15, 22, 0.9);
+  color: #f1f5ff;
+  padding: 12px;
+  font-size: 13px;
+  resize: vertical;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+}
+
+.kling-shot-row textarea::placeholder {
+  color: var(--ai-card-text-faint);
+}
+
+.kling-shot-row textarea:focus {
+  outline: none;
+  border-color: rgba(37, 169, 191, 0.4);
+  box-shadow: 0 0 0 1px rgba(37, 169, 191, 0.18);
+}
+
+.kling-shot-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kling-shot-controls select {
+  min-width: 120px;
+}
+
+.kling-elements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 720px;
+}
+
+.kling-element-row {
+  border: 1px dashed rgba(201, 205, 214, 0.28);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(12, 15, 22, 0.86);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.01);
+}
+
+.kling-element-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.kling-element-grid input {
+  background: rgba(12, 15, 22, 0.9);
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  color: #f1f5ff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.kling-element-grid input::placeholder {
+  color: var(--ai-card-text-faint);
+}
+
+.kling-element-grid input:focus {
+  outline: none;
+  border-color: rgba(37, 169, 191, 0.4);
+  box-shadow: 0 0 0 1px rgba(37, 169, 191, 0.18);
+}
+
+.kling-element-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kling-element-actions .helper-text {
+  color: var(--ai-card-text-muted);
+}

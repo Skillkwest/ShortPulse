@@ -35,6 +35,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/api-fal-kling-3-pro-text-to-video.md` (Fal.ai Kling 3.0 Pro text-to-video guide)
 - `docs/api-fal-kling-2-6-motion-control.md` (Fal.ai Kling 2.6 Motion Control guide)
 - `docs/api-fal-veo3.md` (Fal.ai Veo 3.1 text-to-video guide)
+- `docs/api-fal-veo3-image-to-video.md` (Fal.ai Veo 3.1 image-to-video guide)
 - `docs/api-fal-veo3-first-last-frame.md` (Fal.ai Veo 3.1 first/last frame guide)
 - `docs/api-fal-sora-2-pro.md` (Fal.ai Sora 2 Pro text-to-video guide)
 - `docs/api-fal-seedance-1-5-pro.md` (Fal.ai Seedance 1.5 Pro video generation guide)

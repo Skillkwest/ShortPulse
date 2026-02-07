@@ -15,6 +15,7 @@ import { ReferencePropertiesPanel } from "./ReferencePropertiesPanel";
 import { StudioPreview } from "./StudioPreview";
 import { CharacterPropertiesPanel } from "../../character/components/CharacterPropertiesPanel";
 import { CharacterPanel } from "./CharacterPanel";
+import { KlingComingSoonCard } from "./KlingComingSoonCard";
 import { AgentChatPanel } from "../../../prefabs/agent";
 import type { AgentActions, AgentMessage } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
@@ -251,6 +252,8 @@ export function AiStudioPageContent({
             {...propertiesVideo}
           />
         );
+      case "kling":
+        return <KlingComingSoonCard />;
       case "edit":
         return (
           <div style={{ padding: "24px" }}>

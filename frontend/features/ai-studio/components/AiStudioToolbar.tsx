@@ -42,6 +42,7 @@ const toolIcons: Record<ToolId, React.ComponentType<any>> = {
   image: ImageSquare,
   video: VideoCamera,
   character: Person,
+  kling: VideoCamera,
   edit: Selection,
   canvas: Graph,
 };
@@ -84,10 +85,6 @@ export function AiStudioToolbar({
       <Link href="/dashboard" className="ghost-btn small toolbar-back-link">
         <House size={16} weight="regular" />
         Dashboard
-      </Link>
-      <Link href="/media-library" className="ghost-btn small toolbar-back-link toolbar-back-link-secondary">
-        <CloudArrowUp size={16} weight="regular" />
-        Media Library
       </Link>
       <div className="toolbar-divider" aria-hidden="true" />
       <div className="toolbar-list">
@@ -144,9 +141,24 @@ export function AiStudioToolbar({
                 <div className="toolbar-copy">
                   <span className="toolbar-label">{tool.label}</span>
                 </div>
-              </button>
-            );
-          })}
+            </button>
+          );
+        })}
+          <div className="toolbar-child-divider" aria-hidden="true" />
+          <button
+            type="button"
+            className={`toolbar-item toolbar-item-child ${selectedTool === "kling" ? "is-active" : ""}`}
+            data-tool-id="kling"
+            onClick={() => {
+              onToggleCreateTools(true);
+              onSelectTool(selectedTool === "kling" ? null : "kling");
+            }}
+          >
+            <VideoCamera size={20} weight="regular" />
+            <div className="toolbar-copy">
+              <span className="toolbar-label">Kling 3.0</span>
+            </div>
+          </button>
           <div className="toolbar-divider toolbar-divider-children" aria-hidden="true" />
           <div className="toolbar-create-spacer" aria-hidden="true" />
         </div>

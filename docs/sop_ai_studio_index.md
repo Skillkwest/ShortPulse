@@ -30,6 +30,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 | fal-ai/kling-video/v3/pro/image-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s; `generate_audio: true` by default | Per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Image-to-video with required start image. |
 | fal-ai/kling-video/v3/pro/text-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s; `generate_audio: true` by default | Per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Text-to-video with multi-shot support. |
 | fal-ai/sora-2/text-to-video/pro | Aspect: 16:9 default (allowed: 16:9, 9:16); Duration: 8s default (queue accepts 4/8/12s); Resolution: 1080p; Audio: on | Per-second tiered pricing (uses 10s high-tier rates by default); proxied via Fal queue. |
+| fal-ai/veo3.1/image-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16); Duration: 8s; Resolution: 720p; Audio: on | Per-second pricing ($0.20/s audio-off, $0.40/s audio-on at 720p/1080p; 4K $0.40/$0.60). Requires a reference image; proxied via Fal queue. |
 | fal-ai/veo3.1 | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 8s; Resolution: 1080p; Audio: on | Per-second pricing (same tiers as before); proxied via Fal queue. |
 | gpt-4.1-nano | Aspect: n/a; Token-based | Used for prompt refine + describe flows. |
 

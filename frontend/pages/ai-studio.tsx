@@ -87,20 +87,24 @@ export default function AiStudioPage() {
     setExtraImageUrl,
     videoReferenceMode,
     setVideoReferenceMode,
-    motionCharacterUrl,
-    setMotionCharacterUrl,
-    motionReferenceVideoUrl,
-    setMotionReferenceVideoUrl,
-    motionCharacterOrientation,
-    setMotionCharacterOrientation,
-    motionKeepOriginalSound,
-    setMotionKeepOriginalSound,
     videoDurationSeconds,
     setVideoDurationSeconds,
     videoResolution,
     setVideoResolution,
     videoGenerateAudio,
     setVideoGenerateAudio,
+    klingNegativePrompt,
+    setKlingNegativePrompt,
+    klingCfgScale,
+    setKlingCfgScale,
+    klingShotType,
+    setKlingShotType,
+    klingVoiceIds,
+    setKlingVoiceIds,
+    klingMultiPrompts,
+    setKlingMultiPrompts,
+    klingElements,
+    setKlingElements,
     referenceText,
     setSharedPrompt,
     useReferenceImageIndicator,
@@ -606,7 +610,7 @@ export default function AiStudioPage() {
       aspect,
       ...overrides,
     }),
-    [aspect, defaultPricingParams],
+    [aspect, defaultPricingParams, model],
   );
 
   const filteredModelOptions = useMemo(() => {
@@ -616,6 +620,9 @@ export default function AiStudioPage() {
     }
     if (selectedTool === "video" && videoReferenceMode === "keyframes") {
       return base.filter((opt) => opt.value === "fal-ai/veo3.1/first-last-frame-to-video");
+    }
+    if (selectedTool === "video" && videoReferenceMode === "kling3") {
+      return base.filter((opt) => opt.value === "fal-ai/kling-video/v3/pro/image-to-video");
     }
     return base;
   }, [mode, selectedTool, videoReferenceMode]);
@@ -652,6 +659,7 @@ export default function AiStudioPage() {
     const breakdown = computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatePromptTokens(prompt));
     return breakdown?.credits ?? null;
   }, [prompt]);
+
 
   const handleBlockedGeneration = () => {
     if (generationGuardrail) {
@@ -872,20 +880,29 @@ export default function AiStudioPage() {
           extraImageUrls,
           videoReferenceMode,
           onVideoReferenceModeChange: setVideoReferenceMode,
-          motionCharacterUrl,
-          onMotionCharacterChange: setMotionCharacterUrl,
-          motionReferenceVideoUrl,
-          onMotionReferenceVideoChange: setMotionReferenceVideoUrl,
-          motionCharacterOrientation,
-          onMotionCharacterOrientationChange: setMotionCharacterOrientation,
-          motionKeepOriginalSound,
-          onMotionKeepOriginalSoundChange: setMotionKeepOriginalSound,
           videoDurationSeconds,
           videoResolution,
           videoGenerateAudio,
           onVideoDurationChange: setVideoDurationSeconds,
           onVideoResolutionChange: setVideoResolution,
           onVideoGenerateAudioChange: setVideoGenerateAudio,
+          klingNegativePrompt,
+          klingCfgScale,
+          klingShotType,
+          klingVoiceIds,
+          klingMultiPrompts,
+          klingElements,
+          onKlingNegativePromptChange: setKlingNegativePrompt,
+          onKlingCfgScaleChange: setKlingCfgScale,
+          onKlingShotTypeChange: setKlingShotType,
+          onKlingVoiceIdChange: (index, value) =>
+            setKlingVoiceIds((prev) => {
+              const next: [string, string] = [...prev] as [string, string];
+              next[index] = value;
+              return next;
+            }),
+          onKlingMultiPromptsChange: setKlingMultiPrompts,
+          onKlingElementsChange: setKlingElements,
           referenceText,
           aspectOptions,
           isModelModalOpen,

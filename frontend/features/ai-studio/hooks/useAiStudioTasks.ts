@@ -32,6 +32,7 @@ import {
   fetchFalSeedanceStatus,
   fetchFalSeedreamStatus,
   fetchFalVeoStatus,
+  fetchFalVeoImageToVideoStatus,
 } from "../../../lib/falClient";
 import { createKeiTask, fetchKeiTaskStatus } from "../../../lib/keiClient";
 import { extractFalMediaUrls, extractResultUrls, Provider } from "../logic/stateParsers";
@@ -71,6 +72,8 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalSeedreamStatus(taskId);
     case "fal-veo":
       return fetchFalVeoStatus(taskId);
+    case "fal-veo-i2v":
+      return fetchFalVeoImageToVideoStatus(taskId);
     case "fal-nano-banana":
       return fetchFalNanoBananaStatus(taskId);
     case "fal-nano-banana-edit":

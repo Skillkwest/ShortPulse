@@ -98,6 +98,18 @@ export type FalVeoSubmitRequest = {
   auto_fix?: boolean;
 };
 
+export type FalVeoImageToVideoSubmitRequest = {
+  prompt: string;
+  image_url: string;
+  aspect_ratio?: "16:9" | "9:16" | "auto";
+  duration?: "4s" | "6s" | "8s";
+  negative_prompt?: string;
+  resolution?: "720p" | "1080p" | "4k";
+  generate_audio?: boolean;
+  seed?: number;
+  auto_fix?: boolean;
+};
+
 export type FalVeoFirstLastSubmitRequest = {
   prompt: string;
   first_frame_url: string;
@@ -501,6 +513,20 @@ export const submitFalVeo = async (payload: FalVeoSubmitRequest): Promise<FalSub
   return { request_id: requestId };
 };
 
+export const submitFalVeoImageToVideo = async (payload: FalVeoImageToVideoSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-image-to-video-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal Veo image-to-video did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
 export const submitFalVeoFirstLast = async (payload: FalVeoFirstLastSubmitRequest): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-first-last-frame-submit`, {
     method: "POST",
@@ -517,6 +543,15 @@ export const submitFalVeoFirstLast = async (payload: FalVeoFirstLastSubmitReques
 
 export const fetchFalVeoStatus = async (requestId: string): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
+export const fetchFalVeoImageToVideoStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-image-to-video-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ requestId }),

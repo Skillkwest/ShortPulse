@@ -3,10 +3,10 @@
  * Provides reference dropzones, aspect/model selection, and prompt capture for image/video workflows.
  */
 import React, { useRef, useState } from "react";
-import { ArrowFatLinesRight, BracketsSquare, ImageSquare, Plus, UploadSimple, VideoCamera } from "phosphor-react";
+import { ArrowFatLinesRight, BracketsSquare, Plus, UploadSimple } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
-import { extractDragDropPayload, extractVideoDragDropPayload, isImageDragTransfer, isVideoDragTransfer } from "../utils/dragDrop";
+import { extractDragDropPayload, isImageDragTransfer } from "../utils/dragDrop";
 import { modelLogos } from "../constants";
 import { stripEditLabel } from "../utils/modelLabels";
 import { PromptStep } from "./PromptStep";
@@ -25,16 +25,20 @@ type ReferencePropertiesPanelProps = {
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   referenceText: string | null;
-  videoReferenceMode?: "standard" | "keyframes" | "motion";
-  onVideoReferenceModeChange?: (value: "standard" | "keyframes" | "motion") => void;
-  motionCharacterUrl?: string | null;
-  motionReferenceVideoUrl?: string | null;
-  motionCharacterOrientation?: "image" | "video";
-  motionKeepOriginalSound?: boolean;
-  onMotionCharacterChange?: (url: string | null) => void;
-  onMotionReferenceVideoChange?: (url: string | null) => void;
-  onMotionCharacterOrientationChange?: (value: "image" | "video") => void;
-  onMotionKeepOriginalSoundChange?: (value: boolean) => void;
+  videoReferenceMode?: "standard" | "keyframes" | "kling3";
+  onVideoReferenceModeChange?: (value: "standard" | "keyframes" | "kling3") => void;
+  klingNegativePrompt?: string;
+  klingCfgScale?: number;
+  klingShotType?: "customize" | "intelligent";
+  klingVoiceIds?: [string, string];
+  klingMultiPrompts?: { id: string; prompt: string; duration: number }[];
+  klingElements?: { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[];
+  onKlingNegativePromptChange?: (value: string) => void;
+  onKlingCfgScaleChange?: (value: number) => void;
+  onKlingShotTypeChange?: (value: "customize" | "intelligent") => void;
+  onKlingVoiceIdChange?: (index: 0 | 1, value: string) => void;
+  onKlingMultiPromptsChange?: (value: { id: string; prompt: string; duration: number }[]) => void;
+  onKlingElementsChange?: (value: { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]) => void;
   videoDurationSeconds?: number;
   videoResolution?: string;
   videoGenerateAudio?: boolean;
@@ -126,14 +130,18 @@ export function ReferencePropertiesPanel({
   referenceText,
   videoReferenceMode,
   onVideoReferenceModeChange,
-  motionCharacterUrl,
-  motionReferenceVideoUrl,
-  motionCharacterOrientation,
-  motionKeepOriginalSound,
-  onMotionCharacterChange,
-  onMotionReferenceVideoChange,
-  onMotionCharacterOrientationChange,
-  onMotionKeepOriginalSoundChange,
+  klingNegativePrompt = "blur, distort, and low quality",
+  klingCfgScale = 0.5,
+  klingShotType = "customize",
+  klingVoiceIds = ["", ""],
+  klingMultiPrompts = [],
+  klingElements = [],
+  onKlingNegativePromptChange,
+  onKlingCfgScaleChange,
+  onKlingShotTypeChange,
+  onKlingVoiceIdChange,
+  onKlingMultiPromptsChange,
+  onKlingElementsChange,
   videoDurationSeconds,
   videoResolution,
   videoGenerateAudio,
@@ -175,12 +183,10 @@ export function ReferencePropertiesPanel({
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraOneInputRef = useRef<HTMLInputElement | null>(null);
   const extraTwoInputRef = useRef<HTMLInputElement | null>(null);
-  const motionImageInputRef = useRef<HTMLInputElement | null>(null);
-  const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
+  const makeId = () => `kling-${Math.random().toString(36).slice(2, 9)}`;
+
   const [primaryDragActive, setPrimaryDragActive] = useState(false);
   const [extraDragActive, setExtraDragActive] = useState([false, false]);
-  const [motionImageDragActive, setMotionImageDragActive] = useState(false);
-  const [motionVideoDragActive, setMotionVideoDragActive] = useState(false);
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
 
   const [collapsedSteps, setCollapsedSteps] = React.useState<{
@@ -188,20 +194,46 @@ export function ReferencePropertiesPanel({
     model: boolean;
     prompt: boolean;
     videoSettings: boolean;
+    klingAdvanced: boolean;
+    klingAssets: boolean;
+    klingGuidance: boolean;
     generate: boolean;
   }>({
     reference: false,
     model: false,
     prompt: false,
     videoSettings: false,
+    klingAdvanced: false,
+    klingAssets: false,
+    klingGuidance: false,
     generate: false,
   });
 
-  const toggleStep = (step: "reference" | "model" | "prompt" | "videoSettings" | "generate") => {
+  const toggleStep = (
+    step:
+      | "reference"
+      | "model"
+      | "prompt"
+      | "videoSettings"
+      | "klingAdvanced"
+      | "klingAssets"
+      | "klingGuidance"
+      | "generate",
+  ) => {
     setCollapsedSteps((prev) => ({ ...prev, [step]: !prev[step] }));
   };
 
-  const expandIfCollapsed = (step: "reference" | "model" | "prompt" | "videoSettings" | "generate") => {
+  const expandIfCollapsed = (
+    step:
+      | "reference"
+      | "model"
+      | "prompt"
+      | "videoSettings"
+      | "klingAdvanced"
+      | "klingAssets"
+      | "klingGuidance"
+      | "generate",
+  ) => {
     setCollapsedSteps((prev) => {
       if (!prev[step]) return prev;
       return { ...prev, [step]: false };
@@ -216,20 +248,46 @@ export function ReferencePropertiesPanel({
     onExtraImageChange(0, referenceImageUrl);
   };
 
+  const updateKlingMultiPrompt = (id: string, key: "prompt" | "duration", value: string | number) => {
+    const next = klingMultiPrompts.map((item) => (item.id === id ? { ...item, [key]: value } : item));
+    onKlingMultiPromptsChange?.(next);
+  };
+
+  const addKlingShot = () => {
+    onKlingMultiPromptsChange?.([
+      ...klingMultiPrompts,
+      { id: makeId(), prompt: "", duration: 5 },
+    ]);
+  };
+
+  const removeKlingShot = (id: string) => {
+    onKlingMultiPromptsChange?.(klingMultiPrompts.filter((item) => item.id !== id));
+  };
+
+  const updateKlingElement = (
+    id: string,
+    key: "frontalImageUrl" | "referenceImageUrls" | "videoUrl",
+    value: string,
+  ) => {
+    const next = klingElements.map((item) => (item.id === id ? { ...item, [key]: value } : item));
+    onKlingElementsChange?.(next);
+  };
+
+  const addKlingElement = () => {
+    onKlingElementsChange?.([
+      ...klingElements,
+      { id: makeId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" },
+    ]);
+  };
+
+  const removeKlingElement = (id: string) => {
+    onKlingElementsChange?.(klingElements.filter((item) => item.id !== id));
+  };
+
   const handleFileSelection =
     (setter: (url: string | null) => void) => (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
-      const url = URL.createObjectURL(file);
-      setter(url);
-      event.target.value = "";
-    };
-
-  const handleVideoFileSelection =
-    (setter?: (url: string | null) => void) => (event: React.ChangeEvent<HTMLInputElement>) => {
-      if (!setter) return;
-      const file = event.target.files?.[0];
-      if (!file || !file.type.startsWith("video/")) return;
       const url = URL.createObjectURL(file);
       setter(url);
       event.target.value = "";
@@ -261,27 +319,6 @@ export function ReferencePropertiesPanel({
     if (!isBlobUrl || canAcceptBlob) setter(nextUrl);
   };
 
-  const handleVideoDrop = (setter?: (url: string | null) => void) => (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    if (!setter) return;
-    const { videoUrl, fromFile, referenceId } = extractVideoDragDropPayload(event.dataTransfer);
-    let nextUrl = videoUrl;
-
-    if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
-      const resolved = resolvePreviewUrlById(referenceId);
-      if (resolved) {
-        nextUrl = resolved;
-      }
-    }
-
-    if (!nextUrl) return;
-
-    const isBlobUrl = nextUrl.startsWith("blob:");
-    const canAcceptBlob = fromFile || Boolean(referenceId);
-
-    if (!isBlobUrl || canAcceptBlob) setter(nextUrl);
-  };
-
   const setExtraDragActiveAt = (index: number, value: boolean) => {
     setExtraDragActive((prev) => prev.map((item, idx) => (idx === index ? value : item)));
   };
@@ -294,31 +331,9 @@ export function ReferencePropertiesPanel({
     return false;
   };
 
-  const allowVideoDrag = (event: React.DragEvent<HTMLDivElement>) => {
-    if (isVideoDragTransfer(event.dataTransfer)) {
-      event.preventDefault();
-      return true;
-    }
-    return false;
-  };
-
   const handlePrimaryDrop = (event: React.DragEvent<HTMLDivElement>) => {
     setPrimaryDragActive(false);
     handleImageDrop(onPrimaryImageChange)(event);
-  };
-
-  const handleMotionImageDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    setMotionImageDragActive(false);
-    if (onMotionCharacterChange) {
-      handleImageDrop(onMotionCharacterChange)(event);
-    }
-  };
-
-  const handleMotionVideoDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    setMotionVideoDragActive(false);
-    if (onMotionReferenceVideoChange) {
-      handleVideoDrop(onMotionReferenceVideoChange)(event);
-    }
   };
 
   const handleExtraDrop = (index: number) => (event: React.DragEvent<HTMLDivElement>) => {
@@ -342,37 +357,6 @@ export function ReferencePropertiesPanel({
     setPrimaryDragActive(false);
   };
 
-  const handleMotionImageDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
-    if (allowImageDrag(event)) {
-      setMotionImageDragActive(true);
-    }
-  };
-
-  const handleMotionImageDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    if (allowImageDrag(event)) {
-      setMotionImageDragActive(true);
-    }
-  };
-
-  const handleMotionImageDragLeave = () => {
-    setMotionImageDragActive(false);
-  };
-
-  const handleMotionVideoDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
-    if (allowVideoDrag(event)) {
-      setMotionVideoDragActive(true);
-    }
-  };
-
-  const handleMotionVideoDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    if (allowVideoDrag(event)) {
-      setMotionVideoDragActive(true);
-    }
-  };
-
-  const handleMotionVideoDragLeave = () => {
-    setMotionVideoDragActive(false);
-  };
 
   const handleExtraDragEnter = (index: number) => (event: React.DragEvent<HTMLDivElement>) => {
     if (allowImageDrag(event)) {
@@ -392,21 +376,19 @@ export function ReferencePropertiesPanel({
 
   const isVideoVariant = variant === "video";
   const activeVideoMode = videoReferenceMode ?? "standard";
-  const isMotionMode = isVideoVariant && activeVideoMode === "motion";
+  const isKling3Mode = isVideoVariant && activeVideoMode === "kling3";
   const isKeyframesMode = isVideoVariant && activeVideoMode === "keyframes";
   const isStandardMode = !isVideoVariant || activeVideoMode === "standard";
-  const motionCharacterValue = motionCharacterUrl ?? null;
-  const motionVideoValue = motionReferenceVideoUrl ?? null;
   const referenceStepTitle = isVideoVariant
-    ? isMotionMode
-      ? "Add Motion References"
+    ? isKling3Mode
+      ? "Add Kling 3.0 References"
       : isKeyframesMode
         ? "Add Reference Frames"
         : "Add Reference Image"
     : "Add Reference Images";
   const referenceStepSubtitle = isVideoVariant
-    ? isMotionMode
-      ? "Upload a character image and a motion reference video."
+    ? isKling3Mode
+      ? "Upload start/end frames plus Kling controls."
       : isKeyframesMode
         ? "Upload or drag and drop images from the reference grid."
         : "Upload or drag and drop a single image for standard image-to-video."
@@ -415,12 +397,23 @@ export function ReferencePropertiesPanel({
   const modelOrder = isVideoVariant ? 2 : 3;
   const referenceOrder = isVideoVariant ? 1 : 1;
   const videoSettingsOrder = isVideoVariant ? 3 : 0;
-  const generateOrder = isVideoVariant ? 5 : 4;
+  const klingAdvancedOrder = isKling3Mode ? 4 : undefined;
+  const generateOrder = isVideoVariant ? (isKling3Mode ? 6 : 5) : 4;
+  const generateBadge = isVideoVariant ? (isKling3Mode ? "6" : "5") : "4";
+  const klingShotSummary =
+    klingMultiPrompts?.length ? `${klingMultiPrompts.length} shot${klingMultiPrompts.length > 1 ? "s" : ""}` : "No shots";
+  const klingAssetsSummary = (() => {
+    const elementCount = klingElements?.length ?? 0;
+    const voices = klingVoiceIds?.filter((v) => v.trim()).length ?? 0;
+    const parts = [];
+    parts.push(elementCount ? `${elementCount} element${elementCount > 1 ? "s" : ""}` : "No elements");
+    parts.push(voices ? `${voices} voice${voices > 1 ? "s" : ""}` : "No voices");
+    return parts.join(" · ");
+  })();
+  const klingGuidanceSummary = `CFG ${klingCfgScale.toFixed(2)} · ${klingNegativePrompt ? "Neg prompt set" : "Neg prompt empty"}`;
   const videoDurationValue = videoDurationSeconds ?? 6;
   const videoResolutionValue = videoResolution ?? "1080p";
   const videoGenerateAudioValue = Boolean(videoGenerateAudio);
-  const motionOrientationValue = motionCharacterOrientation ?? "video";
-  const motionKeepSoundValue = motionKeepOriginalSound ?? true;
 
   return (
     <div className="tool-properties reference-properties-panel">
@@ -462,12 +455,11 @@ export function ReferencePropertiesPanel({
             beginnerMode={beginnerMode}
           />
         </div>
-        {!isMotionMode ? (
-          <div
-            className={`step-card reference-frame-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
-            onClick={() => expandIfCollapsed("model")}
-            style={{ order: modelOrder }}
-          >
+        <div
+          className={`step-card reference-frame-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
+          onClick={() => expandIfCollapsed("model")}
+          style={{ order: modelOrder }}
+        >
             <div className="step-card-header">
               {beginnerMode && <span className="step-badge">{isVideoVariant ? "2" : "3"}</span>}
               <div className="step-header-copy">
@@ -514,8 +506,7 @@ export function ReferencePropertiesPanel({
                 </div>
               </div>
             ) : null}
-          </div>
-        ) : null}
+        </div>
         <div className="reference-dropzone-block image-block" style={{ order: referenceOrder }}>
           <div
             className={`reference-step-card ${collapsedSteps.reference ? "is-collapsed" : ""} ${isVideoVariant ? "is-video-refs" : "is-image-refs"}`}
@@ -561,90 +552,65 @@ export function ReferencePropertiesPanel({
                     >
                       Keyframes
                     </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={activeVideoMode === "motion"}
-                      className={`mode-toggle-btn ${activeVideoMode === "motion" ? "is-active" : ""}`}
-                      onClick={() => onVideoReferenceModeChange?.("motion")}
-                    >
-                      Motion Control
-                    </button>
                   </div>
                 ) : null}
-                {isMotionMode ? (
-                  <div className="drop-image-row motion-drop-row">
+                {isKling3Mode ? (
+                  <div className="drop-image-row kling-drop-row">
                     <div className="primary-drop">
                       <div
-                        className={`reference-dropzone ${motionCharacterValue ? "has-preview" : ""} ${motionImageDragActive ? "is-dragging" : ""}`}
-                        onDrop={handleMotionImageDrop}
-                        onDragEnter={handleMotionImageDragEnter}
-                        onDragOver={handleMotionImageDragOver}
-                        onDragLeave={handleMotionImageDragLeave}
-                        onClick={() => motionImageInputRef.current?.click()}
-                        style={motionCharacterValue ? { backgroundImage: `url(${motionCharacterValue})` } : undefined}
+                        className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${primaryDragActive ? "is-dragging" : ""}`}
+                        onDrop={handlePrimaryDrop}
+                        onDragEnter={handlePrimaryDragEnter}
+                        onDragOver={handlePrimaryDragOver}
+                        onDragLeave={handlePrimaryDragLeave}
+                        onClick={() => primaryInputRef.current?.click()}
+                        style={referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined}
                       >
-                        {motionCharacterValue ? (
+                        <span className="dropzone-tag">Start frame</span>
+                        {referenceImageUrl ? (
                           <button
                             type="button"
                             className="dropzone-clear"
                             onClick={(event) => {
                               event.stopPropagation();
-                              onMotionCharacterChange?.(null);
+                              onPrimaryImageChange(null);
                             }}
                           >
                             ×
                           </button>
                         ) : null}
-                        <div className="reference-drop-content motion-drop-content">
-                          <span className="motion-drop-icon" aria-hidden="true">
-                            <ImageSquare size={18} weight="bold" />
-                          </span>
-                          <p className="motion-drop-title">Add your character</p>
-                          <p className="motion-drop-subtitle">Image with visible face and body</p>
+                        <div className="reference-drop-content image-drop-content">
+                          <UploadSimple size={22} weight="regular" />
+                          <p className="reference-drop-title helper-text">Upload a starting frame</p>
                         </div>
                       </div>
                     </div>
-                    <div className="motion-plus" aria-hidden="true">
-                      <Plus size={25} weight="thin" />
-                    </div>
                     <div className="primary-drop">
                       <div
-                        className={`reference-dropzone ${motionVideoValue ? "has-preview has-video" : ""} ${motionVideoDragActive ? "is-dragging" : ""}`}
-                        onDrop={handleMotionVideoDrop}
-                        onDragEnter={handleMotionVideoDragEnter}
-                        onDragOver={handleMotionVideoDragOver}
-                        onDragLeave={handleMotionVideoDragLeave}
-                        onClick={() => motionVideoInputRef.current?.click()}
+                        className={`reference-dropzone ${extraImageUrls[0] ? "has-preview" : ""} ${extraDragActive[0] ? "is-dragging" : ""}`}
+                        onDrop={handleExtraDrop(0)}
+                        onDragEnter={handleExtraDragEnter(0)}
+                        onDragOver={handleExtraDragOver(0)}
+                        onDragLeave={handleExtraDragLeave(0)}
+                        onClick={() => extraOneInputRef.current?.click()}
+                        style={extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined}
                       >
-                        {motionVideoValue ? (
+                        <span className="dropzone-tag subtle">End frame (optional)</span>
+                        {extraImageUrls[0] ? (
                           <button
                             type="button"
                             className="dropzone-clear"
                             onClick={(event) => {
                               event.stopPropagation();
-                              onMotionReferenceVideoChange?.(null);
+                              onExtraImageChange(0, null);
                             }}
                           >
                             ×
                           </button>
                         ) : null}
-                        {motionVideoValue ? (
-                          <video
-                            className="reference-drop-video"
-                            src={motionVideoValue}
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                          />
-                        ) : null}
-                        <div className="reference-drop-content motion-drop-content">
-                          <span className="motion-drop-icon" aria-hidden="true">
-                            <VideoCamera size={18} weight="bold" />
-                          </span>
-                          <p className="motion-drop-title">Add motion to copy</p>
-                          <p className="motion-drop-subtitle">Video duration: 3-30 seconds</p>
+                        <div className="reference-drop-content image-drop-content">
+                          <UploadSimple size={22} weight="regular" />
+                          <p className="reference-drop-title helper-text">Upload an end frame</p>
                         </div>
                       </div>
                     </div>
@@ -794,37 +760,20 @@ export function ReferencePropertiesPanel({
             </div>
             {!collapsedSteps.videoSettings ? (
               <div className="create-controls video-settings-controls">
-                {!isMotionMode ? (
-                  <div className="control-row compact fixed-select">
-                    <label className="input-label">Duration</label>
-                    <select
-                      className="model-select"
-                      value={videoDurationValue}
-                      onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
-                    >
-                      {VIDEO_DURATION_OPTIONS.map((seconds) => (
-                        <option value={seconds} key={`duration-${seconds}`}>
-                          {seconds} seconds
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-                {isMotionMode ? (
-                  <div className="control-row compact fixed-select">
-                    <label className="input-label">Character orientation</label>
-                    <select
-                      className="model-select"
-                      value={motionOrientationValue}
-                      onChange={(event) =>
-                        onMotionCharacterOrientationChange?.(event.target.value as "image" | "video")
-                      }
-                    >
-                      <option value="video">Match video orientation</option>
-                      <option value="image">Match image orientation</option>
-                    </select>
-                  </div>
-                ) : null}
+                <div className="control-row compact fixed-select">
+                  <label className="input-label">Duration</label>
+                  <select
+                    className="model-select"
+                    value={videoDurationValue}
+                    onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
+                  >
+                    {VIDEO_DURATION_OPTIONS.map((seconds) => (
+                      <option value={seconds} key={`duration-${seconds}`}>
+                        {seconds} seconds
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="control-row compact fixed-select">
                   <label className="input-label">Resolution</label>
                   <select
@@ -839,47 +788,246 @@ export function ReferencePropertiesPanel({
                     ))}
                   </select>
                 </div>
-                {!isMotionMode ? (
-                  <div className="video-settings-toggle-row">
-                    <div className="video-settings-toggle-copy">
-                      <span className="input-label">Generate audio</span>
-                      <span className="tiny helper-text">Include ambient audio in the output.</span>
-                    </div>
-                    <button
-                      type="button"
-                      className={`reference-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
-                      aria-pressed={videoGenerateAudioValue}
-                      aria-label={videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"}
-                      onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
-                    >
-                      <span className="reference-toggle-track" aria-hidden="true">
-                        <span className="reference-toggle-dot" />
-                      </span>
-                    </button>
+                <div className="video-settings-toggle-row">
+                  <div className="video-settings-toggle-copy">
+                    <span className="input-label">Generate audio</span>
+                    <span className="tiny helper-text">Include ambient audio in the output.</span>
                   </div>
-                ) : null}
-                {isMotionMode ? (
-                  <div className="video-settings-toggle-row">
-                    <div className="video-settings-toggle-copy">
-                      <span className="input-label">Keep original sound</span>
-                      <span className="tiny helper-text">Preserve the input video's audio track.</span>
-                    </div>
-                    <button
-                      type="button"
-                      className={`reference-toggle ${motionKeepSoundValue ? "is-active" : ""}`}
-                      aria-pressed={motionKeepSoundValue}
-                      aria-label={motionKeepSoundValue ? "Disable original sound" : "Enable original sound"}
-                      onClick={() => onMotionKeepOriginalSoundChange?.(!motionKeepSoundValue)}
-                    >
-                      <span className="reference-toggle-track" aria-hidden="true">
-                        <span className="reference-toggle-dot" />
-                      </span>
-                    </button>
-                  </div>
-                ) : null}
+                  <button
+                    type="button"
+                    className={`reference-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
+                    aria-pressed={videoGenerateAudioValue}
+                    aria-label={videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"}
+                    onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
+                  >
+                    <span className="reference-toggle-track" aria-hidden="true">
+                      <span className="reference-toggle-dot" />
+                    </span>
+                  </button>
+                </div>
               </div>
             ) : null}
           </div>
+        ) : null}
+        {isKling3Mode ? (
+          <>
+            <div
+              className={`step-card kling-advanced-card ${collapsedSteps.klingAdvanced ? "is-collapsed" : ""}`}
+              onClick={() => expandIfCollapsed("klingAdvanced")}
+              style={{ order: klingAdvancedOrder }}
+            >
+              <div className="step-card-header">
+                {beginnerMode && <span className="step-badge">5</span>}
+                <div className="step-header-copy">
+                  <p className="step-title">Shots & Timing</p>
+                  <span className="step-subtitle tiny helper-text">{klingShotSummary}</span>
+                </div>
+                {!beginnerMode ? (
+                  <div className="step-header-actions">
+                    <StepHeaderActionButton
+                      label="Toggle Kling 3.0 shots"
+                      isCollapsed={collapsedSteps.klingAdvanced}
+                      onClick={() => toggleStep("klingAdvanced")}
+                    />
+                  </div>
+                ) : null}
+              </div>
+              {!collapsedSteps.klingAdvanced ? (
+                <div className="create-controls kling-advanced-grid">
+                  <div className="kling-pill-row">
+                    <span className="kling-pill">Launch limit: 3 concurrent</span>
+                    <span className="kling-pill">Cost: $0.224s (no audio) · $0.336s (audio) · $0.392s (voice)</span>
+                  </div>
+                  <div className="control-row compact">
+                    <label className="input-label">Shot type</label>
+                    <select
+                      className="model-select"
+                      value={klingShotType}
+                      onChange={(event) => onKlingShotTypeChange?.(event.target.value as "customize" | "intelligent")}
+                    >
+                      <option value="customize">Customize (per-shot prompts)</option>
+                      <option value="intelligent">Intelligent (auto pacing)</option>
+                    </select>
+                    <span className="tiny helper-text">Use multi-shot for micro-beats; intelligent for automatic pacing.</span>
+                  </div>
+                  <div className="control-row compact full-span">
+                    <label className="input-label">Multi-shot prompts</label>
+                    <div className="kling-multi-shot-list">
+                      {klingMultiPrompts.length === 0 ? (
+                        <p className="tiny helper-text">Add shots to split the video into multiple beats.</p>
+                      ) : null}
+                      {klingMultiPrompts.map((shot, index) => (
+                        <div className="kling-shot-row" key={shot.id}>
+                          <div className="shot-meta">
+                            <span className="shot-index">Shot {index + 1}</span>
+                            <button type="button" className="ghost-btn mini" onClick={() => removeKlingShot(shot.id)}>
+                              Remove
+                            </button>
+                          </div>
+                          <textarea
+                            className="model-select kling-textarea"
+                            value={shot.prompt}
+                            rows={2}
+                            onChange={(event) => updateKlingMultiPrompt(shot.id, "prompt", event.target.value)}
+                            placeholder="Describe this shot..."
+                          />
+                          <div className="kling-shot-controls">
+                            <label className="tiny helper-text">Duration</label>
+                            <select
+                              className="model-select"
+                              value={shot.duration}
+                              onChange={(event) => updateKlingMultiPrompt(shot.id, "duration", Number(event.target.value))}
+                            >
+                              {VIDEO_DURATION_OPTIONS.map((seconds) => (
+                                <option value={seconds} key={`shot-duration-${seconds}`}>
+                                  {seconds}s
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                      <button type="button" className="ghost-btn small" onClick={addKlingShot}>
+                        + Add shot
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div
+              className={`step-card kling-advanced-card ${collapsedSteps.klingAssets ? "is-collapsed" : ""}`}
+              onClick={() => expandIfCollapsed("klingAssets")}
+              style={{ order: (klingAdvancedOrder ?? 4) + 0.1 }}
+            >
+              <div className="step-card-header">
+                {beginnerMode && <span className="step-badge">5b</span>}
+                <div className="step-header-copy">
+                  <p className="step-title">Assets & Voices</p>
+                  <span className="step-subtitle tiny helper-text">{klingAssetsSummary}</span>
+                </div>
+                {!beginnerMode ? (
+                  <div className="step-header-actions">
+                    <StepHeaderActionButton
+                      label="Toggle Kling 3.0 assets"
+                      isCollapsed={collapsedSteps.klingAssets}
+                      onClick={() => toggleStep("klingAssets")}
+                    />
+                  </div>
+                ) : null}
+              </div>
+              {!collapsedSteps.klingAssets ? (
+                <div className="create-controls kling-advanced-grid">
+                  <div className="control-row compact full-span">
+                    <label className="input-label">Elements (characters/objects)</label>
+                    <div className="kling-elements-list">
+                      {klingElements.map((element) => (
+                        <div className="kling-element-row" key={element.id}>
+                          <div className="kling-element-grid">
+                            <input
+                              className="model-select"
+                              placeholder="Frontal image URL"
+                              value={element.frontalImageUrl}
+                              onChange={(event) => updateKlingElement(element.id, "frontalImageUrl", event.target.value)}
+                            />
+                            <input
+                              className="model-select"
+                              placeholder="Reference images (comma or newline separated)"
+                              value={element.referenceImageUrls}
+                              onChange={(event) => updateKlingElement(element.id, "referenceImageUrls", event.target.value)}
+                            />
+                            <input
+                              className="model-select"
+                              placeholder="Reference video URL (optional)"
+                              value={element.videoUrl}
+                              onChange={(event) => updateKlingElement(element.id, "videoUrl", event.target.value)}
+                            />
+                          </div>
+                          <div className="kling-element-actions">
+                            <span className="tiny helper-text">Reference as @Element{element.id.slice(-2)}</span>
+                            <button type="button" className="ghost-btn mini" onClick={() => removeKlingElement(element.id)}>
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <button type="button" className="ghost-btn small" onClick={addKlingElement}>
+                        + Add element
+                      </button>
+                    </div>
+                  </div>
+                  <div className="control-row compact full-span kling-voice-row">
+                    <label className="input-label">Voice IDs (optional)</label>
+                    <div className="kling-voice-inputs">
+                      {[0, 1].map((idx) => (
+                        <input
+                          key={`voice-${idx}`}
+                          className="model-select"
+                          placeholder={`voice_${idx + 1} ID (from create-voice)`}
+                          value={klingVoiceIds[idx]}
+                          onChange={(event) => onKlingVoiceIdChange?.(idx as 0 | 1, event.target.value)}
+                        />
+                      ))}
+                    </div>
+                    <span className="tiny helper-text">Reference in prompt as &lt;&lt;&lt;voice_{1}&gt;&gt;&gt; and &lt;&lt;&lt;voice_{2}&gt;&gt;&gt; (max 2).</span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div
+              className={`step-card kling-advanced-card ${collapsedSteps.klingGuidance ? "is-collapsed" : ""}`}
+              onClick={() => expandIfCollapsed("klingGuidance")}
+              style={{ order: (klingAdvancedOrder ?? 4) + 0.2 }}
+            >
+              <div className="step-card-header">
+                {beginnerMode && <span className="step-badge">5c</span>}
+                <div className="step-header-copy">
+                  <p className="step-title">Guidance & Safety</p>
+                  <span className="step-subtitle tiny helper-text">{klingGuidanceSummary}</span>
+                </div>
+                {!beginnerMode ? (
+                  <div className="step-header-actions">
+                    <StepHeaderActionButton
+                      label="Toggle Kling guidance"
+                      isCollapsed={collapsedSteps.klingGuidance}
+                      onClick={() => toggleStep("klingGuidance")}
+                    />
+                  </div>
+                ) : null}
+              </div>
+              {!collapsedSteps.klingGuidance ? (
+                <div className="create-controls kling-advanced-grid">
+                  <div className="control-row compact">
+                    <label className="input-label">CFG scale</label>
+                    <div className="kling-slider-row">
+                      <input
+                        type="range"
+                        min={0}
+                        max={1.5}
+                        step={0.05}
+                        value={klingCfgScale}
+                        onChange={(event) => onKlingCfgScaleChange?.(Number(event.target.value))}
+                      />
+                      <span className="slider-value">{klingCfgScale.toFixed(2)}</span>
+                    </div>
+                    <span className="tiny helper-text">Lower = freer motion/visuals, higher = tighter adherence.</span>
+                  </div>
+                  <div className="control-row compact full-span">
+                    <label className="input-label">Negative prompt</label>
+                    <textarea
+                      className="model-select kling-textarea"
+                      value={klingNegativePrompt}
+                      rows={2}
+                      onChange={(event) => onKlingNegativePromptChange?.(event.target.value)}
+                      placeholder="blur, distort, and low quality"
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </>
         ) : null}
         <div
           className={`step-card reference-generate-step ${collapsedSteps.generate ? "is-collapsed" : ""}`}
@@ -888,7 +1036,7 @@ export function ReferencePropertiesPanel({
         >
           {beginnerMode ? (
             <div className="step-card-header">
-              <span className="step-badge">{isVideoVariant ? "5" : "4"}</span>
+              <span className="step-badge">{generateBadge}</span>
               <div className="step-header-copy">
                 <p className="step-title">Generate</p>
                 <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>
@@ -928,20 +1076,6 @@ export function ReferencePropertiesPanel({
         accept="image/*"
         style={{ display: "none" }}
         onChange={handleFileSelection((url) => onExtraImageChange(1, url))}
-      />
-      <input
-        ref={motionImageInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handleFileSelection((url) => onMotionCharacterChange?.(url))}
-      />
-      <input
-        ref={motionVideoInputRef}
-        type="file"
-        accept="video/*"
-        style={{ display: "none" }}
-        onChange={handleVideoFileSelection(onMotionReferenceVideoChange)}
       />
     </div>
   );

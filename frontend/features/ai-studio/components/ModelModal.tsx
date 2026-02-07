@@ -71,6 +71,12 @@ const modelMeta: Record<string, ModelMeta> = {
     tags: ["Video"],
     verified: true,
   },
+  "fal-ai/veo3.1/image-to-video": {
+    provider: "Google via Fal",
+    description: "Veo 3.1 image-to-video; animate a single reference frame with natural motion and audio.",
+    tags: ["Video"],
+    verified: true,
+  },
   "fal-ai/sora-2/text-to-video/pro": {
     provider: "OpenAI via Fal",
     description: "Sora 2 Pro text-to-video via Fal queue with HD motion, physics, and native audio.",

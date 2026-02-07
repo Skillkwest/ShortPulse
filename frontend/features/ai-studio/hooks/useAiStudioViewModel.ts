@@ -51,7 +51,7 @@ export const useAiStudioViewModel = ({
     selectedTool === "image";
   const isModelSelected = Boolean(model);
   const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
-  const isVideoTool = selectedTool === "video";
+  const isVideoTool = selectedTool === "video" || selectedTool === "kling";
 
   const estimatedTextTokens = useMemo(() => estimatePromptTokens(prompt), [prompt]);
   const estimatedDescribeTokens = useMemo(
@@ -83,7 +83,7 @@ export const useAiStudioViewModel = ({
       return computeCostForModel(model, costParamsForModel());
     }
 
-    if (selectedTool === "video") {
+    if (isVideoTool) {
       if (!model) return null;
       return computeCostForModel(
         model,
@@ -129,7 +129,7 @@ export const useAiStudioViewModel = ({
 
   const costedFlow =
     ((selectedTool === "create" || selectedTool === "text") && (mode === "image" || mode === "video")) ||
-    selectedTool === "video" ||
+    isVideoTool ||
     selectedTool === "image";
   const hasReferenceImages = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
 

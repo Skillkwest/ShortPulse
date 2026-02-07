@@ -29,7 +29,8 @@ export type Provider =
   | "fal-sora"
   | "fal-seedance"
   | "fal-seedream"
-  | "fal-veo";
+  | "fal-veo"
+  | "fal-veo-i2v";
 
 export const resolveModelLabel = (value?: string) =>
   value ? modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})` : "Choose Model";
@@ -70,7 +71,13 @@ export const computeModalPosition = (target: HTMLElement): { top: number; left: 
 };
 
 export const isVideoUrl = (url: string | null | undefined) =>
-  !!url && (/\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video="));
+  !!url &&
+  (
+    /\.mp4(\?|$)/i.test(url) ||
+    url.includes("/video") ||
+    url.includes("video=") ||
+    (url.startsWith("blob:") && url.includes("video=1"))
+  );
 
 export const mapAgentReferences = (outputs: any[], activeOutputId: string | null) => {
   const mapped = outputs.map((item) => ({
@@ -97,9 +104,11 @@ export const mapAgentMedia = (outputs: any[]) =>
     }));
 
 export const mapUploadsFromFiles = (files: FileList, mode: any, aspect: string, model: string | null, resolveModelLabelFn: (value?: string) => string, randomIdFn: () => string) => {
-  const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
-  return imageFiles.map((file) => {
-    const url = URL.createObjectURL(file);
+  const mediaFiles = Array.from(files).filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"));
+  return mediaFiles.map((file) => {
+    const rawUrl = URL.createObjectURL(file);
+    const isVideo = file.type.startsWith("video/");
+    const url = isVideo ? (rawUrl.includes("?") ? `${rawUrl}&video=1` : `${rawUrl}?video=1`) : rawUrl;
     return {
       id: `upload-${randomIdFn()}`,
       prompt: file.name,
@@ -127,7 +136,7 @@ export const filterModelOptions = (
       if (mode === "image") return "image";
       if (mode === "video") return "video";
     }
-    if (selectedTool === "video") return "video";
+  if (selectedTool === "video" || selectedTool === "kling") return "video";
     if (selectedTool === "image") return "image";
     return null;
   })();

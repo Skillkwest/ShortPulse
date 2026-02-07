@@ -50,5 +50,6 @@ export type ToolId =
   | "image"
   | "video"
   | "text"
+  | "kling"
   | "edit"
   | "canvas";

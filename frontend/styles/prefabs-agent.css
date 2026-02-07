@@ -26,7 +26,8 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: 0;
-  padding: 0;
+  padding: 0 12px 12px 0;
+  scroll-padding-bottom: 12px;
   box-shadow: none;
   display: flex;
   flex-direction: column;
@@ -36,7 +37,7 @@
 }
 
 .agent-messages::-webkit-scrollbar {
-  width: 4px;
+  width: 8px;
 }
 
 .agent-messages::-webkit-scrollbar-track {

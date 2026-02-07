@@ -15,17 +15,15 @@ import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
 export type Provider =
   | "kei"
   | "fal"
-  | "fal-flux1-schnell"
   | "fal-flux2"
   | "fal-flux2-klein"
   | "fal-flux2-edit"
   | "fal-flux2-pro"
   | "fal-flux2-pro-edit"
-  | "fal-flux2-max"
-  | "fal-imagen4-fast"
   | "fal-kling"
   | "fal-kling-25"
   | "fal-nano-banana"
+  | "fal-kling-3"
   | "fal-nano-banana-edit"
   | "fal-nano-banana-pro"
   | "fal-nano-banana-pro-edit"
@@ -35,7 +33,7 @@ export type Provider =
   | "fal-veo";
 
 export const resolveModelLabel = (value?: string) =>
-  value ? modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})` : "Select model here";
+  value ? modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})` : "Choose Model";
 
 export const normalizeAspectForKei = (value: string) => (keiAllowedAspects.has(value) ? value : "auto");
 export const normalizeAspectForFalNanoBanana = (value: string) => (falNanoBananaAllowedAspects.has(value) ? value : "1:1");
@@ -43,6 +41,11 @@ export const normalizeAspectForFalNanoBananaPro = (value: string) => (falNanoBan
 export const resolveKlingAspectRatio = (value: string): FalKlingTextSubmitRequest["aspect_ratio"] =>
   (klingAllowedAspects.has(value) ? (value as FalKlingTextSubmitRequest["aspect_ratio"]) : "16:9");
 export const resolveKlingDuration = (seconds: number): FalKlingTextSubmitRequest["duration"] => (seconds <= 5 ? 5 : 10);
+export const resolveKlingV3Duration = (seconds: number): number => {
+  if (!Number.isFinite(seconds)) return 5;
+  const rounded = Math.round(seconds);
+  return Math.min(15, Math.max(3, rounded));
+};
 export const resolveSoraDuration = (seconds: number): 4 | 8 | 12 => {
   if (seconds <= 4) return 4;
   if (seconds <= 8) return 8;
@@ -130,7 +133,11 @@ export const filterModelOptions = (
 
   let filtered = options;
   if (mediaFilter) {
-    filtered = filtered.filter((opt) => !opt.mediaType || opt.mediaType === mediaFilter || opt.mediaType === "multi");
+    filtered = filtered.filter((opt) => {
+      if (!opt.mediaType || opt.mediaType === mediaFilter || opt.mediaType === "multi") return true;
+      if (selectedTool === "video" && opt.mediaType === "image-to-video") return true;
+      return false;
+    });
   }
   if ((selectedTool === "create" || selectedTool === "text") && mode === "image") {
     filtered = filtered.filter((opt) => opt.value !== "fal/flux-2-pro");

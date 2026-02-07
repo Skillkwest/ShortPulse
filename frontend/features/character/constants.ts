@@ -6,7 +6,6 @@ import type { CharacterEngine, CharacterModelId, CharacterPose } from "./types";
 export const characterModelOptions: { value: CharacterModelId; label: string }[] = [
   { value: "fal/flux-2-pro", label: "FLUX 2 Pro (text→image)" },
   { value: "fal/flux-2-pro/edit", label: "FLUX 2 Pro Edit (image+prompt)" },
-  { value: "fal/flux-2-max", label: "FLUX 2 Max (hi-fi)" },
 ];
 
 export const characterAspectOptions = ["1:1", "4:5", "3:4", "9:16", "16:9"] as const;

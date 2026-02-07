@@ -284,7 +284,6 @@ export default function AiStudioPage() {
   const handleDescribeReference = async (outputId: string) => {
     if (!outputId) return;
     const target = outputs.find((item) => item.id === outputId) ?? null;
-    setActiveOutputId(outputId);
     if (!target?.previewUrl) return;
     const debitDescribe = () => {
       if (describeCostCredits == null) return;
@@ -329,16 +328,14 @@ export default function AiStudioPage() {
 
   const handleSaveReference = (outputId: string) => {
     if (!outputId) return;
-    setActiveOutputId(outputId);
     // Reuse existing persistence hook; assumes active output save writes to media library.
-    saveActiveOutput();
+    saveActiveOutput(outputId);
   };
 
   const handleGenerateFromPromptReference = async (outputId: string) => {
     const target = outputs.find((item) => item.id === outputId);
     const promptText = target?.prompt ?? target?.previewText ?? "";
     if (!promptText.trim()) return;
-    setActiveOutputId(outputId);
     setSelectedTool("create");
     setMode("image");
     if (target?.modelId) {
@@ -468,7 +465,6 @@ export default function AiStudioPage() {
   };
 
   const focusFailure = (id: string) => {
-    setActiveOutputId(id);
     setDetailOutputId(id);
   };
 

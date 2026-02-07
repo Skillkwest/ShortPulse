@@ -126,6 +126,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2026-02-05 (later)
 - Phase 1 pricing work: credits now debit for image tool runs and prompt refine/describe flows; video duration/resolution/audio controls are wired into pricing and submissions; model media type supports image-to-video.
 - Added Change Impact Auditor agent doc and two maintenance skills (pricing audit + doc index).
+- Added `docs:check` script hook and documented maintenance skill usage in the agent playbook.
 
 ## 2027-01-05 (AI Studio accent + controls polish)
 - Centralized AI Studio accent theming behind a single `--ai-accent-base` variable to drive badges, toolbar icons, hover outlines, and primary/active button gradients; updated borders and hover states to inherit from the shared token.
@@ -213,3 +214,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added MiniGenerateButton to the Agent Chat input row beside Send for faster prompt generation actions.
 - Updated `docs/sop_video_generation.md` to reflect the first/last frame workflow requirement for image-to-video.
 - Temporarily hid the AI Studio toolbar “Creations” section (My Generations/Community); the toolbar file still contains the buttons and this note should be the reminder to revert once they need to be visible again.
+
+## 2026-02-06
+- Added Kling 3.0 Pro image-to-video (Fal) with per-second pricing, new Fal proxy routes, and AI Studio wiring for defaults and submissions.
+- Documented Kling 3.0 Pro API usage and updated AI Studio pricing + SOP tables to include the new model.
+
+## 2026-02-07
+- Added Kling 3.0 Pro text-to-video (Fal) with per-second pricing, new Fal proxy submit route, and AI Studio wiring for defaults and submissions.
+- Documented the Kling 3.0 Pro text-to-video API and updated AI Studio SOP tables + pricing notes.

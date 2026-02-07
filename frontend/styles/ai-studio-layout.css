@@ -475,7 +475,7 @@ body.ai-studio-body {
 .ai-shell {
   display: grid;
   /* Adjust the relative widths of the two main columns. */
-  grid-template-columns: minmax(500px, 1.1fr) minmax(0, 2fr);
+  grid-template-columns: minmax(400px, 1fr) minmax(0, 2fr);
   grid-template-rows: minmax(0, 1fr);
   gap: var(--ai-gutter);
   align-items: start;

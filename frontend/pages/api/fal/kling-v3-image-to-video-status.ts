@@ -1,10 +1,10 @@
 /**
- * Proxies Fal.ai FLUX.1 Schnell status + result fetch.
- * Accepts { requestId }, fetches status first, then result when ready.
+ * Proxies Fal.ai Kling 3.0 Pro image-to-video status + result fetch.
+ * Accepts { requestId } and returns status/result from the queue.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const FAL_FLUX1_SCHNELL_STATUS_URL = "https://queue.fal.run/fal-ai/flux-1/requests";
+const FAL_KLING_V3_STATUS_URL = "https://queue.fal.run/fal-ai/kling-video/requests";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 20000);
   try {
-    const statusResp = await fetch(`${FAL_FLUX1_SCHNELL_STATUS_URL}/${requestId}/status`, {
+    const statusResp = await fetch(`${FAL_KLING_V3_STATUS_URL}/${requestId}/status`, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },
       signal: controller.signal,
@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(statusResp.status).json(statusJson);
     }
 
-    const resultResp = await fetch(`${FAL_FLUX1_SCHNELL_STATUS_URL}/${requestId}`, {
+    const resultResp = await fetch(`${FAL_KLING_V3_STATUS_URL}/${requestId}`, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },
       signal: controller.signal,
@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ...resultJson,
     });
   } catch (error) {
-    return res.status(500).json({ error: "Fal FLUX 1 Schnell status failed", detail: String(error) });
+    return res.status(500).json({ error: "Fal Kling 3.0 status failed", detail: String(error) });
   } finally {
     clearTimeout(timeoutId);
   }

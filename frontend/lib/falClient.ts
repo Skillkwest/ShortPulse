@@ -1,5 +1,5 @@
 /**
- * Thin client for Fal.ai interactions (flux/dev, flux-2, flux-2-pro, flux-2-max text-to-image + Kling video).
+ * Thin client for Fal.ai interactions (flux/dev, flux-2, flux-2-pro text-to-image + Kling video).
  * Proxies through Next API routes to keep keys server-side.
  */
 export type FalSubmitRequest = {
@@ -36,12 +36,36 @@ export type FalKlingTextSubmitRequest = {
   generate_audio?: boolean;
 };
 
+export type FalKlingV3TextSubmitRequest = {
+  prompt: string;
+  duration?: number;
+  aspect_ratio?: "16:9" | "9:16" | "1:1";
+  multi_prompt?: { prompt: string; duration?: number }[] | null;
+  shot_type?: "customize" | "intelligent";
+  negative_prompt?: string;
+  cfg_scale?: number;
+  generate_audio?: boolean;
+  voice_ids?: string[];
+};
+
 export type FalKlingMotionControlSubmitRequest = {
   prompt: string;
   image_url: string;
   video_url: string;
   keep_original_sound?: boolean;
   character_orientation?: "image" | "video";
+};
+
+export type FalKlingV3ImageToVideoSubmitRequest = {
+  prompt: string;
+  start_image_url: string;
+  end_image_url?: string;
+  duration?: number;
+  aspect_ratio?: "16:9" | "9:16" | "1:1";
+  negative_prompt?: string;
+  cfg_scale?: number;
+  generate_audio?: boolean;
+  voice_ids?: string[];
 };
 
 export type FalKlingStatusResponse = {
@@ -117,13 +141,6 @@ export type FalNanoBananaEditSubmitRequest = {
   limit_generations?: boolean;
 };
 
-export type Imagen4FastSubmitRequest = {
-  prompt: string;
-  aspect_ratio?: "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
-  num_images?: number;
-  output_format?: "jpeg" | "png" | "webp";
-};
-
 const FAL_API_BASE = "/api/fal";
 
 const fetchWithTimeout = async (input: RequestInfo | URL, init?: RequestInit & { timeoutMs?: number }) => {
@@ -180,29 +197,6 @@ export const submitFalFlux2 = async (payload: FalSubmitRequest): Promise<FalSubm
     throw new Error("Fal FLUX 2 did not return a request_id");
   }
   return { request_id: requestId };
-};
-
-export const submitFalFlux1Schnell = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux1schnell-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
-  if (!requestId) {
-    throw new Error("Fal FLUX 1 Schnell did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalFlux1SchnellStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux1schnell-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
 };
 
 export const fetchFalFlux2Status = async (requestId: string): Promise<FalStatusResponse> => {
@@ -283,29 +277,6 @@ export const fetchFalFlux2ProEditStatus = async (requestId: string): Promise<Fal
   return handleJson<FalStatusResponse>(response);
 };
 
-export const submitFalFlux2Max = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2max-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
-  if (!requestId) {
-    throw new Error("Fal FLUX 2 MAX did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalFlux2MaxStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2max-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
 export const submitFalFlux2Klein = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2klein-submit`, {
     method: "POST",
@@ -322,29 +293,6 @@ export const submitFalFlux2Klein = async (payload: FalSubmitRequest): Promise<Fa
 
 export const fetchFalFlux2KleinStatus = async (requestId: string): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2klein-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export const submitImagen4Fast = async (payload: Imagen4FastSubmitRequest): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/imagen4fast-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
-  if (!requestId) {
-    throw new Error("Imagen 4 Fast did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchImagen4FastStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/imagen4fast-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ requestId }),
@@ -502,6 +450,20 @@ export const submitFalKlingV26Text = async (payload: FalKlingTextSubmitRequest):
   return { request_id: requestId };
 };
 
+export const submitFalKlingV3Text = async (payload: FalKlingV3TextSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-v3-text-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal Kling v3 text-to-video did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
 const FAL_KLING_MOTION_CONTROL_SUBMIT = `${FAL_API_BASE}/kling-v26-motion-control-submit`;
 
 export const submitFalKlingMotionControl = async (
@@ -644,6 +606,9 @@ export const fetchFalSeedanceStatus = async (requestId: string): Promise<FalStat
   return handleJson<FalStatusResponse>(response);
 };
 
+const FAL_KLING_V3_SUBMIT = `${FAL_API_BASE}/kling-v3-image-to-video-submit`;
+const FAL_KLING_V3_STATUS = `${FAL_API_BASE}/kling-v3-image-to-video-status`;
+
 export type FalKlingV25SubmitRequest = {
   prompt: string;
   image_url: string;
@@ -673,6 +638,31 @@ export const submitFalKlingV25 = async (payload: FalKlingV25SubmitRequest): Prom
 
 export const fetchFalKlingV25Status = async (requestId: string): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(FAL_KLING_V25_STATUS, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
+export const submitFalKlingV3ImageToVideo = async (
+  payload: FalKlingV3ImageToVideoSubmitRequest,
+): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(FAL_KLING_V3_SUBMIT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal Kling 3.0 image-to-video did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalKlingV3ImageToVideoStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(FAL_KLING_V3_STATUS, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ requestId }),

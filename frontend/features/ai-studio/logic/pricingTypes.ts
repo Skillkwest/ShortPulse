@@ -1,11 +1,11 @@
+/**
+ * Pricing strategy identifiers and shared pricing types.
+ */
 export type PricingStrategyId =
   | "fal-per-mp"
-  | "fal-flux1-schnell-per-mp"
   | "fal-flux2-per-mp"
   | "fal-flux2-klein-per-mp"
-  | "fal-flux2-max-per-mp"
   | "fal-flux2-pro-per-mp"
-  | "imagen4-fast-per-image"
   | "google-nano-banana-per-image"
   | "gpt41nano-per-token"
   | "nano-banana-per-image"
@@ -14,6 +14,7 @@ export type PricingStrategyId =
   | "veo-3-per-second"
   | "kling-2.6-per-second"
   | "kling-2.6-motion-per-second"
+  | "kling-3-per-second"
   | "sora-2-pro-per-second"
   | "seedance-1.5-per-second";
 
@@ -26,6 +27,7 @@ export type PricingParams = {
   resolution?: string;
   webSearch?: boolean;
   audio?: boolean;
+  voiceControl?: boolean;
 };
 
 export type CostBreakdown = {

@@ -311,7 +311,7 @@ export function TextPropertiesPanel({
             ) : null}
           </div>
           {!collapsedSteps.model ? (
-            <div className="create-controls dual-controls">
+            <div className="create-controls dual-controls frame-model-controls">
               <div className="control-row compact">
                 <label className="input-label">Aspect ratio</label>
                 <AspectDropdown aspect={aspect} onSelect={onAspectChange} />

@@ -19,20 +19,19 @@ import {
 import {
   submitFalFlux2,
   submitFalFlux2Klein,
-  submitFalFlux1Schnell,
   submitFalFlux2Edit,
   submitFalFlux2ProEdit,
-  submitFalFlux2Max,
   submitFalFlux2Pro,
   submitFalKlingV26Text,
   submitFalKlingV25,
   submitFalKlingV25Text,
+  submitFalKlingV3ImageToVideo,
+  submitFalKlingV3Text,
   submitFalKlingMotionControl,
   submitFalSeedance,
   submitFalSeedream,
   submitFalVeo,
   submitFalVeoFirstLast,
-  submitImagen4Fast,
   submitFalNanoBanana,
   submitFalNanoBananaEdit,
   submitFalNanoBananaPro,
@@ -57,6 +56,7 @@ import {
   resolvePreviewUrlById,
   resolveKlingAspectRatio,
   resolveKlingDuration,
+  resolveKlingV3Duration,
   resolveModelLabel,
   resolveSeedreamImageSize,
   resolveSoraDuration,
@@ -65,6 +65,7 @@ import {
 import { useAiStudioTasks } from "./useAiStudioTasks";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
+const KLING_MOTION_CONTROL_MODEL = "fal-ai/kling-video/v2.6/pro/motion-control";
 type KlingAspect = FalKlingTextSubmitRequest["aspect_ratio"];
 
 type ModelModalPosition = { top: number; left: number };
@@ -78,15 +79,11 @@ type AiStudioStateOptions = {
 
 export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) => {
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
-  const defaultImageModel = useMemo(() => modelOptions.find((opt) => opt.mediaType === "image")?.value ?? null, []);
-  const defaultVideoModel = useMemo(() => modelOptions.find((opt) => opt.mediaType === "video")?.value ?? null, []);
 
   // Creation inputs
   const [mode, setMode] = useState<StudioMode>("text");
   const [aspect, setAspect] = useState<string>("9:16");
   const [model, setModelState] = useState<string | null>(null);
-  const [lastImageModel, setLastImageModel] = useState<string | null>(null);
-  const [lastVideoModel, setLastVideoModel] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<string>("");
 
   // Output management
@@ -94,11 +91,17 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  // UI selections and references (shared across tools)
+  // UI selections and references (tracked per workflow)
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
   const [showCreateTools, setShowCreateTools] = useState<boolean>(false);
-  const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
-  const [extraImageUrls, setExtraImageUrls] = useState<[string | null, string | null, string | null]>([
+  const [imageReferenceImageUrl, setImageReferenceImageUrl] = useState<string | null>(null);
+  const [imageExtraImageUrls, setImageExtraImageUrls] = useState<[string | null, string | null, string | null]>([
+    null,
+    null,
+    null,
+  ]);
+  const [videoReferenceImageUrl, setVideoReferenceImageUrl] = useState<string | null>(null);
+  const [videoExtraImageUrls, setVideoExtraImageUrls] = useState<[string | null, string | null, string | null]>([
     null,
     null,
     null,
@@ -118,9 +121,11 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const [isPromptGenerating, setIsPromptGenerating] = useState<boolean>(false);
   const [uiError, setUiError] = useState<string | null>(null);
   const pollTimersRef = useRef<Record<string, number>>({});
+  const lastVideoReferenceModeRef = useRef(videoReferenceMode);
+  const lastNonMotionVideoModelRef = useRef<string | null>(null);
 
   const activeOutput = useMemo(
-    () => outputs.find((item) => item.id === activeOutputId) ?? outputs[0] ?? null,
+    () => outputs.find((item) => item.id === activeOutputId) ?? null,
     [activeOutputId, outputs],
   );
   const detailOutput = useMemo(
@@ -134,16 +139,9 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
 
   const referenceText = prompt;
   const setReferenceText = setSharedPrompt;
-
-  const modelMediaFilter = useMemo(() => {
-    if (selectedTool === "create" || selectedTool === "text") {
-      if (mode === "image") return "image";
-      if (mode === "video") return "video";
-    }
-    if (selectedTool === "video") return "image-to-video";
-    if (selectedTool === "image") return "image";
-    return null;
-  }, [mode, selectedTool]);
+  const isVideoReferenceTool = selectedTool === "video";
+  const referenceImageUrl = isVideoReferenceTool ? videoReferenceImageUrl : imageReferenceImageUrl;
+  const extraImageUrls = isVideoReferenceTool ? videoExtraImageUrls : imageExtraImageUrls;
 
   const allowedModelOptions = useMemo(() => {
     if (selectedTool === "video") {
@@ -177,30 +175,9 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     return modelOptions;
   }, [mode, selectedTool]);
 
-  const getMediaTypeForModel = useCallback((value: string | null) => {
-    if (!value) return null;
-    return modelOptions.find((opt) => opt.value === value)?.mediaType ?? null;
+  const setModel = useCallback((value: string | null) => {
+    setModelState(value);
   }, []);
-
-  const rememberModel = useCallback(
-    (value: string | null) => {
-      const mediaType = getMediaTypeForModel(value);
-      if (mediaType === "image") {
-        setLastImageModel(value);
-      } else if (mediaType === "video") {
-        setLastVideoModel(value);
-      }
-    },
-    [getMediaTypeForModel],
-  );
-
-  const setModel = useCallback(
-    (value: string | null) => {
-      setModelState(value);
-      rememberModel(value);
-    },
-    [rememberModel],
-  );
 
   const getDefaultDurationSeconds = useCallback((modelId: string | null) => {
     if (!modelId) return VIDEO_DEFAULT_DURATION_SECONDS;
@@ -219,12 +196,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       document.documentElement.classList.remove("ai-studio-body");
     };
   }, []);
-
-  useEffect(() => {
-    if (!activeOutputId && outputs.length > 0) {
-      setActiveOutputId(outputs[0].id);
-    }
-  }, [activeOutputId, outputs]);
 
   useEffect(() => {
     if (!activeOutput?.previewUrl) {
@@ -264,46 +235,52 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     }
   }, [model]);
 
-  // Ensure motion control models surface the motion reference UI.
+  // Keep motion control mode and model in sync without locking other tabs.
   useEffect(() => {
-    if (!model) return;
-    if (model === "fal-ai/kling-video/v2.6/pro/motion-control" && videoReferenceMode !== "motion") {
-      setVideoReferenceMode("motion");
+    const previousMode = lastVideoReferenceModeRef.current;
+    if (videoReferenceMode !== previousMode) {
+      lastVideoReferenceModeRef.current = videoReferenceMode;
+    }
+
+    if (videoReferenceMode === "motion") {
+      if (model !== KLING_MOTION_CONTROL_MODEL) {
+        lastNonMotionVideoModelRef.current = model;
+        setModel(KLING_MOTION_CONTROL_MODEL);
+      }
       return;
     }
+
+    if (previousMode === "motion" && model === KLING_MOTION_CONTROL_MODEL) {
+      const fallback = lastNonMotionVideoModelRef.current;
+      if (fallback && fallback !== KLING_MOTION_CONTROL_MODEL) {
+        setModel(fallback);
+        return;
+      }
+      setModel(null);
+      return;
+    }
+
     if (model === "fal-ai/veo3.1/first-last-frame-to-video" && videoReferenceMode !== "keyframes") {
       setVideoReferenceMode("keyframes");
-    }
-  }, [model, videoReferenceMode]);
-
-  // Keep model selection aligned with the current mode/tool filter and remember last picks per media type.
-  useEffect(() => {
-    if (!modelMediaFilter) return;
-    const allowedValues = new Set(allowedModelOptions.map((opt) => opt.value));
-
-    if (model && allowedValues.has(model)) {
-      rememberModel(model);
       return;
     }
 
-    let preferred: string | null = null;
-    if (modelMediaFilter === "video") {
-      preferred = lastVideoModel ?? defaultVideoModel;
-    } else if (modelMediaFilter === "image") {
-      preferred = lastImageModel ?? defaultImageModel;
+    if (model === KLING_MOTION_CONTROL_MODEL && videoReferenceMode !== "motion") {
+      setVideoReferenceMode("motion");
     }
+  }, [model, setModel, setVideoReferenceMode, videoReferenceMode]);
 
-    const fallback = preferred && allowedValues.has(preferred) ? preferred : allowedModelOptions[0]?.value ?? null;
-    setModel(fallback ?? null);
+  // Clear model selections that are not valid for the current tool.
+  useEffect(() => {
+    if (!model) return;
+    const allowedValues = new Set(allowedModelOptions.map((opt) => opt.value));
+
+    if (!allowedValues.has(model)) {
+      setModel(null);
+    }
   }, [
     allowedModelOptions,
-    defaultImageModel,
-    defaultVideoModel,
-    lastImageModel,
-    lastVideoModel,
     model,
-    modelMediaFilter,
-    rememberModel,
     setModel,
   ]);
 
@@ -445,6 +422,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           // Map image-to-video models to their text-to-video equivalents
           const imageToVideoTextMap: Record<string, string> = {
             "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": "fal-ai/kling-video/v2.5-turbo/pro/text-to-video",
+            "fal-ai/kling-video/v3/pro/image-to-video": "fal-ai/kling-video/v3/pro/text-to-video",
             "fal-ai/veo3.1/first-last-frame-to-video": "fal-ai/veo3.1",
           };
           if (model && imageToVideoTextMap[model]) {
@@ -460,19 +438,18 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const id = `out-${randomId()}`;
       const modelLabel = resolveModelLabel(finalModel);
       const isSeedreamModel = finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image";
-      const isFalFlux1SchnellModel = finalModel === "fal-ai/flux-1/schnell";
       const isFalFlux2Model = finalModel === "fal/flux-2";
       const isFalFlux2KleinModel = finalModel === "fal-ai/flux-2/klein/9b";
       const isFalFlux2EditModel = finalModel === "fal/flux-2/edit";
       const isFalFlux2ProModel = finalModel === "fal/flux-2-pro";
       const isFalFlux2ProEditModel = finalModel === "fal/flux-2-pro/edit";
-      const isFalFlux2MaxModel = finalModel === "fal/flux-2-max";
       const isFalNanoBananaModel = finalModel === "fal-ai/nano-banana";
       const isFalNanoBananaEditModel = finalModel === "fal-ai/nano-banana/edit";
       const isFalNanoBananaProModel = finalModel === "fal-ai/nano-banana-pro";
       const isFalNanoBananaProEditModel = finalModel === "fal-ai/nano-banana-pro/edit";
-      const isImagen4FastModel = finalModel === "fal/imagen4/preview/fast";
       const isSeedanceModel = finalModel === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video";
+      const isKling3TextModel = finalModel === "fal-ai/kling-video/v3/pro/text-to-video";
+      const isKling3ImageModel = finalModel === "fal-ai/kling-video/v3/pro/image-to-video";
       const isKling25ImageModel = finalModel === "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
       const isKling25TextModel = finalModel === "fal-ai/kling-video/v2.5-turbo/pro/text-to-video";
       const isKlingMotionControlModel = finalModel === "fal-ai/kling-video/v2.6/pro/motion-control";
@@ -517,12 +494,12 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         previewUrl:
           isKlingMotionControlModel
             ? motionCharacterUrl ?? undefined
-            : isVeoFirstLastFrameModel || isKling25ImageModel
+            : isVeoFirstLastFrameModel || isKling25ImageModel || isKling3ImageModel
               ? preparedImageInputs[0] ?? undefined
               : undefined,
       };
 
-      const requiresImageReference = isKling25ImageModel;
+      const requiresImageReference = isKling25ImageModel || isKling3ImageModel;
       if (requiresImageReference && preparedImageInputs.length === 0) {
         setOutputs((prev) => [
           {
@@ -534,7 +511,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           },
           ...prev,
         ]);
-        setActiveOutputId(id);
         setSaved(false);
         return;
       }
@@ -550,7 +526,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           },
           ...prev,
         ]);
-        setActiveOutputId(id);
         setSaved(false);
         return;
       }
@@ -566,16 +541,40 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           },
           ...prev,
         ]);
-        setActiveOutputId(id);
         setSaved(false);
         return;
       }
 
       setOutputs((prev) => [nextOutput, ...prev]);
-      setActiveOutputId(id);
       setSaved(false);
 
       try {
+        if (isKling3ImageModel) {
+          const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
+          const endImageUrl =
+            videoReferenceMode === "keyframes" && preparedImageInputs.length > 1
+              ? preparedImageInputs[1]
+              : undefined;
+          const { request_id } = await submitFalKlingV3ImageToVideo({
+            prompt: cleanedPrompt,
+            start_image_url: preparedImageInputs[0],
+            end_image_url: endImageUrl,
+            duration: klingDuration,
+            aspect_ratio: resolveKlingAspectRatio(aspect),
+            negative_prompt: "blur, distort, and low quality",
+            cfg_scale: 0.5,
+            generate_audio: requestedAudio,
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(request_id, id, 0, "fal-kling-3");
+          return;
+        }
+
         if (isKling25ImageModel) {
           const klingDuration = resolveKlingDuration(requestedDurationSeconds);
           const { request_id } = await submitFalKlingV25({
@@ -688,11 +687,31 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           return;
         }
 
+        if (isKling3TextModel) {
+          const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
+          const { request_id } = await submitFalKlingV3Text({
+            prompt: cleanedPrompt,
+            aspect_ratio: resolveKlingAspectRatio(aspect),
+            duration: klingDuration,
+            negative_prompt: "blur, distort, and low quality",
+            cfg_scale: 0.5,
+            generate_audio: requestedAudio,
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingTask(request_id, id, 0, "fal-kling");
+          return;
+        }
+
         if (isSeedanceModel) {
           const normalizedAspect =
             modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16" || aspect === "1:1")
               ? aspect
-              : modelConfig?.defaultAspect ?? "16:9";
+            : modelConfig?.defaultAspect ?? "16:9";
           const { request_id } = await submitFalSeedance({
             prompt: cleanedPrompt,
             duration: requestedDurationSeconds.toString(),
@@ -831,28 +850,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           return;
         }
 
-        if (isFalFlux1SchnellModel) {
-          const size = falSizeForAspect(aspect);
-          const falResp = await submitFalFlux1Schnell({
-            prompt: cleanedPrompt,
-            image_size: { width: size.width, height: size.height },
-            num_images: 1,
-            output_format: "jpeg",
-            guidance_scale: 3.5,
-            num_inference_steps: 4,
-            enable_safety_checker: true,
-            acceleration: "regular",
-          });
-          updateOutputById(id, (item) => ({
-            ...item,
-            taskId: falResp.request_id,
-            taskState: "running",
-            timestamp: "Submitted",
-          }));
-          startPollingTask(falResp.request_id, id, 0, "fal-flux1-schnell");
-          return;
-        }
-
         if (isFalFlux2KleinModel) {
           const size = falSizeForAspect(aspect);
           const falResp = await submitFalFlux2Klein({
@@ -923,48 +920,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             timestamp: "Submitted",
           }));
           startPollingTask(falResp.request_id, id, 0, "fal-flux2-pro-edit");
-          return;
-        }
-
-        if (isImagen4FastModel) {
-          const normalizedAspect = modelConfig?.allowedAspects?.includes(aspect)
-            ? aspect
-            : modelConfig?.defaultAspect ?? "1:1";
-          const falResp = await submitImagen4Fast({
-            prompt: cleanedPrompt,
-            aspect_ratio: normalizedAspect as "1:1",
-            num_images: 1,
-            output_format: "png",
-            ...falReferencePayload,
-          });
-          updateOutputById(id, (item) => ({
-            ...item,
-            taskId: falResp.request_id,
-            taskState: "running",
-            timestamp: "Submitted",
-          }));
-          startPollingTask(falResp.request_id, id, 0, "fal-imagen4-fast");
-          return;
-        }
-
-        if (isFalFlux2MaxModel) {
-          const size = falSizeForAspect(aspect);
-          const falResp = await submitFalFlux2Max({
-            prompt: cleanedPrompt,
-            image_size: { width: size.width, height: size.height },
-            num_images: 1,
-            output_format: "png",
-            safety_tolerance: "5",
-            enable_safety_checker: false,
-            ...falReferencePayload,
-          } as any);
-          updateOutputById(id, (item) => ({
-            ...item,
-            taskId: falResp.request_id,
-            taskState: "running",
-            timestamp: "Submitted",
-          }));
-          startPollingTask(falResp.request_id, id, 0, "fal-flux2-max");
           return;
         }
 
@@ -1069,7 +1024,24 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       startPollingTask,
       updateOutputById,
       useReferenceImageIndicator,
+      videoReferenceMode,
     ],
+  );
+
+  const resolveReferenceInputsForTool = useCallback(
+    (tool: ToolId | null) => {
+      if (tool === "video") {
+        return {
+          referenceImageUrl: videoReferenceImageUrl,
+          extraImageUrls: videoExtraImageUrls,
+        };
+      }
+      return {
+        referenceImageUrl: imageReferenceImageUrl,
+        extraImageUrls: imageExtraImageUrls,
+      };
+    },
+    [imageExtraImageUrls, imageReferenceImageUrl, videoExtraImageUrls, videoReferenceImageUrl],
   );
 
   const generateOutput = useCallback(
@@ -1077,35 +1049,42 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       promptOverride?: string | null,
       options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null },
     ) => {
-      const imageInputs = [referenceImageUrl, ...extraImageUrls]
-        .filter((url): url is string => Boolean(url))
-        .slice(0, 8);
+      const effectiveTool = options?.selectedToolOverride ?? selectedTool;
+      const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } = resolveReferenceInputsForTool(effectiveTool);
+      const imageInputs = [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url)).slice(0, 8);
       submitTask(promptOverride ?? prompt, imageInputs, options);
     },
-    [extraImageUrls, prompt, referenceImageUrl, submitTask],
+    [prompt, resolveReferenceInputsForTool, selectedTool, submitTask],
   );
 
   const regenerateOutput = useCallback(() => {
     const promptToUse = prompt.trim();
     if (!promptToUse) return;
+    const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } = resolveReferenceInputsForTool(selectedTool);
     const referencePool = [
       ...(useReferenceImageIndicator && activeOutput?.previewUrl ? [activeOutput.previewUrl] : []),
-      referenceImageUrl,
-      ...extraImageUrls,
+      referenceUrl,
+      ...extraUrls,
     ];
     const imageInputs = referencePool.filter((url): url is string => Boolean(url)).slice(0, 8);
     submitTask(promptToUse, imageInputs);
-  }, [activeOutput?.previewUrl, extraImageUrls, referenceImageUrl, prompt, submitTask, useReferenceImageIndicator]);
+  }, [activeOutput?.previewUrl, prompt, resolveReferenceInputsForTool, selectedTool, submitTask, useReferenceImageIndicator]);
 
-  const saveActiveOutput = useCallback(() => {
-    if (!activeOutput) return;
-    setOutputs((prev) =>
-      prev.map((item) =>
-        item.id === activeOutput.id ? { ...item, status: "saved", timestamp: "Saved" } : item,
-      ),
-    );
-    setSaved(true);
-  }, [activeOutput]);
+  const saveActiveOutput = useCallback(
+    (outputId?: string | null) => {
+      const targetId = outputId ?? activeOutput?.id ?? null;
+      if (!targetId) return;
+      setOutputs((prev) =>
+        prev.map((item) =>
+          item.id === targetId ? { ...item, status: "saved", timestamp: "Saved" } : item,
+        ),
+      );
+      if (!outputId) {
+        setSaved(true);
+      }
+    },
+    [activeOutput?.id],
+  );
 
   const savePromptReference = useCallback((customPrompt?: string) => {
     const cleanedPrompt = (typeof customPrompt === "string" ? customPrompt : prompt).trim();
@@ -1124,7 +1103,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       previewText: cleanedPrompt,
     };
     setOutputs((prev) => [promptReference, ...prev]);
-    setActiveOutputId(id);
   }, [prompt, mode, aspect, model]);
 
   const addAgentPromptReference = useCallback(
@@ -1146,7 +1124,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         previewText: cleanedPrompt,
       };
       setOutputs((prev) => [promptReference, ...prev]);
-      setActiveOutputId(id);
       setSharedPrompt(cleanedPrompt);
     },
     [prompt, mode, aspect, model, setSharedPrompt],
@@ -1156,10 +1133,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     (files: FileList) => {
       const newEntries = mapUploadsFromFiles(files, mode, aspect, model, resolveModelLabel, randomId);
       if (!newEntries.length) return;
-      setOutputs((prev) => {
-        setActiveOutputId(newEntries[0].id);
-        return [...newEntries, ...prev];
-      });
+      setOutputs((prev) => [...newEntries, ...prev]);
     },
     [aspect, model, mode],
   );
@@ -1170,19 +1144,43 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   }, [activeOutput?.previewUrl]);
 
   const clearReferenceImages = useCallback(() => {
-    setReferenceImageUrl(null);
-    setExtraImageUrls([null, null, null]);
+    setImageReferenceImageUrl(null);
+    setImageExtraImageUrls([null, null, null]);
+    setVideoReferenceImageUrl(null);
+    setVideoExtraImageUrls([null, null, null]);
     setMotionCharacterUrl(null);
     setMotionReferenceVideoUrl(null);
   }, []);
 
-  const setExtraImageUrl = useCallback((index: number, url: string | null) => {
-    setExtraImageUrls((prev) => {
-      const next: [string | null, string | null, string | null] = [...prev];
-      next[index] = url;
-      return next;
-    });
-  }, []);
+  const setReferenceImageUrl = useCallback(
+    (url: string | null) => {
+      if (isVideoReferenceTool) {
+        setVideoReferenceImageUrl(url);
+      } else {
+        setImageReferenceImageUrl(url);
+      }
+    },
+    [isVideoReferenceTool],
+  );
+
+  const setExtraImageUrl = useCallback(
+    (index: number, url: string | null) => {
+      if (isVideoReferenceTool) {
+        setVideoExtraImageUrls((prev) => {
+          const next: [string | null, string | null, string | null] = [...prev];
+          next[index] = url;
+          return next;
+        });
+        return;
+      }
+      setImageExtraImageUrls((prev) => {
+        const next: [string | null, string | null, string | null] = [...prev];
+        next[index] = url;
+        return next;
+      });
+    },
+    [isVideoReferenceTool],
+  );
 
   const getAgentContext = useCallback(
     (options?: {

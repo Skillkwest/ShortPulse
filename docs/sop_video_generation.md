@@ -81,6 +81,8 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 
 | Provider | Model id | Allowed aspects (examples) | Notes |
 | --- | --- | --- | --- |
+| Fal | `fal-ai/kling-video/v3/pro/image-to-video` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Image-to-video queue; requires a start image (`start_image_url`); optional end image when using keyframes. Per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Defaults to 10s with `generate_audio: true` and proxies through `/api/fal/kling-v3-image-to-video-*`. |
+| Fal | `fal-ai/kling-video/v3/pro/text-to-video` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Text-to-video queue; per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Defaults to 10s with `generate_audio: true` and proxies through `/api/fal/kling-v3-text-submit`. |
 | Fal | `fal-ai/kling-video/v2.5-turbo/pro/image-to-video` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Image-to-video queue; requires an `image_url` reference; per-duration pricing ($0.35 for 5s + $0.07/additional s), defaults to 10s (70 credits) and proxies through `/api/fal/kling-v25-image-to-video-*`. |
 | Fal | `fal-ai/kling-video/v2.5-turbo/pro/text-to-video` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Text-to-video queue; per-duration pricing ($0.35 for 5s + $0.07/additional s), defaults to 10s (70 credits). |
 | Fal | `fal-ai/kling-video/v2.6/pro/text-to-video` | 16:9 default (allowed: 1:1, 16:9, 9:16) | Per-second pricing ($0.14/s audio-on, $0.07/s audio-off); defaults to 10s with `generate_audio: true` (140 credits). |

@@ -50,22 +50,19 @@ const modelMeta: Record<string, ModelMeta> = {
     tags: ["Image"],
     verified: true,
   },
-  "fal/flux-2-max": {
-    provider: "Flux",
-    description: "Maximum quality Flux with enhanced realism and upscale-friendly detail.",
-    logo: "Flux",
-    tags: ["Image"],
-    verified: true,
-  },
-  "fal/imagen4/preview/fast": {
-    provider: "Google",
-    description: "Imagen 4 Fast for crisp results with speedy turnaround.",
-    logo: "G",
-    tags: ["Image"],
-  },
   "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": {
     provider: "Kling",
     description: "Kling 2.5 Turbo Pro image-to-video with cinematic motion detail.",
+    tags: ["Video"],
+  },
+  "fal-ai/kling-video/v3/pro/image-to-video": {
+    provider: "Kling",
+    description: "Kling 3.0 Pro image-to-video with cinematic visuals, native audio, and optional voice control.",
+    tags: ["Video"],
+  },
+  "fal-ai/kling-video/v3/pro/text-to-video": {
+    provider: "Kling",
+    description: "Kling 3.0 Pro text-to-video with multi-shot support, cinematic motion, and native audio.",
     tags: ["Video"],
   },
   "fal-ai/kling-video/v2.5-turbo/pro/text-to-video": {
@@ -233,17 +230,11 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
     [optionMap],
   );
 
-  const fluxOrder = ["fal-ai/flux-1/schnell", "fal/flux-2", "fal/flux-2-pro", "fal/flux-2-pro/edit", "fal/flux-2-max"];
+  const fluxOrder = ["fal/flux-2", "fal/flux-2-pro", "fal/flux-2-pro/edit"];
   const fluxOptions = fluxOrder
     .map((value) => filteredOptions.find((option) => option.value === value))
     .filter((item): item is ModelOption => Boolean(item));
-  const googleOrder = [
-    "fal/imagen4/preview/fast",
-    "fal-ai/nano-banana",
-    "fal-ai/nano-banana/edit",
-    "fal-ai/nano-banana-pro",
-    "fal-ai/nano-banana-pro/edit",
-  ];
+  const googleOrder = ["fal-ai/nano-banana", "fal-ai/nano-banana/edit", "fal-ai/nano-banana-pro", "fal-ai/nano-banana-pro/edit"];
   const googleOptions = googleOrder
     .map((value) => filteredOptions.find((option) => option.value === value))
     .filter((item): item is ModelOption => Boolean(item));

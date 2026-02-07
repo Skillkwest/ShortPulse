@@ -1,10 +1,10 @@
 /**
- * Proxies Fal.ai FLUX.1 Schnell text-to-image submit requests.
- * Keeps FAL_KEY server-side and passes the payload through to the queue endpoint.
+ * Proxies Fal.ai Kling 3.0 Pro text-to-video submit requests.
+ * Keeps `FAL_KEY` server-side and forwards the payload to the queue.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const FAL_FLUX1_SCHNELL_SUBMIT_URL = "https://queue.fal.run/fal-ai/flux-1/schnell";
+const FAL_KLING_V3_TEXT_SUBMIT_URL = "https://queue.fal.run/fal-ai/kling-video/v3/pro/text-to-video";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -19,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 20000);
   try {
-    const upstream = await fetch(FAL_FLUX1_SCHNELL_SUBMIT_URL, {
+    const upstream = await fetch(FAL_KLING_V3_TEXT_SUBMIT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const data = await upstream.json();
     return res.status(upstream.status).json(data);
   } catch (error) {
-    return res.status(500).json({ error: "Fal FLUX 1 Schnell submit failed", detail: String(error) });
+    return res.status(500).json({ error: "Fal Kling 3.0 text submit failed", detail: String(error) });
   } finally {
     clearTimeout(timeoutId);
   }

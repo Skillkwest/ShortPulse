@@ -112,6 +112,44 @@ describe("computeCostForModel (Kling 2.6 Motion Control)", () => {
   });
 });
 
+describe("computeCostForModel (Kling 3.0 Pro Image to Video)", () => {
+  const modelId = "fal-ai/kling-video/v3/pro/image-to-video";
+
+  it("charges $0.224/sec with audio off", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 5, audio: false });
+    expect(cost?.credits).toBe(112);
+    expect(cost?.usd).toBeCloseTo(1.12, 2);
+  });
+
+  it("charges $0.336/sec with audio on", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 5, audio: true });
+    expect(cost?.credits).toBe(168);
+    expect(cost?.usd).toBeCloseTo(1.68, 2);
+  });
+
+  it("charges $0.392/sec when voice control is used with audio", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 5, audio: true, voiceControl: true });
+    expect(cost?.credits).toBe(196);
+    expect(cost?.usd).toBeCloseTo(1.96, 2);
+  });
+});
+
+describe("computeCostForModel (Kling 3.0 Pro Text to Video)", () => {
+  const modelId = "fal-ai/kling-video/v3/pro/text-to-video";
+
+  it("charges $0.224/sec with audio off", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 5, audio: false });
+    expect(cost?.credits).toBe(112);
+    expect(cost?.usd).toBeCloseTo(1.12, 2);
+  });
+
+  it("charges $0.336/sec with audio on", () => {
+    const cost = computeCostForModel(modelId, { durationSeconds: 5, audio: true });
+    expect(cost?.credits).toBe(168);
+    expect(cost?.usd).toBeCloseTo(1.68, 2);
+  });
+});
+
 describe("computeCostForModel (Nano Banana Pro)", () => {
   const modelId = "fal-ai/nano-banana-pro";
 

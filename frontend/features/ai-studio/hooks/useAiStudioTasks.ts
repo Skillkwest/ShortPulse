@@ -7,7 +7,6 @@ import {
   submitFalFlux2,
   submitFalFlux2Edit,
   submitFalFlux2ProEdit,
-  submitFalFlux2Max,
   submitFalFlux2Pro,
   submitFalKlingV26Text,
   submitFalKlingV25,
@@ -15,27 +14,24 @@ import {
   submitFalSeedance,
   submitFalSeedream,
   submitFalVeo,
-  submitImagen4Fast,
   submitFalNanoBanana,
   submitFalNanoBananaEdit,
   submitFalNanoBananaPro,
   submitFalNanoBananaProEdit,
   submitFalSoraPro,
-  fetchFalFlux2MaxStatus,
   fetchFalFlux2ProStatus,
   fetchFalFlux2Status,
   fetchFalFlux2KleinStatus,
-  fetchFalFlux1SchnellStatus,
   fetchFalFlux2EditStatus,
   fetchFalFlux2ProEditStatus,
   fetchFalKlingStatus,
   fetchFalKlingV25Status,
+  fetchFalKlingV3ImageToVideoStatus,
   fetchFalNanoBananaStatus,
   fetchFalNanoBananaEditStatus,
   fetchFalNanoBananaProStatus,
   fetchFalNanoBananaProEditStatus,
   fetchFalStatus,
-  fetchImagen4FastStatus,
   fetchFalSoraStatus,
   fetchFalSeedanceStatus,
   fetchFalSeedreamStatus,
@@ -56,8 +52,6 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
   switch (provider) {
     case "fal":
       return fetchFalStatus(taskId);
-    case "fal-flux1-schnell":
-      return fetchFalFlux1SchnellStatus(taskId);
     case "fal-flux2":
       return fetchFalFlux2Status(taskId);
     case "fal-flux2-klein":
@@ -68,14 +62,12 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalFlux2ProStatus(taskId);
     case "fal-flux2-pro-edit":
       return fetchFalFlux2ProEditStatus(taskId);
-    case "fal-flux2-max":
-      return fetchFalFlux2MaxStatus(taskId);
-    case "fal-imagen4-fast":
-      return fetchImagen4FastStatus(taskId);
     case "fal-kling":
       return fetchFalKlingStatus(taskId);
     case "fal-kling-25":
       return fetchFalKlingV25Status(taskId);
+    case "fal-kling-3":
+      return fetchFalKlingV3ImageToVideoStatus(taskId);
     case "fal-kling-26":
       return fetchFalKlingV26Status(taskId);
     case "fal-seedance":

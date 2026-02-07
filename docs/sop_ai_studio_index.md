@@ -19,15 +19,16 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 ## Default model params (source of truth: modelRegistry.ts)
 | Model | Defaults | Notes |
 | --- | --- | --- |
-| fal/flux-2 / -pro / -max | Aspect: 4:3 (allowed: 1:1, 4:3, 3:4, 16:9, 9:16) | Uses Fal size map for per-MP pricing. |
+| fal/flux-2 / -pro | Aspect: 4:3 (allowed: 1:1, 4:3, 3:4, 16:9, 9:16) | Uses Fal size map for per-MP pricing. |
 | fal-ai/flux-2/klein/9b | Aspect: 4:3 (allowed: 1:1, 4:3, 3:4, 16:9, 9:16) | FLUX.2 Lite per‑MP pricing. |
 | fal/flux-2/edit | Aspect: 4:3 default (allowed: 1:1, 4:3, 3:4, 16:9, 9:16) | Fal image-to-image/edit queue; requires references; per-MP pricing (same as FLUX.2); safety checker off by default. |
-| fal/imagen4/preview/fast | Aspect: 1:1 (allowed: 1:1, 16:9, 9:16, 4:3, 3:4) | Flat per-image pricing. |
 | fal-ai/nano-banana | Aspect: 1:1 default (allowed: 21:9, 16:9, 3:2, 4:3, 5:4, 4:5, 3:4, 2:3, 9:16) | Fal text-to-image queue; flat per-image pricing ($0.039 ≈ 4 credits). |
 | fal-ai/nano-banana/edit | Aspect: auto default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Fal image-to-image/edit queue; requires reference `image_urls`; flat per-image pricing (4 credits). |
 | fal-ai/nano-banana-pro | Aspect: 4:5 default (allowed: 21:9, 16:9, 3:2, 4:3, 5:4, 4:5, 3:4, 2:3, 9:16, 1:1, auto) | Fal text-to-image queue; per-image flat pricing ($0.15 ≈ 15 credits, 4K doubles, web-search adds 1.5 credits). |
 | fal-ai/nano-banana-pro/edit | Aspect: auto default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Fal image-to-image/edit queue; requires reference images; per-image flat pricing (15 credits; 4K doubles; web_search adds 1.5 credits). |
 | fal-ai/bytedance/seedream/v4.5/text-to-image | Aspect: 1:1 (broad set allowed) | Per-image pricing, 4K doubles cost; proxied via Fal queue with safety checker on. |
+| fal-ai/kling-video/v3/pro/image-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s; `generate_audio: true` by default | Per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Image-to-video with required start image. |
+| fal-ai/kling-video/v3/pro/text-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s; `generate_audio: true` by default | Per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Text-to-video with multi-shot support. |
 | fal-ai/kling-video/v2.5-turbo/pro/image-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s | Fal image-to-video queue; per-duration pricing (base 5s + increments) with a required reference image. |
 | fal-ai/kling-video/v2.5-turbo/pro/text-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s | Fal text-to-video queue; per-duration pricing (base 5s + increments). |
 | fal-ai/kling-video/v2.6/pro/text-to-video | Aspect: 16:9 default (allowed: 1:1, 16:9, 9:16); Duration: 10s; `generate_audio: true` by default | Per-second pricing (`$0.14/s` with audio, `$0.07/s` without); defaults to 10s and includes audio. |

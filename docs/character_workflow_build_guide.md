@@ -4,7 +4,7 @@ Purpose: living checklist to take the current Character tool from rough UI to pr
 
 ## Current baseline
 - Frontend page at `/character` with properties panel + preview.
-- References upload (drag/drop + file picker), minimal safety (disabled) to FLUX 2 Pro/Max via Fal proxy.
+- References upload (drag/drop + file picker), minimal safety (disabled) to FLUX 2 Pro via Fal proxy.
 - Identity builder stub (random embedding) with ready/building/error states.
 - Results list + preview; styles aligned to AI Studio panels.
 

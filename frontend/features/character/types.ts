@@ -32,7 +32,7 @@ export type CharacterPose = {
 
 export type CharacterEngine = "fal-edge" | "local-webgpu";
 
-export type CharacterModelId = "fal/flux-2-pro" | "fal/flux-2-pro/edit" | "fal/flux-2-max";
+export type CharacterModelId = "fal/flux-2-pro" | "fal/flux-2-pro/edit";
 
 export type CharacterGenerationMode = "portrait" | "full-body";
 

@@ -197,6 +197,10 @@
   margin-bottom: auto;
 }
 
+.reference-step-card.is-image-refs {
+  --reference-drop-secondary-width: clamp(80px, calc(var(--app-fixed-width) * 0.1), 105px);
+}
+
 .reference-step-card.is-video-refs {
   --reference-drop-aspect: 4 / 5;
   --reference-drop-max-width: 270px;
@@ -275,6 +279,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.reference-dropzone.has-preview .dropzone-tag,
+.reference-dropzone.has-video .dropzone-tag {
+  display: none;
 }
 
 .reference-drop-layout-inner .reference-step-card .reference-dropzone,
@@ -471,8 +480,8 @@
 }
 
 .motion-drop-row .primary-drop:first-child .reference-dropzone {
-  border-color: rgba(52, 200, 255, 0.45);
-  box-shadow: inset 0 0 0 1px rgba(52, 200, 255, 0.12);
+  border: var(--reference-drop-border);
+  box-shadow: none;
 }
 
 .reference-drop-layout-inner .reference-dropzone.has-video {

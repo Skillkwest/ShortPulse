@@ -83,6 +83,17 @@
   gap: 12px;
 }
 
+.frame-model-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.frame-model-controls .control-row {
+  min-width: 0;
+}
+
 .ai-control-actions {
   display: flex;
   align-items: center;
@@ -122,13 +133,26 @@
   max-height: 100%;
   overflow-y: auto;
   min-height: 0;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 205, 214, 0.3) transparent;
 }
 
 .ai-properties::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  width: 6px;
+  height: 6px;
+}
+
+.ai-properties::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-properties::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.3);
+  border-radius: 999px;
+}
+
+.ai-properties::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.45);
 }
 
 .tool-properties {

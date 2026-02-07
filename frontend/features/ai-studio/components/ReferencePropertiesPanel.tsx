@@ -98,7 +98,7 @@ const StepHeaderActionButton: React.FC<StepHeaderActionButtonProps> = ({
   );
 };
 
-const VIDEO_DURATION_OPTIONS = [4, 6, 8, 10, 12];
+const VIDEO_DURATION_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const VIDEO_RESOLUTION_OPTIONS = [
   { value: "720p", label: "720p (HD)" },
   { value: "1080p", label: "1080p (Full HD)" },
@@ -452,62 +452,64 @@ export function ReferencePropertiesPanel({
             beginnerMode={beginnerMode}
           />
         </div>
-        <div
-          className={`step-card reference-frame-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
-          onClick={() => expandIfCollapsed("model")}
-          style={{ order: modelOrder }}
-        >
-          <div className="step-card-header">
-            {beginnerMode && <span className="step-badge">{isVideoVariant ? "2" : "3"}</span>}
-            <div className="step-header-copy">
-              <p className="step-title">Choose Frame & Model</p>
-              <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you generate.</span>
+        {!isMotionMode ? (
+          <div
+            className={`step-card reference-frame-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
+            onClick={() => expandIfCollapsed("model")}
+            style={{ order: modelOrder }}
+          >
+            <div className="step-card-header">
+              {beginnerMode && <span className="step-badge">{isVideoVariant ? "2" : "3"}</span>}
+              <div className="step-header-copy">
+                <p className="step-title">Choose Frame & Model</p>
+                <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you generate.</span>
+              </div>
+              {!beginnerMode ? (
+                <div className="step-header-actions">
+                  <StepHeaderActionButton
+                    label="Open model options"
+                    isCollapsed={collapsedSteps.model}
+                    onClick={() => toggleStep("model")}
+                  />
+                </div>
+              ) : null}
             </div>
-            {!beginnerMode ? (
-              <div className="step-header-actions">
-                <StepHeaderActionButton
-                  label="Open model options"
-                  isCollapsed={collapsedSteps.model}
-                  onClick={() => toggleStep("model")}
-                />
+            {!collapsedSteps.model ? (
+              <div className="create-controls dual-controls reference-frame-controls frame-model-controls">
+                <div className="control-row compact">
+                  <label className="input-label">Aspect ratio</label>
+                  <AspectDropdown aspect={aspect} onSelect={onAspectChange} options={aspectOptions} />
+                </div>
+                <div className="control-row compact">
+                  <label className="input-label">Model</label>
+                  <button
+                    type="button"
+                    className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""}`}
+                    data-model-anchor="reference-model"
+                    onClick={(event) =>
+                      onModelPickerOpen(
+                        "reference-model",
+                        event.currentTarget,
+                        variant === "image" ? "reference-image" : "reference-video",
+                      )
+                    }
+                  >
+                    <div className="model-picker-row">
+                      <span className="model-picker-value">
+                        {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
+                        {stripEditLabel(modelLabel)}
+                      </span>
+                      <span className="model-chip-pill model-picker-pill">
+                        <span aria-hidden="true" className="model-chip-icon">✦</span>
+                        <span className="model-chip-credits">{costCredits != null ? costCredits : "—"}</span>
+                      </span>
+                    </div>
+                  </button>
+                </div>
               </div>
             ) : null}
           </div>
-          {!collapsedSteps.model ? (
-            <div className="create-controls dual-controls reference-frame-controls">
-              <div className="control-row compact">
-                <label className="input-label">Aspect ratio</label>
-                <AspectDropdown aspect={aspect} onSelect={onAspectChange} options={aspectOptions} />
-              </div>
-              <div className="control-row compact">
-                <label className="input-label">Model</label>
-                <button
-                  type="button"
-                  className={`model-picker-btn ${isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""}`}
-                  data-model-anchor="reference-model"
-                  onClick={(event) =>
-                    onModelPickerOpen(
-                      "reference-model",
-                      event.currentTarget,
-                      variant === "image" ? "reference-image" : "reference-video",
-                    )
-                  }
-                >
-                  <div className="model-picker-row">
-                    <span className="model-picker-value">
-                      {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
-                      {stripEditLabel(modelLabel)}
-                    </span>
-                    <span className="model-chip-pill model-picker-pill">
-                      <span aria-hidden="true" className="model-chip-icon">✦</span>
-                      <span className="model-chip-credits">{costCredits != null ? costCredits : "—"}</span>
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </div>
+        ) : null}
         <div className="reference-dropzone-block image-block" style={{ order: referenceOrder }}>
           <div
             className={`reference-step-card ${collapsedSteps.reference ? "is-collapsed" : ""} ${isVideoVariant ? "is-video-refs" : "is-image-refs"}`}
@@ -786,20 +788,22 @@ export function ReferencePropertiesPanel({
             </div>
             {!collapsedSteps.videoSettings ? (
               <div className="create-controls video-settings-controls">
-                <div className="control-row compact fixed-select">
-                  <label className="input-label">Duration</label>
-                  <select
-                    className="model-select"
-                    value={videoDurationValue}
-                    onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
-                  >
-                    {VIDEO_DURATION_OPTIONS.map((seconds) => (
-                      <option value={seconds} key={`duration-${seconds}`}>
-                        {seconds} seconds
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {!isMotionMode ? (
+                  <div className="control-row compact fixed-select">
+                    <label className="input-label">Duration</label>
+                    <select
+                      className="model-select"
+                      value={videoDurationValue}
+                      onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
+                    >
+                      {VIDEO_DURATION_OPTIONS.map((seconds) => (
+                        <option value={seconds} key={`duration-${seconds}`}>
+                          {seconds} seconds
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
                 <div className="control-row compact fixed-select">
                   <label className="input-label">Resolution</label>
                   <select
@@ -814,23 +818,25 @@ export function ReferencePropertiesPanel({
                     ))}
                   </select>
                 </div>
-                <div className="video-settings-toggle-row">
-                  <div className="video-settings-toggle-copy">
-                    <span className="input-label">Generate audio</span>
-                    <span className="tiny helper-text">Include ambient audio in the output.</span>
+                {!isMotionMode ? (
+                  <div className="video-settings-toggle-row">
+                    <div className="video-settings-toggle-copy">
+                      <span className="input-label">Generate audio</span>
+                      <span className="tiny helper-text">Include ambient audio in the output.</span>
+                    </div>
+                    <button
+                      type="button"
+                      className={`reference-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
+                      aria-pressed={videoGenerateAudioValue}
+                      aria-label={videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"}
+                      onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
+                    >
+                      <span className="reference-toggle-track" aria-hidden="true">
+                        <span className="reference-toggle-dot" />
+                      </span>
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className={`reference-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
-                    aria-pressed={videoGenerateAudioValue}
-                    aria-label={videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"}
-                    onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
-                  >
-                    <span className="reference-toggle-track" aria-hidden="true">
-                      <span className="reference-toggle-dot" />
-                    </span>
-                  </button>
-                </div>
+                ) : null}
               </div>
             ) : null}
           </div>

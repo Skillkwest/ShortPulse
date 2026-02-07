@@ -1,16 +1,15 @@
+/**
+ * Pricing strategy implementations for AI Studio cost estimation.
+ */
 import { getModelConfig } from "./modelRegistry";
 import { resolveAspectSize } from "./modelSizes";
 import { CostBreakdown, PricingParams, PricingStrategyId } from "./pricingTypes";
 
 const FAL_COST_PER_MP_USD = 0.025;
-const FLUX1_SCHNELL_COST_PER_MP_USD = 0.003;
 const FLUX2_COST_PER_MP_USD = 0.012;
 const FLUX2_KLEIN_COST_PER_MP_USD = 0.006;
 const FLUX2_PRO_FIRST_MP_USD = 0.03;
 const FLUX2_PRO_ADDITIONAL_MP_USD = 0.015;
-const FLUX2_MAX_FIRST_MP_USD = 0.07;
-const FLUX2_MAX_ADDITIONAL_MP_USD = 0.03;
-const IMAGEN4_FAST_PER_IMAGE_USD = 0.02;
 const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
 const CREDIT_VALUE_USD = 0.01;
 export const DEFAULT_KLING_DURATION_SECONDS = 10;
@@ -23,6 +22,9 @@ const VEO_NO_AUDIO_RATE_4K_USD_PER_SECOND = 0.4;
 const KLING_26_RATE_AUDIO_OFF_USD_PER_SECOND = 0.07;
 const KLING_26_RATE_AUDIO_ON_USD_PER_SECOND = 0.14;
 const KLING_26_MOTION_USD_PER_SECOND = 0.112;
+const KLING_3_RATE_AUDIO_OFF_USD_PER_SECOND = 0.224;
+const KLING_3_RATE_AUDIO_ON_USD_PER_SECOND = 0.336;
+const KLING_3_RATE_AUDIO_VOICE_USD_PER_SECOND = 0.392;
 const SORA2_PRO_STANDARD_10S_USD_PER_SECOND = 0.15; // 150 credits / 10s
 const SORA2_PRO_STANDARD_15S_USD_PER_SECOND = 0.18; // 270 credits / 15s
 const SORA2_PRO_HIGH_10S_USD_PER_SECOND = 0.33; // 330 credits / 10s
@@ -73,21 +75,6 @@ const computeFalPerMpCost: StrategyFn = ({ modelId, aspect }) => {
   return { credits, usd, megapixels, width: size.width, height: size.height };
 };
 
-const computeFlux1SchnellPerMpCost: StrategyFn = ({ modelId, aspect }) => {
-  const config = getModelConfig(modelId);
-  if (!config?.sizeMap) return null;
-
-  const size = resolveAspectSize(aspect, config.sizeMap, config.defaultAspect);
-  if (!size) return null;
-
-  const megapixels = (size.width * size.height) / 1_000_000;
-  const usdRaw = megapixels * FLUX1_SCHNELL_COST_PER_MP_USD;
-  const credits = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
-  const usd = credits * CREDIT_VALUE_USD;
-
-  return { credits, usd, megapixels, width: size.width, height: size.height };
-};
-
 const computeFlux2PerMpCost: StrategyFn = ({ modelId, aspect }) => {
   const config = getModelConfig(modelId);
   if (!config?.sizeMap) return null;
@@ -132,28 +119,6 @@ const computeFlux2ProPerMpCost: StrategyFn = ({ modelId, aspect }) => {
   const usd = credits * CREDIT_VALUE_USD;
 
   return { credits, usd, megapixels, width: size.width, height: size.height };
-};
-
-const computeFlux2MaxPerMpCost: StrategyFn = ({ modelId, aspect }) => {
-  const config = getModelConfig(modelId);
-  if (!config?.sizeMap) return null;
-
-  const size = resolveAspectSize(aspect, config.sizeMap, config.defaultAspect);
-  if (!size) return null;
-
-  const megapixels = (size.width * size.height) / 1_000_000;
-  const roundedMp = Math.max(1, Math.ceil(megapixels));
-  const usdRaw = FLUX2_MAX_FIRST_MP_USD + Math.max(0, roundedMp - 1) * FLUX2_MAX_ADDITIONAL_MP_USD;
-  const credits = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
-  const usd = credits * CREDIT_VALUE_USD;
-
-  return { credits, usd, megapixels, width: size.width, height: size.height };
-};
-
-const computeImagen4FastPerImageCost: StrategyFn = () => {
-  const usd = IMAGEN4_FAST_PER_IMAGE_USD;
-  const credits = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
-  return { credits, usd: credits * CREDIT_VALUE_USD, megapixels: 0, width: 0, height: 0 };
 };
 
 const computeGoogleNanoBananaPerImageCost: StrategyFn = () => {
@@ -254,6 +219,24 @@ const computeKling26MotionPerSecondCost: StrategyFn = (params) => {
   };
 };
 
+const computeKling3PerSecondCost: StrategyFn = (params) => {
+  const duration = resolveDefaultDuration(params, DEFAULT_KLING_DURATION_SECONDS);
+  const hasAudio = resolveDefaultAudio(params, true);
+  const usesVoiceControl = params.voiceControl === true;
+  const usdPerSecond = hasAudio
+    ? (usesVoiceControl ? KLING_3_RATE_AUDIO_VOICE_USD_PER_SECOND : KLING_3_RATE_AUDIO_ON_USD_PER_SECOND)
+    : KLING_3_RATE_AUDIO_OFF_USD_PER_SECOND;
+  const usd = usdPerSecond * duration;
+  const credits = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
+  return {
+    credits,
+    usd: credits * CREDIT_VALUE_USD,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+  };
+};
+
 const computeVeoPerSecondCost: StrategyFn = (params) => {
   const duration = resolveDefaultDuration(params, 8);
   const res = resolveDefaultResolution(params, "1080p").toLowerCase();
@@ -338,12 +321,9 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
 
 export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-per-mp": computeFalPerMpCost,
-  "fal-flux1-schnell-per-mp": computeFlux1SchnellPerMpCost,
   "fal-flux2-per-mp": computeFlux2PerMpCost,
   "fal-flux2-klein-per-mp": computeFlux2KleinPerMpCost,
-  "fal-flux2-max-per-mp": computeFlux2MaxPerMpCost,
   "fal-flux2-pro-per-mp": computeFlux2ProPerMpCost,
-  "imagen4-fast-per-image": computeImagen4FastPerImageCost,
   "google-nano-banana-per-image": computeGoogleNanoBananaPerImageCost,
   "gpt41nano-per-token": computeGpt41NanoPerTokenCost,
   "nano-banana-per-image": computeNanoBananaPerImageCost,
@@ -351,6 +331,7 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "kling-2.5-per-duration": computeKling25PerDurationCost,
   "kling-2.6-per-second": computeKling26PerSecondCost,
   "kling-2.6-motion-per-second": computeKling26MotionPerSecondCost,
+  "kling-3-per-second": computeKling3PerSecondCost,
   "veo-3-per-second": computeVeoPerSecondCost,
   "sora-2-pro-per-second": computeSora2ProPerSecondCost,
   "seedance-1.5-per-second": computeSeedancePerSecondCost,

@@ -160,6 +160,10 @@
   gap: 16px;
 }
 
+.ai-studio-page .step2-input-row.enhanced-mode .enhanced-prompt-input {
+  min-height: 180px;
+}
+
 .prompt-input {
   width: 100%;
   border-radius: 8px;

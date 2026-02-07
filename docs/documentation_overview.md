@@ -23,6 +23,8 @@ Current docs:
 - `docs/backlog.md`: idea/task backlog.
 - `docs/change_log.md`: session log.
 - `docs/shortpulse_ai_studio.md`: AI Studio purpose, scope, and route reference.
+- `docs/api-fal-kling-3-pro-image-to-video.md`: Fal.ai Kling 3.0 Pro image-to-video queue reference.
+- `docs/api-fal-kling-3-pro-text-to-video.md`: Fal.ai Kling 3.0 Pro text-to-video queue reference.
 - `docs/sop_performance_ai_detection.md`: performance analytics scoring vs. AI labeling contract (non-ranking).
 - `docs/sop_media_library_ui.md`, `docs/sop_saved_creators.md`: UI and data flow specifics for those pages.
 - `docs/sop_ai_studio_agent_chat_ops.md`: operational runbook for AI Studio chat agent (UI entry points, context pipeline, fallbacks, validation).

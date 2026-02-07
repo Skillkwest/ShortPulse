@@ -10,19 +10,18 @@ export type ToolConfig = { id: ToolId; label: string; desc: string };
 
 // Map model ids to their logo assets used in selectors and chips.
 export const modelLogos: Record<string, string> = {
-  "fal-ai/flux-1/schnell": "/flux%20LOGO.png",
   "fal-ai/flux-2/klein/9b": "/flux%20LOGO.png",
   "fal/flux-2": "/flux%20LOGO.png",
   "fal/flux-2/edit": "/flux%20LOGO.png",
   "fal/flux-2-pro": "/flux%20LOGO.png",
   "fal/flux-2-pro/edit": "/flux%20LOGO.png",
-  "fal/flux-2-max": "/flux%20LOGO.png",
-  "fal/imagen4/preview/fast": "/Google%20LOGO.png",
   "fal-ai/nano-banana": "/Google%20LOGO.png",
   "fal-ai/nano-banana/edit": "/Google%20LOGO.png",
   "fal-ai/nano-banana-pro": "/Google%20LOGO.png",
   "fal-ai/nano-banana-pro/edit": "/Google%20LOGO.png",
   "fal-ai/bytedance/seedream/v4.5/text-to-image": "/Seedream%20LOGO.png",
+  "fal-ai/kling-video/v3/pro/text-to-video": "/Kling%20LOGO.png",
+  "fal-ai/kling-video/v3/pro/image-to-video": "/Kling%20LOGO.png",
   "fal-ai/kling-video/v2.5-turbo/pro/image-to-video": "/Kling%20LOGO.png",
   "fal-ai/kling-video/v2.5-turbo/pro/text-to-video": "/Kling%20LOGO.png",
   "fal-ai/kling-video/v2.6/pro/text-to-video": "/Kling%20LOGO.png",
@@ -45,6 +44,8 @@ export const aspectOptions: AspectOption[] = [
 
 // When you add/remove image models here, update `docs/sop_image_generation.md` → “Supported image models”.
 export const modelOptions: ModelOption[] = [
+  { value: "fal-ai/kling-video/v3/pro/text-to-video", label: "Kling 3.0 (Text to Video)", mediaType: "video" },
+  { value: "fal-ai/kling-video/v3/pro/image-to-video", label: "Kling 3.0", mediaType: "image-to-video" },
   { value: "fal-ai/kling-video/v2.5-turbo/pro/image-to-video", label: "Kling 2.5 Turbo", mediaType: "image-to-video" },
   {
     value: "fal-ai/kling-video/v2.5-turbo/pro/text-to-video",
@@ -67,12 +68,9 @@ export const modelOptions: ModelOption[] = [
   { value: "fal-ai/sora-2/text-to-video/pro", label: "Sora 2 Pro", mediaType: "video" },
   { value: "fal/flux-2-pro/edit", label: "FLUX.2 Pro Edit", mediaType: "image" },
   { value: "fal/flux-2/edit", label: "FLUX.2 Edit", mediaType: "image" },
-  { value: "fal/flux-2-max", label: "FLUX.2 Max", mediaType: "image" },
   { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
   { value: "fal/flux-2", label: "FLUX.2", mediaType: "image" },
-  { value: "fal-ai/flux-1/schnell", label: "FLUX.1 Schnell", mediaType: "image" },
   { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
-  { value: "fal/imagen4/preview/fast", label: "Imagen 4 Fast", mediaType: "image" },
   { value: "fal-ai/nano-banana", label: "Nano Banana", mediaType: "image" },
   { value: "fal-ai/nano-banana/edit", label: "Nano Banana Edit", mediaType: "image" },
   { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
@@ -124,8 +122,6 @@ export const keiAllowedAspects = new Set([
 
 // Kling image-to-video supports a limited aspect list.
 export const klingAllowedAspects = new Set(["16:9", "9:16", "1:1"]);
-
-export const imagenFastAllowedAspects = new Set(["1:1", "16:9", "9:16", "4:3", "3:4"]);
 
 // Map our aspect strings to Fal image_size enum values.
 export const falImageSizeMap: Record<string, string> = {

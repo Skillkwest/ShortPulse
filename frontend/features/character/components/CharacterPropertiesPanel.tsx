@@ -220,7 +220,7 @@ export function CharacterPropertiesPanel({
           </div>
         </div>
         <div className="tiny subdued safety-hint helper-text">
-          Safety: disabled/minimum on all routes. Uses FLUX 2 Pro/Max with IP-Adapter.
+          Safety: disabled/minimum on all routes. Uses FLUX 2 Pro with IP-Adapter.
         </div>
       </div>
 

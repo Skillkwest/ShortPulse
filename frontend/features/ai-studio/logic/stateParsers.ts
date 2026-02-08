@@ -183,7 +183,13 @@ export const extractFalUrls = (status: any): string[] => {
 export const extractFalMediaUrls = (status: any): string[] => {
   const imageUrls = extractFalUrls(status);
   if (imageUrls.length) return imageUrls;
-  const videos = status?.videos || status?.data?.videos || status?.output?.videos || status?.result?.videos;
+  const videos =
+    status?.videos ||
+    status?.data?.videos ||
+    status?.output?.videos ||
+    status?.result?.videos ||
+    status?.data?.result?.videos ||
+    status?.result?.data?.videos;
   if (Array.isArray(videos) && videos[0]?.url) {
     return videos.map((vid) => vid?.url).filter(Boolean) as string[];
   }
@@ -193,11 +199,16 @@ export const extractFalMediaUrls = (status: any): string[] => {
     status?.output?.video?.url ||
     status?.result?.video?.url ||
     status?.data?.result?.video?.url ||
+    status?.result?.data?.video?.url ||
     status?.video_url ||
     status?.data?.video_url ||
     status?.output?.video_url ||
     status?.result?.video_url ||
-    status?.data?.result?.video_url;
+    status?.data?.result?.video_url ||
+    status?.assets?.video?.url ||
+    status?.result?.assets?.video?.url ||
+    status?.data?.assets?.video?.url ||
+    status?.download_url;
   return videoUrl ? [videoUrl] : [];
 };
 

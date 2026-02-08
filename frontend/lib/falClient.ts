@@ -96,6 +96,8 @@ export type FalVeoSubmitRequest = {
   generate_audio?: boolean;
   seed?: number;
   auto_fix?: boolean;
+  enable_safety_checker?: boolean;
+  safety_tolerance?: "1" | "2" | "3" | "4" | "5" | number;
 };
 
 export type FalVeoImageToVideoSubmitRequest = {
@@ -108,6 +110,8 @@ export type FalVeoImageToVideoSubmitRequest = {
   generate_audio?: boolean;
   seed?: number;
   auto_fix?: boolean;
+  enable_safety_checker?: boolean;
+  safety_tolerance?: "1" | "2" | "3" | "4" | "5" | number;
 };
 
 export type FalVeoFirstLastSubmitRequest = {
@@ -121,6 +125,8 @@ export type FalVeoFirstLastSubmitRequest = {
   generate_audio?: boolean;
   seed?: number;
   auto_fix?: boolean;
+  enable_safety_checker?: boolean;
+  safety_tolerance?: "1" | "2" | "3" | "4" | "5" | number;
 };
 
 export type FalSeedreamSubmitRequest = {

@@ -22,7 +22,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  // Veo status calls can take time to materialize; give them breathing room.
+  const timeoutId = setTimeout(() => controller.abort(), 90000);
 
   try {
     const upstream = await fetch(`${FAL_VEO_I2V_STATUS_URL}/${requestId}`, {

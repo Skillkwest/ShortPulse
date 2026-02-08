@@ -35,6 +35,8 @@ export type StudioOutput = {
   taskId?: string;
   taskState?: "pending" | "running" | "success" | "fail";
   errorMessage?: string | null;
+  errorMessageShort?: string | null;
+  errorDetail?: string | null;
   resultUrls?: string[];
   previewUrl?: string;
   previewText?: string;

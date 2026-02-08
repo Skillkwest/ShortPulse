@@ -1065,42 +1065,6 @@ body.ai-studio-body {
   transform: translate(24px, -50%);
 }
 
-.toolbar-profile-link {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(16, 19, 28, 0.9);
-  text-decoration: none;
-  color: inherit;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.toolbar-profile-link:hover {
-  border-color: rgba(37, 169, 191, 0.6);
-  background: rgba(16, 19, 28, 0.98);
-}
-
-.toolbar-profile-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  font-size: 18px;
-  color: #e7f8ff;
-  background: radial-gradient(circle at top, rgba(37, 169, 191, 0.7), rgba(3, 8, 18, 0.9));
-  border: 1px solid rgba(37, 169, 191, 0.7);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.45);
-}
-
-.toolbar-profile-name {
-  font-weight: 500;
-  font-size: 15px;
-}
 .toolbar-footer {
   margin-top: auto;
   padding-top: 10px;

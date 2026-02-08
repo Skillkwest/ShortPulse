@@ -115,11 +115,27 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     null,
     null,
   ]);
+  const VIDEO_DURATION_STORAGE_KEY = "aiStudioVideoDuration";
+  const VIDEO_RESOLUTION_STORAGE_KEY = "aiStudioVideoResolution";
+
   const [videoReferenceMode, setVideoReferenceMode] = useState<"standard" | "keyframes" | "kling3">(
     "standard",
   );
-  const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(6);
-  const [videoResolution, setVideoResolution] = useState<string>("1080p");
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(() => {
+    if (typeof window === "undefined") return 6;
+    const stored = window.localStorage.getItem(VIDEO_DURATION_STORAGE_KEY);
+    const parsed = stored ? Number(stored) : NaN;
+    return Number.isFinite(parsed) ? parsed : 6;
+  });
+  const [videoResolution, setVideoResolution] = useState<string>(() => {
+    if (typeof window === "undefined") return "1080p";
+    const stored = window.localStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY);
+    return stored || "1080p";
+  });
+  const [hasUserVideoPrefs, setHasUserVideoPrefs] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return Boolean(window.localStorage.getItem(VIDEO_DURATION_STORAGE_KEY) || window.localStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY));
+  });
   const [videoGenerateAudio, setVideoGenerateAudio] = useState<boolean>(false);
   const [klingNegativePrompt, setKlingNegativePrompt] = useState<string>("blur, distort, and low quality");
   const [klingCfgScale, setKlingCfgScale] = useState<number>(0.5);
@@ -140,6 +156,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const pollTimersRef = useRef<Record<string, number>>({});
   const lastVideoReferenceModeRef = useRef(videoReferenceMode);
   const lastNonKling3VideoModelRef = useRef<string | null>(null);
+  const lastNonKeyframesVideoModelRef = useRef<string | null>(null);
 
   const activeOutput = useMemo(
     () => outputs.find((item) => item.id === activeOutputId) ?? null,
@@ -235,6 +252,19 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     }
   }, [aspect, model]);
 
+  // Persist user-selected video duration/resolution for the session.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(VIDEO_DURATION_STORAGE_KEY, String(videoDurationSeconds));
+    setHasUserVideoPrefs(true);
+  }, [videoDurationSeconds]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(VIDEO_RESOLUTION_STORAGE_KEY, videoResolution);
+    setHasUserVideoPrefs(true);
+  }, [videoResolution]);
+
   useEffect(() => {
     if (!model) return;
     const config = getModelConfig(model);
@@ -242,16 +272,24 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     const isVideoModel =
       config.mediaType === "video" || config.mediaType === "image-to-video" || config.mediaType === "multi";
     if (!isVideoModel) return;
+
+    const applyDefaults = !hasUserVideoPrefs;
     if (typeof config.defaultDurationSeconds === "number") {
-      setVideoDurationSeconds(config.defaultDurationSeconds);
+      const isUnset = !hasUserVideoPrefs;
+      if (isUnset) {
+        setVideoDurationSeconds(config.defaultDurationSeconds);
+      }
     }
     if (config.defaultResolution) {
-      setVideoResolution(config.defaultResolution);
+      const isUnset = !hasUserVideoPrefs;
+      if (isUnset) {
+        setVideoResolution(config.defaultResolution);
+      }
     }
-    if (config.defaultAudio !== undefined) {
+    if (config.defaultAudio !== undefined && applyDefaults) {
       setVideoGenerateAudio(config.defaultAudio);
     }
-  }, [model]);
+  }, [model, hasUserVideoPrefs]);
 
   // Keep reference mode and model in sync without locking other tabs.
   useEffect(() => {
@@ -279,8 +317,17 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       return;
     }
 
-    if (model === "fal-ai/veo3.1/first-last-frame-to-video" && videoReferenceMode !== "keyframes") {
-      setVideoReferenceMode("keyframes");
+    if (videoReferenceMode === "keyframes") {
+      if (model !== "fal-ai/veo3.1/first-last-frame-to-video") {
+        lastNonKeyframesVideoModelRef.current = model;
+        setModel("fal-ai/veo3.1/first-last-frame-to-video");
+      }
+      return;
+    }
+
+    if (model === "fal-ai/veo3.1/first-last-frame-to-video" && videoReferenceMode === "standard") {
+      const fallback = lastNonKeyframesVideoModelRef.current ?? "fal-ai/veo3.1/image-to-video";
+      setModel(fallback);
       return;
     }
 
@@ -590,7 +637,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   }, [activeOutputId]);
 
   const notifyGenerationFailure = useCallback(
-    (outputId: string, message: string) => {
+    (outputId: string, message: string, detail?: string) => {
       let contextLabel: string | null = null;
       setOutputs((prev) =>
         prev.map((item) => {
@@ -602,11 +649,14 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             status: "ready",
             timestamp: "Failed",
             errorMessage: message,
+            errorMessageShort: message,
+            errorDetail: detail ?? message,
           };
         }),
       );
       const label = contextLabel ?? "Generation";
-      setUiError(message ? `${label} failed: ${message}` : `${label} failed to complete.`);
+      const detailMessage = detail ?? message;
+      setUiError(detailMessage ? `${label} failed: ${detailMessage}` : `${label} failed to complete.`);
     },
     [setOutputs, setUiError],
   );
@@ -837,6 +887,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         taskState: "pending",
         timestamp: "Submitting...",
         errorMessage: null,
+        errorMessageShort: null,
+        errorDetail: null,
         saveState: "idle",
         saveError: null,
         previewUrl: isVeoFirstLastFrameModel || isKling3ImageModel ? preparedImageInputs[0] ?? undefined : undefined,
@@ -851,6 +903,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             status: "ready",
             timestamp: "Missing image",
             errorMessage: "Video generation requires an image URL.",
+            errorMessageShort: "Image URL required.",
+            errorDetail: "Video generation requires an image URL.",
           },
           ...prev,
         ]);
@@ -866,6 +920,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             status: "ready",
             timestamp: "Missing frames",
             errorMessage: "First/Last Frame generation requires both a first and last frame image.",
+            errorMessageShort: "First/Last needs two images.",
+            errorDetail: "First/Last Frame generation requires both a first and last frame image.",
           },
           ...prev,
         ]);
@@ -881,6 +937,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             status: "ready",
             timestamp: "Missing image",
             errorMessage: "Veo image-to-video requires a reference image.",
+            errorMessageShort: "Reference image required.",
+            errorDetail: "Veo image-to-video requires a reference image.",
           },
           ...prev,
         ]);
@@ -984,6 +1042,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             duration,
             resolution,
             generate_audio: requestedAudio,
+            safety_tolerance: "5",
+            enable_safety_checker: false,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -1100,6 +1160,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             duration,
             resolution,
             generate_audio: requestedAudio,
+            safety_tolerance: "5",
+            enable_safety_checker: false,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -1150,6 +1212,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             duration: `${Math.max(4, Math.min(8, requestedDurationSeconds))}s`,
             resolution: resolution as "720p" | "1080p" | "4k",
             generate_audio: requestedAudio,
+            safety_tolerance: "5",
+            enable_safety_checker: false,
           });
           updateOutputById(id, (item) => ({
             ...item,

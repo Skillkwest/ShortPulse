@@ -22,7 +22,7 @@ import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { PricingParams } from "../logic/pricingTypes";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 
-type FailureCard = Pick<StudioOutput, "id" | "model" | "modelId" | "prompt" | "errorMessage">;
+type FailureCard = Pick<StudioOutput, "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorDetail">;
 
 type ComingSoonToolId = "templates" | "workflows" | "my-generations" | "community";
 
@@ -337,7 +337,7 @@ export function AiStudioPageContent({
                   <div key={item.id} className="ai-error-card">
                     <div className="ai-error-card-body">
                       <p className="ai-error-card-title">{modelLabel} failed</p>
-                      <p className="ai-error-card-message">{item.errorMessage}</p>
+                      <p className="ai-error-card-message">{item.errorDetail ?? item.errorMessage}</p>
                       <p className="ai-error-card-meta">
                         Prompt: <span className="ai-error-card-prompt">{promptPreview}</span>
                       </p>

@@ -40,10 +40,21 @@ import { StudioOutput } from "../types";
 
 type TaskCallbacks = {
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
-  notifyGenerationFailure: (outputId: string, message: string) => void;
+  notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
   setUiError: (message: string | null) => void;
   onGenerationSuccess?: (payload: { outputId: string; taskId: string; provider: Provider; resultUrls: string[] }) => void;
   onGenerationFailure?: (payload: { outputId: string; taskId?: string; provider: Provider; message: string }) => void;
+};
+
+const condenseError = (message: string) => {
+  if (!message) return "";
+  const trimmed = message.trim();
+  if (trimmed.length <= 80) return trimmed;
+  const firstSentenceEnd = trimmed.indexOf(".");
+  if (firstSentenceEnd > 0 && firstSentenceEnd < 80) {
+    return trimmed.slice(0, firstSentenceEnd + 1);
+  }
+  return `${trimmed.slice(0, 77)}…`;
 };
 
 const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
@@ -114,21 +125,34 @@ export function useAiStudioTasks({
   }, []);
 
   const startPollingTask = useCallback(
-    (taskId: string, outputId: string, attempt = 0, provider: Provider = "kei") => {
-      const delay = Math.min(6000, 1200 + attempt * 400);
+    (taskId: string, outputId: string, attempt = 0, provider: Provider = "kei", startedAt = Date.now()) => {
+      const elapsedMs = Date.now() - startedAt;
+      const maxWaitMs = 8 * 60 * 1000; // 8 minutes
+      if (elapsedMs > maxWaitMs) {
+        notifyGenerationFailure(outputId, "Timed out waiting for provider result.", "Timed out waiting for provider result.");
+        clearPollTimer(outputId);
+        return;
+      }
+
+      const delay = Math.min(8000, 1200 + attempt * 600);
       const timeoutId = window.setTimeout(async () => {
         try {
           const status = await fetchStatusByProvider(provider, taskId);
           const stateRaw =
             status?.status?.toString().toLowerCase() ??
             status?.state?.toString().toLowerCase() ??
+            status?.data?.status?.toString().toLowerCase() ??
+            status?.result?.status?.toString().toLowerCase() ??
+            status?.output?.status?.toString().toLowerCase() ??
+            status?.data?.result?.status?.toString().toLowerCase() ??
             "pending";
           const state = stateRaw === "succeeded" ? "success" : stateRaw;
 
-          if (state === "success" || state === "completed") {
-            const allUrls = extractMediaByProvider(provider, status);
-            const hasMedia = allUrls.length > 0;
-            const shouldRetryForMedia = !hasMedia && attempt < 3;
+          const allUrls = extractMediaByProvider(provider, status);
+          const hasMedia = allUrls.length > 0;
+
+          if (state === "success" || state === "completed" || hasMedia) {
+            const shouldRetryForMedia = !hasMedia && attempt < 5;
             if (shouldRetryForMedia) {
               updateOutputById(outputId, (item) => ({
                 ...item,
@@ -137,7 +161,7 @@ export function useAiStudioTasks({
                 timestamp: "Waiting for media...",
               }));
               pollTimersRef.current[outputId] = window.setTimeout(
-                () => startPollingTask(taskId, outputId, attempt + 1, provider),
+                () => startPollingTask(taskId, outputId, attempt + 1, provider, startedAt),
                 delay,
               );
               return;
@@ -151,6 +175,8 @@ export function useAiStudioTasks({
               resultUrls: allUrls,
               previewUrl: allUrls[0] ?? item.previewUrl,
               errorMessage: null,
+              errorMessageShort: null,
+              errorDetail: null,
             }));
             if (onGenerationSuccess) {
               onGenerationSuccess({
@@ -165,18 +191,20 @@ export function useAiStudioTasks({
           }
 
           if (state === "fail" || state === "error") {
-            const failureMessage =
+            const failureDetail =
               status?.failMsg ||
               status?.failCode ||
               status?.error ||
+              status?.message ||
               "Generation failed";
-            notifyGenerationFailure(outputId, failureMessage);
+            const failureMessage = condenseError(failureDetail);
+            notifyGenerationFailure(outputId, failureMessage, failureDetail);
             if (onGenerationFailure) {
               onGenerationFailure({
                 outputId,
                 taskId,
                 provider,
-                message: failureMessage,
+                message: failureDetail,
               });
             }
             clearPollTimer(outputId);
@@ -189,13 +217,15 @@ export function useAiStudioTasks({
             timestamp: "Processing...",
           }));
           pollTimersRef.current[outputId] = window.setTimeout(
-            () => startPollingTask(taskId, outputId, attempt + 1, provider),
+            () => startPollingTask(taskId, outputId, attempt + 1, provider, startedAt),
             delay,
           );
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unable to check status";
-          if (attempt >= 4 || message.includes("404")) {
-            notifyGenerationFailure(outputId, message);
+          const isNotFound = message.includes("404");
+          const maxAttempts = 30;
+          if ((isNotFound && attempt >= 1) || attempt >= maxAttempts) {
+            notifyGenerationFailure(outputId, condenseError(message), message);
             if (onGenerationFailure) {
               onGenerationFailure({
                 outputId,
@@ -207,8 +237,14 @@ export function useAiStudioTasks({
             clearPollTimer(outputId);
             return;
           }
+          updateOutputById(outputId, (item) => ({
+            ...item,
+            taskState: "running",
+            status: "processing",
+            timestamp: "Retrying status...",
+          }));
           pollTimersRef.current[outputId] = window.setTimeout(
-            () => startPollingTask(taskId, outputId, attempt + 1, provider),
+            () => startPollingTask(taskId, outputId, attempt + 1, provider, startedAt),
             delay,
           );
         }

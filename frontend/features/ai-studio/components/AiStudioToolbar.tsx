@@ -256,10 +256,6 @@ export function AiStudioToolbar({
           </span>
         </button>
       </div>
-      <Link href="/profile" className="toolbar-profile-link">
-        <span className="toolbar-profile-avatar">KI</span>
-        <span className="toolbar-profile-name">Kirk</span>
-      </Link>
     </div>
     </aside>
   );

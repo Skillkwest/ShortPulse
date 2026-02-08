@@ -210,7 +210,9 @@ export function ReferenceCanvas({
                     <div className="reference-fail-overlay">
                       <div className="fail-icon" aria-hidden="true">!</div>
                       <div className="fail-title">Generation failed</div>
-                      {item.errorMessage ? (
+                      {item.errorMessageShort ? (
+                        <div className="fail-subtitle">{item.errorMessageShort.replace(/fal(\.ai)?/gi, "the provider")}</div>
+                      ) : item.errorMessage ? (
                         <div className="fail-subtitle">{item.errorMessage.replace(/fal(\.ai)?/gi, "the provider")}</div>
                       ) : null}
                     </div>

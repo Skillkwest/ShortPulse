@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  const timeoutId = setTimeout(() => controller.abort(), 90000);
   try {
     const statusResp = await fetch(`${FAL_VEO_STATUS_URL}/${requestId}/status`, {
       method: "GET",

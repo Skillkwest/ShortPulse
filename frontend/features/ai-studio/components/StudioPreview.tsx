@@ -44,7 +44,7 @@ export function StudioPreview({
   const previewMedia = activeOutput?.previewUrl || referenceImageUrl;
   const isVideoPreview = previewMedia ? isVideoUrl(previewMedia) : false;
   const taskState = activeOutput?.taskState;
-  const errorMessage = activeOutput?.errorMessage;
+  const errorMessage = activeOutput?.errorMessageShort ?? activeOutput?.errorMessage;
   const handleReferenceDrop = (event: React.DragEvent<HTMLDivElement>) => {
     if (preventFileDrop(event)) {
       const files = event.dataTransfer.files;

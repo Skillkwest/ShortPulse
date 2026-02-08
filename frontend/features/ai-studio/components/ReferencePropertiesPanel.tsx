@@ -2,7 +2,7 @@
  * Reference properties panel for AI Studio.
  * Provides reference dropzones, aspect/model selection, and prompt capture for image/video workflows.
  */
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ArrowFatLinesRight, BracketsSquare, Plus, UploadSimple } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
@@ -112,6 +112,19 @@ const VIDEO_RESOLUTION_OPTIONS = [
   { value: "1080p", label: "1080p (Full HD)" },
   { value: "1k", label: "1K (1024px wide)" },
   { value: "2k", label: "2K (1440p)" },
+  { value: "4k", label: "4K (2160p)" },
+];
+
+const VEO_I2V_DURATION_OPTIONS = [4, 6, 8];
+const VEO_I2V_RESOLUTION_OPTIONS = [
+  { value: "720p", label: "720p (HD)" },
+  { value: "1080p", label: "1080p (Full HD)" },
+  { value: "4k", label: "4K (2160p)" },
+];
+const VEO_FIRST_LAST_DURATION_OPTIONS = [4, 6, 8];
+const VEO_FIRST_LAST_RESOLUTION_OPTIONS = [
+  { value: "720p", label: "720p (HD)" },
+  { value: "1080p", label: "1080p (Full HD)" },
   { value: "4k", label: "4K (2160p)" },
 ];
 
@@ -379,6 +392,9 @@ export function ReferencePropertiesPanel({
   const isKling3Mode = isVideoVariant && activeVideoMode === "kling3";
   const isKeyframesMode = isVideoVariant && activeVideoMode === "keyframes";
   const isStandardMode = !isVideoVariant || activeVideoMode === "standard";
+  const isVeoImageToVideoModel = modelId === "fal-ai/veo3.1/image-to-video";
+  const isVeoImageToVideoStandard = isStandardMode && isVeoImageToVideoModel;
+  const isVeoFirstLastModel = modelId === "fal-ai/veo3.1/first-last-frame-to-video";
   const referenceStepTitle = isVideoVariant
     ? isKling3Mode
       ? "Add Kling 3.0 References"
@@ -414,6 +430,37 @@ export function ReferencePropertiesPanel({
   const videoDurationValue = videoDurationSeconds ?? 6;
   const videoResolutionValue = videoResolution ?? "1080p";
   const videoGenerateAudioValue = Boolean(videoGenerateAudio);
+  const durationOptions = isVeoImageToVideoStandard
+    ? VEO_I2V_DURATION_OPTIONS
+    : isVeoFirstLastModel
+      ? VEO_FIRST_LAST_DURATION_OPTIONS
+      : VIDEO_DURATION_OPTIONS;
+  const resolutionOptions = isVeoImageToVideoStandard
+    ? VEO_I2V_RESOLUTION_OPTIONS
+    : isVeoFirstLastModel
+      ? VEO_FIRST_LAST_RESOLUTION_OPTIONS
+      : VIDEO_RESOLUTION_OPTIONS;
+  const aspectOptionsForModel = isVeoImageToVideoStandard
+    ? [{ value: "auto", ratioLabel: "Auto", name: "Auto (provider default)", orientation: "widescreen" } as AspectOption]
+    : aspectOptions;
+
+  useEffect(() => {
+    if (isVeoImageToVideoStandard && aspect !== "auto") {
+      onAspectChange("auto");
+    }
+  }, [isVeoImageToVideoStandard, aspect, onAspectChange]);
+
+  useEffect(() => {
+    if ((isVeoImageToVideoStandard || isVeoFirstLastModel) && !durationOptions.includes(videoDurationValue)) {
+      onVideoDurationChange?.(durationOptions[1] ?? durationOptions[0]);
+    }
+  }, [isVeoImageToVideoStandard, isVeoFirstLastModel, durationOptions, videoDurationValue, onVideoDurationChange]);
+
+  useEffect(() => {
+    if ((isVeoImageToVideoStandard || isVeoFirstLastModel) && !resolutionOptions.some((option) => option.value === videoResolutionValue)) {
+      onVideoResolutionChange?.(resolutionOptions[1]?.value ?? resolutionOptions[0]?.value ?? "1080p");
+    }
+  }, [isVeoImageToVideoStandard, isVeoFirstLastModel, resolutionOptions, videoResolutionValue, onVideoResolutionChange]);
 
   return (
     <div className="tool-properties reference-properties-panel">
@@ -477,12 +524,14 @@ export function ReferencePropertiesPanel({
               ) : null}
             </div>
             {!collapsedSteps.model ? (
-              <div className="create-controls dual-controls reference-frame-controls frame-model-controls">
-                <div className="control-row compact">
-                  <label className="input-label">Aspect ratio</label>
-                  <AspectDropdown aspect={aspect} onSelect={onAspectChange} options={aspectOptions} />
-                </div>
-                <div className="control-row compact">
+              <div className="create-controls reference-frame-controls frame-model-controls">
+                {!isVideoVariant ? (
+                  <div className="control-row compact">
+                    <label className="input-label">Aspect ratio</label>
+                    <AspectDropdown aspect={aspect} onSelect={onAspectChange} options={aspectOptionsForModel} />
+                  </div>
+                ) : null}
+                <div className={`control-row compact ${isVideoVariant ? "full-span" : ""}`}>
                   <label className="input-label">Model</label>
                   <button
                     type="button"
@@ -767,7 +816,7 @@ export function ReferencePropertiesPanel({
                     value={videoDurationValue}
                     onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
                   >
-                    {VIDEO_DURATION_OPTIONS.map((seconds) => (
+                    {durationOptions.map((seconds) => (
                       <option value={seconds} key={`duration-${seconds}`}>
                         {seconds} seconds
                       </option>
@@ -781,7 +830,7 @@ export function ReferencePropertiesPanel({
                     value={videoResolutionValue}
                     onChange={(event) => onVideoResolutionChange?.(event.target.value)}
                   >
-                    {VIDEO_RESOLUTION_OPTIONS.map((option) => (
+                    {resolutionOptions.map((option) => (
                       <option value={option.value} key={`resolution-${option.value}`}>
                         {option.label}
                       </option>
@@ -791,7 +840,13 @@ export function ReferencePropertiesPanel({
                 <div className="video-settings-toggle-row">
                   <div className="video-settings-toggle-copy">
                     <span className="input-label">Generate audio</span>
-                    <span className="tiny helper-text">Include ambient audio in the output.</span>
+                    <span className="tiny helper-text">
+                      {isVeoImageToVideoStandard
+                        ? "Use Veo's optional audio track when enabled."
+                        : isVeoFirstLastModel
+                          ? "Use Veo's optional audio track when enabled for first/last frame."
+                        : "Include ambient audio in the output."}
+                    </span>
                   </div>
                   <button
                     type="button"

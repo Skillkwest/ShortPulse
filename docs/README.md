@@ -39,6 +39,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/api-fal-veo3-first-last-frame.md` (Fal.ai Veo 3.1 first/last frame guide)
 - `docs/api-fal-sora-2-pro.md` (Fal.ai Sora 2 Pro text-to-video guide)
 - `docs/api-fal-seedance-1-5-pro.md` (Fal.ai Seedance 1.5 Pro video generation guide)
+- `docs/api-fal-seedance-1-5-pro-i2v.md` (Fal.ai Seedance 1.5 Pro image-to-video guide)
 - `docs/api-fal-flux-2.md` (Fal.ai FLUX 2 text-to-image guide)
 - `docs/api-fal-flux-2-edit.md` (Fal.ai FLUX 2 image-to-image/edit guide)
 - `docs/api-fal-flux-2-pro.md` (Fal.ai FLUX 2 PRO text-to-image guide)
@@ -49,6 +50,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/api-fal-nano-banana-pro-edit.md` (Fal.ai Nano Banana Pro Edit image-to-image guide)
 - `docs/api-fal-nano-banana-pro.md` (Fal.ai Nano Banana Pro image generation guide)
 - `docs/api-fal-seedream-4-5.md` (Fal.ai Seedream 4.5 text-to-image guide)
+- `docs/api-fal-seedream-4-5-edit.md` (Fal.ai Seedream 4.5 image-to-image/edit guide)
 - `docs/sop_new_model_ingestion.md` (SOP for adding new AI Studio models)
 
 ## Product / Domain

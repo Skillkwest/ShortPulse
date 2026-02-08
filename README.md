@@ -6,7 +6,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - Frontend: Next.js (pages router), Phosphor icons, modular CSS.
 - Auth/storage: Supabase client with persisted sessions, `saved_creators` table, and a private `media_library` bucket.
 - Analytics: In-browser scoring of a demo cohort with user-triggered refresh/rescore controls.
-- AI Studio providers: Next.js API routes under `/api/fal/*` proxy Fal queue requests (server-side `FAL_KEY` required).
+- AI Studio providers: Next.js API routes under `/api/fal/*` proxy Fal queue requests (server-side `FAL_KEY` required), including the Seedream 4.5 edit proxy at `/api/fal/seedream-edit-submit`.
 
 ## Setup
 1) Copy `frontend/.env.example` to `frontend/.env.local` (or export the values in your shell) and set:

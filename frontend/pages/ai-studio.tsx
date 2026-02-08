@@ -619,7 +619,12 @@ export default function AiStudioPage() {
       return base.filter((opt) => opt.mediaType === "image-to-video");
     }
     if (selectedTool === "video" && videoReferenceMode === "keyframes") {
-      return base.filter((opt) => opt.value === "fal-ai/veo3.1/first-last-frame-to-video");
+      // Show both Veo first/last frame and Kling 3.0 (supports optional end frame)
+      return base.filter(
+        (opt) =>
+          opt.value === "fal-ai/veo3.1/first-last-frame-to-video" ||
+          opt.value === "fal-ai/kling-video/v3/pro/image-to-video",
+      );
     }
     if (selectedTool === "video" && videoReferenceMode === "kling3") {
       return base.filter((opt) => opt.value === "fal-ai/kling-video/v3/pro/image-to-video");

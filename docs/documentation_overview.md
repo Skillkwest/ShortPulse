@@ -26,6 +26,7 @@ Current docs:
 - `docs/api-fal-kling-3-pro-image-to-video.md`: Fal.ai Kling 3.0 Pro image-to-video queue reference.
 - `docs/api-fal-kling-3-pro-text-to-video.md`: Fal.ai Kling 3.0 Pro text-to-video queue reference.
 - `docs/api-fal-veo3-image-to-video.md`: Fal.ai Veo 3.1 image-to-video queue reference.
+- `docs/api-fal-seedream-4-5-edit.md`: Fal.ai Seedream 4.5 image-to-image/edit queue reference.
 - `docs/sop_performance_ai_detection.md`: performance analytics scoring vs. AI labeling contract (non-ranking).
 - `docs/sop_media_library_ui.md`, `docs/sop_saved_creators.md`: UI and data flow specifics for those pages.
 - `docs/sop_ai_studio_agent_chat_ops.md`: operational runbook for AI Studio chat agent (UI entry points, context pipeline, fallbacks, validation).

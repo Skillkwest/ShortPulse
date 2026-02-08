@@ -27,11 +27,14 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 | fal-ai/nano-banana-pro | Aspect: 4:5 default (allowed: 21:9, 16:9, 3:2, 4:3, 5:4, 4:5, 3:4, 2:3, 9:16, 1:1, auto) | Fal text-to-image queue; per-image flat pricing ($0.15 ≈ 15 credits, 4K doubles, web-search adds 1.5 credits). |
 | fal-ai/nano-banana-pro/edit | Aspect: auto default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Fal image-to-image/edit queue; requires reference images; per-image flat pricing (15 credits; 4K doubles; web_search adds 1.5 credits). |
 | fal-ai/bytedance/seedream/v4.5/text-to-image | Aspect: 1:1 (broad set allowed) | Per-image pricing, 4K doubles cost; proxied via Fal queue with safety checker on. |
+| fal-ai/bytedance/seedream/v4.5/edit | Aspect: 1:1 (broad set allowed) | Image-to-image/edit; requires reference images; safety checker off by default; per-image pricing. |
 | fal-ai/kling-video/v3/pro/image-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s; `generate_audio: true` by default | Per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Image-to-video with required start image. |
 | fal-ai/kling-video/v3/pro/text-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s; `generate_audio: true` by default | Per-second pricing ($0.224/s audio-off, $0.336/s audio-on, $0.392/s with voice control). Text-to-video with multi-shot support. |
 | fal-ai/sora-2/text-to-video/pro | Aspect: 16:9 default (allowed: 16:9, 9:16); Duration: 8s default (queue accepts 4/8/12s); Resolution: 1080p; Audio: on | Per-second tiered pricing (uses 10s high-tier rates by default); proxied via Fal queue. |
 | fal-ai/veo3.1/image-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16); Duration: 8s; Resolution: 720p; Audio: on | Per-second pricing ($0.20/s audio-off, $0.40/s audio-on at 720p/1080p; 4K $0.40/$0.60). Requires a reference image; proxied via Fal queue. |
 | fal-ai/veo3.1 | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 8s; Resolution: 1080p; Audio: on | Per-second pricing (same tiers as before); proxied via Fal queue. |
+| fal-ai/bytedance/seedance/v1.5/pro/text-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1, 4:3, 3:4, 21:9); Duration: 10s; Resolution: 1080p; Audio: on | Token-based pricing (~$0.26 per 720p 5s video with audio); proxied via Fal queue. |
+| fal-ai/bytedance/seedance/v1.5/pro/image-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1, 4:3, 3:4, 21:9); Duration: 5s; Resolution: 720p; Audio: on | Token-based pricing; requires a reference image; supports start & end frames; proxied via Fal queue. |
 | gpt-4.1-nano | Aspect: n/a; Token-based | Used for prompt refine + describe flows. |
 
 ## Standard SOP skeleton (apply to new/updated SOPs)

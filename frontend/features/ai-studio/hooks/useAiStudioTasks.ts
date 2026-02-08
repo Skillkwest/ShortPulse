@@ -30,6 +30,7 @@ import {
   fetchFalStatus,
   fetchFalSoraStatus,
   fetchFalSeedanceStatus,
+  fetchFalSeedanceI2VStatus,
   fetchFalSeedreamStatus,
   fetchFalVeoStatus,
   fetchFalVeoImageToVideoStatus,
@@ -77,6 +78,8 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalKlingV3ImageToVideoStatus(taskId);
     case "fal-seedance":
       return fetchFalSeedanceStatus(taskId);
+    case "fal-seedance-i2v":
+      return fetchFalSeedanceI2VStatus(taskId);
     case "fal-sora":
       return fetchFalSoraStatus(taskId);
     case "fal-seedream":

@@ -8,7 +8,7 @@ import { modelLogos, modelOptions, ModelOption } from "../constants";
 import { buildDefaultPricingParams, computeCostForModel } from "../logic/pricing";
 import { stripEditLabel } from "../utils/modelLabels";
 
-export type ModelModalContext = "reference-image" | "reference-video" | "text-image" | "text-video";
+export type ModelModalContext = "reference-image" | "reference-video" | "reference-keyframes" | "text-image" | "text-video";
 
 type ModelModalProps = {
   isOpen: boolean;
@@ -100,6 +100,12 @@ const modelMeta: Record<string, ModelMeta> = {
     tags: ["Image"],
     verified: true,
   },
+  "fal-ai/bytedance/seedream/v4.5/edit": {
+    provider: "ByteDance via Fal",
+    description: "Seedream 4.5 image-to-image/edit with the safety checker off by default.",
+    tags: ["Image"],
+    verified: true,
+  },
   "fal-ai/nano-banana": {
     provider: "Google",
     description: "Nano Banana via Fal queue for vibrant, fast image generation.",
@@ -154,6 +160,7 @@ const resolveModelLogo = (modelId: string) => {
 const contextTitleMap: Record<ModelModalContext, string> = {
   "reference-image": "Image-to-Image",
   "reference-video": "Image-to-Video",
+  "reference-keyframes": "First/Last Frame",
   "text-image": "Text-to-Image",
   "text-video": "Text-to-Video",
 };
@@ -161,6 +168,7 @@ const contextTitleMap: Record<ModelModalContext, string> = {
 const contextTooltipTagMap: Record<ModelModalContext, string> = {
   "reference-image": "Image-to-Image",
   "reference-video": "Image-to-Video",
+  "reference-keyframes": "First/Last Frame",
   "text-image": "Text-to-Image",
   "text-video": "Text-to-Video",
 };

@@ -141,12 +141,36 @@ export type FalSeedreamSubmitRequest = {
   output_format?: "png" | "jpeg" | "webp";
 };
 
+export type FalSeedreamEditSubmitRequest = {
+  prompt: string;
+  image_urls: string[];
+  image_size?: string | { width: number; height: number };
+  num_images?: number;
+  max_images?: number;
+  seed?: number;
+  sync_mode?: boolean;
+  enable_safety_checker?: boolean;
+};
+
 export type FalSeedanceSubmitRequest = {
   prompt: string;
   duration?: string | number;
   aspect_ratio?: "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9";
   negative_prompt?: string;
   cfg_scale?: number;
+  generate_audio?: boolean;
+};
+
+export type FalSeedanceI2VSubmitRequest = {
+  prompt: string;
+  image_url: string;
+  end_image_url?: string;
+  aspect_ratio?: "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9";
+  resolution?: "480p" | "720p" | "1080p";
+  duration?: "4" | "5" | "6" | "7" | "8" | "9" | "10" | "11" | "12" | string;
+  camera_fixed?: boolean;
+  seed?: number;
+  enable_safety_checker?: boolean;
   generate_audio?: boolean;
 };
 
@@ -586,6 +610,20 @@ export const submitFalSeedream = async (payload: FalSeedreamSubmitRequest): Prom
   return { request_id: requestId };
 };
 
+export const submitFalSeedreamEdit = async (payload: FalSeedreamEditSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/seedream-edit-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal Seedream Edit did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
 export const fetchFalSeedreamStatus = async (requestId: string): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/seedream-status`, {
     method: "POST",
@@ -611,6 +649,29 @@ export const submitFalSeedance = async (payload: FalSeedanceSubmitRequest): Prom
 
 export const fetchFalSeedanceStatus = async (requestId: string): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/seedance-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  return handleJson<FalStatusResponse>(response);
+};
+
+export const submitFalSeedanceI2V = async (payload: FalSeedanceI2VSubmitRequest): Promise<FalSubmitResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/seedance-i2v-submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
+  const requestId = data.request_id || (data as any).requestId;
+  if (!requestId) {
+    throw new Error("Fal Seedance I2V did not return a request_id");
+  }
+  return { request_id: requestId };
+};
+
+export const fetchFalSeedanceI2VStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  const response = await fetchWithTimeout(`${FAL_API_BASE}/seedance-i2v-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ requestId }),

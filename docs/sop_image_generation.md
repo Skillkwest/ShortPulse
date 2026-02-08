@@ -77,6 +77,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 | Fal | `fal-ai/nano-banana-pro` | 4:5 default (wide/portrait variants allowed via the allowed list) | Text-to-image via the Fal queue with flat per-image pricing (4K doubles cost, web-search adds a surcharge) and PNG outputs; proxied through `/api/fal/nano-banana-pro-*`. |
 | Fal | `fal-ai/nano-banana-pro/edit` | `auto` default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Image-to-image/edit; requires `image_urls` references; flat per-image pricing (15 credits; 4K doubles; web_search adds 1.5 credits), proxied through `/api/fal/nano-banana-pro-edit-*`. |
 | Fal | `fal-ai/bytedance/seedream/v4.5/text-to-image` | 1:1 enforced if invalid aspect | Text-to-image via Fal queue; safety checker on; debits on click. |
+| Fal | `fal-ai/bytedance/seedream/v4.5/edit` | 1:1 enforced if invalid aspect | Image-to-image/edit; requires `image_urls`; safety checker off by default; proxied through `/api/fal/seedream-edit-submit` + `/api/fal/seedream-status`. |
 
 ## Maintenance rules
 

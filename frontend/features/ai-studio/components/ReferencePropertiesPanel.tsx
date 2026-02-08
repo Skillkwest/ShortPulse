@@ -3,7 +3,7 @@
  * Provides reference dropzones, aspect/model selection, and prompt capture for image/video workflows.
  */
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowFatLinesRight, BracketsSquare, Plus, UploadSimple } from "phosphor-react";
+import { ArrowFatLinesRight, Image, Plus, UploadSimple } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
 import { extractDragDropPayload, isImageDragTransfer } from "../utils/dragDrop";
@@ -127,6 +127,10 @@ const VEO_FIRST_LAST_RESOLUTION_OPTIONS = [
   { value: "1080p", label: "1080p (Full HD)" },
   { value: "4k", label: "4K (2160p)" },
 ];
+// Kling 3.0 I2V uses the full 3-15 second range.
+const KLING_3_DURATION_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+// Kling 3.0 I2V does not have a resolution parameter; aspect is auto-detected from input frames.
+const KLING_3_RESOLUTION_OPTIONS = [{ value: "auto", label: "Auto (from input)" }];
 
 /**
  * Renders reference-based image/video tool controls.
@@ -395,6 +399,8 @@ export function ReferencePropertiesPanel({
   const isVeoImageToVideoModel = modelId === "fal-ai/veo3.1/image-to-video";
   const isVeoImageToVideoStandard = isStandardMode && isVeoImageToVideoModel;
   const isVeoFirstLastModel = modelId === "fal-ai/veo3.1/first-last-frame-to-video";
+  const isKling3ImageModel = modelId === "fal-ai/kling-video/v3/pro/image-to-video";
+  const isKling3InKeyframes = isKeyframesMode && isKling3ImageModel;
   const referenceStepTitle = isVideoVariant
     ? isKling3Mode
       ? "Add Kling 3.0 References"
@@ -434,31 +440,36 @@ export function ReferencePropertiesPanel({
     ? VEO_I2V_DURATION_OPTIONS
     : isVeoFirstLastModel
       ? VEO_FIRST_LAST_DURATION_OPTIONS
-      : VIDEO_DURATION_OPTIONS;
+      : isKling3InKeyframes
+        ? KLING_3_DURATION_OPTIONS
+        : VIDEO_DURATION_OPTIONS;
   const resolutionOptions = isVeoImageToVideoStandard
     ? VEO_I2V_RESOLUTION_OPTIONS
     : isVeoFirstLastModel
       ? VEO_FIRST_LAST_RESOLUTION_OPTIONS
-      : VIDEO_RESOLUTION_OPTIONS;
-  const aspectOptionsForModel = isVeoImageToVideoStandard
-    ? [{ value: "auto", ratioLabel: "Auto", name: "Auto (provider default)", orientation: "widescreen" } as AspectOption]
+      : isKling3InKeyframes
+        ? KLING_3_RESOLUTION_OPTIONS
+        : VIDEO_RESOLUTION_OPTIONS;
+  // Kling 3.0 in keyframes mode uses auto aspect (detected from input frames).
+  const aspectOptionsForModel = isVeoImageToVideoStandard || isKling3InKeyframes
+    ? [{ value: "auto", ratioLabel: "Auto", name: "Auto (from input)", orientation: "widescreen" } as AspectOption]
     : aspectOptions;
 
   useEffect(() => {
-    if (isVeoImageToVideoStandard && aspect !== "auto") {
+    if ((isVeoImageToVideoStandard || isKling3InKeyframes) && aspect !== "auto") {
       onAspectChange("auto");
     }
-  }, [isVeoImageToVideoStandard, aspect, onAspectChange]);
+  }, [isVeoImageToVideoStandard, isKling3InKeyframes, aspect, onAspectChange]);
 
   useEffect(() => {
-    if ((isVeoImageToVideoStandard || isVeoFirstLastModel) && !durationOptions.includes(videoDurationValue)) {
+    if ((isVeoImageToVideoStandard || isVeoFirstLastModel || isKling3InKeyframes) && !durationOptions.includes(videoDurationValue)) {
       onVideoDurationChange?.(durationOptions[1] ?? durationOptions[0]);
     }
-  }, [isVeoImageToVideoStandard, isVeoFirstLastModel, durationOptions, videoDurationValue, onVideoDurationChange]);
+  }, [isVeoImageToVideoStandard, isVeoFirstLastModel, isKling3InKeyframes, durationOptions, videoDurationValue, onVideoDurationChange]);
 
   useEffect(() => {
-    if ((isVeoImageToVideoStandard || isVeoFirstLastModel) && !resolutionOptions.some((option) => option.value === videoResolutionValue)) {
-      onVideoResolutionChange?.(resolutionOptions[1]?.value ?? resolutionOptions[0]?.value ?? "1080p");
+    if ((isVeoImageToVideoStandard || isVeoFirstLastModel || isKling3InKeyframes) && !resolutionOptions.some((option) => option.value === videoResolutionValue)) {
+      onVideoResolutionChange?.(resolutionOptions[0]?.value ?? "auto");
     }
   }, [isVeoImageToVideoStandard, isVeoFirstLastModel, resolutionOptions, videoResolutionValue, onVideoResolutionChange]);
 
@@ -541,7 +552,11 @@ export function ReferencePropertiesPanel({
                       onModelPickerOpen(
                         "reference-model",
                         event.currentTarget,
-                        variant === "image" ? "reference-image" : "reference-video",
+                        variant === "image"
+                          ? "reference-image"
+                          : isKeyframesMode
+                            ? "reference-keyframes"
+                            : "reference-video",
                       )
                     }
                   >
@@ -599,7 +614,7 @@ export function ReferencePropertiesPanel({
                       className={`mode-toggle-btn ${activeVideoMode === "keyframes" ? "is-active" : ""}`}
                       onClick={() => onVideoReferenceModeChange?.("keyframes")}
                     >
-                      Keyframes
+                      First/Last Frame
                     </button>
                   </div>
                 ) : null}
@@ -720,7 +735,9 @@ export function ReferencePropertiesPanel({
                             onClick={() => extraOneInputRef.current?.click()}
                             style={extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined}
                           >
-                            <span className="dropzone-tag">Last frame</span>
+                            <span className={`dropzone-tag ${isKling3InKeyframes ? "subtle" : ""}`}>
+                              {isKling3InKeyframes ? "Last frame (optional)" : "Last frame"}
+                            </span>
                             {extraImageUrls[0] ? (
                               <button
                                 type="button"
@@ -744,7 +761,7 @@ export function ReferencePropertiesPanel({
                     ) : !isVideoVariant ? (
                       <>
                         <div className="reference-drop-divider" aria-hidden="true">
-                          <BracketsSquare size={22} weight="bold" />
+                          <Image size={22} weight="bold" />
                         </div>
                         {[extraOneInputRef, extraTwoInputRef].map((inputRef, index) => {
                           const previewUrl = extraImageUrls[index];

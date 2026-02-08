@@ -26,7 +26,9 @@ import {
   submitFalKlingV3Text,
   submitFalKlingMotionControl,
   submitFalSeedance,
+  submitFalSeedanceI2V,
   submitFalSeedream,
+  submitFalSeedreamEdit,
   submitFalVeo,
   submitFalVeoFirstLast,
   submitFalVeoImageToVideo,
@@ -179,13 +181,24 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
 
   const allowedModelOptions = useMemo(() => {
     if (selectedTool === "video" || selectedTool === "kling") {
-      return modelOptions.filter(
-        (opt) =>
+      const isKeyframesMode = videoReferenceMode === "keyframes";
+      return modelOptions.filter((opt) => {
+        // In keyframes mode, show keyframe-specific models and keyframe-compatible image-to-video models.
+        if (isKeyframesMode) {
+          if (opt.mediaType === "keyframes") return true;
+          // Kling 3.0 I2V supports keyframes (optional end frame).
+          if (opt.value === "fal-ai/kling-video/v3/pro/image-to-video") return true;
+          return false;
+        }
+        // In standard/kling3 mode, show video and image-to-video models but NOT keyframes-only models.
+        if (opt.mediaType === "keyframes") return false;
+        return (
           !opt.mediaType ||
           opt.mediaType === "image-to-video" ||
           opt.mediaType === "video" ||
-          opt.mediaType === "multi",
-      );
+          opt.mediaType === "multi"
+        );
+      });
     }
     if ((selectedTool === "create" || selectedTool === "text") && mode === "video") {
       return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === "video" || opt.mediaType === "multi");
@@ -207,7 +220,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       });
     }
     return modelOptions;
-  }, [mode, selectedTool]);
+  }, [mode, selectedTool, videoReferenceMode]);
 
   const setModel = useCallback((value: string | null) => {
     setModelState(value);
@@ -291,6 +304,12 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     }
   }, [model, hasUserVideoPrefs]);
 
+  // Models that support keyframes mode (start + end frame).
+  const keyframeCompatibleModels = new Set([
+    "fal-ai/veo3.1/first-last-frame-to-video",
+    "fal-ai/kling-video/v3/pro/image-to-video",
+  ]);
+
   // Keep reference mode and model in sync without locking other tabs.
   useEffect(() => {
     if (selectedTool !== "video" && selectedTool !== "kling") return;
@@ -318,27 +337,38 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     }
 
     if (videoReferenceMode === "keyframes") {
-      if (model !== "fal-ai/veo3.1/first-last-frame-to-video") {
+      // Allow both Veo first/last and Kling 3.0 I2V in keyframes mode.
+      // Only switch model if current model doesn't support keyframes.
+      if (model && !keyframeCompatibleModels.has(model)) {
         lastNonKeyframesVideoModelRef.current = model;
+        setModel("fal-ai/veo3.1/first-last-frame-to-video");
+      } else if (!model) {
+        // Default to Veo first/last if no model selected.
         setModel("fal-ai/veo3.1/first-last-frame-to-video");
       }
       return;
     }
 
+    // Switching from keyframes to standard: Veo first/last requires two frames, so switch it.
     if (model === "fal-ai/veo3.1/first-last-frame-to-video" && videoReferenceMode === "standard") {
       const fallback = lastNonKeyframesVideoModelRef.current ?? "fal-ai/veo3.1/image-to-video";
       setModel(fallback);
       return;
     }
 
-    if (model === "fal-ai/kling-video/v3/pro/image-to-video" && videoReferenceMode !== "kling3") {
+    // Don't auto-switch to kling3 mode when Kling I2V is selected in keyframes mode.
+    // Only switch when in standard mode.
+    if (model === "fal-ai/kling-video/v3/pro/image-to-video" && videoReferenceMode === "standard") {
       setVideoReferenceMode("kling3");
     }
   }, [model, selectedTool, setModel, setVideoReferenceMode, videoReferenceMode]);
 
   // If user leaves Kling tool back to Video, reset mode/model away from Kling.
+  // Exception: keyframes mode supports Kling 3.0, so don't reset it there.
   useEffect(() => {
     if (selectedTool !== "video") return;
+    // Kling 3.0 is supported in keyframes mode, so don't reset it.
+    if (videoReferenceMode === "keyframes") return;
     if (videoReferenceMode === "kling3") {
       setVideoReferenceMode("standard");
     }
@@ -813,6 +843,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             "fal/flux-2/edit": "fal/flux-2",
             "fal-ai/nano-banana/edit": "fal-ai/nano-banana",
             "fal-ai/nano-banana-pro/edit": "fal-ai/nano-banana-pro",
+            "fal-ai/bytedance/seedream/v4.5/edit": "fal-ai/bytedance/seedream/v4.5/text-to-image",
           };
           if (model && imageToTextModelMap[model]) {
             finalModel = imageToTextModelMap[model];
@@ -837,6 +868,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const id = `out-${randomId()}`;
       const modelLabel = resolveModelLabel(finalModel);
       const isSeedreamModel = finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image";
+      const isSeedreamEditModel = finalModel === "fal-ai/bytedance/seedream/v4.5/edit";
       const isFalFlux2Model = finalModel === "fal/flux-2";
       const isFalFlux2KleinModel = finalModel === "fal-ai/flux-2/klein/9b";
       const isFalFlux2EditModel = finalModel === "fal/flux-2/edit";
@@ -847,6 +879,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       const isFalNanoBananaProModel = finalModel === "fal-ai/nano-banana-pro";
       const isFalNanoBananaProEditModel = finalModel === "fal-ai/nano-banana-pro/edit";
       const isSeedanceModel = finalModel === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video";
+      const isSeedanceI2VModel = finalModel === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
       const isKling3TextModel = finalModel === "fal-ai/kling-video/v3/pro/text-to-video";
       const isKling3ImageModel = finalModel === "fal-ai/kling-video/v3/pro/image-to-video";
       const isVeoFirstLastFrameModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
@@ -1100,6 +1133,29 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           return;
         }
 
+        if (isSeedreamEditModel) {
+          if (!preparedImageInputs.length) {
+            notifyGenerationFailure(id, "Seedream 4.5 Edit requires at least one reference image.");
+            return;
+          }
+          const image_size = resolveSeedreamImageSize(aspect);
+          const response = await submitFalSeedreamEdit({
+            prompt: cleanedPrompt,
+            image_size,
+            num_images: 1,
+            enable_safety_checker: false,
+            image_urls: preparedImageInputs.slice(0, 10),
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: response.request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+          }));
+          startPollingWithGeneration(response.request_id, id, "fal-seedream");
+          return;
+        }
+
         if (isKling3TextModel) {
           const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
           const { request_id } = await submitFalKlingV3Text({
@@ -1140,6 +1196,43 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             timestamp: "Submitted",
           }));
           startPollingWithGeneration(request_id, id, "fal-seedance");
+          return;
+        }
+
+        if (isSeedanceI2VModel) {
+          if (preparedImageInputs.length < 1) {
+            notifyGenerationFailure(id, "Seedance I2V requires a reference image.");
+            return;
+          }
+          const normalizedAspect =
+            modelConfig?.allowedAspects?.includes(aspect)
+              ? aspect
+              : modelConfig?.defaultAspect ?? "16:9";
+          const resolution = requestedResolution?.toLowerCase().includes("1080")
+            ? "1080p"
+            : requestedResolution?.toLowerCase().includes("480")
+              ? "480p"
+              : "720p";
+          const duration = Math.max(4, Math.min(12, requestedDurationSeconds)).toString();
+          const endImageUrl = preparedImageInputs.length > 1 ? preparedImageInputs[1] : undefined;
+          const { request_id } = await submitFalSeedanceI2V({
+            prompt: cleanedPrompt,
+            image_url: preparedImageInputs[0],
+            end_image_url: endImageUrl,
+            aspect_ratio: normalizedAspect as "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9",
+            resolution: resolution as "480p" | "720p" | "1080p",
+            duration,
+            generate_audio: requestedAudio,
+            enable_safety_checker: true,
+          });
+          updateOutputById(id, (item) => ({
+            ...item,
+            taskId: request_id,
+            taskState: "running",
+            timestamp: "Submitted",
+            previewUrl: preparedImageInputs[0],
+          }));
+          startPollingWithGeneration(request_id, id, "fal-seedance-i2v");
           return;
         }
 

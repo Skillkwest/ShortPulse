@@ -28,6 +28,7 @@ export type Provider =
   | "fal-nano-banana-pro-edit"
   | "fal-sora"
   | "fal-seedance"
+  | "fal-seedance-i2v"
   | "fal-seedream"
   | "fal-veo"
   | "fal-veo-i2v";
@@ -145,7 +146,7 @@ export const filterModelOptions = (
   if (mediaFilter) {
     filtered = filtered.filter((opt) => {
       if (!opt.mediaType || opt.mediaType === mediaFilter || opt.mediaType === "multi") return true;
-      if (selectedTool === "video" && opt.mediaType === "image-to-video") return true;
+      if (selectedTool === "video" && (opt.mediaType === "image-to-video" || opt.mediaType === "keyframes")) return true;
       return false;
     });
   }

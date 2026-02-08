@@ -783,6 +783,7 @@ body.ai-studio-body {
 .toolbar-item[data-tool-id="create"]:hover,
 .toolbar-item[data-tool-id="kling"]:hover {
   transform: translateY(-2px);
+  background: linear-gradient(135deg, #2c6cf5 0%, #10cced 50%, #28dbf6 100%);
   box-shadow:
     0 8px 20px rgba(30, 64, 175, 0.3),
     0 4px 12px rgba(6, 182, 212, 0.35),

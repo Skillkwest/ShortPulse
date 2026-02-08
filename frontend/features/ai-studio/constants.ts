@@ -4,7 +4,7 @@
  */
 import { AspectOption, PromptTemplate, ToolId } from "./types";
 
-export type ModelMediaType = "image" | "video" | "image-to-video" | "edit" | "multi";
+export type ModelMediaType = "image" | "video" | "image-to-video" | "edit" | "multi" | "keyframes";
 export type ModelOption = { value: string; label: string; mediaType?: ModelMediaType };
 export type ToolConfig = { id: ToolId; label: string; desc: string };
 
@@ -20,12 +20,14 @@ export const modelLogos: Record<string, string> = {
   "fal-ai/nano-banana-pro": "/Google%20LOGO.png",
   "fal-ai/nano-banana-pro/edit": "/Google%20LOGO.png",
   "fal-ai/bytedance/seedream/v4.5/text-to-image": "/Seedream%20LOGO.png",
+  "fal-ai/bytedance/seedream/v4.5/edit": "/Seedream%20LOGO.png",
   "fal-ai/kling-video/v3/pro/text-to-video": "/Kling%20LOGO.png",
   "fal-ai/kling-video/v3/pro/image-to-video": "/Kling%20LOGO.png",
   "fal-ai/kling-video/v2.6/pro/motion-control": "/Kling%20LOGO.png",
   "fal-ai/veo3.1/first-last-frame-to-video": "/Google%20LOGO.png",
   "fal-ai/veo3.1/image-to-video": "/Google%20LOGO.png",
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": "/Seedream%20LOGO.png",
+  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": "/Seedream%20LOGO.png",
   "fal-ai/veo3.1": "/Google%20LOGO.png",
   "fal-ai/sora-2/text-to-video/pro": "/Sora%202%20LOGO.png",
 };
@@ -40,21 +42,17 @@ export const aspectOptions: AspectOption[] = [
   { value: "16:9", ratioLabel: "16:9", name: "Landscape", orientation: "widescreen" },
 ];
 
-// When you add/remove image models here, update `docs/sop_image_generation.md` → “Supported image models”.
+// When you add/remove image models here, update `docs/sop_image_generation.md` → "Supported image models".
 export const modelOptions: ModelOption[] = [
   { value: "fal-ai/kling-video/v3/pro/text-to-video", label: "Kling 3.0 (Text to Video)", mediaType: "video" },
-  { value: "fal-ai/kling-video/v3/pro/image-to-video", label: "Kling 3.0", mediaType: "image-to-video" },
-  {
-    value: "fal-ai/kling-video/v2.6/pro/motion-control",
-    label: "Kling 2.6 Motion Control (Pro)",
-    mediaType: "image-to-video",
-  },
-  {
-    value: "fal-ai/veo3.1/first-last-frame-to-video",
-    label: "Veo 3.1 (First/Last Frame)",
-    mediaType: "image-to-video",
-  },
+  { value: "fal-ai/kling-video/v3/pro/image-to-video", label: "Kling 3.0 (Start/End Frame)", mediaType: "image-to-video" },
+  { value: "fal-ai/veo3.1/first-last-frame-to-video", label: "Veo 3.1 (First/Last Frame)", mediaType: "keyframes" },
   { value: "fal-ai/veo3.1/image-to-video", label: "Veo 3.1 (Image to Video)", mediaType: "image-to-video" },
+  {
+    value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+    label: "Seedance 1.5 Pro (Image to Video)",
+    mediaType: "image-to-video",
+  },
   { value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video", label: "Seedance 1.5 Pro", mediaType: "video" },
   { value: "fal-ai/veo3.1", label: "Google Veo 3.1", mediaType: "video" },
   { value: "fal-ai/sora-2/text-to-video/pro", label: "Sora 2 Pro", mediaType: "video" },
@@ -67,6 +65,7 @@ export const modelOptions: ModelOption[] = [
   { value: "fal-ai/nano-banana/edit", label: "Nano Banana Edit", mediaType: "image" },
   { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
   { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro Edit", mediaType: "image" },
+  { value: "fal-ai/bytedance/seedream/v4.5/edit", label: "Seedream 4.5 Edit", mediaType: "image" },
   { value: "fal-ai/bytedance/seedream/v4.5/text-to-image", label: "Seedream 4.5", mediaType: "image" },
 ];
 

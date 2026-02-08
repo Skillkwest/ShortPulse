@@ -14,6 +14,8 @@ export type ModelConfig = {
   pricingStrategy: PricingStrategyId;
   sizeMap?: Record<string, AspectSize>;
   defaultDurationSeconds?: number;
+  minDurationSeconds?: number;
+  maxDurationSeconds?: number;
   defaultResolution?: string;
   defaultAudio?: boolean;
   supportsTextToImage?: boolean;
@@ -129,6 +131,16 @@ const registry: Record<string, ModelConfig> = {
     pricingStrategy: "seedream-per-image",
     supportsTextToImage: true,
   },
+  "fal-ai/bytedance/seedream/v4.5/edit": {
+    id: "fal-ai/bytedance/seedream/v4.5/edit",
+    label: "Seedream 4.5 Edit",
+    provider: "fal",
+    mediaType: "image",
+    defaultAspect: "1:1",
+    allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+    pricingStrategy: "seedream-per-image",
+    supportsImageToImage: true,
+  },
   "fal-ai/kling-video/v3/pro/text-to-video": {
     id: "fal-ai/kling-video/v3/pro/text-to-video",
     label: "Kling 3.0",
@@ -145,11 +157,15 @@ const registry: Record<string, ModelConfig> = {
     label: "Kling 3.0",
     provider: "fal",
     mediaType: "image-to-video",
-    defaultAspect: "16:9",
-    allowedAspects: ["16:9", "9:16", "1:1"],
+    // In keyframes mode, aspect is auto-detected from input frames; in kling3 mode these apply.
+    defaultAspect: "auto",
+    allowedAspects: ["auto"],
     pricingStrategy: "kling-3-per-second",
     defaultDurationSeconds: 10,
+    minDurationSeconds: 3,
+    maxDurationSeconds: 15,
     defaultAudio: true,
+    supportsImageToVideo: true,
   },
   "fal-ai/veo3.1": {
     id: "fal-ai/veo3.1",
@@ -221,6 +237,19 @@ const registry: Record<string, ModelConfig> = {
     defaultDurationSeconds: 10,
     defaultResolution: "1080p",
     defaultAudio: true,
+  },
+  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": {
+    id: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+    label: "Seedance 1.5 Pro",
+    provider: "fal",
+    mediaType: "image-to-video",
+    defaultAspect: "16:9",
+    allowedAspects: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
+    pricingStrategy: "seedance-1.5-per-second",
+    defaultDurationSeconds: 5,
+    defaultResolution: "720p",
+    defaultAudio: true,
+    supportsImageToVideo: true,
   },
   "gpt-4.1-nano": {
     id: "gpt-4.1-nano",

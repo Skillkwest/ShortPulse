@@ -764,7 +764,7 @@ body.ai-studio-body {
 /* Create & Kling button - blue/cyan gradient */
 .toolbar-item[data-tool-id="create"],
 .toolbar-item[data-tool-id="kling"] {
-  background: linear-gradient(135deg, #0c409f 0%, #0891b2 50%, #06b6d4 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 50%, #22d3ee 100%);
 }
 
 /* Edit button - magenta/yellow gradient */
@@ -782,7 +782,6 @@ body.ai-studio-body {
 /* Create & Kling button hover - lighter blue/cyan gradient with gradient-aware glow */
 .toolbar-item[data-tool-id="create"]:hover,
 .toolbar-item[data-tool-id="kling"]:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 50%, #22d3ee 100%);
   transform: translateY(-2px);
   box-shadow:
     0 8px 20px rgba(30, 64, 175, 0.3),

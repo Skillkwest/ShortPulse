@@ -5,6 +5,20 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const FAL_VEO_I2V_SUBMIT_URL = "https://queue.fal.run/fal-ai/veo3.1/image-to-video";
+const FAL_VEO_I2V_SUBMIT_FALLBACK_URL = "https://queue.fal.run/fal-ai/veo3.1/reference-to-video";
+
+const readJsonSafe = async (response: Response) => {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (_error) {
+    return {
+      error: "Non-JSON response from Fal",
+      raw: text.slice(0, 4000),
+    };
+  }
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -20,18 +34,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const timeoutId = setTimeout(() => controller.abort(), 20000);
 
   try {
-    const upstream = await fetch(FAL_VEO_I2V_SUBMIT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Key ${apiKey}`,
-      },
-      body: JSON.stringify(req.body),
-      signal: controller.signal,
-    });
+    const payload = typeof req.body === "object" && req.body ? { ...req.body } : {};
+    const firstImageUrl = Array.isArray(payload.image_urls)
+      ? payload.image_urls[0]
+      : typeof payload.image_urls === "string"
+        ? payload.image_urls
+        : payload.image_url;
+    const legacyPayload = {
+      ...payload,
+      image_url: firstImageUrl,
+    };
+    const fallbackPayload = {
+      ...payload,
+      image_urls: Array.isArray(payload.image_urls)
+        ? payload.image_urls
+        : firstImageUrl
+          ? [firstImageUrl]
+          : undefined,
+    };
 
-    const data = await upstream.json();
-    return res.status(upstream.status).json(data);
+    const submitTo = async (url: string, body: Record<string, unknown>) => {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Key ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      const data = await readJsonSafe(response);
+      return { response, data };
+    };
+
+    let result = await submitTo(FAL_VEO_I2V_SUBMIT_URL, legacyPayload);
+    if (!result.response.ok) {
+      const fallback = await submitTo(FAL_VEO_I2V_SUBMIT_FALLBACK_URL, fallbackPayload);
+      if (fallback.response.ok) {
+        result = fallback;
+      } else {
+        result = result.response.status === 404 ? fallback : result;
+      }
+    }
+
+    return res.status(result.response.status).json(result.data);
   } catch (error) {
     return res.status(500).json({ error: "Fal Veo image-to-video submit failed", detail: String(error) });
   } finally {

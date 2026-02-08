@@ -1037,7 +1037,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
               : "720p";
           const { request_id } = await submitFalVeoImageToVideo({
             prompt: cleanedPrompt,
-            image_url: preparedImageInputs[0],
+            image_urls: [preparedImageInputs[0]],
             aspect_ratio: normalizedAspect as "16:9" | "9:16" | "auto",
             duration,
             resolution,

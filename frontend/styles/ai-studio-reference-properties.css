@@ -352,7 +352,7 @@
   background: transparent;
   border: none;
   border-radius: 12px;
-  color: #fdfefe;
+  color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
   padding: 8px;
   display: flex;

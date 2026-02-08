@@ -27,7 +27,7 @@ curl --request POST \
 
 ### Parameters
 - `prompt` (string, required): How to animate the input image (action, style, camera, ambiance).
-- `image_url` (string, required): Publicly reachable image in 16:9 or 9:16; larger than 720p recommended.
+- `image_url` (string, required): Publicly reachable image (16:9 or 9:16; larger than 720p recommended).
 - `aspect_ratio` (enum): `16:9`, `9:16`, or `auto` (default `auto`).
 - `duration` (enum): `4s`, `6s`, `8s` (default `8s`).
 - `resolution` (enum): `720p` (default), `1080p`, or `4k`.
@@ -35,8 +35,9 @@ curl --request POST \
 - `negative_prompt`, `seed`, `auto_fix` (optional).
 
 ## Status
-- Poll: `GET https://queue.fal.run/fal-ai/veo3.1/image-to-video/requests/<request_id>/status`
-- Result: `GET https://queue.fal.run/fal-ai/veo3.1/image-to-video/requests/<request_id>`
+- Poll: `GET https://queue.fal.run/fal-ai/veo3.1/requests/<request_id>/status`
+- Result: `GET https://queue.fal.run/fal-ai/veo3.1/requests/<request_id>`
+  - Note: queue status/result endpoints use the base model id (no subpath), even if the submit path includes `/image-to-video`.
 - Proxies: `/api/fal/veo-image-to-video-status` handles status + result fetch when complete.
 
 **Typical result**

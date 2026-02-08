@@ -170,53 +170,67 @@ export const filterModelOptions = (
 export const resolvePreviewUrlById = (outputs: any[], id: string | null | undefined) =>
   outputs.find((item) => item.id === id)?.previewUrl ?? null;
 
+const collectFalCandidates = (status: any) => [
+  status,
+  status?.response,
+  status?.response?.data,
+  status?.response?.output,
+  status?.response?.result,
+  status?.data,
+  status?.data?.output,
+  status?.data?.result,
+  status?.output,
+  status?.output?.data,
+  status?.output?.result,
+  status?.result,
+  status?.result?.data,
+  status?.result?.output,
+];
+
 export const extractFalUrls = (status: any): string[] => {
-  const direct = status?.images;
-  if (Array.isArray(direct) && direct[0]?.url) return direct.map((img) => img?.url).filter(Boolean) as string[];
-  const nested = status?.data?.images;
-  if (Array.isArray(nested) && nested[0]?.url) return nested.map((img) => img?.url).filter(Boolean) as string[];
-  const output = status?.output?.images;
-  if (Array.isArray(output) && output[0]?.url) return output.map((img) => img?.url).filter(Boolean) as string[];
+  const candidates = collectFalCandidates(status);
+  for (const candidate of candidates) {
+    const images = candidate?.images;
+    if (Array.isArray(images) && images[0]?.url) {
+      return images.map((img) => img?.url).filter(Boolean) as string[];
+    }
+  }
   return [];
+};
+
+const extractVideoUrlsFrom = (candidate: any): string[] => {
+  const videos = candidate?.videos;
+  if (Array.isArray(videos) && videos[0]?.url) {
+    return videos.map((vid) => vid?.url).filter(Boolean) as string[];
+  }
+  const videoUrl =
+    candidate?.video?.url ||
+    candidate?.video_url ||
+    candidate?.assets?.video?.url ||
+    candidate?.download_url;
+  return videoUrl ? [videoUrl] : [];
 };
 
 export const extractFalMediaUrls = (status: any): string[] => {
   const imageUrls = extractFalUrls(status);
   if (imageUrls.length) return imageUrls;
-  const videos =
-    status?.videos ||
-    status?.data?.videos ||
-    status?.output?.videos ||
-    status?.result?.videos ||
-    status?.data?.result?.videos ||
-    status?.result?.data?.videos;
-  if (Array.isArray(videos) && videos[0]?.url) {
-    return videos.map((vid) => vid?.url).filter(Boolean) as string[];
+  const candidates = collectFalCandidates(status);
+  for (const candidate of candidates) {
+    const videoUrls = extractVideoUrlsFrom(candidate);
+    if (videoUrls.length) return videoUrls;
   }
-  const videoUrl =
-    status?.video?.url ||
-    status?.data?.video?.url ||
-    status?.output?.video?.url ||
-    status?.result?.video?.url ||
-    status?.data?.result?.video?.url ||
-    status?.result?.data?.video?.url ||
-    status?.video_url ||
-    status?.data?.video_url ||
-    status?.output?.video_url ||
-    status?.result?.video_url ||
-    status?.data?.result?.video_url ||
-    status?.assets?.video?.url ||
-    status?.result?.assets?.video?.url ||
-    status?.data?.assets?.video?.url ||
-    status?.download_url;
-  return videoUrl ? [videoUrl] : [];
+  return [];
 };
 
 export const extractResultUrls = (resultJson: KeiTaskStatus["resultJson"], fallback?: unknown): string[] => {
   if (!resultJson && fallback && typeof fallback === "object") {
     const urls = (fallback as any)?.resultUrls || (fallback as any)?.info?.result_urls;
     if (Array.isArray(urls)) return urls as string[];
-    const videos = (fallback as any)?.videos || (fallback as any)?.data?.videos || (fallback as any)?.output?.videos;
+    const videos =
+      (fallback as any)?.videos ||
+      (fallback as any)?.data?.videos ||
+      (fallback as any)?.output?.videos ||
+      (fallback as any)?.response?.videos;
     if (Array.isArray(videos) && videos[0]?.url) {
       return videos.map((vid: any) => vid?.url).filter(Boolean) as string[];
     }
@@ -224,6 +238,8 @@ export const extractResultUrls = (resultJson: KeiTaskStatus["resultJson"], fallb
       (fallback as any)?.video?.url ||
       (fallback as any)?.data?.video?.url ||
       (fallback as any)?.output?.video?.url ||
+      (fallback as any)?.response?.video?.url ||
+      (fallback as any)?.response?.video_url ||
       (fallback as any)?.video_url ||
       (fallback as any)?.data?.video_url ||
       (fallback as any)?.output?.video_url;
@@ -241,7 +257,11 @@ export const extractResultUrls = (resultJson: KeiTaskStatus["resultJson"], fallb
   if (typeof resultJson === "object" && resultJson) {
     const urls = (resultJson as any)?.resultUrls || (resultJson as any)?.info?.result_urls;
     if (Array.isArray(urls)) return urls as string[];
-    const videos = (resultJson as any)?.videos || (resultJson as any)?.data?.videos || (resultJson as any)?.output?.videos;
+    const videos =
+      (resultJson as any)?.videos ||
+      (resultJson as any)?.data?.videos ||
+      (resultJson as any)?.output?.videos ||
+      (resultJson as any)?.response?.videos;
     if (Array.isArray(videos) && videos[0]?.url) {
       return videos.map((vid: any) => vid?.url).filter(Boolean) as string[];
     }
@@ -249,6 +269,8 @@ export const extractResultUrls = (resultJson: KeiTaskStatus["resultJson"], fallb
       (resultJson as any)?.video?.url ||
       (resultJson as any)?.data?.video?.url ||
       (resultJson as any)?.output?.video?.url ||
+      (resultJson as any)?.response?.video?.url ||
+      (resultJson as any)?.response?.video_url ||
       (resultJson as any)?.video_url ||
       (resultJson as any)?.data?.video_url ||
       (resultJson as any)?.output?.video_url;

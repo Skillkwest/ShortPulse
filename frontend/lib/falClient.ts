@@ -102,7 +102,8 @@ export type FalVeoSubmitRequest = {
 
 export type FalVeoImageToVideoSubmitRequest = {
   prompt: string;
-  image_url: string;
+  image_url?: string; // legacy single-image field
+  image_urls?: string[];
   aspect_ratio?: "16:9" | "9:16" | "auto";
   duration?: "4s" | "6s" | "8s";
   negative_prompt?: string;
@@ -562,6 +563,12 @@ export const fetchFalVeoImageToVideoStatus = async (requestId: string): Promise<
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ requestId }),
   });
+  if (response.status === 405) {
+    const fallback = await fetchWithTimeout(`${FAL_API_BASE}/veo-image-to-video-status?requestId=${encodeURIComponent(requestId)}`, {
+      method: "GET",
+    });
+    return handleJson<FalStatusResponse>(fallback);
+  }
   return handleJson<FalStatusResponse>(response);
 };
 

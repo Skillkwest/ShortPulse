@@ -81,6 +81,7 @@
   background-repeat: no-repeat;
   position: relative;
   z-index: 0;
+  overflow: hidden;
 }
 
 .reference-card:hover {
@@ -305,6 +306,7 @@
   height: 100%;
   object-fit: cover;
   z-index: 0;
+  border-radius: inherit;
 }
 
 .reference-card-text {

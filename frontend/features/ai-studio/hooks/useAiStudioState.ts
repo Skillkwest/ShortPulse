@@ -1079,17 +1079,15 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
               finalPrompt = `${finalPrompt} @Element1`;
             }
 
-            const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
-
             const { request_id } = await submitFalKlingV3ImageToVideo({
               prompt: finalPrompt,
               start_image_url: characterImageUrl,
-              duration: klingDuration,
-              aspect_ratio: resolveKlingAspectRatio(aspect),
+              duration: undefined, // Let Kling 3.0 automatically determine duration from motion video
+              aspect_ratio: undefined, // Let Kling 3.0 automatically determine aspect ratio from character image
               negative_prompt: klingNegativePrompt,
               cfg_scale: klingCfgScale,
               generate_audio: requestedAudio,
-              elements: motionElementsPayload as any,
+              elements: motionElementsPayload,
             });
 
             updateOutputById(id, (item) => ({

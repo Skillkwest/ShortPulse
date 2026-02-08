@@ -271,7 +271,20 @@ export function DetailModal({
             <>
               <div className="art-image-vessel">
                 {output.previewUrl ? (
-                  <img className="art-hero-image" src={output.previewUrl} alt={output.prompt} />
+                  output.mode === "video" ? (
+                    <video
+                      className="art-hero-image"
+                      src={output.previewUrl}
+                      controls
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      style={aspectStyle}
+                    />
+                  ) : (
+                    <img className="art-hero-image" src={output.previewUrl} alt={output.prompt} />
+                  )
                 ) : (
                   <div className="art-text-placeholder">
                     <p>{output.previewText ?? output.prompt}</p>

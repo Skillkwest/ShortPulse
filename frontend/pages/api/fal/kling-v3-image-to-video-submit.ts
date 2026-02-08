@@ -19,6 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 20000);
   try {
+    // Log the payload being sent to Fal (helpful for debugging)
+    console.log('[Kling 3.0 Submit] Payload:', JSON.stringify(req.body, null, 2));
+
     const upstream = await fetch(FAL_KLING_V3_SUBMIT_URL, {
       method: "POST",
       headers: {
@@ -29,6 +32,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       signal: controller.signal,
     });
     const data = await upstream.json();
+
+    // Log the response from Fal
+    console.log('[Kling 3.0 Submit] Response:', JSON.stringify(data, null, 2));
+
     return res.status(upstream.status).json(data);
   } catch (error) {
     return res.status(500).json({ error: "Fal Kling 3.0 submit failed", detail: String(error) });

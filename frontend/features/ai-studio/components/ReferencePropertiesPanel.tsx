@@ -39,11 +39,7 @@ type ReferencePropertiesPanelProps = {
   onKlingVoiceIdChange?: (index: 0 | 1, value: string) => void;
   onKlingMultiPromptsChange?: (value: { id: string; prompt: string; duration: number }[]) => void;
   onKlingElementsChange?: (value: { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]) => void;
-  motionCharacterOrientation?: "image" | "video";
-  motionKeepOriginalSound?: boolean;
   motionVideoUrl?: string | null;
-  onMotionCharacterOrientationChange?: (value: "image" | "video") => void;
-  onMotionKeepOriginalSoundChange?: (value: boolean) => void;
   onMotionVideoChange?: (url: string | null) => void;
   videoDurationSeconds?: number;
   videoResolution?: string;
@@ -161,11 +157,7 @@ export function ReferencePropertiesPanel({
   onKlingVoiceIdChange,
   onKlingMultiPromptsChange,
   onKlingElementsChange,
-  motionCharacterOrientation = "video",
-  motionKeepOriginalSound = true,
   motionVideoUrl = null,
-  onMotionCharacterOrientationChange,
-  onMotionKeepOriginalSoundChange,
   onMotionVideoChange,
   videoDurationSeconds,
   videoResolution,
@@ -944,68 +936,6 @@ export function ReferencePropertiesPanel({
             ) : null}
           </div>
         </div>
-        {isMotionMode ? (
-          <div
-            className={`step-card motion-settings-card ${collapsedSteps.motionSettings ? "is-collapsed" : ""}`}
-            onClick={() => expandIfCollapsed("motionSettings")}
-            style={{ order: 2 }}
-          >
-            <div className="step-card-header">
-              {beginnerMode && <span className="step-badge">2</span>}
-              <div className="step-header-copy">
-                <p className="step-title">Motion Settings</p>
-                <span className="step-subtitle tiny helper-text">
-                  Configure how motion is transferred to your character
-                </span>
-              </div>
-              {!beginnerMode ? (
-                <div className="step-header-actions">
-                  <StepHeaderActionButton
-                    label="Toggle motion settings"
-                    isCollapsed={collapsedSteps.motionSettings}
-                    onClick={() => toggleStep("motionSettings")}
-                  />
-                </div>
-              ) : null}
-            </div>
-            {!collapsedSteps.motionSettings ? (
-              <div className="create-controls motion-settings-controls">
-                <div className="control-row compact">
-                  <label className="input-label">Character orientation</label>
-                  <select
-                    className="model-select"
-                    value={motionCharacterOrientation ?? "video"}
-                    onChange={(event) => onMotionCharacterOrientationChange?.(event.target.value as "image" | "video")}
-                  >
-                    <option value="video">Video (max 30s)</option>
-                    <option value="image">Image (max 10s)</option>
-                  </select>
-                  <span className="tiny helper-text">
-                    Video: motion video controls background. Image: character stays still, motion applied.
-                  </span>
-                </div>
-                <div className="motion-settings-toggle-row">
-                  <div className="motion-settings-toggle-copy">
-                    <span className="input-label">Keep original sound</span>
-                    <span className="tiny helper-text">
-                      Use the audio track from the motion reference video
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className={`reference-toggle ${motionKeepOriginalSound ? "is-active" : ""}`}
-                    aria-pressed={motionKeepOriginalSound}
-                    onClick={() => onMotionKeepOriginalSoundChange?.(!motionKeepOriginalSound)}
-                  >
-                    <span className="reference-toggle-track" aria-hidden="true">
-                      <span className="reference-toggle-dot" />
-                    </span>
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
         {isVideoVariant && !isMotionMode ? (
           <div
             className={`step-card video-settings-card ${collapsedSteps.videoSettings ? "is-collapsed" : ""}`}

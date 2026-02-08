@@ -112,14 +112,23 @@ export default async function handler(
       });
     }
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
+    // Generate a signed URL that expires in 1 hour (3600 seconds)
+    // This provides temporary access without making the bucket public
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from('media_library')
-      .getPublicUrl(storagePath);
+      .createSignedUrl(storagePath, 3600); // 1 hour expiry
 
-    // Return success response
+    if (signedUrlError || !signedUrlData) {
+      console.error('Signed URL generation error:', signedUrlError);
+      return res.status(500).json({
+        error: 'Failed to generate access URL',
+        details: signedUrlError?.message || 'Unknown error'
+      });
+    }
+
+    // Return success response with signed URL
     return res.status(200).json({
-      url: publicUrl,
+      url: signedUrlData.signedUrl,
       path: storagePath,
       size: file.size || 0,
     });

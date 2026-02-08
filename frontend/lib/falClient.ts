@@ -66,6 +66,13 @@ export type FalKlingV3ImageToVideoSubmitRequest = {
   cfg_scale?: number;
   generate_audio?: boolean;
   voice_ids?: string[];
+  multi_prompt?: Array<{ prompt: string; duration: number }>;
+  shot_type?: "customize" | "intelligent";
+  elements?: Array<{
+    video_url?: string;
+    frontal_image_url?: string;
+    reference_image_urls?: string[];
+  }>;
 };
 
 export type FalKlingStatusResponse = {

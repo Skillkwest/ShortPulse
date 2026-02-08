@@ -228,7 +228,7 @@ export function ModelModal({ isOpen, position, onClose, onSelect, options = mode
     [optionMap],
   );
 
-  const fluxOrder = ["fal/flux-2", "fal/flux-2-pro", "fal/flux-2-pro/edit"];
+  const fluxOrder = ["fal-ai/flux-2/klein/9b", "fal/flux-2", "fal/flux-2-pro", "fal/flux-2-pro/edit"];
   const fluxOptions = fluxOrder
     .map((value) => filteredOptions.find((option) => option.value === value))
     .filter((item): item is ModelOption => Boolean(item));

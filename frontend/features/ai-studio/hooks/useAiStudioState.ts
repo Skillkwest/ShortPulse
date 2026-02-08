@@ -197,8 +197,10 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         if (isMotionMode) {
           return opt.value === "fal-ai/kling-video/v3/pro/image-to-video";
         }
-        // In standard/kling3 mode, show video and image-to-video models but NOT keyframes-only models.
+        // In standard/kling3 mode, show video and image-to-video models but NOT keyframes-only or Kling models.
         if (opt.mediaType === "keyframes") return false;
+        // Hide Kling models from standard Image-to-Video modal (they have dedicated tabs)
+        if (opt.value.includes("kling-video")) return false;
         return (
           !opt.mediaType ||
           opt.mediaType === "image-to-video" ||
@@ -1070,8 +1072,12 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
               }
             }
 
-            // Construct elements payload with motion video
-            const motionElementsPayload = [{ video_url: motionVideoUrlFinal }];
+            // Construct elements payload with motion video and character reference
+            // @Element1 will reference both the motion (video_url) and character appearance (frontal_image_url)
+            const motionElementsPayload = [{
+              video_url: motionVideoUrlFinal,
+              frontal_image_url: characterImageUrl,
+            }];
 
             // Build prompt - append @Element1 reference if not already present
             let finalPrompt = cleanedPrompt || "Transfer motion from reference video to character";
@@ -1307,19 +1313,19 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
           const normalizedAspect =
             modelConfig?.allowedAspects?.includes(aspect)
               ? aspect
-              : modelConfig?.defaultAspect ?? "16:9";
+              : modelConfig?.defaultAspect ?? "auto";
           const resolution = requestedResolution?.toLowerCase().includes("1080")
             ? "1080p"
             : requestedResolution?.toLowerCase().includes("480")
               ? "480p"
               : "720p";
-          const duration = Math.max(4, Math.min(12, requestedDurationSeconds)).toString();
+          const duration = Math.max(2, Math.min(12, requestedDurationSeconds)).toString();
           const endImageUrl = preparedImageInputs.length > 1 ? preparedImageInputs[1] : undefined;
           const { request_id } = await submitFalSeedanceI2V({
             prompt: cleanedPrompt,
             image_url: preparedImageInputs[0],
             end_image_url: endImageUrl,
-            aspect_ratio: normalizedAspect as "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9",
+            aspect_ratio: normalizedAspect,
             resolution: resolution as "480p" | "720p" | "1080p",
             duration,
             generate_audio: requestedAudio,

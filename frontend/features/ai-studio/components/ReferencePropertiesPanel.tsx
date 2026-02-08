@@ -3,7 +3,7 @@
  * Provides reference dropzones, aspect/model selection, and prompt capture for image/video workflows.
  */
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowFatLinesRight, Image, Plus, UploadSimple } from "phosphor-react";
+import { ArrowFatLinesRight, Image, Plus, UploadSimple, VideoCamera } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
 import { extractDragDropPayload, extractVideoDragDropPayload, isImageDragTransfer, isVideoDragTransfer } from "../utils/dragDrop";
@@ -212,7 +212,7 @@ export function ReferencePropertiesPanel({
     reference: boolean;
     model: boolean;
     prompt: boolean;
-    motionSettings: boolean;
+    motionAudio: boolean;
     videoSettings: boolean;
     klingAdvanced: boolean;
     klingAssets: boolean;
@@ -222,7 +222,7 @@ export function ReferencePropertiesPanel({
     reference: false,
     model: false,
     prompt: false,
-    motionSettings: false,
+    motionAudio: false,
     videoSettings: false,
     klingAdvanced: false,
     klingAssets: false,
@@ -235,7 +235,7 @@ export function ReferencePropertiesPanel({
       | "reference"
       | "model"
       | "prompt"
-      | "motionSettings"
+      | "motionAudio"
       | "videoSettings"
       | "klingAdvanced"
       | "klingAssets"
@@ -250,7 +250,7 @@ export function ReferencePropertiesPanel({
       | "reference"
       | "model"
       | "prompt"
-      | "motionSettings"
+      | "motionAudio"
       | "videoSettings"
       | "klingAdvanced"
       | "klingAssets"
@@ -696,8 +696,9 @@ export function ReferencePropertiesPanel({
                           </button>
                         ) : (
                           <div className="reference-drop-content image-drop-content">
-                            <UploadSimple size={22} weight="regular" />
-                            <p className="reference-drop-title helper-text">Click to upload character</p>
+                            <Plus size={22} weight="regular" />
+                            <p className="reference-drop-title">Add your character</p>
+                            <p className="reference-drop-subtitle helper-text">Image with visible face and body</p>
                           </div>
                         )}
                       </div>
@@ -745,8 +746,9 @@ export function ReferencePropertiesPanel({
                           </>
                         ) : (
                           <div className="reference-drop-content video-drop-content">
-                            <UploadSimple size={22} weight="regular" />
-                            <p className="reference-drop-title helper-text">Click to upload motion reference</p>
+                            <VideoCamera size={22} weight="regular" />
+                            <p className="reference-drop-title">Add motion to copy</p>
+                            <p className="reference-drop-subtitle helper-text">Video duration: 3–30 seconds</p>
                           </div>
                         )}
                       </div>
@@ -1008,6 +1010,53 @@ export function ReferencePropertiesPanel({
                   >
                     <span className="reference-toggle-track" aria-hidden="true">
                       <span className="reference-toggle-dot" />
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {isMotionMode ? (
+          <div
+            className={`step-card motion-audio-card ${collapsedSteps.motionAudio ? "is-collapsed" : ""}`}
+            onClick={() => expandIfCollapsed("motionAudio")}
+            style={{ order: 2 }}
+          >
+            <div className="step-card-header">
+              {beginnerMode && <span className="step-badge">2</span>}
+              <div className="step-header-copy">
+                <p className="step-title">Audio Settings</p>
+                <span className="step-subtitle tiny helper-text">Control audio generation for your motion video</span>
+              </div>
+              {!beginnerMode ? (
+                <div className="step-header-actions">
+                  <StepHeaderActionButton
+                    label="Toggle audio settings"
+                    isCollapsed={collapsedSteps.motionAudio}
+                    onClick={() => toggleStep("motionAudio")}
+                  />
+                </div>
+              ) : null}
+            </div>
+            {!collapsedSteps.motionAudio ? (
+              <div className="create-controls motion-audio-controls">
+                <div className="video-settings-toggle-row">
+                  <div className="video-settings-toggle-copy">
+                    <span className="input-label">Generate audio</span>
+                    <span className="tiny helper-text">
+                      Generate ambient audio for the motion video
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className={`audio-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
+                    aria-pressed={videoGenerateAudioValue}
+                    aria-label={videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"}
+                    onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
+                  >
+                    <span className="audio-toggle-track" aria-hidden="true">
+                      <span className="audio-toggle-dot" />
                     </span>
                   </button>
                 </div>

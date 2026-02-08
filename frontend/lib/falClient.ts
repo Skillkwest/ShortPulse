@@ -172,9 +172,9 @@ export type FalSeedanceI2VSubmitRequest = {
   prompt: string;
   image_url: string;
   end_image_url?: string;
-  aspect_ratio?: "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9";
+  aspect_ratio?: "auto" | "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "9:21" | string;
   resolution?: "480p" | "720p" | "1080p";
-  duration?: "4" | "5" | "6" | "7" | "8" | "9" | "10" | "11" | "12" | string;
+  duration?: "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "11" | "12" | string;
   camera_fixed?: boolean;
   seed?: number;
   enable_safety_checker?: boolean;

@@ -394,6 +394,62 @@
   background: #071a18;
 }
 
+/* Audio Toggle - Always uses yellow gradient, independent of beginner mode */
+.audio-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  position: relative;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.26);
+  background: rgba(12, 15, 22, 0.82);
+  width: 48px;
+  height: 26px;
+  padding: 0;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.audio-toggle:hover:not(:disabled) {
+  border-color: rgba(245, 185, 66, 0.6);
+}
+
+.audio-toggle.is-active {
+  background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.8));
+  border-color: rgba(245, 185, 66, 0.9);
+  box-shadow: 0 6px 18px rgba(245, 185, 66, 0.25);
+}
+
+.audio-toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.audio-toggle-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.audio-toggle-dot {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f5f9ff;
+  transform: translateY(-50%);
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.audio-toggle.is-active .audio-toggle-dot {
+  transform: translate(22px, -50%);
+  background: #1a140c;
+}
+
 .step-badge {
   width: 28px;
   height: 28px;

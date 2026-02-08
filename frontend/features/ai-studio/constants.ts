@@ -46,6 +46,7 @@ export const aspectOptions: AspectOption[] = [
 export const modelOptions: ModelOption[] = [
   { value: "fal-ai/kling-video/v3/pro/text-to-video", label: "Kling 3.0 (Text to Video)", mediaType: "video" },
   { value: "fal-ai/kling-video/v3/pro/image-to-video", label: "Kling 3.0 (Start/End Frame)", mediaType: "image-to-video" },
+  { value: "fal-ai/kling-video/v2.6/pro/motion-control", label: "Kling 2.6 Motion Control", mediaType: "image-to-video" },
   { value: "fal-ai/veo3.1/first-last-frame-to-video", label: "Veo 3.1 (First/Last Frame)", mediaType: "keyframes" },
   { value: "fal-ai/veo3.1/image-to-video", label: "Veo 3.1 (Image to Video)", mediaType: "image-to-video" },
   {

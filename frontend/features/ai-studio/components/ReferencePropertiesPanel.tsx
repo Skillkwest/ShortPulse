@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ArrowFatLinesRight, Image, Plus, UploadSimple } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
-import { extractDragDropPayload, isImageDragTransfer } from "../utils/dragDrop";
+import { extractDragDropPayload, extractVideoDragDropPayload, isImageDragTransfer, isVideoDragTransfer } from "../utils/dragDrop";
 import { modelLogos } from "../constants";
 import { stripEditLabel } from "../utils/modelLabels";
 import { PromptStep } from "./PromptStep";
@@ -25,8 +25,8 @@ type ReferencePropertiesPanelProps = {
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   referenceText: string | null;
-  videoReferenceMode?: "standard" | "keyframes" | "kling3";
-  onVideoReferenceModeChange?: (value: "standard" | "keyframes" | "kling3") => void;
+  videoReferenceMode?: "standard" | "keyframes" | "kling3" | "motion";
+  onVideoReferenceModeChange?: (value: "standard" | "keyframes" | "kling3" | "motion") => void;
   klingNegativePrompt?: string;
   klingCfgScale?: number;
   klingShotType?: "customize" | "intelligent";
@@ -39,6 +39,12 @@ type ReferencePropertiesPanelProps = {
   onKlingVoiceIdChange?: (index: 0 | 1, value: string) => void;
   onKlingMultiPromptsChange?: (value: { id: string; prompt: string; duration: number }[]) => void;
   onKlingElementsChange?: (value: { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]) => void;
+  motionCharacterOrientation?: "image" | "video";
+  motionKeepOriginalSound?: boolean;
+  motionVideoUrl?: string | null;
+  onMotionCharacterOrientationChange?: (value: "image" | "video") => void;
+  onMotionKeepOriginalSoundChange?: (value: boolean) => void;
+  onMotionVideoChange?: (url: string | null) => void;
   videoDurationSeconds?: number;
   videoResolution?: string;
   videoGenerateAudio?: boolean;
@@ -127,10 +133,6 @@ const VEO_FIRST_LAST_RESOLUTION_OPTIONS = [
   { value: "1080p", label: "1080p (Full HD)" },
   { value: "4k", label: "4K (2160p)" },
 ];
-// Kling 3.0 I2V uses the full 3-15 second range.
-const KLING_3_DURATION_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-// Kling 3.0 I2V does not have a resolution parameter; aspect is auto-detected from input frames.
-const KLING_3_RESOLUTION_OPTIONS = [{ value: "auto", label: "Auto (from input)" }];
 
 /**
  * Renders reference-based image/video tool controls.
@@ -159,6 +161,12 @@ export function ReferencePropertiesPanel({
   onKlingVoiceIdChange,
   onKlingMultiPromptsChange,
   onKlingElementsChange,
+  motionCharacterOrientation = "video",
+  motionKeepOriginalSound = true,
+  motionVideoUrl = null,
+  onMotionCharacterOrientationChange,
+  onMotionKeepOriginalSoundChange,
+  onMotionVideoChange,
   videoDurationSeconds,
   videoResolution,
   videoGenerateAudio,
@@ -200,16 +208,19 @@ export function ReferencePropertiesPanel({
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraOneInputRef = useRef<HTMLInputElement | null>(null);
   const extraTwoInputRef = useRef<HTMLInputElement | null>(null);
+  const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
   const makeId = () => `kling-${Math.random().toString(36).slice(2, 9)}`;
 
   const [primaryDragActive, setPrimaryDragActive] = useState(false);
   const [extraDragActive, setExtraDragActive] = useState([false, false]);
+  const [motionVideoDragActive, setMotionVideoDragActive] = useState(false);
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
 
   const [collapsedSteps, setCollapsedSteps] = React.useState<{
     reference: boolean;
     model: boolean;
     prompt: boolean;
+    motionSettings: boolean;
     videoSettings: boolean;
     klingAdvanced: boolean;
     klingAssets: boolean;
@@ -219,6 +230,7 @@ export function ReferencePropertiesPanel({
     reference: false,
     model: false,
     prompt: false,
+    motionSettings: false,
     videoSettings: false,
     klingAdvanced: false,
     klingAssets: false,
@@ -231,6 +243,7 @@ export function ReferencePropertiesPanel({
       | "reference"
       | "model"
       | "prompt"
+      | "motionSettings"
       | "videoSettings"
       | "klingAdvanced"
       | "klingAssets"
@@ -245,6 +258,7 @@ export function ReferencePropertiesPanel({
       | "reference"
       | "model"
       | "prompt"
+      | "motionSettings"
       | "videoSettings"
       | "klingAdvanced"
       | "klingAssets"
@@ -391,29 +405,68 @@ export function ReferencePropertiesPanel({
     setExtraDragActiveAt(index, false);
   };
 
+  const allowVideoDrag = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isVideoDragTransfer(event.dataTransfer)) {
+      event.preventDefault();
+      return true;
+    }
+    return false;
+  };
+
+  const handleMotionVideoDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMotionVideoDragActive(false);
+
+    const payload = extractVideoDragDropPayload(event.dataTransfer);
+    if (payload.videoUrl) {
+      onMotionVideoChange?.(payload.videoUrl);
+    } else if (event.dataTransfer.files?.length) {
+      const videoFile = Array.from(event.dataTransfer.files).find(f =>
+        f.type.startsWith("video/")
+      );
+      if (videoFile) {
+        const url = URL.createObjectURL(videoFile);
+        onMotionVideoChange?.(url);
+      }
+    }
+  };
+
+  const handleMotionVideoSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith("video/")) {
+      const url = URL.createObjectURL(file);
+      onMotionVideoChange?.(url);
+    }
+    event.target.value = "";
+  };
+
   const isVideoVariant = variant === "video";
   const activeVideoMode = videoReferenceMode ?? "standard";
   const isKling3Mode = isVideoVariant && activeVideoMode === "kling3";
   const isKeyframesMode = isVideoVariant && activeVideoMode === "keyframes";
+  const isMotionMode = isVideoVariant && activeVideoMode === "motion";
   const isStandardMode = !isVideoVariant || activeVideoMode === "standard";
   const isVeoImageToVideoModel = modelId === "fal-ai/veo3.1/image-to-video";
   const isVeoImageToVideoStandard = isStandardMode && isVeoImageToVideoModel;
   const isVeoFirstLastModel = modelId === "fal-ai/veo3.1/first-last-frame-to-video";
-  const isKling3ImageModel = modelId === "fal-ai/kling-video/v3/pro/image-to-video";
-  const isKling3InKeyframes = isKeyframesMode && isKling3ImageModel;
   const referenceStepTitle = isVideoVariant
     ? isKling3Mode
       ? "Add Kling 3.0 References"
       : isKeyframesMode
         ? "Add Reference Frames"
-        : "Add Reference Image"
+        : isMotionMode
+          ? "Add Motion References"
+          : "Add Reference Image"
     : "Add Reference Images";
   const referenceStepSubtitle = isVideoVariant
     ? isKling3Mode
       ? "Upload start/end frames plus Kling controls."
       : isKeyframesMode
         ? "Upload or drag and drop images from the reference grid."
-        : "Upload or drag and drop a single image for standard image-to-video."
+        : isMotionMode
+          ? "Upload a character image and motion reference video."
+          : "Upload or drag and drop a single image for standard image-to-video."
     : "Upload or drag and drop images from the reference grid.";
   const promptOrder = isVideoVariant ? 4 : 2;
   const modelOrder = isVideoVariant ? 2 : 3;
@@ -440,35 +493,30 @@ export function ReferencePropertiesPanel({
     ? VEO_I2V_DURATION_OPTIONS
     : isVeoFirstLastModel
       ? VEO_FIRST_LAST_DURATION_OPTIONS
-      : isKling3InKeyframes
-        ? KLING_3_DURATION_OPTIONS
-        : VIDEO_DURATION_OPTIONS;
+      : VIDEO_DURATION_OPTIONS;
   const resolutionOptions = isVeoImageToVideoStandard
     ? VEO_I2V_RESOLUTION_OPTIONS
     : isVeoFirstLastModel
       ? VEO_FIRST_LAST_RESOLUTION_OPTIONS
-      : isKling3InKeyframes
-        ? KLING_3_RESOLUTION_OPTIONS
-        : VIDEO_RESOLUTION_OPTIONS;
-  // Kling 3.0 in keyframes mode uses auto aspect (detected from input frames).
-  const aspectOptionsForModel = isVeoImageToVideoStandard || isKling3InKeyframes
+      : VIDEO_RESOLUTION_OPTIONS;
+  const aspectOptionsForModel = isVeoImageToVideoStandard
     ? [{ value: "auto", ratioLabel: "Auto", name: "Auto (from input)", orientation: "widescreen" } as AspectOption]
     : aspectOptions;
 
   useEffect(() => {
-    if ((isVeoImageToVideoStandard || isKling3InKeyframes) && aspect !== "auto") {
+    if (isVeoImageToVideoStandard && aspect !== "auto") {
       onAspectChange("auto");
     }
-  }, [isVeoImageToVideoStandard, isKling3InKeyframes, aspect, onAspectChange]);
+  }, [isVeoImageToVideoStandard, aspect, onAspectChange]);
 
   useEffect(() => {
-    if ((isVeoImageToVideoStandard || isVeoFirstLastModel || isKling3InKeyframes) && !durationOptions.includes(videoDurationValue)) {
+    if ((isVeoImageToVideoStandard || isVeoFirstLastModel) && !durationOptions.includes(videoDurationValue)) {
       onVideoDurationChange?.(durationOptions[1] ?? durationOptions[0]);
     }
-  }, [isVeoImageToVideoStandard, isVeoFirstLastModel, isKling3InKeyframes, durationOptions, videoDurationValue, onVideoDurationChange]);
+  }, [isVeoImageToVideoStandard, isVeoFirstLastModel, durationOptions, videoDurationValue, onVideoDurationChange]);
 
   useEffect(() => {
-    if ((isVeoImageToVideoStandard || isVeoFirstLastModel || isKling3InKeyframes) && !resolutionOptions.some((option) => option.value === videoResolutionValue)) {
+    if ((isVeoImageToVideoStandard || isVeoFirstLastModel) && !resolutionOptions.some((option) => option.value === videoResolutionValue)) {
       onVideoResolutionChange?.(resolutionOptions[0]?.value ?? "auto");
     }
   }, [isVeoImageToVideoStandard, isVeoFirstLastModel, resolutionOptions, videoResolutionValue, onVideoResolutionChange]);
@@ -513,64 +561,66 @@ export function ReferencePropertiesPanel({
             beginnerMode={beginnerMode}
           />
         </div>
-        <div
-          className={`step-card reference-frame-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
-          onClick={() => expandIfCollapsed("model")}
-          style={{ order: modelOrder }}
-        >
-            <div className="step-card-header">
-              {beginnerMode && <span className="step-badge">{isVideoVariant ? "2" : "3"}</span>}
-              <div className="step-header-copy">
-                <p className="step-title">Choose Frame & Model</p>
-                <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you generate.</span>
-              </div>
-              {!beginnerMode ? (
-                <div className="step-header-actions">
-                  <StepHeaderActionButton
-                    label="Open model options"
-                    isCollapsed={collapsedSteps.model}
-                    onClick={() => toggleStep("model")}
-                  />
+        {!isKeyframesMode && !isMotionMode ? (
+          <div
+            className={`step-card reference-frame-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
+            onClick={() => expandIfCollapsed("model")}
+            style={{ order: modelOrder }}
+          >
+              <div className="step-card-header">
+                {beginnerMode && <span className="step-badge">{isVideoVariant ? "2" : "3"}</span>}
+                <div className="step-header-copy">
+                  <p className="step-title">Choose Frame & Model</p>
+                  <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you generate.</span>
                 </div>
-              ) : null}
-            </div>
-            {!collapsedSteps.model ? (
-              <div className="create-controls reference-frame-controls frame-model-controls">
-                {!isVideoVariant ? (
-                  <div className="control-row compact">
-                    <label className="input-label">Aspect ratio</label>
-                    <AspectDropdown aspect={aspect} onSelect={onAspectChange} options={aspectOptionsForModel} />
+                {!beginnerMode ? (
+                  <div className="step-header-actions">
+                    <StepHeaderActionButton
+                      label="Open model options"
+                      isCollapsed={collapsedSteps.model}
+                      onClick={() => toggleStep("model")}
+                    />
                   </div>
                 ) : null}
-                <div className={`control-row compact ${isVideoVariant ? "full-span" : ""}`}>
-                  <label className="input-label">Model</label>
-                  <button
-                    type="button"
-                    className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""}`}
-                    data-model-anchor="reference-model"
-                    onClick={(event) =>
-                      onModelPickerOpen(
-                        "reference-model",
-                        event.currentTarget,
-                        variant === "image"
-                          ? "reference-image"
-                          : isKeyframesMode
-                            ? "reference-keyframes"
-                            : "reference-video",
-                      )
-                    }
-                  >
-                    <div className="model-picker-row">
-                      <span className="model-picker-value">
-                        {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
-                        {stripEditLabel(modelLabel)}
-                      </span>
-                    </div>
-                  </button>
-                </div>
               </div>
-            ) : null}
-        </div>
+              {!collapsedSteps.model ? (
+                <div className="create-controls reference-frame-controls frame-model-controls">
+                  {!isVideoVariant ? (
+                    <div className="control-row compact">
+                      <label className="input-label">Aspect ratio</label>
+                      <AspectDropdown aspect={aspect} onSelect={onAspectChange} options={aspectOptionsForModel} />
+                    </div>
+                  ) : null}
+                  <div className={`control-row compact ${isVideoVariant ? "full-span" : ""}`}>
+                    <label className="input-label">Model</label>
+                    <button
+                      type="button"
+                      className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""}`}
+                      data-model-anchor="reference-model"
+                      onClick={(event) =>
+                        onModelPickerOpen(
+                          "reference-model",
+                          event.currentTarget,
+                          variant === "image"
+                            ? "reference-image"
+                            : isKeyframesMode
+                              ? "reference-keyframes"
+                              : "reference-video",
+                        )
+                      }
+                    >
+                      <div className="model-picker-row">
+                        <span className="model-picker-value">
+                          {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
+                          {stripEditLabel(modelLabel)}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+          </div>
+        ) : null}
         <div className="reference-dropzone-block image-block" style={{ order: referenceOrder }}>
           <div
             className={`reference-step-card ${collapsedSteps.reference ? "is-collapsed" : ""} ${isVideoVariant ? "is-video-refs" : "is-image-refs"}`}
@@ -616,9 +666,101 @@ export function ReferencePropertiesPanel({
                     >
                       First/Last Frame
                     </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={activeVideoMode === "motion"}
+                      className={`mode-toggle-btn ${activeVideoMode === "motion" ? "is-active" : ""}`}
+                      onClick={() => onVideoReferenceModeChange?.("motion")}
+                    >
+                      Motion Control
+                    </button>
                   </div>
                 ) : null}
-                {isKling3Mode ? (
+                {isMotionMode ? (
+                  <div className="drop-image-row motion-drop-row">
+                    {/* Character Image Dropzone */}
+                    <div className="primary-drop">
+                      <div
+                        className={`reference-dropzone ${referenceImageUrl ? "has-preview" : ""} ${primaryDragActive ? "is-dragging" : ""}`}
+                        onDrop={handlePrimaryDrop}
+                        onDragEnter={handlePrimaryDragEnter}
+                        onDragOver={handlePrimaryDragOver}
+                        onDragLeave={handlePrimaryDragLeave}
+                        onClick={() => primaryInputRef.current?.click()}
+                        style={referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined}
+                      >
+                        <span className="dropzone-tag">Character image</span>
+                        {referenceImageUrl ? (
+                          <button
+                            type="button"
+                            className="dropzone-clear"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onPrimaryImageChange(null);
+                            }}
+                          >
+                            ×
+                          </button>
+                        ) : (
+                          <div className="reference-drop-content image-drop-content">
+                            <UploadSimple size={22} weight="regular" />
+                            <p className="reference-drop-title helper-text">Click to upload character</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Motion Video Dropzone */}
+                    <div className="primary-drop">
+                      <div
+                        className={`reference-dropzone video-dropzone ${motionVideoUrl ? "has-preview" : ""} ${motionVideoDragActive ? "is-dragging" : ""}`}
+                        onDrop={handleMotionVideoDrop}
+                        onDragEnter={(e) => {
+                          if (allowVideoDrag(e)) {
+                            setMotionVideoDragActive(true);
+                          }
+                        }}
+                        onDragOver={(e) => {
+                          if (allowVideoDrag(e)) {
+                            setMotionVideoDragActive(true);
+                          }
+                        }}
+                        onDragLeave={() => setMotionVideoDragActive(false)}
+                        onClick={() => motionVideoInputRef.current?.click()}
+                      >
+                        <span className="dropzone-tag">Motion video</span>
+                        {motionVideoUrl ? (
+                          <>
+                            <video
+                              className="reference-dropzone-video"
+                              src={motionVideoUrl}
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                            />
+                            <button
+                              type="button"
+                              className="dropzone-clear"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onMotionVideoChange?.(null);
+                              }}
+                            >
+                              ×
+                            </button>
+                          </>
+                        ) : (
+                          <div className="reference-drop-content video-drop-content">
+                            <UploadSimple size={22} weight="regular" />
+                            <p className="reference-drop-title helper-text">Click to upload motion reference</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : isKling3Mode ? (
                   <div className="drop-image-row kling-drop-row">
                     <div className="primary-drop">
                       <div
@@ -735,8 +877,8 @@ export function ReferencePropertiesPanel({
                             onClick={() => extraOneInputRef.current?.click()}
                             style={extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined}
                           >
-                            <span className={`dropzone-tag ${isKling3InKeyframes ? "subtle" : ""}`}>
-                              {isKling3InKeyframes ? "Last frame (optional)" : "Last frame"}
+                            <span className="dropzone-tag">
+                              Last frame
                             </span>
                             {extraImageUrls[0] ? (
                               <button
@@ -802,7 +944,69 @@ export function ReferencePropertiesPanel({
             ) : null}
           </div>
         </div>
-        {isVideoVariant ? (
+        {isMotionMode ? (
+          <div
+            className={`step-card motion-settings-card ${collapsedSteps.motionSettings ? "is-collapsed" : ""}`}
+            onClick={() => expandIfCollapsed("motionSettings")}
+            style={{ order: 2 }}
+          >
+            <div className="step-card-header">
+              {beginnerMode && <span className="step-badge">2</span>}
+              <div className="step-header-copy">
+                <p className="step-title">Motion Settings</p>
+                <span className="step-subtitle tiny helper-text">
+                  Configure how motion is transferred to your character
+                </span>
+              </div>
+              {!beginnerMode ? (
+                <div className="step-header-actions">
+                  <StepHeaderActionButton
+                    label="Toggle motion settings"
+                    isCollapsed={collapsedSteps.motionSettings}
+                    onClick={() => toggleStep("motionSettings")}
+                  />
+                </div>
+              ) : null}
+            </div>
+            {!collapsedSteps.motionSettings ? (
+              <div className="create-controls motion-settings-controls">
+                <div className="control-row compact">
+                  <label className="input-label">Character orientation</label>
+                  <select
+                    className="model-select"
+                    value={motionCharacterOrientation ?? "video"}
+                    onChange={(event) => onMotionCharacterOrientationChange?.(event.target.value as "image" | "video")}
+                  >
+                    <option value="video">Video (max 30s)</option>
+                    <option value="image">Image (max 10s)</option>
+                  </select>
+                  <span className="tiny helper-text">
+                    Video: motion video controls background. Image: character stays still, motion applied.
+                  </span>
+                </div>
+                <div className="motion-settings-toggle-row">
+                  <div className="motion-settings-toggle-copy">
+                    <span className="input-label">Keep original sound</span>
+                    <span className="tiny helper-text">
+                      Use the audio track from the motion reference video
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className={`reference-toggle ${motionKeepOriginalSound ? "is-active" : ""}`}
+                    aria-pressed={motionKeepOriginalSound}
+                    onClick={() => onMotionKeepOriginalSoundChange?.(!motionKeepOriginalSound)}
+                  >
+                    <span className="reference-toggle-track" aria-hidden="true">
+                      <span className="reference-toggle-dot" />
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {isVideoVariant && !isMotionMode ? (
           <div
             className={`step-card video-settings-card ${collapsedSteps.videoSettings ? "is-collapsed" : ""}`}
             onClick={() => expandIfCollapsed("videoSettings")}
@@ -1148,6 +1352,13 @@ export function ReferencePropertiesPanel({
         accept="image/*"
         style={{ display: "none" }}
         onChange={handleFileSelection((url) => onExtraImageChange(1, url))}
+      />
+      <input
+        ref={motionVideoInputRef}
+        type="file"
+        accept="video/*"
+        style={{ display: "none" }}
+        onChange={handleMotionVideoSelection}
       />
     </div>
   );

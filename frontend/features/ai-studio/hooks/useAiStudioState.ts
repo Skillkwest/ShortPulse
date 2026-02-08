@@ -120,7 +120,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const VIDEO_DURATION_STORAGE_KEY = "aiStudioVideoDuration";
   const VIDEO_RESOLUTION_STORAGE_KEY = "aiStudioVideoResolution";
 
-  const [videoReferenceMode, setVideoReferenceMode] = useState<"standard" | "keyframes" | "kling3">(
+  const [videoReferenceMode, setVideoReferenceMode] = useState<"standard" | "keyframes" | "kling3" | "motion">(
     "standard",
   );
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(() => {
@@ -147,6 +147,10 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const [klingElements, setKlingElements] = useState<
     { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
   >([{ id: randomId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }]);
+  const [motionCharacterOrientation, setMotionCharacterOrientation] = useState<"image" | "video">("video");
+  const [motionKeepOriginalSound, setMotionKeepOriginalSound] = useState<boolean>(true);
+  const [motionCharacterUrl, setMotionCharacterUrl] = useState<string | null>(null);
+  const [motionReferenceVideoUrl, setMotionReferenceVideoUrl] = useState<string | null>(null);
   const [useReferenceImageIndicator, setUseReferenceImageIndicator] = useState<boolean>(false);
   const [detailOutputId, setDetailOutputId] = useState<string | null>(null);
   const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
@@ -159,6 +163,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const lastVideoReferenceModeRef = useRef(videoReferenceMode);
   const lastNonKling3VideoModelRef = useRef<string | null>(null);
   const lastNonKeyframesVideoModelRef = useRef<string | null>(null);
+  const lastNonMotionVideoModelRef = useRef<string | null>(null);
 
   const activeOutput = useMemo(
     () => outputs.find((item) => item.id === activeOutputId) ?? null,
@@ -182,13 +187,15 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   const allowedModelOptions = useMemo(() => {
     if (selectedTool === "video" || selectedTool === "kling") {
       const isKeyframesMode = videoReferenceMode === "keyframes";
+      const isMotionMode = videoReferenceMode === "motion";
       return modelOptions.filter((opt) => {
-        // In keyframes mode, show keyframe-specific models and keyframe-compatible image-to-video models.
+        // In keyframes mode, only show Veo 3.1 First/Last Frame.
         if (isKeyframesMode) {
-          if (opt.mediaType === "keyframes") return true;
-          // Kling 3.0 I2V supports keyframes (optional end frame).
-          if (opt.value === "fal-ai/kling-video/v3/pro/image-to-video") return true;
-          return false;
+          return opt.value === "fal-ai/veo3.1/first-last-frame-to-video";
+        }
+        // In motion mode, only show Kling 3.0 Image-to-Video.
+        if (isMotionMode) {
+          return opt.value === "fal-ai/kling-video/v3/pro/image-to-video";
         }
         // In standard/kling3 mode, show video and image-to-video models but NOT keyframes-only models.
         if (opt.mediaType === "keyframes") return false;
@@ -305,9 +312,9 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   }, [model, hasUserVideoPrefs]);
 
   // Models that support keyframes mode (start + end frame).
+  // Only Veo 3.1 First/Last Frame is supported in keyframes mode.
   const keyframeCompatibleModels = new Set([
     "fal-ai/veo3.1/first-last-frame-to-video",
-    "fal-ai/kling-video/v3/pro/image-to-video",
   ]);
 
   // Keep reference mode and model in sync without locking other tabs.
@@ -349,6 +356,24 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       return;
     }
 
+    // Motion mode: only allow Kling 3.0 Image-to-Video
+    if (videoReferenceMode === "motion") {
+      if (model !== "fal-ai/kling-video/v3/pro/image-to-video") {
+        lastNonMotionVideoModelRef.current = model;
+        setModel("fal-ai/kling-video/v3/pro/image-to-video");
+      } else if (!model) {
+        setModel("fal-ai/kling-video/v3/pro/image-to-video");
+      }
+      return;
+    }
+
+    // Switching from motion to standard: restore previous model
+    if (model === "fal-ai/kling-video/v3/pro/image-to-video" && videoReferenceMode === "standard") {
+      const fallback = lastNonMotionVideoModelRef.current ?? "fal-ai/veo3.1/image-to-video";
+      setModel(fallback);
+      return;
+    }
+
     // Switching from keyframes to standard: Veo first/last requires two frames, so switch it.
     if (model === "fal-ai/veo3.1/first-last-frame-to-video" && videoReferenceMode === "standard") {
       const fallback = lastNonKeyframesVideoModelRef.current ?? "fal-ai/veo3.1/image-to-video";
@@ -364,11 +389,11 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   }, [model, selectedTool, setModel, setVideoReferenceMode, videoReferenceMode]);
 
   // If user leaves Kling tool back to Video, reset mode/model away from Kling.
-  // Exception: keyframes mode supports Kling 3.0, so don't reset it there.
+  // Exception: keyframes and motion modes are supported in video tool, so don't reset them.
   useEffect(() => {
     if (selectedTool !== "video") return;
-    // Kling 3.0 is supported in keyframes mode, so don't reset it.
-    if (videoReferenceMode === "keyframes") return;
+    // Keyframes and motion modes are supported in video tool, so don't reset them.
+    if (videoReferenceMode === "keyframes" || videoReferenceMode === "motion") return;
     if (videoReferenceMode === "kling3") {
       setVideoReferenceMode("standard");
     }
@@ -1002,6 +1027,83 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         };
 
         if (isKling3ImageModel) {
+          // Handle motion mode separately
+          if (videoReferenceMode === "motion") {
+            // Validate inputs
+            if (!videoReferenceImageUrl) {
+              notifyGenerationFailure(id, "Motion Control requires a character image");
+              return;
+            }
+            if (!motionReferenceVideoUrl) {
+              notifyGenerationFailure(id, "Motion Control requires a motion reference video");
+              return;
+            }
+
+            // Upload character image if needed
+            const characterImageUrl = preparedImageInputs[0];
+            if (!characterImageUrl) {
+              notifyGenerationFailure(id, "Failed to prepare character image");
+              return;
+            }
+
+            // Check if motion video URL needs upload (blob URLs need to be converted to public URLs)
+            let motionVideoUrlFinal = motionReferenceVideoUrl;
+            if (motionReferenceVideoUrl.startsWith("blob:")) {
+              try {
+                const { uploadVideoToStorage } = await import("../utils/videoUpload");
+
+                updateOutputById(id, (item) => ({
+                  ...item,
+                  timestamp: "Uploading video...",
+                }));
+
+                motionVideoUrlFinal = await uploadVideoToStorage(motionReferenceVideoUrl);
+
+                updateOutputById(id, (item) => ({
+                  ...item,
+                  timestamp: "Video uploaded",
+                }));
+              } catch (error) {
+                const message = error instanceof Error ? error.message : "Video upload failed";
+                notifyGenerationFailure(id, `Video upload failed: ${message}`);
+                return;
+              }
+            }
+
+            // Construct elements payload with motion video
+            const motionElementsPayload = [{ video_url: motionVideoUrlFinal }];
+
+            // Build prompt - append @Element1 reference if not already present
+            let finalPrompt = cleanedPrompt || "Transfer motion from reference video to character";
+            if (!finalPrompt.includes("@Element")) {
+              finalPrompt = `${finalPrompt} @Element1`;
+            }
+
+            const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
+
+            const { request_id } = await submitFalKlingV3ImageToVideo({
+              prompt: finalPrompt,
+              start_image_url: characterImageUrl,
+              duration: klingDuration,
+              aspect_ratio: resolveKlingAspectRatio(aspect),
+              negative_prompt: klingNegativePrompt,
+              cfg_scale: klingCfgScale,
+              generate_audio: requestedAudio,
+              elements: motionElementsPayload as any,
+            });
+
+            updateOutputById(id, (item) => ({
+              ...item,
+              taskId: request_id,
+              taskState: "running",
+              timestamp: "Submitted",
+              previewUrl: characterImageUrl,
+            }));
+            startPollingWithGeneration(request_id, id, "fal-kling-3");
+            return;
+          }
+
+          // Standard Kling 3.0 flow (non-motion mode)
           const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
           const endImageUrl =
             (videoReferenceMode === "keyframes" || videoReferenceMode === "kling3") && preparedImageInputs.length > 1
@@ -1516,6 +1618,9 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       videoResolution,
       videoGenerateAudio,
       videoReferenceMode,
+      motionCharacterOrientation,
+      motionKeepOriginalSound,
+      motionReferenceVideoUrl,
     ],
   );
 
@@ -1969,6 +2074,14 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setKlingMultiPrompts,
     klingElements,
     setKlingElements,
+    motionCharacterOrientation,
+    setMotionCharacterOrientation,
+    motionKeepOriginalSound,
+    setMotionKeepOriginalSound,
+    motionCharacterUrl,
+    setMotionCharacterUrl,
+    motionReferenceVideoUrl,
+    setMotionReferenceVideoUrl,
     referenceText,
     setReferenceText,
     setSharedPrompt,

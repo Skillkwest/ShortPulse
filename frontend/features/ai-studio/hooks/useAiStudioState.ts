@@ -139,6 +139,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     return Boolean(window.localStorage.getItem(VIDEO_DURATION_STORAGE_KEY) || window.localStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY));
   });
   const [videoGenerateAudio, setVideoGenerateAudio] = useState<boolean>(false);
+  const [videoCameraFixed, setVideoCameraFixed] = useState<boolean>(false);
+  const [videoAutoFix, setVideoAutoFix] = useState<boolean>(false);
   const [klingNegativePrompt, setKlingNegativePrompt] = useState<string>("blur, distort, and low quality");
   const [klingCfgScale, setKlingCfgScale] = useState<number>(0.5);
   const [klingShotType, setKlingShotType] = useState<"customize" | "intelligent">("customize");
@@ -1181,6 +1183,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             duration,
             resolution,
             generate_audio: requestedAudio,
+            auto_fix: videoAutoFix,
             safety_tolerance: "5",
             enable_safety_checker: false,
           });
@@ -1329,6 +1332,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             resolution: resolution as "480p" | "720p" | "1080p",
             duration,
             generate_audio: requestedAudio,
+            camera_fixed: videoCameraFixed,
             enable_safety_checker: true,
           });
           updateOutputById(id, (item) => ({
@@ -1359,6 +1363,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             duration,
             resolution,
             generate_audio: requestedAudio,
+            auto_fix: videoAutoFix,
             safety_tolerance: "5",
             enable_safety_checker: false,
           });
@@ -1411,6 +1416,7 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             duration: `${Math.max(4, Math.min(8, requestedDurationSeconds))}s`,
             resolution: resolution as "720p" | "1080p" | "4k",
             generate_audio: requestedAudio,
+            auto_fix: videoAutoFix,
             safety_tolerance: "5",
             enable_safety_checker: false,
           });
@@ -2066,6 +2072,10 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
     setVideoResolution,
     videoGenerateAudio,
     setVideoGenerateAudio,
+    videoCameraFixed,
+    setVideoCameraFixed,
+    videoAutoFix,
+    setVideoAutoFix,
     klingNegativePrompt,
     setKlingNegativePrompt,
     klingCfgScale,

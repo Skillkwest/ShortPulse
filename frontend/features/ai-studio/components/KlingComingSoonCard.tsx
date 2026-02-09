@@ -12,8 +12,8 @@ export function KlingComingSoonCard() {
         <h3>Kling 3.0</h3>
       </div>
       <p>
-        Kling 3.0 is still in active refinement. We’ve temporarily replaced the detailed
-        reference panel with this note while we finish the full workflow.
+        Generate cinematic videos with intelligent multi-shot composition, dynamic camera movements,
+        and native audio. Perfect for creating story-driven content with professional motion quality.
       </p>
       <div
         style={{
@@ -25,7 +25,7 @@ export function KlingComingSoonCard() {
         }}
       >
         <p style={{ color: "var(--ai-card-text)", fontSize: "13px", margin: 0, fontStyle: "italic" }}>
-          Keep an eye out—Kling 3.0 will reappear once the experience is ready for prime time.
+          The full Kling 3.0 workflow is coming soon with advanced shot controls and reference options.
         </p>
       </div>
     </div>

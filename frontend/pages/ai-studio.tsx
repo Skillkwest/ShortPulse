@@ -93,6 +93,10 @@ export default function AiStudioPage() {
     setVideoResolution,
     videoGenerateAudio,
     setVideoGenerateAudio,
+    videoCameraFixed,
+    setVideoCameraFixed,
+    videoAutoFix,
+    setVideoAutoFix,
     klingNegativePrompt,
     setKlingNegativePrompt,
     klingCfgScale,
@@ -624,7 +628,7 @@ export default function AiStudioPage() {
   const filteredModelOptions = useMemo(() => {
     const base = filterModelOptions(mode, selectedTool, modelOptions, getModelConfig);
     if (selectedTool === "video" && videoReferenceMode === "standard") {
-      return base.filter((opt) => opt.mediaType === "image-to-video");
+      return base.filter((opt) => opt.mediaType === "image-to-video" && !opt.value.includes("kling"));
     }
     if (selectedTool === "video" && videoReferenceMode === "keyframes") {
       // Show both Veo first/last frame and Kling 3.0 (supports optional end frame)
@@ -790,6 +794,17 @@ export default function AiStudioPage() {
     agentChatOpen: isAgentChatOpen,
     onAgentApplyPrompt: () => { },
     onAgentSelectVariation: () => { },
+    // Video settings props
+    videoDurationSeconds,
+    videoResolution,
+    videoGenerateAudio,
+    videoCameraFixed,
+    videoAutoFix,
+    onVideoDurationChange: setVideoDurationSeconds,
+    onVideoResolutionChange: setVideoResolution,
+    onVideoGenerateAudioChange: setVideoGenerateAudio,
+    onVideoCameraFixedChange: setVideoCameraFixed,
+    onVideoAutoFixChange: setVideoAutoFix,
     beginnerMode,
   } as const;
 
@@ -899,6 +914,10 @@ export default function AiStudioPage() {
           onVideoDurationChange: setVideoDurationSeconds,
           onVideoResolutionChange: setVideoResolution,
           onVideoGenerateAudioChange: setVideoGenerateAudio,
+          videoCameraFixed,
+          onVideoCameraFixedChange: setVideoCameraFixed,
+          videoAutoFix,
+          onVideoAutoFixChange: setVideoAutoFix,
           klingNegativePrompt,
           klingCfgScale,
           klingShotType,

@@ -33,6 +33,7 @@ export const modelLogos: Record<string, string> = {
 };
 
 export const aspectOptions: AspectOption[] = [
+  { value: "auto", ratioLabel: "Auto", name: "Auto", orientation: "square" },
   { value: "9:16", ratioLabel: "9:16", name: "Vertical", orientation: "vertical" },
   { value: "4:5", ratioLabel: "4:5", name: "Social Post", orientation: "vertical" },
   { value: "3:4", ratioLabel: "3:4", name: "Traditional", orientation: "vertical" },
@@ -40,6 +41,8 @@ export const aspectOptions: AspectOption[] = [
   { value: "4:3", ratioLabel: "4:3", name: "Classic", orientation: "horizontal" },
   { value: "3:2", ratioLabel: "3:2", name: "Standard", orientation: "horizontal" },
   { value: "16:9", ratioLabel: "16:9", name: "Landscape", orientation: "widescreen" },
+  { value: "21:9", ratioLabel: "21:9", name: "Ultrawide", orientation: "widescreen" },
+  { value: "9:21", ratioLabel: "9:21", name: "Ultra Tall", orientation: "vertical" },
 ];
 
 // When you add/remove image models here, update `docs/sop_image_generation.md` → "Supported image models".

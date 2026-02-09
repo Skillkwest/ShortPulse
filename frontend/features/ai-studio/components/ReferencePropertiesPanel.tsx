@@ -2,13 +2,14 @@
  * Reference properties panel for AI Studio.
  * Provides reference dropzones, aspect/model selection, and prompt capture for image/video workflows.
  */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowFatLinesRight, Image, Plus, UploadSimple, VideoCamera } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
 import { extractDragDropPayload, extractVideoDragDropPayload, isImageDragTransfer, isVideoDragTransfer } from "../utils/dragDrop";
 import { modelLogos } from "../constants";
 import { stripEditLabel } from "../utils/modelLabels";
+import { getModelConfig } from "../logic/modelRegistry";
 import { PromptStep } from "./PromptStep";
 import { CaretDown } from "phosphor-react";
 import { AgentGenerateButton } from "../../../prefabs/agent";
@@ -44,9 +45,13 @@ type ReferencePropertiesPanelProps = {
   videoDurationSeconds?: number;
   videoResolution?: string;
   videoGenerateAudio?: boolean;
+  videoCameraFixed?: boolean;
+  videoAutoFix?: boolean;
   onVideoDurationChange?: (value: number) => void;
   onVideoResolutionChange?: (value: string) => void;
   onVideoGenerateAudioChange?: (value: boolean) => void;
+  onVideoCameraFixedChange?: (value: boolean) => void;
+  onVideoAutoFixChange?: (value: boolean) => void;
   aspectOptions: AspectOption[];
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
@@ -110,23 +115,11 @@ const StepHeaderActionButton: React.FC<StepHeaderActionButtonProps> = ({
 
 const VIDEO_DURATION_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const VIDEO_RESOLUTION_OPTIONS = [
+  { value: "480p", label: "480p (SD)" },
   { value: "720p", label: "720p (HD)" },
   { value: "1080p", label: "1080p (Full HD)" },
   { value: "1k", label: "1K (1024px wide)" },
   { value: "2k", label: "2K (1440p)" },
-  { value: "4k", label: "4K (2160p)" },
-];
-
-const VEO_I2V_DURATION_OPTIONS = [4, 6, 8];
-const VEO_I2V_RESOLUTION_OPTIONS = [
-  { value: "720p", label: "720p (HD)" },
-  { value: "1080p", label: "1080p (Full HD)" },
-  { value: "4k", label: "4K (2160p)" },
-];
-const VEO_FIRST_LAST_DURATION_OPTIONS = [4, 6, 8];
-const VEO_FIRST_LAST_RESOLUTION_OPTIONS = [
-  { value: "720p", label: "720p (HD)" },
-  { value: "1080p", label: "1080p (Full HD)" },
   { value: "4k", label: "4K (2160p)" },
 ];
 
@@ -162,9 +155,13 @@ export function ReferencePropertiesPanel({
   videoDurationSeconds,
   videoResolution,
   videoGenerateAudio,
+  videoCameraFixed = false,
+  videoAutoFix = false,
   onVideoDurationChange,
   onVideoResolutionChange,
   onVideoGenerateAudioChange,
+  onVideoCameraFixedChange,
+  onVideoAutoFixChange,
   aspectOptions,
   isModelModalOpen,
   modelModalAnchor,
@@ -442,6 +439,11 @@ export function ReferencePropertiesPanel({
   const isVeoImageToVideoModel = modelId === "fal-ai/veo3.1/image-to-video";
   const isVeoImageToVideoStandard = isStandardMode && isVeoImageToVideoModel;
   const isVeoFirstLastModel = modelId === "fal-ai/veo3.1/first-last-frame-to-video";
+
+  // Model-specific feature detection
+  const isSeedanceI2VModel = modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
+  const isVeoModel = modelId?.includes("veo3.1") ?? false;
+  const isKling3Model = modelId?.includes("kling-video/v3/pro") ?? false;
   const referenceStepTitle = isVideoVariant
     ? isKling3Mode
       ? "Add Kling 3.0 References"
@@ -460,13 +462,13 @@ export function ReferencePropertiesPanel({
           ? "Upload a character image and motion reference video."
           : "Upload or drag and drop a single image for standard image-to-video."
     : "Upload or drag and drop images from the reference grid.";
-  const promptOrder = isVideoVariant ? 4 : 2;
-  const modelOrder = isVideoVariant ? 2 : 3;
+  const promptOrder = isVideoVariant ? 2 : 2;
+  const modelOrder = isVideoVariant ? 3 : 3;
   const referenceOrder = isVideoVariant ? 1 : 1;
-  const videoSettingsOrder = isVideoVariant ? 3 : 0;
-  const klingAdvancedOrder = isKling3Mode ? 4 : undefined;
-  const generateOrder = isVideoVariant ? (isKling3Mode ? 6 : 5) : 4;
-  const generateBadge = isVideoVariant ? (isKling3Mode ? "6" : "5") : "4";
+  const videoSettingsOrder = isVideoVariant ? 4 : 0;
+  const klingAdvancedOrder = isKling3Mode ? 5 : undefined;
+  const generateOrder = isVideoVariant ? (isKling3Mode ? 7 : 6) : 4;
+  const generateBadge = isVideoVariant ? (isKling3Mode ? "7" : "6") : "4";
   const klingShotSummary =
     klingMultiPrompts?.length ? `${klingMultiPrompts.length} shot${klingMultiPrompts.length > 1 ? "s" : ""}` : "No shots";
   const klingAssetsSummary = (() => {
@@ -481,37 +483,68 @@ export function ReferencePropertiesPanel({
   const videoDurationValue = videoDurationSeconds ?? 6;
   const videoResolutionValue = videoResolution ?? "1080p";
   const videoGenerateAudioValue = Boolean(videoGenerateAudio);
-  const durationOptions = isVeoImageToVideoStandard
-    ? VEO_I2V_DURATION_OPTIONS
-    : isVeoFirstLastModel
-      ? VEO_FIRST_LAST_DURATION_OPTIONS
-      : VIDEO_DURATION_OPTIONS;
-  const resolutionOptions = isVeoImageToVideoStandard
-    ? VEO_I2V_RESOLUTION_OPTIONS
-    : isVeoFirstLastModel
-      ? VEO_FIRST_LAST_RESOLUTION_OPTIONS
-      : VIDEO_RESOLUTION_OPTIONS;
-  const aspectOptionsForModel = isVeoImageToVideoStandard
-    ? [{ value: "auto", ratioLabel: "Auto", name: "Auto (from input)", orientation: "widescreen" } as AspectOption]
-    : aspectOptions;
 
-  useEffect(() => {
-    if (isVeoImageToVideoStandard && aspect !== "auto") {
-      onAspectChange("auto");
-    }
-  }, [isVeoImageToVideoStandard, aspect, onAspectChange]);
+  // Get model config for dynamic filtering
+  const modelConfig = useMemo(() => modelId ? getModelConfig(modelId) : null, [modelId]);
 
-  useEffect(() => {
-    if ((isVeoImageToVideoStandard || isVeoFirstLastModel) && !durationOptions.includes(videoDurationValue)) {
-      onVideoDurationChange?.(durationOptions[1] ?? durationOptions[0]);
+  // Duration options based on model config
+  const durationOptions = useMemo(() => {
+    if (!modelConfig?.allowedDurations) {
+      return VIDEO_DURATION_OPTIONS;  // Show default range if not specified
     }
-  }, [isVeoImageToVideoStandard, isVeoFirstLastModel, durationOptions, videoDurationValue, onVideoDurationChange]);
+    return modelConfig.allowedDurations;
+  }, [modelConfig]);
 
-  useEffect(() => {
-    if ((isVeoImageToVideoStandard || isVeoFirstLastModel) && !resolutionOptions.some((option) => option.value === videoResolutionValue)) {
-      onVideoResolutionChange?.(resolutionOptions[0]?.value ?? "auto");
+  // Resolution options based on model config
+  const resolutionOptions = useMemo(() => {
+    if (!modelConfig?.allowedResolutions) {
+      return VIDEO_RESOLUTION_OPTIONS;  // Show all if not specified
     }
-  }, [isVeoImageToVideoStandard, isVeoFirstLastModel, resolutionOptions, videoResolutionValue, onVideoResolutionChange]);
+    // Filter to only allowed resolutions
+    return VIDEO_RESOLUTION_OPTIONS.filter(option =>
+      modelConfig.allowedResolutions?.includes(option.value)
+    );
+  }, [modelConfig]);
+
+  // Aspect options based on model config
+  const aspectOptionsForModel = useMemo(() => {
+    if (!modelConfig) return aspectOptions;
+
+    // If model specifies allowed aspects, filter to those
+    if (modelConfig.allowedAspects?.length) {
+      return aspectOptions.filter(opt => modelConfig.allowedAspects?.includes(opt.value));
+    }
+
+    return aspectOptions;
+  }, [modelConfig]);
+
+  // Auto-clamp duration to allowed range when switching models
+  useEffect(() => {
+    if (!modelConfig || !onVideoDurationChange) return;
+
+    // If model has specific duration restrictions and current value isn't allowed
+    if (modelConfig.allowedDurations && !modelConfig.allowedDurations.includes(videoDurationValue)) {
+      // Find closest allowed duration
+      const closestDuration = modelConfig.allowedDurations.reduce((prev, curr) =>
+        Math.abs(curr - videoDurationValue) < Math.abs(prev - videoDurationValue) ? curr : prev
+      );
+      onVideoDurationChange(closestDuration);
+    }
+  }, [modelConfig, videoDurationValue, onVideoDurationChange]);
+
+  // Auto-clamp resolution to allowed options when switching models
+  useEffect(() => {
+    if (!modelConfig || !onVideoResolutionChange) return;
+
+    // If model has specific resolution restrictions and current value isn't allowed
+    if (modelConfig.allowedResolutions && !modelConfig.allowedResolutions.includes(videoResolutionValue)) {
+      // Use model's default resolution or first allowed option
+      const fallbackResolution = modelConfig.defaultResolution ?? modelConfig.allowedResolutions[0];
+      if (fallbackResolution) {
+        onVideoResolutionChange(fallbackResolution);
+      }
+    }
+  }, [modelConfig, videoResolutionValue, onVideoResolutionChange]);
 
   return (
     <div className="tool-properties reference-properties-panel">
@@ -522,7 +555,7 @@ export function ReferencePropertiesPanel({
       <div className="reference-drop-layout-inner">
         <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
           <PromptStep
-            stepNumber={isVideoVariant ? "4" : "2"}
+            stepNumber={isVideoVariant ? "2" : "2"}
             title="Write Your Prompt"
             subtitle="Start typing your prompt or drag & drop a prompt from the reference grid."
             prompt={referenceText ?? ""}
@@ -560,7 +593,7 @@ export function ReferencePropertiesPanel({
             style={{ order: modelOrder }}
           >
               <div className="step-card-header">
-                {beginnerMode && <span className="step-badge">{isVideoVariant ? "2" : "3"}</span>}
+                {beginnerMode && <span className="step-badge">{isVideoVariant ? "3" : "3"}</span>}
                 <div className="step-header-copy">
                   <p className="step-title">Choose Frame & Model</p>
                   <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you generate.</span>
@@ -945,7 +978,7 @@ export function ReferencePropertiesPanel({
             style={{ order: videoSettingsOrder }}
           >
             <div className="step-card-header">
-              {beginnerMode && <span className="step-badge">3</span>}
+              {beginnerMode && <span className="step-badge">4</span>}
               <div className="step-header-copy">
                 <p className="step-title">Choose video settings</p>
                 <span className="step-subtitle tiny helper-text">Set duration, resolution, and audio output before generating.</span>
@@ -1003,16 +1036,73 @@ export function ReferencePropertiesPanel({
                   </div>
                   <button
                     type="button"
-                    className={`reference-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
+                    className={`audio-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
                     aria-pressed={videoGenerateAudioValue}
                     aria-label={videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"}
                     onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
                   >
-                    <span className="reference-toggle-track" aria-hidden="true">
-                      <span className="reference-toggle-dot" />
+                    <span className="audio-toggle-track" aria-hidden="true">
+                      <span className="audio-toggle-dot" />
                     </span>
                   </button>
                 </div>
+
+                {/* Seedance I2V: Camera Fixed toggle */}
+                {isSeedanceI2VModel && (
+                  <div className="video-settings-toggle-row">
+                    <div className="video-settings-toggle-copy">
+                      <span className="input-label">Camera Fixed</span>
+                      <span className="tiny helper-text">Lock camera position (tripod shot)</span>
+                    </div>
+                    <button
+                      type="button"
+                      className={`reference-toggle ${videoCameraFixed ? "is-active" : ""}`}
+                      aria-pressed={videoCameraFixed}
+                      aria-label={videoCameraFixed ? "Unlock camera" : "Lock camera"}
+                      onClick={() => onVideoCameraFixedChange?.(!videoCameraFixed)}
+                    >
+                      <span className="reference-toggle-track" aria-hidden="true">
+                        <span className="reference-toggle-dot" />
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Kling 3.0: Shot Type dropdown */}
+                {isKling3Model && (
+                  <div className="control-row compact fixed-select">
+                    <label className="input-label">Shot Type</label>
+                    <select
+                      className="model-select"
+                      value={klingShotType}
+                      onChange={(e) => onKlingShotTypeChange?.(e.target.value as "customize" | "intelligent")}
+                    >
+                      <option value="intelligent">Intelligent (Auto multi-shot)</option>
+                      <option value="customize">Customize (Single shot)</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Veo 3.1: Auto-fix toggle */}
+                {isVeoModel && (
+                  <div className="video-settings-toggle-row">
+                    <div className="video-settings-toggle-copy">
+                      <span className="input-label">Auto-fix</span>
+                      <span className="tiny helper-text">Automatically correct visual issues</span>
+                    </div>
+                    <button
+                      type="button"
+                      className={`reference-toggle ${videoAutoFix ? "is-active" : ""}`}
+                      aria-pressed={videoAutoFix}
+                      aria-label={videoAutoFix ? "Disable auto-fix" : "Enable auto-fix"}
+                      onClick={() => onVideoAutoFixChange?.(!videoAutoFix)}
+                    >
+                      <span className="reference-toggle-track" aria-hidden="true">
+                        <span className="reference-toggle-dot" />
+                      </span>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : null}
           </div>
@@ -1072,7 +1162,7 @@ export function ReferencePropertiesPanel({
               style={{ order: klingAdvancedOrder }}
             >
               <div className="step-card-header">
-                {beginnerMode && <span className="step-badge">5</span>}
+                {beginnerMode && <span className="step-badge">6</span>}
                 <div className="step-header-copy">
                   <p className="step-title">Shots & Timing</p>
                   <span className="step-subtitle tiny helper-text">{klingShotSummary}</span>
@@ -1154,10 +1244,10 @@ export function ReferencePropertiesPanel({
             <div
               className={`step-card kling-advanced-card ${collapsedSteps.klingAssets ? "is-collapsed" : ""}`}
               onClick={() => expandIfCollapsed("klingAssets")}
-              style={{ order: (klingAdvancedOrder ?? 4) + 0.1 }}
+              style={{ order: (klingAdvancedOrder ?? 5) + 0.1 }}
             >
               <div className="step-card-header">
-                {beginnerMode && <span className="step-badge">5b</span>}
+                {beginnerMode && <span className="step-badge">6b</span>}
                 <div className="step-header-copy">
                   <p className="step-title">Assets & Voices</p>
                   <span className="step-subtitle tiny helper-text">{klingAssetsSummary}</span>
@@ -1234,10 +1324,10 @@ export function ReferencePropertiesPanel({
             <div
               className={`step-card kling-advanced-card ${collapsedSteps.klingGuidance ? "is-collapsed" : ""}`}
               onClick={() => expandIfCollapsed("klingGuidance")}
-              style={{ order: (klingAdvancedOrder ?? 4) + 0.2 }}
+              style={{ order: (klingAdvancedOrder ?? 5) + 0.2 }}
             >
               <div className="step-card-header">
-                {beginnerMode && <span className="step-badge">5c</span>}
+                {beginnerMode && <span className="step-badge">6c</span>}
                 <div className="step-header-copy">
                   <p className="step-title">Guidance & Safety</p>
                   <span className="step-subtitle tiny helper-text">{klingGuidanceSummary}</span>

@@ -58,7 +58,7 @@ Goal: prevent false failures and resource leaks in generation flows.
 Checklist:
 - [x] Tighten error detection in `frontend/features/ai-studio/hooks/useAiStudioTasks.ts` so informational `message` fields do not trigger failure.
 - [x] Add proper teardown for polling timers created by `useAiStudioTasks` when AI Studio unmounts.
-- [ ] Verify failed/successful generation transitions are stable across Fal and Kei providers.
+- [x] Verify failed/successful generation transitions are stable across Fal and Kei providers.
 
 Exit criteria:
 - No false "failed" state during normal provider queue responses.
@@ -70,7 +70,7 @@ Goal: ensure credit UI and guardrails reflect real balance during testing.
 Checklist:
 - [x] Improve `useCredits` refresh strategy (focus, interval, and post-generation refresh points).
 - [x] Ensure generation guardrails use fresh balance before blocking runs.
-- [ ] Test flow: user signup -> admin credit add -> AI Studio generation without stale-balance blocks.
+- [x] Test flow: user signup -> admin credit add -> AI Studio generation without stale-balance blocks.
 
 Exit criteria:
 - Credit changes made in admin are reflected quickly in AI Studio/profile.
@@ -81,7 +81,7 @@ Goal: make uploads and retrieval resilient for testers.
 Checklist:
 - [x] Fix upload placeholder cleanup on upload failure in `frontend/pages/media-library.tsx`.
 - [x] Add signed URL refresh/re-sign fallback for expired media in Media Library and AI Studio modal selection paths.
-- [ ] Validate delete, bulk delete, rename, and download continue working after long session durations.
+- [x] Validate delete, bulk delete, rename, and download continue working after long session durations.
 
 Exit criteria:
 - No stuck "Uploading..." cards.
@@ -148,9 +148,9 @@ Checklist:
 - [x] Admin can add credits to that user.
 - [x] User sees updated credits in AI Studio/profile.
 - [x] User can generate image/video in AI Studio and results persist to Media Library.
-- [ ] User can reopen, preview, download, rename, and delete media.
-- [ ] Error states are clear for insufficient credits/provider errors.
-- [ ] `npm -C frontend run lint` and `npm -C frontend run build` both succeed.
+- [x] User can reopen, preview, download, rename, and delete media.
+- [x] Error states are clear for insufficient credits/provider errors.
+- [x] `npm -C frontend run lint` and `npm -C frontend run build` both succeed.
 
 ## Change Log
 - 2026-02-09: Initial version created from full MVP audit findings.

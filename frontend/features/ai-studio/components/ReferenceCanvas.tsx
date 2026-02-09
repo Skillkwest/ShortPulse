@@ -223,6 +223,22 @@ export function ReferenceCanvas({
                     </div>
                   ) : null}
                   {renderSaveChip(item, activeOutputId === item.id)}
+                  {/* Show delete button for error cards when selected */}
+                  {isFailing && onDeleteOutput && activeOutputId === item.id ? (
+                    <div className="reference-card-actions" aria-label="Reference actions">
+                      <button
+                        type="button"
+                        className="reference-card-action-btn reference-card-action-btn--danger"
+                        aria-label="Remove error from grid"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDeleteOutput(item.id);
+                        }}
+                      >
+                        <X size={16} weight="bold" aria-hidden />
+                      </button>
+                    </div>
+                  ) : null}
                   {(onSaveToLibrary && (isImagePreview || isPromptOnly || isVideoPreview)) || (onDownload && (isImagePreview || isVideoPreview)) ? (
                     <div className="reference-card-actions" aria-label="Reference actions">
                       {onSaveToLibrary ? (

@@ -144,21 +144,6 @@ export function AiStudioToolbar({
             </button>
           );
         })}
-          <div className="toolbar-child-divider" aria-hidden="true" />
-          <button
-            type="button"
-            className={`toolbar-item toolbar-item-child ${selectedTool === "kling" ? "is-active" : ""}`}
-            data-tool-id="kling"
-            onClick={() => {
-              onToggleCreateTools(true);
-              onSelectTool(selectedTool === "kling" ? null : "kling");
-            }}
-          >
-            <VideoCamera size={20} weight="regular" />
-            <div className="toolbar-copy">
-              <span className="toolbar-label">Kling 3.0</span>
-            </div>
-          </button>
           <div className="toolbar-divider toolbar-divider-children" aria-hidden="true" />
           <div className="toolbar-create-spacer" aria-hidden="true" />
         </div>

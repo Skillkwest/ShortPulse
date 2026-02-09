@@ -58,6 +58,30 @@ const condenseError = (message: string) => {
   return `${trimmed.slice(0, 77)}…`;
 };
 
+const createShortErrorMessage = (message: string) => {
+  if (!message) return "Generation failed";
+  const lower = message.toLowerCase();
+
+  // Content policy violations
+  if (lower.includes("content") && (lower.includes("policy") || lower.includes("checker") || lower.includes("flagged"))) {
+    return "Content not allowed";
+  }
+
+  // Timeout errors
+  if (lower.includes("timeout") || lower.includes("timed out")) {
+    return "Request timed out";
+  }
+
+  // Rate limit errors
+  if (lower.includes("rate limit") || lower.includes("too many")) {
+    return "Rate limit exceeded";
+  }
+
+  // Generic failures
+  if (message.length <= 35) return message;
+  return `${message.slice(0, 32)}…`;
+};
+
 const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
   switch (provider) {
     case "fal":
@@ -151,6 +175,20 @@ export function useAiStudioTasks({
             "pending";
           const state = stateRaw === "succeeded" ? "success" : stateRaw;
 
+          // Enhanced logging for debugging error detection
+          console.log(`[Polling ${outputId}] ========== POLL RESPONSE ==========`);
+          console.log(`[Polling ${outputId}] Provider: ${provider}`);
+          console.log(`[Polling ${outputId}] Raw status object:`, JSON.stringify(status, null, 2));
+          console.log(`[Polling ${outputId}] Extracted state: "${state}"`);
+          console.log(`[Polling ${outputId}] status?.status: "${status?.status}"`);
+          console.log(`[Polling ${outputId}] status?.state: "${status?.state}"`);
+          console.log(`[Polling ${outputId}] status?.data?.status: "${status?.data?.status}"`);
+          console.log(`[Polling ${outputId}] State === "error": ${state === "error"}`);
+          console.log(`[Polling ${outputId}] State === "fail": ${state === "fail"}`);
+          console.log(`[Polling ${outputId}] Has error field: ${Boolean(status?.error)}`);
+          console.log(`[Polling ${outputId}] Has message field: ${Boolean(status?.message)}`);
+          console.log(`[Polling ${outputId}] =====================================`);
+
           const allUrls = extractMediaByProvider(provider, status);
           const hasMedia = allUrls.length > 0;
 
@@ -193,15 +231,58 @@ export function useAiStudioTasks({
             return;
           }
 
-          if (state === "fail" || state === "error") {
+          // MULTIPLE ERROR DETECTION STRATEGIES
+          const isErrorState =
+            state === "fail" ||
+            state === "error" ||
+            state === "failed";
+
+          const hasErrorField =
+            Boolean(status?.error) ||
+            Boolean(status?.message) ||
+            Boolean(status?.failMsg) ||
+            Boolean(status?.failCode);
+
+          const isExplicitErrorStatus =
+            status?.status === "error" ||
+            status?.state === "error";
+
+          // If ANY condition is true, treat as error
+          if (isErrorState || hasErrorField || isExplicitErrorStatus) {
+            console.log(`[Polling ${outputId}] 🔴 ERROR DETECTED via: ${
+              isErrorState ? "error state" :
+              hasErrorField ? "error field present" :
+              "explicit error status"
+            }`);
+
             const failureDetail =
               status?.failMsg ||
               status?.failCode ||
               status?.error ||
               status?.message ||
+              status?.statusMessage ||
               "Generation failed";
-            const failureMessage = condenseError(failureDetail);
+
+            const failureMessage = condenseError(
+              typeof status?.detail === "string" ? status?.detail : failureDetail
+            );
+
+            const shortMessage = createShortErrorMessage(failureMessage);
+
+            console.log(`[Polling ${outputId}] Error message: "${failureMessage}"`);
+            console.log(`[Polling ${outputId}] Error detail: "${failureDetail}"`);
+
             notifyGenerationFailure(outputId, failureMessage, failureDetail);
+
+            // Update output state to show error in UI
+            updateOutputById(outputId, (item) => ({
+              ...item,
+              status: "ready",
+              taskState: "fail",
+              errorMessage: failureMessage,
+              errorMessageShort: shortMessage,
+            }));
+
             if (onGenerationFailure) {
               onGenerationFailure({
                 outputId,

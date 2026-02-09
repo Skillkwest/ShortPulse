@@ -48,8 +48,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : null;
 
         if (policyError) {
-          return res.status(statusResp.status).json({
+          return res.status(200).json({
             status: "error",
+            state: "error",  // Part D: Redundant field
             error: policyError.msg || "Content policy violation",
             detail: policyError.msg || "The content was flagged by the content checker",
             request_id: requestId,
@@ -57,8 +58,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
-      return res.status(statusResp.status).json({
+      return res.status(200).json({
         status: "error",
+        state: "error",  // Part D: Redundant field
         error: statusJson?.error || statusJson?.message || "Generation failed",
         detail: JSON.stringify(statusJson),
         request_id: requestId,
@@ -72,23 +74,119 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       normalizedStatus === "success" ||
       normalizedStatus === "done";
 
-    if (!isComplete) {
-      return res.status(statusResp.status).json(statusJson);
+    const isFailed = normalizedStatus === "failed" || normalizedStatus === "error";
+
+    if (isFailed) {
+      // Check for content policy violation in failed status
+      if (statusJson?.detail) {
+        const policyError = Array.isArray(statusJson.detail)
+          ? statusJson.detail.find((d: any) => d.type === "content_policy_violation")
+          : null;
+
+        if (policyError) {
+          return res.status(200).json({
+            status: "error",
+            state: "error",  // Part D: Redundant field
+            error: policyError.msg || "Content policy violation",
+            detail: policyError.msg || "The content was flagged by the content checker",
+            request_id: requestId,
+          });
+        }
+      }
+
+      // Generic failed status handling
+      return res.status(200).json({
+        status: "error",
+        state: "error",  // Part D: Redundant field
+        error: statusJson?.error || statusJson?.message || statusJson?.statusMessage || "Generation failed",
+        detail: JSON.stringify(statusJson),
+        request_id: requestId,
+      });
     }
 
+
+    if (!isComplete) {
+      return res.status(200).json(statusJson);  // Part C: Always HTTP 200
+    }
+
+    // Fetch result
     const resultResp = await fetch(`${FAL_NANO_BANANA_PRO_STATUS_URL}/${requestId}`, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },
       signal: controller.signal,
     });
+
+    // Part A: Check result content type
+    const resultContentType = resultResp.headers.get("content-type");
+    if (!resultContentType || !resultContentType.includes("application/json")) {
+      const text = await resultResp.text();
+      return res.status(200).json({
+        status: "error",
+        state: "error",
+        error: "Fal Nano Banana Pro Edit result returned non-JSON response",
+        detail: text.substring(0, 500),
+        request_id: requestId,
+      });
+    }
+
     const resultJson = await resultResp.json();
-    return res.status(resultResp.status).json({
+
+    // Part A: Check if result response is an error
+    if (!resultResp.ok) {
+      // Check for content policy violation in result
+      if (resultResp.status === 422 && resultJson?.detail) {
+        const policyError = Array.isArray(resultJson.detail)
+          ? resultJson.detail.find((d: any) => d.type === "content_policy_violation")
+          : null;
+
+        if (policyError) {
+          return res.status(200).json({
+            status: "error",
+            state: "error",
+            error: policyError.msg || "Content policy violation",
+            detail: policyError.msg || "The content was flagged by the content checker",
+            request_id: requestId,
+          });
+        }
+      }
+
+      // Generic result error
+      return res.status(200).json({
+        status: "error",
+        state: "error",
+        error: resultJson?.error || resultJson?.message || "Generation failed",
+        detail: JSON.stringify(resultJson),
+        request_id: requestId,
+      });
+    }
+
+    // Part A: Check if resultJson itself contains error indicators
+    if (resultJson?.error || resultJson?.status === "error" || resultJson?.state === "error") {
+      return res.status(200).json({
+        status: "error",
+        state: "error",
+        error: resultJson.error || resultJson.message || "Generation failed",
+        detail: resultJson.detail || JSON.stringify(resultJson),
+        request_id: requestId,
+      });
+    }
+
+    // Success - return result with HTTP 200 (Part C)
+    return res.status(200).json({
       status: normalizedStatus ?? "completed",
+      state: normalizedStatus ?? "completed",
       request_id: requestId,
       ...resultJson,
     });
   } catch (error) {
-    return res.status(500).json({ error: "Fal Nano Banana Pro Edit status failed", detail: String(error) });
+    // Part B: Return HTTP 200 instead of 500
+    return res.status(200).json({
+      status: "error",
+      state: "error",
+      error: "Fal Nano Banana Pro Edit status check failed",
+      detail: String(error),
+      request_id: requestId,
+    });
   } finally {
     clearTimeout(timeoutId);
   }

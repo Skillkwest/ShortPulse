@@ -320,37 +320,25 @@ export function AiStudioPageContent({
         {visibleFailures.length ? (
           <div className="ai-error-stack" role="alert" aria-live="polite">
             <div className="ai-error-stack-header">
-              <div>
-                <p className="eyebrow">Generation issues</p>
-                <p className="tiny subdued">We could not finish these runs. Inspect, adjust the model, then try again.</p>
-              </div>
+              <p className="eyebrow" style={{ margin: 0, fontSize: '11px', opacity: 0.8 }}>Generation issues</p>
               <span className="error-count-pill">{visibleFailures.length}</span>
             </div>
             <div className="ai-error-card-grid">
               {visibleFailures.map((item) => {
                 const modelLabel = item.model || item.modelId || "Generation";
-                const promptPreview = item.prompt.length > 140 ? `${item.prompt.slice(0, 140)}…` : item.prompt;
                 const isNanoBanana =
                   (item.modelId ?? "").toLowerCase().includes("nano-banana") ||
                   (item.model ?? "").toLowerCase().includes("nano banana");
                 return (
                   <div key={item.id} className="ai-error-card">
                     <div className="ai-error-card-body">
-                      <p className="ai-error-card-title">{modelLabel} failed</p>
+                      <p className="ai-error-card-title">{modelLabel}</p>
                       <p className="ai-error-card-message">{item.errorDetail ?? item.errorMessage}</p>
                       <p className="ai-error-card-meta">
-                        Prompt: <span className="ai-error-card-prompt">{promptPreview}</span>
+                        Prompt: <span className="ai-error-card-prompt">{item.prompt}</span>
                       </p>
-                      {isNanoBanana ? (
-                        <p className="ai-error-card-hint">
-                          Nano Banana is unstable right now. Try FLUX.2 Pro or Seedream 4.5 instead.
-                        </p>
-                      ) : null}
                     </div>
                     <div className="ai-error-card-actions">
-                      <button type="button" className="ghost-btn mini" onClick={() => onInspectFailure(item.id)}>
-                        Inspect
-                      </button>
                       <button type="button" className="ghost-btn mini" onClick={() => onDismissFailure(item.id)}>
                         Dismiss
                       </button>

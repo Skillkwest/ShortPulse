@@ -104,26 +104,55 @@ export const mapAgentMedia = (outputs: any[]) =>
       thumbnailAlt: item.prompt ?? item.previewText ?? null,
     }));
 
-export const mapUploadsFromFiles = (files: FileList, mode: any, aspect: string, model: string | null, resolveModelLabelFn: (value?: string) => string, randomIdFn: () => string) => {
-  const mediaFiles = Array.from(files).filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"));
-  return mediaFiles.map((file) => {
-    const rawUrl = URL.createObjectURL(file);
-    const isVideo = file.type.startsWith("video/");
-    const url = isVideo ? (rawUrl.includes("?") ? `${rawUrl}&video=1` : `${rawUrl}?video=1`) : rawUrl;
-    return {
-      id: `upload-${randomIdFn()}`,
-      prompt: file.name,
-      mode,
-      aspect,
-      model: resolveModelLabelFn(model ?? undefined),
-      modelId: model,
-      status: "ready" as const,
-      timestamp: "Dropped",
-      previewUrl: url,
-      saveState: "idle" as const,
-      saveError: null,
-    };
+/**
+ * Converts a File to a data URL (base64) for persistent preview storage.
+ * This avoids blob URL lifecycle issues where URLs can expire.
+ */
+const readFileAsDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
+};
+
+export const mapUploadsFromFiles = async (
+  files: FileList,
+  mode: any,
+  aspect: string,
+  model: string | null,
+  resolveModelLabelFn: (value?: string) => string,
+  randomIdFn: () => string
+) => {
+  const mediaFiles = Array.from(files).filter(
+    (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
+  );
+
+  const outputs = await Promise.all(
+    mediaFiles.map(async (file) => {
+      const dataUrl = await readFileAsDataUrl(file);
+      const isVideo = file.type.startsWith("video/");
+      // Add video marker to data URL for type detection
+      const url = isVideo ? (dataUrl.includes("?") ? `${dataUrl}&video=1` : `${dataUrl}#video=1`) : dataUrl;
+
+      return {
+        id: `upload-${randomIdFn()}`,
+        prompt: file.name,
+        mode,
+        aspect,
+        model: resolveModelLabelFn(model ?? undefined),
+        modelId: model,
+        status: "ready" as const,
+        timestamp: "Dropped",
+        previewUrl: url,
+        saveState: "idle" as const,
+        saveError: null,
+      };
+    })
+  );
+
+  return outputs;
 };
 
 export const filterModelOptions = (

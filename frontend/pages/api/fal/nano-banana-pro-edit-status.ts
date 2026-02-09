@@ -22,14 +22,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
   try {
     const statusResp = await fetch(`${FAL_NANO_BANANA_PRO_STATUS_URL}/${requestId}/status`, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },
       signal: controller.signal,
     });
+
+    const contentType = statusResp.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const text = await statusResp.text();
+      return res.status(500).json({
+        error: "Fal Nano Banana Pro Edit returned non-JSON response",
+        detail: text.substring(0, 500)
+      });
+    }
+
     const statusJson = await statusResp.json();
+
+    if (!statusResp.ok) {
+      if (statusResp.status === 422 && statusJson?.detail) {
+        const policyError = Array.isArray(statusJson.detail)
+          ? statusJson.detail.find((d: any) => d.type === "content_policy_violation")
+          : null;
+
+        if (policyError) {
+          return res.status(statusResp.status).json({
+            status: "error",
+            error: policyError.msg || "Content policy violation",
+            detail: policyError.msg || "The content was flagged by the content checker",
+            request_id: requestId,
+          });
+        }
+      }
+
+      return res.status(statusResp.status).json({
+        status: "error",
+        error: statusJson?.error || statusJson?.message || "Generation failed",
+        detail: JSON.stringify(statusJson),
+        request_id: requestId,
+      });
+    }
 
     const normalizedStatus = statusJson?.status ? String(statusJson.status).toLowerCase() : null;
     const isComplete =
@@ -38,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       normalizedStatus === "success" ||
       normalizedStatus === "done";
 
-    if (!statusResp.ok || !isComplete) {
+    if (!isComplete) {
       return res.status(statusResp.status).json(statusJson);
     }
 

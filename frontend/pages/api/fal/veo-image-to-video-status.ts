@@ -85,9 +85,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const statusUrl = `${FAL_VEO_QUEUE_BASE}/${requestId}/status`;
-    const statusResp = await fetchJson(statusUrl, controller.signal, apiKey);
-    const statusJson = statusResp.json;
+    const statusResp = await fetch(statusUrl, {
+      method: "GET",
+      headers: { Authorization: `Key ${apiKey}` },
+      signal: controller.signal,
+    });
+
+    // Check if response is JSON before parsing
+    const contentType = statusResp.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const text = await statusResp.text();
+      return res.status(500).json({
+        error: "Fal Veo image-to-video returned non-JSON response",
+        detail: text.substring(0, 500)
+      });
+    }
+
+    const statusJson = await statusResp.json();
     const { responseUrl } = extractQueueUrls(statusJson);
+
+    // Handle content policy violations and other 4xx/5xx errors
+    if (!statusResp.ok) {
+      // Check for content policy violation
+      if (statusResp.status === 422 && statusJson?.detail) {
+        const policyError = Array.isArray(statusJson.detail)
+          ? statusJson.detail.find((d: any) => d.type === "content_policy_violation")
+          : null;
+
+        if (policyError) {
+          return res.status(statusResp.status).json({
+            status: "error",
+            error: policyError.msg || "Content policy violation",
+            detail: policyError.msg || "The content was flagged by the content checker",
+            request_id: requestId,
+          });
+        }
+      }
+
+      // Generic error handling for other non-OK responses
+      return res.status(statusResp.status).json({
+        status: "error",
+        error: statusJson?.error || statusJson?.message || "Generation failed",
+        detail: JSON.stringify(statusJson),
+        request_id: requestId,
+      });
+    }
 
     const normalizedStatus = statusJson?.status ? String(statusJson.status).toLowerCase() : null;
     const isComplete =
@@ -95,10 +137,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       normalizedStatus === "succeeded" ||
       normalizedStatus === "success" ||
       normalizedStatus === "done";
-
-    if (!statusResp.response.ok) {
-      return res.status(statusResp.response.status).json(statusJson);
-    }
 
     if (!isComplete) {
       if (responseUrl) {
@@ -111,7 +149,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           });
         }
       }
-      return res.status(statusResp.response.status).json(statusJson);
+      return res.status(statusResp.status).json(statusJson);
     }
 
     const resultUrl = responseUrl ?? `${FAL_VEO_QUEUE_BASE}/${requestId}`;

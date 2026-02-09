@@ -22,14 +22,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
   try {
     const statusResp = await fetch(`${FAL_SEEDANCE_STATUS_URL}/${requestId}/status`, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },
       signal: controller.signal,
     });
+
+    // Check if response is JSON before parsing
+    const contentType = statusResp.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const text = await statusResp.text();
+      return res.status(500).json({
+        error: "Fal Seedance returned non-JSON response",
+        detail: text.substring(0, 500)
+      });
+    }
+
     const statusJson = await statusResp.json();
+
+    // Handle content policy violations and other 4xx/5xx errors
+    if (!statusResp.ok) {
+      // Check for content policy violation
+      if (statusResp.status === 422 && statusJson?.detail) {
+        const policyError = Array.isArray(statusJson.detail)
+          ? statusJson.detail.find((d: any) => d.type === "content_policy_violation")
+          : null;
+
+        if (policyError) {
+          return res.status(statusResp.status).json({
+            status: "error",
+            error: policyError.msg || "Content policy violation",
+            detail: policyError.msg || "The content was flagged by the content checker",
+            request_id: requestId,
+          });
+        }
+      }
+
+      // Generic error handling for other non-OK responses
+      return res.status(statusResp.status).json({
+        status: "error",
+        error: statusJson?.error || statusJson?.message || "Generation failed",
+        detail: JSON.stringify(statusJson),
+        request_id: requestId,
+      });
+    }
 
     const normalizedStatus = statusJson?.status ? String(statusJson.status).toLowerCase() : null;
     const isComplete =
@@ -38,7 +76,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       normalizedStatus === "success" ||
       normalizedStatus === "done";
 
-    if (!statusResp.ok || !isComplete) {
+    if (!isComplete) {
       return res.status(statusResp.status).json(statusJson);
     }
 
@@ -47,6 +85,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       headers: { Authorization: `Key ${apiKey}` },
       signal: controller.signal,
     });
+
+    // Check if result response is JSON before parsing
+    const resultContentType = resultResp.headers.get("content-type");
+    if (!resultContentType || !resultContentType.includes("application/json")) {
+      const text = await resultResp.text();
+      return res.status(500).json({
+        error: "Fal Seedance result returned non-JSON response",
+        detail: text.substring(0, 500)
+      });
+    }
+
     const resultJson = await resultResp.json();
     return res.status(resultResp.status).json({
       status: normalizedStatus ?? "completed",

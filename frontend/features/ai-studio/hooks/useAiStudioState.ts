@@ -953,7 +953,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
         errorDetail: null,
         saveState: "idle",
         saveError: null,
-        previewUrl: isVeoFirstLastFrameModel || isKling3ImageModel ? preparedImageInputs[0] ?? undefined : undefined,
       };
 
       const requiresImageReference = isKling3ImageModel || isVeoImageToVideoModel;
@@ -1340,7 +1339,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             taskId: request_id,
             taskState: "running",
             timestamp: "Submitted",
-            previewUrl: preparedImageInputs[0],
           }));
           startPollingWithGeneration(request_id, id, "fal-seedance-i2v");
           return;
@@ -1555,9 +1553,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
             prompt: cleanedPrompt,
             image_size,
             num_images: 1,
-            enable_safety_checker: true,
+            enable_safety_checker: false,
             output_format: "png",
-            ...falReferencePayload,
           });
           taskId = response.request_id;
           pollingProvider = "fal-seedream";
@@ -1892,8 +1889,8 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
   );
 
   const addOutputsFromFiles = useCallback(
-    (files: FileList) => {
-      const newEntries = mapUploadsFromFiles(files, mode, aspect, model, resolveModelLabel, randomId);
+    async (files: FileList) => {
+      const newEntries = await mapUploadsFromFiles(files, mode, aspect, model, resolveModelLabel, randomId);
       if (!newEntries.length) return;
       setOutputs((prev) => [...newEntries, ...prev]);
     },

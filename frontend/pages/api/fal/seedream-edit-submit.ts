@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
   try {
     const upstream = await fetch(FAL_SEEDREAM_EDIT_SUBMIT_URL, {
       method: "POST",

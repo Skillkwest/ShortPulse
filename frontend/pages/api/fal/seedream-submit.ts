@@ -16,8 +16,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "FAL_KEY is not set on the server" });
   }
 
+  console.log("[Seedream Submit] Payload being sent to fal:", JSON.stringify(req.body, null, 2));
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
   try {
     const upstream = await fetch(FAL_SEEDREAM_SUBMIT_URL, {
       method: "POST",
@@ -29,6 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       signal: controller.signal,
     });
     const data = await upstream.json();
+    console.log("[Seedream Submit] Response from fal:", JSON.stringify(data, null, 2), "Status:", upstream.status);
     return res.status(upstream.status).json(data);
   } catch (error) {
     return res.status(500).json({ error: "Fal Seedream submit failed", detail: String(error) });

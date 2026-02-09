@@ -9,6 +9,7 @@ import {
   klingAllowedAspects,
   modelOptions,
 } from "../constants";
+import type { ModelMediaType, ModelOption } from "../constants";
 import type { KeiTaskStatus } from "../../../lib/keiClient";
 import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
 
@@ -158,15 +159,15 @@ export const mapUploadsFromFiles = async (
 export const filterModelOptions = (
   mode: string,
   selectedTool: string | null,
-  options: { value: string; label: string; mediaType?: string | null }[],
+  options: ModelOption[],
   getModelConfig: (id: string) => any,
-) => {
-  const mediaFilter = (() => {
+): ModelOption[] => {
+  const mediaFilter: Extract<ModelMediaType, "image" | "video"> | null = (() => {
     if (selectedTool === "create" || selectedTool === "text") {
       if (mode === "image") return "image";
       if (mode === "video") return "video";
     }
-  if (selectedTool === "video" || selectedTool === "kling") return "video";
+    if (selectedTool === "video" || selectedTool === "kling") return "video";
     if (selectedTool === "image") return "image";
     return null;
   })();

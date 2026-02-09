@@ -160,6 +160,53 @@ const buildFormatterMessages = (semantic: any, prompt: string): OpenAIChatMessag
   { role: "user", content: JSON.stringify(semantic) },
 ];
 
+const asStringArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const cleaned = value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
+  return cleaned.length ? cleaned : undefined;
+};
+
+const asReferenceCard = (value: unknown): AgentResponse["actions"] extends { referenceCard?: infer T } ? T : never => {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, unknown>;
+  if (typeof record.prompt !== "string" || !record.prompt.trim()) return undefined;
+  return {
+    title: typeof record.title === "string" ? record.title : undefined,
+    prompt: record.prompt,
+  };
+};
+
+const normalizeAgentActions = (value: unknown): AgentResponse["actions"] => {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, unknown>;
+  const applyPrompt =
+    typeof record.applyPrompt === "string"
+      ? record.applyPrompt
+      : typeof record.apply_prompt === "string"
+        ? record.apply_prompt
+        : undefined;
+
+  const normalized = {
+    applyPrompt,
+    variations: asStringArray(record.variations),
+    describeTargets: asStringArray(record.describeTargets ?? record.describe_targets),
+    questions: asStringArray(record.questions),
+    referenceCard: asReferenceCard(record.referenceCard),
+  };
+
+  if (
+    !normalized.applyPrompt &&
+    !normalized.variations &&
+    !normalized.describeTargets &&
+    !normalized.questions &&
+    !normalized.referenceCard
+  ) {
+    return undefined;
+  }
+
+  return normalized;
+};
+
 const parseAgentJson = (raw: string): AgentResponse | null => {
   const candidates: string[] = [];
   const trimmed = raw.trim();
@@ -172,7 +219,7 @@ const parseAgentJson = (raw: string): AgentResponse | null => {
       const parsed = JSON.parse(candidate);
       if (!parsed || typeof parsed !== "object") continue;
       const message = typeof parsed.message === "string" ? parsed.message : "";
-      const actions = typeof parsed.actions === "object" ? parsed.actions : undefined;
+      const actions = normalizeAgentActions((parsed as Record<string, unknown>).actions);
       const usage = typeof parsed.usage === "object" ? parsed.usage : undefined;
       return { message, actions, usage };
     } catch (_error) {
@@ -304,7 +351,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const formatterRaw = formatterData?.choices?.[0]?.message?.content ?? "";
       const parsed = parseAgentJson(formatterRaw) ?? { message: formatterRaw || "No response", actions: undefined };
       const nextCanonical =
-        parsed?.actions?.apply_prompt ??
+        parsed?.actions?.applyPrompt ??
         parsed?.message ??
         effectiveCanonical ??
         null;
@@ -315,15 +362,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.warn("[studio-agent] drift detected; restoring canonical prompt");
         parsed.message = parsed.message || "Preserved prior prompt to avoid drift.";
         parsed.actions = parsed.actions ?? {};
-        parsed.actions.apply_prompt = effectiveCanonical;
+        parsed.actions.applyPrompt = effectiveCanonical;
         parsed.actions.referenceCard = parsed.actions.referenceCard ?? { title: "Prompt", prompt: effectiveCanonical };
       }
 
       // Guarantee an apply_prompt so the client always receives a refined prompt.
-      if (!parsed.actions?.apply_prompt || !parsed.actions.apply_prompt.trim()) {
+      if (!parsed.actions?.applyPrompt || !parsed.actions.applyPrompt.trim()) {
         const fallbackPrompt = nextCanonical ?? effectiveCanonical ?? context.activePrompt ?? messages[messages.length - 1]?.content ?? "";
         parsed.actions = parsed.actions ?? {};
-        parsed.actions.apply_prompt = fallbackPrompt;
+        parsed.actions.applyPrompt = fallbackPrompt;
         parsed.message = parsed.message || fallbackPrompt;
       }
 
@@ -369,16 +416,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const parsed = parseAgentJson(contentText) ?? { message: contentText || "No response", actions: undefined };
     const nextCanonical =
-      parsed?.actions?.apply_prompt ??
+      parsed?.actions?.applyPrompt ??
       parsed?.message ??
       canonicalPrompt ??
       null;
 
     // Guarantee an apply_prompt for the single-agent path too.
-    if (!parsed.actions?.apply_prompt || !parsed.actions.apply_prompt.trim()) {
+    if (!parsed.actions?.applyPrompt || !parsed.actions.applyPrompt.trim()) {
       const fallbackPrompt = nextCanonical ?? canonicalPrompt ?? context.activePrompt ?? messages[messages.length - 1]?.content ?? "";
       parsed.actions = parsed.actions ?? {};
-      parsed.actions.apply_prompt = fallbackPrompt;
+      parsed.actions.applyPrompt = fallbackPrompt;
       parsed.message = parsed.message || fallbackPrompt;
     }
 

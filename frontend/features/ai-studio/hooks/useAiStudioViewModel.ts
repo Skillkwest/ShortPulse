@@ -145,18 +145,18 @@ export const useAiStudioViewModel = ({
     !costedFlow || balanceCredits == null || currentCostCredits == null
       ? true
       : balanceCredits >= currentCostCredits;
+  const isCreditGuardrail = costedFlow && !hasSufficientCreditsForCost;
 
   const generationGuardrail = useMemo(() => {
     if ((selectedTool === "create" || selectedTool === "text") && mode === "text") return null;
     if (requiresModelSelection && !isModelSelected) return "Select a model before running a generation.";
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
     // Removed reference image guardrails - system will automatically fallback to text-to-image/text-to-video when no references exist
-    if (costedFlow && !hasSufficientCreditsForCost) return "You do not have enough credits for this run.";
+    if (isCreditGuardrail) return "You do not have enough credits for this run.";
     return null;
   }, [
-    costedFlow,
     hasDescribeImage,
-    hasSufficientCreditsForCost,
+    isCreditGuardrail,
     isDescribeMode,
     isModelSelected,
     requiresModelSelection,
@@ -180,6 +180,7 @@ export const useAiStudioViewModel = ({
     promptGenerateCostCredits,
     describeCostCredits,
     hasSufficientCreditsForCost,
+    isCreditGuardrail,
     generationGuardrail,
     isGenerateDisabled,
     modelConfig,

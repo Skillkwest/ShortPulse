@@ -66,9 +66,10 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
         return { response: null, actions: undefined };
       }
 
+      const previousMessages = messagesRef.current;
       // UI-visible history (keep the user's raw text)
       const uiUserMessage: AgentMessage = { role: "user", content: trimmed };
-      const nextUiMessages = [...messagesRef.current, uiUserMessage].slice(-24);
+      const nextUiMessages = [...previousMessages, uiUserMessage].slice(-24);
       setMessages(nextUiMessages);
       messagesRef.current = nextUiMessages;
       setIsSending(true);
@@ -76,7 +77,7 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
 
       try {
       const userPayload = payloadText?.trim() || trimmed;
-      const baseHistory = messagesRef.current.slice(-12); // small window for API
+      const baseHistory = previousMessages.slice(-12); // small window for API
       const syntheticPrev =
         previousPrompt && previousPrompt.trim().length
           ? ({ role: "assistant", content: previousPrompt.trim() } as AgentMessage)

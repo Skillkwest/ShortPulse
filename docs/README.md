@@ -8,6 +8,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/conventions.md` (code/style conventions)
 - `docs/contributor-guide.md`
 - `docs/mvp-stabilization-plan.md` (procedural MVP plan + scope lock)
+- `docs/mvp-pre-tester-anchor-plan.md` (strict pre-tester stabilization + QA gate checklist)
 - `docs/agents/change-impact-auditor.md` (scope + doc impact checklist)
 - `docs/repo-structure.md` (where things go)
 - `docs/architecture-overview.md` (system at a glance)

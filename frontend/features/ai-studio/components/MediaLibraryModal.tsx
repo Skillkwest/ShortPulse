@@ -2,7 +2,7 @@
  * Media library selector modal for AI Studio.
  * Loads user media/prompts and lets creators add them to the reference grid.
  */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle, CloudArrowDown, ImageSquare, VideoCamera, X } from "phosphor-react";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 
@@ -59,6 +59,40 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
   const [files, setFiles] = useState<MediaFileRow[]>([]);
   const [prompts, setPrompts] = useState<PromptRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const signedUrlRetryRef = useRef<Record<string, number>>({});
+
+  const signStoragePath = useCallback(async (storagePath: string): Promise<string | null> => {
+    const supabase = ensureSupabaseClient();
+    const { data: signedData, error: signedError } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(storagePath, 3600);
+    if (signedError) throw signedError;
+    return signedData?.signedUrl ?? null;
+  }, []);
+
+  const refreshSignedUrl = useCallback(
+    async (fileId: string, storagePath: string): Promise<string | null> => {
+      if (!storagePath) return null;
+      try {
+        const nextSignedUrl = await signStoragePath(storagePath);
+        setFiles((prev) => prev.map((file) => (file.id === fileId ? { ...file, signedUrl: nextSignedUrl ?? null } : file)));
+        return nextSignedUrl;
+      } catch (_error) {
+        return null;
+      }
+    },
+    [signStoragePath],
+  );
+
+  const handleMediaPreviewError = useCallback(
+    (file: MediaFileRow) => {
+      const attempts = signedUrlRetryRef.current[file.id] ?? 0;
+      if (attempts >= 1) return;
+      signedUrlRetryRef.current[file.id] = attempts + 1;
+      void refreshSignedUrl(file.id, file.storage_path);
+    },
+    [refreshSignedUrl],
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -85,11 +119,11 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
         const rows = mediaResponse.data ?? [];
         const signedRows = await Promise.all(
           rows.map(async (row) => {
-            const { data: signedData } = await supabase.storage.from(BUCKET).createSignedUrl(row.storage_path, 3600);
+            const signedUrl = await signStoragePath(row.storage_path).catch(() => null);
             return {
               ...row,
               source: row.source ?? "upload",
-              signedUrl: signedData?.signedUrl ?? null,
+              signedUrl: signedUrl ?? null,
             } as MediaFileRow;
           }),
         );
@@ -110,7 +144,7 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
     return () => {
       active = false;
     };
-  }, [isOpen]);
+  }, [isOpen, signStoragePath]);
 
   useEffect(() => {
     if (isOpen) {
@@ -261,8 +295,9 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
                     type="button"
                     className={`media-card media-library-modal-card${isSelected ? " is-selected" : ""}`}
                     aria-pressed={isSelected}
-                    onClick={() => {
-                      if (!file.signedUrl) return;
+                    onClick={async () => {
+                      const nextUrl = (await refreshSignedUrl(file.id, file.storage_path)) ?? file.signedUrl;
+                      if (!nextUrl) return;
                       setSelectedIds((prev) => {
                         const next = new Set(prev);
                         next.add(file.id);
@@ -270,7 +305,7 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
                       });
                       onSelectMedia({
                         id: file.id,
-                        url: file.signedUrl,
+                        url: nextUrl,
                         fileType: isVideoFile(file.file_type) ? "video" : "image",
                         filename: file.filename,
                         source: file.source ?? "upload",
@@ -284,9 +319,26 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
                     ) : null}
                     {file.signedUrl ? (
                       isVideoFile(file.file_type) ? (
-                        <video className="media-thumb" src={file.signedUrl} muted playsInline />
+                        <video
+                          className="media-thumb"
+                          src={file.signedUrl}
+                          muted
+                          playsInline
+                          onLoadedData={() => {
+                            signedUrlRetryRef.current[file.id] = 0;
+                          }}
+                          onError={() => handleMediaPreviewError(file)}
+                        />
                       ) : (
-                        <img className="media-thumb" src={file.signedUrl} alt={file.filename} />
+                        <img
+                          className="media-thumb"
+                          src={file.signedUrl}
+                          alt={file.filename}
+                          onLoad={() => {
+                            signedUrlRetryRef.current[file.id] = 0;
+                          }}
+                          onError={() => handleMediaPreviewError(file)}
+                        />
                       )
                     ) : (
                       <div className="media-thumb placeholder">No preview</div>

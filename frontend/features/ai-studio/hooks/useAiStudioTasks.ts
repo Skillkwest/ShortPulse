@@ -2,7 +2,7 @@
  * Side-effectful task runner for AI Studio generations.
  * Handles submit + polling orchestration per provider, isolated from UI state.
  */
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   submitFalFlux2,
   submitFalFlux2Edit,
@@ -80,6 +80,11 @@ const createShortErrorMessage = (message: string) => {
   // Generic failures
   if (message.length <= 35) return message;
   return `${message.slice(0, 32)}…`;
+};
+
+const looksLikeFailureMessage = (value: unknown): boolean => {
+  if (typeof value !== "string") return false;
+  return /error|fail|denied|invalid|timed out|timeout|insufficient|reject|policy|unsafe|nsfw/i.test(value);
 };
 
 const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
@@ -164,7 +169,7 @@ export function useAiStudioTasks({
       const delay = Math.min(8000, 1200 + attempt * 600);
       const timeoutId = window.setTimeout(async () => {
         try {
-          const status = await fetchStatusByProvider(provider, taskId);
+          const status = (await fetchStatusByProvider(provider, taskId)) as any;
           const stateRaw =
             status?.status?.toString().toLowerCase() ??
             status?.state?.toString().toLowerCase() ??
@@ -175,20 +180,6 @@ export function useAiStudioTasks({
             "pending";
           const state = stateRaw === "succeeded" ? "success" : stateRaw;
 
-          // Enhanced logging for debugging error detection
-          console.log(`[Polling ${outputId}] ========== POLL RESPONSE ==========`);
-          console.log(`[Polling ${outputId}] Provider: ${provider}`);
-          console.log(`[Polling ${outputId}] Raw status object:`, JSON.stringify(status, null, 2));
-          console.log(`[Polling ${outputId}] Extracted state: "${state}"`);
-          console.log(`[Polling ${outputId}] status?.status: "${status?.status}"`);
-          console.log(`[Polling ${outputId}] status?.state: "${status?.state}"`);
-          console.log(`[Polling ${outputId}] status?.data?.status: "${status?.data?.status}"`);
-          console.log(`[Polling ${outputId}] State === "error": ${state === "error"}`);
-          console.log(`[Polling ${outputId}] State === "fail": ${state === "fail"}`);
-          console.log(`[Polling ${outputId}] Has error field: ${Boolean(status?.error)}`);
-          console.log(`[Polling ${outputId}] Has message field: ${Boolean(status?.message)}`);
-          console.log(`[Polling ${outputId}] =====================================`);
-
           const allUrls = extractMediaByProvider(provider, status);
           const hasMedia = allUrls.length > 0;
 
@@ -198,7 +189,7 @@ export function useAiStudioTasks({
               updateOutputById(outputId, (item) => ({
                 ...item,
                 taskState: "running",
-                status: "processing",
+                status: "ready",
                 timestamp: "Waiting for media...",
               }));
               pollTimersRef.current[outputId] = window.setTimeout(
@@ -239,28 +230,27 @@ export function useAiStudioTasks({
 
           const hasErrorField =
             Boolean(status?.error) ||
-            Boolean(status?.message) ||
             Boolean(status?.failMsg) ||
             Boolean(status?.failCode);
 
           const isExplicitErrorStatus =
-            status?.status === "error" ||
-            status?.state === "error";
+            String(status?.status ?? "").toLowerCase() === "error" ||
+            String(status?.state ?? "").toLowerCase() === "error";
+
+          const hasFailureMessage =
+            looksLikeFailureMessage(status?.message) ||
+            looksLikeFailureMessage(status?.statusMessage) ||
+            looksLikeFailureMessage(status?.detail);
 
           // If ANY condition is true, treat as error
-          if (isErrorState || hasErrorField || isExplicitErrorStatus) {
-            console.log(`[Polling ${outputId}] 🔴 ERROR DETECTED via: ${
-              isErrorState ? "error state" :
-              hasErrorField ? "error field present" :
-              "explicit error status"
-            }`);
-
+          if (isErrorState || hasErrorField || isExplicitErrorStatus || hasFailureMessage) {
             const failureDetail =
               status?.failMsg ||
               status?.failCode ||
               status?.error ||
-              status?.message ||
+              (hasFailureMessage ? status?.message : null) ||
               status?.statusMessage ||
+              status?.detail ||
               "Generation failed";
 
             const failureMessage = condenseError(
@@ -268,9 +258,6 @@ export function useAiStudioTasks({
             );
 
             const shortMessage = createShortErrorMessage(failureMessage);
-
-            console.log(`[Polling ${outputId}] Error message: "${failureMessage}"`);
-            console.log(`[Polling ${outputId}] Error detail: "${failureDetail}"`);
 
             notifyGenerationFailure(outputId, failureMessage, failureDetail);
 
@@ -306,9 +293,10 @@ export function useAiStudioTasks({
           );
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unable to check status";
-          const isNotFound = message.includes("404");
+          const isNotFound = /404|not found/i.test(message);
+          const notFoundMaxAttempts = 5;
           const maxAttempts = 30;
-          if ((isNotFound && attempt >= 1) || attempt >= maxAttempts) {
+          if ((isNotFound && attempt >= notFoundMaxAttempts) || attempt >= maxAttempts) {
             notifyGenerationFailure(outputId, condenseError(message), message);
             if (onGenerationFailure) {
               onGenerationFailure({
@@ -324,7 +312,7 @@ export function useAiStudioTasks({
           updateOutputById(outputId, (item) => ({
             ...item,
             taskState: "running",
-            status: "processing",
+            status: "ready",
             timestamp: "Retrying status...",
           }));
           pollTimersRef.current[outputId] = window.setTimeout(
@@ -335,7 +323,15 @@ export function useAiStudioTasks({
       }, delay);
       pollTimersRef.current[outputId] = timeoutId;
     },
-    [clearPollTimer, notifyGenerationFailure, updateOutputById],
+    [clearPollTimer, notifyGenerationFailure, onGenerationFailure, onGenerationSuccess, updateOutputById],
+  );
+
+  useEffect(
+    () => () => {
+      Object.values(pollTimersRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
+      pollTimersRef.current = {};
+    },
+    [],
   );
 
   return {

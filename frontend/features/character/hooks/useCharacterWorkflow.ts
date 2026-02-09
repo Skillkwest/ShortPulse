@@ -154,7 +154,7 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
       const embedding = await buildEmbeddingFromReferences(identity.references);
       const identityToken = identity.identityToken ?? crypto.randomUUID();
       const quality = computeReferenceQuality(identity.references);
-      const next = { ...identity, embedding, embeddingStatus: "ready", identityToken, quality };
+      const next: CharacterIdentity = { ...identity, embedding, embeddingStatus: "ready", identityToken, quality };
       setIdentity(next);
       void characterStorage.saveCharacter<CharacterIdentity>(STORAGE_KEY, next);
     } catch (err) {
@@ -201,7 +201,7 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
         : [];
 
       try {
-        const payload: FalSubmitRequest = {
+        const payload: FalSubmitRequest & { identity_token?: string | null } = {
           prompt: activePrompt,
           image_size: falSizeForAspect(activeAspect),
           enable_safety_checker: false,

@@ -59,7 +59,7 @@ type TextPropertiesPanelProps = {
   isGenerateDisabled?: boolean;
   guardrailReason?: string | null;
   onExpandChat?: () => void;
-  onStepActionClick?: (step: "mode" | "model" | "prompt") => void;
+  onStepActionClick?: (step: "mode" | "model" | "prompt" | "videoSettings") => void;
   agentChatOpen?: boolean;
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
@@ -557,7 +557,7 @@ export function ComposeSendCard({
     return null;
   }
   const primaryActionLabel = "Generate";
-  const primaryActionBusyLabel = mode === "text" ? "Sending…" : "Generating…";
+  const primaryActionBusyLabel = "Generating…";
   const costValue = costCredits != null ? costCredits : "—";
   const promptThinking = agentIsSending || isPromptGenerating;
 

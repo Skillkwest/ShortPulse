@@ -34,16 +34,21 @@ export const useCredits = () => {
   const [userId, setUserId] = useState<string | null>(null);
 
   const refresh = useCallback(
-    async () => {
+    async (options?: { silent?: boolean }): Promise<number | null> => {
+      const silent = options?.silent ?? false;
       try {
-        setBalance((prev) => ({ ...prev, loading: true, error: null }));
+        if (!silent) {
+          setBalance((prev) => ({ ...prev, loading: true, error: null }));
+        }
         const id = userId ?? (await fetchUserId());
         if (!userId) setUserId(id);
 
         const cents = await fetchBalanceCents(id);
         setBalance({ cents, loading: false, error: null });
+        return cents;
       } catch (error) {
         setBalance({ cents: null, loading: false, error: error instanceof Error ? error.message : "Balance error" });
+        return null;
       }
     },
     [userId],
@@ -51,6 +56,31 @@ export const useCredits = () => {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      void refresh({ silent: true });
+    };
+
+    const onVisibilityChange = () => {
+      if (typeof document === "undefined" || document.visibilityState !== "visible") return;
+      void refresh({ silent: true });
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void refresh({ silent: true });
+    }, 30000);
+    return () => window.clearInterval(intervalId);
   }, [refresh]);
 
   return {

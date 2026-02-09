@@ -157,7 +157,7 @@ export const useAiStudioState = () => {
   const [modelModalPosition, setModelModalPosition] = useState<ModelModalPosition | null>(null);
   const [isPromptGenerating, setIsPromptGenerating] = useState<boolean>(false);
   const [uiError, setUiError] = useState<string | null>(null);
-  const pollTimersRef = useRef<Record<string, number>>({});
+  const [uiNotice, setUiNotice] = useState<string | null>(null);
   const lastVideoReferenceModeRef = useRef(videoReferenceMode);
   const lastNonKling3VideoModelRef = useRef<string | null>(null);
   const lastNonKeyframesVideoModelRef = useRef<string | null>(null);
@@ -465,13 +465,6 @@ export const useAiStudioState = () => {
       window.removeEventListener("scroll", handleReposition, true);
     };
   }, [isModelModalOpen, modelModalAnchor]);
-
-  useEffect(
-    () => () => {
-      Object.values(pollTimersRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
-    },
-    [],
-  );
 
   // --- Output + prompt actions -------------------------------------------
   const updateOutputById = useCallback((id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -838,6 +831,7 @@ export const useAiStudioState = () => {
       options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null },
     ) => {
       setUiError(null);
+      setUiNotice(null);
       const effectiveMode = options?.modeOverride ?? mode;
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
       const normalizedTool = effectiveTool === "kling" ? "video" : effectiveTool;
@@ -858,10 +852,12 @@ export const useAiStudioState = () => {
       const hasReferenceImages = imageInputs && imageInputs.length > 0;
       let finalTool = effectiveTool;
       let finalModel = model;
+      let fallbackMode: "image" | "video" | null = null;
       if (!hasReferenceImages) {
         // Fallback to text-based generation when no references exist
         if (normalizedTool === "image") {
           finalTool = "text"; // Fallback to text-to-image
+          fallbackMode = "image";
           // Map image-to-image models to their text-to-image equivalents
           const imageToTextModelMap: Record<string, string> = {
             "fal/flux-2-pro/edit": "fal/flux-2-pro",
@@ -875,6 +871,7 @@ export const useAiStudioState = () => {
           }
         } else if (normalizedTool === "video") {
           finalTool = "text"; // Fallback to text-to-video (will use video mode)
+          fallbackMode = "video";
           // Map image-to-video models to their text-to-video equivalents
           const imageToVideoTextMap: Record<string, string> = {
             "fal-ai/kling-video/v3/pro/image-to-video": "fal-ai/kling-video/v3/pro/text-to-video",
@@ -892,6 +889,13 @@ export const useAiStudioState = () => {
       }
       const id = `out-${randomId()}`;
       const modelLabel = resolveModelLabel(finalModel);
+      if (fallbackMode) {
+        setUiNotice(
+          fallbackMode === "image"
+            ? `No reference images were detected. Running text-to-image with ${modelLabel}.`
+            : `No reference media were detected. Running text-to-video with ${modelLabel}.`,
+        );
+      }
       const isSeedreamModel = finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image";
       const isSeedreamEditModel = finalModel === "fal-ai/bytedance/seedream/v4.5/edit";
       const isFalFlux2Model = finalModel === "fal/flux-2";
@@ -2117,6 +2121,8 @@ export const useAiStudioState = () => {
     deleteOutput,
     uiError,
     setUiError,
+    uiNotice,
+    setUiNotice,
     getDefaultDurationSeconds,
     getAgentContext,
   };

@@ -25,7 +25,7 @@ import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibrary
 import { useBeginnerModePreference } from "../features/ai-studio/hooks/useBeginnerModePreference";
 
 export default function AiStudioPage() {
-  const { balanceCents, balanceLoading } = useCredits();
+  const { balanceCents, balanceLoading, refreshBalance } = useCredits();
   const balanceCredits = useMemo(() => {
     if (balanceCents == null) return null;
     return Math.max(0, Math.floor(balanceCents)); // cents == credits
@@ -143,6 +143,8 @@ export default function AiStudioPage() {
     deleteOutput,
     uiError,
     setUiError,
+    uiNotice,
+    setUiNotice,
     getDefaultDurationSeconds,
     getAgentContext,
     addAgentPromptReference,
@@ -383,7 +385,7 @@ export default function AiStudioPage() {
         selectedOverride: target,
         modeHint: "describe",
       });
-      if (result?.prompt) {
+      if (result && typeof result === "object" && "prompt" in result && result.prompt) {
         resolvePlaceholder(result.prompt, result.referenceTitle ?? "Image describe");
         return;
       }
@@ -463,7 +465,7 @@ export default function AiStudioPage() {
     }
     setSharedPrompt(promptText);
     setLatestAgentPrompt(promptText);
-    handleGenerate(promptText, {
+    await handleGenerate(promptText, {
       modeOverride: "image",
       toolOverride: "create",
       costOverrideCredits: promptGenerateCostCredits ?? modelPickerCostCredits ?? currentCostCredits,
@@ -551,6 +553,7 @@ export default function AiStudioPage() {
   );
   const triggerFilePicker = () => referenceCanvasFileInputRef.current?.click();
   const dismissError = () => setUiError(null);
+  const dismissNotice = () => setUiNotice(null);
 
   const failedOutputs = useMemo(
     () => outputs.filter((item) => item.taskState === "fail" && item.errorMessage),
@@ -626,6 +629,7 @@ export default function AiStudioPage() {
     modelPickerCostCredits,
     promptGenerateCostCredits,
     describeCostCredits,
+    isCreditGuardrail,
     generationGuardrail,
     isGenerateDisabled,
   } =
@@ -654,16 +658,44 @@ export default function AiStudioPage() {
     }
   };
 
-  const handleGenerate = (
+  const ensureFreshCreditsForRun = useCallback(
+    async (requiredCredits: number | null | undefined): Promise<boolean> => {
+      if (requiredCredits == null) return true;
+      const latestBalance = await refreshBalance({ silent: true });
+      const resolvedBalance = latestBalance ?? balanceCredits;
+      if (resolvedBalance == null) return true;
+      return resolvedBalance >= requiredCredits;
+    },
+    [balanceCredits, refreshBalance],
+  );
+
+  const handleGenerate = async (
     promptOverride?: string | null,
     options?: { modeOverride?: StudioMode; toolOverride?: ToolId | null; costOverrideCredits?: number | null },
   ) => {
     const effectiveMode = options?.modeOverride ?? mode;
     const effectiveTool = options?.toolOverride ?? selectedTool;
+    const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
+
+    if (options?.costOverrideCredits != null && balanceCredits != null && balanceCredits < options.costOverrideCredits) {
+      const hasFreshCredits = await ensureFreshCreditsForRun(options.costOverrideCredits);
+      if (!hasFreshCredits) {
+        setUiError("You do not have enough credits for this run.");
+        return;
+      }
+    }
 
     if (!options && isGenerateDisabled) {
-      handleBlockedGeneration();
-      return;
+      if (isCreditGuardrail) {
+        const hasFreshCredits = await ensureFreshCreditsForRun(requiredCredits);
+        if (!hasFreshCredits) {
+          handleBlockedGeneration();
+          return;
+        }
+      } else {
+        handleBlockedGeneration();
+        return;
+      }
     }
 
     const promptToUse = typeof promptOverride === "string" ? promptOverride : prompt;
@@ -680,21 +712,43 @@ export default function AiStudioPage() {
       });
       return;
     }
-    handleGenerate(prompt);
+    void handleGenerate(prompt);
   };
 
-  const handleRegenerateWithDebit = () => {
-    if (isGenerateDisabled || agentIsSending) {
+  const handleRegenerateWithDebit = async () => {
+    if (agentIsSending) {
       handleBlockedGeneration();
       return;
+    }
+    if (isGenerateDisabled && !isCreditGuardrail) {
+      handleBlockedGeneration();
+      return;
+    }
+    if (isCreditGuardrail) {
+      const hasFreshCredits = await ensureFreshCreditsForRun(currentCostCredits);
+      if (!hasFreshCredits) {
+        handleBlockedGeneration();
+        return;
+      }
     }
     regenerateOutput();
   };
 
-  const handleImageRegenerateWithDebit = () => {
-    if (isGenerateDisabled || agentIsSending) {
+  const handleImageRegenerateWithDebit = async () => {
+    if (agentIsSending) {
       handleBlockedGeneration();
       return;
+    }
+    if (isGenerateDisabled && !isCreditGuardrail) {
+      handleBlockedGeneration();
+      return;
+    }
+    if (isCreditGuardrail) {
+      const hasFreshCredits = await ensureFreshCreditsForRun(currentCostCredits);
+      if (!hasFreshCredits) {
+        handleBlockedGeneration();
+        return;
+      }
     }
     regenerateOutput();
   };
@@ -765,8 +819,10 @@ export default function AiStudioPage() {
         referenceCanvasFileInputRef={referenceCanvasFileInputRef}
         onFileBrowserSelection={handleFileBrowserSelection}
         uiError={uiError}
+        uiNotice={uiNotice}
         characterError={characterError}
         onDismissUiError={dismissError}
+        onDismissUiNotice={dismissNotice}
         onDismissCharacterError={clearCharacterError}
         beginnerMode={beginnerMode}
         onBeginnerModeChange={setBeginnerMode}
@@ -882,11 +938,7 @@ export default function AiStudioPage() {
             }),
           onKlingMultiPromptsChange: setKlingMultiPrompts,
           onKlingElementsChange: setKlingElements,
-          motionCharacterOrientation,
-          motionKeepOriginalSound,
           motionVideoUrl: motionReferenceVideoUrl,
-          onMotionCharacterOrientationChange: setMotionCharacterOrientation,
-          onMotionKeepOriginalSoundChange: setMotionKeepOriginalSound,
           onMotionVideoChange: setMotionReferenceVideoUrl,
           referenceText,
           aspectOptions,
@@ -975,7 +1027,6 @@ export default function AiStudioPage() {
           onUsePrompt: handleAgentUsePrompt,
           onClose: handleCloseAgentChat,
           onMessageClick: handleAgentMessageClick,
-          generateCost: currentCostCredits,
         }}
         handleReferenceCanvasFiles={handleReferenceCanvasFiles}
         triggerFilePicker={triggerFilePicker}

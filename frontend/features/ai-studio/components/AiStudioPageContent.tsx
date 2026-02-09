@@ -13,6 +13,7 @@ import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { ReferenceCanvas } from "./ReferenceCanvas";
 import { ReferencePropertiesPanel } from "./ReferencePropertiesPanel";
 import { StudioPreview } from "./StudioPreview";
+import type { ModelOption } from "../constants";
 import { CharacterPropertiesPanel } from "../../character/components/CharacterPropertiesPanel";
 import { CharacterPanel } from "./CharacterPanel";
 import { KlingComingSoonCard } from "./KlingComingSoonCard";
@@ -82,7 +83,7 @@ type TextSectionProps = {
   isGenerateDisabled: boolean;
   guardrailReason: string | null;
   shouldDisableSave: boolean;
-  onStepActionClick?: (step: "mode" | "model" | "prompt") => void;
+  onStepActionClick?: (step: "mode" | "model" | "prompt" | "videoSettings") => void;
   onModeChange: (mode: StudioMode) => void;
   onAspectChange: (value: string) => void;
   onModelPickerOpen: (anchorId: string, target: HTMLElement, context?: ModelModalContext | null) => void;
@@ -131,8 +132,10 @@ type AiStudioPageContentProps = {
   referenceCanvasFileInputRef: React.RefObject<HTMLInputElement>;
   onFileBrowserSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
   uiError: string | null;
+  uiNotice: string | null;
   characterError: string | null;
   onDismissUiError: () => void;
+  onDismissUiNotice: () => void;
   onDismissCharacterError: () => void;
   beginnerMode: boolean;
   onBeginnerModeChange: (value: boolean) => void;
@@ -162,7 +165,7 @@ type AiStudioPageContentProps = {
   modelModalState: {
     isOpen: boolean;
     position: { top: number; left: number } | null;
-    options: { value: string; label: string; mediaType?: string | null }[];
+    options: ModelOption[];
     onClose: () => void;
     onSelect: (value: string) => void;
     anchorId?: string | null;
@@ -177,8 +180,10 @@ export function AiStudioPageContent({
   referenceCanvasFileInputRef,
   onFileBrowserSelection,
   uiError,
+  uiNotice,
   characterError,
   onDismissUiError,
+  onDismissUiNotice,
   onDismissCharacterError,
   beginnerMode,
   onBeginnerModeChange,
@@ -316,6 +321,31 @@ export function AiStudioPageContent({
             </div>
           </div>
         </section>
+
+        {uiError ? (
+          <div className="panel ai-panel" role="alert" aria-live="assertive" style={{ marginTop: 12, padding: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+              <p className="tiny" style={{ margin: 0 }}>{uiError}</p>
+              <button type="button" className="ghost-btn mini" onClick={onDismissUiError}>Dismiss</button>
+            </div>
+          </div>
+        ) : null}
+        {uiNotice ? (
+          <div className="panel ai-panel" role="status" aria-live="polite" style={{ marginTop: 12, padding: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+              <p className="tiny" style={{ margin: 0 }}>{uiNotice}</p>
+              <button type="button" className="ghost-btn mini" onClick={onDismissUiNotice}>Dismiss</button>
+            </div>
+          </div>
+        ) : null}
+        {characterError ? (
+          <div className="panel ai-panel" role="alert" aria-live="assertive" style={{ marginTop: 12, padding: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+              <p className="tiny" style={{ margin: 0 }}>{characterError}</p>
+              <button type="button" className="ghost-btn mini" onClick={onDismissCharacterError}>Dismiss</button>
+            </div>
+          </div>
+        ) : null}
 
         {visibleFailures.length ? (
           <div className="ai-error-stack" role="alert" aria-live="polite">

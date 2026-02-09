@@ -54,8 +54,11 @@ export default function AdminDashboardPage() {
   const [errorSeverityFilter, setErrorSeverityFilter] = useState<"all" | "high" | "medium" | "low">("all");
   const [errorSourceFilter, setErrorSourceFilter] = useState<string>("all");
   const [errorSearch, setErrorSearch] = useState("");
+  const [serverDenied, setServerDenied] = useState(false);
+  const [serverValidated, setServerValidated] = useState(false);
 
-  const adminEnabled = isAdminUser(user);
+  const roleBasedAdmin = isAdminUser(user);
+  const adminEnabled = roleBasedAdmin || serverValidated;
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -63,15 +66,25 @@ export default function AdminDashboardPage() {
     try {
       const response = await fetchWithAuth("/api/admin/users", { method: "GET" });
       if (!response.ok) {
+        if (response.status === 403) {
+          setServerDenied(true);
+          setServerValidated(false);
+          setUsers([]);
+          setUsersError(null);
+          return;
+        }
         const details = await response.json().catch(() => ({}));
         throw new Error(details?.error || "Failed to load users.");
       }
       const data = (await response.json()) as { users?: AdminUserRow[] };
+      setServerDenied(false);
+      setServerValidated(true);
       setUsers(data.users ?? []);
       if (!selectedUserId && data.users?.length) {
         setSelectedUserId(data.users[0].id);
       }
     } catch (error) {
+      setServerDenied(false);
       setUsersError(error instanceof Error ? error.message : "Failed to load users.");
     } finally {
       setUsersLoading(false);
@@ -90,6 +103,12 @@ export default function AdminDashboardPage() {
 
       const response = await fetchWithAuth(`/api/admin/errors?${params.toString()}`, { method: "GET" });
       if (!response.ok) {
+        if (response.status === 403) {
+          setServerDenied(true);
+          setServerValidated(false);
+          setErrors([]);
+          return;
+        }
         const details = await response.json().catch(() => ({}));
         throw new Error(details?.error || "Failed to load error incidents.");
       }
@@ -135,14 +154,14 @@ export default function AdminDashboardPage() {
   }, [errorSeverityFilter, errorSourceFilter, errorStatusFilter]);
 
   useEffect(() => {
-    if (!adminEnabled) return;
+    if (!user) return;
     loadUsers();
-  }, [adminEnabled, loadUsers]);
+  }, [loadUsers, user]);
 
   useEffect(() => {
-    if (!adminEnabled) return;
+    if (!user || !adminEnabled) return;
     loadErrors();
-  }, [adminEnabled, loadErrors]);
+  }, [adminEnabled, loadErrors, user]);
 
   const overview = useMemo(
     () => ({
@@ -207,6 +226,39 @@ export default function AdminDashboardPage() {
   }
 
   if (!adminEnabled) {
+    if (roleBasedAdmin === false && !serverDenied && usersLoading) {
+      return (
+        <main className={`page page-wide ${styles.adminPage}`}>
+          <p className="subdued">Verifying admin access…</p>
+        </main>
+      );
+    }
+    if (roleBasedAdmin === false && !serverDenied) {
+      return (
+        <>
+          <Head>
+            <title>ShortPulse · Admin</title>
+          </Head>
+          <main className={`page page-wide ${styles.adminPage}`}>
+            <section className={styles.adminSection}>
+              <p className="eyebrow">Admin</p>
+              <h1 className={styles.adminTitle}>Unable to verify access</h1>
+              <p className="tiny subdued">
+                {usersError ?? "We could not verify admin access right now. Retry in a moment."}
+              </p>
+              <div className={styles.searchRow}>
+                <button type="button" className="ghost-btn mini" onClick={loadUsers} disabled={usersLoading}>
+                  {usersLoading ? "Retrying…" : "Retry access check"}
+                </button>
+                <Link href="/dashboard" className="ghost-btn mini">
+                  Back to dashboard
+                </Link>
+              </div>
+            </section>
+          </main>
+        </>
+      );
+    }
     return (
       <>
         <Head>

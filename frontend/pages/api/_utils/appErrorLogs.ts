@@ -44,6 +44,11 @@ type ApiExceptionOptions = {
   user?: AuthenticatedApiUser | null;
 };
 
+type ExistingOpenLogRow = {
+  id: string | null;
+  occurrences_count: number | null;
+};
+
 const MAX_MESSAGE_LENGTH = 600;
 const MAX_STACK_LENGTH = 6000;
 const MAX_TEXT_FIELD_LENGTH = 300;
@@ -201,8 +206,9 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
   });
 
   const supabaseAdmin = getSupabaseAdmin();
+  const adminDb = supabaseAdmin as any;
 
-  let existingQuery = supabaseAdmin
+  let existingQuery = adminDb
     .from("app_error_logs")
     .select("id, occurrences_count")
     .eq("fingerprint", fingerprint)
@@ -216,14 +222,15 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
     existingQuery = existingQuery.is("user_id", null);
   }
 
-  const { data: existing, error: findError } = await existingQuery.maybeSingle();
+  const { data: existingRaw, error: findError } = await existingQuery.maybeSingle();
+  const existing = (existingRaw as ExistingOpenLogRow | null) ?? null;
   if (findError) {
     console.error("[appErrorLogs] failed to find existing log", findError.message);
   }
 
-  if (existing?.id) {
+  if (existing && existing.id) {
     const nextCount = Math.max(1, Number(existing.occurrences_count ?? 1)) + 1;
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await adminDb
       .from("app_error_logs")
       .update({
         last_seen_at: occurredAt,
@@ -246,7 +253,7 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
     return { ok: true, skipped: false, id: existing.id as string };
   }
 
-  const { data: inserted, error: insertError } = await supabaseAdmin
+  const { data: inserted, error: insertError } = await adminDb
     .from("app_error_logs")
     .insert({
       fingerprint,

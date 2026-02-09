@@ -15,6 +15,12 @@ type AdminUserRow = {
   createdAt: string | null;
 };
 
+type BillingProfileRow = {
+  user_id: string;
+  plan_id: string | null;
+  subscription_status: string | null;
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -50,7 +56,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ]);
 
     const balanceByUser = new Map((balances ?? []).map((row) => [row.user_id as string, Number(row.balance_cents ?? 0)]));
-    const profileByUser = new Map((profiles ?? []).map((row) => [row.user_id as string, row]));
+    const profileByUser = new Map<string, BillingProfileRow>(
+      ((profiles ?? []) as BillingProfileRow[]).map((row) => [row.user_id, row]),
+    );
 
     const rows: AdminUserRow[] = users.map((user) => {
       const profile = profileByUser.get(user.id);

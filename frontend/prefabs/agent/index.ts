@@ -8,6 +8,5 @@ export * from "./buttons/AgentEnhanceButton";
 export * from "./buttons/AgentSaveButton";
 export * from "./buttons/AgentGenerateButton";
 export * from "./buttons/MiniGenerateButton";
-export * from "./buttons/AgentCostButton";
 export * from "./inputs/AgentInputBar";
 export * from "./panels/AgentChatPanel";

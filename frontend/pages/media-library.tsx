@@ -5,7 +5,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { CheckCircle, CloudArrowUp, DownloadSimple, MagnifyingGlass, Trash } from "phosphor-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 
 type MediaRow = {
@@ -115,6 +115,7 @@ export default function MediaLibrary() {
   const [savingRename, setSavingRename] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [renameSuccess, setRenameSuccess] = useState(false);
+  const signedUrlRetryRef = useRef<Record<string, number>>({});
   const totalBytes = useMemo(() => files.reduce((sum, file) => sum + (file.file_size || 0), 0), [files]);
   const planLimitMb = 1024;
   const planUsage = { label: "Plan", name: "Creative Suite" };
@@ -136,6 +137,40 @@ export default function MediaLibrary() {
   useEffect(() => {
     setSelectedIds([]);
   }, [activeTab]);
+
+  const signStoragePath = useCallback(async (storagePath: string): Promise<string | null> => {
+    const supabase = ensureSupabaseClient();
+    const { data: signedData, error: signedError } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(storagePath, 3600);
+    if (signedError) throw signedError;
+    return signedData?.signedUrl ?? null;
+  }, []);
+
+  const refreshSignedUrl = useCallback(
+    async (fileId: string, storagePath: string): Promise<string | null> => {
+      if (!storagePath) return null;
+      try {
+        const nextSignedUrl = await signStoragePath(storagePath);
+        setFiles((prev) => prev.map((file) => (file.id === fileId ? { ...file, signedUrl: nextSignedUrl ?? undefined } : file)));
+        setFocusedFile((prev) => (prev && prev.id === fileId ? { ...prev, signedUrl: nextSignedUrl ?? undefined } : prev));
+        return nextSignedUrl;
+      } catch (_error) {
+        return null;
+      }
+    },
+    [signStoragePath],
+  );
+
+  const handleMediaPreviewError = useCallback(
+    (file: MediaRow) => {
+      const attempts = signedUrlRetryRef.current[file.id] ?? 0;
+      if (attempts >= 1) return;
+      signedUrlRetryRef.current[file.id] = attempts + 1;
+      void refreshSignedUrl(file.id, file.storage_path);
+    },
+    [refreshSignedUrl],
+  );
 
   useEffect(() => {
     let active = true;
@@ -159,17 +194,15 @@ export default function MediaLibrary() {
         const promptRows = promptResponse.data || [];
         const signed = await Promise.all(
           rows.map(async (row) => {
-            const { data: signedData, error: signedError } = await supabase.storage
-              .from(BUCKET)
-              .createSignedUrl(row.storage_path, 3600);
-            if (signedError) {
+            const signedUrl = await signStoragePath(row.storage_path).catch((signedError) => {
               // eslint-disable-next-line no-console
               console.error("Signed URL error", signedError);
-            }
+              return null;
+            });
             return {
               ...row,
               source: row.source ?? "upload",
-              signedUrl: signedData?.signedUrl,
+              signedUrl: signedUrl ?? undefined,
             } as MediaRow;
           }),
         );
@@ -189,7 +222,7 @@ export default function MediaLibrary() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [signStoragePath]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const list = event.target.files;
@@ -221,6 +254,7 @@ export default function MediaLibrary() {
   const uploadSelected = async (incoming?: File[]) => {
     setError(null);
     setUploading(true);
+    let placeholderIds: string[] = [];
     try {
       const supabase = ensureSupabaseClient();
       const { data: sessionData } = await supabase.auth.getSession();
@@ -243,6 +277,7 @@ export default function MediaLibrary() {
         created_at: new Date().toISOString(),
         status: "uploading",
       }));
+      placeholderIds = placeholders.map((item) => item.id);
       setFiles((prev) => [...placeholders, ...prev]);
       setUploadCount(filesToProcess.length);
       for (let idx = 0; idx < filesToProcess.length; idx += 1) {
@@ -317,6 +352,11 @@ export default function MediaLibrary() {
       setUploadCount(0);
     } catch (err: any) {
       setError(err?.message || "Upload failed");
+      if (placeholderIds.length) {
+        setFiles((prev) =>
+          prev.filter((file) => !(file.status === "uploading" && placeholderIds.includes(file.id))),
+        );
+      }
     } finally {
       setUploading(false);
       setUploadCount(0);
@@ -393,15 +433,35 @@ export default function MediaLibrary() {
     }
   };
 
+  const downloadFile = async (row: MediaRow) => {
+    setError(null);
+    try {
+      const supabase = ensureSupabaseClient();
+      const { data, error: downloadError } = await supabase.storage.from(BUCKET).download(row.storage_path);
+      if (downloadError) throw downloadError;
+      const blob = data as Blob;
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = row.filename || "media-file";
+      link.click();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (err: any) {
+      setError(err?.message || "Unable to download media");
+    }
+  };
+
   const handleImageLoad = (id: string, event: React.SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget;
     if (!img.naturalWidth || !img.naturalHeight) return;
+    signedUrlRetryRef.current[id] = 0;
     setAspectMap((prev) => ({ ...prev, [id]: img.naturalWidth / img.naturalHeight }));
   };
 
   const handleVideoMeta = (id: string, event: React.SyntheticEvent<HTMLVideoElement>) => {
     const vid = event.currentTarget;
     if (!vid.videoWidth || !vid.videoHeight) return;
+    signedUrlRetryRef.current[id] = 0;
     setAspectMap((prev) => ({ ...prev, [id]: vid.videoWidth / vid.videoHeight }));
   };
 
@@ -736,6 +796,18 @@ export default function MediaLibrary() {
                   <button
                     className="media-delete"
                     type="button"
+                    style={{ right: 40 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void downloadFile(file);
+                    }}
+                    aria-label="Download media"
+                  >
+                    <DownloadSimple size={14} weight="bold" />
+                  </button>
+                  <button
+                    className="media-delete"
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteFile(file);
@@ -756,6 +828,7 @@ export default function MediaLibrary() {
                         controls
                         src={file.signedUrl}
                         onLoadedMetadata={(e) => handleVideoMeta(file.id, e)}
+                        onError={() => handleMediaPreviewError(file)}
                         style={{ aspectRatio }}
                       />
                     ) : (
@@ -764,6 +837,7 @@ export default function MediaLibrary() {
                         alt={file.filename}
                         className="media-thumb"
                         onLoad={(e) => handleImageLoad(file.id, e)}
+                        onError={() => handleMediaPreviewError(file)}
                         style={{ aspectRatio }}
                       />
                     )
@@ -798,9 +872,17 @@ export default function MediaLibrary() {
               <div className="modal-preview" style={{ aspectRatio: aspectMap[focusedFile.id] || (isVideoFile(focusedFile.file_type) ? 9 / 16 : 4 / 5) }}>
                 {focusedFile.signedUrl ? (
                   isVideoFile(focusedFile.file_type) ? (
-                    <video src={focusedFile.signedUrl} controls />
+                    <video
+                      src={focusedFile.signedUrl}
+                      controls
+                      onError={() => handleMediaPreviewError(focusedFile)}
+                    />
                   ) : (
-                    <img src={focusedFile.signedUrl} alt={focusedFile.filename} />
+                    <img
+                      src={focusedFile.signedUrl}
+                      alt={focusedFile.filename}
+                      onError={() => handleMediaPreviewError(focusedFile)}
+                    />
                   )
                 ) : (
                   <div className="placeholder">No preview available</div>
@@ -822,6 +904,9 @@ export default function MediaLibrary() {
                 {modalError && <div className="auth-error">{modalError}</div>}
                 <button className="primary-btn" type="button" onClick={saveRename} disabled={savingRename || !renameValue.trim()}>
                   {savingRename ? "Saving..." : "Save name"}
+                </button>
+                <button className="ghost-btn" type="button" onClick={() => void downloadFile(focusedFile)}>
+                  Download file
                 </button>
                 {renameSuccess && !modalError && !savingRename && (
                   <div className="rename-toast">

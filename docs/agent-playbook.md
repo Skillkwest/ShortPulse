@@ -12,11 +12,11 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Docs in `docs/`; start at `docs/README.md` and keep ADRs in `docs/adr/`.
 - Supabase bootstrap SQL in `sql/`; do not add secrets.
 - Follow feature module pattern (`features/<name>/{types,constants,data,utils,logic,components}`) and keep pages thin.
-- Keep files under ~500 lines; split between 300–500 lines.
+- Aim to keep files under ~500 lines; if they exceed, document why and plan a split.
 
 ## Styling rules
 - Use modular CSS under `frontend/styles/`; do not add rules to `globals.css`.
-- Prefer feature-scoped CSS files rather than growing existing 500–1600 line sheets.
+- Prefer feature-scoped CSS files rather than growing very large sheets; split when practical.
 
 ## Supabase and security
 - Only use anon key on the client; never check in service-role keys or `.env.local`.
@@ -38,3 +38,8 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Prefer existing helpers/components before adding new dependencies.
 - Keep UI consistent with existing palette/spacing (see `docs/styles-structure.md`).
 - For large refactors, propose a plan and execute incrementally; avoid exceeding file size limits.
+
+## Maintenance skills
+- Run `npm -C frontend run docs:check` to validate API docs are indexed.
+- Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.
+- Use `skills/skill-doc-index/SKILL.md` when adding or renaming docs.

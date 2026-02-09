@@ -8,8 +8,11 @@ export const PROTECTED_ROUTES = [
   "/performance",
   "/saved-creators",
   "/media-library",
+  "/profile",
   "/ai-studio",
   "/creator-studio",
+  "/character",
+  "/admin",
 ];
 
 type UseProtectedRouteResult = {
@@ -23,6 +26,7 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(enabled);
+  const authRedirectPath = `/auth?next=${encodeURIComponent(router.asPath || "/dashboard")}`;
 
   useEffect(() => {
     if (!enabled) {
@@ -40,7 +44,7 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
         if (!nextSession) {
-          router.replace("/auth");
+          router.replace(authRedirectPath);
         }
         setLoading(false);
       });
@@ -50,7 +54,7 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
         if (!nextSession) {
-          router.replace("/auth");
+          router.replace(authRedirectPath);
         }
       });
 
@@ -64,10 +68,10 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
         setSession(null);
         setUser(null);
         setLoading(false);
-        router.replace("/auth");
+        router.replace(authRedirectPath);
       }
     }
-  }, [enabled, router]);
+  }, [enabled, router, authRedirectPath]);
 
   return { session, user, loading };
 }

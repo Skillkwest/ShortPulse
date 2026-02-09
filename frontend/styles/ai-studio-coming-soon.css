@@ -1,0 +1,97 @@
+/**
+ * AI Studio coming-soon placeholders.
+ * Styles the temporary panels for templates, workflows, and gallery sections.
+ */
+.ai-coming-soon {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding: 12px 0 24px;
+}
+
+.ai-coming-soon-card {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: rgba(14, 16, 20, 0.85);
+  box-shadow: none;
+}
+
+.ai-coming-soon-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.ai-coming-soon-title-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ai-coming-soon-title-block .eyebrow {
+  margin: 0;
+}
+
+.ai-coming-soon-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(201, 205, 214, 0.08);
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  color: #dfe8f5;
+  flex-shrink: 0;
+}
+
+.ai-coming-soon-title {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #f2f5f9;
+}
+
+.ai-coming-soon-pill {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.2);
+  color: #c9ced6;
+  background: rgba(201, 205, 214, 0.08);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ai-coming-soon-summary {
+  margin: 0;
+  font-size: 14px;
+  color: #cfd6df;
+}
+
+.ai-coming-soon-detail {
+  margin: 0;
+  color: var(--ai-card-text);
+  line-height: 1.55;
+}
+
+@media (max-width: 960px) {
+  .ai-coming-soon-card {
+    padding: 18px;
+  }
+
+  .ai-coming-soon-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ai-coming-soon-pill {
+    align-self: flex-start;
+  }
+}

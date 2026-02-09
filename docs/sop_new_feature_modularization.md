@@ -10,7 +10,7 @@ Purpose: repeatable checklist to keep new work consistent with modular architect
 5) **UI last**: Build feature components; keep them presentational. Pages orchestrate state/fetching only.
 6) **Styling**: Place CSS in the correct domain file under `styles/` (add a new file and import from `globals.css` if needed).
 7) **Docs/comments**: Add top-level file comments and doc comments for public exports. Note side effects.
-8) **Size guardrails**: Keep each file <500 lines; split between 300–500 if growth is expected.
+8) **Size guardrails (guideline)**: Aim for <500 lines; if a file grows beyond that, document why and plan a split.
 9) **Tests**: Add or update tests for non-trivial logic; document gaps if skipping.
 10) **Run/verify**: Basic lint/build as available; ensure imports are from feature modules (no circular deps).
 

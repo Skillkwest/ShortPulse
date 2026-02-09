@@ -1,0 +1,333 @@
+/**
+ * Shared styling for agent prefabs (chat panel, buttons, input).
+ * Loaded globally so agent UI stays consistent across features.
+ */
+.prompt-placeholder-highlight {
+  color: var(--color-amber);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* Agent chat */
+.agent-chat-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  gap: 10px;
+}
+
+.agent-messages {
+  min-height: 280px;
+  max-height: 600px;
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  padding: 0 12px 12px 0;
+  scroll-padding-bottom: 12px;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable both-edges;
+}
+
+.agent-messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.agent-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.agent-messages::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.35);
+  border-radius: 999px;
+}
+
+.agent-messages::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.55);
+}
+
+/* Keep chat history compact inside the Create panel without capping the Agent Chat column */
+.ai-properties .agent-messages {
+  min-height: 280px;
+  max-height: 320px;
+}
+
+.agent-chat-wrapper {
+  background: var(--color-bg, #0f1116);
+  border-radius: 14px;
+  padding: 12px 12px 12px;
+  margin-top: 4px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.step2-input-row {
+  margin-top: 2px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.step2-input-row .agent-inline-actions {
+  margin-top: 4px;
+  margin-bottom: 16px;
+  align-items: center;
+  gap: 10px;
+}
+.step2-input-row.enhanced-mode {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.step2-input-row .prompt-input {
+  flex: 1;
+  margin: 0;
+  height: auto;
+  min-height: 220px;
+  padding: 18px 30px;
+  border-radius: 18px;
+  border: none; /*1px solid rgba(55, 61, 62, 0.275);*/
+  background:  #262a2f;
+  color: #f5f9ff;
+  /*box-shadow: inset 0 0 0 1px rgba(37, 168, 191, 0.275);*/
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.step2-input-row.enhanced-mode .enhanced-prompt-input {
+  height: auto;
+  min-height: 280px;
+  border-radius: 14px;
+  padding: 16px;
+  background: var(--color-bg, #090a10);
+  border: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  line-height: 1.45;
+  font-size: 13px;
+}
+
+.step2-input-row .prompt-input::placeholder {
+  color: rgba(245, 249, 255, 0.5);
+}
+
+.step2-input-row .agent-send-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--ai-accent-start, rgba(52, 200, 255, 0.9)), var(--ai-accent, rgba(37, 169, 191, 0.95)));
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
+  transition: none;
+  transform: none !important;
+}
+
+.step2-input-row .agent-send-btn:hover {
+  box-shadow: 0 3px 8px rgba(7, 155, 168, 0.35);
+  transform: none !important;
+}
+
+.step2-send-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--ai-accent-start, rgba(52, 200, 255, 0.9)), var(--ai-accent, rgba(37, 169, 191, 0.95)));
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
+}
+.step2-send-btn:hover {
+  box-shadow: 0 3px 8px rgba(7, 155, 168, 0.35);
+}
+
+.agent-send-prefab,
+.agent-save-prefab {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #25a8bf7c;
+  background: #6e818d2f;
+  color: #25a8bf;
+  box-shadow: 0 4px 1px #25a8bf41;
+  transition: box-shadow 0.16s ease, transform 0.12s ease;
+}
+.agent-enhance-prefab {
+  flex-direction: row;
+  gap: 6px;
+  font-size: 12px;
+  min-width: 110px;
+  justify-content: center;
+  letter-spacing: 0.02em;
+}
+.agent-enhance-label {
+  line-height: 1;
+}
+.agent-send-prefab:hover:not(:disabled),
+.agent-save-prefab:hover:not(:disabled) {
+  box-shadow: 0 5px 12px rgba(4, 234, 255, 0.088);
+  transform: translateY(2px);
+  cursor: pointer;
+}
+.agent-send-prefab:disabled,
+.agent-save-prefab:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.prompt-fab-send {
+  margin-left: auto;
+}
+
+.agent-inline-actions {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.agent-cost-prefab {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid #25a8bf7c;
+  background: #25a8bf;
+  color: #000000;
+  font-family: "Satoshi", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4px 1px #25a8bf41;
+  line-height: 1;
+  text-transform: uppercase;
+  transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.18s ease, background 0.18s ease, width 0.2s ease;
+}
+.agent-cost-prefab:hover:not(:disabled) {
+  width: 130px;
+  box-shadow: 0 4px 1px #25a8bf41;
+  cursor: pointer;
+}
+.agent-cost-prefab:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.agent-cost-prefab .model-chip-credits {
+  transition: opacity 0.18s ease;
+}
+.agent-cost-prefab .model-chip-icon {
+  font-size: 26px;
+}
+.agent-cost-prefab .model-chip-credits {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.agent-cost-prefab:hover:not(:disabled) .model-chip-credits {
+  opacity: 0;
+}
+.agent-cost-prefab-label {
+  /*font-family: "Satoshi", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;*/
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 0;
+  max-width: 0;
+  transition: opacity 0.18s ease, max-width 0.2s ease;
+}
+.agent-cost-prefab:hover:not(:disabled) .agent-cost-prefab-label {
+  opacity: 1;
+  max-width: 80px;
+}
+.agent-input-prefab {
+  flex: 1;
+  border-radius: 14px;
+  /*border: 1px solid #25a8bf7c;*/
+  background: var(--color-bg);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+  padding: 3px 10px;
+  display: flex;
+  position: relative;
+}
+.agent-chat-panel .agent-input-prefab {
+  background: rgba(31, 36, 40, 0.95);
+  
+}
+.agent-chat-panel .agent-input-prefab-field {
+  color: #f0f6ff;
+}
+.agent-chat-panel .agent-input-prefab-field::placeholder {
+  color: rgba(215, 225, 235, 0.82);
+}
+.agent-input-prefab-inline {
+  margin: 0;
+}
+.agent-input-prefab-field {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #f5f9ff;
+  resize: none;
+  min-height: 44px;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 14px 20px;
+  outline: none;
+  font-family: var(--font-primary);
+  font-weight: 400;
+}
+.agent-input-prefab-field::placeholder {
+  font-size: 14px;
+  opacity: 0.8;
+}
+.agent-thinking {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: rgba(245, 249, 255, 0.7);
+  animation: pulse-thinking 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-thinking {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+.agent-input-prefab-field::placeholder {
+  color: rgba(245, 249, 255, 0.6);
+  font-family: var(--font-primary);
+}
+.agent-input-prefab-field:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.agent-input-prefab-field::-webkit-scrollbar {
+  width: 6px;
+}
+.agent-input-prefab-field::-webkit-scrollbar-track {
+  background: transparent;
+}
+.agent-input-prefab-field::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.25);
+  border-radius: 999px;
+}
+.agent-input-prefab-field::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.4);
+}

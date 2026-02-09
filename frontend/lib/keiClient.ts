@@ -2,6 +2,8 @@
  * Thin client for Kie.ai interactions.
  * Routes requests through Next API handlers to keep API keys server-side and normalize responses.
  */
+import { fetchWithAuth } from "./authenticatedFetch";
+
 export type KeiCreateTaskRequest = {
   model: string;
   input: {
@@ -46,7 +48,7 @@ const fetchWithTimeout = async (input: RequestInfo | URL, init?: RequestInit & {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), init?.timeoutMs ?? 15000);
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    return await fetchWithAuth(input, { ...init, signal: controller.signal, shortpulseLogScope: "generation" });
   } finally {
     window.clearTimeout(timeoutId);
   }

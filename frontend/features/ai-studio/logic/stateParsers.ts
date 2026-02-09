@@ -1,0 +1,311 @@
+/**
+ * Helper utilities for AI Studio state and provider plumbing.
+ * Separated from hooks to keep business logic small and testable.
+ */
+import {
+  falNanoBananaAllowedAspects,
+  falNanoBananaProAllowedAspects,
+  keiAllowedAspects,
+  klingAllowedAspects,
+  modelOptions,
+} from "../constants";
+import type { ModelMediaType, ModelOption } from "../constants";
+import type { KeiTaskStatus } from "../../../lib/keiClient";
+import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
+
+export type Provider =
+  | "kei"
+  | "fal"
+  | "fal-flux2"
+  | "fal-flux2-klein"
+  | "fal-flux2-edit"
+  | "fal-flux2-pro"
+  | "fal-flux2-pro-edit"
+  | "fal-kling"
+  | "fal-nano-banana"
+  | "fal-kling-3"
+  | "fal-nano-banana-edit"
+  | "fal-nano-banana-pro"
+  | "fal-nano-banana-pro-edit"
+  | "fal-sora"
+  | "fal-seedance"
+  | "fal-seedance-i2v"
+  | "fal-seedream"
+  | "fal-veo"
+  | "fal-veo-i2v";
+
+export const resolveModelLabel = (value?: string) =>
+  value ? modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})` : "Choose Model";
+
+export const normalizeAspectForKei = (value: string) => (keiAllowedAspects.has(value) ? value : "auto");
+export const normalizeAspectForFalNanoBanana = (value: string) => (falNanoBananaAllowedAspects.has(value) ? value : "1:1");
+export const normalizeAspectForFalNanoBananaPro = (value: string) => (falNanoBananaProAllowedAspects.has(value) ? value : "4:5");
+export const resolveKlingAspectRatio = (value: string): FalKlingTextSubmitRequest["aspect_ratio"] =>
+  (klingAllowedAspects.has(value) ? (value as FalKlingTextSubmitRequest["aspect_ratio"]) : "16:9");
+export const resolveKlingDuration = (seconds: number): FalKlingTextSubmitRequest["duration"] => (seconds <= 5 ? 5 : 10);
+export const resolveKlingV3Duration = (seconds: number): number => {
+  if (!Number.isFinite(seconds)) return 5;
+  const rounded = Math.round(seconds);
+  return Math.min(15, Math.max(3, rounded));
+};
+export const resolveSoraDuration = (seconds: number): 4 | 8 | 12 => {
+  if (seconds <= 4) return 4;
+  if (seconds <= 8) return 8;
+  return 12;
+};
+export const resolveSeedreamImageSize = (aspect: string): string => {
+  const normalized = aspect.trim();
+  if (normalized === "1:1") return "square";
+  if (normalized === "3:4" || normalized === "4:5" || normalized === "5:4") return "portrait_4_3";
+  if (normalized === "4:3" || normalized === "3:2" || normalized === "21:9" || normalized === "16:9") return "landscape_16_9";
+  if (normalized === "9:16" || normalized === "2:3") return "portrait_16_9";
+  return "landscape_16_9";
+};
+
+export const computeModalPosition = (target: HTMLElement): { top: number; left: number } => {
+  const rect = target.getBoundingClientRect();
+  const scrollY = window.scrollY || 0;
+  const scrollX = window.scrollX || 0;
+  const offsetX = 16;
+  const top = rect.top + scrollY + rect.height / 2;
+  const left = rect.right + scrollX + offsetX;
+  return { top, left };
+};
+
+export const isVideoUrl = (url: string | null | undefined) =>
+  !!url &&
+  (
+    /\.mp4(\?|$)/i.test(url) ||
+    url.includes("/video") ||
+    url.includes("video=") ||
+    (url.startsWith("blob:") && url.includes("video=1"))
+  );
+
+export const mapAgentReferences = (outputs: any[], activeOutputId: string | null) => {
+  const mapped = outputs.map((item) => ({
+    id: item.id,
+    kind: item.previewUrl ? (isVideoUrl(item.previewUrl) ? "video" : "image") : "prompt",
+    promptSnippet: item.prompt ?? item.previewText ?? null,
+    aspect: item.aspect ?? null,
+    caption: item.previewText ?? null,
+  }));
+  if (!activeOutputId) return mapped;
+  const selected = mapped.find((ref) => ref.id === activeOutputId);
+  if (!selected) return mapped;
+  return [selected, ...mapped.filter((ref) => ref.id !== activeOutputId)];
+};
+
+export const mapAgentMedia = (outputs: any[]) =>
+  outputs
+    .filter((item) => item.previewUrl)
+    .map((item) => ({
+      id: item.id,
+      kind: isVideoUrl(item.previewUrl) ? "video" : "image",
+      url: item.previewUrl ?? undefined,
+      thumbnailAlt: item.prompt ?? item.previewText ?? null,
+    }));
+
+/**
+ * Converts a File to a data URL (base64) for persistent preview storage.
+ * This avoids blob URL lifecycle issues where URLs can expire.
+ */
+const readFileAsDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+export const mapUploadsFromFiles = async (
+  files: FileList,
+  mode: any,
+  aspect: string,
+  model: string | null,
+  resolveModelLabelFn: (value?: string) => string,
+  randomIdFn: () => string
+) => {
+  const mediaFiles = Array.from(files).filter(
+    (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
+  );
+
+  const outputs = await Promise.all(
+    mediaFiles.map(async (file) => {
+      const dataUrl = await readFileAsDataUrl(file);
+      const isVideo = file.type.startsWith("video/");
+      // Add video marker to data URL for type detection
+      const url = isVideo ? (dataUrl.includes("?") ? `${dataUrl}&video=1` : `${dataUrl}#video=1`) : dataUrl;
+
+      return {
+        id: `upload-${randomIdFn()}`,
+        prompt: file.name,
+        mode,
+        aspect,
+        model: resolveModelLabelFn(model ?? undefined),
+        modelId: model,
+        status: "ready" as const,
+        timestamp: "Dropped",
+        previewUrl: url,
+        saveState: "idle" as const,
+        saveError: null,
+      };
+    })
+  );
+
+  return outputs;
+};
+
+export const filterModelOptions = (
+  mode: string,
+  selectedTool: string | null,
+  options: ModelOption[],
+  getModelConfig: (id: string) => any,
+): ModelOption[] => {
+  const mediaFilter: Extract<ModelMediaType, "image" | "video"> | null = (() => {
+    if (selectedTool === "create" || selectedTool === "text") {
+      if (mode === "image") return "image";
+      if (mode === "video") return "video";
+    }
+    if (selectedTool === "video" || selectedTool === "kling") return "video";
+    if (selectedTool === "image") return "image";
+    return null;
+  })();
+
+  let filtered = options;
+  if (mediaFilter) {
+    filtered = filtered.filter((opt) => {
+      if (!opt.mediaType || opt.mediaType === mediaFilter || opt.mediaType === "multi") return true;
+      if (selectedTool === "video" && (opt.mediaType === "image-to-video" || opt.mediaType === "keyframes")) return true;
+      return false;
+    });
+  }
+  if ((selectedTool === "create" || selectedTool === "text") && mode === "image") {
+    filtered = filtered.filter((opt) => opt.value !== "fal/flux-2-pro");
+  }
+  if (selectedTool === "image") {
+    filtered = filtered.filter((opt) => {
+      const config = getModelConfig(opt.value);
+      return config?.supportsImageToImage;
+    });
+  }
+  if ((selectedTool === "create" || selectedTool === "text") && mode === "image") {
+    filtered = filtered.filter((opt) => {
+      const config = getModelConfig(opt.value);
+      return config?.supportsTextToImage;
+    });
+  }
+  return filtered;
+};
+
+export const resolvePreviewUrlById = (outputs: any[], id: string | null | undefined) =>
+  outputs.find((item) => item.id === id)?.previewUrl ?? null;
+
+const collectFalCandidates = (status: any) => [
+  status,
+  status?.response,
+  status?.response?.data,
+  status?.response?.output,
+  status?.response?.result,
+  status?.data,
+  status?.data?.output,
+  status?.data?.result,
+  status?.output,
+  status?.output?.data,
+  status?.output?.result,
+  status?.result,
+  status?.result?.data,
+  status?.result?.output,
+];
+
+export const extractFalUrls = (status: any): string[] => {
+  const candidates = collectFalCandidates(status);
+  for (const candidate of candidates) {
+    const images = candidate?.images;
+    if (Array.isArray(images) && images[0]?.url) {
+      return images.map((img) => img?.url).filter(Boolean) as string[];
+    }
+  }
+  return [];
+};
+
+const extractVideoUrlsFrom = (candidate: any): string[] => {
+  const videos = candidate?.videos;
+  if (Array.isArray(videos) && videos[0]?.url) {
+    return videos.map((vid) => vid?.url).filter(Boolean) as string[];
+  }
+  const videoUrl =
+    candidate?.video?.url ||
+    candidate?.video_url ||
+    candidate?.assets?.video?.url ||
+    candidate?.download_url;
+  return videoUrl ? [videoUrl] : [];
+};
+
+export const extractFalMediaUrls = (status: any): string[] => {
+  const imageUrls = extractFalUrls(status);
+  if (imageUrls.length) return imageUrls;
+  const candidates = collectFalCandidates(status);
+  for (const candidate of candidates) {
+    const videoUrls = extractVideoUrlsFrom(candidate);
+    if (videoUrls.length) return videoUrls;
+  }
+  return [];
+};
+
+export const extractResultUrls = (resultJson: KeiTaskStatus["resultJson"], fallback?: unknown): string[] => {
+  if (!resultJson && fallback && typeof fallback === "object") {
+    const urls = (fallback as any)?.resultUrls || (fallback as any)?.info?.result_urls;
+    if (Array.isArray(urls)) return urls as string[];
+    const videos =
+      (fallback as any)?.videos ||
+      (fallback as any)?.data?.videos ||
+      (fallback as any)?.output?.videos ||
+      (fallback as any)?.response?.videos;
+    if (Array.isArray(videos) && videos[0]?.url) {
+      return videos.map((vid: any) => vid?.url).filter(Boolean) as string[];
+    }
+    const videoUrl =
+      (fallback as any)?.video?.url ||
+      (fallback as any)?.data?.video?.url ||
+      (fallback as any)?.output?.video?.url ||
+      (fallback as any)?.response?.video?.url ||
+      (fallback as any)?.response?.video_url ||
+      (fallback as any)?.video_url ||
+      (fallback as any)?.data?.video_url ||
+      (fallback as any)?.output?.video_url;
+    if (videoUrl) return [videoUrl];
+  }
+  if (!resultJson) return [];
+  if (typeof resultJson === "string") {
+    try {
+      const parsed = JSON.parse(resultJson);
+      return extractResultUrls(parsed as any);
+    } catch (_error) {
+      return [];
+    }
+  }
+  if (typeof resultJson === "object" && resultJson) {
+    const urls = (resultJson as any)?.resultUrls || (resultJson as any)?.info?.result_urls;
+    if (Array.isArray(urls)) return urls as string[];
+    const videos =
+      (resultJson as any)?.videos ||
+      (resultJson as any)?.data?.videos ||
+      (resultJson as any)?.output?.videos ||
+      (resultJson as any)?.response?.videos;
+    if (Array.isArray(videos) && videos[0]?.url) {
+      return videos.map((vid: any) => vid?.url).filter(Boolean) as string[];
+    }
+    const videoUrl =
+      (resultJson as any)?.video?.url ||
+      (resultJson as any)?.data?.video?.url ||
+      (resultJson as any)?.output?.video?.url ||
+      (resultJson as any)?.response?.video?.url ||
+      (resultJson as any)?.response?.video_url ||
+      (resultJson as any)?.video_url ||
+      (resultJson as any)?.data?.video_url ||
+      (resultJson as any)?.output?.video_url;
+    if (videoUrl) return [videoUrl];
+  }
+  return [];
+};

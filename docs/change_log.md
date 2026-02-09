@@ -119,6 +119,15 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2027-01-04 (AI Studio create/recreate polish)
 - Added subtitles and spacing refinements to the Create and Recreate tool headers; tightened header/subtitle gaps for consistency.
 
+## 2026-02-05
+- Added MVP stabilization plan and aligned docs to current MVP scope (post‑MVP notes, route map, release checklist, testing guidance, and palette rule placement).
+- Expanded doc index coverage and cleaned stale SOP references; clarified file-size guidance as advisory.
+
+## 2026-02-05 (later)
+- Phase 1 pricing work: credits now debit for image tool runs and prompt refine/describe flows; video duration/resolution/audio controls are wired into pricing and submissions; model media type supports image-to-video.
+- Added Change Impact Auditor agent doc and two maintenance skills (pricing audit + doc index).
+- Added `docs:check` script hook and documented maintenance skill usage in the agent playbook.
+
 ## 2027-01-05 (AI Studio accent + controls polish)
 - Centralized AI Studio accent theming behind a single `--ai-accent-base` variable to drive badges, toolbar icons, hover outlines, and primary/active button gradients; updated borders and hover states to inherit from the shared token.
 - Refined badge and toolbar UX: step badges now have fixed square dimensions (no oval deformation on resize) and optional onboarding badges are hidden until the onboarding flow is reintroduced.
@@ -177,3 +186,37 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added a Supabase-backed credit system (ledger + hook) with auto-seed, per-generation debit for Fal Flux Dev, and a live credit display embedded in the AI Studio header; Generate buttons show dynamic costs.
 - Improved media UX: reference detail modal now renders full images with object-fit contain (no cropping) and matches item aspect; Reference Grid shows animated spinners for in-progress items and ignores non-image drops to prevent blank cards.
 - Hardened drag/drop flows: prefer state URLs over blob URLs, filter non-image drops in the grid, and surface status/error chips with clearer overlay behavior.
+
+## 2027-01-24 (AI Studio prompt + describe consolidation)
+- Prompts: removed redundant prompt docs (`docs/ai-agent-prompts.md`, `docs/openai-agent-system-instructions.md`) and codified `frontend/lib/agentPromptsConfig.ts` as the single source of truth. Updated the SOP to reflect gpt-4.1-nano defaults and prompt ownership.
+- Image-to-Text: when the toggle is on, the describe-image agent (Agent 2) always runs—even if the prompt box has text—so the textarea is populated from the describe result. Imported images dropped into Reference Grid/Studio Preview now seed the describe flow.
+- Errors & credits: added a dismissible error banner in AI Studio; Generate buttons show computed credit estimates (or “—” if unknown). Image/video runs debit credits immediately; prompt-refine/describe flows debit after API responses using observed/estimated tokens.
+- API defaults: `/api/ai/generate-prompt` and `/api/ai/describe-image` default to `gpt-4.1-nano` when env vars are unset.
+
+## 2027-01-25 (Credit gating + documentation reminder)
+- Image/video generation requires a sufficient credit balance before debiting; the Generate CTA disables and the SOP now notes the credit check so the banner can prompt a top-up.
+- Added a comment near `modelOptions` reminding maintainers to keep the `docs/sop_image_generation.md` supported-model table in sync when adding providers/models.
+- Video pipeline hardening: added routing for text-to-video models and allowed dropped/imported images (blob/data URLs) to be used for image-to-video submissions by normalizing inputs before provider calls.
+
+## 2026-01-24 (AI model references)
+- Added a dedicated `docs/api-responses.md` guide covering the OpenAI Responses API payloads, tools, and best practices alongside `docs/api-chat-completions.md` in the docs index.
+- Documented Fal.ai model workflows (`docs/api-fal-veo3.md`, `docs/api-fal-flux-dev.md`, `docs/api-fal-nano-banana-pro.md`, `docs/api-fal-seedream-4-5.md`, `docs/api-fal-seedance-1-5-pro.md`) so every queue/task/callback path is captured plus the backend `kei/task-status` proxy.
+- Added the new API references to `docs/README.md` under the API Reference section for a single navigation surface.
+
+## 2027-01-27 (AI Studio model pricing + integrations)
+- Introduced Google Veo 3.1 (Fal) with 8s default, 1080p/audio-on pricing; wired Fal queue submission and per-second cost strategy.
+- Updated model order in selectors and ensured env template documents KEI/FAL keys.
+
+## 2026-02-03
+- Updated Image-to-Video (Recreate) UI to use two primary reference frames (First frame + Last frame) and hide secondary dropzones for video models; added on-card labels for clarity.
+- Added MiniGenerateButton to the Agent Chat input row beside Send for faster prompt generation actions.
+- Updated `docs/sop_video_generation.md` to reflect the first/last frame workflow requirement for image-to-video.
+- Temporarily hid the AI Studio toolbar “Creations” section (My Generations/Community); the toolbar file still contains the buttons and this note should be the reminder to revert once they need to be visible again.
+
+## 2026-02-06
+- Added Kling 3.0 Pro image-to-video (Fal) with per-second pricing, new Fal proxy routes, and AI Studio wiring for defaults and submissions.
+- Documented Kling 3.0 Pro API usage and updated AI Studio pricing + SOP tables to include the new model.
+
+## 2026-02-07
+- Added Kling 3.0 Pro text-to-video (Fal) with per-second pricing, new Fal proxy submit route, and AI Studio wiring for defaults and submissions.
+- Documented the Kling 3.0 Pro text-to-video API and updated AI Studio SOP tables + pricing notes.

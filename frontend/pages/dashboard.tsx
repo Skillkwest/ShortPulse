@@ -107,15 +107,6 @@ export default function DashboardPage() {
       icon: FolderSimple,
     },
     {
-      title: "Performance Analytics",
-      description: "Compare high-performing Reels, TikToks, and Shorts across niches.",
-      href: "/performance",
-      cta: "Open analytics →",
-      variant: "tool-performance",
-      image: "/dashboard/performance-analytics.png",
-      icon: ChartBar,
-    },
-    {
       title: "AI Studio",
       description: "Generate and iterate images/videos with prompt systems, models, and aspect control.",
       href: "/ai-studio",
@@ -123,6 +114,15 @@ export default function DashboardPage() {
       variant: "tool-creator",
       image: "/dashboard/creator-studio.png",
       icon: Sparkle,
+    },
+    {
+      title: "Performance Analytics",
+      description: "Compare high-performing Reels, TikToks, and Shorts across niches (Analytics coming soon).",
+      href: "/performance-soon",
+      cta: "Open analytics →",
+      variant: "tool-performance",
+      image: "/dashboard/performance-analytics.png",
+      icon: ChartBar,
     },
   ];
 

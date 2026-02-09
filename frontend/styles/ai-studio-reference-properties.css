@@ -1,0 +1,770 @@
+/**
+ * AI Studio reference properties panel.
+ * Dropzones, frame/model controls, and prompt capture for reference-driven flows.
+ */
+.reference-properties-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reference-drop-layout {
+  display: grid;
+  width: 100%;
+}
+
+.reference-drop-layout-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  width: 100%;
+  --reference-drop-border: 1px dashed rgba(160, 170, 182, 0.45);
+  --reference-drop-border-hover: rgba(37, 169, 191, 0.55);
+  --reference-drop-border-active: rgba(37, 169, 191, 0.95);
+  --reference-drop-shadow-active: 0 0 0 2px rgba(37, 169, 191, 0.25);
+  --reference-drop-bg: #101215;
+  --reference-drop-bg-hover: #16181b;
+  --reference-drop-radius: 8px;
+  --reference-drop-aspect: 4 / 5;
+  --reference-drop-max-width: 240px;
+  --reference-drop-primary-width: clamp(100px, calc(var(--app-fixed-width) * 0.18), 125px);
+  --reference-drop-secondary-width: clamp(70px, calc(var(--app-fixed-width) * 0.09), 95px);
+}
+
+.reference-dropzone-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.reference-dropzone-block .dropzone-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(235, 235, 235, 0.7);
+}
+
+.reference-dropzone-block.image-block {
+  width: 100%;
+}
+
+.reference-dropzone-block.prompt-block {
+  width: 100%;
+}
+
+.reference-drop-header-actions {
+  margin-left: auto;
+}
+
+.reference-mode-toggle-row {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  width: 100%;
+  max-width: none;
+  gap: 4px;
+}
+
+.ai-studio-page[data-beginner-mode="on"] .reference-mode-toggle-row {
+  display: none;
+}
+.drop-image-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  transform-origin: top;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.motion-plus {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(235, 241, 249, 0.75);
+  flex: 0 0 auto;
+}
+
+.reference-drop-divider {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ai-card-text-muted);
+  opacity: 0.7;
+}
+
+.reference-drop-divider svg {
+  width: 22px;
+  height: 22px;
+}
+
+.primary-drop {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  width: var(--reference-drop-primary-width);
+}
+
+.secondary-drop {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: var(--reference-drop-secondary-width);
+}
+
+.secondary-drop:last-child {
+  margin-right: 0;
+}
+
+.reference-frame-card {
+  background: var(--ai-container-card-bg);
+  border: 1px solid var(--ai-container-card-border);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.reference-frame-controls {
+  margin-top: 10px;
+}
+
+.create-controls.dual-controls.reference-frame-controls {
+  grid-template-columns: 0.85fr 1.15fr;
+}
+
+.video-settings-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.video-settings-controls .fixed-select {
+  width: 100%;
+}
+
+.video-settings-toggle-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(12, 15, 22, 0.6);
+  border: 1px solid rgba(201, 205, 214, 0.12);
+}
+
+.video-settings-toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Motion Audio Controls - matches video settings styling */
+.motion-audio-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.motion-audio-controls .video-settings-toggle-row {
+  width: 100%;
+}
+
+.reference-step-card {
+  background: var(--ai-container-card-bg);
+  border: 1px solid var(--ai-container-card-border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.ai-properties .reference-step-card {
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.reference-step-card.is-image-refs .drop-image-row {
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+.reference-step-card.is-image-refs {
+  --reference-drop-secondary-width: clamp(80px, calc(var(--app-fixed-width) * 0.1), 105px);
+}
+
+.reference-step-card.is-video-refs {
+  --reference-drop-aspect: 4 / 5;
+  --reference-drop-max-width: 270px;
+  --reference-drop-primary-width: clamp(120px, calc(var(--app-fixed-width) * 0.22), 150px);
+  --reference-drop-secondary-width: clamp(90px, calc(var(--app-fixed-width) * 0.12), 115px);
+}
+
+.reference-step-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.step-badge.mini {
+  width: 24px;
+  height: 24px;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  font-size: 12px;
+  background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.9));
+  color: #1a140c;
+  box-shadow: 0 6px 18px rgba(245, 185, 66, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.ai-studio-page .step-badge.mini {
+  background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.9));
+  color: #1a140c;
+  box-shadow: 0 6px 18px rgba(245, 185, 66, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.ai-studio-page[data-beginner-mode="on"] .step-badge.mini {
+  background: linear-gradient(135deg, rgba(4, 183, 135, 0.96), rgba(14, 213, 100, 0.658));
+  color: #000000;
+  box-shadow: 0 6px 18px rgba(7, 143, 64, 0.34), inset 0 1px 0 rgba(5, 175, 84, 0.813);
+}
+
+.reference-step-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reference-step-copy .step-title {
+  margin: 0;
+}
+
+.ai-studio-page[data-beginner-mode="on"] .reference-drop-divider {
+  display: none;
+}
+
+.ai-studio-page[data-beginner-mode="on"] .secondary-drop {
+  display: none;
+}
+
+.ai-studio-page[data-beginner-mode="on"] .reference-dropzone.extra {
+  display: none;
+}
+
+.ai-studio-page[data-beginner-mode="off"] .primary-drop .reference-drop-content .helper-text {
+  display: block !important;
+}
+
+.dropzone-tag {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  padding: 2px 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(235, 241, 249, 0.9);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reference-dropzone.has-preview .dropzone-tag,
+.reference-dropzone.has-video .dropzone-tag {
+  display: none;
+}
+
+.reference-drop-layout-inner .reference-step-card .reference-dropzone,
+.reference-drop-layout-inner .reference-step-card .text-dropzone {
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+}
+
+.reference-drop-layout-inner .reference-dropzone {
+  border: var(--reference-drop-border);
+  border-radius: var(--reference-drop-radius);
+  overflow: hidden;
+  background: var(--reference-drop-bg);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  height: auto;
+  min-height: 0;
+  width: 100%;
+  max-width: var(--reference-drop-max-width);
+  margin: 0;
+  align-self: stretch;
+  aspect-ratio: var(--reference-drop-aspect);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  position: relative;
+}
+
+.reference-drop-layout-inner .reference-dropzone:hover {
+  border-color: var(--reference-drop-border-hover);
+  background: var(--reference-drop-bg-hover);
+}
+
+.reference-drop-layout-inner .reference-dropzone.is-dragging {
+  border-color: var(--reference-drop-border-active);
+  box-shadow: var(--reference-drop-shadow-active);
+}
+
+.reference-drop-layout-inner .dropzone-clear {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  z-index: 2;
+}
+
+.reference-drop-layout-inner .reference-dropzone.has-preview:hover .dropzone-clear {
+  display: flex;
+}
+
+.reference-swap-control {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+}
+
+.reference-swap-control svg {
+  width: 26px;
+  height: 26px;
+  color: inherit;
+}
+
+.reference-swap-control:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.reference-swap-control:not(:disabled):hover,
+.reference-swap-control:not(:disabled):focus-visible {
+  background: rgba(52, 200, 255, 0.18);
+  border: 1px solid rgba(52, 200, 255, 0.35);
+}
+
+.reference-swap-control:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(52, 200, 255, 0.35);
+}
+
+.reference-drop-layout-inner .text-dropzone {
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: stretch;
+  flex: 1 1 0;
+  width: auto;
+  min-height: 200px;
+  min-width: 0;
+  align-self: stretch;
+  padding: 0;
+}
+
+.reference-drop-layout-inner .prompt-text-dropzone {
+  height: 150px;
+  min-height: 150px;
+}
+
+.reference-drop-layout-inner .text-dropzone:not(.has-text) {
+  cursor: text;
+}
+
+.reference-drop-layout-inner .text-dropzone:not(.has-text) .prompt-drop-input {
+  border: 1px dashed rgba(184, 202, 220, 0.35);
+  background: rgba(12, 15, 22, 0.86);
+}
+
+.reference-drop-layout-inner .reference-dropzone.extra {
+  min-height: 105px;
+  color: var(--ai-card-text);
+}
+
+.reference-drop-layout-inner .reference-dropzone.extra.has-preview {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: none;
+}
+
+.reference-drop-layout-inner .reference-dropzone.extra.has-preview .reference-drop-content {
+  display: none;
+}
+
+.reference-drop-layout-inner .reference-dropzone.extra svg {
+  width: 20px;
+  height: 20px;
+}
+
+.reference-drop-layout-inner .reference-dropzone-block.image-block .reference-drop-content.image-drop-content {
+  font-size: 13px;
+  gap: 6px;
+}
+
+.reference-drop-layout-inner .reference-dropzone-block.image-block .reference-drop-content.image-drop-content svg {
+  width: 20px;
+  height: 20px;
+}
+
+.reference-drop-layout-inner
+  .reference-dropzone-block.image-block
+  .reference-drop-content.image-drop-content
+  .reference-drop-title {
+  font-size: 12px;
+}
+
+.reference-drop-layout-inner .reference-dropzone.has-preview {
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  border: none;
+  background-color: var(--ai-container-card-bg);
+}
+
+.reference-drop-layout-inner .reference-dropzone.has-preview .reference-drop-content {
+  display: none;
+}
+
+.reference-mode-toggle-row .mode-toggle-btn {
+  padding: 8px 10px;
+  font-size: 12px !important;
+}
+
+.reference-mode-toggle-row .mode-toggle-btn.is-active {
+  box-shadow: 0 6px 14px rgba(37, 169, 191, 0.18);
+  border-color: rgba(52, 201, 255, 0.3);
+}
+
+.motion-drop-row .dropzone-tag {
+  font-size: 14px;
+}
+
+.motion-drop-row .dropzone-tag svg {
+  opacity: 0.9;
+}
+
+.motion-drop-row .primary-drop:first-child .reference-dropzone {
+  border: var(--reference-drop-border);
+  box-shadow: none;
+}
+
+.motion-drop-row .primary-drop:first-child .reference-dropzone:hover {
+  border-color: var(--reference-drop-border-hover);
+  background: var(--reference-drop-bg-hover);
+}
+
+.reference-drop-layout-inner .reference-dropzone.has-video {
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  background: rgba(12, 15, 22, 0.92);
+  background-image: none !important;
+}
+
+.reference-drop-layout-inner .reference-dropzone.has-video .reference-drop-content {
+  display: none;
+}
+
+.reference-drop-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
+
+.reference-drop-layout-inner .reference-drop-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+  color: var(--ai-card-text-muted);
+}
+
+.reference-drop-layout-inner .motion-drop-content {
+  gap: 6px;
+  text-align: left;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.motion-drop-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ai-card-text);
+  line-height: 0;
+}
+
+.motion-drop-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ai-card-text);
+}
+
+.motion-drop-subtitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ai-card-text-muted);
+  line-height: 1.35;
+}
+
+.reference-drop-layout-inner .reference-drop-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: inherit;
+}
+
+.reference-drop-layout-inner .reference-drop-content svg {
+  color: inherit;
+}
+
+.reference-drop-layout-inner .reference-drop-content p {
+  color: var(--ai-card-text-faint);
+}
+
+.reference-drop-layout-inner .text-dropzone.has-text {
+  border: none;
+  background: rgba(17, 20, 27, 0.92);
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.reference-drop-layout-inner .reference-drop-text {
+  color: var(--ai-card-text);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 10;
+  -webkit-box-orient: vertical;
+  text-align: left;
+}
+
+.reference-drop-layout-inner .reference-drop-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ai-card-text-muted);
+}
+
+/* Motion Control dropzone styling */
+.motion-drop-row .reference-dropzone {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.motion-drop-row .reference-drop-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 12px;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+}
+
+.motion-drop-row .reference-drop-content svg {
+  color: rgba(255, 255, 255, 0.315);
+  flex-shrink: 0;
+}
+
+.motion-drop-row .reference-drop-content .reference-drop-title {
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(155, 155, 155, 0.545);
+  line-height: 1.2;
+  word-wrap: break-word;
+}
+
+.motion-drop-row .reference-drop-content .reference-drop-subtitle {
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.246);
+  line-height: 1.2;
+  word-wrap: break-word;
+}
+
+/* Kling 3.0 styling refinements */
+.kling-shot-row {
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  background: rgba(12, 15, 22, 0.9);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 8px 18px rgba(0, 0, 0, 0.24);
+  width: 100%;
+  max-width: 720px;
+}
+
+.kling-shot-row .shot-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kling-shot-row .shot-index {
+  font-weight: 700;
+  color: #e5f6ff;
+  background: rgba(37, 169, 191, 0.16);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 169, 191, 0.35);
+  font-size: 12px;
+}
+
+.kling-shot-row textarea {
+  width: 100%;
+  min-height: 120px;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background: rgba(12, 15, 22, 0.9);
+  color: #f1f5ff;
+  padding: 12px;
+  font-size: 13px;
+  resize: vertical;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+}
+
+.kling-shot-row textarea::placeholder {
+  color: var(--ai-card-text-faint);
+}
+
+.kling-shot-row textarea:focus {
+  outline: none;
+  border-color: rgba(37, 169, 191, 0.4);
+  box-shadow: 0 0 0 1px rgba(37, 169, 191, 0.18);
+}
+
+.kling-shot-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kling-shot-controls select {
+  min-width: 120px;
+}
+
+.kling-elements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 720px;
+}
+
+.kling-element-row {
+  border: 1px dashed rgba(201, 205, 214, 0.28);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(12, 15, 22, 0.86);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.01);
+}
+
+.kling-element-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.kling-element-grid input {
+  background: rgba(12, 15, 22, 0.9);
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  color: #f1f5ff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.kling-element-grid input::placeholder {
+  color: var(--ai-card-text-faint);
+}
+
+.kling-element-grid input:focus {
+  outline: none;
+  border-color: rgba(37, 169, 191, 0.4);
+  box-shadow: 0 0 0 1px rgba(37, 169, 191, 0.18);
+}
+
+.kling-element-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kling-element-actions .helper-text {
+  color: var(--ai-card-text-muted);
+}

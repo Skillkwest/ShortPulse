@@ -16,8 +16,8 @@
   border: 1px solid rgba(201, 205, 214, 0.2);
   border-radius: 16px;
   padding: 16px;
-  width: min(880px, 94vw);
-  max-height: 92vh;
+  width: min(880px, calc(var(--app-fixed-width) * 0.94));
+  max-height: calc(var(--app-fixed-height) * 0.92);
   overflow: hidden;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
   position: relative;
@@ -51,7 +51,7 @@
 .modal-thumb {
   position: relative;
   width: 340px;
-  max-width: 48vw;
+  max-width: calc(var(--app-fixed-width) * 0.48);
   aspect-ratio: 9 / 16;
   overflow: hidden;
   border-radius: 12px;
@@ -135,7 +135,7 @@
   justify-content: center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px) and (max-device-width: 768px) {
   .modal-row {
     flex-direction: column;
   }

@@ -1,0 +1,57 @@
+/**
+ * Viewport lock styles.
+ * Freezes the app to its initial viewport size so window resizing clips instead of reflowing.
+ */
+:root {
+  --app-fixed-width: 100vw;
+  --app-fixed-height: 100vh;
+}
+
+html,
+body,
+#__next {
+  width: var(--app-fixed-width);
+  min-height: var(--app-fixed-height);
+  min-width: var(--app-fixed-width);
+  max-width: var(--app-fixed-width);
+}
+
+html {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+body {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+#__next {
+  overflow: visible;
+}
+
+/* Transparent scrollbars across browsers (keeps scrolling enabled). */
+html,
+body {
+  scrollbar-color: rgba(201, 205, 214, 0.2) transparent; /* Firefox */
+  scrollbar-width: thin;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.2);
+  border-radius: 999px;
+}

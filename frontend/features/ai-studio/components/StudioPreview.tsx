@@ -3,9 +3,10 @@
  * Shows the latest output or reference drop plus a prompt preview input for regen flows.
  */
 import React from "react";
-import Link from "next/link";
 import { ArrowClockwise, CloudArrowUp, ImageSquare, UploadSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
+
+const isVideoUrl = (url: string) => /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
 
 type StudioPreviewProps = {
   activeOutput: StudioOutput | null;
@@ -15,6 +16,8 @@ type StudioPreviewProps = {
   onReferenceTextChange: (text: string) => void;
   onRegenerate: () => void;
   onTriggerFileSelect?: () => void;
+  onDropFiles?: (files: FileList) => void;
+  onOpenMediaLibrary?: () => void;
 };
 
 const preventFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -35,12 +38,20 @@ export function StudioPreview({
   onReferenceTextChange,
   onRegenerate,
   onTriggerFileSelect,
+  onDropFiles,
+  onOpenMediaLibrary,
 }: StudioPreviewProps) {
-  const previewImage = activeOutput?.previewUrl || referenceImageUrl;
+  const previewMedia = activeOutput?.previewUrl || referenceImageUrl;
+  const isVideoPreview = previewMedia ? isVideoUrl(previewMedia) : false;
   const taskState = activeOutput?.taskState;
-  const errorMessage = activeOutput?.errorMessage;
+  const errorMessage = activeOutput?.errorMessageShort ?? activeOutput?.errorMessage;
   const handleReferenceDrop = (event: React.DragEvent<HTMLDivElement>) => {
     if (preventFileDrop(event)) {
+      const files = event.dataTransfer.files;
+      if (files?.length && onDropFiles) {
+        event.preventDefault();
+        onDropFiles(files);
+      }
       return;
     }
     event.preventDefault();
@@ -75,20 +86,24 @@ export function StudioPreview({
               <UploadSimple size={14} weight="regular" />
               Add files
             </button>
-            <Link href="/media-library" className="ghost-btn mini preview-media-btn">
+            <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
               <CloudArrowUp size={14} weight="regular" />
               Media library
-            </Link>
+            </button>
           </div>
         </div>
         <div className="step-card studio-preview-card">
           <div className="studio-preview-square" onDrop={handleReferenceDrop} onDragOver={(event) => event.preventDefault()}>
-            {previewImage ? (
-              <div className="studio-preview-square-image" style={{ backgroundImage: `url(${previewImage})` }} />
+            {previewMedia ? (
+              isVideoPreview ? (
+                <video className="studio-preview-video" src={previewMedia} autoPlay muted loop playsInline />
+              ) : (
+                <div className="studio-preview-square-image" style={{ backgroundImage: `url(${previewMedia})` }} />
+              )
             ) : (
               <div className="studio-preview-square-empty">
                 <ImageSquare size={24} weight="regular" />
-                <p className="tiny">Generated images will appear here.</p>
+                <p className="tiny helper-text">Generated images will appear here.</p>
               </div>
             )}
           </div>

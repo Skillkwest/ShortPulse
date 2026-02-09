@@ -8,7 +8,7 @@ Purpose: shared expectations for collaborating on ShortPulse.
 - Include a brief summary and testing notes in PR descriptions.
 
 ## Reviews
-- Check for file-size guardrails (<500 lines) and single responsibility per file.
+- Check file-size guidance (~500 lines, advisory) and single responsibility per file.
 - Ensure public functions/files have doc comments per `docs/conventions.md`.
 - Verify new logic is covered by tests (or note gaps).
 

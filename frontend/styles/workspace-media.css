@@ -15,6 +15,53 @@
   margin-top: 18px;
 }
 
+.prompt-grid {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.prompt-card {
+  background: linear-gradient(160deg, rgba(16, 20, 30, 0.95), rgba(12, 15, 22, 0.92));
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: grid;
+  gap: 12px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
+}
+
+.prompt-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.prompt-card-body {
+  margin: 0;
+  color: #d6e0f5;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-height: 160px;
+  overflow: hidden;
+}
+
+.prompt-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.prompt-delete-btn {
+  border: 1px solid rgba(255, 110, 110, 0.4);
+  color: #ffcccc;
+  background: rgba(112, 16, 16, 0.25);
+}
+
 .media-card {
   background: linear-gradient(160deg, rgba(18, 21, 29, 0.9), rgba(14, 17, 24, 0.85));
   border: 1px solid rgba(201, 205, 214, 0.12);
@@ -341,8 +388,8 @@
 
 .media-modal-content {
   position: relative;
-  width: min(90vw, 1100px);
-  max-height: 95vh;
+  width: min(calc(var(--app-fixed-width) * 0.9), 1100px);
+  max-height: calc(var(--app-fixed-height) * 0.95);
   background: #05070d;
   border: 1px solid rgba(201, 205, 214, 0.12);
   border-radius: 24px;
@@ -376,21 +423,21 @@
 
 .modal-preview {
   width: 100%;
-  max-width: 60vw;
+  max-width: calc(var(--app-fixed-width) * 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   background: #0c1018;
   border-radius: 14px;
   padding: 14px;
-  max-height: 78vh;
+  max-height: calc(var(--app-fixed-height) * 0.78);
 }
 
 .modal-preview img,
 .modal-preview video {
   width: 100%;
   height: 100%;
-  max-height: 78vh;
+  max-height: calc(var(--app-fixed-height) * 0.78);
   border-radius: 12px;
   object-fit: contain;
 }
@@ -446,13 +493,17 @@
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1100px) and (max-device-width: 1100px) {
   .media-grid-fixed {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .prompt-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 720px) and (max-device-width: 720px) {
   .media-top {
     flex-direction: column;
     align-items: flex-start;
@@ -499,7 +550,7 @@
   font-size: 12px;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 960px) and (max-device-width: 960px) {
   .media-stage {
     grid-template-columns: 1fr;
   }

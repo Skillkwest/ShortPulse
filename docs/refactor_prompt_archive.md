@@ -1,5 +1,7 @@
 # Refactor Prompt Archive
 
+Note: This is an archived prompt. Some constraints (such as the 500‑line limit) are now guidelines; see `docs/dev-ground-rules.md` for current expectations.
+
 Original prompt to retain for future reference:
 
 ```

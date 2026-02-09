@@ -4,7 +4,8 @@
  */
 import Head from "next/head";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   ChartLineUp,
@@ -19,6 +20,7 @@ import {
   UsersThree,
   VideoCamera,
 } from "phosphor-react";
+import { ensureSupabaseClient } from "../lib/supabaseClient";
 
 const testimonials = [
   {
@@ -64,7 +66,25 @@ const faqItems = [
  * Render the public landing experience with hero, feature, and pricing sections.
  */
 export default function LandingPage() {
+  const router = useRouter();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    try {
+      const supabase = ensureSupabaseClient();
+      supabase.auth.getSession().then(({ data }) => {
+        if (!mounted || !data.session) return;
+        router.replace("/dashboard");
+      });
+    } catch (_error) {
+      // No-op: landing should remain accessible when Supabase env vars are missing.
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
 
   const features = [
     {
@@ -176,8 +196,8 @@ export default function LandingPage() {
                     Start free with email
                     <ArrowRight size={18} weight="bold" />
                   </Link>
-                  <Link href="/performance" className="ghost-btn lg">
-                    View live analytics demo
+                  <Link href="/performance-soon" className="ghost-btn lg">
+                    Preview analytics roadmap
                   </Link>
                 </div>
                 <div className="lp-hero-sub small">No credit card required.</div>
@@ -402,16 +422,16 @@ export default function LandingPage() {
               <p className="eyebrow">Ready to create content that actually performs?</p>
               <h2>Sign up free and start tracking what’s blowing up today.</h2>
               <p className="lp-hero-sub">
-                Open the live Performance Analytics page, save the creators you care about, and copy what’s already
-                winning.
+                Save the creators you care about today, then join the waitlist for Performance Analytics while we finish
+                the scoring workspace.
               </p>
             </div>
             <div className="lp-cta-actions">
               <Link href="/auth" className="primary-btn lg">
                 Start free with email
               </Link>
-              <Link href="/performance" className="ghost-btn lg">
-                See live analytics
+              <Link href="/performance-soon" className="ghost-btn lg">
+                See analytics status
               </Link>
             </div>
           </section>

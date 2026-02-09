@@ -6,11 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "docs:check": "node ../scripts/check_docs_links.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",
+    "formidable": "^3.5.4",
     "next": "^14.2.35",
+    "onnxruntime-web": "^1.23.2",
     "phosphor-react": "^1.4.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",

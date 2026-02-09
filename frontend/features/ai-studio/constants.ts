@@ -4,33 +4,102 @@
  */
 import { AspectOption, PromptTemplate, ToolId } from "./types";
 
-export type ModelMediaType = "image" | "video" | "edit" | "multi";
+export type ModelMediaType = "image" | "video" | "image-to-video" | "edit" | "multi" | "keyframes";
 export type ModelOption = { value: string; label: string; mediaType?: ModelMediaType };
 export type ToolConfig = { id: ToolId; label: string; desc: string };
 
+// Map model ids to their logo assets used in selectors and chips.
+export const modelLogos: Record<string, string> = {
+  "fal-ai/flux-2/klein/9b": "/flux%20LOGO.png",
+  "fal/flux-2": "/flux%20LOGO.png",
+  "fal/flux-2/edit": "/flux%20LOGO.png",
+  "fal/flux-2-pro": "/flux%20LOGO.png",
+  "fal/flux-2-pro/edit": "/flux%20LOGO.png",
+  "fal-ai/nano-banana": "/Google%20LOGO.png",
+  "fal-ai/nano-banana/edit": "/Google%20LOGO.png",
+  "fal-ai/nano-banana-pro": "/Google%20LOGO.png",
+  "fal-ai/nano-banana-pro/edit": "/Google%20LOGO.png",
+  "fal-ai/bytedance/seedream/v4.5/text-to-image": "/Seedream%20LOGO.png",
+  "fal-ai/bytedance/seedream/v4.5/edit": "/Seedream%20LOGO.png",
+  "fal-ai/kling-video/v3/pro/text-to-video": "/Kling%20LOGO.png",
+  "fal-ai/kling-video/v3/pro/image-to-video": "/Kling%20LOGO.png",
+  "fal-ai/kling-video/v2.6/pro/motion-control": "/Kling%20LOGO.png",
+  "fal-ai/veo3.1/first-last-frame-to-video": "/Google%20LOGO.png",
+  "fal-ai/veo3.1/image-to-video": "/Google%20LOGO.png",
+  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": "/Seedream%20LOGO.png",
+  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": "/Seedream%20LOGO.png",
+  "fal-ai/veo3.1": "/Google%20LOGO.png",
+  "fal-ai/sora-2/text-to-video/pro": "/Sora%202%20LOGO.png",
+};
+
 export const aspectOptions: AspectOption[] = [
-  { value: "1:1", ratioLabel: "1:1", name: "Square", orientation: "square" },
-  { value: "16:9", ratioLabel: "16:9", name: "Widescreen", orientation: "widescreen" },
-  { value: "9:16", ratioLabel: "9:16", name: "Social story", orientation: "vertical" },
-  { value: "2:3", ratioLabel: "2:3", name: "Portrait", orientation: "vertical" },
+  { value: "auto", ratioLabel: "Auto", name: "Auto", orientation: "square" },
+  { value: "9:16", ratioLabel: "9:16", name: "Vertical", orientation: "vertical" },
+  { value: "4:5", ratioLabel: "4:5", name: "Social Post", orientation: "vertical" },
   { value: "3:4", ratioLabel: "3:4", name: "Traditional", orientation: "vertical" },
-  { value: "1:2", ratioLabel: "1:2", name: "Vertical", orientation: "vertical" },
-  { value: "2:1", ratioLabel: "2:1", name: "Horizontal", orientation: "horizontal" },
-  { value: "4:5", ratioLabel: "4:5", name: "Social post", orientation: "vertical" },
-  { value: "3:2", ratioLabel: "3:2", name: "Standard", orientation: "horizontal" },
+  { value: "1:1", ratioLabel: "1:1", name: "Square", orientation: "square" },
   { value: "4:3", ratioLabel: "4:3", name: "Classic", orientation: "horizontal" },
-  { value: "21:9", ratioLabel: "21:9", name: "Ultra-wide", orientation: "widescreen" },
+  { value: "3:2", ratioLabel: "3:2", name: "Standard", orientation: "horizontal" },
+  { value: "16:9", ratioLabel: "16:9", name: "Landscape", orientation: "widescreen" },
+  { value: "21:9", ratioLabel: "21:9", name: "Ultrawide", orientation: "widescreen" },
+  { value: "9:21", ratioLabel: "9:21", name: "Ultra Tall", orientation: "vertical" },
 ];
 
+// When you add/remove image models here, update `docs/sop_image_generation.md` → "Supported image models".
 export const modelOptions: ModelOption[] = [
-  { value: "nano-banana-pro", label: "Nano Banana Pro (Image)", mediaType: "image" },
-  { value: "veo-3", label: "Veo 3 (Video)", mediaType: "video" },
-  { value: "flux-kontext", label: "Flux Kontext (Image editing)", mediaType: "edit" },
-  { value: "kling-2.5-turbo", label: "Kling 2.5 Turbo (Video/Image-to-video)", mediaType: "video" },
-  { value: "gpt-image-1", label: "4o Image (GPT Image 1)", mediaType: "image" },
-  { value: "seedream/4.5-text-to-image", label: "Seedream 4.5 (Image)", mediaType: "image" },
-  { value: "fal/flux-dev", label: "Fal Flux Dev (Image)", mediaType: "image" },
+  { value: "fal-ai/kling-video/v3/pro/text-to-video", label: "Kling 3.0 (Text to Video)", mediaType: "video" },
+  { value: "fal-ai/kling-video/v3/pro/image-to-video", label: "Kling 3.0 (Start/End Frame)", mediaType: "image-to-video" },
+  { value: "fal-ai/kling-video/v2.6/pro/motion-control", label: "Kling 2.6 Motion Control", mediaType: "image-to-video" },
+  { value: "fal-ai/veo3.1/first-last-frame-to-video", label: "Veo 3.1 (First/Last Frame)", mediaType: "keyframes" },
+  { value: "fal-ai/veo3.1/image-to-video", label: "Veo 3.1 (Image to Video)", mediaType: "image-to-video" },
+  {
+    value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+    label: "Seedance 1.5 Pro (Image to Video)",
+    mediaType: "image-to-video",
+  },
+  { value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video", label: "Seedance 1.5 Pro", mediaType: "video" },
+  { value: "fal-ai/veo3.1", label: "Google Veo 3.1", mediaType: "video" },
+  { value: "fal-ai/sora-2/text-to-video/pro", label: "Sora 2 Pro", mediaType: "video" },
+  { value: "fal/flux-2-pro/edit", label: "FLUX.2 Pro Edit", mediaType: "image" },
+  { value: "fal/flux-2/edit", label: "FLUX.2 Edit", mediaType: "image" },
+  { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
+  { value: "fal/flux-2", label: "FLUX.2", mediaType: "image" },
+  { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
+  { value: "fal-ai/nano-banana", label: "Nano Banana", mediaType: "image" },
+  { value: "fal-ai/nano-banana/edit", label: "Nano Banana Edit", mediaType: "image" },
+  { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
+  { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro Edit", mediaType: "image" },
+  { value: "fal-ai/bytedance/seedream/v4.5/edit", label: "Seedream 4.5 Edit", mediaType: "image" },
+  { value: "fal-ai/bytedance/seedream/v4.5/text-to-image", label: "Seedream 4.5", mediaType: "image" },
 ];
+
+export const falNanoBananaAllowedAspects = new Set([
+  "21:9",
+  "16:9",
+  "3:2",
+  "4:3",
+  "5:4",
+  "1:1",
+  "4:5",
+  "3:4",
+  "2:3",
+  "9:16",
+  "auto",
+]);
+
+export const falNanoBananaProAllowedAspects = new Set([
+  "21:9",
+  "16:9",
+  "3:2",
+  "4:3",
+  "5:4",
+  "1:1",
+  "4:5",
+  "3:4",
+  "2:3",
+  "9:16",
+  "auto",
+]);
 
 // Kie.ai expects one of these aspect ratios; anything else falls back to "auto" when sending requests.
 export const keiAllowedAspects = new Set([
@@ -43,12 +112,11 @@ export const keiAllowedAspects = new Set([
   "5:4",
   "9:16",
   "16:9",
-  "21:9",
   "auto",
 ]);
 
-// GPT-4o Image only allows these sizes.
-export const gptImageAllowedAspects = new Set(["1:1", "3:2", "2:3"]);
+// Kling image-to-video supports a limited aspect list.
+export const klingAllowedAspects = new Set(["16:9", "9:16", "1:1"]);
 
 // Map our aspect strings to Fal image_size enum values.
 export const falImageSizeMap: Record<string, string> = {
@@ -91,8 +159,12 @@ export const previewPlaceholders = [
 ];
 
 export const primaryToolList: ToolConfig[] = [
-  { id: "create", label: "Create", desc: "Prompt and output type" },
-  { id: "edit-parent", label: "Pulse", desc: "Show edit tools" },
+  { id: "create", label: "Create", desc: "Show create tools" },
+];
+
+export const editToolList: ToolConfig[] = [
+  { id: "edit", label: "Edit", desc: "Edit and refine content" },
+  { id: "canvas", label: "Canvas", desc: "Build automation workflows" },
 ];
 
 export const lowerToolList: ToolConfig[] = [
@@ -105,9 +177,9 @@ export const creationsToolList: ToolConfig[] = [
   { id: "community", label: "Community", desc: "Browse shared creations" },
 ];
 
-export const editChildTools: ToolConfig[] = [
-  { id: "image-to-image", label: "Image", desc: "Regenerate from a reference" },
-  { id: "image-to-video", label: "Video", desc: "Animate a still image" },
-  { id: "enhance", label: "Enhance", desc: "Upscale and polish outputs" },
+export const createChildTools: ToolConfig[] = [
+  { id: "text", label: "Text", desc: "Create from text prompts" },
+  { id: "image", label: "Image", desc: "Generate from a reference" },
+  { id: "video", label: "Video", desc: "Animate a still image" },
   { id: "character", label: "Character", desc: "Build character variants" },
 ];

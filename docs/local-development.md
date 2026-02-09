@@ -9,7 +9,7 @@ ShortPulse runs as a client-only Next.js app.
   - Required tables/policies (see below)
 
 ## Environment variables
-1. Copy `ShortPulse/frontend/.env.example` to `ShortPulse/frontend/.env.local`.
+1. Copy `frontend/.env.example` to `frontend/.env.local`.
 2. Set:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -17,20 +17,20 @@ ShortPulse runs as a client-only Next.js app.
 Never commit `.env.local`.
 
 ## Run the app
-From the workspace root:
+From the repo root:
 ```bash
-cd ShortPulse/frontend
+cd frontend
 npm install
 npm run dev
 ```
 
 ## Bootstrap Supabase (optional)
-- Minimal scripts: `ShortPulse/sql/create_saved_creators_table.sql` and `ShortPulse/sql/storage_policies.sql`
-- Combined schema: `ShortPulse/docs/supabase_full_schema.sql`
+- Minimal scripts: `sql/create_saved_creators_table.sql` and `sql/storage_policies.sql`
+- Combined schema: `docs/supabase_full_schema.sql`
 
 ## Quality checks
 ```bash
-cd ShortPulse/frontend
+cd frontend
 npm run lint
 npm run build
 ```

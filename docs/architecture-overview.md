@@ -15,6 +15,12 @@ ShortPulse is currently a **client-only** Next.js app that uses **Supabase** for
 2. The browser holds a session; Supabase client attaches the user JWT to requests.
 3. Reads/writes to Postgres/storage are authorized by **RLS policies** and storage policies (see `docs/security-checklist.md`).
 
+## Operational error telemetry
+- Browser runtime failures are captured by global handlers in `frontend/pages/_app.tsx` via `frontend/lib/appErrorReporter.ts`.
+- Authenticated API failures (`5xx`) from `frontend/lib/authenticatedFetch.ts` are reported to `/api/log/client-error` unless marked as generation-scope.
+- Server-side API catch blocks can write direct incidents via `frontend/pages/api/_utils/appErrorLogs.ts`.
+- Admin incidents are queried from `/api/admin/errors` and rendered in `/admin` for operator triage.
+
 ## Route surfaces (what owns what)
 
 ### `/auth`
@@ -47,4 +53,3 @@ ShortPulse is currently a **client-only** Next.js app that uses **Supabase** for
 - User-owned rows are protected by RLS enforcing `user_id = auth.uid()`.
 - Storage is private; object paths are scoped to `auth.uid()` prefixes.
 - The browser only uses Supabase anon credentials; never expose service role keys.
-

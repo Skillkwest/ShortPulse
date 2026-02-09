@@ -40,23 +40,23 @@
 }
 
 .tool-card.tool-performance:hover {
-  border-color: rgba(37, 169, 191, 0.45);
+  border-color: rgba(245, 185, 66, 0.45);
 }
 
 .tool-card.tool-performance h3 {
-  color: var(--color-teal);
+  color: var(--color-amber);
 }
 
 .tool-card.tool-creator:hover {
-  border-color: rgba(245, 185, 66, 0.5);
+  border-color: rgba(37, 169, 191, 0.5);
 }
 
 .tool-card.tool-creator h3 {
-  color: var(--color-amber);
+  color: var(--color-teal);
 }
 
 .tool-card.tool-creator .tool-card-footer {
-  color: var(--color-amber);
+  color: var(--color-teal);
 }
 
 .tool-card.tool-saved:hover {
@@ -154,9 +154,13 @@
 }
 
 .tool-card.tool-performance .tool-card-icon {
-  color: #c2494f;
+  color: var(--color-amber);
+}
+
+.tool-card.tool-performance .tool-card-footer {
+  color: var(--color-amber);
 }
 
 .tool-card.tool-creator .tool-card-icon {
-  color: var(--color-amber);
+  color: var(--color-teal);
 }

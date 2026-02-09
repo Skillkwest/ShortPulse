@@ -1,17 +1,42 @@
 /**
- * Redirect root to the landing page to avoid 404s in local dev.
+ * Root route gate.
+ * Sends authenticated users to the dashboard and everyone else to the landing page.
  */
-import { GetServerSideProps } from "next";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
+import { ensureSupabaseClient } from "../lib/supabaseClient";
 
-export const getServerSideProps: GetServerSideProps = async () => {
-  return {
-    redirect: {
-      destination: "/landing",
-      permanent: false,
-    },
-  };
-};
-
+/**
+ * Resolve the best entry route for the current visitor.
+ */
 export default function IndexRedirect() {
+  const router = useRouter();
+
+  useEffect(() => {
+    let mounted = true;
+    try {
+      const supabase = ensureSupabaseClient();
+      supabase.auth
+        .getSession()
+        .then(({ data }) => {
+          if (!mounted) return;
+          const destination = data.session ? "/dashboard" : "/landing";
+          router.replace(destination);
+        })
+        .catch(() => {
+          if (!mounted) return;
+          router.replace("/landing");
+        });
+    } catch (_error) {
+      if (mounted) {
+        router.replace("/landing");
+      }
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
+
   return null;
 }

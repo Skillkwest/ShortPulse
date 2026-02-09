@@ -3,12 +3,12 @@
 Purpose: outline how to test the client-only ShortPulse experience.
 
 ## Commands
-- No automated test runner is wired yet.
-- Until tests exist, rely on manual checks: auth flows, saved creators CRUD, media uploads/deletes/renames, and the performance data actions rail.
+- No automated test runner is wired yet (there are `__tests__` files under `frontend/features/ai-studio/logic`, but no test script is configured).
+- Until a harness exists, rely on manual checks: auth flows, AI Studio core generation, media uploads/deletes/renames, dashboard/profile flows, and pricing/credit debits. Post‑MVP surfaces (Saved Creators, Performance) can be tested when enabled.
 
 ## When to test
-- Any change to Supabase interactions (auth, saved creators, media library).
-- Any change to performance scoring/filtering logic in `features/performance/logic` or `utils`.
+- Any change to Supabase interactions (auth, media library, credits).
+- Any change to AI Studio pricing/debit logic.
 - Any new shared components or CSS that affects multiple routes.
 
 ## Patterns

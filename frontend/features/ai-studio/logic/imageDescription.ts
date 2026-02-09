@@ -2,6 +2,8 @@
  * Client-side helper to request an image description from our AI agent.
  * Uses the image describer system prompt (Agent 2) defined in `frontend/lib/agentPromptsConfig.ts`.
  */
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+
 export type ImageDescriptionResult = {
   description: string;
   usage?: {
@@ -71,11 +73,12 @@ export const postDescribeImage = async (imageUrl: string): Promise<ImageDescript
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 20000);
   try {
-    const response = await fetch("/api/ai/describe-image", {
+    const response = await fetchWithAuth("/api/ai/describe-image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageUrl }),
       signal: controller.signal,
+      shortpulseLogScope: "generation",
     });
     if (!response.ok) {
       return null;

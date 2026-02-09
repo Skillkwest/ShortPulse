@@ -5,7 +5,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 
 ## Scope
 - Video generation in AI Studio’s Create → Video flow (text-to-video and image-to-video models).
-- Model selection and cost estimation/debit for video runs.
+- Model selection and cost estimation for video runs.
 - Reference handling (drag/drop) and output book-keeping.
 - Text/describe flows are covered in `docs/sop_text_generation.md`; this SOP focuses on video behaviors.
 
@@ -13,19 +13,19 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 
 | Component | Role |
 | --- | --- |
-| `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Central state/actions: handles prompt, aspect, model selection, submits generation, polls task status, debits credits, and manages outputs/reference images/videos. |
+| `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Central state/actions: handles prompt, aspect, model selection, submits generation, polls task status, and manages outputs/reference images/videos. |
 | `frontend/features/ai-studio/components/TextPropertiesPanel.tsx` | UI for Text flow (mode toggle, aspect, model picker, prompt textarea, Generate CTA showing estimated credits). |
 | `frontend/features/ai-studio/components/ReferencePropertiesPanel.tsx` | UI for Video (reference drops, prompt textarea, aspect/model picker, Generate CTA). |
 | `frontend/features/ai-studio/components/StudioPreview.tsx` | Shows latest output/reference preview and allows drag/drop to seed regeneration; accepts dropped image files for image-to-video. |
 | `frontend/features/ai-studio/components/ReferenceCanvas.tsx` | Reference grid (draggable cards) and file drop surface for seeding references; renders inline video previews when outputs are mp4s. |
 | `frontend/features/ai-studio/logic/*` | Pricing (`pricing.ts`), token estimates, drag/drop utilities, and provider clients (Fal/Kie). |
-| `frontend/pages/ai-studio.tsx` | Orchestrates panels, wires cost display/debit, renders the error banner, and disables Generate when credits are insufficient. |
+| `frontend/pages/ai-studio.tsx` | Orchestrates panels, wires cost display, renders the error banner, and disables Generate when credits are insufficient. |
 
 ## Environment prerequisites
 
 1. Video models rely on Fal/Kie provider keys; no agent prompts are used in this flow.  
 2. `OPENAI_API_KEY` is still required for separate text/describe workflows documented in `docs/sop_text_generation.md`; video generation does not depend on those prompts.  
-3. Credits: Supabase ledger is used for debits; ensure `useCredits` can fetch and insert ledger rows.
+3. Credits: generation charging is server-authoritative in submit APIs; `useCredits` reads `ai_credit_balance` and does not write ledger rows.
 
 ## Video generation workflow (Create → Video)
 
@@ -33,8 +33,8 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 2. User enters a prompt (and optionally prepares an image reference if the model requires/accepts it).  
 3. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect })`; disabled until a model is selected or the user lacks sufficient credits.  
 4. On click:  
-   - Credits are debited immediately (`debit(currentCostCredits, memo, refId)`), provided the balance is sufficient.  
    - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal/Kie video) with aspect-mapped sizing and any reference inputs required by the model.  
+   - The API submit route debits credits on the server before provider submission and auto-refunds if submit fails.
    - Task polling updates status; success stores `resultUrls`, sets `previewUrl` (video URL), and clears errors. Failures set `errorMessage` and stop polling.  
 5. Reference Grid prepends the new output card; Studio Preview shows the latest video thumbnail/preview if available.  
 6. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
@@ -45,7 +45,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 2. User drops/uploads two reference frames (required): **First frame** (primary dropzone) and **Last frame** (second primary dropzone). Extra secondary dropzones are hidden in this flow.  
 3. User enters or drops a prompt into the prompt textarea.  
 4. Generate CTA shows estimated credits; disabled if either frame or the model is missing or credits are insufficient.  
-5. On click, the flow mirrors Create → Video: debit, submit with the two reference frames, poll, and render the output in Reference Grid/Studio Preview.  
+5. On click, the flow mirrors Create → Video: server-side charge, submit with the two reference frames, poll, and render the output in Reference Grid/Studio Preview.  
 
 ## Reference handling
 
@@ -75,7 +75,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 
 - Video models are selected from the picker (e.g., Fal/Kie video entries).  
 - Aspect normalization per provider (see `pricing.ts` and submit logic in `useAiStudioState`): Fal uses width/height; Kie video models may enforce specific aspects (e.g., 16:9).  
-- Cost computation: `computeCostForModel` uses aspect; video runs debit on click. Text/describe flows (separate SOP) debit after API responses using observed/estimated tokens. No agent prompts are sent in video flows.
+- Cost computation: `computeCostForModel` uses aspect for estimate display; charging occurs in server submit APIs. Prompt-refine/describe flows currently report usage but are not debited. No agent prompts are sent in video flows.
 
 ## Supported video models (current)
 
@@ -93,8 +93,8 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 ## Maintenance rules
 
 1. Keep prompts in `frontend/lib/agentPromptsConfig.ts` for text/describe only; video flows do not use agent prompts.  
-2. When adding video models, update `modelOptions`, `pricing.ts`, and aspect constraints; ensure the cost estimator and debit memo are correct, update the table above, and keep model filtering accurate.  
-3. Align SOP defaults with code (credit gating, debit timing, model filtering).  
+2. When adding video models, update `modelOptions`, `pricing.ts`, and aspect constraints; ensure the cost estimator and server charge metadata are correct, update the table above, and keep model filtering accurate.  
+3. Align SOP defaults with code (credit gating, charging behavior, model filtering).  
 4. Run `npm run lint` after changes; smoke-test Create → Video with text-only and reference-required models (prompt entry, generate, output appears, credit debited, no errors).
 
 ## Known gaps / improvements
@@ -105,6 +105,6 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 - Consider pre-validating aspect/model combinations per provider to avoid submission errors.
 
 ## Upcoming flows / additions
-- Additional image-to-video providers: document whether a primary reference is mandatory, the default duration/audio/resolution from `modelRegistry.ts`, and the credit/debit timing before enabling in UI.
+- Additional image-to-video providers: document whether a primary reference is mandatory, the default duration/audio/resolution from `modelRegistry.ts`, and the charging behavior before enabling in UI.
 - If a text-to-video provider requires image/context inputs, surface that requirement in the Generate disabled copy and add it to this table when live.
 - Video-to-Video: plan to ingest a source clip (drag/drop + file picker), respect model defaults for aspect/duration/audio from `modelRegistry.ts`, and clarify pricing (per-second of output vs. input). Document trim/segment support and whether references beyond the source video are allowed before enabling.

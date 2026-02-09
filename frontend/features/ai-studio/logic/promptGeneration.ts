@@ -2,6 +2,8 @@
  * Client-side helper to request an improved prompt from our API.
  * This keeps OpenAI keys server-side and allows us to iterate on the system prompt centrally.
  */
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+
 export type PromptGenerationResult = {
   prompt: string;
   usage?: {
@@ -17,11 +19,12 @@ export const postGeneratePrompt = async (prompt: string): Promise<PromptGenerati
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch("/api/ai/generate-prompt", {
+    const response = await fetchWithAuth("/api/ai/generate-prompt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt }),
       signal: controller.signal,
+      shortpulseLogScope: "generation",
     });
     if (!response.ok) {
       return null;

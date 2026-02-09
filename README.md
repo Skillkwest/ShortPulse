@@ -7,6 +7,8 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - Auth/storage: Supabase client with persisted sessions, `saved_creators` table, and a private `media_library` bucket.
 - Analytics: In-browser scoring of a demo cohort with user-triggered refresh/rescore controls.
 - AI Studio providers: Next.js API routes under `/api/fal/*` proxy Fal queue requests (server-side `FAL_KEY` required), including the Seedream 4.5 edit proxy at `/api/fal/seedream-edit-submit`.
+- Billing/credits: Supabase-backed plan/profile/credit ledger model with Stripe-ready checkout, portal, and webhook routes.
+- Ops telemetry: authenticated app/runtime failures can be ingested at `/api/log/client-error` and viewed via `/api/admin/errors`.
 
 ## Setup
 1) Copy `frontend/.env.example` to `frontend/.env.local` (or export the values in your shell) and set:
@@ -23,6 +25,9 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 ## Optional Supabase bootstrap
 - Saved creators: run `sql/create_saved_creators_table.sql` to add the `saved_creators` table with RLS.
 - Media library: run `sql/storage_policies.sql` to create the private `media_library` bucket and folder-scoped storage policies. The UI also expects a `media_files` table (see `docs/supabase_full_schema.sql` for a combined script).
+- Billing + credits: run `sql/create_billing_credit_tables.sql` to provision plans, credit packages, billing profiles, ledger, and signup allocation triggers.
+- Legacy billing environments: run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` to add `source/source_ref/metadata/created_by` columns and compatibility triggers before using `/admin` credit adjustments.
+- App error logs: run `sql/create_app_error_logs_table.sql` to provision persistent admin-visible incident logging.
 
 ## Manual data actions
 - Performance Analytics includes a “Data actions” rail for demo dataset refresh/rescore, but the entire Performance surface is post‑MVP (Coming Soon).
@@ -31,16 +36,18 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 ## Frontend surfaces
 - **Dashboard (`/dashboard`)**: Launchpad with plan/status chips and tool cards.
 - **Performance Analytics (`/performance`)**: Post‑MVP (Coming Soon); demo analytics surface with filters and scoring.
+- **Performance Placeholder (`/performance-soon`)**: Temporary landing page that explains the analytics workspace is still under construction.
 - **Saved Creators (`/saved-creators`)**: Post‑MVP (Coming Soon); per-user handle list.
 - **Media Library (`/media-library`)**: Upload/download/delete/rename files in a private Supabase bucket.
-- **Profile (`/profile`)**: Profile/account/billing UI with plan badges and logout modal.
+- **Profile (`/profile`)**: Profile/account/billing UI with plan badges, Stripe billing actions, and credit purchase entry points.
 - **AI Studio (`/ai-studio`)**: Creative canvas for prompt systems, model/aspect selection, previewing, and saving image/video outputs.
-- **Admin (`/admin`)**: Internal operator dashboard (not part of MVP).
+- **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls and a live app-error incident feed.
 
 ## Security
 - Only the Supabase anon key is used on the client; never share the service role key.
 - Enable RLS on `saved_creators` and `media_files` (per-user isolation) and keep the `media_library` bucket private with paths prefixed by `auth.uid()`.
-- Route protection: `/dashboard`, `/performance`, `/saved-creators`, `/media-library`, and `/profile` expect an authenticated session and redirect to `/auth` when missing.
+- Route protection: `/dashboard`, `/performance`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, and `/admin` expect authenticated sessions and redirect to `/auth` when missing.
+- API protection: provider proxy routes, billing routes, upload routes, and admin routes require bearer-authenticated Supabase sessions.
 
 ## Testing
 - No automated tests are wired yet; manually verify auth redirects, Saved Creators CRUD, Media Library uploads/deletes/renames, and the Performance data actions rail.

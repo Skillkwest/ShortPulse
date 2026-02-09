@@ -8,11 +8,20 @@ Purpose: ensure user isolation and authenticated access across the frontend-only
 
 ## Required controls
 - **RLS**: Enable Row-Level Security on Supabase tables; policies should enforce `user_id = auth.uid()` for select/insert/update/delete on user-owned tables (`saved_creators`, `media_files`, `media_prompts`, `ai_generations`). `media_events` allows select + insert only.
+- **Billing tables**: Keep `billing_profiles`, `ai_credit_balance`, and `ai_credit_ledger` isolated per user (`user_id = auth.uid()`). Do not allow users to self-credit with positive ledger rows.
+- **Ledger integrity**: Enforce credit underflow protection at the database layer so debits cannot push balances below zero.
+- **Schema parity**: Keep `ai_credit_ledger` columns aligned with app expectations (`source`, `source_ref`, `metadata`, `created_by`) or run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` before enabling admin credit operations.
+- **Webhook idempotency**: Persist Stripe event IDs (`stripe_event_log`) and skip duplicates before applying credits/subscription updates.
 - **Storage isolation**: Keep the `media_library` bucket private; require folder prefixes that start with `auth.uid()` (see `sql/storage_policies.sql`).
 - **Frontend route protection**: Guard dashboard/performance/saved-creators/media-library/profile; redirect unauthenticated users to `/auth`.
 - **Key management**: Never expose the service-role key. Use only the anon key in the browser.
 - **Network calls**: All Supabase requests already include the user’s JWT; avoid any other unauthenticated calls for user-owned data.
+- **API auth boundary**: Require authenticated bearer tokens for provider proxy routes (`/api/fal/*`, `/api/kei/*`, `/api/ai/*`), upload endpoints, billing routes, and admin routes.
+- **Admin boundary**: Restrict admin APIs to operator roles from `app_metadata` or `user_metadata` (`role`/`roles`) or explicit allow-listed admin emails.
 
 ## Validation
 - Periodically test RLS with different users to confirm isolation.
 - Manually verify unauthenticated visitors cannot reach gated routes and cannot list/upload media.
+- Verify new-signup flow allocates the expected plan and initial credits.
+- Verify Stripe webhook replay does not duplicate credit grants.
+- Verify `/admin` credit adjustments succeed and ledger rows are created with expected attribution fields.

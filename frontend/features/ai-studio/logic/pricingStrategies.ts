@@ -19,6 +19,7 @@ const FLUX2_KLEIN_COST_PER_MP_USD = 0.006;
 const FLUX2_PRO_FIRST_MP_USD = 0.03;
 const FLUX2_PRO_ADDITIONAL_MP_USD = 0.015;
 const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
+const GPT_IMAGE_PER_IMAGE_USD = 0.04;
 const CREDIT_VALUE_USD = 0.01;
 export const DEFAULT_KLING_DURATION_SECONDS = 10;
 const VEO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.4;
@@ -135,6 +136,19 @@ const computeGoogleNanoBananaPerImageCost: StrategyFn = () => {
   const credits = roundCreditsToNearest5(creditsRaw);
   return { credits, usd: credits * CREDIT_VALUE_USD, megapixels: 0, width: 0, height: 0 };
 };
+
+const computeGptImagePerImageCost: StrategyFn = () => {
+  const creditsRaw = Math.max(1, Math.ceil(GPT_IMAGE_PER_IMAGE_USD / CREDIT_VALUE_USD));
+  const credits = roundCreditsToNearest5(creditsRaw);
+  return {
+    credits,
+    usd: credits * CREDIT_VALUE_USD,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+  };
+};
+
 const computeGpt41NanoPerTokenCost: StrategyFn = ({ inputTokens = 0, outputTokens = 0 }) => {
   // Rates are per 1M tokens: input $0.10, output $0.025.
   const INPUT_USD_PER_M = 0.10;
@@ -311,6 +325,7 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-flux2-per-mp": computeFlux2PerMpCost,
   "fal-flux2-klein-per-mp": computeFlux2KleinPerMpCost,
   "fal-flux2-pro-per-mp": computeFlux2ProPerMpCost,
+  "gpt-image-per-image": computeGptImagePerImageCost,
   "google-nano-banana-per-image": computeGoogleNanoBananaPerImageCost,
   "gpt41nano-per-token": computeGpt41NanoPerTokenCost,
   "nano-banana-per-image": computeNanoBananaPerImageCost,

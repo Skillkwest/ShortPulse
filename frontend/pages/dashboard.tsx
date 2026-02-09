@@ -117,8 +117,8 @@ export default function DashboardPage() {
     },
     {
       title: "Performance Analytics",
-      description: "Compare high-performing Reels, TikToks, and Shorts across niches.",
-      href: "/performance",
+      description: "Compare high-performing Reels, TikToks, and Shorts across niches (Analytics coming soon).",
+      href: "/performance-soon",
       cta: "Open analytics →",
       variant: "tool-performance",
       image: "/dashboard/performance-analytics.png",

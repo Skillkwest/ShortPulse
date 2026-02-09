@@ -2,6 +2,7 @@
  * Video upload utility for Motion Control
  * Uploads blob URLs to Supabase storage and returns public URLs
  */
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 
 export type VideoUploadResult = {
   url: string;
@@ -38,7 +39,7 @@ export const uploadVideoToStorage = async (
     formData.append('file', blob, filename);
 
     // Upload to your API endpoint
-    const uploadResponse = await fetch('/api/upload-video', {
+    const uploadResponse = await fetchWithAuth('/api/upload-video', {
       method: 'POST',
       body: formData,
     });

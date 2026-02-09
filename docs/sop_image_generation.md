@@ -5,7 +5,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 
 ## Scope
 - Image generation in AI Studio’s Create → Image flow.
-- Model selection and cost estimation/debit for image runs.
+- Model selection and cost estimation for image runs.
 - Reference handling (drag/drop), prompt capture, and output book-keeping.
 - Text/describe flows are covered in `docs/sop_text_generation.md`; this SOP focuses on text-to-image and image-to-image/video behaviors.
 
@@ -13,19 +13,19 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 
 | Component | Role |
 | --- | --- |
-| `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Central state/actions: handles prompt, aspect, model selection, submits generation, polls task status, debits credits, and manages outputs/reference images. |
+| `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Central state/actions: handles prompt, aspect, model selection, submits generation, polls task status, and manages outputs/reference images. |
 | `frontend/features/ai-studio/components/TextPropertiesPanel.tsx` | UI for Text flow (mode toggle, aspect, model picker, prompt textarea, Generate CTA showing estimated credits). |
 | `frontend/features/ai-studio/components/StudioPreview.tsx` | Shows latest output/reference preview and allows drag/drop to seed regeneration; accepts dropped image files. |
 | `frontend/features/ai-studio/components/ReferenceCanvas.tsx` | Reference grid (draggable cards) and file drop surface for seeding references. |
 | `frontend/features/ai-studio/logic/*` | Pricing (`pricing.ts`), prompt/token estimates, drag/drop utilities, and provider clients (Fal/Kie). |
-| `frontend/pages/ai-studio.tsx` | Orchestrates panels, wires cost display/debit, and renders the error banner. |
+| `frontend/pages/ai-studio.tsx` | Orchestrates panels, wires cost display, and renders the error banner. |
 | `frontend/features/ai-studio/logic/promptGeneration.ts` | Client helper for prompt refinement (Agent 1) that can precede image generation. |
 
 ## Environment prerequisites
 
 1. Image models rely on Fal/Kie provider keys; no agent prompts are involved in this flow.  
 2. `OPENAI_API_KEY` is still required for the separate text/describe workflows documented in `docs/sop_text_generation.md`; this SOP does not depend on those prompts.  
-3. Credits: Supabase ledger is used for debits; ensure `useCredits` can fetch and insert ledger rows.
+3. Credits: generation debit/refund is server-authoritative through API submit routes; `useCredits` reads balance only.
 
 ## Image generation workflow (Create → Image)
 
@@ -33,8 +33,8 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 2. User enters a prompt (optionally informed by previously described prompts).  
 3. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect })`; disabled until a model is selected or the user lacks sufficient credits.  
 4. On click:  
-   - Credits are debited immediately (`debit(currentCostCredits, memo, refId)`), provided the balance is sufficient.  
    - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal/Kie) with aspect-mapped sizing; no agent prompts are involved.
+   - The API submit route debits credits on the server before provider submission and auto-refunds if submit fails.
    - Task polling updates status; success stores `resultUrls`, sets `previewUrl`, and clears errors. Failures set `errorMessage` and stop polling.  
 5. Reference Grid prepends the new output card; Studio Preview shows the latest image.  
 6. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
@@ -61,14 +61,14 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 
 - Defaults: `gpt-4.1-nano` for text/vision calls (prompt refinement/describe); image models are chosen from the picker (Fal/Kie) and use provider-specific clients without agent prompts.  
 - Aspect normalization per provider (see `pricing.ts` and submit logic in `useAiStudioState`): Fal uses width/height; Kie/GPT-image enforce allowed aspects.  
-- Cost computation: `computeCostForModel` uses aspect and, for text flows, token estimates; image/video runs debit on click, prompt/describe runs debit after the API response (observed/estimated tokens).
+- Cost computation: `computeCostForModel` uses aspect and model defaults for estimate display; generation charging happens server-side in submit APIs.
 
 ## Supported image models (current)
 
 | Provider | Model id | Allowed aspects (examples) | Notes |
 | --- | --- | --- | --- |
 | Fal | `fal-ai/flux-2/klein/9b` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; per-MP pricing (FLUX.2 Lite). |
-| Fal | `fal/flux-2` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; defaults guidance 15, steps 41; debits on click; outputs PNG. |
+| Fal | `fal/flux-2` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; defaults guidance 15, steps 41; outputs PNG. |
 | Fal | `fal/flux-2/edit` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Image-to-image/edit; requires `image_urls`; safety checker off; per-MP pricing (same as FLUX.2); proxied through `/api/fal/flux2-edit-*`. |
 | Fal | `fal/flux-2-pro` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; least-restrictive safety (checker off, tolerance 5); debits per tiered MP cost; outputs PNG. |
 | Fal | `fal/flux-2-pro/edit` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Image-to-image/edit; requires `image_urls`; least-restrictive safety (checker off, tolerance 5); pricing matches FLUX.2 Pro text-to-image; proxied through `/api/fal/flux2pro-edit-*`. |
@@ -76,13 +76,13 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 | Fal | `fal-ai/nano-banana/edit` | `auto` default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Image-to-image/edit; requires `image_urls` references; flat per-image pricing (4 credits), proxied through `/api/fal/nano-banana-edit-*`. |
 | Fal | `fal-ai/nano-banana-pro` | 4:5 default (wide/portrait variants allowed via the allowed list) | Text-to-image via the Fal queue with flat per-image pricing (4K doubles cost, web-search adds a surcharge) and PNG outputs; proxied through `/api/fal/nano-banana-pro-*`. |
 | Fal | `fal-ai/nano-banana-pro/edit` | `auto` default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Image-to-image/edit; requires `image_urls` references; flat per-image pricing (15 credits; 4K doubles; web_search adds 1.5 credits), proxied through `/api/fal/nano-banana-pro-edit-*`. |
-| Fal | `fal-ai/bytedance/seedream/v4.5/text-to-image` | 1:1 enforced if invalid aspect | Text-to-image via Fal queue; safety checker on; debits on click. |
+| Fal | `fal-ai/bytedance/seedream/v4.5/text-to-image` | 1:1 enforced if invalid aspect | Text-to-image via Fal queue; safety checker on. |
 | Fal | `fal-ai/bytedance/seedream/v4.5/edit` | 1:1 enforced if invalid aspect | Image-to-image/edit; requires `image_urls`; safety checker off by default; proxied through `/api/fal/seedream-edit-submit` + `/api/fal/seedream-status`. |
 
 ## Maintenance rules
 
 1. Keep prompts in `frontend/lib/agentPromptsConfig.ts` (single source) and avoid duplicating in docs.  
-2. Align SOP defaults with code (model defaults, debit timing).  
+2. Align SOP defaults with code (model defaults, server-side charging behavior).  
 3. When adding models, update `modelOptions`, `pricing.ts`, and any aspect constraints; ensure the cost estimator and debit memo are correct.  
 4. Run `npm run lint` after changes; smoke-test create/image flow (model select, prompt entry, generate, output appears, credit debited, no errors).
 

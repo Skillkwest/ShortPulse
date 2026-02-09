@@ -1,47 +1,40 @@
-# Supabase Auth & Client Setup (Prototype Phase)
+# Supabase Auth & Client Setup
 
-> Temporary keys for prototyping. Rotate to new keys before production. Do not commit secrets outside this prototype branch.
+Use this guide to configure Supabase safely for local development.
 
-## Project
-- Supabase URL: `https://jwmcytzyhcvacjwqtynn.supabase.co`
-- Publishable (anon) key: `sb_publishable_pN80HYeCugE5tWiCqUWL7g_UA03BeFI`
-- Service role (secret) key: `sb_secret_16CMux0x6WI58OsTD1YUww_SRU_Zrzs` (use server-side only)
-
-## Environment Variables
+## Required environment variables
 Create `frontend/.env.local` (not committed):
-```
-NEXT_PUBLIC_SUPABASE_URL=https://jwmcytzyhcvacjwqtynn.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_pN80HYeCugE5tWiCqUWL7g_UA03BeFI
-```
-
-For any server-side usage (API routes / backend), create a private env file (not committed), e.g. `backend/.env`:
-```
-SUPABASE_SERVICE_ROLE_KEY=sb_secret_16CMux0x6WI58OsTD1YUww_SRU_Zrzs
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 ```
 
-## Client Initialization
-Use the shared helper at `frontend/lib/supabaseClient.ts` (anon) for browser-safe calls. For server routes, use the service role key (never expose it to the client).
-
-## Testing Connectivity Locally
-1. Install deps: `npm install @supabase/supabase-js phosphor-react`
-2. Ensure `.env.local` exists (values above).
-3. Run the dev server: `npm run dev`
-4. Example insert (adjust table/columns to match your schema):
-```ts
-import { supabaseClient } from "../lib/supabaseClient";
-
-async function addCreator() {
-  if (!supabaseClient) throw new Error("Supabase env missing");
-  const { data, error } = await supabaseClient
-    .from("creators")
-    .insert([{ handle: "patternlabs", platform: "instagram", followers: 120000 }])
-    .select();
-  console.log({ data, error });
-}
-addCreator();
+For server-side API routes, configure a private environment variable (never exposed to the browser):
+```bash
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 ```
 
-## Notes
-- Keys are prototype-only; rotate before prod.
-- Keep service key server-only.
-- Use Supabase dashboard to inspect tables and run quick queries if needed.
+Optional admin allowlist for `/admin` APIs:
+```bash
+SHORTPULSE_ADMIN_EMAILS=admin@example.com,ops@example.com
+```
+
+Optional role-based admin access (without email allowlist):
+- Set `role` to `admin` or `operator` in either `raw_app_meta_data` or `raw_user_meta_data` on `auth.users`.
+- Sign out and sign back in after metadata changes so JWT claims are refreshed.
+
+## Supabase client initialization
+- Browser/client calls should use `frontend/lib/supabaseClient.ts` (anon key only).
+- Server-side admin operations should use a service-role client (`frontend/pages/api/_utils/supabaseAdmin.ts`).
+
+## Security requirements
+- Never commit real keys to docs, code, or `.env.example`.
+- Never expose `SUPABASE_SERVICE_ROLE_KEY` to client code.
+- Keep user data isolated with RLS and user-scoped storage paths (`auth.uid()` prefix).
+
+## Validation checklist
+1. Sign up and sign in successfully from `/auth`.
+2. Verify protected routes redirect to `/auth` when signed out.
+3. Verify user-scoped data is isolated across two test users.
+4. Verify billing/credit tables (`billing_profiles`, `ai_credit_balance`, `ai_credit_ledger`) obey RLS.
+5. Verify admin access works for one operator account (role metadata or `SHORTPULSE_ADMIN_EMAILS`).

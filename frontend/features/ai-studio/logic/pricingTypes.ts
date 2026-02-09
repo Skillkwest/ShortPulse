@@ -6,6 +6,7 @@ export type PricingStrategyId =
   | "fal-flux2-per-mp"
   | "fal-flux2-klein-per-mp"
   | "fal-flux2-pro-per-mp"
+  | "gpt-image-per-image"
   | "google-nano-banana-per-image"
   | "gpt41nano-per-token"
   | "nano-banana-per-image"

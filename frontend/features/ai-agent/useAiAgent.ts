@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentActions, AgentApiRequest, AgentContext, AgentMessage, AgentResponse } from "../../prefabs/agent";
 import { buildAgentContext } from "./logic/contextBuilder";
 import { randomId } from "../ai-studio/logic/ids";
+import { fetchWithAuth } from "../../lib/authenticatedFetch";
 
 type UseAiAgentOptions = {
   initialMessages?: AgentMessage[];
@@ -80,7 +81,11 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
         previousPrompt && previousPrompt.trim().length
           ? ({ role: "assistant", content: previousPrompt.trim() } as AgentMessage)
           : null;
-      const apiMessages = [...baseHistory, ...(syntheticPrev ? [syntheticPrev] : []), { role: "user", content: userPayload }];
+      const apiMessages: AgentMessage[] = [
+        ...baseHistory,
+        ...(syntheticPrev ? [syntheticPrev] : []),
+        { role: "user", content: userPayload } as AgentMessage,
+      ];
 
       const body: AgentApiRequest = {
         messages: apiMessages,
@@ -88,7 +93,7 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
         conversationId: conversationIdRef.current,
         canonicalPrompt: canonicalPromptRef.current,
       };
-        const response = await fetch("/api/ai/studio-agent", {
+        const response = await fetchWithAuth("/api/ai/studio-agent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),

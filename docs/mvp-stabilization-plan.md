@@ -62,7 +62,7 @@ Goal: guarantee cost visibility and debits are correct.
 Checklist:
 1. Verify `modelRegistry` defaults match SOP tables and UI.
 2. Verify `pricing.ts` and `pricingStrategies.ts` match actual model pricing.
-3. Validate debit timing for image/video runs and token‑based calls.
+3. Validate server-authoritative charging for image/video runs and confirm text/describe calls remain usage-only (no credit debit).
 4. Confirm UI cost display matches computed cost (before and after run).
 5. Add a manual verification checklist for credits in `docs/release-checklist.md`.
 

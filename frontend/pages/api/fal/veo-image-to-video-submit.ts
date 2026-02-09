@@ -3,6 +3,7 @@
  * Keeps FAL_KEY server-side and forwards payloads to the Fal queue.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { chargeGenerationRequest } from "../_utils/generationBilling";
 
 const FAL_VEO_I2V_SUBMIT_URL = "https://queue.fal.run/fal-ai/veo3.1/image-to-video";
 const FAL_VEO_I2V_SUBMIT_FALLBACK_URL = "https://queue.fal.run/fal-ai/veo3.1/reference-to-video";
@@ -32,9 +33,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 20000);
+  const payload = typeof req.body === "object" && req.body ? { ...req.body } : {};
+  const charge = await chargeGenerationRequest({
+    req,
+    res,
+    modelId: "fal-ai/veo3.1/image-to-video",
+    payload,
+    reason: "Fal Veo image-to-video generation",
+  });
+  if (!charge) return;
 
   try {
-    const payload = typeof req.body === "object" && req.body ? { ...req.body } : {};
     const firstImageUrl = Array.isArray(payload.image_urls)
       ? payload.image_urls[0]
       : typeof payload.image_urls === "string"
@@ -77,8 +86,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    if (!result.response.ok) {
+      await charge.refund("Auto-refund: Fal Veo image-to-video submit rejected.", {
+        upstream_status: result.response.status,
+        upstream_error: result.data,
+      });
+    }
+
     return res.status(result.response.status).json(result.data);
   } catch (error) {
+    await charge.refund("Auto-refund: Fal Veo image-to-video transport failure.", {
+      error: String(error),
+    });
     return res.status(500).json({ error: "Fal Veo image-to-video submit failed", detail: String(error) });
   } finally {
     clearTimeout(timeoutId);

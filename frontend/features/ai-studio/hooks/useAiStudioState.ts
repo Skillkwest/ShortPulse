@@ -79,11 +79,7 @@ type ModelModalPosition = { top: number; left: number };
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
  */
-type AiStudioStateOptions = {
-  onDebitCredits?: (credits: number, reason: string, refId?: string) => Promise<void> | void;
-};
-
-export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) => {
+export const useAiStudioState = () => {
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Creation inputs
@@ -1613,7 +1609,6 @@ export const useAiStudioState = ({ onDebitCredits }: AiStudioStateOptions = {}) 
       model,
       mode,
       notifyGenerationFailure,
-      onDebitCredits,
       outputs,
       prompt,
       selectedTool,

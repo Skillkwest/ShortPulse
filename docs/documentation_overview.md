@@ -37,11 +37,13 @@ Current docs:
 - `docs/design/`: design rationale docs (palette, systems).
 - `docs/brainstorming/`: non-authoritative early concepts and research notes.
 - `docs/sop_ai_studio_index.md`: hub for AI Studio vertical SOPs (text/image/video) and shared defaults.
+- `docs/sop_billing_credits_operations.md`: billing/credits migration and admin adjustment runbook.
 - `skills/skill-pricing-audit/SKILL.md` + `skills/skill-doc-index/SKILL.md`: lightweight maintenance skills.
 
 Recommended additions:
 - Light-weight frontend test harness once priority components stabilize.
 - More examples of Supabase row-level policy patterns for new tables if added.
 - Use ADRs (`docs/adr/`) as durable decisions are made.
+- Add an automated schema health check endpoint for billing tables in each environment.
 
 Status: Docs now reflect the frontend-only architecture; keep them updated alongside UI and Supabase schema changes.

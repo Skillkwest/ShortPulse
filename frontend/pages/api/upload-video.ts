@@ -1,24 +1,13 @@
 /**
- * API endpoint for uploading motion control videos to Supabase storage
+ * Uploads motion-control source videos into user-scoped private storage.
+ * Requires an authenticated Supabase bearer token and keeps paths under `<user_id>/`.
  */
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-import formidable from 'formidable';
-import fs from 'fs';
-
-// Disable Next.js body parsing for file uploads
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing Supabase configuration');
-}
+import type { NextApiRequest, NextApiResponse } from "next";
+import formidable from "formidable";
+import fs from "fs";
+import { requireApiUser } from "./_utils/auth";
+import { logApiRouteException } from "./_utils/appErrorLogs";
+import { getSupabaseAdmin } from "./_utils/supabaseAdmin";
 
 type UploadResponse = {
   url: string;
@@ -31,113 +20,111 @@ type ErrorResponse = {
   details?: string;
 };
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<UploadResponse | ErrorResponse>
-) {
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
-  // Check Supabase configuration
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return res.status(500).json({
-      error: 'Server configuration error',
-      details: 'Supabase is not configured'
-    });
-  }
+const ALLOWED_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime", "video/x-m4v"]);
 
-  try {
-    // Initialize Supabase client with service role key for admin operations
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Parse the multipart form data
-    const form = formidable({
-      maxFileSize: 100 * 1024 * 1024, // 100MB max file size
-      keepExtensions: true,
-    });
-
-    const [fields, files] = await new Promise<[formidable.Fields, formidable.Files]>(
-      (resolve, reject) => {
-        form.parse(req, (err, fields, files) => {
-          if (err) reject(err);
-          else resolve([fields, files]);
-        });
+const parseForm = async (req: NextApiRequest): Promise<formidable.File> => {
+  const form = formidable({
+    maxFileSize: 100 * 1024 * 1024,
+    keepExtensions: true,
+  });
+  const [, files] = await new Promise<[formidable.Fields, formidable.Files]>((resolve, reject) => {
+    form.parse(req, (err, fields, parsedFiles) => {
+      if (err) {
+        reject(err);
+        return;
       }
-    );
+      resolve([fields, parsedFiles]);
+    });
+  });
 
-    // Get the uploaded file
-    const fileArray = files.file;
-    if (!fileArray || fileArray.length === 0) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+  const fileInput = files.file;
+  if (!fileInput) {
+    throw new Error("No file uploaded.");
+  }
+  const file = Array.isArray(fileInput) ? fileInput[0] : fileInput;
+  return file;
+};
 
-    const file = Array.isArray(fileArray) ? fileArray[0] : fileArray;
+export default async function handler(req: NextApiRequest, res: NextApiResponse<UploadResponse | ErrorResponse>) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-    // Validate file type
-    const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v'];
-    if (!allowedTypes.includes(file.mimetype || '')) {
+  const user = await requireApiUser(req, res);
+  if (!user) {
+    return;
+  }
+
+  let parsedFile: formidable.File | null = null;
+  try {
+    parsedFile = await parseForm(req);
+    const mimeType = parsedFile.mimetype ?? "";
+    if (!ALLOWED_TYPES.has(mimeType)) {
       return res.status(400).json({
-        error: 'Invalid file type',
-        details: 'Only MP4, WebM, and MOV videos are supported'
+        error: "Invalid file type",
+        details: "Only MP4, WebM, and MOV videos are supported.",
       });
     }
 
-    // Read the file
-    const fileBuffer = fs.readFileSync(file.filepath);
+    const fileBuffer = fs.readFileSync(parsedFile.filepath);
+    const extension = parsedFile.originalFilename?.split(".").pop() || "mp4";
+    const storagePath = `${user.id}/videos/motion-control/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
-    // Generate storage path
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(7);
-    const extension = file.originalFilename?.split('.').pop() || 'mp4';
-    const storagePath = `videos/motion-control/${timestamp}-${randomString}.${extension}`;
-
-    // Upload to Supabase storage
-    const { data, error } = await supabase.storage
-      .from('media_library')
+    const supabaseAdmin = getSupabaseAdmin();
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("media_library")
       .upload(storagePath, fileBuffer, {
-        contentType: file.mimetype || 'video/mp4',
+        contentType: mimeType || "video/mp4",
         upsert: false,
       });
 
-    // Clean up temp file
-    fs.unlinkSync(file.filepath);
+    if (uploadError) {
+      return res.status(500).json({ error: "Upload failed", details: uploadError.message });
+    }
 
-    if (error) {
-      console.error('Supabase upload error:', error);
+    const { data: signedUrl, error: signedUrlError } = await supabaseAdmin.storage
+      .from("media_library")
+      .createSignedUrl(storagePath, 3600);
+
+    if (signedUrlError || !signedUrl?.signedUrl) {
       return res.status(500).json({
-        error: 'Upload failed',
-        details: error.message
+        error: "Failed to generate signed URL",
+        details: signedUrlError?.message ?? "Unknown error",
       });
     }
 
-    // Generate a signed URL that expires in 1 hour (3600 seconds)
-    // This provides temporary access without making the bucket public
-    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-      .from('media_library')
-      .createSignedUrl(storagePath, 3600); // 1 hour expiry
-
-    if (signedUrlError || !signedUrlData) {
-      console.error('Signed URL generation error:', signedUrlError);
-      return res.status(500).json({
-        error: 'Failed to generate access URL',
-        details: signedUrlError?.message || 'Unknown error'
-      });
-    }
-
-    // Return success response with signed URL
     return res.status(200).json({
-      url: signedUrlData.signedUrl,
+      url: signedUrl.signedUrl,
       path: storagePath,
-      size: file.size || 0,
+      size: parsedFile.size ?? 0,
     });
-
   } catch (error) {
-    console.error('Upload error:', error);
-    return res.status(500).json({
-      error: 'Upload failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "upload-video",
+      user,
+      metadata: {
+        has_parsed_file: Boolean(parsedFile),
+      },
     });
+    return res.status(500).json({
+      error: "Upload failed",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
+  } finally {
+    if (parsedFile?.filepath) {
+      try {
+        fs.unlinkSync(parsedFile.filepath);
+      } catch {
+        // best-effort temp file cleanup
+      }
+    }
   }
 }

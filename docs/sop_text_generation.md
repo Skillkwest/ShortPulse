@@ -9,7 +9,7 @@ See `docs/sop_ai_studio_index.md` for the shared structure, defaults, and links 
 - Decisions: Keep prompts in the TS config only (env overrides for emergencies); keep loader as-is but rename keys only in code if needed (outside this SOP); default all text and vision calls to `gpt-4.1-nano` with env overrides; keep SOP + TS config as the only config artifacts to minimize files.
 - Actioned cleanup: Removed redundant prompt docs (`docs/ai-agent-prompts.md`, `docs/openai-agent-system-instructions.md`) so the TS config remains the only source. Update any links/bookmarks to point to `frontend/lib/agentPromptsConfig.ts`.
 - UX change: Added a prominent error banner in AI Studio to surface prompt/describe failures with a dismiss control.
-- Credits: The Generate button shows the estimated credits from `computeCostForModel` (or “—” if unknown); image/video runs debit immediately on click, while prompt-refine/describe flows debit after the API call using observed or estimated tokens.
+- Credits: The Generate button shows the estimated credits from `computeCostForModel` (or “—” if unknown); image/video charging is enforced server-side at submit time, while prompt-refine/describe flows currently report usage but are not yet debited.
 
 
 ## Scope

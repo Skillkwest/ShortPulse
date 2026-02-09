@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
 import type { AgentContext, AgentMessage, AgentResponse } from "../../../prefabs/agent";
+import { logApiRouteException } from "../_utils/appErrorLogs";
 
 const OPENAI_URL = (process.env.OPENAI_API_BASE || "https://api.openai.com/v1") + "/chat/completions";
 // More capable default; can be overridden via OPENAI_MODEL env.
@@ -394,6 +395,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       canonicalPrompt: nextCanonical,
     });
   } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "ai/studio-agent",
+      metadata: {
+        conversation_id: conversationId,
+      },
+    });
     return res.status(500).json({ error: "Agent call failed", detail: String(error) });
   }
 }

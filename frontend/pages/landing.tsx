@@ -4,7 +4,8 @@
  */
 import Head from "next/head";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   ChartLineUp,
@@ -19,6 +20,7 @@ import {
   UsersThree,
   VideoCamera,
 } from "phosphor-react";
+import { ensureSupabaseClient } from "../lib/supabaseClient";
 
 const testimonials = [
   {
@@ -64,7 +66,25 @@ const faqItems = [
  * Render the public landing experience with hero, feature, and pricing sections.
  */
 export default function LandingPage() {
+  const router = useRouter();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    try {
+      const supabase = ensureSupabaseClient();
+      supabase.auth.getSession().then(({ data }) => {
+        if (!mounted || !data.session) return;
+        router.replace("/dashboard");
+      });
+    } catch (_error) {
+      // No-op: landing should remain accessible when Supabase env vars are missing.
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
 
   const features = [
     {

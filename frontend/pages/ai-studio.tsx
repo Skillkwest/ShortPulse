@@ -11,22 +11,21 @@ import type { ModelModalContext } from "../features/ai-studio/components/ModelMo
 import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWorkflow";
 import { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
-import { buildDefaultPricingParams, computeCostForModel, getModelConfig } from "../features/ai-studio/logic/pricing";
+import { buildDefaultPricingParams, getModelConfig } from "../features/ai-studio/logic/pricing";
 import type { PricingParams } from "../features/ai-studio/logic/pricingTypes";
 import { useAiAgent } from "../features/ai-agent/useAiAgent";
 import { randomId } from "../features/ai-studio/logic/ids";
 import type { AgentActions, AgentContext, AgentMessage } from "../prefabs/agent";
-import { postGeneratePrompt, TEXT_PROMPT_MODEL_ID } from "../features/ai-studio/logic/promptGeneration";
+import { postGeneratePrompt } from "../features/ai-studio/logic/promptGeneration";
 import { postDescribeImage, prepareImageUrl } from "../features/ai-studio/logic/imageDescription";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 import { filterModelOptions } from "../features/ai-studio/logic/stateParsers";
-import { estimatePromptTokens } from "../features/ai-studio/logic/tokenEstimates";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
 import { useBeginnerModePreference } from "../features/ai-studio/hooks/useBeginnerModePreference";
 
 export default function AiStudioPage() {
-  const { balanceCents, balanceLoading, debit } = useCredits();
+  const { balanceCents, balanceLoading } = useCredits();
   const balanceCredits = useMemo(() => {
     if (balanceCents == null) return null;
     return Math.max(0, Math.floor(balanceCents)); // cents == credits
@@ -147,7 +146,7 @@ export default function AiStudioPage() {
     getDefaultDurationSeconds,
     getAgentContext,
     addAgentPromptReference,
-  } = useAiStudioState({ onDebitCredits: debit });
+  } = useAiStudioState();
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
   const [dismissedFailureIds, setDismissedFailureIds] = useState<Set<string>>(new Set());
@@ -286,24 +285,18 @@ export default function AiStudioPage() {
     if (!prompt.trim()) return;
     setIsPromptRefining(true);
     try {
-      const debitPromptRefine = () => {
-        if (promptRefineCostCredits == null) return;
-        debit(promptRefineCostCredits, "Prompt refine", `prompt-${Date.now()}`).catch(() => {});
-      };
       // Primary: dedicated prompt refiner
       const refined = await postGeneratePrompt(prompt);
       if (refined?.prompt) {
         setSharedPrompt(refined.prompt);
         setLatestAgentPrompt(refined.prompt);
         addAgentPromptReference(refined.prompt, refined.prompt ? "Refined prompt" : undefined);
-        debitPromptRefine();
         return;
       }
       // Fallback: chat agent with text hint
       const result = await handleAgentSend(prompt, { captureResult: true, modeHint: "text" });
       if (result && typeof result === "object" && "prompt" in result) {
         addAgentPromptReference(result.prompt, result.referenceTitle ?? undefined);
-        debitPromptRefine();
       }
     } finally {
       setIsPromptRefining(false);
@@ -314,10 +307,6 @@ export default function AiStudioPage() {
     if (!outputId) return;
     const target = outputs.find((item) => item.id === outputId) ?? null;
     if (!target?.previewUrl) return;
-    const debitDescribe = () => {
-      if (describeCostCredits == null) return;
-      debit(describeCostCredits, "Image describe", `describe-${Date.now()}`).catch(() => {});
-    };
 
     const placeholderId = `describe-${randomId()}`;
     const placeholderModelLabel = model ? (getModelConfig(model)?.label ?? model) : "Model pending selection";
@@ -362,7 +351,6 @@ export default function AiStudioPage() {
       );
       setSharedPrompt(cleaned);
       setLatestAgentPrompt(cleaned);
-      debitDescribe();
     };
 
     const failPlaceholder = (message: string) => {
@@ -638,10 +626,8 @@ export default function AiStudioPage() {
     modelPickerCostCredits,
     promptGenerateCostCredits,
     describeCostCredits,
-    hasSufficientCreditsForCost,
     generationGuardrail,
     isGenerateDisabled,
-    modelConfig,
   } =
     useAiStudioViewModel({
       mode,
@@ -661,11 +647,6 @@ export default function AiStudioPage() {
       costParamsForModel,
     });
 
-  const promptRefineCostCredits = useMemo(() => {
-    const breakdown = computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatePromptTokens(prompt));
-    return breakdown?.credits ?? null;
-  }, [prompt]);
-
 
   const handleBlockedGeneration = () => {
     if (generationGuardrail) {
@@ -679,25 +660,10 @@ export default function AiStudioPage() {
   ) => {
     const effectiveMode = options?.modeOverride ?? mode;
     const effectiveTool = options?.toolOverride ?? selectedTool;
-    const costToDebit = options?.costOverrideCredits ?? currentCostCredits;
-    const hasCreditsForDebit =
-      costToDebit == null || balanceCredits == null ? true : balanceCredits >= costToDebit;
 
     if (!options && isGenerateDisabled) {
       handleBlockedGeneration();
       return;
-    }
-
-    if (
-      (((effectiveTool === "create" || effectiveTool === "text") && (effectiveMode === "image" || effectiveMode === "video")) ||
-        effectiveTool === "image" ||
-        effectiveTool === "video") &&
-      costToDebit &&
-      model &&
-      hasCreditsForDebit
-    ) {
-      const memo = `${modelConfig?.label ?? model} generation`;
-      debit(costToDebit, memo, `out-${Date.now()}`).catch(() => { });
     }
 
     const promptToUse = typeof promptOverride === "string" ? promptOverride : prompt;
@@ -722,10 +688,6 @@ export default function AiStudioPage() {
       handleBlockedGeneration();
       return;
     }
-    if (selectedTool === "video" && currentCostCredits && model && hasSufficientCreditsForCost) {
-      const memo = `${modelConfig?.label ?? model} generation`;
-      debit(currentCostCredits, memo, `out-${Date.now()}`).catch(() => { });
-    }
     regenerateOutput();
   };
 
@@ -733,10 +695,6 @@ export default function AiStudioPage() {
     if (isGenerateDisabled || agentIsSending) {
       handleBlockedGeneration();
       return;
-    }
-    if (currentCostCredits && model && hasSufficientCreditsForCost) {
-      const memo = `${modelConfig?.label ?? model} generation`;
-      debit(currentCostCredits, memo, `out-${Date.now()}`).catch(() => { });
     }
     regenerateOutput();
   };

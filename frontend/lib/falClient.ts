@@ -2,6 +2,8 @@
  * Thin client for Fal.ai interactions (flux/dev, flux-2, flux-2-pro text-to-image + Kling video).
  * Proxies through Next API routes to keep keys server-side.
  */
+import { fetchWithAuth } from "./authenticatedFetch";
+
 export type FalSubmitRequest = {
   prompt: string;
   image_url?: string;
@@ -197,7 +199,7 @@ const fetchWithTimeout = async (input: RequestInfo | URL, init?: RequestInit & {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), init?.timeoutMs ?? 60000);
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    return await fetchWithAuth(input, { ...init, signal: controller.signal, shortpulseLogScope: "generation" });
   } finally {
     window.clearTimeout(timeoutId);
   }

@@ -13,6 +13,7 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 - AI Studio: core workflow renders; drag/drop surfaces behave as expected (per current UI)
 - Dashboard + Profile: core layout, settings/billing sections, and logout flow behave as expected
 - Credits & pricing: model cost display matches selected model, and debits are recorded for generation runs
+- Credits & admin ops: `/admin` can apply one positive and one negative adjustment, and a failed provider submit path records an auto-refund ledger row
 
 ## Supabase safety (when schema/policies change)
 - RLS enabled and policies enforce `user_id = auth.uid()` for user-owned tables

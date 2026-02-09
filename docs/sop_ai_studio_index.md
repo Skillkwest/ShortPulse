@@ -41,7 +41,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 1. Scope (what flows, what is out of scope).
 2. Key components (files + roles) — link to the shared primitives above instead of duplicating code.
 3. Prerequisites (keys, env vars, ledger/debit expectations).
-4. Workflow (inputs → submission → polling → output handling → debit timing).
+4. Workflow (inputs → submission → polling → output handling → charging behavior).
 5. Reference handling (if applicable).
 6. Costing defaults (reference `computeCostForModel` + registry defaults).
 7. Error handling & UX (banner states, disabled conditions).
@@ -57,4 +57,4 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 ## Upcoming flows (prep checklist)
 - Image-to-Image: require at least one reference image; reuse Reference Grid/Studio Preview ingestion; clamp aspects using `allowedAspects` in `modelRegistry.ts`; document reference count limits per model.
 - Image-to-Video: align duration/audio/aspect defaults with `modelRegistry.ts`; require a primary reference image; surface per-model reference requirements in disabled-state copy before enabling Generate.
-- Video-to-Video: plan for source clip ingestion (drag/drop + file picker), aspect/duration/audio defaults from `modelRegistry.ts`, and per-second/per-frame pricing. Document whether trim/segment selection is supported and how costs are estimated (e.g., per-second of output or input).***
+- Video-to-Video: plan for source clip ingestion (drag/drop + file picker), aspect/duration/audio defaults from `modelRegistry.ts`, and per-second/per-frame pricing. Document whether trim/segment selection is supported and how costs are estimated (e.g., per-second of output or input).

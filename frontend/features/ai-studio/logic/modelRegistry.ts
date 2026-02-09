@@ -276,6 +276,17 @@ const registry: Record<string, ModelConfig> = {
     allowedAspects: [],
     pricingStrategy: "gpt41nano-per-token",
   },
+  "kei/gpt4o-image": {
+    id: "kei/gpt4o-image",
+    label: "Kie GPT-4o Image",
+    provider: "kei",
+    mediaType: "image",
+    defaultAspect: "1:1",
+    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    pricingStrategy: "gpt-image-per-image",
+    supportsTextToImage: true,
+    supportsImageToImage: true,
+  },
 };
 
 export const getModelConfig = (id: string): ModelConfig | null => registry[id] ?? null;

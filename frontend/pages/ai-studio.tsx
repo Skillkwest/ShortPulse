@@ -23,6 +23,7 @@ import { ensureSupabaseClient } from "../lib/supabaseClient";
 import { filterModelOptions } from "../features/ai-studio/logic/stateParsers";
 import { estimatePromptTokens } from "../features/ai-studio/logic/tokenEstimates";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
+import { useBeginnerModePreference } from "../features/ai-studio/hooks/useBeginnerModePreference";
 
 export default function AiStudioPage() {
   const { balanceCents, balanceLoading, debit } = useCredits();
@@ -150,7 +151,7 @@ export default function AiStudioPage() {
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
   const [dismissedFailureIds, setDismissedFailureIds] = useState<Set<string>>(new Set());
-  const [beginnerMode, setBeginnerMode] = useState<boolean>(true);
+  const { beginnerMode, setBeginnerMode } = useBeginnerModePreference();
   const agentFlag = process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
   const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(true);
   const agentEnabled = agentFlag || agentSessionEnabled;
@@ -582,18 +583,6 @@ export default function AiStudioPage() {
       return new Set(filtered);
     });
   }, [failedOutputs]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("aiStudioBeginnerMode");
-    if (stored === "off") setBeginnerMode(false);
-    if (stored === "on") setBeginnerMode(true);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("aiStudioBeginnerMode", beginnerMode ? "on" : "off");
-  }, [beginnerMode]);
 
   const dismissFailure = (id: string) => {
     setDismissedFailureIds((prev) => {

@@ -68,6 +68,13 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `created_at` (timestamptz, default now)
 - RLS: select + insert allowed only when `user_id = auth.uid()`.
 
+### user_preferences
+- `user_id` (uuid, pk, references `auth.users(id)`): Profile owner.
+- `beginner_mode` (boolean, default `true`): AI Studio beginner mode toggle.
+- `created_at` (timestamptz, default now)
+- `updated_at` (timestamptz, default now, maintained by trigger)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
 ### storage.objects (Supabase bucket)
 - Bucket: `media_library` (private).
 - Policy: allow select/insert/update/delete when bucket is `media_library` **and** the folder prefix matches `auth.uid()` (or service role).

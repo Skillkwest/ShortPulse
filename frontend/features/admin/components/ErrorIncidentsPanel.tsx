@@ -4,7 +4,7 @@
  */
 import React, { useMemo } from "react";
 import { WarningCircle } from "phosphor-react";
-import type { AdminErrorLogRow, AdminErrorSummary } from "../types";
+import type { AdminErrorLogRow, AdminErrorSummary, AdminPagination } from "../types";
 import styles from "../../../styles/admin.module.css";
 
 type ErrorIncidentsPanelProps = {
@@ -16,10 +16,13 @@ type ErrorIncidentsPanelProps = {
   errorSeverityFilter: "all" | "high" | "medium" | "low";
   errorSourceFilter: string;
   errorSearch: string;
+  errorPagination: AdminPagination;
   onErrorStatusFilterChange: (value: "open" | "all") => void;
   onErrorSeverityFilterChange: (value: "all" | "high" | "medium" | "low") => void;
   onErrorSourceFilterChange: (value: string) => void;
   onErrorSearchChange: (value: string) => void;
+  onPrevPage: () => void;
+  onNextPage: () => void;
   onRefresh: () => void;
 };
 
@@ -48,10 +51,13 @@ export function ErrorIncidentsPanel({
   errorSeverityFilter,
   errorSourceFilter,
   errorSearch,
+  errorPagination,
   onErrorStatusFilterChange,
   onErrorSeverityFilterChange,
   onErrorSourceFilterChange,
   onErrorSearchChange,
+  onPrevPage,
+  onNextPage,
   onRefresh,
 }: ErrorIncidentsPanelProps) {
   const errorSourceOptions = useMemo(() => {
@@ -59,24 +65,8 @@ export function ErrorIncidentsPanel({
     return ["all", ...Array.from(values).sort()];
   }, [errors]);
 
-  const filteredErrors = useMemo(() => {
-    const query = errorSearch.trim().toLowerCase();
-    if (!query) return errors;
-    return errors.filter((row) => {
-      const haystack = [
-        row.message,
-        row.userEmail ?? "",
-        row.userId ?? "",
-        row.endpoint ?? "",
-        row.route ?? "",
-        row.requestId ?? "",
-        row.source,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [errorSearch, errors]);
+  const resultStart = errorPagination.totalCount === 0 ? 0 : (errorPagination.page - 1) * errorPagination.perPage + 1;
+  const resultEnd = Math.min(errorPagination.page * errorPagination.perPage, errorPagination.totalCount);
 
   return (
     <section className={styles.adminSection}>
@@ -149,8 +139,24 @@ export function ErrorIncidentsPanel({
           type="search"
           value={errorSearch}
           onChange={(event) => onErrorSearchChange(event.target.value)}
-          placeholder="Search message, user, endpoint, request id"
+          placeholder="Search message, user, endpoint, request id, source"
         />
+      </div>
+      <div className={styles.searchRow}>
+        <p className="tiny subdued">
+          Showing {resultStart}-{resultEnd} of {errorPagination.totalCount}
+        </p>
+        <div className={styles.tabRow}>
+          <button type="button" className="ghost-btn mini" onClick={onPrevPage} disabled={errorsLoading || !errorPagination.hasPrevPage}>
+            Prev
+          </button>
+          <span className="tiny subdued">
+            Page {errorPagination.page} of {errorPagination.totalPages}
+          </span>
+          <button type="button" className="ghost-btn mini" onClick={onNextPage} disabled={errorsLoading || !errorPagination.hasNextPage}>
+            Next
+          </button>
+        </div>
       </div>
 
       <div className={styles.adminTable}>
@@ -174,7 +180,7 @@ export function ErrorIncidentsPanel({
             <span className="subdued">—</span>
             <span className="subdued">—</span>
           </div>
-        ) : filteredErrors.length === 0 ? (
+        ) : errors.length === 0 ? (
           <div className={`${styles.adminErrorsRow} ${styles.severityLow}`}>
             <span className="subdued">None</span>
             <span className="subdued">—</span>
@@ -185,7 +191,7 @@ export function ErrorIncidentsPanel({
             <span className="subdued">—</span>
           </div>
         ) : (
-          filteredErrors.map((row) => (
+          errors.map((row) => (
             <div
               key={row.id}
               className={`${styles.adminErrorsRow} ${

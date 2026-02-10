@@ -71,12 +71,10 @@ export const requireApiUser = async (
   return user;
 };
 
-const userRoles = (user: AuthenticatedApiUser): string[] => {
+const adminRolesFromAppMetadata = (user: AuthenticatedApiUser): string[] => {
   const appRole = user.app_metadata?.role;
   const appRoles = Array.isArray(user.app_metadata?.roles) ? user.app_metadata.roles : [];
-  const userRole = user.user_metadata?.role;
-  const userRolesList = Array.isArray(user.user_metadata?.roles) ? user.user_metadata.roles : [];
-  return [appRole, userRole, ...appRoles, ...userRolesList]
+  return [appRole, ...appRoles]
     .filter(Boolean)
     .map((value) => String(value).toLowerCase());
 };
@@ -85,7 +83,7 @@ const userRoles = (user: AuthenticatedApiUser): string[] => {
  * Determines if the user is an operator/admin.
  */
 export const isAdminUser = (user: AuthenticatedApiUser): boolean => {
-  const normalizedRoles = userRoles(user);
+  const normalizedRoles = adminRolesFromAppMetadata(user);
   if (normalizedRoles.includes("admin") || normalizedRoles.includes("operator")) {
     return true;
   }

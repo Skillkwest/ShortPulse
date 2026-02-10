@@ -40,7 +40,8 @@ Cause:
 - Supabase stores auth metadata in `raw_app_meta_data` and `raw_user_meta_data` columns.
 
 Fix:
-- Update `raw_app_meta_data` or `raw_user_meta_data` instead of `app_metadata`.
+- Update `raw_app_meta_data` instead of `app_metadata` for admin roles.
+- `raw_user_meta_data` is user-editable and is not used for admin authorization.
 - Sign out and sign back in so fresh JWT claims include the new role before checking `/admin`.
 
 ## Billing migration fails with `ENABLE ROW SECURITY ... not supported for views`

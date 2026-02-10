@@ -36,3 +36,12 @@ export type AdminErrorSummary = {
   highSeverityOpenCount: number;
   last24hCount: number;
 };
+
+export type AdminPagination = {
+  page: number;
+  perPage: number;
+  totalCount: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+};

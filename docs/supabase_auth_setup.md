@@ -20,7 +20,8 @@ SHORTPULSE_ADMIN_EMAILS=admin@example.com,ops@example.com
 ```
 
 Optional role-based admin access (without email allowlist):
-- Set `role` to `admin` or `operator` in either `raw_app_meta_data` or `raw_user_meta_data` on `auth.users`.
+- Set `role` to `admin` or `operator` in `raw_app_meta_data` on `auth.users`.
+- Do not use `raw_user_meta_data` for admin authorization.
 - Sign out and sign back in after metadata changes so JWT claims are refreshed.
 
 ## Supabase client initialization
@@ -37,4 +38,4 @@ Optional role-based admin access (without email allowlist):
 2. Verify protected routes redirect to `/auth` when signed out.
 3. Verify user-scoped data is isolated across two test users.
 4. Verify billing/credit tables (`billing_profiles`, `ai_credit_balance`, `ai_credit_ledger`) obey RLS.
-5. Verify admin access works for one operator account (role metadata or `SHORTPULSE_ADMIN_EMAILS`).
+5. Verify admin access works for one operator account (`raw_app_meta_data` role or `SHORTPULSE_ADMIN_EMAILS`).

@@ -17,7 +17,7 @@ Purpose: ensure user isolation and authenticated access across the frontend-only
 - **Key management**: Never expose the service-role key. Use only the anon key in the browser.
 - **Network calls**: All Supabase requests already include the user’s JWT; avoid any other unauthenticated calls for user-owned data.
 - **API auth boundary**: Require authenticated bearer tokens for provider proxy routes (`/api/fal/*`, `/api/kei/*`, `/api/ai/*`), upload endpoints, billing routes, and admin routes.
-- **Admin boundary**: Restrict admin APIs to operator roles from `app_metadata` or `user_metadata` (`role`/`roles`) or explicit allow-listed admin emails.
+- **Admin boundary**: Restrict admin APIs to operator roles from `app_metadata` (`role`/`roles`) or explicit allow-listed admin emails. Do not trust `user_metadata` for admin authorization.
 
 ## Validation
 - Periodically test RLS with different users to confirm isolation.

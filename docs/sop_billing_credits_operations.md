@@ -42,7 +42,7 @@ order by ordinal_position;
 
 ## Admin/operator access
 `/admin` requires one of:
-- `app_metadata.role` or `user_metadata.role` = `admin`/`operator`.
+- `app_metadata.role` = `admin`/`operator`.
 - Email in `SHORTPULSE_ADMIN_EMAILS`.
 
 If role metadata is updated directly in Supabase, sign out/sign in to refresh JWT claims before retesting `/admin`.

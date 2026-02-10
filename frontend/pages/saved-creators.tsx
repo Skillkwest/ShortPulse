@@ -9,8 +9,16 @@ import type { FormEvent } from "react";
 import { CreatorIntakeForm } from "../features/saved-creators/components/CreatorIntakeForm";
 import { SavedCreatorTable } from "../features/saved-creators/components/SavedCreatorTable";
 import { SavedCreatorsHeader } from "../features/saved-creators/components/SavedCreatorsHeader";
-import { AUTH_REQUIRED_ERROR, deleteCreator, fetchCreators, insertCreator } from "../features/saved-creators/logic/supabase";
+import {
+  AUTH_REQUIRED_ERROR,
+  deleteCreator,
+  fetchCreators,
+  insertCreator,
+} from "../features/saved-creators/logic/supabase";
 import { Creator, Platform } from "../features/saved-creators/types";
+
+const getErrorMessage = (error: unknown, fallback: string): string =>
+  error instanceof Error ? error.message : fallback;
 
 export default function SavedCreatorsPage() {
   const searchUsage = { used: 0, limit: 100 };
@@ -37,12 +45,12 @@ export default function SavedCreatorsPage() {
       try {
         const data = await fetchCreators();
         setCreators(data);
-      } catch (err: any) {
-        if (err?.message === AUTH_REQUIRED_ERROR) {
+      } catch (err: unknown) {
+        if (getErrorMessage(err, "") === AUTH_REQUIRED_ERROR) {
           router.replace("/auth");
           return;
         }
-        setError(err?.message || "Unable to load creators");
+        setError(getErrorMessage(err, "Unable to load creators"));
       } finally {
         setLoading(false);
       }
@@ -65,12 +73,12 @@ export default function SavedCreatorsPage() {
       const newCreator = await insertCreator({ handle, platform });
       setCreators((prev) => [newCreator, ...prev]);
       setHandle("");
-    } catch (err: any) {
-      if (err?.message === AUTH_REQUIRED_ERROR) {
+    } catch (err: unknown) {
+      if (getErrorMessage(err, "") === AUTH_REQUIRED_ERROR) {
         router.replace("/auth");
         return;
       }
-      setError(err?.message || "Unable to add creator");
+      setError(getErrorMessage(err, "Unable to add creator"));
     }
   };
 
@@ -79,12 +87,12 @@ export default function SavedCreatorsPage() {
     try {
       await deleteCreator(id);
       setCreators((prev) => prev.filter((c) => c.id !== id));
-    } catch (err: any) {
-      if (err?.message === AUTH_REQUIRED_ERROR) {
+    } catch (err: unknown) {
+      if (getErrorMessage(err, "") === AUTH_REQUIRED_ERROR) {
         router.replace("/auth");
         return;
       }
-      setError(err?.message || "Unable to delete creator");
+      setError(getErrorMessage(err, "Unable to delete creator"));
     }
   };
 
@@ -92,7 +100,10 @@ export default function SavedCreatorsPage() {
     <>
       <Head>
         <title>ShortPulse · Saved creators</title>
-        <meta name="description" content="Track saved creators for Reels, TikTok, and Shorts analytics." />
+        <meta
+          name="description"
+          content="Track saved creators for Reels, TikTok, and Shorts analytics."
+        />
       </Head>
       <main className="page page-wide saved-creators-page">
         <SavedCreatorsHeader searchUsage={searchUsage} planUsage={planUsage} />

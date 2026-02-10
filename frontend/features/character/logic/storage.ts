@@ -12,7 +12,7 @@ type CharacterRecord<T> = {
   value: T;
 };
 
-const memoryStore = new Map<string, any>();
+const memoryStore = new Map<string, unknown>();
 
 const openDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
@@ -42,7 +42,7 @@ const put = async <T>(key: string, value: T) => {
       tx.onerror = () => reject(tx.error || new Error("IndexedDB put failed"));
     });
     db.close();
-  } catch (_err) {
+  } catch {
     memoryStore.set(key, value);
   }
 };
@@ -59,7 +59,7 @@ const get = async <T>(key: string): Promise<T | null> => {
     });
     db.close();
     return result ? result.value : null;
-  } catch (_err) {
+  } catch {
     return (memoryStore.get(key) as T) ?? null;
   }
 };

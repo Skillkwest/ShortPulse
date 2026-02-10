@@ -79,11 +79,9 @@ const logMediaEvent = async (
       metadata,
     });
     if (error) {
-      // eslint-disable-next-line no-console
       console.warn("Media event log failed", error);
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn("Media event log error", err);
   }
 };
@@ -94,6 +92,9 @@ const formatDate = (value?: string | null) => {
   if (Number.isNaN(date.getTime())) return "Unknown";
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 };
+
+const getErrorMessage = (error: unknown, fallback: string): string =>
+  error instanceof Error ? error.message : fallback;
 
 export default function MediaLibrary() {
   const [files, setFiles] = useState<MediaRow[]>([]);
@@ -164,7 +165,7 @@ export default function MediaLibrary() {
           prev && prev.id === fileId ? { ...prev, signedUrl: nextSignedUrl ?? undefined } : prev
         );
         return nextSignedUrl;
-      } catch (_error) {
+      } catch {
         return null;
       }
     },
@@ -204,7 +205,6 @@ export default function MediaLibrary() {
         const signed = await Promise.all(
           rows.map(async (row) => {
             const signedUrl = await signStoragePath(row.storage_path).catch((signedError) => {
-              // eslint-disable-next-line no-console
               console.error("Signed URL error", signedError);
               return null;
             });
@@ -219,8 +219,8 @@ export default function MediaLibrary() {
           setFiles(signed);
           setPrompts(promptRows as PromptRow[]);
         }
-      } catch (err: any) {
-        setError(err?.message || "Unable to load media");
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, "Unable to load media"));
       } finally {
         if (active) {
           setLoading(false);
@@ -363,8 +363,8 @@ export default function MediaLibrary() {
       }
       setSelectedFiles([]);
       setUploadCount(0);
-    } catch (err: any) {
-      setError(err?.message || "Upload failed");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Upload failed"));
       if (placeholderIds.length) {
         setFiles((prev) =>
           prev.filter((file) => !(file.status === "uploading" && placeholderIds.includes(file.id)))
@@ -442,8 +442,8 @@ export default function MediaLibrary() {
       setFiles((prev) => prev.filter((f) => f.id !== row.id));
       setSelectedIds((prev) => prev.filter((id) => id !== row.id));
       void logMediaEvent("delete", "media_file", row.id, { storage_path: row.storage_path });
-    } catch (err: any) {
-      setError(err?.message || "Unable to delete media");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to delete media"));
     }
   };
 
@@ -455,8 +455,8 @@ export default function MediaLibrary() {
       if (deleteError) throw deleteError;
       setPrompts((prev) => prev.filter((p) => p.id !== row.id));
       void logMediaEvent("delete", "media_prompt", row.id);
-    } catch (err: any) {
-      setError(err?.message || "Unable to delete prompt");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to delete prompt"));
     }
   };
 
@@ -475,8 +475,8 @@ export default function MediaLibrary() {
       link.download = row.filename || "media-file";
       link.click();
       window.URL.revokeObjectURL(objectUrl);
-    } catch (err: any) {
-      setError(err?.message || "Unable to download media");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to download media"));
     }
   };
 
@@ -531,8 +531,8 @@ export default function MediaLibrary() {
           storage_path: target.storage_path,
         });
       });
-    } catch (err: any) {
-      setError(err?.message || "Unable to delete selected media");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to delete selected media"));
     } finally {
       setBulkDeleting(false);
     }
@@ -574,8 +574,8 @@ export default function MediaLibrary() {
         from: previousName,
         to: renameValue.trim(),
       });
-    } catch (err: any) {
-      setModalError(err?.message || "Unable to rename file");
+    } catch (err: unknown) {
+      setModalError(getErrorMessage(err, "Unable to rename file"));
     } finally {
       setSavingRename(false);
     }
@@ -928,14 +928,18 @@ export default function MediaLibrary() {
                           style={{ aspectRatio }}
                         />
                       ) : (
-                        <img
-                          src={file.signedUrl}
-                          alt={file.filename}
-                          className="media-thumb"
-                          onLoad={(e) => handleImageLoad(file.id, e)}
-                          onError={() => handleMediaPreviewError(file)}
-                          style={{ aspectRatio }}
-                        />
+                        <>
+                          {/* Signed URLs are dynamic and may include ephemeral query parameters. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={file.signedUrl}
+                            alt={file.filename}
+                            className="media-thumb"
+                            onLoad={(e) => handleImageLoad(file.id, e)}
+                            onError={() => handleMediaPreviewError(file)}
+                            style={{ aspectRatio }}
+                          />
+                        </>
                       )
                     ) : (
                       <div className="media-thumb placeholder" style={{ aspectRatio }}>
@@ -988,11 +992,15 @@ export default function MediaLibrary() {
                       onError={() => handleMediaPreviewError(focusedFile)}
                     />
                   ) : (
-                    <img
-                      src={focusedFile.signedUrl}
-                      alt={focusedFile.filename}
-                      onError={() => handleMediaPreviewError(focusedFile)}
-                    />
+                    <>
+                      {/* Signed URLs are dynamic and may include ephemeral query parameters. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={focusedFile.signedUrl}
+                        alt={focusedFile.filename}
+                        onError={() => handleMediaPreviewError(focusedFile)}
+                      />
+                    </>
                   )
                 ) : (
                   <div className="placeholder">No preview available</div>

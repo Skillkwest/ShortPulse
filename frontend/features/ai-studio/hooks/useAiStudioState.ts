@@ -11,7 +11,7 @@ import {
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput, ToolId } from "../types";
 import type { ModelModalContext } from "../components/ModelModal";
-import { createKeiTask, fetchKeiTaskStatus, KeiTaskStatus } from "../../../lib/keiClient";
+import { createKeiTask } from "../../../lib/keiClient";
 import {
   submitFalFlux2,
   submitFalFlux2Klein,
@@ -20,7 +20,6 @@ import {
   submitFalFlux2Pro,
   submitFalKlingV3ImageToVideo,
   submitFalKlingV3Text,
-  submitFalKlingMotionControl,
   submitFalSeedance,
   submitFalSeedanceI2V,
   submitFalSeedream,
@@ -34,29 +33,18 @@ import {
   submitFalNanoBananaProEdit,
   submitFalSoraPro,
 } from "../../../lib/falClient";
-import {
-  DEFAULT_KLING_DURATION_SECONDS,
-  computeCostForModel,
-  falSizeForAspect,
-  getModelConfig,
-} from "../logic/pricing";
-import { postGeneratePrompt, TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
-import { postDescribeImage, prepareImageUrl } from "../logic/imageDescription";
-import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
+import { DEFAULT_KLING_DURATION_SECONDS, falSizeForAspect, getModelConfig } from "../logic/pricing";
+import { prepareImageUrl } from "../logic/imageDescription";
 import type { AgentContext, AgentMediaPreview, AgentReferenceSummary } from "../../ai-agent/types";
-import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
 import {
   Provider,
   computeModalPosition,
-  extractFalMediaUrls,
-  extractResultUrls,
   isVideoUrl,
   normalizeAspectForFalNanoBanana,
   normalizeAspectForFalNanoBananaPro,
   normalizeAspectForKei,
   resolvePreviewUrlById,
   resolveKlingAspectRatio,
-  resolveKlingDuration,
   resolveKlingV3Duration,
   resolveModelLabel,
   resolveSeedreamImageSize,
@@ -79,7 +67,7 @@ import {
 import { useAiStudioTasks } from "./useAiStudioTasks";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
-type KlingAspect = FalKlingTextSubmitRequest["aspect_ratio"];
+const KEYFRAME_COMPATIBLE_MODELS = new Set(["fal-ai/veo3.1/first-last-frame-to-video"]);
 
 type ModelModalPosition = { top: number; left: number };
 
@@ -352,8 +340,6 @@ export const useAiStudioState = () => {
 
   // Models that support keyframes mode (start + end frame).
   // Only Veo 3.1 First/Last Frame is supported in keyframes mode.
-  const keyframeCompatibleModels = new Set(["fal-ai/veo3.1/first-last-frame-to-video"]);
-
   // Keep reference mode and model in sync without locking other tabs.
   useEffect(() => {
     if (selectedTool !== "video" && selectedTool !== "kling") return;
@@ -383,7 +369,7 @@ export const useAiStudioState = () => {
     if (videoReferenceMode === "keyframes") {
       // Allow both Veo first/last and Kling 3.0 I2V in keyframes mode.
       // Only switch model if current model doesn't support keyframes.
-      if (model && !keyframeCompatibleModels.has(model)) {
+      if (model && !KEYFRAME_COMPATIBLE_MODELS.has(model)) {
         lastNonKeyframesVideoModelRef.current = model;
         setModel("fal-ai/veo3.1/first-last-frame-to-video");
       } else if (!model) {
@@ -456,7 +442,7 @@ export const useAiStudioState = () => {
     if (!showCreateTools) {
       setShowCreateTools(true);
     }
-  }, [model, selectedTool, setModel, setVideoReferenceMode, showCreateTools]);
+  }, [model, selectedTool, setModel, setVideoReferenceMode, showCreateTools, videoReferenceMode]);
 
   // Clear model selections that are not valid for the current tool.
   useEffect(() => {
@@ -576,7 +562,7 @@ export const useAiStudioState = () => {
             status: "running",
             metadata,
           });
-        } catch (_error) {
+        } catch {
           return output.generationId;
         }
         return output.generationId;
@@ -599,11 +585,11 @@ export const useAiStudioState = () => {
           updateOutputById(outputId, (item) => ({ ...item, generationId }));
         }
         return generationId;
-      } catch (_error) {
+      } catch {
         return null;
       }
     },
-    [createGenerationRecord, findOutputById, updateGenerationRecord, updateOutputById]
+    [findOutputById, updateOutputById]
   );
 
   const persistPromptSave = useCallback(
@@ -622,7 +608,7 @@ export const useAiStudioState = () => {
               entityType: "media_prompt",
               entityId: promptId,
             });
-          } catch (_error) {
+          } catch {
             // best-effort logging only
           }
         }
@@ -633,7 +619,7 @@ export const useAiStudioState = () => {
         return null;
       }
     },
-    [logMediaEvent, savePromptRecord, setUiError]
+    [setUiError]
   );
 
   const persistMediaUrls = useCallback(
@@ -686,7 +672,7 @@ export const useAiStudioState = () => {
                   storage_path: result.storagePath,
                 },
               });
-            } catch (_error) {
+            } catch {
               // best-effort logging only
             }
           }
@@ -707,14 +693,14 @@ export const useAiStudioState = () => {
               errors,
             },
           });
-        } catch (_error) {
+        } catch {
           // best-effort logging only
         }
       }
 
       return { mediaFileIds, errors };
     },
-    [findOutputById, logMediaEvent, saveMediaUrlToLibrary]
+    [findOutputById]
   );
 
   const deleteOutput = useCallback(
@@ -810,7 +796,7 @@ export const useAiStudioState = () => {
               media_file_ids: mediaFileIds,
             },
           });
-        } catch (_error) {
+        } catch {
           // best-effort update
         }
       }
@@ -821,7 +807,6 @@ export const useAiStudioState = () => {
       markOutputSaveFailed,
       markOutputSaved,
       persistMediaUrls,
-      updateGenerationRecord,
       updateOutputById,
     ]
   );
@@ -869,18 +854,17 @@ export const useAiStudioState = () => {
               provider,
             },
           });
-        } catch (_error) {
+        } catch {
           // best-effort updates
         }
       }
     },
-    [ensureGenerationRecord, findOutputById, logMediaEvent, updateGenerationRecord]
+    [ensureGenerationRecord, findOutputById]
   );
 
-  const { startPollingTask, clearPollTimer } = useAiStudioTasks({
+  const { startPollingTask } = useAiStudioTasks({
     updateOutputById,
     notifyGenerationFailure,
-    setUiError,
     onGenerationSuccess: handleGenerationSuccess,
     onGenerationFailure: handleGenerationFailure,
   });
@@ -940,6 +924,7 @@ export const useAiStudioState = () => {
             "fal-ai/nano-banana/edit": "fal-ai/nano-banana",
             "fal-ai/nano-banana-pro/edit": "fal-ai/nano-banana-pro",
             "fal-ai/bytedance/seedream/v4.5/edit": "fal-ai/bytedance/seedream/v4.5/text-to-image",
+            "kei/gpt4o-image": "kei/gpt4o-image", // Supports both modes, maps to itself
           };
           if (model && imageToTextModelMap[model]) {
             finalModel = imageToTextModelMap[model];
@@ -951,6 +936,9 @@ export const useAiStudioState = () => {
           const imageToVideoTextMap: Record<string, string> = {
             "fal-ai/kling-video/v3/pro/image-to-video": "fal-ai/kling-video/v3/pro/text-to-video",
             "fal-ai/veo3.1/first-last-frame-to-video": "fal-ai/veo3.1",
+            "fal-ai/veo3.1/image-to-video": "fal-ai/veo3.1",
+            "fal-ai/bytedance/seedance/v1.5/pro/image-to-video":
+              "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
           };
           if (model && imageToVideoTextMap[model]) {
             finalModel = imageToVideoTextMap[model];
@@ -1220,26 +1208,34 @@ export const useAiStudioState = () => {
                   ? { prompt: shot.prompt.trim(), duration: resolveKlingV3Duration(shot.duration) }
                   : null
               )
-              .filter(Boolean) || undefined;
-          const elementsPayload =
-            klingElements
-              .map((element) => {
-                const referenceList = element.referenceImageUrls
-                  .split(/[,\\n]+/)
-                  .map((item) => item.trim())
-                  .filter(Boolean);
-                if (element.videoUrl.trim()) {
-                  return { video_url: element.videoUrl.trim() };
+              .filter((shot): shot is { prompt: string; duration: number } => Boolean(shot)) ||
+            undefined;
+          const elementsPayloadRaw = klingElements.reduce<
+            Array<
+              | { video_url: string }
+              | {
+                  frontal_image_url: string | undefined;
+                  reference_image_urls: string[] | undefined;
                 }
-                if (element.frontalImageUrl.trim() || referenceList.length) {
-                  return {
-                    frontal_image_url: element.frontalImageUrl.trim() || undefined,
-                    reference_image_urls: referenceList.length ? referenceList : undefined,
-                  };
-                }
-                return null;
-              })
-              .filter(Boolean) || undefined;
+            >
+          >((acc, element) => {
+            const referenceList = element.referenceImageUrls
+              .split(/[,\\n]+/)
+              .map((item) => item.trim())
+              .filter(Boolean);
+            if (element.videoUrl.trim()) {
+              acc.push({ video_url: element.videoUrl.trim() });
+              return acc;
+            }
+            if (element.frontalImageUrl.trim() || referenceList.length) {
+              acc.push({
+                frontal_image_url: element.frontalImageUrl.trim() || undefined,
+                reference_image_urls: referenceList.length ? referenceList : undefined,
+              });
+            }
+            return acc;
+          }, []);
+          const elementsPayload = elementsPayloadRaw.length ? elementsPayloadRaw : undefined;
           const { request_id } = await submitFalKlingV3ImageToVideo({
             prompt: cleanedPrompt,
             start_image_url: preparedImageInputs[0],
@@ -1250,9 +1246,9 @@ export const useAiStudioState = () => {
             cfg_scale: klingCfgScale,
             generate_audio: requestedAudio,
             voice_ids: voiceIds.length ? voiceIds : undefined,
-            multi_prompt: multiPromptPayload?.length ? (multiPromptPayload as any) : undefined,
+            multi_prompt: multiPromptPayload?.length ? multiPromptPayload : undefined,
             shot_type: klingShotType,
-            elements: elementsPayload?.length ? (elementsPayload as any) : undefined,
+            elements: elementsPayload?.length ? elementsPayload : undefined,
           });
           updateOutputById(id, (item) => ({
             ...item,
@@ -1618,7 +1614,7 @@ export const useAiStudioState = () => {
             safety_tolerance: "5",
             enable_safety_checker: false,
             image_urls: preparedImageInputs.slice(0, 4),
-          } as any);
+          });
           updateOutputById(id, (item) => ({
             ...item,
             taskId: falResp.request_id,
@@ -1639,7 +1635,7 @@ export const useAiStudioState = () => {
             safety_tolerance: "5",
             enable_safety_checker: false,
             ...falReferencePayload,
-          } as any);
+          });
           updateOutputById(id, (item) => ({
             ...item,
             taskId: falResp.request_id,
@@ -1717,27 +1713,31 @@ export const useAiStudioState = () => {
       }
     },
     [
-      activeOutput,
       aspect,
       getDefaultDurationSeconds,
       model,
       mode,
       notifyGenerationFailure,
-      outputs,
       prompt,
       selectedTool,
       startPollingTask,
       ensureGenerationRecord,
       updateOutputById,
-      useReferenceImageIndicator,
       videoDurationSeconds,
       videoResolution,
       imageResolution,
       videoGenerateAudio,
       videoReferenceMode,
-      motionCharacterOrientation,
-      motionKeepOriginalSound,
       motionReferenceVideoUrl,
+      videoReferenceImageUrl,
+      videoCameraFixed,
+      videoAutoFix,
+      klingNegativePrompt,
+      klingCfgScale,
+      klingShotType,
+      klingVoiceIds,
+      klingMultiPrompts,
+      klingElements,
     ]
   );
 
@@ -1963,6 +1963,7 @@ export const useAiStudioState = () => {
 
   const addAgentPromptReference = useCallback(
     (promptText: string, title?: string | null) => {
+      void title;
       const cleanedPrompt = promptText?.trim();
       if (!cleanedPrompt) return;
       const id = `prompt-${randomId()}`;
@@ -1984,7 +1985,7 @@ export const useAiStudioState = () => {
       setOutputs((prev) => [promptReference, ...prev]);
       setSharedPrompt(cleanedPrompt);
     },
-    [prompt, mode, aspect, model, setSharedPrompt]
+    [aspect, model, setSharedPrompt]
   );
 
   const addLibraryMediaReference = useCallback(

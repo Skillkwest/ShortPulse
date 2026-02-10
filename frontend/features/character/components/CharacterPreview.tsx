@@ -26,7 +26,11 @@ export function CharacterPreview({ identity, results, onUploadClick }: Character
 
       <div className="preview-frame">
         {latest ? (
-          <img src={latest.imageUrl} alt="Latest generation" className="preview-image" />
+          <>
+            {/* Generated/reference sources may include signed URLs and blob URLs. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={latest.imageUrl} alt="Latest generation" className="preview-image" />
+          </>
         ) : (
           <div className="preview-placeholder">
             <p className="subdued tiny helper-text">Generate to see the character preview.</p>
@@ -40,8 +44,14 @@ export function CharacterPreview({ identity, results, onUploadClick }: Character
           {results.length ? (
             results.map((result) => (
               <div className="preview-reel-card" key={result.id}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={result.imageUrl} alt="Character output" />
-                <p className="tiny subdued">{new Date(result.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+                <p className="tiny subdued">
+                  {new Date(result.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
               </div>
             ))
           ) : (
@@ -56,6 +66,7 @@ export function CharacterPreview({ identity, results, onUploadClick }: Character
           {identity.references.length ? (
             identity.references.map((ref) => (
               <div className="identity-ref-card" key={ref.id}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={ref.url} alt={ref.name ?? "Reference"} />
               </div>
             ))

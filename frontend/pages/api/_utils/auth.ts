@@ -6,8 +6,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 export type AuthenticatedApiUser = {
   id: string;
   email?: string;
-  user_metadata?: Record<string, any>;
-  app_metadata?: Record<string, any>;
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
 };
 
 const parseBearerToken = (authorizationHeader: string | undefined): string | null => {
@@ -40,7 +40,9 @@ const fetchSupabaseUser = async (token: string): Promise<AuthenticatedApiUser | 
 /**
  * Attempts to resolve an authenticated user without writing an HTTP response.
  */
-export const getOptionalApiUser = async (req: NextApiRequest): Promise<AuthenticatedApiUser | null> => {
+export const getOptionalApiUser = async (
+  req: NextApiRequest
+): Promise<AuthenticatedApiUser | null> => {
   const token = parseBearerToken(req.headers.authorization);
   if (!token) return null;
   try {
@@ -55,7 +57,7 @@ export const getOptionalApiUser = async (req: NextApiRequest): Promise<Authentic
  */
 export const requireApiUser = async (
   req: NextApiRequest,
-  res: NextApiResponse,
+  res: NextApiResponse
 ): Promise<AuthenticatedApiUser | null> => {
   const token = parseBearerToken(req.headers.authorization);
   if (!token) {
@@ -74,9 +76,7 @@ export const requireApiUser = async (
 const adminRolesFromAppMetadata = (user: AuthenticatedApiUser): string[] => {
   const appRole = user.app_metadata?.role;
   const appRoles = Array.isArray(user.app_metadata?.roles) ? user.app_metadata.roles : [];
-  return [appRole, ...appRoles]
-    .filter(Boolean)
-    .map((value) => String(value).toLowerCase());
+  return [appRole, ...appRoles].filter(Boolean).map((value) => String(value).toLowerCase());
 };
 
 /**
@@ -101,7 +101,7 @@ export const isAdminUser = (user: AuthenticatedApiUser): boolean => {
  */
 export const requireAdminUser = async (
   req: NextApiRequest,
-  res: NextApiResponse,
+  res: NextApiResponse
 ): Promise<AuthenticatedApiUser | null> => {
   const user = await requireApiUser(req, res);
   if (!user) return null;

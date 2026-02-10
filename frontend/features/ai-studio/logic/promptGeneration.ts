@@ -14,7 +14,9 @@ export type PromptGenerationResult = {
 
 export const TEXT_PROMPT_MODEL_ID = "gpt-4.1-nano";
 
-export const postGeneratePrompt = async (prompt: string): Promise<PromptGenerationResult | null> => {
+export const postGeneratePrompt = async (
+  prompt: string
+): Promise<PromptGenerationResult | null> => {
   if (!prompt?.trim()) return null;
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 15000);
@@ -36,7 +38,7 @@ export const postGeneratePrompt = async (prompt: string): Promise<PromptGenerati
       prompt: nextPrompt,
       usage: data?.usage,
     };
-  } catch (_error) {
+  } catch {
     return null;
   } finally {
     window.clearTimeout(timeoutId);

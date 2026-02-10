@@ -14,6 +14,9 @@ type Mode = "signin" | "signup";
 const DEFAULT_PLAN = "free";
 const MIN_PASSWORD_LENGTH = 8;
 
+const getErrorMessage = (error: unknown, fallback: string): string =>
+  error instanceof Error ? error.message : fallback;
+
 /**
  * Parse and sanitize the post-auth redirect target from the router query.
  */
@@ -96,8 +99,8 @@ export default function AuthPage() {
         if (signInError) throw signInError;
       }
       router.push(nextPath);
-    } catch (err: any) {
-      setError(err.message || "Unable to authenticate");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to authenticate"));
     } finally {
       setLoading(false);
     }
@@ -115,12 +118,15 @@ export default function AuthPage() {
     setResettingPassword(true);
     try {
       const supabase = ensureSupabaseClient();
-      const redirectTo = typeof window === "undefined" ? undefined : `${window.location.origin}/auth`;
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
+      const redirectTo =
+        typeof window === "undefined" ? undefined : `${window.location.origin}/auth`;
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo,
+      });
       if (resetError) throw resetError;
       setInfo("Password reset link sent. Check your inbox.");
-    } catch (err: any) {
-      setError(err.message || "Unable to send password reset link.");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to send password reset link."));
     } finally {
       setResettingPassword(false);
     }
@@ -137,7 +143,9 @@ export default function AuthPage() {
         <div className="auth-glow auth-glow-right" />
         <form className="auth-card" onSubmit={onSubmit}>
           <p className="auth-kicker">ShortPulse workspace access</p>
-          <h1 className="auth-title">{mode === "signin" ? "Welcome back" : "Create your account"}</h1>
+          <h1 className="auth-title">
+            {mode === "signin" ? "Welcome back" : "Create your account"}
+          </h1>
           <p className="auth-subtitle">
             {mode === "signin"
               ? "Sign in to continue to your workspace."
@@ -217,7 +225,11 @@ export default function AuthPage() {
               onClick={() => setShowPassword((v) => !v)}
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? <EyeSlash size={18} weight="bold" /> : <Eye size={18} weight="bold" />}
+              {showPassword ? (
+                <EyeSlash size={18} weight="bold" />
+              ) : (
+                <Eye size={18} weight="bold" />
+              )}
             </button>
           </div>
 

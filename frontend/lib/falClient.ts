@@ -195,21 +195,38 @@ export type FalNanoBananaEditSubmitRequest = {
 
 const FAL_API_BASE = "/api/fal";
 
-const fetchWithTimeout = async (input: RequestInfo | URL, init?: RequestInit & { timeoutMs?: number }) => {
+const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init?: RequestInit & { timeoutMs?: number }
+) => {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), init?.timeoutMs ?? 60000);
   try {
-    return await fetchWithAuth(input, { ...init, signal: controller.signal, shortpulseLogScope: "generation" });
+    return await fetchWithAuth(input, {
+      ...init,
+      signal: controller.signal,
+      shortpulseLogScope: "generation",
+    });
   } finally {
     window.clearTimeout(timeoutId);
   }
 };
 
+const readApiErrorMessage = (payload: unknown): string => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return "Unexpected error";
+  const data = payload as Record<string, unknown>;
+  if (typeof data.message === "string" && data.message.length > 0) return data.message;
+  if (typeof data.error === "string" && data.error.length > 0) return data.error;
+  return "Unexpected error";
+};
+
+const readRequestId = (payload: { request_id?: string; requestId?: string }): string | undefined =>
+  payload.request_id || payload.requestId;
+
 const handleJson = async <T>(response: Response) => {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = (data as any)?.message || (data as any)?.error || "Unexpected error";
-    throw new Error(message);
+    throw new Error(readApiErrorMessage(data));
   }
   return data as T;
 };
@@ -221,7 +238,7 @@ export const submitFalFlux = async (payload: FalSubmitRequest): Promise<FalSubmi
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal did not return a request_id");
   }
@@ -244,7 +261,7 @@ export const submitFalFlux2 = async (payload: FalSubmitRequest): Promise<FalSubm
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal FLUX 2 did not return a request_id");
   }
@@ -267,7 +284,7 @@ export const submitFalFlux2Edit = async (payload: FalSubmitRequest): Promise<Fal
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal FLUX 2 Edit did not return a request_id");
   }
@@ -290,7 +307,7 @@ export const submitFalFlux2Pro = async (payload: FalSubmitRequest): Promise<FalS
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal FLUX 2 PRO did not return a request_id");
   }
@@ -306,14 +323,16 @@ export const fetchFalFlux2ProStatus = async (requestId: string): Promise<FalStat
   return handleJson<FalStatusResponse>(response);
 };
 
-export const submitFalFlux2ProEdit = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
+export const submitFalFlux2ProEdit = async (
+  payload: FalSubmitRequest
+): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2pro-edit-submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal FLUX 2 PRO Edit did not return a request_id");
   }
@@ -329,14 +348,16 @@ export const fetchFalFlux2ProEditStatus = async (requestId: string): Promise<Fal
   return handleJson<FalStatusResponse>(response);
 };
 
-export const submitFalFlux2Klein = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
+export const submitFalFlux2Klein = async (
+  payload: FalSubmitRequest
+): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2klein-submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal FLUX 2 Klein did not return a request_id");
   }
@@ -362,7 +383,7 @@ export type FalNanoBananaSubmitRequest = {
 };
 
 export const submitFalNanoBanana = async (
-  payload: FalNanoBananaSubmitRequest,
+  payload: FalNanoBananaSubmitRequest
 ): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-submit`, {
     method: "POST",
@@ -370,7 +391,7 @@ export const submitFalNanoBanana = async (
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Nano Banana did not return a request_id");
   }
@@ -387,7 +408,7 @@ export const fetchFalNanoBananaStatus = async (requestId: string): Promise<FalSt
 };
 
 export const submitFalNanoBananaEdit = async (
-  payload: FalNanoBananaEditSubmitRequest,
+  payload: FalNanoBananaEditSubmitRequest
 ): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-edit-submit`, {
     method: "POST",
@@ -395,14 +416,16 @@ export const submitFalNanoBananaEdit = async (
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Nano Banana Edit did not return a request_id");
   }
   return { request_id: requestId };
 };
 
-export const fetchFalNanoBananaEditStatus = async (requestId: string): Promise<FalStatusResponse> => {
+export const fetchFalNanoBananaEditStatus = async (
+  requestId: string
+): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-edit-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -425,7 +448,7 @@ export type FalNanoBananaProSubmitRequest = {
 };
 
 export const submitFalNanoBananaPro = async (
-  payload: FalNanoBananaProSubmitRequest,
+  payload: FalNanoBananaProSubmitRequest
 ): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-pro-submit`, {
     method: "POST",
@@ -433,14 +456,16 @@ export const submitFalNanoBananaPro = async (
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Nano Banana Pro did not return a request_id");
   }
   return { request_id: requestId };
 };
 
-export const fetchFalNanoBananaProStatus = async (requestId: string): Promise<FalStatusResponse> => {
+export const fetchFalNanoBananaProStatus = async (
+  requestId: string
+): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-pro-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -450,7 +475,7 @@ export const fetchFalNanoBananaProStatus = async (requestId: string): Promise<Fa
 };
 
 export const submitFalNanoBananaProEdit = async (
-  payload: FalNanoBananaProSubmitRequest & { image_urls: string[] },
+  payload: FalNanoBananaProSubmitRequest & { image_urls: string[] }
 ): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-pro-edit-submit`, {
     method: "POST",
@@ -458,14 +483,16 @@ export const submitFalNanoBananaProEdit = async (
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Nano Banana Pro Edit did not return a request_id");
   }
   return { request_id: requestId };
 };
 
-export const fetchFalNanoBananaProEditStatus = async (requestId: string): Promise<FalStatusResponse> => {
+export const fetchFalNanoBananaProEditStatus = async (
+  requestId: string
+): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-pro-edit-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -474,14 +501,16 @@ export const fetchFalNanoBananaProEditStatus = async (requestId: string): Promis
   return handleJson<FalStatusResponse>(response);
 };
 
-export const submitFalKlingV3Text = async (payload: FalKlingV3TextSubmitRequest): Promise<FalSubmitResponse> => {
+export const submitFalKlingV3Text = async (
+  payload: FalKlingV3TextSubmitRequest
+): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-v3-text-submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Kling v3 text-to-video did not return a request_id");
   }
@@ -491,7 +520,7 @@ export const submitFalKlingV3Text = async (payload: FalKlingV3TextSubmitRequest)
 const FAL_KLING_MOTION_CONTROL_SUBMIT = `${FAL_API_BASE}/kling-v26-motion-control-submit`;
 
 export const submitFalKlingMotionControl = async (
-  payload: FalKlingMotionControlSubmitRequest,
+  payload: FalKlingMotionControlSubmitRequest
 ): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(FAL_KLING_MOTION_CONTROL_SUBMIT, {
     method: "POST",
@@ -499,7 +528,7 @@ export const submitFalKlingMotionControl = async (
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Kling 2.6 motion control did not return a request_id");
   }
@@ -515,15 +544,16 @@ export const fetchFalKlingStatus = async (requestId: string): Promise<FalKlingSt
   return handleJson<FalKlingStatusResponse>(response);
 };
 
-
-export const submitFalSoraPro = async (payload: FalSoraSubmitRequest): Promise<FalSubmitResponse> => {
+export const submitFalSoraPro = async (
+  payload: FalSoraSubmitRequest
+): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/sora-submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Sora did not return a request_id");
   }
@@ -546,35 +576,39 @@ export const submitFalVeo = async (payload: FalVeoSubmitRequest): Promise<FalSub
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Veo did not return a request_id");
   }
   return { request_id: requestId };
 };
 
-export const submitFalVeoImageToVideo = async (payload: FalVeoImageToVideoSubmitRequest): Promise<FalSubmitResponse> => {
+export const submitFalVeoImageToVideo = async (
+  payload: FalVeoImageToVideoSubmitRequest
+): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-image-to-video-submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Veo image-to-video did not return a request_id");
   }
   return { request_id: requestId };
 };
 
-export const submitFalVeoFirstLast = async (payload: FalVeoFirstLastSubmitRequest): Promise<FalSubmitResponse> => {
+export const submitFalVeoFirstLast = async (
+  payload: FalVeoFirstLastSubmitRequest
+): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-first-last-frame-submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Veo first/last frame did not return a request_id");
   }
@@ -590,43 +624,52 @@ export const fetchFalVeoStatus = async (requestId: string): Promise<FalStatusRes
   return handleJson<FalStatusResponse>(response);
 };
 
-export const fetchFalVeoImageToVideoStatus = async (requestId: string): Promise<FalStatusResponse> => {
+export const fetchFalVeoImageToVideoStatus = async (
+  requestId: string
+): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-image-to-video-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ requestId }),
   });
   if (response.status === 405) {
-    const fallback = await fetchWithTimeout(`${FAL_API_BASE}/veo-image-to-video-status?requestId=${encodeURIComponent(requestId)}`, {
-      method: "GET",
-    });
+    const fallback = await fetchWithTimeout(
+      `${FAL_API_BASE}/veo-image-to-video-status?requestId=${encodeURIComponent(requestId)}`,
+      {
+        method: "GET",
+      }
+    );
     return handleJson<FalStatusResponse>(fallback);
   }
   return handleJson<FalStatusResponse>(response);
 };
 
-export const submitFalSeedream = async (payload: FalSeedreamSubmitRequest): Promise<FalSubmitResponse> => {
+export const submitFalSeedream = async (
+  payload: FalSeedreamSubmitRequest
+): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/seedream-submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Seedream did not return a request_id");
   }
   return { request_id: requestId };
 };
 
-export const submitFalSeedreamEdit = async (payload: FalSeedreamEditSubmitRequest): Promise<FalSubmitResponse> => {
+export const submitFalSeedreamEdit = async (
+  payload: FalSeedreamEditSubmitRequest
+): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/seedream-edit-submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Seedream Edit did not return a request_id");
   }
@@ -642,14 +685,16 @@ export const fetchFalSeedreamStatus = async (requestId: string): Promise<FalStat
   return handleJson<FalStatusResponse>(response);
 };
 
-export const submitFalSeedance = async (payload: FalSeedanceSubmitRequest): Promise<FalSubmitResponse> => {
+export const submitFalSeedance = async (
+  payload: FalSeedanceSubmitRequest
+): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/seedance-submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Seedance did not return a request_id");
   }
@@ -665,14 +710,16 @@ export const fetchFalSeedanceStatus = async (requestId: string): Promise<FalStat
   return handleJson<FalStatusResponse>(response);
 };
 
-export const submitFalSeedanceI2V = async (payload: FalSeedanceI2VSubmitRequest): Promise<FalSubmitResponse> => {
+export const submitFalSeedanceI2V = async (
+  payload: FalSeedanceI2VSubmitRequest
+): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(`${FAL_API_BASE}/seedance-i2v-submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Seedance I2V did not return a request_id");
   }
@@ -692,7 +739,7 @@ const FAL_KLING_V3_SUBMIT = `${FAL_API_BASE}/kling-v3-image-to-video-submit`;
 const FAL_KLING_V3_STATUS = `${FAL_API_BASE}/kling-v3-image-to-video-status`;
 
 export const submitFalKlingV3ImageToVideo = async (
-  payload: FalKlingV3ImageToVideoSubmitRequest,
+  payload: FalKlingV3ImageToVideoSubmitRequest
 ): Promise<FalSubmitResponse> => {
   const response = await fetchWithTimeout(FAL_KLING_V3_SUBMIT, {
     method: "POST",
@@ -700,14 +747,16 @@ export const submitFalKlingV3ImageToVideo = async (
     body: JSON.stringify(payload),
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = data.request_id || (data as any).requestId;
+  const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Kling 3.0 image-to-video did not return a request_id");
   }
   return { request_id: requestId };
 };
 
-export const fetchFalKlingV3ImageToVideoStatus = async (requestId: string): Promise<FalStatusResponse> => {
+export const fetchFalKlingV3ImageToVideoStatus = async (
+  requestId: string
+): Promise<FalStatusResponse> => {
   const response = await fetchWithTimeout(FAL_KLING_V3_STATUS, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

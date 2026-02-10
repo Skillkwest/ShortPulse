@@ -42,7 +42,6 @@ export default function AiStudioPage() {
     engine: characterEngine,
     prompt: characterPrompt,
     poseId: characterPoseId,
-    results: characterResults,
     isBuildingIdentity,
     isGenerating: isCharacterGenerating,
     error: characterError,
@@ -76,7 +75,6 @@ export default function AiStudioPage() {
     activeOutput,
     activeOutputId,
     setActiveOutputId,
-    saved,
     selectedTool,
     setSelectedTool,
     showCreateTools,
@@ -111,12 +109,6 @@ export default function AiStudioPage() {
     setKlingMultiPrompts,
     klingElements,
     setKlingElements,
-    motionCharacterOrientation,
-    setMotionCharacterOrientation,
-    motionKeepOriginalSound,
-    setMotionKeepOriginalSound,
-    motionCharacterUrl,
-    setMotionCharacterUrl,
     motionReferenceVideoUrl,
     setMotionReferenceVideoUrl,
     referenceText,
@@ -203,6 +195,9 @@ export default function AiStudioPage() {
 
   const handleToolSelect = (tool: ToolId | null) => {
     setSelectedTool(tool);
+    if (tool === "create" || tool === "text") {
+      setMode("image");
+    }
     if (!tool) {
       setShowCreateTools(false);
     }
@@ -275,7 +270,7 @@ export default function AiStudioPage() {
       }
     }
 
-    let { actions } = await sendToAgent({
+    const { actions } = await sendToAgent({
       text: fallback,
       payloadText: refinedPrompt ?? fallback,
       previousPrompt: latestAgentPrompt ?? refinedPrompt ?? null,
@@ -406,8 +401,8 @@ export default function AiStudioPage() {
         return;
       }
       failPlaceholder("Unable to describe this image.");
-    } catch (error: any) {
-      failPlaceholder(error?.message || "Unable to describe this image.");
+    } catch (error: unknown) {
+      failPlaceholder(error instanceof Error ? error.message : "Unable to describe this image.");
     } finally {
       setDescribeInFlightCount((count) => Math.max(0, count - 1));
     }
@@ -535,11 +530,6 @@ export default function AiStudioPage() {
     setIsAgentChatOpen(false);
   };
 
-  const handleModeChange = (nextMode: StudioMode) => {
-    setMode(nextMode);
-    setIsAgentChatOpen(false);
-  };
-
   const handleCloseAgentChat = () => {
     setIsAgentChatOpen(false);
   };
@@ -656,6 +646,7 @@ export default function AiStudioPage() {
     isCreditGuardrail,
     generationGuardrail,
     isGenerateDisabled,
+    referenceImageWarning,
   } = useAiStudioViewModel({
     mode,
     model,
@@ -663,7 +654,6 @@ export default function AiStudioPage() {
     prompt,
     referenceImageUrl,
     activeOutput,
-    extraImageUrls,
     selectedTool,
     useReferenceImageIndicator,
     getDefaultDurationSeconds,
@@ -809,7 +799,6 @@ export default function AiStudioPage() {
     hasReferencePreview: Boolean(activeOutput?.previewUrl),
     isModelModalOpen,
     modelModalAnchor,
-    onModeChange: handleModeChange,
     onAspectChange: setAspect,
     onModelPickerOpen: handleOpenModelModal,
     onPromptChange: setSharedPrompt,
@@ -889,7 +878,8 @@ export default function AiStudioPage() {
           canBuildIdentity: identity.references.length > 0,
           onPromptChange: setCharacterPrompt,
           onAspectChange: setCharacterAspect,
-          onModelChange: (value) => setCharacterModelId(value as any),
+          onModelChange: (value) =>
+            setCharacterModelId(value as Parameters<typeof setCharacterModelId>[0]),
           onEngineChange: setCharacterEngine,
           onPoseChange: setCharacterPoseId,
           onUploadClick: triggerFilePicker,
@@ -920,6 +910,7 @@ export default function AiStudioPage() {
           costCredits: currentCostCredits,
           isGenerateDisabled: isGenerateDisabled || agentIsSending,
           guardrailReason: generationGuardrail,
+          referenceImageWarning,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
           agentEnabled,
           agentMessages,
@@ -994,6 +985,7 @@ export default function AiStudioPage() {
           onOpenMediaLibrary: handleOpenMediaLibrary,
           costCredits: currentCostCredits,
           guardrailReason: generationGuardrail,
+          referenceImageWarning,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
           isGenerateDisabled: isGenerateDisabled || agentIsSending,
           agentEnabled,

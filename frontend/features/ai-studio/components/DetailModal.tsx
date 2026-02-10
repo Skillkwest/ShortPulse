@@ -30,9 +30,11 @@ export function DetailModal({
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmOutputId, setDeleteConfirmOutputId] = useState<string | null>(null);
+  const [draftPromptsById, setDraftPromptsById] = useState<Record<string, string>>({});
 
-  const mediaType = output?.mode === "image" ? "Image" : output?.mode === "video" ? "Video" : "Prompt";
+  const mediaType =
+    output?.mode === "image" ? "Image" : output?.mode === "video" ? "Video" : "Prompt";
   const isPromptOnly = output?.mode === "text" && !output.previewUrl;
   const isUploadedReference = useMemo(() => {
     if (!output?.previewUrl) return false;
@@ -44,18 +46,19 @@ export function DetailModal({
     output?.aspect && output.aspect.includes(":")
       ? { aspectRatio: output.aspect.replace(":", " / ") }
       : undefined;
-  const [draftPrompt, setDraftPrompt] = useState(output?.prompt ?? "");
-  useEffect(() => {
-    setDraftPrompt(output?.prompt ?? "");
-    setIsDeleteConfirmOpen(false);
-  }, [output?.prompt, output?.id]);
+  const outputId = output?.id ?? null;
+  const draftPrompt =
+    outputId && output
+      ? (draftPromptsById[outputId] ?? output.prompt ?? "")
+      : (output?.prompt ?? "");
+  const isDeleteConfirmOpen = Boolean(outputId && deleteConfirmOutputId === outputId);
 
   const isPromptEditable = Boolean(isPromptOnly);
   const trimmedPrompt = draftPrompt.trim();
   const hasPromptEdits = trimmedPrompt !== (output?.prompt ?? "").trim();
   const canSave = useMemo(
     () => Boolean(trimmedPrompt) && (Boolean(onSavePrompt) || (isPromptEditable && hasPromptEdits)),
-    [hasPromptEdits, isPromptEditable, onSavePrompt, trimmedPrompt],
+    [hasPromptEdits, isPromptEditable, onSavePrompt, trimmedPrompt]
   );
 
   const syncTextareaHeight = useCallback((element: HTMLTextAreaElement | null) => {
@@ -72,7 +75,7 @@ export function DetailModal({
     syncTextareaHeight(promptOnlyTextareaRef.current);
   }, [draftPrompt, syncTextareaHeight]);
 
-  const filename = useMemo(() => {
+  const filename = (() => {
     if (!output?.previewUrl) return output?.id;
     try {
       const parsed = new URL(output.previewUrl);
@@ -81,23 +84,7 @@ export function DetailModal({
     } catch {
       return output?.id;
     }
-  }, [output?.id, output?.previewUrl]);
-
-  const formattedTimestamp = useMemo(() => {
-    if (!output?.timestamp) return null;
-    const date = new Date(output.timestamp);
-    if (Number.isNaN(date.getTime())) return output.timestamp;
-    return date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-  }, [output?.timestamp]);
-
-  const statusLabel = useMemo(() => {
-    if (!output) return null;
-    if (output.taskState === "fail") return "Error";
-    if (output.taskState === "running") return "Generating";
-    if (output.taskState === "pending") return "Queued";
-    if (output.status === "saved") return "Saved";
-    return "Ready";
-  }, [output]);
+  })();
 
   const handleSavePrompt = () => {
     if (!trimmedPrompt) return;
@@ -110,25 +97,26 @@ export function DetailModal({
   };
 
   const handlePromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (!isPromptEditable) return;
-    setDraftPrompt(event.target.value);
+    if (!isPromptEditable || !outputId) return;
+    const nextValue = event.target.value;
+    setDraftPromptsById((prev) => ({
+      ...prev,
+      [outputId]: nextValue,
+    }));
   };
 
-  const handleCopy = useCallback(
-    (text: string | undefined | null, field: string) => {
-      if (!text || typeof window === "undefined" || !navigator?.clipboard) return;
-      navigator.clipboard
-        .writeText(text)
-        .then(() => setCopiedField(field))
-        .catch(() => setCopiedField(field));
-      window.setTimeout(() => {
-        setCopiedField((prev) => (prev === field ? null : prev));
-      }, 1200);
-    },
-    [],
-  );
+  const handleCopy = useCallback((text: string | undefined | null, field: string) => {
+    if (!text || typeof window === "undefined" || !navigator?.clipboard) return;
+    navigator.clipboard
+      .writeText(text)
+      .then(() => setCopiedField(field))
+      .catch(() => setCopiedField(field));
+    window.setTimeout(() => {
+      setCopiedField((prev) => (prev === field ? null : prev));
+    }, 1200);
+  }, []);
 
-  const handleDownload = useCallback(() => {
+  const handleDownload = () => {
     if (output?.id && onDownloadReference) {
       onDownloadReference(output.id);
       return;
@@ -140,30 +128,24 @@ export function DetailModal({
     link.rel = "noreferrer";
     link.download = filename || "media";
     link.click();
-  }, [filename, onDownloadReference, output?.id, output?.previewUrl]);
+  };
 
   const handleRequestDelete = () => {
-    setIsDeleteConfirmOpen(true);
+    setDeleteConfirmOutputId(outputId);
   };
 
   const handleCancelDelete = () => {
-    setIsDeleteConfirmOpen(false);
+    setDeleteConfirmOutputId(null);
   };
 
   const handleConfirmDelete = () => {
     if (!output?.id) return;
     onDeleteOutput(output.id);
-    setIsDeleteConfirmOpen(false);
+    setDeleteConfirmOutputId(null);
     onClose();
   };
 
   if (!output) return null;
-
-  const metaItems = [
-    { label: "Type", value: mediaType },
-    { label: "Aspect ratio", value: output.aspect },
-    { label: "Model", value: output.modelId ?? output.model },
-  ].filter((item) => item.value);
 
   return (
     <div className="reference-modal-backdrop" onClick={onClose}>
@@ -189,19 +171,32 @@ export function DetailModal({
               <span className="art-meta-item">{mediaType}</span>
               {output.aspect && <span className="art-meta-divider">/</span>}
               {output.aspect && <span className="art-meta-item">{output.aspect}</span>}
-              {!isUploadedReference && (output.model || output.modelId) && <span className="art-meta-divider">/</span>}
+              {!isUploadedReference && (output.model || output.modelId) && (
+                <span className="art-meta-divider">/</span>
+              )}
               {!isUploadedReference && (
-                <span className="art-meta-item truncate-model">{output.model ?? output.modelId}</span>
+                <span className="art-meta-item truncate-model">
+                  {output.model ?? output.modelId}
+                </span>
               )}
             </div>
 
             <div className="art-modal-action-row">
               {output.previewUrl && (
-                <button type="button" className="art-action-btn" onClick={handleDownload} title="Download">
+                <button
+                  type="button"
+                  className="art-action-btn"
+                  onClick={handleDownload}
+                  title="Download"
+                >
                   Download
                 </button>
               )}
-              <button type="button" className="art-action-btn art-action-btn-danger" onClick={handleRequestDelete}>
+              <button
+                type="button"
+                className="art-action-btn art-action-btn-danger"
+                onClick={handleRequestDelete}
+              >
                 <TrashSimple size={16} weight="bold" aria-hidden />
                 Delete
               </button>
@@ -235,11 +230,17 @@ export function DetailModal({
           <div className="art-prompt-only-header">
             <span className="reference-filename">Prompt</span>
             <div className="art-modal-action-row">
-              <button type="button" className="art-action-btn art-action-btn-danger" onClick={handleRequestDelete}>
+              <button
+                type="button"
+                className="art-action-btn art-action-btn-danger"
+                onClick={handleRequestDelete}
+              >
                 <TrashSimple size={16} weight="bold" aria-hidden />
                 Delete
               </button>
-              <button type="button" className="art-close-btn" onClick={onClose}>×</button>
+              <button type="button" className="art-close-btn" onClick={onClose}>
+                ×
+              </button>
             </div>
           </div>
         )}
@@ -283,7 +284,11 @@ export function DetailModal({
                       style={aspectStyle}
                     />
                   ) : (
-                    <img className="art-hero-image" src={output.previewUrl} alt={output.prompt} />
+                    <>
+                      {/* Generated media URL can be provider-specific and not allowlisted. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img className="art-hero-image" src={output.previewUrl} alt={output.prompt} />
+                    </>
                   )
                 ) : (
                   <div className="art-text-placeholder">
@@ -326,7 +331,11 @@ export function DetailModal({
               <button type="button" className="art-action-btn" onClick={handleCancelDelete}>
                 No
               </button>
-              <button type="button" className="art-action-btn art-action-btn-danger" onClick={handleConfirmDelete}>
+              <button
+                type="button"
+                className="art-action-btn art-action-btn-danger"
+                onClick={handleConfirmDelete}
+              >
                 Yes, delete
               </button>
             </div>

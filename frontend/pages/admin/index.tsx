@@ -18,11 +18,13 @@ import { useProtectedRoute } from "../../lib/authGuard";
 import styles from "../../styles/admin.module.css";
 import { fetchWithAuth } from "../../lib/authenticatedFetch";
 
-const isAdminUser = (user: any): boolean => {
-  const roles = [
-    user?.app_metadata?.role,
-    ...(Array.isArray(user?.app_metadata?.roles) ? user.app_metadata.roles : []),
-  ]
+const isAdminUser = (user: unknown): boolean => {
+  const record = user && typeof user === "object" ? (user as Record<string, unknown>) : {};
+  const appMetadata =
+    record.app_metadata && typeof record.app_metadata === "object"
+      ? (record.app_metadata as Record<string, unknown>)
+      : {};
+  const roles = [appMetadata.role, ...(Array.isArray(appMetadata.roles) ? appMetadata.roles : [])]
     .filter(Boolean)
     .map((value) => String(value).toLowerCase());
   return roles.includes("admin") || roles.includes("operator");

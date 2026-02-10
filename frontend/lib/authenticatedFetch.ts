@@ -55,7 +55,10 @@ const normalizeEndpoint = (input: RequestInfo | URL): string => {
 /**
  * Executes `fetch` with a bearer token from the active Supabase session.
  */
-export const fetchWithAuth = async (input: RequestInfo | URL, init?: ShortPulseFetchInit): Promise<Response> => {
+export const fetchWithAuth = async (
+  input: RequestInfo | URL,
+  init?: ShortPulseFetchInit
+): Promise<Response> => {
   const token = await readAccessToken();
   if (!token) {
     throw new Error("You must be signed in to call this endpoint.");
@@ -74,8 +77,9 @@ export const fetchWithAuth = async (input: RequestInfo | URL, init?: ShortPulseF
   }
 
   const requestId = headers.get("x-shortpulse-request-id");
-  const { shortpulseLogScope: _shortpulseLogScope, shortpulseSkipErrorLogging: _shortpulseSkipErrorLogging, ...requestInit } =
-    init ?? {};
+  const requestInit: RequestInit = { ...(init ?? {}) };
+  delete (requestInit as ShortPulseFetchInit).shortpulseLogScope;
+  delete (requestInit as ShortPulseFetchInit).shortpulseSkipErrorLogging;
 
   try {
     const response = await fetch(input, {
@@ -83,7 +87,12 @@ export const fetchWithAuth = async (input: RequestInfo | URL, init?: ShortPulseF
       headers,
     });
 
-    if (!skipErrorLogging && scope === "app" && response.status >= 500 && !endpoint.includes("/api/log/client-error")) {
+    if (
+      !skipErrorLogging &&
+      scope === "app" &&
+      response.status >= 500 &&
+      !endpoint.includes("/api/log/client-error")
+    ) {
       void reportAppError({
         source: "client.api_response",
         scope: "app",

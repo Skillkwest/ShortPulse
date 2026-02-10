@@ -8,11 +8,13 @@ import {
   CloudArrowUp,
   FlowArrow,
   Globe,
+  type IconProps,
   Selection,
   SquaresFour,
   StackSimple,
   UploadSimple,
 } from "phosphor-react";
+import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { CanvasPanel } from "./CanvasPanel";
 import { TextPropertiesPanel, ComposeSendCard } from "./TextPropertiesPanel";
@@ -28,7 +30,6 @@ import { KlingComingSoonCard } from "./KlingComingSoonCard";
 import { AgentChatPanel } from "../../../prefabs/agent";
 import type { AgentActions, AgentMessage } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
-import type { PricingParams } from "../logic/pricingTypes";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 
 type FailureCard = Pick<
@@ -37,10 +38,11 @@ type FailureCard = Pick<
 >;
 
 type ComingSoonToolId = "templates" | "workflows" | "my-generations" | "community";
+type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
 
 const comingSoonCopy: Record<
   ComingSoonToolId,
-  { title: string; summary: string; detail: string; icon: React.ComponentType<any> }
+  { title: string; summary: string; detail: string; icon: IconComponent }
 > = {
   templates: {
     title: "Templates",
@@ -95,10 +97,7 @@ type TextSectionProps = {
   isGenerateDisabled: boolean;
   guardrailReason: string | null;
   shouldDisableSave: boolean;
-  onStepActionClick?: (
-    step: "mode" | "model" | "prompt" | "videoSettings" | "imageSettings"
-  ) => void;
-  onModeChange: (mode: StudioMode) => void;
+  onStepActionClick?: (step: "character" | "model" | "prompt" | "imageSettings") => void;
   onAspectChange: (value: string) => void;
   onModelPickerOpen: (
     anchorId: string,
@@ -212,7 +211,6 @@ export function AiStudioPageContent({
   balanceLoading,
   visibleFailures,
   onDismissFailure,
-  onInspectFailure,
   selectedTool,
   showCreateTools,
   onSelectTool,
@@ -453,9 +451,6 @@ export function AiStudioPageContent({
             <div className="ai-error-card-grid">
               {visibleFailures.map((item) => {
                 const modelLabel = item.model || item.modelId || "Generation";
-                const isNanoBanana =
-                  (item.modelId ?? "").toLowerCase().includes("nano-banana") ||
-                  (item.model ?? "").toLowerCase().includes("nano banana");
                 return (
                   <div key={item.id} className="ai-error-card">
                     <div className="ai-error-card-body">

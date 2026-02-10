@@ -52,7 +52,7 @@ export const prepareImageUrl = async (imageUrl: string): Promise<string | null> 
         img.onerror = () => resolve(null);
         img.src = url;
       });
-    } catch (e) {
+    } catch {
       return url; // Fallback
     }
   };
@@ -61,14 +61,16 @@ export const prepareImageUrl = async (imageUrl: string): Promise<string | null> 
     try {
       // For blobs, we optimize them
       return await optimizeImage(imageUrl);
-    } catch (_error) {
+    } catch {
       return null;
     }
   }
   return imageUrl;
 };
 
-export const postDescribeImage = async (imageUrl: string): Promise<ImageDescriptionResult | null> => {
+export const postDescribeImage = async (
+  imageUrl: string
+): Promise<ImageDescriptionResult | null> => {
   if (!imageUrl?.trim()) return null;
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 20000);
@@ -90,7 +92,7 @@ export const postDescribeImage = async (imageUrl: string): Promise<ImageDescript
       description,
       usage: data?.usage,
     };
-  } catch (_error) {
+  } catch {
     return null;
   } finally {
     window.clearTimeout(timeoutId);

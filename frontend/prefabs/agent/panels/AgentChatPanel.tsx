@@ -34,7 +34,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   onInputChange,
   onSend,
   onMessageClick,
-  beginnerMode = false,
 }) => {
   const messagesRef = useRef<HTMLDivElement>(null);
 
@@ -52,7 +51,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
         onMessageClick(message);
       }
     },
-    [onMessageClick],
+    [onMessageClick]
   );
 
   const handleMessageKeyDown = useCallback(
@@ -61,7 +60,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       event.preventDefault();
       handleMessageClick(message);
     },
-    [handleMessageClick],
+    [handleMessageClick]
   );
 
   const handleInputKeyDown = useCallback(
@@ -71,7 +70,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       if (disabled || isSending) return;
       onSend();
     },
-    [disabled, isSending, onSend],
+    [disabled, isSending, onSend]
   );
 
   return (
@@ -91,7 +90,9 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 key={key}
                 className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}`}
                 onClick={isClickable ? () => handleMessageClick(message) : undefined}
-                onKeyDown={isClickable ? (event) => handleMessageKeyDown(event, message) : undefined}
+                onKeyDown={
+                  isClickable ? (event) => handleMessageKeyDown(event, message) : undefined
+                }
                 role={isClickable ? "button" : undefined}
                 tabIndex={isClickable ? 0 : undefined}
               >
@@ -101,7 +102,11 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           })}
         </div>
       ) : null}
-      {isSending ? <p className="agent-thinking" aria-live="polite">Thinking…</p> : null}
+      {isSending ? (
+        <p className="agent-thinking" aria-live="polite">
+          Thinking…
+        </p>
+      ) : null}
       {showInput ? (
         <div className="agent-input-row pill-agent-input-row">
           <AgentInputBar
@@ -113,7 +118,11 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
             onKeyDown={handleInputKeyDown}
           />
           <div className="agent-inline-actions">
-            <AgentSendButton onClick={onSend} disabled={disabled || isSending} ariaLabel={sendLabel} />
+            <AgentSendButton
+              onClick={onSend}
+              disabled={disabled || isSending}
+              ariaLabel={sendLabel}
+            />
           </div>
         </div>
       ) : null}

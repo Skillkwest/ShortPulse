@@ -68,6 +68,18 @@ type ReservationRpcResult = {
   message?: string | null;
 };
 
+type RpcErrorLike = {
+  code?: string | null;
+  message?: string | null;
+};
+
+type RpcInvoker = {
+  rpc: (
+    functionName: string,
+    params: Record<string, unknown>
+  ) => Promise<{ data: unknown; error: RpcErrorLike | null }>;
+};
+
 const asNumber = (value: unknown): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -223,6 +235,43 @@ const readJsonObject = (value: unknown): JsonObject => {
   return value as JsonObject;
 };
 
+const readErrorCode = (error: unknown): string | null => {
+  if (!error || typeof error !== "object") return null;
+  const candidate = (error as { code?: unknown }).code;
+  return typeof candidate === "string" ? candidate : null;
+};
+
+const readObject = (value: unknown): Record<string, unknown> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+};
+
+const parseReservationRow = (
+  data: unknown,
+  fallbackStatus: ReservationRpcState,
+  fallbackSourceRef: string | null
+): ReservationRpcResult => {
+  const row = readObject(Array.isArray(data) ? data[0] : data);
+  return {
+    status: normalizeRpcStatus(row.status, fallbackStatus),
+    sourceRef: asString(row.source_ref) ?? fallbackSourceRef,
+    message: asString(row.message) ?? null,
+  };
+};
+
+const parseLedgerChargeRow = (data: unknown): LedgerChargeRow | null => {
+  if (!data) return null;
+  const row = readObject(data);
+  const id = row.id;
+  if (id === undefined || id === null) return null;
+  return {
+    id: String(id),
+    source_ref: asString(row.source_ref) ?? null,
+    change_cents: Number(row.change_cents ?? 0),
+    metadata: readJsonObject(row.metadata),
+  };
+};
+
 const normalizeRpcStatus = (value: unknown, fallback: ReservationRpcState): ReservationRpcState => {
   const normalized = String(value ?? fallback).toLowerCase();
   switch (normalized) {
@@ -261,8 +310,8 @@ const reserveGenerationCredits = async ({
   metadata: JsonObject;
 }): Promise<ReservationRpcResult> => {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await (supabaseAdmin as any).rpc("reserve_generation_credits", {
+    const rpcClient = getSupabaseAdmin() as unknown as RpcInvoker;
+    const { data, error } = await rpcClient.rpc("reserve_generation_credits", {
       p_user_id: userId,
       p_source_ref: sourceRef,
       p_model_id: modelId,
@@ -271,20 +320,15 @@ const reserveGenerationCredits = async ({
       p_metadata: metadata,
     });
     if (error) {
-      if (isMissingRpcFunctionError((error as any)?.code, error.message)) {
+      if (isMissingRpcFunctionError(readErrorCode(error), error.message ?? undefined)) {
         return { status: "failed", message: "missing_reservation_function" };
       }
-      if (isInsufficientCreditError(error.message)) {
+      if (isInsufficientCreditError(error.message ?? undefined)) {
         return { status: "failed", message: "insufficient_credits" };
       }
       return { status: "failed", message: error.message ?? "reservation_failed" };
     }
-    const row = Array.isArray(data) ? data[0] : data;
-    return {
-      status: normalizeRpcStatus((row as any)?.status, "reserved"),
-      sourceRef: (row as any)?.source_ref ?? sourceRef,
-      message: (row as any)?.message ?? null,
-    };
+    return parseReservationRow(data, "reserved", sourceRef);
   } catch (error) {
     return { status: "failed", message: String(error) };
   }
@@ -302,18 +346,15 @@ const markGenerationReservationSubmitted = async ({
   metadata: JsonObject;
 }): Promise<ReservationRpcResult> => {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await (supabaseAdmin as any).rpc(
-      "mark_generation_reservation_submitted",
-      {
-        p_user_id: userId,
-        p_source_ref: sourceRef,
-        p_provider_request_id: providerRequestId,
-        p_metadata: metadata,
-      }
-    );
+    const rpcClient = getSupabaseAdmin() as unknown as RpcInvoker;
+    const { data, error } = await rpcClient.rpc("mark_generation_reservation_submitted", {
+      p_user_id: userId,
+      p_source_ref: sourceRef,
+      p_provider_request_id: providerRequestId,
+      p_metadata: metadata,
+    });
     if (error) {
-      if (isMissingRpcFunctionError((error as any)?.code, error.message)) {
+      if (isMissingRpcFunctionError(readErrorCode(error), error.message ?? undefined)) {
         return { status: "failed", message: "missing_reservation_function" };
       }
       console.error(
@@ -322,12 +363,7 @@ const markGenerationReservationSubmitted = async ({
       );
       return { status: "failed", message: error.message ?? "mark_submitted_failed" };
     }
-    const row = Array.isArray(data) ? data[0] : data;
-    return {
-      status: normalizeRpcStatus((row as any)?.status, "not_found"),
-      sourceRef: (row as any)?.source_ref ?? sourceRef,
-      message: (row as any)?.message ?? null,
-    };
+    return parseReservationRow(data, "not_found", sourceRef);
   } catch (error) {
     return { status: "failed", message: String(error) };
   }
@@ -345,29 +381,21 @@ const releaseGenerationReservationBySourceRef = async ({
   metadata: JsonObject;
 }): Promise<ReservationRpcResult> => {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await (supabaseAdmin as any).rpc(
-      "release_generation_reservation_by_source_ref",
-      {
-        p_user_id: userId,
-        p_source_ref: sourceRef,
-        p_reason: reason,
-        p_metadata: metadata,
-      }
-    );
+    const rpcClient = getSupabaseAdmin() as unknown as RpcInvoker;
+    const { data, error } = await rpcClient.rpc("release_generation_reservation_by_source_ref", {
+      p_user_id: userId,
+      p_source_ref: sourceRef,
+      p_reason: reason,
+      p_metadata: metadata,
+    });
     if (error) {
-      if (isMissingRpcFunctionError((error as any)?.code, error.message)) {
+      if (isMissingRpcFunctionError(readErrorCode(error), error.message ?? undefined)) {
         return { status: "failed", message: "missing_reservation_function" };
       }
       console.error("[generationBilling] release by source_ref failed", error.message);
       return { status: "failed", message: error.message ?? "release_failed" };
     }
-    const row = Array.isArray(data) ? data[0] : data;
-    return {
-      status: normalizeRpcStatus((row as any)?.status, "not_found"),
-      sourceRef: (row as any)?.source_ref ?? sourceRef,
-      message: (row as any)?.message ?? null,
-    };
+    return parseReservationRow(data, "not_found", sourceRef);
   } catch (error) {
     return { status: "failed", message: String(error) };
   }
@@ -385,8 +413,8 @@ const releaseGenerationReservationByProviderRequest = async ({
   metadata: JsonObject;
 }): Promise<ReservationRpcResult> => {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await (supabaseAdmin as any).rpc(
+    const rpcClient = getSupabaseAdmin() as unknown as RpcInvoker;
+    const { data, error } = await rpcClient.rpc(
       "release_generation_reservation_by_provider_request",
       {
         p_user_id: userId,
@@ -396,18 +424,13 @@ const releaseGenerationReservationByProviderRequest = async ({
       }
     );
     if (error) {
-      if (isMissingRpcFunctionError((error as any)?.code, error.message)) {
+      if (isMissingRpcFunctionError(readErrorCode(error), error.message ?? undefined)) {
         return { status: "failed", message: "missing_reservation_function" };
       }
       console.error("[generationBilling] release by provider_request failed", error.message);
       return { status: "failed", message: error.message ?? "release_failed" };
     }
-    const row = Array.isArray(data) ? data[0] : data;
-    return {
-      status: normalizeRpcStatus((row as any)?.status, "not_found"),
-      sourceRef: (row as any)?.source_ref ?? null,
-      message: (row as any)?.message ?? null,
-    };
+    return parseReservationRow(data, "not_found", null);
   } catch (error) {
     return { status: "failed", message: String(error) };
   }
@@ -425,8 +448,8 @@ const captureGenerationReservationByProviderRequest = async ({
   metadata: JsonObject;
 }): Promise<ReservationRpcResult> => {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await (supabaseAdmin as any).rpc(
+    const rpcClient = getSupabaseAdmin() as unknown as RpcInvoker;
+    const { data, error } = await rpcClient.rpc(
       "capture_generation_reservation_by_provider_request",
       {
         p_user_id: userId,
@@ -436,18 +459,13 @@ const captureGenerationReservationByProviderRequest = async ({
       }
     );
     if (error) {
-      if (isMissingRpcFunctionError((error as any)?.code, error.message)) {
+      if (isMissingRpcFunctionError(readErrorCode(error), error.message ?? undefined)) {
         return { status: "failed", message: "missing_reservation_function" };
       }
       console.error("[generationBilling] capture by provider_request failed", error.message);
       return { status: "failed", message: error.message ?? "capture_failed" };
     }
-    const row = Array.isArray(data) ? data[0] : data;
-    return {
-      status: normalizeRpcStatus((row as any)?.status, "not_found"),
-      sourceRef: (row as any)?.source_ref ?? null,
-      message: (row as any)?.message ?? null,
-    };
+    return parseReservationRow(data, "not_found", null);
   } catch (error) {
     return { status: "failed", message: String(error) };
   }
@@ -469,18 +487,12 @@ const lookupChargeBySourceRef = async (
       .limit(1)
       .maybeSingle();
     if (error) {
-      if (!isMissingLedgerSchemaError((error as any)?.code, error.message)) {
+      if (!isMissingLedgerSchemaError(readErrorCode(error), error.message)) {
         console.error("[generationBilling] lookupChargeBySourceRef failed", error.message);
       }
       return null;
     }
-    if (!data) return null;
-    return {
-      id: String((data as any).id),
-      source_ref: (data as any).source_ref ?? null,
-      change_cents: Number((data as any).change_cents ?? 0),
-      metadata: readJsonObject((data as any).metadata),
-    };
+    return parseLedgerChargeRow(data);
   } catch (error) {
     console.error("[generationBilling] lookupChargeBySourceRef threw", String(error));
     return null;
@@ -493,7 +505,7 @@ const lookupChargeByProviderRequestId = async (
 ): Promise<LedgerChargeRow | null> => {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await (supabaseAdmin as any)
+    const { data, error } = await supabaseAdmin
       .from("ai_credit_ledger")
       .select("id, source_ref, change_cents, metadata")
       .eq("user_id", userId)
@@ -503,18 +515,12 @@ const lookupChargeByProviderRequestId = async (
       .limit(1)
       .maybeSingle();
     if (error) {
-      if (!isMissingLedgerSchemaError((error as any)?.code, error.message)) {
+      if (!isMissingLedgerSchemaError(readErrorCode(error), error.message)) {
         console.error("[generationBilling] lookupChargeByProviderRequestId failed", error.message);
       }
       return null;
     }
-    if (!data) return null;
-    return {
-      id: String((data as any).id),
-      source_ref: (data as any).source_ref ?? null,
-      change_cents: Number((data as any).change_cents ?? 0),
-      metadata: readJsonObject((data as any).metadata),
-    };
+    return parseLedgerChargeRow(data);
   } catch (error) {
     console.error("[generationBilling] lookupChargeByProviderRequestId threw", String(error));
     return null;
@@ -547,7 +553,7 @@ const attachProviderRequestToCharge = async ({
       .from("ai_credit_ledger")
       .update({ metadata: nextMetadata })
       .eq("id", existing.id);
-    if (error && !isMissingLedgerSchemaError((error as any)?.code, error.message)) {
+    if (error && !isMissingLedgerSchemaError(readErrorCode(error), error.message)) {
       console.error("[generationBilling] attachProviderRequestToCharge failed", error.message);
     }
   } catch (error) {
@@ -585,7 +591,7 @@ const refundChargeRow = async ({
   if (!error) {
     return { settled: true, sourceRef: charge.source_ref, note: "refund_inserted" };
   }
-  if (isDuplicateError((error as any)?.code, error.message)) {
+  if (isDuplicateError(readErrorCode(error), error.message)) {
     return { settled: true, sourceRef: charge.source_ref, note: "refund_already_exists" };
   }
   return { settled: false, sourceRef: charge.source_ref, note: error.message ?? "refund_failed" };
@@ -848,7 +854,7 @@ export const chargeGenerationRequest = async ({
       res.status(402).json({ error: "Insufficient credits for this generation." });
       return null;
     }
-    if (isDuplicateError((debitError as any).code, debitError.message)) {
+    if (isDuplicateError(readErrorCode(debitError), debitError.message)) {
       res.status(409).json({ error: "Duplicate submit request id. Retry with a new request id." });
       return null;
     }
@@ -874,7 +880,7 @@ export const chargeGenerationRequest = async ({
       },
       createdBy: user.id,
     });
-    if (error && !isDuplicateError((error as any).code, error.message)) {
+    if (error && !isDuplicateError(readErrorCode(error), error.message)) {
       console.error("[generationBilling] refund insert failed", error.message);
     }
   };

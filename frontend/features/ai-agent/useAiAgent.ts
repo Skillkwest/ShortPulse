@@ -18,7 +18,6 @@ type UseAiAgentOptions = {
   initialMessages?: AgentMessage[];
   enabled?: boolean;
   conversationId?: string;
-  persist?: boolean; // session-only persistence of chat history
 };
 
 type SendParams = {
@@ -36,20 +35,30 @@ type SendResult = {
 // Stable default to prevent Fast Refresh issues
 const EMPTY_MESSAGES: AgentMessage[] = [];
 
-const normalizeActions = (raw?: AgentActions | Record<string, any>): AgentActions | undefined => {
+const toRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const normalizeActions = (
+  raw?: AgentActions | Record<string, unknown>
+): AgentActions | undefined => {
   if (!raw) return undefined;
-  const applyPrompt = (raw as any).applyPrompt ?? (raw as any).apply_prompt ?? null;
-  const referenceCard = (raw as any).referenceCard ?? (raw as any).reference_card ?? undefined;
-  const variations = (raw as any).variations ?? undefined;
-  const describeTargets =
-    (raw as any).describeTargets ?? (raw as any).describe_targets ?? undefined;
-  const questions = (raw as any).questions ?? undefined;
+  const record = toRecord(raw);
+  const applyPrompt = record.applyPrompt ?? record.apply_prompt ?? null;
+  const referenceCard = record.referenceCard ?? record.reference_card ?? undefined;
+  const variations = record.variations ?? undefined;
+  const describeTargets = record.describeTargets ?? record.describe_targets ?? undefined;
+  const questions = record.questions ?? undefined;
   return {
-    applyPrompt,
-    referenceCard,
-    variations,
-    describeTargets,
-    questions,
+    applyPrompt: typeof applyPrompt === "string" || applyPrompt === null ? applyPrompt : null,
+    referenceCard:
+      referenceCard && typeof referenceCard === "object"
+        ? (referenceCard as AgentActions["referenceCard"])
+        : undefined,
+    variations: Array.isArray(variations) ? (variations as string[]) : undefined,
+    describeTargets: Array.isArray(describeTargets) ? (describeTargets as string[]) : undefined,
+    questions: Array.isArray(questions) ? (questions as string[]) : undefined,
   };
 };
 
@@ -57,7 +66,6 @@ export const useAiAgent = ({
   initialMessages = EMPTY_MESSAGES,
   enabled = true,
   conversationId,
-  persist = true,
 }: UseAiAgentOptions = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>(initialMessages);
   const [isSending, setIsSending] = useState(false);
@@ -125,8 +133,8 @@ export const useAiAgent = ({
           return { response: null, actions: undefined };
         }
 
-        let data = (await response.json()) as AgentResponse;
-        let actions = normalizeActions(data?.actions);
+        const data = (await response.json()) as AgentResponse;
+        const actions = normalizeActions(data?.actions);
 
         if (data?.canonicalPrompt) {
           canonicalPromptRef.current = data.canonicalPrompt;

@@ -167,12 +167,12 @@ const buildOpenAiMessages = (
   });
   return chat;
 };
-const buildThinkerMessages = (payload: any, prompt: string): OpenAIChatMessage[] => [
+const buildThinkerMessages = (payload: unknown, prompt: string): OpenAIChatMessage[] => [
   { role: "system", content: prompt },
   { role: "user", content: JSON.stringify(payload) },
 ];
 
-const buildFormatterMessages = (semantic: any, prompt: string): OpenAIChatMessage[] => [
+const buildFormatterMessages = (semantic: unknown, prompt: string): OpenAIChatMessage[] => [
   { role: "system", content: prompt },
   { role: "user", content: JSON.stringify(semantic) },
 ];
@@ -241,7 +241,7 @@ const parseAgentJson = (raw: string): AgentResponse | null => {
       const actions = normalizeAgentActions((parsed as Record<string, unknown>).actions);
       const usage = typeof parsed.usage === "object" ? parsed.usage : undefined;
       return { message, actions, usage };
-    } catch (_error) {
+    } catch {
       continue;
     }
   }
@@ -346,10 +346,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const thinkerData = await thinkerResp.json();
       const thinkerRaw = thinkerData?.choices?.[0]?.message?.content ?? "";
-      let semantic: any = null;
+      let semantic: unknown = null;
       try {
         semantic = JSON.parse(thinkerRaw);
-      } catch (_e) {
+      } catch {
         semantic = { status: "ready", prompt_text: thinkerRaw, change_summary: "", question: null };
       }
 
@@ -389,7 +389,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         nextCanonical &&
         !preservesContext(effectiveCanonical, nextCanonical)
       ) {
-        // eslint-disable-next-line no-console
         console.warn("[studio-agent] drift detected; restoring canonical prompt");
         parsed.message = parsed.message || "Preserved prior prompt to avoid drift.";
         parsed.actions = parsed.actions ?? {};
@@ -451,7 +450,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ? rawContent
         : Array.isArray(rawContent)
           ? rawContent
-              .map((part: any) => (part?.text ? String(part.text) : ""))
+              .map((part) => {
+                const record =
+                  part && typeof part === "object" ? (part as Record<string, unknown>) : {};
+                return typeof record.text === "string" ? record.text : "";
+              })
               .join("\n")
               .trim()
           : "";

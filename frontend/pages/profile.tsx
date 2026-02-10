@@ -103,7 +103,7 @@ export default function ProfilePage() {
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [cancelTargetPlan, setCancelTargetPlan] = useState<string | null>(null);
+  const [, setCancelTargetPlan] = useState<string | null>(null);
   const [displayNameInput, setDisplayNameInput] = useState("User");
   const [workspaceEmail, setWorkspaceEmail] = useState("");
   const [notice, setNotice] = useState<NoticeState | null>(null);

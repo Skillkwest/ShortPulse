@@ -17,7 +17,6 @@ type ViewModelInput = {
   prompt: string;
   referenceImageUrl: string | null;
   activeOutput: StudioOutput | null;
-  extraImageUrls: (string | null)[];
   selectedTool: ToolId | null;
   useReferenceImageIndicator: boolean;
   getDefaultDurationSeconds: (modelId: string | null) => number;
@@ -36,7 +35,6 @@ export const useAiStudioViewModel = ({
   prompt,
   referenceImageUrl,
   activeOutput,
-  extraImageUrls,
   selectedTool,
   useReferenceImageIndicator,
   getDefaultDurationSeconds,
@@ -127,6 +125,7 @@ export const useAiStudioViewModel = ({
     mode,
     model,
     selectedTool,
+    isVideoTool,
     videoDurationSeconds,
     videoResolution,
     pricingImageResolution,
@@ -180,15 +179,6 @@ export const useAiStudioViewModel = ({
       (mode === "image" || mode === "video")) ||
     isVideoTool ||
     selectedTool === "image";
-  const hasReferenceImages = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
-
-  const hasVideoReference = hasReferenceImages;
-  const isPulseImageToolActive = selectedTool === "image" && mode === "image";
-  const requiresReferenceModel =
-    model === "fal-ai/nano-banana/edit" ||
-    model === "fal-ai/nano-banana-pro/edit" ||
-    model === "fal/flux-2/edit" ||
-    model === "fal/flux-2-pro/edit";
 
   const hasSufficientCreditsForCost =
     !costedFlow || balanceCredits == null || currentCostCredits == null
@@ -223,6 +213,35 @@ export const useAiStudioViewModel = ({
 
   const modelConfig = useMemo(() => (model ? getModelConfig(model) : null), [model]);
 
+  // Warning when user hasn't provided reference image for image-to-image or image-to-video models
+  const referenceImageWarning = useMemo(() => {
+    if (!model || !modelConfig) return null;
+
+    // Check if using image tool with image-to-image model but no reference
+    if (selectedTool === "image") {
+      const hasReference = Boolean(referenceImageUrl);
+      const isImageToImageOnly =
+        modelConfig.supportsImageToImage && !modelConfig.supportsTextToImage;
+
+      if (!hasReference && isImageToImageOnly) {
+        return "No reference image detected. The system will automatically use the text-to-image version of this model.";
+      }
+    }
+
+    // Check if using video tool with image-to-video model but no reference
+    if (isVideoTool) {
+      const hasReference = Boolean(referenceImageUrl);
+      const isImageToVideoOnly =
+        modelConfig.supportsImageToVideo && !modelConfig.mediaType?.includes("video");
+
+      if (!hasReference && (modelConfig.mediaType === "image-to-video" || isImageToVideoOnly)) {
+        return "No reference image detected. The system will automatically use the text-to-video version of this model.";
+      }
+    }
+
+    return null;
+  }, [model, modelConfig, selectedTool, referenceImageUrl, isVideoTool]);
+
   return {
     currentCost,
     currentCostCredits,
@@ -234,5 +253,6 @@ export const useAiStudioViewModel = ({
     generationGuardrail,
     isGenerateDisabled,
     modelConfig,
+    referenceImageWarning,
   };
 };

@@ -17,7 +17,7 @@ const readJsonSafe = async (response: Response) => {
   if (!text) return {};
   try {
     return JSON.parse(text);
-  } catch (_error) {
+  } catch {
     return {
       error: "Non-JSON response from Fal",
       raw: text.slice(0, 4000),
@@ -25,27 +25,32 @@ const readJsonSafe = async (response: Response) => {
   }
 };
 
-const hasVideoPayload = (payload: any) => {
+const toRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const hasVideoPayload = (payload: unknown) => {
+  const record = toRecord(payload);
+  const data = toRecord(record.data);
+  const output = toRecord(record.output);
+  const result = toRecord(record.result);
+  const response = toRecord(record.response);
   if (!payload) return false;
   const videoUrl =
-    payload?.video?.url ||
-    payload?.data?.video?.url ||
-    payload?.output?.video?.url ||
-    payload?.result?.video?.url ||
-    payload?.data?.result?.video?.url ||
-    payload?.result?.data?.video?.url ||
-    payload?.response?.video?.url ||
-    payload?.response?.data?.video?.url ||
-    payload?.response?.output?.video?.url ||
-    payload?.response?.result?.video?.url;
+    toRecord(record.video).url ||
+    toRecord(data.video).url ||
+    toRecord(output.video).url ||
+    toRecord(result.video).url ||
+    toRecord(toRecord(data.result).video).url ||
+    toRecord(toRecord(result.data).video).url ||
+    toRecord(response.video).url ||
+    toRecord(toRecord(response.data).video).url ||
+    toRecord(toRecord(response.output).video).url ||
+    toRecord(toRecord(response.result).video).url;
   if (videoUrl) return true;
-  const videos =
-    payload?.videos ||
-    payload?.data?.videos ||
-    payload?.output?.videos ||
-    payload?.result?.videos ||
-    payload?.response?.videos;
-  return Array.isArray(videos) && Boolean(videos[0]?.url);
+  const videos = record.videos || data.videos || output.videos || result.videos || response.videos;
+  return Array.isArray(videos) && videos.some((item) => typeof toRecord(item).url === "string");
 };
 
 const fetchJson = async (url: string, signal: AbortSignal, apiKey: string) => {
@@ -58,9 +63,10 @@ const fetchJson = async (url: string, signal: AbortSignal, apiKey: string) => {
   return { response, json };
 };
 
-const extractQueueUrls = (payload: any) => {
-  const statusUrl = typeof payload?.status_url === "string" ? payload.status_url : null;
-  const responseUrl = typeof payload?.response_url === "string" ? payload.response_url : null;
+const extractQueueUrls = (payload: unknown) => {
+  const record = toRecord(payload);
+  const statusUrl = typeof record.status_url === "string" ? record.status_url : null;
+  const responseUrl = typeof record.response_url === "string" ? record.response_url : null;
   return { statusUrl, responseUrl };
 };
 
@@ -140,10 +146,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Check for content policy violation
       if (statusResp.status === 422 && statusJson?.detail) {
         const policyError = Array.isArray(statusJson.detail)
-          ? statusJson.detail.find((d: any) => d.type === "content_policy_violation")
+          ? statusJson.detail
+              .map((entry: unknown) => toRecord(entry))
+              .find((entry: Record<string, unknown>) => entry.type === "content_policy_violation")
           : null;
 
         if (policyError) {
+          const policyMessage =
+            typeof policyError.msg === "string"
+              ? policyError.msg
+              : "The content was flagged by the content checker";
           await settleFailedGenerationByProviderRequest({
             userId: user.id,
             providerRequestId: requestId,
@@ -157,8 +169,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return respondError(
             res,
             requestId,
-            policyError.msg || "Content policy violation",
-            policyError.msg || "The content was flagged by the content checker"
+            policyMessage || "Content policy violation",
+            policyMessage
           );
         }
       }
@@ -255,7 +267,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       resultStatus === "error" ||
       resultStatus === "failed" ||
       resultState === "error" ||
-      Boolean((resultResp.json as any)?.error) ||
+      Boolean(toRecord(resultResp.json).error) ||
       !hasVideoPayload(resultResp.json);
 
     if (hasResultError) {
@@ -274,8 +286,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         res,
         requestId,
         String(
-          (resultResp.json as any)?.error ||
-            (resultResp.json as any)?.message ||
+          toRecord(resultResp.json).error ||
+            toRecord(resultResp.json).message ||
             "Generation failed"
         ),
         resultResp.json

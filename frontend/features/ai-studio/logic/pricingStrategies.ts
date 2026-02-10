@@ -167,10 +167,6 @@ const computeGpt41NanoPerTokenCost: StrategyFn = ({ inputTokens = 0, outputToken
   };
 };
 
-const computeFalKlingPerRequestCost: StrategyFn = () => {
-  return null;
-};
-
 const computeSeedreamPerImageCost: StrategyFn = ({ resolution }) => {
   const baseUsd = 0.04;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;

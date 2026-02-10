@@ -3,13 +3,23 @@
  * Supports drag/drop into other surfaces and exposes a detail action on double click.
  */
 import React, { useCallback, useState } from "react";
-import { ArrowClockwise, CheckCircle, CloudArrowUp, DownloadSimple, FloppyDisk, Sparkle, UploadSimple, X } from "phosphor-react";
+import {
+  ArrowClockwise,
+  CheckCircle,
+  CloudArrowUp,
+  DownloadSimple,
+  FloppyDisk,
+  Sparkle,
+  UploadSimple,
+  X,
+} from "phosphor-react";
 import { PromptLibraryButton } from "./PromptLibraryButton";
 import { StudioOutput } from "../types";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
 import type { ToolId } from "../types";
 
-const isVideoUrl = (url: string) => /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
+const isVideoUrl = (url: string) =>
+  /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
 
 export type ReferenceCanvasProps = {
   outputs: StudioOutput[];
@@ -126,7 +136,11 @@ export function ReferenceCanvas({
             <p className="eyebrow">Reference Grid</p>
           </div>
           <div className="preview-header-actions">
-            <button type="button" className="ghost-btn mini preview-media-btn" onClick={onTriggerFileSelect}>
+            <button
+              type="button"
+              className="ghost-btn mini preview-media-btn"
+              onClick={onTriggerFileSelect}
+            >
               <UploadSimple size={14} weight="regular" />
               Add files
             </button>
@@ -145,11 +159,15 @@ export function ReferenceCanvas({
         </div>
       ) : null}
       <div className="reference-canvas-scroll">
-        <div className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}>
+        <div
+          className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
+        >
           {outputs.length === 0 ? (
             <div className="reference-empty">
               <p className="preview-title">Upload or generate to see your references here.</p>
-              <p className="subdued tiny helper-text">New text prompts, images, and videos will appear in this grid.</p>
+              <p className="subdued tiny helper-text">
+                New text prompts, images, and videos will appear in this grid.
+              </p>
             </div>
           ) : (
             outputs.map((item) => {
@@ -165,15 +183,19 @@ export function ReferenceCanvas({
               const isVideoPreview = item.previewUrl ? isVideoUrl(item.previewUrl) : false;
               const isImagePreview = item.previewUrl ? !isVideoPreview : false;
               const isPromptOnly = !item.previewUrl && !!item.previewText;
-              const cardStyle = !isVideoPreview && item.previewUrl ? { backgroundImage: `url(${item.previewUrl})` } : undefined;
+              const cardStyle =
+                !isVideoPreview && item.previewUrl
+                  ? { backgroundImage: `url(${item.previewUrl})` }
+                  : undefined;
               const saveDisabled = item.saveState === "saving";
-              const saveLabel = item.saveState === "failed" ? "Retry save" : "Save to media library";
-                  const saveIcon =
-                    item.saveState === "failed" ? (
-                      <ArrowClockwise size={16} weight="bold" aria-hidden />
-                    ) : (
-                      <FloppyDisk size={16} weight="bold" aria-hidden />
-                    );
+              const saveLabel =
+                item.saveState === "failed" ? "Retry save" : "Save to media library";
+              const saveIcon =
+                item.saveState === "failed" ? (
+                  <ArrowClockwise size={16} weight="bold" aria-hidden />
+                ) : (
+                  <FloppyDisk size={16} weight="bold" aria-hidden />
+                );
               return (
                 <div
                   key={item.id}
@@ -208,12 +230,18 @@ export function ReferenceCanvas({
                   ) : null}
                   {isFailing ? (
                     <div className="reference-fail-overlay">
-                      <div className="fail-icon" aria-hidden="true">!</div>
+                      <div className="fail-icon" aria-hidden="true">
+                        !
+                      </div>
                       <div className="fail-title">Generation failed</div>
                       {item.errorMessageShort ? (
-                        <div className="fail-subtitle">{item.errorMessageShort.replace(/fal(\.ai)?/gi, "the provider")}</div>
+                        <div className="fail-subtitle">
+                          {item.errorMessageShort.replace(/fal(\.ai)?/gi, "the provider")}
+                        </div>
                       ) : item.errorMessage ? (
-                        <div className="fail-subtitle">{item.errorMessage.replace(/fal(\.ai)?/gi, "the provider")}</div>
+                        <div className="fail-subtitle">
+                          {item.errorMessage.replace(/fal(\.ai)?/gi, "the provider")}
+                        </div>
                       ) : null}
                     </div>
                   ) : null}
@@ -239,7 +267,8 @@ export function ReferenceCanvas({
                       </button>
                     </div>
                   ) : null}
-                  {(onSaveToLibrary && (isImagePreview || isPromptOnly || isVideoPreview)) || (onDownload && (isImagePreview || isVideoPreview)) ? (
+                  {(onSaveToLibrary && (isImagePreview || isPromptOnly || isVideoPreview)) ||
+                  (onDownload && (isImagePreview || isVideoPreview)) ? (
                     <div className="reference-card-actions" aria-label="Reference actions">
                       {onSaveToLibrary ? (
                         <button
@@ -286,15 +315,21 @@ export function ReferenceCanvas({
                     </div>
                   ) : null}
                   {!isVideoPreview && item.previewUrl ? (
-                    <img
-                      src={item.previewUrl}
-                      alt=""
-                      className="reference-preload"
-                      onLoad={() => markLoaded(item.id)}
-                      onError={() => markLoaded(item.id)}
-                    />
+                    <>
+                      {/* Reference previews can be generated URLs, signed URLs, or blob/data URLs. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={item.previewUrl}
+                        alt=""
+                        className="reference-preload"
+                        onLoad={() => markLoaded(item.id)}
+                        onError={() => markLoaded(item.id)}
+                      />
+                    </>
                   ) : null}
-                  {item.previewText ? <div className="reference-card-text">{item.previewText}</div> : null}
+                  {item.previewText ? (
+                    <div className="reference-card-text">{item.previewText}</div>
+                  ) : null}
                   {isImagePreview && onDescribeImage ? (
                     <button
                       type="button"

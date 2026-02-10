@@ -114,6 +114,21 @@
   width: 100%;
 }
 
+.character-selection-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.character-selection-controls .fixed-select {
+  width: 100%;
+}
+
+.character-owner-subtitle {
+  margin-top: -2px;
+}
+
 .ai-control-actions {
   display: flex;
   align-items: center;

@@ -9,6 +9,21 @@ import { logApiRouteException } from "../_utils/appErrorLogs";
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
 
+type IncidentQuery = {
+  eq: (column: string, value: string) => IncidentQuery;
+  or: (filters: string) => IncidentQuery;
+};
+
+type ListQueryResult = {
+  data: unknown[] | null;
+  error: { message: string } | null;
+};
+
+type CountQueryResult = {
+  count: number | null;
+  error: { message: string } | null;
+};
+
 const asPositiveInt = (value: unknown, fallback: number): number => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
@@ -31,9 +46,9 @@ const normalizeSearchTerm = (value: unknown): string => {
 };
 
 const applyIncidentFilters = (
-  query: any,
+  query: IncidentQuery,
   filters: { status: string; severity: string; source: string; search: string }
-): any => {
+): IncidentQuery => {
   let next = query;
   if (filters.status && filters.status !== "all") {
     next = next.eq("status", filters.status);
@@ -92,14 +107,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           "id, fingerprint, source, scope, severity, status, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, first_seen_at, last_seen_at, occurrences_count"
         )
         .order("last_seen_at", { ascending: false })
-        .range(offset, offset + limit - 1),
+        .range(offset, offset + limit - 1) as unknown as IncidentQuery,
       filters
-    );
+    ) as unknown as Promise<ListQueryResult>;
 
     const filteredCountQuery = applyIncidentFilters(
-      supabaseAdmin.from("app_error_logs").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("app_error_logs").select("id", {
+        count: "exact",
+        head: true,
+      }) as unknown as IncidentQuery,
       filters
-    );
+    ) as unknown as Promise<CountQueryResult>;
 
     const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const [
@@ -147,21 +165,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const totalCount = Number(filteredCountResult.count ?? 0);
     const totalPages = Math.max(1, Math.ceil(totalCount / limit));
-    let resolvedPage = totalCount > 0 ? Math.min(page, totalPages) : 1;
+    const resolvedPage = totalCount > 0 ? Math.min(page, totalPages) : 1;
     let logs = logsResult.data ?? [];
 
     if (resolvedPage !== page) {
       const fallbackOffset = (resolvedPage - 1) * limit;
-      const fallbackLogsResult = await applyIncidentFilters(
+      const fallbackLogsResult = (await applyIncidentFilters(
         supabaseAdmin
           .from("app_error_logs")
           .select(
             "id, fingerprint, source, scope, severity, status, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, first_seen_at, last_seen_at, occurrences_count"
           )
           .order("last_seen_at", { ascending: false })
-          .range(fallbackOffset, fallbackOffset + limit - 1),
+          .range(fallbackOffset, fallbackOffset + limit - 1) as unknown as IncidentQuery,
         filters
-      );
+      )) as unknown as ListQueryResult;
       if (fallbackLogsResult.error) {
         return res.status(500).json({ error: fallbackLogsResult.error.message });
       }

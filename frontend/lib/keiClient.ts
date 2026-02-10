@@ -44,29 +44,53 @@ export type KeiTaskStatus = {
 const KEI_API_BASE = "/api/kei";
 const KEI_STATUS_PATH = `${KEI_API_BASE}/status`;
 
-const fetchWithTimeout = async (input: RequestInfo | URL, init?: RequestInit & { timeoutMs?: number }) => {
+const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init?: RequestInit & { timeoutMs?: number }
+) => {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), init?.timeoutMs ?? 15000);
   try {
-    return await fetchWithAuth(input, { ...init, signal: controller.signal, shortpulseLogScope: "generation" });
+    return await fetchWithAuth(input, {
+      ...init,
+      signal: controller.signal,
+      shortpulseLogScope: "generation",
+    });
   } finally {
     window.clearTimeout(timeoutId);
   }
+};
+
+const toRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const readApiErrorMessage = (value: unknown): string => {
+  const payload = toRecord(value);
+  if (typeof payload.message === "string" && payload.message.length > 0) return payload.message;
+  if (typeof payload.error === "string" && payload.error.length > 0) return payload.error;
+  return "Unexpected error";
+};
+
+const readStringArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const items = value.filter((item): item is string => typeof item === "string" && item.length > 0);
+  return items.length ? items : undefined;
 };
 
 const handleJson = async <T>(response: Response) => {
   let data: unknown;
   try {
     data = await response.json();
-  } catch (error) {
+  } catch {
     if (!response.ok) {
       throw new Error("Unexpected error");
     }
     return {} as T;
   }
   if (!response.ok) {
-    const message = (data as any)?.message || (data as any)?.error || "Unexpected error";
-    throw new Error(message);
+    throw new Error(readApiErrorMessage(data));
   }
   return data as T;
 };
@@ -74,7 +98,9 @@ const handleJson = async <T>(response: Response) => {
 /**
  * Create a new Kie.ai task via the Next API route.
  */
-export const createKeiTask = async (payload: KeiCreateTaskRequest): Promise<KeiCreateTaskResponse> => {
+export const createKeiTask = async (
+  payload: KeiCreateTaskRequest
+): Promise<KeiCreateTaskResponse> => {
   const response = await fetchWithTimeout(`${KEI_API_BASE}/create-task`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -101,14 +127,23 @@ export const fetchKeiTaskStatus = async (taskId: string): Promise<KeiTaskStatus>
     data?: KeiTaskStatus & { resultUrls?: string[]; info?: { result_urls?: string[] } };
     state?: KeiTaskState | string;
   }>(response);
-  const status = data?.data || data;
-  const infoUrls = (status as any)?.info?.result_urls;
+  const status = data?.data ?? data;
+  const statusRecord = toRecord(status);
+  const infoUrls = readStringArray(toRecord(statusRecord.info).result_urls);
+  const resultUrls = readStringArray(statusRecord.resultUrls) ?? infoUrls;
+  const stateCandidate = statusRecord.state ?? toRecord(data).state;
+  const resultJson =
+    typeof statusRecord.resultJson === "string"
+      ? statusRecord.resultJson
+      : statusRecord.resultJson && typeof statusRecord.resultJson === "object"
+        ? (statusRecord.resultJson as Record<string, unknown>)
+        : null;
   return {
-    state: (status as any)?.state ?? (data as any)?.state ?? "pending",
-    resultJson: (status as any)?.resultJson ?? null,
-    failCode: (status as any)?.failCode ?? null,
-    failMsg: (status as any)?.failMsg ?? null,
-    resultUrls: (status as any)?.resultUrls || (Array.isArray(infoUrls) ? infoUrls : undefined),
+    state: typeof stateCandidate === "string" ? stateCandidate : "pending",
+    resultJson,
+    failCode: typeof statusRecord.failCode === "string" ? statusRecord.failCode : null,
+    failMsg: typeof statusRecord.failMsg === "string" ? statusRecord.failMsg : null,
+    resultUrls,
     raw: status,
   };
 };
@@ -116,7 +151,9 @@ export const fetchKeiTaskStatus = async (taskId: string): Promise<KeiTaskStatus>
 /**
  * Create a new GPT-4o image generation task.
  */
-export const createKeiGpt4oTask = async (payload: KeiGpt4oCreateRequest): Promise<KeiCreateTaskResponse> => {
+export const createKeiGpt4oTask = async (
+  payload: KeiGpt4oCreateRequest
+): Promise<KeiCreateTaskResponse> => {
   const response = await fetchWithTimeout(`${KEI_API_BASE}/gpt4o-generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -50,6 +50,30 @@ type ExistingOpenLogRow = {
   metadata: JsonObject | null;
 };
 
+type AppErrorLogsQuery = {
+  eq: (column: string, value: unknown) => AppErrorLogsQuery;
+  is: (column: string, value: unknown) => AppErrorLogsQuery;
+  limit: (count: number) => AppErrorLogsQuery;
+  order: (column: string, options: { ascending: boolean }) => AppErrorLogsQuery;
+  maybeSingle: () => Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
+type AppErrorLogsMutation = {
+  eq: (column: string, value: unknown) => Promise<{ error: { message: string } | null }>;
+};
+
+type AppErrorLogsInsert = {
+  select: (columns: string) => {
+    maybeSingle: () => Promise<{ data: { id?: string } | null; error: { message: string } | null }>;
+  };
+};
+
+type AppErrorLogsTable = {
+  select: (columns: string) => AppErrorLogsQuery;
+  update: (values: Record<string, unknown>) => AppErrorLogsMutation;
+  insert: (values: Record<string, unknown>) => AppErrorLogsInsert;
+};
+
 const MAX_MESSAGE_LENGTH = 600;
 const MAX_STACK_LENGTH = 6000;
 const MAX_TEXT_FIELD_LENGTH = 300;
@@ -266,10 +290,9 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
   });
 
   const supabaseAdmin = getSupabaseAdmin();
-  const adminDb = supabaseAdmin as any;
+  const appErrorLogsTable = supabaseAdmin.from("app_error_logs") as unknown as AppErrorLogsTable;
 
-  let existingQuery = adminDb
-    .from("app_error_logs")
+  let existingQuery = appErrorLogsTable
     .select("id, occurrences_count, metadata")
     .eq("fingerprint", fingerprint)
     .eq("status", "open")
@@ -291,8 +314,7 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
   if (existing && existing.id) {
     const nextCount = Math.max(1, Number(existing.occurrences_count ?? 1)) + 1;
     const mergedMetadata = mergeIncidentMetadata(existing.metadata, metadata);
-    const { error: updateError } = await adminDb
-      .from("app_error_logs")
+    const { error: updateError } = await appErrorLogsTable
       .update({
         last_seen_at: occurredAt,
         occurrences_count: nextCount,
@@ -314,8 +336,7 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
     return { ok: true, skipped: false, id: existing.id as string };
   }
 
-  const { data: inserted, error: insertError } = await adminDb
-    .from("app_error_logs")
+  const { data: inserted, error: insertError } = await appErrorLogsTable
     .insert({
       fingerprint,
       source,

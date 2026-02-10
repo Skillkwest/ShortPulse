@@ -13,7 +13,7 @@ const readJsonSafe = async (response: Response) => {
   if (!text) return {};
   try {
     return JSON.parse(text);
-  } catch (_error) {
+  } catch {
     return {
       error: "Non-JSON response from Fal",
       raw: text.slice(0, 4000),

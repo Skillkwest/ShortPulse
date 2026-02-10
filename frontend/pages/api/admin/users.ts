@@ -50,15 +50,12 @@ const asSingleString = (value: unknown): string => {
 };
 
 const normalizeSearchQuery = (value: unknown): string =>
-  asSingleString(value)
-    .trim()
-    .toLowerCase()
-    .slice(0, 80);
+  asSingleString(value).trim().toLowerCase().slice(0, 80);
 
 const listUsersPage = async (
-  supabaseAdmin: any,
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
   page: number,
-  perPage: number,
+  perPage: number
 ): Promise<{
   users: AuthUser[];
   total: number;
@@ -167,19 +164,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const [balancesResult, profilesResult] = await Promise.all([
-      supabaseAdmin.from("ai_credit_balance").select("user_id, balance_cents").in("user_id", userIds),
-      supabaseAdmin.from("billing_profiles").select("user_id, plan_id, subscription_status").in("user_id", userIds),
+      supabaseAdmin
+        .from("ai_credit_balance")
+        .select("user_id, balance_cents")
+        .in("user_id", userIds),
+      supabaseAdmin
+        .from("billing_profiles")
+        .select("user_id, plan_id, subscription_status")
+        .in("user_id", userIds),
     ]);
     if (balancesResult.error || profilesResult.error) {
-      const detail = [balancesResult.error?.message, profilesResult.error?.message].filter(Boolean).join(" | ");
+      const detail = [balancesResult.error?.message, profilesResult.error?.message]
+        .filter(Boolean)
+        .join(" | ");
       return res.status(500).json({ error: detail || "Failed to load admin user billing data." });
     }
 
     const balances = (balancesResult.data ?? []) as CreditBalanceRow[];
     const profiles = (profilesResult.data ?? []) as BillingProfileRow[];
 
-    const balanceByUser = new Map<string, number>(balances.map((row) => [row.user_id, Number(row.balance_cents ?? 0)]));
-    const profileByUser = new Map<string, BillingProfileRow>(profiles.map((row) => [row.user_id, row]));
+    const balanceByUser = new Map<string, number>(
+      balances.map((row) => [row.user_id, Number(row.balance_cents ?? 0)])
+    );
+    const profileByUser = new Map<string, BillingProfileRow>(
+      profiles.map((row) => [row.user_id, row])
+    );
 
     const rows: AdminUserRow[] = pagedUsers.map((user) => {
       const profile = profileByUser.get(user.id);

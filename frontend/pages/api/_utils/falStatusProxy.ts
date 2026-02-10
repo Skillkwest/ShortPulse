@@ -33,6 +33,18 @@ const asString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const toRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const hasUrlArray = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.some((item) => {
+    const record = toRecord(item);
+    return Boolean(asString(record.url));
+  });
+
 const normalizeStatus = (value: unknown): string | null => {
   const text = asString(value);
   return text ? text.toLowerCase() : null;
@@ -51,37 +63,42 @@ const readJsonSafe = async (response: Response): Promise<JsonReadResult> => {
 const findContentPolicyMessage = (payload: JsonObject): string | null => {
   const detail = payload.detail;
   if (!Array.isArray(detail)) return null;
-  const violation = detail.find(
-    (item) => item && typeof item === "object" && (item as any).type === "content_policy_violation"
-  ) as { msg?: unknown } | undefined;
-  const message = asString(violation?.msg);
+  const violation = detail.find((item) => {
+    const row = toRecord(item);
+    return row.type === "content_policy_violation";
+  });
+  const message = asString(toRecord(violation).msg);
   return message ?? null;
 };
 
 const hasMediaPayload = (payload: JsonObject): boolean => {
+  const data = toRecord(payload.data);
+  const output = toRecord(payload.output);
+  const result = toRecord(payload.result);
+  const response = toRecord(payload.response);
   const candidates = [
     payload,
-    (payload as any).data,
-    (payload as any).output,
-    (payload as any).result,
-    (payload as any).response,
-    (payload as any).data?.result,
-    (payload as any).result?.data,
-    (payload as any).response?.result,
-  ].filter(Boolean) as any[];
+    data,
+    output,
+    result,
+    response,
+    toRecord(data.result),
+    toRecord(result.data),
+    toRecord(response.result),
+  ].filter((item) => Object.keys(item).length > 0);
 
   for (const candidate of candidates) {
-    if (Array.isArray(candidate?.images) && Boolean(candidate.images[0]?.url)) return true;
-    if (Array.isArray(candidate?.videos) && Boolean(candidate.videos[0]?.url)) return true;
-    const urls = candidate?.resultUrls || candidate?.info?.result_urls;
+    if (hasUrlArray(candidate.images)) return true;
+    if (hasUrlArray(candidate.videos)) return true;
+    const urls = candidate.resultUrls ?? toRecord(candidate.info).result_urls;
     if (Array.isArray(urls) && urls.length > 0) return true;
     const mediaUrl =
-      candidate?.video?.url ||
-      candidate?.image?.url ||
-      candidate?.video_url ||
-      candidate?.image_url ||
-      candidate?.assets?.video?.url ||
-      candidate?.download_url;
+      asString(toRecord(candidate.video).url) ||
+      asString(toRecord(candidate.image).url) ||
+      asString(candidate.video_url) ||
+      asString(candidate.image_url) ||
+      asString(toRecord(toRecord(candidate.assets).video).url) ||
+      asString(candidate.download_url);
     if (mediaUrl) return true;
   }
 
@@ -256,7 +273,7 @@ export const createFalStatusHandler = ({
           error:
             asString(statusData.json.error) ||
             asString(statusData.json.message) ||
-            asString((statusData.json as any).statusMessage) ||
+            asString(toRecord(statusData.json).statusMessage) ||
             "Generation failed",
           detail: statusData.json,
         });
@@ -370,7 +387,7 @@ export const createFalStatusHandler = ({
       }
 
       const resultStatus =
-        normalizeStatus(resultData.json.status) ?? normalizeStatus((resultData.json as any).state);
+        normalizeStatus(resultData.json.status) ?? normalizeStatus(toRecord(resultData.json).state);
       if (
         resultStatus === "error" ||
         resultStatus === "failed" ||

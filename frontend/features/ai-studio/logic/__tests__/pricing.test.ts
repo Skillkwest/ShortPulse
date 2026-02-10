@@ -1,4 +1,4 @@
-import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel } from "../pricing";
+import { computeCostForModel } from "../pricing";
 import { falImageSizeMap } from "../modelSizes";
 
 describe("computeCostForModel (FLUX.2)", () => {

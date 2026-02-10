@@ -31,6 +31,8 @@ export function VideoDetailModal({ video, open, onClose }: VideoDetailModalProps
         </button>
         <div className="modal-row">
           <div className="modal-thumb phone">
+            {/* Source host can vary with upstream platform data. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={video.thumbnail_url || ""} alt={video.caption_text || ""} />
           </div>
           <div className="modal-column">
@@ -48,7 +50,9 @@ export function VideoDetailModal({ video, open, onClose }: VideoDetailModalProps
               <p className="tiny subdued">Performance snapshot</p>
               <div className="snapshot-row">
                 <span className="pill pill-ghost strong">{formatCompact(video.views)} views</span>
-                <span className="pill pill-amber strong">Outlier {video.outlierMultiplier.toFixed(2)}×</span>
+                <span className="pill pill-amber strong">
+                  Outlier {video.outlierMultiplier.toFixed(2)}×
+                </span>
                 <span className="pill pill-ghost">{formatCompact(video.views_per_hour)}/hr</span>
                 <span className="pill pill-ghost">ER {formatPercent(video.engagement_rate)}</span>
               </div>
@@ -63,12 +67,16 @@ export function VideoDetailModal({ video, open, onClose }: VideoDetailModalProps
               <div>
                 <p className="metric-label">Outlier factor</p>
                 <p className="metric-value">{video.outlierMultiplier.toFixed(2)}×</p>
-                <p className="metric-label tiny">Platform median {formatCompact(video.baselineViews)}</p>
+                <p className="metric-label tiny">
+                  Platform median {formatCompact(video.baselineViews)}
+                </p>
               </div>
               <div>
                 <p className="metric-label">Velocity</p>
                 <p className="metric-value">{formatCompact(video.views_per_hour)}/hr</p>
-                <p className="metric-label tiny">{video.views_per_hour_percentile.toFixed(1)}pctl</p>
+                <p className="metric-label tiny">
+                  {video.views_per_hour_percentile.toFixed(1)}pctl
+                </p>
               </div>
               <div>
                 <p className="metric-label">Engagement</p>
@@ -89,7 +97,12 @@ export function VideoDetailModal({ video, open, onClose }: VideoDetailModalProps
 
             <div className="modal-divider" />
             <div className="modal-actions">
-              <Link href={video.reel_url} target="_blank" rel="noreferrer" className="primary-btn full">
+              <Link
+                href={video.reel_url}
+                target="_blank"
+                rel="noreferrer"
+                className="primary-btn full"
+              >
                 Open on platform ↗
               </Link>
             </div>
@@ -97,8 +110,8 @@ export function VideoDetailModal({ video, open, onClose }: VideoDetailModalProps
             <details className="modal-accordion">
               <summary>Analytics breakdown</summary>
               <p className="subdued tiny">
-                Outlier = views ÷ platform median (time window). IQR upper fence = Q3 + 1.5×IQR. Velocity = views per
-                hour. Engagement = likes + comments + saves vs views.
+                Outlier = views ÷ platform median (time window). IQR upper fence = Q3 + 1.5×IQR.
+                Velocity = views per hour. Engagement = likes + comments + saves vs views.
               </p>
             </details>
           </div>

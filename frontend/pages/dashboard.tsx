@@ -3,6 +3,7 @@
  * Provides entry points to performance analytics, saved creators, and other workspace modules.
  */
 import Head from "next/head";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
@@ -30,25 +31,37 @@ export default function DashboardPage() {
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    try {
-      const supabase = ensureSupabaseClient();
-      supabase.auth.getUser().then(({ data }) => {
+    let active = true;
+    let unsubscribe: (() => void) | null = null;
+
+    const bootstrapUser = async () => {
+      try {
+        const supabase = ensureSupabaseClient();
+        const { data } = await supabase.auth.getUser();
+        if (!active) return;
         setUser(data.user ?? null);
-      });
-      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === "USER_UPDATED" || event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
-          setUser(session?.user ?? null);
-        }
-        if (event === "SIGNED_OUT") {
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+          if (!active) return;
+          if (event === "USER_UPDATED" || event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
+            setUser(session?.user ?? null);
+          }
+          if (event === "SIGNED_OUT") {
+            setUser(null);
+          }
+        });
+        unsubscribe = () => authListener?.subscription?.unsubscribe();
+      } catch {
+        if (active) {
           setUser(null);
         }
-      });
-      return () => {
-        authListener?.subscription?.unsubscribe();
-      };
-    } catch {
-      setUser(null);
-    }
+      }
+    };
+
+    void bootstrapUser();
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
   }, []);
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -197,7 +210,13 @@ export default function DashboardPage() {
       <main id="main-content" className="page page-wide dashboard-refresh">
         <header className="app-bar">
           <Link href="/" className="brand-mark brand-mark-logo" aria-label="ShortPulse home">
-            <img src="/brand-logo.png" alt="ShortPulse logo" className="brand-logo" />
+            <Image
+              src="/brand-logo.png"
+              alt="ShortPulse logo"
+              className="brand-logo"
+              width={240}
+              height={64}
+            />
           </Link>
           <div className="app-bar-right">
             <div className="header-cards">
@@ -256,10 +275,12 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="hero-visual">
-              <img
+              <Image
                 src="/dashboard/welcome-art.png"
                 alt="Dashboard visual"
                 className="hero-graphic"
+                width={960}
+                height={540}
               />
             </div>
             <div className="hero-quick-row">
@@ -312,7 +333,12 @@ export default function DashboardPage() {
                   {tool.icon ? <div className="tool-card-icon" aria-hidden="true" /> : null}
                   {tool.image ? (
                     <div className="tool-card-hero">
-                      <img src={tool.image} alt={`${tool.title} visual`} />
+                      <Image
+                        src={tool.image}
+                        alt={`${tool.title} visual`}
+                        width={1200}
+                        height={300}
+                      />
                     </div>
                   ) : null}
                   <div className="tool-card-body">

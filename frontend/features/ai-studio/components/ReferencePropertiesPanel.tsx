@@ -2,8 +2,15 @@
  * Reference properties panel for AI Studio.
  * Provides reference dropzones, aspect/model selection, and prompt capture for image/video workflows.
  */
+import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowFatLinesRight, Image, Plus, UploadSimple, VideoCamera } from "phosphor-react";
+import {
+  ArrowFatLinesRight,
+  Image as ImageIcon,
+  Plus,
+  UploadSimple,
+  VideoCamera,
+} from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
 import {
@@ -86,6 +93,7 @@ type ReferencePropertiesPanelProps = {
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
   guardrailReason?: string | null;
+  referenceImageWarning?: string | null;
   // Agent props
   agentEnabled?: boolean;
   agentMessages?: AgentMessage[];
@@ -197,7 +205,7 @@ export function ReferencePropertiesPanel({
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
-  guardrailReason = null,
+  referenceImageWarning,
   agentEnabled = false,
   agentMessages = [],
   agentActions,
@@ -341,7 +349,7 @@ export function ReferencePropertiesPanel({
       event.target.value = "";
     };
 
-  const handlePromptDrop = (event: React.DragEvent<HTMLDivElement>) => {
+  const handlePromptDrop = (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => {
     event.preventDefault();
     const { promptText } = extractDragDropPayload(event.dataTransfer);
     if (promptText) {
@@ -554,7 +562,7 @@ export function ReferencePropertiesPanel({
     }
 
     return aspectOptions;
-  }, [modelConfig]);
+  }, [aspectOptions, modelConfig]);
 
   // Auto-clamp duration to allowed range when switching models
   useEffect(() => {
@@ -632,7 +640,7 @@ export function ReferencePropertiesPanel({
             isCollapsed={collapsedSteps.prompt}
             onToggleCollapse={() => toggleStep("prompt")}
             isGenerating={false} // Reference flows don't have a specific prompt generating state in top-level prop, but could pass isGeneratorDisabled
-            onDrop={handlePromptDrop as any}
+            onDrop={handlePromptDrop}
             onDragOver={(e) => e.preventDefault()}
             className="reference-step-card"
             beginnerMode={beginnerMode}
@@ -695,11 +703,13 @@ export function ReferencePropertiesPanel({
                     <div className="model-picker-row">
                       <span className="model-picker-value">
                         {modelLogoSrc ? (
-                          <img
+                          <Image
                             className="model-chip-logo-img"
                             src={modelLogoSrc}
                             alt=""
                             aria-hidden
+                            width={80}
+                            height={20}
                           />
                         ) : null}
                         {stripEditLabel(modelLabel)}
@@ -1068,9 +1078,9 @@ export function ReferencePropertiesPanel({
                     ) : !isVideoVariant ? (
                       <>
                         <div className="reference-drop-divider" aria-hidden="true">
-                          <Image size={22} weight="bold" />
+                          <ImageIcon size={22} weight="bold" />
                         </div>
-                        {[extraOneInputRef, extraTwoInputRef].map((inputRef, index) => {
+                        {[0, 1].map((index) => {
                           const previewUrl = extraImageUrls[index];
                           return (
                             <div className="secondary-drop" key={`extra-drop-${index}`}>
@@ -1080,7 +1090,11 @@ export function ReferencePropertiesPanel({
                                 onDragEnter={handleExtraDragEnter(index)}
                                 onDragOver={handleExtraDragOver(index)}
                                 onDragLeave={handleExtraDragLeave(index)}
-                                onClick={() => inputRef.current?.click()}
+                                onClick={() =>
+                                  index === 0
+                                    ? extraOneInputRef.current?.click()
+                                    : extraTwoInputRef.current?.click()
+                                }
                                 style={
                                   previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined
                                 }
@@ -1600,6 +1614,23 @@ export function ReferencePropertiesPanel({
                 cost={costCredits != null ? costCredits : "—"}
               />
               {/* Guardrail warning intentionally hidden; disabled button communicates state. */}
+              {referenceImageWarning && (
+                <div
+                  className="reference-image-warning"
+                  style={{
+                    marginTop: "8px",
+                    padding: "8px 12px",
+                    backgroundColor: "#FEF3C7",
+                    border: "1px solid #FCD34D",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    lineHeight: "1.4",
+                    color: "#92400E",
+                  }}
+                >
+                  ⚠️ {referenceImageWarning}
+                </div>
+              )}
             </div>
           ) : null}
         </div>

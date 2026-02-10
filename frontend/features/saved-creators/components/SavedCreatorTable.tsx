@@ -90,7 +90,11 @@ export const SavedCreatorTable = ({
                     <div className="creator-cell">
                       <div className="creator-avatar small">
                         {creator.avatarUrl ? (
-                          <img src={creator.avatarUrl} alt="" aria-hidden="true" />
+                          <>
+                            {/* Avatar hosts vary by platform/provider data. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={creator.avatarUrl} alt="" aria-hidden="true" />
+                          </>
                         ) : (
                           <UserCircle size={18} weight="regular" />
                         )}
@@ -101,7 +105,9 @@ export const SavedCreatorTable = ({
                     </div>
                   </td>
                   <td>
-                    <span className="pill pill-ghost subtle-pill tight-pill">{creator.platform}</span>
+                    <span className="pill pill-ghost subtle-pill tight-pill">
+                      {creator.platform}
+                    </span>
                   </td>
                   <td className="numeric-col">{formatNumber(creator.followers)}</td>
                   <td className="numeric-col">{formatNumber(creator.avgViews)}</td>

@@ -3,6 +3,7 @@
  * Presents product positioning, feature highlights, testimonials, and pricing for visitors.
  */
 import Head from "next/head";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -12,12 +13,10 @@ import {
   CheckCircle,
   Funnel,
   Lightning,
-  ListChecks,
   MagnifyingGlass,
   ShieldCheck,
   Sparkle,
   Target,
-  UsersThree,
   VideoCamera,
 } from "phosphor-react";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
@@ -27,13 +26,15 @@ const testimonials = [
     name: "Sarah Chen",
     role: "Lifestyle creator",
     img: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=200",
-    quote: "ShortPulse keeps me focused on what’s working instead of doomscrolling. I can test ideas with confidence.",
+    quote:
+      "ShortPulse keeps me focused on what’s working instead of doomscrolling. I can test ideas with confidence.",
   },
   {
     name: "Marcus Johnson",
     role: "Fitness coach",
     img: "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=200",
-    quote: "The outlier view shows me what really beats baseline. It’s the fastest way to spot a winner.",
+    quote:
+      "The outlier view shows me what really beats baseline. It’s the fastest way to spot a winner.",
   },
   {
     name: "Priya Kapoor",
@@ -77,7 +78,7 @@ export default function LandingPage() {
         if (!mounted || !data.session) return;
         router.replace("/dashboard");
       });
-    } catch (_error) {
+    } catch {
       // No-op: landing should remain accessible when Supabase env vars are missing.
     }
 
@@ -188,8 +189,8 @@ export default function LandingPage() {
                   <span className="lp-hero-accent">Create what works.</span>
                 </h1>
                 <p className="lp-hero-sub">
-                  ShortPulse shows you top-performing short-form videos and outlier posts so you can stop guessing and
-                  start creating content that hits.
+                  ShortPulse shows you top-performing short-form videos and outlier posts so you can
+                  stop guessing and start creating content that hits.
                 </p>
                 <div className="lp-cta-row">
                   <Link href="/auth" className="primary-btn lg">
@@ -202,7 +203,6 @@ export default function LandingPage() {
                 </div>
                 <div className="lp-hero-sub small">No credit card required.</div>
               </div>
-
             </div>
           </section>
 
@@ -240,7 +240,13 @@ export default function LandingPage() {
               {testimonials.map((t) => (
                 <article key={t.name} className="lp-testimonial-card">
                   <div className="lp-testimonial-header">
-                    <img src={t.img} alt={t.name} className="lp-avatar-img" />
+                    <Image
+                      src={t.img}
+                      alt={t.name}
+                      className="lp-avatar-img"
+                      width={46}
+                      height={46}
+                    />
                     <div>
                       <div className="lp-testimonial-name">{t.name}</div>
                       <div className="lp-testimonial-role">{t.role}</div>
@@ -422,8 +428,8 @@ export default function LandingPage() {
               <p className="eyebrow">Ready to create content that actually performs?</p>
               <h2>Sign up free and start tracking what’s blowing up today.</h2>
               <p className="lp-hero-sub">
-                Save the creators you care about today, then join the waitlist for Performance Analytics while we finish
-                the scoring workspace.
+                Save the creators you care about today, then join the waitlist for Performance
+                Analytics while we finish the scoring workspace.
               </p>
             </div>
             <div className="lp-cta-actions">
@@ -438,7 +444,9 @@ export default function LandingPage() {
         </main>
 
         <footer className="landing-footer">
-          <div className="footer">ShortPulse keeps your performance data and media private to your account.</div>
+          <div className="footer">
+            ShortPulse keeps your performance data and media private to your account.
+          </div>
         </footer>
       </div>
     </>

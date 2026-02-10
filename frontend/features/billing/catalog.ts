@@ -1,0 +1,131 @@
+/**
+ * Billing catalog helpers for plans and credit packages.
+ * Monetary values come from Supabase rows so pricing can be changed without app code edits.
+ */
+
+export type BillingPlanRecord = {
+  id: string;
+  display_name: string;
+  monthly_price_cents: number;
+  monthly_credits_cents: number;
+  is_active?: boolean;
+};
+
+export type CreditPackageRecord = {
+  id: string;
+  display_name: string;
+  credit_amount_cents: number;
+  price_cents: number;
+  sort_order: number;
+};
+
+type PlanPresentation = {
+  className: string;
+  seatsLabel: string;
+  description: string;
+};
+
+const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
+  free: {
+    className: "plan-free",
+    seatsLabel: "1 workspace seat",
+    description: "Starter access for exploration.",
+  },
+  media: {
+    className: "plan-media",
+    seatsLabel: "2 seats",
+    description: "Ideal for creators testing cadence.",
+  },
+  pro: {
+    className: "plan-pro",
+    seatsLabel: "Up to 5 seats",
+    description: "Built for consistent creative production.",
+  },
+  creative_suite: {
+    className: "plan-creative",
+    seatsLabel: "Team access",
+    description: "Highest throughput for heavy AI workloads.",
+  },
+};
+
+const DEFAULT_PLAN_ID = "free";
+
+/**
+ * Normalizes any plan identifier into a known plan key.
+ */
+export const normalizePlanId = (value: string | undefined | null): string => {
+  const normalized = (value ?? "").toLowerCase().trim();
+  if (normalized === "creative") return "creative_suite";
+  if (normalized === "creative_suite") return "creative_suite";
+  if (normalized === "media") return "media";
+  if (normalized === "pro") return "pro";
+  if (normalized === "free") return "free";
+  return DEFAULT_PLAN_ID;
+};
+
+/**
+ * Resolves plan display data from database rows plus stable presentation metadata.
+ */
+export const buildPlanView = (params: {
+  planId: string | undefined | null;
+  plans: BillingPlanRecord[];
+}) => {
+  const normalizedId = normalizePlanId(params.planId);
+  const fromCatalog = params.plans.find((plan) => plan.id === normalizedId);
+  const fallbackCatalog = params.plans.find((plan) => plan.id === DEFAULT_PLAN_ID);
+  const resolvedCatalog = fromCatalog ?? fallbackCatalog ?? null;
+  const presentation = PLAN_PRESENTATION[normalizedId] ?? PLAN_PRESENTATION[DEFAULT_PLAN_ID];
+
+  return {
+    id: normalizedId,
+    displayName:
+      resolvedCatalog?.display_name ??
+      (normalizedId === "creative_suite" ? "Creative Suite" : "Free"),
+    className: presentation.className,
+    description: presentation.description,
+    seatsLabel: presentation.seatsLabel,
+    monthlyPriceCents: resolvedCatalog?.monthly_price_cents ?? 0,
+    monthlyCreditsCents: resolvedCatalog?.monthly_credits_cents ?? 0,
+  };
+};
+
+/**
+ * Returns effective package unit price in dollars per 1,000 credits.
+ */
+export const getPackageUsdPerThousandCredits = (pkg: CreditPackageRecord): number => {
+  if (!pkg.credit_amount_cents) return 0;
+  return ((pkg.price_cents / pkg.credit_amount_cents) * 1000) / 100;
+};
+
+/**
+ * Adds display analytics (badges and unit economics) to credit packages.
+ */
+export const annotateCreditPackages = (packages: CreditPackageRecord[]) => {
+  if (!packages.length) return [];
+
+  const sortedByUnitPrice = [...packages].sort((a, b) => {
+    const aUnit = getPackageUsdPerThousandCredits(a);
+    const bUnit = getPackageUsdPerThousandCredits(b);
+    if (aUnit === bUnit) return a.sort_order - b.sort_order;
+    return aUnit - bUnit;
+  });
+
+  const bestValueId = sortedByUnitPrice[0]?.id ?? null;
+
+  return packages.map((pkg) => {
+    const priceUsd = pkg.price_cents / 100;
+    const creditFaceValueUsd = pkg.credit_amount_cents / 100;
+    const unitUsdPerThousand = getPackageUsdPerThousandCredits(pkg);
+
+    const badge =
+      pkg.id === bestValueId ? "Best value" : pkg.id === "growth_2000" ? "Most popular" : null;
+
+    return {
+      ...pkg,
+      badge,
+      priceUsd,
+      creditFaceValueUsd,
+      unitUsdPerThousand,
+    };
+  });
+};

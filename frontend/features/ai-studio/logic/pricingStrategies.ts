@@ -151,11 +151,11 @@ const computeGptImagePerImageCost: StrategyFn = () => {
 
 const computeGpt41NanoPerTokenCost: StrategyFn = ({ inputTokens = 0, outputTokens = 0 }) => {
   // Rates are per 1M tokens: input $0.10, output $0.025.
-  const INPUT_USD_PER_M = 0.10;
+  const INPUT_USD_PER_M = 0.1;
   const OUTPUT_USD_PER_M = 0.025;
   const totalUsd =
-    ((Math.max(0, inputTokens) / 1_000_000) * INPUT_USD_PER_M) +
-    ((Math.max(0, outputTokens) / 1_000_000) * OUTPUT_USD_PER_M);
+    (Math.max(0, inputTokens) / 1_000_000) * INPUT_USD_PER_M +
+    (Math.max(0, outputTokens) / 1_000_000) * OUTPUT_USD_PER_M;
   const creditsRaw = Math.max(1, Math.ceil(totalUsd / CREDIT_VALUE_USD));
   const credits = roundCreditsToNearest5(creditsRaw);
   return {
@@ -221,7 +221,9 @@ const computeKling3PerSecondCost: StrategyFn = (params) => {
   const hasAudio = resolveDefaultAudio(params, true);
   const usesVoiceControl = params.voiceControl === true;
   const usdPerSecond = hasAudio
-    ? (usesVoiceControl ? KLING_3_RATE_AUDIO_VOICE_USD_PER_SECOND : KLING_3_RATE_AUDIO_ON_USD_PER_SECOND)
+    ? usesVoiceControl
+      ? KLING_3_RATE_AUDIO_VOICE_USD_PER_SECOND
+      : KLING_3_RATE_AUDIO_ON_USD_PER_SECOND
     : KLING_3_RATE_AUDIO_OFF_USD_PER_SECOND;
   const usd = usdPerSecond * duration;
   const creditsRaw = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
@@ -266,8 +268,12 @@ const computeSora2ProPerSecondCost: StrategyFn = (params) => {
   const res = resolveDefaultResolution(params, "High").toLowerCase();
   const isStandard = res.includes("720") || res.includes("standard");
   const usdPerSecond = isStandard
-    ? (tierDuration === 10 ? SORA2_PRO_STANDARD_10S_USD_PER_SECOND : SORA2_PRO_STANDARD_15S_USD_PER_SECOND)
-    : (tierDuration === 10 ? SORA2_PRO_HIGH_10S_USD_PER_SECOND : SORA2_PRO_HIGH_15S_USD_PER_SECOND);
+    ? tierDuration === 10
+      ? SORA2_PRO_STANDARD_10S_USD_PER_SECOND
+      : SORA2_PRO_STANDARD_15S_USD_PER_SECOND
+    : tierDuration === 10
+      ? SORA2_PRO_HIGH_10S_USD_PER_SECOND
+      : SORA2_PRO_HIGH_15S_USD_PER_SECOND;
   const usd = usdPerSecond * tierDuration;
   const creditsRaw = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
   const credits = roundCreditsToNearest5(creditsRaw);
@@ -281,7 +287,7 @@ const computeSora2ProPerSecondCost: StrategyFn = (params) => {
 };
 
 const resolveSeedanceDuration = (value?: number) => {
-  if (!Number.isFinite(value)) return 10;
+  if (typeof value !== "number" || !Number.isFinite(value)) return 10;
   if (value <= 4) return 4;
   if (value <= 5) return 5;
   if (value <= 6) return 6;
@@ -305,7 +311,9 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
   if (!resolution) return null;
 
   const hasAudio = resolveDefaultAudio(params, true);
-  const ratePerMillionTokens = hasAudio ? SEEDANCE_AUDIO_RATE_USD_PER_M_TOKEN : SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN;
+  const ratePerMillionTokens = hasAudio
+    ? SEEDANCE_AUDIO_RATE_USD_PER_M_TOKEN
+    : SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN;
   const tokens = (resolution.width * resolution.height * SEEDANCE_DEFAULT_FPS * duration) / 1024;
   const usdRaw = (tokens / 1_000_000) * ratePerMillionTokens;
   const creditsRaw = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));

@@ -3,6 +3,7 @@
 Client-only short-form analytics and workspace surfaces. Everything runs in the browser with Supabase for auth/storage and a demo dataset you can refresh and rescore from the UI—no backend services to start or maintain.
 
 ## Tech
+
 - Frontend: Next.js (pages router), Phosphor icons, modular CSS.
 - Auth/storage: Supabase client with persisted sessions, `saved_creators` table, and a private `media_library` bucket.
 - Analytics: In-browser scoring of a demo cohort with user-triggered refresh/rescore controls.
@@ -11,10 +12,13 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - Ops telemetry: authenticated app/runtime failures can be ingested at `/api/log/client-error` and viewed via `/api/admin/errors`.
 
 ## Setup
-1) Copy `frontend/.env.example` to `frontend/.env.local` (or export the values in your shell) and set:
+
+1. Copy `frontend/.env.example` to `frontend/.env.local` (or export the values in your shell) and set:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-2) Install and run the frontend:
+   - `FAL_KEY`
+   - `KEI_API_KEY`
+2. Install and run the frontend:
    ```bash
    cd frontend
    npm install
@@ -23,6 +27,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
    The app runs entirely client-side; there is no backend server to start.
 
 ## Optional Supabase bootstrap
+
 - Saved creators: run `sql/create_saved_creators_table.sql` to add the `saved_creators` table with RLS.
 - Media library: run `sql/storage_policies.sql` to create the private `media_library` bucket and folder-scoped storage policies. The UI also expects a `media_files` table (see `docs/supabase_full_schema.sql` for a combined script).
 - Billing + credits: run `sql/create_billing_credit_tables.sql` to provision plans, credit packages, billing profiles, ledger, and signup allocation triggers.
@@ -30,10 +35,12 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - App error logs: run `sql/create_app_error_logs_table.sql` to provision persistent admin-visible incident logging.
 
 ## Manual data actions
+
 - Performance Analytics includes a “Data actions” rail for demo dataset refresh/rescore, but the entire Performance surface is post‑MVP (Coming Soon).
 - Saved Creators and Media Library actions write/read directly through the Supabase client from the frontend (Saved Creators is post‑MVP).
 
 ## Frontend surfaces
+
 - **Dashboard (`/dashboard`)**: Launchpad with plan/status chips and tool cards.
 - **Performance Analytics (`/performance`)**: Post‑MVP (Coming Soon); demo analytics surface with filters and scoring.
 - **Performance Placeholder (`/performance-soon`)**: Temporary landing page that explains the analytics workspace is still under construction.
@@ -44,22 +51,41 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls and a live app-error incident feed.
 
 ## Security
+
 - Only the Supabase anon key is used on the client; never share the service role key.
 - Enable RLS on `saved_creators` and `media_files` (per-user isolation) and keep the `media_library` bucket private with paths prefixed by `auth.uid()`.
 - Route protection: `/dashboard`, `/performance`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, and `/admin` expect authenticated sessions and redirect to `/auth` when missing.
 - API protection: provider proxy routes, billing routes, upload routes, and admin routes require bearer-authenticated Supabase sessions.
 
 ## Testing
-- No automated tests are wired yet; manually verify auth redirects, Saved Creators CRUD, Media Library uploads/deletes/renames, and the Performance data actions rail.
+
+- Unit tests:
+  ```bash
+  cd frontend
+  npm run test
+  ```
+- Full validation:
+  ```bash
+  cd frontend
+  npm run validate
+  ```
+- E2E harness command (add specs incrementally):
+  ```bash
+  cd frontend
+  npm run test:e2e
+  ```
 
 ## Docs
+
 - Start at `docs/README.md`.
 
 ## Repo layout
+
 - `frontend/`: Next.js app
 - `docs/`: documentation
 - `sql/`: Supabase bootstrap scripts
 
 ## Roadmap / changelog
+
 - Roadmap: `ROADMAP.md`
 - Changelog: `docs/change_log.md`

@@ -23,7 +23,8 @@ describe("computeCostForModel (FLUX.2)", () => {
     expect(cost?.megapixels).toBeGreaterThan(1);
     const mp = (falImageSizeMap["1:1"].width * falImageSizeMap["1:1"].height) / 1_000_000;
     const usdRaw = mp * 0.012;
-    const expectedCredits = Math.ceil(usdRaw / 0.01);
+    // Pricing rounds up to credits and then to the nearest 5-credit increment.
+    const expectedCredits = Math.ceil(Math.ceil(usdRaw / 0.01) / 5) * 5;
     expect(cost?.credits).toBe(expectedCredits);
   });
 });
@@ -35,9 +36,9 @@ describe("computeCostForModel (GPT-4.1 Nano)", () => {
     const cost = computeCostForModel(modelId, { inputTokens: 500, outputTokens: 700 });
     expect(cost).not.toBeNull();
     // USD = (500 * 0.10 / 1M) + (700 * 0.025 / 1M) = 0.0000675
-    // credits = ceil(0.0000675 / 0.01) = 1
-    expect(cost?.credits).toBe(1);
-    expect(cost?.usd).toBeCloseTo(0.01); // credit conversion rounds up to $0.01 minimum
+    // credits are rounded up and normalized to 5-credit increments.
+    expect(cost?.credits).toBe(5);
+    expect(cost?.usd).toBeCloseTo(0.05);
   });
 });
 
@@ -45,13 +46,21 @@ describe("computeCostForModel (Google Veo 3.1)", () => {
   const modelId = "fal-ai/veo3.1";
 
   it("defaults to 8s with audio at 1080p (8 * $0.40 = 320 credits)", () => {
-    const cost = computeCostForModel(modelId, { durationSeconds: 8, resolution: "1080p", audio: true });
+    const cost = computeCostForModel(modelId, {
+      durationSeconds: 8,
+      resolution: "1080p",
+      audio: true,
+    });
     expect(cost?.credits).toBe(320);
     expect(cost?.usd).toBeCloseTo(3.2, 2);
   });
 
   it("charges 0.60/sec for 4K with audio", () => {
-    const cost = computeCostForModel(modelId, { durationSeconds: 5, resolution: "4k", audio: true });
+    const cost = computeCostForModel(modelId, {
+      durationSeconds: 5,
+      resolution: "4k",
+      audio: true,
+    });
     expect(cost?.credits).toBe(300);
   });
 });
@@ -59,15 +68,15 @@ describe("computeCostForModel (Google Veo 3.1)", () => {
 describe("computeCostForModel (Kling 2.6 Motion Control)", () => {
   const modelId = "fal-ai/kling-video/v2.6/pro/motion-control";
 
-  it("defaults to 10s ($0.112/sec = 112 credits)", () => {
+  it("defaults to 10s and applies 5-credit rounding", () => {
     const cost = computeCostForModel(modelId, { durationSeconds: 10 });
-    expect(cost?.credits).toBe(112);
-    expect(cost?.usd).toBeCloseTo(1.12, 2);
+    expect(cost?.credits).toBe(115);
+    expect(cost?.usd).toBeCloseTo(1.15, 2);
   });
 
   it("charges $0.112/sec for shorter durations", () => {
     const cost = computeCostForModel(modelId, { durationSeconds: 5 });
-    expect(cost?.credits).toBe(56);
+    expect(cost?.credits).toBe(60);
   });
 });
 
@@ -76,20 +85,24 @@ describe("computeCostForModel (Kling 3.0 Pro Image to Video)", () => {
 
   it("charges $0.224/sec with audio off", () => {
     const cost = computeCostForModel(modelId, { durationSeconds: 5, audio: false });
-    expect(cost?.credits).toBe(112);
-    expect(cost?.usd).toBeCloseTo(1.12, 2);
+    expect(cost?.credits).toBe(115);
+    expect(cost?.usd).toBeCloseTo(1.15, 2);
   });
 
   it("charges $0.336/sec with audio on", () => {
     const cost = computeCostForModel(modelId, { durationSeconds: 5, audio: true });
-    expect(cost?.credits).toBe(168);
-    expect(cost?.usd).toBeCloseTo(1.68, 2);
+    expect(cost?.credits).toBe(170);
+    expect(cost?.usd).toBeCloseTo(1.7, 2);
   });
 
   it("charges $0.392/sec when voice control is used with audio", () => {
-    const cost = computeCostForModel(modelId, { durationSeconds: 5, audio: true, voiceControl: true });
-    expect(cost?.credits).toBe(196);
-    expect(cost?.usd).toBeCloseTo(1.96, 2);
+    const cost = computeCostForModel(modelId, {
+      durationSeconds: 5,
+      audio: true,
+      voiceControl: true,
+    });
+    expect(cost?.credits).toBe(200);
+    expect(cost?.usd).toBeCloseTo(2, 2);
   });
 });
 
@@ -98,14 +111,14 @@ describe("computeCostForModel (Kling 3.0 Pro Text to Video)", () => {
 
   it("charges $0.224/sec with audio off", () => {
     const cost = computeCostForModel(modelId, { durationSeconds: 5, audio: false });
-    expect(cost?.credits).toBe(112);
-    expect(cost?.usd).toBeCloseTo(1.12, 2);
+    expect(cost?.credits).toBe(115);
+    expect(cost?.usd).toBeCloseTo(1.15, 2);
   });
 
   it("charges $0.336/sec with audio on", () => {
     const cost = computeCostForModel(modelId, { durationSeconds: 5, audio: true });
-    expect(cost?.credits).toBe(168);
-    expect(cost?.usd).toBeCloseTo(1.68, 2);
+    expect(cost?.credits).toBe(170);
+    expect(cost?.usd).toBeCloseTo(1.7, 2);
   });
 });
 
@@ -126,22 +139,22 @@ describe("computeCostForModel (Nano Banana Pro)", () => {
 
   it("adds a web search surcharge", () => {
     const cost = computeCostForModel(modelId, { resolution: "1K", webSearch: true });
-    expect(cost?.credits).toBe(17);
+    expect(cost?.credits).toBe(20);
   });
 });
 
 describe("computeCostForModel (Seedream 4.5)", () => {
   const modelId = "fal-ai/bytedance/seedream/v4.5/text-to-image";
 
-  it("charges 4 credits per standard run", () => {
+  it("charges a rounded 5-credit minimum per standard run", () => {
     const cost = computeCostForModel(modelId, { resolution: "1K" });
     expect(cost).not.toBeNull();
-    expect(cost?.credits).toBe(4);
-    expect(cost?.usd).toBeCloseTo(0.04, 2);
+    expect(cost?.credits).toBe(5);
+    expect(cost?.usd).toBeCloseTo(0.05, 2);
   });
 
   it("doubles the price for 4K renders", () => {
     const cost = computeCostForModel(modelId, { resolution: "4K" });
-    expect(cost?.credits).toBe(8);
+    expect(cost?.credits).toBe(10);
   });
 });

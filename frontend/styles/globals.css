@@ -3,6 +3,13 @@
  * Imports modular style sheets so no single file exceeds the line limit while preserving load order.
  */
 @import "./foundation.css";
+
+/* Component System - Unified design system components */
+@import "./components-buttons.css";
+@import "./components-cards.css";
+@import "./components-inputs.css";
+@import "./accessibility.css";
+
 @import "./ui-patterns.css";
 @import "./workspace-shared.css";
 @import "./workspace-chrome.css";

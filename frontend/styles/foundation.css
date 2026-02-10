@@ -1,10 +1,15 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "./design-tokens.css";
 
 /**
  * Design foundations and layout primitives.
  * Defines color tokens, resets, typography, and shared layout scaffolding reused across pages.
  */
 :root {
+  /* ============================================
+     COLOR PALETTE
+     Core colors used across the application
+     ============================================ */
   --color-bg: #0f1115;
   --color-panel: #1c1f20;
   --color-teal: #25a9bf;
@@ -12,15 +17,20 @@
   --color-amber: #f5b942;
   --color-ash: #c9cdd6;
   --color-ash-70: rgba(201, 205, 214, 0.9);
+  --color-ash-50: rgba(201, 205, 214, 0.5); /* Improved contrast (was 0.4) */
   --color-ash-40: rgba(201, 205, 214, 0.4);
   --color-ash-30: rgba(201, 205, 214, 0.3);
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 14px;
-  --shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.35);
+
+  /* Font families */
   --font-primary: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-secondary: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+
+  /* Legacy tokens - maintained for backwards compatibility, but prefer design-tokens.css */
+  --radius-sm: var(--radius-sm); /* 8px */
+  --radius-md: var(--radius-md); /* 10px */
+  --radius-lg: var(--radius-lg); /* 12px */
+  --radius-xl: var(--radius-xl); /* 14px */
+  --shadow-soft: var(--shadow-md); /* Use design token instead */
 }
 * {
   box-sizing: border-box;
@@ -60,7 +70,7 @@ p {
 
 .page {
   max-width: 1200px;
-  padding: 36px 26px 56px;
+  padding: var(--spacing-24) var(--spacing-20) var(--spacing-24);
   margin: 0 auto;
 }
 
@@ -72,35 +82,36 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: var(--spacing-16);
+  margin-bottom: var(--spacing-20);
 }
 
 .title {
-  font-size: 32px;
-  font-weight: 600;
+  font-size: var(--text-display);
+  font-weight: var(--font-semibold);
 }
 
 .lede {
   color: var(--color-ash-70);
-  margin-top: 8px;
+  margin-top: var(--spacing-8);
   max-width: 760px;
 }
 
 .hero-banner {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
-  gap: 20px;
-  padding: 24px;
-  border-radius: 20px;
+  gap: var(--spacing-20);
+  padding: var(--spacing-24);
+  border-radius: var(--radius-2xl);
   border: 1px solid rgba(201, 205, 214, 0.08);
-  background: radial-gradient(120% 120% at 20% 20%, rgba(37, 169, 191, 0.07), transparent),
+  background:
+    radial-gradient(120% 120% at 20% 20%, rgba(37, 169, 191, 0.07), transparent),
     radial-gradient(90% 120% at 90% 0%, rgba(28, 31, 32, 0.18), transparent),
     linear-gradient(135deg, #12151d, #0f1115);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-xl);
   position: relative;
   overflow: hidden;
-  margin-bottom: 18px;
+  margin-bottom: var(--spacing-18);
 }
 
 .hero-banner::after {
@@ -113,13 +124,13 @@ p {
 
 .hero-banner.clean {
   grid-template-columns: 1fr;
-  padding-top: 32px;
+  padding-top: var(--spacing-24);
 }
 
 .workspace-grid {
   display: grid;
   grid-template-columns: 1fr 0.4fr;
-  gap: 16px;
+  gap: var(--spacing-16);
   align-items: start;
 }
 
@@ -127,15 +138,15 @@ p {
 .workspace-right {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--spacing-10);
 }
 
 .workspace-right .panel {
   background: rgba(18, 21, 29, 0.82);
   border: 1px solid rgba(201, 205, 214, 0.1);
-  border-radius: 14px;
-  padding: 14px;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-14);
+  box-shadow: var(--shadow-md);
 }
 
 .placeholder-panel {
@@ -145,7 +156,7 @@ p {
 .auth-panel {
   max-width: 520px;
   margin: 0 auto;
-  margin-top: 18px;
+  margin-top: var(--spacing-18);
 }
 
 @media (max-width: 768px) and (max-device-width: 768px) {
@@ -164,49 +175,49 @@ p {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--spacing-12);
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
+  gap: var(--spacing-10);
+  margin-top: var(--spacing-14);
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-8);
   background: rgba(37, 169, 191, 0.14);
   color: var(--color-teal);
-  padding: 10px 14px;
+  padding: var(--spacing-10) var(--spacing-14);
   border: 1px solid rgba(37, 169, 191, 0.3);
-  border-radius: 12px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  border-radius: var(--radius-lg);
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-wide);
 }
 
 .page-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: var(--spacing-12);
+  margin-bottom: var(--spacing-10);
 }
 
 .filter-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin: 10px 0 14px;
+  gap: var(--spacing-12);
+  margin: var(--spacing-10) 0 var(--spacing-14);
   flex-wrap: wrap;
 }
 
 .footer {
-  margin-top: 18px;
-  color: var(--color-ash-40);
-  font-size: 13px;
+  margin-top: var(--spacing-18);
+  color: var(--color-ash-50);
+  font-size: var(--text-sm);
   text-align: center;
 }

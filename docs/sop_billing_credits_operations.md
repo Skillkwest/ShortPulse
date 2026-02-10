@@ -10,6 +10,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 
 ## Source of truth
 - Billing bootstrap schema: `sql/create_billing_credit_tables.sql`.
+- Pricing catalog updates: `sql/update_billing_pricing_catalog_20260210.sql`.
 - Legacy-to-v2 alignment migration: `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`.
 - Server debit helper: `frontend/pages/api/_utils/generationBilling.ts`.
 - Ledger compatibility insert helper: `frontend/pages/api/_utils/creditLedger.ts`.

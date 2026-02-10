@@ -11,11 +11,7 @@ import {
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput, ToolId } from "../types";
 import type { ModelModalContext } from "../components/ModelModal";
-import {
-  createKeiTask,
-  fetchKeiTaskStatus,
-  KeiTaskStatus,
-} from "../../../lib/keiClient";
+import { createKeiTask, fetchKeiTaskStatus, KeiTaskStatus } from "../../../lib/keiClient";
 import {
   submitFalFlux2,
   submitFalFlux2Klein,
@@ -38,7 +34,12 @@ import {
   submitFalNanoBananaProEdit,
   submitFalSoraPro,
 } from "../../../lib/falClient";
-import { DEFAULT_KLING_DURATION_SECONDS, computeCostForModel, falSizeForAspect, getModelConfig } from "../logic/pricing";
+import {
+  DEFAULT_KLING_DURATION_SECONDS,
+  computeCostForModel,
+  falSizeForAspect,
+  getModelConfig,
+} from "../logic/pricing";
 import { postGeneratePrompt, TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { postDescribeImage, prepareImageUrl } from "../logic/imageDescription";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
@@ -102,23 +103,19 @@ export const useAiStudioState = () => {
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
   const [showCreateTools, setShowCreateTools] = useState<boolean>(false);
   const [imageReferenceImageUrl, setImageReferenceImageUrl] = useState<string | null>(null);
-  const [imageExtraImageUrls, setImageExtraImageUrls] = useState<[string | null, string | null, string | null]>([
-    null,
-    null,
-    null,
-  ]);
+  const [imageExtraImageUrls, setImageExtraImageUrls] = useState<
+    [string | null, string | null, string | null]
+  >([null, null, null]);
   const [videoReferenceImageUrl, setVideoReferenceImageUrl] = useState<string | null>(null);
-  const [videoExtraImageUrls, setVideoExtraImageUrls] = useState<[string | null, string | null, string | null]>([
-    null,
-    null,
-    null,
-  ]);
+  const [videoExtraImageUrls, setVideoExtraImageUrls] = useState<
+    [string | null, string | null, string | null]
+  >([null, null, null]);
   const VIDEO_DURATION_STORAGE_KEY = "aiStudioVideoDuration";
   const VIDEO_RESOLUTION_STORAGE_KEY = "aiStudioVideoResolution";
 
-  const [videoReferenceMode, setVideoReferenceMode] = useState<"standard" | "keyframes" | "kling3" | "motion">(
-    "standard",
-  );
+  const [videoReferenceMode, setVideoReferenceMode] = useState<
+    "standard" | "keyframes" | "kling3" | "motion"
+  >("standard");
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(() => {
     if (typeof window === "undefined") return 6;
     const stored = window.localStorage.getItem(VIDEO_DURATION_STORAGE_KEY);
@@ -132,20 +129,29 @@ export const useAiStudioState = () => {
   });
   const [hasUserVideoPrefs, setHasUserVideoPrefs] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return Boolean(window.localStorage.getItem(VIDEO_DURATION_STORAGE_KEY) || window.localStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY));
+    return Boolean(
+      window.localStorage.getItem(VIDEO_DURATION_STORAGE_KEY) ||
+      window.localStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY)
+    );
   });
   const [videoGenerateAudio, setVideoGenerateAudio] = useState<boolean>(false);
   const [videoCameraFixed, setVideoCameraFixed] = useState<boolean>(false);
   const [videoAutoFix, setVideoAutoFix] = useState<boolean>(false);
-  const [klingNegativePrompt, setKlingNegativePrompt] = useState<string>("blur, distort, and low quality");
+  const [klingNegativePrompt, setKlingNegativePrompt] = useState<string>(
+    "blur, distort, and low quality"
+  );
   const [klingCfgScale, setKlingCfgScale] = useState<number>(0.5);
   const [klingShotType, setKlingShotType] = useState<"customize" | "intelligent">("customize");
   const [klingVoiceIds, setKlingVoiceIds] = useState<[string, string]>(["", ""]);
-  const [klingMultiPrompts, setKlingMultiPrompts] = useState<{ id: string; prompt: string; duration: number }[]>([]);
+  const [klingMultiPrompts, setKlingMultiPrompts] = useState<
+    { id: string; prompt: string; duration: number }[]
+  >([]);
   const [klingElements, setKlingElements] = useState<
     { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
   >([{ id: randomId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }]);
-  const [motionCharacterOrientation, setMotionCharacterOrientation] = useState<"image" | "video">("video");
+  const [motionCharacterOrientation, setMotionCharacterOrientation] = useState<"image" | "video">(
+    "video"
+  );
   const [motionKeepOriginalSound, setMotionKeepOriginalSound] = useState<boolean>(true);
   const [motionCharacterUrl, setMotionCharacterUrl] = useState<string | null>(null);
   const [motionReferenceVideoUrl, setMotionReferenceVideoUrl] = useState<string | null>(null);
@@ -165,11 +171,11 @@ export const useAiStudioState = () => {
 
   const activeOutput = useMemo(
     () => outputs.find((item) => item.id === activeOutputId) ?? null,
-    [activeOutputId, outputs],
+    [activeOutputId, outputs]
   );
   const detailOutput = useMemo(
     () => outputs.find((item) => item.id === detailOutputId) ?? null,
-    [detailOutputId, outputs],
+    [detailOutputId, outputs]
   );
   const currentModelLabel = useMemo(() => resolveModelLabel(model ?? undefined), [model]);
   const setSharedPrompt = useCallback((value: string) => {
@@ -208,11 +214,14 @@ export const useAiStudioState = () => {
       });
     }
     if ((selectedTool === "create" || selectedTool === "text") && mode === "video") {
-      return modelOptions.filter((opt) => !opt.mediaType || opt.mediaType === "video" || opt.mediaType === "multi");
+      return modelOptions.filter(
+        (opt) => !opt.mediaType || opt.mediaType === "video" || opt.mediaType === "multi"
+      );
     }
     if ((selectedTool === "create" || selectedTool === "text") && mode === "image") {
       return modelOptions.filter((opt) => {
-        const matchesMedia = !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi";
+        const matchesMedia =
+          !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi";
         if (!matchesMedia) return false;
         const config = getModelConfig(opt.value);
         return Boolean(config?.supportsTextToImage);
@@ -220,7 +229,8 @@ export const useAiStudioState = () => {
     }
     if (selectedTool === "image") {
       return modelOptions.filter((opt) => {
-        const matchesMedia = !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi";
+        const matchesMedia =
+          !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi";
         if (!matchesMedia) return false;
         const config = getModelConfig(opt.value);
         return Boolean(config?.supportsImageToImage);
@@ -239,7 +249,6 @@ export const useAiStudioState = () => {
     if (config?.defaultDurationSeconds) return config.defaultDurationSeconds;
     return VIDEO_DEFAULT_DURATION_SECONDS;
   }, []);
-
 
   // --- Lifecycle ----------------------------------------------------------
   useEffect(() => {
@@ -290,7 +299,9 @@ export const useAiStudioState = () => {
     const config = getModelConfig(model);
     if (!config) return;
     const isVideoModel =
-      config.mediaType === "video" || config.mediaType === "image-to-video" || config.mediaType === "multi";
+      config.mediaType === "video" ||
+      config.mediaType === "image-to-video" ||
+      config.mediaType === "multi";
     if (!isVideoModel) return;
 
     const applyDefaults = !hasUserVideoPrefs;
@@ -313,9 +324,7 @@ export const useAiStudioState = () => {
 
   // Models that support keyframes mode (start + end frame).
   // Only Veo 3.1 First/Last Frame is supported in keyframes mode.
-  const keyframeCompatibleModels = new Set([
-    "fal-ai/veo3.1/first-last-frame-to-video",
-  ]);
+  const keyframeCompatibleModels = new Set(["fal-ai/veo3.1/first-last-frame-to-video"]);
 
   // Keep reference mode and model in sync without locking other tabs.
   useEffect(() => {
@@ -429,11 +438,7 @@ export const useAiStudioState = () => {
     if (!allowedValues.has(model)) {
       setModel(null);
     }
-  }, [
-    allowedModelOptions,
-    model,
-    setModel,
-  ]);
+  }, [allowedModelOptions, model, setModel]);
 
   // Escape closes modals; model modal repositions on viewport changes.
   useEffect(() => {
@@ -447,7 +452,9 @@ export const useAiStudioState = () => {
 
     const handleReposition = () => {
       if (!isModelModalOpen || !modelModalAnchor) return;
-      const anchorEl = document.querySelector<HTMLElement>(`[data-model-anchor='${modelModalAnchor}']`);
+      const anchorEl = document.querySelector<HTMLElement>(
+        `[data-model-anchor='${modelModalAnchor}']`
+      );
       if (anchorEl) {
         setModelModalPosition(computeModalPosition(anchorEl));
       } else {
@@ -467,17 +474,23 @@ export const useAiStudioState = () => {
   }, [isModelModalOpen, modelModalAnchor]);
 
   // --- Output + prompt actions -------------------------------------------
-  const updateOutputById = useCallback((id: string, updater: (item: StudioOutput) => StudioOutput) => {
-    setOutputs((prev) => prev.map((item) => (item.id === id ? updater(item) : item)));
-  }, []);
+  const updateOutputById = useCallback(
+    (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      setOutputs((prev) => prev.map((item) => (item.id === id ? updater(item) : item)));
+    },
+    []
+  );
 
-  const findOutputById = useCallback((id: string) => outputsRef.current.find((item) => item.id === id) ?? null, []);
+  const findOutputById = useCallback(
+    (id: string) => outputsRef.current.find((item) => item.id === id) ?? null,
+    []
+  );
 
   const markOutputSaved = useCallback(
     (
       outputId: string,
       mediaFileIds?: string[],
-      options?: { showPill?: boolean; timestamp?: string; status?: "ready" | "saved" },
+      options?: { showPill?: boolean; timestamp?: string; status?: "ready" | "saved" }
     ) => {
       const showPill = options?.showPill ?? true;
       updateOutputById(outputId, (item) => ({
@@ -489,7 +502,7 @@ export const useAiStudioState = () => {
         savedMediaIds: mediaFileIds?.length ? mediaFileIds : item.savedMediaIds,
       }));
     },
-    [updateOutputById],
+    [updateOutputById]
   );
 
   const markOutputSaveFailed = useCallback(
@@ -501,7 +514,7 @@ export const useAiStudioState = () => {
         saveError: showPill ? message : item.saveError,
       }));
     },
-    [updateOutputById],
+    [updateOutputById]
   );
 
   const ensureGenerationRecord = useCallback(
@@ -562,7 +575,7 @@ export const useAiStudioState = () => {
         return null;
       }
     },
-    [createGenerationRecord, findOutputById, updateGenerationRecord, updateOutputById],
+    [createGenerationRecord, findOutputById, updateGenerationRecord, updateOutputById]
   );
 
   const persistPromptSave = useCallback(
@@ -592,7 +605,7 @@ export const useAiStudioState = () => {
         return null;
       }
     },
-    [logMediaEvent, savePromptRecord, setUiError],
+    [logMediaEvent, savePromptRecord, setUiError]
   );
 
   const persistMediaUrls = useCallback(
@@ -673,16 +686,18 @@ export const useAiStudioState = () => {
 
       return { mediaFileIds, errors };
     },
-    [findOutputById, logMediaEvent, saveMediaUrlToLibrary],
+    [findOutputById, logMediaEvent, saveMediaUrlToLibrary]
   );
 
-
-  const deleteOutput = useCallback((id: string) => {
-    setOutputs((prev) => prev.filter((item) => item.id !== id));
-    if (activeOutputId === id) {
-      setActiveOutputId(null);
-    }
-  }, [activeOutputId]);
+  const deleteOutput = useCallback(
+    (id: string) => {
+      setOutputs((prev) => prev.filter((item) => item.id !== id));
+      if (activeOutputId === id) {
+        setActiveOutputId(null);
+      }
+    },
+    [activeOutputId]
+  );
 
   const notifyGenerationFailure = useCallback(
     (outputId: string, message: string, detail?: string) => {
@@ -700,17 +715,29 @@ export const useAiStudioState = () => {
             errorMessageShort: message,
             errorDetail: detail ?? message,
           };
-        }),
+        })
       );
       const label = contextLabel ?? "Generation";
       const detailMessage = detail ?? message;
-      setUiError(detailMessage ? `${label} failed: ${detailMessage}` : `${label} failed to complete.`);
+      setUiError(
+        detailMessage ? `${label} failed: ${detailMessage}` : `${label} failed to complete.`
+      );
     },
-    [setOutputs, setUiError],
+    [setOutputs, setUiError]
   );
 
   const handleGenerationSuccess = useCallback(
-    async ({ outputId, taskId, provider, resultUrls }: { outputId: string; taskId: string; provider: Provider; resultUrls: string[] }) => {
+    async ({
+      outputId,
+      taskId,
+      provider,
+      resultUrls,
+    }: {
+      outputId: string;
+      taskId: string;
+      provider: Provider;
+      resultUrls: string[];
+    }) => {
       const output = findOutputById(outputId);
       if (!output) return;
       if (output.savedMediaIds?.length) return;
@@ -760,11 +787,29 @@ export const useAiStudioState = () => {
         }
       }
     },
-    [ensureGenerationRecord, findOutputById, markOutputSaveFailed, markOutputSaved, persistMediaUrls, updateGenerationRecord, updateOutputById],
+    [
+      ensureGenerationRecord,
+      findOutputById,
+      markOutputSaveFailed,
+      markOutputSaved,
+      persistMediaUrls,
+      updateGenerationRecord,
+      updateOutputById,
+    ]
   );
 
   const handleGenerationFailure = useCallback(
-    async ({ outputId, taskId, provider, message }: { outputId: string; taskId?: string; provider: Provider; message: string }) => {
+    async ({
+      outputId,
+      taskId,
+      provider,
+      message,
+    }: {
+      outputId: string;
+      taskId?: string;
+      provider: Provider;
+      message: string;
+    }) => {
       const output = findOutputById(outputId);
       if (!output) return;
       const generationId =
@@ -801,7 +846,7 @@ export const useAiStudioState = () => {
         }
       }
     },
-    [ensureGenerationRecord, findOutputById, logMediaEvent, updateGenerationRecord],
+    [ensureGenerationRecord, findOutputById, logMediaEvent, updateGenerationRecord]
   );
 
   const { startPollingTask, clearPollTimer } = useAiStudioTasks({
@@ -812,23 +857,25 @@ export const useAiStudioState = () => {
     onGenerationFailure: handleGenerationFailure,
   });
 
-  const updateOutputPrompt = useCallback((id: string, promptText: string) => {
-    const nextPrompt = promptText.trim();
-    if (!nextPrompt) return;
-    updateOutputById(id, (item) => ({
-      ...item,
-      prompt: nextPrompt,
-      previewText: item.previewText ? nextPrompt : item.previewText,
-      timestamp: "Edited",
-    }));
-  }, [updateOutputById]);
-
+  const updateOutputPrompt = useCallback(
+    (id: string, promptText: string) => {
+      const nextPrompt = promptText.trim();
+      if (!nextPrompt) return;
+      updateOutputById(id, (item) => ({
+        ...item,
+        prompt: nextPrompt,
+        previewText: item.previewText ? nextPrompt : item.previewText,
+        timestamp: "Edited",
+      }));
+    },
+    [updateOutputById]
+  );
 
   const submitTask = useCallback(
     async (
       promptArg: string | null | undefined,
       imageInputs: string[],
-      options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null },
+      options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null }
     ) => {
       setUiError(null);
       setUiNotice(null);
@@ -893,7 +940,7 @@ export const useAiStudioState = () => {
         setUiNotice(
           fallbackMode === "image"
             ? `No reference images were detected. Running text-to-image with ${modelLabel}.`
-            : `No reference media were detected. Running text-to-video with ${modelLabel}.`,
+            : `No reference media were detected. Running text-to-video with ${modelLabel}.`
         );
       }
       const isSeedreamModel = finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image";
@@ -920,8 +967,12 @@ export const useAiStudioState = () => {
       const requestedDurationSeconds = useVideoSettings
         ? videoDurationSeconds
         : getDefaultDurationSeconds(finalModel);
-      const requestedResolution = useVideoSettings ? videoResolution : modelConfig?.defaultResolution;
-      const requestedAudio = useVideoSettings ? videoGenerateAudio : modelConfig?.defaultAudio ?? true;
+      const requestedResolution = useVideoSettings
+        ? videoResolution
+        : modelConfig?.defaultResolution;
+      const requestedAudio = useVideoSettings
+        ? videoGenerateAudio
+        : (modelConfig?.defaultAudio ?? true);
 
       // Normalize image inputs (supports blob/data URLs from drops).
       const preparedImageInputs = (
@@ -929,14 +980,16 @@ export const useAiStudioState = () => {
           imageInputs.map(async (url) => {
             const normalized = await prepareImageUrl(url);
             return normalized ?? null;
-          }),
+          })
         )
       ).filter((url): url is string => Boolean(url));
       const pulseReferenceImageUrl =
         finalTool === "image" && preparedImageInputs.length > 0
           ? preparedImageInputs[0]
           : undefined;
-      const falReferencePayload = pulseReferenceImageUrl ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) } : {};
+      const falReferencePayload = pulseReferenceImageUrl
+        ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) }
+        : {};
 
       const nextOutput: StudioOutput = {
         id,
@@ -1011,7 +1064,11 @@ export const useAiStudioState = () => {
       setSaved(false);
 
       try {
-        const startPollingWithGeneration = (taskId: string, outputId: string, provider: Provider) => {
+        const startPollingWithGeneration = (
+          taskId: string,
+          outputId: string,
+          provider: Provider
+        ) => {
           updateOutputById(outputId, (item) => (item.provider ? item : { ...item, provider }));
           startPollingTask(taskId, outputId, 0, provider);
           void ensureGenerationRecord({
@@ -1075,10 +1132,12 @@ export const useAiStudioState = () => {
 
             // Construct elements payload with motion video and character reference
             // @Element1 will reference both the motion (video_url) and character appearance (frontal_image_url)
-            const motionElementsPayload = [{
-              video_url: motionVideoUrlFinal,
-              frontal_image_url: characterImageUrl,
-            }];
+            const motionElementsPayload = [
+              {
+                video_url: motionVideoUrlFinal,
+                frontal_image_url: characterImageUrl,
+              },
+            ];
 
             // Build prompt - append @Element1 reference if not already present
             let finalPrompt = cleanedPrompt || "Transfer motion from reference video to character";
@@ -1111,16 +1170,20 @@ export const useAiStudioState = () => {
           // Standard Kling 3.0 flow (non-motion mode)
           const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
           const endImageUrl =
-            (videoReferenceMode === "keyframes" || videoReferenceMode === "kling3") && preparedImageInputs.length > 1
+            (videoReferenceMode === "keyframes" || videoReferenceMode === "kling3") &&
+            preparedImageInputs.length > 1
               ? preparedImageInputs[1]
               : undefined;
-          const voiceIds = klingVoiceIds.map((voice) => voice.trim()).filter(Boolean).slice(0, 2);
+          const voiceIds = klingVoiceIds
+            .map((voice) => voice.trim())
+            .filter(Boolean)
+            .slice(0, 2);
           const multiPromptPayload =
             klingMultiPrompts
               .map((shot) =>
                 shot.prompt.trim()
                   ? { prompt: shot.prompt.trim(), duration: resolveKlingV3Duration(shot.duration) }
-                  : null,
+                  : null
               )
               .filter(Boolean) || undefined;
           const elementsPayload =
@@ -1220,7 +1283,10 @@ export const useAiStudioState = () => {
 
         if (isFalNanoBananaProEditModel) {
           if (!preparedImageInputs.length) {
-            notifyGenerationFailure(id, "Nano Banana Pro Edit requires at least one reference image.");
+            notifyGenerationFailure(
+              id,
+              "Nano Banana Pro Edit requires at least one reference image."
+            );
             return;
           }
           const response = await submitFalNanoBananaProEdit({
@@ -1286,9 +1352,10 @@ export const useAiStudioState = () => {
 
         if (isSeedanceModel) {
           const normalizedAspect =
-            modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16" || aspect === "1:1")
+            modelConfig?.allowedAspects?.includes(aspect) &&
+            (aspect === "16:9" || aspect === "9:16" || aspect === "1:1")
               ? aspect
-            : modelConfig?.defaultAspect ?? "16:9";
+              : (modelConfig?.defaultAspect ?? "16:9");
           const { request_id } = await submitFalSeedance({
             prompt: cleanedPrompt,
             duration: requestedDurationSeconds.toString(),
@@ -1312,10 +1379,9 @@ export const useAiStudioState = () => {
             notifyGenerationFailure(id, "Seedance I2V requires a reference image.");
             return;
           }
-          const normalizedAspect =
-            modelConfig?.allowedAspects?.includes(aspect)
-              ? aspect
-              : modelConfig?.defaultAspect ?? "auto";
+          const normalizedAspect = modelConfig?.allowedAspects?.includes(aspect)
+            ? aspect
+            : (modelConfig?.defaultAspect ?? "auto");
           const resolution = requestedResolution?.toLowerCase().includes("1080")
             ? "1080p"
             : requestedResolution?.toLowerCase().includes("480")
@@ -1378,9 +1444,10 @@ export const useAiStudioState = () => {
         if (isSoraModel) {
           const soraDuration = resolveSoraDuration(requestedDurationSeconds);
           const normalizedAspect =
-            modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16")
+            modelConfig?.allowedAspects?.includes(aspect) &&
+            (aspect === "16:9" || aspect === "9:16")
               ? aspect
-            : (modelConfig?.defaultAspect as "16:9" | "9:16" | undefined) ?? "16:9";
+              : ((modelConfig?.defaultAspect as "16:9" | "9:16" | undefined) ?? "16:9");
           const resolution = requestedResolution?.toLowerCase().includes("720") ? "720p" : "1080p";
           const { request_id } = await submitFalSoraPro({
             prompt: cleanedPrompt,
@@ -1400,9 +1467,11 @@ export const useAiStudioState = () => {
         }
 
         if (isVeoModel) {
-          const normalizedAspect = modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16")
-            ? aspect
-            : (modelConfig?.defaultAspect as "16:9" | "9:16" | undefined) ?? "16:9";
+          const normalizedAspect =
+            modelConfig?.allowedAspects?.includes(aspect) &&
+            (aspect === "16:9" || aspect === "9:16")
+              ? aspect
+              : ((modelConfig?.defaultAspect as "16:9" | "9:16" | undefined) ?? "16:9");
           const resolution = requestedResolution?.toLowerCase().includes("4k")
             ? "4k"
             : requestedResolution?.toLowerCase().includes("720")
@@ -1627,7 +1696,7 @@ export const useAiStudioState = () => {
       motionCharacterOrientation,
       motionKeepOriginalSound,
       motionReferenceVideoUrl,
-    ],
+    ]
   );
 
   const resolveReferenceInputsForTool = useCallback(
@@ -1643,24 +1712,28 @@ export const useAiStudioState = () => {
         extraImageUrls: imageExtraImageUrls,
       };
     },
-    [imageExtraImageUrls, imageReferenceImageUrl, videoExtraImageUrls, videoReferenceImageUrl],
+    [imageExtraImageUrls, imageReferenceImageUrl, videoExtraImageUrls, videoReferenceImageUrl]
   );
 
-  const buildImageReferenceInputs = useCallback((primary: string | null, extras: (string | null)[]) => {
-    const orderedExtras = extras.filter((url): url is string => Boolean(url && url !== primary));
-    if (primary) {
-      return [primary, ...orderedExtras];
-    }
-    return orderedExtras;
-  }, []);
+  const buildImageReferenceInputs = useCallback(
+    (primary: string | null, extras: (string | null)[]) => {
+      const orderedExtras = extras.filter((url): url is string => Boolean(url && url !== primary));
+      if (primary) {
+        return [primary, ...orderedExtras];
+      }
+      return orderedExtras;
+    },
+    []
+  );
 
   const generateOutput = useCallback(
     (
       promptOverride?: string | null,
-      options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null },
+      options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null }
     ) => {
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
-      const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } = resolveReferenceInputsForTool(effectiveTool);
+      const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
+        resolveReferenceInputsForTool(effectiveTool);
       const baseInputs =
         effectiveTool === "image"
           ? buildImageReferenceInputs(referenceUrl, extraUrls)
@@ -1668,18 +1741,21 @@ export const useAiStudioState = () => {
       const imageInputs = baseInputs.slice(0, 8);
       submitTask(promptOverride ?? prompt, imageInputs, options);
     },
-    [buildImageReferenceInputs, prompt, resolveReferenceInputsForTool, selectedTool, submitTask],
+    [buildImageReferenceInputs, prompt, resolveReferenceInputsForTool, selectedTool, submitTask]
   );
 
   const regenerateOutput = useCallback(() => {
     const promptToUse = prompt.trim();
     if (!promptToUse) return;
-    const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } = resolveReferenceInputsForTool(selectedTool);
+    const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
+      resolveReferenceInputsForTool(selectedTool);
     const referencePool =
       selectedTool === "image"
         ? buildImageReferenceInputs(referenceUrl, extraUrls)
         : [
-            ...(useReferenceImageIndicator && activeOutput?.previewUrl ? [activeOutput.previewUrl] : []),
+            ...(useReferenceImageIndicator && activeOutput?.previewUrl
+              ? [activeOutput.previewUrl]
+              : []),
             referenceUrl,
             ...extraUrls,
           ].filter((url): url is string => Boolean(url));
@@ -1710,14 +1786,18 @@ export const useAiStudioState = () => {
         return;
       }
 
-      const promptOnly = output.previewText && !output.previewUrl;
-      if (promptOnly) {
+      const previewText = output.previewText?.trim();
+      const promptOnly = Boolean(previewText) && !output.previewUrl;
+      if (promptOnly && previewText) {
         if (output.promptId) {
           await new Promise((resolve) => window.setTimeout(resolve, 220));
           markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
           return;
         }
-        const promptId = await persistPromptSave({ promptText: output.previewText, modelId: output.modelId ?? null });
+        const promptId = await persistPromptSave({
+          promptText: previewText,
+          modelId: output.modelId ?? null,
+        });
         if (promptId) {
           updateOutputById(outputId, (item) => ({ ...item, promptId }));
           markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
@@ -1727,7 +1807,11 @@ export const useAiStudioState = () => {
         return;
       }
 
-      const urls = output.resultUrls?.length ? output.resultUrls : output.previewUrl ? [output.previewUrl] : [];
+      const urls = output.resultUrls?.length
+        ? output.resultUrls
+        : output.previewUrl
+          ? [output.previewUrl]
+          : [];
       if (!urls.length) {
         markOutputSaveFailed(outputId, "No media available to save.");
         setUiError("No media available to save.");
@@ -1737,12 +1821,12 @@ export const useAiStudioState = () => {
       const source = output.generationId || output.taskId ? "ai_studio" : "upload";
       const generationId =
         source === "ai_studio"
-          ? output.generationId ??
+          ? (output.generationId ??
             (await ensureGenerationRecord({
               outputId,
               provider,
               taskId: output.taskId,
-            }))
+            })))
           : null;
       const { mediaFileIds, errors } = await persistMediaUrls({
         outputId,
@@ -1760,7 +1844,16 @@ export const useAiStudioState = () => {
       }
       setUiError("Unable to save media to the library.");
     },
-    [ensureGenerationRecord, findOutputById, markOutputSaveFailed, markOutputSaved, persistMediaUrls, persistPromptSave, setUiError, updateOutputById],
+    [
+      ensureGenerationRecord,
+      findOutputById,
+      markOutputSaveFailed,
+      markOutputSaved,
+      persistMediaUrls,
+      persistPromptSave,
+      setUiError,
+      updateOutputById,
+    ]
   );
 
   const saveActiveOutput = useCallback(
@@ -1772,45 +1865,59 @@ export const useAiStudioState = () => {
         setSaved(true);
       }
     },
-    [activeOutput?.id, persistOutputSave],
+    [activeOutput?.id, persistOutputSave]
   );
 
   const saveReferenceToLibrary = useCallback(
     (outputId: string) => {
       void persistOutputSave(outputId);
     },
-    [persistOutputSave],
+    [persistOutputSave]
   );
 
-  const savePromptReference = useCallback((customPrompt?: string) => {
-    const cleanedPrompt = (typeof customPrompt === "string" ? customPrompt : prompt).trim();
-    if (!cleanedPrompt) return;
-    const id = `prompt-${randomId()}`;
-    const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
-    const promptReference: StudioOutput = {
-      id,
-      prompt: cleanedPrompt,
-      mode: "text",
+  const savePromptReference = useCallback(
+    (customPrompt?: string) => {
+      const cleanedPrompt = (typeof customPrompt === "string" ? customPrompt : prompt).trim();
+      if (!cleanedPrompt) return;
+      const id = `prompt-${randomId()}`;
+      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
+      const promptReference: StudioOutput = {
+        id,
+        prompt: cleanedPrompt,
+        mode: "text",
+        aspect,
+        model: placeholderModelLabel,
+        modelId: model ?? undefined,
+        status: "saved",
+        timestamp: "Saved prompt",
+        previewText: cleanedPrompt,
+        saveState: "saving",
+        saveError: null,
+      };
+      setOutputs((prev) => [promptReference, ...prev]);
+      void (async () => {
+        const promptId = await persistPromptSave({
+          promptText: cleanedPrompt,
+          modelId: model ?? null,
+        });
+        if (!promptId) {
+          markOutputSaveFailed(id, "Unable to save prompt.");
+          return;
+        }
+        updateOutputById(id, (item) => ({ ...item, promptId }));
+        markOutputSaved(id, undefined, { timestamp: "Saved prompt" });
+      })();
+    },
+    [
       aspect,
-      model: placeholderModelLabel,
-      modelId: model ?? undefined,
-      status: "saved",
-      timestamp: "Saved prompt",
-      previewText: cleanedPrompt,
-      saveState: "saving",
-      saveError: null,
-    };
-    setOutputs((prev) => [promptReference, ...prev]);
-    void (async () => {
-      const promptId = await persistPromptSave({ promptText: cleanedPrompt, modelId: model ?? null });
-      if (!promptId) {
-        markOutputSaveFailed(id, "Unable to save prompt.");
-        return;
-      }
-      updateOutputById(id, (item) => ({ ...item, promptId }));
-      markOutputSaved(id, undefined, { timestamp: "Saved prompt" });
-    })();
-  }, [aspect, markOutputSaveFailed, markOutputSaved, model, persistPromptSave, prompt, updateOutputById]);
+      markOutputSaveFailed,
+      markOutputSaved,
+      model,
+      persistPromptSave,
+      prompt,
+      updateOutputById,
+    ]
+  );
 
   const addAgentPromptReference = useCallback(
     (promptText: string, title?: string | null) => {
@@ -1835,11 +1942,17 @@ export const useAiStudioState = () => {
       setOutputs((prev) => [promptReference, ...prev]);
       setSharedPrompt(cleanedPrompt);
     },
-    [prompt, mode, aspect, model, setSharedPrompt],
+    [prompt, mode, aspect, model, setSharedPrompt]
   );
 
   const addLibraryMediaReference = useCallback(
-    (payload: { id: string; url: string; fileType: "image" | "video"; filename?: string | null; source?: string | null }) => {
+    (payload: {
+      id: string;
+      url: string;
+      fileType: "image" | "video";
+      filename?: string | null;
+      source?: string | null;
+    }) => {
       if (!payload.url) return;
       const id = `library-${randomId()}`;
       const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
@@ -1859,7 +1972,7 @@ export const useAiStudioState = () => {
       };
       setOutputs((prev) => [nextOutput, ...prev]);
     },
-    [aspect, model],
+    [aspect, model]
   );
 
   const addLibraryPromptReference = useCallback(
@@ -1884,16 +1997,23 @@ export const useAiStudioState = () => {
       };
       setOutputs((prev) => [promptReference, ...prev]);
     },
-    [aspect, model],
+    [aspect, model]
   );
 
   const addOutputsFromFiles = useCallback(
     async (files: FileList) => {
-      const newEntries = await mapUploadsFromFiles(files, mode, aspect, model, resolveModelLabel, randomId);
+      const newEntries = await mapUploadsFromFiles(
+        files,
+        mode,
+        aspect,
+        model,
+        resolveModelLabel,
+        randomId
+      );
       if (!newEntries.length) return;
       setOutputs((prev) => [...newEntries, ...prev]);
     },
-    [aspect, model, mode],
+    [aspect, model, mode]
   );
 
   const toggleReferenceIndicator = useCallback(() => {
@@ -1918,7 +2038,7 @@ export const useAiStudioState = () => {
         setImageReferenceImageUrl(url);
       }
     },
-    [isVideoReferenceTool],
+    [isVideoReferenceTool]
   );
 
   const setExtraImageUrl = useCallback(
@@ -1937,7 +2057,7 @@ export const useAiStudioState = () => {
         return next;
       });
     },
-    [isVideoReferenceTool],
+    [isVideoReferenceTool]
   );
 
   const getAgentContext = useCallback(
@@ -1986,14 +2106,14 @@ export const useAiStudioState = () => {
           activePromptValue = promptSnippet;
           references = promptSnippet
             ? [
-              {
-                id: selected.id,
-                kind: "prompt",
-                promptSnippet,
-                aspect: selected.aspect ?? null,
-                caption: selected.previewText ?? null,
-              },
-            ]
+                {
+                  id: selected.id,
+                  kind: "prompt",
+                  promptSnippet,
+                  aspect: selected.aspect ?? null,
+                  caption: selected.previewText ?? null,
+                },
+              ]
             : [];
         }
       } else {
@@ -2014,7 +2134,7 @@ export const useAiStudioState = () => {
         modeHint: options?.modeHint ?? undefined,
       };
     },
-    [activeOutput, model, mode],
+    [activeOutput, model, mode]
   );
 
   const openModelModal = useCallback(
@@ -2024,7 +2144,7 @@ export const useAiStudioState = () => {
       setModelModalPosition(computeModalPosition(target));
       setIsModelModalOpen(true);
     },
-    [],
+    []
   );
 
   const closeModelModal = useCallback(() => {

@@ -7,78 +7,129 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { ArrowRight, CheckCircle, CreditCard, LockKey, SignOut, Sparkle, UserCircle } from "phosphor-react";
-import { ensureSupabaseClient } from "../lib/supabaseClient";
-import { fetchWithAuth } from "../lib/authenticatedFetch";
+import {
+  ArrowsClockwise,
+  CheckCircle,
+  CreditCard,
+  Receipt,
+  SignOut,
+  Sparkle,
+  UserCircle,
+} from "phosphor-react";
+import {
+  annotateCreditPackages,
+  buildPlanView,
+  type BillingPlanRecord,
+  type CreditPackageRecord,
+} from "../features/billing/catalog";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
+import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { useProtectedRoute } from "../lib/authGuard";
+import { ensureSupabaseClient } from "../lib/supabaseClient";
 
-type ProfileSection = "profile" | "account" | "billing" | "subscription";
+type ProfileSection = "account" | "billing";
 
 type BillingProfile = {
   plan_id: string | null;
   subscription_status: string | null;
   current_period_end: string | null;
+  stripe_customer_id: string | null;
 };
 
-type CreditPackage = {
+type BillingLedgerEvent = {
   id: string;
-  display_name: string;
-  credit_amount_cents: number;
-  price_cents: number;
-  sort_order: number;
+  change_cents: number;
+  reason: string;
+  source: string | null;
+  source_ref: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};
+
+type NoticeTone = "info" | "success" | "error";
+
+type NoticeState = {
+  tone: NoticeTone;
+  message: string;
 };
 
 const sections: { key: ProfileSection; label: string; icon: typeof UserCircle }[] = [
-  { key: "profile", label: "Profile", icon: UserCircle },
-  { key: "account", label: "Account", icon: LockKey },
-  { key: "billing", label: "Billing", icon: CreditCard },
-  { key: "subscription", label: "Subscription", icon: CreditCard },
+  { key: "account", label: "Account", icon: UserCircle },
+  { key: "billing", label: "Billing & credits", icon: CreditCard },
 ];
 
-const planDetails: Record<string, { price: number; limit: string; description: string; className: string; label: string }> = {
-  free: { price: 0, limit: "1 workspace seat", description: "Starter access for exploration.", className: "plan-free", label: "Free" },
-  media: { price: 10, limit: "2 seats", description: "Ideal for creators testing cadence.", className: "plan-media", label: "Media" },
-  pro: { price: 29, limit: "Up to 5 seats", description: "Full analytics with refreshes.", className: "plan-pro", label: "Pro" },
-  creative_suite: {
-    price: 99,
-    limit: "Team access",
-    description: "All signals plus AI helpers.",
-    className: "plan-creative",
-    label: "Creative Suite",
-  },
+const formatCurrencyFromCents = (value: number) => `$${(value / 100).toFixed(2)}`;
+
+const formatDateLabel = (value: string | null) => {
+  if (!value) return "Not scheduled";
+  return new Date(value).toLocaleDateString();
 };
 
-const normalizePlanId = (value: string | undefined | null): keyof typeof planDetails => {
-  const normalized = (value ?? "").toLowerCase();
-  if (normalized === "creative") return "creative_suite";
-  if (normalized === "creative_suite") return "creative_suite";
-  if (normalized === "media") return "media";
-  if (normalized === "pro") return "pro";
-  if (normalized === "free") return "free";
-  return "creative_suite";
+const formatDateTimeLabel = (value: string | null) => {
+  if (!value) return "Unavailable";
+  return new Date(value).toLocaleString();
+};
+
+const formatStatusLabel = (status: string | null) => {
+  if (!status) return "Inactive";
+  return status.replace(/_/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
+};
+
+const resolveLedgerReference = (event: BillingLedgerEvent) => {
+  if (!event.metadata || typeof event.metadata !== "object") return event.source_ref;
+  const metadata = event.metadata as Record<string, unknown>;
+  const invoiceId = typeof metadata.invoice_id === "string" ? metadata.invoice_id : null;
+  const checkoutSessionId =
+    typeof metadata.checkout_session_id === "string" ? metadata.checkout_session_id : null;
+  const packageId =
+    typeof metadata.credit_package_id === "string" ? metadata.credit_package_id : null;
+  return invoiceId ?? checkoutSessionId ?? packageId ?? event.source_ref;
+};
+
+const resolveLedgerLabel = (event: BillingLedgerEvent) => {
+  if (event.source === "subscription_renewal") return "Subscription renewal";
+  if (event.source === "stripe_checkout") return "Credit purchase";
+  if (event.source === "signup_seed") return "Initial plan allocation";
+  return "Billing activity";
 };
 
 export default function ProfilePage() {
   const router = useRouter();
   const { loading, user } = useProtectedRoute(true);
-  const { balanceCents, balanceLoading, refreshBalance } = useCredits();
+  const { balanceCents, balanceUpdatedAt, balanceLoading, refreshBalance } = useCredits();
+
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [displayNameInput, setDisplayNameInput] = useState("User");
   const [workspaceEmail, setWorkspaceEmail] = useState("");
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<NoticeState | null>(null);
+
   const [billingProfile, setBillingProfile] = useState<BillingProfile | null>(null);
   const [billingProfileLoading, setBillingProfileLoading] = useState(false);
-  const [creditPackages, setCreditPackages] = useState<CreditPackage[]>([]);
+  const [billingPlans, setBillingPlans] = useState<BillingPlanRecord[]>([]);
+  const [billingPlansLoading, setBillingPlansLoading] = useState(false);
+
+  const [creditPackages, setCreditPackages] = useState<CreditPackageRecord[]>([]);
   const [packagesLoading, setPackagesLoading] = useState(false);
   const [checkoutLoadingId, setCheckoutLoadingId] = useState<string | null>(null);
+
+  const [billingActivity, setBillingActivity] = useState<BillingLedgerEvent[]>([]);
+  const [billingActivityLoading, setBillingActivityLoading] = useState(false);
+
   const [portalLoading, setPortalLoading] = useState(false);
+  const [refreshingCredits, setRefreshingCredits] = useState(false);
 
   const section = useMemo<ProfileSection>(() => {
     const query = (router.query.section as string | undefined)?.toLowerCase();
-    if (query === "account" || query === "billing" || query === "subscription") return query as ProfileSection;
-    return "profile";
+    if (query === "subscription") return "billing";
+    if (query === "profile") return "account";
+    if (query === "account" || query === "billing") return query as ProfileSection;
+    return "account";
   }, [router.query.section]);
+
+  const checkoutStatus = useMemo(() => {
+    const queryValue = router.query.checkout;
+    return typeof queryValue === "string" ? queryValue.toLowerCase() : null;
+  }, [router.query.checkout]);
 
   useEffect(() => {
     const defaultName = user?.user_metadata?.full_name || user?.email || "User";
@@ -92,7 +143,7 @@ export default function ProfilePage() {
       const supabase = ensureSupabaseClient();
       const { data } = await supabase
         .from("billing_profiles")
-        .select("plan_id, subscription_status, current_period_end")
+        .select("plan_id, subscription_status, current_period_end, stripe_customer_id")
         .eq("user_id", currentUser.id)
         .maybeSingle();
       setBillingProfile((data as BillingProfile | null) ?? null);
@@ -100,6 +151,24 @@ export default function ProfilePage() {
       setBillingProfile(null);
     } finally {
       setBillingProfileLoading(false);
+    }
+  };
+
+  const loadBillingPlans = async () => {
+    setBillingPlansLoading(true);
+    try {
+      const supabase = ensureSupabaseClient();
+      const { data, error } = await supabase
+        .from("billing_plans")
+        .select("id, display_name, monthly_price_cents, monthly_credits_cents, is_active")
+        .eq("is_active", true)
+        .order("monthly_price_cents", { ascending: true });
+      if (error) throw error;
+      setBillingPlans(Array.isArray(data) ? (data as BillingPlanRecord[]) : []);
+    } catch {
+      setBillingPlans([]);
+    } finally {
+      setBillingPlansLoading(false);
     }
   };
 
@@ -111,31 +180,101 @@ export default function ProfilePage() {
       if (!response.ok) {
         throw new Error(data?.error || "Unable to load credit packages.");
       }
-      setCreditPackages(Array.isArray(data?.packages) ? data.packages : []);
+      setCreditPackages(
+        Array.isArray(data?.packages) ? (data.packages as CreditPackageRecord[]) : []
+      );
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to load credit packages.");
+      setNotice({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Unable to load credit packages.",
+      });
+      setCreditPackages([]);
     } finally {
       setPackagesLoading(false);
     }
   };
 
+  const loadBillingActivity = async (currentUser: User) => {
+    setBillingActivityLoading(true);
+    try {
+      const supabase = ensureSupabaseClient();
+      const { data, error } = await supabase
+        .from("ai_credit_ledger")
+        .select("id, change_cents, reason, source, source_ref, metadata, created_at")
+        .eq("user_id", currentUser.id)
+        .in("source", ["stripe_checkout", "subscription_renewal", "signup_seed"])
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      setBillingActivity(Array.isArray(data) ? (data as BillingLedgerEvent[]) : []);
+    } catch {
+      // Legacy environments may not have source/source_ref columns yet.
+      setBillingActivity([]);
+    } finally {
+      setBillingActivityLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
-    loadBillingProfile(user);
-    loadCreditPackages();
+    void loadBillingProfile(user);
+    void loadBillingPlans();
+    void loadCreditPackages();
+    void loadBillingActivity(user);
   }, [user]);
 
+  useEffect(() => {
+    if (!router.isReady || !checkoutStatus) return;
+
+    if (checkoutStatus === "success") {
+      setNotice({
+        tone: "success",
+        message: "Credit purchase completed. Your balance is syncing now.",
+      });
+      void refreshBalance({ silent: true });
+      if (user) {
+        void loadBillingActivity(user);
+      }
+    }
+
+    if (checkoutStatus === "cancel") {
+      setNotice({ tone: "info", message: "Checkout canceled. No charge was made." });
+    }
+
+    const nextQuery = { ...router.query };
+    delete nextQuery.checkout;
+    void router.replace({ pathname: router.pathname, query: nextQuery }, undefined, {
+      shallow: true,
+    });
+  }, [checkoutStatus, refreshBalance, router, user]);
+
   const displayName = displayNameInput || user?.email || "User";
-  const planId = normalizePlanId((billingProfile?.plan_id as string | undefined) ?? (user?.user_metadata?.plan as string | undefined));
-  const activePlan = planDetails[planId];
-  const planLabel = activePlan.label;
+  const activePlan = buildPlanView({
+    planId:
+      (billingProfile?.plan_id as string | undefined) ??
+      (user?.user_metadata?.plan as string | undefined),
+    plans: billingPlans,
+  });
+
+  const planLabel = activePlan.displayName;
   const planClass = activePlan.className;
+  const subscriptionStatus = billingProfile?.subscription_status ?? "inactive";
+  const subscriptionStatusLabel = formatStatusLabel(subscriptionStatus);
+
+  const nextBillingText =
+    activePlan.monthlyPriceCents <= 0
+      ? "None (Free plan)"
+      : billingProfile?.current_period_end
+        ? formatDateLabel(billingProfile.current_period_end)
+        : "Not scheduled";
+
+  const packageCards = useMemo(() => annotateCreditPackages(creditPackages), [creditPackages]);
 
   const handleSignOut = async () => {
     try {
       const supabase = ensureSupabaseClient();
       await supabase.auth.signOut();
-      router.replace("/auth");
+      await router.replace("/auth");
     } finally {
       setShowLogoutConfirm(false);
     }
@@ -150,43 +289,57 @@ export default function ProfilePage() {
       });
       if (error) throw error;
       setDisplayNameInput(nextName);
-      setNotice("Profile updated.");
+      setNotice({ tone: "success", message: "Profile updated." });
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Profile update failed.");
+      setNotice({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Profile update failed.",
+      });
     }
   };
 
   const handleEmailUpdate = async () => {
     const nextEmail = workspaceEmail.trim();
     if (!nextEmail) {
-      setNotice("Enter a valid email.");
+      setNotice({ tone: "error", message: "Enter a valid email." });
       return;
     }
+
     try {
       const supabase = ensureSupabaseClient();
       const { error } = await supabase.auth.updateUser({ email: nextEmail });
       if (error) throw error;
-      setNotice("Email update requested. Check your inbox to confirm.");
+      setNotice({
+        tone: "success",
+        message: "Email update requested. Check your inbox to confirm.",
+      });
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Email update failed.");
+      setNotice({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Email update failed.",
+      });
     }
   };
 
   const handlePasswordReset = async () => {
     const email = workspaceEmail.trim() || user?.email;
     if (!email) {
-      setNotice("No email is available for reset.");
+      setNotice({ tone: "error", message: "No email is available for reset." });
       return;
     }
+
     try {
       const supabase = ensureSupabaseClient();
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth`,
       });
       if (error) throw error;
-      setNotice("Password reset link sent.");
+      setNotice({ tone: "success", message: "Password reset link sent." });
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Password reset failed.");
+      setNotice({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Password reset failed.",
+      });
     }
   };
 
@@ -206,9 +359,15 @@ export default function ProfilePage() {
         window.location.href = data.checkoutUrl;
         return;
       }
-      setNotice("Checkout session created, but no redirect URL was returned.");
+      setNotice({
+        tone: "error",
+        message: "Checkout session created, but no redirect URL was returned.",
+      });
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to start checkout.");
+      setNotice({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Unable to start checkout.",
+      });
     } finally {
       setCheckoutLoadingId(null);
     }
@@ -217,9 +376,7 @@ export default function ProfilePage() {
   const handleOpenBillingPortal = async () => {
     setPortalLoading(true);
     try {
-      const response = await fetchWithAuth("/api/billing/stripe/portal", {
-        method: "POST",
-      });
+      const response = await fetchWithAuth("/api/billing/stripe/portal", { method: "POST" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.error || "Unable to open billing portal.");
@@ -228,35 +385,50 @@ export default function ProfilePage() {
         window.location.href = data.portalUrl;
         return;
       }
-      setNotice("Billing portal URL was not returned.");
+      setNotice({ tone: "error", message: "Billing portal URL was not returned." });
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to open billing portal.");
+      setNotice({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Unable to open billing portal.",
+      });
     } finally {
       setPortalLoading(false);
     }
   };
 
-  const nextBillingText = billingProfile?.current_period_end
-    ? new Date(billingProfile.current_period_end).toLocaleDateString()
-    : "Not scheduled";
-  const subscriptionStatus = billingProfile?.subscription_status ?? "inactive";
+  const handleRefreshCredits = async () => {
+    setRefreshingCredits(true);
+    const previous = balanceCents ?? 0;
+    const next = await refreshBalance();
+    setRefreshingCredits(false);
+
+    if (next === null) {
+      setNotice({ tone: "error", message: "Unable to sync credits right now. Please try again." });
+      return;
+    }
+
+    if (next === previous) {
+      setNotice({
+        tone: "info",
+        message: `Credits synced. Balance is still ${next.toLocaleString()}.`,
+      });
+      return;
+    }
+
+    setNotice({
+      tone: "success",
+      message: `Credits updated from ${previous.toLocaleString()} to ${next.toLocaleString()}.`,
+    });
+  };
 
   const content = {
-    profile: {
-      title: "Profile & presence",
-      body: "Control your workspace identity, avatar, and how you show up across dashboards.",
-    },
     account: {
-      title: "Account",
-      body: "Email and security settings.",
+      title: "Account settings",
+      body: "Manage identity, email, and security controls for your workspace.",
     },
     billing: {
       title: "Billing & credits",
-      body: "Manage your plan, purchases, and recurring billing.",
-    },
-    subscription: {
-      title: "Subscription",
-      body: "Review plan status and recurring credit allocation.",
+      body: "Manage subscriptions, top-ups, and billing history with clear cost controls.",
     },
   }[section];
 
@@ -271,8 +443,11 @@ export default function ProfilePage() {
   return (
     <>
       <Head>
-        <title>ShortPulse · Profile</title>
-        <meta name="description" content="Manage your ShortPulse profile, account settings, and billing." />
+        <title>ShortPulse · Settings</title>
+        <meta
+          name="description"
+          content="Manage account identity, security, subscription, and credits in ShortPulse."
+        />
       </Head>
       <main className="page page-wide dashboard-refresh profile-page profile-page-shell">
         <section className="profile-shell profile-shell-modern">
@@ -292,7 +467,11 @@ export default function ProfilePage() {
             </Link>
             <div className="profile-nav-list">
               {sections.map((item) => (
-                <Link key={item.key} href={`/profile?section=${item.key}`} className={`profile-nav-item ${section === item.key ? "active" : ""}`}>
+                <Link
+                  key={item.key}
+                  href={`/profile?section=${item.key}`}
+                  className={`profile-nav-item ${section === item.key ? "active" : ""}`}
+                >
                   <div className="profile-nav-item-icon">
                     <item.icon size={18} />
                   </div>
@@ -303,7 +482,11 @@ export default function ProfilePage() {
               ))}
             </div>
             <div className="profile-nav-footer">
-              <button type="button" className="ghost-btn profile-button" onClick={() => setShowLogoutConfirm(true)}>
+              <button
+                type="button"
+                className="ghost-btn profile-button"
+                onClick={() => setShowLogoutConfirm(true)}
+              >
                 <SignOut size={16} />
                 Log out
               </button>
@@ -314,13 +497,20 @@ export default function ProfilePage() {
             <div className="profile-heading">
               <h1>{content.title}</h1>
               <p className="subdued">{content.body}</p>
-              {notice ? <p className="tiny subdued">{notice}</p> : null}
+              {notice ? (
+                <p className={`tiny profile-notice profile-notice-${notice.tone}`} role="status">
+                  {notice.message}
+                </p>
+              ) : null}
             </div>
 
-            {section === "profile" ? (
-              <div className="profile-section-stack">
+            {section === "account" ? (
+              <div className="profile-section-grid">
                 <div className="profile-card">
-                  <h3>Edit Profile</h3>
+                  <h3>Profile</h3>
+                  <p className="tiny subdued">
+                    This name appears in your dashboard and workspace views.
+                  </p>
                   <div className="profile-field">
                     <label htmlFor="display-name">Display name</label>
                     <input
@@ -333,16 +523,16 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div className="profile-actions">
-                    <button type="button" className="primary-btn profile-button" onClick={handleProfileSave}>
+                    <button
+                      type="button"
+                      className="primary-btn profile-button"
+                      onClick={handleProfileSave}
+                    >
                       Save changes
                     </button>
                   </div>
                 </div>
-              </div>
-            ) : null}
 
-            {section === "account" ? (
-              <div className="profile-section-stack">
                 <div className="profile-card">
                   <h3>Email</h3>
                   <p className="tiny subdued">Changes are confirmed by email.</p>
@@ -358,7 +548,11 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div className="profile-actions">
-                    <button type="button" className="primary-btn profile-button" onClick={handleEmailUpdate}>
+                    <button
+                      type="button"
+                      className="primary-btn profile-button"
+                      onClick={handleEmailUpdate}
+                    >
                       Update email
                     </button>
                   </div>
@@ -367,7 +561,11 @@ export default function ProfilePage() {
                   <h3>Security</h3>
                   <p className="tiny subdued">Send a password reset link to your email.</p>
                   <div className="profile-actions">
-                    <button type="button" className="ghost-btn profile-button" onClick={handlePasswordReset}>
+                    <button
+                      type="button"
+                      className="ghost-btn profile-button"
+                      onClick={handlePasswordReset}
+                    >
                       Send reset link
                     </button>
                   </div>
@@ -375,106 +573,213 @@ export default function ProfilePage() {
               </div>
             ) : null}
 
-            {(section === "billing" || section === "subscription") ? (
+            {section === "billing" ? (
               <>
+                <details className="profile-billing-how">
+                  <summary>How billing works</summary>
+                  <p>
+                    Plans are monthly subscriptions with recurring credits. Credit packs are
+                    one-time top-ups. Every generation debits credits based on model cost, and your
+                    balance syncs from Supabase in real time.
+                  </p>
+                </details>
+
+                <div className="profile-summary-grid">
+                  <article className="profile-summary-card">
+                    <p className="tiny subdued">Current plan</p>
+                    <p className="summary-value">{planLabel}</p>
+                    <p className="tiny subdued">{activePlan.description}</p>
+                    <div className="profile-summary-meta">
+                      <span>{formatCurrencyFromCents(activePlan.monthlyPriceCents)} / month</span>
+                      <span>•</span>
+                      <span>{activePlan.monthlyCreditsCents.toLocaleString()} credits / month</span>
+                    </div>
+                  </article>
+
+                  <article className="profile-summary-card">
+                    <p className="tiny subdued">Credits</p>
+                    <p className="summary-value">
+                      {balanceLoading ? "…" : (balanceCents ?? 0).toLocaleString()}
+                    </p>
+                    <p className="tiny subdued">
+                      Last synced: {formatDateTimeLabel(balanceUpdatedAt)}
+                    </p>
+                  </article>
+
+                  <article className="profile-summary-card">
+                    <p className="tiny subdued">Billing identity</p>
+                    <p className="summary-value small">{user?.email ?? "No billing email"}</p>
+                    <p className="tiny subdued">
+                      {billingProfile?.stripe_customer_id
+                        ? "Payment method managed in Stripe billing portal"
+                        : "No payment method on file yet"}
+                    </p>
+                  </article>
+                </div>
+
                 <div className="profile-section-stack">
                   <div className="profile-card">
                     <div className="profile-card-header">
                       <div>
-                        <p className="eyebrow">Current Plan</p>
-                        <h3>{planLabel}</h3>
-                        <p className="subdued tiny">{activePlan.description}</p>
+                        <p className="eyebrow">Subscription & invoices</p>
+                        <h3>Manage subscription</h3>
+                        <p className="subdued tiny">
+                          Use Stripe portal for invoices, payment methods, and plan updates.
+                        </p>
                       </div>
-                      <span className="pill tiny pill-outline">{subscriptionStatus}</span>
+                      <span className="pill tiny pill-outline">{subscriptionStatusLabel}</span>
                     </div>
+
                     <div className="profile-metric-grid">
                       <div>
-                        <p className="tiny subdued">Price</p>
+                        <p className="tiny subdued">Recurring price</p>
                         <p className="meta-value">
-                          ${activePlan.price} <span className="tiny subdued">/ month</span>
+                          {formatCurrencyFromCents(activePlan.monthlyPriceCents)} / month
+                        </p>
+                      </div>
+                      <div>
+                        <p className="tiny subdued">Monthly credits</p>
+                        <p className="meta-value">
+                          {activePlan.monthlyCreditsCents.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="tiny subdued">Next billing</p>
+                        <p className="meta-value">
+                          {billingProfileLoading ? "…" : nextBillingText}
                         </p>
                       </div>
                       <div>
                         <p className="tiny subdued">Seats</p>
-                        <p className="meta-value">{activePlan.limit}</p>
+                        <p className="meta-value">{activePlan.seatsLabel}</p>
                       </div>
-                      <div>
-                        <p className="tiny subdued">Next billing</p>
-                        <p className="meta-value">{billingProfileLoading ? "…" : nextBillingText}</p>
+                    </div>
+
+                    <div className="profile-actions">
+                      <button
+                        type="button"
+                        className="profile-button primary-btn"
+                        onClick={handleOpenBillingPortal}
+                        disabled={portalLoading}
+                      >
+                        {portalLoading ? "Opening secure portal…" : "Open billing portal"}
+                      </button>
+                    </div>
+
+                    <div className="profile-receipts">
+                      <div className="profile-receipts-header">
+                        <h4>Recent billing activity</h4>
+                        <Receipt size={16} />
                       </div>
-                      <div>
-                        <p className="tiny subdued">Credits</p>
-                        <p className="meta-value">{balanceLoading ? "…" : (balanceCents ?? 0).toLocaleString()}</p>
-                      </div>
+
+                      {billingActivityLoading ? (
+                        <p className="tiny subdued">Loading activity…</p>
+                      ) : null}
+
+                      {!billingActivityLoading && billingActivity.length === 0 ? (
+                        <p className="tiny subdued">No recent billing events yet.</p>
+                      ) : null}
+
+                      {!billingActivityLoading && billingActivity.length > 0 ? (
+                        <ul className="profile-receipt-list">
+                          {billingActivity.map((event) => {
+                            const reference = resolveLedgerReference(event);
+                            const amountLabel = `${event.change_cents > 0 ? "+" : ""}${event.change_cents.toLocaleString()} credits`;
+                            return (
+                              <li key={event.id} className="profile-receipt-item">
+                                <div>
+                                  <p className="label">{resolveLedgerLabel(event)}</p>
+                                  <p className="tiny subdued">
+                                    {formatDateTimeLabel(event.created_at)}
+                                    {reference ? ` · Ref ${reference}` : ""}
+                                  </p>
+                                </div>
+                                <p className="tiny">{amountLabel}</p>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div className="profile-card profile-card-actions">
+                  <div className="profile-card">
                     <div className="profile-card-header">
                       <div>
-                        <p className="eyebrow">Billing actions</p>
-                        <h3>Payments & history</h3>
-                        <p className="subdued tiny">Open your Stripe billing portal for invoices and subscriptions.</p>
+                        <p className="eyebrow">Credits & top-ups</p>
+                        <h3>Buy credits</h3>
+                        <p className="subdued tiny">
+                          One-time purchases. Taxes may apply. Receipts are available in Stripe.
+                        </p>
                       </div>
-                      <CreditCard size={18} />
+                      <button
+                        type="button"
+                        className="profile-inline-action"
+                        onClick={handleRefreshCredits}
+                        disabled={refreshingCredits || balanceLoading}
+                      >
+                        <ArrowsClockwise size={15} />
+                        {refreshingCredits ? "Syncing…" : "Refresh credits"}
+                      </button>
                     </div>
-                    <div className="profile-action-list">
-                      <button type="button" className="profile-action" onClick={handleOpenBillingPortal} disabled={portalLoading}>
-                        <div>
-                          <p className="label">{portalLoading ? "Opening portal…" : "Open billing portal"}</p>
-                          <p className="tiny subdued">Manage cards, plan, and invoice history.</p>
+
+                    <div className="profile-plan-grid">
+                      {packagesLoading ? (
+                        <div className="profile-plan-card">
+                          <p className="tiny subdued">Loading credit packages…</p>
                         </div>
-                        <ArrowRight size={16} />
-                      </button>
-                      <button type="button" className="profile-action" onClick={() => refreshBalance()} disabled={balanceLoading}>
-                        <div>
-                          <p className="label">Refresh credits</p>
-                          <p className="tiny subdued">Sync your latest credit balance from Supabase.</p>
+                      ) : packageCards.length === 0 ? (
+                        <div className="profile-plan-card">
+                          <p className="tiny subdued">
+                            No active credit packages are configured yet.
+                          </p>
                         </div>
-                        <ArrowRight size={16} />
-                      </button>
+                      ) : (
+                        packageCards.map((pkg) => (
+                          <div key={pkg.id} className="profile-plan-card">
+                            <div className="profile-plan-top">
+                              <div>
+                                <p className="tiny subdued">Credit package</p>
+                                <h4>{pkg.display_name}</h4>
+                              </div>
+                              {pkg.badge ? (
+                                <span className="profile-plan-badge">{pkg.badge}</span>
+                              ) : (
+                                <CheckCircle size={18} />
+                              )}
+                            </div>
+
+                            <p className="meta-value">
+                              {pkg.credit_amount_cents.toLocaleString()}{" "}
+                              <span className="tiny subdued">credits</span>
+                            </p>
+                            <p className="tiny subdued">
+                              {formatCurrencyFromCents(pkg.price_cents)} one-time purchase
+                            </p>
+                            <p className="tiny subdued">{`$${pkg.unitUsdPerThousand.toFixed(2)} / 1,000 credits`}</p>
+
+                            <div className="profile-actions">
+                              <button
+                                type="button"
+                                className="profile-button primary-btn"
+                                onClick={() => handleCheckout(pkg.id)}
+                                aria-label={`Buy ${pkg.display_name} for ${formatCurrencyFromCents(pkg.price_cents)}`}
+                                disabled={checkoutLoadingId === pkg.id}
+                              >
+                                {checkoutLoadingId === pkg.id
+                                  ? "Starting checkout…"
+                                  : "Buy credits"}
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
-                </div>
 
-                <div className="profile-plan-grid">
-                  {packagesLoading ? (
-                    <div className="profile-plan-card">
-                      <p className="tiny subdued">Loading credit packages…</p>
-                    </div>
-                  ) : creditPackages.length === 0 ? (
-                    <div className="profile-plan-card">
-                      <p className="tiny subdued">No active credit packages are configured yet.</p>
-                    </div>
-                  ) : (
-                    creditPackages.map((pkg) => (
-                      <div key={pkg.id} className="profile-plan-card">
-                        <div className="profile-plan-top">
-                          <div>
-                            <p className="tiny subdued">Credit package</p>
-                            <h4>{pkg.display_name}</h4>
-                          </div>
-                          <CheckCircle size={18} />
-                        </div>
-                        <p className="meta-value">
-                          {pkg.credit_amount_cents.toLocaleString()} <span className="tiny subdued">credits</span>
-                        </p>
-                        <p className="tiny subdued">
-                          ${(pkg.price_cents / 100).toFixed(2)} one-time purchase
-                        </p>
-                        <div className="profile-actions">
-                          <button
-                            type="button"
-                            className="profile-button primary-btn"
-                            onClick={() => handleCheckout(pkg.id)}
-                            disabled={checkoutLoadingId === pkg.id}
-                          >
-                            {checkoutLoadingId === pkg.id ? "Starting checkout…" : "Buy credits"}
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                  {billingPlansLoading ? (
+                    <p className="tiny subdued">Loading catalog details…</p>
+                  ) : null}
                 </div>
               </>
             ) : null}
@@ -487,7 +792,11 @@ export default function ProfilePage() {
               <h3>Are you sure?</h3>
               <p className="subdued tiny">You will be signed out of ShortPulse.</p>
               <div className="modal-actions">
-                <button type="button" className="ghost-btn" onClick={() => setShowLogoutConfirm(false)}>
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  onClick={() => setShowLogoutConfirm(false)}
+                >
                   No
                 </button>
                 <button type="button" className="primary-btn" onClick={handleSignOut}>

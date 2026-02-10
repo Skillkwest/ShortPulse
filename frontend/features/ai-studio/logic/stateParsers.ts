@@ -12,6 +12,7 @@ import {
 import type { ModelMediaType, ModelOption } from "../constants";
 import type { KeiTaskStatus } from "../../../lib/keiClient";
 import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
+import type { StudioMode, StudioOutput } from "../types";
 
 export type Provider =
   | "kei"
@@ -35,14 +36,22 @@ export type Provider =
   | "fal-veo-i2v";
 
 export const resolveModelLabel = (value?: string) =>
-  value ? modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})` : "Choose Model";
+  value
+    ? (modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})`)
+    : "Choose Model";
 
-export const normalizeAspectForKei = (value: string) => (keiAllowedAspects.has(value) ? value : "auto");
-export const normalizeAspectForFalNanoBanana = (value: string) => (falNanoBananaAllowedAspects.has(value) ? value : "1:1");
-export const normalizeAspectForFalNanoBananaPro = (value: string) => (falNanoBananaProAllowedAspects.has(value) ? value : "4:5");
-export const resolveKlingAspectRatio = (value: string): FalKlingTextSubmitRequest["aspect_ratio"] =>
-  (klingAllowedAspects.has(value) ? (value as FalKlingTextSubmitRequest["aspect_ratio"]) : "16:9");
-export const resolveKlingDuration = (seconds: number): FalKlingTextSubmitRequest["duration"] => (seconds <= 5 ? 5 : 10);
+export const normalizeAspectForKei = (value: string) =>
+  keiAllowedAspects.has(value) ? value : "auto";
+export const normalizeAspectForFalNanoBanana = (value: string) =>
+  falNanoBananaAllowedAspects.has(value) ? value : "1:1";
+export const normalizeAspectForFalNanoBananaPro = (value: string) =>
+  falNanoBananaProAllowedAspects.has(value) ? value : "4:5";
+export const resolveKlingAspectRatio = (
+  value: string
+): FalKlingTextSubmitRequest["aspect_ratio"] =>
+  klingAllowedAspects.has(value) ? (value as FalKlingTextSubmitRequest["aspect_ratio"]) : "16:9";
+export const resolveKlingDuration = (seconds: number): FalKlingTextSubmitRequest["duration"] =>
+  seconds <= 5 ? 5 : 10;
 export const resolveKlingV3Duration = (seconds: number): number => {
   if (!Number.isFinite(seconds)) return 5;
   const rounded = Math.round(seconds);
@@ -57,7 +66,13 @@ export const resolveSeedreamImageSize = (aspect: string): string => {
   const normalized = aspect.trim();
   if (normalized === "1:1") return "square";
   if (normalized === "3:4" || normalized === "4:5" || normalized === "5:4") return "portrait_4_3";
-  if (normalized === "4:3" || normalized === "3:2" || normalized === "21:9" || normalized === "16:9") return "landscape_16_9";
+  if (
+    normalized === "4:3" ||
+    normalized === "3:2" ||
+    normalized === "21:9" ||
+    normalized === "16:9"
+  )
+    return "landscape_16_9";
   if (normalized === "9:16" || normalized === "2:3") return "portrait_16_9";
   return "landscape_16_9";
 };
@@ -74,12 +89,10 @@ export const computeModalPosition = (target: HTMLElement): { top: number; left: 
 
 export const isVideoUrl = (url: string | null | undefined) =>
   !!url &&
-  (
-    /\.mp4(\?|$)/i.test(url) ||
+  (/\.mp4(\?|$)/i.test(url) ||
     url.includes("/video") ||
     url.includes("video=") ||
-    (url.startsWith("blob:") && url.includes("video=1"))
-  );
+    (url.startsWith("blob:") && url.includes("video=1")));
 
 export const mapAgentReferences = (outputs: any[], activeOutputId: string | null) => {
   const mapped = outputs.map((item) => ({
@@ -120,12 +133,12 @@ const readFileAsDataUrl = (file: File): Promise<string> => {
 
 export const mapUploadsFromFiles = async (
   files: FileList,
-  mode: any,
+  mode: StudioMode,
   aspect: string,
   model: string | null,
   resolveModelLabelFn: (value?: string) => string,
   randomIdFn: () => string
-) => {
+): Promise<StudioOutput[]> => {
   const mediaFiles = Array.from(files).filter(
     (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
   );
@@ -135,7 +148,11 @@ export const mapUploadsFromFiles = async (
       const dataUrl = await readFileAsDataUrl(file);
       const isVideo = file.type.startsWith("video/");
       // Add video marker to data URL for type detection
-      const url = isVideo ? (dataUrl.includes("?") ? `${dataUrl}&video=1` : `${dataUrl}#video=1`) : dataUrl;
+      const url = isVideo
+        ? dataUrl.includes("?")
+          ? `${dataUrl}&video=1`
+          : `${dataUrl}#video=1`
+        : dataUrl;
 
       return {
         id: `upload-${randomIdFn()}`,
@@ -143,7 +160,7 @@ export const mapUploadsFromFiles = async (
         mode,
         aspect,
         model: resolveModelLabelFn(model ?? undefined),
-        modelId: model,
+        modelId: model ?? undefined,
         status: "ready" as const,
         timestamp: "Dropped",
         previewUrl: url,
@@ -160,7 +177,7 @@ export const filterModelOptions = (
   mode: string,
   selectedTool: string | null,
   options: ModelOption[],
-  getModelConfig: (id: string) => any,
+  getModelConfig: (id: string) => any
 ): ModelOption[] => {
   const mediaFilter: Extract<ModelMediaType, "image" | "video"> | null = (() => {
     if (selectedTool === "create" || selectedTool === "text") {
@@ -176,7 +193,11 @@ export const filterModelOptions = (
   if (mediaFilter) {
     filtered = filtered.filter((opt) => {
       if (!opt.mediaType || opt.mediaType === mediaFilter || opt.mediaType === "multi") return true;
-      if (selectedTool === "video" && (opt.mediaType === "image-to-video" || opt.mediaType === "keyframes")) return true;
+      if (
+        selectedTool === "video" &&
+        (opt.mediaType === "image-to-video" || opt.mediaType === "keyframes")
+      )
+        return true;
       return false;
     });
   }
@@ -253,7 +274,10 @@ export const extractFalMediaUrls = (status: any): string[] => {
   return [];
 };
 
-export const extractResultUrls = (resultJson: KeiTaskStatus["resultJson"], fallback?: unknown): string[] => {
+export const extractResultUrls = (
+  resultJson: KeiTaskStatus["resultJson"],
+  fallback?: unknown
+): string[] => {
   if (!resultJson && fallback && typeof fallback === "object") {
     const urls = (fallback as any)?.resultUrls || (fallback as any)?.info?.result_urls;
     if (Array.isArray(urls)) return urls as string[];

@@ -8,7 +8,15 @@ import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import type { User } from "@supabase/supabase-js";
-import { ChartBar, CloudArrowUp, FolderSimple, ShieldCheck, Sparkle, UsersThree, type IconProps } from "phosphor-react";
+import {
+  ChartBar,
+  CloudArrowUp,
+  FolderSimple,
+  ShieldCheck,
+  Sparkle,
+  UsersThree,
+  type IconProps,
+} from "phosphor-react";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 
 /**
@@ -108,7 +116,8 @@ export default function DashboardPage() {
     },
     {
       title: "AI Studio",
-      description: "Generate and iterate images/videos with prompt systems, models, and aspect control.",
+      description:
+        "Generate and iterate images/videos with prompt systems, models, and aspect control.",
       href: "/ai-studio",
       cta: "Open studio →",
       variant: "tool-creator",
@@ -117,7 +126,8 @@ export default function DashboardPage() {
     },
     {
       title: "Performance Analytics",
-      description: "Compare high-performing Reels, TikToks, and Shorts across niches (Analytics coming soon).",
+      description:
+        "Compare high-performing Reels, TikToks, and Shorts across niches (Analytics coming soon).",
       href: "/performance-soon",
       cta: "Open analytics →",
       variant: "tool-performance",
@@ -181,7 +191,10 @@ export default function DashboardPage() {
           content="ShortPulse dashboard with performance analytics, creator studio, and media library."
         />
       </Head>
-      <main className="page page-wide dashboard-refresh">
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+      <main id="main-content" className="page page-wide dashboard-refresh">
         <header className="app-bar">
           <Link href="/" className="brand-mark brand-mark-logo" aria-label="ShortPulse home">
             <img src="/brand-logo.png" alt="ShortPulse logo" className="brand-logo" />
@@ -201,16 +214,17 @@ export default function DashboardPage() {
               ))}
             </div>
             <div className="user-cluster profile-menu" ref={profileMenuRef}>
-              <button className="avatar-card" onClick={() => setProfileMenuOpen((v) => !v)} aria-label="Profile menu">
+              <button
+                className="avatar-card"
+                onClick={() => setProfileMenuOpen((v) => !v)}
+                aria-label="Profile menu"
+              >
                 <div className="avatar">{initials}</div>
               </button>
               {profileMenuOpen && (
                 <div className="profile-dropdown">
-                  <Link href="/profile?section=profile" onClick={() => setProfileMenuOpen(false)}>
-                    Profile settings
-                  </Link>
                   <Link href="/profile?section=account" onClick={() => setProfileMenuOpen(false)}>
-                    Account settings
+                    Account & profile settings
                   </Link>
                   <Link href="/profile?section=billing" onClick={() => setProfileMenuOpen(false)}>
                     Billing & subscription
@@ -237,15 +251,23 @@ export default function DashboardPage() {
                 Welcome back, <span>{firstName}</span>
               </h1>
               <p className="hero-subtext">
-                Your dashboard is the launch surface for analytics, creator ops, and storage—built for fast decisions and
-                secure tooling.
+                Your dashboard is the launch surface for analytics, creator ops, and storage—built
+                for fast decisions and secure tooling.
               </p>
             </div>
             <div className="hero-visual">
-              <img src="/dashboard/welcome-art.png" alt="Dashboard visual" className="hero-graphic" />
+              <img
+                src="/dashboard/welcome-art.png"
+                alt="Dashboard visual"
+                className="hero-graphic"
+              />
             </div>
             <div className="hero-quick-row">
-              <Link href="/onboarding" className="hero-onboarding">
+              <Link
+                href="/onboarding"
+                className="hero-onboarding"
+                aria-label="Onboarding Courses: Guided walkthroughs for Creator Studio workflows"
+              >
                 <div>
                   <p className="eyebrow tiny">Quick start</p>
                   <h3>Onboarding Courses</h3>
@@ -253,11 +275,17 @@ export default function DashboardPage() {
                 </div>
                 <span>Enter →</span>
               </Link>
-              <Link href="/onboarding?section=workflows" className="hero-onboarding hero-workflow-card">
+              <Link
+                href="/onboarding?section=workflows"
+                className="hero-onboarding hero-workflow-card"
+                aria-label="AI Workflow Lessons: Deep dives on creation playbooks and applied prompts"
+              >
                 <div>
                   <p className="eyebrow tiny">Workflows</p>
                   <h3>AI Workflow Lessons</h3>
-                  <p className="subdued tiny">Deep dives on creation playbooks and applied prompts.</p>
+                  <p className="subdued tiny">
+                    Deep dives on creation playbooks and applied prompts.
+                  </p>
                 </div>
                 <span>Explore →</span>
               </Link>
@@ -265,8 +293,10 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="tools-section">
-          <p className="eyebrow">Tools</p>
+        <section className="tools-section" aria-labelledby="tools-heading">
+          <h2 id="tools-heading" className="eyebrow">
+            Tools
+          </h2>
           <div className="tool-card-grid">
             {toolCards.map((tool) => {
               return (
@@ -276,10 +306,10 @@ export default function DashboardPage() {
                   className={`tool-card ${tool.variant ?? ""} ${tool.disabled ? "is-disabled" : ""}`}
                   aria-disabled={tool.disabled}
                   tabIndex={tool.disabled ? -1 : undefined}
+                  role="article"
+                  aria-label={`${tool.title}: ${tool.description}`}
                 >
-                  {tool.icon ? (
-                    <div className="tool-card-icon" aria-hidden="true" />
-                  ) : null}
+                  {tool.icon ? <div className="tool-card-icon" aria-hidden="true" /> : null}
                   {tool.image ? (
                     <div className="tool-card-hero">
                       <img src={tool.image} alt={`${tool.title} visual`} />
@@ -301,15 +331,24 @@ export default function DashboardPage() {
         </div>
       </main>
       {showLogoutConfirm && (
-        <div className="modal-overlay">
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-labelledby="logout-title"
+          aria-modal="true"
+        >
           <div className="modal-card">
-            <h3>Are you sure?</h3>
+            <h3 id="logout-title">Are you sure?</h3>
             <p className="subdued tiny">You will be signed out of ShortPulse.</p>
             <div className="modal-actions">
-              <button type="button" className="ghost-btn" onClick={() => setShowLogoutConfirm(false)}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
                 No
               </button>
-              <button type="button" className="primary-btn" onClick={handleSignOut}>
+              <button type="button" className="btn-primary" onClick={handleSignOut}>
                 Yes, log out
               </button>
             </div>

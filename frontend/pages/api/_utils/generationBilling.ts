@@ -106,7 +106,10 @@ const summarizePayload = (payload: JsonObject): JsonObject => {
   }, {} as JsonObject);
 };
 
-const buildPricingParams = (modelId: string, payload: JsonObject): Omit<PricingParams, "modelId"> => {
+const buildPricingParams = (
+  modelId: string,
+  payload: JsonObject
+): Omit<PricingParams, "modelId"> => {
   const params: Omit<PricingParams, "modelId"> = {};
 
   const aspect = resolveAspectFromImageSize(payload);
@@ -122,7 +125,10 @@ const buildPricingParams = (modelId: string, payload: JsonObject): Omit<PricingP
   if (audio !== undefined) params.audio = audio;
 
   const voiceIds = payload.voice_ids;
-  if (Array.isArray(voiceIds) && voiceIds.filter((item) => typeof item === "string" && item.trim().length > 0).length > 0) {
+  if (
+    Array.isArray(voiceIds) &&
+    voiceIds.filter((item) => typeof item === "string" && item.trim().length > 0).length > 0
+  ) {
     params.voiceControl = true;
   }
 
@@ -153,14 +159,21 @@ const resolveSourceRef = (req: NextApiRequest): string => {
   return randomUUID();
 };
 
-const isInsufficientCreditError = (message: string): boolean => /insufficient credits/i.test(message);
+const isInsufficientCreditError = (message?: string): boolean =>
+  /insufficient credits/i.test(message ?? "");
 const isDuplicateError = (code?: string | null, message?: string): boolean =>
   code === "23505" || /duplicate key value/i.test(message ?? "");
 
 /**
  * Debits credits for a model call before provider submission.
  */
-export const chargeGenerationRequest = async ({ req, res, modelId, payload, reason }: ChargeOptions): Promise<ChargeResult | null> => {
+export const chargeGenerationRequest = async ({
+  req,
+  res,
+  modelId,
+  payload,
+  reason,
+}: ChargeOptions): Promise<ChargeResult | null> => {
   const user = await requireApiUser(req, res);
   if (!user) return null;
 
@@ -203,7 +216,10 @@ export const chargeGenerationRequest = async ({ req, res, modelId, payload, reas
     return null;
   }
 
-  const refund = async (message = "Auto-refund: generation submit failed.", extra: JsonObject = {}) => {
+  const refund = async (
+    message = "Auto-refund: generation submit failed.",
+    extra: JsonObject = {}
+  ) => {
     const { error } = await insertCreditLedgerEntry({
       userId: user.id,
       changeCents: Math.abs(Math.trunc(breakdown.credits)),

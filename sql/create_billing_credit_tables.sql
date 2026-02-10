@@ -16,9 +16,9 @@ create table if not exists billing_plans (
 insert into billing_plans (id, display_name, monthly_price_cents, monthly_credits_cents, stripe_price_id, is_active)
 values
     ('free', 'Free', 0, 100, null, true),
-    ('media', 'Media', 1200, 500, null, true),
-    ('pro', 'Pro', 3900, 2000, null, true),
-    ('creative_suite', 'Creative Suite', 12900, 7500, null, true)
+    ('media', 'Media', 1200, 600, null, true),
+    ('studio', 'Studio', 3900, 3000, null, true),
+    ('business', 'Business', 12900, 12000, null, true)
 on conflict (id) do update
 set display_name = excluded.display_name,
     monthly_price_cents = excluded.monthly_price_cents,
@@ -46,7 +46,8 @@ insert into billing_credit_packages (id, display_name, credit_amount_cents, pric
 values
     ('starter_500', 'Starter 500', 500, 700, null, true, 10),
     ('growth_2000', 'Growth 2,000', 2000, 2600, null, true, 20),
-    ('scale_6000', 'Scale 6,000', 6000, 7800, null, true, 30)
+    ('scale_6000', 'Scale 6,000', 6000, 7800, null, true, 30),
+    ('studio_10000', 'Studio 10,000', 10000, 10000, null, true, 40)
 on conflict (id) do update
 set display_name = excluded.display_name,
     credit_amount_cents = excluded.credit_amount_cents,

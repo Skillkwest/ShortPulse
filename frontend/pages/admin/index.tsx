@@ -7,7 +7,12 @@ import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { CloudSlash, ShieldCheck, UserCircle } from "phosphor-react";
 import { ErrorIncidentsPanel } from "../../features/admin/components/ErrorIncidentsPanel";
-import type { AdminErrorLogRow, AdminErrorSummary, AdminPagination, AdminUserRow } from "../../features/admin/types";
+import type {
+  AdminErrorLogRow,
+  AdminErrorSummary,
+  AdminPagination,
+  AdminUserRow,
+} from "../../features/admin/types";
 import { useProtectedRoute } from "../../lib/authGuard";
 import styles from "../../styles/admin.module.css";
 import { fetchWithAuth } from "../../lib/authenticatedFetch";
@@ -24,7 +29,11 @@ const isAdminUser = (user: any): boolean => {
 
 const planLabel = (planId: string | null): string => {
   if (!planId) return "—";
-  if (planId === "creative_suite") return "Creative Suite";
+  // Handle legacy plan names
+  if (planId === "creative_suite" || planId === "creative") return "Business";
+  if (planId === "pro") return "Studio";
+  if (planId === "business") return "Business";
+  if (planId === "studio") return "Studio";
   return planId.charAt(0).toUpperCase() + planId.slice(1);
 };
 
@@ -64,7 +73,9 @@ export default function AdminDashboardPage() {
     last24hCount: 0,
   });
   const [errorStatusFilter, setErrorStatusFilter] = useState<"open" | "all">("open");
-  const [errorSeverityFilter, setErrorSeverityFilter] = useState<"all" | "high" | "medium" | "low">("all");
+  const [errorSeverityFilter, setErrorSeverityFilter] = useState<"all" | "high" | "medium" | "low">(
+    "all"
+  );
   const [errorSourceFilter, setErrorSourceFilter] = useState<string>("all");
   const [errorSearch, setErrorSearch] = useState("");
   const [debouncedErrorSearch, setDebouncedErrorSearch] = useState("");
@@ -94,7 +105,9 @@ export default function AdminDashboardPage() {
         params.set("search", debouncedUserSearch.trim());
       }
 
-      const response = await fetchWithAuth(`/api/admin/users?${params.toString()}`, { method: "GET" });
+      const response = await fetchWithAuth(`/api/admin/users?${params.toString()}`, {
+        method: "GET",
+      });
       if (!response.ok) {
         if (response.status === 403) {
           setServerDenied(true);
@@ -156,7 +169,9 @@ export default function AdminDashboardPage() {
       if (errorSourceFilter !== "all") params.set("source", errorSourceFilter);
       if (debouncedErrorSearch.trim()) params.set("search", debouncedErrorSearch.trim());
 
-      const response = await fetchWithAuth(`/api/admin/errors?${params.toString()}`, { method: "GET" });
+      const response = await fetchWithAuth(`/api/admin/errors?${params.toString()}`, {
+        method: "GET",
+      });
       if (!response.ok) {
         if (response.status === 403) {
           setServerDenied(true);
@@ -188,7 +203,8 @@ export default function AdminDashboardPage() {
           id: String(value.id ?? ""),
           source: String(value.source ?? "unknown"),
           scope: value.scope === "generation" ? "generation" : "app",
-          severity: value.severity === "high" || value.severity === "low" ? value.severity : "medium",
+          severity:
+            value.severity === "high" || value.severity === "low" ? value.severity : "medium",
           status: value.status === "resolved" || value.status === "ignored" ? value.status : "open",
           message: String(value.message ?? "Unknown error"),
           stack: typeof value.stack === "string" ? value.stack : null,
@@ -198,10 +214,15 @@ export default function AdminDashboardPage() {
           httpStatus: Number.isFinite(Number(value.http_status)) ? Number(value.http_status) : null,
           userId: typeof value.user_id === "string" ? value.user_id : null,
           userEmail: typeof value.user_email === "string" ? value.user_email : null,
-          metadata: value.metadata && typeof value.metadata === "object" ? (value.metadata as Record<string, unknown>) : null,
+          metadata:
+            value.metadata && typeof value.metadata === "object"
+              ? (value.metadata as Record<string, unknown>)
+              : null,
           firstSeenAt: typeof value.first_seen_at === "string" ? value.first_seen_at : null,
           lastSeenAt: typeof value.last_seen_at === "string" ? value.last_seen_at : null,
-          occurrencesCount: Number.isFinite(Number(value.occurrences_count)) ? Number(value.occurrences_count) : 1,
+          occurrencesCount: Number.isFinite(Number(value.occurrences_count))
+            ? Number(value.occurrences_count)
+            : 1,
         };
       }) as AdminErrorLogRow[];
 
@@ -266,11 +287,15 @@ export default function AdminDashboardPage() {
       openIssues: errorSummary.openCount,
       pendingCredits: users.filter((row) => row.credits <= 0).length,
     }),
-    [errorSummary.openCount, users, usersPagination.totalCount],
+    [errorSummary.openCount, users, usersPagination.totalCount]
   );
 
-  const usersResultStart = usersPagination.totalCount === 0 ? 0 : (usersPagination.page - 1) * usersPagination.perPage + 1;
-  const usersResultEnd = Math.min(usersPagination.page * usersPagination.perPage, usersPagination.totalCount);
+  const usersResultStart =
+    usersPagination.totalCount === 0 ? 0 : (usersPagination.page - 1) * usersPagination.perPage + 1;
+  const usersResultEnd = Math.min(
+    usersPagination.page * usersPagination.perPage,
+    usersPagination.totalCount
+  );
 
   const handleCreditAdjust = async () => {
     const normalized = Number(adjustment);
@@ -341,7 +366,12 @@ export default function AdminDashboardPage() {
                 {usersError ?? "We could not verify admin access right now. Retry in a moment."}
               </p>
               <div className={styles.searchRow}>
-                <button type="button" className="ghost-btn mini" onClick={loadUsers} disabled={usersLoading}>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={loadUsers}
+                  disabled={usersLoading}
+                >
                   {usersLoading ? "Retrying…" : "Retry access check"}
                 </button>
                 <Link href="/dashboard" className="ghost-btn mini">
@@ -376,14 +406,19 @@ export default function AdminDashboardPage() {
     <>
       <Head>
         <title>ShortPulse · Admin</title>
-        <meta name="description" content="Admin dashboard for monitoring users, credits, and errors." />
+        <meta
+          name="description"
+          content="Admin dashboard for monitoring users, credits, and errors."
+        />
       </Head>
       <main className={`page page-wide ${styles.adminPage}`}>
         <header className={styles.adminHeader}>
           <div>
             <p className="eyebrow">Admin Dashboard</p>
             <h1 className={styles.adminTitle}>Operations overview</h1>
-            <p className="tiny subdued">Monitor plan allocations, credits, and actionable app failures.</p>
+            <p className="tiny subdued">
+              Monitor plan allocations, credits, and actionable app failures.
+            </p>
           </div>
           <div className={styles.adminUserPill}>
             <ShieldCheck size={18} weight="fill" />
@@ -442,9 +477,16 @@ export default function AdminDashboardPage() {
               <div className={styles.adminSectionHead}>
                 <div>
                   <p className="eyebrow">Users & credits</p>
-                  <p className="tiny subdued">Adjust balances manually when support requests come in.</p>
+                  <p className="tiny subdued">
+                    Adjust balances manually when support requests come in.
+                  </p>
                 </div>
-                <button type="button" className="ghost-btn mini" onClick={loadUsers} disabled={usersLoading}>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={loadUsers}
+                  disabled={usersLoading}
+                >
                   {usersLoading ? "Refreshing…" : "Refresh"}
                 </button>
               </div>
@@ -497,7 +539,9 @@ export default function AdminDashboardPage() {
                       <span>{planLabel(row.planId)}</span>
                       <span className="mono">{row.credits.toLocaleString()}</span>
                       <span className="subdued">{row.subscriptionStatus ?? "inactive"}</span>
-                      <span className="subdued">{row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "—"}</span>
+                      <span className="subdued">
+                        {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "—"}
+                      </span>
                     </div>
                   ))
                 )}
@@ -533,7 +577,9 @@ export default function AdminDashboardPage() {
               <div className={styles.adminSectionHead}>
                 <div>
                   <p className="eyebrow">Manual adjustment</p>
-                  <p className="tiny subdued">Use positive numbers to add credits, negative to remove.</p>
+                  <p className="tiny subdued">
+                    Use positive numbers to add credits, negative to remove.
+                  </p>
                 </div>
               </div>
               <div className={styles.searchRow}>
@@ -561,7 +607,12 @@ export default function AdminDashboardPage() {
                   onChange={(event) => setAdjustReason(event.target.value)}
                   placeholder="Reason (required)"
                 />
-                <button type="button" className="ghost-btn mini" onClick={handleCreditAdjust} disabled={adjustSubmitting}>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={handleCreditAdjust}
+                  disabled={adjustSubmitting}
+                >
                   {adjustSubmitting ? "Applying…" : "Apply"}
                 </button>
               </div>

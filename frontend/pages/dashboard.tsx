@@ -66,12 +66,12 @@ export default function DashboardPage() {
     user?.email ??
     "Guest";
   const firstName = (displayName || "creator").split(" ")[0];
-  const planTier = (user?.user_metadata?.plan as string | undefined)?.toLowerCase() || "creative";
+  const planTier = (user?.user_metadata?.plan as string | undefined)?.toLowerCase() || "business";
   const planMap: Record<string, { label: string; className: string }> = {
     free: { label: "Free", className: "plan-free" },
     media: { label: "Media", className: "plan-media" },
-    pro: { label: "Pro", className: "plan-pro" },
-    creative: { label: "Creative Suite", className: "plan-creative" },
+    studio: { label: "Studio", className: "plan-studio" },
+    business: { label: "Business", className: "plan-business" },
   };
   const planMeta = planMap[planTier] || planMap.free;
   const initials =

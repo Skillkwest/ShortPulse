@@ -3,6 +3,7 @@
 Use this as the running list of tasks and future ideas. Keep items concise and scoped; move completed work into the change log.
 
 ## Near-term (MVP hardening)
+- **[HIGH PRIORITY] Create Stripe price IDs for updated billing tiers** (Free, Media, Studio, Business) and credit packages (starter_500, growth_2000, scale_6000, studio_10000). Document price IDs and update `billing_plans.stripe_price_id` and `billing_credit_packages.stripe_price_id` in Supabase.
 - Confirm Supabase schemas (`saved_creators`, `media_files`) and RLS work end-to-end.
 - Add lightweight component/integration tests for auth + saved creators + media library.
 - Add client-side logging/error surfacing for Supabase operations.

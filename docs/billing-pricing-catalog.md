@@ -17,14 +17,15 @@ Purpose: keep subscription and credit-pack pricing easy to change without touchi
 ## Current catalog (2026-02-10)
 ### Subscription plans
 - `free`: `$0`, `100` credits/month
-- `media`: `$12`, `500` credits/month
-- `pro`: `$39`, `2,000` credits/month
-- `creative_suite`: `$129`, `7,500` credits/month
+- `media`: `$12`, `600` credits/month
+- `studio`: `$39`, `3,000` credits/month
+- `business`: `$129`, `12,000` credits/month
 
 ### Credit packs
 - `starter_500`: `$7`, `500` credits
 - `growth_2000`: `$26`, `2,000` credits
 - `scale_6000`: `$78`, `6,000` credits
+- `studio_10000`: `$100`, `10,000` credits
 
 ## How to change pricing
 1. Update live catalog values in Supabase using:

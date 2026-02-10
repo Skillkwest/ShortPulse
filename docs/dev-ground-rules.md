@@ -9,7 +9,7 @@ Use this document to keep the expectations clear whenever I’m making changes i
 5. **Keep user data scoped.** Any Supabase work must preserve per-user isolation by default (auth checks, RLS policies, namespaced storage paths).
 6. **Ship UI changes with matching styles.** When adding a page or component, wire the relevant CSS and reference the design palette/spacing so the experience stays cohesive with the rest of the app.
 7. **Surface impact in docs.** Major additions (routes, SOPs, security tweaks) deserve at least a note in the appropriate document (`docs/backlog.md`, `sop_*`, etc.) so future contributors know what changed.
-8. **Plan label palette is fixed.** Wherever plan info is shown, use: `Free` (white), `Media` (green `#4ea09e`), `Pro` (brand blue/teal), `Creative Suite` (amber). Default prototype plan is `Creative Suite` unless user metadata overrides.
+8. **Plan label palette is fixed.** Wherever plan info is shown, use: `Free` (white), `Media` (green `#4ea09e`), `Studio` (brand blue/teal), `Business` (amber). Default prototype plan is `Business` unless user metadata overrides.
 9. **Default to clean, readable modules.** Optimize for clarity over cleverness; code should stay easy to read, maintain, and extend.
 10. **Keep files short (guideline).** Aim for ~500 lines or less; if a file grows beyond that, document the reason and plan a split when practical.
 11. **Separate concerns.** UI, logic, data access, and utilities live in their own files/modules—no god files, no mixed responsibilities, no generic dumping-ground utils.

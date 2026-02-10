@@ -36,13 +36,13 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     seatsLabel: "2 seats",
     description: "Ideal for creators testing cadence.",
   },
-  pro: {
-    className: "plan-pro",
+  studio: {
+    className: "plan-studio",
     seatsLabel: "Up to 5 seats",
     description: "Built for consistent creative production.",
   },
-  creative_suite: {
-    className: "plan-creative",
+  business: {
+    className: "plan-business",
     seatsLabel: "Team access",
     description: "Highest throughput for heavy AI workloads.",
   },
@@ -55,10 +55,14 @@ const DEFAULT_PLAN_ID = "free";
  */
 export const normalizePlanId = (value: string | undefined | null): string => {
   const normalized = (value ?? "").toLowerCase().trim();
-  if (normalized === "creative") return "creative_suite";
-  if (normalized === "creative_suite") return "creative_suite";
+  // Handle legacy plan names
+  if (normalized === "pro") return "studio";
+  if (normalized === "creative") return "business";
+  if (normalized === "creative_suite") return "business";
+  // Current plan names
+  if (normalized === "business") return "business";
+  if (normalized === "studio") return "studio";
   if (normalized === "media") return "media";
-  if (normalized === "pro") return "pro";
   if (normalized === "free") return "free";
   return DEFAULT_PLAN_ID;
 };
@@ -80,7 +84,7 @@ export const buildPlanView = (params: {
     id: normalizedId,
     displayName:
       resolvedCatalog?.display_name ??
-      (normalizedId === "creative_suite" ? "Creative Suite" : "Free"),
+      (normalizedId === "business" ? "Business" : normalizedId === "studio" ? "Studio" : "Free"),
     className: presentation.className,
     description: presentation.description,
     seatsLabel: presentation.seatsLabel,

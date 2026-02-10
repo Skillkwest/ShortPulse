@@ -76,7 +76,7 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### billing_plans
-- `id` (text, pk): free | media | pro | creative_suite.
+- `id` (text, pk): free | media | studio | business.
 - `display_name` (text): UI-facing plan label.
 - `monthly_price_cents` (int): Plan price in cents.
 - `monthly_credits_cents` (int): Recurring monthly credits allocated to the plan.

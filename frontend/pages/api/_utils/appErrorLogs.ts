@@ -47,6 +47,7 @@ type ApiExceptionOptions = {
 type ExistingOpenLogRow = {
   id: string | null;
   occurrences_count: number | null;
+  metadata: JsonObject | null;
 };
 
 const MAX_MESSAGE_LENGTH = 600;
@@ -163,7 +164,8 @@ const shouldSkipLog = (params: {
   if (params.scope !== "app") return true;
   if (params.statusCode !== null && params.statusCode < 500) return true;
   if (params.endpoint?.includes("/api/log/client-error")) return true;
-  if (params.source === "client.api_network" && /aborterror|aborted/i.test(params.message)) return true;
+  if (params.source === "client.api_network" && /aborterror|aborted/i.test(params.message))
+    return true;
   return false;
 };
 
@@ -171,6 +173,64 @@ const requestHeaderValue = (value: string | string[] | undefined): string | null
   if (typeof value === "string") return toTrimmedString(value);
   if (Array.isArray(value) && value[0]) return toTrimmedString(value[0]);
   return null;
+};
+
+const jsonValueEquals = (left: unknown, right: unknown): boolean => {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+};
+
+const mergeMetadataValue = (existingValue: unknown, incomingValue: unknown): unknown => {
+  if (existingValue === undefined) return incomingValue;
+  if (jsonValueEquals(existingValue, incomingValue)) return existingValue;
+
+  const existingList = Array.isArray(existingValue) ? existingValue : [existingValue];
+  const mergedList = [...existingList];
+  const incomingList = Array.isArray(incomingValue) ? incomingValue : [incomingValue];
+
+  for (const entry of incomingList) {
+    const alreadyPresent = mergedList.some((current) => jsonValueEquals(current, entry));
+    if (!alreadyPresent) {
+      mergedList.push(entry);
+    }
+  }
+
+  return mergedList.slice(0, 10);
+};
+
+const mergeIncidentMetadata = (existingRaw: unknown, incomingRaw: unknown): JsonObject => {
+  const existing = sanitizeMetadata(existingRaw);
+  const incoming = sanitizeMetadata(incomingRaw);
+  const merged: JsonObject = { ...existing };
+  for (const [key, value] of Object.entries(incoming)) {
+    merged[key] = mergeMetadataValue(merged[key], value);
+  }
+  return sanitizeMetadata(merged);
+};
+
+const resolveReleaseMetadata = (): JsonObject => {
+  const release =
+    toTrimmedString(process.env.SHORTPULSE_RELEASE, 120) ??
+    toTrimmedString(process.env.VERCEL_GIT_COMMIT_SHA, 120) ??
+    toTrimmedString(process.env.VERCEL_DEPLOYMENT_ID, 120) ??
+    null;
+  const branch =
+    toTrimmedString(process.env.VERCEL_GIT_COMMIT_REF, 120) ??
+    toTrimmedString(process.env.VERCEL_GIT_COMMIT_BRANCH, 120) ??
+    null;
+  const environment =
+    toTrimmedString(process.env.VERCEL_ENV, 80) ??
+    toTrimmedString(process.env.NODE_ENV, 80) ??
+    null;
+  const metadata: JsonObject = {
+    app_release: release,
+    app_branch: branch,
+    app_environment: environment,
+  };
+  return sanitizeMetadata(metadata);
 };
 
 /**
@@ -186,7 +246,7 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
   const endpoint = toTrimmedString(input.endpoint);
   const requestId = toTrimmedString(input.requestId, 120);
   const severity = sanitizeSeverity(input.severity, statusCode);
-  const metadata = sanitizeMetadata(input.metadata);
+  const metadata = mergeIncidentMetadata(input.metadata, resolveReleaseMetadata());
   const userId = toTrimmedString(input.userId, 120);
   const userEmail = toTrimmedString(input.userEmail, 320);
   const occurredAt = normalizeOccurredAt(input.occurredAt) ?? new Date().toISOString();
@@ -210,7 +270,7 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
 
   let existingQuery = adminDb
     .from("app_error_logs")
-    .select("id, occurrences_count")
+    .select("id, occurrences_count, metadata")
     .eq("fingerprint", fingerprint)
     .eq("status", "open")
     .limit(1)
@@ -230,6 +290,7 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
 
   if (existing && existing.id) {
     const nextCount = Math.max(1, Number(existing.occurrences_count ?? 1)) + 1;
+    const mergedMetadata = mergeIncidentMetadata(existing.metadata, metadata);
     const { error: updateError } = await adminDb
       .from("app_error_logs")
       .update({
@@ -242,7 +303,7 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
         request_id: requestId,
         http_status: statusCode,
         severity,
-        metadata,
+        metadata: mergedMetadata,
         user_email: userEmail,
       })
       .eq("id", existing.id);
@@ -296,8 +357,9 @@ export const logApiRouteException = async ({
 }: ApiExceptionOptions): Promise<void> => {
   try {
     const resolvedUser = user ?? (await getOptionalApiUser(req));
-    const message = error instanceof Error ? error.message : String(error ?? "Unknown API exception");
-    const stack = error instanceof Error ? error.stack ?? null : null;
+    const message =
+      error instanceof Error ? error.message : String(error ?? "Unknown API exception");
+    const stack = error instanceof Error ? (error.stack ?? null) : null;
     const requestId = requestHeaderValue(req.headers["x-shortpulse-request-id"]);
 
     await writeAppErrorLog({

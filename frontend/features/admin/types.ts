@@ -11,12 +11,15 @@ export type AdminUserRow = {
   createdAt: string | null;
 };
 
+export type AdminErrorStatus = "open" | "ignored" | "resolved";
+
 export type AdminErrorLogRow = {
   id: string;
+  fingerprint: string;
   source: string;
   scope: "app" | "generation";
   severity: "low" | "medium" | "high";
-  status: "open" | "ignored" | "resolved";
+  status: AdminErrorStatus;
   message: string;
   stack: string | null;
   route: string | null;

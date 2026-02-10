@@ -2,9 +2,14 @@
  * Admin error incidents panel.
  * Renders summary cards, filters, and grouped incident rows for operator triage.
  */
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { WarningCircle } from "phosphor-react";
-import type { AdminErrorLogRow, AdminErrorSummary, AdminPagination } from "../types";
+import type {
+  AdminErrorLogRow,
+  AdminErrorSummary,
+  AdminPagination,
+  AdminErrorStatus,
+} from "../types";
 import styles from "../../../styles/admin.module.css";
 
 type ErrorIncidentsPanelProps = {
@@ -17,10 +22,12 @@ type ErrorIncidentsPanelProps = {
   errorSourceFilter: string;
   errorSearch: string;
   errorPagination: AdminPagination;
+  statusUpdatingErrorId: string | null;
   onErrorStatusFilterChange: (value: "open" | "all") => void;
   onErrorSeverityFilterChange: (value: "all" | "high" | "medium" | "low") => void;
   onErrorSourceFilterChange: (value: string) => void;
   onErrorSearchChange: (value: string) => void;
+  onUpdateErrorStatus: (errorId: string, status: AdminErrorStatus) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
   onRefresh: () => void;
@@ -39,6 +46,46 @@ const sourceLabel = (value: string): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" · ");
 
+const buildIncidentPacket = (row: AdminErrorLogRow): string =>
+  JSON.stringify(
+    {
+      shortpulseIncidentVersion: 1,
+      copiedAt: new Date().toISOString(),
+      incident: {
+        id: row.id,
+        fingerprint: row.fingerprint,
+        status: row.status,
+        severity: row.severity,
+        source: row.source,
+        scope: row.scope,
+        message: row.message,
+        stack: row.stack,
+        route: row.route,
+        endpoint: row.endpoint,
+        requestId: row.requestId,
+        httpStatus: row.httpStatus,
+        userId: row.userId,
+        userEmail: row.userEmail,
+        firstSeenAt: row.firstSeenAt,
+        lastSeenAt: row.lastSeenAt,
+        occurrencesCount: row.occurrencesCount,
+        metadata: row.metadata ?? {},
+      },
+    },
+    null,
+    2
+  );
+
+const copyToClipboard = async (text: string): Promise<boolean> => {
+  if (typeof window === "undefined" || !navigator?.clipboard) return false;
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Displays operator-focused app incident telemetry.
  */
@@ -52,30 +99,53 @@ export function ErrorIncidentsPanel({
   errorSourceFilter,
   errorSearch,
   errorPagination,
+  statusUpdatingErrorId,
   onErrorStatusFilterChange,
   onErrorSeverityFilterChange,
   onErrorSourceFilterChange,
   onErrorSearchChange,
+  onUpdateErrorStatus,
   onPrevPage,
   onNextPage,
   onRefresh,
 }: ErrorIncidentsPanelProps) {
+  const [copiedIncidentId, setCopiedIncidentId] = useState<string | null>(null);
   const errorSourceOptions = useMemo(() => {
     const values = new Set(errors.map((row) => row.source));
     return ["all", ...Array.from(values).sort()];
   }, [errors]);
 
-  const resultStart = errorPagination.totalCount === 0 ? 0 : (errorPagination.page - 1) * errorPagination.perPage + 1;
-  const resultEnd = Math.min(errorPagination.page * errorPagination.perPage, errorPagination.totalCount);
+  const resultStart =
+    errorPagination.totalCount === 0 ? 0 : (errorPagination.page - 1) * errorPagination.perPage + 1;
+  const resultEnd = Math.min(
+    errorPagination.page * errorPagination.perPage,
+    errorPagination.totalCount
+  );
+
+  const handleCopyIncident = useCallback(async (row: AdminErrorLogRow) => {
+    const success = await copyToClipboard(buildIncidentPacket(row));
+    if (!success) return;
+    setCopiedIncidentId(row.id);
+    window.setTimeout(() => {
+      setCopiedIncidentId((current) => (current === row.id ? null : current));
+    }, 1200);
+  }, []);
 
   return (
     <section className={styles.adminSection}>
       <div className={styles.adminSectionHead}>
         <div>
           <p className="eyebrow">Errors</p>
-          <p className="tiny subdued">Actionable app/runtime failures grouped by fingerprint and user.</p>
+          <p className="tiny subdued">
+            Actionable app/runtime failures grouped by fingerprint and user.
+          </p>
         </div>
-        <button type="button" className="ghost-btn mini" onClick={onRefresh} disabled={errorsLoading}>
+        <button
+          type="button"
+          className="ghost-btn mini"
+          onClick={onRefresh}
+          disabled={errorsLoading}
+        >
           {errorsLoading ? "Refreshing…" : "Refresh"}
         </button>
       </div>
@@ -118,7 +188,9 @@ export function ErrorIncidentsPanel({
         <select
           className={styles.searchInput}
           value={errorSeverityFilter}
-          onChange={(event) => onErrorSeverityFilterChange(event.target.value as "all" | "high" | "medium" | "low")}
+          onChange={(event) =>
+            onErrorSeverityFilterChange(event.target.value as "all" | "high" | "medium" | "low")
+          }
         >
           <option value="all">Severity: All</option>
           <option value="high">Severity: High</option>
@@ -126,7 +198,11 @@ export function ErrorIncidentsPanel({
           <option value="low">Severity: Low</option>
         </select>
 
-        <select className={styles.searchInput} value={errorSourceFilter} onChange={(event) => onErrorSourceFilterChange(event.target.value)}>
+        <select
+          className={styles.searchInput}
+          value={errorSourceFilter}
+          onChange={(event) => onErrorSourceFilterChange(event.target.value)}
+        >
           {errorSourceOptions.map((value) => (
             <option key={value} value={value}>
               {value === "all" ? "Source: All" : `Source: ${sourceLabel(value)}`}
@@ -139,7 +215,7 @@ export function ErrorIncidentsPanel({
           type="search"
           value={errorSearch}
           onChange={(event) => onErrorSearchChange(event.target.value)}
-          placeholder="Search message, user, endpoint, request id, source"
+          placeholder="Search message, user, endpoint, request id, fingerprint, source"
         />
       </div>
       <div className={styles.searchRow}>
@@ -147,13 +223,23 @@ export function ErrorIncidentsPanel({
           Showing {resultStart}-{resultEnd} of {errorPagination.totalCount}
         </p>
         <div className={styles.tabRow}>
-          <button type="button" className="ghost-btn mini" onClick={onPrevPage} disabled={errorsLoading || !errorPagination.hasPrevPage}>
+          <button
+            type="button"
+            className="ghost-btn mini"
+            onClick={onPrevPage}
+            disabled={errorsLoading || !errorPagination.hasPrevPage}
+          >
             Prev
           </button>
           <span className="tiny subdued">
             Page {errorPagination.page} of {errorPagination.totalPages}
           </span>
-          <button type="button" className="ghost-btn mini" onClick={onNextPage} disabled={errorsLoading || !errorPagination.hasNextPage}>
+          <button
+            type="button"
+            className="ghost-btn mini"
+            onClick={onNextPage}
+            disabled={errorsLoading || !errorPagination.hasNextPage}
+          >
             Next
           </button>
         </div>
@@ -168,6 +254,7 @@ export function ErrorIncidentsPanel({
           <span>Location</span>
           <span>Hits</span>
           <span>Last seen</span>
+          <span>Actions</span>
         </div>
 
         {errorsError ? (
@@ -176,6 +263,7 @@ export function ErrorIncidentsPanel({
             <span className="subdued">—</span>
             <span className="subdued">—</span>
             <span className="subdued">{errorsError}</span>
+            <span className="subdued">—</span>
             <span className="subdued">—</span>
             <span className="subdued">—</span>
             <span className="subdued">—</span>
@@ -189,16 +277,25 @@ export function ErrorIncidentsPanel({
             <span className="subdued">—</span>
             <span className="subdued">0</span>
             <span className="subdued">—</span>
+            <span className="subdued">—</span>
           </div>
         ) : (
           errors.map((row) => (
             <div
               key={row.id}
               className={`${styles.adminErrorsRow} ${
-                row.severity === "high" ? styles.severityHigh : row.severity === "low" ? styles.severityLow : styles.severityMedium
+                row.severity === "high"
+                  ? styles.severityHigh
+                  : row.severity === "low"
+                    ? styles.severityLow
+                    : styles.severityMedium
               }`}
             >
-              <span className={`${styles.pill} ${row.severity === "high" ? styles.pillWarn : styles.pillOk}`}>{row.severity}</span>
+              <span
+                className={`${styles.pill} ${row.severity === "high" ? styles.pillWarn : styles.pillOk}`}
+              >
+                {row.severity}
+              </span>
               <span>{sourceLabel(row.source)}</span>
               <div className={styles.errorCell}>
                 <span>{row.userEmail ?? "Unknown user"}</span>
@@ -207,8 +304,11 @@ export function ErrorIncidentsPanel({
               <div className={styles.errorCell}>
                 <span>{row.message}</span>
                 <span className="tiny subdued">
+                  {`Status ${row.status}`}
+                  {" · "}
                   {row.httpStatus ? `HTTP ${row.httpStatus}` : "No HTTP status"}
                   {row.requestId ? ` · req ${row.requestId}` : ""}
+                  {row.fingerprint ? ` · fp ${row.fingerprint.slice(0, 10)}` : ""}
                 </span>
               </div>
               <div className={styles.errorCell}>
@@ -219,6 +319,47 @@ export function ErrorIncidentsPanel({
               <div className={styles.errorCell}>
                 <span>{formatDateTime(row.lastSeenAt)}</span>
                 <span className="tiny subdued">First: {formatDateTime(row.firstSeenAt)}</span>
+              </div>
+              <div className={styles.errorActions}>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={() => {
+                    void handleCopyIncident(row);
+                  }}
+                  disabled={statusUpdatingErrorId === row.id}
+                >
+                  {copiedIncidentId === row.id ? "Copied" : "Copy"}
+                </button>
+                {row.status === "open" ? (
+                  <>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => onUpdateErrorStatus(row.id, "resolved")}
+                      disabled={statusUpdatingErrorId === row.id}
+                    >
+                      {statusUpdatingErrorId === row.id ? "Updating…" : "Resolve"}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => onUpdateErrorStatus(row.id, "ignored")}
+                      disabled={statusUpdatingErrorId === row.id}
+                    >
+                      Ignore
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => onUpdateErrorStatus(row.id, "open")}
+                    disabled={statusUpdatingErrorId === row.id}
+                  >
+                    {statusUpdatingErrorId === row.id ? "Updating…" : "Reopen"}
+                  </button>
+                )}
               </div>
             </div>
           ))

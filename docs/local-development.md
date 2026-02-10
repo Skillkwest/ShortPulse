@@ -33,6 +33,8 @@ ShortPulse runs as a client-only Next.js app.
    - `STUDIO_AGENT_FORMATTER`
    - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
    - `NEXT_PUBLIC_AGENT_V2`
+   - `SHORTPULSE_RELEASE` (optional explicit release/build tag for error incidents)
+   - `NEXT_PUBLIC_SHORTPULSE_RELEASE` (optional client release tag for error incidents)
 
 Never commit `.env.local`.
 

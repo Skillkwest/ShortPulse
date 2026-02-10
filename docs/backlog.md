@@ -4,6 +4,8 @@ Use this as the running list of tasks and future ideas. Keep items concise and s
 
 ## Near-term (MVP hardening)
 - **[HIGH PRIORITY] Create Stripe price IDs for updated billing tiers** (Free, Media, Studio, Business) and credit packages (starter_500, growth_2000, scale_6000, studio_10000). Document price IDs and update `billing_plans.stripe_price_id` and `billing_credit_packages.stripe_price_id` in Supabase.
+- **[HIGH PRIORITY] Configure Stripe Billing Portal for Subscription tab**: Enable "Subscription update" and "Subscription cancel" features in Stripe Dashboard. Set cancellation behavior to "Cancel at period end" to allow users to manage plans via the new Subscription tab at `/profile?section=subscription`.
+- **Test Subscription tab end-to-end**: Verify upgrade/downgrade/cancel flows work correctly through Stripe portal, webhooks sync plan changes back to `billing_profiles`, and credit allocations trigger on renewal.
 - Confirm Supabase schemas (`saved_creators`, `media_files`) and RLS work end-to-end.
 - Add lightweight component/integration tests for auth + saved creators + media library.
 - Add client-side logging/error surfacing for Supabase operations.

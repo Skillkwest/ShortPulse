@@ -92,7 +92,11 @@ const shouldSkip = (event: ClientAppErrorEvent): boolean => {
   const endpoint = endpointPath(event.endpoint);
   if (endpoint?.includes("/api/log/client-error")) return true;
 
-  if (typeof event.statusCode === "number" && Number.isFinite(event.statusCode) && event.statusCode < 500) {
+  if (
+    typeof event.statusCode === "number" &&
+    Number.isFinite(event.statusCode) &&
+    event.statusCode < 500
+  ) {
     return true;
   }
 
@@ -109,7 +113,15 @@ const buildFingerprint = (event: ClientAppErrorEvent): string => {
   const route = normalizeText(event.route) ?? currentRoute() ?? "";
   const message = normalizeText(event.message) ?? "unknown";
   const stackLine = normalizeText(event.stack ?? "", 300)?.split("\n")[0] ?? "";
-  return [event.source, scope, endpoint, route, message, stackLine, String(event.statusCode ?? "")].join("|");
+  return [
+    event.source,
+    scope,
+    endpoint,
+    route,
+    message,
+    stackLine,
+    String(event.statusCode ?? ""),
+  ].join("|");
 };
 
 const throttleDuplicate = (fingerprint: string): boolean => {
@@ -119,6 +131,17 @@ const throttleDuplicate = (fingerprint: string): boolean => {
   if (!previous) return false;
   return now - previous < THROTTLE_WINDOW_MS;
 };
+
+const resolveClientReleaseMetadata = (): JsonObject => ({
+  client_release:
+    normalizeText(process.env.NEXT_PUBLIC_SHORTPULSE_RELEASE, 120) ??
+    normalizeText(process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA, 120) ??
+    null,
+  client_environment:
+    normalizeText(process.env.NEXT_PUBLIC_VERCEL_ENV, 80) ??
+    normalizeText(process.env.NODE_ENV, 80) ??
+    null,
+});
 
 const reportToApi = async (event: ClientAppErrorEvent): Promise<void> => {
   const token = await readAccessToken();
@@ -141,7 +164,10 @@ const reportToApi = async (event: ClientAppErrorEvent): Promise<void> => {
       endpoint: endpointPath(event.endpoint),
       requestId: normalizeText(event.requestId, 120),
       statusCode: typeof event.statusCode === "number" ? Math.trunc(event.statusCode) : null,
-      metadata: event.metadata ?? {},
+      metadata: {
+        ...resolveClientReleaseMetadata(),
+        ...(event.metadata ?? {}),
+      },
       occurredAt: event.occurredAt ?? new Date().toISOString(),
     }),
     keepalive: true,

@@ -14,7 +14,9 @@ import {
   Receipt,
   SignOut,
   Sparkle,
+  Stack,
   UserCircle,
+  WarningCircle,
 } from "phosphor-react";
 import {
   annotateCreditPackages,
@@ -27,7 +29,7 @@ import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { useProtectedRoute } from "../lib/authGuard";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 
-type ProfileSection = "account" | "billing";
+type ProfileSection = "account" | "subscription" | "billing";
 
 type BillingProfile = {
   plan_id: string | null;
@@ -55,6 +57,7 @@ type NoticeState = {
 
 const sections: { key: ProfileSection; label: string; icon: typeof UserCircle }[] = [
   { key: "account", label: "Account", icon: UserCircle },
+  { key: "subscription", label: "Subscription", icon: Stack },
   { key: "billing", label: "Billing & credits", icon: CreditCard },
 ];
 
@@ -99,6 +102,8 @@ export default function ProfilePage() {
   const { balanceCents, balanceUpdatedAt, balanceLoading, refreshBalance } = useCredits();
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelTargetPlan, setCancelTargetPlan] = useState<string | null>(null);
   const [displayNameInput, setDisplayNameInput] = useState("User");
   const [workspaceEmail, setWorkspaceEmail] = useState("");
   const [notice, setNotice] = useState<NoticeState | null>(null);
@@ -120,9 +125,9 @@ export default function ProfilePage() {
 
   const section = useMemo<ProfileSection>(() => {
     const query = (router.query.section as string | undefined)?.toLowerCase();
-    if (query === "subscription") return "billing";
     if (query === "profile") return "account";
-    if (query === "account" || query === "billing") return query as ProfileSection;
+    if (query === "account" || query === "subscription" || query === "billing")
+      return query as ProfileSection;
     return "account";
   }, [router.query.section]);
 
@@ -426,6 +431,10 @@ export default function ProfilePage() {
       title: "Account settings",
       body: "Manage identity, email, and security controls for your workspace.",
     },
+    subscription: {
+      title: "Subscription plans",
+      body: "Choose the plan that fits your content creation needs. Change or cancel anytime.",
+    },
     billing: {
       title: "Billing & credits",
       body: "Manage subscriptions, top-ups, and billing history with clear cost controls.",
@@ -571,6 +580,177 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </div>
+            ) : null}
+
+            {section === "subscription" ? (
+              <>
+                <details className="profile-billing-how">
+                  <summary>How subscriptions work</summary>
+                  <p>
+                    Monthly plans include recurring credits. You can upgrade or downgrade anytime.
+                    Upgrades take effect immediately with prorated charges. Downgrades apply at the
+                    end of your billing period. Credits never expire.
+                  </p>
+                </details>
+
+                <div className="profile-summary-grid">
+                  <article className="profile-summary-card">
+                    <p className="tiny subdued">Current plan</p>
+                    <p className="summary-value">{planLabel}</p>
+                    <p className="tiny subdued">{activePlan.description}</p>
+                  </article>
+
+                  <article className="profile-summary-card">
+                    <p className="tiny subdued">Status</p>
+                    <p className="summary-value small">{subscriptionStatusLabel}</p>
+                    <p className="tiny subdued">
+                      {billingProfile?.current_period_end
+                        ? `Renews ${formatDateLabel(billingProfile.current_period_end)}`
+                        : "No active subscription"}
+                    </p>
+                  </article>
+
+                  <article className="profile-summary-card">
+                    <p className="tiny subdued">Monthly credits</p>
+                    <p className="summary-value">
+                      {activePlan.monthlyCreditsCents.toLocaleString()}
+                    </p>
+                    <p className="tiny subdued">Renews automatically each billing cycle</p>
+                  </article>
+                </div>
+
+                <div className="profile-card">
+                  <div className="profile-card-header">
+                    <div>
+                      <p className="eyebrow">All plans</p>
+                      <h3>Choose your subscription</h3>
+                      <p className="subdued tiny">
+                        Plans are billed monthly. Cancel or change anytime via Stripe portal.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="profile-plan-grid">
+                    {billingPlansLoading ? (
+                      <div className="profile-plan-card">
+                        <p className="tiny subdued">Loading plans…</p>
+                      </div>
+                    ) : billingPlans.length === 0 ? (
+                      <div className="profile-plan-card">
+                        <p className="tiny subdued">No active plans configured yet.</p>
+                      </div>
+                    ) : (
+                      billingPlans.map((plan) => {
+                        const planView = buildPlanView({ planId: plan.id, plans: billingPlans });
+                        const isCurrentPlan = activePlan.id === plan.id;
+                        const isHigherTier =
+                          plan.monthly_price_cents > activePlan.monthlyPriceCents;
+                        const isLowerTier = plan.monthly_price_cents < activePlan.monthlyPriceCents;
+                        const isFree = plan.monthly_price_cents === 0;
+
+                        // Badge logic
+                        let badge = null;
+                        if (isCurrentPlan) {
+                          badge = "Current Plan";
+                        } else if (plan.id === "media") {
+                          badge = "Popular";
+                        } else if (plan.id === "business") {
+                          badge = "Best Value";
+                        }
+
+                        return (
+                          <div
+                            key={plan.id}
+                            className={`profile-plan-card ${isCurrentPlan ? "current" : ""}`}
+                          >
+                            <div className="profile-plan-top">
+                              <div>
+                                <p className="tiny subdued">
+                                  {isFree ? "Free tier" : "Monthly subscription"}
+                                </p>
+                                <h4>{planView.displayName}</h4>
+                              </div>
+                              {badge ? (
+                                <span className="profile-plan-badge">{badge}</span>
+                              ) : (
+                                <CheckCircle size={18} />
+                              )}
+                            </div>
+
+                            <p className="meta-value">
+                              {formatCurrencyFromCents(plan.monthly_price_cents)}
+                              <span className="tiny subdued"> / month</span>
+                            </p>
+
+                            <p className="tiny subdued">{planView.description}</p>
+
+                            <div className="profile-divider" />
+
+                            <div className="profile-card-footer">
+                              <p className="tiny subdued">
+                                <strong>{plan.monthly_credits_cents.toLocaleString()}</strong>{" "}
+                                credits/month
+                              </p>
+                              <p className="tiny subdued">
+                                <strong>{planView.seatsLabel}</strong>
+                              </p>
+                            </div>
+
+                            <div className="profile-actions">
+                              {isCurrentPlan ? (
+                                <button type="button" className="profile-button ghost-btn" disabled>
+                                  Current Plan
+                                </button>
+                              ) : isHigherTier ? (
+                                <button
+                                  type="button"
+                                  className="profile-button primary-btn"
+                                  onClick={handleOpenBillingPortal}
+                                  disabled={portalLoading}
+                                >
+                                  {portalLoading
+                                    ? "Opening portal…"
+                                    : `Upgrade to ${planView.displayName}`}
+                                </button>
+                              ) : isLowerTier && !isFree ? (
+                                <button
+                                  type="button"
+                                  className="profile-button ghost-btn"
+                                  onClick={handleOpenBillingPortal}
+                                  disabled={portalLoading}
+                                >
+                                  {portalLoading
+                                    ? "Opening portal…"
+                                    : `Downgrade to ${planView.displayName}`}
+                                </button>
+                              ) : isFree && !isCurrentPlan ? (
+                                <button
+                                  type="button"
+                                  className="profile-button ghost-btn"
+                                  onClick={() => {
+                                    setCancelTargetPlan(plan.id);
+                                    setShowCancelConfirm(true);
+                                  }}
+                                >
+                                  Cancel subscription
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <div className="profile-callout">
+                  <WarningCircle size={18} />
+                  <p className="tiny">
+                    Plan changes are managed through Stripe&apos;s secure billing portal. Changes
+                    sync automatically to your account.
+                  </p>
+                </div>
+              </>
             ) : null}
 
             {section === "billing" ? (
@@ -801,6 +981,49 @@ export default function ProfilePage() {
                 </button>
                 <button type="button" className="primary-btn" onClick={handleSignOut}>
                   Yes, log out
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {showCancelConfirm ? (
+          <div className="modal-overlay">
+            <div className="modal-card">
+              <h3>Cancel subscription?</h3>
+              <p className="subdued tiny">
+                You&apos;ll be downgraded to the Free plan at the end of your current billing period
+                ({formatDateLabel(billingProfile?.current_period_end ?? null)}). You&apos;ll lose
+                access to:
+              </p>
+              <ul className="subdued tiny" style={{ marginLeft: "20px", marginTop: "8px" }}>
+                <li>{activePlan.monthlyCreditsCents.toLocaleString()} monthly credits</li>
+                <li>{activePlan.seatsLabel}</li>
+              </ul>
+              <p className="subdued tiny" style={{ marginTop: "12px" }}>
+                Any unused credits will remain in your account. You can resubscribe anytime.
+              </p>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  onClick={() => {
+                    setShowCancelConfirm(false);
+                    setCancelTargetPlan(null);
+                  }}
+                >
+                  Keep subscription
+                </button>
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={() => {
+                    setShowCancelConfirm(false);
+                    setCancelTargetPlan(null);
+                    handleOpenBillingPortal();
+                  }}
+                >
+                  Continue to billing portal
                 </button>
               </div>
             </div>

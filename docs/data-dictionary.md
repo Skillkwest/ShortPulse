@@ -148,7 +148,7 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `http_status` (int, nullable): HTTP status when available.
 - `user_id` (uuid, nullable): Auth user who experienced the incident.
 - `user_email` (text, nullable): Snapshot email for faster admin triage.
-- `metadata` (jsonb): Extra context (method, user agent, route label, etc.).
+- `metadata` (jsonb): Extra context (method, user agent, route label, release/build tags, deployment headers, etc.). Repeated incidents merge metadata values so context accumulates across occurrences.
 - `first_seen_at` / `last_seen_at` (timestamptz): First/most recent observed timestamps for this grouped incident.
 - `occurrences_count` (int): Number of times this incident has recurred.
 - `created_at` / `updated_at` (timestamptz)

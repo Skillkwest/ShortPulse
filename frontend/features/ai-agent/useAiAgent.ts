@@ -3,7 +3,13 @@
  * Manages chat state locally and exposes a send helper with structured responses.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AgentActions, AgentApiRequest, AgentContext, AgentMessage, AgentResponse } from "../../prefabs/agent";
+import type {
+  AgentActions,
+  AgentApiRequest,
+  AgentContext,
+  AgentMessage,
+  AgentResponse,
+} from "../../prefabs/agent";
 import { buildAgentContext } from "./logic/contextBuilder";
 import { randomId } from "../ai-studio/logic/ids";
 import { fetchWithAuth } from "../../lib/authenticatedFetch";
@@ -27,12 +33,16 @@ type SendResult = {
   actions: AgentActions | undefined;
 };
 
+// Stable default to prevent Fast Refresh issues
+const EMPTY_MESSAGES: AgentMessage[] = [];
+
 const normalizeActions = (raw?: AgentActions | Record<string, any>): AgentActions | undefined => {
   if (!raw) return undefined;
   const applyPrompt = (raw as any).applyPrompt ?? (raw as any).apply_prompt ?? null;
   const referenceCard = (raw as any).referenceCard ?? (raw as any).reference_card ?? undefined;
   const variations = (raw as any).variations ?? undefined;
-  const describeTargets = (raw as any).describeTargets ?? (raw as any).describe_targets ?? undefined;
+  const describeTargets =
+    (raw as any).describeTargets ?? (raw as any).describe_targets ?? undefined;
   const questions = (raw as any).questions ?? undefined;
   return {
     applyPrompt,
@@ -43,12 +53,21 @@ const normalizeActions = (raw?: AgentActions | Record<string, any>): AgentAction
   };
 };
 
-export const useAiAgent = ({ initialMessages = [], enabled = true, conversationId, persist = true }: UseAiAgentOptions = {}) => {
+export const useAiAgent = ({
+  initialMessages = EMPTY_MESSAGES,
+  enabled = true,
+  conversationId,
+  persist = true,
+}: UseAiAgentOptions = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>(initialMessages);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesRef = useRef<AgentMessage[]>(initialMessages);
-  const conversationIdRef = useRef<string>(conversationId || randomId());
+  // Use a stable ref initialization to prevent Fast Refresh issues
+  const conversationIdRef = useRef<string>();
+  if (!conversationIdRef.current) {
+    conversationIdRef.current = conversationId || randomId();
+  }
   const canonicalPromptRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -76,24 +95,24 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
       setError(null);
 
       try {
-      const userPayload = payloadText?.trim() || trimmed;
-      const baseHistory = previousMessages.slice(-12); // small window for API
-      const syntheticPrev =
-        previousPrompt && previousPrompt.trim().length
-          ? ({ role: "assistant", content: previousPrompt.trim() } as AgentMessage)
-          : null;
-      const apiMessages: AgentMessage[] = [
-        ...baseHistory,
-        ...(syntheticPrev ? [syntheticPrev] : []),
-        { role: "user", content: userPayload } as AgentMessage,
-      ];
+        const userPayload = payloadText?.trim() || trimmed;
+        const baseHistory = previousMessages.slice(-12); // small window for API
+        const syntheticPrev =
+          previousPrompt && previousPrompt.trim().length
+            ? ({ role: "assistant", content: previousPrompt.trim() } as AgentMessage)
+            : null;
+        const apiMessages: AgentMessage[] = [
+          ...baseHistory,
+          ...(syntheticPrev ? [syntheticPrev] : []),
+          { role: "user", content: userPayload } as AgentMessage,
+        ];
 
-      const body: AgentApiRequest = {
-        messages: apiMessages,
-        context: context ? buildAgentContext(context) : undefined,
-        conversationId: conversationIdRef.current,
-        canonicalPrompt: canonicalPromptRef.current,
-      };
+        const body: AgentApiRequest = {
+          messages: apiMessages,
+          context: context ? buildAgentContext(context) : undefined,
+          conversationId: conversationIdRef.current,
+          canonicalPrompt: canonicalPromptRef.current,
+        };
         const response = await fetchWithAuth("/api/ai/studio-agent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -134,7 +153,7 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
         setIsSending(false);
       }
     },
-    [enabled],
+    [enabled]
   );
 
   const state = useMemo(
@@ -143,7 +162,7 @@ export const useAiAgent = ({ initialMessages = [], enabled = true, conversationI
       isSending,
       error,
     }),
-    [messages, isSending, error],
+    [messages, isSending, error]
   );
 
   const reset = useCallback(() => {

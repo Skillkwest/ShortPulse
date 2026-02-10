@@ -36,6 +36,8 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
 - Optional agent/runtime toggles:
   - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
   - `NEXT_PUBLIC_AGENT_V2`
+  - `SHORTPULSE_RELEASE` (optional explicit release/build tag for incident logs)
+  - `NEXT_PUBLIC_SHORTPULSE_RELEASE` (optional client bundle release tag for incident logs)
   - `STUDIO_AGENT_ENABLED`
   - `STUDIO_AGENT_SYSTEM`
   - `STUDIO_AGENT_THINKER`

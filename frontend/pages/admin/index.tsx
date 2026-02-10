@@ -9,6 +9,7 @@ import { CloudSlash, ShieldCheck, UserCircle } from "phosphor-react";
 import { ErrorIncidentsPanel } from "../../features/admin/components/ErrorIncidentsPanel";
 import type {
   AdminErrorLogRow,
+  AdminErrorStatus,
   AdminErrorSummary,
   AdminPagination,
   AdminUserRow,
@@ -67,6 +68,7 @@ export default function AdminDashboardPage() {
   const [errors, setErrors] = useState<AdminErrorLogRow[]>([]);
   const [errorsLoading, setErrorsLoading] = useState(false);
   const [errorsError, setErrorsError] = useState<string | null>(null);
+  const [errorStatusUpdatingId, setErrorStatusUpdatingId] = useState<string | null>(null);
   const [errorSummary, setErrorSummary] = useState<AdminErrorSummary>({
     openCount: 0,
     highSeverityOpenCount: 0,
@@ -201,6 +203,7 @@ export default function AdminDashboardPage() {
         const value = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
         return {
           id: String(value.id ?? ""),
+          fingerprint: String(value.fingerprint ?? ""),
           source: String(value.source ?? "unknown"),
           scope: value.scope === "generation" ? "generation" : "app",
           severity:
@@ -335,6 +338,32 @@ export default function AdminDashboardPage() {
       setAdjustSubmitting(false);
     }
   };
+
+  const handleUpdateErrorStatus = useCallback(
+    async (errorId: string, status: AdminErrorStatus) => {
+      setErrorStatusUpdatingId(errorId);
+      setErrorsError(null);
+      try {
+        const response = await fetchWithAuth("/api/admin/errors-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ errorId, status }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to update incident status.");
+        }
+        await loadErrors();
+      } catch (error) {
+        setErrorsError(
+          error instanceof Error ? error.message : "Failed to update incident status."
+        );
+      } finally {
+        setErrorStatusUpdatingId((current) => (current === errorId ? null : current));
+      }
+    },
+    [loadErrors]
+  );
 
   if (loading) {
     return (
@@ -630,6 +659,7 @@ export default function AdminDashboardPage() {
             errorSourceFilter={errorSourceFilter}
             errorSearch={errorSearch}
             errorPagination={errorsPagination}
+            statusUpdatingErrorId={errorStatusUpdatingId}
             onErrorStatusFilterChange={(value) => {
               setErrorStatusFilter(value);
               setErrorsPage(1);
@@ -646,6 +676,7 @@ export default function AdminDashboardPage() {
               setErrorSearch(value);
               setErrorsPage(1);
             }}
+            onUpdateErrorStatus={handleUpdateErrorStatus}
             onPrevPage={() => setErrorsPage((value) => Math.max(1, value - 1))}
             onNextPage={() => setErrorsPage((value) => value + 1)}
             onRefresh={loadErrors}

@@ -32,7 +32,7 @@ const normalizeSearchTerm = (value: unknown): string => {
 
 const applyIncidentFilters = (
   query: any,
-  filters: { status: string; severity: string; source: string; search: string },
+  filters: { status: string; severity: string; source: string; search: string }
 ): any => {
   let next = query;
   if (filters.status && filters.status !== "all") {
@@ -55,7 +55,8 @@ const applyIncidentFilters = (
         `route.ilike.${pattern}`,
         `request_id.ilike.${pattern}`,
         `source.ilike.${pattern}`,
-      ].join(","),
+        `fingerprint.ilike.${pattern}`,
+      ].join(",")
     );
   }
   return next;
@@ -88,28 +89,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       supabaseAdmin
         .from("app_error_logs")
         .select(
-          "id, source, scope, severity, status, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, first_seen_at, last_seen_at, occurrences_count",
+          "id, fingerprint, source, scope, severity, status, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, first_seen_at, last_seen_at, occurrences_count"
         )
         .order("last_seen_at", { ascending: false })
         .range(offset, offset + limit - 1),
-      filters,
+      filters
     );
 
     const filteredCountQuery = applyIncidentFilters(
       supabaseAdmin.from("app_error_logs").select("id", { count: "exact", head: true }),
-      filters,
+      filters
     );
 
     const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const [logsResult, filteredCountResult, openCountResult, highSeverityOpenResult, last24hResult] = await Promise.all([
+    const [
+      logsResult,
+      filteredCountResult,
+      openCountResult,
+      highSeverityOpenResult,
+      last24hResult,
+    ] = await Promise.all([
       logsQuery,
       filteredCountQuery,
-      supabaseAdmin.from("app_error_logs").select("id", { count: "exact", head: true }).eq("status", "open"),
-      supabaseAdmin.from("app_error_logs").select("id", { count: "exact", head: true }).eq("status", "open").eq("severity", "high"),
-      supabaseAdmin.from("app_error_logs").select("id", { count: "exact", head: true }).gte("last_seen_at", sinceIso),
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "open"),
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "open")
+        .eq("severity", "high"),
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true })
+        .gte("last_seen_at", sinceIso),
     ]);
 
-    if (logsResult.error || filteredCountResult.error || openCountResult.error || highSeverityOpenResult.error || last24hResult.error) {
+    if (
+      logsResult.error ||
+      filteredCountResult.error ||
+      openCountResult.error ||
+      highSeverityOpenResult.error ||
+      last24hResult.error
+    ) {
       const detail = [
         logsResult.error?.message,
         filteredCountResult.error?.message,
@@ -133,11 +156,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         supabaseAdmin
           .from("app_error_logs")
           .select(
-            "id, source, scope, severity, status, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, first_seen_at, last_seen_at, occurrences_count",
+            "id, fingerprint, source, scope, severity, status, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, first_seen_at, last_seen_at, occurrences_count"
           )
           .order("last_seen_at", { ascending: false })
           .range(fallbackOffset, fallbackOffset + limit - 1),
-        filters,
+        filters
       );
       if (fallbackLogsResult.error) {
         return res.status(500).json({ error: fallbackLogsResult.error.message });

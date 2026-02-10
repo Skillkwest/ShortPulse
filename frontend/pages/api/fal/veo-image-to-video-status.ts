@@ -3,6 +3,11 @@
  * Accepts { requestId }, returns status as-is, and fetches the result when completed.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { requireApiUser } from "../_utils/auth";
+import {
+  captureSucceededGenerationByProviderRequest,
+  settleFailedGenerationByProviderRequest,
+} from "../_utils/generationBilling";
 
 // Queue status/result endpoints use the base model id (no subpath).
 const FAL_VEO_QUEUE_BASE = "https://queue.fal.run/fal-ai/veo3.1/requests";
@@ -59,6 +64,16 @@ const extractQueueUrls = (payload: any) => {
   return { statusUrl, responseUrl };
 };
 
+const respondError = (res: NextApiResponse, requestId: string, error: string, detail: unknown) => {
+  return res.status(200).json({
+    status: "error",
+    state: "error",
+    error,
+    detail,
+    request_id: requestId,
+  });
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const method = (req.method || "GET").toUpperCase();
   res.setHeader("X-ShortPulse-Route", "fal-veo-image-to-video-status");
@@ -73,8 +88,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "FAL_KEY is not set on the server" });
   }
 
+  const user = await requireApiUser(req, res);
+  if (!user) return;
+
   const requestId =
-    (Array.isArray(req.query.requestId) ? req.query.requestId[0] : req.query.requestId) ?? req.body?.requestId;
+    (Array.isArray(req.query.requestId) ? req.query.requestId[0] : req.query.requestId) ??
+    req.body?.requestId;
   if (!requestId || typeof requestId !== "string") {
     return res.status(400).json({ error: "Missing requestId" });
   }
@@ -97,7 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const text = await statusResp.text();
       return res.status(500).json({
         error: "Fal Veo image-to-video returned non-JSON response",
-        detail: text.substring(0, 500)
+        detail: text.substring(0, 500),
       });
     }
 
@@ -113,22 +132,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : null;
 
         if (policyError) {
-          return res.status(statusResp.status).json({
-            status: "error",
-            error: policyError.msg || "Content policy violation",
-            detail: policyError.msg || "The content was flagged by the content checker",
-            request_id: requestId,
+          await settleFailedGenerationByProviderRequest({
+            userId: user.id,
+            providerRequestId: requestId,
+            reason: "Auto-refund: Fal Veo image-to-video blocked by content policy.",
+            routeLabel: "Fal Veo image-to-video",
+            detail: {
+              stage: "status",
+              payload: statusJson,
+            },
           });
+          return respondError(
+            res,
+            requestId,
+            policyError.msg || "Content policy violation",
+            policyError.msg || "The content was flagged by the content checker"
+          );
         }
       }
 
       // Generic error handling for other non-OK responses
-      return res.status(statusResp.status).json({
-        status: "error",
-        error: statusJson?.error || statusJson?.message || "Generation failed",
-        detail: JSON.stringify(statusJson),
-        request_id: requestId,
-      });
+      return respondError(
+        res,
+        requestId,
+        String(statusJson?.error || statusJson?.message || "Generation failed"),
+        statusJson
+      );
     }
 
     const normalizedStatus = statusJson?.status ? String(statusJson.status).toLowerCase() : null;
@@ -137,11 +166,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       normalizedStatus === "succeeded" ||
       normalizedStatus === "success" ||
       normalizedStatus === "done";
+    const isFailed = normalizedStatus === "failed" || normalizedStatus === "error";
+
+    if (isFailed) {
+      await settleFailedGenerationByProviderRequest({
+        userId: user.id,
+        providerRequestId: requestId,
+        reason: "Auto-refund: Fal Veo image-to-video failed during status polling.",
+        routeLabel: "Fal Veo image-to-video",
+        detail: {
+          stage: "status",
+          payload: statusJson,
+        },
+      });
+      return respondError(
+        res,
+        requestId,
+        String(
+          statusJson?.error ||
+            statusJson?.message ||
+            statusJson?.statusMessage ||
+            "Generation failed"
+        ),
+        statusJson
+      );
+    }
 
     if (!isComplete) {
       if (responseUrl) {
         const direct = await fetchJson(responseUrl, controller.signal, apiKey);
         if (direct.response.ok && hasVideoPayload(direct.json)) {
+          const captureResult = await captureSucceededGenerationByProviderRequest({
+            userId: user.id,
+            providerRequestId: requestId,
+            reason: "Generation charge captured after successful Fal Veo image-to-video output.",
+            routeLabel: "Fal Veo image-to-video",
+            detail: {
+              stage: "response_url_probe",
+            },
+          });
+          if (!captureResult.settled && captureResult.note !== "charge_not_found") {
+            console.error("[veo-image-status] capture during response_url_probe did not settle", {
+              requestId,
+              note: captureResult.note,
+            });
+          }
           return res.status(200).json({
             status: "completed",
             request_id: requestId,
@@ -154,13 +223,65 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const resultUrl = responseUrl ?? `${FAL_VEO_QUEUE_BASE}/${requestId}`;
     const resultResp = await fetchJson(resultUrl, controller.signal, apiKey);
+    const resultStatus =
+      typeof resultResp.json?.status === "string" ? resultResp.json.status.toLowerCase() : null;
+    const resultState =
+      typeof resultResp.json?.state === "string" ? resultResp.json.state.toLowerCase() : null;
+    const hasResultError =
+      !resultResp.response.ok ||
+      resultStatus === "error" ||
+      resultStatus === "failed" ||
+      resultState === "error" ||
+      Boolean((resultResp.json as any)?.error) ||
+      !hasVideoPayload(resultResp.json);
+
+    if (hasResultError) {
+      await settleFailedGenerationByProviderRequest({
+        userId: user.id,
+        providerRequestId: requestId,
+        reason: "Auto-refund: Fal Veo image-to-video completed without usable output.",
+        routeLabel: "Fal Veo image-to-video",
+        detail: {
+          stage: "result",
+          upstream_status: resultResp.response.status,
+          payload: resultResp.json,
+        },
+      });
+      return respondError(
+        res,
+        requestId,
+        String(
+          (resultResp.json as any)?.error ||
+            (resultResp.json as any)?.message ||
+            "Generation failed"
+        ),
+        resultResp.json
+      );
+    }
+
+    const captureResult = await captureSucceededGenerationByProviderRequest({
+      userId: user.id,
+      providerRequestId: requestId,
+      reason: "Generation charge captured after successful Fal Veo image-to-video output.",
+      routeLabel: "Fal Veo image-to-video",
+      detail: {
+        stage: "result",
+      },
+    });
+    if (!captureResult.settled && captureResult.note !== "charge_not_found") {
+      console.error("[veo-image-status] capture on result did not settle", {
+        requestId,
+        note: captureResult.note,
+      });
+    }
+
     return res.status(resultResp.response.status).json({
       status: normalizedStatus ?? "completed",
       request_id: requestId,
       ...resultResp.json,
     });
   } catch (error) {
-    return res.status(500).json({ error: "Fal Veo image-to-video status failed", detail: String(error) });
+    return respondError(res, requestId, "Fal Veo image-to-video status failed", String(error));
   } finally {
     clearTimeout(timeoutId);
   }

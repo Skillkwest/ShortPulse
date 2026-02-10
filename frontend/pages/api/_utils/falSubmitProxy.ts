@@ -23,6 +23,13 @@ const readJsonSafe = async (response: Response): Promise<JsonValue> => {
   }
 };
 
+const readProviderRequestId = (payload: JsonValue): string | null => {
+  const requestId = payload?.request_id ?? payload?.requestId;
+  if (typeof requestId !== "string") return null;
+  const trimmed = requestId.trim();
+  return trimmed.length ? trimmed : null;
+};
+
 /**
  * Builds a Next.js API handler that debits credits before forwarding to Fal.
  */
@@ -38,7 +45,8 @@ export const createFalSubmitHandler =
       return res.status(500).json({ error: "FAL_KEY is not set on the server" });
     }
 
-    const payload = typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
+    const payload =
+      typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
     const charge = await chargeGenerationRequest({
       req,
       res,
@@ -66,6 +74,21 @@ export const createFalSubmitHandler =
         await charge.refund("Auto-refund: Fal submit rejected.", {
           upstream_status: upstream.status,
           upstream_error: data,
+        });
+      } else {
+        const providerRequestId = readProviderRequestId(data);
+        if (!providerRequestId) {
+          await charge.refund("Auto-refund: Fal submit missing request id.", {
+            upstream_status: upstream.status,
+            upstream_payload: data,
+          });
+          return res.status(502).json({
+            error: `${routeLabel} submit response did not include request_id`,
+          });
+        }
+        await charge.markSubmitted(providerRequestId, {
+          route: req.url ?? null,
+          upstream_status: upstream.status,
         });
       }
       return res.status(upstream.status).json(data);

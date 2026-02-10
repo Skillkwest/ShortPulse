@@ -13,6 +13,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Pricing catalog updates: `sql/update_billing_pricing_catalog_20260210.sql`.
 - Legacy-to-v2 alignment migration: `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`.
 - Server debit helper: `frontend/pages/api/_utils/generationBilling.ts`.
+- Fal status settlement helper: `frontend/pages/api/_utils/falStatusProxy.ts`.
 - Ledger compatibility insert helper: `frontend/pages/api/_utils/creditLedger.ts`.
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
 
@@ -63,8 +64,21 @@ Safety checks:
 
 ## Charging model behavior
 - Generation submit endpoints debit on the server before provider submission.
-- Provider rejection/transport failure triggers automatic refund insert.
+- Submit rejection/transport failure triggers automatic refund insert.
+- Successful submit now records `provider_request_id` on the charge row metadata.
+- Fal status routes settle failed generations idempotently by `provider_request_id`:
+  - Failed/error status states.
+  - Content-policy failures.
+  - Failed or malformed result payloads.
+  - Completed responses without usable media payload.
 - Prompt-refine and describe-image calls currently return usage but are not yet debited.
+
+## Failure-settlement lifecycle (Fal)
+1. Submit route inserts `generation_charge` ledger row keyed by `source_ref` (`x-shortpulse-request-id`).
+2. Submit success updates charge metadata with `provider_request_id`.
+3. Status route detects definitive failed outcome and calls settlement helper.
+4. Settlement helper finds the charge row by `provider_request_id` and inserts `generation_refund` with the same `source_ref`.
+5. Unique key on `(user_id, source, source_ref)` keeps refunds idempotent across retries/polling races.
 
 ## Stripe grants behavior
 - Checkout and renewal credits are ledger grants (`change_cents > 0`) via server routes.
@@ -74,7 +88,7 @@ Safety checks:
 Before release:
 1. Run migration if environment is legacy.
 2. Validate one positive and one negative admin adjustment.
-3. Validate one generation debit and one auto-refund scenario.
+3. Validate one generation debit and one failed-status auto-refund scenario.
 4. Confirm user can only read own balances/ledger rows.
 
 After release:

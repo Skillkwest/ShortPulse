@@ -30,6 +30,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/adr/README.md` (architecture decisions)
 - `docs/adr/0002-media-library-persistence.md` (media library persistence model)
 - `docs/adr/0003-admin-authorization-source.md` (admin auth authority rules)
+- `docs/adr/0004-fal-failure-refund-settlement.md` (Fal failure refund settlement lifecycle)
 - `docs/troubleshooting.md`
 - `docs/glossary.md`
 - `docs/known-issues.md`

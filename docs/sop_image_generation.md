@@ -34,7 +34,8 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 3. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect })`; disabled until a model is selected or the user lacks sufficient credits.  
 4. On click:  
    - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal/Kie) with aspect-mapped sizing; no agent prompts are involved.
-   - The API submit route debits credits on the server before provider submission and auto-refunds if submit fails.
+   - The API submit route debits credits on the server before provider submission.
+   - Failed submits and failed Fal status/result outcomes auto-refund server-side (idempotent).
    - Task polling updates status; success stores `resultUrls`, sets `previewUrl`, and clears errors. Failures set `errorMessage` and stop polling.  
 5. Reference Grid prepends the new output card; Studio Preview shows the latest image.  
 6. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.

@@ -313,12 +313,13 @@ const markGenerationReservationSubmitted = async ({
       }
     );
     if (error) {
-      if (!isMissingRpcFunctionError((error as any)?.code, error.message)) {
-        console.error(
-          "[generationBilling] mark_generation_reservation_submitted failed",
-          error.message
-        );
+      if (isMissingRpcFunctionError((error as any)?.code, error.message)) {
+        return { status: "failed", message: "missing_reservation_function" };
       }
+      console.error(
+        "[generationBilling] mark_generation_reservation_submitted failed",
+        error.message
+      );
       return { status: "failed", message: error.message ?? "mark_submitted_failed" };
     }
     const row = Array.isArray(data) ? data[0] : data;
@@ -355,9 +356,10 @@ const releaseGenerationReservationBySourceRef = async ({
       }
     );
     if (error) {
-      if (!isMissingRpcFunctionError((error as any)?.code, error.message)) {
-        console.error("[generationBilling] release by source_ref failed", error.message);
+      if (isMissingRpcFunctionError((error as any)?.code, error.message)) {
+        return { status: "failed", message: "missing_reservation_function" };
       }
+      console.error("[generationBilling] release by source_ref failed", error.message);
       return { status: "failed", message: error.message ?? "release_failed" };
     }
     const row = Array.isArray(data) ? data[0] : data;
@@ -394,9 +396,10 @@ const releaseGenerationReservationByProviderRequest = async ({
       }
     );
     if (error) {
-      if (!isMissingRpcFunctionError((error as any)?.code, error.message)) {
-        console.error("[generationBilling] release by provider_request failed", error.message);
+      if (isMissingRpcFunctionError((error as any)?.code, error.message)) {
+        return { status: "failed", message: "missing_reservation_function" };
       }
+      console.error("[generationBilling] release by provider_request failed", error.message);
       return { status: "failed", message: error.message ?? "release_failed" };
     }
     const row = Array.isArray(data) ? data[0] : data;
@@ -433,9 +436,10 @@ const captureGenerationReservationByProviderRequest = async ({
       }
     );
     if (error) {
-      if (!isMissingRpcFunctionError((error as any)?.code, error.message)) {
-        console.error("[generationBilling] capture by provider_request failed", error.message);
+      if (isMissingRpcFunctionError((error as any)?.code, error.message)) {
+        return { status: "failed", message: "missing_reservation_function" };
       }
+      console.error("[generationBilling] capture by provider_request failed", error.message);
       return { status: "failed", message: error.message ?? "capture_failed" };
     }
     const row = Array.isArray(data) ? data[0] : data;
@@ -767,6 +771,12 @@ export const chargeGenerationRequest = async ({
         });
         return null;
       }
+    } else if (
+      reserveResult.status === "already_captured" ||
+      reserveResult.status === "already_released"
+    ) {
+      res.status(409).json({ error: "Duplicate submit request id. Retry with a new request id." });
+      return null;
     } else if (reserveResult.status === "reserved" || reserveResult.status === "already_reserved") {
       const markSubmitted = async (providerRequestId: string, extra: JsonObject = {}) => {
         if (!providerRequestId) return;

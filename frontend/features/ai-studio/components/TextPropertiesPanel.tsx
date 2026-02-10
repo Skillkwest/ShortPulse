@@ -3,13 +3,7 @@
  * Handles prompt entry, mode selection, and model/aspect choices for text-first generation.
  */
 import React, { useEffect, useMemo } from "react";
-import {
-  CaretDown,
-  ImageSquare,
-  MagicWand,
-  Trash,
-  VideoCamera,
-} from "phosphor-react";
+import { CaretDown, ImageSquare, MagicWand, Trash, VideoCamera } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { StudioMode } from "../types";
 import { modelLogos } from "../constants";
@@ -18,6 +12,7 @@ import { AgentSaveButton, AgentGenerateButton } from "../../../prefabs/agent";
 import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
 import { getModelConfig } from "../logic/modelRegistry";
+import { clampImageResolutionForModel, getImageResolutionOptions } from "../logic/imageResolution";
 
 const VIDEO_DURATION_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const VIDEO_RESOLUTION_OPTIONS = [
@@ -49,7 +44,11 @@ type TextPropertiesPanelProps = {
   modelModalAnchor: string | null;
   onModeChange: (mode: StudioMode) => void;
   onAspectChange: (value: string) => void;
-  onModelPickerOpen: (anchorId: string, target: HTMLElement, context?: ModelModalContext | null) => void;
+  onModelPickerOpen: (
+    anchorId: string,
+    target: HTMLElement,
+    context?: ModelModalContext | null
+  ) => void;
   onPromptChange: (value: string) => void;
   onToggleReferenceIndicator: () => void;
   costCredits?: number | null;
@@ -59,7 +58,9 @@ type TextPropertiesPanelProps = {
   isGenerateDisabled?: boolean;
   guardrailReason?: string | null;
   onExpandChat?: () => void;
-  onStepActionClick?: (step: "mode" | "model" | "prompt" | "videoSettings") => void;
+  onStepActionClick?: (
+    step: "mode" | "model" | "prompt" | "videoSettings" | "imageSettings"
+  ) => void;
   agentChatOpen?: boolean;
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
@@ -75,11 +76,13 @@ type TextPropertiesPanelProps = {
   // Video settings props
   videoDurationSeconds?: number;
   videoResolution?: string;
+  imageResolution?: string;
   videoGenerateAudio?: boolean;
   videoCameraFixed?: boolean;
   videoAutoFix?: boolean;
   onVideoDurationChange?: (value: number) => void;
   onVideoResolutionChange?: (value: string) => void;
+  onImageResolutionChange?: (value: string) => void;
   onVideoGenerateAudioChange?: (value: boolean) => void;
   onVideoCameraFixedChange?: (value: boolean) => void;
   onVideoAutoFixChange?: (value: boolean) => void;
@@ -114,7 +117,11 @@ type StepHeaderActionButtonProps = {
   onClick: () => void;
 };
 
-const StepHeaderActionButton: React.FC<StepHeaderActionButtonProps> = ({ label, isCollapsed = false, onClick }) => {
+const StepHeaderActionButton: React.FC<StepHeaderActionButtonProps> = ({
+  label,
+  isCollapsed = false,
+  onClick,
+}) => {
   return (
     <button
       type="button"
@@ -186,17 +193,17 @@ export function TextPropertiesPanel({
   // Video settings props
   videoDurationSeconds,
   videoResolution,
+  imageResolution,
   videoGenerateAudio,
   videoCameraFixed,
   videoAutoFix,
   onVideoDurationChange,
   onVideoResolutionChange,
+  onImageResolutionChange,
   onVideoGenerateAudioChange,
   onVideoCameraFixedChange,
   onVideoAutoFixChange,
 }: TextPropertiesPanelProps) {
-
-
   const isTextMode = mode === "text";
   const shouldHidePromptStep = isTextMode && useReferenceImageIndicator;
   const showPromptInput = !shouldHidePromptStep;
@@ -205,14 +212,21 @@ export function TextPropertiesPanel({
   const primaryActionLabel = isTextMode ? "Send" : "Generate";
   const primaryActionBusyLabel = isTextMode ? "Sending…" : "Generating…";
   const isTextPromptMode = mode === "text";
-  const [collapsedSteps, setCollapsedSteps] = React.useState<{ mode: boolean; model: boolean; prompt: boolean; videoSettings: boolean }>({
+  const [collapsedSteps, setCollapsedSteps] = React.useState<{
+    mode: boolean;
+    model: boolean;
+    prompt: boolean;
+    videoSettings: boolean;
+    imageSettings: boolean;
+  }>({
     mode: false,
     model: false,
     prompt: false,
     videoSettings: false,
+    imageSettings: false,
   });
 
-  const toggleStep = (step: "mode" | "model" | "prompt" | "videoSettings") => {
+  const toggleStep = (step: "mode" | "model" | "prompt" | "videoSettings" | "imageSettings") => {
     setCollapsedSteps((prev) => ({ ...prev, [step]: !prev[step] }));
     onStepActionClick?.(step);
   };
@@ -223,7 +237,9 @@ export function TextPropertiesPanel({
     onModelPickerOpen("create-model", event.currentTarget, context);
   };
 
-  const expandIfCollapsed = (step: "mode" | "model" | "prompt" | "videoSettings") => {
+  const expandIfCollapsed = (
+    step: "mode" | "model" | "prompt" | "videoSettings" | "imageSettings"
+  ) => {
     setCollapsedSteps((prev) => {
       if (!prev[step]) {
         return prev;
@@ -235,7 +251,7 @@ export function TextPropertiesPanel({
   };
 
   // Model-specific detection for conditional UI
-  const modelConfig = useMemo(() => modelId ? getModelConfig(modelId) : null, [modelId]);
+  const modelConfig = useMemo(() => (modelId ? getModelConfig(modelId) : null), [modelId]);
   const isSeedanceI2VModel = modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
   const isVeoModel = modelId?.includes("veo3.1") ?? false;
   const isKling3Model = modelId?.includes("kling-video/v3/pro") ?? false;
@@ -252,15 +268,25 @@ export function TextPropertiesPanel({
     if (!modelConfig?.allowedResolutions) {
       return VIDEO_RESOLUTION_OPTIONS;
     }
-    return VIDEO_RESOLUTION_OPTIONS.filter(option =>
+    const filtered = VIDEO_RESOLUTION_OPTIONS.filter((option) =>
       modelConfig.allowedResolutions?.includes(option.value)
     );
+    return filtered.length ? filtered : VIDEO_RESOLUTION_OPTIONS;
   }, [modelConfig]);
+  const imageResolutionOptions = useMemo(() => getImageResolutionOptions(modelId), [modelId]);
+  const imageResolutionValue = useMemo(
+    () => clampImageResolutionForModel(modelId, imageResolution),
+    [imageResolution, modelId]
+  );
 
   // Auto-clamp invalid duration values when switching models
   useEffect(() => {
     if (!modelConfig || !onVideoDurationChange) return;
-    if (modelConfig.allowedDurations && videoDurationSeconds && !modelConfig.allowedDurations.includes(videoDurationSeconds)) {
+    if (
+      modelConfig.allowedDurations &&
+      videoDurationSeconds &&
+      !modelConfig.allowedDurations.includes(videoDurationSeconds)
+    ) {
       const closestDuration = modelConfig.allowedDurations.reduce((prev, curr) =>
         Math.abs(curr - videoDurationSeconds) < Math.abs(prev - videoDurationSeconds) ? curr : prev
       );
@@ -271,10 +297,22 @@ export function TextPropertiesPanel({
   // Auto-clamp invalid resolution values when switching models
   useEffect(() => {
     if (!modelConfig || !onVideoResolutionChange) return;
-    if (modelConfig.allowedResolutions && videoResolution && !modelConfig.allowedResolutions.includes(videoResolution)) {
+    if (
+      modelConfig.allowedResolutions &&
+      videoResolution &&
+      !modelConfig.allowedResolutions.includes(videoResolution)
+    ) {
       onVideoResolutionChange(modelConfig.defaultResolution ?? modelConfig.allowedResolutions[0]);
     }
   }, [modelConfig, videoResolution, onVideoResolutionChange]);
+
+  // Auto-clamp invalid image resolution values when switching image models.
+  useEffect(() => {
+    if (mode !== "image" || !onImageResolutionChange) return;
+    if (imageResolutionValue !== imageResolution) {
+      onImageResolutionChange(imageResolutionValue);
+    }
+  }, [imageResolution, imageResolutionValue, mode, onImageResolutionChange]);
 
   return (
     <div className="tool-properties text-properties-panel">
@@ -291,8 +329,12 @@ export function TextPropertiesPanel({
         <div className="step-card-header">
           {beginnerMode && <span className="step-badge">1</span>}
           <div className="step-header-copy">
-            <p className="step-title">{beginnerMode ? "Select Generation Mode" : "Choose Generation Mode"}</p>
-            <span className="step-subtitle tiny helper-text">Select the output type you want to generate. </span>
+            <p className="step-title">
+              {beginnerMode ? "Select Generation Mode" : "Choose Generation Mode"}
+            </p>
+            <span className="step-subtitle tiny helper-text">
+              Select the output type you want to generate.{" "}
+            </span>
           </div>
           {!beginnerMode ? (
             <div className="step-header-actions">
@@ -305,7 +347,11 @@ export function TextPropertiesPanel({
           ) : null}
         </div>
         {!collapsedSteps.mode ? (
-          <div className="create-controls top-row mode-toggle-row" role="group" aria-label="Select generation mode">
+          <div
+            className="create-controls top-row mode-toggle-row"
+            role="group"
+            aria-label="Select generation mode"
+          >
             <button
               type="button"
               className={`ghost-btn small mode-toggle-btn ${mode === "text" ? "is-active" : ""}`}
@@ -374,7 +420,9 @@ export function TextPropertiesPanel({
             {beginnerMode && <span className="step-badge">3</span>}
             <div className="step-header-copy">
               <p className="step-title">Choose frame & model</p>
-              <span className="step-subtitle tiny helper-text">Set the aspect ratio, then select the model.</span>
+              <span className="step-subtitle tiny helper-text">
+                Set the aspect ratio, then select the model.
+              </span>
             </div>
             {!beginnerMode ? (
               <div className="step-header-actions">
@@ -402,11 +450,60 @@ export function TextPropertiesPanel({
                 >
                   <div className="model-picker-row">
                     <span className="model-picker-value">
-                      {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
+                      {modelLogoSrc ? (
+                        <img
+                          className="model-chip-logo-img"
+                          src={modelLogoSrc}
+                          alt=""
+                          aria-hidden
+                        />
+                      ) : null}
                       {modelLabel}
                     </span>
                   </div>
                 </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {mode === "image" && !beginnerMode ? (
+        <div
+          className={`step-card image-settings-card ${collapsedSteps.imageSettings ? "is-collapsed" : ""}`}
+          onClick={() => expandIfCollapsed("imageSettings")}
+          role="group"
+          aria-label="Choose image resolution section"
+        >
+          <div className="step-card-header">
+            <div className="step-header-copy">
+              <p className="step-title">Choose image resolution</p>
+              <span className="step-subtitle tiny helper-text">
+                Select the model-specific image resolution setting.
+              </span>
+            </div>
+            <div className="step-header-actions">
+              <StepHeaderActionButton
+                label="Open image resolution settings"
+                isCollapsed={collapsedSteps.imageSettings}
+                onClick={() => toggleStep("imageSettings")}
+              />
+            </div>
+          </div>
+          {!collapsedSteps.imageSettings ? (
+            <div className="create-controls image-settings-controls">
+              <div className="control-row compact fixed-select">
+                <label className="input-label">Resolution</label>
+                <select
+                  className="model-select"
+                  value={imageResolutionValue}
+                  onChange={(event) => onImageResolutionChange?.(event.target.value)}
+                >
+                  {imageResolutionOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           ) : null}
@@ -423,7 +520,9 @@ export function TextPropertiesPanel({
             {beginnerMode && <span className="step-badge">4</span>}
             <div className="step-header-copy">
               <p className="step-title">Choose video settings</p>
-              <span className="step-subtitle tiny helper-text">Set duration, resolution, and audio output before generating.</span>
+              <span className="step-subtitle tiny helper-text">
+                Set duration, resolution, and audio output before generating.
+              </span>
             </div>
             {!beginnerMode ? (
               <div className="step-header-actions">
@@ -473,7 +572,9 @@ export function TextPropertiesPanel({
               <div className="video-settings-toggle-row">
                 <div className="video-settings-toggle-copy">
                   <span className="input-label">Generate audio</span>
-                  <span className="tiny helper-text">Generate native synchronized audio with the video</span>
+                  <span className="tiny helper-text">
+                    Generate native synchronized audio with the video
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -567,7 +668,9 @@ export function ComposeSendCard({
         {beginnerMode && <span className="step-badge">{mode === "video" ? "5" : "4"}</span>}
         <div className="step-header-copy">
           {beginnerMode ? <p className="step-title">Generate</p> : null}
-          <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>
+          <span className="step-subtitle tiny helper-text">
+            Run generation with the current prompt and selections.
+          </span>
         </div>
       </div>
       <div className="create-controls single-control">

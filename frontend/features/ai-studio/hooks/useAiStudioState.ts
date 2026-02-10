@@ -64,6 +64,12 @@ import {
   mapUploadsFromFiles,
 } from "../logic/stateParsers";
 import {
+  clampImageResolutionForModel,
+  isModelDefaultImageResolution,
+  isSeedreamAutoImageSize,
+  normalizeNanoBananaProResolution,
+} from "../logic/imageResolution";
+import {
   createGenerationRecord,
   logMediaEvent,
   saveMediaUrlToLibrary,
@@ -112,6 +118,7 @@ export const useAiStudioState = () => {
   >([null, null, null]);
   const VIDEO_DURATION_STORAGE_KEY = "aiStudioVideoDuration";
   const VIDEO_RESOLUTION_STORAGE_KEY = "aiStudioVideoResolution";
+  const IMAGE_RESOLUTION_STORAGE_KEY = "aiStudioImageResolution";
 
   const [videoReferenceMode, setVideoReferenceMode] = useState<
     "standard" | "keyframes" | "kling3" | "motion"
@@ -126,6 +133,11 @@ export const useAiStudioState = () => {
     if (typeof window === "undefined") return "1080p";
     const stored = window.localStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY);
     return stored || "1080p";
+  });
+  const [imageResolution, setImageResolution] = useState<string>(() => {
+    if (typeof window === "undefined") return "model_default";
+    const stored = window.localStorage.getItem(IMAGE_RESOLUTION_STORAGE_KEY);
+    return stored || "model_default";
   });
   const [hasUserVideoPrefs, setHasUserVideoPrefs] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -293,6 +305,22 @@ export const useAiStudioState = () => {
     window.localStorage.setItem(VIDEO_RESOLUTION_STORAGE_KEY, videoResolution);
     setHasUserVideoPrefs(true);
   }, [videoResolution]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(IMAGE_RESOLUTION_STORAGE_KEY, imageResolution);
+  }, [imageResolution]);
+
+  // Clamp image resolution values to the selected model's supported options.
+  useEffect(() => {
+    if (!model) return;
+    const config = getModelConfig(model);
+    if (!config || config.mediaType !== "image") return;
+    const clamped = clampImageResolutionForModel(model, imageResolution);
+    if (clamped !== imageResolution) {
+      setImageResolution(clamped);
+    }
+  }, [imageResolution, model]);
 
   useEffect(() => {
     if (!model) return;
@@ -963,14 +991,21 @@ export const useAiStudioState = () => {
       const isVeoModel = finalModel === "fal-ai/veo3.1";
       const isSoraModel = finalModel === "fal-ai/sora-2/text-to-video/pro";
       const modelConfig = finalModel ? getModelConfig(finalModel) : null;
-      const useVideoSettings = selectedTool === "video";
-      const requestedDurationSeconds = useVideoSettings
+      const isVideoGeneration =
+        effectiveMode === "video" || effectiveTool === "video" || effectiveTool === "kling";
+      const isImageGeneration = effectiveMode === "image" || effectiveTool === "image";
+      const requestedDurationSeconds = isVideoGeneration
         ? videoDurationSeconds
         : getDefaultDurationSeconds(finalModel);
-      const requestedResolution = useVideoSettings
-        ? videoResolution
+      const requestedImageResolution = isImageGeneration
+        ? clampImageResolutionForModel(finalModel, imageResolution)
         : modelConfig?.defaultResolution;
-      const requestedAudio = useVideoSettings
+      const requestedResolution = isVideoGeneration
+        ? videoResolution
+        : isModelDefaultImageResolution(requestedImageResolution)
+          ? undefined
+          : requestedImageResolution;
+      const requestedAudio = isVideoGeneration
         ? videoGenerateAudio
         : (modelConfig?.defaultAudio ?? true);
 
@@ -1294,7 +1329,7 @@ export const useAiStudioState = () => {
             num_images: 1,
             aspect_ratio: falNanoBananaProAllowedAspects.has(aspect) ? aspect : "auto",
             output_format: "png",
-            resolution: (modelConfig?.defaultResolution as any) ?? "1K",
+            resolution: normalizeNanoBananaProResolution(requestedResolution, "1K"),
             image_urls: preparedImageInputs.slice(0, 8),
           });
           updateOutputById(id, (item) => ({
@@ -1312,7 +1347,9 @@ export const useAiStudioState = () => {
             notifyGenerationFailure(id, "Seedream 4.5 Edit requires at least one reference image.");
             return;
           }
-          const image_size = resolveSeedreamImageSize(aspect);
+          const image_size = isSeedreamAutoImageSize(requestedResolution)
+            ? requestedResolution
+            : resolveSeedreamImageSize(aspect);
           const response = await submitFalSeedreamEdit({
             prompt: cleanedPrompt,
             image_size,
@@ -1617,7 +1654,9 @@ export const useAiStudioState = () => {
         let pollingProvider: Provider = "kei";
 
         if (isSeedreamModel) {
-          const image_size = resolveSeedreamImageSize(aspect);
+          const image_size = isSeedreamAutoImageSize(requestedResolution)
+            ? requestedResolution
+            : resolveSeedreamImageSize(aspect);
           const response = await submitFalSeedream({
             prompt: cleanedPrompt,
             image_size,
@@ -1643,7 +1682,7 @@ export const useAiStudioState = () => {
             num_images: 1,
             aspect_ratio: normalizeAspectForFalNanoBananaPro(aspect),
             output_format: "png",
-            resolution: (modelConfig?.defaultResolution as any) ?? "1K",
+            resolution: normalizeNanoBananaProResolution(requestedResolution, "1K"),
             ...falReferencePayload,
           });
           taskId = response.request_id;
@@ -1655,7 +1694,9 @@ export const useAiStudioState = () => {
               prompt: cleanedPrompt,
               image_input: preparedImageInputs,
               aspect_ratio: normalizeAspectForKei(aspect),
-              resolution: "1K",
+              resolution: isModelDefaultImageResolution(requestedResolution)
+                ? "1K"
+                : requestedResolution,
               output_format: "png",
             },
           });
@@ -1691,6 +1732,7 @@ export const useAiStudioState = () => {
       useReferenceImageIndicator,
       videoDurationSeconds,
       videoResolution,
+      imageResolution,
       videoGenerateAudio,
       videoReferenceMode,
       motionCharacterOrientation,
@@ -2186,6 +2228,8 @@ export const useAiStudioState = () => {
     setVideoDurationSeconds,
     videoResolution,
     setVideoResolution,
+    imageResolution,
+    setImageResolution,
     videoGenerateAudio,
     setVideoGenerateAudio,
     videoCameraFixed,

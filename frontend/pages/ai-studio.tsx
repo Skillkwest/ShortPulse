@@ -91,6 +91,8 @@ export default function AiStudioPage() {
     setVideoDurationSeconds,
     videoResolution,
     setVideoResolution,
+    imageResolution,
+    setImageResolution,
     videoGenerateAudio,
     setVideoGenerateAudio,
     videoCameraFixed,
@@ -156,7 +158,13 @@ export default function AiStudioPage() {
   const agentFlag = process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
   const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(true);
   const agentEnabled = agentFlag || agentSessionEnabled;
-  const { messages: agentMessages, isSending: agentIsSending, error: agentError, send: sendToAgent, reset: resetAgentChat } = useAiAgent({
+  const {
+    messages: agentMessages,
+    isSending: agentIsSending,
+    error: agentError,
+    send: sendToAgent,
+    reset: resetAgentChat,
+  } = useAiAgent({
     enabled: true, // allow first-click activation; API will gate if truly disabled server-side
     conversationId: agentConversationId,
   });
@@ -167,12 +175,12 @@ export default function AiStudioPage() {
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
   const latestAssistantMessage = useMemo(
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
-    [agentMessages],
+    [agentMessages]
   );
   const handleOpenModelModal = (
     anchorId: string,
     target: HTMLElement,
-    context: ModelModalContext | null = null,
+    context: ModelModalContext | null = null
   ) => {
     openModelModal(anchorId, target, context);
   };
@@ -182,18 +190,16 @@ export default function AiStudioPage() {
     closeModelModal();
   };
 
-  const shouldRunPromptRefinerFirst = useCallback(
-    (text: string, context: AgentContext) => {
-      const trimmed = text.trim();
-      const wordCount = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
-      const hasReferenceContext = (context.references?.length ?? 0) > 0 || (context.media?.length ?? 0) > 0;
-      const hasExistingPrompt = Boolean(context.activePrompt?.trim());
-      const hasRecentAssistant = Boolean(context.lastAssistantMessage?.trim());
-      const isVeryShort = wordCount < 6 || trimmed.length < 30;
-      return !hasReferenceContext && !hasExistingPrompt && !hasRecentAssistant && isVeryShort;
-    },
-    [],
-  );
+  const shouldRunPromptRefinerFirst = useCallback((text: string, context: AgentContext) => {
+    const trimmed = text.trim();
+    const wordCount = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
+    const hasReferenceContext =
+      (context.references?.length ?? 0) > 0 || (context.media?.length ?? 0) > 0;
+    const hasExistingPrompt = Boolean(context.activePrompt?.trim());
+    const hasRecentAssistant = Boolean(context.lastAssistantMessage?.trim());
+    const isVeryShort = wordCount < 6 || trimmed.length < 30;
+    return !hasReferenceContext && !hasExistingPrompt && !hasRecentAssistant && isVeryShort;
+  }, []);
 
   const handleToolSelect = (tool: ToolId | null) => {
     setSelectedTool(tool);
@@ -204,7 +210,11 @@ export default function AiStudioPage() {
 
   const handleAgentSend = async (
     textOverride?: string,
-    options?: { captureResult?: boolean; selectedOverride?: StudioOutput | null; modeHint?: "chat" | "text" | "describe" | "reference" },
+    options?: {
+      captureResult?: boolean;
+      selectedOverride?: StudioOutput | null;
+      modeHint?: "chat" | "text" | "describe" | "reference";
+    }
   ): Promise<{ prompt: string; referenceTitle?: string | null } | void> => {
     const rawInput = typeof textOverride === "string" ? textOverride : agentInput;
     const trimmed = rawInput.trim();
@@ -226,7 +236,11 @@ export default function AiStudioPage() {
     let mediaPatchedContext = baseContext;
     let refinedPrompt: string | null = null;
 
-    if (baseContext.focusedSource === "image" && activeOutput?.previewUrl && !activeOutput?.previewUrl.startsWith("https://")) {
+    if (
+      baseContext.focusedSource === "image" &&
+      activeOutput?.previewUrl &&
+      !activeOutput?.previewUrl.startsWith("https://")
+    ) {
       // Convert blob/object URLs to data URLs for vision payloads.
       const safeUrl = await prepareImageUrl(activeOutput.previewUrl);
       if (safeUrl) {
@@ -311,7 +325,9 @@ export default function AiStudioPage() {
     if (!target?.previewUrl) return;
 
     const placeholderId = `describe-${randomId()}`;
-    const placeholderModelLabel = model ? (getModelConfig(model)?.label ?? model) : "Model pending selection";
+    const placeholderModelLabel = model
+      ? (getModelConfig(model)?.label ?? model)
+      : "Model pending selection";
     setOutputs((prev) => [
       {
         id: placeholderId,
@@ -348,8 +364,8 @@ export default function AiStudioPage() {
                 saveError: null,
                 errorMessage: null,
               }
-            : item,
-        ),
+            : item
+        )
       );
       setSharedPrompt(cleaned);
       setLatestAgentPrompt(cleaned);
@@ -365,8 +381,8 @@ export default function AiStudioPage() {
                 timestamp: "Failed",
                 errorMessage: message,
               }
-            : item,
-        ),
+            : item
+        )
       );
     };
 
@@ -423,7 +439,9 @@ export default function AiStudioPage() {
       }
 
       if (fileRecord?.storage_path) {
-        const { data, error } = await supabase.storage.from("media_library").download(fileRecord.storage_path);
+        const { data, error } = await supabase.storage
+          .from("media_library")
+          .download(fileRecord.storage_path);
         if (error) throw error;
         const blob = data as Blob;
         const url = window.URL.createObjectURL(blob);
@@ -468,7 +486,8 @@ export default function AiStudioPage() {
     await handleGenerate(promptText, {
       modeOverride: "image",
       toolOverride: "create",
-      costOverrideCredits: promptGenerateCostCredits ?? modelPickerCostCredits ?? currentCostCredits,
+      costOverrideCredits:
+        promptGenerateCostCredits ?? modelPickerCostCredits ?? currentCostCredits,
     });
   };
 
@@ -477,7 +496,7 @@ export default function AiStudioPage() {
       addAgentPromptReference(message.content);
       setIsAgentChatOpen(false);
     },
-    [addAgentPromptReference],
+    [addAgentPromptReference]
   );
 
   const handleExpandChat = () => {
@@ -549,7 +568,7 @@ export default function AiStudioPage() {
     (id: string) => {
       setActiveOutputId((prev) => (prev === id ? null : id));
     },
-    [setActiveOutputId],
+    [setActiveOutputId]
   );
   const triggerFilePicker = () => referenceCanvasFileInputRef.current?.click();
   const dismissError = () => setUiError(null);
@@ -557,12 +576,12 @@ export default function AiStudioPage() {
 
   const failedOutputs = useMemo(
     () => outputs.filter((item) => item.taskState === "fail" && item.errorMessage),
-    [outputs],
+    [outputs]
   );
 
   const visibleFailures = useMemo(
     () => failedOutputs.filter((item) => !dismissedFailureIds.has(item.id)),
-    [dismissedFailureIds, failedOutputs],
+    [dismissedFailureIds, failedOutputs]
   );
 
   useEffect(() => {
@@ -588,11 +607,14 @@ export default function AiStudioPage() {
   };
 
   const isTemplateView =
-    selectedTool === "templates" || selectedTool === "workflows" || selectedTool === "my-generations" || selectedTool === "community";
+    selectedTool === "templates" ||
+    selectedTool === "workflows" ||
+    selectedTool === "my-generations" ||
+    selectedTool === "community";
 
   const defaultPricingParams = useMemo(
     () => (model ? buildDefaultPricingParams(model) : {}),
-    [model],
+    [model]
   );
 
   const costParamsForModel = useCallback(
@@ -602,20 +624,22 @@ export default function AiStudioPage() {
       aspect,
       ...overrides,
     }),
-    [aspect, defaultPricingParams, model],
+    [aspect, defaultPricingParams, model]
   );
 
   const filteredModelOptions = useMemo(() => {
     const base = filterModelOptions(mode, selectedTool, modelOptions, getModelConfig);
     if (selectedTool === "video" && videoReferenceMode === "standard") {
-      return base.filter((opt) => opt.mediaType === "image-to-video" && !opt.value.includes("kling"));
+      return base.filter(
+        (opt) => opt.mediaType === "image-to-video" && !opt.value.includes("kling")
+      );
     }
     if (selectedTool === "video" && videoReferenceMode === "keyframes") {
       // Show both Veo first/last frame and Kling 3.0 (supports optional end frame)
       return base.filter(
         (opt) =>
           opt.value === "fal-ai/veo3.1/first-last-frame-to-video" ||
-          opt.value === "fal-ai/kling-video/v3/pro/image-to-video",
+          opt.value === "fal-ai/kling-video/v3/pro/image-to-video"
       );
     }
     if (selectedTool === "video" && videoReferenceMode === "kling3") {
@@ -632,25 +656,24 @@ export default function AiStudioPage() {
     isCreditGuardrail,
     generationGuardrail,
     isGenerateDisabled,
-  } =
-    useAiStudioViewModel({
-      mode,
-      model,
-      aspect,
-      prompt,
-      referenceImageUrl,
-      activeOutput,
-      extraImageUrls,
-      selectedTool,
-      useReferenceImageIndicator,
-      getDefaultDurationSeconds,
-      videoDurationSeconds,
-      videoResolution,
-      videoGenerateAudio,
-      balanceCredits,
-      costParamsForModel,
-    });
-
+  } = useAiStudioViewModel({
+    mode,
+    model,
+    aspect,
+    prompt,
+    referenceImageUrl,
+    activeOutput,
+    extraImageUrls,
+    selectedTool,
+    useReferenceImageIndicator,
+    getDefaultDurationSeconds,
+    videoDurationSeconds,
+    videoResolution,
+    imageResolution,
+    videoGenerateAudio,
+    balanceCredits,
+    costParamsForModel,
+  });
 
   const handleBlockedGeneration = () => {
     if (generationGuardrail) {
@@ -666,18 +689,26 @@ export default function AiStudioPage() {
       if (resolvedBalance == null) return true;
       return resolvedBalance >= requiredCredits;
     },
-    [balanceCredits, refreshBalance],
+    [balanceCredits, refreshBalance]
   );
 
   const handleGenerate = async (
     promptOverride?: string | null,
-    options?: { modeOverride?: StudioMode; toolOverride?: ToolId | null; costOverrideCredits?: number | null },
+    options?: {
+      modeOverride?: StudioMode;
+      toolOverride?: ToolId | null;
+      costOverrideCredits?: number | null;
+    }
   ) => {
     const effectiveMode = options?.modeOverride ?? mode;
     const effectiveTool = options?.toolOverride ?? selectedTool;
     const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
 
-    if (options?.costOverrideCredits != null && balanceCredits != null && balanceCredits < options.costOverrideCredits) {
+    if (
+      options?.costOverrideCredits != null &&
+      balanceCredits != null &&
+      balanceCredits < options.costOverrideCredits
+    ) {
       const hasFreshCredits = await ensureFreshCreditsForRun(options.costOverrideCredits);
       if (!hasFreshCredits) {
         setUiError("You do not have enough credits for this run.");
@@ -699,7 +730,10 @@ export default function AiStudioPage() {
     }
 
     const promptToUse = typeof promptOverride === "string" ? promptOverride : prompt;
-    generateOutput(promptToUse, { modeOverride: effectiveMode, selectedToolOverride: effectiveTool });
+    generateOutput(promptToUse, {
+      modeOverride: effectiveMode,
+      selectedToolOverride: effectiveTool,
+    });
   };
 
   const handlePrimarySubmit = () => {
@@ -793,16 +827,18 @@ export default function AiStudioPage() {
     onSavePrompt: savePromptReference,
     onOpenMediaLibrary: handleOpenMediaLibrary,
     agentChatOpen: isAgentChatOpen,
-    onAgentApplyPrompt: () => { },
-    onAgentSelectVariation: () => { },
+    onAgentApplyPrompt: () => {},
+    onAgentSelectVariation: () => {},
     // Video settings props
     videoDurationSeconds,
     videoResolution,
+    imageResolution,
     videoGenerateAudio,
     videoCameraFixed,
     videoAutoFix,
     onVideoDurationChange: setVideoDurationSeconds,
     onVideoResolutionChange: setVideoResolution,
+    onImageResolutionChange: setImageResolution,
     onVideoGenerateAudioChange: setVideoGenerateAudio,
     onVideoCameraFixedChange: setVideoCameraFixed,
     onVideoAutoFixChange: setVideoAutoFix,
@@ -815,7 +851,7 @@ export default function AiStudioPage() {
         <title>ShortPulse · AI Studio</title>
         <meta name="description" content="AI Studio — prompt, generate, preview, save." />
       </Head>
-        <AiStudioPageContent
+      <AiStudioPageContent
         referenceCanvasFileInputRef={referenceCanvasFileInputRef}
         onFileBrowserSelection={handleFileBrowserSelection}
         uiError={uiError}
@@ -832,9 +868,9 @@ export default function AiStudioPage() {
         onDismissFailure={dismissFailure}
         onInspectFailure={focusFailure}
         selectedTool={selectedTool}
-          showCreateTools={showCreateTools}
-          onSelectTool={handleToolSelect}
-          onToggleCreateTools={setShowCreateTools}
+        showCreateTools={showCreateTools}
+        onSelectTool={handleToolSelect}
+        onToggleCreateTools={setShowCreateTools}
         propertiesText={propertiesText}
         propertiesCharacter={{
           identity,
@@ -893,13 +929,17 @@ export default function AiStudioPage() {
           agentError: agentError ?? undefined,
           stagedPrompt: latestAgentPrompt,
           onAgentInputChange: setAgentInput,
-          onAgentSend: () => handleAgentSend(agentInput || referenceText || "", { modeHint: "reference" }),
-          onAgentEnhanceSend: () => handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
+          onAgentSend: () =>
+            handleAgentSend(agentInput || referenceText || "", { modeHint: "reference" }),
+          onAgentEnhanceSend: () =>
+            handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
           onAgentMessageClick: handleAgentMessageClick,
           onExpandChat: handleExpandChat,
           onCloseAgentChat: handleCloseAgentChat,
           onClearAgentChat: handleClearAgentChat,
           agentChatOpen: isAgentChatOpen,
+          imageResolution,
+          onImageResolutionChange: setImageResolution,
           beginnerMode,
         }}
         propertiesVideo={{
@@ -964,8 +1004,10 @@ export default function AiStudioPage() {
           agentError: agentError ?? undefined,
           stagedPrompt: latestAgentPrompt,
           onAgentInputChange: setAgentInput,
-          onAgentSend: () => handleAgentSend(agentInput || referenceText || "", { modeHint: "reference" }),
-          onAgentEnhanceSend: () => handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
+          onAgentSend: () =>
+            handleAgentSend(agentInput || referenceText || "", { modeHint: "reference" }),
+          onAgentEnhanceSend: () =>
+            handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
           onAgentMessageClick: handleAgentMessageClick,
           onExpandChat: handleExpandChat,
           onCloseAgentChat: handleCloseAgentChat,

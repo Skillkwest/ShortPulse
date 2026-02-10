@@ -114,10 +114,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const contentType = statusResp.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
       const text = await statusResp.text();
-      return res.status(500).json({
-        error: "Fal Veo image-to-video returned non-JSON response",
-        detail: text.substring(0, 500),
+      await settleFailedGenerationByProviderRequest({
+        userId: user.id,
+        providerRequestId: requestId,
+        reason: "Auto-release: Fal Veo image-to-video status payload malformed.",
+        routeLabel: "Fal Veo image-to-video",
+        detail: {
+          stage: "status",
+          malformed: true,
+        },
       });
+      return respondError(
+        res,
+        requestId,
+        "Fal Veo image-to-video returned non-JSON response",
+        text.substring(0, 500)
+      );
     }
 
     const statusJson = await statusResp.json();
@@ -152,6 +164,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Generic error handling for other non-OK responses
+      await settleFailedGenerationByProviderRequest({
+        userId: user.id,
+        providerRequestId: requestId,
+        reason: "Auto-release: Fal Veo image-to-video status endpoint returned non-OK response.",
+        routeLabel: "Fal Veo image-to-video",
+        detail: {
+          stage: "status",
+          upstream_status: statusResp.status,
+          payload: statusJson,
+        },
+      });
       return respondError(
         res,
         requestId,
@@ -281,6 +304,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ...resultResp.json,
     });
   } catch (error) {
+    await settleFailedGenerationByProviderRequest({
+      userId: user.id,
+      providerRequestId: requestId,
+      reason: "Auto-release: Fal Veo image-to-video status transport failure.",
+      routeLabel: "Fal Veo image-to-video",
+      detail: {
+        stage: "status",
+        transport_error: String(error),
+      },
+    });
     return respondError(res, requestId, "Fal Veo image-to-video status failed", String(error));
   } finally {
     clearTimeout(timeoutId);

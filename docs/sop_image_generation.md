@@ -30,15 +30,16 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 ## Image generation workflow (Create → Image)
 
 1. User selects mode “Image” in TextPropertiesPanel and chooses aspect + model (Fal/Kie options filtered by mode).  
-2. User enters a prompt (optionally informed by previously described prompts).  
-3. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect })`; disabled until a model is selected or the user lacks sufficient credits.  
-4. On click:  
+2. In advanced mode (`beginnerMode` off), user can choose model-specific image resolution from the dedicated resolution step card (same control style as video settings).
+3. User enters a prompt (optionally informed by previously described prompts).  
+4. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect, resolution })`; disabled until a model is selected or the user lacks sufficient credits.  
+5. On click:  
    - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal/Kie) with aspect-mapped sizing; no agent prompts are involved.
-   - The API submit route debits credits on the server before provider submission.
-   - Failed submits and failed Fal status/result outcomes auto-refund server-side (idempotent).
+   - Fal submit routes reserve credits before provider submission (no immediate debit posted).
+   - Fal success captures reservation into a debit; failed submit/status outcomes release reservation.
    - Task polling updates status; success stores `resultUrls`, sets `previewUrl`, and clears errors. Failures set `errorMessage` and stop polling.  
-5. Reference Grid prepends the new output card; Studio Preview shows the latest image.  
-6. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
+6. Reference Grid prepends the new output card; Studio Preview shows the latest image.  
+7. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
 
 ## Reference handling
 
@@ -62,7 +63,16 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 
 - Defaults: `gpt-4.1-nano` for text/vision calls (prompt refinement/describe); image models are chosen from the picker (Fal/Kie) and use provider-specific clients without agent prompts.  
 - Aspect normalization per provider (see `pricing.ts` and submit logic in `useAiStudioState`): Fal uses width/height; Kie/GPT-image enforce allowed aspects.  
-- Cost computation: `computeCostForModel` uses aspect and model defaults for estimate display; generation charging happens server-side in submit APIs.
+- Cost computation: `computeCostForModel` uses aspect + selected image resolution where applicable (Nano Banana Pro + Seedream tiers) for estimate display; generation charging happens server-side in submit APIs.
+
+## Image resolution controls
+
+- The image resolution step card appears only when `beginnerMode` is off.
+- The card is shown in both `TextPropertiesPanel` (text-to-image) and `ReferencePropertiesPanel` (image-to-image).
+- Resolution options are model-driven from `modelRegistry.ts` (`allowedResolutions` + `defaultResolution`):
+  - FLUX models / Nano Banana / Kie GPT-4o Image: `model_default` (no separate resolution enum exposed in current UI payload mapping).
+  - Nano Banana Pro + Nano Banana Pro Edit: `1K`, `2K`, `4K`.
+  - Seedream 4.5 + Seedream 4.5 Edit: `model_default`, `auto_2K`, `auto_4K`.
 
 ## Supported image models (current)
 

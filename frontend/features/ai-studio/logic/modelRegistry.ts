@@ -18,8 +18,8 @@ export type ModelConfig = {
   maxDurationSeconds?: number;
   defaultResolution?: string;
   defaultAudio?: boolean;
-  allowedResolutions?: string[];  // Model-specific resolution options (e.g., ["480p", "720p", "1080p"])
-  allowedDurations?: number[];    // Model-specific duration options (e.g., [4, 6, 8])
+  allowedResolutions?: string[]; // Model-specific resolution options (video + image)
+  allowedDurations?: number[]; // Model-specific duration options (e.g., [4, 6, 8])
   supportsTextToImage?: boolean;
   supportsImageToImage?: boolean;
   supportsImageToVideo?: boolean;
@@ -35,6 +35,8 @@ const registry: Record<string, ModelConfig> = {
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
     pricingStrategy: "fal-flux2-klein-per-mp",
     sizeMap: falImageSizeMap,
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
     supportsTextToImage: true,
   },
   "fal/flux-2": {
@@ -46,6 +48,8 @@ const registry: Record<string, ModelConfig> = {
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
     pricingStrategy: "fal-flux2-per-mp",
     sizeMap: falImageSizeMap,
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
     supportsTextToImage: true,
   },
   "fal/flux-2/edit": {
@@ -57,6 +61,8 @@ const registry: Record<string, ModelConfig> = {
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
     pricingStrategy: "fal-flux2-per-mp",
     sizeMap: falImageSizeMap,
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
     supportsImageToImage: true,
   },
   "fal/flux-2-pro": {
@@ -68,6 +74,8 @@ const registry: Record<string, ModelConfig> = {
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
     pricingStrategy: "fal-flux2-pro-per-mp",
     sizeMap: falImageSizeMap,
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
     supportsTextToImage: true,
   },
   "fal/flux-2-pro/edit": {
@@ -79,6 +87,8 @@ const registry: Record<string, ModelConfig> = {
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
     pricingStrategy: "fal-flux2-pro-per-mp",
     sizeMap: falImageSizeMap,
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
     supportsImageToImage: true,
   },
   "fal-ai/nano-banana": {
@@ -89,6 +99,8 @@ const registry: Record<string, ModelConfig> = {
     defaultAspect: "1:1",
     allowedAspects: ["21:9", "16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16"],
     pricingStrategy: "google-nano-banana-per-image",
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
     supportsTextToImage: true,
   },
   "fal-ai/nano-banana/edit": {
@@ -97,8 +109,22 @@ const registry: Record<string, ModelConfig> = {
     provider: "fal",
     mediaType: "image",
     defaultAspect: "auto",
-    allowedAspects: ["auto", "21:9", "16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16"],
+    allowedAspects: [
+      "auto",
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+    ],
     pricingStrategy: "google-nano-banana-per-image",
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
     supportsImageToImage: true,
   },
   "fal-ai/nano-banana-pro": {
@@ -107,9 +133,22 @@ const registry: Record<string, ModelConfig> = {
     provider: "fal",
     mediaType: "image",
     defaultAspect: "4:5",
-    allowedAspects: ["21:9", "16:9", "3:2", "4:3", "5:4", "4:5", "3:4", "2:3", "9:16", "1:1", "auto"],
+    allowedAspects: [
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+      "1:1",
+      "auto",
+    ],
     pricingStrategy: "nano-banana-per-image",
     defaultResolution: "1K",
+    allowedResolutions: ["1K", "2K", "4K"],
     supportsTextToImage: true,
   },
   "fal-ai/nano-banana-pro/edit": {
@@ -118,9 +157,22 @@ const registry: Record<string, ModelConfig> = {
     provider: "fal",
     mediaType: "image",
     defaultAspect: "auto",
-    allowedAspects: ["auto", "21:9", "16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16"],
+    allowedAspects: [
+      "auto",
+      "21:9",
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+    ],
     pricingStrategy: "nano-banana-per-image",
     defaultResolution: "1K",
+    allowedResolutions: ["1K", "2K", "4K"],
     supportsImageToImage: true,
   },
   "fal-ai/bytedance/seedream/v4.5/text-to-image": {
@@ -131,6 +183,8 @@ const registry: Record<string, ModelConfig> = {
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
     pricingStrategy: "seedream-per-image",
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default", "auto_2K", "auto_4K"],
     supportsTextToImage: true,
   },
   "fal-ai/bytedance/seedream/v4.5/edit": {
@@ -141,6 +195,8 @@ const registry: Record<string, ModelConfig> = {
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
     pricingStrategy: "seedream-per-image",
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default", "auto_2K", "auto_4K"],
     supportsImageToImage: true,
   },
   "fal-ai/kling-video/v3/pro/text-to-video": {
@@ -284,6 +340,8 @@ const registry: Record<string, ModelConfig> = {
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
     pricingStrategy: "gpt-image-per-image",
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
     supportsTextToImage: true,
     supportsImageToImage: true,
   },

@@ -7,6 +7,7 @@ import { computeCostForModel, getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
 import { TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
+import { normalizeImageResolutionForPricing } from "../logic/imageResolution";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type ViewModelInput = {
@@ -22,6 +23,7 @@ type ViewModelInput = {
   getDefaultDurationSeconds: (modelId: string | null) => number;
   videoDurationSeconds: number;
   videoResolution: string;
+  imageResolution: string;
   videoGenerateAudio: boolean;
   balanceCredits: number | null;
   costParamsForModel: (overrides?: Omit<PricingParams, "modelId">) => PricingParams;
@@ -40,11 +42,15 @@ export const useAiStudioViewModel = ({
   getDefaultDurationSeconds,
   videoDurationSeconds,
   videoResolution,
+  imageResolution,
   videoGenerateAudio,
   balanceCredits,
   costParamsForModel,
 }: ViewModelInput) => {
-  const isDescribeMode = (selectedTool === "create" || selectedTool === "text") && mode === "text" && useReferenceImageIndicator;
+  const isDescribeMode =
+    (selectedTool === "create" || selectedTool === "text") &&
+    mode === "text" &&
+    useReferenceImageIndicator;
   const requiresModelSelection =
     ((selectedTool === "create" || selectedTool === "text") && mode !== "text") ||
     selectedTool === "video" ||
@@ -52,22 +58,35 @@ export const useAiStudioViewModel = ({
   const isModelSelected = Boolean(model);
   const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
   const isVideoTool = selectedTool === "video" || selectedTool === "kling";
+  const isImageTool =
+    ((selectedTool === "create" || selectedTool === "text") && mode === "image") ||
+    selectedTool === "image";
+  const pricingImageResolution = useMemo(
+    () => normalizeImageResolutionForPricing(imageResolution),
+    [imageResolution]
+  );
 
   const estimatedTextTokens = useMemo(() => estimatePromptTokens(prompt), [prompt]);
   const estimatedDescribeTokens = useMemo(
     () => (prompt ? estimatePromptTokens(prompt) : estimateDescribeTokens()),
-    [prompt],
+    [prompt]
   );
 
   const currentCost = useMemo(() => {
     if (selectedTool === "create" || selectedTool === "text") {
       if (mode === "image") {
         if (!model) return null;
-        return computeCostForModel(model, costParamsForModel());
+        return computeCostForModel(
+          model,
+          costParamsForModel(pricingImageResolution ? { resolution: pricingImageResolution } : {})
+        );
       }
       if (mode === "video") {
         if (!model) return null;
-        return computeCostForModel(model, costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }));
+        return computeCostForModel(
+          model,
+          costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) })
+        );
       }
       if (mode === "text") {
         if (isDescribeMode) {
@@ -80,14 +99,21 @@ export const useAiStudioViewModel = ({
 
     if (selectedTool === "image") {
       if (!model) return null;
-      return computeCostForModel(model, costParamsForModel());
+      return computeCostForModel(
+        model,
+        costParamsForModel(pricingImageResolution ? { resolution: pricingImageResolution } : {})
+      );
     }
 
     if (isVideoTool) {
       if (!model) return null;
       return computeCostForModel(
         model,
-        costParamsForModel({ durationSeconds: videoDurationSeconds, resolution: videoResolution, audio: videoGenerateAudio }),
+        costParamsForModel({
+          durationSeconds: videoDurationSeconds,
+          resolution: videoResolution,
+          audio: videoGenerateAudio,
+        })
       );
     }
 
@@ -103,6 +129,7 @@ export const useAiStudioViewModel = ({
     selectedTool,
     videoDurationSeconds,
     videoResolution,
+    pricingImageResolution,
     videoGenerateAudio,
   ]);
 
@@ -114,21 +141,43 @@ export const useAiStudioViewModel = ({
       model,
       costParamsForModel(
         isVideoTool
-          ? { durationSeconds: videoDurationSeconds, resolution: videoResolution, audio: videoGenerateAudio }
-          : {},
-      ),
+          ? {
+              durationSeconds: videoDurationSeconds,
+              resolution: videoResolution,
+              audio: videoGenerateAudio,
+            }
+          : isImageTool && pricingImageResolution
+            ? { resolution: pricingImageResolution }
+            : {}
+      )
     );
     return breakdown?.credits ?? null;
-  }, [costParamsForModel, isVideoTool, model, videoDurationSeconds, videoGenerateAudio, videoResolution]);
+  }, [
+    costParamsForModel,
+    isVideoTool,
+    isImageTool,
+    model,
+    pricingImageResolution,
+    videoDurationSeconds,
+    videoGenerateAudio,
+    videoResolution,
+  ]);
 
   const promptGenerateCostCredits = useMemo(() => {
     if (!model) return null;
-    const breakdown = computeCostForModel(model, costParamsForModel({ aspect }));
+    const breakdown = computeCostForModel(
+      model,
+      costParamsForModel({
+        aspect,
+        ...(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
+      })
+    );
     return breakdown?.credits ?? null;
-  }, [aspect, costParamsForModel, model]);
+  }, [aspect, costParamsForModel, model, pricingImageResolution]);
 
   const costedFlow =
-    ((selectedTool === "create" || selectedTool === "text") && (mode === "image" || mode === "video")) ||
+    ((selectedTool === "create" || selectedTool === "text") &&
+      (mode === "image" || mode === "video")) ||
     isVideoTool ||
     selectedTool === "image";
   const hasReferenceImages = [referenceImageUrl, ...extraImageUrls].some((url) => Boolean(url));
@@ -149,7 +198,8 @@ export const useAiStudioViewModel = ({
 
   const generationGuardrail = useMemo(() => {
     if ((selectedTool === "create" || selectedTool === "text") && mode === "text") return null;
-    if (requiresModelSelection && !isModelSelected) return "Select a model before running a generation.";
+    if (requiresModelSelection && !isModelSelected)
+      return "Select a model before running a generation.";
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
     // Removed reference image guardrails - system will automatically fallback to text-to-image/text-to-video when no references exist
     if (isCreditGuardrail) return "You do not have enough credits for this run.";

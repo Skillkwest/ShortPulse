@@ -192,6 +192,16 @@ export const createFalStatusHandler = ({
       const statusData = await readJsonSafe(statusResp);
 
       if (!statusData.isJson) {
+        await settleFailure({
+          userId: user.id,
+          requestId,
+          reason: "Auto-release: Fal status payload malformed.",
+          routeLabel,
+          detail: {
+            stage: "status",
+            malformed: true,
+          },
+        });
         return respondError({
           res,
           requestId,
@@ -253,6 +263,17 @@ export const createFalStatusHandler = ({
       }
 
       if (!statusResp.ok) {
+        await settleFailure({
+          userId: user.id,
+          requestId,
+          reason: "Auto-release: Fal status endpoint returned non-OK response.",
+          routeLabel,
+          detail: {
+            stage: "status",
+            upstream_status: statusResp.status,
+            payload: statusData.json,
+          },
+        });
         return respondError({
           res,
           requestId,
@@ -401,6 +422,16 @@ export const createFalStatusHandler = ({
         ...resultData.json,
       });
     } catch (error) {
+      await settleFailure({
+        userId: user.id,
+        requestId,
+        reason: "Auto-release: Fal status check transport failure.",
+        routeLabel,
+        detail: {
+          stage: "status",
+          transport_error: String(error),
+        },
+      });
       return respondError({
         res,
         requestId,

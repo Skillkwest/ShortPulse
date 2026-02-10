@@ -21,6 +21,7 @@ Use this as the running list of tasks and future ideas. Keep items concise and s
 - Add platform filter tabs (IG/TikTok/YT) driven by the demo dataset toggle.
 - Integrate Media Library UI polish: error banners, retries, empty state for RLS failures.
 - Fix Media Library blow-up modal aesthetics for images & videos: auto-resize preview container to match media aspect ratio, eliminate blank space, and keep the rounded corners consistent.
+- Add user account setting to permanently hide Beginner Mode toggle card in AI Studio toolbar: Setting labeled "Show Beginner Mode Toggle" (yes/no) to allow users to permanently set their AI Studio to Advanced Mode by disabling the Beginner Mode toggle card display.
 
 ## Documentation
 - Document Supabase bootstrap for `media_files` alongside `saved_creators`.

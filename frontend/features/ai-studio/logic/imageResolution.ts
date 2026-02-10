@@ -1,0 +1,86 @@
+/**
+ * Shared image-resolution helpers for AI Studio image workflows.
+ * Keeps per-model option labeling, clamping, and normalization in one place.
+ */
+import { getModelConfig } from "./modelRegistry";
+
+export const MODEL_DEFAULT_IMAGE_RESOLUTION = "model_default";
+export const SEEDREAM_AUTO_2K_IMAGE_SIZE = "auto_2K";
+export const SEEDREAM_AUTO_4K_IMAGE_SIZE = "auto_4K";
+
+export type ImageResolutionOption = {
+  value: string;
+  label: string;
+};
+
+const IMAGE_RESOLUTION_LABELS: Record<string, string> = {
+  [MODEL_DEFAULT_IMAGE_RESOLUTION]: "Model default",
+  [SEEDREAM_AUTO_2K_IMAGE_SIZE]: "auto_2K",
+  [SEEDREAM_AUTO_4K_IMAGE_SIZE]: "auto_4K",
+  "1K": "1K",
+  "2K": "2K",
+  "4K": "4K",
+};
+
+export const formatImageResolutionLabel = (value: string): string => {
+  return IMAGE_RESOLUTION_LABELS[value] ?? value;
+};
+
+export const getImageResolutionOptions = (modelId: string | null): ImageResolutionOption[] => {
+  const config = modelId ? getModelConfig(modelId) : null;
+  const values = config?.allowedResolutions?.length
+    ? config.allowedResolutions
+    : [MODEL_DEFAULT_IMAGE_RESOLUTION];
+  return values.map((value) => ({ value, label: formatImageResolutionLabel(value) }));
+};
+
+export const clampImageResolutionForModel = (
+  modelId: string | null,
+  value: string | null | undefined
+): string => {
+  const config = modelId ? getModelConfig(modelId) : null;
+  const allowed = config?.allowedResolutions;
+  if (!allowed?.length) {
+    return MODEL_DEFAULT_IMAGE_RESOLUTION;
+  }
+  if (value && allowed.includes(value)) {
+    return value;
+  }
+  if (config?.defaultResolution && allowed.includes(config.defaultResolution)) {
+    return config.defaultResolution;
+  }
+  return allowed[0];
+};
+
+export const isModelDefaultImageResolution = (value: string | null | undefined): boolean => {
+  return !value || value === MODEL_DEFAULT_IMAGE_RESOLUTION;
+};
+
+export const isSeedreamAutoImageSize = (
+  value: string | null | undefined
+): value is typeof SEEDREAM_AUTO_2K_IMAGE_SIZE | typeof SEEDREAM_AUTO_4K_IMAGE_SIZE => {
+  return value === SEEDREAM_AUTO_2K_IMAGE_SIZE || value === SEEDREAM_AUTO_4K_IMAGE_SIZE;
+};
+
+export const normalizeImageResolutionForPricing = (
+  value: string | null | undefined
+): string | undefined => {
+  if (!value || isModelDefaultImageResolution(value)) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "auto_4k" || normalized === "4k") return "4K";
+  if (normalized === "auto_2k" || normalized === "2k") return "2K";
+  if (normalized === "1k") return "1K";
+  return value;
+};
+
+export const normalizeNanoBananaProResolution = (
+  value: string | null | undefined,
+  fallback: "1K" | "2K" | "4K" = "1K"
+): "1K" | "2K" | "4K" => {
+  if (!value) return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (normalized.includes("4k")) return "4K";
+  if (normalized.includes("2k")) return "2K";
+  if (normalized.includes("1k")) return "1K";
+  return fallback;
+};

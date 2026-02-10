@@ -21,10 +21,14 @@ const estimateBase64Bytes = (dataUrl: string) => {
 
 export const downscaleImageToDataUrl = async (
   file: File,
-  options: DownscaleOptions = {},
+  options: DownscaleOptions = {}
 ): Promise<string | null> => {
   if (typeof window === "undefined") return null;
-  const { maxEdge = DEFAULT_MAX_EDGE, quality = DEFAULT_QUALITY, maxBytes = DEFAULT_MAX_BYTES } = options;
+  const {
+    maxEdge = DEFAULT_MAX_EDGE,
+    quality = DEFAULT_QUALITY,
+    maxBytes = DEFAULT_MAX_BYTES,
+  } = options;
 
   const objectUrl = URL.createObjectURL(file);
   try {
@@ -51,7 +55,7 @@ export const downscaleImageToDataUrl = async (
       return null;
     }
     return dataUrl;
-  } catch (_error) {
+  } catch {
     return null;
   } finally {
     URL.revokeObjectURL(objectUrl);

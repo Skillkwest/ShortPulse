@@ -6,7 +6,7 @@ import { PerformanceScatter } from "../../../components/PerformanceScatter";
 import { BREAKOUT_SCORE } from "../constants";
 import { CohortSummary, summarizeCohort } from "../logic/analytics";
 import { ScoredVideo } from "../types";
-import { formatCompact, formatPercent } from "../utils/formatters";
+import { formatCompact } from "../utils/formatters";
 
 export type CohortAnalyticsSectionProps = {
   dataset: ScoredVideo[];
@@ -17,7 +17,11 @@ export type CohortAnalyticsSectionProps = {
 /**
  * Render the advanced analytics panel containing cohort stats and scatter plot.
  */
-export function CohortAnalyticsSection({ dataset, advancedOpen, onToggle }: CohortAnalyticsSectionProps) {
+export function CohortAnalyticsSection({
+  dataset,
+  advancedOpen,
+  onToggle,
+}: CohortAnalyticsSectionProps) {
   const summary: CohortSummary = summarizeCohort(dataset, BREAKOUT_SCORE);
 
   return (

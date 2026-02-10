@@ -43,7 +43,8 @@ type MediaLibraryModalProps = {
 
 const BUCKET = "media_library";
 
-const isVideoFile = (fileType?: string | null) => (fileType ?? "").toLowerCase().startsWith("video");
+const isVideoFile = (fileType?: string | null) =>
+  (fileType ?? "").toLowerCase().startsWith("video");
 
 const formatDate = (value?: string | null) => {
   if (!value) return "Unknown";
@@ -52,7 +53,15 @@ const formatDate = (value?: string | null) => {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
-export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectPrompt }: MediaLibraryModalProps) {
+const getErrorMessage = (error: unknown, fallback: string): string =>
+  error instanceof Error ? error.message : fallback;
+
+export function MediaLibraryModal({
+  isOpen,
+  onClose,
+  onSelectMedia,
+  onSelectPrompt,
+}: MediaLibraryModalProps) {
   const [activeTab, setActiveTab] = useState<MediaTab>("uploaded_images");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,13 +84,17 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
       if (!storagePath) return null;
       try {
         const nextSignedUrl = await signStoragePath(storagePath);
-        setFiles((prev) => prev.map((file) => (file.id === fileId ? { ...file, signedUrl: nextSignedUrl ?? null } : file)));
+        setFiles((prev) =>
+          prev.map((file) =>
+            file.id === fileId ? { ...file, signedUrl: nextSignedUrl ?? null } : file
+          )
+        );
         return nextSignedUrl;
-      } catch (_error) {
+      } catch {
         return null;
       }
     },
-    [signStoragePath],
+    [signStoragePath]
   );
 
   const handleMediaPreviewError = useCallback(
@@ -91,7 +104,7 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
       signedUrlRetryRef.current[file.id] = attempts + 1;
       void refreshSignedUrl(file.id, file.storage_path);
     },
-    [refreshSignedUrl],
+    [refreshSignedUrl]
   );
 
   useEffect(() => {
@@ -110,8 +123,14 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
           return;
         }
         const [mediaResponse, promptResponse] = await Promise.all([
-          supabase.from("media_files").select("id, filename, storage_path, file_type, source, created_at").order("created_at", { ascending: false }),
-          supabase.from("media_prompts").select("id, title, prompt_text, mode, model_id, source, created_at").order("created_at", { ascending: false }),
+          supabase
+            .from("media_files")
+            .select("id, filename, storage_path, file_type, source, created_at")
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("media_prompts")
+            .select("id, title, prompt_text, mode, model_id, source, created_at")
+            .order("created_at", { ascending: false }),
         ]);
         if (mediaResponse.error) throw mediaResponse.error;
         if (promptResponse.error) throw promptResponse.error;
@@ -125,16 +144,16 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
               source: row.source ?? "upload",
               signedUrl: signedUrl ?? null,
             } as MediaFileRow;
-          }),
+          })
         );
 
         if (active) {
           setFiles(signedRows);
           setPrompts((promptResponse.data ?? []) as PromptRow[]);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (active) {
-          setError(err?.message || "Unable to load media library.");
+          setError(getErrorMessage(err, "Unable to load media library."));
         }
       } finally {
         if (active) setLoading(false);
@@ -152,10 +171,22 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
     }
   }, [isOpen]);
 
-  const uploadFiles = useMemo(() => files.filter((item) => (item.source ?? "upload") === "upload"), [files]);
-  const uploadedImages = useMemo(() => uploadFiles.filter((item) => !isVideoFile(item.file_type)), [uploadFiles]);
-  const uploadedVideos = useMemo(() => uploadFiles.filter((item) => isVideoFile(item.file_type)), [uploadFiles]);
-  const aiGenerations = useMemo(() => files.filter((item) => (item.source ?? "upload") === "ai_studio"), [files]);
+  const uploadFiles = useMemo(
+    () => files.filter((item) => (item.source ?? "upload") === "upload"),
+    [files]
+  );
+  const uploadedImages = useMemo(
+    () => uploadFiles.filter((item) => !isVideoFile(item.file_type)),
+    [uploadFiles]
+  );
+  const uploadedVideos = useMemo(
+    () => uploadFiles.filter((item) => isVideoFile(item.file_type)),
+    [uploadFiles]
+  );
+  const aiGenerations = useMemo(
+    () => files.filter((item) => (item.source ?? "upload") === "ai_studio"),
+    [files]
+  );
 
   const activeMedia =
     activeTab === "uploaded_images"
@@ -180,9 +211,16 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
         <div className="media-library-modal-header">
           <div>
             <p className="eyebrow">Media Library</p>
-            <p className="tiny subdued helper-text">Select media or prompts to add to the reference grid.</p>
+            <p className="tiny subdued helper-text">
+              Select media or prompts to add to the reference grid.
+            </p>
           </div>
-          <button type="button" className="art-close-btn" onClick={onClose} aria-label="Close media library">
+          <button
+            type="button"
+            className="art-close-btn"
+            onClick={onClose}
+            aria-label="Close media library"
+          >
             <X size={18} weight="bold" />
           </button>
         </div>
@@ -242,13 +280,12 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
                 prompts.map((prompt) => {
                   const isSelected = selectedIds.has(prompt.id);
                   return (
-                  <button
-                    key={prompt.id}
-                    type="button"
-                    className={`prompt-card media-library-prompt-card${isSelected ? " is-selected" : ""}`}
-                    aria-pressed={isSelected}
-                    onClick={() =>
-                      {
+                    <button
+                      key={prompt.id}
+                      type="button"
+                      className={`prompt-card media-library-prompt-card${isSelected ? " is-selected" : ""}`}
+                      aria-pressed={isSelected}
+                      onClick={() => {
                         setSelectedIds((prev) => {
                           const next = new Set(prev);
                           next.add(prompt.id);
@@ -259,24 +296,23 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
                           promptText: prompt.prompt_text,
                           title: prompt.title,
                         });
-                      }
-                    }
-                  >
-                    {isSelected ? (
-                      <span className="media-library-select-indicator" aria-hidden>
-                        <CheckCircle size={16} weight="fill" />
-                      </span>
-                    ) : null}
-                    <div className="prompt-card-header">
-                      <div>
-                        <p className="metric-label">{prompt.title || "Saved prompt"}</p>
-                        <p className="metric-value tiny">{formatDate(prompt.created_at)}</p>
+                      }}
+                    >
+                      {isSelected ? (
+                        <span className="media-library-select-indicator" aria-hidden>
+                          <CheckCircle size={16} weight="fill" />
+                        </span>
+                      ) : null}
+                      <div className="prompt-card-header">
+                        <div>
+                          <p className="metric-label">{prompt.title || "Saved prompt"}</p>
+                          <p className="metric-value tiny">{formatDate(prompt.created_at)}</p>
+                        </div>
+                        <span className="pill tiny">Prompt</span>
                       </div>
-                      <span className="pill tiny">Prompt</span>
-                    </div>
-                    <p className="prompt-card-body">{prompt.prompt_text}</p>
-                  </button>
-                );
+                      <p className="prompt-card-body">{prompt.prompt_text}</p>
+                    </button>
+                  );
                 })
               )}
             </div>
@@ -290,68 +326,75 @@ export function MediaLibraryModal({ isOpen, onClose, onSelectMedia, onSelectProm
                 activeMedia.map((file) => {
                   const isSelected = selectedIds.has(file.id);
                   return (
-                  <button
-                    key={file.id}
-                    type="button"
-                    className={`media-card media-library-modal-card${isSelected ? " is-selected" : ""}`}
-                    aria-pressed={isSelected}
-                    onClick={async () => {
-                      const nextUrl = (await refreshSignedUrl(file.id, file.storage_path)) ?? file.signedUrl;
-                      if (!nextUrl) return;
-                      setSelectedIds((prev) => {
-                        const next = new Set(prev);
-                        next.add(file.id);
-                        return next;
-                      });
-                      onSelectMedia({
-                        id: file.id,
-                        url: nextUrl,
-                        fileType: isVideoFile(file.file_type) ? "video" : "image",
-                        filename: file.filename,
-                        source: file.source ?? "upload",
-                      });
-                    }}
-                  >
-                    {isSelected ? (
-                      <span className="media-library-select-indicator" aria-hidden>
-                        <CheckCircle size={16} weight="fill" />
-                      </span>
-                    ) : null}
-                    {file.signedUrl ? (
-                      isVideoFile(file.file_type) ? (
-                        <video
-                          className="media-thumb"
-                          src={file.signedUrl}
-                          muted
-                          playsInline
-                          onLoadedData={() => {
-                            signedUrlRetryRef.current[file.id] = 0;
-                          }}
-                          onError={() => handleMediaPreviewError(file)}
-                        />
+                    <button
+                      key={file.id}
+                      type="button"
+                      className={`media-card media-library-modal-card${isSelected ? " is-selected" : ""}`}
+                      aria-pressed={isSelected}
+                      onClick={async () => {
+                        const nextUrl =
+                          (await refreshSignedUrl(file.id, file.storage_path)) ?? file.signedUrl;
+                        if (!nextUrl) return;
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          next.add(file.id);
+                          return next;
+                        });
+                        onSelectMedia({
+                          id: file.id,
+                          url: nextUrl,
+                          fileType: isVideoFile(file.file_type) ? "video" : "image",
+                          filename: file.filename,
+                          source: file.source ?? "upload",
+                        });
+                      }}
+                    >
+                      {isSelected ? (
+                        <span className="media-library-select-indicator" aria-hidden>
+                          <CheckCircle size={16} weight="fill" />
+                        </span>
+                      ) : null}
+                      {file.signedUrl ? (
+                        isVideoFile(file.file_type) ? (
+                          <video
+                            className="media-thumb"
+                            src={file.signedUrl}
+                            muted
+                            playsInline
+                            onLoadedData={() => {
+                              signedUrlRetryRef.current[file.id] = 0;
+                            }}
+                            onError={() => handleMediaPreviewError(file)}
+                          />
+                        ) : (
+                          <>
+                            {/* Signed URLs are generated dynamically at runtime. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              className="media-thumb"
+                              src={file.signedUrl}
+                              alt={file.filename}
+                              onLoad={() => {
+                                signedUrlRetryRef.current[file.id] = 0;
+                              }}
+                              onError={() => handleMediaPreviewError(file)}
+                            />
+                          </>
+                        )
                       ) : (
-                        <img
-                          className="media-thumb"
-                          src={file.signedUrl}
-                          alt={file.filename}
-                          onLoad={() => {
-                            signedUrlRetryRef.current[file.id] = 0;
-                          }}
-                          onError={() => handleMediaPreviewError(file)}
-                        />
-                      )
-                    ) : (
-                      <div className="media-thumb placeholder">No preview</div>
-                    )}
-                    <div className="media-meta">
-                      <div>
-                        <p className="metric-label">{file.filename}</p>
-                        <p className="metric-value tiny">{formatDate(file.created_at)}</p>
+                        <div className="media-thumb placeholder">No preview</div>
+                      )}
+                      <div className="media-meta">
+                        <div>
+                          <p className="metric-label">{file.filename}</p>
+                          <p className="metric-value tiny">{formatDate(file.created_at)}</p>
+                        </div>
+                        <span className="pill tiny">
+                          {isVideoFile(file.file_type) ? "Video" : "Image"}
+                        </span>
                       </div>
-                      <span className="pill tiny">{isVideoFile(file.file_type) ? "Video" : "Image"}</span>
-                    </div>
-                  </button>
-                );
+                    </button>
+                  );
                 })
               )}
             </div>

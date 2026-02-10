@@ -31,7 +31,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const payload = (typeof req.body === "object" && req.body ? req.body : {}) as ClientErrorRequest;
+    const payload = (
+      typeof req.body === "object" && req.body ? req.body : {}
+    ) as ClientErrorRequest;
     const writeResult = await writeAppErrorLog({
       source: payload.source ?? "client.runtime",
       scope: payload.scope ?? "app",
@@ -46,6 +48,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       userEmail: user.email ?? null,
       metadata: {
         user_agent: req.headers["user-agent"] ?? null,
+        host: req.headers.host ?? null,
+        vercel_id: req.headers["x-vercel-id"] ?? null,
         ...((payload.metadata ?? {}) as Record<string, unknown>),
       },
       occurredAt: payload.occurredAt ?? null,

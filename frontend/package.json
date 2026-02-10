@@ -6,13 +6,25 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "docs:check": "node ../scripts/check_docs_links.js"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "validate": "npm run lint && npm run type-check && npm run test",
+    "db:migrate": "cd .. && supabase db push",
+    "db:reset": "cd .. && supabase db reset",
+    "docs:check": "cd .. && node scripts/check_docs_links.js",
+    "prepare": "cd .. && husky"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",
     "formidable": "^3.5.4",
-    "next": "^14.2.35",
+    "next": "^16.1.6",
     "onnxruntime-web": "^1.23.2",
     "phosphor-react": "^1.4.1",
     "react": "18.2.0",
@@ -21,11 +33,36 @@
     "swr": "2.2.4"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.3",
+    "@playwright/test": "^1.58.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "20.11.24",
     "@types/react": "18.2.61",
     "@types/react-dom": "18.2.19",
-    "eslint": "8.56.0",
-    "eslint-config-next": "14.1.0",
-    "typescript": "5.3.3"
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "^16.1.6",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "husky": "^9.1.7",
+    "jsdom": "^26.1.0",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.8.1",
+    "supabase": "^2.76.6",
+    "typescript": "5.3.3",
+    "typescript-eslint": "^8.55.0",
+    "vitest": "^3.2.4"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css}": [
+      "prettier --write"
+    ]
   }
 }

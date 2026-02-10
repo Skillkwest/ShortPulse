@@ -10,8 +10,11 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 
 ## Source of truth
 - Billing bootstrap schema: `sql/create_billing_credit_tables.sql`.
+- Pricing catalog updates: `sql/update_billing_pricing_catalog_20260210.sql`.
 - Legacy-to-v2 alignment migration: `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`.
+- Reservation/capture migration: `sql/migrations/002_add_generation_credit_reservations.sql`.
 - Server debit helper: `frontend/pages/api/_utils/generationBilling.ts`.
+- Fal status settlement helper: `frontend/pages/api/_utils/falStatusProxy.ts`.
 - Ledger compatibility insert helper: `frontend/pages/api/_utils/creditLedger.ts`.
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
 
@@ -42,7 +45,7 @@ order by ordinal_position;
 
 ## Admin/operator access
 `/admin` requires one of:
-- `app_metadata.role` or `user_metadata.role` = `admin`/`operator`.
+- `app_metadata.role` = `admin`/`operator`.
 - Email in `SHORTPULSE_ADMIN_EMAILS`.
 
 If role metadata is updated directly in Supabase, sign out/sign in to refresh JWT claims before retesting `/admin`.
@@ -61,9 +64,21 @@ Safety checks:
 - DB trigger blocks underflow (`Insufficient credits`).
 
 ## Charging model behavior
-- Generation submit endpoints debit on the server before provider submission.
-- Provider rejection/transport failure triggers automatic refund insert.
+- Fal generation submit endpoints reserve credits server-side before provider submission.
+- Submit rejection/transport failure auto-releases reservation (no debit posted).
+- Successful submit records `provider_request_id` on the reservation/charge context.
+- Fal status routes settle generation outcomes idempotently by `provider_request_id`:
+  - Success with usable media: capture reservation into `generation_charge` ledger debit.
+  - Failed/error/content-policy/malformed output: release reservation (no debit posted).
 - Prompt-refine and describe-image calls currently return usage but are not yet debited.
+
+## Failure-settlement lifecycle (Fal)
+1. Submit route reserves credits keyed by `source_ref` (`x-shortpulse-request-id`).
+2. Submit success stores `provider_request_id` on reservation context.
+3. Status route settles final outcome:
+   - success -> capture reservation as `generation_charge`.
+   - failure -> release reservation.
+4. Reservation + ledger uniqueness keep settlement idempotent across retries/polling races.
 
 ## Stripe grants behavior
 - Checkout and renewal credits are ledger grants (`change_cents > 0`) via server routes.
@@ -71,9 +86,9 @@ Safety checks:
 
 ## Operations checklist
 Before release:
-1. Run migration if environment is legacy.
+1. Run migration if environment is legacy (must include reservation migration for Fal capture flow).
 2. Validate one positive and one negative admin adjustment.
-3. Validate one generation debit and one auto-refund scenario.
+3. Validate one successful generation capture and one failed-status auto-release scenario.
 4. Confirm user can only read own balances/ledger rows.
 
 After release:

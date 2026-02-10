@@ -36,7 +36,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Removed demo-credentials footer text and cleaned back navigation: media library, saved creators, and performance pages now link back to the dashboard.
 
 ## 2026-12-14
-- Iterated dashboard UX: reordered tool cards, refreshed card imagery, tuned hover/spacing, added “Searches” status chip, enforced plan-color rules (Free white, Media green, Pro teal, Creative Suite amber).
+- Iterated dashboard UX: reordered tool cards, refreshed card imagery, tuned hover/spacing, added "Searches" status chip, enforced plan-color rules (Free white, Media green, Studio teal, Business amber).
 - Added logout confirmation modal to the dashboard profile menu; signing out returns to landing.
 
 ## 2027-01-01

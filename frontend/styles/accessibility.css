@@ -1,0 +1,415 @@
+/**
+ * Accessibility Styles
+ *
+ * Comprehensive accessibility features for ShortPulse.
+ * Includes focus-visible, reduced motion, screen reader utilities,
+ * and keyboard navigation support.
+ *
+ * Based on AI Studio's accessibility excellence.
+ */
+
+/* ============================================
+   FOCUS-VISIBLE STYLES
+   Custom focus indicators for keyboard navigation
+   ============================================ */
+
+/* Global focus-visible for all interactive elements */
+*:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
+/* Button focus */
+button:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-danger:focus-visible,
+.btn-amber:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 3px;
+}
+
+/* Input focus */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid rgba(37, 169, 191, 0.5);
+  outline-offset: 2px;
+}
+
+/* Card focus */
+.card:focus-visible,
+.tool-card:focus-visible,
+.media-card:focus-visible,
+.dash-card:focus-visible,
+.module-tile:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 3px;
+}
+
+/* Link focus */
+a:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* Special focus for gradient buttons (AI Studio pattern) */
+.toolbar-item[data-tool-id="create"]:focus-visible,
+.toolbar-item[data-tool-id="kling"]:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 3px;
+}
+
+.toolbar-item[data-tool-id="edit"]:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 3px;
+}
+
+.toolbar-item[data-tool-id="canvas"]:focus-visible {
+  outline: 2px solid #a78bf7;
+  outline-offset: 3px;
+}
+
+/* ============================================
+   SKIP LINKS
+   Allow keyboard users to skip to main content
+   ============================================ */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-teal);
+  color: #ffffff;
+  padding: var(--spacing-8) var(--spacing-12);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  z-index: var(--z-toast);
+  font-weight: var(--font-bold);
+  font-size: var(--text-sm);
+  transition: top var(--transition-fast);
+}
+
+.skip-link:focus {
+  top: var(--spacing-8);
+}
+
+/* Multiple skip links */
+.skip-links {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  display: flex;
+  gap: var(--spacing-8);
+  padding: var(--spacing-8);
+  z-index: var(--z-toast);
+}
+
+.skip-links:focus-within {
+  top: 0;
+}
+
+/* ============================================
+   SCREEN READER UTILITIES
+   ============================================ */
+
+/* Screen reader only text (visually hidden but readable by screen readers) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Make sr-only text visible on focus (useful for skip links) */
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* ============================================
+   REDUCED MOTION SUPPORT
+   Respects user's motion preferences
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Disable hover transforms */
+  .card:hover,
+  .tool-card:hover,
+  .media-card:hover,
+  .dash-card:hover,
+  .module-tile:hover,
+  .hero-onboarding:hover {
+    transform: none;
+  }
+
+  /* Disable button transforms */
+  .btn-primary:hover,
+  .btn-secondary:hover,
+  .btn-danger:hover,
+  .btn-amber:hover {
+    transform: none;
+  }
+
+  /* Disable toolbar transforms (AI Studio pattern) */
+  .toolbar-item[data-tool-id="create"]:hover,
+  .toolbar-item[data-tool-id="kling"]:hover,
+  .toolbar-item[data-tool-id="edit"]:hover,
+  .toolbar-item[data-tool-id="canvas"]:hover {
+    transform: none;
+  }
+
+  /* Keep box-shadow changes for visual feedback */
+  /* (Shadows don't cause motion sickness) */
+}
+
+/* ============================================
+   HIGH CONTRAST MODE SUPPORT
+   ============================================ */
+@media (prefers-contrast: high) {
+  /* Increase border contrast */
+  .card,
+  .tool-card,
+  .media-card,
+  .input,
+  .select {
+    border-width: 2px;
+  }
+
+  /* Strengthen text contrast */
+  .card-description,
+  .helper-text,
+  .subdued {
+    color: var(--color-ash);
+  }
+
+  /* Make focus indicators more visible */
+  *:focus-visible {
+    outline-width: 3px;
+  }
+}
+
+/* ============================================
+   KEYBOARD NAVIGATION HELPERS
+   ============================================ */
+
+/* Ensure all interactive elements are tabbable */
+a,
+button,
+input,
+select,
+textarea,
+[role="button"],
+[role="link"],
+[tabindex="0"] {
+  /* Remove default outline, we use focus-visible instead */
+  outline: none;
+}
+
+/* Disabled elements should not be tabbable */
+[disabled],
+[aria-disabled="true"] {
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   ARIA LIVE REGION STYLES
+   For dynamic content announcements
+   ============================================ */
+
+/* Polite announcements (non-urgent) */
+[aria-live="polite"],
+[role="status"] {
+  /* These are typically visually hidden or styled separately */
+}
+
+/* Assertive announcements (urgent, like errors) */
+[aria-live="assertive"],
+[role="alert"] {
+  /* Ensure alerts are visible */
+  padding: var(--spacing-12);
+  border-radius: var(--radius-md);
+  background: rgba(255, 110, 110, 0.12);
+  border: 1px solid rgba(255, 110, 110, 0.7);
+  color: #ffecec;
+}
+
+/* ============================================
+   ACCESSIBLE TOOLTIPS
+   ============================================ */
+[role="tooltip"] {
+  position: absolute;
+  z-index: var(--z-tooltip);
+  background: rgba(12, 15, 22, 0.96);
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-8) var(--spacing-10);
+  font-size: var(--text-xs);
+  color: var(--color-ash);
+  max-width: 200px;
+  pointer-events: none;
+}
+
+/* ============================================
+   ACCESSIBLE MODALS
+   Focus trapping indicators
+   ============================================ */
+[role="dialog"],
+[role="alertdialog"] {
+  /* Ensure modals are above everything */
+  z-index: var(--z-modal);
+}
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 5, 10, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-modal);
+}
+
+/* ============================================
+   ACCESSIBLE LOADING STATES
+   ============================================ */
+[aria-busy="true"] {
+  cursor: wait;
+  pointer-events: none;
+}
+
+/* Loading spinner should announce to screen readers */
+.loader[role="status"]::after {
+  content: "Loading...";
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ============================================
+   ACCESSIBLE TABLES
+   ============================================ */
+table[role="table"] {
+  /* Ensure proper table semantics */
+}
+
+/* Sticky table headers for accessibility */
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-bg);
+  z-index: var(--z-sticky);
+}
+
+/* ============================================
+   COLOR CONTRAST IMPROVEMENTS
+   Based on audit recommendations
+   ============================================ */
+
+/* Improved tertiary text contrast */
+.eyebrow,
+.subdued,
+.tiny,
+.card-meta,
+.helper-text {
+  color: var(--color-ash-50); /* Improved from ash-40 (0.4 → 0.5) */
+}
+
+/* Ensure interactive elements meet WCAG AA */
+a {
+  color: var(--color-teal);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color var(--transition-fast);
+}
+
+a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* ============================================
+   DARK MODE SPECIFIC (Current Default)
+   ============================================ */
+
+/* Ensure sufficient contrast in dark mode */
+body {
+  color: var(--color-ash);
+  background: var(--color-bg);
+}
+
+/* ============================================
+   ACCESSIBLE FORM VALIDATION
+   ============================================ */
+
+/* Error messages should be associated with inputs */
+.input-error:focus {
+  border-color: rgba(255, 110, 110, 0.9);
+}
+
+/* Success indicators */
+.input-success:focus {
+  border-color: rgba(110, 231, 183, 0.8);
+}
+
+/* Required field indicator */
+[aria-required="true"]::after,
+.required::after {
+  content: " *";
+  color: rgba(255, 110, 110, 0.8);
+  font-weight: var(--font-bold);
+}
+
+/**
+ * Usage Guidelines:
+ *
+ * SKIP LINKS:
+ *   <a href="#main-content" class="skip-link">Skip to main content</a>
+ *
+ * SCREEN READER TEXT:
+ *   <span class="sr-only">This text is only for screen readers</span>
+ *
+ * LIVE REGIONS:
+ *   <div role="status" aria-live="polite">
+ *     File uploaded successfully
+ *   </div>
+ *
+ * ALERTS:
+ *   <div role="alert" aria-live="assertive">
+ *     Error: File upload failed
+ *   </div>
+ *
+ * FOCUS MANAGEMENT:
+ *   All interactive elements automatically get focus-visible styles.
+ *   No additional classes needed.
+ *
+ * REDUCED MOTION:
+ *   Automatically disabled for users who prefer reduced motion.
+ *   No additional code needed.
+ */

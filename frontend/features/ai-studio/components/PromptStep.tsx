@@ -1,8 +1,8 @@
 /**
  * Shared prompt step component for AI Studio.
- * Handles text input ("Text"), Chat mode, and Agent interactions.
+ * Handles prompt entry modes and Agent interactions.
  */
-import React, { useRef } from "react";
+import React from "react";
 import { ArrowsOutSimple, CaretDown, Trash } from "phosphor-react";
 import {
   AgentChatPanel,
@@ -75,17 +75,17 @@ export type PromptStepProps = {
   onDragOver?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
   className?: string;
   beginnerMode?: boolean;
+  chatOnly?: boolean;
 };
 
 export function PromptStep({
   stepNumber,
-  title = "Write your prompt",
+  title = "Choose Prompt Mode",
   subtitle = "Draft the prompt you want to use, or switch to Chat to have the agent craft one for you.",
   prompt,
   onPromptChange,
   agentEnabled = false,
   agentMessages = [],
-  agentActions,
   agentInput = "",
   agentIsSending = false,
   agentError,
@@ -96,7 +96,6 @@ export function PromptStep({
   onAgentEnhanceSend,
   onAgentMessageClick,
   onExpandChat,
-  onCloseAgentChat,
   onClearAgentChat,
   onSavePrompt,
   isCollapsed,
@@ -107,17 +106,24 @@ export function PromptStep({
   onDragOver,
   className = "",
   beginnerMode = false,
+  chatOnly = false,
 }: PromptStepProps) {
-  const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">("enhanced");
+  const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
+    chatOnly ? "chat" : "enhanced"
+  );
 
-  // When beginner mode is on, force enhanced mode and hide chat-specific controls.
+  // Chat-only overrides local mode state; otherwise beginner mode defaults to enhanced prompt mode.
   React.useEffect(() => {
-    if (beginnerMode && promptMode !== "enhanced") {
+    if (chatOnly && promptMode !== "chat") {
+      setPromptMode("chat");
+      return;
+    }
+    if (!chatOnly && beginnerMode && promptMode !== "enhanced") {
       setPromptMode("enhanced");
     }
-  }, [beginnerMode, promptMode]);
+  }, [beginnerMode, chatOnly, promptMode]);
 
-  const effectiveTitle = beginnerMode ? "Write your prompt" : "Choose Prompt Mode";
+  const effectiveTitle = beginnerMode ? "Write your prompt" : title;
 
   const handleEnhancedPromptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
@@ -131,64 +137,107 @@ export function PromptStep({
     onAgentSend?.();
   };
 
-  const canExpandChat = agentMessages.length > 0;
-  const isChatPromptMode = promptMode === "chat";
+  const canExpandInlineChat = agentMessages.length > 0;
+  const isChatMode = chatOnly || promptMode === "chat";
   const promptThinking = Boolean(agentIsSending || isGenerating);
   const lastAssistantMessage = React.useMemo(
-    () => [...agentMessages].reverse().find((message) => message.role === "assistant")?.content ?? null,
-    [agentMessages],
+    () =>
+      [...agentMessages].reverse().find((message) => message.role === "assistant")?.content ?? null,
+    [agentMessages]
   );
 
   React.useEffect(() => {
-    if (promptMode !== "chat") return;
+    if (!isChatMode) return;
     if (!lastAssistantMessage) return;
     if (prompt === lastAssistantMessage) return;
     onPromptChange(lastAssistantMessage);
-  }, [promptMode, lastAssistantMessage, prompt, onPromptChange]);
+  }, [isChatMode, lastAssistantMessage, prompt, onPromptChange]);
 
   return (
     <div
       className={`step-card prompt-step ${isCollapsed ? "is-collapsed" : ""} ${className}`}
-      onClick={(e) => {
+      onClick={() => {
         // Only collapse if clicking the header or specific non-interactive areas if needed.
         // For now, consistent with other steps: clicking container expands if collapsed.
         if (isCollapsed) onToggleCollapse();
       }}
       role="group"
       aria-label={`${effectiveTitle} section`}
-      onDrop={onDrop as any}
-      onDragOver={onDragOver as any}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
     >
-        <div className="step-card-header" onClick={(e) => {
+      <div
+        className="step-card-header"
+        onClick={(e) => {
           e.stopPropagation();
           onToggleCollapse();
-        }}>
-          {beginnerMode && <span className="step-badge">{stepNumber}</span>}
-          <div className="step-header-copy">
-            <p className="step-title">{effectiveTitle}</p>
-            <span className="step-subtitle tiny helper-text">{subtitle}</span>
-          </div>
-          {!beginnerMode ? (
-            <div className="step-header-actions">
-              <StepHeaderActionButton
-                label="Open prompt tools"
-                isCollapsed={isCollapsed}
-                onClick={onToggleCollapse}
-              />
+        }}
+      >
+        {beginnerMode && <span className="step-badge">{stepNumber}</span>}
+        <div className="step-header-copy">
+          <p className="step-title">{effectiveTitle}</p>
+          <span className="step-subtitle tiny helper-text">{subtitle}</span>
+        </div>
+        <div className="step-header-actions">
+          {chatOnly ? (
+            <div className="prompt-chat-header-actions">
+              {onExpandChat ? (
+                <button
+                  type="button"
+                  className={`ghost-btn mini prompt-chat-header-btn ${agentChatOpen ? "is-chat-open" : ""}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onExpandChat();
+                  }}
+                  aria-label="Expand chat"
+                >
+                  <ArrowsOutSimple size={14} weight="bold" aria-hidden />
+                  <span>Expand</span>
+                </button>
+              ) : null}
+              {onClearAgentChat ? (
+                <button
+                  type="button"
+                  className="ghost-btn mini prompt-chat-header-btn"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onClearAgentChat();
+                  }}
+                  aria-label="Clear chat"
+                >
+                  <Trash size={14} weight="bold" aria-hidden />
+                  <span>Clear</span>
+                </button>
+              ) : null}
             </div>
           ) : null}
+          {!beginnerMode ? (
+            <StepHeaderActionButton
+              label="Open prompt tools"
+              isCollapsed={isCollapsed}
+              onClick={onToggleCollapse}
+            />
+          ) : null}
         </div>
+      </div>
       {!isCollapsed ? (
         agentEnabled ? (
           <>
-            {(!beginnerMode) ? (
+            {!chatOnly && !beginnerMode ? (
               <div className="prompt-mode-row">
-                <div className="prompt-mode-toggle-row prompt-mode-toggle-standalone" role="group" aria-label="Prompt options">
+                <div
+                  className="prompt-mode-toggle-row prompt-mode-toggle-standalone"
+                  role="group"
+                  aria-label="Prompt options"
+                >
                   <button
                     type="button"
                     className={`ghost-btn small mode-toggle-btn ${promptMode === "enhanced" ? "is-active" : ""}`}
                     aria-pressed={promptMode === "enhanced"}
-                    onClick={(e) => { e.stopPropagation(); setPromptMode("enhanced"); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPromptMode("enhanced");
+                    }}
                   >
                     Prompt
                   </button>
@@ -196,7 +245,10 @@ export function PromptStep({
                     type="button"
                     className={`ghost-btn small mode-toggle-btn ${promptMode === "chat" ? "is-active" : ""}`}
                     aria-pressed={promptMode === "chat"}
-                    onClick={(e) => { e.stopPropagation(); setPromptMode("chat"); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPromptMode("chat");
+                    }}
                   >
                     Chat
                   </button>
@@ -206,10 +258,13 @@ export function PromptStep({
                     <button
                       type="button"
                       className={`ghost-btn mini prompt-expand-btn ${agentChatOpen ? "is-chat-open" : ""}`}
-                      onClick={(e) => { e.stopPropagation(); if (canExpandChat) onExpandChat(); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (canExpandInlineChat) onExpandChat();
+                      }}
                       aria-label="Expand chat"
-                      disabled={!canExpandChat}
-                      aria-disabled={!canExpandChat}
+                      disabled={!canExpandInlineChat}
+                      aria-disabled={!canExpandInlineChat}
                     >
                       <ArrowsOutSimple size={20} weight="bold" aria-hidden />
                     </button>
@@ -218,7 +273,10 @@ export function PromptStep({
                     <button
                       type="button"
                       className="ghost-btn mini prompt-clear-btn"
-                      onClick={(e) => { e.stopPropagation(); onClearAgentChat(); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClearAgentChat();
+                      }}
                       aria-label="Clear chat"
                       disabled={agentMessages.length === 0 && !stagedPrompt}
                       aria-disabled={agentMessages.length === 0 && !stagedPrompt}
@@ -229,7 +287,7 @@ export function PromptStep({
                 </div>
               </div>
             ) : null}
-            {promptMode === "chat" ? (
+            {isChatMode ? (
               agentChatOpen ? null : (
                 <>
                   {agentMessages.length > 0 || stagedPrompt ? (
@@ -311,7 +369,9 @@ export function PromptStep({
           </div>
         )
       ) : null}
-      {agentEnabled && agentError && !isCollapsed ? <div className="inline-error-hint">{agentError}</div> : null}
+      {agentEnabled && agentError && !isCollapsed ? (
+        <div className="inline-error-hint">{agentError}</div>
+      ) : null}
     </div>
   );
 }

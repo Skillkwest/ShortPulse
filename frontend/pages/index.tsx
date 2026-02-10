@@ -27,7 +27,7 @@ export default function IndexRedirect() {
           if (!mounted) return;
           router.replace("/landing");
         });
-    } catch (_error) {
+    } catch {
       if (mounted) {
         router.replace("/landing");
       }

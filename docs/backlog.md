@@ -3,6 +3,9 @@
 Use this as the running list of tasks and future ideas. Keep items concise and scoped; move completed work into the change log.
 
 ## Near-term (MVP hardening)
+- **[HIGH PRIORITY] Create Stripe price IDs for updated billing tiers** (Free, Media, Studio, Business) and credit packages (starter_500, growth_2000, scale_6000, studio_10000). Document price IDs and update `billing_plans.stripe_price_id` and `billing_credit_packages.stripe_price_id` in Supabase.
+- **[HIGH PRIORITY] Configure Stripe Billing Portal for Subscription tab**: Enable "Subscription update" and "Subscription cancel" features in Stripe Dashboard. Set cancellation behavior to "Cancel at period end" to allow users to manage plans via the new Subscription tab at `/profile?section=subscription`.
+- **Test Subscription tab end-to-end**: Verify upgrade/downgrade/cancel flows work correctly through Stripe portal, webhooks sync plan changes back to `billing_profiles`, and credit allocations trigger on renewal.
 - Confirm Supabase schemas (`saved_creators`, `media_files`) and RLS work end-to-end.
 - Add lightweight component/integration tests for auth + saved creators + media library.
 - Add client-side logging/error surfacing for Supabase operations.
@@ -18,6 +21,7 @@ Use this as the running list of tasks and future ideas. Keep items concise and s
 - Add platform filter tabs (IG/TikTok/YT) driven by the demo dataset toggle.
 - Integrate Media Library UI polish: error banners, retries, empty state for RLS failures.
 - Fix Media Library blow-up modal aesthetics for images & videos: auto-resize preview container to match media aspect ratio, eliminate blank space, and keep the rounded corners consistent.
+- Add user account setting to permanently hide Beginner Mode toggle card in AI Studio toolbar: Setting labeled "Show Beginner Mode Toggle" (yes/no) to allow users to permanently set their AI Studio to Advanced Mode by disabling the Beginner Mode toggle card display.
 
 ## Documentation
 - Document Supabase bootstrap for `media_files` alongside `saved_creators`.

@@ -76,7 +76,10 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
         if (!storedPreference) {
           const { error: insertError } = await supabase
             .from("user_preferences")
-            .upsert({ user_id: id, beginner_mode: DEFAULT_BEGINNER_MODE }, { onConflict: "user_id" });
+            .upsert(
+              { user_id: id, beginner_mode: DEFAULT_BEGINNER_MODE },
+              { onConflict: "user_id" }
+            );
           if (insertError) throw insertError;
         }
         setError(null);
@@ -89,8 +92,9 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
         }
         setError(err instanceof Error ? err.message : "Unable to load beginner mode preference");
       } finally {
-        if (!active) return;
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     })();
 
@@ -121,12 +125,15 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
         setError(err instanceof Error ? err.message : "Unable to update beginner mode preference");
       }
     },
-    [userId, updateLocalMode],
+    [userId, updateLocalMode]
   );
 
-  const setBeginnerMode = useCallback((value: boolean) => {
-    void persistPreference(value);
-  }, [persistPreference]);
+  const setBeginnerMode = useCallback(
+    (value: boolean) => {
+      void persistPreference(value);
+    },
+    [persistPreference]
+  );
 
   return {
     beginnerMode,

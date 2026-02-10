@@ -13,12 +13,19 @@ const readJsonSafe = async (response: Response) => {
   if (!text) return {};
   try {
     return JSON.parse(text);
-  } catch (_error) {
+  } catch {
     return {
       error: "Non-JSON response from Fal",
       raw: text.slice(0, 4000),
     };
   }
+};
+
+const readProviderRequestId = (payload: Record<string, unknown>): string | null => {
+  const requestId = payload.request_id ?? payload.requestId;
+  if (typeof requestId !== "string") return null;
+  const trimmed = requestId.trim();
+  return trimmed.length ? trimmed : null;
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -91,6 +98,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         upstream_status: result.response.status,
         upstream_error: result.data,
       });
+    } else {
+      const providerRequestId = readProviderRequestId(result.data);
+      if (!providerRequestId) {
+        await charge.refund("Auto-refund: Fal Veo image-to-video submit missing request id.", {
+          upstream_status: result.response.status,
+          upstream_payload: result.data,
+        });
+        return res.status(502).json({
+          error: "Fal Veo image-to-video submit response did not include request_id",
+        });
+      }
+      await charge.markSubmitted(providerRequestId, {
+        route: req.url ?? null,
+        upstream_status: result.response.status,
+      });
     }
 
     return res.status(result.response.status).json(result.data);
@@ -98,7 +120,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await charge.refund("Auto-refund: Fal Veo image-to-video transport failure.", {
       error: String(error),
     });
-    return res.status(500).json({ error: "Fal Veo image-to-video submit failed", detail: String(error) });
+    return res
+      .status(500)
+      .json({ error: "Fal Veo image-to-video submit failed", detail: String(error) });
   } finally {
     clearTimeout(timeoutId);
   }

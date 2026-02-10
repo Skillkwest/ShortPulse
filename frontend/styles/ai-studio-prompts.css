@@ -33,7 +33,60 @@
   border: none;
   border-radius: 10px;
   background: transparent;
-  transition: border-color 0.12s ease, background 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.prompt-chat-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prompt-chat-header-btn {
+  height: 30px;
+  min-width: auto;
+  padding: 0 10px;
+  border-radius: 10px;
+  gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(48, 52, 60, 0.95);
+  border: 1px solid transparent;
+  color: #e9edf2;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease,
+    opacity 0.12s ease;
+}
+
+.prompt-chat-header-btn span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.prompt-chat-header-btn:hover {
+  border-color: var(--ai-accent, rgba(37, 169, 191, 0.65));
+  background: rgba(62, 68, 78, 0.95);
+}
+
+.prompt-chat-header-btn:disabled,
+.prompt-chat-header-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.prompt-chat-header-btn.is-chat-open {
+  background: linear-gradient(135deg, #f5b754, #f4921f);
+  border-color: #f4921f;
+  color: #0f1d23;
+}
+
+.prompt-chat-header-btn.is-chat-open svg {
+  color: #0f1d23;
 }
 
 .prompt-expand-btn {
@@ -45,7 +98,9 @@
   border: none;
   background: rgba(48, 52, 60, 0.95);
   box-shadow: none;
-  transition: border-color 0.12s ease, background 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
   min-width: unset;
   flex: none;
   display: inline-flex;
@@ -72,7 +127,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.12s ease, background 0.12s ease, opacity 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease,
+    opacity 0.12s ease;
 }
 
 .prompt-clear-btn svg {

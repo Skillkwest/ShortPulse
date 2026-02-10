@@ -4,7 +4,17 @@
  */
 import React from "react";
 import Link from "next/link";
-import { CloudArrowUp, FlowArrow, Globe, Selection, SquaresFour, StackSimple, UploadSimple } from "phosphor-react";
+import {
+  CloudArrowUp,
+  FlowArrow,
+  Globe,
+  type IconProps,
+  Selection,
+  SquaresFour,
+  StackSimple,
+  UploadSimple,
+} from "phosphor-react";
+import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { CanvasPanel } from "./CanvasPanel";
 import { TextPropertiesPanel, ComposeSendCard } from "./TextPropertiesPanel";
@@ -20,21 +30,25 @@ import { KlingComingSoonCard } from "./KlingComingSoonCard";
 import { AgentChatPanel } from "../../../prefabs/agent";
 import type { AgentActions, AgentMessage } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
-import type { PricingParams } from "../logic/pricingTypes";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 
-type FailureCard = Pick<StudioOutput, "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorDetail">;
+type FailureCard = Pick<
+  StudioOutput,
+  "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorDetail"
+>;
 
 type ComingSoonToolId = "templates" | "workflows" | "my-generations" | "community";
+type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
 
 const comingSoonCopy: Record<
   ComingSoonToolId,
-  { title: string; summary: string; detail: string; icon: React.ComponentType<any> }
+  { title: string; summary: string; detail: string; icon: IconComponent }
 > = {
   templates: {
     title: "Templates",
     summary: "Preset model and setting bundles for common generation tasks.",
-    detail: "Templates allow you to select pre-set models and selections for specific generative tasks.",
+    detail:
+      "Templates allow you to select pre-set models and selections for specific generative tasks.",
     icon: SquaresFour,
   },
   workflows: {
@@ -83,10 +97,13 @@ type TextSectionProps = {
   isGenerateDisabled: boolean;
   guardrailReason: string | null;
   shouldDisableSave: boolean;
-  onStepActionClick?: (step: "mode" | "model" | "prompt" | "videoSettings") => void;
-  onModeChange: (mode: StudioMode) => void;
+  onStepActionClick?: (step: "character" | "model" | "prompt" | "imageSettings") => void;
   onAspectChange: (value: string) => void;
-  onModelPickerOpen: (anchorId: string, target: HTMLElement, context?: ModelModalContext | null) => void;
+  onModelPickerOpen: (
+    anchorId: string,
+    target: HTMLElement,
+    context?: ModelModalContext | null
+  ) => void;
   onPromptChange: (value: string) => void;
   onToggleReferenceIndicator: () => void;
   onCloseAgentChat?: () => void;
@@ -105,7 +122,10 @@ type TextSectionProps = {
 
 type CharacterSectionProps = React.ComponentProps<typeof CharacterPropertiesPanel>;
 
-type ReferenceSectionProps = Omit<React.ComponentProps<typeof ReferencePropertiesPanel>, "title" | "subtitle"> & {
+type ReferenceSectionProps = Omit<
+  React.ComponentProps<typeof ReferencePropertiesPanel>,
+  "title" | "subtitle"
+> & {
   variant: "image" | "video";
   onRegenerate: () => void;
   guardrailReason: string | null;
@@ -191,7 +211,6 @@ export function AiStudioPageContent({
   balanceLoading,
   visibleFailures,
   onDismissFailure,
-  onInspectFailure,
   selectedTool,
   showCreateTools,
   onSelectTool,
@@ -262,12 +281,22 @@ export function AiStudioPageContent({
       case "edit":
         return (
           <div style={{ padding: "24px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}
+            >
               <Selection size={24} weight="bold" color="#fbbf24" />
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>Edit</h3>
             </div>
-            <p style={{ color: "var(--ai-card-text)", fontSize: "14px", lineHeight: "1.5", margin: 0 }}>
-              Advanced editing tools for precise control over your generated content. Refine, adjust, and perfect your creations with intuitive selection and modification tools.
+            <p
+              style={{
+                color: "var(--ai-card-text)",
+                fontSize: "14px",
+                lineHeight: "1.5",
+                margin: 0,
+              }}
+            >
+              Advanced editing tools for precise control over your generated content. Refine,
+              adjust, and perfect your creations with intuitive selection and modification tools.
             </p>
             <div
               style={{
@@ -278,7 +307,14 @@ export function AiStudioPageContent({
                 border: "1px solid rgba(251, 191, 36, 0.2)",
               }}
             >
-              <p style={{ color: "var(--ai-card-text)", fontSize: "13px", margin: 0, fontStyle: "italic" }}>
+              <p
+                style={{
+                  color: "var(--ai-card-text)",
+                  fontSize: "13px",
+                  margin: 0,
+                  fontStyle: "italic",
+                }}
+              >
                 Edit tools coming soon.
               </p>
             </div>
@@ -293,7 +329,10 @@ export function AiStudioPageContent({
 
   return (
     <>
-      <main className="page page-wide ai-studio-page" data-beginner-mode={beginnerMode ? "on" : "off"}>
+      <main
+        className="page page-wide ai-studio-page"
+        data-beginner-mode={beginnerMode ? "on" : "off"}
+      >
         <input
           ref={referenceCanvasFileInputRef}
           type="file"
@@ -303,8 +342,6 @@ export function AiStudioPageContent({
           onChange={onFileBrowserSelection}
         />
 
-
-
         <section className="ai-hero panel hero-banner ai-amber-hero">
           <div className="hero-text">
             <p className="eyebrow">AI Studio</p>
@@ -313,9 +350,17 @@ export function AiStudioPageContent({
             <div className="ai-credit-inline header-embedded">
               <span className="credit-label">Credits</span>
               <span className="credit-value">
-                {balanceLoading ? "…" : balanceCredits != null ? balanceCredits.toLocaleString() : "—"}
+                {balanceLoading
+                  ? "…"
+                  : balanceCredits != null
+                    ? balanceCredits.toLocaleString()
+                    : "—"}
               </span>
-              <Link href="/profile?section=account" className="header-profile-link" aria-label="Account settings">
+              <Link
+                href="/profile?section=account"
+                className="header-profile-link"
+                aria-label="Account settings"
+              >
                 <span className="header-profile-avatar">KI</span>
               </Link>
             </div>
@@ -323,26 +368,74 @@ export function AiStudioPageContent({
         </section>
 
         {uiError ? (
-          <div className="panel ai-panel" role="alert" aria-live="assertive" style={{ marginTop: 12, padding: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-              <p className="tiny" style={{ margin: 0 }}>{uiError}</p>
-              <button type="button" className="ghost-btn mini" onClick={onDismissUiError}>Dismiss</button>
+          <div
+            className="panel ai-panel"
+            role="alert"
+            aria-live="assertive"
+            style={{ marginTop: 12, padding: 12 }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <p className="tiny" style={{ margin: 0 }}>
+                {uiError}
+              </p>
+              <button type="button" className="ghost-btn mini" onClick={onDismissUiError}>
+                Dismiss
+              </button>
             </div>
           </div>
         ) : null}
         {uiNotice ? (
-          <div className="panel ai-panel" role="status" aria-live="polite" style={{ marginTop: 12, padding: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-              <p className="tiny" style={{ margin: 0 }}>{uiNotice}</p>
-              <button type="button" className="ghost-btn mini" onClick={onDismissUiNotice}>Dismiss</button>
+          <div
+            className="panel ai-panel"
+            role="status"
+            aria-live="polite"
+            style={{ marginTop: 12, padding: 12 }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <p className="tiny" style={{ margin: 0 }}>
+                {uiNotice}
+              </p>
+              <button type="button" className="ghost-btn mini" onClick={onDismissUiNotice}>
+                Dismiss
+              </button>
             </div>
           </div>
         ) : null}
         {characterError ? (
-          <div className="panel ai-panel" role="alert" aria-live="assertive" style={{ marginTop: 12, padding: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-              <p className="tiny" style={{ margin: 0 }}>{characterError}</p>
-              <button type="button" className="ghost-btn mini" onClick={onDismissCharacterError}>Dismiss</button>
+          <div
+            className="panel ai-panel"
+            role="alert"
+            aria-live="assertive"
+            style={{ marginTop: 12, padding: 12 }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <p className="tiny" style={{ margin: 0 }}>
+                {characterError}
+              </p>
+              <button type="button" className="ghost-btn mini" onClick={onDismissCharacterError}>
+                Dismiss
+              </button>
             </div>
           </div>
         ) : null}
@@ -350,26 +443,31 @@ export function AiStudioPageContent({
         {visibleFailures.length ? (
           <div className="ai-error-stack" role="alert" aria-live="polite">
             <div className="ai-error-stack-header">
-              <p className="eyebrow" style={{ margin: 0, fontSize: '11px', opacity: 0.8 }}>Generation issues</p>
+              <p className="eyebrow" style={{ margin: 0, fontSize: "11px", opacity: 0.8 }}>
+                Generation issues
+              </p>
               <span className="error-count-pill">{visibleFailures.length}</span>
             </div>
             <div className="ai-error-card-grid">
               {visibleFailures.map((item) => {
                 const modelLabel = item.model || item.modelId || "Generation";
-                const isNanoBanana =
-                  (item.modelId ?? "").toLowerCase().includes("nano-banana") ||
-                  (item.model ?? "").toLowerCase().includes("nano banana");
                 return (
                   <div key={item.id} className="ai-error-card">
                     <div className="ai-error-card-body">
                       <p className="ai-error-card-title">{modelLabel}</p>
-                      <p className="ai-error-card-message">{item.errorDetail ?? item.errorMessage}</p>
+                      <p className="ai-error-card-message">
+                        {item.errorDetail ?? item.errorMessage}
+                      </p>
                       <p className="ai-error-card-meta">
                         Prompt: <span className="ai-error-card-prompt">{item.prompt}</span>
                       </p>
                     </div>
                     <div className="ai-error-card-actions">
-                      <button type="button" className="ghost-btn mini" onClick={() => onDismissFailure(item.id)}>
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() => onDismissFailure(item.id)}
+                      >
                         Dismiss
                       </button>
                     </div>
@@ -393,7 +491,9 @@ export function AiStudioPageContent({
 
           <div className="ai-content">
             <section className={`ai-shell ${selectedTool ? "" : "ai-shell-wide"}`}>
-              {selectedTool ? <aside className="panel ai-panel ai-properties">{renderProperties()}</aside> : null}
+              {selectedTool ? (
+                <aside className="panel ai-panel ai-properties">{renderProperties()}</aside>
+              ) : null}
 
               {agentChat.isOpen ? (
                 <div className="ai-preview-column reference-column">
@@ -401,7 +501,10 @@ export function AiStudioPageContent({
                     <div className="preview-column-header">
                       <div>
                         <p className="eyebrow">Agent Chat</p>
-                        <p className="tiny subdued helper-text">Click a chat bubble to add that text to the reference grid as a new prompt.</p>
+                        <p className="tiny subdued helper-text">
+                          Click a chat bubble to add that text to the reference grid as a new
+                          prompt.
+                        </p>
                       </div>
                       <div className="preview-header-actions">
                         <button
@@ -441,7 +544,9 @@ export function AiStudioPageContent({
                       <div className="preview-column-header">
                         <div>
                           <p className="eyebrow">Reference Grid</p>
-                          <p className="tiny subdued helper-text">Double-click a reference to expand.</p>
+                          <p className="tiny subdued helper-text">
+                            Double-click a reference to expand.
+                          </p>
                         </div>
                         <div className="preview-header-actions">
                           <button
@@ -452,7 +557,11 @@ export function AiStudioPageContent({
                             <UploadSimple size={14} weight="regular" />
                             Add files
                           </button>
-                          <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
+                          <button
+                            type="button"
+                            className="ghost-btn mini preview-media-btn"
+                            onClick={onOpenMediaLibrary}
+                          >
                             <CloudArrowUp size={14} weight="regular" />
                             Media library
                           </button>
@@ -479,7 +588,10 @@ export function AiStudioPageContent({
             </section>
             {comingSoon ? (
               <section className="ai-coming-soon" aria-live="polite">
-                <div className="panel ai-panel ai-coming-soon-card" data-tool={selectedComingSoonTool}>
+                <div
+                  className="panel ai-panel ai-coming-soon-card"
+                  data-tool={selectedComingSoonTool}
+                >
                   <div className="ai-coming-soon-header">
                     <div className="ai-coming-soon-title-block">
                       <span className="ai-coming-soon-icon" aria-hidden="true">
@@ -500,15 +612,15 @@ export function AiStudioPageContent({
           </div>
         </div>
       </main>
-        <ModelModal
-          isOpen={modelModalState.isOpen}
-          position={modelModalState.position}
-          onClose={modelModalState.onClose}
-          onSelect={modelModalState.onSelect}
-          options={modelModalState.options}
-          anchorId={modelModalState.anchorId}
-          context={modelModalState.context}
-        />
+      <ModelModal
+        isOpen={modelModalState.isOpen}
+        position={modelModalState.position}
+        onClose={modelModalState.onClose}
+        onSelect={modelModalState.onSelect}
+        options={modelModalState.options}
+        anchorId={modelModalState.anchorId}
+        context={modelModalState.context}
+      />
       <DetailModal
         output={detailModalOutput}
         onClose={onDetailClose}

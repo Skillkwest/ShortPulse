@@ -4,7 +4,7 @@
  * Kept isolated so the list view in the page stays readable.
  */
 import { ScoredVideo } from "../types";
-import { formatAgo, formatCompact, formatPercent } from "../utils/formatters";
+import { formatCompact } from "../utils/formatters";
 
 export type CompactVideoCardProps = {
   video: ScoredVideo;
@@ -30,7 +30,13 @@ export function CompactVideoCard({ video, onSelect }: CompactVideoCardProps) {
       }}
     >
       <div className="compact-thumb">
-        <img src={video.thumbnail_url || ""} alt={video.caption_text || "Video thumbnail"} loading="lazy" />
+        {/* Source host can vary with upstream platform data. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={video.thumbnail_url || ""}
+          alt={video.caption_text || "Video thumbnail"}
+          loading="lazy"
+        />
         <span className="rank-badge">#{video.rank}</span>
       </div>
       <div className="compact-body">
@@ -45,7 +51,9 @@ export function CompactVideoCard({ video, onSelect }: CompactVideoCardProps) {
           </div>
           <div className="metric-block">
             <p className="metric-label">Outlier</p>
-            <p className="metric-value outlier">{video.outlierMultiplier.toFixed(1)}× over median</p>
+            <p className="metric-value outlier">
+              {video.outlierMultiplier.toFixed(1)}× over median
+            </p>
           </div>
         </div>
         <div className="metric-row secondary">

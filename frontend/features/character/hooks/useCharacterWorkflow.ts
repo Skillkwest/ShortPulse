@@ -2,7 +2,7 @@
  * Character workflow state hook.
  * Handles reference ingestion, identity build (stubbed), and generation calls to Fal endpoints.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchFalFlux2ProEditStatus,
   fetchFalFlux2ProStatus,
@@ -63,13 +63,29 @@ type UseCharacterWorkflowResult = {
 
 const STORAGE_KEY = "current-character";
 
-const extractUrls = (status: any): string[] => {
-  const images = status?.data?.images;
-  if (Array.isArray(images) && images[0]?.url) return images.map((img: any) => img?.url).filter(Boolean);
-  const nested = status?.images;
-  if (Array.isArray(nested) && nested[0]?.url) return nested.map((img: any) => img?.url).filter(Boolean);
-  const output = status?.output?.images;
-  if (Array.isArray(output) && output[0]?.url) return output.map((img: any) => img?.url).filter(Boolean);
+const toRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const extractUrlArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      const record = toRecord(item);
+      return typeof record.url === "string" ? record.url : null;
+    })
+    .filter((url): url is string => Boolean(url));
+};
+
+const extractUrls = (status: unknown): string[] => {
+  const root = toRecord(status);
+  const images = extractUrlArray(toRecord(root.data).images);
+  if (images.length) return images;
+  const nested = extractUrlArray(root.images);
+  if (nested.length) return nested;
+  const output = extractUrlArray(toRecord(root.output).images);
+  if (output.length) return output;
   return [];
 };
 
@@ -84,7 +100,9 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
   const [isBuildingIdentity, setIsBuildingIdentity] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasWebGpu, setHasWebGpu] = useState<boolean>(() => typeof navigator !== "undefined" && "gpu" in navigator);
+  const [hasWebGpu, setHasWebGpu] = useState<boolean>(
+    () => typeof navigator !== "undefined" && "gpu" in navigator
+  );
   const [modelsAvailable, setModelsAvailable] = useState<boolean>(false);
   const [capabilityMessage, setCapabilityMessage] = useState<string | undefined>(undefined);
   const objectUrlsRef = useRef<string[]>([]);
@@ -110,7 +128,7 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
         references: [...nextRefs, ...prev.references].slice(0, MAX_REFERENCE_FILES),
       }));
     },
-    [identity.references.length],
+    [identity.references.length]
   );
 
   const removeReference = useCallback((id: string) => {
@@ -125,7 +143,7 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
       objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       objectUrlsRef.current = [];
     },
-    [],
+    []
   );
 
   // Load persisted identity (single-character scope).
@@ -154,7 +172,13 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
       const embedding = await buildEmbeddingFromReferences(identity.references);
       const identityToken = identity.identityToken ?? crypto.randomUUID();
       const quality = computeReferenceQuality(identity.references);
-      const next: CharacterIdentity = { ...identity, embedding, embeddingStatus: "ready", identityToken, quality };
+      const next: CharacterIdentity = {
+        ...identity,
+        embedding,
+        embeddingStatus: "ready",
+        identityToken,
+        quality,
+      };
       setIdentity(next);
       void characterStorage.saveCharacter<CharacterIdentity>(STORAGE_KEY, next);
     } catch (err) {
@@ -178,7 +202,6 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
       const useReferences = requestOverrides.useReferences ?? true;
       const activeAspect = requestOverrides.aspect ?? aspect;
       const activeModel = requestOverrides.modelId ?? modelId;
-      const resolvedPose = requestOverrides.poseId ?? poseId;
 
       setError(null);
       setIsGenerating(true);
@@ -195,7 +218,7 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
               identity.references.map(async (ref) => {
                 const normalized = await prepareImageUrl(ref.url);
                 return normalized ?? null;
-              }),
+              })
             )
           ).filter((url): url is string => Boolean(url))
         : [];
@@ -221,9 +244,10 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
 
         const pollStatus = async (attempt = 0): Promise<string[]> => {
           const status = await poll(request_id);
+          const statusRecord = toRecord(status);
           const stateRaw =
-            (status as any)?.status?.toString().toLowerCase() ??
-            (status as any)?.state?.toString().toLowerCase() ??
+            statusRecord.status?.toString().toLowerCase() ??
+            statusRecord.state?.toString().toLowerCase() ??
             "pending";
           const state = stateRaw === "succeeded" ? "success" : stateRaw;
           if (state === "success" || state === "completed") {
@@ -237,9 +261,9 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
           }
           if (state === "fail" || state === "error") {
             const message =
-              (status as any)?.failMsg ||
-              (status as any)?.failCode ||
-              (status as any)?.error ||
+              (typeof statusRecord.failMsg === "string" && statusRecord.failMsg) ||
+              (typeof statusRecord.failCode === "string" && statusRecord.failCode) ||
+              (typeof statusRecord.error === "string" && statusRecord.error) ||
               "Generation failed.";
             throw new Error(message);
           }
@@ -281,7 +305,15 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
         setIsGenerating(false);
       }
     },
-    [aspect, identity.references, isGenerating, modelId, poseId, prompt],
+    [
+      aspect,
+      identity.embeddingStatus,
+      identity.identityToken,
+      identity.references,
+      isGenerating,
+      modelId,
+      prompt,
+    ]
   );
 
   const clearError = useCallback(() => setError(null), []);

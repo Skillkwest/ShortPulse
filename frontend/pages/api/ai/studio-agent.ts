@@ -4,10 +4,16 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
-import type { AgentContext, AgentMessage, AgentResponse } from "../../../prefabs/agent";
+import type {
+  AgentActions,
+  AgentContext,
+  AgentMessage,
+  AgentResponse,
+} from "../../../prefabs/agent";
 import { logApiRouteException } from "../_utils/appErrorLogs";
 
-const OPENAI_URL = (process.env.OPENAI_API_BASE || "https://api.openai.com/v1") + "/chat/completions";
+const OPENAI_URL =
+  (process.env.OPENAI_API_BASE || "https://api.openai.com/v1") + "/chat/completions";
 // More capable default; can be overridden via OPENAI_MODEL env.
 const DEFAULT_MODEL = "gpt-4.1";
 const MAX_MESSAGES = 24;
@@ -82,7 +88,8 @@ const parseMessages = (rawMessages: unknown): AgentMessage[] => {
       const role = (item as AgentMessage).role;
       const content = (item as AgentMessage).content;
       if (!content || typeof content !== "string") return null;
-      if (role !== "user" && role !== "assistant" && role !== "system" && role !== "observation") return null;
+      if (role !== "user" && role !== "assistant" && role !== "system" && role !== "observation")
+        return null;
       return { role, content };
     })
     .filter(Boolean)
@@ -99,7 +106,8 @@ const safeContext = (context?: AgentContext): AgentContext => {
         const isDataUrl = typeof item?.dataUrl === "string" && item.dataUrl.startsWith("data:");
         const isHttpsUrl = typeof item?.url === "string" && item.url.startsWith("https://");
         if (!isDataUrl && !isHttpsUrl) return false;
-        if (isDataUrl && estimateBase64Bytes(item.dataUrl as string) > MAX_IMAGE_BYTES) return false;
+        if (isDataUrl && estimateBase64Bytes(item.dataUrl as string) > MAX_IMAGE_BYTES)
+          return false;
         return true;
       })
       .slice(0, MAX_MEDIA) ?? [];
@@ -111,7 +119,9 @@ const safeContext = (context?: AgentContext): AgentContext => {
     creditBalance: context.creditBalance ?? null,
     references: Array.isArray(context.references) ? context.references.slice(0, 24) : [],
     media,
-    selectedReferenceIds: Array.isArray(context.selectedReferenceIds) ? context.selectedReferenceIds.slice(0, 8) : [],
+    selectedReferenceIds: Array.isArray(context.selectedReferenceIds)
+      ? context.selectedReferenceIds.slice(0, 8)
+      : [],
     focusedSource: context.focusedSource ?? undefined,
     focusedReferenceId: context.focusedReferenceId ?? null,
     lastAssistantMessage: context.lastAssistantMessage ?? null,
@@ -119,7 +129,11 @@ const safeContext = (context?: AgentContext): AgentContext => {
   };
 };
 
-const buildOpenAiMessages = (messages: AgentMessage[], context: AgentContext, systemPrompt: string): OpenAIChatMessage[] => {
+const buildOpenAiMessages = (
+  messages: AgentMessage[],
+  context: AgentContext,
+  systemPrompt: string
+): OpenAIChatMessage[] => {
   const chat: OpenAIChatMessage[] = [
     { role: "system", content: systemPrompt },
     { role: "system", content: `CONTEXT:\n${JSON.stringify(context)}` },
@@ -136,7 +150,10 @@ const buildOpenAiMessages = (messages: AgentMessage[], context: AgentContext, sy
         { type: "text", text: "Here are media previews (downscaled):" },
         ...context.media.map((item) => ({
           type: "image_url" as const,
-          image_url: { url: (item.dataUrl as string) || (item.url as string), detail: "low" as const },
+          image_url: {
+            url: (item.dataUrl as string) || (item.url as string),
+            detail: "low" as const,
+          },
         })),
       ],
     });
@@ -150,23 +167,25 @@ const buildOpenAiMessages = (messages: AgentMessage[], context: AgentContext, sy
   });
   return chat;
 };
-const buildThinkerMessages = (payload: any, prompt: string): OpenAIChatMessage[] => [
+const buildThinkerMessages = (payload: unknown, prompt: string): OpenAIChatMessage[] => [
   { role: "system", content: prompt },
   { role: "user", content: JSON.stringify(payload) },
 ];
 
-const buildFormatterMessages = (semantic: any, prompt: string): OpenAIChatMessage[] => [
+const buildFormatterMessages = (semantic: unknown, prompt: string): OpenAIChatMessage[] => [
   { role: "system", content: prompt },
   { role: "user", content: JSON.stringify(semantic) },
 ];
 
 const asStringArray = (value: unknown): string[] | undefined => {
   if (!Array.isArray(value)) return undefined;
-  const cleaned = value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
+  const cleaned = value.filter(
+    (entry): entry is string => typeof entry === "string" && entry.trim().length > 0
+  );
   return cleaned.length ? cleaned : undefined;
 };
 
-const asReferenceCard = (value: unknown): AgentResponse["actions"] extends { referenceCard?: infer T } ? T : never => {
+const asReferenceCard = (value: unknown): AgentActions["referenceCard"] | undefined => {
   if (!value || typeof value !== "object") return undefined;
   const record = value as Record<string, unknown>;
   if (typeof record.prompt !== "string" || !record.prompt.trim()) return undefined;
@@ -222,7 +241,7 @@ const parseAgentJson = (raw: string): AgentResponse | null => {
       const actions = normalizeAgentActions((parsed as Record<string, unknown>).actions);
       const usage = typeof parsed.usage === "object" ? parsed.usage : undefined;
       return { message, actions, usage };
-    } catch (_error) {
+    } catch {
       continue;
     }
   }
@@ -249,20 +268,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   const systemPrompt = loadAgentPrompt("STUDIO_AGENT_SYSTEM", process.env.STUDIO_AGENT_SYSTEM);
   const thinkerPrompt = loadAgentPrompt("STUDIO_AGENT_THINKER", process.env.STUDIO_AGENT_THINKER);
-  const formatterPrompt = loadAgentPrompt("STUDIO_AGENT_FORMATTER", process.env.STUDIO_AGENT_FORMATTER);
+  const formatterPrompt = loadAgentPrompt(
+    "STUDIO_AGENT_FORMATTER",
+    process.env.STUDIO_AGENT_FORMATTER
+  );
   if (!systemPrompt) {
     return res.status(500).json({ error: "STUDIO_AGENT_SYSTEM prompt missing" });
   }
 
   const messages = parseMessages(req.body?.messages);
   // conversationId is currently informational (could be logged/audited later)
-  const conversationId = typeof req.body?.conversationId === "string" ? req.body.conversationId : null;
+  const conversationId =
+    typeof req.body?.conversationId === "string" ? req.body.conversationId : null;
   const context = safeContext(req.body?.context);
   const incomingCanonical =
     typeof req.body?.canonicalPrompt === "string" && req.body.canonicalPrompt.trim().length
       ? req.body.canonicalPrompt.trim()
       : null;
-  const storedCanonical = conversationId ? canonicalPromptStore.get(conversationId) ?? null : null;
+  const storedCanonical = conversationId
+    ? (canonicalPromptStore.get(conversationId) ?? null)
+    : null;
   const canonicalPrompt = incomingCanonical ?? storedCanonical ?? null;
   const effectiveCanonical = canonicalPrompt ?? context.lastAssistantMessage ?? null;
 
@@ -293,10 +318,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             : null,
         context_payload:
           contextType === "prompt"
-            ? context.activePrompt ?? context.references?.[0]?.promptSnippet ?? ""
+            ? (context.activePrompt ?? context.references?.[0]?.promptSnippet ?? "")
             : contextType === "image"
               ? "image provided"
-              : context.lastAssistantMessage ?? "",
+              : (context.lastAssistantMessage ?? ""),
         mode_hint: context.modeHint ?? null,
       };
 
@@ -321,10 +346,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const thinkerData = await thinkerResp.json();
       const thinkerRaw = thinkerData?.choices?.[0]?.message?.content ?? "";
-      let semantic: any = null;
+      let semantic: unknown = null;
       try {
         semantic = JSON.parse(thinkerRaw);
-      } catch (_e) {
+      } catch {
         semantic = { status: "ready", prompt_text: thinkerRaw, change_summary: "", question: null };
       }
 
@@ -344,31 +369,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (!formatterResp.ok) {
         const detail = await formatterResp.text();
-        return res.status(formatterResp.status).json({ error: "Upstream error (formatter)", detail });
+        return res
+          .status(formatterResp.status)
+          .json({ error: "Upstream error (formatter)", detail });
       }
 
       const formatterData = await formatterResp.json();
       const formatterRaw = formatterData?.choices?.[0]?.message?.content ?? "";
-      const parsed = parseAgentJson(formatterRaw) ?? { message: formatterRaw || "No response", actions: undefined };
+      const parsed = parseAgentJson(formatterRaw) ?? {
+        message: formatterRaw || "No response",
+        actions: undefined,
+      };
       const nextCanonical =
-        parsed?.actions?.applyPrompt ??
-        parsed?.message ??
-        effectiveCanonical ??
-        null;
+        parsed?.actions?.applyPrompt ?? parsed?.message ?? effectiveCanonical ?? null;
 
       // Validate context preservation; if drift detected, fall back to prior canonical.
-      if (effectiveCanonical && nextCanonical && !preservesContext(effectiveCanonical, nextCanonical)) {
-        // eslint-disable-next-line no-console
+      if (
+        effectiveCanonical &&
+        nextCanonical &&
+        !preservesContext(effectiveCanonical, nextCanonical)
+      ) {
         console.warn("[studio-agent] drift detected; restoring canonical prompt");
         parsed.message = parsed.message || "Preserved prior prompt to avoid drift.";
         parsed.actions = parsed.actions ?? {};
         parsed.actions.applyPrompt = effectiveCanonical;
-        parsed.actions.referenceCard = parsed.actions.referenceCard ?? { title: "Prompt", prompt: effectiveCanonical };
+        parsed.actions.referenceCard = parsed.actions.referenceCard ?? {
+          title: "Prompt",
+          prompt: effectiveCanonical,
+        };
       }
 
       // Guarantee an apply_prompt so the client always receives a refined prompt.
       if (!parsed.actions?.applyPrompt || !parsed.actions.applyPrompt.trim()) {
-        const fallbackPrompt = nextCanonical ?? effectiveCanonical ?? context.activePrompt ?? messages[messages.length - 1]?.content ?? "";
+        const fallbackPrompt =
+          nextCanonical ??
+          effectiveCanonical ??
+          context.activePrompt ??
+          messages[messages.length - 1]?.content ??
+          "";
         parsed.actions = parsed.actions ?? {};
         parsed.actions.applyPrompt = fallbackPrompt;
         parsed.message = parsed.message || fallbackPrompt;
@@ -411,19 +449,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       typeof rawContent === "string"
         ? rawContent
         : Array.isArray(rawContent)
-          ? rawContent.map((part: any) => (part?.text ? String(part.text) : "")).join("\n").trim()
+          ? rawContent
+              .map((part) => {
+                const record =
+                  part && typeof part === "object" ? (part as Record<string, unknown>) : {};
+                return typeof record.text === "string" ? record.text : "";
+              })
+              .join("\n")
+              .trim()
           : "";
 
-    const parsed = parseAgentJson(contentText) ?? { message: contentText || "No response", actions: undefined };
+    const parsed = parseAgentJson(contentText) ?? {
+      message: contentText || "No response",
+      actions: undefined,
+    };
     const nextCanonical =
-      parsed?.actions?.applyPrompt ??
-      parsed?.message ??
-      canonicalPrompt ??
-      null;
+      parsed?.actions?.applyPrompt ?? parsed?.message ?? canonicalPrompt ?? null;
 
     // Guarantee an apply_prompt for the single-agent path too.
     if (!parsed.actions?.applyPrompt || !parsed.actions.applyPrompt.trim()) {
-      const fallbackPrompt = nextCanonical ?? canonicalPrompt ?? context.activePrompt ?? messages[messages.length - 1]?.content ?? "";
+      const fallbackPrompt =
+        nextCanonical ??
+        canonicalPrompt ??
+        context.activePrompt ??
+        messages[messages.length - 1]?.content ??
+        "";
       parsed.actions = parsed.actions ?? {};
       parsed.actions.applyPrompt = fallbackPrompt;
       parsed.message = parsed.message || fallbackPrompt;

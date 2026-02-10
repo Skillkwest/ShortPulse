@@ -102,7 +102,7 @@ Exit criteria:
 Goal: avoid client/server mismatch for operator access.
 
 Checklist:
-- [x] Align admin page client gating with server-side rule set (`roles` + `SHORTPULSE_ADMIN_EMAILS` support).
+- [x] Align admin page client gating with server-side rule set (`app_metadata` roles + `SHORTPULSE_ADMIN_EMAILS` support).
 - [ ] Confirm no authorized admin user is blocked from UI if API would allow them.
 
 Exit criteria:

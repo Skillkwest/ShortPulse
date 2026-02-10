@@ -3,6 +3,7 @@
  * Handles top-level create selection and exposes create child actions.
  */
 import Link from "next/link";
+import Image from "next/image";
 import React from "react";
 import {
   Globe,
@@ -10,6 +11,7 @@ import {
   Graph,
   House,
   ImageSquare,
+  type IconProps,
   Person,
   Selection,
   Sparkle,
@@ -17,9 +19,15 @@ import {
   StackSimple,
   TextT,
   VideoCamera,
-  CloudArrowUp,
 } from "phosphor-react";
-import { createChildTools, creationsToolList, editToolList, lowerToolList, primaryToolList } from "../constants";
+import type { ForwardRefExoticComponent, RefAttributes } from "react";
+import {
+  createChildTools,
+  creationsToolList,
+  editToolList,
+  lowerToolList,
+  primaryToolList,
+} from "../constants";
 import { ToolId } from "../types";
 
 type AiStudioToolbarProps = {
@@ -32,7 +40,9 @@ type AiStudioToolbarProps = {
   showOnboardingSteps?: boolean;
 };
 
-const toolIcons: Record<ToolId, React.ComponentType<any>> = {
+type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
+
+const toolIcons: Record<ToolId, IconComponent> = {
   create: Sparkle,
   workflows: FlowArrow,
   templates: SquaresFour,
@@ -57,7 +67,6 @@ export function AiStudioToolbar({
   onSelectTool,
   onToggleCreateTools,
   onToggleBeginnerMode,
-  showOnboardingSteps = false,
 }: AiStudioToolbarProps) {
   const isCreateChildSelected =
     selectedTool === "text" ||
@@ -80,7 +89,7 @@ export function AiStudioToolbar({
       data-primary-active={activePrimary || undefined}
     >
       <div className="toolbar-logo">
-        <img src="/brand-logo.png" alt="Brand logo" />
+        <Image src="/brand-logo.png" alt="Brand logo" width={150} height={150} />
       </div>
       <Link href="/dashboard" className="ghost-btn small toolbar-back-link">
         <House size={16} weight="regular" />
@@ -91,7 +100,9 @@ export function AiStudioToolbar({
         {primaryToolList.map((tool) => {
           const IconComponent = toolIcons[tool.id];
           const isCreateParent = tool.id === "create";
-          const isActive = selectedTool === tool.id || (isCreateParent && (showCreateTools || isCreateChildSelected));
+          const isActive =
+            selectedTool === tool.id ||
+            (isCreateParent && (showCreateTools || isCreateChildSelected));
           const handleClick = () => {
             if (isActive) {
               onToggleCreateTools(false);
@@ -126,7 +137,10 @@ export function AiStudioToolbar({
             </React.Fragment>
           );
         })}
-        <div className={`toolbar-create-children ${isCreateExpanded ? "is-open" : ""}`} aria-hidden={!isCreateExpanded}>
+        <div
+          className={`toolbar-create-children ${isCreateExpanded ? "is-open" : ""}`}
+          aria-hidden={!isCreateExpanded}
+        >
           {createChildTools.map((tool) => {
             const IconComponent = toolIcons[tool.id];
             const isActive = selectedTool === tool.id;
@@ -141,9 +155,9 @@ export function AiStudioToolbar({
                 <div className="toolbar-copy">
                   <span className="toolbar-label">{tool.label}</span>
                 </div>
-            </button>
-          );
-        })}
+              </button>
+            );
+          })}
           <div className="toolbar-divider toolbar-divider-children" aria-hidden="true" />
           <div className="toolbar-create-spacer" aria-hidden="true" />
         </div>
@@ -186,10 +200,10 @@ export function AiStudioToolbar({
                 type="button"
                 className={`toolbar-item toolbar-item-secondary ${isActive ? "is-active" : ""}`}
                 onClick={() => {
-                onToggleCreateTools(false);
-                onSelectTool(tool.id);
-              }}
-            >
+                  onToggleCreateTools(false);
+                  onSelectTool(tool.id);
+                }}
+              >
                 {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
                 <div className="toolbar-copy">
                   <span className="toolbar-label">{tool.label}</span>
@@ -224,24 +238,24 @@ export function AiStudioToolbar({
           <div className="toolbar-divider toolbar-divider-secondary" aria-hidden="true" />
         </div>
       </div>
-    <div className="toolbar-footer">
-      <div className="toolbar-beginner-toggle">
-        <div className="toolbar-beginner-copy">
-          <span className="toolbar-label">Beginner mode</span>
+      <div className="toolbar-footer">
+        <div className="toolbar-beginner-toggle">
+          <div className="toolbar-beginner-copy">
+            <span className="toolbar-label">Beginner mode</span>
+          </div>
+          <button
+            type="button"
+            className={`reference-toggle beginner-toggle ${beginnerMode ? "is-active" : ""}`}
+            aria-pressed={beginnerMode}
+            aria-label={beginnerMode ? "Disable beginner mode" : "Enable beginner mode"}
+            onClick={() => onToggleBeginnerMode(!beginnerMode)}
+          >
+            <span className="reference-toggle-track" aria-hidden="true">
+              <span className="reference-toggle-dot" />
+            </span>
+          </button>
         </div>
-        <button
-          type="button"
-          className={`reference-toggle beginner-toggle ${beginnerMode ? "is-active" : ""}`}
-          aria-pressed={beginnerMode}
-          aria-label={beginnerMode ? "Disable beginner mode" : "Enable beginner mode"}
-          onClick={() => onToggleBeginnerMode(!beginnerMode)}
-        >
-          <span className="reference-toggle-track" aria-hidden="true">
-            <span className="reference-toggle-dot" />
-          </span>
-        </button>
       </div>
-    </div>
     </aside>
   );
 }

@@ -29,7 +29,11 @@ const clampPrompt = (value?: string | null) => {
   return trimmed.length > 48 ? `${trimmed.slice(0, 48).trim()}...` : trimmed;
 };
 
-const resolveFileType = (contentType: string | null, fallbackMode: StudioMode, fileTypeHint?: "image" | "video") => {
+const resolveFileType = (
+  contentType: string | null,
+  fallbackMode: StudioMode,
+  fileTypeHint?: "image" | "video"
+) => {
   if (contentType?.startsWith("video/")) return "video";
   if (contentType?.startsWith("image/")) return "image";
   if (fileTypeHint) return fileTypeHint;
@@ -40,9 +44,9 @@ const extensionFromUrl = (url: string) => {
   try {
     const parsed = new URL(url);
     const base = parsed.pathname.split("/").pop() ?? "";
-    const ext = base.includes(".") ? base.split(".").pop() ?? "" : "";
+    const ext = base.includes(".") ? (base.split(".").pop() ?? "") : "";
     return ext.replace(/[^a-z0-9]+/gi, "").toLowerCase();
-  } catch (_error) {
+  } catch {
     return "";
   }
 };

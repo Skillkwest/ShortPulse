@@ -6,7 +6,11 @@ const videoExtensionPattern = /\.(mp4|webm|mov|m4v)(\?|$)/i;
 
 const dedupeText = (value?: string) => (value ? value.trim() : "");
 
-const getFirstUriListValue = (value: string) => value.split("\n").map((item) => item.trim()).find(Boolean);
+const getFirstUriListValue = (value: string) =>
+  value
+    .split("\n")
+    .map((item) => item.trim())
+    .find(Boolean);
 
 const findImageFile = (files?: FileList) => {
   if (!files) return null;
@@ -46,7 +50,12 @@ export const looksLikeVideoUrl = (value?: string) => {
   const trimmed = value.trim();
   if (trimmed.startsWith("data:video/")) return true;
   if (trimmed.startsWith("blob:")) return true;
-  return videoUrlPattern.test(trimmed) && (videoExtensionPattern.test(trimmed) || trimmed.includes("/video") || trimmed.includes("video="));
+  return (
+    videoUrlPattern.test(trimmed) &&
+    (videoExtensionPattern.test(trimmed) ||
+      trimmed.includes("/video") ||
+      trimmed.includes("video="))
+  );
 };
 
 export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload => {
@@ -79,7 +88,8 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
   const imageUrl = transfer.getData("image/url");
   if (imageUrl) {
     return {
-      imageUrl: isBlobUrl(imageUrl) && looksLikeImageUrl(referenceUrl) ? referenceUrl : imageUrl.trim(),
+      imageUrl:
+        isBlobUrl(imageUrl) && looksLikeImageUrl(referenceUrl) ? referenceUrl : imageUrl.trim(),
       promptText: extractPromptText(transfer),
       referenceId,
       fromFile: false,
@@ -89,7 +99,8 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
   const rawText = transfer.getData("text/plain");
   if (rawText && looksLikeImageUrl(rawText)) {
     return {
-      imageUrl: isBlobUrl(rawText) && looksLikeImageUrl(referenceUrl) ? referenceUrl : rawText.trim(),
+      imageUrl:
+        isBlobUrl(rawText) && looksLikeImageUrl(referenceUrl) ? referenceUrl : rawText.trim(),
       promptText: extractPromptText(transfer),
       referenceId,
       fromFile: false,
@@ -143,7 +154,8 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
   const imageUrl = transfer.getData("image/url");
   if (imageUrl && looksLikeVideoUrl(imageUrl)) {
     return {
-      videoUrl: isBlobUrl(imageUrl) && looksLikeVideoUrl(referenceUrl) ? referenceUrl : imageUrl.trim(),
+      videoUrl:
+        isBlobUrl(imageUrl) && looksLikeVideoUrl(referenceUrl) ? referenceUrl : imageUrl.trim(),
       promptText: extractPromptText(transfer),
       referenceId,
       fromFile: false,
@@ -153,7 +165,8 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
   const rawText = transfer.getData("text/plain");
   if (rawText && looksLikeVideoUrl(rawText)) {
     return {
-      videoUrl: isBlobUrl(rawText) && looksLikeVideoUrl(referenceUrl) ? referenceUrl : rawText.trim(),
+      videoUrl:
+        isBlobUrl(rawText) && looksLikeVideoUrl(referenceUrl) ? referenceUrl : rawText.trim(),
       promptText: extractPromptText(transfer),
       referenceId,
       fromFile: false,
@@ -178,9 +191,7 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
 };
 
 const extractPromptText = (transfer: DataTransfer) => {
-  const promptText =
-    transfer.getData("text/prompt") ||
-    transfer.getData("text/plain");
+  const promptText = transfer.getData("text/prompt") || transfer.getData("text/plain");
   if (!promptText) return null;
   return looksLikeImageUrl(promptText) ? null : promptText.trim();
 };
@@ -207,7 +218,7 @@ export const isVideoDragTransfer = (transfer: DataTransfer) => {
 export const prepareReferenceDrag = (
   event: React.DragEvent<HTMLElement>,
   output: StudioOutput,
-  options?: { dragImage?: HTMLElement },
+  options?: { dragImage?: HTMLElement }
 ) => {
   const transfer = event.dataTransfer;
   transfer.effectAllowed = "copy";
@@ -250,7 +261,7 @@ export const prepareReferenceDrag = (
       document.body.appendChild(ghost);
       dragGhostMap.set(dragNode, ghost);
       transfer.setDragImage(ghost, scaledWidth / 2, scaledHeight / 2);
-    } catch (error) {
+    } catch {
       transfer.setDragImage(dragNode, dragNode.offsetWidth / 2, dragNode.offsetHeight / 2);
     }
     dragNode.classList.add("is-dragging");

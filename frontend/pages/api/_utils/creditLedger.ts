@@ -23,6 +23,15 @@ type LedgerInsertResult = {
   mode: LedgerInsertMode;
 };
 
+const normalizeLedgerError = (error: unknown): { message?: string; code?: string } | null => {
+  if (!error || typeof error !== "object") return null;
+  const record = error as Record<string, unknown>;
+  return {
+    message: typeof record.message === "string" ? record.message : undefined,
+    code: typeof record.code === "string" ? record.code : undefined,
+  };
+};
+
 const isMissingLedgerColumnError = (error: { message?: string; code?: string } | null): boolean => {
   if (!error) return false;
   const code = String(error.code ?? "").toUpperCase();
@@ -63,8 +72,9 @@ export const insertCreditLedgerEntry = async ({
   if (!richError) {
     return { error: null, mode: "rich" };
   }
-  if (!isMissingLedgerColumnError(richError as any)) {
-    return { error: richError as any, mode: "rich" };
+  const normalizedRichError = normalizeLedgerError(richError);
+  if (!isMissingLedgerColumnError(normalizedRichError)) {
+    return { error: normalizedRichError, mode: "rich" };
   }
 
   const legacyPayload = {
@@ -74,6 +84,5 @@ export const insertCreditLedgerEntry = async ({
     ref_id: sourceRef,
   };
   const { error: legacyError } = await supabaseAdmin.from("ai_credit_ledger").insert(legacyPayload);
-  return { error: (legacyError as any) ?? null, mode: "legacy" };
+  return { error: normalizeLedgerError(legacyError), mode: "legacy" };
 };
-

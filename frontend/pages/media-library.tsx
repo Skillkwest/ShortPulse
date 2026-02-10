@@ -64,7 +64,7 @@ const logMediaEvent = async (
   eventType: string,
   entityType: string,
   entityId: string,
-  metadata: Record<string, unknown> = {},
+  metadata: Record<string, unknown> = {}
 ) => {
   try {
     const supabase = ensureSupabaseClient();
@@ -79,11 +79,9 @@ const logMediaEvent = async (
       metadata,
     });
     if (error) {
-      // eslint-disable-next-line no-console
       console.warn("Media event log failed", error);
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn("Media event log error", err);
   }
 };
@@ -94,6 +92,9 @@ const formatDate = (value?: string | null) => {
   if (Number.isNaN(date.getTime())) return "Unknown";
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 };
+
+const getErrorMessage = (error: unknown, fallback: string): string =>
+  error instanceof Error ? error.message : fallback;
 
 export default function MediaLibrary() {
   const [files, setFiles] = useState<MediaRow[]>([]);
@@ -116,7 +117,10 @@ export default function MediaLibrary() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [renameSuccess, setRenameSuccess] = useState(false);
   const signedUrlRetryRef = useRef<Record<string, number>>({});
-  const totalBytes = useMemo(() => files.reduce((sum, file) => sum + (file.file_size || 0), 0), [files]);
+  const totalBytes = useMemo(
+    () => files.reduce((sum, file) => sum + (file.file_size || 0), 0),
+    [files]
+  );
   const planLimitMb = 1024;
   const planUsage = { label: "Plan", name: "Creative Suite" };
   const storageUsageValue = useMemo(() => {
@@ -152,14 +156,20 @@ export default function MediaLibrary() {
       if (!storagePath) return null;
       try {
         const nextSignedUrl = await signStoragePath(storagePath);
-        setFiles((prev) => prev.map((file) => (file.id === fileId ? { ...file, signedUrl: nextSignedUrl ?? undefined } : file)));
-        setFocusedFile((prev) => (prev && prev.id === fileId ? { ...prev, signedUrl: nextSignedUrl ?? undefined } : prev));
+        setFiles((prev) =>
+          prev.map((file) =>
+            file.id === fileId ? { ...file, signedUrl: nextSignedUrl ?? undefined } : file
+          )
+        );
+        setFocusedFile((prev) =>
+          prev && prev.id === fileId ? { ...prev, signedUrl: nextSignedUrl ?? undefined } : prev
+        );
         return nextSignedUrl;
-      } catch (_error) {
+      } catch {
         return null;
       }
     },
-    [signStoragePath],
+    [signStoragePath]
   );
 
   const handleMediaPreviewError = useCallback(
@@ -169,7 +179,7 @@ export default function MediaLibrary() {
       signedUrlRetryRef.current[file.id] = attempts + 1;
       void refreshSignedUrl(file.id, file.storage_path);
     },
-    [refreshSignedUrl],
+    [refreshSignedUrl]
   );
 
   useEffect(() => {
@@ -195,7 +205,6 @@ export default function MediaLibrary() {
         const signed = await Promise.all(
           rows.map(async (row) => {
             const signedUrl = await signStoragePath(row.storage_path).catch((signedError) => {
-              // eslint-disable-next-line no-console
               console.error("Signed URL error", signedError);
               return null;
             });
@@ -204,14 +213,14 @@ export default function MediaLibrary() {
               source: row.source ?? "upload",
               signedUrl: signedUrl ?? undefined,
             } as MediaRow;
-          }),
+          })
         );
         if (active) {
           setFiles(signed);
           setPrompts(promptRows as PromptRow[]);
         }
-      } catch (err: any) {
-        setError(err?.message || "Unable to load media");
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, "Unable to load media"));
       } finally {
         if (active) {
           setLoading(false);
@@ -336,25 +345,29 @@ export default function MediaLibrary() {
 
         // swap placeholder with real row
         setFiles((prev) =>
-          prev.map((f) => (placeholderId && f.id === placeholderId ? { ...uploads[uploads.length - 1] } : f)),
+          prev.map((f) =>
+            placeholderId && f.id === placeholderId ? { ...uploads[uploads.length - 1] } : f
+          )
         );
       }
 
       if (uploads.length) {
         setFiles((prev) => {
           // filter out any placeholders not replaced
-          const withoutDangling = prev.filter((f) => f.status !== "uploading" || uploads.some((u) => u.id === f.id));
+          const withoutDangling = prev.filter(
+            (f) => f.status !== "uploading" || uploads.some((u) => u.id === f.id)
+          );
           // ensure new uploads are present (already inserted via swap above)
           return withoutDangling;
         });
       }
       setSelectedFiles([]);
       setUploadCount(0);
-    } catch (err: any) {
-      setError(err?.message || "Upload failed");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Upload failed"));
       if (placeholderIds.length) {
         setFiles((prev) =>
-          prev.filter((file) => !(file.status === "uploading" && placeholderIds.includes(file.id))),
+          prev.filter((file) => !(file.status === "uploading" && placeholderIds.includes(file.id)))
         );
       }
     } finally {
@@ -364,10 +377,22 @@ export default function MediaLibrary() {
   };
 
   const searchTerm = useMemo(() => search.trim().toLowerCase(), [search]);
-  const uploadFiles = useMemo(() => files.filter((f) => (f.source ?? "upload") === "upload"), [files]);
-  const uploadedImages = useMemo(() => uploadFiles.filter((f) => !isVideoFile(f.file_type)), [uploadFiles]);
-  const uploadedVideos = useMemo(() => uploadFiles.filter((f) => isVideoFile(f.file_type)), [uploadFiles]);
-  const aiGenerationFiles = useMemo(() => files.filter((f) => (f.source ?? "upload") === "ai_studio"), [files]);
+  const uploadFiles = useMemo(
+    () => files.filter((f) => (f.source ?? "upload") === "upload"),
+    [files]
+  );
+  const uploadedImages = useMemo(
+    () => uploadFiles.filter((f) => !isVideoFile(f.file_type)),
+    [uploadFiles]
+  );
+  const uploadedVideos = useMemo(
+    () => uploadFiles.filter((f) => isVideoFile(f.file_type)),
+    [uploadFiles]
+  );
+  const aiGenerationFiles = useMemo(
+    () => files.filter((f) => (f.source ?? "upload") === "ai_studio"),
+    [files]
+  );
 
   const filteredMedia = useMemo(() => {
     const base =
@@ -408,15 +433,17 @@ export default function MediaLibrary() {
     setError(null);
     try {
       const supabase = ensureSupabaseClient();
-      const { error: storageError } = await supabase.storage.from(BUCKET).remove([row.storage_path]);
+      const { error: storageError } = await supabase.storage
+        .from(BUCKET)
+        .remove([row.storage_path]);
       if (storageError) throw storageError;
       const { error: deleteError } = await supabase.from("media_files").delete().eq("id", row.id);
       if (deleteError) throw deleteError;
       setFiles((prev) => prev.filter((f) => f.id !== row.id));
       setSelectedIds((prev) => prev.filter((id) => id !== row.id));
       void logMediaEvent("delete", "media_file", row.id, { storage_path: row.storage_path });
-    } catch (err: any) {
-      setError(err?.message || "Unable to delete media");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to delete media"));
     }
   };
 
@@ -428,8 +455,8 @@ export default function MediaLibrary() {
       if (deleteError) throw deleteError;
       setPrompts((prev) => prev.filter((p) => p.id !== row.id));
       void logMediaEvent("delete", "media_prompt", row.id);
-    } catch (err: any) {
-      setError(err?.message || "Unable to delete prompt");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to delete prompt"));
     }
   };
 
@@ -437,7 +464,9 @@ export default function MediaLibrary() {
     setError(null);
     try {
       const supabase = ensureSupabaseClient();
-      const { data, error: downloadError } = await supabase.storage.from(BUCKET).download(row.storage_path);
+      const { data, error: downloadError } = await supabase.storage
+        .from(BUCKET)
+        .download(row.storage_path);
       if (downloadError) throw downloadError;
       const blob = data as Blob;
       const objectUrl = window.URL.createObjectURL(blob);
@@ -446,8 +475,8 @@ export default function MediaLibrary() {
       link.download = row.filename || "media-file";
       link.click();
       window.URL.revokeObjectURL(objectUrl);
-    } catch (err: any) {
-      setError(err?.message || "Unable to download media");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to download media"));
     }
   };
 
@@ -467,7 +496,9 @@ export default function MediaLibrary() {
 
   const toggleSelect = (file: MediaRow) => {
     if (file.status === "uploading") return;
-    setSelectedIds((prev) => (prev.includes(file.id) ? prev.filter((id) => id !== file.id) : [...prev, file.id]));
+    setSelectedIds((prev) =>
+      prev.includes(file.id) ? prev.filter((id) => id !== file.id) : [...prev, file.id]
+    );
   };
 
   const selectAllVisible = () => {
@@ -483,7 +514,9 @@ export default function MediaLibrary() {
       const targets = files.filter((f) => selectedIds.includes(f.id));
       const paths = targets.map((t) => t.storage_path).filter(Boolean);
       if (paths.length) {
-        const { error: storageError } = await supabase.storage.from(BUCKET).remove(paths as string[]);
+        const { error: storageError } = await supabase.storage
+          .from(BUCKET)
+          .remove(paths as string[]);
         if (storageError) throw storageError;
       }
       if (targets.length) {
@@ -494,10 +527,12 @@ export default function MediaLibrary() {
       setFiles((prev) => prev.filter((f) => !selectedIds.includes(f.id)));
       setSelectedIds([]);
       targets.forEach((target) => {
-        void logMediaEvent("delete", "media_file", target.id, { storage_path: target.storage_path });
+        void logMediaEvent("delete", "media_file", target.id, {
+          storage_path: target.storage_path,
+        });
       });
-    } catch (err: any) {
-      setError(err?.message || "Unable to delete selected media");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to delete selected media"));
     } finally {
       setBulkDeleting(false);
     }
@@ -524,9 +559,14 @@ export default function MediaLibrary() {
     try {
       const previousName = focusedFile.filename;
       const supabase = ensureSupabaseClient();
-      const { error } = await supabase.from("media_files").update({ filename: renameValue.trim() }).eq("id", focusedFile.id);
+      const { error } = await supabase
+        .from("media_files")
+        .update({ filename: renameValue.trim() })
+        .eq("id", focusedFile.id);
       if (error) throw error;
-      setFiles((prev) => prev.map((f) => (f.id === focusedFile.id ? { ...f, filename: renameValue.trim() } : f)));
+      setFiles((prev) =>
+        prev.map((f) => (f.id === focusedFile.id ? { ...f, filename: renameValue.trim() } : f))
+      );
       setFocusedFile((prev) => (prev ? { ...prev, filename: renameValue.trim() } : prev));
       setRenameSuccess(true);
       setTimeout(() => setRenameSuccess(false), 1800);
@@ -534,8 +574,8 @@ export default function MediaLibrary() {
         from: previousName,
         to: renameValue.trim(),
       });
-    } catch (err: any) {
-      setModalError(err?.message || "Unable to rename file");
+    } catch (err: unknown) {
+      setModalError(getErrorMessage(err, "Unable to rename file"));
     } finally {
       setSavingRename(false);
     }
@@ -547,9 +587,14 @@ export default function MediaLibrary() {
         <title>ShortPulse · Media Library</title>
         <meta name="description" content="Secure per-user media library." />
       </Head>
-      <main className="page page-wide">
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+      <main id="main-content" className="page page-wide">
         <div className="page-top">
-          <Link href="/dashboard" className="ghost-btn small">← Back to dashboard</Link>
+          <Link href="/dashboard" className="btn-secondary btn-sm">
+            ← Back to dashboard
+          </Link>
         </div>
 
         <section
@@ -563,7 +608,9 @@ export default function MediaLibrary() {
               <div className="saved-title-row">
                 <h1 className="title">Media Library</h1>
               </div>
-              <p className="subdued">Upload, organize, and manage your workspace media in one place.</p>
+              <p className="subdued">
+                Upload, organize, and manage your workspace media in one place.
+              </p>
             </div>
           </div>
           <div className="saved-header-right">
@@ -576,11 +623,28 @@ export default function MediaLibrary() {
                 <p className="status-value small">{storageUsageValue}</p>
               </div>
             </div>
-            <div className="search-usage-card plan-card" aria-label="Plan status" role="button" tabIndex={0}>
+            <div
+              className="search-usage-card plan-card"
+              aria-label="Plan status"
+              role="button"
+              tabIndex={0}
+            >
               <div className="search-usage-icon plan-icon" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 18 18"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
                   <circle cx="9" cy="9" r="7" stroke="#25A9BF" strokeWidth="1.4" />
-                  <path d="M6.3 9.1 8 10.8 11.7 7" stroke="#25A9BF" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M6.3 9.1 8 10.8 11.7 7"
+                    stroke="#25A9BF"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </div>
               <div className="search-usage-text">
@@ -602,16 +666,26 @@ export default function MediaLibrary() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            role="region"
+            aria-label="File upload area"
           >
             <p className="title">Drag and drop media here</p>
-            {uploading && <div className="subdued tiny">Uploading {uploadCount || ""} file{uploadCount === 1 ? "" : "s"}…</div>}
-            {error && <div className="auth-error">{error}</div>}
+            {uploading && (
+              <div className="subdued tiny" role="status" aria-live="polite">
+                Uploading {uploadCount || ""} file{uploadCount === 1 ? "" : "s"}…
+              </div>
+            )}
+            {error && (
+              <div className="auth-error" role="alert" aria-live="assertive">
+                {error}
+              </div>
+            )}
           </div>
 
           <div className="upload-side">
             <p className="eyebrow">Add files</p>
             <h3>Browse your computer</h3>
-            <button className="primary-btn add-files-cta" type="button" onClick={triggerFilePicker}>
+            <button className="btn-primary add-files-cta" type="button" onClick={triggerFilePicker}>
               <DownloadSimple size={20} weight="bold" />
               Add Files
             </button>
@@ -625,7 +699,14 @@ export default function MediaLibrary() {
               style={{ display: "none" }}
             />
             {selectedFiles.length > 0 && (
-              <div className="subdued tiny">{selectedFiles.length} selected • {selectedFiles.map((f) => f.name).slice(0, 3).join(", ")}{selectedFiles.length > 3 ? "…" : ""}</div>
+              <div className="subdued tiny">
+                {selectedFiles.length} selected •{" "}
+                {selectedFiles
+                  .map((f) => f.name)
+                  .slice(0, 3)
+                  .join(", ")}
+                {selectedFiles.length > 3 ? "…" : ""}
+              </div>
             )}
             <div className="upload-storage">
               <div>
@@ -633,15 +714,15 @@ export default function MediaLibrary() {
                 <strong>{(totalBytes / (1024 * 1024)).toFixed(1)} MB</strong>
                 <span className="tiny subdued">of {(planLimitMb / 1024).toFixed(1)} GB</span>
               </div>
-              <button type="button" className="ghost-btn upgrade-btn">
+              <button type="button" className="btn-secondary upgrade-btn">
                 Need more storage?
               </button>
             </div>
           </div>
         </section>
 
-        <section className="panel media-filters media-panel">
-          <div className="filter-tabs">
+        <section className="panel media-filters media-panel" aria-label="Media filters and search">
+          <div className="filter-tabs" role="tablist" aria-label="Media categories">
             <button
               type="button"
               className={`pill-toggle big ${activeTab === "uploaded_images" ? "active" : ""}`}
@@ -671,7 +752,9 @@ export default function MediaLibrary() {
               AI Studio Generations
             </button>
           </div>
-          <span className="pill tiny filter-count">{visibleCount} {countLabel}</span>
+          <span className="pill tiny filter-count">
+            {visibleCount} {countLabel}
+          </span>
           <div className="search-wrap">
             <div className="search-input">
               <MagnifyingGlass size={16} weight="bold" />
@@ -712,20 +795,30 @@ export default function MediaLibrary() {
             {!isPromptTab ? (
               <div className="gallery-btns">
                 {selectedIds.length ? (
-                  <button type="button" className="ghost-btn" onClick={() => setSelectedIds([])}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setSelectedIds([])}
+                  >
                     Deselect all
                   </button>
                 ) : null}
-                <button type="button" className="ghost-btn" onClick={selectAllVisible} disabled={!filteredMedia.length}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={selectAllVisible}
+                  disabled={!filteredMedia.length}
+                >
                   Select all
                 </button>
                 <button
                   type="button"
-                  className="danger-btn"
+                  className="btn-danger"
                   onClick={deleteSelected}
                   disabled={!selectedIds.length || bulkDeleting}
+                  aria-label={`Delete ${selectedIds.length} selected ${selectedIds.length === 1 ? "file" : "files"}`}
                 >
-                  Delete
+                  {bulkDeleting ? "Deleting..." : "Delete"}
                 </button>
               </div>
             ) : null}
@@ -756,11 +849,14 @@ export default function MediaLibrary() {
                   </div>
                   <p className="prompt-card-body">{promptItem.prompt_text}</p>
                   <div className="prompt-card-footer">
-                    <span className="metric-label tiny">{promptItem.model_id || "Model not set"}</span>
+                    <span className="metric-label tiny">
+                      {promptItem.model_id || "Model not set"}
+                    </span>
                     <button
                       type="button"
-                      className="ghost-btn prompt-delete-btn"
+                      className="btn-secondary prompt-delete-btn"
                       onClick={() => deletePrompt(promptItem)}
+                      aria-label={`Delete prompt: ${promptItem.title || "Saved prompt"}`}
                     >
                       Delete
                     </button>
@@ -771,105 +867,123 @@ export default function MediaLibrary() {
           ) : (
             <div className="media-grid media-grid-fixed media-grid-shell">
               {filteredMedia.map((file) => {
-              const aspectRatio =
-                aspectMap[file.id] || (isVideoFile(file.file_type) ? 9 / 16 : 4 / 5);
-              return (
-                <div
-                  className={`media-card ${file.status === "uploading" ? "is-uploading" : ""} ${
-                    selectedIds.includes(file.id) ? "is-selected" : ""
-                  }`}
-                  key={file.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => toggleSelect(file)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleSelect(file);
-                    }
-                  }}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    openModal(file);
-                  }}
-                >
-                  <button
-                    className="media-delete"
-                    type="button"
-                    style={{ right: 40 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void downloadFile(file);
+                const aspectRatio =
+                  aspectMap[file.id] || (isVideoFile(file.file_type) ? 9 / 16 : 4 / 5);
+                return (
+                  <div
+                    className={`media-card ${file.status === "uploading" ? "is-uploading" : ""} ${
+                      selectedIds.includes(file.id) ? "is-selected" : ""
+                    }`}
+                    key={file.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggleSelect(file)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleSelect(file);
+                      }
                     }}
-                    aria-label="Download media"
-                  >
-                    <DownloadSimple size={14} weight="bold" />
-                  </button>
-                  <button
-                    className="media-delete"
-                    type="button"
-                    onClick={(e) => {
+                    onDoubleClick={(e) => {
                       e.stopPropagation();
-                      deleteFile(file);
+                      openModal(file);
                     }}
-                    aria-label="Delete media"
                   >
-                    <Trash size={14} weight="bold" />
-                  </button>
-                  {file.status === "uploading" ? (
-                    <div className="media-thumb placeholder" style={{ aspectRatio }}>
-                      <div className="loader-spin" />
-                      <p className="tiny subdued">Uploading…</p>
-                    </div>
-                  ) : file.signedUrl ? (
-                    isVideoFile(file.file_type) ? (
-                      <video
-                        className="media-thumb"
-                        controls
-                        src={file.signedUrl}
-                        onLoadedMetadata={(e) => handleVideoMeta(file.id, e)}
-                        onError={() => handleMediaPreviewError(file)}
-                        style={{ aspectRatio }}
-                      />
+                    <button
+                      className="media-delete"
+                      type="button"
+                      style={{ right: 40 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void downloadFile(file);
+                      }}
+                      aria-label="Download media"
+                    >
+                      <DownloadSimple size={14} weight="bold" />
+                    </button>
+                    <button
+                      className="media-delete"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteFile(file);
+                      }}
+                      aria-label="Delete media"
+                    >
+                      <Trash size={14} weight="bold" />
+                    </button>
+                    {file.status === "uploading" ? (
+                      <div className="media-thumb placeholder" style={{ aspectRatio }}>
+                        <div className="loader-spin" />
+                        <p className="tiny subdued">Uploading…</p>
+                      </div>
+                    ) : file.signedUrl ? (
+                      isVideoFile(file.file_type) ? (
+                        <video
+                          className="media-thumb"
+                          controls
+                          src={file.signedUrl}
+                          onLoadedMetadata={(e) => handleVideoMeta(file.id, e)}
+                          onError={() => handleMediaPreviewError(file)}
+                          style={{ aspectRatio }}
+                        />
+                      ) : (
+                        <>
+                          {/* Signed URLs are dynamic and may include ephemeral query parameters. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={file.signedUrl}
+                            alt={file.filename}
+                            className="media-thumb"
+                            onLoad={(e) => handleImageLoad(file.id, e)}
+                            onError={() => handleMediaPreviewError(file)}
+                            style={{ aspectRatio }}
+                          />
+                        </>
+                      )
                     ) : (
-                      <img
-                        src={file.signedUrl}
-                        alt={file.filename}
-                        className="media-thumb"
-                        onLoad={(e) => handleImageLoad(file.id, e)}
-                        onError={() => handleMediaPreviewError(file)}
-                        style={{ aspectRatio }}
-                      />
-                    )
-                  ) : (
-                    <div className="media-thumb placeholder" style={{ aspectRatio }}>
-                      No preview
+                      <div className="media-thumb placeholder" style={{ aspectRatio }}>
+                        No preview
+                      </div>
+                    )}
+                    <div className="media-meta">
+                      <div>
+                        <p className="metric-label">{file.filename}</p>
+                        <p className="metric-value tiny">{formatBytes(file.file_size)}</p>
+                      </div>
+                      <span className="pill tiny">
+                        {isVideoFile(file.file_type) ? "Video" : "Image"}
+                      </span>
                     </div>
-                  )}
-                  <div className="media-meta">
-                    <div>
-                      <p className="metric-label">{file.filename}</p>
-                      <p className="metric-value tiny">{formatBytes(file.file_size)}</p>
-                    </div>
-                    <span className="pill tiny">{isVideoFile(file.file_type) ? "Video" : "Image"}</span>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
             </div>
           )}
         </section>
       </main>
 
       {focusedFile ? (
-        <div className="media-modal" role="dialog" aria-modal="true">
+        <div className="media-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           <div className="media-modal-backdrop" onClick={closeModal} />
           <div className="media-modal-content">
-            <button className="ghost-btn close-btn" type="button" onClick={closeModal} aria-label="Close preview">
+            <button
+              className="btn-secondary close-btn"
+              type="button"
+              onClick={closeModal}
+              aria-label="Close preview"
+            >
               ×
             </button>
             <div className="modal-body">
-              <div className="modal-preview" style={{ aspectRatio: aspectMap[focusedFile.id] || (isVideoFile(focusedFile.file_type) ? 9 / 16 : 4 / 5) }}>
+              <div
+                className="modal-preview"
+                style={{
+                  aspectRatio:
+                    aspectMap[focusedFile.id] ||
+                    (isVideoFile(focusedFile.file_type) ? 9 / 16 : 4 / 5),
+                }}
+              >
                 {focusedFile.signedUrl ? (
                   isVideoFile(focusedFile.file_type) ? (
                     <video
@@ -878,18 +992,22 @@ export default function MediaLibrary() {
                       onError={() => handleMediaPreviewError(focusedFile)}
                     />
                   ) : (
-                    <img
-                      src={focusedFile.signedUrl}
-                      alt={focusedFile.filename}
-                      onError={() => handleMediaPreviewError(focusedFile)}
-                    />
+                    <>
+                      {/* Signed URLs are dynamic and may include ephemeral query parameters. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={focusedFile.signedUrl}
+                        alt={focusedFile.filename}
+                        onError={() => handleMediaPreviewError(focusedFile)}
+                      />
+                    </>
                   )
                 ) : (
                   <div className="placeholder">No preview available</div>
                 )}
               </div>
               <div className="modal-meta">
-                <label htmlFor="renameInput" className="eyebrow">
+                <label htmlFor="renameInput" id="modal-title" className="eyebrow">
                   File name
                 </label>
                 <input
@@ -900,16 +1018,31 @@ export default function MediaLibrary() {
                     setRenameValue(e.target.value);
                     setRenameSuccess(false);
                   }}
+                  className="input"
+                  aria-label="Enter new filename"
                 />
-                {modalError && <div className="auth-error">{modalError}</div>}
-                <button className="primary-btn" type="button" onClick={saveRename} disabled={savingRename || !renameValue.trim()}>
+                {modalError && (
+                  <div className="auth-error" role="alert" aria-live="assertive">
+                    {modalError}
+                  </div>
+                )}
+                <button
+                  className="btn-primary"
+                  type="button"
+                  onClick={saveRename}
+                  disabled={savingRename || !renameValue.trim()}
+                >
                   {savingRename ? "Saving..." : "Save name"}
                 </button>
-                <button className="ghost-btn" type="button" onClick={() => void downloadFile(focusedFile)}>
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  onClick={() => void downloadFile(focusedFile)}
+                >
                   Download file
                 </button>
                 {renameSuccess && !modalError && !savingRename && (
-                  <div className="rename-toast">
+                  <div className="rename-toast" role="status" aria-live="polite">
                     <CheckCircle size={16} weight="bold" />
                     <span>Saved</span>
                   </div>

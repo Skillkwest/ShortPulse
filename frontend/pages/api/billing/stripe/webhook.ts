@@ -12,9 +12,11 @@ type StripeEvent = {
   id: string;
   type: string;
   data?: {
-    object?: Record<string, any>;
+    object?: Record<string, unknown>;
   };
 };
+
+type JsonObject = Record<string, unknown>;
 
 export const config = {
   api: {
@@ -39,8 +41,11 @@ const asIsoDate = (unixSeconds?: number | null): string | null => {
   return new Date(unixSeconds * 1000).toISOString();
 };
 
+const toRecord = (value: unknown): JsonObject =>
+  value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
+
 const resolvePlanIdFromSubscription = async (
-  stripePriceId: string | undefined,
+  stripePriceId: string | undefined
 ): Promise<string | null> => {
   if (!stripePriceId) return null;
   const supabaseAdmin = getSupabaseAdmin();
@@ -73,10 +78,13 @@ const applyCredit = async (params: {
   }
 };
 
-const processCheckoutCompleted = async (session: Record<string, any>, eventId: string) => {
-  const userId = session?.metadata?.user_id || session?.client_reference_id;
-  const creditAmountRaw = session?.metadata?.credit_amount_cents;
-  const packageId = session?.metadata?.credit_package_id ?? null;
+const processCheckoutCompleted = async (session: JsonObject, eventId: string) => {
+  const metadata = toRecord(session.metadata);
+  const userIdRaw = metadata.user_id ?? session.client_reference_id;
+  const userId = typeof userIdRaw === "string" ? userIdRaw : null;
+  const creditAmountRaw = metadata.credit_amount_cents;
+  const packageId =
+    typeof metadata.credit_package_id === "string" ? metadata.credit_package_id : null;
   if (!userId || !creditAmountRaw) return;
 
   const creditAmount = Number(creditAmountRaw);
@@ -89,25 +97,32 @@ const processCheckoutCompleted = async (session: Record<string, any>, eventId: s
     sourceRef: eventId,
     reason: packageId ? `Credit purchase (${packageId})` : "Credit purchase",
     metadata: {
-      checkout_session_id: session?.id ?? null,
-      stripe_customer_id: session?.customer ?? null,
+      checkout_session_id: session.id ?? null,
+      stripe_customer_id: session.customer ?? null,
       credit_package_id: packageId,
     },
   });
 };
 
-const processSubscriptionUpdate = async (subscription: Record<string, any>) => {
+const processSubscriptionUpdate = async (subscription: JsonObject) => {
   const supabaseAdmin = getSupabaseAdmin();
-  const stripeCustomerId = subscription?.customer as string | undefined;
+  const stripeCustomerId =
+    typeof subscription.customer === "string" ? subscription.customer : undefined;
   if (!stripeCustomerId) return;
 
-  const priceId = subscription?.items?.data?.[0]?.price?.id as string | undefined;
+  const items = toRecord(subscription.items);
+  const itemData = Array.isArray(items.data) ? items.data : [];
+  const firstItem = toRecord(itemData[0]);
+  const priceIdCandidate = toRecord(firstItem.price).id;
+  const priceId = typeof priceIdCandidate === "string" ? priceIdCandidate : undefined;
   const resolvedPlanId = await resolvePlanIdFromSubscription(priceId);
 
-  const updatePayload: Record<string, any> = {
-    stripe_subscription_id: subscription?.id ?? null,
-    subscription_status: subscription?.status ?? "inactive",
-    current_period_end: asIsoDate(subscription?.current_period_end ?? null),
+  const updatePayload: JsonObject = {
+    stripe_subscription_id: subscription.id ?? null,
+    subscription_status: typeof subscription.status === "string" ? subscription.status : "inactive",
+    current_period_end: asIsoDate(
+      typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
+    ),
   };
   if (resolvedPlanId) {
     updatePayload.plan_id = resolvedPlanId;
@@ -119,9 +134,9 @@ const processSubscriptionUpdate = async (subscription: Record<string, any>) => {
     .eq("stripe_customer_id", stripeCustomerId);
 };
 
-const processInvoicePaymentSucceeded = async (invoice: Record<string, any>, eventId: string) => {
+const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: string) => {
   const supabaseAdmin = getSupabaseAdmin();
-  const stripeCustomerId = invoice?.customer as string | undefined;
+  const stripeCustomerId = typeof invoice.customer === "string" ? invoice.customer : undefined;
   if (!stripeCustomerId) return;
 
   const { data: profile } = await supabaseAdmin
@@ -146,7 +161,7 @@ const processInvoicePaymentSucceeded = async (invoice: Record<string, any>, even
     sourceRef: eventId,
     reason: "Monthly plan credit allocation",
     metadata: {
-      invoice_id: invoice?.id ?? null,
+      invoice_id: invoice.id ?? null,
       plan_id: profile.plan_id,
       stripe_customer_id: stripeCustomerId,
     },
@@ -188,7 +203,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await supabaseAdmin.from("stripe_event_log").insert({
       id: event.id,
       event_type: event.type,
-      payload: event as any,
+      payload: event as unknown as JsonObject,
     });
 
     const object = event.data?.object ?? {};

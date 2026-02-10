@@ -14,7 +14,7 @@ Reference for pages, auth expectations, and ownership.
 | `/ai-studio` | Yes | Creative canvas (prompt/image/video) | `/creator-studio` forwards here. |
 | `/character` | Yes | Character tool (identity ingest + consistent image gen) | Frontend-triggered; Fal proxy by default. |
 | `/profile` | Yes | Profile/account/billing UI | Logout modal; plan badges. |
-| `/admin` | Yes | Internal admin dashboard | Operator-only surface (app/user metadata role or admin allowlist); not part of MVP. |
+| `/admin` | Yes | Internal admin dashboard | Operator-only surface (`app_metadata` role or admin allowlist); not part of MVP. |
 | `/onboarding` | No | Lightweight onboarding shell | Links to dashboard/features. |
 | `/creator-studio` | Yes | Legacy alias to AI Studio | Re-export of `/ai-studio`. |
 | `/index` | No | Redirect helper to `/landing` | Keeps `/` from 404 in dev. |

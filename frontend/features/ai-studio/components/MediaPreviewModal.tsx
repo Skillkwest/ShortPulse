@@ -2,7 +2,7 @@
  * Minimal, glassmorphic preview modal for reference grid images and videos.
  * Replaces the old full-screen DetailModal with a cleaner, centered card design.
  */
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { StudioOutput } from "../types";
 import { looksLikeVideoUrl } from "../utils/dragDrop";
 
@@ -23,21 +23,41 @@ export function MediaPreviewModal({
   onDelete,
   onDownload,
 }: MediaPreviewModalProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedPrompt, setEditedPrompt] = useState("");
-  const [imageError, setImageError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Reset state when modal opens
-  useEffect(() => {
-    if (isOpen && output) {
-      setEditedPrompt(output.prompt);
-      setImageError(false);
-      setIsLoading(true);
-    }
-  }, [isOpen, output]);
-
   if (!isOpen || !output) return null;
+
+  const modalKey = `${output.id}:${output.previewUrl ?? "prompt"}`;
+
+  return (
+    <MediaPreviewModalContent
+      key={modalKey}
+      output={output}
+      onClose={onClose}
+      onUpdatePrompt={onUpdatePrompt}
+      onDelete={onDelete}
+      onDownload={onDownload}
+    />
+  );
+}
+
+type MediaPreviewModalContentProps = {
+  output: StudioOutput;
+  onClose: () => void;
+  onUpdatePrompt: (id: string, prompt: string) => void;
+  onDelete: (id: string) => void;
+  onDownload: (id: string) => void;
+};
+
+function MediaPreviewModalContent({
+  output,
+  onClose,
+  onUpdatePrompt,
+  onDelete,
+  onDownload,
+}: MediaPreviewModalContentProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedPrompt, setEditedPrompt] = useState(output.prompt);
+  const [imageError, setImageError] = useState(false);
+  const [isLoading, setIsLoading] = useState(Boolean(output.previewUrl));
 
   const isVideo = output.mode === "video" || looksLikeVideoUrl(output.previewUrl);
   const hasMedia = Boolean(output.previewUrl);
@@ -59,11 +79,7 @@ export function MediaPreviewModal({
         aria-labelledby="media-preview-title"
       >
         {/* Close button */}
-        <button
-          className="media-preview-close"
-          onClick={onClose}
-          aria-label="Close preview"
-        >
+        <button className="media-preview-close" onClick={onClose} aria-label="Close preview">
           ×
         </button>
 
@@ -79,8 +95,9 @@ export function MediaPreviewModal({
             </div>
           )}
 
-          {hasMedia && !imageError && (
-            isVideo ? (
+          {hasMedia &&
+            !imageError &&
+            (isVideo ? (
               <video
                 className="media-preview-content"
                 src={output.previewUrl}
@@ -96,18 +113,21 @@ export function MediaPreviewModal({
                 }}
               />
             ) : (
-              <img
-                className="media-preview-content"
-                src={output.previewUrl}
-                alt={output.prompt}
-                onLoad={() => setIsLoading(false)}
-                onError={() => {
-                  setImageError(true);
-                  setIsLoading(false);
-                }}
-              />
-            )
-          )}
+              <>
+                {/* Preview URL may come from dynamic provider output or local draft blob URL. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  className="media-preview-content"
+                  src={output.previewUrl}
+                  alt={output.prompt}
+                  onLoad={() => setIsLoading(false)}
+                  onError={() => {
+                    setImageError(true);
+                    setIsLoading(false);
+                  }}
+                />
+              </>
+            ))}
 
           {!hasMedia && (
             <div className="media-preview-placeholder">
@@ -163,10 +183,7 @@ export function MediaPreviewModal({
 
         {/* Action buttons */}
         <div className="media-preview-actions">
-          <button
-            className="media-action-btn"
-            onClick={() => onDownload(output.id)}
-          >
+          <button className="media-action-btn" onClick={() => onDownload(output.id)}>
             Download
           </button>
           <button

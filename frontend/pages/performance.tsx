@@ -10,13 +10,23 @@ import { ArrowClockwise, CaretDown, MagnifyingGlass } from "phosphor-react";
 
 import { CompactVideoCard } from "../features/performance/components/CompactVideoCard";
 import { CohortAnalyticsSection } from "../features/performance/components/CohortAnalyticsSection";
-import { PrimaryFilterBar, ThresholdFilterBar } from "../features/performance/components/FilterBars";
+import {
+  PrimaryFilterBar,
+  ThresholdFilterBar,
+} from "../features/performance/components/FilterBars";
 import { VideoDetailModal } from "../features/performance/components/VideoDetailModal";
 import { SCRAPE_NOTE } from "../features/performance/constants";
 import { TRENDING_VIDEOS } from "../features/performance/data/sampleVideos";
 import { pickSelectedVideo } from "../features/performance/logic/analytics";
 import { filterAndScoreVideos } from "../features/performance/logic/scoring";
-import { CategoryFilter, DateRange, PlatformFilter, ScoredVideo, TrendDirection, TrendingVideo } from "../features/performance/types";
+import {
+  CategoryFilter,
+  DateRange,
+  PlatformFilter,
+  ScoredVideo,
+  TrendDirection,
+  TrendingVideo,
+} from "../features/performance/types";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -48,7 +58,10 @@ const rebuildDemoVideos = (seed: number, timestamp: number): TrendingVideo[] => 
     const views = Math.max(1, Math.round(video.views * multiplier));
     const likes = Math.max(1, Math.round(video.likes * (0.9 + multiplier * 0.15)));
     const comments = Math.max(0, Math.round(video.comments * (0.9 + multiplier * 0.12)));
-    const sharesOrSaves = Math.max(0, Math.round((video.shares_or_saves || 0) * (0.85 + multiplier * 0.12)));
+    const sharesOrSaves = Math.max(
+      0,
+      Math.round((video.shares_or_saves || 0) * (0.85 + multiplier * 0.12))
+    );
     const publishTime = new Date(video.publish_time).getTime();
     const hoursSincePublish = Math.max(1, (timestamp - publishTime) / (1000 * 60 * 60));
     const viewsPerHour = views / hoursSincePublish;
@@ -79,7 +92,7 @@ const rebuildDemoVideos = (seed: number, timestamp: number): TrendingVideo[] => 
     const velocityPercentile = percentile(video.views_per_hour, sortedVelocity);
     const engagementPercentile = percentile(video.engagement_rate, sortedEngagement);
     const performanceScore = Number(
-      (0.45 * engagementPercentile + 0.4 * velocityPercentile + 0.15 * viewsPercentile).toFixed(1),
+      (0.45 * engagementPercentile + 0.4 * velocityPercentile + 0.15 * viewsPercentile).toFixed(1)
     );
 
     return {
@@ -124,12 +137,14 @@ export default function PerformanceAnalyticsPage() {
   const searchesRemaining = 72;
   const planName = "Creative Suite";
   const [dataVersion, setDataVersion] = useState(0);
-  const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(() => new Date(seedTimestamp).toISOString());
+  const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(() =>
+    new Date(seedTimestamp).toISOString()
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const recalculatedVideos = useMemo(
     () => rebuildDemoVideos(dataVersion, seedTimestamp + dataVersion * 500),
-    [dataVersion, seedTimestamp],
+    [dataVersion, seedTimestamp]
   );
 
   const dataset = useMemo(
@@ -141,7 +156,7 @@ export default function PerformanceAnalyticsPage() {
         categoryFilter,
         outliersOnly,
       }),
-    [recalculatedVideos, dateRange, platform, categoryFilter, outliersOnly],
+    [recalculatedVideos, dateRange, platform, categoryFilter, outliersOnly]
   );
 
   useEffect(() => {
@@ -182,19 +197,16 @@ export default function PerformanceAnalyticsPage() {
     return sorted.sort(comparator);
   }, [dataset, sortKey]);
 
-  useEffect(() => {
-    if (!dataset.length) {
-      setSelectedId(undefined);
-      setShowDetail(false);
-      return;
-    }
-    if (selectedId && !dataset.find((v) => v.reel_id === selectedId)) {
-      setSelectedId(dataset[0].reel_id);
-    }
+  const resolvedSelectedId = useMemo(() => {
+    if (!selectedId || !dataset.length) return selectedId;
+    return dataset.some((video) => video.reel_id === selectedId) ? selectedId : dataset[0].reel_id;
   }, [dataset, selectedId]);
-
-  const selectedVideo = useMemo(() => pickSelectedVideo(dataset, selectedId), [dataset, selectedId]);
-  const currentSortLabel = SORT_OPTIONS.find((item) => item.key === sortKey)?.label ?? "Performance score";
+  const selectedVideo = useMemo(
+    () => pickSelectedVideo(dataset, resolvedSelectedId),
+    [dataset, resolvedSelectedId]
+  );
+  const currentSortLabel =
+    SORT_OPTIONS.find((item) => item.key === sortKey)?.label ?? "Performance score";
 
   const handleSelectVideo = (video: ScoredVideo) => {
     setSelectedId(video.reel_id);
@@ -279,11 +291,28 @@ export default function PerformanceAnalyticsPage() {
                     </p>
                   </div>
                 </div>
-                <div className="search-usage-card plan-card" aria-label="Plan status" role="button" tabIndex={0}>
+                <div
+                  className="search-usage-card plan-card"
+                  aria-label="Plan status"
+                  role="button"
+                  tabIndex={0}
+                >
                   <div className="search-usage-icon plan-icon" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 18 18"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
                       <circle cx="9" cy="9" r="7" stroke="#25A9BF" strokeWidth="1.4" />
-                      <path d="M6.3 9.1 8 10.8 11.7 7" stroke="#25A9BF" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      <path
+                        d="M6.3 9.1 8 10.8 11.7 7"
+                        stroke="#25A9BF"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   </div>
                   <div className="search-usage-text">
@@ -324,53 +353,54 @@ export default function PerformanceAnalyticsPage() {
 
         <section className="list-section top-videos-card">
           <div className="section-heading minimal">
-          <div>
-            <p className="eyebrow">Trending</p>
-            <h3>Top videos</h3>
-            <p className="tiny subdued">Sorted by {currentSortLabel.toLowerCase()}</p>
-          </div>
-          <div className="section-heading-actions">
-            <div className="section-heading-stats">
+            <div>
+              <p className="eyebrow">Trending</p>
+              <h3>Top videos</h3>
+              <p className="tiny subdued">Sorted by {currentSortLabel.toLowerCase()}</p>
             </div>
-            <div className="sort-picker" ref={sortRef}>
-              <span className="sort-side-label">Sort</span>
+            <div className="section-heading-actions">
+              <div className="section-heading-stats"></div>
+              <div className="sort-picker" ref={sortRef}>
+                <span className="sort-side-label">Sort</span>
+                <button
+                  type="button"
+                  className={`sort-toggle ${sortOpen ? "is-open" : ""}`}
+                  onClick={() => setSortOpen((prev) => !prev)}
+                >
+                  <span className="sort-name">{currentSortLabel}</span>
+                  <CaretDown size={14} weight="bold" />
+                </button>
+                {sortOpen ? (
+                  <div className="sort-menu">
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        className={sortKey === option.key ? "sort-option is-active" : "sort-option"}
+                        onClick={() => {
+                          setSortKey(option.key);
+                          setSortOpen(false);
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
               <button
                 type="button"
-                className={`sort-toggle ${sortOpen ? "is-open" : ""}`}
-                onClick={() => setSortOpen((prev) => !prev)}
-              >
-                <span className="sort-name">{currentSortLabel}</span>
-                <CaretDown size={14} weight="bold" />
-              </button>
-              {sortOpen ? (
-                <div className="sort-menu">
-                  {SORT_OPTIONS.map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      className={sortKey === option.key ? "sort-option is-active" : "sort-option"}
-                      onClick={() => {
-                        setSortKey(option.key);
-                        setSortOpen(false);
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              className={`primary-btn refresh-button ${isRefreshing ? "is-busy" : ""}`}
-              onClick={handleRefreshData}
+                className={`primary-btn refresh-button ${isRefreshing ? "is-busy" : ""}`}
+                onClick={handleRefreshData}
                 disabled={isRefreshing}
               >
                 <span className="refresh-icon">
                   <ArrowClockwise size={18} weight="bold" />
                 </span>
                 <span className="refresh-copy">
-                  <span className="refresh-title">{isRefreshing ? "Refreshing…" : "Refresh videos"}</span>
+                  <span className="refresh-title">
+                    {isRefreshing ? "Refreshing…" : "Refresh videos"}
+                  </span>
                   <span className="refresh-meta">
                     {isRefreshing ? "Pulling latest demo signals" : formatActionTime(lastRefreshAt)}
                   </span>
@@ -395,7 +425,11 @@ export default function PerformanceAnalyticsPage() {
           onToggle={() => setAdvancedOpen((v) => !v)}
         />
 
-        <VideoDetailModal video={selectedVideo} open={showDetail} onClose={() => setShowDetail(false)} />
+        <VideoDetailModal
+          video={selectedVideo}
+          open={showDetail && Boolean(selectedVideo)}
+          onClose={() => setShowDetail(false)}
+        />
       </main>
     </>
   );

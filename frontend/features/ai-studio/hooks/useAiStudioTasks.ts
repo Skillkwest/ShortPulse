@@ -4,18 +4,6 @@
  */
 import { useCallback, useEffect, useRef } from "react";
 import {
-  submitFalFlux2,
-  submitFalFlux2Edit,
-  submitFalFlux2ProEdit,
-  submitFalFlux2Pro,
-  submitFalSeedance,
-  submitFalSeedream,
-  submitFalVeo,
-  submitFalNanoBanana,
-  submitFalNanoBananaEdit,
-  submitFalNanoBananaPro,
-  submitFalNanoBananaProEdit,
-  submitFalSoraPro,
   fetchFalFlux2ProStatus,
   fetchFalFlux2Status,
   fetchFalFlux2KleinStatus,
@@ -35,16 +23,41 @@ import {
   fetchFalVeoStatus,
   fetchFalVeoImageToVideoStatus,
 } from "../../../lib/falClient";
-import { createKeiTask, fetchKeiTaskStatus } from "../../../lib/keiClient";
+import { fetchKeiTaskStatus } from "../../../lib/keiClient";
 import { extractFalMediaUrls, extractResultUrls, Provider } from "../logic/stateParsers";
 import { StudioOutput } from "../types";
 
 type TaskCallbacks = {
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
-  setUiError: (message: string | null) => void;
-  onGenerationSuccess?: (payload: { outputId: string; taskId: string; provider: Provider; resultUrls: string[] }) => void;
-  onGenerationFailure?: (payload: { outputId: string; taskId?: string; provider: Provider; message: string }) => void;
+  onGenerationSuccess?: (payload: {
+    outputId: string;
+    taskId: string;
+    provider: Provider;
+    resultUrls: string[];
+  }) => void;
+  onGenerationFailure?: (payload: {
+    outputId: string;
+    taskId?: string;
+    provider: Provider;
+    message: string;
+  }) => void;
+};
+
+type PollStatus = {
+  status?: unknown;
+  state?: unknown;
+  data?: { status?: unknown; result?: { status?: unknown } };
+  result?: { status?: unknown };
+  output?: { status?: unknown };
+  resultJson?: unknown;
+  raw?: unknown;
+  error?: unknown;
+  failMsg?: unknown;
+  failCode?: unknown;
+  message?: unknown;
+  statusMessage?: unknown;
+  detail?: unknown;
 };
 
 const condenseError = (message: string) => {
@@ -63,7 +76,10 @@ const createShortErrorMessage = (message: string) => {
   const lower = message.toLowerCase();
 
   // Content policy violations
-  if (lower.includes("content") && (lower.includes("policy") || lower.includes("checker") || lower.includes("flagged"))) {
+  if (
+    lower.includes("content") &&
+    (lower.includes("policy") || lower.includes("checker") || lower.includes("flagged"))
+  ) {
     return "Content not allowed";
   }
 
@@ -84,7 +100,9 @@ const createShortErrorMessage = (message: string) => {
 
 const looksLikeFailureMessage = (value: unknown): boolean => {
   if (typeof value !== "string") return false;
-  return /error|fail|denied|invalid|timed out|timeout|insufficient|reject|policy|unsafe|nsfw/i.test(value);
+  return /error|fail|denied|invalid|timed out|timeout|insufficient|reject|policy|unsafe|nsfw/i.test(
+    value
+  );
 };
 
 const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
@@ -131,9 +149,15 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
   }
 };
 
-const extractMediaByProvider = (provider: Provider, status: any) => {
+const extractMediaByProvider = (provider: Provider, status: PollStatus) => {
   if (provider === "kei") {
-    const resultUrls = extractResultUrls(status?.resultJson, status?.raw);
+    const keiResultJson =
+      typeof status?.resultJson === "string"
+        ? status.resultJson
+        : status?.resultJson && typeof status.resultJson === "object"
+          ? (status.resultJson as Record<string, unknown>)
+          : null;
+    const resultUrls = extractResultUrls(keiResultJson, status?.raw);
     return resultUrls;
   }
   return extractFalMediaUrls(status);
@@ -142,7 +166,6 @@ const extractMediaByProvider = (provider: Provider, status: any) => {
 export function useAiStudioTasks({
   updateOutputById,
   notifyGenerationFailure,
-  setUiError,
   onGenerationSuccess,
   onGenerationFailure,
 }: TaskCallbacks) {
@@ -157,11 +180,21 @@ export function useAiStudioTasks({
   }, []);
 
   const startPollingTask = useCallback(
-    (taskId: string, outputId: string, attempt = 0, provider: Provider = "kei", startedAt = Date.now()) => {
+    function pollTask(
+      taskId: string,
+      outputId: string,
+      attempt = 0,
+      provider: Provider = "kei",
+      startedAt = Date.now()
+    ) {
       const elapsedMs = Date.now() - startedAt;
       const maxWaitMs = 8 * 60 * 1000; // 8 minutes
       if (elapsedMs > maxWaitMs) {
-        notifyGenerationFailure(outputId, "Timed out waiting for provider result.", "Timed out waiting for provider result.");
+        notifyGenerationFailure(
+          outputId,
+          "Timed out waiting for provider result.",
+          "Timed out waiting for provider result."
+        );
         clearPollTimer(outputId);
         return;
       }
@@ -169,7 +202,7 @@ export function useAiStudioTasks({
       const delay = Math.min(8000, 1200 + attempt * 600);
       const timeoutId = window.setTimeout(async () => {
         try {
-          const status = (await fetchStatusByProvider(provider, taskId)) as any;
+          const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
           const stateRaw =
             status?.status?.toString().toLowerCase() ??
             status?.state?.toString().toLowerCase() ??
@@ -193,8 +226,8 @@ export function useAiStudioTasks({
                 timestamp: "Waiting for media...",
               }));
               pollTimersRef.current[outputId] = window.setTimeout(
-                () => startPollingTask(taskId, outputId, attempt + 1, provider, startedAt),
-                delay,
+                () => pollTask(taskId, outputId, attempt + 1, provider, startedAt),
+                delay
               );
               return;
             }
@@ -223,15 +256,10 @@ export function useAiStudioTasks({
           }
 
           // MULTIPLE ERROR DETECTION STRATEGIES
-          const isErrorState =
-            state === "fail" ||
-            state === "error" ||
-            state === "failed";
+          const isErrorState = state === "fail" || state === "error" || state === "failed";
 
           const hasErrorField =
-            Boolean(status?.error) ||
-            Boolean(status?.failMsg) ||
-            Boolean(status?.failCode);
+            Boolean(status?.error) || Boolean(status?.failMsg) || Boolean(status?.failCode);
 
           const isExplicitErrorStatus =
             String(status?.status ?? "").toLowerCase() === "error" ||
@@ -244,7 +272,7 @@ export function useAiStudioTasks({
 
           // If ANY condition is true, treat as error
           if (isErrorState || hasErrorField || isExplicitErrorStatus || hasFailureMessage) {
-            const failureDetail =
+            const rawFailureDetail =
               status?.failMsg ||
               status?.failCode ||
               status?.error ||
@@ -252,6 +280,12 @@ export function useAiStudioTasks({
               status?.statusMessage ||
               status?.detail ||
               "Generation failed";
+            const failureDetail =
+              typeof rawFailureDetail === "string"
+                ? rawFailureDetail
+                : rawFailureDetail != null
+                  ? String(rawFailureDetail)
+                  : "Generation failed";
 
             const failureMessage = condenseError(
               typeof status?.detail === "string" ? status?.detail : failureDetail
@@ -288,8 +322,8 @@ export function useAiStudioTasks({
             timestamp: "Processing...",
           }));
           pollTimersRef.current[outputId] = window.setTimeout(
-            () => startPollingTask(taskId, outputId, attempt + 1, provider, startedAt),
-            delay,
+            () => pollTask(taskId, outputId, attempt + 1, provider, startedAt),
+            delay
           );
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unable to check status";
@@ -316,14 +350,20 @@ export function useAiStudioTasks({
             timestamp: "Retrying status...",
           }));
           pollTimersRef.current[outputId] = window.setTimeout(
-            () => startPollingTask(taskId, outputId, attempt + 1, provider, startedAt),
-            delay,
+            () => pollTask(taskId, outputId, attempt + 1, provider, startedAt),
+            delay
           );
         }
       }, delay);
       pollTimersRef.current[outputId] = timeoutId;
     },
-    [clearPollTimer, notifyGenerationFailure, onGenerationFailure, onGenerationSuccess, updateOutputById],
+    [
+      clearPollTimer,
+      notifyGenerationFailure,
+      onGenerationFailure,
+      onGenerationSuccess,
+      updateOutputById,
+    ]
   );
 
   useEffect(
@@ -331,7 +371,7 @@ export function useAiStudioTasks({
       Object.values(pollTimersRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
       pollTimersRef.current = {};
     },
-    [],
+    []
   );
 
   return {

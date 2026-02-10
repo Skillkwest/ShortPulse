@@ -7,18 +7,24 @@ import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { CloudSlash, ShieldCheck, UserCircle } from "phosphor-react";
 import { ErrorIncidentsPanel } from "../../features/admin/components/ErrorIncidentsPanel";
-import type { AdminErrorLogRow, AdminErrorSummary, AdminUserRow } from "../../features/admin/types";
+import type {
+  AdminErrorLogRow,
+  AdminErrorStatus,
+  AdminErrorSummary,
+  AdminPagination,
+  AdminUserRow,
+} from "../../features/admin/types";
 import { useProtectedRoute } from "../../lib/authGuard";
 import styles from "../../styles/admin.module.css";
 import { fetchWithAuth } from "../../lib/authenticatedFetch";
 
-const isAdminUser = (user: any): boolean => {
-  const roles = [
-    user?.app_metadata?.role,
-    user?.user_metadata?.role,
-    ...(Array.isArray(user?.app_metadata?.roles) ? user.app_metadata.roles : []),
-    ...(Array.isArray(user?.user_metadata?.roles) ? user.user_metadata.roles : []),
-  ]
+const isAdminUser = (user: unknown): boolean => {
+  const record = user && typeof user === "object" ? (user as Record<string, unknown>) : {};
+  const appMetadata =
+    record.app_metadata && typeof record.app_metadata === "object"
+      ? (record.app_metadata as Record<string, unknown>)
+      : {};
+  const roles = [appMetadata.role, ...(Array.isArray(appMetadata.roles) ? appMetadata.roles : [])]
     .filter(Boolean)
     .map((value) => String(value).toLowerCase());
   return roles.includes("admin") || roles.includes("operator");
@@ -26,14 +32,33 @@ const isAdminUser = (user: any): boolean => {
 
 const planLabel = (planId: string | null): string => {
   if (!planId) return "—";
-  if (planId === "creative_suite") return "Creative Suite";
+  // Handle legacy plan names
+  if (planId === "creative_suite" || planId === "creative") return "Business";
+  if (planId === "pro") return "Studio";
+  if (planId === "business") return "Business";
+  if (planId === "studio") return "Studio";
   return planId.charAt(0).toUpperCase() + planId.slice(1);
 };
+
+const USERS_PER_PAGE = 50;
+const ERRORS_PER_PAGE = 50;
+const SEARCH_DEBOUNCE_MS = 250;
 
 export default function AdminDashboardPage() {
   const { loading, user } = useProtectedRoute(true);
   const [activeTab, setActiveTab] = useState<"overview" | "errors">("overview");
   const [userSearch, setUserSearch] = useState("");
+  const [debouncedUserSearch, setDebouncedUserSearch] = useState("");
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersPagination, setUsersPagination] = useState<AdminPagination>({
+    page: 1,
+    perPage: USERS_PER_PAGE,
+    totalCount: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
+  const [userSearchLimited, setUserSearchLimited] = useState(false);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
@@ -45,15 +70,28 @@ export default function AdminDashboardPage() {
   const [errors, setErrors] = useState<AdminErrorLogRow[]>([]);
   const [errorsLoading, setErrorsLoading] = useState(false);
   const [errorsError, setErrorsError] = useState<string | null>(null);
+  const [errorStatusUpdatingId, setErrorStatusUpdatingId] = useState<string | null>(null);
   const [errorSummary, setErrorSummary] = useState<AdminErrorSummary>({
     openCount: 0,
     highSeverityOpenCount: 0,
     last24hCount: 0,
   });
   const [errorStatusFilter, setErrorStatusFilter] = useState<"open" | "all">("open");
-  const [errorSeverityFilter, setErrorSeverityFilter] = useState<"all" | "high" | "medium" | "low">("all");
+  const [errorSeverityFilter, setErrorSeverityFilter] = useState<"all" | "high" | "medium" | "low">(
+    "all"
+  );
   const [errorSourceFilter, setErrorSourceFilter] = useState<string>("all");
   const [errorSearch, setErrorSearch] = useState("");
+  const [debouncedErrorSearch, setDebouncedErrorSearch] = useState("");
+  const [errorsPage, setErrorsPage] = useState(1);
+  const [errorsPagination, setErrorsPagination] = useState<AdminPagination>({
+    page: 1,
+    perPage: ERRORS_PER_PAGE,
+    totalCount: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
   const [serverDenied, setServerDenied] = useState(false);
   const [serverValidated, setServerValidated] = useState(false);
 
@@ -64,24 +102,56 @@ export default function AdminDashboardPage() {
     setUsersLoading(true);
     setUsersError(null);
     try {
-      const response = await fetchWithAuth("/api/admin/users", { method: "GET" });
+      const params = new URLSearchParams();
+      params.set("page", String(usersPage));
+      params.set("perPage", String(USERS_PER_PAGE));
+      if (debouncedUserSearch.trim()) {
+        params.set("search", debouncedUserSearch.trim());
+      }
+
+      const response = await fetchWithAuth(`/api/admin/users?${params.toString()}`, {
+        method: "GET",
+      });
       if (!response.ok) {
         if (response.status === 403) {
           setServerDenied(true);
           setServerValidated(false);
           setUsers([]);
+          setUsersPagination({
+            page: 1,
+            perPage: USERS_PER_PAGE,
+            totalCount: 0,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPrevPage: false,
+          });
+          setUserSearchLimited(false);
           setUsersError(null);
           return;
         }
         const details = await response.json().catch(() => ({}));
         throw new Error(details?.error || "Failed to load users.");
       }
-      const data = (await response.json()) as { users?: AdminUserRow[] };
+      const data = (await response.json()) as {
+        users?: AdminUserRow[];
+        pagination?: Partial<AdminPagination>;
+        search?: { limited?: boolean };
+      };
+      const resolvedPage = Number(data.pagination?.page ?? usersPage);
       setServerDenied(false);
       setServerValidated(true);
       setUsers(data.users ?? []);
-      if (!selectedUserId && data.users?.length) {
-        setSelectedUserId(data.users[0].id);
+      setUsersPagination({
+        page: resolvedPage,
+        perPage: Number(data.pagination?.perPage ?? USERS_PER_PAGE),
+        totalCount: Number(data.pagination?.totalCount ?? 0),
+        totalPages: Number(data.pagination?.totalPages ?? 1),
+        hasNextPage: Boolean(data.pagination?.hasNextPage),
+        hasPrevPage: Boolean(data.pagination?.hasPrevPage),
+      });
+      setUserSearchLimited(Boolean(data.search?.limited));
+      if (resolvedPage !== usersPage) {
+        setUsersPage(resolvedPage);
       }
     } catch (error) {
       setServerDenied(false);
@@ -89,24 +159,36 @@ export default function AdminDashboardPage() {
     } finally {
       setUsersLoading(false);
     }
-  }, [selectedUserId]);
+  }, [debouncedUserSearch, usersPage]);
 
   const loadErrors = useCallback(async () => {
     setErrorsLoading(true);
     setErrorsError(null);
     try {
       const params = new URLSearchParams();
-      params.set("limit", "120");
+      params.set("page", String(errorsPage));
+      params.set("limit", String(ERRORS_PER_PAGE));
       params.set("status", errorStatusFilter);
       if (errorSeverityFilter !== "all") params.set("severity", errorSeverityFilter);
       if (errorSourceFilter !== "all") params.set("source", errorSourceFilter);
+      if (debouncedErrorSearch.trim()) params.set("search", debouncedErrorSearch.trim());
 
-      const response = await fetchWithAuth(`/api/admin/errors?${params.toString()}`, { method: "GET" });
+      const response = await fetchWithAuth(`/api/admin/errors?${params.toString()}`, {
+        method: "GET",
+      });
       if (!response.ok) {
         if (response.status === 403) {
           setServerDenied(true);
           setServerValidated(false);
           setErrors([]);
+          setErrorsPagination({
+            page: 1,
+            perPage: ERRORS_PER_PAGE,
+            totalCount: 0,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPrevPage: false,
+          });
           return;
         }
         const details = await response.json().catch(() => ({}));
@@ -115,15 +197,19 @@ export default function AdminDashboardPage() {
       const data = (await response.json()) as {
         errors?: unknown[];
         summary?: AdminErrorSummary;
+        pagination?: Partial<AdminPagination>;
       };
+      const resolvedPage = Number(data.pagination?.page ?? errorsPage);
 
       const rows = (data.errors ?? []).map((item) => {
         const value = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
         return {
           id: String(value.id ?? ""),
+          fingerprint: String(value.fingerprint ?? ""),
           source: String(value.source ?? "unknown"),
           scope: value.scope === "generation" ? "generation" : "app",
-          severity: value.severity === "high" || value.severity === "low" ? value.severity : "medium",
+          severity:
+            value.severity === "high" || value.severity === "low" ? value.severity : "medium",
           status: value.status === "resolved" || value.status === "ignored" ? value.status : "open",
           message: String(value.message ?? "Unknown error"),
           stack: typeof value.stack === "string" ? value.stack : null,
@@ -133,10 +219,15 @@ export default function AdminDashboardPage() {
           httpStatus: Number.isFinite(Number(value.http_status)) ? Number(value.http_status) : null,
           userId: typeof value.user_id === "string" ? value.user_id : null,
           userEmail: typeof value.user_email === "string" ? value.user_email : null,
-          metadata: value.metadata && typeof value.metadata === "object" ? (value.metadata as Record<string, unknown>) : null,
+          metadata:
+            value.metadata && typeof value.metadata === "object"
+              ? (value.metadata as Record<string, unknown>)
+              : null,
           firstSeenAt: typeof value.first_seen_at === "string" ? value.first_seen_at : null,
           lastSeenAt: typeof value.last_seen_at === "string" ? value.last_seen_at : null,
-          occurrencesCount: Number.isFinite(Number(value.occurrences_count)) ? Number(value.occurrences_count) : 1,
+          occurrencesCount: Number.isFinite(Number(value.occurrences_count))
+            ? Number(value.occurrences_count)
+            : 1,
         };
       }) as AdminErrorLogRow[];
 
@@ -146,17 +237,49 @@ export default function AdminDashboardPage() {
         highSeverityOpenCount: Number(data.summary?.highSeverityOpenCount ?? 0),
         last24hCount: Number(data.summary?.last24hCount ?? 0),
       });
+      setErrorsPagination({
+        page: resolvedPage,
+        perPage: Number(data.pagination?.perPage ?? ERRORS_PER_PAGE),
+        totalCount: Number(data.pagination?.totalCount ?? 0),
+        totalPages: Number(data.pagination?.totalPages ?? 1),
+        hasNextPage: Boolean(data.pagination?.hasNextPage),
+        hasPrevPage: Boolean(data.pagination?.hasPrevPage),
+      });
+      if (resolvedPage !== errorsPage) {
+        setErrorsPage(resolvedPage);
+      }
     } catch (error) {
       setErrorsError(error instanceof Error ? error.message : "Failed to load error incidents.");
     } finally {
       setErrorsLoading(false);
     }
-  }, [errorSeverityFilter, errorSourceFilter, errorStatusFilter]);
+  }, [debouncedErrorSearch, errorSeverityFilter, errorSourceFilter, errorStatusFilter, errorsPage]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedUserSearch(userSearch), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [userSearch]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedErrorSearch(errorSearch), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [errorSearch]);
 
   useEffect(() => {
     if (!user) return;
     loadUsers();
   }, [loadUsers, user]);
+
+  useEffect(() => {
+    if (!users.length) {
+      if (selectedUserId) setSelectedUserId("");
+      return;
+    }
+    const selectedStillExists = users.some((row) => row.id === selectedUserId);
+    if (!selectedUserId || !selectedStillExists) {
+      setSelectedUserId(users[0].id);
+    }
+  }, [selectedUserId, users]);
 
   useEffect(() => {
     if (!user || !adminEnabled) return;
@@ -165,18 +288,19 @@ export default function AdminDashboardPage() {
 
   const overview = useMemo(
     () => ({
-      activeUsers: users.length,
+      activeUsers: usersPagination.totalCount,
       openIssues: errorSummary.openCount,
       pendingCredits: users.filter((row) => row.credits <= 0).length,
     }),
-    [errorSummary.openCount, users],
+    [errorSummary.openCount, users, usersPagination.totalCount]
   );
 
-  const filteredUsers = useMemo(() => {
-    const query = userSearch.trim().toLowerCase();
-    if (!query) return users;
-    return users.filter((row) => (row.email ?? "").toLowerCase().includes(query));
-  }, [userSearch, users]);
+  const usersResultStart =
+    usersPagination.totalCount === 0 ? 0 : (usersPagination.page - 1) * usersPagination.perPage + 1;
+  const usersResultEnd = Math.min(
+    usersPagination.page * usersPagination.perPage,
+    usersPagination.totalCount
+  );
 
   const handleCreditAdjust = async () => {
     const normalized = Number(adjustment);
@@ -217,6 +341,32 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleUpdateErrorStatus = useCallback(
+    async (errorId: string, status: AdminErrorStatus) => {
+      setErrorStatusUpdatingId(errorId);
+      setErrorsError(null);
+      try {
+        const response = await fetchWithAuth("/api/admin/errors-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ errorId, status }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to update incident status.");
+        }
+        await loadErrors();
+      } catch (error) {
+        setErrorsError(
+          error instanceof Error ? error.message : "Failed to update incident status."
+        );
+      } finally {
+        setErrorStatusUpdatingId((current) => (current === errorId ? null : current));
+      }
+    },
+    [loadErrors]
+  );
+
   if (loading) {
     return (
       <main className={`page page-wide ${styles.adminPage}`}>
@@ -247,7 +397,12 @@ export default function AdminDashboardPage() {
                 {usersError ?? "We could not verify admin access right now. Retry in a moment."}
               </p>
               <div className={styles.searchRow}>
-                <button type="button" className="ghost-btn mini" onClick={loadUsers} disabled={usersLoading}>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={loadUsers}
+                  disabled={usersLoading}
+                >
                   {usersLoading ? "Retrying…" : "Retry access check"}
                 </button>
                 <Link href="/dashboard" className="ghost-btn mini">
@@ -282,14 +437,19 @@ export default function AdminDashboardPage() {
     <>
       <Head>
         <title>ShortPulse · Admin</title>
-        <meta name="description" content="Admin dashboard for monitoring users, credits, and errors." />
+        <meta
+          name="description"
+          content="Admin dashboard for monitoring users, credits, and errors."
+        />
       </Head>
       <main className={`page page-wide ${styles.adminPage}`}>
         <header className={styles.adminHeader}>
           <div>
             <p className="eyebrow">Admin Dashboard</p>
             <h1 className={styles.adminTitle}>Operations overview</h1>
-            <p className="tiny subdued">Monitor plan allocations, credits, and actionable app failures.</p>
+            <p className="tiny subdued">
+              Monitor plan allocations, credits, and actionable app failures.
+            </p>
           </div>
           <div className={styles.adminUserPill}>
             <ShieldCheck size={18} weight="fill" />
@@ -340,7 +500,7 @@ export default function AdminDashboardPage() {
                   <span className={styles.adminLabel}>Low credit users</span>
                 </div>
                 <p className={styles.adminMetric}>{overview.pendingCredits}</p>
-                <p className={styles.adminSubtext}>Users at 0 or below</p>
+                <p className={styles.adminSubtext}>Current result page</p>
               </div>
             </section>
 
@@ -348,9 +508,16 @@ export default function AdminDashboardPage() {
               <div className={styles.adminSectionHead}>
                 <div>
                   <p className="eyebrow">Users & credits</p>
-                  <p className="tiny subdued">Adjust balances manually when support requests come in.</p>
+                  <p className="tiny subdued">
+                    Adjust balances manually when support requests come in.
+                  </p>
                 </div>
-                <button type="button" className="ghost-btn mini" onClick={loadUsers} disabled={usersLoading}>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={loadUsers}
+                  disabled={usersLoading}
+                >
                   {usersLoading ? "Refreshing…" : "Refresh"}
                 </button>
               </div>
@@ -364,7 +531,10 @@ export default function AdminDashboardPage() {
                   className={styles.searchInput}
                   type="search"
                   value={userSearch}
-                  onChange={(event) => setUserSearch(event.target.value)}
+                  onChange={(event) => {
+                    setUserSearch(event.target.value);
+                    setUsersPage(1);
+                  }}
                   placeholder="Search by email"
                 />
               </div>
@@ -385,7 +555,7 @@ export default function AdminDashboardPage() {
                     <span className="subdued">—</span>
                     <span className="subdued">—</span>
                   </div>
-                ) : filteredUsers.length === 0 ? (
+                ) : users.length === 0 ? (
                   <div className={styles.adminTableRow}>
                     <span className="subdued">No users match.</span>
                     <span className="subdued">—</span>
@@ -394,22 +564,53 @@ export default function AdminDashboardPage() {
                     <span className="subdued">—</span>
                   </div>
                 ) : (
-                  filteredUsers.map((row) => (
+                  users.map((row) => (
                     <div key={row.id} className={styles.adminTableRow}>
                       <span>{row.email ?? row.id}</span>
                       <span>{planLabel(row.planId)}</span>
                       <span className="mono">{row.credits.toLocaleString()}</span>
                       <span className="subdued">{row.subscriptionStatus ?? "inactive"}</span>
-                      <span className="subdued">{row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "—"}</span>
+                      <span className="subdued">
+                        {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "—"}
+                      </span>
                     </div>
                   ))
                 )}
+              </div>
+              <div className={styles.searchRow}>
+                <p className="tiny subdued">
+                  Showing {usersResultStart}-{usersResultEnd} of {usersPagination.totalCount}
+                  {userSearchLimited ? " (search limited to the first 10,000 users scanned)" : ""}
+                </p>
+                <div className={styles.tabRow}>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => setUsersPage((value) => Math.max(1, value - 1))}
+                    disabled={usersLoading || !usersPagination.hasPrevPage}
+                  >
+                    Prev
+                  </button>
+                  <span className="tiny subdued">
+                    Page {usersPagination.page} of {usersPagination.totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => setUsersPage((value) => value + 1)}
+                    disabled={usersLoading || !usersPagination.hasNextPage}
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
 
               <div className={styles.adminSectionHead}>
                 <div>
                   <p className="eyebrow">Manual adjustment</p>
-                  <p className="tiny subdued">Use positive numbers to add credits, negative to remove.</p>
+                  <p className="tiny subdued">
+                    Use positive numbers to add credits, negative to remove.
+                  </p>
                 </div>
               </div>
               <div className={styles.searchRow}>
@@ -437,7 +638,12 @@ export default function AdminDashboardPage() {
                   onChange={(event) => setAdjustReason(event.target.value)}
                   placeholder="Reason (required)"
                 />
-                <button type="button" className="ghost-btn mini" onClick={handleCreditAdjust} disabled={adjustSubmitting}>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={handleCreditAdjust}
+                  disabled={adjustSubmitting}
+                >
                   {adjustSubmitting ? "Applying…" : "Apply"}
                 </button>
               </div>
@@ -454,10 +660,27 @@ export default function AdminDashboardPage() {
             errorSeverityFilter={errorSeverityFilter}
             errorSourceFilter={errorSourceFilter}
             errorSearch={errorSearch}
-            onErrorStatusFilterChange={setErrorStatusFilter}
-            onErrorSeverityFilterChange={setErrorSeverityFilter}
-            onErrorSourceFilterChange={setErrorSourceFilter}
-            onErrorSearchChange={setErrorSearch}
+            errorPagination={errorsPagination}
+            statusUpdatingErrorId={errorStatusUpdatingId}
+            onErrorStatusFilterChange={(value) => {
+              setErrorStatusFilter(value);
+              setErrorsPage(1);
+            }}
+            onErrorSeverityFilterChange={(value) => {
+              setErrorSeverityFilter(value);
+              setErrorsPage(1);
+            }}
+            onErrorSourceFilterChange={(value) => {
+              setErrorSourceFilter(value);
+              setErrorsPage(1);
+            }}
+            onErrorSearchChange={(value) => {
+              setErrorSearch(value);
+              setErrorsPage(1);
+            }}
+            onUpdateErrorStatus={handleUpdateErrorStatus}
+            onPrevPage={() => setErrorsPage((value) => Math.max(1, value - 1))}
+            onNextPage={() => setErrorsPage((value) => value + 1)}
             onRefresh={loadErrors}
           />
         )}

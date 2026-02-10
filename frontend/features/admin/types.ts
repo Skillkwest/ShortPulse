@@ -11,12 +11,15 @@ export type AdminUserRow = {
   createdAt: string | null;
 };
 
+export type AdminErrorStatus = "open" | "ignored" | "resolved";
+
 export type AdminErrorLogRow = {
   id: string;
+  fingerprint: string;
   source: string;
   scope: "app" | "generation";
   severity: "low" | "medium" | "high";
-  status: "open" | "ignored" | "resolved";
+  status: AdminErrorStatus;
   message: string;
   stack: string | null;
   route: string | null;
@@ -35,4 +38,13 @@ export type AdminErrorSummary = {
   openCount: number;
   highSeverityOpenCount: number;
   last24hCount: number;
+};
+
+export type AdminPagination = {
+  page: number;
+  perPage: number;
+  totalCount: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
 };

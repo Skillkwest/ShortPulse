@@ -59,6 +59,8 @@ export function PreviewGrid({ items, loading, fallbackImages = defaultImages }: 
           {normalized.map((item) => (
             <article className="preview-card" key={item.reel_id}>
               <div className="preview-thumb">
+                {/* Dynamic thumbnail host may vary by upstream source. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={item.thumbnail_url} alt="" loading="lazy" />
                 <div className="preview-overlay" />
                 <div className="preview-top">

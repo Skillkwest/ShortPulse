@@ -29,49 +29,55 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
   const authRedirectPath = `/auth?next=${encodeURIComponent(router.asPath || "/dashboard")}`;
 
   useEffect(() => {
-    if (!enabled) {
-      setLoading(false);
-      return;
-    }
-
+    if (!enabled) return;
     let active = true;
-    try {
-      const supabase = ensureSupabaseClient();
+    let unsubscribe: (() => void) | null = null;
 
-      supabase.auth.getSession().then(({ data }) => {
+    const runAuthCheck = async () => {
+      try {
+        const supabase = ensureSupabaseClient();
+        const { data } = await supabase.auth.getSession();
         if (!active) return;
+
         const nextSession = data.session ?? null;
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
         if (!nextSession) {
           router.replace(authRedirectPath);
         }
-        setLoading(false);
-      });
 
-      const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-        if (!active) return;
-        setSession(nextSession);
-        setUser(nextSession?.user ?? null);
-        if (!nextSession) {
+        const { data: authListener } = supabase.auth.onAuthStateChange(
+          (_event, listenerSession) => {
+            if (!active) return;
+            setSession(listenerSession);
+            setUser(listenerSession?.user ?? null);
+            if (!listenerSession) {
+              router.replace(authRedirectPath);
+            }
+          }
+        );
+        unsubscribe = () => authListener?.subscription.unsubscribe();
+      } catch {
+        // Supabase client missing or other unexpected error: force sign-in.
+        if (active) {
+          setSession(null);
+          setUser(null);
           router.replace(authRedirectPath);
         }
-      });
-
-      return () => {
-        active = false;
-        authListener?.subscription.unsubscribe();
-      };
-    } catch (err) {
-      // Supabase client missing or other unexpected error: force sign-in.
-      if (active) {
-        setSession(null);
-        setUser(null);
-        setLoading(false);
-        router.replace(authRedirectPath);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
-    }
+    };
+
+    void runAuthCheck();
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
   }, [enabled, router, authRedirectPath]);
 
-  return { session, user, loading };
+  return { session, user, loading: enabled ? loading : false };
 }

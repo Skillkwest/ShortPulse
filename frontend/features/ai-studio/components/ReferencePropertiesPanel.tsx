@@ -2,11 +2,23 @@
  * Reference properties panel for AI Studio.
  * Provides reference dropzones, aspect/model selection, and prompt capture for image/video workflows.
  */
+import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowFatLinesRight, Image, Plus, UploadSimple, VideoCamera } from "phosphor-react";
+import {
+  ArrowFatLinesRight,
+  Image as ImageIcon,
+  Plus,
+  UploadSimple,
+  VideoCamera,
+} from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption } from "../types";
-import { extractDragDropPayload, extractVideoDragDropPayload, isImageDragTransfer, isVideoDragTransfer } from "../utils/dragDrop";
+import {
+  extractDragDropPayload,
+  extractVideoDragDropPayload,
+  isImageDragTransfer,
+  isVideoDragTransfer,
+} from "../utils/dragDrop";
 import { modelLogos } from "../constants";
 import { stripEditLabel } from "../utils/modelLabels";
 import { getModelConfig } from "../logic/modelRegistry";
@@ -15,6 +27,7 @@ import { CaretDown } from "phosphor-react";
 import { AgentGenerateButton } from "../../../prefabs/agent";
 import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
 import type { ModelModalContext } from "./ModelModal";
+import { clampImageResolutionForModel, getImageResolutionOptions } from "../logic/imageResolution";
 
 type ReferencePropertiesPanelProps = {
   variant: "image" | "video";
@@ -33,22 +46,31 @@ type ReferencePropertiesPanelProps = {
   klingShotType?: "customize" | "intelligent";
   klingVoiceIds?: [string, string];
   klingMultiPrompts?: { id: string; prompt: string; duration: number }[];
-  klingElements?: { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[];
+  klingElements?: {
+    id: string;
+    frontalImageUrl: string;
+    referenceImageUrls: string;
+    videoUrl: string;
+  }[];
   onKlingNegativePromptChange?: (value: string) => void;
   onKlingCfgScaleChange?: (value: number) => void;
   onKlingShotTypeChange?: (value: "customize" | "intelligent") => void;
   onKlingVoiceIdChange?: (index: 0 | 1, value: string) => void;
   onKlingMultiPromptsChange?: (value: { id: string; prompt: string; duration: number }[]) => void;
-  onKlingElementsChange?: (value: { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]) => void;
+  onKlingElementsChange?: (
+    value: { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
+  ) => void;
   motionVideoUrl?: string | null;
   onMotionVideoChange?: (url: string | null) => void;
   videoDurationSeconds?: number;
   videoResolution?: string;
+  imageResolution?: string;
   videoGenerateAudio?: boolean;
   videoCameraFixed?: boolean;
   videoAutoFix?: boolean;
   onVideoDurationChange?: (value: number) => void;
   onVideoResolutionChange?: (value: string) => void;
+  onImageResolutionChange?: (value: string) => void;
   onVideoGenerateAudioChange?: (value: boolean) => void;
   onVideoCameraFixedChange?: (value: boolean) => void;
   onVideoAutoFixChange?: (value: boolean) => void;
@@ -56,7 +78,11 @@ type ReferencePropertiesPanelProps = {
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
   onAspectChange: (value: string) => void;
-  onModelPickerOpen: (anchorId: string, target: HTMLElement, context?: ModelModalContext | null) => void;
+  onModelPickerOpen: (
+    anchorId: string,
+    target: HTMLElement,
+    context?: ModelModalContext | null
+  ) => void;
   onPrimaryImageChange: (url: string | null) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
   onPromptTextChange: (value: string) => void;
@@ -67,6 +93,7 @@ type ReferencePropertiesPanelProps = {
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
   guardrailReason?: string | null;
+  referenceImageWarning?: string | null;
   // Agent props
   agentEnabled?: boolean;
   agentMessages?: AgentMessage[];
@@ -154,11 +181,13 @@ export function ReferencePropertiesPanel({
   onMotionVideoChange,
   videoDurationSeconds,
   videoResolution,
+  imageResolution,
   videoGenerateAudio,
   videoCameraFixed = false,
   videoAutoFix = false,
   onVideoDurationChange,
   onVideoResolutionChange,
+  onImageResolutionChange,
   onVideoGenerateAudioChange,
   onVideoCameraFixedChange,
   onVideoAutoFixChange,
@@ -176,7 +205,7 @@ export function ReferencePropertiesPanel({
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
-  guardrailReason = null,
+  referenceImageWarning,
   agentEnabled = false,
   agentMessages = [],
   agentActions,
@@ -208,6 +237,7 @@ export function ReferencePropertiesPanel({
   const [collapsedSteps, setCollapsedSteps] = React.useState<{
     reference: boolean;
     model: boolean;
+    imageSettings: boolean;
     prompt: boolean;
     motionAudio: boolean;
     videoSettings: boolean;
@@ -218,6 +248,7 @@ export function ReferencePropertiesPanel({
   }>({
     reference: false,
     model: false,
+    imageSettings: false,
     prompt: false,
     motionAudio: false,
     videoSettings: false,
@@ -231,13 +262,14 @@ export function ReferencePropertiesPanel({
     step:
       | "reference"
       | "model"
+      | "imageSettings"
       | "prompt"
       | "motionAudio"
       | "videoSettings"
       | "klingAdvanced"
       | "klingAssets"
       | "klingGuidance"
-      | "generate",
+      | "generate"
   ) => {
     setCollapsedSteps((prev) => ({ ...prev, [step]: !prev[step] }));
   };
@@ -246,13 +278,14 @@ export function ReferencePropertiesPanel({
     step:
       | "reference"
       | "model"
+      | "imageSettings"
       | "prompt"
       | "motionAudio"
       | "videoSettings"
       | "klingAdvanced"
       | "klingAssets"
       | "klingGuidance"
-      | "generate",
+      | "generate"
   ) => {
     setCollapsedSteps((prev) => {
       if (!prev[step]) return prev;
@@ -268,16 +301,19 @@ export function ReferencePropertiesPanel({
     onExtraImageChange(0, referenceImageUrl);
   };
 
-  const updateKlingMultiPrompt = (id: string, key: "prompt" | "duration", value: string | number) => {
-    const next = klingMultiPrompts.map((item) => (item.id === id ? { ...item, [key]: value } : item));
+  const updateKlingMultiPrompt = (
+    id: string,
+    key: "prompt" | "duration",
+    value: string | number
+  ) => {
+    const next = klingMultiPrompts.map((item) =>
+      item.id === id ? { ...item, [key]: value } : item
+    );
     onKlingMultiPromptsChange?.(next);
   };
 
   const addKlingShot = () => {
-    onKlingMultiPromptsChange?.([
-      ...klingMultiPrompts,
-      { id: makeId(), prompt: "", duration: 5 },
-    ]);
+    onKlingMultiPromptsChange?.([...klingMultiPrompts, { id: makeId(), prompt: "", duration: 5 }]);
   };
 
   const removeKlingShot = (id: string) => {
@@ -287,7 +323,7 @@ export function ReferencePropertiesPanel({
   const updateKlingElement = (
     id: string,
     key: "frontalImageUrl" | "referenceImageUrls" | "videoUrl",
-    value: string,
+    value: string
   ) => {
     const next = klingElements.map((item) => (item.id === id ? { ...item, [key]: value } : item));
     onKlingElementsChange?.(next);
@@ -313,7 +349,7 @@ export function ReferencePropertiesPanel({
       event.target.value = "";
     };
 
-  const handlePromptDrop = (event: React.DragEvent<HTMLDivElement>) => {
+  const handlePromptDrop = (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => {
     event.preventDefault();
     const { promptText } = extractDragDropPayload(event.dataTransfer);
     if (promptText) {
@@ -321,23 +357,24 @@ export function ReferencePropertiesPanel({
     }
   };
 
-  const handleImageDrop = (setter: (url: string | null) => void) => (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const { imageUrl, fromFile, referenceId } = extractDragDropPayload(event.dataTransfer);
-    let nextUrl = imageUrl;
+  const handleImageDrop =
+    (setter: (url: string | null) => void) => (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const { imageUrl, fromFile, referenceId } = extractDragDropPayload(event.dataTransfer);
+      let nextUrl = imageUrl;
 
-    // If we only got a blob and we have a reference id, resolve from state.
-    if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
-      nextUrl = resolvePreviewUrlById(referenceId);
-    }
+      // If we only got a blob and we have a reference id, resolve from state.
+      if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
+        nextUrl = resolvePreviewUrlById(referenceId);
+      }
 
-    if (!nextUrl) return;
+      if (!nextUrl) return;
 
-    const isBlobUrl = nextUrl.startsWith("blob:");
-    const canAcceptBlob = fromFile || Boolean(referenceId); // allow reference grid drags that use object URLs
+      const isBlobUrl = nextUrl.startsWith("blob:");
+      const canAcceptBlob = fromFile || Boolean(referenceId); // allow reference grid drags that use object URLs
 
-    if (!isBlobUrl || canAcceptBlob) setter(nextUrl);
-  };
+      if (!isBlobUrl || canAcceptBlob) setter(nextUrl);
+    };
 
   const setExtraDragActiveAt = (index: number, value: boolean) => {
     setExtraDragActive((prev) => prev.map((item, idx) => (idx === index ? value : item)));
@@ -377,7 +414,6 @@ export function ReferencePropertiesPanel({
     setPrimaryDragActive(false);
   };
 
-
   const handleExtraDragEnter = (index: number) => (event: React.DragEvent<HTMLDivElement>) => {
     if (allowImageDrag(event)) {
       setExtraDragActiveAt(index, true);
@@ -411,7 +447,7 @@ export function ReferencePropertiesPanel({
     if (payload.videoUrl) {
       onMotionVideoChange?.(payload.videoUrl);
     } else if (event.dataTransfer.files?.length) {
-      const videoFile = Array.from(event.dataTransfer.files).find(f =>
+      const videoFile = Array.from(event.dataTransfer.files).find((f) =>
         f.type.startsWith("video/")
       );
       if (videoFile) {
@@ -464,33 +500,42 @@ export function ReferencePropertiesPanel({
     : "Upload or drag and drop images from the reference grid.";
   const promptOrder = isVideoVariant ? 2 : 2;
   const modelOrder = isVideoVariant ? 3 : 3;
+  const imageSettingsOrder = isVideoVariant ? 0 : 4;
   const referenceOrder = isVideoVariant ? 1 : 1;
   const videoSettingsOrder = isVideoVariant ? 4 : 0;
   const klingAdvancedOrder = isKling3Mode ? 5 : undefined;
-  const generateOrder = isVideoVariant ? (isKling3Mode ? 7 : 6) : 4;
+  const generateOrder = isVideoVariant ? (isKling3Mode ? 7 : 6) : 5;
   const generateBadge = isVideoVariant ? (isKling3Mode ? "7" : "6") : "4";
-  const klingShotSummary =
-    klingMultiPrompts?.length ? `${klingMultiPrompts.length} shot${klingMultiPrompts.length > 1 ? "s" : ""}` : "No shots";
+  const klingShotSummary = klingMultiPrompts?.length
+    ? `${klingMultiPrompts.length} shot${klingMultiPrompts.length > 1 ? "s" : ""}`
+    : "No shots";
   const klingAssetsSummary = (() => {
     const elementCount = klingElements?.length ?? 0;
     const voices = klingVoiceIds?.filter((v) => v.trim()).length ?? 0;
     const parts = [];
-    parts.push(elementCount ? `${elementCount} element${elementCount > 1 ? "s" : ""}` : "No elements");
+    parts.push(
+      elementCount ? `${elementCount} element${elementCount > 1 ? "s" : ""}` : "No elements"
+    );
     parts.push(voices ? `${voices} voice${voices > 1 ? "s" : ""}` : "No voices");
     return parts.join(" · ");
   })();
   const klingGuidanceSummary = `CFG ${klingCfgScale.toFixed(2)} · ${klingNegativePrompt ? "Neg prompt set" : "Neg prompt empty"}`;
   const videoDurationValue = videoDurationSeconds ?? 6;
   const videoResolutionValue = videoResolution ?? "1080p";
+  const imageResolutionValue = useMemo(
+    () => clampImageResolutionForModel(modelId, imageResolution),
+    [imageResolution, modelId]
+  );
+  const imageResolutionOptions = useMemo(() => getImageResolutionOptions(modelId), [modelId]);
   const videoGenerateAudioValue = Boolean(videoGenerateAudio);
 
   // Get model config for dynamic filtering
-  const modelConfig = useMemo(() => modelId ? getModelConfig(modelId) : null, [modelId]);
+  const modelConfig = useMemo(() => (modelId ? getModelConfig(modelId) : null), [modelId]);
 
   // Duration options based on model config
   const durationOptions = useMemo(() => {
     if (!modelConfig?.allowedDurations) {
-      return VIDEO_DURATION_OPTIONS;  // Show default range if not specified
+      return VIDEO_DURATION_OPTIONS; // Show default range if not specified
     }
     return modelConfig.allowedDurations;
   }, [modelConfig]);
@@ -498,12 +543,13 @@ export function ReferencePropertiesPanel({
   // Resolution options based on model config
   const resolutionOptions = useMemo(() => {
     if (!modelConfig?.allowedResolutions) {
-      return VIDEO_RESOLUTION_OPTIONS;  // Show all if not specified
+      return VIDEO_RESOLUTION_OPTIONS; // Show all if not specified
     }
     // Filter to only allowed resolutions
-    return VIDEO_RESOLUTION_OPTIONS.filter(option =>
+    const filtered = VIDEO_RESOLUTION_OPTIONS.filter((option) =>
       modelConfig.allowedResolutions?.includes(option.value)
     );
+    return filtered.length ? filtered : VIDEO_RESOLUTION_OPTIONS;
   }, [modelConfig]);
 
   // Aspect options based on model config
@@ -512,18 +558,21 @@ export function ReferencePropertiesPanel({
 
     // If model specifies allowed aspects, filter to those
     if (modelConfig.allowedAspects?.length) {
-      return aspectOptions.filter(opt => modelConfig.allowedAspects?.includes(opt.value));
+      return aspectOptions.filter((opt) => modelConfig.allowedAspects?.includes(opt.value));
     }
 
     return aspectOptions;
-  }, [modelConfig]);
+  }, [aspectOptions, modelConfig]);
 
   // Auto-clamp duration to allowed range when switching models
   useEffect(() => {
     if (!modelConfig || !onVideoDurationChange) return;
 
     // If model has specific duration restrictions and current value isn't allowed
-    if (modelConfig.allowedDurations && !modelConfig.allowedDurations.includes(videoDurationValue)) {
+    if (
+      modelConfig.allowedDurations &&
+      !modelConfig.allowedDurations.includes(videoDurationValue)
+    ) {
       // Find closest allowed duration
       const closestDuration = modelConfig.allowedDurations.reduce((prev, curr) =>
         Math.abs(curr - videoDurationValue) < Math.abs(prev - videoDurationValue) ? curr : prev
@@ -537,7 +586,10 @@ export function ReferencePropertiesPanel({
     if (!modelConfig || !onVideoResolutionChange) return;
 
     // If model has specific resolution restrictions and current value isn't allowed
-    if (modelConfig.allowedResolutions && !modelConfig.allowedResolutions.includes(videoResolutionValue)) {
+    if (
+      modelConfig.allowedResolutions &&
+      !modelConfig.allowedResolutions.includes(videoResolutionValue)
+    ) {
       // Use model's default resolution or first allowed option
       const fallbackResolution = modelConfig.defaultResolution ?? modelConfig.allowedResolutions[0];
       if (fallbackResolution) {
@@ -545,6 +597,14 @@ export function ReferencePropertiesPanel({
       }
     }
   }, [modelConfig, videoResolutionValue, onVideoResolutionChange]);
+
+  // Auto-clamp invalid image resolution values when switching image models.
+  useEffect(() => {
+    if (isVideoVariant || !onImageResolutionChange) return;
+    if (imageResolutionValue !== imageResolution) {
+      onImageResolutionChange(imageResolutionValue);
+    }
+  }, [imageResolution, imageResolutionValue, isVideoVariant, onImageResolutionChange]);
 
   return (
     <div className="tool-properties reference-properties-panel">
@@ -580,7 +640,7 @@ export function ReferencePropertiesPanel({
             isCollapsed={collapsedSteps.prompt}
             onToggleCollapse={() => toggleStep("prompt")}
             isGenerating={false} // Reference flows don't have a specific prompt generating state in top-level prop, but could pass isGeneratorDisabled
-            onDrop={handlePromptDrop as any}
+            onDrop={handlePromptDrop}
             onDragOver={(e) => e.preventDefault()}
             className="reference-step-card"
             beginnerMode={beginnerMode}
@@ -592,58 +652,114 @@ export function ReferencePropertiesPanel({
             onClick={() => expandIfCollapsed("model")}
             style={{ order: modelOrder }}
           >
-              <div className="step-card-header">
-                {beginnerMode && <span className="step-badge">{isVideoVariant ? "3" : "3"}</span>}
-                <div className="step-header-copy">
-                  <p className="step-title">Choose Frame & Model</p>
-                  <span className="step-subtitle tiny helper-text">Pick the target aspect ratio and AI model before you generate.</span>
+            <div className="step-card-header">
+              {beginnerMode && <span className="step-badge">{isVideoVariant ? "3" : "3"}</span>}
+              <div className="step-header-copy">
+                <p className="step-title">Choose Frame & Model</p>
+                <span className="step-subtitle tiny helper-text">
+                  Pick the target aspect ratio and AI model before you generate.
+                </span>
+              </div>
+              {!beginnerMode ? (
+                <div className="step-header-actions">
+                  <StepHeaderActionButton
+                    label="Open model options"
+                    isCollapsed={collapsedSteps.model}
+                    onClick={() => toggleStep("model")}
+                  />
                 </div>
-                {!beginnerMode ? (
-                  <div className="step-header-actions">
-                    <StepHeaderActionButton
-                      label="Open model options"
-                      isCollapsed={collapsedSteps.model}
-                      onClick={() => toggleStep("model")}
+              ) : null}
+            </div>
+            {!collapsedSteps.model ? (
+              <div className="create-controls reference-frame-controls frame-model-controls">
+                {!isVideoVariant ? (
+                  <div className="control-row compact">
+                    <label className="input-label">Aspect ratio</label>
+                    <AspectDropdown
+                      aspect={aspect}
+                      onSelect={onAspectChange}
+                      options={aspectOptionsForModel}
                     />
                   </div>
                 ) : null}
-              </div>
-              {!collapsedSteps.model ? (
-                <div className="create-controls reference-frame-controls frame-model-controls">
-                  {!isVideoVariant ? (
-                    <div className="control-row compact">
-                      <label className="input-label">Aspect ratio</label>
-                      <AspectDropdown aspect={aspect} onSelect={onAspectChange} options={aspectOptionsForModel} />
+                <div className={`control-row compact ${isVideoVariant ? "full-span" : ""}`}>
+                  <label className="input-label">Model</label>
+                  <button
+                    type="button"
+                    className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""}`}
+                    data-model-anchor="reference-model"
+                    onClick={(event) =>
+                      onModelPickerOpen(
+                        "reference-model",
+                        event.currentTarget,
+                        variant === "image"
+                          ? "reference-image"
+                          : isKeyframesMode
+                            ? "reference-keyframes"
+                            : "reference-video"
+                      )
+                    }
+                  >
+                    <div className="model-picker-row">
+                      <span className="model-picker-value">
+                        {modelLogoSrc ? (
+                          <Image
+                            className="model-chip-logo-img"
+                            src={modelLogoSrc}
+                            alt=""
+                            aria-hidden
+                            width={80}
+                            height={20}
+                          />
+                        ) : null}
+                        {stripEditLabel(modelLabel)}
+                      </span>
                     </div>
-                  ) : null}
-                  <div className={`control-row compact ${isVideoVariant ? "full-span" : ""}`}>
-                    <label className="input-label">Model</label>
-                    <button
-                      type="button"
-                      className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""}`}
-                      data-model-anchor="reference-model"
-                      onClick={(event) =>
-                        onModelPickerOpen(
-                          "reference-model",
-                          event.currentTarget,
-                          variant === "image"
-                            ? "reference-image"
-                            : isKeyframesMode
-                              ? "reference-keyframes"
-                              : "reference-video",
-                        )
-                      }
-                    >
-                      <div className="model-picker-row">
-                        <span className="model-picker-value">
-                          {modelLogoSrc ? <img className="model-chip-logo-img" src={modelLogoSrc} alt="" aria-hidden /> : null}
-                          {stripEditLabel(modelLabel)}
-                        </span>
-                      </div>
-                    </button>
-                  </div>
+                  </button>
                 </div>
-              ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {!isVideoVariant && !beginnerMode ? (
+          <div
+            className={`step-card image-settings-card ${collapsedSteps.imageSettings ? "is-collapsed" : ""}`}
+            onClick={() => expandIfCollapsed("imageSettings")}
+            style={{ order: imageSettingsOrder }}
+          >
+            <div className="step-card-header">
+              <div className="step-header-copy">
+                <p className="step-title">Choose image resolution</p>
+                <span className="step-subtitle tiny helper-text">
+                  Select the model-specific image resolution setting.
+                </span>
+              </div>
+              <div className="step-header-actions">
+                <StepHeaderActionButton
+                  label="Open image resolution settings"
+                  isCollapsed={collapsedSteps.imageSettings}
+                  onClick={() => toggleStep("imageSettings")}
+                />
+              </div>
+            </div>
+            {!collapsedSteps.imageSettings ? (
+              <div className="create-controls image-settings-controls">
+                <div className="control-row compact fixed-select">
+                  <label className="input-label">Resolution</label>
+                  <select
+                    className="model-select"
+                    value={imageResolutionValue}
+                    onChange={(event) => onImageResolutionChange?.(event.target.value)}
+                  >
+                    {imageResolutionOptions.map((option) => (
+                      <option value={option.value} key={`image-resolution-${option.value}`}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
         <div className="reference-dropzone-block image-block" style={{ order: referenceOrder }}>
@@ -652,27 +768,31 @@ export function ReferencePropertiesPanel({
             onClick={() => expandIfCollapsed("reference")}
           >
             <div className="reference-step-header">
-              {beginnerMode && <span className="step-badge mini">{isVideoVariant ? "1" : "1"}</span>}
+              {beginnerMode && (
+                <span className="step-badge mini">{isVideoVariant ? "1" : "1"}</span>
+              )}
               <div className="reference-step-copy">
                 <p className="step-title">{referenceStepTitle}</p>
-                <span className="step-subtitle tiny helper-text">
-                  {referenceStepSubtitle}
-                </span>
+                <span className="step-subtitle tiny helper-text">{referenceStepSubtitle}</span>
               </div>
-            { !beginnerMode ? (
-              <div className="reference-drop-header-actions">
-                <StepHeaderActionButton
-                  label="Open reference options"
-                  isCollapsed={collapsedSteps.reference}
-                  onClick={() => toggleStep("reference")}
-                />
-              </div>
-            ) : null }
+              {!beginnerMode ? (
+                <div className="reference-drop-header-actions">
+                  <StepHeaderActionButton
+                    label="Open reference options"
+                    isCollapsed={collapsedSteps.reference}
+                    onClick={() => toggleStep("reference")}
+                  />
+                </div>
+              ) : null}
             </div>
             {!collapsedSteps.reference ? (
               <>
                 {isVideoVariant ? (
-                  <div className="reference-mode-toggle-row prompt-mode-toggle-row full-width" role="tablist" aria-label="Video reference mode">
+                  <div
+                    className="reference-mode-toggle-row prompt-mode-toggle-row full-width"
+                    role="tablist"
+                    aria-label="Video reference mode"
+                  >
                     <button
                       type="button"
                       role="tab"
@@ -713,7 +833,11 @@ export function ReferencePropertiesPanel({
                         onDragOver={handlePrimaryDragOver}
                         onDragLeave={handlePrimaryDragLeave}
                         onClick={() => primaryInputRef.current?.click()}
-                        style={referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined}
+                        style={
+                          referenceImageUrl
+                            ? { backgroundImage: `url(${referenceImageUrl})` }
+                            : undefined
+                        }
                       >
                         <span className="dropzone-tag">Character image</span>
                         {referenceImageUrl ? (
@@ -731,7 +855,9 @@ export function ReferencePropertiesPanel({
                           <div className="reference-drop-content image-drop-content">
                             <Plus size={22} weight="regular" />
                             <p className="reference-drop-title">Add your character</p>
-                            <p className="reference-drop-subtitle helper-text">Image with visible face and body</p>
+                            <p className="reference-drop-subtitle helper-text">
+                              Image with visible face and body
+                            </p>
                           </div>
                         )}
                       </div>
@@ -781,7 +907,9 @@ export function ReferencePropertiesPanel({
                           <div className="reference-drop-content video-drop-content">
                             <VideoCamera size={22} weight="regular" />
                             <p className="reference-drop-title">Add motion to copy</p>
-                            <p className="reference-drop-subtitle helper-text">Video duration: 3–30 seconds</p>
+                            <p className="reference-drop-subtitle helper-text">
+                              Video duration: 3–30 seconds
+                            </p>
                           </div>
                         )}
                       </div>
@@ -797,7 +925,11 @@ export function ReferencePropertiesPanel({
                         onDragOver={handlePrimaryDragOver}
                         onDragLeave={handlePrimaryDragLeave}
                         onClick={() => primaryInputRef.current?.click()}
-                        style={referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined}
+                        style={
+                          referenceImageUrl
+                            ? { backgroundImage: `url(${referenceImageUrl})` }
+                            : undefined
+                        }
                       >
                         <span className="dropzone-tag">Start frame</span>
                         {referenceImageUrl ? (
@@ -814,7 +946,9 @@ export function ReferencePropertiesPanel({
                         ) : null}
                         <div className="reference-drop-content image-drop-content">
                           <UploadSimple size={22} weight="regular" />
-                          <p className="reference-drop-title helper-text">Upload a starting frame</p>
+                          <p className="reference-drop-title helper-text">
+                            Upload a starting frame
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -826,7 +960,11 @@ export function ReferencePropertiesPanel({
                         onDragOver={handleExtraDragOver(0)}
                         onDragLeave={handleExtraDragLeave(0)}
                         onClick={() => extraOneInputRef.current?.click()}
-                        style={extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined}
+                        style={
+                          extraImageUrls[0]
+                            ? { backgroundImage: `url(${extraImageUrls[0]})` }
+                            : undefined
+                        }
                       >
                         <span className="dropzone-tag subtle">End frame (optional)</span>
                         {extraImageUrls[0] ? (
@@ -858,7 +996,11 @@ export function ReferencePropertiesPanel({
                         onDragOver={handlePrimaryDragOver}
                         onDragLeave={handlePrimaryDragLeave}
                         onClick={() => primaryInputRef.current?.click()}
-                        style={referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined}
+                        style={
+                          referenceImageUrl
+                            ? { backgroundImage: `url(${referenceImageUrl})` }
+                            : undefined
+                        }
                       >
                         {isVideoVariant ? (
                           <span className="dropzone-tag">
@@ -879,7 +1021,9 @@ export function ReferencePropertiesPanel({
                         ) : null}
                         <div className="reference-drop-content image-drop-content">
                           <UploadSimple size={22} weight="regular" />
-                          <p className="reference-drop-title helper-text">Click to upload an image</p>
+                          <p className="reference-drop-title helper-text">
+                            Click to upload an image
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -902,11 +1046,13 @@ export function ReferencePropertiesPanel({
                             onDragOver={handleExtraDragOver(0)}
                             onDragLeave={handleExtraDragLeave(0)}
                             onClick={() => extraOneInputRef.current?.click()}
-                            style={extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined}
+                            style={
+                              extraImageUrls[0]
+                                ? { backgroundImage: `url(${extraImageUrls[0]})` }
+                                : undefined
+                            }
                           >
-                            <span className="dropzone-tag">
-                              Last frame
-                            </span>
+                            <span className="dropzone-tag">Last frame</span>
                             {extraImageUrls[0] ? (
                               <button
                                 type="button"
@@ -921,7 +1067,9 @@ export function ReferencePropertiesPanel({
                             ) : (
                               <div className="reference-drop-content image-drop-content">
                                 <UploadSimple size={22} weight="regular" />
-                                <p className="reference-drop-title helper-text">Click to upload an image</p>
+                                <p className="reference-drop-title helper-text">
+                                  Click to upload an image
+                                </p>
                               </div>
                             )}
                           </div>
@@ -930,9 +1078,9 @@ export function ReferencePropertiesPanel({
                     ) : !isVideoVariant ? (
                       <>
                         <div className="reference-drop-divider" aria-hidden="true">
-                          <Image size={22} weight="bold" />
+                          <ImageIcon size={22} weight="bold" />
                         </div>
-                        {[extraOneInputRef, extraTwoInputRef].map((inputRef, index) => {
+                        {[0, 1].map((index) => {
                           const previewUrl = extraImageUrls[index];
                           return (
                             <div className="secondary-drop" key={`extra-drop-${index}`}>
@@ -942,8 +1090,14 @@ export function ReferencePropertiesPanel({
                                 onDragEnter={handleExtraDragEnter(index)}
                                 onDragOver={handleExtraDragOver(index)}
                                 onDragLeave={handleExtraDragLeave(index)}
-                                onClick={() => inputRef.current?.click()}
-                                style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
+                                onClick={() =>
+                                  index === 0
+                                    ? extraOneInputRef.current?.click()
+                                    : extraTwoInputRef.current?.click()
+                                }
+                                style={
+                                  previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined
+                                }
                               >
                                 {previewUrl ? (
                                   <button
@@ -981,7 +1135,9 @@ export function ReferencePropertiesPanel({
               {beginnerMode && <span className="step-badge">4</span>}
               <div className="step-header-copy">
                 <p className="step-title">Choose video settings</p>
-                <span className="step-subtitle tiny helper-text">Set duration, resolution, and audio output before generating.</span>
+                <span className="step-subtitle tiny helper-text">
+                  Set duration, resolution, and audio output before generating.
+                </span>
               </div>
               {!beginnerMode ? (
                 <div className="step-header-actions">
@@ -1031,14 +1187,18 @@ export function ReferencePropertiesPanel({
                         ? "Use Veo's optional audio track when enabled."
                         : isVeoFirstLastModel
                           ? "Use Veo's optional audio track when enabled for first/last frame."
-                        : "Include ambient audio in the output."}
+                          : "Include ambient audio in the output."}
                     </span>
                   </div>
                   <button
                     type="button"
                     className={`audio-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
                     aria-pressed={videoGenerateAudioValue}
-                    aria-label={videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"}
+                    aria-label={
+                      videoGenerateAudioValue
+                        ? "Disable audio generation"
+                        : "Enable audio generation"
+                    }
                     onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
                   >
                     <span className="audio-toggle-track" aria-hidden="true">
@@ -1075,7 +1235,9 @@ export function ReferencePropertiesPanel({
                     <select
                       className="model-select"
                       value={klingShotType}
-                      onChange={(e) => onKlingShotTypeChange?.(e.target.value as "customize" | "intelligent")}
+                      onChange={(e) =>
+                        onKlingShotTypeChange?.(e.target.value as "customize" | "intelligent")
+                      }
                     >
                       <option value="intelligent">Intelligent (Auto multi-shot)</option>
                       <option value="customize">Customize (Single shot)</option>
@@ -1117,7 +1279,9 @@ export function ReferencePropertiesPanel({
               {beginnerMode && <span className="step-badge">2</span>}
               <div className="step-header-copy">
                 <p className="step-title">Audio Settings</p>
-                <span className="step-subtitle tiny helper-text">Control audio generation for your motion video</span>
+                <span className="step-subtitle tiny helper-text">
+                  Control audio generation for your motion video
+                </span>
               </div>
               {!beginnerMode ? (
                 <div className="step-header-actions">
@@ -1142,7 +1306,11 @@ export function ReferencePropertiesPanel({
                     type="button"
                     className={`audio-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
                     aria-pressed={videoGenerateAudioValue}
-                    aria-label={videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"}
+                    aria-label={
+                      videoGenerateAudioValue
+                        ? "Disable audio generation"
+                        : "Enable audio generation"
+                    }
                     onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
                   >
                     <span className="audio-toggle-track" aria-hidden="true">
@@ -1181,31 +1349,43 @@ export function ReferencePropertiesPanel({
                 <div className="create-controls kling-advanced-grid">
                   <div className="kling-pill-row">
                     <span className="kling-pill">Launch limit: 3 concurrent</span>
-                    <span className="kling-pill">Cost: $0.224s (no audio) · $0.336s (audio) · $0.392s (voice)</span>
+                    <span className="kling-pill">
+                      Cost: $0.224s (no audio) · $0.336s (audio) · $0.392s (voice)
+                    </span>
                   </div>
                   <div className="control-row compact">
                     <label className="input-label">Shot type</label>
                     <select
                       className="model-select"
                       value={klingShotType}
-                      onChange={(event) => onKlingShotTypeChange?.(event.target.value as "customize" | "intelligent")}
+                      onChange={(event) =>
+                        onKlingShotTypeChange?.(event.target.value as "customize" | "intelligent")
+                      }
                     >
                       <option value="customize">Customize (per-shot prompts)</option>
                       <option value="intelligent">Intelligent (auto pacing)</option>
                     </select>
-                    <span className="tiny helper-text">Use multi-shot for micro-beats; intelligent for automatic pacing.</span>
+                    <span className="tiny helper-text">
+                      Use multi-shot for micro-beats; intelligent for automatic pacing.
+                    </span>
                   </div>
                   <div className="control-row compact full-span">
                     <label className="input-label">Multi-shot prompts</label>
                     <div className="kling-multi-shot-list">
                       {klingMultiPrompts.length === 0 ? (
-                        <p className="tiny helper-text">Add shots to split the video into multiple beats.</p>
+                        <p className="tiny helper-text">
+                          Add shots to split the video into multiple beats.
+                        </p>
                       ) : null}
                       {klingMultiPrompts.map((shot, index) => (
                         <div className="kling-shot-row" key={shot.id}>
                           <div className="shot-meta">
                             <span className="shot-index">Shot {index + 1}</span>
-                            <button type="button" className="ghost-btn mini" onClick={() => removeKlingShot(shot.id)}>
+                            <button
+                              type="button"
+                              className="ghost-btn mini"
+                              onClick={() => removeKlingShot(shot.id)}
+                            >
                               Remove
                             </button>
                           </div>
@@ -1213,7 +1393,9 @@ export function ReferencePropertiesPanel({
                             className="model-select kling-textarea"
                             value={shot.prompt}
                             rows={2}
-                            onChange={(event) => updateKlingMultiPrompt(shot.id, "prompt", event.target.value)}
+                            onChange={(event) =>
+                              updateKlingMultiPrompt(shot.id, "prompt", event.target.value)
+                            }
                             placeholder="Describe this shot..."
                           />
                           <div className="kling-shot-controls">
@@ -1221,7 +1403,13 @@ export function ReferencePropertiesPanel({
                             <select
                               className="model-select"
                               value={shot.duration}
-                              onChange={(event) => updateKlingMultiPrompt(shot.id, "duration", Number(event.target.value))}
+                              onChange={(event) =>
+                                updateKlingMultiPrompt(
+                                  shot.id,
+                                  "duration",
+                                  Number(event.target.value)
+                                )
+                              }
                             >
                               {VIDEO_DURATION_OPTIONS.map((seconds) => (
                                 <option value={seconds} key={`shot-duration-${seconds}`}>
@@ -1274,24 +1462,44 @@ export function ReferencePropertiesPanel({
                               className="model-select"
                               placeholder="Frontal image URL"
                               value={element.frontalImageUrl}
-                              onChange={(event) => updateKlingElement(element.id, "frontalImageUrl", event.target.value)}
+                              onChange={(event) =>
+                                updateKlingElement(
+                                  element.id,
+                                  "frontalImageUrl",
+                                  event.target.value
+                                )
+                              }
                             />
                             <input
                               className="model-select"
                               placeholder="Reference images (comma or newline separated)"
                               value={element.referenceImageUrls}
-                              onChange={(event) => updateKlingElement(element.id, "referenceImageUrls", event.target.value)}
+                              onChange={(event) =>
+                                updateKlingElement(
+                                  element.id,
+                                  "referenceImageUrls",
+                                  event.target.value
+                                )
+                              }
                             />
                             <input
                               className="model-select"
                               placeholder="Reference video URL (optional)"
                               value={element.videoUrl}
-                              onChange={(event) => updateKlingElement(element.id, "videoUrl", event.target.value)}
+                              onChange={(event) =>
+                                updateKlingElement(element.id, "videoUrl", event.target.value)
+                              }
                             />
                           </div>
                           <div className="kling-element-actions">
-                            <span className="tiny helper-text">Reference as @Element{element.id.slice(-2)}</span>
-                            <button type="button" className="ghost-btn mini" onClick={() => removeKlingElement(element.id)}>
+                            <span className="tiny helper-text">
+                              Reference as @Element{element.id.slice(-2)}
+                            </span>
+                            <button
+                              type="button"
+                              className="ghost-btn mini"
+                              onClick={() => removeKlingElement(element.id)}
+                            >
                               Remove
                             </button>
                           </div>
@@ -1311,11 +1519,16 @@ export function ReferencePropertiesPanel({
                           className="model-select"
                           placeholder={`voice_${idx + 1} ID (from create-voice)`}
                           value={klingVoiceIds[idx]}
-                          onChange={(event) => onKlingVoiceIdChange?.(idx as 0 | 1, event.target.value)}
+                          onChange={(event) =>
+                            onKlingVoiceIdChange?.(idx as 0 | 1, event.target.value)
+                          }
                         />
                       ))}
                     </div>
-                    <span className="tiny helper-text">Reference in prompt as &lt;&lt;&lt;voice_{1}&gt;&gt;&gt; and &lt;&lt;&lt;voice_{2}&gt;&gt;&gt; (max 2).</span>
+                    <span className="tiny helper-text">
+                      Reference in prompt as &lt;&lt;&lt;voice_{1}&gt;&gt;&gt; and
+                      &lt;&lt;&lt;voice_{2}&gt;&gt;&gt; (max 2).
+                    </span>
                   </div>
                 </div>
               ) : null}
@@ -1357,7 +1570,9 @@ export function ReferencePropertiesPanel({
                       />
                       <span className="slider-value">{klingCfgScale.toFixed(2)}</span>
                     </div>
-                    <span className="tiny helper-text">Lower = freer motion/visuals, higher = tighter adherence.</span>
+                    <span className="tiny helper-text">
+                      Lower = freer motion/visuals, higher = tighter adherence.
+                    </span>
                   </div>
                   <div className="control-row compact full-span">
                     <label className="input-label">Negative prompt</label>
@@ -1384,7 +1599,9 @@ export function ReferencePropertiesPanel({
               <span className="step-badge">{generateBadge}</span>
               <div className="step-header-copy">
                 <p className="step-title">Generate</p>
-                <span className="step-subtitle tiny helper-text">Run generation with the current prompt and selections.</span>
+                <span className="step-subtitle tiny helper-text">
+                  Run generation with the current prompt and selections.
+                </span>
               </div>
             </div>
           ) : null}
@@ -1397,6 +1614,23 @@ export function ReferencePropertiesPanel({
                 cost={costCredits != null ? costCredits : "—"}
               />
               {/* Guardrail warning intentionally hidden; disabled button communicates state. */}
+              {referenceImageWarning && (
+                <div
+                  className="reference-image-warning"
+                  style={{
+                    marginTop: "8px",
+                    padding: "8px 12px",
+                    backgroundColor: "#FEF3C7",
+                    border: "1px solid #FCD34D",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    lineHeight: "1.4",
+                    color: "#92400E",
+                  }}
+                >
+                  ⚠️ {referenceImageWarning}
+                </div>
+              )}
             </div>
           ) : null}
         </div>

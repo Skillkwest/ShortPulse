@@ -12,6 +12,7 @@ import {
 import type { ModelMediaType, ModelOption } from "../constants";
 import type { KeiTaskStatus } from "../../../lib/keiClient";
 import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
+import type { StudioMode, StudioOutput } from "../types";
 
 export type Provider =
   | "kei"
@@ -35,14 +36,22 @@ export type Provider =
   | "fal-veo-i2v";
 
 export const resolveModelLabel = (value?: string) =>
-  value ? modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})` : "Choose Model";
+  value
+    ? (modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})`)
+    : "Choose Model";
 
-export const normalizeAspectForKei = (value: string) => (keiAllowedAspects.has(value) ? value : "auto");
-export const normalizeAspectForFalNanoBanana = (value: string) => (falNanoBananaAllowedAspects.has(value) ? value : "1:1");
-export const normalizeAspectForFalNanoBananaPro = (value: string) => (falNanoBananaProAllowedAspects.has(value) ? value : "4:5");
-export const resolveKlingAspectRatio = (value: string): FalKlingTextSubmitRequest["aspect_ratio"] =>
-  (klingAllowedAspects.has(value) ? (value as FalKlingTextSubmitRequest["aspect_ratio"]) : "16:9");
-export const resolveKlingDuration = (seconds: number): FalKlingTextSubmitRequest["duration"] => (seconds <= 5 ? 5 : 10);
+export const normalizeAspectForKei = (value: string) =>
+  keiAllowedAspects.has(value) ? value : "auto";
+export const normalizeAspectForFalNanoBanana = (value: string) =>
+  falNanoBananaAllowedAspects.has(value) ? value : "1:1";
+export const normalizeAspectForFalNanoBananaPro = (value: string) =>
+  falNanoBananaProAllowedAspects.has(value) ? value : "4:5";
+export const resolveKlingAspectRatio = (
+  value: string
+): FalKlingTextSubmitRequest["aspect_ratio"] =>
+  klingAllowedAspects.has(value) ? (value as FalKlingTextSubmitRequest["aspect_ratio"]) : "16:9";
+export const resolveKlingDuration = (seconds: number): FalKlingTextSubmitRequest["duration"] =>
+  seconds <= 5 ? 5 : 10;
 export const resolveKlingV3Duration = (seconds: number): number => {
   if (!Number.isFinite(seconds)) return 5;
   const rounded = Math.round(seconds);
@@ -57,7 +66,13 @@ export const resolveSeedreamImageSize = (aspect: string): string => {
   const normalized = aspect.trim();
   if (normalized === "1:1") return "square";
   if (normalized === "3:4" || normalized === "4:5" || normalized === "5:4") return "portrait_4_3";
-  if (normalized === "4:3" || normalized === "3:2" || normalized === "21:9" || normalized === "16:9") return "landscape_16_9";
+  if (
+    normalized === "4:3" ||
+    normalized === "3:2" ||
+    normalized === "21:9" ||
+    normalized === "16:9"
+  )
+    return "landscape_16_9";
   if (normalized === "9:16" || normalized === "2:3") return "portrait_16_9";
   return "landscape_16_9";
 };
@@ -74,14 +89,38 @@ export const computeModalPosition = (target: HTMLElement): { top: number; left: 
 
 export const isVideoUrl = (url: string | null | undefined) =>
   !!url &&
-  (
-    /\.mp4(\?|$)/i.test(url) ||
+  (/\.mp4(\?|$)/i.test(url) ||
     url.includes("/video") ||
     url.includes("video=") ||
-    (url.startsWith("blob:") && url.includes("video=1"))
-  );
+    (url.startsWith("blob:") && url.includes("video=1")));
 
-export const mapAgentReferences = (outputs: any[], activeOutputId: string | null) => {
+type OutputLike = {
+  id: string;
+  previewUrl?: string | null;
+  prompt?: string | null;
+  previewText?: string | null;
+  aspect?: string | null;
+};
+
+const toRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const asText = (value: unknown): string | null =>
+  typeof value === "string" && value.length > 0 ? value : null;
+
+const asStringArray = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+
+const extractUrlObjects = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => asText(toRecord(item).url))
+    .filter((url): url is string => Boolean(url));
+};
+
+export const mapAgentReferences = (outputs: OutputLike[], activeOutputId: string | null) => {
   const mapped = outputs.map((item) => ({
     id: item.id,
     kind: item.previewUrl ? (isVideoUrl(item.previewUrl) ? "video" : "image") : "prompt",
@@ -95,7 +134,7 @@ export const mapAgentReferences = (outputs: any[], activeOutputId: string | null
   return [selected, ...mapped.filter((ref) => ref.id !== activeOutputId)];
 };
 
-export const mapAgentMedia = (outputs: any[]) =>
+export const mapAgentMedia = (outputs: OutputLike[]) =>
   outputs
     .filter((item) => item.previewUrl)
     .map((item) => ({
@@ -120,12 +159,12 @@ const readFileAsDataUrl = (file: File): Promise<string> => {
 
 export const mapUploadsFromFiles = async (
   files: FileList,
-  mode: any,
+  mode: StudioMode,
   aspect: string,
   model: string | null,
   resolveModelLabelFn: (value?: string) => string,
   randomIdFn: () => string
-) => {
+): Promise<StudioOutput[]> => {
   const mediaFiles = Array.from(files).filter(
     (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
   );
@@ -135,7 +174,11 @@ export const mapUploadsFromFiles = async (
       const dataUrl = await readFileAsDataUrl(file);
       const isVideo = file.type.startsWith("video/");
       // Add video marker to data URL for type detection
-      const url = isVideo ? (dataUrl.includes("?") ? `${dataUrl}&video=1` : `${dataUrl}#video=1`) : dataUrl;
+      const url = isVideo
+        ? dataUrl.includes("?")
+          ? `${dataUrl}&video=1`
+          : `${dataUrl}#video=1`
+        : dataUrl;
 
       return {
         id: `upload-${randomIdFn()}`,
@@ -143,7 +186,7 @@ export const mapUploadsFromFiles = async (
         mode,
         aspect,
         model: resolveModelLabelFn(model ?? undefined),
-        modelId: model,
+        modelId: model ?? undefined,
         status: "ready" as const,
         timestamp: "Dropped",
         previewUrl: url,
@@ -160,7 +203,9 @@ export const filterModelOptions = (
   mode: string,
   selectedTool: string | null,
   options: ModelOption[],
-  getModelConfig: (id: string) => any,
+  getModelConfig: (
+    id: string
+  ) => { supportsImageToImage?: boolean; supportsTextToImage?: boolean } | null
 ): ModelOption[] => {
   const mediaFilter: Extract<ModelMediaType, "image" | "video"> | null = (() => {
     if (selectedTool === "create" || selectedTool === "text") {
@@ -176,7 +221,11 @@ export const filterModelOptions = (
   if (mediaFilter) {
     filtered = filtered.filter((opt) => {
       if (!opt.mediaType || opt.mediaType === mediaFilter || opt.mediaType === "multi") return true;
-      if (selectedTool === "video" && (opt.mediaType === "image-to-video" || opt.mediaType === "keyframes")) return true;
+      if (
+        selectedTool === "video" &&
+        (opt.mediaType === "image-to-video" || opt.mediaType === "keyframes")
+      )
+        return true;
       return false;
     });
   }
@@ -198,51 +247,48 @@ export const filterModelOptions = (
   return filtered;
 };
 
-export const resolvePreviewUrlById = (outputs: any[], id: string | null | undefined) =>
+export const resolvePreviewUrlById = (outputs: OutputLike[], id: string | null | undefined) =>
   outputs.find((item) => item.id === id)?.previewUrl ?? null;
 
-const collectFalCandidates = (status: any) => [
+const collectFalCandidates = (status: unknown) => [
   status,
-  status?.response,
-  status?.response?.data,
-  status?.response?.output,
-  status?.response?.result,
-  status?.data,
-  status?.data?.output,
-  status?.data?.result,
-  status?.output,
-  status?.output?.data,
-  status?.output?.result,
-  status?.result,
-  status?.result?.data,
-  status?.result?.output,
+  toRecord(status).response,
+  toRecord(toRecord(status).response).data,
+  toRecord(toRecord(status).response).output,
+  toRecord(toRecord(status).response).result,
+  toRecord(status).data,
+  toRecord(toRecord(status).data).output,
+  toRecord(toRecord(status).data).result,
+  toRecord(status).output,
+  toRecord(toRecord(status).output).data,
+  toRecord(toRecord(status).output).result,
+  toRecord(status).result,
+  toRecord(toRecord(status).result).data,
+  toRecord(toRecord(status).result).output,
 ];
 
-export const extractFalUrls = (status: any): string[] => {
+export const extractFalUrls = (status: unknown): string[] => {
   const candidates = collectFalCandidates(status);
   for (const candidate of candidates) {
-    const images = candidate?.images;
-    if (Array.isArray(images) && images[0]?.url) {
-      return images.map((img) => img?.url).filter(Boolean) as string[];
-    }
+    const images = extractUrlObjects(toRecord(candidate).images);
+    if (images.length) return images;
   }
   return [];
 };
 
-const extractVideoUrlsFrom = (candidate: any): string[] => {
-  const videos = candidate?.videos;
-  if (Array.isArray(videos) && videos[0]?.url) {
-    return videos.map((vid) => vid?.url).filter(Boolean) as string[];
-  }
+const extractVideoUrlsFrom = (candidate: unknown): string[] => {
+  const candidateRecord = toRecord(candidate);
+  const videos = extractUrlObjects(candidateRecord.videos);
+  if (videos.length) return videos;
   const videoUrl =
-    candidate?.video?.url ||
-    candidate?.video_url ||
-    candidate?.assets?.video?.url ||
-    candidate?.download_url;
+    asText(toRecord(candidateRecord.video).url) ||
+    asText(candidateRecord.video_url) ||
+    asText(toRecord(toRecord(candidateRecord.assets).video).url) ||
+    asText(candidateRecord.download_url);
   return videoUrl ? [videoUrl] : [];
 };
 
-export const extractFalMediaUrls = (status: any): string[] => {
+export const extractFalMediaUrls = (status: unknown): string[] => {
   const imageUrls = extractFalUrls(status);
   if (imageUrls.length) return imageUrls;
   const candidates = collectFalCandidates(status);
@@ -253,59 +299,50 @@ export const extractFalMediaUrls = (status: any): string[] => {
   return [];
 };
 
-export const extractResultUrls = (resultJson: KeiTaskStatus["resultJson"], fallback?: unknown): string[] => {
-  if (!resultJson && fallback && typeof fallback === "object") {
-    const urls = (fallback as any)?.resultUrls || (fallback as any)?.info?.result_urls;
-    if (Array.isArray(urls)) return urls as string[];
-    const videos =
-      (fallback as any)?.videos ||
-      (fallback as any)?.data?.videos ||
-      (fallback as any)?.output?.videos ||
-      (fallback as any)?.response?.videos;
-    if (Array.isArray(videos) && videos[0]?.url) {
-      return videos.map((vid: any) => vid?.url).filter(Boolean) as string[];
-    }
+export const extractResultUrls = (
+  resultJson: KeiTaskStatus["resultJson"],
+  fallback?: unknown
+): string[] => {
+  const extractGenericUrls = (value: unknown): string[] => {
+    const record = toRecord(value);
+    const directUrls = asStringArray(record.resultUrls);
+    if (directUrls.length) return directUrls;
+    const infoUrls = asStringArray(toRecord(record.info).result_urls);
+    if (infoUrls.length) return infoUrls;
+    const videosFromRoot = extractUrlObjects(record.videos);
+    if (videosFromRoot.length) return videosFromRoot;
+    const videosFromData = extractUrlObjects(toRecord(record.data).videos);
+    if (videosFromData.length) return videosFromData;
+    const videosFromOutput = extractUrlObjects(toRecord(record.output).videos);
+    if (videosFromOutput.length) return videosFromOutput;
+    const videosFromResponse = extractUrlObjects(toRecord(record.response).videos);
+    if (videosFromResponse.length) return videosFromResponse;
     const videoUrl =
-      (fallback as any)?.video?.url ||
-      (fallback as any)?.data?.video?.url ||
-      (fallback as any)?.output?.video?.url ||
-      (fallback as any)?.response?.video?.url ||
-      (fallback as any)?.response?.video_url ||
-      (fallback as any)?.video_url ||
-      (fallback as any)?.data?.video_url ||
-      (fallback as any)?.output?.video_url;
-    if (videoUrl) return [videoUrl];
+      asText(toRecord(record.video).url) ||
+      asText(toRecord(toRecord(record.data).video).url) ||
+      asText(toRecord(toRecord(record.output).video).url) ||
+      asText(toRecord(toRecord(record.response).video).url) ||
+      asText(toRecord(record.response).video_url) ||
+      asText(record.video_url) ||
+      asText(toRecord(record.data).video_url) ||
+      asText(toRecord(record.output).video_url);
+    return videoUrl ? [videoUrl] : [];
+  };
+
+  if (!resultJson && fallback && typeof fallback === "object") {
+    return extractGenericUrls(fallback);
   }
   if (!resultJson) return [];
   if (typeof resultJson === "string") {
     try {
       const parsed = JSON.parse(resultJson);
-      return extractResultUrls(parsed as any);
-    } catch (_error) {
+      return extractResultUrls(parsed);
+    } catch {
       return [];
     }
   }
   if (typeof resultJson === "object" && resultJson) {
-    const urls = (resultJson as any)?.resultUrls || (resultJson as any)?.info?.result_urls;
-    if (Array.isArray(urls)) return urls as string[];
-    const videos =
-      (resultJson as any)?.videos ||
-      (resultJson as any)?.data?.videos ||
-      (resultJson as any)?.output?.videos ||
-      (resultJson as any)?.response?.videos;
-    if (Array.isArray(videos) && videos[0]?.url) {
-      return videos.map((vid: any) => vid?.url).filter(Boolean) as string[];
-    }
-    const videoUrl =
-      (resultJson as any)?.video?.url ||
-      (resultJson as any)?.data?.video?.url ||
-      (resultJson as any)?.output?.video?.url ||
-      (resultJson as any)?.response?.video?.url ||
-      (resultJson as any)?.response?.video_url ||
-      (resultJson as any)?.video_url ||
-      (resultJson as any)?.data?.video_url ||
-      (resultJson as any)?.output?.video_url;
-    if (videoUrl) return [videoUrl];
+    return extractGenericUrls(resultJson);
   }
   return [];
 };

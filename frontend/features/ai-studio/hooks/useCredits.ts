@@ -23,6 +23,19 @@ type BalanceQueryAttempt = {
 };
 
 let preferredBalanceQueryAttempt: BalanceQueryAttempt | null = null;
+let skipBalanceTableProbe = false;
+let preferLegacyLedgerQuery = false;
+
+const isSchemaCompatibilityError = (message: string) => {
+  const text = message.toLowerCase();
+  return (
+    text.includes("does not exist") ||
+    text.includes("could not find the table") ||
+    text.includes("schema cache") ||
+    text.includes("failed to parse select parameter") ||
+    text.includes("column")
+  );
+};
 
 const fetchUserId = async () => {
   const supabase = ensureSupabaseClient();
@@ -58,6 +71,10 @@ const queryBalanceRow = async ({
 };
 
 const fetchBalanceFromTable = async (userId: string): Promise<BalanceSnapshot | null> => {
+  if (skipBalanceTableProbe) {
+    return null;
+  }
+
   const attempts: BalanceQueryAttempt[] = [
     { select: "balance_cents, updated_at", scoped: true },
     { select: "balance_cents", scoped: true },
@@ -78,13 +95,19 @@ const fetchBalanceFromTable = async (userId: string): Promise<BalanceSnapshot | 
       ]
     : attempts;
 
+  let sawSchemaCompatibilityError = false;
+
   for (const attempt of orderedAttempts) {
     const { data, error } = await queryBalanceRow({
       userId,
       select: attempt.select,
       scoped: attempt.scoped,
     });
-    if (error) continue;
+    if (error) {
+      sawSchemaCompatibilityError =
+        sawSchemaCompatibilityError || isSchemaCompatibilityError(error.message);
+      continue;
+    }
 
     preferredBalanceQueryAttempt = attempt;
     const row = (data as Record<string, unknown> | null) ?? null;
@@ -97,24 +120,35 @@ const fetchBalanceFromTable = async (userId: string): Promise<BalanceSnapshot | 
   }
 
   preferredBalanceQueryAttempt = null;
+  if (sawSchemaCompatibilityError) {
+    // Legacy DBs may miss credit-balance relation/columns; avoid repeating guaranteed 400 probes.
+    skipBalanceTableProbe = true;
+  }
   return null;
 };
 
 const fetchLedgerBalanceCents = async (userId: string) => {
   const supabase = ensureSupabaseClient();
 
-  const { data: richData, error: richError } = await supabase
-    .from("ai_credit_ledger")
-    .select("change_cents, created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+  if (!preferLegacyLedgerQuery) {
+    const { data: richData, error: richError } = await supabase
+      .from("ai_credit_ledger")
+      .select("change_cents, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
 
-  if (!richError) {
-    const rows = Array.isArray(richData) ? richData : [];
-    const cents = rows.reduce((sum, row) => sum + Number(row.change_cents ?? 0), 0);
-    const updatedAt =
-      rows.length > 0 && typeof rows[0].created_at === "string" ? rows[0].created_at : null;
-    return { cents, updatedAt };
+    if (!richError) {
+      const rows = Array.isArray(richData) ? richData : [];
+      const cents = rows.reduce((sum, row) => sum + Number(row.change_cents ?? 0), 0);
+      const updatedAt =
+        rows.length > 0 && typeof rows[0].created_at === "string" ? rows[0].created_at : null;
+      return { cents, updatedAt };
+    }
+
+    if (isSchemaCompatibilityError(richError.message)) {
+      // Cache legacy mode to avoid retrying a known-missing created_at shape every refresh.
+      preferLegacyLedgerQuery = true;
+    }
   }
 
   // Legacy fallback: some deployments may not expose created_at in RLS/view responses.

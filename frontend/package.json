@@ -22,7 +22,7 @@
     "prepare": "cd .. && husky"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.87.1",
+    "@supabase/supabase-js": "^2.95.3",
     "formidable": "^3.5.4",
     "next": "^16.1.6",
     "onnxruntime-web": "^1.23.2",
@@ -51,7 +51,7 @@
     "jsdom": "^26.1.0",
     "lint-staged": "^15.5.2",
     "prettier": "^3.8.1",
-    "supabase": "^2.76.6",
+    "supabase": "^2.76.7",
     "typescript": "5.3.3",
     "typescript-eslint": "^8.55.0",
     "vitest": "^3.2.4"

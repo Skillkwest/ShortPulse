@@ -672,16 +672,6 @@ export function ReferencePropertiesPanel({
             </div>
             {!collapsedSteps.model ? (
               <div className="create-controls reference-frame-controls frame-model-controls">
-                {!isVideoVariant ? (
-                  <div className="control-row compact">
-                    <label className="input-label">Aspect ratio</label>
-                    <AspectDropdown
-                      aspect={aspect}
-                      onSelect={onAspectChange}
-                      options={aspectOptionsForModel}
-                    />
-                  </div>
-                ) : null}
                 <div className={`control-row compact ${isVideoVariant ? "full-span" : ""}`}>
                   <label className="input-label">Model</label>
                   <button
@@ -712,11 +702,21 @@ export function ReferencePropertiesPanel({
                             height={20}
                           />
                         ) : null}
-                        {stripEditLabel(modelLabel)}
+                        <span className="model-picker-name">{stripEditLabel(modelLabel)}</span>
                       </span>
                     </div>
                   </button>
                 </div>
+                {!isVideoVariant ? (
+                  <div className="control-row compact">
+                    <label className="input-label">Aspect ratio</label>
+                    <AspectDropdown
+                      aspect={aspect}
+                      onSelect={onAspectChange}
+                      options={aspectOptionsForModel}
+                    />
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -729,7 +729,7 @@ export function ReferencePropertiesPanel({
           >
             <div className="step-card-header">
               <div className="step-header-copy">
-                <p className="step-title">Choose image resolution</p>
+                <p className="step-title">Choose Image Resolution</p>
                 <span className="step-subtitle tiny helper-text">
                   Select the model-specific image resolution setting.
                 </span>
@@ -1134,7 +1134,7 @@ export function ReferencePropertiesPanel({
             <div className="step-card-header">
               {beginnerMode && <span className="step-badge">4</span>}
               <div className="step-header-copy">
-                <p className="step-title">Choose video settings</p>
+                <p className="step-title">Choose Video Settings</p>
                 <span className="step-subtitle tiny helper-text">
                   Set duration, resolution, and audio output before generating.
                 </span>

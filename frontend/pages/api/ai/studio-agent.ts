@@ -63,6 +63,17 @@ const preservesContext = (canonical: string, updated: string): boolean => {
   return present.length >= Math.max(3, Math.ceil(sig.length / 2));
 };
 
+const isExplicitEditRequest = (text: string): boolean => {
+  const normalized = text.toLowerCase();
+  // When the user is explicitly asking to remove/replace/change things, allow larger edits.
+  // The drift guard is meant for "make it better" style requests, not intentional rewrites.
+  return (
+    /\b(remove|without|replace|swap|instead|change|convert|turn)\b/.test(normalized) ||
+    /\bno\s+[a-z0-9]/.test(normalized) ||
+    /\bmake\s+(it|this|the)\b/.test(normalized)
+  );
+};
+
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
   | {
@@ -382,9 +393,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
       const nextCanonical =
         parsed?.actions?.applyPrompt ?? parsed?.message ?? effectiveCanonical ?? null;
+      const userInput = messages[messages.length - 1]?.content ?? "";
+      const bypassDriftGuard = isExplicitEditRequest(userInput);
 
       // Validate context preservation; if drift detected, fall back to prior canonical.
       if (
+        !bypassDriftGuard &&
         effectiveCanonical &&
         nextCanonical &&
         !preservesContext(effectiveCanonical, nextCanonical)

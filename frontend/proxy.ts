@@ -7,6 +7,7 @@ const PROTECTED_API_PREFIXES = [
   "/api/kei/",
   "/api/ai/",
   "/api/upload-video",
+  "/api/upload-image",
   "/api/admin/",
   "/api/credits/",
   "/api/billing/credit-packages",
@@ -38,18 +39,23 @@ const getSupabaseUser = async (token: string): Promise<SupabaseUser> => {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseAnonKey) return null;
 
-  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    method: "GET",
-    headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  try {
+    const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      method: "GET",
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-  if (!response.ok) return null;
-  const data = (await response.json()) as { id?: string };
-  if (!data?.id) return null;
-  return { id: data.id };
+    if (!response.ok) return null;
+    const data = (await response.json()) as { id?: string };
+    if (!data?.id) return null;
+    return { id: data.id };
+  } catch (error) {
+    console.error("[proxy] Supabase auth lookup failed", error);
+    return null;
+  }
 };
 
 export async function proxy(request: NextRequest) {

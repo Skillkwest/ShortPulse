@@ -13,10 +13,20 @@ type AspectDropdownProps = {
   options?: AspectOption[];
 };
 
-export function AspectDropdown({ aspect, onSelect, options = defaultAspectOptions }: AspectDropdownProps) {
+const toRatioClassName = (value: string): string | null => {
+  if (!value.includes(":")) return null;
+  return `ratio-${value.replace(":", "-")}`;
+};
+
+export function AspectDropdown({
+  aspect,
+  onSelect,
+  options = defaultAspectOptions,
+}: AspectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const selectedAspect = options.find((option) => option.value === aspect);
+  const selectedRatioClass = selectedAspect?.value ? toRatioClassName(selectedAspect.value) : null;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -39,7 +49,10 @@ export function AspectDropdown({ aspect, onSelect, options = defaultAspectOption
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <span className={`aspect-shape ${selectedAspect?.orientation ?? "horizontal"}`} aria-hidden="true" />
+        <span
+          className={`aspect-shape ${selectedAspect?.orientation ?? "horizontal"}${selectedRatioClass ? ` ${selectedRatioClass}` : ""}`}
+          aria-hidden="true"
+        />
         <span className="aspect-meta">
           <span className="aspect-ratio">{selectedAspect?.ratioLabel ?? aspect}</span>
           <span className="aspect-name tiny subdued">{selectedAspect?.name ?? ""}</span>
@@ -50,6 +63,7 @@ export function AspectDropdown({ aspect, onSelect, options = defaultAspectOption
         <div className="aspect-menu" role="listbox">
           {options.map((option) => {
             const isActive = option.value === aspect;
+            const ratioClass = toRatioClassName(option.value);
             return (
               <button
                 type="button"
@@ -62,7 +76,10 @@ export function AspectDropdown({ aspect, onSelect, options = defaultAspectOption
                   setIsOpen(false);
                 }}
               >
-                <span className={`aspect-shape ${option.orientation}`} aria-hidden="true" />
+                <span
+                  className={`aspect-shape ${option.orientation}${ratioClass ? ` ${ratioClass}` : ""}`}
+                  aria-hidden="true"
+                />
                 <span className="aspect-ratio">{option.ratioLabel}</span>
                 <span className="aspect-name">{option.name}</span>
               </button>

@@ -103,6 +103,13 @@
   min-width: 0;
 }
 
+.frame-model-controls .model-picker-btn,
+.frame-model-controls .aspect-trigger {
+  height: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
 .image-settings-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -123,6 +130,18 @@
 
 .character-selection-controls .fixed-select {
   width: 100%;
+}
+
+.character-step-card .step-header-actions {
+  gap: 10px;
+}
+
+.character-step-card .character-owner-header {
+  width: 220px;
+}
+
+.character-owner-header-select {
+  cursor: pointer;
 }
 
 .character-owner-subtitle {
@@ -194,6 +213,12 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* In AI Studio, step cards are siblings of other cards (ex: Generate) inside `.ai-properties`.
+   Match the panel's visual rhythm so inter-card spacing is consistent. */
+.ai-properties .tool-properties {
+  gap: 14px;
 }
 
 .tool-header {

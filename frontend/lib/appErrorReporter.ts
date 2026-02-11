@@ -3,6 +3,7 @@
  * Sends structured events to `/api/log/client-error` for admin triage.
  */
 import { ensureSupabaseClient } from "./supabaseClient";
+import { getBreadcrumbsSnapshot } from "./clientBreadcrumbs";
 
 type JsonObject = Record<string, unknown>;
 
@@ -84,9 +85,50 @@ const endpointPath = (endpoint: string | null | undefined): string | null => {
   }
 };
 
+const isFastRefreshNoise = (event: ClientAppErrorEvent): boolean => {
+  // Only suppress in development. In production, we want to see everything.
+  if (process.env.NODE_ENV !== "development") return false;
+
+  const message = (normalizeText(event.message) ?? "").toLowerCase();
+  const stack = (normalizeText(event.stack ?? "", 8000) ?? "").toLowerCase();
+  const metaFilename = normalizeText(
+    (event.metadata as { filename?: unknown } | undefined)?.filename,
+    400
+  );
+
+  const haystack = `${message}\n${stack}`;
+
+  // Next/React Fast Refresh commonly surfaces hook-state invariants during HMR.
+  const hasReactRefreshFrames =
+    haystack.includes("react-refresh") ||
+    haystack.includes("performreactrefresh") ||
+    haystack.includes("schedulerefresh") ||
+    haystack.includes("@next/react-refresh-utils") ||
+    haystack.includes("_next/static/chunks/webpack") ||
+    haystack.includes("webpack-internal:///./node_modules/next/dist/compiled/react-refresh");
+
+  if (!hasReactRefreshFrames) return false;
+
+  // Narrow further to the common dev-only hook queue invariant we saw in incidents.
+  const looksLikeHookQueueInvariant =
+    message.includes("should have a queue") || stack.includes("should have a queue");
+
+  if (looksLikeHookQueueInvariant) return true;
+
+  // If we have react-refresh frames and the error originates from the refresh runtime file,
+  // treat it as non-actionable dev noise.
+  if (typeof metaFilename === "string" && /react-refresh|webpack|hot-update/i.test(metaFilename)) {
+    return true;
+  }
+
+  return false;
+};
+
 const shouldSkip = (event: ClientAppErrorEvent): boolean => {
   const scope = event.scope ?? "app";
   if (scope !== "app") return true;
+
+  if (isFastRefreshNoise(event)) return true;
 
   const message = normalizeText(event.message) ?? "Unknown runtime error";
   const endpoint = endpointPath(event.endpoint);
@@ -143,6 +185,44 @@ const resolveClientReleaseMetadata = (): JsonObject => ({
     null,
 });
 
+const resolveClientRuntimeMetadata = (): JsonObject => {
+  if (typeof window === "undefined") {
+    return {
+      build_id: null,
+      session_id: null,
+      is_secure_context: null,
+      visibility_state: null,
+    };
+  }
+
+  const nextData = (window as unknown as { __NEXT_DATA__?: { buildId?: unknown } }).__NEXT_DATA__;
+  const buildId = normalizeText(nextData?.buildId, 120);
+
+  let sessionId: string | null = null;
+  try {
+    const stored = window.sessionStorage.getItem("sp_session_id");
+    if (stored) {
+      sessionId = stored;
+    } else if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      sessionId = crypto.randomUUID();
+      window.sessionStorage.setItem("sp_session_id", sessionId);
+    } else {
+      sessionId = `sp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      window.sessionStorage.setItem("sp_session_id", sessionId);
+    }
+  } catch {
+    sessionId = null;
+  }
+
+  return {
+    build_id: buildId,
+    session_id: sessionId,
+    is_secure_context: typeof window.isSecureContext === "boolean" ? window.isSecureContext : null,
+    visibility_state:
+      typeof document !== "undefined" ? normalizeText(document.visibilityState, 40) : null,
+  };
+};
+
 const reportToApi = async (event: ClientAppErrorEvent): Promise<void> => {
   const token = await readAccessToken();
   if (!token) return;
@@ -166,6 +246,8 @@ const reportToApi = async (event: ClientAppErrorEvent): Promise<void> => {
       statusCode: typeof event.statusCode === "number" ? Math.trunc(event.statusCode) : null,
       metadata: {
         ...resolveClientReleaseMetadata(),
+        ...resolveClientRuntimeMetadata(),
+        breadcrumbs: getBreadcrumbsSnapshot(),
         ...(event.metadata ?? {}),
       },
       occurredAt: event.occurredAt ?? new Date().toISOString(),

@@ -148,9 +148,9 @@ body.ai-studio-body {
 
 .ai-studio-page {
   max-width: 2000px;
-  padding: 60px 24px 24px;
+  padding: 52px 24px 24px;
   /* Adjust the the gap between the left sidebar and the main body. */
-  padding-left: calc(var(--ai-rail-width) + 12px);
+  padding-left: calc(var(--ai-rail-width) + 8px);
   color: var(--ai-card-text);
   font-size: 14px;
   --ai-accent-base: #25a9bf; /* single knob for AI Studio accents */
@@ -218,7 +218,9 @@ body.ai-studio-body {
   border-radius: 50%;
   background: rgba(16, 19, 28, 0.9);
   text-decoration: none;
-  transition: background-color 0.15s ease, transform 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
   margin-left: 8px;
 }
 
@@ -488,7 +490,7 @@ body.ai-studio-body {
 .ai-shell {
   display: grid;
   /* Adjust the relative widths of the two main columns. */
-  grid-template-columns: minmax(400px, 1fr) minmax(0, 2fr);
+  grid-template-columns: minmax(400px, 1.2fr) minmax(0, 2fr);
   grid-template-rows: minmax(0, 1fr);
   gap: var(--ai-gutter);
   align-items: start;
@@ -607,7 +609,6 @@ body.ai-studio-body {
   justify-content: flex-start;
 }
 
-
 .toolbar-list {
   display: flex;
   flex-direction: column;
@@ -618,7 +619,12 @@ body.ai-studio-body {
   width: 100%;
   height: 1px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0)
+  );
   margin: 18px 0;
   opacity: 0.5;
 }
@@ -667,7 +673,12 @@ body.ai-studio-body {
   height: 1px;
   width: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0));
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.25),
+    rgba(255, 255, 255, 0)
+  );
   margin: 12px 0;
   opacity: 0.35;
 }
@@ -716,7 +727,9 @@ body.ai-studio-body {
   color: #f5f9ff;
   cursor: pointer;
   text-align: left;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
   overflow: hidden;
 }
 
@@ -881,33 +894,63 @@ body.ai-studio-body {
   outline-offset: 3px;
 }
 
-.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible),
-.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
-.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
-.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
-.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
-.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) {
+.ai-toolbar[data-primary-active="create"]
+  .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="create"]
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="edit"]
+  .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="edit"]
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="canvas"]
+  .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="canvas"]
+  .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) {
   background: transparent;
   border: 1px solid var(--ai-toolbar-secondary-fg);
   box-shadow: none;
   color: var(--ai-toolbar-secondary-fg);
 }
 
-.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) svg,
-.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible) svg,
-.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible) svg,
-.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible) svg,
-.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible) svg,
-.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) svg {
+.ai-toolbar[data-primary-active="create"]
+  .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg,
+.ai-toolbar[data-primary-active="create"]
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg,
+.ai-toolbar[data-primary-active="edit"]
+  .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg,
+.ai-toolbar[data-primary-active="edit"]
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg,
+.ai-toolbar[data-primary-active="canvas"]
+  .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg,
+.ai-toolbar[data-primary-active="canvas"]
+  .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg {
   color: var(--ai-toolbar-secondary-fg) !important;
 }
 
-.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label,
-.ai-toolbar[data-primary-active="create"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label,
-.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label,
-.ai-toolbar[data-primary-active="edit"] .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label,
-.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label,
-.ai-toolbar[data-primary-active="canvas"] .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) .toolbar-label {
+.ai-toolbar[data-primary-active="create"]
+  .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label,
+.ai-toolbar[data-primary-active="create"]
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label,
+.ai-toolbar[data-primary-active="edit"]
+  .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label,
+.ai-toolbar[data-primary-active="edit"]
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label,
+.ai-toolbar[data-primary-active="canvas"]
+  .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label,
+.ai-toolbar[data-primary-active="canvas"]
+  .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label {
   color: var(--ai-toolbar-secondary-fg) !important;
 }
 
@@ -1082,7 +1125,9 @@ body.ai-studio-body {
   border-radius: 8px;
   border: 1px solid rgba(201, 205, 214, 0.25);
   background: rgba(16, 19, 28, 0.8);
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
   padding: 8px 10px;
   min-height: 34px;
 }

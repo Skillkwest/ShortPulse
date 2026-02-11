@@ -13,6 +13,7 @@ import type {
 import { buildAgentContext } from "./logic/contextBuilder";
 import { randomId } from "../ai-studio/logic/ids";
 import { fetchWithAuth } from "../../lib/authenticatedFetch";
+import { normalizeErrorText } from "../../lib/errorText";
 
 type UseAiAgentOptions = {
   initialMessages?: AgentMessage[];
@@ -105,13 +106,10 @@ export const useAiAgent = ({
       try {
         const userPayload = payloadText?.trim() || trimmed;
         const baseHistory = previousMessages.slice(-12); // small window for API
-        const syntheticPrev =
-          previousPrompt && previousPrompt.trim().length
-            ? ({ role: "assistant", content: previousPrompt.trim() } as AgentMessage)
-            : null;
+        // Canonical prompt is sent separately; avoid duplicating assistant content in the message list.
+        void previousPrompt;
         const apiMessages: AgentMessage[] = [
           ...baseHistory,
-          ...(syntheticPrev ? [syntheticPrev] : []),
           { role: "user", content: userPayload } as AgentMessage,
         ];
 
@@ -129,7 +127,12 @@ export const useAiAgent = ({
 
         if (!response.ok) {
           const detail = await response.text();
-          setError(detail || "Agent request failed");
+          setError(
+            normalizeErrorText(detail, {
+              fallback: `Agent request failed (${response.status})`,
+              maxLength: 320,
+            })
+          );
           return { response: null, actions: undefined };
         }
 
@@ -155,7 +158,12 @@ export const useAiAgent = ({
         }
         return { response: data ?? null, actions };
       } catch (err) {
-        setError(typeof err === "string" ? err : "Agent request failed");
+        setError(
+          normalizeErrorText(err instanceof Error ? err.message : err, {
+            fallback: "Agent request failed",
+            maxLength: 320,
+          })
+        );
         return { response: null, actions: undefined };
       } finally {
         setIsSending(false);

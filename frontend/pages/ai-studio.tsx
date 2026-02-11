@@ -160,6 +160,9 @@ export default function AiStudioPage() {
     enabled: true, // allow first-click activation; API will gate if truly disabled server-side
     conversationId: agentConversationId,
   });
+  const [agentUiBusy, setAgentUiBusy] = useState(false);
+  const agentUiBusyRef = useRef(false);
+  const agentBusy = agentIsSending || agentUiBusy;
   const [agentInput, setAgentInput] = useState("");
   const [agentActions, setAgentActions] = useState<AgentActions | undefined>(undefined);
   const [isAgentChatOpen, setIsAgentChatOpen] = useState(false);
@@ -211,84 +214,101 @@ export default function AiStudioPage() {
       modeHint?: "chat" | "text" | "describe" | "reference";
     }
   ): Promise<{ prompt: string; referenceTitle?: string | null } | void> => {
+    if (agentIsSending || agentUiBusyRef.current) return;
     const rawInput = typeof textOverride === "string" ? textOverride : agentInput;
     const trimmed = rawInput.trim();
     const fallback = trimmed || prompt.trim();
     if (!fallback) return;
     if (!agentSessionEnabled) setAgentSessionEnabled(true);
-    if (!trimmed) {
-      setAgentInput(fallback);
+    agentUiBusyRef.current = true;
+    setAgentUiBusy(true);
+    const sentFromComposer = typeof textOverride !== "string";
+    if (sentFromComposer && trimmed) {
+      // Clear immediately so the user can draft the next message while the agent responds.
+      setAgentInput("");
     }
-    const baseContext = getAgentContext({
-      lastAssistantMessage: latestAssistantMessage,
-      selectedOverride: options?.selectedOverride,
-      modeHint: options?.modeHint,
-    });
-    if (latestAgentPrompt) {
-      baseContext.activePrompt = latestAgentPrompt;
-      baseContext.lastAssistantMessage = latestAgentPrompt;
-    }
-    let mediaPatchedContext = baseContext;
-    let refinedPrompt: string | null = null;
-
-    if (
-      baseContext.focusedSource === "image" &&
-      activeOutput?.previewUrl &&
-      !activeOutput?.previewUrl.startsWith("https://")
-    ) {
-      // Convert blob/object URLs to data URLs for vision payloads.
-      const safeUrl = await prepareImageUrl(activeOutput.previewUrl);
-      if (safeUrl) {
-        mediaPatchedContext = {
-          ...baseContext,
-          media: [
-            {
-              id: activeOutput.id,
-              kind: "image",
-              dataUrl: safeUrl,
-              url: activeOutput.previewUrl,
-              thumbnailAlt: activeOutput.prompt ?? activeOutput.previewText ?? null,
-            },
-          ],
-        };
+    try {
+      const baseContext = getAgentContext({
+        lastAssistantMessage: latestAssistantMessage,
+        selectedOverride: options?.selectedOverride,
+        modeHint: options?.modeHint,
+      });
+      if (latestAgentPrompt) {
+        baseContext.activePrompt = latestAgentPrompt;
+        baseContext.lastAssistantMessage = latestAgentPrompt;
       }
-    }
+      let mediaPatchedContext = baseContext;
+      let refinedPrompt: string | null = null;
 
-    if (shouldRunPromptRefinerFirst(fallback, mediaPatchedContext)) {
-      try {
-        const refined = await postGeneratePrompt(fallback);
-        if (refined?.prompt) {
-          refinedPrompt = refined.prompt.trim();
+      if (
+        baseContext.focusedSource === "image" &&
+        activeOutput?.previewUrl &&
+        !activeOutput?.previewUrl.startsWith("https://")
+      ) {
+        // Convert blob/object URLs to data URLs for vision payloads.
+        const safeUrl = await prepareImageUrl(activeOutput.previewUrl);
+        if (safeUrl) {
           mediaPatchedContext = {
-            ...mediaPatchedContext,
-            activePrompt: refinedPrompt,
-            lastAssistantMessage: refinedPrompt,
+            ...baseContext,
+            media: [
+              {
+                id: activeOutput.id,
+                kind: "image",
+                dataUrl: safeUrl,
+                url: activeOutput.previewUrl,
+                thumbnailAlt: activeOutput.prompt ?? activeOutput.previewText ?? null,
+              },
+            ],
           };
         }
-      } catch {
-        // If refinement fails, continue with the original input.
       }
-    }
 
-    const { actions } = await sendToAgent({
-      text: fallback,
-      payloadText: refinedPrompt ?? fallback,
-      previousPrompt: latestAgentPrompt ?? refinedPrompt ?? null,
-      context: mediaPatchedContext,
-    });
-    const appliedPrompt = actions?.applyPrompt ?? latestAgentPrompt ?? prompt;
+      if (shouldRunPromptRefinerFirst(fallback, mediaPatchedContext)) {
+        try {
+          const refined = await postGeneratePrompt(fallback);
+          if (refined?.prompt) {
+            refinedPrompt = refined.prompt.trim();
+            mediaPatchedContext = {
+              ...mediaPatchedContext,
+              activePrompt: refinedPrompt,
+              lastAssistantMessage: refinedPrompt,
+            };
+          }
+        } catch {
+          // If refinement fails, continue with the original input.
+        }
+      }
 
-    // Apply strict prompt update if tool-specific context demands it (create vs reference).
-    if (actions?.applyPrompt) {
-      setSharedPrompt(appliedPrompt);
-      setLatestAgentPrompt(appliedPrompt);
-    }
+      const { response, actions } = await sendToAgent({
+        text: fallback,
+        payloadText: refinedPrompt ?? fallback,
+        previousPrompt: latestAgentPrompt ?? refinedPrompt ?? null,
+        context: mediaPatchedContext,
+      });
 
-    setAgentActions(actions);
-    setAgentInput("");
+      if (!response) {
+        if (options?.captureResult) return;
+        return;
+      }
 
-    if (options?.captureResult) {
-      return { prompt: appliedPrompt, referenceTitle: actions?.referenceCard?.title };
+      const responseMessage = response.message?.trim() ?? "";
+      const appliedPrompt =
+        actions?.applyPrompt?.trim() || responseMessage || latestAgentPrompt || prompt;
+
+      // Apply strict prompt update if tool-specific context demands it (create vs reference).
+      if (appliedPrompt) {
+        setSharedPrompt(appliedPrompt);
+        setLatestAgentPrompt(appliedPrompt);
+      }
+
+      setAgentActions(actions);
+
+      if (options?.captureResult) {
+        return { prompt: appliedPrompt, referenceTitle: actions?.referenceCard?.title };
+      }
+    } finally {
+      agentUiBusyRef.current = false;
+      setAgentUiBusy(false);
     }
   };
 
@@ -740,7 +760,7 @@ export default function AiStudioPage() {
   };
 
   const handleRegenerateWithDebit = async () => {
-    if (agentIsSending) {
+    if (agentBusy) {
       handleBlockedGeneration();
       return;
     }
@@ -759,7 +779,7 @@ export default function AiStudioPage() {
   };
 
   const handleImageRegenerateWithDebit = async () => {
-    if (agentIsSending) {
+    if (agentBusy) {
       handleBlockedGeneration();
       return;
     }
@@ -788,7 +808,7 @@ export default function AiStudioPage() {
     agentMessages,
     agentActions,
     agentInput,
-    agentIsSending,
+    agentIsSending: agentBusy,
     agentError: agentError ?? undefined,
     stagedPrompt: latestAgentPrompt,
     onAgentInputChange: setAgentInput,
@@ -806,7 +826,7 @@ export default function AiStudioPage() {
     // Treat refine send as a prompt-generating busy state for overlays.
     isPromptGenerating: isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: currentCostCredits,
-    isGenerateDisabled: isGenerateDisabled || agentIsSending,
+    isGenerateDisabled: isGenerateDisabled || agentBusy,
     guardrailReason: generationGuardrail,
     onExpandChat: handleExpandChat,
     onCloseAgentChat: handleCloseAgentChat,
@@ -908,7 +928,7 @@ export default function AiStudioPage() {
           onRegenerate: handleImageRegenerateWithDebit,
           onOpenMediaLibrary: handleOpenMediaLibrary,
           costCredits: currentCostCredits,
-          isGenerateDisabled: isGenerateDisabled || agentIsSending,
+          isGenerateDisabled: isGenerateDisabled || agentBusy,
           guardrailReason: generationGuardrail,
           referenceImageWarning,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
@@ -916,12 +936,11 @@ export default function AiStudioPage() {
           agentMessages,
           agentActions,
           agentInput,
-          agentIsSending,
+          agentIsSending: agentBusy,
           agentError: agentError ?? undefined,
           stagedPrompt: latestAgentPrompt,
           onAgentInputChange: setAgentInput,
-          onAgentSend: () =>
-            handleAgentSend(agentInput || referenceText || "", { modeHint: "reference" }),
+          onAgentSend: () => handleAgentSend(undefined, { modeHint: "reference" }),
           onAgentEnhanceSend: () =>
             handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
           onAgentMessageClick: handleAgentMessageClick,
@@ -987,17 +1006,16 @@ export default function AiStudioPage() {
           guardrailReason: generationGuardrail,
           referenceImageWarning,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
-          isGenerateDisabled: isGenerateDisabled || agentIsSending,
+          isGenerateDisabled: isGenerateDisabled || agentBusy,
           agentEnabled,
           agentMessages,
           agentActions,
           agentInput,
-          agentIsSending,
+          agentIsSending: agentBusy,
           agentError: agentError ?? undefined,
           stagedPrompt: latestAgentPrompt,
           onAgentInputChange: setAgentInput,
-          onAgentSend: () =>
-            handleAgentSend(agentInput || referenceText || "", { modeHint: "reference" }),
+          onAgentSend: () => handleAgentSend(undefined, { modeHint: "reference" }),
           onAgentEnhanceSend: () =>
             handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
           onAgentMessageClick: handleAgentMessageClick,
@@ -1053,7 +1071,7 @@ export default function AiStudioPage() {
           agentMessages,
           agentInput,
           agentActions,
-          agentIsSending,
+          agentIsSending: agentBusy,
           latestAgentPrompt,
           onInputChange: setAgentInput,
           onSend: handleAgentSend,

@@ -49,7 +49,8 @@ const sourceLabel = (value: string): string =>
 const buildIncidentPacket = (row: AdminErrorLogRow): string =>
   JSON.stringify(
     {
-      shortpulseIncidentVersion: 1,
+      // Versioned so we can evolve this format without breaking ad-hoc tooling.
+      shortpulseIncidentVersion: 2,
       copiedAt: new Date().toISOString(),
       incident: {
         id: row.id,
@@ -69,6 +70,33 @@ const buildIncidentPacket = (row: AdminErrorLogRow): string =>
         firstSeenAt: row.firstSeenAt,
         lastSeenAt: row.lastSeenAt,
         occurrencesCount: row.occurrencesCount,
+        triage: (() => {
+          const metadata = (row.metadata ?? {}) as Record<string, unknown>;
+          const breadcrumbs = Array.isArray(metadata.breadcrumbs) ? metadata.breadcrumbs : null;
+          const buildId = typeof metadata.build_id === "string" ? metadata.build_id : null;
+          const sessionId = typeof metadata.session_id === "string" ? metadata.session_id : null;
+          const clientRelease =
+            typeof metadata.client_release === "string" ? metadata.client_release : null;
+          const clientEnvironment =
+            typeof metadata.client_environment === "string" ? metadata.client_environment : null;
+          const visibilityState =
+            typeof metadata.visibility_state === "string" ? metadata.visibility_state : null;
+          const reactComponentStack =
+            typeof metadata.react_component_stack === "string"
+              ? metadata.react_component_stack
+              : null;
+
+          return {
+            buildId,
+            sessionId,
+            clientRelease,
+            clientEnvironment,
+            visibilityState,
+            reactComponentStack,
+            breadcrumbs,
+          };
+        })(),
+        // Keep the full raw metadata (sanitized at ingest) for deep debugging.
         metadata: row.metadata ?? {},
       },
     },
@@ -77,10 +105,41 @@ const buildIncidentPacket = (row: AdminErrorLogRow): string =>
   );
 
 const copyToClipboard = async (text: string): Promise<boolean> => {
-  if (typeof window === "undefined" || !navigator?.clipboard) return false;
+  if (typeof window === "undefined") return false;
+
+  // Prefer the async Clipboard API when available. This can fail if the browser
+  // blocks clipboard writes (permissions, insecure context, etc).
   try {
-    await navigator.clipboard.writeText(text);
-    return true;
+    if (navigator?.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall through to legacy fallback below.
+  }
+
+  // Fallback for environments where `navigator.clipboard` is unavailable/blocked.
+  // `document.execCommand("copy")` is deprecated but still widely supported.
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.top = "0";
+    textarea.style.left = "0";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    textarea.style.width = "1px";
+    textarea.style.height = "1px";
+
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return ok;
   } catch {
     return false;
   }

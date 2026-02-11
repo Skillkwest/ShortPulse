@@ -217,6 +217,18 @@ const readApiErrorMessage = (payload: unknown): string => {
   const data = payload as Record<string, unknown>;
   if (typeof data.message === "string" && data.message.length > 0) return data.message;
   if (typeof data.error === "string" && data.error.length > 0) return data.error;
+  if (typeof data.detail === "string" && data.detail.length > 0) return data.detail;
+  if (Array.isArray(data.detail)) {
+    const first = data.detail[0];
+    if (typeof first === "string" && first.trim().length > 0) return first.trim();
+    if (first && typeof first === "object") {
+      const firstRecord = first as Record<string, unknown>;
+      if (typeof firstRecord.msg === "string" && firstRecord.msg.trim().length > 0) {
+        return firstRecord.msg.trim();
+      }
+    }
+  }
+  if (typeof data.raw === "string" && data.raw.trim().length > 0) return data.raw.trim();
   return "Unexpected error";
 };
 
@@ -224,9 +236,27 @@ const readRequestId = (payload: { request_id?: string; requestId?: string }): st
   payload.request_id || payload.requestId;
 
 const handleJson = async <T>(response: Response) => {
-  const data = await response.json().catch(() => ({}));
+  const text = await response.text();
+  let data: unknown = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      if (!response.ok) {
+        const status = response.status || 500;
+        const statusText = response.statusText?.trim();
+        throw new Error(statusText ? `${status} ${statusText}` : `Request failed (${status})`);
+      }
+    }
+  }
   if (!response.ok) {
-    throw new Error(readApiErrorMessage(data));
+    const message = readApiErrorMessage(data);
+    if (message && message !== "Unexpected error") {
+      throw new Error(message);
+    }
+    const status = response.status || 500;
+    const statusText = response.statusText?.trim();
+    throw new Error(statusText ? `${status} ${statusText}` : `Request failed (${status})`);
   }
   return data as T;
 };

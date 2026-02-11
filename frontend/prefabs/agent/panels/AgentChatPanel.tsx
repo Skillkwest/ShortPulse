@@ -14,6 +14,7 @@ type AgentChatPanelProps = {
   disabled?: boolean;
   isSending?: boolean;
   stagedPrompt?: string | null;
+  introMessage?: AgentMessage | null;
   showMessages?: boolean;
   showInput?: boolean;
   onInputChange: (value: string) => void;
@@ -29,6 +30,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   disabled = false,
   isSending = false,
   stagedPrompt = null,
+  introMessage = null,
   showMessages = true,
   showInput = true,
   onInputChange,
@@ -36,6 +38,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   onMessageClick,
 }) => {
   const messagesRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const messagesEl = messagesRef.current;
@@ -69,14 +72,26 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       event.preventDefault();
       if (disabled || isSending) return;
       onSend();
+      requestAnimationFrame(() => inputRef.current?.focus());
     },
     [disabled, isSending, onSend]
   );
 
+  const handleSendClick = useCallback(() => {
+    if (disabled || isSending) return;
+    onSend();
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [disabled, isSending, onSend]);
+
   return (
     <div className="agent-chat-panel">
-      {showMessages && (stagedPrompt || messages.length > 0) ? (
+      {showMessages && (introMessage || stagedPrompt || messages.length > 0) ? (
         <div className="agent-messages" aria-live="polite" ref={messagesRef}>
+          {introMessage ? (
+            <div className="agent-message agent-assistant agent-intro">
+              <p className="tiny">{introMessage.content}</p>
+            </div>
+          ) : null}
           {stagedPrompt ? (
             <div className="agent-message agent-assistant">
               <p className="tiny">{stagedPrompt}</p>
@@ -110,6 +125,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       {showInput ? (
         <div className="agent-input-row pill-agent-input-row">
           <AgentInputBar
+            ref={inputRef}
             value={input}
             onChange={onInputChange}
             placeholder="Tell the agent what you want or ask it to describe a reference."
@@ -119,7 +135,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           />
           <div className="agent-inline-actions">
             <AgentSendButton
-              onClick={onSend}
+              onClick={handleSendClick}
               disabled={disabled || isSending}
               ariaLabel={sendLabel}
             />

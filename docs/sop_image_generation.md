@@ -64,6 +64,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 - Defaults: `gpt-4.1-nano` for text/vision calls (prompt refinement/describe); image models are chosen from the picker (Fal/Kie) and use provider-specific clients without agent prompts.  
 - Aspect normalization per provider (see `pricing.ts` and submit logic in `useAiStudioState`): Fal uses width/height; Kie/GPT-image enforce allowed aspects.  
 - Cost computation: `computeCostForModel` uses aspect + selected image resolution where applicable (Nano Banana Pro + Seedream tiers) for estimate display; generation charging happens server-side in submit APIs.
+- Local reference ingestion: blob/data image inputs are uploaded through `/api/upload-image` and replaced with signed HTTPS URLs before submit; provider submit routes should receive URL payloads, not base64 bodies.
 
 ## Image resolution controls
 

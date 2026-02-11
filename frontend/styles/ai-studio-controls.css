@@ -49,21 +49,30 @@
   cursor: pointer;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
   min-height: 38px;
-  background-image: linear-gradient(45deg, transparent 50%, rgba(248, 248, 248, 0.9) 50%),
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(248, 248, 248, 0.9) 50%),
     linear-gradient(135deg, rgba(248, 248, 248, 0.9) 50%, transparent 50%);
-  background-position: calc(100% - 18px) calc(50% + 1px), calc(100% - 14px) calc(50% + 1px);
-  background-size: 5px 5px, 5px 5px;
+  background-position:
+    calc(100% - 18px) calc(50% + 1px),
+    calc(100% - 14px) calc(50% + 1px);
+  background-size:
+    5px 5px,
+    5px 5px;
   background-repeat: no-repeat;
-  transition: border-color 0.12s ease, transform 0.12s ease, box-shadow 0.16s ease;
+  transition:
+    border-color 0.12s ease,
+    transform 0.12s ease,
+    box-shadow 0.16s ease;
 }
 
 .aspect-meta {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   min-width: 0;
   align-items: baseline;
+  overflow: hidden;
 }
 
 .aspect-ratio {
@@ -77,6 +86,9 @@
   font-size: 12px;
   color: rgba(216, 230, 243, 0.7);
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .aspect-caret {
@@ -140,7 +152,9 @@
 
 .aspect-trigger[aria-expanded="true"] {
   border-color: var(--ai-accent, rgba(37, 169, 191, 0.6));
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.32), 0 0 0 1px var(--ai-accent-shadow, rgba(37, 169, 191, 0.25));
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.32),
+    0 0 0 1px var(--ai-accent-shadow, rgba(37, 169, 191, 0.25));
 }
 
 .ai-studio-page .aspect-menu-item.is-active {
@@ -210,6 +224,11 @@
 .aspect-shape.ratio-4-5 {
   width: 18px;
   height: 22px;
+}
+
+.aspect-shape.ratio-5-4 {
+  width: 22px;
+  height: 18px;
 }
 
 .aspect-shape.ratio-3-2 {
@@ -306,7 +325,10 @@
   align-items: center;
   justify-content: center;
   box-shadow: none;
-  transition: border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease,
+    transform 0.12s ease;
 }
 .step-utility-btn svg {
   color: inherit;
@@ -336,7 +358,11 @@
   padding: 0;
   box-sizing: border-box;
   cursor: pointer;
-  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 .ai-studio-page[data-beginner-mode="on"] .reference-toggle {
   border-color: rgba(4, 183, 135, 0.8);
@@ -377,7 +403,9 @@
   border-radius: 50%;
   background: #f5f9ff;
   transform: translateY(-50%);
-  transition: transform 0.16s ease, background 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease;
 }
 .reference-toggle.is-active .reference-toggle-dot {
   transform: translate(22px, -50%);
@@ -408,7 +436,11 @@
   padding: 0;
   box-sizing: border-box;
   cursor: pointer;
-  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .audio-toggle:hover:not(:disabled) {
@@ -442,7 +474,9 @@
   border-radius: 50%;
   background: #f5f9ff;
   transform: translateY(-50%);
-  transition: transform 0.16s ease, background 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease;
 }
 
 .audio-toggle.is-active .audio-toggle-dot {
@@ -469,19 +503,25 @@
   font-size: 12px;
   display: grid;
   place-items: center;
-  box-shadow: 0 6px 18px rgba(245, 185, 66, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  box-shadow:
+    0 6px 18px rgba(245, 185, 66, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
 .ai-studio-page .step-badge {
   background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.9));
   color: #1a140c;
-  box-shadow: 0 6px 18px rgba(245, 185, 66, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  box-shadow:
+    0 6px 18px rgba(245, 185, 66, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
 .ai-studio-page[data-beginner-mode="on"] .step-badge {
   background: linear-gradient(135deg, rgba(4, 183, 135, 0.96), rgba(14, 213, 100, 0.658));
   color: #000000;
-  box-shadow: 0 6px 18px rgba(7, 143, 64, 0.34), inset 0 1px 0 rgba(5, 175, 84, 0.813);
+  box-shadow:
+    0 6px 18px rgba(7, 143, 64, 0.34),
+    inset 0 1px 0 rgba(5, 175, 84, 0.813);
 }
 
 .step-header-copy {

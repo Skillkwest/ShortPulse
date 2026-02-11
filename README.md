@@ -8,6 +8,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - Auth/storage: Supabase client with persisted sessions, `saved_creators` table, and a private `media_library` bucket.
 - Analytics: In-browser scoring of a demo cohort with user-triggered refresh/rescore controls.
 - AI Studio providers: Next.js API routes under `/api/fal/*` proxy Fal queue requests (server-side `FAL_KEY` required), including the Seedream 4.5 edit proxy at `/api/fal/seedream-edit-submit`.
+- Local AI Studio media uploads: `/api/upload-image` and `/api/upload-video` store user-scoped files in private storage and return short-lived signed URLs for provider fetches.
 - Billing/credits: Supabase-backed plan/profile/credit ledger model with Stripe-ready checkout, portal, and webhook routes.
 - Ops telemetry: authenticated app/runtime failures can be ingested at `/api/log/client-error` and viewed via `/api/admin/errors`.
 

@@ -9,6 +9,7 @@ type AgentSendButtonProps = {
   onClick: () => void;
   disabled?: boolean;
   ariaLabel?: string;
+  label?: string;
   className?: string;
 };
 
@@ -16,6 +17,7 @@ export function AgentSendButton({
   onClick,
   disabled = false,
   ariaLabel = "Send to agent",
+  label,
   className = "",
 }: AgentSendButtonProps) {
   return (
@@ -27,6 +29,7 @@ export function AgentSendButton({
       aria-label={ariaLabel}
     >
       <PaperPlaneTilt size={18} weight="bold" aria-hidden />
+      {label ? <span className="agent-send-prefab-label">{label}</span> : null}
     </button>
   );
 }

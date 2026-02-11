@@ -3,9 +3,58 @@
  * Light, card-based layout with emphasis on failures and credit visibility.
  */
 .adminPage {
+  /* Admin-local palette (warmer than the core app) */
+  --admin-text: #f1e8dc;
+  --admin-text-strong: #fff7ed;
+  --admin-text-muted: rgba(241, 232, 220, 0.74);
+  --admin-text-faint: rgba(241, 232, 220, 0.56);
+
+  /* Desaturated gray surfaces for containers/rows. */
+  --admin-surface-1: rgba(18, 20, 24, 0.9);
+  --admin-surface-2: rgba(24, 26, 31, 0.92);
+  --admin-surface-3: rgba(30, 33, 39, 0.9);
+
+  --admin-border: rgba(201, 205, 214, 0.16);
+  --admin-border-soft: rgba(201, 205, 214, 0.1);
+  --admin-border-strong: rgba(201, 205, 214, 0.22);
+
+  --admin-accent: rgba(245, 185, 66, 0.95);
+  --admin-accent-soft: rgba(245, 185, 66, 0.18);
+  --admin-accent-soft-2: rgba(245, 185, 66, 0.28);
+  --admin-focus: rgba(245, 185, 66, 0.7);
+
   max-width: 1400px;
   padding: 18px 24px 32px;
-  color: #dbe5f5;
+  color: var(--admin-text);
+}
+
+.adminPage :global(.eyebrow) {
+  color: var(--admin-text-faint);
+}
+
+.adminPage :global(.subdued) {
+  color: var(--admin-text-muted);
+}
+
+.adminPage button:focus-visible,
+.adminPage a:focus-visible,
+.adminPage input:focus-visible,
+.adminPage select:focus-visible,
+.adminPage :global(.ghost-btn):focus-visible {
+  outline: 2px solid var(--admin-focus);
+  outline-offset: 2px;
+}
+
+.adminPage :global(.ghost-btn),
+.adminPage :global(.ghost-btn.mini) {
+  background: rgba(245, 231, 213, 0.04);
+  border-color: var(--admin-border-strong);
+  color: var(--admin-text-strong);
+}
+
+.adminPage :global(.ghost-btn:hover),
+.adminPage :global(.ghost-btn.mini:hover) {
+  border-color: var(--admin-focus);
 }
 
 .adminHeader {
@@ -19,7 +68,7 @@
 .adminTitle {
   margin: 4px 0;
   font-size: 24px;
-  color: #f5f9ff;
+  color: var(--admin-text-strong);
 }
 
 .adminUserPill {
@@ -28,8 +77,8 @@
   gap: 8px;
   padding: 10px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(201, 205, 214, 0.16);
-  background: rgba(18, 22, 30, 0.9);
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-1);
   font-weight: 600;
 }
 
@@ -41,21 +90,25 @@
 }
 
 .adminCard {
-  background: linear-gradient(135deg, rgba(22, 26, 34, 0.92), rgba(18, 22, 30, 0.92));
-  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: linear-gradient(135deg, var(--admin-surface-2), var(--admin-surface-1));
+  border: 1px solid var(--admin-border-soft);
   border-radius: 14px;
   padding: 14px;
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
 }
 
 .alert {
-  border-color: rgba(241, 84, 84, 0.5);
-  background: linear-gradient(135deg, rgba(42, 16, 16, 0.9), rgba(26, 14, 16, 0.9));
+  border-color: rgba(241, 84, 84, 0.55);
+  background:
+    radial-gradient(80% 120% at 15% 0%, rgba(241, 84, 84, 0.09), transparent 62%),
+    linear-gradient(135deg, rgba(42, 16, 16, 0.9), rgba(26, 14, 16, 0.9));
 }
 
 .warning {
-  border-color: rgba(255, 195, 113, 0.55);
-  background: linear-gradient(135deg, rgba(38, 27, 10, 0.9), rgba(26, 19, 10, 0.9));
+  border-color: rgba(245, 185, 66, 0.6);
+  background:
+    radial-gradient(80% 120% at 15% 0%, rgba(245, 185, 66, 0.12), transparent 62%),
+    linear-gradient(135deg, rgba(38, 27, 10, 0.9), rgba(26, 19, 10, 0.9));
 }
 
 .adminCardTop {
@@ -69,28 +122,28 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: rgba(219, 229, 245, 0.7);
+  color: var(--admin-text-muted);
 }
 
 .adminMetric {
   margin: 6px 0 2px;
   font-size: 28px;
   font-weight: 800;
-  color: #f5f9ff;
+  color: var(--admin-text-strong);
 }
 
 .adminSubtext {
   margin: 0;
   font-size: 12px;
-  color: rgba(219, 229, 245, 0.7);
+  color: var(--admin-text-muted);
 }
 
 .adminSection {
   margin-top: 16px;
   padding: 14px;
   border-radius: 14px;
-  border: 1px solid rgba(201, 205, 214, 0.12);
-  background: rgba(18, 22, 30, 0.9);
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-1);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
 }
 
@@ -117,7 +170,7 @@
 
 .adminTableHead {
   font-size: 12px;
-  color: rgba(219, 229, 245, 0.7);
+  color: var(--admin-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -125,20 +178,20 @@
 .adminTableRow {
   padding: 10px 8px;
   border-radius: 10px;
-  background: rgba(26, 30, 40, 0.9);
-  border: 1px solid rgba(201, 205, 214, 0.08);
+  background: var(--admin-surface-3);
+  border: 1px solid var(--admin-border-soft);
 }
 
 .severityHigh {
-  border-color: rgba(241, 84, 84, 0.5);
+  border-color: rgba(241, 84, 84, 0.55);
 }
 
 .severityMedium {
-  border-color: rgba(255, 195, 113, 0.45);
+  border-color: rgba(245, 185, 66, 0.5);
 }
 
 .severityLow {
-  border-color: rgba(74, 201, 255, 0.32);
+  border-color: rgba(245, 231, 213, 0.26);
 }
 
 .adminTableRow span {
@@ -158,9 +211,9 @@
 }
 
 .pillOk {
-  background: rgba(79, 201, 156, 0.18);
-  color: #b7ffe1;
-  border: 1px solid rgba(79, 201, 156, 0.4);
+  background: var(--admin-accent-soft);
+  color: #ffe7be;
+  border: 1px solid rgba(245, 185, 66, 0.42);
 }
 
 .pillWarn {
@@ -178,9 +231,9 @@
 .tabButton {
   padding: 8px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(201, 205, 214, 0.16);
-  background: rgba(18, 22, 30, 0.9);
-  color: #dbe5f5;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-1);
+  color: var(--admin-text);
   cursor: pointer;
   transition:
     border-color 0.12s ease,
@@ -188,14 +241,14 @@
 }
 
 .tabButton:hover {
-  border-color: rgba(37, 169, 191, 0.6);
+  border-color: var(--admin-focus);
   transform: translateY(-1px);
 }
 
 .tabActive {
-  border-color: rgba(37, 169, 191, 0.8);
-  background: linear-gradient(135deg, rgba(37, 169, 191, 0.2), rgba(37, 169, 191, 0.35));
-  color: #f5f9ff;
+  border-color: rgba(245, 185, 66, 0.78);
+  background: linear-gradient(135deg, var(--admin-accent-soft), var(--admin-accent-soft-2));
+  color: var(--admin-text-strong);
 }
 
 .searchRow {
@@ -210,14 +263,14 @@
   flex: 1;
   padding: 8px 10px;
   border-radius: 10px;
-  border: 1px solid rgba(201, 205, 214, 0.16);
-  background: rgba(18, 22, 30, 0.9);
-  color: #f5f9ff;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-1);
+  color: var(--admin-text-strong);
 }
 
 .searchInput:focus {
   outline: none;
-  border-color: rgba(37, 169, 191, 0.7);
+  border-color: var(--admin-focus);
 }
 
 .filterGrid {
@@ -237,7 +290,7 @@
 
 .adminErrorsHead {
   font-size: 12px;
-  color: rgba(219, 229, 245, 0.7);
+  color: var(--admin-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -245,8 +298,8 @@
 .adminErrorsRow {
   padding: 10px 8px;
   border-radius: 10px;
-  background: rgba(26, 30, 40, 0.9);
-  border: 1px solid rgba(201, 205, 214, 0.08);
+  background: var(--admin-surface-3);
+  border: 1px solid var(--admin-border-soft);
 }
 
 .adminErrorsRow span {

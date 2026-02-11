@@ -2,7 +2,7 @@
  * Auto-resizing textarea prefab used across agent/chat surfaces.
  * Keeps sizing + padding consistent while remaining drop-in.
  */
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useImperativeHandle, useRef } from "react";
 
 type AgentInputBarProps = {
   value: string;
@@ -13,36 +13,45 @@ type AgentInputBarProps = {
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 };
 
-export function AgentInputBar({
-  value,
-  onChange,
-  placeholder,
-  disabled = false,
-  className = "",
-  onKeyDown,
-}: AgentInputBarProps) {
-  const ref = useRef<HTMLTextAreaElement>(null);
+export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBarProps>(
+  function AgentInputBar(
+    {
+      value,
+      onChange,
+      placeholder,
+      disabled = false,
+      className = "",
+      onKeyDown,
+    }: AgentInputBarProps,
+    forwardedRef
+  ) {
+    const localRef = useRef<HTMLTextAreaElement | null>(null);
 
-  useEffect(() => {
-    const textarea = ref.current;
-    if (!textarea) return;
-    textarea.style.height = "auto";
-    const maxHeight = 120;
-    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
-  }, [value]);
+    useImperativeHandle(forwardedRef, () => localRef.current as HTMLTextAreaElement, []);
 
-  return (
-    <div className={`agent-input-prefab ${className}`.trim()}>
-      <textarea
-        className="agent-input-prefab-field"
-        rows={2}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        disabled={disabled}
-        ref={ref}
-      />
-    </div>
-  );
-}
+    useEffect(() => {
+      const textarea = localRef.current;
+      if (!textarea) return;
+      textarea.style.height = "auto";
+      const maxHeight = 120;
+      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+    }, [value]);
+
+    return (
+      <div className={`agent-input-prefab ${className}`.trim()}>
+        <textarea
+          className="agent-input-prefab-field"
+          rows={2}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          ref={localRef}
+        />
+      </div>
+    );
+  }
+);
+
+AgentInputBar.displayName = "AgentInputBar";

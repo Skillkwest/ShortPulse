@@ -37,27 +37,51 @@ export const aspectOptions: AspectOption[] = [
   { value: "9:16", ratioLabel: "9:16", name: "Vertical", orientation: "vertical" },
   { value: "4:5", ratioLabel: "4:5", name: "Social Post", orientation: "vertical" },
   { value: "3:4", ratioLabel: "3:4", name: "Traditional", orientation: "vertical" },
+  { value: "2:3", ratioLabel: "2:3", name: "Poster", orientation: "vertical" },
   { value: "1:1", ratioLabel: "1:1", name: "Square", orientation: "square" },
+  { value: "5:4", ratioLabel: "5:4", name: "Photo", orientation: "horizontal" },
   { value: "4:3", ratioLabel: "4:3", name: "Classic", orientation: "horizontal" },
   { value: "3:2", ratioLabel: "3:2", name: "Standard", orientation: "horizontal" },
   { value: "16:9", ratioLabel: "16:9", name: "Landscape", orientation: "widescreen" },
-  { value: "21:9", ratioLabel: "21:9", name: "Ultrawide", orientation: "widescreen" },
-  { value: "9:21", ratioLabel: "9:21", name: "Ultra Tall", orientation: "vertical" },
 ];
 
 // When you add/remove image models here, update `docs/sop_image_generation.md` → "Supported image models".
 export const modelOptions: ModelOption[] = [
-  { value: "fal-ai/kling-video/v3/pro/text-to-video", label: "Kling 3.0 (Text to Video)", mediaType: "video" },
-  { value: "fal-ai/kling-video/v3/pro/image-to-video", label: "Kling 3.0 (Start/End Frame)", mediaType: "image-to-video" },
-  { value: "fal-ai/kling-video/v2.6/pro/motion-control", label: "Kling 2.6 Motion Control", mediaType: "image-to-video" },
-  { value: "fal-ai/veo3.1/first-last-frame-to-video", label: "Veo 3.1 (First/Last Frame)", mediaType: "keyframes" },
-  { value: "fal-ai/veo3.1/image-to-video", label: "Veo 3.1 (Image to Video)", mediaType: "image-to-video" },
+  {
+    value: "fal-ai/kling-video/v3/pro/text-to-video",
+    label: "Kling 3.0 (Text to Video)",
+    mediaType: "video",
+  },
+  {
+    value: "fal-ai/kling-video/v3/pro/image-to-video",
+    label: "Kling 3.0 (Start/End Frame)",
+    mediaType: "image-to-video",
+  },
+  {
+    value: "fal-ai/kling-video/v2.6/pro/motion-control",
+    label: "Kling 2.6 Motion Control",
+    mediaType: "image-to-video",
+  },
+  {
+    value: "fal-ai/veo3.1/first-last-frame-to-video",
+    label: "Veo 3.1 (First/Last Frame)",
+    mediaType: "keyframes",
+  },
+  {
+    value: "fal-ai/veo3.1/image-to-video",
+    label: "Veo 3.1 (Image to Video)",
+    mediaType: "image-to-video",
+  },
   {
     value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
     label: "Seedance 1.5 Pro (Image to Video)",
     mediaType: "image-to-video",
   },
-  { value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video", label: "Seedance 1.5 Pro", mediaType: "video" },
+  {
+    value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+    label: "Seedance 1.5 Pro",
+    mediaType: "video",
+  },
   { value: "fal-ai/veo3.1", label: "Google Veo 3.1", mediaType: "video" },
   { value: "fal-ai/sora-2/text-to-video/pro", label: "Sora 2 Pro", mediaType: "video" },
   { value: "fal/flux-2-pro/edit", label: "FLUX.2 Pro Edit", mediaType: "image" },
@@ -70,11 +94,14 @@ export const modelOptions: ModelOption[] = [
   { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
   { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro Edit", mediaType: "image" },
   { value: "fal-ai/bytedance/seedream/v4.5/edit", label: "Seedream 4.5 Edit", mediaType: "image" },
-  { value: "fal-ai/bytedance/seedream/v4.5/text-to-image", label: "Seedream 4.5", mediaType: "image" },
+  {
+    value: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+    label: "Seedream 4.5",
+    mediaType: "image",
+  },
 ];
 
 export const falNanoBananaAllowedAspects = new Set([
-  "21:9",
   "16:9",
   "3:2",
   "4:3",
@@ -88,7 +115,6 @@ export const falNanoBananaAllowedAspects = new Set([
 ]);
 
 export const falNanoBananaProAllowedAspects = new Set([
-  "21:9",
   "16:9",
   "3:2",
   "4:3",

@@ -84,6 +84,22 @@
   overflow: hidden;
 }
 
+.reference-card.is-loading {
+  background: var(--ai-container-card-bg);
+  border: 1px solid var(--ai-container-card-border);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  transform: none;
+}
+
+.reference-card.is-loading:hover {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  transform: none;
+}
+
+.reference-card.is-loading .reference-loading {
+  background: transparent;
+}
+
 .reference-card:hover {
   background-color: rgba(25, 29, 38, 0.95);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
@@ -99,7 +115,7 @@
 .reference-card.is-active {
   border: 3px dashed rgb(0, 255, 247);
   background-color: rgb(0, 171, 201);
-  box-shadow: 
+  box-shadow:
     0 10px 40px rgba(0, 255, 251, 0.317),
     0 0 0 2px rgb(0, 217, 255);
   transform: translateY(-1px);
@@ -117,18 +133,35 @@
   z-index: 2;
 }
 
+.reference-card.is-loading.is-active {
+  background: var(--ai-container-card-bg);
+  border: 1px dashed rgba(201, 205, 214, 0.42);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(201, 205, 214, 0.2);
+}
+
+.reference-card.is-loading.is-active::after {
+  border-color: rgba(201, 205, 214, 0.35);
+  box-shadow: 0 0 0 2px rgba(201, 205, 214, 0.16);
+}
+
 .reference-card .reference-describe-pill {
   position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
+  left: 14px;
+  right: 14px;
+  bottom: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   padding: 8px 10px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--ai-accent-start, rgba(52, 200, 255, 0.9)), var(--ai-accent, rgba(37, 169, 191, 0.95)));
+  background: linear-gradient(
+    135deg,
+    var(--ai-accent-start, rgba(52, 200, 255, 0.9)),
+    var(--ai-accent, rgba(37, 169, 191, 0.95))
+  );
   color: #0b1820;
   font-weight: 800;
   font-size: 12px;
@@ -136,32 +169,54 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 20px rgba(37, 169, 191, 0.35);
   opacity: 0;
-  transition: opacity 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    opacity 0.16s ease,
+    box-shadow 0.16s ease;
   z-index: 3;
 }
 
 .reference-card .reference-generate-pill {
   position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--ai-accent-start, rgba(52, 200, 255, 0.9)), var(--ai-accent, rgba(37, 169, 191, 0.95)));
-  color: #0b1820;
-  font-weight: 800;
-  font-size: 12px;
-  line-height: 1.1;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 20px rgba(37, 169, 191, 0.35);
+  left: 14px;
+  right: 14px;
+  bottom: 12px;
   opacity: 0;
-  transition: opacity 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    opacity 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.12s ease;
   z-index: 3;
   pointer-events: none;
+}
+
+.reference-card .reference-generate-pill.agent-generate-prefab {
+  padding: 9px 25px;
+  border-radius: 12px;
+  gap: 6px;
+  box-shadow: 0 4px 1px rgba(37, 169, 191, 0.35);
+}
+
+.reference-card .reference-generate-pill.agent-generate-prefab .agent-generate-label {
+  font-size: 12px;
+  flex: 0 1 auto;
+  text-align: left;
+}
+
+.reference-card .reference-generate-pill.agent-generate-prefab .generate-pill .model-chip-icon {
+  font-size: 14px;
+}
+
+.reference-card .reference-generate-pill.agent-generate-prefab .generate-pill .model-chip-credits {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.reference-card
+  .reference-generate-pill.agent-generate-prefab
+  .generate-pill
+  .model-chip-credits-label {
+  font-size: 12px;
+  letter-spacing: 0.04em;
 }
 
 .reference-pill-label {
@@ -186,26 +241,6 @@
 .reference-card.is-active .reference-generate-pill {
   opacity: 1;
   pointer-events: auto;
-}
-
-.reference-card .reference-generate-pill:hover {
-  box-shadow: 0 14px 30px rgba(37, 169, 191, 0.45);
-}
-
-.reference-card .reference-generate-pill:disabled {
-  opacity: 0.85;
-  cursor: not-allowed;
-  border-color: rgba(255, 255, 255, 0.14);
-  background: linear-gradient(180deg, rgba(78, 86, 104, 0.55), rgba(46, 52, 66, 0.65));
-  color: rgba(231, 236, 245, 0.7);
-  box-shadow: none;
-  transform: none;
-}
-
-.reference-card .reference-generate-pill:disabled .reference-pill-cost {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(12, 18, 26, 0.14);
-  color: rgba(231, 236, 245, 0.7);
 }
 
 .reference-card .reference-generate-pill:focus-visible {
@@ -255,7 +290,12 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
-  transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    transform 0.14s ease,
+    box-shadow 0.14s ease,
+    color 0.14s ease;
 }
 
 .reference-card-action-btn:hover {
@@ -307,6 +347,18 @@
   object-fit: cover;
   z-index: 0;
   border-radius: inherit;
+}
+
+.reference-card-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .reference-card-text {

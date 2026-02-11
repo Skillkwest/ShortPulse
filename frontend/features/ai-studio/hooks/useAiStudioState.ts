@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  aspectOptions,
   falNanoBananaAllowedAspects,
   falNanoBananaProAllowedAspects,
   modelOptions,
@@ -34,7 +35,6 @@ import {
   submitFalSoraPro,
 } from "../../../lib/falClient";
 import { DEFAULT_KLING_DURATION_SECONDS, falSizeForAspect, getModelConfig } from "../logic/pricing";
-import { prepareImageUrl } from "../logic/imageDescription";
 import type { AgentContext, AgentMediaPreview, AgentReferenceSummary } from "../../ai-agent/types";
 import {
   Provider,
@@ -57,6 +57,7 @@ import {
   isSeedreamAutoImageSize,
   normalizeNanoBananaProResolution,
 } from "../logic/imageResolution";
+import { prepareImageUrlForSubmission } from "../utils/imageUpload";
 import {
   createGenerationRecord,
   logMediaEvent,
@@ -65,11 +66,14 @@ import {
   updateGenerationRecord,
 } from "../logic/mediaLibraryPersistence";
 import { useAiStudioTasks } from "./useAiStudioTasks";
+import { normalizeErrorText } from "../../../lib/errorText";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
 const KEYFRAME_COMPATIBLE_MODELS = new Set(["fal-ai/veo3.1/first-last-frame-to-video"]);
 
 type ModelModalPosition = { top: number; left: number };
+
+const allowedUiAspects = new Set(aspectOptions.map((opt) => opt.value));
 
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
@@ -92,6 +96,21 @@ export const useAiStudioState = () => {
   useEffect(() => {
     outputsRef.current = outputs;
   }, [outputs]);
+
+  // Keep aspect ratio aligned with the UI dropdown choices.
+  // This also migrates away from legacy "Ultra Wide" (21:9) / "Ultra Tall" (9:21) selections.
+  useEffect(() => {
+    if (allowedUiAspects.has(aspect)) return;
+    if (aspect === "21:9") {
+      setAspect("16:9");
+      return;
+    }
+    if (aspect === "9:21") {
+      setAspect("9:16");
+      return;
+    }
+    setAspect("9:16");
+  }, [aspect]);
 
   // UI selections and references (tracked per workflow)
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
@@ -715,6 +734,14 @@ export const useAiStudioState = () => {
 
   const notifyGenerationFailure = useCallback(
     (outputId: string, message: string, detail?: string) => {
+      const safeMessage = normalizeErrorText(message, {
+        fallback: "Generation failed",
+        maxLength: 140,
+      });
+      const safeDetail = normalizeErrorText(detail ?? message, {
+        fallback: safeMessage,
+        maxLength: 320,
+      });
       let contextLabel: string | null = null;
       setOutputs((prev) =>
         prev.map((item) => {
@@ -725,14 +752,14 @@ export const useAiStudioState = () => {
             taskState: "fail",
             status: "ready",
             timestamp: "Failed",
-            errorMessage: message,
-            errorMessageShort: message,
-            errorDetail: detail ?? message,
+            errorMessage: safeMessage,
+            errorMessageShort: safeMessage,
+            errorDetail: safeDetail,
           };
         })
       );
       const label = contextLabel ?? "Generation";
-      const detailMessage = detail ?? message;
+      const detailMessage = safeDetail;
       setUiError(
         detailMessage ? `${label} failed: ${detailMessage}` : `${label} failed to complete.`
       );
@@ -997,11 +1024,12 @@ export const useAiStudioState = () => {
         ? videoGenerateAudio
         : (modelConfig?.defaultAudio ?? true);
 
-      // Normalize image inputs (supports blob/data URLs from drops).
+      // Normalize image inputs for provider submission.
+      // Local blob/data URLs are uploaded and converted to signed HTTPS URLs.
       const preparedImageInputs = (
         await Promise.all(
           imageInputs.map(async (url) => {
-            const normalized = await prepareImageUrl(url);
+            const normalized = await prepareImageUrlForSubmission(url);
             return normalized ?? null;
           })
         )

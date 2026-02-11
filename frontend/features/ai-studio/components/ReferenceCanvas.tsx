@@ -183,10 +183,6 @@ export function ReferenceCanvas({
               const isVideoPreview = item.previewUrl ? isVideoUrl(item.previewUrl) : false;
               const isImagePreview = item.previewUrl ? !isVideoPreview : false;
               const isPromptOnly = !item.previewUrl && !!item.previewText;
-              const cardStyle =
-                !isVideoPreview && item.previewUrl
-                  ? { backgroundImage: `url(${item.previewUrl})` }
-                  : undefined;
               const saveDisabled = item.saveState === "saving";
               const saveLabel =
                 item.saveState === "failed" ? "Retry save" : "Save to media library";
@@ -199,9 +195,10 @@ export function ReferenceCanvas({
               return (
                 <div
                   key={item.id}
-                  className={`reference-card ${item.previewUrl ? "has-preview" : ""} ${isVideoPreview ? "has-video" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""}`}
-                  style={cardStyle}
+                  className={`reference-card ${item.previewUrl ? "has-preview" : ""} ${isVideoPreview ? "has-video" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""} ${showSpinner ? "is-loading" : ""}`}
                   role="button"
+                  aria-busy={showSpinner}
+                  data-loading={showSpinner ? "true" : "false"}
                   tabIndex={0}
                   onClick={() => onSelectOutput(item.id)}
                   onKeyDown={(event) => {
@@ -226,6 +223,18 @@ export function ReferenceCanvas({
                       loop
                       playsInline
                       onLoadedData={() => markLoaded(item.id)}
+                    />
+                  ) : null}
+                  {isImagePreview && item.previewUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.previewUrl}
+                      alt=""
+                      className="reference-card-image"
+                      loading="lazy"
+                      decoding="async"
+                      onLoad={() => markLoaded(item.id)}
+                      onError={() => markLoaded(item.id)}
                     />
                   ) : null}
                   {isFailing ? (
@@ -314,19 +323,6 @@ export function ReferenceCanvas({
                       ) : null}
                     </div>
                   ) : null}
-                  {!isVideoPreview && item.previewUrl ? (
-                    <>
-                      {/* Reference previews can be generated URLs, signed URLs, or blob/data URLs. */}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={item.previewUrl}
-                        alt=""
-                        className="reference-preload"
-                        onLoad={() => markLoaded(item.id)}
-                        onError={() => markLoaded(item.id)}
-                      />
-                    </>
-                  ) : null}
                   {item.previewText ? (
                     <div className="reference-card-text">{item.previewText}</div>
                   ) : null}
@@ -349,15 +345,15 @@ export function ReferenceCanvas({
                       </span>
                     </button>
                   ) : null}
-                  {isPromptOnly && onGeneratePrompt && activeOutputId === item.id ? (
+                  {isPromptOnly &&
+                  onGeneratePrompt &&
+                  activeOutputId === item.id &&
+                  !disablePromptGenerate ? (
                     <button
                       type="button"
-                      className="reference-generate-pill"
-                      disabled={disablePromptGenerate}
-                      aria-disabled={disablePromptGenerate}
+                      className="reference-generate-pill agent-generate-prefab"
                       onClick={(event) => {
                         event.stopPropagation();
-                        if (disablePromptGenerate) return;
                         onSelectOutput(item.id);
                         onGeneratePrompt(item);
                       }}
@@ -365,12 +361,14 @@ export function ReferenceCanvas({
                         event.stopPropagation();
                       }}
                     >
-                      <span className="reference-pill-label">
-                        <Sparkle size={14} weight="fill" aria-hidden />
-                        <span>Generate</span>
-                        {typeof generateCostCredits === "number" ? (
-                          <span className="reference-pill-cost">+{generateCostCredits}</span>
-                        ) : null}
+                      <span className="agent-generate-label">Generate</span>
+                      <span className="model-chip-pill generate-pill">
+                        <span aria-hidden="true" className="model-chip-icon">
+                          ✦
+                        </span>
+                        <span className="model-chip-credits">
+                          {generateCostCredits != null ? generateCostCredits : "—"}
+                        </span>
                       </span>
                     </button>
                   ) : null}

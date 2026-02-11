@@ -527,6 +527,12 @@ export function AiStudioPageContent({
                     </div>
                     <AgentChatPanel
                       messages={agentChat.agentMessages}
+                      introMessage={{
+                        id: "agent-intro",
+                        role: "system",
+                        content:
+                          "Hey, I'm your studio agent. Tell me what you want to create (subject, style, mood, framing) and I'll turn it into a generation-ready prompt.",
+                      }}
                       input={agentChat.agentInput}
                       sendLabel="Send"
                       isSending={agentChat.agentIsSending}

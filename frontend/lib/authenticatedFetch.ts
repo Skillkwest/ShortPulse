@@ -4,6 +4,7 @@
  */
 import { ensureSupabaseClient } from "./supabaseClient";
 import { reportAppError } from "./appErrorReporter";
+import { addBreadcrumb, redactUrlForTelemetry } from "./clientBreadcrumbs";
 
 type ShortPulseFetchInit = RequestInit & {
   shortpulseLogScope?: "app" | "generation";
@@ -80,11 +81,27 @@ export const fetchWithAuth = async (
   const requestInit: RequestInit = { ...(init ?? {}) };
   delete (requestInit as ShortPulseFetchInit).shortpulseLogScope;
   delete (requestInit as ShortPulseFetchInit).shortpulseSkipErrorLogging;
+  const startedAt = Date.now();
+  const method = (requestInit.method ?? "GET").toString().toUpperCase();
+  const breadcrumbEndpoint = redactUrlForTelemetry(endpoint);
 
   try {
     const response = await fetch(input, {
       ...requestInit,
       headers,
+    });
+
+    addBreadcrumb({
+      type: "network",
+      level: response.ok ? "info" : response.status >= 500 ? "error" : "warn",
+      message: "fetch",
+      data: {
+        method,
+        endpoint: breadcrumbEndpoint,
+        status: response.status,
+        duration_ms: Date.now() - startedAt,
+        request_id: requestId,
+      },
     });
 
     if (
@@ -103,13 +120,25 @@ export const fetchWithAuth = async (
         statusCode: response.status,
         route: typeof window !== "undefined" ? window.location.pathname : null,
         metadata: {
-          method: (requestInit.method ?? "GET").toString().toUpperCase(),
+          method,
         },
       });
     }
 
     return response;
   } catch (error) {
+    addBreadcrumb({
+      type: "network",
+      level: "error",
+      message: "fetch_error",
+      data: {
+        method,
+        endpoint: breadcrumbEndpoint,
+        duration_ms: Date.now() - startedAt,
+        request_id: requestId,
+      },
+    });
+
     if (!skipErrorLogging && scope === "app" && !endpoint.includes("/api/log/client-error")) {
       void reportAppError({
         source: "client.api_network",
@@ -121,7 +150,7 @@ export const fetchWithAuth = async (
         requestId,
         route: typeof window !== "undefined" ? window.location.pathname : null,
         metadata: {
-          method: (requestInit.method ?? "GET").toString().toUpperCase(),
+          method,
         },
       });
     }

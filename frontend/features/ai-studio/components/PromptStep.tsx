@@ -111,6 +111,7 @@ export function PromptStep({
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
   );
+  const agentInputRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Chat-only overrides local mode state; otherwise beginner mode defaults to enhanced prompt mode.
   React.useEffect(() => {
@@ -135,11 +136,17 @@ export function PromptStep({
     if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
     event.preventDefault();
     onAgentSend?.();
+    // Keep focus in the composer so the user can immediately type the next message.
+    requestAnimationFrame(() => agentInputRef.current?.focus());
   };
 
   const canExpandInlineChat = agentMessages.length > 0;
   const isChatMode = chatOnly || promptMode === "chat";
   const promptThinking = Boolean(agentIsSending || isGenerating);
+  const handleAgentSendClick = () => {
+    onAgentSend?.();
+    requestAnimationFrame(() => agentInputRef.current?.focus());
+  };
   const lastAssistantMessage = React.useMemo(
     () =>
       [...agentMessages].reverse().find((message) => message.role === "assistant")?.content ?? null,
@@ -152,6 +159,16 @@ export function PromptStep({
     if (prompt === lastAssistantMessage) return;
     onPromptChange(lastAssistantMessage);
   }, [isChatMode, lastAssistantMessage, prompt, onPromptChange]);
+
+  const introMessage = React.useMemo<AgentMessage>(
+    () => ({
+      id: "agent-intro",
+      role: "system",
+      content:
+        "Hey, I'm your studio agent. Tell me what you want to create and I'll turn it into a generation ready prompt.",
+    }),
+    []
+  );
 
   return (
     <div
@@ -176,7 +193,9 @@ export function PromptStep({
         {beginnerMode && <span className="step-badge">{stepNumber}</span>}
         <div className="step-header-copy">
           <p className="step-title">{effectiveTitle}</p>
-          <span className="step-subtitle tiny helper-text">{subtitle}</span>
+          {!beginnerMode ? (
+            <span className="step-subtitle tiny helper-text">{subtitle}</span>
+          ) : null}
         </div>
         <div className="step-header-actions">
           {chatOnly ? (
@@ -290,37 +309,42 @@ export function PromptStep({
             {isChatMode ? (
               agentChatOpen ? null : (
                 <>
-                  {agentMessages.length > 0 || stagedPrompt ? (
-                    <div className="agent-chat-wrapper">
-                      <AgentChatPanel
-                        messages={agentMessages}
-                        input={agentInput}
-                        sendLabel="Send"
-                        isSending={agentIsSending}
-                        showInput={false}
-                        onInputChange={(value) => onAgentInputChange?.(value)}
-                        onSend={onAgentSend ?? (() => {})}
-                        onMessageClick={onAgentMessageClick}
-                      />
-                    </div>
-                  ) : null}
-                  <div className="step2-input-row prompt-actions-compact">
+                  <div className="agent-chat-wrapper agent-chat-wrapper--inline">
+                    <AgentChatPanel
+                      messages={agentMessages}
+                      introMessage={introMessage}
+                      input={agentInput}
+                      sendLabel="Send"
+                      isSending={agentIsSending}
+                      stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
+                      showInput={false}
+                      onInputChange={(value) => onAgentInputChange?.(value)}
+                      onSend={onAgentSend ?? (() => {})}
+                      onMessageClick={onAgentMessageClick}
+                    />
+                  </div>
+                  <div className="step2-input-row prompt-actions-compact agent-composer-row">
                     <AgentInputBar
+                      ref={agentInputRef}
                       value={agentInput}
                       onChange={(value) => onAgentInputChange?.(value)}
-                      placeholder="Tell the agent what you want to make."
-                      disabled={agentIsSending}
+                      placeholder="Message the agent..."
                       onKeyDown={handleAgentInputKeyDown}
                       className="agent-input-prefab-inline"
                     />
                     <div className="agent-inline-actions">
                       <AgentSendButton
-                        onClick={onAgentSend ?? (() => {})}
+                        onClick={handleAgentSendClick}
                         disabled={agentIsSending}
                         ariaLabel="Send to agent"
+                        label="Send"
+                        className="agent-send-prefab--labeled"
                       />
                     </div>
                   </div>
+                  <p className="tiny helper-text agent-composer-hint">
+                    Enter to send. Shift+Enter for a new line.
+                  </p>
                 </>
               )
             ) : (
@@ -329,7 +353,7 @@ export function PromptStep({
                   <div className="prompt-enhanced-wrapper">
                     {promptThinking ? (
                       <div className="prompt-thinking-overlay" aria-live="polite">
-                        <span className="prompt-thinking-text">Thinking…</span>
+                        <span className="prompt-thinking-text">Thinking...</span>
                       </div>
                     ) : null}
                     <textarea

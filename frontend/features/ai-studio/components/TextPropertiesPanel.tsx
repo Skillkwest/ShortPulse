@@ -6,8 +6,8 @@ import Image from "next/image";
 import React, { useEffect, useMemo } from "react";
 import { CaretDown } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
-import { StudioMode } from "../types";
-import { modelLogos } from "../constants";
+import { AspectOption, StudioMode } from "../types";
+import { aspectOptions, modelLogos } from "../constants";
 import type { ModelModalContext } from "./ModelModal";
 import { AgentGenerateButton } from "../../../prefabs/agent";
 import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
@@ -17,6 +17,7 @@ import {
   clampImageResolutionForModel,
   getImageResolutionOptions,
 } from "../logic/imageResolution";
+import { getModelConfig } from "../logic/modelRegistry";
 
 const PREBUILT_CHARACTER_OWNER_OPTIONS = [
   { value: "ava", label: "Ava Mercer" },
@@ -162,24 +163,27 @@ export function TextPropertiesPanel({
   imageResolution,
   onImageResolutionChange,
 }: TextPropertiesPanelProps) {
-  const promptStepNumber = "2";
+  const promptStepNumber = beginnerMode ? "1" : "2";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
-  const [selectedCharacterOwner, setSelectedCharacterOwner] = React.useState<string>(
-    PREBUILT_CHARACTER_OWNER_OPTIONS[0]?.value ?? ""
-  );
+  const modelConfig = useMemo(() => (modelId ? getModelConfig(modelId) : null), [modelId]);
+  const aspectOptionsForModel: AspectOption[] = useMemo(() => {
+    if (modelConfig?.allowedAspects?.length) {
+      return aspectOptions.filter((opt) => modelConfig.allowedAspects.includes(opt.value));
+    }
+    return aspectOptions;
+  }, [modelConfig]);
+  const [selectedCharacterOwner, setSelectedCharacterOwner] = React.useState<string>("");
   const [collapsedSteps, setCollapsedSteps] = React.useState<{
-    character: boolean;
     model: boolean;
     prompt: boolean;
     imageSettings: boolean;
   }>({
-    character: false,
     model: false,
     prompt: false,
     imageSettings: false,
   });
 
-  const toggleStep = (step: "character" | "model" | "prompt" | "imageSettings") => {
+  const toggleStep = (step: "model" | "prompt" | "imageSettings") => {
     setCollapsedSteps((prev) => ({ ...prev, [step]: !prev[step] }));
     onStepActionClick?.(step);
   };
@@ -189,7 +193,7 @@ export function TextPropertiesPanel({
     onModelPickerOpen("create-model", event.currentTarget, context);
   };
 
-  const expandIfCollapsed = (step: "character" | "model" | "prompt" | "imageSettings") => {
+  const expandIfCollapsed = (step: "model" | "prompt" | "imageSettings") => {
     setCollapsedSteps((prev) => {
       if (!prev[step]) {
         return prev;
@@ -220,60 +224,45 @@ export function TextPropertiesPanel({
 
   return (
     <div className="tool-properties text-properties-panel">
-      <div className="tool-header">
-        <p className="eyebrow">Text</p>
-        <p className="subdued tiny helper-text">Generate new content using text prompts.</p>
-      </div>
-      <div
-        className={`step-card ${collapsedSteps.character ? "is-collapsed" : ""}`}
-        onClick={() => expandIfCollapsed("character")}
-        role="group"
-        aria-label="Choose character section"
-      >
-        <div className="step-card-header">
-          {beginnerMode && <span className="step-badge">1</span>}
-          <div className="step-header-copy">
-            <p className="step-title">Choose character</p>
-            <span className="step-subtitle tiny helper-text">
-              Select a user with pre-created character profiles.
-            </span>
-          </div>
-          {!beginnerMode ? (
-            <div className="step-header-actions">
-              <StepHeaderActionButton
-                label="Open character selection"
-                isCollapsed={collapsedSteps.character}
-                onClick={() => toggleStep("character")}
-              />
-            </div>
-          ) : null}
-        </div>
-        {!collapsedSteps.character ? (
-          <div className="create-controls character-selection-controls">
-            <div className="control-row compact fixed-select character-owner-select">
-              <label className="input-label">Character owner</label>
-              <span className="tiny helper-text character-owner-subtitle">
-                Pre-created character collections
+      {!beginnerMode ? (
+        <div
+          className="step-card character-step-card"
+          role="group"
+          aria-label="Choose character section"
+        >
+          <div className="step-card-header">
+            <div className="step-header-copy">
+              <p className="step-title">Choose Character</p>
+              <span className="step-subtitle tiny helper-text">
+                Select a user with pre-created character profiles.
               </span>
-              <select
-                className="model-select"
-                value={selectedCharacterOwner}
-                onChange={(event) => setSelectedCharacterOwner(event.target.value)}
-              >
-                {PREBUILT_CHARACTER_OWNER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+            </div>
+            <div className="step-header-actions">
+              <div className="fixed-select character-owner-header">
+                <select
+                  className="model-select character-owner-header-select"
+                  aria-label="Character owner"
+                  value={selectedCharacterOwner}
+                  onChange={(event) => setSelectedCharacterOwner(event.target.value)}
+                >
+                  <option value="" disabled>
+                    Choose Character
                   </option>
-                ))}
-              </select>
+                  {PREBUILT_CHARACTER_OWNER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       <PromptStep
         stepNumber={promptStepNumber}
-        title="Write your prompt"
-        subtitle="Start typing your prompt or drag & drop a prompt from the reference grid."
+        title="Build Your Prompt"
+        subtitle="Describe what you want to make. Enter to send, Shift+Enter for a new line."
         prompt={prompt}
         onPromptChange={onPromptChange}
         agentEnabled={agentEnabled}
@@ -307,11 +296,11 @@ export function TextPropertiesPanel({
         aria-label="Choose frame and model section"
       >
         <div className="step-card-header">
-          {beginnerMode && <span className="step-badge">3</span>}
+          {beginnerMode && <span className="step-badge">2</span>}
           <div className="step-header-copy">
-            <p className="step-title">Choose frame & model</p>
+            <p className="step-title">Choose Frame & Model</p>
             <span className="step-subtitle tiny helper-text">
-              Set the aspect ratio, then select the model.
+              Select the model, then choose the aspect ratio.
             </span>
           </div>
           {!beginnerMode ? (
@@ -325,11 +314,7 @@ export function TextPropertiesPanel({
           ) : null}
         </div>
         {!collapsedSteps.model ? (
-          <div className="create-controls dual-controls frame-model-controls">
-            <div className="control-row compact">
-              <label className="input-label">Aspect ratio</label>
-              <AspectDropdown aspect={aspect} onSelect={onAspectChange} />
-            </div>
+          <div className="create-controls frame-model-controls">
             <div className="control-row compact">
               <label className="input-label">Model</label>
               <button
@@ -350,10 +335,18 @@ export function TextPropertiesPanel({
                         height={20}
                       />
                     ) : null}
-                    {modelLabel}
+                    <span className="model-picker-name">{modelLabel}</span>
                   </span>
                 </div>
               </button>
+            </div>
+            <div className="control-row compact">
+              <label className="input-label">Aspect ratio</label>
+              <AspectDropdown
+                aspect={aspect}
+                onSelect={onAspectChange}
+                options={aspectOptionsForModel}
+              />
             </div>
           </div>
         ) : null}
@@ -367,7 +360,7 @@ export function TextPropertiesPanel({
         >
           <div className="step-card-header">
             <div className="step-header-copy">
-              <p className="step-title">Choose image resolution</p>
+              <p className="step-title">Choose Image Resolution</p>
               <span className="step-subtitle tiny helper-text">
                 Select the model-specific image resolution setting.
               </span>
@@ -418,7 +411,7 @@ export function ComposeSendCard({
   return (
     <div className="step-card prompt-step generate-step-card">
       <div className="step-card-header">
-        {beginnerMode && <span className="step-badge">4</span>}
+        {beginnerMode && <span className="step-badge">3</span>}
         <div className="step-header-copy">
           {beginnerMode ? <p className="step-title">Generate</p> : null}
           <span className="step-subtitle tiny helper-text">

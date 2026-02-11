@@ -3,8 +3,12 @@
  * Step cards, toggles, and aspect/model selectors.
  */
 .ai-panel .primary-btn {
-  background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.8));
-  border-color: rgba(245, 185, 66, 0.6);
+  background: linear-gradient(
+    135deg,
+    var(--ai-warm-start, rgba(245, 185, 66, 0.9)),
+    var(--ai-warm-end, rgba(255, 140, 66, 0.8))
+  );
+  border-color: var(--ai-warm-border, rgba(245, 185, 66, 0.6));
   color: #1a140c;
   padding: 14px 20px;
   font-size: 19px;
@@ -44,7 +48,7 @@
   padding: 8px 36px 8px 12px;
   border-radius: 10px;
   border: 1px solid transparent;
-  background: rgba(12, 15, 22, 0.9);
+  background: var(--ai-surface-control, rgba(12, 15, 22, 0.9));
   color: #eef2f7;
   cursor: pointer;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
@@ -100,8 +104,8 @@
   bottom: calc(100% + 6px);
   left: 0;
   right: 0;
-  background: rgba(12, 15, 22, 0.96);
-  border: 1px solid rgba(201, 205, 214, 0.18);
+  background: var(--ai-surface-control-popover, rgba(12, 15, 22, 0.96));
+  border: 1px solid var(--ai-border-medium, rgba(201, 205, 214, 0.18));
   border-radius: 10px;
   padding: 6px;
   display: flex;
@@ -134,31 +138,31 @@
 
 .aspect-menu-item:hover {
   background: rgba(36, 40, 48, 0.7);
-  border-color: rgba(201, 205, 214, 0.18);
+  border-color: var(--ai-border-medium, rgba(201, 205, 214, 0.18));
 }
 
 .aspect-menu-item.is-active {
   background: rgba(37, 169, 191, 0.12);
-  border-color: rgba(37, 169, 191, 0.4);
+  border-color: var(--ai-accent-soft, rgba(37, 169, 191, 0.4));
   color: #f7fafc;
   box-shadow: inset 0 0 0 1px rgba(37, 169, 191, 0.3);
 }
 
 .ai-studio-page .aspect-trigger:hover {
-  border-color: var(--ai-accent, rgba(37, 169, 191, 0.6));
+  border-color: var(--ai-accent, var(--ai-accent-medium, rgba(37, 169, 191, 0.6)));
   transform: translateY(-1px);
   box-shadow: 0 12px 24px var(--ai-accent-shadow, rgba(37, 169, 191, 0.25));
 }
 
 .aspect-trigger[aria-expanded="true"] {
-  border-color: var(--ai-accent, rgba(37, 169, 191, 0.6));
+  border-color: var(--ai-accent, var(--ai-accent-medium, rgba(37, 169, 191, 0.6)));
   box-shadow:
     0 12px 24px rgba(0, 0, 0, 0.32),
     0 0 0 1px var(--ai-accent-shadow, rgba(37, 169, 191, 0.25));
 }
 
 .ai-studio-page .aspect-menu-item.is-active {
-  border-color: var(--ai-accent, rgba(37, 169, 191, 0.45));
+  border-color: var(--ai-accent, var(--ai-accent-soft, rgba(37, 169, 191, 0.45)));
   box-shadow: inset 0 0 0 1px var(--ai-accent-shadow, rgba(37, 169, 191, 0.35));
 }
 
@@ -336,14 +340,14 @@
   transform-origin: center;
 }
 .step-utility-btn:hover {
-  border-color: var(--ai-accent, rgba(37, 169, 191, 0.4));
+  border-color: var(--ai-accent, var(--ai-accent-soft, rgba(37, 169, 191, 0.4)));
   background: rgba(46, 52, 60, 0.85);
 }
 .step-utility-btn:disabled,
 .step-utility-btn[aria-disabled="true"] {
   opacity: 0.45;
   cursor: not-allowed;
-  border-color: rgba(201, 205, 214, 0.18);
+  border-color: var(--ai-border-medium, rgba(201, 205, 214, 0.18));
 }
 .reference-toggle {
   display: inline-flex;
@@ -352,7 +356,7 @@
   position: relative;
   border-radius: 999px;
   border: 1px solid rgba(201, 205, 214, 0.26);
-  background: rgba(12, 15, 22, 0.82);
+  background: var(--ai-surface-control-muted, rgba(12, 15, 22, 0.82));
   width: 48px;
   height: 26px;
   padding: 0;
@@ -369,7 +373,7 @@
 }
 
 .reference-toggle:hover:not(:disabled) {
-  border-color: rgba(245, 185, 66, 0.6);
+  border-color: var(--ai-warm-border, rgba(245, 185, 66, 0.6));
 }
 
 .ai-studio-page[data-beginner-mode="off"] .reference-toggle:hover:not(:disabled) {
@@ -380,8 +384,12 @@
   border-color: rgba(4, 183, 135, 0.95);
 }
 .reference-toggle.is-active {
-  background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.8));
-  border-color: rgba(245, 185, 66, 0.9);
+  background: linear-gradient(
+    135deg,
+    var(--ai-warm-start, rgba(245, 185, 66, 0.9)),
+    var(--ai-warm-end, rgba(255, 140, 66, 0.8))
+  );
+  border-color: var(--ai-warm-border-strong, rgba(245, 185, 66, 0.9));
   box-shadow: 0 6px 18px rgba(245, 185, 66, 0.25);
 }
 .reference-toggle:disabled {
@@ -430,7 +438,7 @@
   position: relative;
   border-radius: 999px;
   border: 1px solid rgba(201, 205, 214, 0.26);
-  background: rgba(12, 15, 22, 0.82);
+  background: var(--ai-surface-control-muted, rgba(12, 15, 22, 0.82));
   width: 48px;
   height: 26px;
   padding: 0;
@@ -444,12 +452,16 @@
 }
 
 .audio-toggle:hover:not(:disabled) {
-  border-color: rgba(245, 185, 66, 0.6);
+  border-color: var(--ai-warm-border, rgba(245, 185, 66, 0.6));
 }
 
 .audio-toggle.is-active {
-  background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.8));
-  border-color: rgba(245, 185, 66, 0.9);
+  background: linear-gradient(
+    135deg,
+    var(--ai-warm-start, rgba(245, 185, 66, 0.9)),
+    var(--ai-warm-end, rgba(255, 140, 66, 0.8))
+  );
+  border-color: var(--ai-warm-border-strong, rgba(245, 185, 66, 0.9));
   box-shadow: 0 6px 18px rgba(245, 185, 66, 0.25);
 }
 
@@ -497,7 +509,11 @@
   box-sizing: border-box;
   padding: 0;
   line-height: 1;
-  background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.9));
+  background: linear-gradient(
+    135deg,
+    var(--ai-warm-start, rgba(245, 185, 66, 0.9)),
+    var(--ai-warm-end-strong, rgba(255, 140, 66, 0.9))
+  );
   color: #1a140c;
   font-weight: 700;
   font-size: 12px;
@@ -509,7 +525,11 @@
 }
 
 .ai-studio-page .step-badge {
-  background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.9));
+  background: linear-gradient(
+    135deg,
+    var(--ai-warm-start, rgba(245, 185, 66, 0.9)),
+    var(--ai-warm-end-strong, rgba(255, 140, 66, 0.9))
+  );
   color: #1a140c;
   box-shadow:
     0 6px 18px rgba(245, 185, 66, 0.35),
@@ -539,7 +559,7 @@
   display: none;
 }
 .step-card.is-collapsed:hover {
-  border-color: var(--ai-accent, rgba(37, 169, 191, 0.5));
+  border-color: var(--ai-accent, var(--ai-accent-moderate, rgba(37, 169, 191, 0.5)));
 }
 .step-card:not(.is-collapsed) .step-utility-btn svg {
   transform: rotate(180deg);
@@ -577,7 +597,7 @@
   border: 1px dashed rgba(201, 205, 214, 0.22);
   border-radius: 12px;
   padding: 16px;
-  background: rgba(12, 15, 22, 0.82);
+  background: var(--ai-surface-control-muted, rgba(12, 15, 22, 0.82));
   display: grid;
   gap: 10px;
   place-items: center;
@@ -625,7 +645,7 @@
   border-radius: 999px;
   display: inline-flex;
   background: rgba(37, 169, 191, 0.1);
-  border: 1px solid rgba(37, 169, 191, 0.6);
+  border: 1px solid var(--ai-accent-medium, rgba(37, 169, 191, 0.6));
   color: #9de5ff;
   font-weight: 600;
   font-size: 13px;

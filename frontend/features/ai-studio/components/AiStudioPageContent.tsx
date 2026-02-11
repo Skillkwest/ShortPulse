@@ -124,7 +124,7 @@ type TextSectionProps = {
   onExpandChat: () => void;
   agentChatOpen: boolean;
   onGenerate: () => void;
-  onSavePrompt: () => void;
+  onSavePrompt: (customPrompt?: string) => void;
 };
 
 type CharacterSectionProps = React.ComponentProps<typeof CharacterPropertiesPanel>;

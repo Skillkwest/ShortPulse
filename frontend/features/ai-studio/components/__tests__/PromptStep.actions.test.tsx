@@ -22,12 +22,26 @@ const baseProps = {
 };
 
 describe("PromptStep agent actions", () => {
+  it("disables pin prompt in chat mode when composer input is empty", () => {
+    render(<PromptStep {...baseProps} agentInput="" />);
+
+    expect(screen.getByRole("button", { name: "Pin prompt" })).toBeDisabled();
+  });
+
+  it("shows a pin prompt button in chat mode and routes clicks to save", () => {
+    const onSavePrompt = vi.fn();
+
+    render(<PromptStep {...baseProps} agentInput="a dog in a park" onSavePrompt={onSavePrompt} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Pin prompt" }));
+    expect(onSavePrompt).toHaveBeenCalledWith("a dog in a park");
+  });
+
   it("renders agent action controls when actions are available", () => {
     render(
       <PromptStep
         {...baseProps}
         agentActions={{
-          applyPrompt: "cinematic dusk skyline",
           variations: ["variation one"],
           questions: ["Should this be 16:9?"],
           describeTargets: ["ref-1"],
@@ -35,14 +49,12 @@ describe("PromptStep agent actions", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Apply latest prompt" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Describe refs (1)" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "variation one" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Should this be 16:9?" })).toBeInTheDocument();
   });
 
   it("fires action callbacks with sanitized payloads", () => {
-    const onAgentApplyPrompt = vi.fn();
     const onAgentSelectVariation = vi.fn();
     const onAgentUseQuestion = vi.fn();
     const onAgentDescribeTargets = vi.fn();
@@ -51,20 +63,15 @@ describe("PromptStep agent actions", () => {
       <PromptStep
         {...baseProps}
         agentActions={{
-          applyPrompt: "cinematic dusk skyline",
           variations: ["variation one"],
           questions: ["Should this be 16:9?"],
           describeTargets: ["ref-1", "ref-2"],
         }}
-        onAgentApplyPrompt={onAgentApplyPrompt}
         onAgentSelectVariation={onAgentSelectVariation}
         onAgentUseQuestion={onAgentUseQuestion}
         onAgentDescribeTargets={onAgentDescribeTargets}
       />
     );
-
-    fireEvent.click(screen.getByRole("button", { name: "Apply latest prompt" }));
-    expect(onAgentApplyPrompt).toHaveBeenCalledWith("cinematic dusk skyline");
 
     fireEvent.click(screen.getByRole("button", { name: "variation one" }));
     expect(onAgentSelectVariation).toHaveBeenCalledWith("variation one");

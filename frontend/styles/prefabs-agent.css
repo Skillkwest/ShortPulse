@@ -53,63 +53,56 @@
   border-radius: 999px;
 }
 
-.agent-attachment-tray {
+.agent-message.agent-user.agent-user-attachments {
+  margin-top: auto;
+  padding: 8px;
+  max-width: calc(100% - 8px);
+}
+
+.agent-attachment-card-list {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 
-.agent-attachment-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 100%;
+.agent-attachment-card {
+  position: relative;
+  width: 92px;
+  aspect-ratio: 4 / 5;
   border-radius: 10px;
-  border: 1px solid rgba(201, 205, 214, 0.2);
-  background: rgba(10, 13, 20, 0.75);
-  padding: 6px 8px;
+  overflow: hidden;
+  border: 1px solid rgba(210, 220, 232, 0.22);
+  background: rgba(9, 12, 18, 0.85);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 20px rgba(0, 0, 0, 0.35);
 }
 
-.agent-attachment-chip--prompt {
-  min-width: 180px;
-  max-width: 100%;
-}
-
-.agent-attachment-chip--image {
-  min-width: 170px;
-  max-width: 100%;
-}
-
-.agent-attachment-thumb {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+.agent-attachment-card-media {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   object-position: center;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  flex: none;
+  display: block;
 }
 
-.agent-attachment-copy {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
+.agent-attachment-card-prompt {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(52, 200, 255, 0.22), transparent 45%),
+    linear-gradient(155deg, rgba(17, 22, 33, 0.96), rgba(8, 11, 16, 0.96));
 }
 
-.agent-attachment-title {
-  margin: 0;
-  opacity: 0.78;
-}
-
-.agent-attachment-text {
-  margin: 0;
-  color: #d7dde8;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 240px;
+.agent-attachment-card-prompt-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(52, 200, 255, 0.9);
+  box-shadow: 0 0 0 5px rgba(52, 200, 255, 0.15);
 }
 
 .agent-attachment-remove {
@@ -130,6 +123,17 @@
 .agent-attachment-remove:hover {
   border-color: rgba(52, 200, 255, 0.58);
   color: #34c8ff;
+}
+
+.agent-attachment-remove--card {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  border-color: rgba(245, 249, 255, 0.28);
+  background: rgba(9, 12, 18, 0.7);
+  backdrop-filter: blur(4px);
 }
 
 .agent-chat-empty {

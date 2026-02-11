@@ -43,6 +43,25 @@ const planLabel = (planId: string | null): string => {
 const USERS_PER_PAGE = 50;
 const ERRORS_PER_PAGE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
+const ADJUSTMENT_PRESETS = [100, 500, -100, -500] as const;
+
+const sanitizeSignedIntegerInput = (rawValue: string): string => {
+  const compact = rawValue.replace(/\s+/g, "");
+  if (!compact.length) return "";
+  const sign = compact.startsWith("+") || compact.startsWith("-") ? compact.charAt(0) : "";
+  const digits = compact.slice(sign ? 1 : 0).replace(/\D/g, "");
+  return `${sign}${digits}`;
+};
+
+const parseAdjustmentInput = (rawValue: string): number | null => {
+  const normalized = sanitizeSignedIntegerInput(rawValue);
+  if (!normalized || normalized === "+" || normalized === "-") return null;
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) return null;
+  const whole = Math.trunc(parsed);
+  if (whole === 0) return null;
+  return whole;
+};
 
 export default function AdminDashboardPage() {
   const { loading, user } = useProtectedRoute(true);
@@ -64,7 +83,6 @@ export default function AdminDashboardPage() {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [adjustment, setAdjustment] = useState<string>("");
-  const [adjustReason, setAdjustReason] = useState("");
   const [adjustSubmitting, setAdjustSubmitting] = useState(false);
   const [adjustResult, setAdjustResult] = useState<string | null>(null);
   const [errors, setErrors] = useState<AdminErrorLogRow[]>([]);
@@ -303,13 +321,9 @@ export default function AdminDashboardPage() {
   );
 
   const handleCreditAdjust = async () => {
-    const normalized = Number(adjustment);
-    if (!selectedUserId || !Number.isFinite(normalized) || normalized === 0) {
+    const normalized = parseAdjustmentInput(adjustment);
+    if (!selectedUserId || normalized === null) {
       setAdjustResult("Pick a user and enter a non-zero credit amount.");
-      return;
-    }
-    if (!adjustReason.trim()) {
-      setAdjustResult("Add a reason for this adjustment.");
       return;
     }
 
@@ -321,8 +335,7 @@ export default function AdminDashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: selectedUserId,
-          changeCents: Math.trunc(normalized),
-          reason: adjustReason.trim(),
+          changeCents: normalized,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -331,7 +344,6 @@ export default function AdminDashboardPage() {
       }
 
       setAdjustment("");
-      setAdjustReason("");
       setAdjustResult("Credit adjustment applied.");
       await loadUsers();
     } catch (error) {
@@ -340,6 +352,14 @@ export default function AdminDashboardPage() {
       setAdjustSubmitting(false);
     }
   };
+
+  const applyAdjustmentPreset = useCallback((delta: number) => {
+    setAdjustment((current) => {
+      const parsed = parseAdjustmentInput(current);
+      const base = parsed ?? 0;
+      return String(base + delta);
+    });
+  }, []);
 
   const handleUpdateErrorStatus = useCallback(
     async (errorId: string, status: AdminErrorStatus) => {
@@ -613,39 +633,59 @@ export default function AdminDashboardPage() {
                   </p>
                 </div>
               </div>
-              <div className={styles.searchRow}>
-                <select
-                  className={styles.searchInput}
-                  value={selectedUserId}
-                  onChange={(event) => setSelectedUserId(event.target.value)}
-                >
-                  {users.map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {row.email ?? row.id}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  className={styles.searchInput}
-                  type="number"
-                  value={adjustment}
-                  onChange={(event) => setAdjustment(event.target.value)}
-                  placeholder="+500 or -100"
-                />
-                <input
-                  className={styles.searchInput}
-                  value={adjustReason}
-                  onChange={(event) => setAdjustReason(event.target.value)}
-                  placeholder="Reason (required)"
-                />
-                <button
-                  type="button"
-                  className="ghost-btn mini"
-                  onClick={handleCreditAdjust}
-                  disabled={adjustSubmitting}
-                >
-                  {adjustSubmitting ? "Applying…" : "Apply"}
-                </button>
+              <div className={styles.manualAdjustGrid}>
+                <label className={styles.manualAdjustField}>
+                  <span className="tiny subdued">Target user</span>
+                  <select
+                    className={styles.searchInput}
+                    value={selectedUserId}
+                    onChange={(event) => setSelectedUserId(event.target.value)}
+                  >
+                    {users.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.email ?? row.id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={styles.manualAdjustField}>
+                  <span className="tiny subdued">Credit increment</span>
+                  <input
+                    className={styles.searchInput}
+                    type="text"
+                    value={adjustment}
+                    pattern="[+-]?[0-9]*"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    onChange={(event) =>
+                      setAdjustment(sanitizeSignedIntegerInput(event.target.value))
+                    }
+                    placeholder="+500 or -100"
+                  />
+                  <div className={styles.manualAdjustPresets}>
+                    {ADJUSTMENT_PRESETS.map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() => applyAdjustmentPreset(preset)}
+                        disabled={adjustSubmitting}
+                      >
+                        {preset > 0 ? `+${preset}` : String(preset)}
+                      </button>
+                    ))}
+                  </div>
+                </label>
+                <div className={styles.manualAdjustActions}>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={handleCreditAdjust}
+                    disabled={adjustSubmitting}
+                  >
+                    {adjustSubmitting ? "Applying…" : "Apply"}
+                  </button>
+                </div>
               </div>
               {adjustResult ? <p className="tiny subdued">{adjustResult}</p> : null}
             </section>

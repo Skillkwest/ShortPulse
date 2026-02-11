@@ -77,7 +77,7 @@ export type PromptStepProps = {
   onAgentUseQuestion?: (question: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
   // Actions
-  onSavePrompt: () => void;
+  onSavePrompt: (customPrompt?: string) => void;
   // State / UI
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -171,6 +171,7 @@ export function PromptStep({
   const canExpandInlineChat = agentMessages.length > 0;
   const isChatMode = chatOnly || promptMode === "chat";
   const promptThinking = Boolean(agentIsSending || isGenerating);
+  const canPinAgentInput = agentInput.trim().length > 0;
   const handleAgentSendClick = () => {
     onAgentSend?.();
     requestAnimationFrame(() => agentInputRef.current?.focus());
@@ -363,6 +364,11 @@ export function PromptStep({
                         ariaLabel="Send to agent"
                         label="Send"
                         className="agent-send-prefab--labeled"
+                      />
+                      <AgentSaveButton
+                        onClick={() => onSavePrompt(agentInput)}
+                        disabled={shouldDisableSave || !canPinAgentInput}
+                        ariaLabel="Pin prompt"
                       />
                     </div>
                   </div>

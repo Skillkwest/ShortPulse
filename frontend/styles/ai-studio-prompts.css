@@ -17,8 +17,8 @@
   gap: 4px;
   flex-wrap: nowrap;
   align-items: stretch;
-  background: rgba(12, 15, 22, 0.85);
-  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: var(--ai-surface-control-soft, rgba(12, 15, 22, 0.85));
+  border: 1px solid var(--ai-border-subtle, rgba(201, 205, 214, 0.12));
   border-radius: 9px;
   padding: 2px;
   flex: 1;
@@ -69,7 +69,7 @@
 }
 
 .prompt-chat-header-btn:hover {
-  border-color: var(--ai-accent, rgba(37, 169, 191, 0.65));
+  border-color: var(--ai-accent, var(--ai-accent-strong, rgba(37, 169, 191, 0.65)));
   background: rgba(62, 68, 78, 0.95);
 }
 
@@ -140,7 +140,7 @@
 }
 
 .prompt-clear-btn:hover {
-  border-color: var(--ai-accent, rgba(37, 169, 191, 0.65));
+  border-color: var(--ai-accent, var(--ai-accent-strong, rgba(37, 169, 191, 0.65)));
   background: rgba(62, 68, 78, 0.95);
   cursor: pointer;
 }
@@ -152,7 +152,7 @@
 }
 
 .prompt-expand-btn:hover {
-  border-color: var(--ai-accent, rgba(37, 169, 191, 0.65));
+  border-color: var(--ai-accent, var(--ai-accent-strong, rgba(37, 169, 191, 0.65)));
   background: rgba(62, 68, 78, 0.95);
 }
 
@@ -195,7 +195,7 @@
 }
 
 .mode-toggle-btn:hover {
-  border-color: var(--ai-accent, rgba(37, 169, 191, 0.5));
+  border-color: var(--ai-accent, var(--ai-accent-soft, rgba(37, 169, 191, 0.5)));
   background: rgba(40, 44, 52, 0.95);
 }
 
@@ -226,7 +226,7 @@
   width: 100%;
   border-radius: 8px;
   border: none;
-  background: rgba(12, 15, 22, 0.86);
+  background: var(--ai-surface-control-tint, rgba(12, 15, 22, 0.86));
   color: var(--color-ash);
   padding: 12px;
   font-size: 13px;
@@ -242,7 +242,7 @@
   height: 170px;
   border-radius: 8px;
   border: none;
-  background: rgba(12, 15, 22, 0.86);
+  background: var(--ai-surface-control-tint, rgba(12, 15, 22, 0.86));
   color: var(--color-ash);
   padding: 12px;
   font-size: 13px;
@@ -270,7 +270,7 @@
 }
 
 .prompt-drop-input::-webkit-scrollbar-thumb {
-  background: rgba(201, 205, 214, 0.25);
+  background: var(--ai-border-strong, rgba(201, 205, 214, 0.25));
   border-radius: 999px;
 }
 
@@ -287,7 +287,7 @@
 }
 
 .prompt-input::-webkit-scrollbar-thumb {
-  background: rgba(201, 205, 214, 0.25);
+  background: var(--ai-border-strong, rgba(201, 205, 214, 0.25));
   border-radius: 999px;
 }
 
@@ -311,7 +311,7 @@
 .prompt-placeholder {
   min-height: 120px;
   border-radius: 12px;
-  background: rgba(12, 15, 22, 0.85);
+  background: var(--ai-surface-control-soft, rgba(12, 15, 22, 0.85));
   border: 1px dashed rgba(201, 205, 214, 0.35);
   display: flex;
   align-items: center;
@@ -340,7 +340,7 @@
   inset: 8px 10px;
   border-radius: 12px;
   background: rgba(7, 12, 18, 0.8);
-  box-shadow: inset 0 0 0 1px rgba(37, 168, 191, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(37, 169, 191, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -360,10 +360,10 @@
   min-height: 150px;
   height: auto;
   padding: 14px 16px;
-  background: rgba(12, 15, 22, 0.9);
+  background: var(--ai-surface-control, rgba(12, 15, 22, 0.9));
   color: #f5f9ff;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   line-height: 1.45;
   font-size: 13px;
-  border: 1px solid rgba(201, 205, 214, 0.14);
+  border: 1px solid var(--ai-border-faint, rgba(201, 205, 214, 0.14));
 }

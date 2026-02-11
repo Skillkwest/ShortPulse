@@ -141,40 +141,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
               </button>
             ) : null}
           </div>
-          {stagedAttachments.length ? (
-            <div className="agent-attachment-tray" aria-label="Attached references">
-              {stagedAttachments.map((attachment) => (
-                <div
-                  key={attachment.id}
-                  className={`agent-attachment-chip agent-attachment-chip--${attachment.kind}`}
-                >
-                  {attachment.kind === "image" && attachment.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={attachment.imageUrl} alt="" className="agent-attachment-thumb" />
-                  ) : null}
-                  <div className="agent-attachment-copy">
-                    <p className="agent-attachment-title tiny">
-                      {attachment.kind === "image" ? "Image Ref" : "Text Ref"}
-                    </p>
-                    {attachment.text ? (
-                      <p className="agent-attachment-text tiny">{attachment.text}</p>
-                    ) : null}
-                  </div>
-                  {onRemoveAttachment ? (
-                    <button
-                      type="button"
-                      className="agent-attachment-remove"
-                      aria-label="Remove attachment"
-                      onClick={() => onRemoveAttachment(attachment.id)}
-                    >
-                      ×
-                    </button>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          ) : null}
-          {introMessage || stagedPrompt || messages.length > 0 ? (
+          {introMessage || stagedPrompt || messages.length > 0 || stagedAttachments.length > 0 ? (
             <div className="agent-messages" aria-live="polite" ref={messagesRef}>
               {introMessage ? (
                 <div className="agent-message agent-assistant agent-intro">
@@ -205,6 +172,44 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   </div>
                 );
               })}
+              {stagedAttachments.length ? (
+                <div
+                  className="agent-message agent-user agent-user-attachments"
+                  aria-label="Attached references"
+                >
+                  <div className="agent-attachment-card-list">
+                    {stagedAttachments.map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        className={`agent-attachment-card agent-attachment-card--${attachment.kind}`}
+                      >
+                        {attachment.kind === "image" && attachment.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={attachment.imageUrl}
+                            alt=""
+                            className="agent-attachment-card-media"
+                          />
+                        ) : (
+                          <div className="agent-attachment-card-prompt" aria-hidden="true">
+                            <span className="agent-attachment-card-prompt-dot" />
+                          </div>
+                        )}
+                        {onRemoveAttachment ? (
+                          <button
+                            type="button"
+                            className="agent-attachment-remove agent-attachment-remove--card"
+                            aria-label="Remove attachment"
+                            onClick={() => onRemoveAttachment(attachment.id)}
+                          >
+                            ×
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="agent-chat-empty tiny">

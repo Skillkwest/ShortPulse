@@ -80,7 +80,7 @@ type TextPropertiesPanelProps = {
   onAgentUseQuestion?: (question: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
   onGenerate: () => void;
-  onSavePrompt: () => void;
+  onSavePrompt: (customPrompt?: string) => void;
   shouldDisableSave?: boolean;
   onClearAgentChat?: () => void;
   beginnerMode?: boolean;

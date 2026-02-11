@@ -24,23 +24,18 @@ export const AgentPromptActions: React.FC<AgentPromptActionsProps> = ({
   primarySource = "manual",
   showPrimaryPromptStatus = true,
   actions,
-  onApplyPrompt,
   onSelectVariation,
   onUseQuestion,
   onDescribeTargets,
 }) => {
   const resolvedPrimaryPrompt = (primaryPrompt ?? "").trim();
   const hasPrimaryPrompt = resolvedPrimaryPrompt.length > 0;
-  const applyPrompt = actions?.applyPrompt?.trim() || null;
   const variations =
     actions?.variations?.map((variation) => variation.trim()).filter(Boolean) ?? [];
   const questions = actions?.questions?.map((question) => question.trim()).filter(Boolean) ?? [];
   const describeTargets = actions?.describeTargets?.filter(Boolean) ?? [];
   const hasAgentActions =
-    Boolean(applyPrompt) ||
-    variations.length > 0 ||
-    questions.length > 0 ||
-    describeTargets.length > 0;
+    variations.length > 0 || questions.length > 0 || describeTargets.length > 0;
 
   if (!showPrimaryPromptStatus && !hasAgentActions) {
     return null;
@@ -76,15 +71,6 @@ export const AgentPromptActions: React.FC<AgentPromptActionsProps> = ({
       ) : null}
       {hasAgentActions ? (
         <div className="agent-action-strip" aria-label="Agent actions">
-          {applyPrompt ? (
-            <button
-              type="button"
-              className="ghost-btn mini agent-action-btn agent-action-btn--apply"
-              onClick={() => onApplyPrompt?.(applyPrompt)}
-            >
-              Apply latest prompt
-            </button>
-          ) : null}
           {describeTargets.length ? (
             <button
               type="button"

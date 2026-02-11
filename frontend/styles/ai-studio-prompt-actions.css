@@ -19,8 +19,12 @@
 
 /* Ensure primary actions in AI Studio inherit the blue gradient palette */
 .ai-studio-page .primary-btn {
-  background: linear-gradient(135deg, var(--ai-accent-start, rgba(52, 200, 255, 0.82)), var(--ai-accent, rgba(37, 169, 191, 0.9)));
-  border: 1px solid var(--ai-accent, rgba(52, 200, 255, 0.45));
+  background: linear-gradient(
+    135deg,
+    var(--ai-accent-start, var(--ai-action-start, rgba(52, 200, 255, 0.82))),
+    var(--ai-accent, var(--ai-action-end, rgba(37, 169, 191, 0.9)))
+  );
+  border: 1px solid var(--ai-accent, var(--ai-action-border, rgba(52, 200, 255, 0.45)));
   color: #0b1820;
   display: inline-flex;
   align-items: center;
@@ -29,7 +33,7 @@
 }
 
 .ai-studio-page .primary-btn:hover {
-  border-color: var(--ai-accent, rgba(52, 200, 255, 0.7));
+  border-color: var(--ai-accent, var(--ai-action-border-hover, rgba(52, 200, 255, 0.7)));
 }
 
 .ai-studio-page .primary-btn.primary-btn-wide {
@@ -108,16 +112,20 @@
   min-width: 140px;
   padding: 0 16px;
   border-radius: 12px;
-  border: 1px solid #25a8bf8a;
+  border: 1px solid #25a9bf8a;
   background: linear-gradient(135deg, rgba(24, 29, 38, 0.92), rgba(33, 39, 50, 0.503));
-  color: #25a8bf;
+  color: #25a9bf;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.01em;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 8px 18px rgba(0, 0, 0, 0.3);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
 }
 
 .prompt-actions-compact .prompt-save-btn {
@@ -132,7 +140,11 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 8px 18px rgba(0, 0, 0, 0.3);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
 }
 
 .prompt-actions-compact .prompt-save-btn:hover:not(:disabled) {
@@ -186,7 +198,11 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 8px 18px rgba(0, 0, 0, 0.3);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
 }
 
 .prompt-actions-compact .beginner-media-library-btn:hover:not(:disabled) {
@@ -225,7 +241,11 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.019),
     0 8px 18px rgba(0, 0, 0, 0.072);
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
 }
 .prompt-library-btn.is-icon-only {
   width: 46px;

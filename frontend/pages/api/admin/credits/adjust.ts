@@ -13,6 +13,8 @@ type AdjustRequest = {
   reason?: string;
 };
 
+const DEFAULT_REASON = "Manual admin dashboard adjustment";
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -26,14 +28,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { userId, changeCents, reason } = (req.body ?? {}) as AdjustRequest;
   const normalizedChange = Number(changeCents);
   const normalizedReason = (reason ?? "").trim();
+  const effectiveReason = normalizedReason || DEFAULT_REASON;
   if (!userId) {
     return res.status(400).json({ error: "userId is required." });
   }
   if (!Number.isFinite(normalizedChange) || normalizedChange === 0) {
     return res.status(400).json({ error: "changeCents must be a non-zero number." });
-  }
-  if (!normalizedReason.length) {
-    return res.status(400).json({ error: "reason is required." });
   }
   if (Math.abs(normalizedChange) > 1_000_000) {
     return res.status(400).json({ error: "changeCents exceeds safety limit." });
@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { error: insertError } = await insertCreditLedgerEntry({
       userId,
       changeCents: Math.trunc(normalizedChange),
-      reason: normalizedReason,
+      reason: effectiveReason,
       source: "admin_adjustment",
       sourceRef: `${Date.now()}-${adminUser.id}`,
       metadata: {

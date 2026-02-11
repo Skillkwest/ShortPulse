@@ -163,7 +163,7 @@
   padding: 10px 12px;
   border-radius: 12px;
   background: rgba(12, 15, 22, 0.6);
-  border: 1px solid rgba(201, 205, 214, 0.12);
+  border: 1px solid var(--ai-border-subtle, rgba(201, 205, 214, 0.12));
 }
 
 .video-settings-toggle-copy {
@@ -233,21 +233,35 @@
   aspect-ratio: 1 / 1;
   flex-shrink: 0;
   font-size: 12px;
-  background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.9));
+  background: linear-gradient(
+    135deg,
+    var(--ai-warm-start, rgba(245, 185, 66, 0.9)),
+    var(--ai-warm-end-strong, rgba(255, 140, 66, 0.9))
+  );
   color: #1a140c;
-  box-shadow: 0 6px 18px rgba(245, 185, 66, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  box-shadow:
+    0 6px 18px rgba(245, 185, 66, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
 .ai-studio-page .step-badge.mini {
-  background: linear-gradient(135deg, rgba(245, 185, 66, 0.9), rgba(255, 140, 66, 0.9));
+  background: linear-gradient(
+    135deg,
+    var(--ai-warm-start, rgba(245, 185, 66, 0.9)),
+    var(--ai-warm-end-strong, rgba(255, 140, 66, 0.9))
+  );
   color: #1a140c;
-  box-shadow: 0 6px 18px rgba(245, 185, 66, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  box-shadow:
+    0 6px 18px rgba(245, 185, 66, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
 .ai-studio-page[data-beginner-mode="on"] .step-badge.mini {
   background: linear-gradient(135deg, rgba(4, 183, 135, 0.96), rgba(14, 213, 100, 0.658));
   color: #000000;
-  box-shadow: 0 6px 18px rgba(7, 143, 64, 0.34), inset 0 1px 0 rgba(5, 175, 84, 0.813);
+  box-shadow:
+    0 6px 18px rgba(7, 143, 64, 0.34),
+    inset 0 1px 0 rgba(5, 175, 84, 0.813);
 }
 
 .reference-step-copy {
@@ -321,7 +335,10 @@
   margin: 0;
   align-self: stretch;
   aspect-ratio: var(--reference-drop-aspect);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
   position: relative;
 }
 
@@ -421,7 +438,7 @@
 
 .reference-drop-layout-inner .text-dropzone:not(.has-text) .prompt-drop-input {
   border: 1px dashed rgba(184, 202, 220, 0.35);
-  background: rgba(12, 15, 22, 0.86);
+  background: var(--ai-surface-control-tint, rgba(12, 15, 22, 0.86));
 }
 
 .reference-drop-layout-inner .reference-dropzone.extra {
@@ -445,12 +462,17 @@
   height: 20px;
 }
 
-.reference-drop-layout-inner .reference-dropzone-block.image-block .reference-drop-content.image-drop-content {
+.reference-drop-layout-inner
+  .reference-dropzone-block.image-block
+  .reference-drop-content.image-drop-content {
   font-size: 13px;
   gap: 6px;
 }
 
-.reference-drop-layout-inner .reference-dropzone-block.image-block .reference-drop-content.image-drop-content svg {
+.reference-drop-layout-inner
+  .reference-dropzone-block.image-block
+  .reference-drop-content.image-drop-content
+  svg {
   width: 20px;
   height: 20px;
 }
@@ -503,8 +525,8 @@
 }
 
 .reference-drop-layout-inner .reference-dropzone.has-video {
-  border: 1px solid rgba(201, 205, 214, 0.18);
-  background: rgba(12, 15, 22, 0.92);
+  border: 1px solid var(--ai-border-medium, rgba(201, 205, 214, 0.18));
+  background: var(--ai-surface-control-elevated, rgba(12, 15, 22, 0.92));
   background-image: none !important;
 }
 
@@ -522,7 +544,6 @@
   pointer-events: none;
   z-index: 1;
 }
-
 
 .reference-drop-layout-inner .reference-drop-content {
   display: flex;
@@ -653,8 +674,8 @@
 
 /* Kling 3.0 styling refinements */
 .kling-shot-row {
-  border: 1px solid rgba(201, 205, 214, 0.18);
-  background: rgba(12, 15, 22, 0.9);
+  border: 1px solid var(--ai-border-medium, rgba(201, 205, 214, 0.18));
+  background: var(--ai-surface-control, rgba(12, 15, 22, 0.9));
   border-radius: 12px;
   padding: 12px;
   display: flex;
@@ -687,8 +708,8 @@
   width: 100%;
   min-height: 120px;
   border-radius: 10px;
-  border: 1px solid rgba(201, 205, 214, 0.16);
-  background: rgba(12, 15, 22, 0.9);
+  border: 1px solid var(--ai-border-soft, rgba(201, 205, 214, 0.16));
+  background: var(--ai-surface-control, rgba(12, 15, 22, 0.9));
   color: #f1f5ff;
   padding: 12px;
   font-size: 13px;
@@ -702,7 +723,7 @@
 
 .kling-shot-row textarea:focus {
   outline: none;
-  border-color: rgba(37, 169, 191, 0.4);
+  border-color: var(--ai-accent-soft, rgba(37, 169, 191, 0.4));
   box-shadow: 0 0 0 1px rgba(37, 169, 191, 0.18);
 }
 
@@ -727,7 +748,7 @@
   border: 1px dashed rgba(201, 205, 214, 0.28);
   border-radius: 12px;
   padding: 12px;
-  background: rgba(12, 15, 22, 0.86);
+  background: var(--ai-surface-control-tint, rgba(12, 15, 22, 0.86));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -741,8 +762,8 @@
 }
 
 .kling-element-grid input {
-  background: rgba(12, 15, 22, 0.9);
-  border: 1px solid rgba(201, 205, 214, 0.16);
+  background: var(--ai-surface-control, rgba(12, 15, 22, 0.9));
+  border: 1px solid var(--ai-border-soft, rgba(201, 205, 214, 0.16));
   color: #f1f5ff;
   border-radius: 10px;
   padding: 10px 12px;
@@ -755,7 +776,7 @@
 
 .kling-element-grid input:focus {
   outline: none;
-  border-color: rgba(37, 169, 191, 0.4);
+  border-color: var(--ai-accent-soft, rgba(37, 169, 191, 0.4));
   box-shadow: 0 0 0 1px rgba(37, 169, 191, 0.18);
 }
 

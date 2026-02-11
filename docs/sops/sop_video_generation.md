@@ -1,13 +1,13 @@
 # SOP: Video Generation Workflows
 
 This SOP documents how ShortPulse generates videos from text prompts or image references, how the UI and API interact, and how to maintain and improve the flow.
-See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coordination across AI Studio verticals.
+See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, and coordination across AI Studio verticals.
 
 ## Scope
 - Video generation in AI Studio’s Create → Video flow (text-to-video and image-to-video models).
 - Model selection and cost estimation for video runs.
 - Reference handling (drag/drop) and output book-keeping.
-- Text/describe flows are covered in `docs/sop_text_generation.md`; this SOP focuses on video behaviors.
+- Text/describe flows are covered in `docs/sops/sop_text_generation.md`; this SOP focuses on video behaviors.
 
 ## Key components
 
@@ -24,7 +24,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and coo
 ## Environment prerequisites
 
 1. Video models rely on Fal/Kie provider keys; no agent prompts are used in this flow.  
-2. `OPENAI_API_KEY` is still required for separate text/describe workflows documented in `docs/sop_text_generation.md`; video generation does not depend on those prompts.  
+2. `OPENAI_API_KEY` is still required for separate text/describe workflows documented in `docs/sops/sop_text_generation.md`; video generation does not depend on those prompts.  
 3. Credits: generation charging is server-authoritative in submit APIs; `useCredits` reads `ai_credit_balance` and does not write ledger rows.
 
 ## Video generation workflow (Create → Video)

@@ -7,7 +7,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 - Out of scope: Character tool agent flows (none today), media library ingestion, and non-studio routes.
 
 ## UI entry points
-- Inline prompt step (`TextPropertiesPanel`): “Prompt / Chat” toggle. Chat mode shows a compact message stack plus an input row; the Text toggle still uses the prompt textarea.
+- Inline prompt step (`TextPropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
 - Expand to column (`AiStudioPageContent`): `ArrowsOut` opens the Agent Chat column, replacing the reference grid. Clicking a chat bubble adds that text to the Reference Grid as a prompt card (`addAgentPromptReference`).
 - Generate card (`ComposeSendCard`): generation uses whichever prompt is active; the agent is only involved if chat applied a prompt.
 - Prompt save: Save buttons persist the current prompt (including agent-applied text) to the reference grid.
@@ -16,7 +16,8 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 ## System prerequisites & gates
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-4.1`), optional `OPENAI_API_BASE`.
 - Flags: server gate `STUDIO_AGENT_ENABLED` (defaults on if unset) and client gate `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` (UI enable switch). API returns 503 when disabled.
-- Payload guardrails (API and client): max 3 images, 350 KB each; videos are excluded from vision payload; only https or data URLs allowed.
+- Payload guardrails: max 3 images, 350 KB each; videos are excluded from vision payload.
+- Media transport rule: client now prefers signed/public `https://` URLs for agent vision calls. Local blob/data previews are uploaded through `/api/upload-image` before send.
 
 ## Data flow (chat send)
 1) User types in `AgentInputBar` → `handleAgentSend` in `frontend/pages/ai-studio.tsx`.
@@ -27,9 +28,13 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
    - image attachments become both `context.references` + `context.media` (up to 3),
    - `selectedReferenceIds` are merged, `focusedSource` is set based on staged kind, and `modeHint` defaults to `"reference"` when attachments are present.
 5) `contextBuilder` + API `safeContext` filter to safe media/refs and enforce caps before provider calls.
-6) `/api/ai/studio-agent` applies system prompt + context, optional thinker/formatter prompts, and stores a per-conversation canonical prompt (Map keyed by `conversationId`).
+6) `/api/ai/studio-agent` classifies the turn into `TEXT_ONLY`, `IMAGE_ONLY`, or `MIXED` and includes that orchestration payload in thinker/formatter input before storing per-conversation canonical prompt state (Map keyed by `conversationId`).
 7) Response is normalized into `actions` (applyPrompt, referenceCard, variations, describeTargets, questions) + `message`.
 8) UI applies `actions.applyPrompt` to state (`setPrompt`, `setLatestAgentPrompt`), clears input, and exposes actions in the panel. Clicking a message or “Add to grid” writes a prompt reference card.
+
+Prompt ownership rule:
+- Prompt state is updated from `actions.applyPrompt` only (not generic assistant message text) so generation always uses explicit, structured prompt output from the agent route.
+- Prompt ownership and action chips are shown in both inline prompt cards and the expanded Agent Chat column for parity.
 
 ## User workflows & expected outcomes
 - **Iterate in Chat mode (Create tool):**
@@ -42,7 +47,8 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
   - Primary: `/api/ai/describe-image` on the active output image.
   - Fallback: agent with `modeHint="describe"` and focused image context; result becomes prompt + prompt card.
 - **Expanded Agent Chat column:**
-  - Shows the same history; “Add to grid” pushes the latest agent prompt as a card; close returns to Reference Grid.
+  - Shows the same history, plus the same action strip as inline chat (`Apply latest prompt`, variation chips, follow-up questions, describe targets).
+  - “Add to grid” pushes the latest agent prompt as a card; close returns to Reference Grid.
 
 ## Safeguards & drift control
 - Canonical prompt store: API keeps a canonical prompt per `conversationId`; V2 thinker/formatter path checks semantic drift (`preservesContext`) and restores the prior prompt if edits drop core tokens.
@@ -60,7 +66,6 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 - ✅ Drift guard: send canonical prompt “sunset bike” then “make it a car” and ensure preserved details unless explicitly changed.
 
 ## Known gaps / follow-ups
-- `actions.describeTargets`, `variations`, and `questions` are parsed but unused in the UI; wiring chips or follow-up describe requests would improve the loop.
 - No transcript persistence beyond session memory; reload drops history.
 - No streaming UI; large responses wait for full completion.
 - Video references are ignored for vision; only prompt text from video cards is used.

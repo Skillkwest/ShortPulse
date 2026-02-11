@@ -10,6 +10,7 @@ import {
   AgentSendButton,
   AgentSaveButton,
   AgentInputBar,
+  AgentPromptActions,
 } from "../../../prefabs/agent";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../../../prefabs/agent";
 
@@ -53,6 +54,8 @@ export type PromptStepProps = {
   agentInput?: string;
   agentIsSending?: boolean;
   agentError?: string;
+  agentPrimaryPrompt?: string | null;
+  agentPrimarySource?: "agent" | "manual" | "reference";
   stagedPrompt?: string | null;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
@@ -68,11 +71,13 @@ export type PromptStepProps = {
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onExpandChat?: () => void;
-  onCloseAgentChat?: () => void;
   onClearAgentChat?: () => void;
+  onAgentApplyPrompt?: (prompt: string) => void;
+  onAgentSelectVariation?: (prompt: string) => void;
+  onAgentUseQuestion?: (question: string) => void;
+  onAgentDescribeTargets?: (targets: string[]) => void;
   // Actions
   onSavePrompt: () => void;
-  onOpenMediaLibrary?: () => void;
   // State / UI
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -94,9 +99,12 @@ export function PromptStep({
   onPromptChange,
   agentEnabled = false,
   agentMessages = [],
+  agentActions,
   agentInput = "",
   agentIsSending = false,
   agentError,
+  agentPrimaryPrompt = null,
+  agentPrimarySource = "manual",
   stagedPrompt = null,
   stagedAttachments = [],
   agentDropActive = false,
@@ -113,6 +121,10 @@ export function PromptStep({
   onClearAgentAttachments,
   onExpandChat,
   onClearAgentChat,
+  onAgentApplyPrompt,
+  onAgentSelectVariation,
+  onAgentUseQuestion,
+  onAgentDescribeTargets,
   onSavePrompt,
   isCollapsed,
   onToggleCollapse,
@@ -163,18 +175,6 @@ export function PromptStep({
     onAgentSend?.();
     requestAnimationFrame(() => agentInputRef.current?.focus());
   };
-  const lastAssistantMessage = React.useMemo(
-    () =>
-      [...agentMessages].reverse().find((message) => message.role === "assistant")?.content ?? null,
-    [agentMessages]
-  );
-
-  React.useEffect(() => {
-    if (!isChatMode) return;
-    if (!lastAssistantMessage) return;
-    if (prompt === lastAssistantMessage) return;
-    onPromptChange(lastAssistantMessage);
-  }, [isChatMode, lastAssistantMessage, prompt, onPromptChange]);
 
   const introMessage = React.useMemo<AgentMessage>(
     () => ({
@@ -369,6 +369,16 @@ export function PromptStep({
                   <p className="tiny helper-text agent-composer-hint">
                     Enter to send. Shift+Enter for a new line.
                   </p>
+                  <AgentPromptActions
+                    showPrimaryPromptStatus={false}
+                    primaryPrompt={agentPrimaryPrompt ?? prompt}
+                    primarySource={agentPrimarySource}
+                    actions={agentActions}
+                    onApplyPrompt={onAgentApplyPrompt}
+                    onSelectVariation={onAgentSelectVariation}
+                    onUseQuestion={onAgentUseQuestion}
+                    onDescribeTargets={onAgentDescribeTargets}
+                  />
                 </>
               )
             ) : (

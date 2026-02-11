@@ -64,7 +64,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Saved list table: converted to spreadsheet layout with row-level borders (no bleed under actions), circular avatar badges with teal outline/dark fill/muted teal outline icon, and profile/remove actions right-aligned.
 - Header chips: plan card icon changed to circular check; searches and plan chips share hover lift/outline/pointer behavior.
 - TikTok profile links hardened: sanitized handles (strip zero-width/nbsp/whitespace, drop leading @, URL-encode), platform normalization, `?lang=en`, `referrerPolicy=no-referrer`; noted persistent failure in ChatGPT Atlas despite working in Chrome. Added known-issues entry for Atlas TikTok link failure.
-- Documentation: added `docs/sop_saved_creators.md` describing data flow, layout, link building, avatar rules, spacing, and known TikTok issue; added `docs/known-issues.md` entry for TikTok-in-Atlas error with mitigation attempts listed.
+- Documentation: added `docs/sops/sop_saved_creators.md` describing data flow, layout, link building, avatar rules, spacing, and known TikTok issue; added `docs/known-issues.md` entry for TikTok-in-Atlas error with mitigation attempts listed.
 - Assets: updated `frontend/public/Gray.png` from master root and wired it to both Saved Creators hero and dashboard Saved Creators card.
 
 ## 2026-12-14 (media library refresh)
@@ -72,7 +72,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Unified Media Library background to saved-creators dark theme; flattened upload hero and media panels to saved-creator card styling via `media-panel` class and body override.
 - Aligned panel spacing (18px rhythm), adjusted upload card padding/gaps, and recolored panel backgrounds to the shared ash-08 tone.
 - Refined upgrade (“Need more storage?”) button: brand amber text, warmer/darker glow, hover lift with controlled brightness.
-- Added `docs/sop_media_library_ui.md` covering header composition, media panel styling, upload spacing, upgrade hover rules, and asset locations.
+- Added `docs/sops/sop_media_library_ui.md` covering header composition, media panel styling, upload spacing, upgrade hover rules, and asset locations.
 
 ## 2026-12-29
 - Removed the backend entirely (FastAPI, Alembic, API docs) and rewrote the repo to be frontend-only with Supabase client usage; updated README, env sample, schemas, security/testing/contributor docs, and documentation overview accordingly.
@@ -97,7 +97,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Rebuilt `/ai-studio` into a Photoshop-style workspace: left tool rail, center preview + recent rail, right properties panel; header uses mirrored AI Studio art with inline AI credits (sparkle icon) and Plan (shield icon) cards on a single row and back-to-dashboard above.
 - Hero copy simplified to “AI Studio”; removed amber hero overlay in favor of full-image treatment; stat cards now opaque to avoid bleed-through.
 - Preview panel gradient switched to a dark charcoal blend (no amber glow); toolbar hover glows removed for calmer idle state.
-- Documentation: updated `docs/shortpulse_ai_studio.md` with the current UI snapshot and layout description.
+- Documentation: updated `docs/product/shortpulse_ai_studio.md` with the current UI snapshot and layout description.
 
 ## 2027-01-02 (AI Studio create flow & preview polish)
 - Refined Create step cards: increased padding/gaps, added numbered “Select mode / Frame & model / Write your prompt” flow with conditional steps (Enhance hides frame/model), dynamic Generate icon per mode, and left-aligned toolbar icon centering.
@@ -167,7 +167,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated env templates to reflect the client-only architecture and restored the `sop_performance_ai_detection.md` into canonical `docs/`.
 
 ## 2026-01-17
-- Pruned duplicate changelog wrappers (`CHANGELOG.md`, `docs/CHANGELOG.md`) to keep `docs/change_log.md` as the single source of truth.
+- Pruned duplicate changelog wrappers (`CHANGELOG.md` and a legacy docs-level wrapper) to keep `docs/change_log.md` as the single source of truth.
 - Updated README and docs index to point to the canonical changelog.
 
 ## 2026-01-21
@@ -188,19 +188,19 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Hardened drag/drop flows: prefer state URLs over blob URLs, filter non-image drops in the grid, and surface status/error chips with clearer overlay behavior.
 
 ## 2027-01-24 (AI Studio prompt + describe consolidation)
-- Prompts: removed redundant prompt docs (`docs/ai-agent-prompts.md`, `docs/openai-agent-system-instructions.md`) and codified `frontend/lib/agentPromptsConfig.ts` as the single source of truth. Updated the SOP to reflect gpt-4.1-nano defaults and prompt ownership.
+- Prompts: removed redundant prompt docs (now archived in `docs/archive/ai-studio-prompts.md`) and codified `frontend/lib/agentPromptsConfig.ts` as the single source of truth. Updated the SOP to reflect gpt-4.1-nano defaults and prompt ownership.
 - Image-to-Text: when the toggle is on, the describe-image agent (Agent 2) always runs—even if the prompt box has text—so the textarea is populated from the describe result. Imported images dropped into Reference Grid/Studio Preview now seed the describe flow.
 - Errors & credits: added a dismissible error banner in AI Studio; Generate buttons show computed credit estimates (or “—” if unknown). Image/video runs debit credits immediately; prompt-refine/describe flows debit after API responses using observed/estimated tokens.
 - API defaults: `/api/ai/generate-prompt` and `/api/ai/describe-image` default to `gpt-4.1-nano` when env vars are unset.
 
 ## 2027-01-25 (Credit gating + documentation reminder)
 - Image/video generation requires a sufficient credit balance before debiting; the Generate CTA disables and the SOP now notes the credit check so the banner can prompt a top-up.
-- Added a comment near `modelOptions` reminding maintainers to keep the `docs/sop_image_generation.md` supported-model table in sync when adding providers/models.
+- Added a comment near `modelOptions` reminding maintainers to keep the `docs/sops/sop_image_generation.md` supported-model table in sync when adding providers/models.
 - Video pipeline hardening: added routing for text-to-video models and allowed dropped/imported images (blob/data URLs) to be used for image-to-video submissions by normalizing inputs before provider calls.
 
 ## 2026-01-24 (AI model references)
-- Added a dedicated `docs/api-responses.md` guide covering the OpenAI Responses API payloads, tools, and best practices alongside `docs/api-chat-completions.md` in the docs index.
-- Documented Fal.ai model workflows (`docs/api-fal-veo3.md`, `docs/api-fal-flux-dev.md`, `docs/api-fal-nano-banana-pro.md`, `docs/api-fal-seedream-4-5.md`, `docs/api-fal-seedance-1-5-pro.md`) so every queue/task/callback path is captured plus the backend `kei/task-status` proxy.
+- Added a dedicated `docs/api/api-responses.md` guide covering the OpenAI Responses API payloads, tools, and best practices alongside `docs/api/api-chat-completions.md` in the docs index.
+- Documented Fal.ai model workflows (`docs/api/api-fal-veo3.md`, `docs/api/api-fal-flux-dev.md`, `docs/api/api-fal-nano-banana-pro.md`, `docs/api/api-fal-seedream-4-5.md`, `docs/api/api-fal-seedance-1-5-pro.md`) so every queue/task/callback path is captured plus the backend `kei/task-status` proxy.
 - Added the new API references to `docs/README.md` under the API Reference section for a single navigation surface.
 
 ## 2027-01-27 (AI Studio model pricing + integrations)
@@ -210,7 +210,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2026-02-03
 - Updated Image-to-Video (Recreate) UI to use two primary reference frames (First frame + Last frame) and hide secondary dropzones for video models; added on-card labels for clarity.
 - Added MiniGenerateButton to the Agent Chat input row beside Send for faster prompt generation actions.
-- Updated `docs/sop_video_generation.md` to reflect the first/last frame workflow requirement for image-to-video.
+- Updated `docs/sops/sop_video_generation.md` to reflect the first/last frame workflow requirement for image-to-video.
 - Temporarily hid the AI Studio toolbar “Creations” section (My Generations/Community); the toolbar file still contains the buttons and this note should be the reminder to revert once they need to be visible again.
 
 ## 2026-02-06
@@ -220,3 +220,15 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2026-02-07
 - Added Kling 3.0 Pro text-to-video (Fal) with per-second pricing, new Fal proxy submit route, and AI Studio wiring for defaults and submissions.
 - Documented the Kling 3.0 Pro text-to-video API and updated AI Studio SOP tables + pricing notes.
+
+## 2026-02-11
+- Reorganized docs into category folders: `docs/api/`, `docs/sops/`, `docs/product/`, `docs/planning/`, and `docs/archive/`; added section indexes for each folder.
+- Updated repo-wide doc links and refreshed `docs/README.md`, `docs/documentation_overview.md`, and `docs/repo-structure.md` to match the new information architecture.
+- Resolved ADR numbering collision by renaming the AI Studio agent ADR to `docs/adr/0006-ai-studio-agent-api.md` and updating references.
+- Added missing operational baseline docs: `docs/monitoring.md`, `docs/disaster-recovery.md`, and `docs/performance.md`.
+- Updated docs validation script (`scripts/check_docs_links.js`) to validate API references from `docs/api/`.
+
+## 2026-02-11 (later)
+- Added `docs/adr/0007-ai-studio-agent-tooling-strategy.md` to codify the product decision: ship media analysis and prompt optimization now, run evaluation in shadow mode, and defer MCP until objective adoption gates are met.
+- Added `docs/planning/ai-studio-agent-tooling-phased-plan.md` with concrete rollout phases, tool contracts, telemetry requirements, security guardrails, and MCP adoption checklist.
+- Updated `docs/sops/sop_ai_studio_agent.md`, `docs/planning/README.md`, and `docs/README.md` so the strategy and plan are discoverable and operationally durable.

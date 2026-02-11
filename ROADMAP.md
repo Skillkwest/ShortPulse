@@ -1,6 +1,6 @@
 # Roadmap
 
-This is a lightweight, high-level view of planned work. The detailed backlog lives in `docs/backlog.md`.
+This is a lightweight, high-level view of planned work. The detailed backlog lives in `docs/planning/backlog.md`.
 
 ## Near-term
 - Stabilize AI Studio workflows and data model for saved prompts/outputs.
@@ -14,5 +14,5 @@ This is a lightweight, high-level view of planned work. The detailed backlog liv
 
 ## Later
 - Real data ingestion pipeline (requires an explicit architecture decision; keep client-only until then).
-- Advanced detection/labeling capabilities as documented in `docs/sop_performance_ai_detection.md`.
+- Advanced detection/labeling capabilities as documented in `docs/sops/sop_performance_ai_detection.md`.
 

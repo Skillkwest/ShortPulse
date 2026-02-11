@@ -1,5 +1,7 @@
 # ShortPulse Design System Guide
 
+Archive status: historical draft. Active implementation guidance lives in `docs/styles-structure.md` and `docs/design/short-flow-color-system-design-rationale.md`.
+
 **Version:** 1.0
 **Last Updated:** February 2026
 **Status:** ✅ Production Ready

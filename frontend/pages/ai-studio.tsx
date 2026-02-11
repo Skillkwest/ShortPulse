@@ -31,6 +31,13 @@ import { filterModelOptions } from "../features/ai-studio/logic/stateParsers";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
 import { useBeginnerModePreference } from "../features/ai-studio/hooks/useBeginnerModePreference";
 import { extractDragDropPayload } from "../features/ai-studio/utils/dragDrop";
+import {
+  getStagedAgentPrompt,
+  normalizePromptText,
+  resolvePromptSourceBadge,
+  type PromptOrigin,
+} from "../features/ai-studio/logic/agentPromptOwnership";
+import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 
 const MAX_AGENT_ATTACHMENTS = 10;
 const MAX_AGENT_IMAGE_ATTACHMENTS = 3;
@@ -183,6 +190,7 @@ export default function AiStudioPage() {
   const [agentActions, setAgentActions] = useState<AgentActions | undefined>(undefined);
   const [isAgentChatOpen, setIsAgentChatOpen] = useState(false);
   const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
+  const [promptOrigin, setPromptOrigin] = useState<PromptOrigin>("manual");
   const [agentAttachments, setAgentAttachments] = useState<AgentAttachment[]>([]);
   const [isAgentDropActive, setIsAgentDropActive] = useState(false);
   const agentDropDepthRef = useRef(0);
@@ -191,6 +199,15 @@ export default function AiStudioPage() {
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
     [agentMessages]
   );
+  const agentPrimarySource = resolvePromptSourceBadge(promptOrigin);
+  const stagedAgentPrompt = getStagedAgentPrompt(promptOrigin, latestAgentPrompt);
+  const trackAgentUiEvent = useCallback((message: string, data?: Record<string, unknown>) => {
+    addBreadcrumb({
+      type: "ui",
+      message,
+      data,
+    });
+  }, []);
   const handleOpenModelModal = (
     anchorId: string,
     target: HTMLElement,
@@ -203,6 +220,14 @@ export default function AiStudioPage() {
     setModel(value);
     closeModelModal();
   };
+
+  const handleManualPromptChange = useCallback(
+    (value: string) => {
+      setSharedPrompt(value);
+      setPromptOrigin("manual");
+    },
+    [setSharedPrompt]
+  );
 
   const shouldRunPromptRefinerFirst = useCallback((text: string, context: AgentContext) => {
     const trimmed = text.trim();
@@ -360,6 +385,12 @@ export default function AiStudioPage() {
     const trimmed = rawInput.trim();
     const fallback = trimmed || prompt.trim();
     if (!fallback) return;
+    trackAgentUiEvent("studio_agent_send_requested", {
+      mode_hint: options?.modeHint ?? "chat",
+      has_attachments: agentAttachments.length > 0,
+      image_attachments: agentAttachments.filter((item) => item.kind === "image").length,
+      prompt_chars: fallback.length,
+    });
     if (!agentSessionEnabled) setAgentSessionEnabled(true);
     agentUiBusyRef.current = true;
     setAgentUiBusy(true);
@@ -449,23 +480,12 @@ export default function AiStudioPage() {
       if (mediaPatchedContext.media?.length) {
         const hydratedMedia: AgentMediaPreview[] = [];
         for (const mediaItem of mediaPatchedContext.media.slice(0, MAX_AGENT_IMAGE_ATTACHMENTS)) {
-          const dataUrl = mediaItem.dataUrl?.trim();
-          if (dataUrl?.startsWith("data:image/")) {
-            hydratedMedia.push({ ...mediaItem, dataUrl, url: mediaItem.url ?? undefined });
-            continue;
-          }
-          const rawUrl = mediaItem.url?.trim();
-          if (!rawUrl) continue;
-          if (rawUrl.startsWith("https://")) {
-            hydratedMedia.push({ ...mediaItem, url: rawUrl, dataUrl: undefined });
-            continue;
-          }
-          const safeUrl = await prepareImageUrl(rawUrl);
-          if (!safeUrl) continue;
-          if (safeUrl.startsWith("data:image/")) {
-            hydratedMedia.push({ ...mediaItem, dataUrl: safeUrl, url: rawUrl });
-          } else if (safeUrl.startsWith("https://")) {
+          const sourceUrl = mediaItem.url?.trim() || mediaItem.dataUrl?.trim() || "";
+          if (!sourceUrl) continue;
+          const safeUrl = await prepareImageUrl(sourceUrl);
+          if (safeUrl?.startsWith("https://")) {
             hydratedMedia.push({ ...mediaItem, url: safeUrl, dataUrl: undefined });
+            continue;
           }
         }
         mediaPatchedContext = {
@@ -498,18 +518,26 @@ export default function AiStudioPage() {
       });
 
       if (!response) {
+        trackAgentUiEvent("studio_agent_response_empty", {
+          mode_hint: options?.modeHint ?? "chat",
+        });
         if (options?.captureResult) return;
         return;
       }
 
-      const responseMessage = response.message?.trim() ?? "";
-      const appliedPrompt =
-        actions?.applyPrompt?.trim() || responseMessage || latestAgentPrompt || prompt;
+      const appliedPrompt = normalizePromptText(actions?.applyPrompt);
+      trackAgentUiEvent("studio_agent_response_received", {
+        mode_hint: options?.modeHint ?? "chat",
+        has_apply_prompt: Boolean(appliedPrompt),
+        variation_count: actions?.variations?.length ?? 0,
+        question_count: actions?.questions?.length ?? 0,
+        describe_target_count: actions?.describeTargets?.length ?? 0,
+      });
 
-      // Apply strict prompt update if tool-specific context demands it (create vs reference).
       if (appliedPrompt) {
         setSharedPrompt(appliedPrompt);
         setLatestAgentPrompt(appliedPrompt);
+        setPromptOrigin("agent");
       }
 
       setAgentActions(actions);
@@ -517,7 +545,7 @@ export default function AiStudioPage() {
         setAgentAttachments([]);
       }
 
-      if (options?.captureResult) {
+      if (options?.captureResult && appliedPrompt) {
         return { prompt: appliedPrompt, referenceTitle: actions?.referenceCard?.title };
       }
     } finally {
@@ -536,12 +564,14 @@ export default function AiStudioPage() {
         setSharedPrompt(refined.prompt);
         setLatestAgentPrompt(refined.prompt);
         addAgentPromptReference(refined.prompt, refined.prompt ? "Refined prompt" : undefined);
+        setPromptOrigin("agent");
         return;
       }
       // Fallback: chat agent with text hint
       const result = await handleAgentSend(prompt, { captureResult: true, modeHint: "text" });
       if (result && typeof result === "object" && "prompt" in result) {
         addAgentPromptReference(result.prompt, result.referenceTitle ?? undefined);
+        setPromptOrigin("agent");
       }
     } finally {
       setIsPromptRefining(false);
@@ -598,6 +628,7 @@ export default function AiStudioPage() {
       );
       setSharedPrompt(cleaned);
       setLatestAgentPrompt(cleaned);
+      setPromptOrigin("agent");
     };
 
     const failPlaceholder = (message: string) => {
@@ -640,6 +671,54 @@ export default function AiStudioPage() {
     } finally {
       setDescribeInFlightCount((count) => Math.max(0, count - 1));
     }
+  };
+
+  const handleAgentApplyPrompt = useCallback(
+    (nextPrompt: string) => {
+      const normalized = normalizePromptText(nextPrompt);
+      if (!normalized) return;
+      setSharedPrompt(normalized);
+      setLatestAgentPrompt(normalized);
+      setPromptOrigin("agent");
+      trackAgentUiEvent("studio_agent_apply_prompt");
+    },
+    [setSharedPrompt, trackAgentUiEvent]
+  );
+
+  const handleAgentSelectVariation = useCallback(
+    (variation: string) => {
+      const normalized = normalizePromptText(variation);
+      if (!normalized) return;
+      setAgentInput(normalized);
+      handleAgentApplyPrompt(normalized);
+      trackAgentUiEvent("studio_agent_select_variation");
+    },
+    [handleAgentApplyPrompt, trackAgentUiEvent]
+  );
+
+  const handleAgentUseQuestion = useCallback(
+    (question: string) => {
+      const normalized = normalizePromptText(question);
+      if (!normalized) return;
+      setAgentInput(normalized);
+      trackAgentUiEvent("studio_agent_use_question");
+    },
+    [trackAgentUiEvent]
+  );
+
+  const handleAgentDescribeTargets = (targets: string[]) => {
+    const validTargets = targets.filter((targetId) =>
+      outputs.some((output) => output.id === targetId)
+    );
+    trackAgentUiEvent("studio_agent_describe_targets", {
+      requested_count: targets.length,
+      valid_count: validTargets.length,
+    });
+    if (!validTargets.length) {
+      setUiNotice("No valid reference targets were available to describe.");
+      return;
+    }
+    void Promise.all(validTargets.map((targetId) => handleDescribeReference(targetId)));
   };
 
   const handleDownloadReference = async (outputId: string) => {
@@ -711,7 +790,7 @@ export default function AiStudioPage() {
       setModel(target.modelId);
     }
     setSharedPrompt(promptText);
-    setLatestAgentPrompt(promptText);
+    setPromptOrigin("reference");
     await handleGenerate(promptText, {
       modeOverride: "image",
       toolOverride: "create",
@@ -722,6 +801,14 @@ export default function AiStudioPage() {
 
   const handleAgentMessageClick = useCallback(
     (message: AgentMessage) => {
+      const normalizedMessagePrompt = normalizePromptText(message.content);
+      if (!normalizedMessagePrompt) return;
+      if (message.role === "assistant") {
+        setLatestAgentPrompt(normalizedMessagePrompt);
+        setPromptOrigin("agent");
+      } else {
+        setPromptOrigin("manual");
+      }
       addAgentPromptReference(message.content);
       setIsAgentChatOpen(false);
     },
@@ -736,6 +823,8 @@ export default function AiStudioPage() {
   const handleAgentAddToGrid = () => {
     if (latestAgentPrompt) {
       addAgentPromptReference(latestAgentPrompt, agentActions?.referenceCard?.title);
+      setPromptOrigin("agent");
+      trackAgentUiEvent("studio_agent_add_to_grid");
     }
     setIsAgentChatOpen(false);
   };
@@ -743,12 +832,14 @@ export default function AiStudioPage() {
   const handleClearAgentChat = () => {
     resetAgentChat();
     setLatestAgentPrompt(null);
+    setPromptOrigin("manual");
     setAgentActions(undefined);
     setAgentInput("");
     setAgentAttachments([]);
     setIsAgentDropActive(false);
     agentDropDepthRef.current = 0;
     setIsAgentChatOpen(false);
+    trackAgentUiEvent("studio_agent_chat_cleared");
   };
 
   const handleOpenMediaLibrary = useCallback(() => {
@@ -758,14 +849,6 @@ export default function AiStudioPage() {
   const handleCloseMediaLibrary = useCallback(() => {
     setIsMediaLibraryOpen(false);
   }, []);
-
-  const handleAgentUsePrompt = () => {
-    if (latestAgentPrompt) {
-      setSharedPrompt(latestAgentPrompt);
-      addAgentPromptReference(latestAgentPrompt, agentActions?.referenceCard?.title);
-    }
-    setIsAgentChatOpen(false);
-  };
 
   const handleCloseAgentChat = () => {
     setIsAgentChatOpen(false);
@@ -969,6 +1052,7 @@ export default function AiStudioPage() {
         const agentRes = result as { prompt: string; referenceTitle?: string } | undefined;
         if (agentRes?.prompt) {
           addAgentPromptReference(agentRes.prompt, agentRes.referenceTitle);
+          setPromptOrigin("agent");
         }
       });
       return;
@@ -1027,7 +1111,8 @@ export default function AiStudioPage() {
     agentInput,
     agentIsSending: agentBusy,
     agentError: agentError ?? undefined,
-    stagedPrompt: latestAgentPrompt,
+    agentPrimarySource,
+    stagedPrompt: stagedAgentPrompt,
     stagedAttachments: agentAttachments,
     agentDropActive: isAgentDropActive,
     onAgentInputChange: setAgentInput,
@@ -1040,13 +1125,17 @@ export default function AiStudioPage() {
     onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
     onRemoveAgentAttachment: handleRemoveAgentAttachment,
     onClearAgentAttachments: handleClearAgentAttachments,
+    onAgentApplyPrompt: handleAgentApplyPrompt,
+    onAgentSelectVariation: handleAgentSelectVariation,
+    onAgentUseQuestion: handleAgentUseQuestion,
+    onAgentDescribeTargets: handleAgentDescribeTargets,
     useReferenceImageIndicator,
     hasReferencePreview: Boolean(activeOutput?.previewUrl),
     isModelModalOpen,
     modelModalAnchor,
     onAspectChange: setAspect,
     onModelPickerOpen: handleOpenModelModal,
-    onPromptChange: setSharedPrompt,
+    onPromptChange: handleManualPromptChange,
     onToggleReferenceIndicator: toggleReferenceIndicator,
     // Treat refine send as a prompt-generating busy state for overlays.
     isPromptGenerating: isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
@@ -1054,15 +1143,11 @@ export default function AiStudioPage() {
     isGenerateDisabled: isGenerateDisabled || agentBusy,
     guardrailReason: generationGuardrail,
     onExpandChat: handleExpandChat,
-    onCloseAgentChat: handleCloseAgentChat,
     onClearAgentChat: handleClearAgentChat,
     shouldDisableSave: useReferenceImageIndicator && mode === "text",
     onGenerate: handlePrimarySubmit,
     onSavePrompt: savePromptReference,
-    onOpenMediaLibrary: handleOpenMediaLibrary,
     agentChatOpen: isAgentChatOpen,
-    onAgentApplyPrompt: () => {},
-    onAgentSelectVariation: () => {},
     // Video settings props
     videoDurationSeconds,
     videoResolution,
@@ -1148,10 +1233,9 @@ export default function AiStudioPage() {
           onModelPickerOpen: handleOpenModelModal,
           onPrimaryImageChange: setReferenceImageUrl,
           onExtraImageChange: setExtraImageUrl,
-          onPromptTextChange: setSharedPrompt,
+          onPromptTextChange: handleManualPromptChange,
           onSave: () => savePromptReference(referenceText ?? ""),
           onRegenerate: handleImageRegenerateWithDebit,
-          onOpenMediaLibrary: handleOpenMediaLibrary,
           costCredits: currentCostCredits,
           isGenerateDisabled: isGenerateDisabled || agentBusy,
           guardrailReason: generationGuardrail,
@@ -1163,14 +1247,18 @@ export default function AiStudioPage() {
           agentInput,
           agentIsSending: agentBusy,
           agentError: agentError ?? undefined,
-          stagedPrompt: latestAgentPrompt,
+          stagedPrompt: stagedAgentPrompt,
+          agentPrimarySource,
           onAgentInputChange: setAgentInput,
           onAgentSend: () => handleAgentSend(undefined, { modeHint: "reference" }),
           onAgentEnhanceSend: () =>
             handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
           onAgentMessageClick: handleAgentMessageClick,
+          onAgentApplyPrompt: handleAgentApplyPrompt,
+          onAgentSelectVariation: handleAgentSelectVariation,
+          onAgentUseQuestion: handleAgentUseQuestion,
+          onAgentDescribeTargets: handleAgentDescribeTargets,
           onExpandChat: handleExpandChat,
-          onCloseAgentChat: handleCloseAgentChat,
           onClearAgentChat: handleClearAgentChat,
           agentChatOpen: isAgentChatOpen,
           imageResolution,
@@ -1223,10 +1311,9 @@ export default function AiStudioPage() {
           onModelPickerOpen: handleOpenModelModal,
           onPrimaryImageChange: setReferenceImageUrl,
           onExtraImageChange: setExtraImageUrl,
-          onPromptTextChange: setSharedPrompt,
+          onPromptTextChange: handleManualPromptChange,
           onSave: saveActiveOutput,
           onRegenerate: handleRegenerateWithDebit,
-          onOpenMediaLibrary: handleOpenMediaLibrary,
           costCredits: currentCostCredits,
           guardrailReason: generationGuardrail,
           referenceImageWarning,
@@ -1238,14 +1325,18 @@ export default function AiStudioPage() {
           agentInput,
           agentIsSending: agentBusy,
           agentError: agentError ?? undefined,
-          stagedPrompt: latestAgentPrompt,
+          stagedPrompt: stagedAgentPrompt,
+          agentPrimarySource,
           onAgentInputChange: setAgentInput,
           onAgentSend: () => handleAgentSend(undefined, { modeHint: "reference" }),
           onAgentEnhanceSend: () =>
             handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
           onAgentMessageClick: handleAgentMessageClick,
+          onAgentApplyPrompt: handleAgentApplyPrompt,
+          onAgentSelectVariation: handleAgentSelectVariation,
+          onAgentUseQuestion: handleAgentUseQuestion,
+          onAgentDescribeTargets: handleAgentDescribeTargets,
           onExpandChat: handleExpandChat,
-          onCloseAgentChat: handleCloseAgentChat,
           onClearAgentChat: handleClearAgentChat,
           agentChatOpen: isAgentChatOpen,
           beginnerMode,
@@ -1272,7 +1363,7 @@ export default function AiStudioPage() {
           referenceImageUrl,
           referenceText,
           onReferenceImageChange: setReferenceImageUrl,
-          onReferenceTextChange: setSharedPrompt,
+          onReferenceTextChange: handleManualPromptChange,
           onRegenerate: regenerateOutput,
         }}
         detailModalOutput={detailOutput}
@@ -1294,16 +1385,16 @@ export default function AiStudioPage() {
         agentChat={{
           isOpen: isAgentChatOpen,
           agentMessages,
-          agentInput,
           agentActions,
+          agentInput,
           agentIsSending: agentBusy,
           latestAgentPrompt,
+          agentPrimarySource,
           stagedAttachments: agentAttachments,
           agentDropActive: isAgentDropActive,
           onInputChange: setAgentInput,
           onSend: handleAgentSend,
           onAddToGrid: handleAgentAddToGrid,
-          onUsePrompt: handleAgentUsePrompt,
           onClose: handleCloseAgentChat,
           onAttachmentDrop: handleAgentAttachmentDrop,
           onAttachmentDragOver: handleAgentAttachmentDragOver,
@@ -1312,6 +1403,10 @@ export default function AiStudioPage() {
           onRemoveAttachment: handleRemoveAgentAttachment,
           onClearAttachments: handleClearAgentAttachments,
           onMessageClick: handleAgentMessageClick,
+          onAgentApplyPrompt: handleAgentApplyPrompt,
+          onAgentSelectVariation: handleAgentSelectVariation,
+          onAgentUseQuestion: handleAgentUseQuestion,
+          onAgentDescribeTargets: handleAgentDescribeTargets,
         }}
         handleReferenceCanvasFiles={handleReferenceCanvasFiles}
         triggerFilePicker={triggerFilePicker}

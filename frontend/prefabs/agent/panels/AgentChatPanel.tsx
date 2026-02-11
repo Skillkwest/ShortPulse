@@ -5,7 +5,8 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { AgentSendButton } from "../buttons/AgentSendButton";
 import { AgentInputBar } from "../inputs/AgentInputBar";
-import type { AgentAttachment, AgentMessage } from "../types";
+import { AgentPromptActions } from "../components/AgentPromptActions";
+import type { AgentActions, AgentAttachment, AgentMessage } from "../types";
 
 type AgentChatPanelProps = {
   messages: AgentMessage[];
@@ -17,11 +18,19 @@ type AgentChatPanelProps = {
   introMessage?: AgentMessage | null;
   showMessages?: boolean;
   showInput?: boolean;
+  showPromptActions?: boolean;
   stagedAttachments?: AgentAttachment[];
   isDropActive?: boolean;
+  agentActions?: AgentActions;
+  primaryPrompt?: string | null;
+  primarySource?: "agent" | "manual" | "reference";
   onInputChange: (value: string) => void;
   onSend: () => void;
   onMessageClick?: (message: AgentMessage) => void;
+  onAgentApplyPrompt?: (prompt: string) => void;
+  onAgentSelectVariation?: (prompt: string) => void;
+  onAgentUseQuestion?: (question: string) => void;
+  onAgentDescribeTargets?: (targets: string[]) => void;
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -41,11 +50,19 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   introMessage = null,
   showMessages = true,
   showInput = true,
+  showPromptActions = false,
   stagedAttachments = [],
   isDropActive = false,
+  agentActions,
+  primaryPrompt = null,
+  primarySource = "manual",
   onInputChange,
   onSend,
   onMessageClick,
+  onAgentApplyPrompt,
+  onAgentSelectVariation,
+  onAgentUseQuestion,
+  onAgentDescribeTargets,
   onDrop,
   onDragOver,
   onDragEnter,
@@ -195,6 +212,17 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
             </div>
           )}
         </div>
+      ) : null}
+      {showPromptActions ? (
+        <AgentPromptActions
+          primaryPrompt={primaryPrompt}
+          primarySource={primarySource}
+          actions={agentActions}
+          onApplyPrompt={onAgentApplyPrompt}
+          onSelectVariation={onAgentSelectVariation}
+          onUseQuestion={onAgentUseQuestion}
+          onDescribeTargets={onAgentDescribeTargets}
+        />
       ) : null}
       {isSending ? (
         <p className="agent-thinking" aria-live="polite">

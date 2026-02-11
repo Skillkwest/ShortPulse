@@ -1,4 +1,4 @@
-# ADR 0002: API-based AI Studio Agent (no MCP)
+# ADR 0006: API-based AI Studio Agent (no MCP)
 
 ## Status
 Accepted

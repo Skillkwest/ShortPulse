@@ -85,6 +85,7 @@ type TextSectionProps = {
   agentInput: string;
   agentIsSending: boolean;
   agentError?: string;
+  agentPrimarySource?: "agent" | "manual" | "reference";
   stagedPrompt?: string | null;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
@@ -106,12 +107,9 @@ type TextSectionProps = {
   ) => void;
   onPromptChange: (value: string) => void;
   onToggleReferenceIndicator: () => void;
-  onCloseAgentChat?: () => void;
   onAgentInputChange: (value: string) => void;
   onAgentSend: () => void;
   onAgentEnhanceSend?: () => void;
-  onAgentApplyPrompt: (prompt: string) => void;
-  onAgentSelectVariation: (prompt: string) => void;
   onAgentMessageClick: (message: AgentMessage) => void;
   onAgentAttachmentDrop: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -119,11 +117,14 @@ type TextSectionProps = {
   onAgentAttachmentDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
   onRemoveAgentAttachment: (id: string) => void;
   onClearAgentAttachments: () => void;
+  onAgentApplyPrompt: (prompt: string) => void;
+  onAgentSelectVariation: (prompt: string) => void;
+  onAgentUseQuestion: (question: string) => void;
+  onAgentDescribeTargets: (targets: string[]) => void;
   onExpandChat: () => void;
   agentChatOpen: boolean;
   onGenerate: () => void;
   onSavePrompt: () => void;
-  onOpenMediaLibrary?: () => void;
 };
 
 type CharacterSectionProps = React.ComponentProps<typeof CharacterPropertiesPanel>;
@@ -142,16 +143,16 @@ type ReferenceSectionProps = Omit<
 type AgentChatProps = {
   isOpen: boolean;
   agentMessages: AgentMessage[];
-  agentInput: string;
   agentActions?: AgentActions;
+  agentInput: string;
   agentIsSending: boolean;
   latestAgentPrompt: string | null;
+  agentPrimarySource?: "agent" | "manual" | "reference";
   stagedAttachments: AgentAttachment[];
   agentDropActive: boolean;
   onInputChange: (value: string) => void;
   onSend: () => void;
   onAddToGrid: () => void;
-  onUsePrompt: () => void;
   onClose: () => void;
   onAttachmentDrop: (event: React.DragEvent<HTMLDivElement>) => void;
   onAttachmentDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -160,6 +161,10 @@ type AgentChatProps = {
   onRemoveAttachment: (id: string) => void;
   onClearAttachments: () => void;
   onMessageClick?: (message: AgentMessage) => void;
+  onAgentApplyPrompt?: (prompt: string) => void;
+  onAgentSelectVariation?: (prompt: string) => void;
+  onAgentUseQuestion?: (question: string) => void;
+  onAgentDescribeTargets?: (targets: string[]) => void;
 };
 
 type AiStudioPageContentProps = {
@@ -264,12 +269,7 @@ export function AiStudioPageContent({
               agentChatOpen={agentChat.isOpen}
               onAgentEnhanceSend={propertiesText.onAgentEnhanceSend}
             />
-            <ComposeSendCard
-              {...propertiesText}
-              onGenerate={propertiesText.onGenerate}
-              onSavePrompt={propertiesText.onSavePrompt}
-              shouldDisableSave={propertiesText.shouldDisableSave}
-            />
+            <ComposeSendCard {...propertiesText} onGenerate={propertiesText.onGenerate} />
           </>
         );
       case "character":
@@ -509,6 +509,10 @@ export function AiStudioPageContent({
                       input={agentChat.agentInput}
                       sendLabel="Send"
                       isSending={agentChat.agentIsSending}
+                      showPromptActions
+                      agentActions={agentChat.agentActions}
+                      primaryPrompt={agentChat.latestAgentPrompt}
+                      primarySource={agentChat.agentPrimarySource}
                       stagedAttachments={agentChat.stagedAttachments}
                       isDropActive={agentChat.agentDropActive}
                       onDrop={agentChat.onAttachmentDrop}
@@ -520,6 +524,10 @@ export function AiStudioPageContent({
                       onInputChange={agentChat.onInputChange}
                       onSend={agentChat.onSend}
                       onMessageClick={agentChat.onMessageClick}
+                      onAgentApplyPrompt={agentChat.onAgentApplyPrompt}
+                      onAgentSelectVariation={agentChat.onAgentSelectVariation}
+                      onAgentUseQuestion={agentChat.onAgentUseQuestion}
+                      onAgentDescribeTargets={agentChat.onAgentDescribeTargets}
                       beginnerMode={beginnerMode}
                     />
                   </div>

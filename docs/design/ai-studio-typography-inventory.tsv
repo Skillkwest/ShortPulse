@@ -1,0 +1,22 @@
+token_type	value	occurrence_count	files
+font-family	inherit	5	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-canvas.css
+font-family	var(--font-mono, monospace)	1	frontend/styles/ai-studio-modals.css
+font-family	var(--font-primary)	1	frontend/styles/ai-studio-modals.css
+font-family	var(--font-secondary)	1	frontend/styles/ai-studio-prompts.css
+font-size	12px	38	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-prompt-actions.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+font-size	13px	32	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-properties.css, frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-prompt-actions.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-controls.css
+font-size	14px	20	frontend/styles/ai-studio-coming-soon.css, frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-properties.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+font-size	11px	12	frontend/styles/ai-studio-coming-soon.css, frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-layout.css
+font-size	10px	5	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+font-size	16px	5	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-controls.css
+font-size	18px	5	frontend/styles/ai-studio-coming-soon.css, frontend/styles/ai-studio-prompt-actions.css, frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+font-size	15px	4	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-model-picker.css
+font-size	var(--ai-toolbar-label-size)	3	frontend/styles/ai-studio-layout.css
+font-size	12px !important	2	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-prompts.css
+font-size	24px	2	frontend/styles/ai-studio-modals.css
+font-size	12.5px	1	frontend/styles/ai-studio-prompt-actions.css
+font-size	14px !important	1	frontend/styles/ai-studio-layout.css
+font-size	16px !important	1	frontend/styles/ai-studio-layout.css
+font-size	19px	1	frontend/styles/ai-studio-controls.css
+font-size	20px	1	frontend/styles/ai-studio-canvas.css
+font-size	var(--ai-toolbar-font-size)	1	frontend/styles/ai-studio-layout.css

@@ -28,7 +28,7 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 
 ## Documentation (when behavior changes)
 
-- Update `README.md` and relevant `docs/sop_*.md`
+- Update `README.md` and relevant `docs/sops/sop_*.md`
 - If it’s a durable architectural decision, write an ADR in `docs/adr/`
 
 ## Post‑MVP checks (run when these surfaces are enabled)

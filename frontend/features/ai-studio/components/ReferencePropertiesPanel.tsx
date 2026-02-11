@@ -77,7 +77,6 @@ type ReferencePropertiesPanelProps = {
   onPromptTextChange: (value: string) => void;
   onSave: () => void;
   onRegenerate: () => void;
-  onOpenMediaLibrary?: () => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
@@ -90,6 +89,7 @@ type ReferencePropertiesPanelProps = {
   agentInput?: string;
   agentIsSending?: boolean;
   agentError?: string;
+  agentPrimarySource?: "agent" | "manual" | "reference";
   stagedPrompt?: string | null;
   agentChatOpen?: boolean;
   onAgentInputChange?: (value: string) => void;
@@ -97,8 +97,11 @@ type ReferencePropertiesPanelProps = {
   onAgentEnhanceSend?: () => void;
   onAgentMessageClick?: (message: AgentMessage) => void;
   onExpandChat?: () => void;
-  onCloseAgentChat?: () => void;
   onClearAgentChat?: () => void;
+  onAgentApplyPrompt?: (prompt: string) => void;
+  onAgentSelectVariation?: (prompt: string) => void;
+  onAgentUseQuestion?: (question: string) => void;
+  onAgentDescribeTargets?: (targets: string[]) => void;
   beginnerMode?: boolean;
 };
 
@@ -153,7 +156,6 @@ export function ReferencePropertiesPanel({
   onPromptTextChange,
   onSave,
   onRegenerate,
-  onOpenMediaLibrary,
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
@@ -164,6 +166,7 @@ export function ReferencePropertiesPanel({
   agentInput = "",
   agentIsSending = false,
   agentError,
+  agentPrimarySource = "manual",
   stagedPrompt = null,
   agentChatOpen = false,
   onAgentInputChange,
@@ -171,8 +174,11 @@ export function ReferencePropertiesPanel({
   onAgentEnhanceSend,
   onAgentMessageClick,
   onExpandChat,
-  onCloseAgentChat,
   onClearAgentChat,
+  onAgentApplyPrompt,
+  onAgentSelectVariation,
+  onAgentUseQuestion,
+  onAgentDescribeTargets,
   beginnerMode = false,
 }: ReferencePropertiesPanelProps) {
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
@@ -298,7 +304,6 @@ export function ReferencePropertiesPanel({
           referenceText={referenceText}
           onPromptTextChange={onPromptTextChange}
           onSave={onSave}
-          onOpenMediaLibrary={onOpenMediaLibrary}
           collapsed={collapsedSteps.prompt}
           onToggleCollapse={() => toggleStep("prompt")}
           onDrop={handlePromptDrop}
@@ -309,6 +314,7 @@ export function ReferencePropertiesPanel({
           agentInput={agentInput}
           agentIsSending={agentIsSending}
           agentError={agentError}
+          agentPrimarySource={agentPrimarySource}
           stagedPrompt={stagedPrompt}
           agentChatOpen={agentChatOpen}
           onAgentInputChange={onAgentInputChange}
@@ -316,8 +322,11 @@ export function ReferencePropertiesPanel({
           onAgentEnhanceSend={onAgentEnhanceSend}
           onAgentMessageClick={onAgentMessageClick}
           onExpandChat={onExpandChat}
-          onCloseAgentChat={onCloseAgentChat}
           onClearAgentChat={onClearAgentChat}
+          onAgentApplyPrompt={onAgentApplyPrompt}
+          onAgentSelectVariation={onAgentSelectVariation}
+          onAgentUseQuestion={onAgentUseQuestion}
+          onAgentDescribeTargets={onAgentDescribeTargets}
         />
         {!isKeyframesMode && !isMotionMode ? (
           <ReferenceModelStep

@@ -45,7 +45,7 @@ export const aspectOptions: AspectOption[] = [
   { value: "16:9", ratioLabel: "16:9", name: "Landscape", orientation: "widescreen" },
 ];
 
-// When you add/remove image models here, update `docs/sop_image_generation.md` → "Supported image models".
+// When you add/remove image models here, update `docs/sops/sop_image_generation.md` → "Supported image models".
 export const modelOptions: ModelOption[] = [
   {
     value: "fal-ai/kling-video/v3/pro/text-to-video",

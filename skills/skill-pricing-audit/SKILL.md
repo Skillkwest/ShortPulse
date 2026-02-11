@@ -19,9 +19,9 @@ Purpose: verify pricing formulas, defaults, and debit behavior across AI Studio.
 - `frontend/pages/ai-studio.tsx`
 - `frontend/features/ai-studio/hooks/useAiStudioViewModel.ts`
 - `frontend/features/ai-studio/hooks/useAiStudioState.ts`
-- `docs/sop_ai_studio_index.md`
-- `docs/sop_image_generation.md`
-- `docs/sop_video_generation.md`
+- `docs/sops/sop_ai_studio_index.md`
+- `docs/sops/sop_image_generation.md`
+- `docs/sops/sop_video_generation.md`
 
 ## Workflow
 1. **Registry vs SOPs**

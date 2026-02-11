@@ -16,8 +16,8 @@ This captures the “Week 1 foundation” work we just completed plus the remain
 1. **Formatter baseline sweep.** Run Prettier across the repo, then re-enable `npm run format:check` in CI and add it to `docs/local-development.md` as a required validation once it’s affordable.
 2. **Dependency upgrades.** Resolve the remaining `npm audit` findings by upgrading `next`/`eslint-config-next` (and their `glob`/`lodash` chains) or applying targeted patches.
 3. **Playwright E2E** for auth flow, AI Studio generation, media library, billing, and admin dashboards (`test:e2e`).
-4. **Monitoring enhancement.** Add Sentry configs plus `docs/monitoring.md` guidance; keep custom client logging as complementary telemetry.
-5. **Disaster recovery & performance docs.** Create `docs/disaster-recovery.md`, `docs/performance.md`, and expand `docs/testing-guide.md` / API docs with Vitest/Playwright guidance.
+4. **Monitoring enhancement.** `docs/monitoring.md` exists now; next step is wiring external monitoring (e.g., Sentry) while keeping custom client logging as complementary telemetry.
+5. **Disaster recovery & performance docs.** Baseline docs now exist (`docs/disaster-recovery.md`, `docs/performance.md`); next step is to expand them with environment-specific drills and SLAs.
 6. **Agent skills.** Implement `/skills/commit-with-tests`, `/skills/deploy`, `/skills/security-scan`, `/skills/db-migrate`, plus the test-generation, API doc, security audit, and migration validator agents described in the plan.
 7. **Security hardening.** Document and automate RLS/policy checks, ensure admin auth coverage, and keep the Supabase schema/migration process strictly versioned (`sql/migrations/`).
 
@@ -25,4 +25,4 @@ This captures the “Week 1 foundation” work we just completed plus the remain
 - Decide whether Prettier should be enforced in CI now or after a repo-wide formatting pass.
 - Schedule the dependency upgrade window so we can re-run `npm audit`.
 - Prioritize Playwright flows (auth first, then AI Studio/billing) and add the associated CI job when reliable.
-- Document the mapping between audit findings and docs (e.g., refer to `docs/deployment.md`, `docs/database-migrations.md`, and upcoming monitoring docs).
+- Document the mapping between audit findings and docs (e.g., `docs/deployment.md`, `docs/database-migrations.md`, `docs/monitoring.md`, `docs/disaster-recovery.md`).

@@ -1,13 +1,13 @@
 # SOP: Text Generation Workflows
 
 This SOP keeps ShortPulse’s text-oriented AI features predictable, debuggable, and easy to tune. It covers both prompt enhancement (Create → Text) and image reverse-prompting so that engineers can trace requests from the UI to OpenAI and back again.
-See `docs/sop_ai_studio_index.md` for the shared structure, defaults, and links across AI Studio verticals.
+See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and links across AI Studio verticals.
 
 ## Audit (strengths, gaps, decisions)
 - Strengths: Single canonical prompt source in `frontend/lib/agentPromptsConfig.ts`; strict loader contract (`AgentPromptId`) that the TS compiler can validate; UI state (`useAiStudioState`) auto-wires responses into textareas and Reference Grid without copy/paste; token usage captured for cost visibility.
 - Gaps: Imported images do not yet flow through image-describer drag/drop (logged below as a limitation); UI error surfacing must be explicit (toast/modal/banners) rather than silent HTTP errors.
 - Decisions: Keep prompts in the TS config only (env overrides for emergencies); keep loader as-is but rename keys only in code if needed (outside this SOP); default all text and vision calls to `gpt-4.1-nano` with env overrides; keep SOP + TS config as the only config artifacts to minimize files.
-- Actioned cleanup: Removed redundant prompt docs (`docs/ai-agent-prompts.md`, `docs/openai-agent-system-instructions.md`) so the TS config remains the only source. Update any links/bookmarks to point to `frontend/lib/agentPromptsConfig.ts`.
+- Actioned cleanup: Archived redundant prompt docs in `docs/archive/ai-studio-prompts.md` so the TS config remains the only source. Update any links/bookmarks to point to `frontend/lib/agentPromptsConfig.ts`.
 - UX change: Added a prominent error banner in AI Studio to surface prompt/describe failures with a dismiss control.
 - Credits: The Generate button shows the estimated credits from `computeCostForModel` (or “—” if unknown); image/video charging is enforced server-side at submit time, while prompt-refine/describe flows currently report usage but are not yet debited.
 
@@ -55,14 +55,14 @@ See `docs/sop_ai_studio_index.md` for the shared structure, defaults, and links 
 4. Calls OpenAI chat completion with the `visionModel` (default `gpt-4.1-nano`), `temperature: 0.9`, `max_tokens: 8000`, and a single user message combining text plus image payload (high-detail inference).
 5. Parses `"choices[0].message.content"` into `description` and returns `{ description, usage }`.
 6. The same state update strategy runs here (`useAiStudioState.ts:336-380`), so descriptions appear in the Create textarea, Studio Preview prompt drop zone, and Reference Grid without any manual copy/paste: the handler calls `setPrompt(description)` and inserts a prompt card with `previewText`, then focuses the prompt input so the generated text is already selected for editing or regeneration.
-7. When Image-to-Text Mode is toggled on, the describe-image agent (Agent 2) always runs even if the prompt textarea has text; user input is ignored for the call, and the textarea is replaced by the describe result. Imported images dropped into the Reference Grid or Studio Preview will populate the describe flow; if an image is missing, the UI error banner prompts the user to add a reference first.
+7. When describe mode runs, the describe-image agent (Agent 2) replaces the active prompt with the returned description. Imported images dropped into the Reference Grid or Studio Preview can populate describe context; if an image is missing, the UI error banner prompts the user to add a reference first.
 
 ## Studio UX surfaces (Create → Text, Create → Image/Video, Reference Grid)
 
-- **TextPropertiesPanel** (`frontend/features/ai-studio/components/TextPropertiesPanel.tsx:29-214`) makes the user journey linear: select mode → optional image reference toggle → aspect/model (when not in text) → prompt textarea → Generate. The bound textarea shows whatever `prompt` state holds (user text or API response), and the Save Prompt button is a convenient way to add the current prompt directly into the Reference Grid without hitting Generate again.
-- **ReferencePropertiesPanel** (`frontend/features/ai-studio/components/ReferencePropertiesPanel.tsx:36-320`) brings drag-and-drop reference behavior to image/video flows. Its prompt textarea is tied to `referenceText`, which is shared with Studio Preview, so when a Reference Grid card is dragged into the prompt dropzone or a generated prompt card auto-populates `referenceText`, the backend sees the fresh text without a copy-paste step.
+- **TextPropertiesPanel** (`frontend/features/ai-studio/components/TextPropertiesPanel.tsx`) is chat-first for prompt building. The inline prompt card includes a “Primary generation prompt” state block so users can verify the exact prompt Generate will run and whether it came from agent output or manual edits.
+- **ReferencePropertiesPanel** (`frontend/features/ai-studio/components/ReferencePropertiesPanel.tsx`) keeps drag-and-drop reference behavior for image/video flows while using the same chat-first prompt builder; the active `referenceText` remains shared with Studio Preview.
 - **Reference Canvas & Studio Preview** show prompt cards and preview text automatically (`frontend/features/ai-studio/components/ReferenceCanvas.tsx:13-83` and `frontend/features/ai-studio/components/StudioPreview.tsx:10-89`). New `StudioOutput` rows rendered by `setOutputs` include the generated prompt text in `previewText`, so Reference Grid cards and Studio Preview’s textarea display the generated prompt immediately, ready to be dragged back into Create → Text or Create → Image/Video panels.
-- **UX notes**: `docs/shortpulse_ai_studio.md:59-62` explains that the Reference Grid is live (no copy/paste) and that Studio Preview/Reference Canvas supply drag handles for regenerated prompts, consistent with this SOP’s requirement that new prompts populate the text boxes and reference grid instantly.
+- **UX notes**: `docs/product/shortpulse_ai_studio.md:59-62` explains that the Reference Grid is live (no copy/paste) and that Studio Preview/Reference Canvas supply drag handles for regenerated prompts, consistent with this SOP’s requirement that new prompts populate the text boxes and reference grid instantly.
 
 ## Prompt maintenance
 

@@ -1,6 +1,6 @@
 /**
  * Generates a descriptive caption for an image using OpenAI vision.
- * System prompt comes from docs/ai-agent-prompts.md (Agent 2) with env fallback.
+ * System prompt comes from frontend/lib/agentPromptsConfig.ts (Agent 2) with env fallback.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
@@ -53,7 +53,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!response.ok) {
       const detail = await response.text();
-      return res.status(response.status).json({ error: "Upstream error", detail, model: visionModel });
+      return res
+        .status(response.status)
+        .json({ error: "Upstream error", detail, model: visionModel });
     }
 
     const data = await response.json();

@@ -213,6 +213,110 @@
   opacity: 0.85;
 }
 
+.agent-primary-prompt {
+  margin-top: 8px;
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  border-radius: 10px;
+  background: rgba(10, 13, 20, 0.78);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-primary-prompt.is-empty {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+.agent-primary-prompt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-primary-prompt-head p {
+  margin: 0;
+  opacity: 0.82;
+}
+
+.agent-primary-source {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.28);
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.agent-primary-source--agent {
+  border-color: rgba(52, 200, 255, 0.42);
+  color: #57d4ff;
+  background: rgba(52, 200, 255, 0.12);
+}
+
+.agent-primary-source--manual {
+  border-color: rgba(201, 205, 214, 0.24);
+  color: rgba(225, 233, 242, 0.86);
+  background: rgba(201, 205, 214, 0.08);
+}
+
+.agent-primary-source--reference {
+  border-color: rgba(245, 183, 84, 0.42);
+  color: #f7c269;
+  background: rgba(245, 183, 84, 0.12);
+}
+
+.agent-primary-prompt-body {
+  margin: 0;
+  color: #e6edf7;
+  line-height: 1.4;
+  max-height: 66px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.agent-action-strip {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-action-btn,
+.agent-action-chip {
+  min-height: 28px;
+  max-width: 100%;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: rgba(19, 24, 33, 0.78);
+  color: #e6edf7;
+  padding: 0 10px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-action-btn--apply {
+  border-color: rgba(52, 200, 255, 0.4);
+  background: rgba(52, 200, 255, 0.12);
+  color: #63dbff;
+}
+
+.agent-action-chip--question {
+  border-color: rgba(245, 183, 84, 0.4);
+  background: rgba(245, 183, 84, 0.12);
+  color: #f3c372;
+}
+
 .agent-send-prefab-label {
   font-size: 12px;
   font-weight: 800;

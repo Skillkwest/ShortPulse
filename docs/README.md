@@ -1,117 +1,131 @@
 # Docs Index
 
-Use this as the entry point for the project’s documentation.
+Start here for all repository documentation.
 
-## Engineering
+## Navigation
+- Core engineering and governance docs live at `docs/` root.
+- API references live in `docs/api/`.
+- SOP runbooks live in `docs/sops/`.
+- Product/domain docs live in `docs/product/`.
+- Active planning docs live in `docs/planning/`.
+- Durable architecture decisions live in `docs/adr/`.
+- Design rationale lives in `docs/design/`.
+- Historical/deprecated docs live in `docs/archive/`.
+- Early non-authoritative ideas live in `docs/brainstorming/`.
 
-- `docs/documentation_overview.md` (what exists + what’s missing)
-- `docs/dev-ground-rules.md` (how we work in this repo)
-- `docs/conventions.md` (code/style conventions)
-- `docs/audit-progress.md` (automation audit summary + backlog)
+## Core Engineering
+- `docs/documentation_overview.md` (documentation governance + quality bar)
+- `docs/dev-ground-rules.md`
+- `docs/conventions.md`
+- `docs/agent-playbook.md`
+- `docs/AGENTS.md`
+- `docs/repo-structure.md`
+- `docs/architecture-overview.md`
+- `docs/frontend-architecture.md`
+- `docs/styles-structure.md`
+- `docs/prefabs.md`
+- `docs/routes.md`
+- `docs/local-development.md`
+- `docs/deployment.md`
+- `docs/database-migrations.md`
+- `docs/supabase_auth_setup.md`
+- `docs/security-checklist.md`
+- `docs/testing-guide.md`
+- `docs/release-checklist.md`
 - `docs/contributor-guide.md`
-- `docs/mvp-stabilization-plan.md` (procedural MVP plan + scope lock)
-- `docs/mvp-pre-tester-anchor-plan.md` (strict pre-tester stabilization + QA gate checklist)
-- `docs/agents/change-impact-auditor.md` (scope + doc impact checklist)
-- `docs/repo-structure.md` (where things go)
-- `docs/architecture-overview.md` (system at a glance)
-- `docs/prefabs.md` (shared prefab UI kits)
-- `docs/local-development.md` (setup + commands)
-- `docs/deployment.md` (production deployment runbook)
-- `docs/database-migrations.md` (schema migration workflow)
-- `docs/supabase_auth_setup.md` (Supabase client setup + auth)
-- `docs/release-checklist.md` (pre-merge checklist)
-- `docs/frontend-architecture.md` (folder structure + feature pattern)
-- `docs/styles-structure.md` (CSS organization)
-- `docs/testing-guide.md` (current testing expectations)
-- `docs/security-checklist.md` (Supabase + auth isolation)
-- `docs/routes.md` (route map + auth expectations)
-- `docs/agent-playbook.md` (one-pager for AI agents/contributors)
-- `docs/AGENTS.md` (doc-specific agent instructions)
-- `docs/adr/README.md` (architecture decisions)
-- `docs/adr/0002-media-library-persistence.md` (media library persistence model)
-- `docs/adr/0003-admin-authorization-source.md` (admin auth authority rules)
-- `docs/adr/0004-fal-failure-refund-settlement.md` (Fal failure refund settlement lifecycle)
-- `docs/adr/0005-ai-studio-modularization-boundaries.md` (AI Studio modular split boundaries)
 - `docs/troubleshooting.md`
-- `docs/glossary.md`
 - `docs/known-issues.md`
+- `docs/glossary.md`
+- `docs/monitoring.md`
+- `docs/disaster-recovery.md`
+- `docs/performance.md`
+- `docs/data-dictionary.md`
+- `docs/supabase_full_schema.sql`
 
-## API Reference
+## APIs
+- `docs/api/README.md`
+- `docs/api/api-responses.md`
+- `docs/api/api-chat-completions.md`
+- `docs/api/api-fal-kling-3-pro-image-to-video.md`
+- `docs/api/api-fal-kling-3-pro-text-to-video.md`
+- `docs/api/api-fal-kling-2-6-motion-control.md`
+- `docs/api/api-fal-veo3.md`
+- `docs/api/api-fal-veo3-image-to-video.md`
+- `docs/api/api-fal-veo3-first-last-frame.md`
+- `docs/api/api-fal-sora-2-pro.md`
+- `docs/api/api-fal-seedance-1-5-pro.md`
+- `docs/api/api-fal-seedance-1-5-pro-i2v.md`
+- `docs/api/api-fal-flux-2.md`
+- `docs/api/api-fal-flux-2-edit.md`
+- `docs/api/api-fal-flux-2-pro.md`
+- `docs/api/api-fal-flux-2-pro-edit.md`
+- `docs/api/api-fal-flux-dev.md`
+- `docs/api/api-fal-nano-banana.md`
+- `docs/api/api-fal-nano-banana-edit.md`
+- `docs/api/api-fal-nano-banana-pro.md`
+- `docs/api/api-fal-nano-banana-pro-edit.md`
+- `docs/api/api-fal-seedream-4-5.md`
+- `docs/api/api-fal-seedream-4-5-edit.md`
 
-- `docs/api-responses.md` (Responses generation API reference)
-- `docs/api-chat-completions.md` (Chat Completions endpoint reference)
-- `docs/api-fal-kling-3-pro-image-to-video.md` (Fal.ai Kling 3.0 Pro image-to-video guide)
-- `docs/api-fal-kling-3-pro-text-to-video.md` (Fal.ai Kling 3.0 Pro text-to-video guide)
-- `docs/api-fal-kling-2-6-motion-control.md` (Fal.ai Kling 2.6 Motion Control guide)
-- `docs/api-fal-veo3.md` (Fal.ai Veo 3.1 text-to-video guide)
-- `docs/api-fal-veo3-image-to-video.md` (Fal.ai Veo 3.1 image-to-video guide)
-- `docs/api-fal-veo3-first-last-frame.md` (Fal.ai Veo 3.1 first/last frame guide)
-- `docs/api-fal-sora-2-pro.md` (Fal.ai Sora 2 Pro text-to-video guide)
-- `docs/api-fal-seedance-1-5-pro.md` (Fal.ai Seedance 1.5 Pro video generation guide)
-- `docs/api-fal-seedance-1-5-pro-i2v.md` (Fal.ai Seedance 1.5 Pro image-to-video guide)
-- `docs/api-fal-flux-2.md` (Fal.ai FLUX 2 text-to-image guide)
-- `docs/api-fal-flux-2-edit.md` (Fal.ai FLUX 2 image-to-image/edit guide)
-- `docs/api-fal-flux-2-pro.md` (Fal.ai FLUX 2 PRO text-to-image guide)
-- `docs/api-fal-flux-2-pro-edit.md` (Fal.ai FLUX 2 PRO Edit image-to-image guide)
-- `docs/api-fal-flux-dev.md` (Fal.ai FLUX Dev text-to-image guide)
-- `docs/api-fal-nano-banana.md` (Fal.ai Nano Banana image generation guide)
-- `docs/api-fal-nano-banana-edit.md` (Fal.ai Nano Banana Edit image-to-image guide)
-- `docs/api-fal-nano-banana-pro-edit.md` (Fal.ai Nano Banana Pro Edit image-to-image guide)
-- `docs/api-fal-nano-banana-pro.md` (Fal.ai Nano Banana Pro image generation guide)
-- `docs/api-fal-seedream-4-5.md` (Fal.ai Seedream 4.5 text-to-image guide)
-- `docs/api-fal-seedream-4-5-edit.md` (Fal.ai Seedream 4.5 image-to-image/edit guide)
-- `docs/sop_new_model_ingestion.md` (SOP for adding new AI Studio models)
+## SOPs
+- `docs/sops/README.md`
+- `docs/sops/sop_new_feature_modularization.md`
+- `docs/sops/sop_saved_creators.md`
+- `docs/sops/sop_media_library_ui.md`
+- `docs/sops/sop_performance_ai_detection.md`
+- `docs/sops/sop_ai_studio_index.md`
+- `docs/sops/sop_ai_studio_agent.md`
+- `docs/sops/sop_ai_studio_agent_chat_ops.md`
+- `docs/sops/sop_billing_credits_operations.md`
+- `docs/sops/sop_new_model_ingestion.md`
+- `docs/sops/sop_text_generation.md`
+- `docs/sops/sop_image_generation.md`
+- `docs/sops/sop_video_generation.md`
+- `docs/sops/sop_character_generation.md`
+- `docs/sops/sop_character_identity.md`
 
-## Product / Domain
+## Product
+- `docs/product/README.md`
+- `docs/product/ai-studio-pricing.md`
+- `docs/product/billing-pricing-catalog.md`
+- `docs/product/shortpulse_ai_studio.md`
+- `docs/product/character_workflow_build_guide.md`
+- `docs/product/shortflow_outlier_source_of_truth.md`
+- `docs/product/shortpulse_top_performing_videos_source_of_truth.md`
+- `docs/product/short_pulse_ideal_customer_profile_icp.md`
 
-- `docs/data-dictionary.md` (tables + field meanings)
-- `docs/shortflow_outlier_source_of_truth.md` (outlier model definition)
-- `docs/shortpulse_top_performing_videos_source_of_truth.md` (product/data source-of-truth)
-- `docs/short_pulse_ideal_customer_profile_icp.md` (ICP)
-- `docs/character_workflow_build_guide.md`
-- `docs/ai-studio-pricing.md`
-- `docs/billing-pricing-catalog.md` (subscription + top-up pricing source-of-truth workflow)
-- `docs/ai-studio-prompts.md`
-- `docs/design/short-flow-color-system-design-rationale.md` (palette rationale)
+## Planning And History
+- `docs/planning/README.md`
+- `docs/planning/backlog.md`
+- `docs/planning/audit-progress.md`
+- `docs/planning/mvp-stabilization-plan.md`
+- `docs/planning/mvp-pre-tester-anchor-plan.md`
+- `docs/planning/ai-studio-agent-tooling-phased-plan.md`
+- `docs/change_log.md`
+
+## ADRs
+- `docs/adr/README.md`
+- `docs/adr/0001-client-only-and-demo-data.md`
+- `docs/adr/0002-media-library-persistence.md`
+- `docs/adr/0003-admin-authorization-source.md`
+- `docs/adr/0004-fal-failure-refund-settlement.md`
+- `docs/adr/0005-ai-studio-modularization-boundaries.md`
+- `docs/adr/0006-ai-studio-agent-api.md`
+- `docs/adr/0007-ai-studio-agent-tooling-strategy.md`
+
+## Archive
+- `docs/archive/README.md`
+- `docs/archive/ai-studio-agent-implementation-plan.md`
+- `docs/archive/ai-studio-prompts.md`
+- `docs/archive/refactor_prompt_archive.md`
+- `docs/archive/design-system-v1-draft.md`
+
+## Design And Brainstorming
 - `docs/design/README.md`
+- `docs/design/short-flow-color-system-design-rationale.md`
+- `docs/brainstorming/README.md`
 
-## Runbooks / SOPs
-
-- `docs/sop_new_feature_modularization.md`
-- `docs/sop_saved_creators.md`
-- `docs/sop_media_library_ui.md`
-- `docs/sop_performance_ai_detection.md`
-- `docs/sop_ai_studio_index.md` (hub for AI Studio SOPs: text/image/video)
-- `docs/sop_ai_studio_agent.md` (AI Studio agent/chat workflow)
-- `docs/sop_ai_studio_agent_chat_ops.md` (Agent chat UI entry points, context pipeline, fallbacks, verification)
-- `docs/sop_billing_credits_operations.md` (billing/credits schema migration + admin operations runbook)
-- `docs/sop_text_generation.md`
-- `docs/sop_image_generation.md`
-- `docs/sop_video_generation.md`
-- `docs/sop_character_generation.md`
-- `docs/sop_character_identity.md`
-- `docs/shortpulse_ai_studio.md`
-
-## Planning / History
-
-- `docs/backlog.md`
-- `docs/change_log.md` (canonical changelog)
-- `docs/ai-studio-agent-implementation-plan.md`
-- `docs/refactor_prompt_archive.md`
-
-## Automation / Skills
-
+## Automation
 - `skills/skill-pricing-audit/SKILL.md`
 - `skills/skill-doc-index/SKILL.md`
-
-## Repo Meta
-
-- `LICENSE`
-- `ROADMAP.md`
-- `.github/workflows/ci.yml`
-- `.github/CODEOWNERS`
-
-## Brainstorming (non-authoritative)
-
-- `docs/brainstorming/`
-- `docs/brainstorming/README.md`
+- `skills/skill-ui-ux-critic/SKILL.md`

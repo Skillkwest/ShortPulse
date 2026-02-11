@@ -1,13 +1,13 @@
 # SOP: Image Generation (Text-to-Image) Workflows
 
 This SOP documents how ShortPulse generates images from text prompts, how the UI and API interact, and how to maintain and improve the flow.
-See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cross-vertical coordination.
+See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, and cross-vertical coordination.
 
 ## Scope
 - Image generation in AI Studio’s Create → Image flow.
 - Model selection and cost estimation for image runs.
 - Reference handling (drag/drop), prompt capture, and output book-keeping.
-- Text/describe flows are covered in `docs/sop_text_generation.md`; this SOP focuses on text-to-image and image-to-image/video behaviors.
+- Text/describe flows are covered in `docs/sops/sop_text_generation.md`; this SOP focuses on text-to-image and image-to-image/video behaviors.
 
 ## Key components
 
@@ -24,7 +24,7 @@ See `docs/sop_ai_studio_index.md` for shared primitives, model defaults, and cro
 ## Environment prerequisites
 
 1. Image models rely on Fal/Kie provider keys; no agent prompts are involved in this flow.  
-2. `OPENAI_API_KEY` is still required for the separate text/describe workflows documented in `docs/sop_text_generation.md`; this SOP does not depend on those prompts.  
+2. `OPENAI_API_KEY` is still required for the separate text/describe workflows documented in `docs/sops/sop_text_generation.md`; this SOP does not depend on those prompts.  
 3. Credits: generation debit/refund is server-authoritative through API submit routes; `useCredits` reads balance only.
 
 ## Image generation workflow (Create → Image)

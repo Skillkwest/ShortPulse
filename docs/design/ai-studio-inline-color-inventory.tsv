@@ -1,0 +1,11 @@
+occurrence_count	color_value	files
+2	rgba(6, 182, 212, 0.08)	frontend/features/ai-studio/components/KlingComingSoonCard.tsx, frontend/features/ai-studio/components/CharacterPanel.tsx
+2	rgba(6, 182, 212, 0.2)	frontend/features/ai-studio/components/KlingComingSoonCard.tsx, frontend/features/ai-studio/components/CharacterPanel.tsx
+1	#06b6d4	frontend/features/ai-studio/components/CharacterPanel.tsx
+1	#22d3ee	frontend/features/ai-studio/components/KlingComingSoonCard.tsx
+1	#92400E	frontend/features/ai-studio/components/ReferenceGenerateStep.tsx
+1	#FCD34D	frontend/features/ai-studio/components/ReferenceGenerateStep.tsx
+1	#FEF3C7	frontend/features/ai-studio/components/ReferenceGenerateStep.tsx
+1	#a78bf7	frontend/features/ai-studio/components/CanvasPanel.tsx
+1	rgba(124, 92, 255, 0.08)	frontend/features/ai-studio/components/CanvasPanel.tsx
+1	rgba(124, 92, 255, 0.2)	frontend/features/ai-studio/components/CanvasPanel.tsx

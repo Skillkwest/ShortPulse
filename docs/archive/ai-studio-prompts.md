@@ -1,5 +1,7 @@
 # AI Studio Prompt Generation (Text Mode)
 
+Archive status: superseded by `docs/sops/sop_text_generation.md` and `frontend/lib/agentPromptsConfig.ts`.
+
 Purpose: In Create → Text mode, the Generate button sends the user’s prompt to a server-side OpenAI endpoint, receives a refined prompt, updates the input, and stores that prompt as a text reference (no image/video generation).
 
 ## Environment

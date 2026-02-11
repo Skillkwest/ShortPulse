@@ -1,6 +1,6 @@
 # SOP: AI Studio Agent Collaboration
 
-Purpose: define how the new chat-based agent replaces prompt textareas across AI Studio, how it receives context (references, prompts, media), and how to run/maintain the flow safely. For UI entry points and runbook details, see `docs/sop_ai_studio_agent_chat_ops.md`.
+Purpose: define how the new chat-based agent replaces prompt textareas across AI Studio, how it receives context (references, prompts, media), and how to run/maintain the flow safely. For UI entry points and runbook details, see `docs/sops/sop_ai_studio_agent_chat_ops.md`.
 
 ## Scope
 - In scope: AI Studio (Create → Text/Image/Video, detail modal, Studio Preview prompt preview) prompt inputs now mediated by the agent. Agent can describe references, propose prompts, and hand off a chosen prompt to generation.
@@ -21,7 +21,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-4.1-mini` with vision), optional `OPENAI_API_BASE`.
 - Feature flag: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT=true` (client gate); API gate returns 503 when disabled.
 - Size guardrails (API constants): `AGENT_MAX_IMAGE_BYTES` (default 350 KB), `AGENT_MAX_FRAMES=1` for videos.
-- Frontend must be able to generate downscaled data URLs (512px max edge, JPEG quality 0.6).
+- Frontend uploads local blob/data previews to `/api/upload-image` and sends signed/public `https://` URLs to the agent route.
 
 ## System prompt + message schema
 - System prompt ID: `STUDIO_AGENT_SYSTEM` in `frontend/lib/agentPromptsConfig.ts` (includes role, allowed tools, tone, brevity rules, safety refusal).
@@ -50,10 +50,12 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 1. User types or pastes in the chat UI (embedded where prompt textarea used to be). Messages persist per session/tool.
 2. `useAiAgent` gathers context: active prompt/model/mode, reference grid summaries, and downscaled previews for up to the 3 most recent images (or 1 video frame snapshot). Object URLs are revoked after use.
 3. If the user drags references into the chat surface, staged attachments are merged into context before send (prompt refs + image refs/media), then cleared on success.
-4. Client calls `/api/ai/studio-agent`; the route verifies feature flag, key, payload size, and model support, then calls the provider with `messages + context` and system prompt.
-5. Response returns as a single JSON payload (non-streaming today). When `actions.applyPrompt` exists, UI shows “Apply to prompt” and “Generate with agent” buttons.
-6. On Apply: prompt state in `useAiStudioState` updates; the textarea mirrors the applied text (for manual editing), and the next Generate uses it.
-7. On “Describe references”: if `actions.describeTargets` is present, the client triggers an image-describe call for those IDs before the next agent turn.
+4. Client calls `/api/ai/studio-agent`; the route verifies feature flag, key, payload size, and model support.
+5. Route classifies turn type (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`) and builds explicit orchestration metadata for thinker/formatter prompts.
+6. Provider call runs with `messages + context + orchestration`.
+7. Response returns normalized actions (`applyPrompt`, `variations`, `describeTargets`, `questions`) and canonical prompt continuity.
+8. On Apply: prompt state in `useAiStudioState` updates; the textarea mirrors the applied text (for manual editing), and the next Generate uses it.
+9. On “Describe references”: if `actions.describeTargets` is present, the client triggers an image-describe call for those IDs before the next agent turn.
 
 ## Error handling & fallbacks
 - If the feature flag or key is missing, show a single-line banner and render the legacy textarea with no chat.
@@ -62,13 +64,14 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Provider refusal/safety: display the refusal and keep the previous prompt intact.
 
 ## Data handling & safety
-- Never send Supabase signed URLs or raw uploads; only downscaled data URLs created client-side and kept under `AGENT_MAX_IMAGE_BYTES`.
+- Never send raw file blobs to the LLM route; convert local previews to signed/public `https://` URLs first.
 - No transcript storage in Supabase; chats live in memory with optional `sessionStorage` backup; clear on sign-out.
 - Strip EXIF when downscaling; videos send only a single poster frame.
 - Agent must refuse PII extraction and harmful requests (covered in `STUDIO_AGENT_SYSTEM` prompt).
 
 ## UX behaviors
 - Chat panel sits where prompt boxes were; shows reference chips and current model badge.
+- Inline chat now includes a “Primary generation prompt” state block so users can confirm the exact prompt Generate will use.
 - Quick actions: “Apply prompt”, “Generate with agent”, “Summarize grid”, “Describe latest image”.
 - When the agent proposes multiple variations, render them as selectable chips that copy into the input on tap.
 - Detail modal: agent chat focuses on the selected card and preloads its prompt/preview.
@@ -83,4 +86,4 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 ## Maintenance notes
 - Keep system prompt updates in `agentPromptsConfig.ts` only; document deltas in change log, not full text here.
 - Monitor token usage metrics in API logs before enabling streaming by default.
-- Revisit MCP if we need local tools (captioning, palette extraction) beyond the API agent’s scope.
+- Follow ADR 0007 (`docs/adr/0007-ai-studio-agent-tooling-strategy.md`) for phased tooling rollout and MCP adoption gates; do not introduce MCP runtime until gate criteria are met.

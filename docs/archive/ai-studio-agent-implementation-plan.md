@@ -1,5 +1,7 @@
 # AI Studio Agent Implementation Plan
 
+Archive status: superseded by `docs/sops/sop_ai_studio_agent.md` and `docs/sops/sop_ai_studio_agent_chat_ops.md`.
+
 Goal: replace prompt textareas with an agent chat that sees the reference grid and can apply prompts directly to generation, with safe fallbacks.
 
 ## Phase 0 — Foundations (scaffolding)

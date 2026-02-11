@@ -28,7 +28,7 @@ Purpose: document the frontend-triggered character workflow so consistent identi
 - Feature scaffold: `frontend/features/character/*`.
 - Page: `frontend/pages/character.tsx`.
 - Styles: `frontend/styles/character.css` (imported via `globals.css`).
-- Build-out guide: `docs/character_workflow_build_guide.md` (living checklist for next milestones).
+- Build-out guide: `docs/product/character_workflow_build_guide.md` (living checklist for next milestones).
 
 ## Next steps
 - Replace stub embedding with ArcFace ONNX via `onnxruntime-web` (WebGPU EP).

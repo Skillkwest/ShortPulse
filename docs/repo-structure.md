@@ -1,26 +1,32 @@
 # Repo Structure
 
-This document describes the **canonical layout** of the ShortPulse product repo and where to put new work.
+This document describes the canonical layout of the ShortPulse product repo and where to put new work.
 
 ## Top-level
-- `frontend/`: Next.js (pages router) client-only app.
-- `docs/`: Engineering + product documentation (start at `docs/README.md`).
-- `sql/`: Supabase bootstrap scripts used by the client app.
-- `assets/`: Design/reference artifacts (non-runtime) such as mockups, hero source images, and raw exports.
+- `frontend/`: Next.js (pages router) app.
+- `docs/`: Engineering, product, and operations documentation.
+- `sql/`: Supabase bootstrap scripts and migrations.
+- `assets/`: Non-runtime design/reference artifacts.
 
 ## Frontend layout
 - `frontend/pages/`: Route entry points (keep thin).
-- `frontend/features/`: Feature modules following the documented pattern.
-- `frontend/components/`: Shared UI components reused across features.
-- `frontend/prefabs/`: Prefab UI kits grouped by domain (e.g., agent controls) for cross-feature reuse.
-- `frontend/lib/`: Cross-cutting clients/helpers (e.g., Supabase client, auth guard).
-- `frontend/styles/`: Modular CSS imported via `frontend/styles/globals.css`.
-- `frontend/public/`: Runtime assets served by Next.js.
+- `frontend/features/`: Feature modules.
+- `frontend/components/`: Shared reusable UI.
+- `frontend/prefabs/`: Reusable UI kits by domain.
+- `frontend/lib/`: Cross-cutting clients/helpers.
+- `frontend/styles/`: Modular CSS imported via `globals.css`.
+- `frontend/public/`: Runtime static assets.
 
 ## Documentation layout
-- `docs/README.md`: docs index (start here).
-- `docs/adr/`: architecture decision records (ADRs).
-- `docs/sop_*.md`: runbooks/standard operating procedures for specific flows.
+- `docs/README.md`: entrypoint index.
+- `docs/api/`: API/provider references.
+- `docs/sops/`: SOP runbooks.
+- `docs/product/`: product/domain source-of-truth docs.
+- `docs/planning/`: active planning and backlog docs.
+- `docs/adr/`: architecture decision records.
+- `docs/design/`: design rationale.
+- `docs/archive/`: historical/non-authoritative docs.
+- `docs/brainstorming/`: exploratory concepts.
 
 ## Non-goals
-- This repo currently runs **client-only**; don’t introduce a backend dependency without an explicit decision + ADR.
+- Do not introduce a standalone backend service without an explicit ADR.

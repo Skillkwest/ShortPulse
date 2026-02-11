@@ -34,9 +34,9 @@ ShortPulse is currently a **client-only** Next.js app that uses **Supabase** for
 ### `/performance`
 - Responsibility: analytics over a demo dataset (today) and a defined contract for future real data.
 - Source of truth:
-  - Outlier model: `docs/shortflow_outlier_source_of_truth.md`
-  - Product contract: `docs/shortpulse_top_performing_videos_source_of_truth.md`
-  - AI labeling rules (non-ranking): `docs/sop_performance_ai_detection.md`
+  - Outlier model: `docs/product/shortflow_outlier_source_of_truth.md`
+  - Product contract: `docs/product/shortpulse_top_performing_videos_source_of_truth.md`
+  - AI labeling rules (non-ranking): `docs/sops/sop_performance_ai_detection.md`
 
 ### `/saved-creators`
 - Responsibility: per-user CRUD for creator handles.
@@ -47,7 +47,7 @@ ShortPulse is currently a **client-only** Next.js app that uses **Supabase** for
 - Storage isolation expectations: `docs/security-checklist.md`, `sql/storage_policies.sql`
 
 ### `/ai-studio`
-- Responsibility: creative workspace UI; current state and workflow details in `docs/shortpulse_ai_studio.md`.
+- Responsibility: creative workspace UI; current state and workflow details in `docs/product/shortpulse_ai_studio.md`.
 
 ## Security invariants (must not break)
 - User-owned rows are protected by RLS enforcing `user_id = auth.uid()`.

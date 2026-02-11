@@ -55,7 +55,7 @@ Purpose: living checklist to take the current Character tool from rough UI to pr
 - Pose controls change structure, never identity.
 - Local-first: characters, tokens, embeddings, refs live in IndexedDB; cloud sync is an optional mirror.
 - Preserve forward compatibility: character objects must remain valid if/when we add per-character LoRA/adapter training.
-- Follow the operational steps in `docs/sop_character_identity.md` for vetting, token creation, and reinforcement.
+- Follow the operational steps in `docs/sops/sop_character_identity.md` for vetting, token creation, and reinforcement.
 
 ## File map to extend
 - `frontend/features/character/logic/identity.ts`: swap stub for ArcFace detection+analysis, create identity token, vet references, store embeddings for validation only.

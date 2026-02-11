@@ -29,7 +29,7 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
 5) **Docs**
    - Add `docs/api-<provider>-<model>.md` with auth, endpoints, payload, output, defaults, pricing formula, allowed aspects/size map.
    - Link in `docs/README.md` under API Reference.
-   - Update `docs/sop_image_generation.md` or relevant SOP table if the model is image/video.
+   - Update `docs/sops/sop_image_generation.md` or relevant SOP table if the model is image/video.
 6) **Validation**
    - Ensure `computeCostForModel` returns non-null for the model (tests below).
    - Smoke in dev: select model → see cost on Generate → submit → poll completes → preview/result URLs populate.

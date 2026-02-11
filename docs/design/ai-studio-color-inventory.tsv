@@ -1,0 +1,367 @@
+occurrence_count	color_value	files
+24	#f5f9ff	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-properties.css, frontend/styles/ai-studio-prompt-actions.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+18	rgba(255, 255, 255, 0.08)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-prompt-actions.css, frontend/styles/ai-studio-model-picker.css
+9	#ffecec	frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css
+9	rgba(0, 0, 0, 0.35)	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css
+9	rgba(245, 185, 66, 0.9)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+9	rgba(255, 255, 255, 0.05)	frontend/styles/ai-studio-modals.css
+9	rgba(37, 169, 191, 0.25)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-properties.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-controls.css
+9	rgba(37, 169, 191, 0.6)	frontend/styles/ai-studio-properties.css, frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+8	rgba(12, 15, 22, 0.9)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-properties.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-controls.css
+7	#1a140c	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+7	rgba(0, 0, 0, 0.28)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-controls.css
+7	rgba(0, 0, 0, 0.4)	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-layout.css
+7	rgba(255, 255, 255, 0.2)	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css
+7	rgba(37, 169, 191, 0.35)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+6	#0f1d23	frontend/styles/ai-studio-prompts.css
+6	#e9edf2	frontend/styles/ai-studio-prompts.css
+6	rgba(0, 0, 0, 0.3)	frontend/styles/ai-studio-prompt-actions.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+6	rgba(12, 15, 22, 0.85)	frontend/styles/ai-studio-text-properties.css, frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-canvas.css
+6	rgba(201, 205, 214, 0.12)	frontend/styles/ai-studio-text-properties.css, frontend/styles/ai-studio-coming-soon.css, frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-canvas.css
+6	rgba(201, 205, 214, 0.16)	frontend/styles/ai-studio-coming-soon.css, frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-properties.css, frontend/styles/ai-studio-canvas.css
+6	rgba(201, 205, 214, 0.25)	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css
+6	rgba(255, 255, 255, 0.35)	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css
+5	#f4921f	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-layout.css
+5	#ffffff	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-layout.css
+5	rgba(201, 205, 214, 0.18)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+5	rgba(201, 205, 214, 0.45)	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-properties.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css
+5	rgba(255, 255, 255, 0.06)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-prompt-actions.css
+5	rgba(255, 255, 255, 0.1)	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-canvas.css
+5	rgba(37, 169, 191, 0.18)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-modals.css
+4	#22d3ee	frontend/styles/ai-studio-layout.css
+4	#fff	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-modals.css
+4	rgba(0, 0, 0, 0.2)	frontend/styles/ai-studio-properties.css, frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+4	rgba(0, 0, 0, 0.38)	frontend/styles/ai-studio-prompt-actions.css, frontend/styles/ai-studio-canvas.css
+4	rgba(12, 15, 22, 0.86)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-prompts.css
+4	rgba(201, 205, 214, 0.08)	frontend/styles/ai-studio-coming-soon.css, frontend/styles/ai-studio-layout.css
+4	rgba(201, 205, 214, 0.2)	frontend/styles/ai-studio-coming-soon.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css
+4	rgba(201, 205, 214, 0.3)	frontend/styles/ai-studio-properties.css, frontend/styles/ai-studio-layout.css
+4	rgba(201, 205, 214, 0.4)	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css
+4	rgba(245, 185, 66, 0.35)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+4	rgba(248, 248, 248, 0.9)	frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-controls.css
+4	rgba(255, 140, 66, 0.9)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+4	rgba(255, 255, 255, 0)	frontend/styles/ai-studio-layout.css
+4	rgba(255, 255, 255, 0.32)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+4	rgba(255, 255, 255, 0.5)	frontend/styles/ai-studio-modals.css
+4	rgba(37, 169, 191, 0.4)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+4	rgba(4, 183, 135, 0.96)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+3	#000000	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+3	#0b1820	frontend/styles/ai-studio-prompt-actions.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css
+3	#131518	frontend/styles/ai-studio-layout.css
+3	#25a9bf	frontend/styles/ai-studio-prompt-actions.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+3	#34d399	frontend/styles/ai-studio-layout.css
+3	#6ee7b7	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-layout.css
+3	#e10328	frontend/styles/ai-studio-layout.css
+3	#eef2f7	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-controls.css
+3	#f43f5e	frontend/styles/ai-studio-layout.css
+3	#f5b754	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-layout.css
+3	#f6a637	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-layout.css
+3	#f7fafc	frontend/styles/ai-studio-controls.css
+3	#fbbf24	frontend/styles/ai-studio-layout.css
+3	#ffb6b6	frontend/styles/ai-studio-modals.css
+3	rgba(0, 0, 0, 0.25)	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-layout.css
+3	rgba(0, 0, 0, 0.42)	frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+3	rgba(0, 0, 0, 0.55)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-modals.css
+3	rgba(12, 15, 22, 0.82)	frontend/styles/ai-studio-controls.css
+3	rgba(14, 213, 100, 0.658)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+3	rgba(201, 205, 214, 0.14)	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-canvas.css
+3	rgba(216, 230, 243, 0.7)	frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-controls.css
+3	rgba(245, 185, 66, 0.6)	frontend/styles/ai-studio-controls.css
+3	rgba(255, 140, 66, 0.8)	frontend/styles/ai-studio-controls.css
+3	rgba(255, 153, 153, 0.12)	frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-canvas.css
+3	rgba(255, 255, 255, 0.03)	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-model-picker.css
+3	rgba(255, 255, 255, 0.04)	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-model-picker.css
+3	rgba(255, 255, 255, 0.14)	frontend/styles/ai-studio-model-picker.css
+3	rgba(37, 169, 191, 0.45)	frontend/styles/ai-studio-canvas.css, frontend/styles/ai-studio-controls.css
+3	rgba(37, 169, 191, 0.5)	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-controls.css
+3	rgba(37, 169, 191, 0.65)	frontend/styles/ai-studio-prompts.css
+3	rgba(48, 52, 60, 0.95)	frontend/styles/ai-studio-prompts.css
+3	rgba(52, 200, 255, 0.2)	frontend/styles/ai-studio-modals.css
+3	rgba(52, 200, 255, 0.35)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-modals.css
+3	rgba(52, 200, 255, 0.9)	frontend/styles/ai-studio-canvas.css
+3	rgba(62, 68, 78, 0.95)	frontend/styles/ai-studio-prompts.css
+3	rgba(7, 143, 64, 0.34)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+3	rgba(76, 140, 255, 0.12)	frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-canvas.css
+2	#059669	frontend/styles/ai-studio-layout.css
+2	#06b6d4	frontend/styles/ai-studio-layout.css
+2	#0f766e	frontend/styles/ai-studio-layout.css
+2	#2563eb	frontend/styles/ai-studio-layout.css
+2	#25bf96b9	frontend/styles/ai-studio-prompt-actions.css
+2	#25bfa567	frontend/styles/ai-studio-prompt-actions.css
+2	#25bfa5bb	frontend/styles/ai-studio-prompt-actions.css
+2	#2efffc19	frontend/styles/ai-studio-prompt-actions.css
+2	#5a616526	frontend/styles/ai-studio-model-picker.css
+2	#b32ba9	frontend/styles/ai-studio-layout.css
+2	#d8e6f3	frontend/styles/ai-studio-model-picker.css
+2	#dfe8f5	frontend/styles/ai-studio-coming-soon.css, frontend/styles/ai-studio-layout.css
+2	#f1f5ff	frontend/styles/ai-studio-reference-properties.css
+2	#f5c36f	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-layout.css
+2	#f8f8f8	frontend/styles/ai-studio-properties.css
+2	rgba(0, 0, 0, 0.24)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-layout.css
+2	rgba(0, 0, 0, 0.32)	frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-controls.css
+2	rgba(0, 0, 0, 0.45)	frontend/styles/ai-studio-model-picker.css
+2	rgba(0, 0, 0, 0.6)	frontend/styles/ai-studio-modals.css
+2	rgba(0, 214, 255, 0.08)	frontend/styles/ai-studio-model-picker.css
+2	rgba(10, 12, 20, 0.85)	frontend/styles/ai-studio-canvas.css
+2	rgba(11, 161, 199, 0.08)	frontend/styles/ai-studio-layout.css
+2	rgba(110, 231, 183, 0.6)	frontend/styles/ai-studio-modals.css
+2	rgba(12, 15, 22, 0.6)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-canvas.css
+2	rgba(12, 15, 22, 0.7)	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-history.css
+2	rgba(12, 15, 22, 0.92)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-canvas.css
+2	rgba(20, 22, 28, 0.95)	frontend/styles/ai-studio-layout.css
+2	rgba(201, 205, 214, 0.02)	frontend/styles/ai-studio-layout.css
+2	rgba(201, 205, 214, 0.26)	frontend/styles/ai-studio-controls.css
+2	rgba(201, 205, 214, 0.35)	frontend/styles/ai-studio-prompts.css, frontend/styles/ai-studio-canvas.css
+2	rgba(223, 232, 245, 0.7)	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-layout.css
+2	rgba(24, 35, 38, 0.8)	frontend/styles/ai-studio-prompt-actions.css
+2	rgba(241, 84, 84, 0.2)	frontend/styles/ai-studio-layout.css
+2	rgba(241, 84, 84, 0.25)	frontend/styles/ai-studio-layout.css
+2	rgba(245, 185, 66, 0.25)	frontend/styles/ai-studio-controls.css
+2	rgba(255, 116, 116, 0.18)	frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-canvas.css
+2	rgba(255, 116, 116, 0.7)	frontend/styles/ai-studio-canvas.css
+2	rgba(255, 120, 120, 0.6)	frontend/styles/ai-studio-modals.css
+2	rgba(255, 124, 124, 0.12)	frontend/styles/ai-studio-canvas.css
+2	rgba(255, 255, 255, 0.02)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+2	rgba(255, 255, 255, 0.4)	frontend/styles/ai-studio-reference-properties.css
+2	rgba(255, 255, 255, 0.7)	frontend/styles/ai-studio-modals.css
+2	rgba(255, 255, 255, 0.8)	frontend/styles/ai-studio-modals.css, frontend/styles/ai-studio-canvas.css
+2	rgba(255, 80, 80, 0.15)	frontend/styles/ai-studio-modals.css
+2	rgba(255, 90, 90, 0.12)	frontend/styles/ai-studio-modals.css
+2	rgba(255, 90, 90, 0.2)	frontend/styles/ai-studio-modals.css
+2	rgba(255, 90, 90, 0.35)	frontend/styles/ai-studio-modals.css
+2	rgba(30, 64, 175, 0.15)	frontend/styles/ai-studio-layout.css
+2	rgba(33, 47, 50, 0.503)	frontend/styles/ai-studio-prompt-actions.css
+2	rgba(37, 169, 191, 0.08)	frontend/styles/ai-studio-model-picker.css, frontend/styles/ai-studio-controls.css
+2	rgba(37, 169, 191, 0.12)	frontend/styles/ai-studio-layout.css, frontend/styles/ai-studio-controls.css
+2	rgba(37, 169, 191, 0.16)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-history.css
+2	rgba(37, 169, 191, 0.95)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-canvas.css
+2	rgba(4, 7, 12, 0.85)	frontend/styles/ai-studio-modals.css
+2	rgba(40, 44, 52, 0.97)	frontend/styles/ai-studio-model-picker.css
+2	rgba(5, 175, 84, 0.813)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-controls.css
+2	rgba(52, 200, 255, 0.18)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-modals.css
+2	rgba(52, 200, 255, 0.3)	frontend/styles/ai-studio-modals.css
+2	rgba(52, 200, 255, 0.4)	frontend/styles/ai-studio-modals.css
+2	rgba(52, 201, 255, 0.3)	frontend/styles/ai-studio-reference-properties.css, frontend/styles/ai-studio-prompts.css
+2	rgba(6, 182, 212, 0.15)	frontend/styles/ai-studio-layout.css
+2	rgba(6, 182, 212, 0.3)	frontend/styles/ai-studio-layout.css
+2	rgba(76, 225, 255, 0.08)	frontend/styles/ai-studio-history.css, frontend/styles/ai-studio-canvas.css
+2	rgba(80, 186, 255, 0.5)	frontend/styles/ai-studio-canvas.css
+1	#00d9ff	frontend/styles/ai-studio-model-picker.css
+1	#071a18	frontend/styles/ai-studio-controls.css
+1	#07ab76	frontend/styles/ai-studio-layout.css
+1	#101215	frontend/styles/ai-studio-reference-properties.css
+1	#10cced	frontend/styles/ai-studio-layout.css
+1	#128177	frontend/styles/ai-studio-layout.css
+1	#16181b	frontend/styles/ai-studio-reference-properties.css
+1	#17679ce2	frontend/styles/ai-studio-prompts.css
+1	#24b1c7d2	frontend/styles/ai-studio-prompts.css
+1	#25a8bf	frontend/styles/ai-studio-prompt-actions.css
+1	#25a8bf1e	frontend/styles/ai-studio-model-picker.css
+1	#25a8bf8a	frontend/styles/ai-studio-prompt-actions.css
+1	#28dbf6	frontend/styles/ai-studio-layout.css
+1	#2c6cf5	frontend/styles/ai-studio-layout.css
+1	#2ec0ff21	frontend/styles/ai-studio-prompt-actions.css
+1	#34c8ff	frontend/styles/ai-studio-modals.css
+1	#373c4a	frontend/styles/ai-studio-canvas.css
+1	#3d2fa8	frontend/styles/ai-studio-layout.css
+1	#4135ab	frontend/styles/ai-studio-layout.css
+1	#433aa9	frontend/styles/ai-studio-layout.css
+1	#4c5159	frontend/styles/ai-studio-canvas.css
+1	#50e6b0	frontend/styles/ai-studio-layout.css
+1	#555b63	frontend/styles/ai-studio-layout.css
+1	#5a616510	frontend/styles/ai-studio-model-picker.css
+1	#5a61652c	frontend/styles/ai-studio-model-picker.css
+1	#639e98	frontend/styles/ai-studio-prompt-actions.css
+1	#639e98c0	frontend/styles/ai-studio-prompt-actions.css
+1	#639e9d	frontend/styles/ai-studio-prompt-actions.css
+1	#639e9d05	frontend/styles/ai-studio-prompt-actions.css
+1	#666c74	frontend/styles/ai-studio-layout.css
+1	#6ed6e9	frontend/styles/ai-studio-layout.css
+1	#7c828a	frontend/styles/ai-studio-layout.css
+1	#8c95a390	frontend/styles/ai-studio-layout.css
+1	#992ac9	frontend/styles/ai-studio-layout.css
+1	#9de5ff	frontend/styles/ai-studio-controls.css
+1	#a78bf7	frontend/styles/ai-studio-layout.css
+1	#aa65ef	frontend/styles/ai-studio-layout.css
+1	#b1b6be	frontend/styles/ai-studio-controls.css
+1	#c9ced6	frontend/styles/ai-studio-coming-soon.css
+1	#cfd6df	frontend/styles/ai-studio-coming-soon.css
+1	#cfe4ff	frontend/styles/ai-studio-history.css
+1	#d9dee7	frontend/styles/ai-studio-controls.css
+1	#e2ecff	frontend/styles/ai-studio-controls.css
+1	#e5f6ff	frontend/styles/ai-studio-reference-properties.css
+1	#e7f4ff	frontend/styles/ai-studio-model-picker.css
+1	#e7f6ff	frontend/styles/ai-studio-canvas.css
+1	#e7f8ff	frontend/styles/ai-studio-layout.css
+1	#e9f7ff	frontend/styles/ai-studio-modals.css
+1	#f15454	frontend/styles/ai-studio-layout.css
+1	#f2f5f9	frontend/styles/ai-studio-coming-soon.css
+1	#f8fcff	frontend/styles/ai-studio-layout.css
+1	#ff9090	frontend/styles/ai-studio-modals.css
+1	#ff9b9b	frontend/styles/ai-studio-history.css
+1	#ffb300	frontend/styles/ai-studio-layout.css
+1	#ffc7c7	frontend/styles/ai-studio-layout.css
+1	#ffd9a1	frontend/styles/ai-studio-layout.css
+1	#fff4f4	frontend/styles/ai-studio-canvas.css
+1	rgb(0, 171, 201)	frontend/styles/ai-studio-canvas.css
+1	rgb(0, 217, 255)	frontend/styles/ai-studio-canvas.css
+1	rgb(0, 255, 247)	frontend/styles/ai-studio-canvas.css
+1	rgb(14, 16, 19)	frontend/styles/ai-studio-layout.css
+1	rgb(37, 168, 191)	frontend/styles/ai-studio-canvas.css
+1	rgb(52, 201, 255)	frontend/styles/ai-studio-canvas.css
+1	rgba(0, 0, 0, 0.072)	frontend/styles/ai-studio-prompt-actions.css
+1	rgba(0, 0, 0, 0.138)	frontend/styles/ai-studio-prompt-actions.css
+1	rgba(0, 0, 0, 0.15)	frontend/styles/ai-studio-layout.css
+1	rgba(0, 0, 0, 0.292)	frontend/styles/ai-studio-model-picker.css
+1	rgba(0, 0, 0, 0.5)	frontend/styles/ai-studio-modals.css
+1	rgba(0, 204, 255, 0.281)	frontend/styles/ai-studio-model-picker.css
+1	rgba(0, 213, 255, 0.262)	frontend/styles/ai-studio-model-picker.css
+1	rgba(0, 214, 255, 0.14)	frontend/styles/ai-studio-model-picker.css
+1	rgba(0, 214, 255, 0.16)	frontend/styles/ai-studio-model-picker.css
+1	rgba(0, 214, 255, 0.26)	frontend/styles/ai-studio-model-picker.css
+1	rgba(0, 214, 255, 0.28)	frontend/styles/ai-studio-model-picker.css
+1	rgba(0, 214, 255, 0.4)	frontend/styles/ai-studio-model-picker.css
+1	rgba(0, 214, 255, 0.8)	frontend/styles/ai-studio-model-picker.css
+1	rgba(0, 255, 251, 0.317)	frontend/styles/ai-studio-canvas.css
+1	rgba(10, 14, 18, 0.86)	frontend/styles/ai-studio-canvas.css
+1	rgba(10, 20, 14, 0.7)	frontend/styles/ai-studio-modals.css
+1	rgba(11, 14, 21, 0.9)	frontend/styles/ai-studio-properties.css
+1	rgba(110, 231, 183, 0.16)	frontend/styles/ai-studio-canvas.css
+1	rgba(110, 231, 183, 0.2)	frontend/styles/ai-studio-modals.css
+1	rgba(110, 231, 183, 0.75)	frontend/styles/ai-studio-canvas.css
+1	rgba(12, 15, 22, 0.45)	frontend/styles/ai-studio-canvas.css
+1	rgba(12, 15, 22, 0.5)	frontend/styles/ai-studio-modals.css
+1	rgba(12, 15, 22, 0.95)	frontend/styles/ai-studio-properties.css
+1	rgba(12, 15, 22, 0.96)	frontend/styles/ai-studio-controls.css
+1	rgba(12, 18, 26, 0.2)	frontend/styles/ai-studio-canvas.css
+1	rgba(120, 132, 150, 0.55)	frontend/styles/ai-studio-prompt-actions.css
+1	rgba(137, 156, 178, 0.24)	frontend/styles/ai-studio-modals.css
+1	rgba(14, 16, 20, 0.85)	frontend/styles/ai-studio-coming-soon.css
+1	rgba(14, 16, 24, 0.95)	frontend/styles/ai-studio-canvas.css
+1	rgba(14, 17, 22, 0.3)	frontend/styles/ai-studio-modals.css
+1	rgba(15, 18, 25, 0.4)	frontend/styles/ai-studio-modals.css
+1	rgba(153, 20, 242, 0.178)	frontend/styles/ai-studio-layout.css
+1	rgba(155, 155, 155, 0.545)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(16, 19, 28, 0.8)	frontend/styles/ai-studio-layout.css
+1	rgba(16, 19, 28, 0.9)	frontend/styles/ai-studio-layout.css
+1	rgba(16, 19, 28, 0.95)	frontend/styles/ai-studio-layout.css
+1	rgba(16, 19, 28, 0.98)	frontend/styles/ai-studio-layout.css
+1	rgba(16, 20, 28, 0.92)	frontend/styles/ai-studio-modals.css
+1	rgba(16, 20, 28, 0.96)	frontend/styles/ai-studio-modals.css
+1	rgba(160, 170, 182, 0.45)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(166, 63, 230, 0.35)	frontend/styles/ai-studio-layout.css
+1	rgba(17, 20, 27, 0.9)	frontend/styles/ai-studio-canvas.css
+1	rgba(17, 20, 27, 0.92)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(17, 20, 27, 0.95)	frontend/styles/ai-studio-canvas.css
+1	rgba(177, 182, 190, 0.72)	frontend/styles/ai-studio-controls.css
+1	rgba(18, 21, 29, 0.8)	frontend/styles/ai-studio-history.css
+1	rgba(18, 22, 30, 0.3)	frontend/styles/ai-studio-modals.css
+1	rgba(18, 22, 30, 0.7)	frontend/styles/ai-studio-modals.css
+1	rgba(18, 22, 30, 0.95)	frontend/styles/ai-studio-modals.css
+1	rgba(18, 22, 32, 0.9)	frontend/styles/ai-studio-canvas.css
+1	rgba(18, 68, 93, 0.929)	frontend/styles/ai-studio-controls.css
+1	rgba(184, 202, 220, 0.35)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(184, 202, 220, 0.4)	frontend/styles/ai-studio-canvas.css
+1	rgba(201, 205, 214, 0.06)	frontend/styles/ai-studio-canvas.css
+1	rgba(201, 205, 214, 0.22)	frontend/styles/ai-studio-controls.css
+1	rgba(201, 205, 214, 0.28)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(201, 205, 214, 0.42)	frontend/styles/ai-studio-canvas.css
+1	rgba(201, 205, 214, 0.75)	frontend/styles/ai-studio-layout.css
+1	rgba(213, 86, 245, 0.2)	frontend/styles/ai-studio-layout.css
+1	rgba(216, 230, 243, 0.68)	frontend/styles/ai-studio-model-picker.css
+1	rgba(216, 230, 243, 0.75)	frontend/styles/ai-studio-model-picker.css
+1	rgba(216, 230, 243, 0.85)	frontend/styles/ai-studio-model-picker.css
+1	rgba(219, 39, 119, 0.35)	frontend/styles/ai-studio-layout.css
+1	rgba(22, 26, 30, 0.95)	frontend/styles/ai-studio-layout.css
+1	rgba(226, 236, 255, 0.8)	frontend/styles/ai-studio-controls.css
+1	rgba(231, 236, 242, 0.04)	frontend/styles/ai-studio-controls.css
+1	rgba(231, 236, 242, 0.9)	frontend/styles/ai-studio-controls.css
+1	rgba(231, 236, 242, 0.95)	frontend/styles/ai-studio-controls.css
+1	rgba(231, 244, 255, 0.9)	frontend/styles/ai-studio-model-picker.css
+1	rgba(233, 237, 242, 0.72)	frontend/styles/ai-studio-controls.css
+1	rgba(234, 240, 249, 0.8)	frontend/styles/ai-studio-modals.css
+1	rgba(235, 235, 235, 0.7)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(235, 241, 249, 0.75)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(235, 241, 249, 0.9)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(24, 29, 38, 0.92)	frontend/styles/ai-studio-prompt-actions.css
+1	rgba(240, 64, 64, 0.95)	frontend/styles/ai-studio-canvas.css
+1	rgba(241, 84, 84, 0.08)	frontend/styles/ai-studio-history.css
+1	rgba(241, 84, 84, 0.12)	frontend/styles/ai-studio-layout.css
+1	rgba(241, 84, 84, 0.14)	frontend/styles/ai-studio-history.css
+1	rgba(241, 84, 84, 0.4)	frontend/styles/ai-studio-layout.css
+1	rgba(241, 84, 84, 0.45)	frontend/styles/ai-studio-history.css
+1	rgba(245, 249, 255, 0.85)	frontend/styles/ai-studio-prompts.css
+1	rgba(25, 29, 38, 0.95)	frontend/styles/ai-studio-canvas.css
+1	rgba(251, 191, 36, 0.15)	frontend/styles/ai-studio-layout.css
+1	rgba(251, 191, 36, 0.3)	frontend/styles/ai-studio-layout.css
+1	rgba(253, 176, 104, 0.907)	frontend/styles/ai-studio-layout.css
+1	rgba(255, 100, 100, 0.4)	frontend/styles/ai-studio-modals.css
+1	rgba(255, 116, 116, 0.2)	frontend/styles/ai-studio-canvas.css
+1	rgba(255, 116, 116, 0.6)	frontend/styles/ai-studio-history.css
+1	rgba(255, 120, 120, 0.7)	frontend/styles/ai-studio-canvas.css
+1	rgba(255, 120, 120, 0.8)	frontend/styles/ai-studio-modals.css
+1	rgba(255, 120, 120, 0.9)	frontend/styles/ai-studio-canvas.css
+1	rgba(255, 124, 124, 0.2)	frontend/styles/ai-studio-canvas.css
+1	rgba(255, 124, 124, 0.7)	frontend/styles/ai-studio-canvas.css
+1	rgba(255, 180, 66, 0.9)	frontend/styles/ai-studio-controls.css
+1	rgba(255, 236, 236, 0.6)	frontend/styles/ai-studio-layout.css
+1	rgba(255, 236, 236, 0.8)	frontend/styles/ai-studio-canvas.css
+1	rgba(255, 255, 255, 0.01)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(255, 255, 255, 0.015)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(255, 255, 255, 0.019)	frontend/styles/ai-studio-prompt-actions.css
+1	rgba(255, 255, 255, 0.12)	frontend/styles/ai-studio-canvas.css
+1	rgba(255, 255, 255, 0.18)	frontend/styles/ai-studio-canvas.css
+1	rgba(255, 255, 255, 0.246)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(255, 255, 255, 0.25)	frontend/styles/ai-studio-layout.css
+1	rgba(255, 255, 255, 0.3)	frontend/styles/ai-studio-canvas.css
+1	rgba(255, 255, 255, 0.315)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(255, 255, 255, 0.45)	frontend/styles/ai-studio-layout.css
+1	rgba(255, 255, 255, 0.85)	frontend/styles/ai-studio-modals.css
+1	rgba(255, 255, 255, 0.9)	frontend/styles/ai-studio-canvas.css
+1	rgba(255, 255, 255, 0.95)	frontend/styles/ai-studio-modals.css
+1	rgba(255, 80, 80, 0.3)	frontend/styles/ai-studio-modals.css
+1	rgba(255, 90, 90, 0.45)	frontend/styles/ai-studio-canvas.css
+1	rgba(3, 8, 18, 0.9)	frontend/styles/ai-studio-layout.css
+1	rgba(30, 64, 175, 0.3)	frontend/styles/ai-studio-layout.css
+1	rgba(31, 43, 51, 0.32)	frontend/styles/ai-studio-prompt-actions.css
+1	rgba(32, 18, 18, 0.5)	frontend/styles/ai-studio-layout.css
+1	rgba(32, 18, 18, 0.6)	frontend/styles/ai-studio-layout.css
+1	rgba(33, 39, 50, 0.503)	frontend/styles/ai-studio-prompt-actions.css
+1	rgba(34, 211, 238, 0.2)	frontend/styles/ai-studio-layout.css
+1	rgba(34, 37, 44, 0.8)	frontend/styles/ai-studio-controls.css
+1	rgba(34, 37, 44, 0.9)	frontend/styles/ai-studio-prompts.css
+1	rgba(36, 40, 48, 0.7)	frontend/styles/ai-studio-controls.css
+1	rgba(37, 168, 191, 0.25)	frontend/styles/ai-studio-prompts.css
+1	rgba(37, 169, 191, 0.1)	frontend/styles/ai-studio-controls.css
+1	rgba(37, 169, 191, 0.3)	frontend/styles/ai-studio-controls.css
+1	rgba(37, 169, 191, 0.55)	frontend/styles/ai-studio-reference-properties.css
+1	rgba(37, 169, 191, 0.7)	frontend/styles/ai-studio-layout.css
+1	rgba(37, 169, 191, 0.8)	frontend/styles/ai-studio-controls.css
+1	rgba(37, 169, 191, 0.9)	frontend/styles/ai-studio-prompt-actions.css
+1	rgba(4, 183, 135, 0.8)	frontend/styles/ai-studio-controls.css
+1	rgba(4, 183, 135, 0.9)	frontend/styles/ai-studio-controls.css
+1	rgba(4, 183, 135, 0.95)	frontend/styles/ai-studio-controls.css
+1	rgba(40, 44, 52, 0.95)	frontend/styles/ai-studio-prompts.css
+1	rgba(46, 52, 60, 0.85)	frontend/styles/ai-studio-controls.css
+1	rgba(5, 150, 105, 0.34)	frontend/styles/ai-studio-layout.css
+1	rgba(5, 7, 13, 0.55)	frontend/styles/ai-studio-model-picker.css
+1	rgba(52, 200, 255, 0.08)	frontend/styles/ai-studio-canvas.css
+1	rgba(52, 200, 255, 0.1)	frontend/styles/ai-studio-modals.css
+1	rgba(52, 200, 255, 0.45)	frontend/styles/ai-studio-prompt-actions.css
+1	rgba(52, 200, 255, 0.6)	frontend/styles/ai-studio-modals.css
+1	rgba(52, 200, 255, 0.7)	frontend/styles/ai-studio-prompt-actions.css
+1	rgba(52, 200, 255, 0.8)	frontend/styles/ai-studio-modals.css
+1	rgba(52, 200, 255, 0.82)	frontend/styles/ai-studio-prompt-actions.css
+1	rgba(52, 201, 255, 0.176)	frontend/styles/ai-studio-layout.css
+1	rgba(52, 211, 153, 0.2)	frontend/styles/ai-studio-layout.css
+1	rgba(6, 10, 16, 0.85)	frontend/styles/ai-studio-modals.css
+1	rgba(6, 182, 212, 0.35)	frontend/styles/ai-studio-layout.css
+1	rgba(6, 9, 13, 0.65)	frontend/styles/ai-studio-modals.css
+1	rgba(6, 95, 70, 0.32)	frontend/styles/ai-studio-layout.css
+1	rgba(7, 12, 18, 0.8)	frontend/styles/ai-studio-prompts.css
+1	rgba(76, 140, 255, 0.18)	frontend/styles/ai-studio-canvas.css
+1	rgba(76, 140, 255, 0.35)	frontend/styles/ai-studio-history.css
+1	rgba(76, 225, 255, 0.1)	frontend/styles/ai-studio-canvas.css
+1	rgba(8, 12, 18, 0.95)	frontend/styles/ai-studio-model-picker.css
+1	rgba(9, 12, 20, 0.9)	frontend/styles/ai-studio-controls.css
+1	rgba(99, 158, 157, 0.199)	frontend/styles/ai-studio-prompt-actions.css

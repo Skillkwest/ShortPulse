@@ -40,6 +40,7 @@ type TextPropertiesPanelProps = {
   agentInput?: string;
   agentIsSending?: boolean;
   agentError?: string;
+  agentPrimarySource?: "agent" | "manual" | "reference";
   stagedPrompt?: string | null;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
@@ -74,11 +75,13 @@ type TextPropertiesPanelProps = {
   onAgentAttachmentDragLeave?: (event: React.DragEvent<HTMLDivElement>) => void;
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
+  onAgentApplyPrompt?: (prompt: string) => void;
+  onAgentSelectVariation?: (prompt: string) => void;
+  onAgentUseQuestion?: (question: string) => void;
+  onAgentDescribeTargets?: (targets: string[]) => void;
   onGenerate: () => void;
   onSavePrompt: () => void;
-  onOpenMediaLibrary?: () => void;
   shouldDisableSave?: boolean;
-  onCloseAgentChat?: () => void;
   onClearAgentChat?: () => void;
   beginnerMode?: boolean;
   imageResolution?: string;
@@ -87,23 +90,11 @@ type TextPropertiesPanelProps = {
 
 type ComposeSendCardProps = {
   agentEnabled?: boolean;
-  agentMessages?: AgentMessage[];
-  agentActions?: AgentActions;
-  agentInput?: string;
-  agentIsSending?: boolean;
   agentError?: string;
-  promptRef: React.RefObject<HTMLTextAreaElement>;
-  prompt: string;
-  onAgentInputChange?: (value: string) => void;
-  onAgentSend?: () => void;
-  onPromptChange: (value: string) => void;
   onGenerate: () => void;
-  onSavePrompt: () => void;
   costCredits?: number | null;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
-  guardrailReason?: string | null;
-  shouldDisableSave?: boolean;
   beginnerMode?: boolean;
 };
 
@@ -153,6 +144,7 @@ export function TextPropertiesPanel({
   agentInput = "",
   agentIsSending = false,
   agentError,
+  agentPrimarySource = "manual",
   stagedPrompt = null,
   stagedAttachments = [],
   agentDropActive = false,
@@ -168,12 +160,14 @@ export function TextPropertiesPanel({
   onAgentAttachmentDragLeave,
   onRemoveAgentAttachment,
   onClearAgentAttachments,
+  onAgentApplyPrompt,
+  onAgentSelectVariation,
+  onAgentUseQuestion,
+  onAgentDescribeTargets,
   agentChatOpen = false,
   onSavePrompt,
-  onOpenMediaLibrary,
   shouldDisableSave = false,
   isPromptGenerating = false,
-  onCloseAgentChat,
   onClearAgentChat,
   beginnerMode = false,
   imageResolution,
@@ -292,6 +286,8 @@ export function TextPropertiesPanel({
         agentInput={agentInput}
         agentIsSending={agentIsSending}
         agentError={agentError}
+        agentPrimaryPrompt={prompt}
+        agentPrimarySource={agentPrimarySource}
         stagedPrompt={stagedPrompt}
         stagedAttachments={stagedAttachments}
         agentDropActive={agentDropActive}
@@ -307,10 +303,12 @@ export function TextPropertiesPanel({
         onRemoveAgentAttachment={onRemoveAgentAttachment}
         onClearAgentAttachments={onClearAgentAttachments}
         onExpandChat={onExpandChat}
-        onCloseAgentChat={onCloseAgentChat}
         onClearAgentChat={onClearAgentChat}
+        onAgentApplyPrompt={onAgentApplyPrompt}
+        onAgentSelectVariation={onAgentSelectVariation}
+        onAgentUseQuestion={onAgentUseQuestion}
+        onAgentDescribeTargets={onAgentDescribeTargets}
         onSavePrompt={onSavePrompt}
-        onOpenMediaLibrary={onOpenMediaLibrary}
         isCollapsed={collapsedSteps.prompt}
         onToggleCollapse={() => toggleStep("prompt")}
         isGenerating={isPromptGenerating}

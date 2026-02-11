@@ -17,6 +17,7 @@ import {
   shouldRetryExplicitNoOp,
 } from "../../../features/ai-agent/logic/studioAgentCanonical";
 import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/logic/studioAgentReferenceSelection";
+import { buildStudioAgentOrchestration } from "../../../features/ai-agent/logic/studioAgentOrchestration";
 import { runThinkerFormatterTurn } from "../../../features/ai-agent/logic/studioAgentThinkerFormatter";
 import { logApiRouteException } from "../_utils/appErrorLogs";
 
@@ -98,12 +99,16 @@ const safeContext = (context?: AgentContext): AgentContext => {
 const buildOpenAiMessages = (
   messages: AgentMessage[],
   context: AgentContext,
-  systemPrompt: string
+  systemPrompt: string,
+  orchestration?: Record<string, unknown>
 ): OpenAIChatMessage[] => {
   const chat: OpenAIChatMessage[] = [
     { role: "system", content: systemPrompt },
     { role: "system", content: `CONTEXT:\n${JSON.stringify(context)}` },
   ];
+  if (orchestration) {
+    chat.push({ role: "system", content: `ORCHESTRATION:\n${JSON.stringify(orchestration)}` });
+  }
 
   if (context.lastAssistantMessage) {
     chat.push({ role: "assistant", content: context.lastAssistantMessage });
@@ -256,48 +261,57 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     : null;
   const canonicalPrompt = incomingCanonical ?? storedCanonical ?? null;
   const effectiveCanonical = canonicalPrompt ?? context.lastAssistantMessage ?? null;
+  const selectedReferences = pickSelectedReferencesForThinker(context);
+  const orchestration = buildStudioAgentOrchestration({
+    context,
+    messages,
+    selectedReferences,
+    effectiveCanonical,
+  });
 
   if (!messages.length) {
     return res.status(400).json({ error: "messages are required" });
   }
 
-  const openAiMessages = buildOpenAiMessages(messages, context, systemPrompt);
+  const openAiMessages = buildOpenAiMessages(messages, context, systemPrompt, orchestration);
 
   try {
     const useV2 = process.env.NEXT_PUBLIC_AGENT_V2 !== "false";
 
     if (useV2 && thinkerPrompt && formatterPrompt) {
-      const selectedReferences = pickSelectedReferencesForThinker(context);
       const selectedPromptSeed =
         selectedReferences.find((reference) => reference.kind === "prompt")?.promptSnippet ??
         selectedReferences[0]?.promptSnippet ??
         null;
-      const contextType =
-        context.media && context.media.length
-          ? "image"
-          : context.activePrompt || context.references?.length
-            ? "prompt"
-            : "chat";
+      const contextType = orchestration.contextType;
+      const userInput = messages[messages.length - 1]?.content ?? "";
 
       const thinkerPayload = {
+        input_flow: orchestration.flow,
+        orchestration,
         context_type: contextType,
         canonical_prompt: effectiveCanonical,
-        user_input: messages[messages.length - 1]?.content ?? "",
+        user_input: userInput,
+        text_agent_input: orchestration.textInput,
         edit_instructions:
-          effectiveCanonical && (messages[messages.length - 1]?.content ?? "").trim().length
-            ? `Edit the canonical prompt in place.\nCanonical prompt:\n${effectiveCanonical}\n\nUser change:\n${messages[messages.length - 1]?.content ?? ""}`
+          effectiveCanonical && userInput.trim().length
+            ? `Edit the canonical prompt in place.\nCanonical prompt:\n${effectiveCanonical}\n\nUser change:\n${userInput}`
             : null,
         context_payload:
-          contextType === "prompt"
-            ? (selectedPromptSeed ??
-              context.activePrompt ??
-              context.references?.[0]?.promptSnippet ??
-              "")
-            : contextType === "image"
+          orchestration.flow === "TEXT_ONLY"
+            ? orchestration.textInput ||
+              selectedPromptSeed ||
+              context.activePrompt ||
+              context.references?.[0]?.promptSnippet ||
+              ""
+            : orchestration.flow === "IMAGE_ONLY"
               ? selectedReferences.length
                 ? "selected image references provided"
                 : "image provided"
-              : (context.lastAssistantMessage ?? ""),
+              : {
+                  text_seed: orchestration.textInput,
+                  image_refs: orchestration.imageReferenceIds,
+                },
         selected_reference_ids: context.selectedReferenceIds ?? [],
         selected_references: selectedReferences,
         focused_source: context.focusedSource ?? null,
@@ -322,7 +336,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let parsed = firstPass.result.parsed;
       let nextCanonical = firstPass.result.nextCanonical ?? effectiveCanonical ?? null;
       let usage = firstPass.result.usage;
-      const userInput = messages[messages.length - 1]?.content ?? "";
       const explicitEditRequest = isExplicitEditRequest(userInput);
       const bypassDriftGuard = explicitEditRequest;
 

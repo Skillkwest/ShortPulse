@@ -10,3 +10,4 @@ export * from "./buttons/AgentGenerateButton";
 export * from "./buttons/MiniGenerateButton";
 export * from "./inputs/AgentInputBar";
 export * from "./panels/AgentChatPanel";
+export * from "./components/AgentPromptActions";

@@ -11,7 +11,6 @@ type ReferencePromptStepProps = {
   referenceText: string | null;
   onPromptTextChange: (value: string) => void;
   onSave: () => void;
-  onOpenMediaLibrary?: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
   onDrop: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
@@ -22,6 +21,7 @@ type ReferencePromptStepProps = {
   agentInput: string;
   agentIsSending: boolean;
   agentError?: string;
+  agentPrimarySource?: "agent" | "manual" | "reference";
   stagedPrompt: string | null;
   agentChatOpen: boolean;
   onAgentInputChange?: (value: string) => void;
@@ -29,8 +29,11 @@ type ReferencePromptStepProps = {
   onAgentEnhanceSend?: () => void;
   onAgentMessageClick?: (message: AgentMessage) => void;
   onExpandChat?: () => void;
-  onCloseAgentChat?: () => void;
   onClearAgentChat?: () => void;
+  onAgentApplyPrompt?: (prompt: string) => void;
+  onAgentSelectVariation?: (prompt: string) => void;
+  onAgentUseQuestion?: (question: string) => void;
+  onAgentDescribeTargets?: (targets: string[]) => void;
 };
 
 /**
@@ -42,7 +45,6 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   referenceText,
   onPromptTextChange,
   onSave,
-  onOpenMediaLibrary,
   collapsed,
   onToggleCollapse,
   onDrop,
@@ -53,6 +55,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   agentInput,
   agentIsSending,
   agentError,
+  agentPrimarySource = "manual",
   stagedPrompt,
   agentChatOpen,
   onAgentInputChange,
@@ -60,8 +63,11 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   onAgentEnhanceSend,
   onAgentMessageClick,
   onExpandChat,
-  onCloseAgentChat,
   onClearAgentChat,
+  onAgentApplyPrompt,
+  onAgentSelectVariation,
+  onAgentUseQuestion,
+  onAgentDescribeTargets,
 }) => {
   return (
     <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
@@ -77,6 +83,8 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         agentInput={agentInput}
         agentIsSending={agentIsSending}
         agentError={agentError}
+        agentPrimaryPrompt={referenceText ?? ""}
+        agentPrimarySource={agentPrimarySource}
         stagedPrompt={stagedPrompt}
         agentChatOpen={agentChatOpen}
         onAgentInputChange={onAgentInputChange}
@@ -84,10 +92,12 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         onAgentEnhanceSend={onAgentEnhanceSend}
         onAgentMessageClick={onAgentMessageClick}
         onExpandChat={onExpandChat}
-        onCloseAgentChat={onCloseAgentChat}
         onClearAgentChat={onClearAgentChat}
+        onAgentApplyPrompt={onAgentApplyPrompt}
+        onAgentSelectVariation={onAgentSelectVariation}
+        onAgentUseQuestion={onAgentUseQuestion}
+        onAgentDescribeTargets={onAgentDescribeTargets}
         onSavePrompt={onSave}
-        onOpenMediaLibrary={onOpenMediaLibrary}
         isCollapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
         isGenerating={false}

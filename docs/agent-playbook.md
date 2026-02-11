@@ -9,7 +9,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 
 ## Structure to respect
 - App lives in `frontend/` (Next.js pages router, client-only).
-- Docs in `docs/`; start at `docs/README.md` and keep ADRs in `docs/adr/`.
+- Docs in `docs/`; start at `docs/README.md`, keep API refs in `docs/api/`, SOPs in `docs/sops/`, and ADRs in `docs/adr/`.
 - Supabase bootstrap SQL in `sql/`; do not add secrets.
 - Follow feature module pattern (`features/<name>/{types,constants,data,utils,logic,components}`) and keep pages thin.
 - Aim to keep files under ~500 lines; if they exceed, document why and plan a split.
@@ -43,3 +43,4 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Run `npm -C frontend run docs:check` to validate API docs are indexed.
 - Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.
 - Use `skills/skill-doc-index/SKILL.md` when adding or renaming docs.
+- Use `skills/skill-ui-ux-critic/SKILL.md` for UI-focused PR audits and trend-fit recommendations.

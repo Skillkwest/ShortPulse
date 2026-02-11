@@ -23,4 +23,5 @@ Purpose: shared expectations for collaborating on ShortPulse.
 
 ## Communication
 - Log notable updates in `docs/change_log.md` when appropriate.
-- Add new docs to `docs/documentation_overview.md` so discovery stays easy.
+- Add new docs to the correct docs folder and update `docs/README.md`.
+- If you create or retire a doc category, update `docs/documentation_overview.md`.

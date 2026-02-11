@@ -25,6 +25,8 @@ export type ReferenceCanvasProps = {
   outputs: StudioOutput[];
   activeOutputId: string | null;
   showHeader?: boolean;
+  onOutputMediaLoaded?: (id: string) => void;
+  linkedPromptReferenceIds?: string[];
   onSelectOutput: (id: string) => void;
   onOpenDetails: (id: string) => void;
   selectedTool: ToolId | null;
@@ -48,6 +50,8 @@ export function ReferenceCanvas({
   outputs,
   activeOutputId,
   showHeader = true,
+  onOutputMediaLoaded,
+  linkedPromptReferenceIds = [],
   onSelectOutput,
   onOpenDetails,
   selectedTool,
@@ -64,13 +68,27 @@ export function ReferenceCanvas({
   describeCostCredits,
 }: ReferenceCanvasProps) {
   const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
+  const loadedIdsRef = React.useRef<Set<string>>(new Set());
+  const linkedPromptReferenceIdSet = React.useMemo(
+    () => new Set(linkedPromptReferenceIds),
+    [linkedPromptReferenceIds]
+  );
 
-  const markLoaded = useCallback((id: string) => {
-    setLoadedMap((prev) => {
-      if (prev[id]) return prev;
-      return { ...prev, [id]: true };
-    });
-  }, []);
+  const markLoaded = useCallback(
+    (id: string, options?: { notifyAutoSave?: boolean }) => {
+      const shouldNotify = options?.notifyAutoSave ?? true;
+      if (loadedIdsRef.current.has(id)) return;
+      loadedIdsRef.current.add(id);
+      setLoadedMap((prev) => {
+        if (prev[id]) return prev;
+        return { ...prev, [id]: true };
+      });
+      if (shouldNotify) {
+        onOutputMediaLoaded?.(id);
+      }
+    },
+    [onOutputMediaLoaded]
+  );
 
   const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
     if (!onDropFiles) return;
@@ -183,6 +201,8 @@ export function ReferenceCanvas({
               const isVideoPreview = item.previewUrl ? isVideoUrl(item.previewUrl) : false;
               const isImagePreview = item.previewUrl ? !isVideoPreview : false;
               const isPromptOnly = !item.previewUrl && !!item.previewText;
+              const isLinkedPromptReference =
+                isPromptOnly && linkedPromptReferenceIdSet.has(item.id);
               const saveDisabled = item.saveState === "saving";
               const saveLabel =
                 item.saveState === "failed" ? "Retry save" : "Save to media library";
@@ -195,7 +215,7 @@ export function ReferenceCanvas({
               return (
                 <div
                   key={item.id}
-                  className={`reference-card ${item.previewUrl ? "has-preview" : ""} ${isVideoPreview ? "has-video" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""} ${showSpinner ? "is-loading" : ""}`}
+                  className={`reference-card ${item.previewUrl ? "has-preview" : ""} ${isVideoPreview ? "has-video" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""} ${showSpinner ? "is-loading" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
                   role="button"
                   aria-busy={showSpinner}
                   data-loading={showSpinner ? "true" : "false"}
@@ -234,7 +254,7 @@ export function ReferenceCanvas({
                       loading="lazy"
                       decoding="async"
                       onLoad={() => markLoaded(item.id)}
-                      onError={() => markLoaded(item.id)}
+                      onError={() => markLoaded(item.id, { notifyAutoSave: false })}
                     />
                   ) : null}
                   {isFailing ? (
@@ -258,6 +278,9 @@ export function ReferenceCanvas({
                     <div className="reference-loading">
                       <div className="reference-spinner" />
                     </div>
+                  ) : null}
+                  {isLinkedPromptReference ? (
+                    <span className="reference-card-link-dot" aria-hidden="true" />
                   ) : null}
                   {renderSaveChip(item, activeOutputId === item.id)}
                   {/* Show delete button for error cards when selected */}

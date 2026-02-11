@@ -113,10 +113,10 @@
 }
 
 .reference-card.is-active {
-  border: 3px dashed rgb(0, 255, 247);
-  background-color: rgb(0, 171, 201);
+  background-color: rgb(0, 180, 255);
+
   box-shadow:
-    0 10px 40px rgba(0, 255, 251, 0.317),
+    0 4px 10px rgba(0, 255, 251, 0.317),
     0 0 0 2px rgb(0, 217, 255);
   transform: translateY(-1px);
   z-index: 1;
@@ -126,11 +126,16 @@
   content: "";
   position: absolute;
   inset: 6px;
-  border-radius: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 0 4px rgba(37, 169, 191, 0.25);
+  border-radius: 30px;
+  box-shadow: 0 18px 18px 10px rgba(6, 215, 252, 0.25);
   pointer-events: none;
   z-index: 2;
+}
+
+.reference-card.is-linked-prompt-ref:not(.is-active) {
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(64, 216, 255, 0.36);
 }
 
 .reference-card.is-loading.is-active {
@@ -333,6 +338,19 @@
   padding: 10px;
   min-height: 0;
   overflow: hidden;
+}
+
+.reference-card-link-dot {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(65, 225, 255, 0.98);
+  box-shadow: 0 0 0 4px rgba(65, 225, 255, 0.2);
+  z-index: 3;
+  pointer-events: none;
 }
 
 .reference-card.has-video {

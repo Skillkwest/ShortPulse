@@ -867,37 +867,36 @@ body.ai-studio-body {
 .toolbar-item[data-tool-id="kling"].is-active {
   background: linear-gradient(135deg, #2563eb 0%, #06b6d4 50%, #22d3ee 100%);
   transform: scale(1);
-  border: 2px solid rgba(0, 0, 0, 0.4);
   box-shadow:
     0 0 0 3px #6ed6e9,
     0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  padding: 8px 12px;
-  margin-top: 12px;
+  padding: 10px 14px;
 }
 
 /* Edit button active - dual borders (dark + yellow) */
 .toolbar-item[data-tool-id="edit"].is-active {
   background: linear-gradient(135deg, #e10328 0%, #f43f5e 40%, #fbbf24 100%);
   transform: scale(1);
-  border: 2px solid rgba(0, 0, 0, 0.4);
   box-shadow:
     0 0 0 3px rgba(253, 176, 104, 0.907),
     0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  padding: 8px 12px;
+  padding: 10px 14px;
 }
 
 /* Video button active - dual borders (dark + mint) */
 .toolbar-item[data-tool-id="video"].is-active {
   background: linear-gradient(135deg, #b32ba9 0%, #3d2fa8 100%);
   transform: scale(1);
-  border: 2px solid rgba(0, 0, 0, 0.4);
   box-shadow:
     0 0 0 3px #aa65ef,
     0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  padding: 8px 12px;
+  padding: 10px 14px;
 }
 
 /* Canvas button - purple/indigo gradient */
@@ -927,12 +926,12 @@ body.ai-studio-body {
 .toolbar-item[data-tool-id="canvas"].is-active {
   background: linear-gradient(135deg, #0f766e 0%, #059669 50%, #34d399 100%);
   transform: scale(1);
-  border: 2px solid rgba(0, 0, 0, 0.4);
   box-shadow:
     0 0 0 3px #6ee7b7,
     0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  padding: 8px 12px;
+  padding: 10px 14px;
 }
 
 /* Keyboard focus states for accessibility */

@@ -19,8 +19,10 @@ type AgentChatPanelProps = {
   showMessages?: boolean;
   showInput?: boolean;
   showPromptActions?: boolean;
+  showPrimaryPromptStatus?: boolean;
   stagedAttachments?: AgentAttachment[];
   isDropActive?: boolean;
+  showClearAttachmentsButton?: boolean;
   agentActions?: AgentActions;
   primaryPrompt?: string | null;
   primarySource?: "agent" | "manual" | "reference";
@@ -51,8 +53,10 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   showMessages = true,
   showInput = true,
   showPromptActions = false,
+  showPrimaryPromptStatus = true,
   stagedAttachments = [],
   isDropActive = false,
+  showClearAttachmentsButton = false,
   agentActions,
   primaryPrompt = null,
   primarySource = "manual",
@@ -130,7 +134,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
             <p className="tiny helper-text agent-drop-hint">
               Drag references here to attach context.
             </p>
-            {stagedAttachments.length && onClearAttachments ? (
+            {showClearAttachmentsButton && stagedAttachments.length && onClearAttachments ? (
               <button
                 type="button"
                 className="ghost-btn mini agent-attachment-clear-btn"
@@ -178,35 +182,42 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   aria-label="Attached references"
                 >
                   <div className="agent-attachment-card-list">
-                    {stagedAttachments.map((attachment) => (
-                      <div
-                        key={attachment.id}
-                        className={`agent-attachment-card agent-attachment-card--${attachment.kind}`}
-                      >
-                        {attachment.kind === "image" && attachment.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={attachment.imageUrl}
-                            alt=""
-                            className="agent-attachment-card-media"
-                          />
-                        ) : (
-                          <div className="agent-attachment-card-prompt" aria-hidden="true">
-                            <span className="agent-attachment-card-prompt-dot" />
-                          </div>
-                        )}
-                        {onRemoveAttachment ? (
-                          <button
-                            type="button"
-                            className="agent-attachment-remove agent-attachment-remove--card"
-                            aria-label="Remove attachment"
-                            onClick={() => onRemoveAttachment(attachment.id)}
-                          >
-                            ×
-                          </button>
-                        ) : null}
-                      </div>
-                    ))}
+                    {stagedAttachments.map((attachment) => {
+                      const isLinkedPromptRef =
+                        attachment.kind === "prompt" && Boolean(attachment.referenceId);
+                      return (
+                        <div
+                          key={attachment.id}
+                          className={`agent-attachment-card agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""}`}
+                        >
+                          {attachment.kind === "image" && attachment.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={attachment.imageUrl}
+                              alt=""
+                              className="agent-attachment-card-media"
+                            />
+                          ) : (
+                            <div className="agent-attachment-card-prompt" aria-hidden="true">
+                              <span className="agent-attachment-card-prompt-marker">T</span>
+                            </div>
+                          )}
+                          {isLinkedPromptRef ? (
+                            <span className="agent-attachment-link-dot" aria-hidden="true" />
+                          ) : null}
+                          {onRemoveAttachment ? (
+                            <button
+                              type="button"
+                              className="agent-attachment-remove agent-attachment-remove--card"
+                              aria-label="Remove attachment"
+                              onClick={() => onRemoveAttachment(attachment.id)}
+                            >
+                              ×
+                            </button>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}
@@ -220,6 +231,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       ) : null}
       {showPromptActions ? (
         <AgentPromptActions
+          showPrimaryPromptStatus={showPrimaryPromptStatus}
           primaryPrompt={primaryPrompt}
           primarySource={primarySource}
           actions={agentActions}

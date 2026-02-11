@@ -4,6 +4,7 @@
  */
 import {
   getStagedAgentPrompt,
+  removeAspectRatioLanguage,
   normalizePromptText,
   resolvePromptSourceBadge,
 } from "../agentPromptOwnership";
@@ -29,5 +30,16 @@ describe("agentPromptOwnership", () => {
 
   it("drops staged prompt when agent output is blank", () => {
     expect(getStagedAgentPrompt("agent", "   ")).toBeNull();
+  });
+
+  it("strips aspect-ratio language from prompts", () => {
+    expect(
+      removeAspectRatioLanguage(
+        "A lively dog in a park, with dynamic energy and warmth filling the vertical 9:16 frame."
+      )
+    ).toBe("A lively dog in a park, with dynamic energy and warmth filling the frame.");
+    expect(normalizePromptText("cinematic portrait, aspect ratio 16:9")).toBe(
+      "cinematic portrait,"
+    );
   });
 });

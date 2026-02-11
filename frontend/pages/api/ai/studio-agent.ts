@@ -16,6 +16,7 @@ import {
   resolveCanonicalPrompt,
   shouldRetryExplicitNoOp,
 } from "../../../features/ai-agent/logic/studioAgentCanonical";
+import { removeAspectRatioLanguage } from "../../../features/ai-studio/logic/agentPromptOwnership";
 import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/logic/studioAgentReferenceSelection";
 import { buildStudioAgentOrchestration } from "../../../features/ai-agent/logic/studioAgentOrchestration";
 import { runThinkerFormatterTurn } from "../../../features/ai-agent/logic/studioAgentThinkerFormatter";
@@ -80,18 +81,24 @@ const safeContext = (context?: AgentContext): AgentContext => {
       .slice(0, MAX_MEDIA) ?? [];
 
   return {
-    activePrompt: context.activePrompt ?? null,
+    activePrompt: removeAspectRatioLanguage(context.activePrompt ?? null),
     modelId: context.modelId ?? null,
     mode: context.mode,
     creditBalance: context.creditBalance ?? null,
-    references: Array.isArray(context.references) ? context.references.slice(0, 24) : [],
+    references: Array.isArray(context.references)
+      ? context.references.slice(0, 24).map((reference) => ({
+          ...reference,
+          promptSnippet: removeAspectRatioLanguage(reference.promptSnippet ?? null),
+          caption: removeAspectRatioLanguage(reference.caption ?? null),
+        }))
+      : [],
     media,
     selectedReferenceIds: Array.isArray(context.selectedReferenceIds)
       ? context.selectedReferenceIds.slice(0, 8)
       : [],
     focusedSource: context.focusedSource ?? undefined,
     focusedReferenceId: context.focusedReferenceId ?? null,
-    lastAssistantMessage: context.lastAssistantMessage ?? null,
+    lastAssistantMessage: removeAspectRatioLanguage(context.lastAssistantMessage ?? null),
     modeHint: context.modeHint ?? undefined,
   };
 };
@@ -176,12 +183,26 @@ const normalizeAgentActions = (value: unknown): AgentResponse["actions"] => {
         ? record.apply_prompt
         : undefined;
 
+  const cleanedApplyPrompt = removeAspectRatioLanguage(applyPrompt ?? null) ?? undefined;
+
   const normalized = {
-    applyPrompt,
-    variations: asStringArray(record.variations),
+    applyPrompt: cleanedApplyPrompt,
+    variations:
+      asStringArray(record.variations)
+        ?.map((variation) => removeAspectRatioLanguage(variation))
+        .filter((variation): variation is string => Boolean(variation)) ?? undefined,
     describeTargets: asStringArray(record.describeTargets ?? record.describe_targets),
-    questions: asStringArray(record.questions),
-    referenceCard: asReferenceCard(record.referenceCard),
+    questions:
+      asStringArray(record.questions)
+        ?.map((question) => removeAspectRatioLanguage(question))
+        .filter((question): question is string => Boolean(question)) ?? undefined,
+    referenceCard: (() => {
+      const card = asReferenceCard(record.referenceCard);
+      if (!card) return undefined;
+      const prompt = removeAspectRatioLanguage(card.prompt ?? null);
+      if (!prompt) return undefined;
+      return { ...card, prompt };
+    })(),
   };
 
   if (
@@ -208,7 +229,8 @@ const parseAgentJson = (raw: string): AgentResponse | null => {
     try {
       const parsed = JSON.parse(candidate);
       if (!parsed || typeof parsed !== "object") continue;
-      const message = typeof parsed.message === "string" ? parsed.message : "";
+      const message =
+        typeof parsed.message === "string" ? (removeAspectRatioLanguage(parsed.message) ?? "") : "";
       const actions = normalizeAgentActions((parsed as Record<string, unknown>).actions);
       const usage = typeof parsed.usage === "object" ? parsed.usage : undefined;
       return { message, actions, usage };
@@ -254,10 +276,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const context = safeContext(req.body?.context);
   const incomingCanonical =
     typeof req.body?.canonicalPrompt === "string" && req.body.canonicalPrompt.trim().length
-      ? req.body.canonicalPrompt.trim()
+      ? (removeAspectRatioLanguage(req.body.canonicalPrompt.trim()) ?? null)
       : null;
   const storedCanonical = conversationId
-    ? (canonicalPromptStore.get(conversationId) ?? null)
+    ? (removeAspectRatioLanguage(canonicalPromptStore.get(conversationId) ?? null) ?? null)
     : null;
   const canonicalPrompt = incomingCanonical ?? storedCanonical ?? null;
   const effectiveCanonical = canonicalPrompt ?? context.lastAssistantMessage ?? null;
@@ -385,11 +407,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Guarantee an apply_prompt so the client always receives a refined prompt.
       if (!parsed.actions?.applyPrompt || !parsed.actions.applyPrompt.trim()) {
         const fallbackPrompt =
-          nextCanonical ??
-          effectiveCanonical ??
-          context.activePrompt ??
-          messages[messages.length - 1]?.content ??
-          "";
+          removeAspectRatioLanguage(
+            nextCanonical ??
+              effectiveCanonical ??
+              context.activePrompt ??
+              messages[messages.length - 1]?.content ??
+              ""
+          ) ?? "";
         parsed.actions = parsed.actions ?? {};
         parsed.actions.applyPrompt = fallbackPrompt;
         parsed.message = parsed.message || fallbackPrompt;
@@ -446,20 +470,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : "";
 
     const parsed = parseAgentJson(contentText) ?? {
-      message: contentText || "No response",
+      message: removeAspectRatioLanguage(contentText || "No response") ?? "No response",
       actions: undefined,
     };
-    const nextCanonical =
-      parsed?.actions?.applyPrompt ?? parsed?.message ?? canonicalPrompt ?? null;
+    const nextCanonical = removeAspectRatioLanguage(
+      parsed?.actions?.applyPrompt ?? parsed?.message ?? canonicalPrompt ?? null
+    );
 
     // Guarantee an apply_prompt for the single-agent path too.
     if (!parsed.actions?.applyPrompt || !parsed.actions.applyPrompt.trim()) {
       const fallbackPrompt =
-        nextCanonical ??
-        canonicalPrompt ??
-        context.activePrompt ??
-        messages[messages.length - 1]?.content ??
-        "";
+        removeAspectRatioLanguage(
+          nextCanonical ??
+            canonicalPrompt ??
+            context.activePrompt ??
+            messages[messages.length - 1]?.content ??
+            ""
+        ) ?? "";
       parsed.actions = parsed.actions ?? {};
       parsed.actions.applyPrompt = fallbackPrompt;
       parsed.message = parsed.message || fallbackPrompt;

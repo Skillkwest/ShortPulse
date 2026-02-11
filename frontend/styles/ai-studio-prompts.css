@@ -308,6 +308,10 @@
   color: var(--ai-card-text-faint);
 }
 
+.reference-step-card .step2-input-row .prompt-input::placeholder {
+  color: rgba(186, 196, 208, 0.34);
+}
+
 .prompt-placeholder {
   min-height: 120px;
   border-radius: 12px;

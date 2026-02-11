@@ -3,7 +3,6 @@
  */
 import React from "react";
 import { PromptStep } from "./PromptStep";
-import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
 
 type ReferencePromptStepProps = {
   promptOrder: number;
@@ -15,25 +14,9 @@ type ReferencePromptStepProps = {
   onToggleCollapse: () => void;
   onDrop: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
   beginnerMode: boolean;
-  agentEnabled: boolean;
-  agentMessages: AgentMessage[];
-  agentActions?: AgentActions;
-  agentInput: string;
   agentIsSending: boolean;
   agentError?: string;
-  agentPrimarySource?: "agent" | "manual" | "reference";
-  stagedPrompt: string | null;
-  agentChatOpen: boolean;
-  onAgentInputChange?: (value: string) => void;
-  onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
-  onAgentMessageClick?: (message: AgentMessage) => void;
-  onExpandChat?: () => void;
-  onClearAgentChat?: () => void;
-  onAgentApplyPrompt?: (prompt: string) => void;
-  onAgentSelectVariation?: (prompt: string) => void;
-  onAgentUseQuestion?: (question: string) => void;
-  onAgentDescribeTargets?: (targets: string[]) => void;
 };
 
 /**
@@ -49,25 +32,9 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   onToggleCollapse,
   onDrop,
   beginnerMode,
-  agentEnabled,
-  agentMessages,
-  agentActions,
-  agentInput,
   agentIsSending,
   agentError,
-  agentPrimarySource = "manual",
-  stagedPrompt,
-  agentChatOpen,
-  onAgentInputChange,
-  onAgentSend,
   onAgentEnhanceSend,
-  onAgentMessageClick,
-  onExpandChat,
-  onClearAgentChat,
-  onAgentApplyPrompt,
-  onAgentSelectVariation,
-  onAgentUseQuestion,
-  onAgentDescribeTargets,
 }) => {
   return (
     <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
@@ -77,26 +44,12 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         subtitle="Start typing your prompt or drag & drop a prompt from the reference grid."
         prompt={referenceText ?? ""}
         onPromptChange={onPromptTextChange}
-        agentEnabled={agentEnabled}
-        agentMessages={agentMessages}
-        agentActions={agentActions}
-        agentInput={agentInput}
+        agentEnabled={false}
+        agentMessages={[]}
+        agentInput=""
         agentIsSending={agentIsSending}
         agentError={agentError}
-        agentPrimaryPrompt={referenceText ?? ""}
-        agentPrimarySource={agentPrimarySource}
-        stagedPrompt={stagedPrompt}
-        agentChatOpen={agentChatOpen}
-        onAgentInputChange={onAgentInputChange}
-        onAgentSend={onAgentSend}
         onAgentEnhanceSend={onAgentEnhanceSend}
-        onAgentMessageClick={onAgentMessageClick}
-        onExpandChat={onExpandChat}
-        onClearAgentChat={onClearAgentChat}
-        onAgentApplyPrompt={onAgentApplyPrompt}
-        onAgentSelectVariation={onAgentSelectVariation}
-        onAgentUseQuestion={onAgentUseQuestion}
-        onAgentDescribeTargets={onAgentDescribeTargets}
         onSavePrompt={onSave}
         isCollapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
@@ -105,6 +58,9 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         onDragOver={(event) => event.preventDefault()}
         className="reference-step-card"
         beginnerMode={beginnerMode}
+        promptOnly
+        enhanceOnly
+        promptPlaceholder="Describe the image you want to generate. You can also drag & drop a reference prompt here to get started."
       />
     </div>
   );

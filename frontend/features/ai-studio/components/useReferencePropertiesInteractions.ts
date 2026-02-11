@@ -65,11 +65,12 @@ export const useReferencePropertiesInteractions = ({
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraOneInputRef = useRef<HTMLInputElement | null>(null);
   const extraTwoInputRef = useRef<HTMLInputElement | null>(null);
+  const extraThreeInputRef = useRef<HTMLInputElement | null>(null);
   const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
   const makeId = () => `kling-${Math.random().toString(36).slice(2, 9)}`;
 
   const [primaryDragActive, setPrimaryDragActive] = useState(false);
-  const [extraDragActive, setExtraDragActive] = useState([false, false]);
+  const [extraDragActive, setExtraDragActive] = useState([false, false, false]);
   const [motionVideoDragActive, setMotionVideoDragActive] = useState(false);
   const [collapsedSteps, setCollapsedSteps] = useState<Record<ReferenceStepKey, boolean>>({
     reference: false,
@@ -271,6 +272,7 @@ export const useReferencePropertiesInteractions = ({
     primaryInputRef,
     extraOneInputRef,
     extraTwoInputRef,
+    extraThreeInputRef,
     motionVideoInputRef,
     primaryDragActive,
     extraDragActive,

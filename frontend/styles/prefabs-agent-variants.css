@@ -45,6 +45,13 @@
   box-shadow: none;
 }
 
+.prompt-actions-compact .agent-save-prefab:disabled {
+  opacity: 1;
+  border-color: rgba(151, 159, 171, 0.55);
+  background: linear-gradient(135deg, rgba(34, 39, 47, 0.92), rgba(26, 30, 37, 0.92));
+  color: rgba(151, 159, 171, 0.9);
+}
+
 .agent-chat-panel .agent-send-prefab {
   border: 1px solid #25a9bf;
   background: linear-gradient(135deg, rgba(24, 29, 38, 0.92), rgba(33, 39, 50, 0.503));

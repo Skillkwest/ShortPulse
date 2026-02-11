@@ -2,13 +2,7 @@
  * Reference media step for image/video dropzones and mode selection.
  */
 import React from "react";
-import {
-  ArrowFatLinesRight,
-  Image as ImageIcon,
-  Plus,
-  UploadSimple,
-  VideoCamera,
-} from "phosphor-react";
+import { ArrowFatLinesRight, Plus, Selection, UploadSimple, VideoCamera } from "phosphor-react";
 import { ReferenceStepHeaderActionButton } from "./ReferenceStepHeaderActionButton";
 
 type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
@@ -50,6 +44,7 @@ type ReferenceMediaStepProps = {
   primaryInputRef: React.MutableRefObject<HTMLInputElement | null>;
   extraOneInputRef: React.MutableRefObject<HTMLInputElement | null>;
   extraTwoInputRef: React.MutableRefObject<HTMLInputElement | null>;
+  extraThreeInputRef: React.MutableRefObject<HTMLInputElement | null>;
   motionVideoInputRef: React.MutableRefObject<HTMLInputElement | null>;
   onPrimaryImageChange: (url: string | null) => void;
   onExtraImageChange: (index: number, url: string | null) => void;
@@ -100,6 +95,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   primaryInputRef,
   extraOneInputRef,
   extraTwoInputRef,
+  extraThreeInputRef,
   motionVideoInputRef,
   onPrimaryImageChange,
   onExtraImageChange,
@@ -417,10 +413,16 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                   ) : !isVideoVariant ? (
                     <>
                       <div className="reference-drop-divider" aria-hidden="true">
-                        <ImageIcon size={22} weight="bold" />
+                        <Selection size={22} weight="regular" />
                       </div>
-                      {[0, 1].map((index) => {
+                      {[0, 1, 2].map((index) => {
                         const previewUrl = extraImageUrls[index];
+                        const inputRef =
+                          index === 0
+                            ? extraOneInputRef
+                            : index === 1
+                              ? extraTwoInputRef
+                              : extraThreeInputRef;
                         return (
                           <div className="secondary-drop" key={`extra-drop-${index}`}>
                             <div
@@ -429,11 +431,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                               onDragEnter={handleExtraDragEnter(index)}
                               onDragOver={handleExtraDragOver(index)}
                               onDragLeave={handleExtraDragLeave(index)}
-                              onClick={() =>
-                                index === 0
-                                  ? extraOneInputRef.current?.click()
-                                  : extraTwoInputRef.current?.click()
-                              }
+                              onClick={() => inputRef.current?.click()}
                               style={
                                 previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined
                               }
@@ -484,6 +482,13 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
         accept="image/*"
         style={{ display: "none" }}
         onChange={handleFileSelection((url) => onExtraImageChange(1, url))}
+      />
+      <input
+        ref={extraThreeInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handleFileSelection((url) => onExtraImageChange(2, url))}
       />
       <input
         ref={motionVideoInputRef}

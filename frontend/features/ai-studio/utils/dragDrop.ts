@@ -40,6 +40,35 @@ export type VideoDragDropPayload = {
 
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
 
+const isCurrentDocumentUrl = (value?: string | null) => {
+  if (!value || typeof window === "undefined") return false;
+  try {
+    const current = new URL(window.location.href);
+    const candidate = new URL(value, window.location.href);
+    return (
+      candidate.origin === current.origin &&
+      candidate.pathname === current.pathname &&
+      candidate.search === current.search
+    );
+  } catch {
+    return false;
+  }
+};
+
+const resolveDraggedUrl = (
+  value: string,
+  referenceUrl: string | null,
+  matcher: (value?: string) => boolean
+) => {
+  const candidate = value.trim();
+  if (!candidate) return null;
+  if (!referenceUrl) return candidate;
+  if ((isBlobUrl(candidate) || isCurrentDocumentUrl(candidate)) && matcher(referenceUrl)) {
+    return referenceUrl;
+  }
+  return candidate;
+};
+
 export const looksLikeImageUrl = (value?: string) => {
   if (!value) return false;
   return imageUrlPattern.test(value.trim());
@@ -58,10 +87,16 @@ export const looksLikeVideoUrl = (value?: string) => {
   );
 };
 
+const isLikelyImageTransferUrl = (value?: string) =>
+  looksLikeImageUrl(value) && !looksLikeVideoUrl(value);
+
 export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload => {
   const imageFile = findImageFile(transfer.files);
   const referenceUrl = transfer.getData("text/reference-url");
   const referenceId = transfer.getData("text/reference-id") || null;
+  const normalizedReferenceUrl = isLikelyImageTransferUrl(referenceUrl)
+    ? referenceUrl.trim()
+    : null;
 
   if (imageFile) {
     return {
@@ -72,12 +107,45 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
     };
   }
 
+  if (normalizedReferenceUrl) {
+    return {
+      imageUrl: normalizedReferenceUrl,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+    };
+  }
+
   const uriListValue = transfer.getData("text/uri-list");
   if (uriListValue) {
     const cleanUri = getFirstUriListValue(uriListValue);
     if (cleanUri) {
+      const resolvedUri = resolveDraggedUrl(
+        cleanUri,
+        normalizedReferenceUrl,
+        isLikelyImageTransferUrl
+      );
+      if (resolvedUri) {
+        return {
+          imageUrl: resolvedUri,
+          promptText: extractPromptText(transfer),
+          referenceId,
+          fromFile: false,
+        };
+      }
+    }
+  }
+
+  const imageUrl = transfer.getData("image/url");
+  if (imageUrl) {
+    const resolvedImageUrl = resolveDraggedUrl(
+      imageUrl,
+      normalizedReferenceUrl,
+      isLikelyImageTransferUrl
+    );
+    if (resolvedImageUrl) {
       return {
-        imageUrl: isBlobUrl(cleanUri) && looksLikeImageUrl(referenceUrl) ? referenceUrl : cleanUri,
+        imageUrl: resolvedImageUrl,
         promptText: extractPromptText(transfer),
         referenceId,
         fromFile: false,
@@ -85,35 +153,21 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
     }
   }
 
-  const imageUrl = transfer.getData("image/url");
-  if (imageUrl) {
-    return {
-      imageUrl:
-        isBlobUrl(imageUrl) && looksLikeImageUrl(referenceUrl) ? referenceUrl : imageUrl.trim(),
-      promptText: extractPromptText(transfer),
-      referenceId,
-      fromFile: false,
-    };
-  }
-
   const rawText = transfer.getData("text/plain");
-  if (rawText && looksLikeImageUrl(rawText)) {
-    return {
-      imageUrl:
-        isBlobUrl(rawText) && looksLikeImageUrl(referenceUrl) ? referenceUrl : rawText.trim(),
-      promptText: extractPromptText(transfer),
-      referenceId,
-      fromFile: false,
-    };
-  }
-
-  if (looksLikeImageUrl(referenceUrl)) {
-    return {
-      imageUrl: referenceUrl.trim(),
-      promptText: extractPromptText(transfer),
-      referenceId,
-      fromFile: false,
-    };
+  if (rawText && isLikelyImageTransferUrl(rawText)) {
+    const resolvedTextUrl = resolveDraggedUrl(
+      rawText,
+      normalizedReferenceUrl,
+      isLikelyImageTransferUrl
+    );
+    if (resolvedTextUrl) {
+      return {
+        imageUrl: resolvedTextUrl,
+        promptText: extractPromptText(transfer),
+        referenceId,
+        fromFile: false,
+      };
+    }
   }
 
   return {
@@ -128,6 +182,7 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
   const videoFile = findVideoFile(transfer.files);
   const referenceUrl = transfer.getData("text/reference-url");
   const referenceId = transfer.getData("text/reference-id") || null;
+  const normalizedReferenceUrl = looksLikeVideoUrl(referenceUrl) ? referenceUrl.trim() : null;
 
   if (videoFile) {
     return {
@@ -138,12 +193,37 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
     };
   }
 
+  if (normalizedReferenceUrl) {
+    return {
+      videoUrl: normalizedReferenceUrl,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+    };
+  }
+
   const uriListValue = transfer.getData("text/uri-list");
   if (uriListValue) {
     const cleanUri = getFirstUriListValue(uriListValue);
     if (cleanUri && looksLikeVideoUrl(cleanUri)) {
+      const resolvedUri = resolveDraggedUrl(cleanUri, normalizedReferenceUrl, looksLikeVideoUrl);
+      if (resolvedUri) {
+        return {
+          videoUrl: resolvedUri,
+          promptText: extractPromptText(transfer),
+          referenceId,
+          fromFile: false,
+        };
+      }
+    }
+  }
+
+  const imageUrl = transfer.getData("image/url");
+  if (imageUrl && looksLikeVideoUrl(imageUrl)) {
+    const resolvedImageUrl = resolveDraggedUrl(imageUrl, normalizedReferenceUrl, looksLikeVideoUrl);
+    if (resolvedImageUrl) {
       return {
-        videoUrl: isBlobUrl(cleanUri) && looksLikeVideoUrl(referenceUrl) ? referenceUrl : cleanUri,
+        videoUrl: resolvedImageUrl,
         promptText: extractPromptText(transfer),
         referenceId,
         fromFile: false,
@@ -151,35 +231,17 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
     }
   }
 
-  const imageUrl = transfer.getData("image/url");
-  if (imageUrl && looksLikeVideoUrl(imageUrl)) {
-    return {
-      videoUrl:
-        isBlobUrl(imageUrl) && looksLikeVideoUrl(referenceUrl) ? referenceUrl : imageUrl.trim(),
-      promptText: extractPromptText(transfer),
-      referenceId,
-      fromFile: false,
-    };
-  }
-
   const rawText = transfer.getData("text/plain");
   if (rawText && looksLikeVideoUrl(rawText)) {
-    return {
-      videoUrl:
-        isBlobUrl(rawText) && looksLikeVideoUrl(referenceUrl) ? referenceUrl : rawText.trim(),
-      promptText: extractPromptText(transfer),
-      referenceId,
-      fromFile: false,
-    };
-  }
-
-  if (looksLikeVideoUrl(referenceUrl)) {
-    return {
-      videoUrl: referenceUrl.trim(),
-      promptText: extractPromptText(transfer),
-      referenceId,
-      fromFile: false,
-    };
+    const resolvedTextUrl = resolveDraggedUrl(rawText, normalizedReferenceUrl, looksLikeVideoUrl);
+    if (resolvedTextUrl) {
+      return {
+        videoUrl: resolvedTextUrl,
+        promptText: extractPromptText(transfer),
+        referenceId,
+        fromFile: false,
+      };
+    }
   }
 
   return {

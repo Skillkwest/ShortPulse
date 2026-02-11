@@ -160,25 +160,9 @@ export function ReferencePropertiesPanel({
   costCredits,
   isGenerateDisabled = false,
   referenceImageWarning,
-  agentEnabled = false,
-  agentMessages = [],
-  agentActions,
-  agentInput = "",
   agentIsSending = false,
   agentError,
-  agentPrimarySource = "manual",
-  stagedPrompt = null,
-  agentChatOpen = false,
-  onAgentInputChange,
-  onAgentSend,
   onAgentEnhanceSend,
-  onAgentMessageClick,
-  onExpandChat,
-  onClearAgentChat,
-  onAgentApplyPrompt,
-  onAgentSelectVariation,
-  onAgentUseQuestion,
-  onAgentDescribeTargets,
   beginnerMode = false,
 }: ReferencePropertiesPanelProps) {
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
@@ -186,6 +170,7 @@ export function ReferencePropertiesPanel({
     primaryInputRef,
     extraOneInputRef,
     extraTwoInputRef,
+    extraThreeInputRef,
     motionVideoInputRef,
     primaryDragActive,
     extraDragActive,
@@ -308,25 +293,9 @@ export function ReferencePropertiesPanel({
           onToggleCollapse={() => toggleStep("prompt")}
           onDrop={handlePromptDrop}
           beginnerMode={beginnerMode}
-          agentEnabled={agentEnabled}
-          agentMessages={agentMessages}
-          agentActions={agentActions}
-          agentInput={agentInput}
           agentIsSending={agentIsSending}
           agentError={agentError}
-          agentPrimarySource={agentPrimarySource}
-          stagedPrompt={stagedPrompt}
-          agentChatOpen={agentChatOpen}
-          onAgentInputChange={onAgentInputChange}
-          onAgentSend={onAgentSend}
           onAgentEnhanceSend={onAgentEnhanceSend}
-          onAgentMessageClick={onAgentMessageClick}
-          onExpandChat={onExpandChat}
-          onClearAgentChat={onClearAgentChat}
-          onAgentApplyPrompt={onAgentApplyPrompt}
-          onAgentSelectVariation={onAgentSelectVariation}
-          onAgentUseQuestion={onAgentUseQuestion}
-          onAgentDescribeTargets={onAgentDescribeTargets}
         />
         {!isKeyframesMode && !isMotionMode ? (
           <ReferenceModelStep
@@ -397,6 +366,7 @@ export function ReferencePropertiesPanel({
           primaryInputRef={primaryInputRef}
           extraOneInputRef={extraOneInputRef}
           extraTwoInputRef={extraTwoInputRef}
+          extraThreeInputRef={extraThreeInputRef}
           motionVideoInputRef={motionVideoInputRef}
           onPrimaryImageChange={onPrimaryImageChange}
           onExtraImageChange={onExtraImageChange}

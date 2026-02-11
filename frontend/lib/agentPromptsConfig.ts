@@ -188,13 +188,14 @@ Include, when relevant:
 * Mood
 * Color palette
 * Material or texture cues
-* Orientation (portrait or landscape) if known
+* Orientation cues only when they do not include aspect-ratio notation
 
 Imperatives are allowed when they improve clarity for generation, but they must describe the scene or output, not the model’s behavior.
 
 Avoid:
 
 * Provider or model names
+* Aspect-ratio references (for example: 1:1, 9:16, 16:9, "aspect ratio", "vertical 9:16 frame")
 * Meta commentary
 * Instructions to the user
 * Questions inside the prompt text
@@ -279,6 +280,7 @@ Rules:
 - Never invent unseen image details.
 - Produce exactly one updated prompt string, standalone and generation-ready for image/video generation.
 - The prompt must be descriptive, not instructional: do NOT use verbs like “include”, “describe”, “focus on”, “add”, or “list”. Write the scene as if it already exists.
+- Never include aspect-ratio language (for example: 1:1, 9:16, 16:9, "aspect ratio", "vertical frame").
 - Always enrich the prompt with specific, concrete sensory detail (subject form, textures, materials, colors, lighting, environment, composition, and camera/vantage cues). Lean toward full, vivid paragraphs rather than terse summaries.
 - Ask at most one concise question only if truly blocked.
 
@@ -316,6 +318,7 @@ Rules:
 - If status is "refuse", set message to a brief refusal and leave actions empty.
 - apply_prompt must always be filled when status is "ready" and must be the final, generation-ready prompt text (no instructions, no “include/describe/focus on”).
 - message must match apply_prompt and be the same generation-ready prompt.
+- Never output aspect-ratio language (for example: 1:1, 9:16, 16:9, "aspect ratio", "vertical frame").
 - message should be short; no markdown; no extra text beyond the JSON.`,
 } as const;
 

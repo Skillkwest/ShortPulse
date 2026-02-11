@@ -47,6 +47,29 @@ const attachmentSignature = (attachment: AgentAttachment) =>
     ? `${attachment.kind}:${attachment.referenceId}`
     : `${attachment.kind}:${attachment.imageUrl ?? attachment.text ?? attachment.id}`;
 
+const isCurrentDocumentUrl = (value: string) => {
+  if (typeof window === "undefined") return false;
+  try {
+    const current = new URL(window.location.href);
+    const candidate = new URL(value, window.location.href);
+    return (
+      candidate.origin === current.origin &&
+      candidate.pathname === current.pathname &&
+      candidate.search === current.search
+    );
+  } catch {
+    return false;
+  }
+};
+
+const normalizeAttachmentImageUrl = (value: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (isCurrentDocumentUrl(trimmed)) return null;
+  return trimmed;
+};
+
 export default function AiStudioPage() {
   const { balanceCents, balanceLoading, refreshBalance } = useCredits();
   const balanceCredits = useMemo(() => {
@@ -55,6 +78,7 @@ export default function AiStudioPage() {
   }, [balanceCents]);
   const [agentConversationId] = useState<string>(() => randomId());
   const [isPromptRefining, setIsPromptRefining] = useState(false);
+  const [isReferencePromptEnhancing, setIsReferencePromptEnhancing] = useState(false);
   const [describeInFlightCount, setDescribeInFlightCount] = useState(0);
 
   // Character workflow state (used when Character tool is active)
@@ -135,6 +159,7 @@ export default function AiStudioPage() {
     motionReferenceVideoUrl,
     setMotionReferenceVideoUrl,
     referenceText,
+    setReferenceText,
     setSharedPrompt,
     useReferenceImageIndicator,
     detailOutput,
@@ -164,6 +189,7 @@ export default function AiStudioPage() {
     setUiNotice,
     getDefaultDurationSeconds,
     getAgentContext,
+    onReferenceOutputMediaLoaded,
     addAgentPromptReference,
   } = useAiStudioState();
 
@@ -199,6 +225,17 @@ export default function AiStudioPage() {
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
     [agentMessages]
   );
+  const linkedPromptReferenceIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          agentAttachments
+            .filter((attachment) => attachment.kind === "prompt" && attachment.referenceId)
+            .map((attachment) => attachment.referenceId as string)
+        )
+      ),
+    [agentAttachments]
+  );
   const agentPrimarySource = resolvePromptSourceBadge(promptOrigin);
   const stagedAgentPrompt = getStagedAgentPrompt(promptOrigin, latestAgentPrompt);
   const trackAgentUiEvent = useCallback((message: string, data?: Record<string, unknown>) => {
@@ -223,10 +260,19 @@ export default function AiStudioPage() {
 
   const handleManualPromptChange = useCallback(
     (value: string) => {
-      setSharedPrompt(value);
+      if (
+        selectedTool === "image" ||
+        selectedTool === "edit" ||
+        selectedTool === "video" ||
+        selectedTool === "kling"
+      ) {
+        setReferenceText(value);
+      } else {
+        setSharedPrompt(value);
+      }
       setPromptOrigin("manual");
     },
-    [setSharedPrompt]
+    [selectedTool, setReferenceText, setSharedPrompt]
   );
 
   const shouldRunPromptRefinerFirst = useCallback((text: string, context: AgentContext) => {
@@ -316,13 +362,19 @@ export default function AiStudioPage() {
       const resolvedPreviewUrl = droppedReferenceId
         ? resolvePreviewUrlById(outputs, droppedReferenceId)
         : null;
+      const transferReferenceUrl = event.dataTransfer.getData("text/reference-url") || null;
       const normalizedPromptText =
         payload.promptText?.trim() ||
         matchedOutput?.prompt?.trim() ||
         matchedOutput?.previewText?.trim() ||
         null;
-      const normalizedImageUrl =
-        payload.imageUrl || resolvedPreviewUrl || matchedOutput?.previewUrl || null;
+      const normalizedImageUrl = normalizeAttachmentImageUrl(
+        resolvedPreviewUrl ||
+          matchedOutput?.previewUrl ||
+          transferReferenceUrl ||
+          payload.imageUrl ||
+          null
+      );
 
       if (!normalizedImageUrl && !normalizedPromptText) return;
       if (!agentSessionEnabled) {
@@ -372,6 +424,8 @@ export default function AiStudioPage() {
     }
   };
 
+  const isEditPromptTool = selectedTool === "edit" || selectedTool === "image";
+
   const handleAgentSend = async (
     textOverride?: string,
     options?: {
@@ -383,13 +437,18 @@ export default function AiStudioPage() {
     if (agentIsSending || agentUiBusyRef.current) return;
     const rawInput = typeof textOverride === "string" ? textOverride : agentInput;
     const trimmed = rawInput.trim();
-    const fallback = trimmed || prompt.trim();
-    if (!fallback) return;
+    const droppedPromptText =
+      [...agentAttachments]
+        .reverse()
+        .find((attachment) => attachment.kind === "prompt" && attachment.text?.trim())
+        ?.text?.trim() ?? "";
+    const outboundText = trimmed || droppedPromptText || prompt.trim();
+    if (!outboundText) return;
     trackAgentUiEvent("studio_agent_send_requested", {
       mode_hint: options?.modeHint ?? "chat",
       has_attachments: agentAttachments.length > 0,
       image_attachments: agentAttachments.filter((item) => item.kind === "image").length,
-      prompt_chars: fallback.length,
+      prompt_chars: outboundText.length,
     });
     if (!agentSessionEnabled) setAgentSessionEnabled(true);
     agentUiBusyRef.current = true;
@@ -494,9 +553,9 @@ export default function AiStudioPage() {
         };
       }
 
-      if (shouldRunPromptRefinerFirst(fallback, mediaPatchedContext)) {
+      if (shouldRunPromptRefinerFirst(outboundText, mediaPatchedContext)) {
         try {
-          const refined = await postGeneratePrompt(fallback);
+          const refined = await postGeneratePrompt(outboundText);
           if (refined?.prompt) {
             refinedPrompt = refined.prompt.trim();
             mediaPatchedContext = {
@@ -511,8 +570,8 @@ export default function AiStudioPage() {
       }
 
       const { response, actions } = await sendToAgent({
-        text: fallback,
-        payloadText: refinedPrompt ?? fallback,
+        text: outboundText,
+        payloadText: refinedPrompt ?? outboundText,
         previousPrompt: latestAgentPrompt ?? refinedPrompt ?? null,
         context: mediaPatchedContext,
       });
@@ -535,9 +594,11 @@ export default function AiStudioPage() {
       });
 
       if (appliedPrompt) {
-        setSharedPrompt(appliedPrompt);
         setLatestAgentPrompt(appliedPrompt);
-        setPromptOrigin("agent");
+        if (!isEditPromptTool) {
+          setSharedPrompt(appliedPrompt);
+          setPromptOrigin("agent");
+        }
       }
 
       setAgentActions(actions);
@@ -575,6 +636,22 @@ export default function AiStudioPage() {
       }
     } finally {
       setIsPromptRefining(false);
+    }
+  };
+
+  const handleReferencePromptEnhance = async () => {
+    const currentPrompt = referenceText?.trim() ?? "";
+    if (!currentPrompt || isReferencePromptEnhancing) return;
+    setIsReferencePromptEnhancing(true);
+    try {
+      const refined = await postGeneratePrompt(currentPrompt);
+      const nextPrompt = normalizePromptText(refined?.prompt);
+      if (nextPrompt) {
+        setReferenceText(nextPrompt);
+        setPromptOrigin("manual");
+      }
+    } finally {
+      setIsReferencePromptEnhancing(false);
     }
   };
 
@@ -675,6 +752,7 @@ export default function AiStudioPage() {
 
   const handleAgentApplyPrompt = useCallback(
     (nextPrompt: string) => {
+      if (isEditPromptTool) return;
       const normalized = normalizePromptText(nextPrompt);
       if (!normalized) return;
       setSharedPrompt(normalized);
@@ -682,7 +760,7 @@ export default function AiStudioPage() {
       setPromptOrigin("agent");
       trackAgentUiEvent("studio_agent_apply_prompt");
     },
-    [setSharedPrompt, trackAgentUiEvent]
+    [isEditPromptTool, setSharedPrompt, trackAgentUiEvent]
   );
 
   const handleAgentSelectVariation = useCallback(
@@ -1039,7 +1117,14 @@ export default function AiStudioPage() {
       }
     }
 
-    const promptToUse = typeof promptOverride === "string" ? promptOverride : prompt;
+    const defaultPromptForTool =
+      effectiveTool === "image" ||
+      effectiveTool === "edit" ||
+      effectiveTool === "video" ||
+      effectiveTool === "kling"
+        ? referenceText
+        : prompt;
+    const promptToUse = typeof promptOverride === "string" ? promptOverride : defaultPromptForTool;
     generateOutput(promptToUse, {
       modeOverride: effectiveMode,
       selectedToolOverride: effectiveTool,
@@ -1057,7 +1142,7 @@ export default function AiStudioPage() {
       });
       return;
     }
-    void handleGenerate(prompt);
+    void handleGenerate();
   };
 
   const handleRegenerateWithDebit = async () => {
@@ -1241,26 +1326,8 @@ export default function AiStudioPage() {
           guardrailReason: generationGuardrail,
           referenceImageWarning,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
-          agentEnabled,
-          agentMessages,
-          agentActions,
-          agentInput,
-          agentIsSending: agentBusy,
-          agentError: agentError ?? undefined,
-          stagedPrompt: stagedAgentPrompt,
-          agentPrimarySource,
-          onAgentInputChange: setAgentInput,
-          onAgentSend: () => handleAgentSend(undefined, { modeHint: "reference" }),
-          onAgentEnhanceSend: () =>
-            handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
-          onAgentMessageClick: handleAgentMessageClick,
-          onAgentApplyPrompt: handleAgentApplyPrompt,
-          onAgentSelectVariation: handleAgentSelectVariation,
-          onAgentUseQuestion: handleAgentUseQuestion,
-          onAgentDescribeTargets: handleAgentDescribeTargets,
-          onExpandChat: handleExpandChat,
-          onClearAgentChat: handleClearAgentChat,
-          agentChatOpen: isAgentChatOpen,
+          agentIsSending: isReferencePromptEnhancing,
+          onAgentEnhanceSend: handleReferencePromptEnhance,
           imageResolution,
           onImageResolutionChange: setImageResolution,
           beginnerMode,
@@ -1346,6 +1413,8 @@ export default function AiStudioPage() {
           outputs,
           activeOutputId,
           showHeader: false,
+          onOutputMediaLoaded: onReferenceOutputMediaLoaded,
+          linkedPromptReferenceIds,
           disablePromptGenerate: !model,
           onSelectOutput: handleSelectOutput,
           onOpenDetails: setDetailOutputId,

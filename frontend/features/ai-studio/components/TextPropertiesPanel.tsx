@@ -186,14 +186,12 @@ export function TextPropertiesPanel({
   const [collapsedSteps, setCollapsedSteps] = React.useState<{
     model: boolean;
     prompt: boolean;
-    imageSettings: boolean;
   }>({
     model: false,
     prompt: false,
-    imageSettings: false,
   });
 
-  const toggleStep = (step: "model" | "prompt" | "imageSettings") => {
+  const toggleStep = (step: "model" | "prompt") => {
     setCollapsedSteps((prev) => ({ ...prev, [step]: !prev[step] }));
     onStepActionClick?.(step);
   };
@@ -203,7 +201,7 @@ export function TextPropertiesPanel({
     onModelPickerOpen("create-model", event.currentTarget, context);
   };
 
-  const expandIfCollapsed = (step: "model" | "prompt" | "imageSettings") => {
+  const expandIfCollapsed = (step: "model" | "prompt") => {
     setCollapsedSteps((prev) => {
       if (!prev[step]) {
         return prev;
@@ -380,32 +378,19 @@ export function TextPropertiesPanel({
       </div>
       {!beginnerMode && shouldShowImageResolutionCard ? (
         <div
-          className={`step-card image-settings-card ${collapsedSteps.imageSettings ? "is-collapsed" : ""}`}
-          onClick={() => expandIfCollapsed("imageSettings")}
+          className="step-card image-settings-card image-settings-card--inline"
           role="group"
           aria-label="Choose image resolution section"
         >
           <div className="step-card-header">
             <div className="step-header-copy">
               <p className="step-title">Choose Image Resolution</p>
-              <span className="step-subtitle tiny helper-text">
-                Select the model-specific image resolution setting.
-              </span>
             </div>
             <div className="step-header-actions">
-              <StepHeaderActionButton
-                label="Open image resolution settings"
-                isCollapsed={collapsedSteps.imageSettings}
-                onClick={() => toggleStep("imageSettings")}
-              />
-            </div>
-          </div>
-          {!collapsedSteps.imageSettings ? (
-            <div className="create-controls image-settings-controls">
-              <div className="control-row compact fixed-select">
-                <label className="input-label">Resolution</label>
+              <div className="fixed-select image-settings-header-select">
                 <select
                   className="model-select"
+                  aria-label="Image resolution"
                   value={imageResolutionValue}
                   onChange={(event) => onImageResolutionChange?.(event.target.value)}
                 >
@@ -417,7 +402,7 @@ export function TextPropertiesPanel({
                 </select>
               </div>
             </div>
-          ) : null}
+          </div>
         </div>
       ) : null}
     </div>

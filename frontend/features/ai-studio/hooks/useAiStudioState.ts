@@ -27,6 +27,11 @@ import { normalizeErrorText } from "../../../lib/errorText";
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
 
 type ModelModalPosition = { top: number; left: number };
+type PendingAutoSave = {
+  taskId: string;
+  provider: Provider;
+  resultUrls: string[];
+};
 
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
@@ -39,12 +44,14 @@ export const useAiStudioState = () => {
   const [aspect, setAspect] = useState<string>("9:16");
   const [model, setModelState] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<string>("");
+  const [referenceText, setReferenceTextState] = useState<string>("");
 
   // Output management
   const [outputs, setOutputs] = useState<StudioOutput[]>([]);
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const outputsRef = useRef<StudioOutput[]>([]);
+  const pendingAutoSavesRef = useRef<Record<string, PendingAutoSave>>({});
 
   useEffect(() => {
     outputsRef.current = outputs;
@@ -138,9 +145,9 @@ export const useAiStudioState = () => {
   const setSharedPrompt = useCallback((value: string) => {
     setPrompt((prev) => (prev === value ? prev : value));
   }, []);
-
-  const referenceText = prompt;
-  const setReferenceText = setSharedPrompt;
+  const setReferenceText = useCallback((value: string) => {
+    setReferenceTextState((prev) => (prev === value ? prev : value));
+  }, []);
   const isVideoReferenceTool = selectedTool === "video" || selectedTool === "kling";
   const referenceImageUrl = isVideoReferenceTool ? videoReferenceImageUrl : imageReferenceImageUrl;
   const extraImageUrls = isVideoReferenceTool ? videoExtraImageUrls : imageExtraImageUrls;
@@ -280,6 +287,7 @@ export const useAiStudioState = () => {
 
   const deleteOutput = useCallback(
     (id: string) => {
+      delete pendingAutoSavesRef.current[id];
       setOutputs((prev) => prev.filter((item) => item.id !== id));
       if (activeOutputId === id) {
         setActiveOutputId(null);
@@ -290,6 +298,7 @@ export const useAiStudioState = () => {
 
   const notifyGenerationFailure = useCallback(
     (outputId: string, message: string, detail?: string) => {
+      delete pendingAutoSavesRef.current[outputId];
       const safeMessage = normalizeErrorText(message, {
         fallback: "Generation failed",
         maxLength: 140,
@@ -323,30 +332,26 @@ export const useAiStudioState = () => {
     [setOutputs, setUiError]
   );
 
-  const handleGenerationSuccess = useCallback(
-    async ({
-      outputId,
-      taskId,
-      provider,
-      resultUrls,
-    }: {
-      outputId: string;
-      taskId: string;
-      provider: Provider;
-      resultUrls: string[];
-    }) => {
+  const finalizeDeferredAutoSave = useCallback(
+    async (outputId: string) => {
+      const pending = pendingAutoSavesRef.current[outputId];
+      if (!pending) return;
+      delete pendingAutoSavesRef.current[outputId];
+
       const output = findOutputById(outputId);
-      if (!output) return;
-      if (output.savedMediaIds?.length) return;
+      if (!output || output.savedMediaIds?.length) return;
+
+      const urls = pending.resultUrls.filter(Boolean);
+      if (!urls.length) return;
+
       const generationId =
         output.generationId ??
         (await ensureGenerationRecord({
           outputId,
-          provider,
-          taskId,
+          provider: pending.provider,
+          taskId: pending.taskId,
         }));
-      const urls = resultUrls.filter(Boolean);
-      if (!urls.length) return;
+
       updateOutputById(outputId, (item) => ({
         ...item,
         saveState: "saving",
@@ -355,7 +360,7 @@ export const useAiStudioState = () => {
       const { mediaFileIds, errors } = await persistMediaUrls({
         outputId,
         urls,
-        provider,
+        provider: pending.provider,
         source: "ai_studio",
         generationId: generationId ?? null,
       });
@@ -368,11 +373,11 @@ export const useAiStudioState = () => {
       if (generationId) {
         try {
           await updateGenerationRecord(generationId, {
-            provider,
+            provider: pending.provider,
             modelId: output.modelId ?? output.model,
             promptText: output.prompt,
             aspect: output.aspect,
-            requestId: taskId,
+            requestId: pending.taskId,
             status: "success",
             metadata: {
               result_urls: urls,
@@ -394,6 +399,32 @@ export const useAiStudioState = () => {
     ]
   );
 
+  const handleGenerationSuccess = useCallback(
+    ({
+      outputId,
+      taskId,
+      provider,
+      resultUrls,
+    }: {
+      outputId: string;
+      taskId: string;
+      provider: Provider;
+      resultUrls: string[];
+    }) => {
+      const output = findOutputById(outputId);
+      if (!output) return;
+      if (output.savedMediaIds?.length) return;
+      const urls = resultUrls.filter(Boolean);
+      if (!urls.length) return;
+      pendingAutoSavesRef.current[outputId] = {
+        taskId,
+        provider,
+        resultUrls: urls,
+      };
+    },
+    [findOutputById]
+  );
+
   const handleGenerationFailure = useCallback(
     async ({
       outputId,
@@ -406,6 +437,7 @@ export const useAiStudioState = () => {
       provider: Provider;
       message: string;
     }) => {
+      delete pendingAutoSavesRef.current[outputId];
       const output = findOutputById(outputId);
       if (!output) return;
       const generationId =
@@ -443,6 +475,13 @@ export const useAiStudioState = () => {
       }
     },
     [ensureGenerationRecord, findOutputById]
+  );
+
+  const onReferenceOutputMediaLoaded = useCallback(
+    (outputId: string) => {
+      void finalizeDeferredAutoSave(outputId);
+    },
+    [finalizeDeferredAutoSave]
   );
 
   const { startPollingTask } = useAiStudioTasks({
@@ -531,6 +570,15 @@ export const useAiStudioState = () => {
       options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null }
     ) => {
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
+      const defaultPromptForTool =
+        effectiveTool === "image" ||
+        effectiveTool === "edit" ||
+        effectiveTool === "video" ||
+        effectiveTool === "kling"
+          ? referenceText
+          : prompt;
+      const promptToSubmit =
+        typeof promptOverride === "string" ? promptOverride : defaultPromptForTool;
       const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
         resolveReferenceInputsForTool(effectiveTool);
       const baseInputs =
@@ -538,13 +586,27 @@ export const useAiStudioState = () => {
           ? buildImageReferenceInputs(referenceUrl, extraUrls)
           : [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url));
       const imageInputs = baseInputs.slice(0, 8);
-      submitTask(promptOverride ?? prompt, imageInputs, options);
+      submitTask(promptToSubmit, imageInputs, options);
     },
-    [buildImageReferenceInputs, prompt, resolveReferenceInputsForTool, selectedTool, submitTask]
+    [
+      buildImageReferenceInputs,
+      prompt,
+      referenceText,
+      resolveReferenceInputsForTool,
+      selectedTool,
+      submitTask,
+    ]
   );
 
   const regenerateOutput = useCallback(() => {
-    const promptToUse = prompt.trim();
+    const promptForTool =
+      selectedTool === "image" ||
+      selectedTool === "edit" ||
+      selectedTool === "video" ||
+      selectedTool === "kling"
+        ? referenceText
+        : prompt;
+    const promptToUse = promptForTool.trim();
     if (!promptToUse) return;
     const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
       resolveReferenceInputsForTool(selectedTool);
@@ -564,6 +626,7 @@ export const useAiStudioState = () => {
     activeOutput,
     buildImageReferenceInputs,
     prompt,
+    referenceText,
     resolveReferenceInputsForTool,
     selectedTool,
     submitTask,
@@ -899,5 +962,6 @@ export const useAiStudioState = () => {
     setUiNotice,
     getDefaultDurationSeconds,
     getAgentContext,
+    onReferenceOutputMediaLoaded,
   };
 };

@@ -198,6 +198,13 @@
   min-height: 0;
 }
 
+.reference-step-card .prompt-enhanced-wrapper .prompt-thinking-overlay {
+  inset: 0;
+  border-radius: 14px;
+  background: rgba(82, 88, 96, 0.3);
+  box-shadow: none;
+}
+
 .ai-properties .reference-step-card {
   padding-left: 10px;
   padding-right: 10px;
@@ -206,12 +213,17 @@
 }
 
 .reference-step-card.is-image-refs .drop-image-row {
+  gap: 8px;
   margin-top: auto;
   margin-bottom: auto;
 }
 
 .reference-step-card.is-image-refs {
-  --reference-drop-secondary-width: clamp(80px, calc(var(--app-fixed-width) * 0.1), 105px);
+  --reference-drop-secondary-width: clamp(72px, calc(var(--app-fixed-width) * 0.09), 92px);
+}
+
+.reference-step-card.is-image-refs .drop-image-row .secondary-drop:first-of-type {
+  margin-left: 20px;
 }
 
 .reference-step-card.is-video-refs {

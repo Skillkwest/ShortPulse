@@ -89,6 +89,9 @@ export type PromptStepProps = {
   className?: string;
   beginnerMode?: boolean;
   chatOnly?: boolean;
+  promptOnly?: boolean;
+  enhanceOnly?: boolean;
+  promptPlaceholder?: string;
 };
 
 export function PromptStep({
@@ -135,6 +138,9 @@ export function PromptStep({
   className = "",
   beginnerMode = false,
   chatOnly = false,
+  promptOnly = false,
+  enhanceOnly = false,
+  promptPlaceholder = "Describe what you want, then refine it.",
 }: PromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
@@ -143,6 +149,10 @@ export function PromptStep({
 
   // Chat-only overrides local mode state; otherwise beginner mode defaults to enhanced prompt mode.
   React.useEffect(() => {
+    if (promptOnly && promptMode !== "enhanced") {
+      setPromptMode("enhanced");
+      return;
+    }
     if (chatOnly && promptMode !== "chat") {
       setPromptMode("chat");
       return;
@@ -150,9 +160,9 @@ export function PromptStep({
     if (!chatOnly && beginnerMode && promptMode !== "enhanced") {
       setPromptMode("enhanced");
     }
-  }, [beginnerMode, chatOnly, promptMode]);
+  }, [beginnerMode, chatOnly, promptMode, promptOnly]);
 
-  const effectiveTitle = beginnerMode ? "Write your prompt" : title;
+  const effectiveTitle = beginnerMode ? "Build Your Prompt" : title;
 
   const handleEnhancedPromptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
@@ -169,7 +179,8 @@ export function PromptStep({
   };
 
   const canExpandInlineChat = agentMessages.length > 0;
-  const isChatMode = chatOnly || promptMode === "chat";
+  const canUsePromptSurface = agentEnabled || enhanceOnly;
+  const isChatMode = !promptOnly && !enhanceOnly && (chatOnly || promptMode === "chat");
   const promptThinking = Boolean(agentIsSending || isGenerating);
   const canPinAgentInput = agentInput.trim().length > 0;
   const handleAgentSendClick = () => {
@@ -257,9 +268,9 @@ export function PromptStep({
         </div>
       </div>
       {!isCollapsed ? (
-        agentEnabled ? (
+        canUsePromptSurface ? (
           <>
-            {!chatOnly && !beginnerMode ? (
+            {!chatOnly && !promptOnly && !enhanceOnly && !beginnerMode ? (
               <div className="prompt-mode-row">
                 <div
                   className="prompt-mode-toggle-row prompt-mode-toggle-standalone"
@@ -402,7 +413,7 @@ export function PromptStep({
                       onChange={(event) => onPromptChange(event.target.value)}
                       onKeyDown={handleEnhancedPromptKeyDown}
                       rows={6}
-                      placeholder="Describe what you want, then refine it."
+                      placeholder={promptPlaceholder}
                       aria-busy={promptThinking}
                     />
                   </div>
@@ -410,7 +421,11 @@ export function PromptStep({
                 <div className="enhanced-actions-row prompt-actions-compact">
                   <div className="enhanced-action-buttons agent-inline-actions">
                     <AgentEnhanceButton
-                      onClick={onAgentEnhanceSend ?? onAgentSend ?? (() => {})}
+                      onClick={
+                        enhanceOnly
+                          ? (onAgentEnhanceSend ?? (() => {}))
+                          : (onAgentEnhanceSend ?? onAgentSend ?? (() => {}))
+                      }
                       disabled={agentIsSending}
                       ariaLabel="Enhance prompt"
                       className="prompt-fab-send"
@@ -418,7 +433,7 @@ export function PromptStep({
                     <AgentSaveButton
                       onClick={onSavePrompt}
                       disabled={shouldDisableSave}
-                      ariaLabel="Save prompt"
+                      ariaLabel={enhanceOnly ? "Pin prompt" : "Save prompt"}
                       className="prompt-fab-save"
                     />
                   </div>
@@ -433,7 +448,7 @@ export function PromptStep({
           </div>
         )
       ) : null}
-      {agentEnabled && agentError && !isCollapsed ? (
+      {canUsePromptSurface && agentError && !isCollapsed ? (
         <div className="inline-error-hint">{agentError}</div>
       ) : null}
     </div>

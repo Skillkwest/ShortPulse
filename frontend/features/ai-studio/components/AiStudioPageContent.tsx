@@ -510,6 +510,7 @@ export function AiStudioPageContent({
                       sendLabel="Send"
                       isSending={agentChat.agentIsSending}
                       showPromptActions
+                      showPrimaryPromptStatus={false}
                       agentActions={agentChat.agentActions}
                       primaryPrompt={agentChat.latestAgentPrompt}
                       primarySource={agentChat.agentPrimarySource}

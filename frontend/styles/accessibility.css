@@ -63,13 +63,18 @@ a:focus-visible {
   outline-offset: 3px;
 }
 
+.toolbar-item[data-tool-id="video"]:focus-visible {
+  outline: 2px solid #a78bf7;
+  outline-offset: 3px;
+}
+
 .toolbar-item[data-tool-id="edit"]:focus-visible {
   outline: 2px solid #fbbf24;
   outline-offset: 3px;
 }
 
 .toolbar-item[data-tool-id="canvas"]:focus-visible {
-  outline: 2px solid #a78bf7;
+  outline: 2px solid #34d399;
   outline-offset: 3px;
 }
 
@@ -175,6 +180,7 @@ a:focus-visible {
   /* Disable toolbar transforms (AI Studio pattern) */
   .toolbar-item[data-tool-id="create"]:hover,
   .toolbar-item[data-tool-id="kling"]:hover,
+  .toolbar-item[data-tool-id="video"]:hover,
   .toolbar-item[data-tool-id="edit"]:hover,
   .toolbar-item[data-tool-id="canvas"]:hover {
     transform: none;

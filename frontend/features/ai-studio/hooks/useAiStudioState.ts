@@ -246,7 +246,7 @@ export const useAiStudioState = () => {
         return Boolean(config?.supportsTextToImage);
       });
     }
-    if (selectedTool === "image") {
+    if (selectedTool === "image" || selectedTool === "edit") {
       return modelOptions.filter((opt) => {
         const matchesMedia =
           !opt.mediaType || opt.mediaType === "image" || opt.mediaType === "multi";
@@ -920,7 +920,8 @@ export const useAiStudioState = () => {
       setUiNotice(null);
       const effectiveMode = options?.modeOverride ?? mode;
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
-      const normalizedTool = effectiveTool === "kling" ? "video" : effectiveTool;
+      const normalizedTool =
+        effectiveTool === "kling" ? "video" : effectiveTool === "edit" ? "image" : effectiveTool;
       const cleanedPrompt = (promptArg ?? prompt).trim();
 
       if ((effectiveTool === "create" || effectiveTool === "text") && effectiveMode === "text") {
@@ -936,7 +937,7 @@ export const useAiStudioState = () => {
 
       // Intelligent API fallback: if no reference images provided, automatically use text-based APIs
       const hasReferenceImages = imageInputs && imageInputs.length > 0;
-      let finalTool = effectiveTool;
+      let finalTool: ToolId | "text" | null = effectiveTool === "edit" ? "image" : effectiveTool;
       let finalModel = model;
       let fallbackMode: "image" | "video" | null = null;
       if (!hasReferenceImages) {
@@ -1008,7 +1009,8 @@ export const useAiStudioState = () => {
       const modelConfig = finalModel ? getModelConfig(finalModel) : null;
       const isVideoGeneration =
         effectiveMode === "video" || effectiveTool === "video" || effectiveTool === "kling";
-      const isImageGeneration = effectiveMode === "image" || effectiveTool === "image";
+      const isImageGeneration =
+        effectiveMode === "image" || effectiveTool === "image" || effectiveTool === "edit";
       const requestedDurationSeconds = isVideoGeneration
         ? videoDurationSeconds
         : getDefaultDurationSeconds(finalModel);
@@ -1805,7 +1807,7 @@ export const useAiStudioState = () => {
       const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
         resolveReferenceInputsForTool(effectiveTool);
       const baseInputs =
-        effectiveTool === "image"
+        effectiveTool === "image" || effectiveTool === "edit"
           ? buildImageReferenceInputs(referenceUrl, extraUrls)
           : [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url));
       const imageInputs = baseInputs.slice(0, 8);
@@ -1820,7 +1822,7 @@ export const useAiStudioState = () => {
     const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
       resolveReferenceInputsForTool(selectedTool);
     const referencePool =
-      selectedTool === "image"
+      selectedTool === "image" || selectedTool === "edit"
         ? buildImageReferenceInputs(referenceUrl, extraUrls)
         : [
             ...(useReferenceImageIndicator && activeOutput?.previewUrl

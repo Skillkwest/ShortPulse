@@ -553,6 +553,14 @@
   font-size: 16px;
 }
 
+.step-title-optional {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: rgba(177, 182, 190, 0.72);
+}
+
 .step-subtitle {
   color: var(--ai-card-text-muted);
   font-size: 12px;

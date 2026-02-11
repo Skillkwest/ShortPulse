@@ -733,9 +733,10 @@ body.ai-studio-body {
   overflow: hidden;
 }
 
-/* Primary workflow buttons: Create, Kling, and Edit */
+/* Primary workflow buttons: Create, Video, Kling, and Edit */
 .toolbar-item[data-tool-id="create"],
 .toolbar-item[data-tool-id="kling"],
+.toolbar-item[data-tool-id="video"],
 .toolbar-item[data-tool-id="edit"] {
   margin: 4px 0;
   margin-bottom: 12px;
@@ -757,6 +758,7 @@ body.ai-studio-body {
 @media (prefers-reduced-motion: reduce) {
   .toolbar-item[data-tool-id="create"],
   .toolbar-item[data-tool-id="kling"],
+  .toolbar-item[data-tool-id="video"],
   .toolbar-item[data-tool-id="edit"],
   .toolbar-item[data-tool-id="canvas"] {
     transition: none;
@@ -764,6 +766,7 @@ body.ai-studio-body {
 
   .toolbar-item[data-tool-id="create"]:hover,
   .toolbar-item[data-tool-id="kling"]:hover,
+  .toolbar-item[data-tool-id="video"]:hover,
   .toolbar-item[data-tool-id="edit"]:hover,
   .toolbar-item[data-tool-id="canvas"]:hover {
     transform: none;
@@ -771,6 +774,7 @@ body.ai-studio-body {
 
   .toolbar-item[data-tool-id="create"].is-active,
   .toolbar-item[data-tool-id="kling"].is-active,
+  .toolbar-item[data-tool-id="video"].is-active,
   .toolbar-item[data-tool-id="edit"].is-active,
   .toolbar-item[data-tool-id="canvas"].is-active {
     transform: none;
@@ -788,8 +792,14 @@ body.ai-studio-body {
   background: linear-gradient(135deg, #e10328 0%, #f43f5e 40%, #ffb300 100%);
 }
 
+/* Video button - emerald/mint gradient */
+.toolbar-item[data-tool-id="video"] {
+  background: linear-gradient(135deg, #992ac9 0%, #433aa9 100%);
+}
+
 .toolbar-item[data-tool-id="create"]::before,
 .toolbar-item[data-tool-id="kling"]::before,
+.toolbar-item[data-tool-id="video"]::before,
 .toolbar-item[data-tool-id="edit"]::before,
 .toolbar-item[data-tool-id="canvas"]::before {
   display: none;
@@ -814,6 +824,16 @@ body.ai-studio-body {
     0 8px 20px rgba(219, 39, 119, 0.35),
     0 4px 12px rgba(251, 191, 36, 0.3),
     0 0 0 1px rgba(251, 191, 36, 0.15);
+}
+
+/* Video button hover - brighter emerald/mint with cool glow */
+.toolbar-item[data-tool-id="video"]:hover {
+  background: linear-gradient(135deg, #b32ba9 0%, #4135ab 100%);
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 20px rgba(153, 20, 242, 0.178),
+    0 4px 12px rgba(166, 63, 230, 0.35),
+    0 0 0 1px rgba(213, 86, 245, 0.2);
 }
 
 /* Create & Kling button active - dual borders (dark + cyan) */
@@ -842,9 +862,21 @@ body.ai-studio-body {
   padding: 8px 12px;
 }
 
+/* Video button active - dual borders (dark + mint) */
+.toolbar-item[data-tool-id="video"].is-active {
+  background: linear-gradient(135deg, #b32ba9 0%, #3d2fa8 100%);
+  transform: scale(1);
+  border: 2px solid rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 0 0 3px #aa65ef,
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  padding: 8px 12px;
+}
+
 /* Canvas button - purple/indigo gradient */
 .toolbar-item[data-tool-id="canvas"] {
-  background: linear-gradient(135deg, #992ac9 0%, #433aa9 100%);
+  background: linear-gradient(135deg, #0f766e 0%, #059669 50%, #34d399 100%);
   margin: 4px 0;
   padding: 10px 14px;
   border: none;
@@ -857,21 +889,21 @@ body.ai-studio-body {
 
 /* Canvas button hover */
 .toolbar-item[data-tool-id="canvas"]:hover {
-  background: linear-gradient(135deg, #b32ba9 0%, #4135ab 100%);
+  background: linear-gradient(135deg, #128177 0%, #07ab76 50%, #50e6b0 100%);
   transform: translateY(-2px);
   box-shadow:
-    0 8px 20px rgba(153, 20, 242, 0.178),
-    0 4px 12px rgba(166, 63, 230, 0.35),
-    0 0 0 1px rgba(213, 86, 245, 0.2);
+    0 8px 20px rgba(6, 95, 70, 0.32),
+    0 4px 12px rgba(5, 150, 105, 0.34),
+    0 0 0 1px rgba(52, 211, 153, 0.2);
 }
 
 /* Canvas button active - dual borders (dark + purple) */
 .toolbar-item[data-tool-id="canvas"].is-active {
-  background: linear-gradient(135deg, #b32ba9 0%, #3d2fa8 100%);
+  background: linear-gradient(135deg, #0f766e 0%, #059669 50%, #34d399 100%);
   transform: scale(1);
   border: 2px solid rgba(0, 0, 0, 0.4);
   box-shadow:
-    0 0 0 3px #aa65ef,
+    0 0 0 3px #6ee7b7,
     0 4px 12px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
   padding: 8px 12px;
@@ -884,26 +916,43 @@ body.ai-studio-body {
   outline-offset: 3px;
 }
 
+.toolbar-item[data-tool-id="video"]:focus-visible {
+  outline: 2px solid #a78bf7;
+  outline-offset: 3px;
+}
+
 .toolbar-item[data-tool-id="edit"]:focus-visible {
   outline: 2px solid #fbbf24;
   outline-offset: 3px;
 }
 
 .toolbar-item[data-tool-id="canvas"]:focus-visible {
-  outline: 2px solid #a78bf7;
+  outline: 2px solid #34d399;
   outline-offset: 3px;
 }
 
 .ai-toolbar[data-primary-active="create"]
+  .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="create"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="create"]
   .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="video"]
+  .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="video"]
+  .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="video"]
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="edit"]
+  .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
+.ai-toolbar[data-primary-active="canvas"]
+  .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) {
   background: transparent;
@@ -913,19 +962,37 @@ body.ai-studio-body {
 }
 
 .ai-toolbar[data-primary-active="create"]
+  .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg,
+.ai-toolbar[data-primary-active="create"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="create"]
   .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
+.ai-toolbar[data-primary-active="video"]
+  .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg,
+.ai-toolbar[data-primary-active="video"]
+  .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg,
+.ai-toolbar[data-primary-active="video"]
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg,
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg,
+.ai-toolbar[data-primary-active="edit"]
+  .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
+  svg,
+.ai-toolbar[data-primary-active="canvas"]
+  .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
@@ -934,19 +1001,37 @@ body.ai-studio-body {
 }
 
 .ai-toolbar[data-primary-active="create"]
+  .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label,
+.ai-toolbar[data-primary-active="create"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="create"]
   .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
+.ai-toolbar[data-primary-active="video"]
+  .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label,
+.ai-toolbar[data-primary-active="video"]
+  .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label,
+.ai-toolbar[data-primary-active="video"]
+  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label,
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label,
+.ai-toolbar[data-primary-active="edit"]
+  .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-label,
+.ai-toolbar[data-primary-active="canvas"]
+  .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="canvas"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
@@ -956,6 +1041,7 @@ body.ai-studio-body {
 
 .toolbar-item[data-tool-id="create"] svg,
 .toolbar-item[data-tool-id="kling"] svg,
+.toolbar-item[data-tool-id="video"] svg,
 .toolbar-item[data-tool-id="edit"] svg,
 .toolbar-item[data-tool-id="canvas"] svg {
   width: 18px !important;
@@ -965,6 +1051,7 @@ body.ai-studio-body {
 
 .toolbar-item[data-tool-id="create"] .toolbar-label,
 .toolbar-item[data-tool-id="kling"] .toolbar-label,
+.toolbar-item[data-tool-id="video"] .toolbar-label,
 .toolbar-item[data-tool-id="edit"] .toolbar-label,
 .toolbar-item[data-tool-id="canvas"] .toolbar-label {
   font-size: 14px !important;

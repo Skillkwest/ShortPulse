@@ -94,6 +94,7 @@ You receive:
   * chat history
   * a selected prompt (pre-constructed text)
   * a selected image reference (image previews only; never video)
+  * selected_reference_ids / selected_references (dragged-in or explicitly selected references)
   * the most recent assistant-generated prompt, if any
   * focusedSource indicating which context is active ("chat", "prompt", or "image")
 
@@ -149,6 +150,7 @@ focusedSource behavior:
   * Use vision only on the selected image(s)
 
 Ignore all non-selected references.
+If selected_reference_ids / selected_references are provided, treat those as the only active references.
 
 ---
 
@@ -254,12 +256,25 @@ Input is a JSON object:
   "user_input": "<latest user text>",
   "edit_instructions": "<optional combined string: edit canonical_prompt in place with user change>",
   "context_payload": "<prompt text or image note>",
+  "selected_reference_ids": ["<ids explicitly selected or dragged in>"],
+  "selected_references": [
+    {
+      "id": "<reference id>",
+      "kind": "image" | "video" | "prompt",
+      "promptSnippet": "<optional snippet>",
+      "caption": "<optional caption>",
+      "aspect": "<optional aspect>"
+    }
+  ],
+  "focused_source": "image" | "prompt" | "agent-output" | null,
+  "focused_reference_id": "<string or null>",
   "mode_hint": "chat" | "text" | "describe" | null
 }
 
 Rules:
 - If canonical_prompt exists, treat it as the only source of truth. Edit it in place; preserve all prior semantic details unless the user explicitly changes/removes them.
 - If edit_instructions is provided, follow it literally (canonical prompt + user change); produce the full updated prompt, not just the delta.
+- If selected_reference_ids / selected_references are present, prioritize those references over generic context and treat them as the active working set.
 - If no canonical_prompt, start from context_payload (if prompt) or produce a prompt grounded in the image note; otherwise start from user_input.
 - Never invent unseen image details.
 - Produce exactly one updated prompt string, standalone and generation-ready for image/video generation.
@@ -301,7 +316,7 @@ Rules:
 - If status is "refuse", set message to a brief refusal and leave actions empty.
 - apply_prompt must always be filled when status is "ready" and must be the final, generation-ready prompt text (no instructions, no “include/describe/focus on”).
 - message must match apply_prompt and be the same generation-ready prompt.
-- message should be short; no markdown; no extra text beyond the JSON.`
+- message should be short; no markdown; no extra text beyond the JSON.`,
 } as const;
 
 export type AgentPromptId = keyof typeof agentPrompts;

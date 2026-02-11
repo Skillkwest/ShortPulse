@@ -33,6 +33,11 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
     `mode`: "text" | "image" | "video";
     `references`: array of `{ id, kind: "image" | "video" | "prompt", promptSnippet?: string, aspect?: string, caption?: string }`;
     `media`: array of `{ id, kind: "image" | "video", dataUrl?: string, thumbnailAlt?: string }` where `dataUrl` is optional and capped by guardrails;
+    `selectedReferenceIds`?: string[];
+    `focusedSource`?: "image" | "prompt" | "agent-output";
+    `focusedReferenceId`?: string | null;
+    `lastAssistantMessage`?: string | null;
+    `modeHint`?: "chat" | "text" | "describe" | "reference";
     `creditBalance`: number | null;
   }
   - `actionsRequested`: boolean (ask model to emit structured actions).
@@ -44,10 +49,11 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 ## Workflow (happy path)
 1. User types or pastes in the chat UI (embedded where prompt textarea used to be). Messages persist per session/tool.
 2. `useAiAgent` gathers context: active prompt/model/mode, reference grid summaries, and downscaled previews for up to the 3 most recent images (or 1 video frame snapshot). Object URLs are revoked after use.
-3. Client calls `/api/ai/studio-agent`; the route verifies feature flag, key, payload size, and model support, then calls the provider with `messages + context` and system prompt.
-4. Response is streamed; partial text appears in the chat. When `actions.applyPrompt` exists, UI shows “Apply to prompt” and “Generate with agent” buttons.
-5. On Apply: prompt state in `useAiStudioState` updates; the textarea mirrors the applied text (for manual editing), and the next Generate uses it.
-6. On “Describe references”: if `actions.describeTargets` is present, the client triggers an image-describe call for those IDs before the next agent turn.
+3. If the user drags references into the chat surface, staged attachments are merged into context before send (prompt refs + image refs/media), then cleared on success.
+4. Client calls `/api/ai/studio-agent`; the route verifies feature flag, key, payload size, and model support, then calls the provider with `messages + context` and system prompt.
+5. Response returns as a single JSON payload (non-streaming today). When `actions.applyPrompt` exists, UI shows “Apply to prompt” and “Generate with agent” buttons.
+6. On Apply: prompt state in `useAiStudioState` updates; the textarea mirrors the applied text (for manual editing), and the next Generate uses it.
+7. On “Describe references”: if `actions.describeTargets` is present, the client triggers an image-describe call for those IDs before the next agent turn.
 
 ## Error handling & fallbacks
 - If the feature flag or key is missing, show a single-line banner and render the legacy textarea with no chat.

@@ -1,6 +1,6 @@
 /**
  * Toolbar for AI Studio tools.
- * Handles top-level create selection and exposes create child actions.
+ * Handles top-level AI Studio tool selection.
  */
 import Link from "next/link";
 import Image from "next/image";
@@ -8,7 +8,6 @@ import React from "react";
 import {
   Globe,
   FlowArrow,
-  Graph,
   House,
   ImageSquare,
   type IconProps,
@@ -21,13 +20,7 @@ import {
   VideoCamera,
 } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
-import {
-  createChildTools,
-  creationsToolList,
-  editToolList,
-  lowerToolList,
-  primaryToolList,
-} from "../constants";
+import { creationsToolList, editToolList, lowerToolList, primaryToolList } from "../constants";
 import { ToolId } from "../types";
 
 type AiStudioToolbarProps = {
@@ -54,7 +47,7 @@ const toolIcons: Record<ToolId, IconComponent> = {
   character: Person,
   kling: VideoCamera,
   edit: Selection,
-  canvas: Graph,
+  canvas: Person,
 };
 
 /**
@@ -62,30 +55,25 @@ const toolIcons: Record<ToolId, IconComponent> = {
  */
 export function AiStudioToolbar({
   selectedTool,
-  showCreateTools,
   beginnerMode,
   onSelectTool,
   onToggleCreateTools,
   onToggleBeginnerMode,
 }: AiStudioToolbarProps) {
-  const isCreateChildSelected =
-    selectedTool === "text" ||
-    selectedTool === "image" ||
-    selectedTool === "video" ||
-    selectedTool === "character";
-  const isCreateButtonActive = selectedTool === "create";
-  const isCreateExpanded = showCreateTools || isCreateChildSelected || isCreateButtonActive;
-  const activePrimary: "create" | "edit" | "canvas" | null = isCreateExpanded
+  const isCreateSelected = selectedTool === "create" || selectedTool === "text";
+  const activePrimary: "create" | "video" | "edit" | "canvas" | null = isCreateSelected
     ? "create"
-    : selectedTool === "edit"
-      ? "edit"
-      : selectedTool === "canvas"
-        ? "canvas"
-        : null;
+    : selectedTool === "video"
+      ? "video"
+      : selectedTool === "edit"
+        ? "edit"
+        : selectedTool === "canvas"
+          ? "canvas"
+          : null;
 
   return (
     <aside
-      className={`panel ai-panel ai-toolbar ai-toolbar-floating${isCreateExpanded ? " create-active" : ""}`}
+      className="panel ai-panel ai-toolbar ai-toolbar-floating"
       data-primary-active={activePrimary || undefined}
     >
       <div className="toolbar-logo">
@@ -100,22 +88,17 @@ export function AiStudioToolbar({
         {primaryToolList.map((tool) => {
           const IconComponent = toolIcons[tool.id];
           const isCreateParent = tool.id === "create";
-          const isActive =
-            selectedTool === tool.id ||
-            (isCreateParent && (showCreateTools || isCreateChildSelected));
+          const isActive = isCreateParent ? isCreateSelected : selectedTool === tool.id;
           const handleClick = () => {
-            if (isActive) {
-              onToggleCreateTools(false);
-              onSelectTool(null);
-              return;
-            }
             if (isCreateParent) {
-              onToggleCreateTools(true);
-              if (!isCreateChildSelected) {
-                onSelectTool("text");
-              } else {
-                onSelectTool(tool.id);
+              if (isActive) {
+                onToggleCreateTools(false);
+                onSelectTool(null);
+                return;
               }
+              // Create now behaves exactly like the old Text child action.
+              onToggleCreateTools(false);
+              onSelectTool("text");
               return;
             }
             onToggleCreateTools(false);
@@ -137,30 +120,6 @@ export function AiStudioToolbar({
             </React.Fragment>
           );
         })}
-        <div
-          className={`toolbar-create-children ${isCreateExpanded ? "is-open" : ""}`}
-          aria-hidden={!isCreateExpanded}
-        >
-          {createChildTools.map((tool) => {
-            const IconComponent = toolIcons[tool.id];
-            const isActive = selectedTool === tool.id;
-            return (
-              <button
-                key={tool.id}
-                type="button"
-                className={`toolbar-item toolbar-item-child ${isActive ? "is-active" : ""}`}
-                onClick={() => onSelectTool(tool.id)}
-              >
-                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
-                <div className="toolbar-copy">
-                  <span className="toolbar-label">{tool.label}</span>
-                </div>
-              </button>
-            );
-          })}
-          <div className="toolbar-divider toolbar-divider-children" aria-hidden="true" />
-          <div className="toolbar-create-spacer" aria-hidden="true" />
-        </div>
         {editToolList.map((tool) => {
           const IconComponent = toolIcons[tool.id];
           const isActive = selectedTool === tool.id;
@@ -171,7 +130,8 @@ export function AiStudioToolbar({
               className={`toolbar-item ${isActive ? "is-active" : ""}`}
               data-tool-id={tool.id}
               onClick={() => {
-                const isToggleablePrimary = tool.id === "edit" || tool.id === "canvas";
+                const isToggleablePrimary =
+                  tool.id === "video" || tool.id === "edit" || tool.id === "canvas";
                 if (isToggleablePrimary && isActive) {
                   onToggleCreateTools(false);
                   onSelectTool(null);

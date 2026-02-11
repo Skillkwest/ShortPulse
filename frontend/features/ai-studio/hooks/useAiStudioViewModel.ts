@@ -52,13 +52,15 @@ export const useAiStudioViewModel = ({
   const requiresModelSelection =
     ((selectedTool === "create" || selectedTool === "text") && mode !== "text") ||
     selectedTool === "video" ||
-    selectedTool === "image";
+    selectedTool === "image" ||
+    selectedTool === "edit";
   const isModelSelected = Boolean(model);
   const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
   const isVideoTool = selectedTool === "video" || selectedTool === "kling";
   const isImageTool =
     ((selectedTool === "create" || selectedTool === "text") && mode === "image") ||
-    selectedTool === "image";
+    selectedTool === "image" ||
+    selectedTool === "edit";
   const pricingImageResolution = useMemo(
     () => normalizeImageResolutionForPricing(imageResolution),
     [imageResolution]
@@ -95,7 +97,7 @@ export const useAiStudioViewModel = ({
       return null;
     }
 
-    if (selectedTool === "image") {
+    if (selectedTool === "image" || selectedTool === "edit") {
       if (!model) return null;
       return computeCostForModel(
         model,
@@ -178,7 +180,8 @@ export const useAiStudioViewModel = ({
     ((selectedTool === "create" || selectedTool === "text") &&
       (mode === "image" || mode === "video")) ||
     isVideoTool ||
-    selectedTool === "image";
+    selectedTool === "image" ||
+    selectedTool === "edit";
 
   const hasSufficientCreditsForCost =
     !costedFlow || balanceCredits == null || currentCostCredits == null
@@ -218,7 +221,7 @@ export const useAiStudioViewModel = ({
     if (!model || !modelConfig) return null;
 
     // Check if using image tool with image-to-image model but no reference
-    if (selectedTool === "image") {
+    if (selectedTool === "image" || selectedTool === "edit") {
       const hasReference = Boolean(referenceImageUrl);
       const isImageToImageOnly =
         modelConfig.supportsImageToImage && !modelConfig.supportsTextToImage;

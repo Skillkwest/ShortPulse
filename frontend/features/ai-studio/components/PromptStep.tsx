@@ -11,7 +11,7 @@ import {
   AgentSaveButton,
   AgentInputBar,
 } from "../../../prefabs/agent";
-import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
+import type { AgentActions, AgentAttachment, AgentMessage } from "../../../prefabs/agent";
 
 type StepHeaderActionButtonProps = {
   label: string;
@@ -54,11 +54,19 @@ export type PromptStepProps = {
   agentIsSending?: boolean;
   agentError?: string;
   stagedPrompt?: string | null;
+  stagedAttachments?: AgentAttachment[];
+  agentDropActive?: boolean;
   agentChatOpen?: boolean;
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
   onAgentMessageClick?: (message: AgentMessage) => void;
+  onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragLeave?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onRemoveAgentAttachment?: (id: string) => void;
+  onClearAgentAttachments?: () => void;
   onExpandChat?: () => void;
   onCloseAgentChat?: () => void;
   onClearAgentChat?: () => void;
@@ -90,11 +98,19 @@ export function PromptStep({
   agentIsSending = false,
   agentError,
   stagedPrompt = null,
+  stagedAttachments = [],
+  agentDropActive = false,
   agentChatOpen = false,
   onAgentInputChange,
   onAgentSend,
   onAgentEnhanceSend,
   onAgentMessageClick,
+  onAgentAttachmentDrop,
+  onAgentAttachmentDragOver,
+  onAgentAttachmentDragEnter,
+  onAgentAttachmentDragLeave,
+  onRemoveAgentAttachment,
+  onClearAgentAttachments,
   onExpandChat,
   onClearAgentChat,
   onSavePrompt,
@@ -317,7 +333,15 @@ export function PromptStep({
                       sendLabel="Send"
                       isSending={agentIsSending}
                       stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
+                      stagedAttachments={stagedAttachments}
+                      isDropActive={agentDropActive}
                       showInput={false}
+                      onDrop={onAgentAttachmentDrop}
+                      onDragOver={onAgentAttachmentDragOver}
+                      onDragEnter={onAgentAttachmentDragEnter}
+                      onDragLeave={onAgentAttachmentDragLeave}
+                      onRemoveAttachment={onRemoveAgentAttachment}
+                      onClearAttachments={onClearAgentAttachments}
                       onInputChange={(value) => onAgentInputChange?.(value)}
                       onSend={onAgentSend ?? (() => {})}
                       onMessageClick={onAgentMessageClick}

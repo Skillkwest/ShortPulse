@@ -10,6 +10,14 @@ import type {
   AgentMessage,
   AgentResponse,
 } from "../../../prefabs/agent";
+import {
+  isExplicitEditRequest,
+  preservesContext,
+  resolveCanonicalPrompt,
+  shouldRetryExplicitNoOp,
+} from "../../../features/ai-agent/logic/studioAgentCanonical";
+import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/logic/studioAgentReferenceSelection";
+import { runThinkerFormatterTurn } from "../../../features/ai-agent/logic/studioAgentThinkerFormatter";
 import { logApiRouteException } from "../_utils/appErrorLogs";
 
 const OPENAI_URL =
@@ -20,59 +28,6 @@ const MAX_MESSAGES = 24;
 const MAX_IMAGE_BYTES = 350 * 1024;
 const MAX_MEDIA = 3;
 const canonicalPromptStore = new Map<string, string>();
-
-const stopwords = new Set([
-  "the",
-  "and",
-  "with",
-  "from",
-  "into",
-  "onto",
-  "over",
-  "under",
-  "a",
-  "an",
-  "of",
-  "in",
-  "on",
-  "to",
-  "for",
-  "by",
-  "at",
-  "as",
-  "is",
-  "are",
-  "was",
-  "were",
-]);
-
-const significantTokens = (text: string, limit = 6): string[] => {
-  return text
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((t) => t.length > 4 && !stopwords.has(t))
-    .sort((a, b) => b.length - a.length)
-    .slice(0, limit);
-};
-
-const preservesContext = (canonical: string, updated: string): boolean => {
-  const sig = significantTokens(canonical);
-  if (!sig.length) return true;
-  const updatedText = updated.toLowerCase();
-  const present = sig.filter((t) => updatedText.includes(t));
-  return present.length >= Math.max(3, Math.ceil(sig.length / 2));
-};
-
-const isExplicitEditRequest = (text: string): boolean => {
-  const normalized = text.toLowerCase();
-  // When the user is explicitly asking to remove/replace/change things, allow larger edits.
-  // The drift guard is meant for "make it better" style requests, not intentional rewrites.
-  return (
-    /\b(remove|without|replace|swap|instead|change|convert|turn)\b/.test(normalized) ||
-    /\bno\s+[a-z0-9]/.test(normalized) ||
-    /\bmake\s+(it|this|the)\b/.test(normalized)
-  );
-};
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
@@ -312,6 +267,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const useV2 = process.env.NEXT_PUBLIC_AGENT_V2 !== "false";
 
     if (useV2 && thinkerPrompt && formatterPrompt) {
+      const selectedReferences = pickSelectedReferencesForThinker(context);
+      const selectedPromptSeed =
+        selectedReferences.find((reference) => reference.kind === "prompt")?.promptSnippet ??
+        selectedReferences[0]?.promptSnippet ??
+        null;
       const contextType =
         context.media && context.media.length
           ? "image"
@@ -329,72 +289,67 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             : null,
         context_payload:
           contextType === "prompt"
-            ? (context.activePrompt ?? context.references?.[0]?.promptSnippet ?? "")
+            ? (selectedPromptSeed ??
+              context.activePrompt ??
+              context.references?.[0]?.promptSnippet ??
+              "")
             : contextType === "image"
-              ? "image provided"
+              ? selectedReferences.length
+                ? "selected image references provided"
+                : "image provided"
               : (context.lastAssistantMessage ?? ""),
+        selected_reference_ids: context.selectedReferenceIds ?? [],
+        selected_references: selectedReferences,
+        focused_source: context.focusedSource ?? null,
+        focused_reference_id: context.focusedReferenceId ?? null,
         mode_hint: context.modeHint ?? null,
       };
 
-      const thinkerMessages = buildThinkerMessages(thinkerPayload, thinkerPrompt);
-
-      const thinkerResp = await fetch(OPENAI_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
-          messages: thinkerMessages,
-        }),
+      const firstPass = await runThinkerFormatterTurn({
+        apiKey,
+        openAiUrl: OPENAI_URL,
+        model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+        thinkerMessages: buildThinkerMessages(thinkerPayload, thinkerPrompt),
+        buildFormatterMessages: (semantic) => buildFormatterMessages(semantic, formatterPrompt),
+        parseAgentJson,
       });
-
-      if (!thinkerResp.ok) {
-        const detail = await thinkerResp.text();
-        return res.status(thinkerResp.status).json({ error: "Upstream error (thinker)", detail });
-      }
-
-      const thinkerData = await thinkerResp.json();
-      const thinkerRaw = thinkerData?.choices?.[0]?.message?.content ?? "";
-      let semantic: unknown = null;
-      try {
-        semantic = JSON.parse(thinkerRaw);
-      } catch {
-        semantic = { status: "ready", prompt_text: thinkerRaw, change_summary: "", question: null };
-      }
-
-      const formatterMessages = buildFormatterMessages(semantic, formatterPrompt);
-
-      const formatterResp = await fetch(OPENAI_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
-          messages: formatterMessages,
-        }),
-      });
-
-      if (!formatterResp.ok) {
-        const detail = await formatterResp.text();
+      if (!firstPass.ok) {
         return res
-          .status(formatterResp.status)
-          .json({ error: "Upstream error (formatter)", detail });
+          .status(firstPass.status)
+          .json({ error: `Upstream error (${firstPass.stage})`, detail: firstPass.detail });
       }
 
-      const formatterData = await formatterResp.json();
-      const formatterRaw = formatterData?.choices?.[0]?.message?.content ?? "";
-      const parsed = parseAgentJson(formatterRaw) ?? {
-        message: formatterRaw || "No response",
-        actions: undefined,
-      };
-      const nextCanonical =
-        parsed?.actions?.applyPrompt ?? parsed?.message ?? effectiveCanonical ?? null;
+      let parsed = firstPass.result.parsed;
+      let nextCanonical = firstPass.result.nextCanonical ?? effectiveCanonical ?? null;
+      let usage = firstPass.result.usage;
       const userInput = messages[messages.length - 1]?.content ?? "";
-      const bypassDriftGuard = isExplicitEditRequest(userInput);
+      const explicitEditRequest = isExplicitEditRequest(userInput);
+      const bypassDriftGuard = explicitEditRequest;
+
+      // If the user requested an explicit edit but the model returned an unchanged prompt,
+      // do a single stronger retry to avoid "no-op" turn failures.
+      if (shouldRetryExplicitNoOp({ userInput, effectiveCanonical, nextCanonical })) {
+        const retryPass = await runThinkerFormatterTurn({
+          apiKey,
+          openAiUrl: OPENAI_URL,
+          model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+          thinkerMessages: buildThinkerMessages(
+            {
+              ...thinkerPayload,
+              retry_instruction:
+                "Your previous draft did not apply the explicit user edit. Re-apply the user change to the canonical prompt now and return the full updated prompt.",
+            },
+            thinkerPrompt
+          ),
+          buildFormatterMessages: (semantic) => buildFormatterMessages(semantic, formatterPrompt),
+          parseAgentJson,
+        });
+        if (retryPass.ok) {
+          parsed = retryPass.result.parsed;
+          nextCanonical = retryPass.result.nextCanonical ?? nextCanonical;
+          usage = retryPass.result.usage;
+        }
+      }
 
       // Validate context preservation; if drift detected, fall back to prior canonical.
       if (
@@ -411,6 +366,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           title: "Prompt",
           prompt: effectiveCanonical,
         };
+        nextCanonical = effectiveCanonical;
       }
 
       // Guarantee an apply_prompt so the client always receives a refined prompt.
@@ -426,17 +382,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         parsed.message = parsed.message || fallbackPrompt;
       }
 
-      if (conversationId && nextCanonical) {
-        canonicalPromptStore.set(conversationId, nextCanonical);
+      const resolvedCanonical = resolveCanonicalPrompt(
+        parsed.actions?.applyPrompt,
+        nextCanonical,
+        effectiveCanonical
+      );
+
+      if (conversationId && resolvedCanonical) {
+        canonicalPromptStore.set(conversationId, resolvedCanonical);
       }
 
       return res.status(200).json({
         ...parsed,
-        usage: {
-          inputTokens: formatterData?.usage?.prompt_tokens,
-          outputTokens: formatterData?.usage?.completion_tokens,
-        },
-        canonicalPrompt: nextCanonical,
+        usage,
+        canonicalPrompt: resolvedCanonical,
       });
     }
 
@@ -493,8 +452,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       parsed.message = parsed.message || fallbackPrompt;
     }
 
-    if (conversationId && nextCanonical) {
-      canonicalPromptStore.set(conversationId, nextCanonical);
+    const resolvedCanonical = resolveCanonicalPrompt(
+      parsed.actions?.applyPrompt,
+      nextCanonical,
+      canonicalPrompt
+    );
+
+    if (conversationId && resolvedCanonical) {
+      canonicalPromptStore.set(conversationId, resolvedCanonical);
     }
 
     return res.status(200).json({
@@ -503,7 +468,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         inputTokens: data?.usage?.prompt_tokens,
         outputTokens: data?.usage?.completion_tokens,
       },
-      canonicalPrompt: nextCanonical,
+      canonicalPrompt: resolvedCanonical,
     });
   } catch (error) {
     await logApiRouteException({

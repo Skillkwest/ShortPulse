@@ -190,7 +190,8 @@ export const primaryToolList: ToolConfig[] = [
 
 export const editToolList: ToolConfig[] = [
   { id: "edit", label: "Edit", desc: "Edit and refine content" },
-  { id: "canvas", label: "Canvas", desc: "Build automation workflows" },
+  { id: "video", label: "Video", desc: "Generate video content" },
+  { id: "canvas", label: "Character", desc: "Create and manage character references" },
 ];
 
 export const lowerToolList: ToolConfig[] = [
@@ -203,9 +204,4 @@ export const creationsToolList: ToolConfig[] = [
   { id: "community", label: "Community", desc: "Browse shared creations" },
 ];
 
-export const createChildTools: ToolConfig[] = [
-  { id: "text", label: "Text", desc: "Create from text prompts" },
-  { id: "image", label: "Image", desc: "Generate from a reference" },
-  { id: "video", label: "Video", desc: "Animate a still image" },
-  { id: "character", label: "Character", desc: "Build character variants" },
-];
+export const createChildTools: ToolConfig[] = [];

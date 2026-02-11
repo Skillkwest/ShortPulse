@@ -414,8 +414,8 @@
 
 .model-chip-tooltip {
   position: absolute;
-  max-width: 320px;
-  width: 300px;
+  max-width: 336px;
+  width: 320px;
   background: rgba(40, 44, 52, 0.97);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;

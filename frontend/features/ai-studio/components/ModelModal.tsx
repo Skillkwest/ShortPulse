@@ -35,130 +35,205 @@ type ModelMeta = {
 };
 
 const modelMeta: Record<string, ModelMeta> = {
-  "fal/flux-2": {
-    provider: "Flux",
-    description: "Fast, balanced image generation with clean lighting and sharp detail.",
+  "fal-ai/flux-2/klein/9b": {
+    provider: "Black Forest Labs",
+    description: "FLUX.2 Lite (9B) for fast text-to-image drafts across core aspect ratios.",
     logo: "Flux",
-    tags: ["Image"],
+    tags: ["Image", "Text-to-Image", "9B", "Fast"],
+    verified: true,
+  },
+  "fal/flux-2": {
+    provider: "Black Forest Labs",
+    description:
+      "FLUX.2 base model for balanced text-to-image quality, lighting, and prompt adherence.",
+    logo: "Flux",
+    tags: ["Image", "Text-to-Image", "Balanced"],
+    verified: true,
+  },
+  "fal/flux-2/edit": {
+    provider: "Black Forest Labs",
+    description:
+      "FLUX.2 Edit for image-to-image transformations that preserve structure while restyling.",
+    logo: "Flux",
+    tags: ["Image", "Image-to-Image", "Edit"],
     verified: true,
   },
   "fal/flux-2-pro": {
-    provider: "Flux",
-    description: "Higher fidelity Flux model with better texture and contrast control.",
+    provider: "Black Forest Labs",
+    description:
+      "FLUX.2 Pro improves fine texture detail and contrast control for higher-fidelity image generation.",
     logo: "Flux",
-    tags: ["Image"],
+    tags: ["Image", "Text-to-Image", "High Fidelity"],
     verified: true,
   },
   "fal/flux-2-pro/edit": {
-    provider: "Flux",
+    provider: "Black Forest Labs",
     description:
-      "Flux 2 Pro image-to-image/edit with higher fidelity and relaxed safety by default.",
+      "FLUX.2 Pro Edit applies high-fidelity image-to-image edits with stronger detail retention.",
     logo: "Flux",
-    tags: ["Image"],
+    tags: ["Image", "Image-to-Image", "High Fidelity"],
     verified: true,
   },
   "fal-ai/kling-video/v3/pro/image-to-video": {
-    provider: "Kling",
+    provider: "Kling AI",
     description:
-      "Kling 3.0 Pro image-to-video with cinematic visuals, native audio, and optional voice control.",
-    tags: ["Video"],
+      "Kling 3.0 image-to-video animates a source frame into 5 to 10 second clips with native audio.",
+    tags: ["Video", "Image-to-Video", "5-10s", "Audio"],
   },
   "fal-ai/kling-video/v3/pro/text-to-video": {
-    provider: "Kling",
-    description:
-      "Kling 3.0 Pro text-to-video with multi-shot support, cinematic motion, and native audio.",
-    tags: ["Video"],
+    provider: "Kling AI",
+    description: "Kling 3.0 text-to-video generates 5 to 10 second clips with native audio.",
+    tags: ["Video", "Text-to-Video", "5-10s", "Audio"],
   },
   "fal-ai/kling-video/v2.6/pro/motion-control": {
-    provider: "Kling",
+    provider: "Kling AI",
     description:
-      "Kling 2.6 Motion Control (Pro) transfers movement from a reference video to a character image.",
-    tags: ["Video"],
+      "Kling 2.6 Motion Control transfers reference motion onto a source image in 5 to 10 second clips.",
+    tags: ["Video", "Image-to-Video", "Motion Transfer", "5-10s"],
   },
   "fal-ai/veo3.1/first-last-frame-to-video": {
-    provider: "Google via Fal",
-    description: "Veo 3.1 first/last frame-to-video for animating between two reference frames.",
-    tags: ["Video"],
+    provider: "Google DeepMind",
+    description:
+      "Veo 3.1 first/last frame mode interpolates between two keyframes for 4, 6, or 8 second clips up to 4K.",
+    tags: ["Video", "First/Last Frame", "4-8s", "720p-4K", "Audio"],
     verified: true,
   },
   "fal-ai/veo3.1/image-to-video": {
-    provider: "Google via Fal",
+    provider: "Google DeepMind",
     description:
-      "Veo 3.1 image-to-video; animate a single reference frame with natural motion and audio.",
-    tags: ["Video"],
+      "Veo 3.1 image-to-video animates a single frame into 4, 6, or 8 second clips up to 4K.",
+    tags: ["Video", "Image-to-Video", "4-8s", "720p-4K", "Audio"],
     verified: true,
   },
   "fal-ai/sora-2/text-to-video/pro": {
-    provider: "OpenAI via Fal",
+    provider: "OpenAI",
     description:
-      "Sora 2 Pro text-to-video via Fal queue with HD motion, physics, and native audio.",
-    tags: ["Video"],
+      "Sora 2 Pro text-to-video supports 4, 8, or 12 second clips at 720p or 1080p with audio.",
+    tags: ["Video", "Text-to-Video", "4-12s", "720p/1080p", "Audio"],
     verified: true,
+  },
+  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": {
+    provider: "ByteDance",
+    description:
+      "Seedance 1.5 Pro image-to-video supports 2 to 12 second clips at 480p, 720p, or 1080p with audio.",
+    tags: ["Video", "Image-to-Video", "2-12s", "480p-1080p", "Audio"],
   },
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": {
     provider: "ByteDance",
     description:
-      "Seedance 1.5 Pro for cinema-quality video with synchronized audio and camera control.",
-    tags: ["Video"],
+      "Seedance 1.5 Pro text-to-video supports 4 to 12 second outputs at 480p, 720p, or 1080p with audio.",
+    tags: ["Video", "Text-to-Video", "4-12s", "480p-1080p", "Audio"],
   },
   "fal-ai/veo3.1": {
-    provider: "Google via Fal",
+    provider: "Google DeepMind",
     description:
-      "Veo 3.1 via Fal queue for cinematic video with strong motion coherence and audio.",
-    tags: ["Video"],
+      "Veo 3.1 text-to-video supports 4, 6, or 8 second outputs at 720p to 4K with audio.",
+    tags: ["Video", "Text-to-Video", "4-8s", "720p-4K", "Audio"],
     verified: true,
   },
   "fal-ai/bytedance/seedream/v4.5/text-to-image": {
-    provider: "ByteDance via Fal",
-    description: "Seedream 4.5 text-to-image on Fal for unified image gen/edit with rich detail.",
-    tags: ["Image"],
+    provider: "ByteDance",
+    description:
+      "Seedream 4.5 text-to-image supports native output plus automatic 2K and 4K upscale modes.",
+    tags: ["Image", "Text-to-Image", "Native/2K/4K"],
     verified: true,
   },
   "fal-ai/bytedance/seedream/v4.5/edit": {
-    provider: "ByteDance via Fal",
-    description: "Seedream 4.5 image-to-image/edit with the safety checker off by default.",
-    tags: ["Image"],
+    provider: "ByteDance",
+    description:
+      "Seedream 4.5 Edit applies image-to-image changes with native output plus automatic 2K and 4K upscale modes.",
+    tags: ["Image", "Image-to-Image", "Native/2K/4K"],
     verified: true,
   },
   "fal-ai/nano-banana": {
     provider: "Google",
-    description: "Nano Banana via Fal queue for vibrant, fast image generation.",
-    tags: ["Image"],
+    description:
+      "Nano Banana text-to-image model for fast generations across a wide aspect-ratio range.",
+    tags: ["Image", "Text-to-Image", "Fast", "Wide Aspects"],
   },
   "fal-ai/nano-banana/edit": {
     provider: "Google",
-    description: "Nano Banana Edit for rapid image-to-image tweaks that keep colors vivid.",
+    description:
+      "Nano Banana Edit supports rapid image-to-image changes with flexible aspect-ratio control.",
     logo: "Google",
-    tags: ["Image"],
+    tags: ["Image", "Image-to-Image", "Fast", "Wide Aspects"],
   },
   "fal-ai/nano-banana-pro": {
     provider: "Google",
-    description: "Nano Banana Pro (Nano Banana 2) via Fal queue with higher-resolution detail.",
-    tags: ["Image"],
+    description: "Nano Banana Pro text-to-image adds selectable 1K, 2K, or 4K output.",
+    tags: ["Image", "Text-to-Image", "1K-4K"],
   },
   "fal-ai/nano-banana-pro/edit": {
     provider: "Google",
     description:
-      "Nano Banana Pro Edit for precise reference-based changes with finer detail control.",
+      "Nano Banana Pro Edit adds image-to-image editing with selectable 1K, 2K, or 4K output.",
     logo: "Google",
-    tags: ["Image"],
+    tags: ["Image", "Image-to-Image", "1K-4K"],
   },
 };
 
 const isImageToImageModel = (modelId: string) =>
   /\/edit(\b|\/|$)/i.test(modelId) || /image-to-image/i.test(modelId);
 
+const TOOLTIP_WIDTH = 320;
+const TOOLTIP_TAG_LIMIT = 5;
+
+const tooltipTagPriority: Record<string, number> = {
+  Image: 1,
+  Video: 1,
+  "Text-to-Image": 2,
+  "Image-to-Image": 2,
+  "Text-to-Video": 2,
+  "Image-to-Video": 2,
+  "First/Last Frame": 2,
+  "Motion Transfer": 2,
+  "9B": 3,
+  "1K-4K": 3,
+  "Native/2K/4K": 3,
+  "720p-4K": 3,
+  "720p/1080p": 3,
+  "480p-1080p": 3,
+  "2-12s": 4,
+  "4-8s": 4,
+  "4-12s": 4,
+  "5-10s": 4,
+  "High Fidelity": 5,
+  Balanced: 5,
+  Fast: 5,
+  "Wide Aspects": 5,
+  Audio: 6,
+};
+
+const resolveTooltipTags = (modelId: string, contextTag?: string): string[] => {
+  const tagSet = new Set<string>(modelMeta[modelId]?.tags ?? []);
+  if (contextTag) {
+    tagSet.add(contextTag);
+  } else if (isImageToImageModel(modelId)) {
+    tagSet.add("Image-to-Image");
+  }
+  return Array.from(tagSet)
+    .sort((a, b) => {
+      const rankA = tooltipTagPriority[a] ?? 99;
+      const rankB = tooltipTagPriority[b] ?? 99;
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+      return a.localeCompare(b);
+    })
+    .slice(0, TOOLTIP_TAG_LIMIT);
+};
+
 const sectionLogos: Record<string, string> = {
   Flux: "/flux%20LOGO.png",
+  "Black Forest Labs": "/flux%20LOGO.png",
   Google: "/Google%20LOGO.png",
+  "Google DeepMind": "/Google%20LOGO.png",
   Kling: "/Kling%20LOGO.png",
+  "Kling AI": "/Kling%20LOGO.png",
+  OpenAI: "/Sora%202%20LOGO.png",
   "Kie.ai": "/Sora%202%20LOGO.png",
   ByteDance: "/Seedream%20LOGO.png",
   Seedream: "/Seedream%20LOGO.png",
-  "Google via Fal": "/Google%20LOGO.png",
-  "OpenAI via Fal": "/Sora%202%20LOGO.png",
-  "ByteDance via Fal": "/Seedream%20LOGO.png",
-  Fal: "/brand-logo.png",
 };
 
 const resolveModelLogo = (modelId: string) => {
@@ -299,7 +374,7 @@ export function ModelModal({
     (modelId: string) => (event: React.MouseEvent<HTMLButtonElement>) => {
       const rect = event.currentTarget.getBoundingClientRect();
       const modalRect = modalRef.current?.getBoundingClientRect();
-      const tooltipWidth = 300;
+      const tooltipWidth = TOOLTIP_WIDTH;
       const clamp = (value: number, min: number, max: number) =>
         Math.min(Math.max(value, min), max);
 
@@ -462,13 +537,7 @@ export function ModelModal({
             ) : null}
             <div className="model-chip-tooltip-meta">
               {(() => {
-                const tagSet = new Set<string>(modelMeta[chipTooltip.modelId]?.tags ?? []);
-                if (tooltipContextTag) {
-                  tagSet.add(tooltipContextTag);
-                } else if (isImageToImageModel(chipTooltip.modelId)) {
-                  tagSet.add("Image-to-Image");
-                }
-                const tooltipTags = Array.from(tagSet);
+                const tooltipTags = resolveTooltipTags(chipTooltip.modelId, tooltipContextTag);
                 if (!tooltipTags.length) {
                   return null;
                 }

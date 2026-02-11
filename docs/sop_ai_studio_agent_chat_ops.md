@@ -3,7 +3,7 @@
 Purpose: operational playbook for the AI Studio chat agent—where it lives in the UI, how context is built, how actions are applied, and how to validate or debug it without touching the model prompts themselves.
 
 ## Scope
-- In scope: AI Studio chat/agent surfaces in Create → Prompt step (inline chat mode), the expanded Agent Chat column, Text (prompt refinement) fallback to the agent, and the Describe fallback when the dedicated endpoint fails.
+- In scope: AI Studio chat/agent surfaces in Create → Prompt step (inline chat mode), the expanded Agent Chat column, drag-and-drop reference attachments into chat, Text (prompt refinement) fallback to the agent, and the Describe fallback when the dedicated endpoint fails.
 - Out of scope: Character tool agent flows (none today), media library ingestion, and non-studio routes.
 
 ## UI entry points
@@ -20,11 +20,16 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 
 ## Data flow (chat send)
 1) User types in `AgentInputBar` → `handleAgentSend` in `frontend/pages/ai-studio.tsx`.
-2) `getAgentContext` (in `useAiStudioState`) builds a focused context: selected output → media (image) or prompt snippet; sets `focusedSource`, `selectedReferenceIds`, and `lastAssistantMessage`.
-3) `contextBuilder` filters to safe media/refs and caps counts before the API call.
-4) `/api/ai/studio-agent` applies system prompt + context, optional thinker/formatter prompts, and stores a per-conversation canonical prompt (Map keyed by `conversationId`).
-5) Response is normalized into `actions` (applyPrompt, referenceCard, variations, describeTargets, questions) + `message`.
-6) UI applies `actions.applyPrompt` to state (`setPrompt`, `setLatestAgentPrompt`), clears input, and exposes actions in the panel. Clicking a message or “Add to grid” writes a prompt reference card.
+2) Optional: user drags prompt/image references from the Reference Grid into the chat surface. These are staged as `AgentAttachment[]` and shown in the attachment tray.
+3) `getAgentContext` (in `useAiStudioState`) builds a focused base context: selected output → media (image) or prompt snippet; sets `focusedSource`, `selectedReferenceIds`, and `lastAssistantMessage`.
+4) Staged attachments are merged into context before send:
+   - prompt attachments become `context.references` entries (`kind: "prompt"`),
+   - image attachments become both `context.references` + `context.media` (up to 3),
+   - `selectedReferenceIds` are merged, `focusedSource` is set based on staged kind, and `modeHint` defaults to `"reference"` when attachments are present.
+5) `contextBuilder` + API `safeContext` filter to safe media/refs and enforce caps before provider calls.
+6) `/api/ai/studio-agent` applies system prompt + context, optional thinker/formatter prompts, and stores a per-conversation canonical prompt (Map keyed by `conversationId`).
+7) Response is normalized into `actions` (applyPrompt, referenceCard, variations, describeTargets, questions) + `message`.
+8) UI applies `actions.applyPrompt` to state (`setPrompt`, `setLatestAgentPrompt`), clears input, and exposes actions in the panel. Clicking a message or “Add to grid” writes a prompt reference card.
 
 ## User workflows & expected outcomes
 - **Iterate in Chat mode (Create tool):**
@@ -41,6 +46,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 
 ## Safeguards & drift control
 - Canonical prompt store: API keeps a canonical prompt per `conversationId`; V2 thinker/formatter path checks semantic drift (`preservesContext`) and restores the prior prompt if edits drop core tokens.
+- Explicit-edit reliability: when the user issues an explicit edit request (e.g., remove/replace/change) and the first V2 result is a no-op, the API runs one stronger retry pass before returning.
 - Size and source checks: `safeContext` and `buildAgentContext` drop non-https/data URLs and oversize media before send.
 - Fallbacks: If API errors, `useAiAgent` surfaces the error string; UI shows inline error under the prompt step and leaves the previous prompt intact.
 - Agent disable path: if the API returns 503 (flag off or missing key), chat remains visible but requests fail; users can still generate via the legacy prompt textarea (Prompt mode).

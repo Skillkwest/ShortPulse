@@ -9,14 +9,12 @@ import {
   FlowArrow,
   Globe,
   type IconProps,
-  Selection,
   SquaresFour,
   StackSimple,
   UploadSimple,
 } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { AiStudioToolbar } from "./AiStudioToolbar";
-import { CanvasPanel } from "./CanvasPanel";
 import { TextPropertiesPanel, ComposeSendCard } from "./TextPropertiesPanel";
 import { DetailModal } from "./DetailModal";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
@@ -28,7 +26,7 @@ import { CharacterPropertiesPanel } from "../../character/components/CharacterPr
 import { CharacterPanel } from "./CharacterPanel";
 import { KlingComingSoonCard } from "./KlingComingSoonCard";
 import { AgentChatPanel } from "../../../prefabs/agent";
-import type { AgentActions, AgentMessage } from "../../ai-agent/types";
+import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 
@@ -88,6 +86,8 @@ type TextSectionProps = {
   agentIsSending: boolean;
   agentError?: string;
   stagedPrompt?: string | null;
+  stagedAttachments?: AgentAttachment[];
+  agentDropActive?: boolean;
   useReferenceImageIndicator: boolean;
   hasReferencePreview: boolean;
   isModelModalOpen: boolean;
@@ -113,6 +113,12 @@ type TextSectionProps = {
   onAgentApplyPrompt: (prompt: string) => void;
   onAgentSelectVariation: (prompt: string) => void;
   onAgentMessageClick: (message: AgentMessage) => void;
+  onAgentAttachmentDrop: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragEnter: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
+  onRemoveAgentAttachment: (id: string) => void;
+  onClearAgentAttachments: () => void;
   onExpandChat: () => void;
   agentChatOpen: boolean;
   onGenerate: () => void;
@@ -140,11 +146,19 @@ type AgentChatProps = {
   agentActions?: AgentActions;
   agentIsSending: boolean;
   latestAgentPrompt: string | null;
+  stagedAttachments: AgentAttachment[];
+  agentDropActive: boolean;
   onInputChange: (value: string) => void;
   onSend: () => void;
   onAddToGrid: () => void;
   onUsePrompt: () => void;
   onClose: () => void;
+  onAttachmentDrop: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAttachmentDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAttachmentDragEnter: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAttachmentDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
+  onRemoveAttachment: (id: string) => void;
+  onClearAttachments: () => void;
   onMessageClick?: (message: AgentMessage) => void;
 };
 
@@ -261,6 +275,7 @@ export function AiStudioPageContent({
       case "character":
         return <CharacterPanel />;
       case "image":
+      case "edit":
         return (
           <ReferencePropertiesPanel
             title="Image"
@@ -278,50 +293,8 @@ export function AiStudioPageContent({
         );
       case "kling":
         return <KlingComingSoonCard />;
-      case "edit":
-        return (
-          <div style={{ padding: "24px" }}>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}
-            >
-              <Selection size={24} weight="bold" color="#fbbf24" />
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>Edit</h3>
-            </div>
-            <p
-              style={{
-                color: "var(--ai-card-text)",
-                fontSize: "14px",
-                lineHeight: "1.5",
-                margin: 0,
-              }}
-            >
-              Advanced editing tools for precise control over your generated content. Refine,
-              adjust, and perfect your creations with intuitive selection and modification tools.
-            </p>
-            <div
-              style={{
-                marginTop: "24px",
-                padding: "16px",
-                borderRadius: "10px",
-                background: "rgba(251, 191, 36, 0.08)",
-                border: "1px solid rgba(251, 191, 36, 0.2)",
-              }}
-            >
-              <p
-                style={{
-                  color: "var(--ai-card-text)",
-                  fontSize: "13px",
-                  margin: 0,
-                  fontStyle: "italic",
-                }}
-              >
-                Edit tools coming soon.
-              </p>
-            </div>
-          </div>
-        );
       case "canvas":
-        return <CanvasPanel />;
+        return <CharacterPanel />;
       default:
         return null;
     }
@@ -536,6 +509,14 @@ export function AiStudioPageContent({
                       input={agentChat.agentInput}
                       sendLabel="Send"
                       isSending={agentChat.agentIsSending}
+                      stagedAttachments={agentChat.stagedAttachments}
+                      isDropActive={agentChat.agentDropActive}
+                      onDrop={agentChat.onAttachmentDrop}
+                      onDragOver={agentChat.onAttachmentDragOver}
+                      onDragEnter={agentChat.onAttachmentDragEnter}
+                      onDragLeave={agentChat.onAttachmentDragLeave}
+                      onRemoveAttachment={agentChat.onRemoveAttachment}
+                      onClearAttachments={agentChat.onClearAttachments}
                       onInputChange={agentChat.onInputChange}
                       onSend={agentChat.onSend}
                       onMessageClick={agentChat.onMessageClick}

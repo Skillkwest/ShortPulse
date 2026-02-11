@@ -10,6 +10,15 @@ export type AgentMessage = {
   content: string;
 };
 
+export type AgentAttachment = {
+  id: string;
+  kind: "image" | "prompt";
+  referenceId?: string | null;
+  text?: string | null;
+  imageUrl?: string | null;
+  aspect?: string | null;
+};
+
 export type AgentReferenceSummary = {
   id: string;
   kind: "image" | "video" | "prompt";

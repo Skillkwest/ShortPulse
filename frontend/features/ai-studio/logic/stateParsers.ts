@@ -213,7 +213,7 @@ export const filterModelOptions = (
       if (mode === "video") return "video";
     }
     if (selectedTool === "video" || selectedTool === "kling") return "video";
-    if (selectedTool === "image") return "image";
+    if (selectedTool === "image" || selectedTool === "edit") return "image";
     return null;
   })();
 
@@ -232,7 +232,7 @@ export const filterModelOptions = (
   if ((selectedTool === "create" || selectedTool === "text") && mode === "image") {
     filtered = filtered.filter((opt) => opt.value !== "fal/flux-2-pro");
   }
-  if (selectedTool === "image") {
+  if (selectedTool === "image" || selectedTool === "edit") {
     filtered = filtered.filter((opt) => {
       const config = getModelConfig(opt.value);
       return config?.supportsImageToImage;

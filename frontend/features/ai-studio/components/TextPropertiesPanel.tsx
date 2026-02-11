@@ -10,7 +10,7 @@ import { AspectOption, StudioMode } from "../types";
 import { aspectOptions, modelLogos } from "../constants";
 import type { ModelModalContext } from "./ModelModal";
 import { AgentGenerateButton } from "../../../prefabs/agent";
-import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
+import type { AgentActions, AgentAttachment, AgentMessage } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
 import {
   MODEL_DEFAULT_IMAGE_RESOLUTION,
@@ -41,6 +41,8 @@ type TextPropertiesPanelProps = {
   agentIsSending?: boolean;
   agentError?: string;
   stagedPrompt?: string | null;
+  stagedAttachments?: AgentAttachment[];
+  agentDropActive?: boolean;
   useReferenceImageIndicator: boolean;
   hasReferencePreview: boolean;
   isModelModalOpen: boolean;
@@ -66,6 +68,12 @@ type TextPropertiesPanelProps = {
   onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
   onAgentMessageClick?: (message: AgentMessage) => void;
+  onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragLeave?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onRemoveAgentAttachment?: (id: string) => void;
+  onClearAgentAttachments?: () => void;
   onGenerate: () => void;
   onSavePrompt: () => void;
   onOpenMediaLibrary?: () => void;
@@ -146,12 +154,20 @@ export function TextPropertiesPanel({
   agentIsSending = false,
   agentError,
   stagedPrompt = null,
+  stagedAttachments = [],
+  agentDropActive = false,
   onExpandChat,
   onStepActionClick,
   onAgentInputChange,
   onAgentSend,
   onAgentEnhanceSend,
   onAgentMessageClick,
+  onAgentAttachmentDrop,
+  onAgentAttachmentDragOver,
+  onAgentAttachmentDragEnter,
+  onAgentAttachmentDragLeave,
+  onRemoveAgentAttachment,
+  onClearAgentAttachments,
   agentChatOpen = false,
   onSavePrompt,
   onOpenMediaLibrary,
@@ -224,6 +240,9 @@ export function TextPropertiesPanel({
 
   return (
     <div className="tool-properties text-properties-panel">
+      <div className="tool-header">
+        <p className="eyebrow">Create</p>
+      </div>
       {!beginnerMode ? (
         <div
           className="step-card character-step-card"
@@ -232,7 +251,9 @@ export function TextPropertiesPanel({
         >
           <div className="step-card-header">
             <div className="step-header-copy">
-              <p className="step-title">Choose Character</p>
+              <p className="step-title">
+                Choose Character <span className="step-title-optional">(Optional)</span>
+              </p>
               <span className="step-subtitle tiny helper-text">
                 Select a user with pre-created character profiles.
               </span>
@@ -272,11 +293,19 @@ export function TextPropertiesPanel({
         agentIsSending={agentIsSending}
         agentError={agentError}
         stagedPrompt={stagedPrompt}
+        stagedAttachments={stagedAttachments}
+        agentDropActive={agentDropActive}
         agentChatOpen={agentChatOpen}
         onAgentInputChange={onAgentInputChange}
         onAgentSend={onAgentSend}
         onAgentEnhanceSend={onAgentEnhanceSend}
         onAgentMessageClick={onAgentMessageClick}
+        onAgentAttachmentDrop={onAgentAttachmentDrop}
+        onAgentAttachmentDragOver={onAgentAttachmentDragOver}
+        onAgentAttachmentDragEnter={onAgentAttachmentDragEnter}
+        onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
+        onRemoveAgentAttachment={onRemoveAgentAttachment}
+        onClearAgentAttachments={onClearAgentAttachments}
         onExpandChat={onExpandChat}
         onCloseAgentChat={onCloseAgentChat}
         onClearAgentChat={onClearAgentChat}

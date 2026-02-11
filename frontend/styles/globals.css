@@ -25,6 +25,8 @@
 @import "./ai-studio-text-properties.css";
 @import "./ai-studio-prompts.css";
 @import "./ai-studio-prompt-actions.css";
+@import "./ai-studio-edit-theme.css";
+@import "./ai-studio-video-theme.css";
 @import "./ai-studio-model-picker.css";
 @import "./ai-studio-history.css";
 @import "./ai-studio-modals.css";

@@ -1,0 +1,188 @@
+/**
+ * Video workflow accent theme.
+ * Scopes violet/indigo accents to the dedicated Video properties panel.
+ */
+.video-properties-panel {
+  --video-accent: #aa65ef;
+  --video-accent-start: #992ac9;
+  --video-accent-end: #433aa9;
+  --video-accent-hover-start: #b32ba9;
+  --video-accent-hover-end: #4135ab;
+  --video-accent-soft: rgba(170, 101, 239, 0.45);
+  --video-accent-medium: rgba(170, 101, 239, 0.62);
+  --video-accent-strong: rgba(170, 101, 239, 0.9);
+  --video-accent-shadow: rgba(153, 42, 201, 0.3);
+  --ai-accent: var(--video-accent);
+  --ai-accent-start: var(--video-accent-start);
+  --ai-accent-soft: var(--video-accent-soft);
+  --ai-accent-medium: var(--video-accent-medium);
+  --ai-accent-strong: var(--video-accent-strong);
+  --ai-accent-shadow: var(--video-accent-shadow);
+}
+
+.video-properties-panel .reference-drop-layout-inner {
+  --reference-drop-border-hover: rgba(170, 101, 239, 0.58);
+  --reference-drop-border-active: rgba(170, 101, 239, 0.9);
+  --reference-drop-shadow-active: 0 0 0 2px rgba(170, 101, 239, 0.24);
+}
+
+.video-properties-panel .reference-drop-divider {
+  color: rgba(189, 141, 244, 0.76);
+  opacity: 0.95;
+}
+
+.video-properties-panel .step-utility-btn:hover {
+  border-color: var(--video-accent-medium);
+  background: rgba(48, 35, 72, 0.72);
+}
+
+.video-properties-panel .step-card.is-collapsed:hover {
+  border-color: var(--video-accent-medium);
+}
+
+.video-properties-panel .aspect-trigger:hover {
+  border-color: var(--video-accent-medium);
+  box-shadow: 0 12px 24px var(--video-accent-shadow);
+}
+
+.video-properties-panel .aspect-trigger[aria-expanded="true"] {
+  border-color: var(--video-accent-medium);
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.32),
+    0 0 0 1px var(--video-accent-shadow);
+}
+
+.video-properties-panel .aspect-menu-item.is-active {
+  background: rgba(170, 101, 239, 0.14);
+  border-color: var(--video-accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(170, 101, 239, 0.3);
+}
+
+.video-properties-panel .aspect-menu-item.is-active .aspect-shape {
+  border-color: rgba(189, 141, 244, 0.92);
+  background: rgba(170, 101, 239, 0.12);
+}
+
+.video-properties-panel .mode-toggle-btn:hover {
+  border-color: var(--video-accent-soft);
+  background: rgba(55, 41, 80, 0.86);
+}
+
+.video-properties-panel .mode-toggle-btn.is-active {
+  background: linear-gradient(
+    135deg,
+    var(--video-accent-hover-start),
+    var(--video-accent-hover-end)
+  );
+  border-color: var(--video-accent-medium);
+  box-shadow: 0 6px 14px rgba(170, 101, 239, 0.24);
+  color: #efe8ff;
+}
+
+.video-properties-panel .mode-toggle-btn.is-active svg {
+  color: #efe8ff;
+}
+
+.video-properties-panel .reference-mode-toggle-row .mode-toggle-btn.is-active {
+  box-shadow: 0 6px 14px rgba(170, 101, 239, 0.24);
+  border-color: rgba(189, 141, 244, 0.42);
+}
+
+.video-properties-panel .reference-swap-control:not(:disabled):hover,
+.video-properties-panel .reference-swap-control:not(:disabled):focus-visible {
+  background: rgba(170, 101, 239, 0.16);
+  border: 1px solid rgba(170, 101, 239, 0.42);
+}
+
+.video-properties-panel .reference-swap-control:focus-visible {
+  box-shadow: 0 0 0 2px rgba(170, 101, 239, 0.34);
+}
+
+.video-properties-panel .agent-send-prefab,
+.video-properties-panel .agent-save-prefab,
+.video-properties-panel .prompt-actions-compact .agent-send-prefab,
+.video-properties-panel .prompt-actions-compact .agent-save-prefab {
+  border-color: rgba(170, 101, 239, 0.58);
+  background: linear-gradient(135deg, rgba(46, 33, 69, 0.92), rgba(61, 46, 97, 0.55));
+  color: rgba(219, 193, 255, 0.96);
+  box-shadow: 0 4px 1px rgba(170, 101, 239, 0.26);
+}
+
+.video-properties-panel .agent-send-prefab:hover:not(:disabled),
+.video-properties-panel .agent-save-prefab:hover:not(:disabled),
+.video-properties-panel .prompt-actions-compact .agent-send-prefab:hover:not(:disabled),
+.video-properties-panel .prompt-actions-compact .agent-save-prefab:hover:not(:disabled) {
+  border-color: rgba(189, 141, 244, 0.88);
+  background: rgba(170, 101, 239, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(0, 0, 0, 0.38);
+}
+
+.video-properties-panel .agent-generate-prefab {
+  border-color: var(--video-accent-strong);
+  background: linear-gradient(
+    135deg,
+    var(--video-accent-hover-start),
+    var(--video-accent-hover-end)
+  );
+  box-shadow: 0 4px 1px rgba(170, 101, 239, 0.34);
+  color: #efe8ff;
+}
+
+.video-properties-panel .agent-generate-prefab:hover:not(:disabled) {
+  box-shadow: 0 6px 14px rgba(170, 101, 239, 0.32);
+}
+
+.video-properties-panel .agent-generate-prefab:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
+  border-color: rgba(116, 116, 116, 0.133);
+  background: linear-gradient(135deg, rgba(128, 128, 128, 0.109), rgba(96, 96, 96, 0.071));
+  color: #484848;
+}
+
+.video-properties-panel .agent-generate-prefab:disabled .agent-generate-label {
+  color: #f5f5f52a;
+}
+
+.video-properties-panel .agent-generate-prefab:disabled .generate-pill,
+.video-properties-panel .agent-generate-prefab:disabled .generate-pill .model-chip-icon,
+.video-properties-panel .agent-generate-prefab:disabled .generate-pill .model-chip-credits,
+.video-properties-panel .agent-generate-prefab:disabled .generate-pill .model-chip-credits-label {
+  color: #484848;
+}
+
+.video-properties-panel .agent-generate-prefab .generate-pill,
+.video-properties-panel .agent-generate-prefab .generate-pill .model-chip-icon,
+.video-properties-panel .agent-generate-prefab .generate-pill .model-chip-credits,
+.video-properties-panel .agent-generate-prefab .generate-pill .model-chip-credits-label {
+  color: #efe8ff;
+}
+
+.video-properties-panel .agent-cost-prefab {
+  border-color: rgba(170, 101, 239, 0.82);
+  background: linear-gradient(
+    135deg,
+    var(--video-accent-hover-start),
+    var(--video-accent-hover-end)
+  );
+  box-shadow: 0 4px 1px rgba(170, 101, 239, 0.3);
+  color: #efe8ff;
+}
+
+.video-properties-panel .kling-shot-row .shot-index {
+  color: #f0e4ff;
+  background: rgba(170, 101, 239, 0.2);
+  border: 1px solid rgba(170, 101, 239, 0.45);
+}
+
+.video-properties-panel .kling-shot-row textarea:focus {
+  border-color: rgba(170, 101, 239, 0.48);
+  box-shadow: 0 0 0 1px rgba(170, 101, 239, 0.24);
+}
+
+.video-properties-panel .kling-element-grid input:focus {
+  border-color: rgba(170, 101, 239, 0.48);
+  box-shadow: 0 0 0 1px rgba(170, 101, 239, 0.24);
+}

@@ -1,14 +1,11 @@
 /**
- * Reference properties panel for AI Studio.
- * Provides reference dropzones, aspect/model selection, and prompt capture for image/video workflows.
+ * Dedicated properties panel for the Video workflow.
  */
 import React from "react";
-import { AspectOption } from "../types";
+import type { AspectOption } from "../types";
 import { modelLogos } from "../constants";
-import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
 import type { ModelModalContext } from "./ModelModal";
 import { ReferenceGenerateStep } from "./ReferenceGenerateStep";
-import { ReferenceImageResolutionStep } from "./ReferenceImageResolutionStep";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
 import { ReferenceMediaStep } from "./ReferenceMediaStep";
 import { ReferenceModelStep } from "./ReferenceModelStep";
@@ -18,10 +15,7 @@ import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDeri
 import { ReferenceVideoSettingsStep } from "./ReferenceVideoSettingsStep";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
 
-type ReferencePropertiesPanelProps = {
-  variant: "image" | "video";
-  title: string;
-  subtitle: string;
+export type VideoPropertiesPanelProps = {
   aspect: string;
   modelId: string | null;
   modelLabel: string;
@@ -53,13 +47,11 @@ type ReferencePropertiesPanelProps = {
   onMotionVideoChange?: (url: string | null) => void;
   videoDurationSeconds?: number;
   videoResolution?: string;
-  imageResolution?: string;
   videoGenerateAudio?: boolean;
   videoCameraFixed?: boolean;
   videoAutoFix?: boolean;
   onVideoDurationChange?: (value: number) => void;
   onVideoResolutionChange?: (value: string) => void;
-  onImageResolutionChange?: (value: string) => void;
   onVideoGenerateAudioChange?: (value: boolean) => void;
   onVideoCameraFixedChange?: (value: boolean) => void;
   onVideoAutoFixChange?: (value: boolean) => void;
@@ -80,41 +72,20 @@ type ReferencePropertiesPanelProps = {
   resolvePreviewUrlById?: (id: string | null) => string | null;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
-  guardrailReason?: string | null;
   referenceImageWarning?: string | null;
-  // Agent props
-  agentEnabled?: boolean;
-  agentMessages?: AgentMessage[];
-  agentActions?: AgentActions;
-  agentInput?: string;
   agentIsSending?: boolean;
   agentError?: string;
-  agentPrimarySource?: "agent" | "manual" | "reference";
-  stagedPrompt?: string | null;
-  agentChatOpen?: boolean;
-  onAgentInputChange?: (value: string) => void;
-  onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
-  onAgentMessageClick?: (message: AgentMessage) => void;
-  onExpandChat?: () => void;
-  onClearAgentChat?: () => void;
-  onAgentApplyPrompt?: (prompt: string) => void;
-  onAgentSelectVariation?: (prompt: string) => void;
-  onAgentUseQuestion?: (question: string) => void;
-  onAgentDescribeTargets?: (targets: string[]) => void;
   beginnerMode?: boolean;
 };
 
 /**
- * Renders reference-based image/video tool controls.
+ * Renders Video controls with video/Kling mode handling.
  */
-export function ReferencePropertiesPanel({
-  variant,
-  title,
-  subtitle,
-  aspect,
+export function VideoPropertiesPanel({
   modelId,
   modelLabel,
+  aspect,
   referenceImageUrl,
   extraImageUrls,
   referenceText,
@@ -136,13 +107,11 @@ export function ReferencePropertiesPanel({
   onMotionVideoChange,
   videoDurationSeconds,
   videoResolution,
-  imageResolution,
   videoGenerateAudio,
   videoCameraFixed = false,
   videoAutoFix = false,
   onVideoDurationChange,
   onVideoResolutionChange,
-  onImageResolutionChange,
   onVideoGenerateAudioChange,
   onVideoCameraFixedChange,
   onVideoAutoFixChange,
@@ -164,7 +133,7 @@ export function ReferencePropertiesPanel({
   agentError,
   onAgentEnhanceSend,
   beginnerMode = false,
-}: ReferencePropertiesPanelProps) {
+}: VideoPropertiesPanelProps) {
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const {
     primaryInputRef,
@@ -215,7 +184,6 @@ export function ReferencePropertiesPanel({
   });
 
   const {
-    isVideoVariant,
     activeVideoMode,
     isKling3Mode,
     isKeyframesMode,
@@ -230,7 +198,6 @@ export function ReferencePropertiesPanel({
     referenceStepSubtitle,
     promptOrder,
     modelOrder,
-    imageSettingsOrder,
     referenceOrder,
     videoSettingsOrder,
     klingAdvancedOrder,
@@ -241,15 +208,13 @@ export function ReferencePropertiesPanel({
     klingGuidanceSummary,
     videoDurationValue,
     videoResolutionValue,
-    imageResolutionValue,
-    imageResolutionOptions,
     videoGenerateAudioValue,
     modelConfig,
     durationOptions,
     resolutionOptions,
     aspectOptionsForModel,
   } = useReferencePropertiesDerivedState({
-    variant,
+    variant: "video",
     videoReferenceMode,
     modelId,
     aspectOptions,
@@ -260,7 +225,6 @@ export function ReferencePropertiesPanel({
     klingNegativePrompt,
     videoDurationSeconds,
     videoResolution,
-    imageResolution,
     videoGenerateAudio,
   });
 
@@ -270,22 +234,24 @@ export function ReferencePropertiesPanel({
     onVideoDurationChange,
     videoResolutionValue,
     onVideoResolutionChange,
-    isVideoVariant,
-    imageResolution,
-    imageResolutionValue,
-    onImageResolutionChange,
+    isVideoVariant: true,
+    imageResolution: undefined,
+    imageResolutionValue: "model_default",
+    onImageResolutionChange: undefined,
   });
 
   return (
-    <div className="tool-properties reference-properties-panel">
+    <div className="tool-properties reference-properties-panel video-properties-panel">
       <div className="tool-header">
-        <p className="eyebrow">{title}</p>
-        <p className="subdued tiny helper-text">{subtitle}</p>
+        <p className="eyebrow">Video</p>
+        <p className="subdued tiny helper-text">
+          Animate still images using reference inputs and prompts.
+        </p>
       </div>
       <div className="reference-drop-layout-inner">
         <ReferencePromptStep
           promptOrder={promptOrder}
-          isVideoVariant={isVideoVariant}
+          isVideoVariant={true}
           referenceText={referenceText}
           onPromptTextChange={onPromptTextChange}
           onSave={onSave}
@@ -299,8 +265,8 @@ export function ReferencePropertiesPanel({
         />
         {!isKeyframesMode && !isMotionMode ? (
           <ReferenceModelStep
-            variant={variant}
-            isVideoVariant={isVideoVariant}
+            variant="video"
+            isVideoVariant={true}
             isKeyframesMode={isKeyframesMode}
             beginnerMode={beginnerMode}
             collapsed={collapsedSteps.model}
@@ -318,24 +284,13 @@ export function ReferencePropertiesPanel({
             onModelPickerOpen={onModelPickerOpen}
           />
         ) : null}
-        {!isVideoVariant && !beginnerMode ? (
-          <ReferenceImageResolutionStep
-            imageSettingsOrder={imageSettingsOrder}
-            collapsedImageSettings={collapsedSteps.imageSettings}
-            imageResolutionValue={imageResolutionValue}
-            imageResolutionOptions={imageResolutionOptions}
-            onExpandImageSettings={() => expandIfCollapsed("imageSettings")}
-            onToggleImageSettings={() => toggleStep("imageSettings")}
-            onImageResolutionChange={onImageResolutionChange}
-          />
-        ) : null}
         <ReferenceMediaStep
           referenceOrder={referenceOrder}
           collapsedReference={collapsedSteps.reference}
           onExpandReference={() => expandIfCollapsed("reference")}
           onToggleReference={() => toggleStep("reference")}
           beginnerMode={beginnerMode}
-          isVideoVariant={isVideoVariant}
+          isVideoVariant={true}
           referenceStepTitle={referenceStepTitle}
           referenceStepSubtitle={referenceStepSubtitle}
           activeVideoMode={activeVideoMode}
@@ -375,7 +330,7 @@ export function ReferencePropertiesPanel({
           handleMotionVideoSelection={handleMotionVideoSelection}
         />
         <ReferenceVideoSettingsStep
-          isVideoVariant={isVideoVariant}
+          isVideoVariant={true}
           isMotionMode={isMotionMode}
           beginnerMode={beginnerMode}
           videoSettingsOrder={videoSettingsOrder}

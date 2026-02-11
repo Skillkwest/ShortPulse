@@ -44,7 +44,8 @@ export const useAiStudioState = () => {
   const [aspect, setAspect] = useState<string>("9:16");
   const [model, setModelState] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<string>("");
-  const [referenceText, setReferenceTextState] = useState<string>("");
+  const [editReferenceText, setEditReferenceTextState] = useState<string>("");
+  const [videoReferenceText, setVideoReferenceTextState] = useState<string>("");
 
   // Output management
   const [outputs, setOutputs] = useState<StudioOutput[]>([]);
@@ -145,8 +146,11 @@ export const useAiStudioState = () => {
   const setSharedPrompt = useCallback((value: string) => {
     setPrompt((prev) => (prev === value ? prev : value));
   }, []);
-  const setReferenceText = useCallback((value: string) => {
-    setReferenceTextState((prev) => (prev === value ? prev : value));
+  const setEditReferenceText = useCallback((value: string) => {
+    setEditReferenceTextState((prev) => (prev === value ? prev : value));
+  }, []);
+  const setVideoReferenceText = useCallback((value: string) => {
+    setVideoReferenceTextState((prev) => (prev === value ? prev : value));
   }, []);
   const isVideoReferenceTool = selectedTool === "video" || selectedTool === "kling";
   const referenceImageUrl = isVideoReferenceTool ? videoReferenceImageUrl : imageReferenceImageUrl;
@@ -570,12 +574,16 @@ export const useAiStudioState = () => {
       options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null }
     ) => {
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
+      const referencePromptForTool =
+        effectiveTool === "video" || effectiveTool === "kling"
+          ? videoReferenceText
+          : editReferenceText;
       const defaultPromptForTool =
         effectiveTool === "image" ||
         effectiveTool === "edit" ||
         effectiveTool === "video" ||
         effectiveTool === "kling"
-          ? referenceText
+          ? referencePromptForTool
           : prompt;
       const promptToSubmit =
         typeof promptOverride === "string" ? promptOverride : defaultPromptForTool;
@@ -590,21 +598,24 @@ export const useAiStudioState = () => {
     },
     [
       buildImageReferenceInputs,
+      editReferenceText,
       prompt,
-      referenceText,
       resolveReferenceInputsForTool,
       selectedTool,
       submitTask,
+      videoReferenceText,
     ]
   );
 
   const regenerateOutput = useCallback(() => {
+    const referencePromptForTool =
+      selectedTool === "video" || selectedTool === "kling" ? videoReferenceText : editReferenceText;
     const promptForTool =
       selectedTool === "image" ||
       selectedTool === "edit" ||
       selectedTool === "video" ||
       selectedTool === "kling"
-        ? referenceText
+        ? referencePromptForTool
         : prompt;
     const promptToUse = promptForTool.trim();
     if (!promptToUse) return;
@@ -625,12 +636,13 @@ export const useAiStudioState = () => {
   }, [
     activeOutput,
     buildImageReferenceInputs,
+    editReferenceText,
     prompt,
-    referenceText,
     resolveReferenceInputsForTool,
     selectedTool,
     submitTask,
     useReferenceImageIndicator,
+    videoReferenceText,
   ]);
 
   const addAgentPromptReference = useCallback(
@@ -929,8 +941,10 @@ export const useAiStudioState = () => {
     setMotionCharacterUrl,
     motionReferenceVideoUrl,
     setMotionReferenceVideoUrl,
-    referenceText,
-    setReferenceText,
+    editReferenceText,
+    setEditReferenceText,
+    videoReferenceText,
+    setVideoReferenceText,
     setSharedPrompt,
     resolvePreviewUrlById,
     useReferenceImageIndicator,

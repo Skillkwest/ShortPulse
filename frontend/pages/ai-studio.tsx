@@ -37,6 +37,11 @@ import {
   resolvePromptSourceBadge,
   type PromptOrigin,
 } from "../features/ai-studio/logic/agentPromptOwnership";
+import {
+  isEditPromptTool,
+  isReferencePromptTool,
+  shouldApplyAgentPromptToSharedPrompt,
+} from "../features/ai-studio/logic/promptTargeting";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 
 const MAX_AGENT_ATTACHMENTS = 10;
@@ -158,8 +163,10 @@ export default function AiStudioPage() {
     setKlingElements,
     motionReferenceVideoUrl,
     setMotionReferenceVideoUrl,
-    referenceText,
-    setReferenceText,
+    editReferenceText,
+    setEditReferenceText,
+    videoReferenceText,
+    setVideoReferenceText,
     setSharedPrompt,
     useReferenceImageIndicator,
     detailOutput,
@@ -171,7 +178,6 @@ export default function AiStudioPage() {
     isPromptGenerating,
     generateOutput,
     regenerateOutput,
-    saveActiveOutput,
     saveReferenceToLibrary,
     savePromptReference,
     addOutputsFromFiles,
@@ -260,19 +266,34 @@ export default function AiStudioPage() {
 
   const handleManualPromptChange = useCallback(
     (value: string) => {
-      if (
-        selectedTool === "image" ||
-        selectedTool === "edit" ||
-        selectedTool === "video" ||
-        selectedTool === "kling"
-      ) {
-        setReferenceText(value);
+      if (isReferencePromptTool(selectedTool)) {
+        if (selectedTool === "video" || selectedTool === "kling") {
+          setVideoReferenceText(value);
+        } else {
+          setEditReferenceText(value);
+        }
       } else {
         setSharedPrompt(value);
       }
       setPromptOrigin("manual");
     },
-    [selectedTool, setReferenceText, setSharedPrompt]
+    [selectedTool, setEditReferenceText, setSharedPrompt, setVideoReferenceText]
+  );
+
+  const handleEditPromptTextChange = useCallback(
+    (value: string) => {
+      setEditReferenceText(value);
+      setPromptOrigin("manual");
+    },
+    [setEditReferenceText]
+  );
+
+  const handleVideoPromptTextChange = useCallback(
+    (value: string) => {
+      setVideoReferenceText(value);
+      setPromptOrigin("manual");
+    },
+    [setVideoReferenceText]
   );
 
   const shouldRunPromptRefinerFirst = useCallback((text: string, context: AgentContext) => {
@@ -424,7 +445,7 @@ export default function AiStudioPage() {
     }
   };
 
-  const isEditPromptTool = selectedTool === "edit" || selectedTool === "image";
+  const editPromptToolSelected = isEditPromptTool(selectedTool);
 
   const handleAgentSend = async (
     textOverride?: string,
@@ -595,7 +616,7 @@ export default function AiStudioPage() {
 
       if (appliedPrompt) {
         setLatestAgentPrompt(appliedPrompt);
-        if (!isEditPromptTool) {
+        if (shouldApplyAgentPromptToSharedPrompt(selectedTool)) {
           setSharedPrompt(appliedPrompt);
           setPromptOrigin("agent");
         }
@@ -640,14 +661,20 @@ export default function AiStudioPage() {
   };
 
   const handleReferencePromptEnhance = async () => {
-    const currentPrompt = referenceText?.trim() ?? "";
+    const isVideoPromptTool = selectedTool === "video" || selectedTool === "kling";
+    const currentPrompt =
+      (isVideoPromptTool ? videoReferenceText : editReferenceText)?.trim() ?? "";
     if (!currentPrompt || isReferencePromptEnhancing) return;
     setIsReferencePromptEnhancing(true);
     try {
       const refined = await postGeneratePrompt(currentPrompt);
       const nextPrompt = normalizePromptText(refined?.prompt);
       if (nextPrompt) {
-        setReferenceText(nextPrompt);
+        if (isVideoPromptTool) {
+          setVideoReferenceText(nextPrompt);
+        } else {
+          setEditReferenceText(nextPrompt);
+        }
         setPromptOrigin("manual");
       }
     } finally {
@@ -752,7 +779,7 @@ export default function AiStudioPage() {
 
   const handleAgentApplyPrompt = useCallback(
     (nextPrompt: string) => {
-      if (isEditPromptTool) return;
+      if (editPromptToolSelected) return;
       const normalized = normalizePromptText(nextPrompt);
       if (!normalized) return;
       setSharedPrompt(normalized);
@@ -760,7 +787,7 @@ export default function AiStudioPage() {
       setPromptOrigin("agent");
       trackAgentUiEvent("studio_agent_apply_prompt");
     },
-    [isEditPromptTool, setSharedPrompt, trackAgentUiEvent]
+    [editPromptToolSelected, setSharedPrompt, trackAgentUiEvent]
   );
 
   const handleAgentSelectVariation = useCallback(
@@ -1122,7 +1149,9 @@ export default function AiStudioPage() {
       effectiveTool === "edit" ||
       effectiveTool === "video" ||
       effectiveTool === "kling"
-        ? referenceText
+        ? effectiveTool === "video" || effectiveTool === "kling"
+          ? videoReferenceText
+          : editReferenceText
         : prompt;
     const promptToUse = typeof promptOverride === "string" ? promptOverride : defaultPromptForTool;
     generateOutput(promptToUse, {
@@ -1304,13 +1333,12 @@ export default function AiStudioPage() {
           onGenerate: () => generateCharacter(),
         }}
         propertiesImage={{
-          variant: "image",
           aspect,
           modelId: model,
           modelLabel: currentModelLabel,
           referenceImageUrl,
           extraImageUrls,
-          referenceText,
+          referenceText: editReferenceText,
           aspectOptions,
           isModelModalOpen,
           modelModalAnchor,
@@ -1318,12 +1346,11 @@ export default function AiStudioPage() {
           onModelPickerOpen: handleOpenModelModal,
           onPrimaryImageChange: setReferenceImageUrl,
           onExtraImageChange: setExtraImageUrl,
-          onPromptTextChange: handleManualPromptChange,
-          onSave: () => savePromptReference(referenceText ?? ""),
+          onPromptTextChange: handleEditPromptTextChange,
+          onSave: () => savePromptReference(editReferenceText ?? ""),
           onRegenerate: handleImageRegenerateWithDebit,
           costCredits: currentCostCredits,
           isGenerateDisabled: isGenerateDisabled || agentBusy,
-          guardrailReason: generationGuardrail,
           referenceImageWarning,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
           agentIsSending: isReferencePromptEnhancing,
@@ -1333,7 +1360,6 @@ export default function AiStudioPage() {
           beginnerMode,
         }}
         propertiesVideo={{
-          variant: "video",
           aspect,
           modelId: model,
           modelLabel: currentModelLabel,
@@ -1370,7 +1396,7 @@ export default function AiStudioPage() {
           onKlingElementsChange: setKlingElements,
           motionVideoUrl: motionReferenceVideoUrl,
           onMotionVideoChange: setMotionReferenceVideoUrl,
-          referenceText,
+          referenceText: videoReferenceText,
           aspectOptions,
           isModelModalOpen,
           modelModalAnchor,
@@ -1378,34 +1404,16 @@ export default function AiStudioPage() {
           onModelPickerOpen: handleOpenModelModal,
           onPrimaryImageChange: setReferenceImageUrl,
           onExtraImageChange: setExtraImageUrl,
-          onPromptTextChange: handleManualPromptChange,
-          onSave: saveActiveOutput,
+          onPromptTextChange: handleVideoPromptTextChange,
+          onSave: () => savePromptReference(videoReferenceText ?? ""),
           onRegenerate: handleRegenerateWithDebit,
           costCredits: currentCostCredits,
-          guardrailReason: generationGuardrail,
           referenceImageWarning,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
           isGenerateDisabled: isGenerateDisabled || agentBusy,
-          agentEnabled,
-          agentMessages,
-          agentActions,
-          agentInput,
           agentIsSending: agentBusy,
           agentError: agentError ?? undefined,
-          stagedPrompt: stagedAgentPrompt,
-          agentPrimarySource,
-          onAgentInputChange: setAgentInput,
-          onAgentSend: () => handleAgentSend(undefined, { modeHint: "reference" }),
-          onAgentEnhanceSend: () =>
-            handleAgentSend(referenceText || "", { captureResult: true, modeHint: "reference" }),
-          onAgentMessageClick: handleAgentMessageClick,
-          onAgentApplyPrompt: handleAgentApplyPrompt,
-          onAgentSelectVariation: handleAgentSelectVariation,
-          onAgentUseQuestion: handleAgentUseQuestion,
-          onAgentDescribeTargets: handleAgentDescribeTargets,
-          onExpandChat: handleExpandChat,
-          onClearAgentChat: handleClearAgentChat,
-          agentChatOpen: isAgentChatOpen,
+          onAgentEnhanceSend: handleReferencePromptEnhance,
           beginnerMode,
         }}
         isTemplateView={isTemplateView}
@@ -1430,7 +1438,10 @@ export default function AiStudioPage() {
         studioPreviewProps={{
           activeOutput,
           referenceImageUrl,
-          referenceText,
+          referenceText:
+            selectedTool === "video" || selectedTool === "kling"
+              ? videoReferenceText
+              : editReferenceText,
           onReferenceImageChange: setReferenceImageUrl,
           onReferenceTextChange: handleManualPromptChange,
           onRegenerate: regenerateOutput,

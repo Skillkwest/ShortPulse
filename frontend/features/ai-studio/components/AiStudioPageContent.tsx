@@ -19,16 +19,18 @@ import { TextPropertiesPanel, ComposeSendCard } from "./TextPropertiesPanel";
 import { DetailModal } from "./DetailModal";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { ReferenceCanvas } from "./ReferenceCanvas";
-import { ReferencePropertiesPanel } from "./ReferencePropertiesPanel";
+import { EditPropertiesPanel } from "./EditPropertiesPanel";
 import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
 import { CharacterPropertiesPanel } from "../../character/components/CharacterPropertiesPanel";
 import { CharacterPanel } from "./CharacterPanel";
 import { KlingComingSoonCard } from "./KlingComingSoonCard";
+import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { AgentChatPanel } from "../../../prefabs/agent";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
+import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 
 type FailureCard = Pick<
   StudioOutput,
@@ -129,16 +131,8 @@ type TextSectionProps = {
 
 type CharacterSectionProps = React.ComponentProps<typeof CharacterPropertiesPanel>;
 
-type ReferenceSectionProps = Omit<
-  React.ComponentProps<typeof ReferencePropertiesPanel>,
-  "title" | "subtitle"
-> & {
-  variant: "image" | "video";
-  onRegenerate: () => void;
-  guardrailReason: string | null;
-  costCredits?: number | null;
-  isGenerateDisabled?: boolean;
-};
+type EditSectionProps = React.ComponentProps<typeof EditPropertiesPanel>;
+type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
 
 type AgentChatProps = {
   isOpen: boolean;
@@ -189,8 +183,8 @@ type AiStudioPageContentProps = {
   onToggleCreateTools: (value: boolean) => void;
   propertiesText: TextSectionProps;
   propertiesCharacter: CharacterSectionProps;
-  propertiesImage: ReferenceSectionProps;
-  propertiesVideo: ReferenceSectionProps;
+  propertiesImage: EditSectionProps;
+  propertiesVideo: VideoSectionProps;
   isTemplateView: boolean;
   referenceCanvasProps: ReferenceCanvasProps;
   studioPreviewProps: React.ComponentProps<typeof StudioPreview>;
@@ -259,8 +253,7 @@ export function AiStudioPageContent({
   const ComingSoonIcon = comingSoon ? comingSoon.icon : null;
 
   const renderProperties = () => {
-    switch (selectedTool) {
-      case "create":
+    switch (resolvePropertiesPanelKind(selectedTool)) {
       case "text":
         return (
           <>
@@ -274,23 +267,10 @@ export function AiStudioPageContent({
         );
       case "character":
         return <CharacterPanel />;
-      case "image":
       case "edit":
-        return (
-          <ReferencePropertiesPanel
-            title="Image"
-            subtitle="Generate images using reference inputs."
-            {...propertiesImage}
-          />
-        );
+        return <EditPropertiesPanel {...propertiesImage} />;
       case "video":
-        return (
-          <ReferencePropertiesPanel
-            title="Video"
-            subtitle="Animate still images using reference inputs and prompts."
-            {...propertiesVideo}
-          />
-        );
+        return <VideoPropertiesPanel {...propertiesVideo} />;
       case "kling":
         return <KlingComingSoonCard />;
       case "canvas":

@@ -1,0 +1,153 @@
+/**
+ * Edit workflow accent theme.
+ * Scopes warm/yellow accents to the dedicated Edit properties panel.
+ */
+.edit-properties-panel {
+  --edit-accent: var(--color-amber, #f5b942);
+  --edit-accent-start: #f5b754;
+  --edit-accent-end: #f4921f;
+  --edit-accent-soft: rgba(245, 185, 66, 0.45);
+  --edit-accent-medium: rgba(245, 185, 66, 0.62);
+  --edit-accent-strong: rgba(245, 185, 66, 0.9);
+  --edit-accent-shadow: rgba(245, 185, 66, 0.26);
+  --ai-accent: var(--edit-accent);
+  --ai-accent-start: var(--edit-accent-start);
+  --ai-accent-soft: var(--edit-accent-soft);
+  --ai-accent-medium: var(--edit-accent-medium);
+  --ai-accent-strong: var(--edit-accent-strong);
+  --ai-accent-shadow: var(--edit-accent-shadow);
+}
+
+.edit-properties-panel .reference-drop-layout-inner {
+  --reference-drop-border-hover: rgba(245, 185, 66, 0.58);
+  --reference-drop-border-active: rgba(245, 185, 66, 0.92);
+  --reference-drop-shadow-active: 0 0 0 2px rgba(245, 185, 66, 0.24);
+}
+
+.edit-properties-panel .reference-drop-divider {
+  color: rgba(245, 185, 66, 0.7);
+  opacity: 0.92;
+}
+
+.edit-properties-panel .step-utility-btn:hover {
+  border-color: var(--edit-accent-medium);
+  background: rgba(67, 53, 29, 0.7);
+}
+
+.edit-properties-panel .step-card.is-collapsed:hover {
+  border-color: var(--edit-accent-medium);
+}
+
+.edit-properties-panel .aspect-trigger:hover {
+  border-color: var(--edit-accent-medium);
+  box-shadow: 0 12px 24px var(--edit-accent-shadow);
+}
+
+.edit-properties-panel .aspect-trigger[aria-expanded="true"] {
+  border-color: var(--edit-accent-medium);
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.32),
+    0 0 0 1px var(--edit-accent-shadow);
+}
+
+.edit-properties-panel .aspect-menu-item.is-active {
+  background: rgba(245, 185, 66, 0.12);
+  border-color: var(--edit-accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(245, 185, 66, 0.28);
+}
+
+.edit-properties-panel .aspect-menu-item.is-active .aspect-shape {
+  border-color: rgba(245, 185, 66, 0.88);
+  background: rgba(245, 185, 66, 0.12);
+}
+
+.edit-properties-panel .mode-toggle-btn:hover {
+  border-color: var(--edit-accent-soft);
+  background: rgba(56, 45, 24, 0.85);
+}
+
+.edit-properties-panel .mode-toggle-btn.is-active {
+  background: linear-gradient(135deg, var(--edit-accent-start), var(--edit-accent-end));
+  border-color: var(--edit-accent-medium);
+  box-shadow: 0 6px 14px rgba(245, 185, 66, 0.22);
+  color: #1a140c;
+}
+
+.edit-properties-panel .mode-toggle-btn.is-active svg {
+  color: #1a140c;
+}
+
+.edit-properties-panel .reference-swap-control:not(:disabled):hover,
+.edit-properties-panel .reference-swap-control:not(:disabled):focus-visible {
+  background: rgba(245, 185, 66, 0.14);
+  border: 1px solid rgba(245, 185, 66, 0.4);
+}
+
+.edit-properties-panel .reference-swap-control:focus-visible {
+  box-shadow: 0 0 0 2px rgba(245, 185, 66, 0.32);
+}
+
+.edit-properties-panel .agent-send-prefab,
+.edit-properties-panel .agent-save-prefab,
+.edit-properties-panel .prompt-actions-compact .agent-send-prefab,
+.edit-properties-panel .prompt-actions-compact .agent-save-prefab {
+  border-color: rgba(245, 185, 66, 0.58);
+  background: linear-gradient(135deg, rgba(45, 35, 19, 0.92), rgba(70, 52, 24, 0.48));
+  color: rgba(245, 185, 66, 0.96);
+  box-shadow: 0 4px 1px rgba(245, 185, 66, 0.24);
+}
+
+.edit-properties-panel .agent-send-prefab:hover:not(:disabled),
+.edit-properties-panel .agent-save-prefab:hover:not(:disabled),
+.edit-properties-panel .prompt-actions-compact .agent-send-prefab:hover:not(:disabled),
+.edit-properties-panel .prompt-actions-compact .agent-save-prefab:hover:not(:disabled) {
+  border-color: rgba(245, 185, 66, 0.88);
+  background: rgba(245, 185, 66, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(0, 0, 0, 0.38);
+}
+
+.edit-properties-panel .agent-generate-prefab {
+  border-color: var(--edit-accent-strong);
+  background: linear-gradient(135deg, var(--edit-accent-start), var(--edit-accent-end));
+  box-shadow: 0 4px 1px rgba(245, 185, 66, 0.34);
+  color: #1a140c;
+}
+
+.edit-properties-panel .agent-generate-prefab:hover:not(:disabled) {
+  box-shadow: 0 6px 14px rgba(245, 185, 66, 0.3);
+}
+
+.edit-properties-panel .agent-generate-prefab:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
+  border-color: rgba(116, 116, 116, 0.133);
+  background: linear-gradient(135deg, rgba(128, 128, 128, 0.109), rgba(96, 96, 96, 0.071));
+  color: #484848;
+}
+
+.edit-properties-panel .agent-generate-prefab:disabled .agent-generate-label {
+  color: #f5f5f52a;
+}
+
+.edit-properties-panel .agent-generate-prefab:disabled .generate-pill,
+.edit-properties-panel .agent-generate-prefab:disabled .generate-pill .model-chip-icon,
+.edit-properties-panel .agent-generate-prefab:disabled .generate-pill .model-chip-credits,
+.edit-properties-panel .agent-generate-prefab:disabled .generate-pill .model-chip-credits-label {
+  color: #484848;
+}
+
+.edit-properties-panel .agent-generate-prefab .generate-pill,
+.edit-properties-panel .agent-generate-prefab .generate-pill .model-chip-icon,
+.edit-properties-panel .agent-generate-prefab .generate-pill .model-chip-credits,
+.edit-properties-panel .agent-generate-prefab .generate-pill .model-chip-credits-label {
+  color: #1a140c;
+}
+
+.edit-properties-panel .agent-cost-prefab {
+  border-color: rgba(245, 185, 66, 0.8);
+  background: linear-gradient(135deg, var(--edit-accent-start), var(--edit-accent-end));
+  box-shadow: 0 4px 1px rgba(245, 185, 66, 0.28);
+  color: #1a140c;
+}

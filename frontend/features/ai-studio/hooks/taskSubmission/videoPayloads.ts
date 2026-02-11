@@ -53,8 +53,7 @@ export const resolveSeedanceTextAspect = (
 export const resolveSeedanceI2VAspect = (
   aspect: string,
   modelConfig: SubmissionModelConfig
-): string =>
-  modelConfig?.allowedAspects?.includes(aspect) ? aspect : (modelConfig?.defaultAspect ?? "auto");
+): string => (modelConfig?.allowedAspects?.includes(aspect) ? aspect : "16:9");
 
 /**
  * Normalizes Seedance image-to-video resolution.
@@ -72,7 +71,7 @@ export const resolveSeedanceI2VResolution = (
  * Clamps Seedance image-to-video duration to API-supported range.
  */
 export const resolveSeedanceI2VDuration = (requestedDurationSeconds: number): string =>
-  Math.max(2, Math.min(12, requestedDurationSeconds)).toString();
+  Math.max(4, Math.min(12, requestedDurationSeconds)).toString();
 
 /**
  * Resolves Sora-supported aspect ratio with model defaults.

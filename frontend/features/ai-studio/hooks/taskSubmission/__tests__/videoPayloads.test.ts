@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildKlingElementsPayload,
   buildKlingMultiPromptPayload,
+  resolveSeedanceI2VAspect,
   resolveSeedanceI2VDuration,
   resolveVeoResolution,
 } from "../videoPayloads";
@@ -21,9 +22,27 @@ describe("resolveVeoResolution", () => {
 
 describe("resolveSeedanceI2VDuration", () => {
   it("clamps values to the API-supported range", () => {
-    expect(resolveSeedanceI2VDuration(1)).toBe("2");
+    expect(resolveSeedanceI2VDuration(1)).toBe("4");
     expect(resolveSeedanceI2VDuration(8)).toBe("8");
     expect(resolveSeedanceI2VDuration(24)).toBe("12");
+  });
+});
+
+describe("resolveSeedanceI2VAspect", () => {
+  it("falls back to 16:9 when selected aspect is not supported", () => {
+    expect(
+      resolveSeedanceI2VAspect("auto", {
+        allowedAspects: ["16:9", "9:16"],
+      })
+    ).toBe("16:9");
+  });
+
+  it("keeps a supported aspect unchanged", () => {
+    expect(
+      resolveSeedanceI2VAspect("9:16", {
+        allowedAspects: ["16:9", "9:16"],
+      })
+    ).toBe("9:16");
   });
 });
 

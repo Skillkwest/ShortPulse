@@ -1,0 +1,4 @@
+interface:
+  display_name: "Palette Normalizer"
+  short_description: "Normalize near-duplicate palette colors safely"
+  default_prompt: "Use $palette-normalizer to run a dry-run palette normalization report for AI Studio CSS."

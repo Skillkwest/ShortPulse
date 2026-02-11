@@ -31,6 +31,7 @@ Use this as the entry point for the project’s documentation.
 - `docs/adr/0002-media-library-persistence.md` (media library persistence model)
 - `docs/adr/0003-admin-authorization-source.md` (admin auth authority rules)
 - `docs/adr/0004-fal-failure-refund-settlement.md` (Fal failure refund settlement lifecycle)
+- `docs/adr/0005-ai-studio-modularization-boundaries.md` (AI Studio modular split boundaries)
 - `docs/troubleshooting.md`
 - `docs/glossary.md`
 - `docs/known-issues.md`

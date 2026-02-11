@@ -1,0 +1,428 @@
+/**
+ * Generation submission hook for AI Studio.
+ * Orchestrates submission lifecycle while delegating provider-specific calls to handlers.
+ */
+import { useCallback } from "react";
+import type { Dispatch, SetStateAction } from "react";
+import { randomId } from "../logic/ids";
+import { getModelConfig } from "../logic/pricing";
+import {
+  clampImageResolutionForModel,
+  isModelDefaultImageResolution,
+} from "../logic/imageResolution";
+import { prepareImageUrlForSubmission } from "../utils/imageUpload";
+import { Provider, resolveModelLabel } from "../logic/stateParsers";
+import {
+  handleDefaultModelSubmission,
+  handleImageModelSubmission,
+  handleVideoModelSubmission,
+  resolveSubmissionHandlerRoute,
+} from "./taskSubmissionHandlers";
+import type { StudioMode, StudioOutput, ToolId } from "../types";
+
+type GenerationMetadata = Record<string, unknown>;
+
+type EnsureGenerationRecordInput = {
+  outputId: string;
+  provider: Provider;
+  taskId?: string;
+  durationSeconds?: number;
+  resolution?: string | null;
+  metadata?: GenerationMetadata;
+};
+
+type UseAiStudioTaskSubmissionParams = {
+  aspect: string;
+  mode: StudioMode;
+  model: string | null;
+  prompt: string;
+  selectedTool: ToolId | null;
+  imageResolution: string;
+  videoDurationSeconds: number;
+  videoResolution: string;
+  videoGenerateAudio: boolean;
+  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  videoReferenceImageUrl: string | null;
+  motionReferenceVideoUrl: string | null;
+  videoCameraFixed: boolean;
+  videoAutoFix: boolean;
+  klingNegativePrompt: string;
+  klingCfgScale: number;
+  klingShotType: "customize" | "intelligent";
+  klingVoiceIds: [string, string];
+  klingMultiPrompts: { id: string; prompt: string; duration: number }[];
+  klingElements: {
+    id: string;
+    frontalImageUrl: string;
+    referenceImageUrls: string;
+    videoUrl: string;
+  }[];
+  setIsPromptGenerating: Dispatch<SetStateAction<boolean>>;
+  setUiError: Dispatch<SetStateAction<string | null>>;
+  setUiNotice: Dispatch<SetStateAction<string | null>>;
+  setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
+  setSaved: Dispatch<SetStateAction<boolean>>;
+  getDefaultDurationSeconds: (modelId: string | null) => number;
+  notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
+  updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
+  startPollingTask: (
+    taskId: string,
+    outputId: string,
+    attempt?: number,
+    provider?: Provider
+  ) => void;
+  ensureGenerationRecord: (input: EnsureGenerationRecordInput) => Promise<string | null>;
+};
+
+/**
+ * Returns a memoized submission handler that starts generation tasks and polling.
+ */
+export const useAiStudioTaskSubmission = ({
+  aspect,
+  mode,
+  model,
+  prompt,
+  selectedTool,
+  imageResolution,
+  videoDurationSeconds,
+  videoResolution,
+  videoGenerateAudio,
+  videoReferenceMode,
+  videoReferenceImageUrl,
+  motionReferenceVideoUrl,
+  videoCameraFixed,
+  videoAutoFix,
+  klingNegativePrompt,
+  klingCfgScale,
+  klingShotType,
+  klingVoiceIds,
+  klingMultiPrompts,
+  klingElements,
+  setIsPromptGenerating,
+  setUiError,
+  setUiNotice,
+  setOutputs,
+  setSaved,
+  getDefaultDurationSeconds,
+  notifyGenerationFailure,
+  updateOutputById,
+  startPollingTask,
+  ensureGenerationRecord,
+}: UseAiStudioTaskSubmissionParams) => {
+  return useCallback(
+    async (
+      promptArg: string | null | undefined,
+      imageInputs: string[],
+      options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null }
+    ) => {
+      setUiError(null);
+      setUiNotice(null);
+      const effectiveMode = options?.modeOverride ?? mode;
+      const effectiveTool = options?.selectedToolOverride ?? selectedTool;
+      const normalizedTool =
+        effectiveTool === "kling" ? "video" : effectiveTool === "edit" ? "image" : effectiveTool;
+      const cleanedPrompt = (promptArg ?? prompt).trim();
+
+      if ((effectiveTool === "create" || effectiveTool === "text") && effectiveMode === "text") {
+        setIsPromptGenerating(false);
+        return;
+      }
+      if (!cleanedPrompt) {
+        setUiError("Add a prompt to start a generation.");
+        return;
+      }
+
+      const hasReferenceImages = imageInputs && imageInputs.length > 0;
+      let finalTool: ToolId | "text" | null = effectiveTool === "edit" ? "image" : effectiveTool;
+      let finalModel = model;
+      let fallbackMode: "image" | "video" | null = null;
+      if (!hasReferenceImages) {
+        if (normalizedTool === "image") {
+          finalTool = "text";
+          fallbackMode = "image";
+          const imageToTextModelMap: Record<string, string> = {
+            "fal/flux-2-pro/edit": "fal/flux-2-pro",
+            "fal/flux-2/edit": "fal/flux-2",
+            "fal-ai/nano-banana/edit": "fal-ai/nano-banana",
+            "fal-ai/nano-banana-pro/edit": "fal-ai/nano-banana-pro",
+            "fal-ai/bytedance/seedream/v4.5/edit": "fal-ai/bytedance/seedream/v4.5/text-to-image",
+            "kei/gpt4o-image": "kei/gpt4o-image",
+          };
+          if (model && imageToTextModelMap[model]) {
+            finalModel = imageToTextModelMap[model];
+          }
+        } else if (normalizedTool === "video") {
+          finalTool = "text";
+          fallbackMode = "video";
+          const imageToVideoTextMap: Record<string, string> = {
+            "fal-ai/kling-video/v3/pro/image-to-video": "fal-ai/kling-video/v3/pro/text-to-video",
+            "fal-ai/veo3.1/first-last-frame-to-video": "fal-ai/veo3.1",
+            "fal-ai/veo3.1/image-to-video": "fal-ai/veo3.1",
+            "fal-ai/bytedance/seedance/v1.5/pro/image-to-video":
+              "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+          };
+          if (model && imageToVideoTextMap[model]) {
+            finalModel = imageToVideoTextMap[model];
+          }
+        }
+      }
+
+      if (!finalModel) {
+        setUiError("Pick a model to generate.");
+        return;
+      }
+
+      const id = `out-${randomId()}`;
+      const modelLabel = resolveModelLabel(finalModel);
+      if (fallbackMode) {
+        setUiNotice(
+          fallbackMode === "image"
+            ? `No reference images were detected. Running text-to-image with ${modelLabel}.`
+            : `No reference media were detected. Running text-to-video with ${modelLabel}.`
+        );
+      }
+
+      const isKling3ImageModel = finalModel === "fal-ai/kling-video/v3/pro/image-to-video";
+      const isVeoFirstLastFrameModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
+      const isVeoImageToVideoModel = finalModel === "fal-ai/veo3.1/image-to-video";
+      const modelConfig = getModelConfig(finalModel);
+      const isVideoGeneration =
+        effectiveMode === "video" || effectiveTool === "video" || effectiveTool === "kling";
+      const isImageGeneration =
+        effectiveMode === "image" || effectiveTool === "image" || effectiveTool === "edit";
+      const requestedDurationSeconds = isVideoGeneration
+        ? videoDurationSeconds
+        : getDefaultDurationSeconds(finalModel);
+      const requestedImageResolution = isImageGeneration
+        ? clampImageResolutionForModel(finalModel, imageResolution)
+        : modelConfig?.defaultResolution;
+      const requestedResolution = isVideoGeneration
+        ? videoResolution
+        : isModelDefaultImageResolution(requestedImageResolution)
+          ? undefined
+          : requestedImageResolution;
+      const requestedAudio = isVideoGeneration
+        ? videoGenerateAudio
+        : (modelConfig?.defaultAudio ?? true);
+
+      const preparedImageInputs = (
+        await Promise.all(
+          imageInputs.map(async (url) => {
+            const normalized = await prepareImageUrlForSubmission(url);
+            return normalized ?? null;
+          })
+        )
+      ).filter((url): url is string => Boolean(url));
+      const pulseReferenceImageUrl =
+        finalTool === "image" && preparedImageInputs.length > 0
+          ? preparedImageInputs[0]
+          : undefined;
+      const falReferencePayload = pulseReferenceImageUrl
+        ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) }
+        : ({} as Record<string, never>);
+
+      const nextOutput: StudioOutput = {
+        id,
+        prompt: cleanedPrompt,
+        mode: effectiveMode,
+        aspect,
+        model: modelLabel,
+        modelId: finalModel,
+        status: "ready",
+        taskState: "pending",
+        timestamp: "Submitting...",
+        errorMessage: null,
+        errorMessageShort: null,
+        errorDetail: null,
+        saveState: "idle",
+        saveError: null,
+      };
+
+      const requiresImageReference = isKling3ImageModel || isVeoImageToVideoModel;
+      if (requiresImageReference && preparedImageInputs.length === 0) {
+        setOutputs((prev) => [
+          {
+            ...nextOutput,
+            taskState: "fail",
+            status: "ready",
+            timestamp: "Missing image",
+            errorMessage: "Video generation requires an image URL.",
+            errorMessageShort: "Image URL required.",
+            errorDetail: "Video generation requires an image URL.",
+          },
+          ...prev,
+        ]);
+        setSaved(false);
+        return;
+      }
+
+      if (isVeoFirstLastFrameModel && preparedImageInputs.length < 2) {
+        setOutputs((prev) => [
+          {
+            ...nextOutput,
+            taskState: "fail",
+            status: "ready",
+            timestamp: "Missing frames",
+            errorMessage: "First/Last Frame generation requires both a first and last frame image.",
+            errorMessageShort: "First/Last needs two images.",
+            errorDetail: "First/Last Frame generation requires both a first and last frame image.",
+          },
+          ...prev,
+        ]);
+        setSaved(false);
+        return;
+      }
+
+      if (isVeoImageToVideoModel && preparedImageInputs.length < 1) {
+        setOutputs((prev) => [
+          {
+            ...nextOutput,
+            taskState: "fail",
+            status: "ready",
+            timestamp: "Missing image",
+            errorMessage: "Veo image-to-video requires a reference image.",
+            errorMessageShort: "Reference image required.",
+            errorDetail: "Veo image-to-video requires a reference image.",
+          },
+          ...prev,
+        ]);
+        setSaved(false);
+        return;
+      }
+
+      setOutputs((prev) => [nextOutput, ...prev]);
+      setSaved(false);
+
+      try {
+        const startPollingWithGeneration = (
+          taskId: string,
+          provider: Provider,
+          patch: Partial<StudioOutput> = {}
+        ) => {
+          updateOutputById(id, (item) => ({
+            ...item,
+            ...patch,
+            taskId,
+            taskState: "running",
+            timestamp: "Submitted",
+            provider: item.provider ?? provider,
+          }));
+          startPollingTask(taskId, id, 0, provider);
+          void ensureGenerationRecord({
+            outputId: id,
+            provider,
+            taskId,
+            durationSeconds: requestedDurationSeconds,
+            resolution: requestedResolution ?? null,
+            metadata: {
+              tool: effectiveTool,
+              audio: requestedAudio,
+              resolution: requestedResolution ?? null,
+              duration_seconds: requestedDurationSeconds,
+            },
+          });
+        };
+
+        const route = resolveSubmissionHandlerRoute(finalModel);
+        if (route === "video") {
+          await handleVideoModelSubmission({
+            id,
+            finalModel,
+            cleanedPrompt,
+            aspect,
+            requestedDurationSeconds,
+            requestedResolution,
+            requestedAudio,
+            preparedImageInputs,
+            modelConfig,
+            notifyGenerationFailure,
+            updateOutputById,
+            startPollingWithGeneration,
+            videoReferenceMode,
+            videoReferenceImageUrl,
+            motionReferenceVideoUrl,
+            videoAutoFix,
+            videoCameraFixed,
+            klingNegativePrompt,
+            klingCfgScale,
+            klingShotType,
+            klingVoiceIds,
+            klingMultiPrompts,
+            klingElements,
+          });
+          return;
+        }
+
+        if (route === "image") {
+          await handleImageModelSubmission({
+            id,
+            finalModel,
+            cleanedPrompt,
+            aspect,
+            requestedDurationSeconds,
+            requestedResolution,
+            requestedAudio,
+            preparedImageInputs,
+            modelConfig,
+            notifyGenerationFailure,
+            updateOutputById,
+            startPollingWithGeneration,
+            falReferencePayload,
+          });
+          return;
+        }
+
+        await handleDefaultModelSubmission({
+          id,
+          finalModel,
+          cleanedPrompt,
+          aspect,
+          requestedDurationSeconds,
+          requestedResolution,
+          requestedAudio,
+          preparedImageInputs,
+          modelConfig,
+          notifyGenerationFailure,
+          updateOutputById,
+          startPollingWithGeneration,
+          falReferencePayload,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to start generation";
+        notifyGenerationFailure(id, message);
+      }
+    },
+    [
+      aspect,
+      setIsPromptGenerating,
+      setOutputs,
+      setSaved,
+      setUiError,
+      setUiNotice,
+      getDefaultDurationSeconds,
+      model,
+      mode,
+      notifyGenerationFailure,
+      prompt,
+      selectedTool,
+      startPollingTask,
+      ensureGenerationRecord,
+      updateOutputById,
+      videoDurationSeconds,
+      videoResolution,
+      imageResolution,
+      videoGenerateAudio,
+      videoReferenceMode,
+      motionReferenceVideoUrl,
+      videoReferenceImageUrl,
+      videoCameraFixed,
+      videoAutoFix,
+      klingNegativePrompt,
+      klingCfgScale,
+      klingShotType,
+      klingVoiceIds,
+      klingMultiPrompts,
+      klingElements,
+    ]
+  );
+};

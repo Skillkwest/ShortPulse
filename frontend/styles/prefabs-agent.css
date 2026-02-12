@@ -79,6 +79,23 @@
     0 10px 20px rgba(0, 0, 0, 0.35);
 }
 
+.agent-attachment-card.is-preparing,
+.agent-attachment-card.is-pending {
+  border-color: rgba(111, 202, 255, 0.48);
+}
+
+.agent-attachment-card.is-ready {
+  border-color: rgba(110, 231, 183, 0.62);
+}
+
+.agent-attachment-card.is-failed {
+  border-color: rgba(255, 124, 124, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 20px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 124, 124, 0.28);
+}
+
 .agent-attachment-card.is-linked-prompt-ref {
   border-color: rgba(64, 216, 255, 0.72);
   box-shadow:
@@ -126,6 +143,40 @@
   box-shadow: 0 0 0 4px rgba(65, 225, 255, 0.2);
   z-index: 3;
   pointer-events: none;
+}
+
+.agent-attachment-status {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.35;
+  background: rgba(8, 11, 17, 0.82);
+  border: 1px solid rgba(201, 205, 214, 0.22);
+  color: rgba(226, 234, 245, 0.88);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.agent-attachment-status--pending,
+.agent-attachment-status--preparing {
+  border-color: rgba(111, 202, 255, 0.48);
+  color: rgba(160, 229, 255, 0.96);
+}
+
+.agent-attachment-status--ready {
+  border-color: rgba(110, 231, 183, 0.55);
+  color: rgba(191, 252, 228, 0.98);
+}
+
+.agent-attachment-status--failed {
+  border-color: rgba(255, 124, 124, 0.66);
+  color: rgba(255, 214, 214, 0.96);
 }
 
 .agent-attachment-remove {
@@ -238,6 +289,11 @@
 .agent-composer-hint {
   margin: 6px 0 0;
   opacity: 0.85;
+}
+
+.agent-composer-hint--media {
+  margin-top: 2px;
+  color: rgba(167, 226, 255, 0.9);
 }
 
 .agent-primary-prompt {

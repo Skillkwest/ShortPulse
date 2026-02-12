@@ -169,7 +169,20 @@ const fetchLedgerBalanceCents = async (userId: string) => {
   };
 };
 
-const fetchBalanceCents = async (userId: string) => {
+const fetchBalanceCents = async (
+  userId: string,
+  options?: {
+    preferLedger?: boolean;
+  }
+) => {
+  if (options?.preferLedger) {
+    const ledgerSnapshot = await fetchLedgerBalanceCents(userId);
+    return {
+      cents: ledgerSnapshot.cents,
+      updatedAt: ledgerSnapshot.updatedAt,
+    };
+  }
+
   const tableSnapshot = await fetchBalanceFromTable(userId);
   if (tableSnapshot) {
     return tableSnapshot;
@@ -193,7 +206,7 @@ export const useCredits = () => {
   const [userId, setUserId] = useState<string | null>(null);
 
   const refresh = useCallback(
-    async (options?: { silent?: boolean }): Promise<number | null> => {
+    async (options?: { silent?: boolean; preferLedger?: boolean }): Promise<number | null> => {
       const silent = options?.silent ?? false;
       try {
         if (!silent) {
@@ -202,7 +215,9 @@ export const useCredits = () => {
         const id = userId ?? (await fetchUserId());
         if (!userId) setUserId(id);
 
-        const next = await fetchBalanceCents(id);
+        const next = await fetchBalanceCents(id, {
+          preferLedger: options?.preferLedger ?? false,
+        });
         setBalance({ cents: next.cents, updatedAt: next.updatedAt, loading: false, error: null });
         return next.cents;
       } catch (error) {

@@ -23,9 +23,16 @@ import {
   fetchFalVeoStatus,
   fetchFalVeoImageToVideoStatus,
 } from "../../../lib/falClient";
+import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { fetchKeiTaskStatus } from "../../../lib/keiClient";
 import { extractFalMediaUrls, extractResultUrls, Provider } from "../logic/stateParsers";
 import { StudioOutput } from "../types";
+
+type GenerationFailureReason =
+  | "no_media_after_terminal_success"
+  | "poll_timeout"
+  | "provider_error"
+  | "status_poll_error";
 
 type TaskCallbacks = {
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
@@ -41,6 +48,7 @@ type TaskCallbacks = {
     taskId?: string;
     provider: Provider;
     message: string;
+    reasonCode?: GenerationFailureReason;
   }) => void;
 };
 
@@ -68,6 +76,19 @@ const longRunningVideoProviders = new Set<Provider>([
   "fal-sora",
   "fal-veo",
   "fal-veo-i2v",
+]);
+
+const nonTerminalStates = new Set([
+  "pending",
+  "queued",
+  "in_queue",
+  "in-progress",
+  "in_progress",
+  "running",
+  "processing",
+  "starting",
+  "submitted",
+  "created",
 ]);
 
 const condenseError = (message: string) => {
@@ -195,16 +216,23 @@ export function useAiStudioTasks({
       outputId: string,
       attempt = 0,
       provider: Provider = "kei",
-      startedAt = Date.now()
+      startedAt = Date.now(),
+      noMediaAttempt = 0
     ) {
       const elapsedMs = Date.now() - startedAt;
       const maxWaitMs = longRunningVideoProviders.has(provider) ? 20 * 60 * 1000 : 8 * 60 * 1000;
       if (elapsedMs > maxWaitMs) {
-        notifyGenerationFailure(
-          outputId,
-          "Timed out waiting for provider result.",
-          "Timed out waiting for provider result."
-        );
+        const timeoutMessage = "Timed out waiting for provider result.";
+        notifyGenerationFailure(outputId, timeoutMessage, timeoutMessage);
+        if (onGenerationFailure) {
+          onGenerationFailure({
+            outputId,
+            taskId,
+            provider,
+            message: timeoutMessage,
+            reasonCode: "poll_timeout",
+          });
+        }
         clearPollTimer(outputId);
         return;
       }
@@ -222,23 +250,90 @@ export function useAiStudioTasks({
             status?.data?.result?.status?.toString().toLowerCase() ??
             "pending";
           const state = stateRaw === "succeeded" ? "success" : stateRaw;
+          const hasExplicitState =
+            status?.status != null ||
+            status?.state != null ||
+            status?.data?.status != null ||
+            status?.result?.status != null ||
+            status?.output?.status != null ||
+            status?.data?.result?.status != null;
 
           const allUrls = extractMediaByProvider(provider, status);
           const hasMedia = allUrls.length > 0;
+          const isTerminalSuccess = state === "success" || state === "completed";
+          // Fal capture/debit happens in status endpoints on terminal states, so avoid
+          // short-circuiting early success when provider explicitly reports in-progress.
+          const canUseMediaShortcut =
+            provider === "kei" || !hasExplicitState || !nonTerminalStates.has(state);
 
-          if (state === "success" || state === "completed" || hasMedia) {
-            const shouldRetryForMedia = !hasMedia && attempt < 5;
+          if (isTerminalSuccess || (hasMedia && canUseMediaShortcut)) {
+            // Provider may report terminal success before media URLs are materialized.
+            // Track a dedicated "no media yet" retry budget instead of using total poll attempts.
+            const maxNoMediaAttempts = longRunningVideoProviders.has(provider) ? 20 : 10;
+            const shouldRetryForMedia = !hasMedia && noMediaAttempt < maxNoMediaAttempts;
             if (shouldRetryForMedia) {
+              if (noMediaAttempt === 0) {
+                addBreadcrumb({
+                  type: "ui",
+                  level: "warn",
+                  message: "generation_terminal_no_media_retrying",
+                  data: {
+                    provider,
+                    task_id: taskId,
+                    output_id: outputId,
+                    status_state: state,
+                    max_no_media_attempts: maxNoMediaAttempts,
+                  },
+                });
+              }
               updateOutputById(outputId, (item) => ({
                 ...item,
                 taskState: "running",
                 status: "ready",
-                timestamp: "Waiting for media...",
+                timestamp: "Finalizing media...",
               }));
               pollTimersRef.current[outputId] = window.setTimeout(
-                () => pollTask(taskId, outputId, attempt + 1, provider, startedAt),
+                () =>
+                  pollTask(taskId, outputId, attempt + 1, provider, startedAt, noMediaAttempt + 1),
                 delay
               );
+              return;
+            }
+
+            if (!hasMedia) {
+              const failureMessage =
+                "Generation finished, but no media URL was returned. Please retry.";
+              addBreadcrumb({
+                type: "ui",
+                level: "error",
+                message: "generation_terminal_no_media_exhausted",
+                data: {
+                  provider,
+                  task_id: taskId,
+                  output_id: outputId,
+                  status_state: state,
+                  no_media_attempts: noMediaAttempt,
+                },
+              });
+              notifyGenerationFailure(outputId, failureMessage, failureMessage);
+              updateOutputById(outputId, (item) => ({
+                ...item,
+                status: "ready",
+                taskState: "fail",
+                errorMessage: failureMessage,
+                errorMessageShort: "No media returned.",
+                errorDetail: failureMessage,
+              }));
+              if (onGenerationFailure) {
+                onGenerationFailure({
+                  outputId,
+                  taskId,
+                  provider,
+                  message: failureMessage,
+                  reasonCode: "no_media_after_terminal_success",
+                });
+              }
+              clearPollTimer(outputId);
               return;
             }
 
@@ -320,6 +415,7 @@ export function useAiStudioTasks({
                 taskId,
                 provider,
                 message: failureDetail,
+                reasonCode: "provider_error",
               });
             }
             clearPollTimer(outputId);
@@ -332,7 +428,7 @@ export function useAiStudioTasks({
             timestamp: "Processing...",
           }));
           pollTimersRef.current[outputId] = window.setTimeout(
-            () => pollTask(taskId, outputId, attempt + 1, provider, startedAt),
+            () => pollTask(taskId, outputId, attempt + 1, provider, startedAt, 0),
             delay
           );
         } catch (error) {
@@ -348,6 +444,7 @@ export function useAiStudioTasks({
                 taskId,
                 provider,
                 message,
+                reasonCode: "status_poll_error",
               });
             }
             clearPollTimer(outputId);
@@ -360,7 +457,7 @@ export function useAiStudioTasks({
             timestamp: "Retrying status...",
           }));
           pollTimersRef.current[outputId] = window.setTimeout(
-            () => pollTask(taskId, outputId, attempt + 1, provider, startedAt),
+            () => pollTask(taskId, outputId, attempt + 1, provider, startedAt, 0),
             delay
           );
         }

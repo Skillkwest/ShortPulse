@@ -18,6 +18,7 @@ import { randomId } from "../features/ai-studio/logic/ids";
 import type {
   AgentActions,
   AgentAttachment,
+  AgentAttachmentDeliveryStatus,
   AgentContext,
   AgentMediaPreview,
   AgentMessage,
@@ -196,11 +197,13 @@ export default function AiStudioPage() {
     getDefaultDurationSeconds,
     getAgentContext,
     onReferenceOutputMediaLoaded,
+    retryOutputStatus,
     addAgentPromptReference,
   } = useAiStudioState();
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
   const [dismissedFailureIds, setDismissedFailureIds] = useState<Set<string>>(new Set());
+  const settledGenerationSignaturesRef = useRef<Set<string>>(new Set());
   const { beginnerMode, setBeginnerMode } = useBeginnerModePreference();
   const agentFlag = process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
   const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(true);
@@ -220,6 +223,7 @@ export default function AiStudioPage() {
   const agentUiBusyRef = useRef(false);
   const agentBusy = agentIsSending || agentUiBusy;
   const [agentInput, setAgentInput] = useState("");
+  const [agentAttachmentError, setAgentAttachmentError] = useState<string | null>(null);
   const [agentActions, setAgentActions] = useState<AgentActions | undefined>(undefined);
   const [isAgentChatOpen, setIsAgentChatOpen] = useState(false);
   const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
@@ -321,13 +325,43 @@ export default function AiStudioPage() {
     );
   }, []);
 
+  const markAttachmentDelivery = useCallback(
+    (
+      ids: string[],
+      status: AgentAttachmentDeliveryStatus,
+      deliveryError?: string | null | ((attachment: AgentAttachment) => string | null)
+    ) => {
+      if (!ids.length) return;
+      setAgentAttachments((prev) =>
+        prev.map((attachment) => {
+          if (!ids.includes(attachment.id)) return attachment;
+          const resolvedError =
+            typeof deliveryError === "function" ? deliveryError(attachment) : deliveryError;
+          return {
+            ...attachment,
+            deliveryStatus: attachment.kind === "prompt" ? "ready" : status,
+            deliveryError: attachment.kind === "prompt" ? null : (resolvedError ?? null),
+          };
+        })
+      );
+    },
+    []
+  );
+
   const insertAttachment = useCallback((nextAttachment: AgentAttachment) => {
     setAgentAttachments((prev) => {
       const signature = attachmentSignature(nextAttachment);
       if (prev.some((item) => attachmentSignature(item) === signature)) {
         return prev;
       }
-      let next = [...prev, nextAttachment];
+      const normalizedAttachment: AgentAttachment = {
+        ...nextAttachment,
+        deliveryStatus:
+          nextAttachment.kind === "prompt" ? "ready" : (nextAttachment.deliveryStatus ?? "pending"),
+        deliveryError:
+          nextAttachment.kind === "prompt" ? null : (nextAttachment.deliveryError ?? null),
+      };
+      let next = [...prev, normalizedAttachment];
       if (nextAttachment.kind === "image") {
         const imageCount = next.filter((item) => item.kind === "image").length;
         if (imageCount > MAX_AGENT_IMAGE_ATTACHMENTS) {
@@ -342,6 +376,7 @@ export default function AiStudioPage() {
       }
       return next;
     });
+    setAgentAttachmentError(null);
   }, []);
 
   const handleAgentAttachmentDragOver = useCallback(
@@ -402,6 +437,7 @@ export default function AiStudioPage() {
       if (!agentSessionEnabled) {
         setAgentSessionEnabled(true);
       }
+      setAgentAttachmentError(null);
 
       if (normalizedImageUrl) {
         insertAttachment({
@@ -429,12 +465,24 @@ export default function AiStudioPage() {
   );
 
   const handleRemoveAgentAttachment = useCallback((id: string) => {
+    setAgentAttachmentError(null);
     setAgentAttachments((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
   const handleClearAgentAttachments = useCallback(() => {
+    setAgentAttachmentError(null);
     setAgentAttachments([]);
   }, []);
+
+  const handleAgentInputChange = useCallback(
+    (value: string) => {
+      if (agentAttachmentError) {
+        setAgentAttachmentError(null);
+      }
+      setAgentInput(value);
+    },
+    [agentAttachmentError]
+  );
 
   const handleToolSelect = (tool: ToolId | null) => {
     setSelectedTool(tool);
@@ -466,7 +514,6 @@ export default function AiStudioPage() {
         ?.text?.trim() ?? "";
     const outboundText = trimmed || droppedPromptText || prompt.trim();
     if (!outboundText) return;
-    const optimisticUserMessageId = appendUserMessage(trimmed || outboundText);
     trackAgentUiEvent("studio_agent_send_requested", {
       mode_hint: options?.modeHint ?? "chat",
       has_attachments: agentAttachments.length > 0,
@@ -474,14 +521,87 @@ export default function AiStudioPage() {
       prompt_chars: outboundText.length,
     });
     if (!agentSessionEnabled) setAgentSessionEnabled(true);
+    setAgentAttachmentError(null);
     agentUiBusyRef.current = true;
     setAgentUiBusy(true);
     const sentFromComposer = typeof textOverride !== "string";
-    if (sentFromComposer && trimmed) {
-      // Clear immediately so the user can draft the next message while the agent responds.
-      setAgentInput("");
-    }
     try {
+      const preparedImageUrls = new Map<string, string>();
+      const imageAttachmentsMissingUrl = agentAttachments.filter(
+        (attachment) => attachment.kind === "image" && !attachment.imageUrl?.trim()
+      );
+      if (imageAttachmentsMissingUrl.length > 0) {
+        const failedIds = imageAttachmentsMissingUrl.map((attachment) => attachment.id);
+        markAttachmentDelivery(
+          failedIds,
+          "failed",
+          "Image URL missing. Remove this image and attach it again."
+        );
+        setAgentAttachmentError(
+          "One or more attached images are missing a valid URL. Remove failed images and try again."
+        );
+        trackAgentUiEvent("studio_agent_attachment_missing_url", {
+          failed_image_attachments: failedIds.length,
+        });
+        return;
+      }
+      const imageAttachments = agentAttachments.filter(
+        (attachment): attachment is AgentAttachment =>
+          attachment.kind === "image" && Boolean(attachment.imageUrl?.trim())
+      );
+      if (imageAttachments.length > 0) {
+        const imageAttachmentIds = imageAttachments.map((attachment) => attachment.id);
+        markAttachmentDelivery(imageAttachmentIds, "preparing");
+
+        const preparedResults = await Promise.all(
+          imageAttachments.map(async (attachment) => {
+            const sourceUrl = attachment.imageUrl?.trim() ?? "";
+            const safeUrl = sourceUrl ? await prepareImageUrl(sourceUrl) : null;
+            return {
+              attachmentId: attachment.id,
+              safeUrl,
+            };
+          })
+        );
+
+        const failedAttachmentIds: string[] = [];
+        preparedResults.forEach(({ attachmentId, safeUrl }) => {
+          if (safeUrl?.startsWith("https://")) {
+            preparedImageUrls.set(attachmentId, safeUrl);
+            return;
+          }
+          failedAttachmentIds.push(attachmentId);
+        });
+
+        const successfulAttachmentIds = imageAttachmentIds.filter(
+          (id) => !failedAttachmentIds.includes(id)
+        );
+        if (successfulAttachmentIds.length) {
+          markAttachmentDelivery(successfulAttachmentIds, "ready", null);
+        }
+        if (failedAttachmentIds.length) {
+          markAttachmentDelivery(
+            failedAttachmentIds,
+            "failed",
+            "Image upload/preparation failed. Remove this image and try again."
+          );
+          setAgentAttachmentError(
+            "One or more attached images failed to prepare. Remove failed images and try again."
+          );
+          trackAgentUiEvent("studio_agent_attachment_prepare_failed", {
+            failed_image_attachments: failedAttachmentIds.length,
+            attempted_image_attachments: imageAttachmentIds.length,
+          });
+          return;
+        }
+      }
+
+      const optimisticUserMessageId = appendUserMessage(trimmed || outboundText);
+      if (sentFromComposer && trimmed) {
+        // Clear after preflight succeeds so failed prep does not erase user input.
+        setAgentInput("");
+      }
+
       const baseContext = getAgentContext({
         lastAssistantMessage: latestAssistantMessage,
         selectedOverride: options?.selectedOverride,
@@ -513,11 +633,12 @@ export default function AiStudioPage() {
               aspect: attachment.aspect ?? null,
               caption: attachmentText,
             });
-            if (attachment.imageUrl) {
+            const safeImageUrl = preparedImageUrls.get(attachment.id);
+            if (safeImageUrl) {
               attachmentMedia.push({
                 id: referenceId,
                 kind: "image",
-                url: attachment.imageUrl,
+                url: safeImageUrl,
                 thumbnailAlt: attachmentText,
               });
             }
@@ -556,23 +677,6 @@ export default function AiStudioPage() {
           focusedSource: hasImageAttachments ? "image" : "prompt",
           focusedReferenceId:
             mergedSelectedReferenceIds.length === 1 ? mergedSelectedReferenceIds[0] : null,
-        };
-      }
-
-      if (mediaPatchedContext.media?.length) {
-        const hydratedMedia: AgentMediaPreview[] = [];
-        for (const mediaItem of mediaPatchedContext.media.slice(0, MAX_AGENT_IMAGE_ATTACHMENTS)) {
-          const sourceUrl = mediaItem.url?.trim() || mediaItem.dataUrl?.trim() || "";
-          if (!sourceUrl) continue;
-          const safeUrl = await prepareImageUrl(sourceUrl);
-          if (safeUrl?.startsWith("https://")) {
-            hydratedMedia.push({ ...mediaItem, url: safeUrl, dataUrl: undefined });
-            continue;
-          }
-        }
-        mediaPatchedContext = {
-          ...mediaPatchedContext,
-          media: hydratedMedia,
         };
       }
 
@@ -954,6 +1058,7 @@ export default function AiStudioPage() {
 
   const handleClearAgentChat = () => {
     resetAgentChat();
+    setAgentAttachmentError(null);
     setLatestAgentPrompt(null);
     setPromptOrigin("manual");
     setAgentActions(undefined);
@@ -1026,6 +1131,19 @@ export default function AiStudioPage() {
       return new Set(filtered);
     });
   }, [failedOutputs]);
+
+  useEffect(() => {
+    const settled = outputs
+      .filter((item) => item.taskState === "success" || item.taskState === "fail")
+      .map((item) => `${item.id}:${item.taskState}:${item.taskId ?? ""}`);
+    const nextSignatures = new Set(settled);
+    const hasNewSettledGeneration = settled.some(
+      (signature) => !settledGenerationSignaturesRef.current.has(signature)
+    );
+    settledGenerationSignaturesRef.current = nextSignatures;
+    if (!hasNewSettledGeneration) return;
+    void refreshBalance({ silent: true, preferLedger: true });
+  }, [outputs, refreshBalance]);
 
   const dismissFailure = (id: string) => {
     setDismissedFailureIds((prev) => {
@@ -1114,21 +1232,44 @@ export default function AiStudioPage() {
     costParamsForModel,
   });
 
-  const isVideoWorkflowSelected = selectedTool === "video" || selectedTool === "kling";
+  const isCreateWorkflowSelected = selectedTool === "create" || selectedTool === "text";
   const isEditWorkflowSelected = selectedTool === "edit" || selectedTool === "image";
+  const isVideoWorkflowSelected = selectedTool === "video" || selectedTool === "kling";
+  const hasModelSelected = Boolean(model);
+  const hasPrimaryReferenceImage = Boolean(referenceImageUrl);
+  const hasFirstLastFrameReferences = Boolean(referenceImageUrl && extraImageUrls[0]);
+  const hasMotionReferences = Boolean(referenceImageUrl && motionReferenceVideoUrl);
+  const hasEditPromptText = Boolean(editReferenceText.trim());
   const hasVideoPromptText = Boolean(videoReferenceText.trim());
-  const hasVideoPrimaryReference = Boolean(referenceImageUrl);
-  const isVideoPromptReferenceGenerateDisabled =
-    isGenerateDisabled ||
-    agentBusy ||
-    !hasVideoPromptText ||
-    (videoReferenceMode === "standard" && !hasVideoPrimaryReference);
-  const isEditPromptReferenceGenerateDisabled = isGenerateDisabled || agentBusy;
-  const disableReferencePromptGenerate = isVideoWorkflowSelected
-    ? isVideoPromptReferenceGenerateDisabled
+
+  // Small prompt-reference Generate button policy (separate from large Generate button rules).
+  const canShowCreatePromptReferenceGenerate = hasModelSelected && hasSufficientCreditsForCost;
+  const canShowEditPromptReferenceGenerate =
+    hasModelSelected &&
+    hasSufficientCreditsForCost &&
+    hasPrimaryReferenceImage &&
+    !hasEditPromptText;
+  const videoReferencesReadyForPromptGenerate =
+    videoReferenceMode === "standard"
+      ? hasPrimaryReferenceImage
+      : videoReferenceMode === "keyframes"
+        ? hasFirstLastFrameReferences
+        : videoReferenceMode === "motion"
+          ? hasMotionReferences
+          : hasPrimaryReferenceImage;
+  const canShowVideoPromptReferenceGenerate =
+    hasModelSelected &&
+    hasSufficientCreditsForCost &&
+    !hasVideoPromptText &&
+    videoReferencesReadyForPromptGenerate;
+  const showReferencePromptGenerate = isCreateWorkflowSelected
+    ? canShowCreatePromptReferenceGenerate
     : isEditWorkflowSelected
-      ? isEditPromptReferenceGenerateDisabled
-      : !model || !hasSufficientCreditsForCost;
+      ? canShowEditPromptReferenceGenerate
+      : isVideoWorkflowSelected
+        ? canShowVideoPromptReferenceGenerate
+        : false;
+  const disableReferencePromptGenerate = !showReferencePromptGenerate;
 
   const handleBlockedGeneration = () => {
     if (generationGuardrail) {
@@ -1264,12 +1405,12 @@ export default function AiStudioPage() {
     agentActions,
     agentInput,
     agentIsSending: agentBusy,
-    agentError: agentError ?? undefined,
+    agentError: agentAttachmentError ?? agentError ?? undefined,
     agentPrimarySource,
     stagedPrompt: stagedAgentPrompt,
     stagedAttachments: agentAttachments,
     agentDropActive: isAgentDropActive,
-    onAgentInputChange: setAgentInput,
+    onAgentInputChange: handleAgentInputChange,
     onAgentSend: handleAgentSend,
     onAgentEnhanceSend: handleAgentEnhanceSend,
     onAgentMessageClick: handleAgentMessageClick,
@@ -1452,7 +1593,7 @@ export default function AiStudioPage() {
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
           isGenerateDisabled: isGenerateDisabled || agentBusy,
           agentIsSending: agentBusy,
-          agentError: agentError ?? undefined,
+          agentError: agentAttachmentError ?? agentError ?? undefined,
           onAgentEnhanceSend: handleReferencePromptEnhance,
           beginnerMode,
         }}
@@ -1463,6 +1604,7 @@ export default function AiStudioPage() {
           showHeader: false,
           onOutputMediaLoaded: onReferenceOutputMediaLoaded,
           linkedPromptReferenceIds,
+          showPromptGenerate: showReferencePromptGenerate,
           disablePromptGenerate: disableReferencePromptGenerate,
           onSelectOutput: handleSelectOutput,
           onOpenDetails: setDetailOutputId,
@@ -1470,6 +1612,7 @@ export default function AiStudioPage() {
           onSaveToLibrary: (output) => handleSaveReference(output.id),
           onDownload: (output) => handleDownloadReference(output.id),
           onGeneratePrompt: (output) => handleGenerateFromPromptReference(output.id),
+          onRetryStatus: (output) => retryOutputStatus(output.id),
           onDeleteOutput: deleteOutput,
           generateCostCredits: currentCostCredits,
           selectedTool,
@@ -1511,7 +1654,7 @@ export default function AiStudioPage() {
           agentPrimarySource,
           stagedAttachments: agentAttachments,
           agentDropActive: isAgentDropActive,
-          onInputChange: setAgentInput,
+          onInputChange: handleAgentInputChange,
           onSend: handleAgentSend,
           onAddToGrid: handleAgentAddToGrid,
           onClose: handleCloseAgentChat,

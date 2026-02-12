@@ -540,6 +540,42 @@
   text-transform: uppercase;
 }
 
+.reference-status-retry-btn {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(15, 19, 30, 0.82);
+  color: #f4f7ff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 6px 12px;
+  min-height: 28px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.34);
+  cursor: pointer;
+  z-index: 4;
+}
+
+.reference-status-retry-btn:hover {
+  border-color: rgba(116, 206, 255, 0.58);
+  background: rgba(17, 30, 46, 0.92);
+}
+
+.reference-status-retry-btn:focus-visible {
+  outline: 2px solid rgba(86, 210, 255, 0.9);
+  outline-offset: 2px;
+}
+
+.reference-status-retry-btn--loading {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+}
+
 .reference-loading {
   position: absolute;
   inset: 0;

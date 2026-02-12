@@ -272,7 +272,8 @@ export function DetailModal({
     }
   })();
 
-  const promptFilename = looksLikeFilename(output?.prompt) ? output.prompt.trim() : null;
+  const outputPrompt = output?.prompt?.trim() ?? null;
+  const promptFilename = looksLikeFilename(outputPrompt) ? outputPrompt : null;
   const uploadedHeaderFilename = isUploadedReference ? (promptFilename ?? filenameFromUrl) : null;
   const downloadFilename = uploadedHeaderFilename ?? filenameFromUrl ?? output?.id ?? "media";
   const normalizedFilename = uploadedHeaderFilename?.toLowerCase() ?? "";
@@ -288,6 +289,7 @@ export function DetailModal({
     if (!trimmedPrompt) return;
     if (isPromptEditable && output?.id && hasPromptEdits) {
       onUpdatePrompt(output.id, draftPrompt);
+      return;
     }
     if (onSavePrompt) {
       onSavePrompt(draftPrompt);

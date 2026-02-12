@@ -9,6 +9,7 @@ import {
   extractVideoDragDropPayload,
   isImageDragTransfer,
   isVideoDragTransfer,
+  looksLikeVideoUrl,
 } from "../utils/dragDrop";
 
 export type ReferenceStepKey =
@@ -246,8 +247,17 @@ export const useReferencePropertiesInteractions = ({
     setMotionVideoDragActive(false);
 
     const payload = extractVideoDragDropPayload(event.dataTransfer);
-    if (payload.videoUrl) {
-      onMotionVideoChange?.(payload.videoUrl);
+    let nextVideoUrl = payload.videoUrl;
+
+    if (!nextVideoUrl && payload.referenceId && resolvePreviewUrlById) {
+      const resolvedUrl = resolvePreviewUrlById(payload.referenceId);
+      if (resolvedUrl && looksLikeVideoUrl(resolvedUrl)) {
+        nextVideoUrl = resolvedUrl;
+      }
+    }
+
+    if (nextVideoUrl) {
+      onMotionVideoChange?.(nextVideoUrl);
     } else if (event.dataTransfer.files?.length) {
       const videoFile = Array.from(event.dataTransfer.files).find((f) =>
         f.type.startsWith("video/")

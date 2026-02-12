@@ -201,6 +201,25 @@ export function PromptStep({
   const shouldDisableChatPin = chatPromptSaveButtonUnstyled
     ? false
     : shouldDisableSave || !canPinAgentInput;
+  const imageAttachmentCounts = React.useMemo(() => {
+    const images = stagedAttachments.filter((attachment) => attachment.kind === "image");
+    const total = images.length;
+    const preparing = images.filter(
+      (attachment) => (attachment.deliveryStatus ?? "pending") === "preparing"
+    ).length;
+    const ready = images.filter(
+      (attachment) => (attachment.deliveryStatus ?? "pending") === "ready"
+    ).length;
+    const failed = images.filter(
+      (attachment) => (attachment.deliveryStatus ?? "pending") === "failed"
+    ).length;
+    return {
+      total,
+      preparing,
+      ready,
+      failed,
+    };
+  }, [stagedAttachments]);
   const handleAgentSendClick = () => {
     onAgentSend?.();
     requestAnimationFrame(() => agentInputRef.current?.focus());
@@ -406,6 +425,19 @@ export function PromptStep({
                   <p className="tiny helper-text agent-composer-hint">
                     Enter to send. Shift+Enter for a new line.
                   </p>
+                  {imageAttachmentCounts.total > 0 ? (
+                    <p className="tiny helper-text agent-composer-hint agent-composer-hint--media">
+                      Vision images: {imageAttachmentCounts.ready}/{imageAttachmentCounts.total}{" "}
+                      ready
+                      {imageAttachmentCounts.preparing > 0
+                        ? `, ${imageAttachmentCounts.preparing} preparing`
+                        : ""}
+                      {imageAttachmentCounts.failed > 0
+                        ? `, ${imageAttachmentCounts.failed} failed`
+                        : ""}
+                      . Max 3 sent per message.
+                    </p>
+                  ) : null}
                   <AgentPromptActions
                     showPrimaryPromptStatus={false}
                     primaryPrompt={agentPrimaryPrompt ?? prompt}

@@ -41,6 +41,7 @@ export type ReferenceCanvasProps = {
   onSelectOutput: (id: string) => void;
   onOpenDetails: (id: string) => void;
   selectedTool: ToolId | null;
+  showPromptGenerate?: boolean;
   disablePromptGenerate?: boolean;
   onDropFiles?: (files: FileList) => void;
   onTriggerFileSelect?: () => void;
@@ -49,6 +50,7 @@ export type ReferenceCanvasProps = {
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
   onGeneratePrompt?: (output: StudioOutput) => void;
+  onRetryStatus?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
   generateCostCredits?: number | null;
 };
@@ -65,6 +67,7 @@ export function ReferenceCanvas({
   onSelectOutput,
   onOpenDetails,
   selectedTool,
+  showPromptGenerate = true,
   disablePromptGenerate = false,
   onDropFiles,
   onTriggerFileSelect,
@@ -73,6 +76,7 @@ export function ReferenceCanvas({
   onSaveToLibrary,
   onDownload,
   onGeneratePrompt,
+  onRetryStatus,
   onDeleteOutput,
   generateCostCredits,
 }: ReferenceCanvasProps) {
@@ -216,6 +220,8 @@ export function ReferenceCanvas({
               const isPromptOnly = !item.previewUrl && !!item.previewText;
               const isLinkedPromptReference =
                 isPromptOnly && linkedPromptReferenceIdSet.has(item.id);
+              const canRetryStatus =
+                Boolean(onRetryStatus && item.taskId) && (isFailing || isLoading);
               const saveDisabled = item.saveState === "saving";
               const saveLabel =
                 item.saveState === "failed" ? "Retry save" : "Save to media library";
@@ -285,12 +291,38 @@ export function ReferenceCanvas({
                           {item.errorMessage.replace(/fal(\.ai)?/gi, "the provider")}
                         </div>
                       ) : null}
+                      {canRetryStatus && activeOutputId === item.id ? (
+                        <button
+                          type="button"
+                          className="reference-status-retry-btn"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onSelectOutput(item.id);
+                            onRetryStatus?.(item);
+                          }}
+                        >
+                          Retry status
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                   {showSpinner ? (
                     <div className="reference-loading">
                       <div className="reference-spinner" />
                     </div>
+                  ) : null}
+                  {showSpinner && canRetryStatus && activeOutputId === item.id ? (
+                    <button
+                      type="button"
+                      className="reference-status-retry-btn reference-status-retry-btn--loading"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSelectOutput(item.id);
+                        onRetryStatus?.(item);
+                      }}
+                    >
+                      Retry status
+                    </button>
                   ) : null}
                   {isLinkedPromptReference ? (
                     <span className="reference-card-link-dot" aria-hidden="true" />
@@ -378,10 +410,11 @@ export function ReferenceCanvas({
                   {isPromptOnly &&
                   onGeneratePrompt &&
                   activeOutputId === item.id &&
-                  !disablePromptGenerate ? (
+                  showPromptGenerate ? (
                     <button
                       type="button"
                       className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill"
+                      disabled={disablePromptGenerate}
                       onClick={(event) => {
                         event.stopPropagation();
                         onSelectOutput(item.id);

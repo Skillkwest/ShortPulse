@@ -4,6 +4,8 @@
  */
 export type AgentMessageRole = "user" | "assistant" | "system" | "observation";
 
+export type AgentAttachmentDeliveryStatus = "pending" | "preparing" | "ready" | "failed";
+
 export type AgentMessage = {
   id?: string;
   role: AgentMessageRole;
@@ -17,6 +19,8 @@ export type AgentAttachment = {
   text?: string | null;
   imageUrl?: string | null;
   aspect?: string | null;
+  deliveryStatus?: AgentAttachmentDeliveryStatus;
+  deliveryError?: string | null;
 };
 
 export type AgentReferenceSummary = {

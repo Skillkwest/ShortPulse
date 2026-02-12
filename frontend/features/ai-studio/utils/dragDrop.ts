@@ -267,13 +267,18 @@ export const isImageDragTransfer = (transfer: DataTransfer) => {
 };
 
 export const isVideoDragTransfer = (transfer: DataTransfer) => {
+  // For dragenter/dragover, some browsers do not expose payload text values yet.
+  // Prefer transfer types for acceptance, then validate/resolve on drop.
+  if (transfer.types.includes("Files")) return true;
+  if (
+    transfer.types.includes("text/reference-url") ||
+    transfer.types.includes("text/reference-id")
+  ) {
+    return true;
+  }
+  if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) return true;
   const videoFile = findVideoFile(transfer.files);
   if (videoFile) return true;
-  if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) {
-    const uriList = transfer.getData("text/uri-list");
-    const imageUrl = transfer.getData("image/url");
-    if (looksLikeVideoUrl(uriList) || looksLikeVideoUrl(imageUrl)) return true;
-  }
   const plainText = transfer.getData("text/plain");
   return looksLikeVideoUrl(plainText);
 };

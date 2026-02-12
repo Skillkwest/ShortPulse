@@ -8,6 +8,15 @@ import { AgentInputBar } from "../inputs/AgentInputBar";
 import { AgentPromptActions } from "../components/AgentPromptActions";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../types";
 
+const resolveAttachmentStatusLabel = (attachment: AgentAttachment): string | null => {
+  if (attachment.kind !== "image") return null;
+  const status = attachment.deliveryStatus ?? "pending";
+  if (status === "ready") return "Ready";
+  if (status === "preparing") return "Preparing";
+  if (status === "failed") return "Failed";
+  return "Pending";
+};
+
 type AgentChatPanelProps = {
   messages: AgentMessage[];
   input: string;
@@ -185,10 +194,15 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                     {stagedAttachments.map((attachment) => {
                       const isLinkedPromptRef =
                         attachment.kind === "prompt" && Boolean(attachment.referenceId);
+                      const attachmentStatusLabel = resolveAttachmentStatusLabel(attachment);
+                      const attachmentStatusClass =
+                        attachment.kind === "image"
+                          ? `is-${attachment.deliveryStatus ?? "pending"}`
+                          : "";
                       return (
                         <div
                           key={attachment.id}
-                          className={`agent-attachment-card agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""}`}
+                          className={`agent-attachment-card agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""} ${attachmentStatusClass}`}
                         >
                           {attachment.kind === "image" && attachment.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -204,6 +218,18 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                           )}
                           {isLinkedPromptRef ? (
                             <span className="agent-attachment-link-dot" aria-hidden="true" />
+                          ) : null}
+                          {attachmentStatusLabel ? (
+                            <span
+                              className={`agent-attachment-status agent-attachment-status--${attachment.deliveryStatus ?? "pending"}`}
+                              aria-label={`Image send status: ${attachmentStatusLabel}`}
+                              title={
+                                attachment.deliveryError?.trim() ||
+                                `Image send status: ${attachmentStatusLabel}`
+                              }
+                            >
+                              {attachmentStatusLabel}
+                            </span>
                           ) : null}
                           {onRemoveAttachment ? (
                             <button

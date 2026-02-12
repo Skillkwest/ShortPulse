@@ -695,11 +695,17 @@ export const useAiStudioState = () => {
       taskId,
       provider,
       message,
+      reasonCode,
     }: {
       outputId: string;
       taskId?: string;
       provider: Provider;
       message: string;
+      reasonCode?:
+        | "no_media_after_terminal_success"
+        | "poll_timeout"
+        | "provider_error"
+        | "status_poll_error";
     }) => {
       delete pendingAutoSavesRef.current[outputId];
       const output = findOutputById(outputId);
@@ -722,6 +728,7 @@ export const useAiStudioState = () => {
             status: "fail",
             metadata: {
               error: message,
+              failure_reason_code: reasonCode ?? null,
             },
           });
           await logMediaEvent({
@@ -731,6 +738,8 @@ export const useAiStudioState = () => {
             metadata: {
               error: message,
               provider,
+              model_id: output.modelId ?? output.model,
+              failure_reason_code: reasonCode ?? null,
             },
           });
         } catch {
@@ -748,12 +757,37 @@ export const useAiStudioState = () => {
     [finalizeDeferredAutoSave]
   );
 
-  const { startPollingTask } = useAiStudioTasks({
+  const { startPollingTask, clearPollTimer } = useAiStudioTasks({
     updateOutputById,
     notifyGenerationFailure,
     onGenerationSuccess: handleGenerationSuccess,
     onGenerationFailure: handleGenerationFailure,
   });
+
+  const retryOutputStatus = useCallback(
+    (outputId: string) => {
+      const output = findOutputById(outputId);
+      if (!output) return;
+      const taskId = output.taskId?.trim();
+      if (!taskId) {
+        setUiNotice("Unable to retry status because this generation has no task id.");
+        return;
+      }
+      const provider = (output.provider as Provider | undefined) ?? "kei";
+      updateOutputById(outputId, (item) => ({
+        ...item,
+        taskState: "running",
+        status: "ready",
+        timestamp: "Retrying status...",
+        errorMessage: null,
+        errorMessageShort: null,
+        errorDetail: null,
+      }));
+      clearPollTimer(outputId);
+      startPollingTask(taskId, outputId, 0, provider);
+    },
+    [clearPollTimer, findOutputById, setUiNotice, startPollingTask, updateOutputById]
+  );
 
   const updateOutputPrompt = useCallback(
     (id: string, promptText: string) => {
@@ -1224,5 +1258,6 @@ export const useAiStudioState = () => {
     getDefaultDurationSeconds,
     getAgentContext,
     onReferenceOutputMediaLoaded,
+    retryOutputStatus,
   };
 };

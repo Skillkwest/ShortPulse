@@ -3,7 +3,11 @@
  * Verifies internal reference drags prefer explicit reference URLs over ambient URI-list payloads.
  */
 import { describe, expect, it } from "vitest";
-import { extractDragDropPayload, extractVideoDragDropPayload } from "../dragDrop";
+import {
+  extractDragDropPayload,
+  extractVideoDragDropPayload,
+  isVideoDragTransfer,
+} from "../dragDrop";
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
 
@@ -68,5 +72,16 @@ describe("dragDrop payload extraction", () => {
     expect(payload.referenceId).toBe("ref-video-1");
     expect(payload.videoUrl).toBe("https://cdn.example.com/reference-video.mp4");
     expect(payload.promptText).toBe("camera move");
+  });
+
+  it("accepts internal reference drags for video targets during dragover", () => {
+    const transfer = makeTransfer({
+      "text/reference-id": "ref-video-2",
+      "text/reference-url": "",
+      "text/uri-list": "",
+      "text/plain": "",
+    });
+
+    expect(isVideoDragTransfer(transfer)).toBe(true);
   });
 });

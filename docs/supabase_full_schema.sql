@@ -30,7 +30,7 @@ create table if not exists media_files (
     storage_path text not null,
     file_type text not null,
     file_size bigint,
-    source text not null default 'upload',
+    source text not null default 'upload', -- upload | private_upload | ai_studio
     source_ref uuid,
     prompt_id uuid,
     metadata jsonb not null default '{}'::jsonb,
@@ -38,6 +38,33 @@ create table if not exists media_files (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
+
+alter table media_files
+    drop constraint if exists media_files_source_check;
+alter table media_files
+    add constraint media_files_source_check
+    check (source in ('upload', 'private_upload', 'ai_studio'));
+
+alter table media_files
+    drop constraint if exists media_files_private_source_shape_check;
+alter table media_files
+    add constraint media_files_private_source_shape_check
+    check (
+        source <> 'private_upload'
+        or (
+            lower(coalesce(file_type, '')) = 'image'
+            and storage_path like user_id::text || '/private/images/%'
+        )
+    );
+
+alter table media_files
+    drop constraint if exists media_files_private_path_source_check;
+alter table media_files
+    add constraint media_files_private_path_source_check
+    check (
+        storage_path not like user_id::text || '/private/images/%'
+        or source = 'private_upload'
+    );
 
 create index if not exists ix_media_files_user_created on media_files (user_id, created_at desc);
 create index if not exists ix_media_files_user_source_created on media_files (user_id, source, created_at desc);

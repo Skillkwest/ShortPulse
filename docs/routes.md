@@ -10,7 +10,7 @@ Reference for pages, auth expectations, and ownership.
 | `/performance` | Yes | Performance analytics | Post‑MVP (Coming Soon). |
 | `/performance-soon` | Yes | Temporary placeholder for the analytics workspace | Explains that the Performance surface is still under construction. |
 | `/saved-creators` | Yes | Saved creators list | Post‑MVP (Coming Soon). |
-| `/media-library` | Yes | Private bucket file manager | Uses `media_library` bucket + `media_files` table (RLS). |
+| `/media-library` | Yes | Private bucket file manager | Uses `media_library` bucket + `media_files` table (RLS), including Private tab uploads under `<auth.uid()>/private/images/...`. |
 | `/ai-studio` | Yes | Creative canvas (prompt/image/video) | `/creator-studio` forwards here. |
 | `/character` | Yes | Character tool (identity ingest + consistent image gen) | Frontend-triggered; Fal proxy by default. |
 | `/character-soon` | Yes | Temporary placeholder for the Character workspace | Linked from the dashboard while Character is staged. |

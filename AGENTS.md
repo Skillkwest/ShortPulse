@@ -30,3 +30,4 @@ npm run build
 - When adding routes, update `README.md` and the relevant SOP/architecture doc under `docs/`.
 - For durable architecture decisions, add an ADR under `docs/adr/`.
 - Prefer existing references first: `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.
+- After completing a task, always audit your work to see if you have missed anything. Make any new high value changes you see fit. Then provide high level suggusted next steps upon completion of your task.

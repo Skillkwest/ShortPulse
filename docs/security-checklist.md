@@ -13,7 +13,8 @@ Purpose: ensure user isolation and authenticated access across the frontend-only
 - **Schema parity**: Keep `ai_credit_ledger` columns aligned with app expectations (`source`, `source_ref`, `metadata`, `created_by`) or run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` before enabling admin credit operations.
 - **Reservation lifecycle**: Keep `ai_credit_reservations` + reservation RPC functions aligned with app expectations (run `sql/migrations/002_add_generation_credit_reservations.sql` before enabling production generation billing).
 - **Webhook idempotency**: Persist Stripe event IDs (`stripe_event_log`) and skip duplicates before applying credits/subscription updates.
-- **Storage isolation**: Keep the `media_library` bucket private; require folder prefixes that start with `auth.uid()` (see `sql/storage_policies.sql`).
+- **Storage isolation**: Keep the `media_library` bucket private; require folder prefixes that start with `auth.uid()` (see `sql/storage_policies.sql`). Private tab uploads must stay under `<auth.uid()>/private/images/...`.
+- **Media source integrity**: Keep `media_files.source` constrained to `upload | private_upload | ai_studio` and enforce private-path/file-type checks (run `sql/migrations/003_add_private_media_source.sql` and `sql/migrations/004_add_private_media_integrity_checks.sql`).
 - **Frontend route protection**: Guard dashboard/performance/saved-creators/media-library/profile; redirect unauthenticated users to `/auth`.
 - **Key management**: Never expose the service-role key. Use only the anon key in the browser.
 - **Network calls**: All Supabase requests already include the user’s JWT; avoid any other unauthenticated calls for user-owned data.

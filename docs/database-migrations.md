@@ -66,3 +66,13 @@ For environments bootstrapped from `docs/supabase_full_schema.sql`, apply these 
 If upgrading from a legacy ledger schema, also apply:
 
 3. `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`
+
+If enabling the Media Library Private tab, also apply:
+
+4. `sql/migrations/003_add_private_media_source.sql`
+5. `sql/migrations/004_add_private_media_integrity_checks.sql`
+
+If enabling the derivative-first media optimization architecture (virtualized grid + variant hints), also apply:
+
+6. `sql/migrations/005_add_media_processing_and_variants.sql`
+7. `sql/migrations/006_backfill_media_variant_hints.sql`

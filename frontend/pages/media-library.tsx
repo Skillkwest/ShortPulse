@@ -4,20 +4,35 @@
  */
 import Head from "next/head";
 import Link from "next/link";
-import { CheckCircle, CloudArrowUp, DownloadSimple, MagnifyingGlass } from "phosphor-react";
+import {
+  CheckCircle,
+  CloudArrowUp,
+  DownloadSimple,
+  House,
+  LockSimple,
+  MagnifyingGlass,
+  ShieldCheck,
+  Trash,
+} from "phosphor-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createMediaPerfTimer, logMediaPerf } from "../lib/mediaPerfTelemetry";
+import { resolvePreviewStoragePath } from "../lib/mediaPreviewPath";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 
 type MediaRow = {
   id: string;
   filename: string;
   storage_path: string;
+  preview_storage_path?: string;
   file_type: "image" | "video" | string;
   file_size: number | null;
   source?: "upload" | "ai_studio" | string | null;
   source_ref?: string | null;
   prompt_id?: string | null;
   metadata?: Record<string, unknown> | null;
+  thumb_variant_path?: string | null;
+  poster_variant_path?: string | null;
+  preview_variant_path?: string | null;
   updated_at?: string;
   created_at: string;
   signedUrl?: string;
@@ -35,9 +50,16 @@ type PromptRow = {
   updated_at: string;
 };
 
-type MediaTab = "uploaded_images" | "uploaded_videos" | "saved_prompts" | "ai_generations";
+type MediaTab =
+  | "uploaded_images"
+  | "uploaded_videos"
+  | "private"
+  | "saved_prompts"
+  | "ai_generations";
 
 const BUCKET = "media_library";
+const PRIVATE_MEDIA_SOURCE = "private_upload";
+const PRIVATE_MEDIA_FOLDER = "private";
 
 const sanitizeFileName = (name: string) => name.replace(/[^\w.-]+/g, "_");
 
@@ -47,6 +69,10 @@ const fileTypeFromMime = (mime: string) => {
 };
 
 const isVideoFile = (fileType?: string | null) => (fileType || "").startsWith("video");
+const isPrivateStoragePath = (storagePath?: string | null) =>
+  (storagePath ?? "").split("/").filter(Boolean).includes(PRIVATE_MEDIA_FOLDER);
+const isPrivateMediaFile = (file: Pick<MediaRow, "source" | "storage_path">) =>
+  (file.source ?? "") === PRIVATE_MEDIA_SOURCE || isPrivateStoragePath(file.storage_path);
 
 const logMediaEvent = async (
   eventType: string,
@@ -81,8 +107,26 @@ const formatDate = (value?: string | null) => {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 };
 
+const createdAtTime = (value?: string | null): number => {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const sortByCreatedAtDesc = <T extends { created_at?: string | null; id?: string | null }>(
+  rows: T[]
+): T[] =>
+  [...rows].sort((a, b) => {
+    const createdDelta = createdAtTime(b.created_at) - createdAtTime(a.created_at);
+    if (createdDelta !== 0) return createdDelta;
+    return (b.id ?? "").localeCompare(a.id ?? "");
+  });
+
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
+
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0;
 
 export default function MediaLibrary() {
   const [files, setFiles] = useState<MediaRow[]>([]);
@@ -98,6 +142,8 @@ export default function MediaLibrary() {
   const [aspectMap, setAspectMap] = useState<Record<string, number>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<MediaRow | null>(null);
+  const [deletingSingle, setDeletingSingle] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [focusedFile, setFocusedFile] = useState<MediaRow | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -105,6 +151,8 @@ export default function MediaLibrary() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [renameSuccess, setRenameSuccess] = useState(false);
   const signedUrlRetryRef = useRef<Record<string, number>>({});
+  const firstCardShellLoggedRef = useRef(false);
+  const firstMediaPaintLoggedRef = useRef(false);
   const totalBytes = useMemo(
     () => files.reduce((sum, file) => sum + (file.file_size || 0), 0),
     [files]
@@ -165,9 +213,22 @@ export default function MediaLibrary() {
       const attempts = signedUrlRetryRef.current[file.id] ?? 0;
       if (attempts >= 1) return;
       signedUrlRetryRef.current[file.id] = attempts + 1;
-      void refreshSignedUrl(file.id, file.storage_path);
+      void refreshSignedUrl(file.id, file.preview_storage_path ?? file.storage_path);
     },
     [refreshSignedUrl]
+  );
+
+  const markFirstMediaPaint = useCallback(
+    (assetKind: "image" | "video") => {
+      if (firstMediaPaintLoggedRef.current) return;
+      firstMediaPaintLoggedRef.current = true;
+      logMediaPerf("media.route.first_media_paint", {
+        surface: "media-library-route",
+        tab: activeTab,
+        asset_kind: assetKind,
+      });
+    },
+    [activeTab]
   );
 
   useEffect(() => {
@@ -182,27 +243,58 @@ export default function MediaLibrary() {
           return;
         }
         const [mediaResponse, promptResponse] = await Promise.all([
-          supabase.from("media_files").select("*").order("created_at", { ascending: false }),
-          supabase.from("media_prompts").select("*").order("created_at", { ascending: false }),
+          supabase
+            .from("media_files")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false }),
+          supabase
+            .from("media_prompts")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false }),
         ]);
         if (mediaResponse.error) throw mediaResponse.error;
         if (promptResponse.error) throw promptResponse.error;
 
         const rows = mediaResponse.data || [];
         const promptRows = promptResponse.data || [];
+        const finishSignBatch = createMediaPerfTimer({
+          surface: "media-library-route",
+          tab: activeTab,
+          batch_size: rows.length,
+        });
         const signed = await Promise.all(
           rows.map(async (row) => {
-            const signedUrl = await signStoragePath(row.storage_path).catch((signedError) => {
-              console.error("Signed URL error", signedError);
-              return null;
-            });
+            const previewStoragePath = resolvePreviewStoragePath(row);
+            const signedUrl = await signStoragePath(previewStoragePath ?? row.storage_path).catch(
+              (signedError) => {
+                console.error("Signed URL error", signedError);
+                return null;
+              }
+            );
             return {
               ...row,
               source: row.source ?? "upload",
+              preview_storage_path: previewStoragePath ?? row.storage_path,
               signedUrl: signedUrl ?? undefined,
             } as MediaRow;
           })
         );
+        const signedCount = signed.filter((row) => Boolean(row.signedUrl)).length;
+        const failedCount = Math.max(0, rows.length - signedCount);
+        finishSignBatch("media.sign.batch.completed", {
+          signed_count: signedCount,
+          failed_count: failedCount,
+        });
+        if (failedCount > 0) {
+          logMediaPerf("media.sign.batch.failed", {
+            surface: "media-library-route",
+            tab: activeTab,
+            batch_size: rows.length,
+            failed_count: failedCount,
+          });
+        }
         if (active) {
           setFiles(signed);
           setPrompts(promptRows as PromptRow[]);
@@ -219,7 +311,7 @@ export default function MediaLibrary() {
     return () => {
       active = false;
     };
-  }, [signStoragePath]);
+  }, [activeTab, signStoragePath]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const list = event.target.files;
@@ -262,15 +354,26 @@ export default function MediaLibrary() {
       }
 
       const filesToProcess = incoming ?? selectedFiles;
+      const isPrivateUpload = activeTab === "private";
+      if (isPrivateUpload) {
+        const hasUnsupportedFile = filesToProcess.some(
+          (file) => !file.type.toLowerCase().startsWith("image/")
+        );
+        if (hasUnsupportedFile) {
+          setError("Private uploads only support images.");
+          return;
+        }
+      }
       const uploads: MediaRow[] = [];
       // create optimistic placeholders so users see upload activity in the grid
       const placeholders: MediaRow[] = filesToProcess.map((file) => ({
         id: crypto.randomUUID(),
         filename: file.name,
         storage_path: "",
+        preview_storage_path: "",
         file_type: fileTypeFromMime(file.type || "application/octet-stream"),
         file_size: file.size,
-        source: "upload",
+        source: isPrivateUpload ? PRIVATE_MEDIA_SOURCE : "upload",
         created_at: new Date().toISOString(),
         status: "uploading",
       }));
@@ -284,7 +387,9 @@ export default function MediaLibrary() {
         const typeFolder = fileTypeFromMime(mimeType) === "video" ? "videos" : "images";
         const extension = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
         const storedName = `${crypto.randomUUID()}-${sanitizeFileName(file.name.replace(extension, ""))}${extension}`;
-        const path = `${userId}/${typeFolder}/${storedName}`;
+        const path = isPrivateUpload
+          ? `${userId}/${PRIVATE_MEDIA_FOLDER}/images/${storedName}`
+          : `${userId}/${typeFolder}/${storedName}`;
 
         const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
           upsert: false,
@@ -302,7 +407,7 @@ export default function MediaLibrary() {
             storage_path: path,
             file_type: fileTypeFromMime(mimeType),
             file_size: file.size,
-            source: "upload",
+            source: isPrivateUpload ? PRIVATE_MEDIA_SOURCE : "upload",
           })
           .select("*")
           .single();
@@ -310,9 +415,11 @@ export default function MediaLibrary() {
           throw insertError;
         }
 
+        const previewStoragePath =
+          resolvePreviewStoragePath(inserted ?? { storage_path: path }) ?? path;
         const { data: signedData, error: signedError } = await supabase.storage
           .from(BUCKET)
-          .createSignedUrl(path, 3600);
+          .createSignedUrl(previewStoragePath, 3600);
         if (signedError) {
           throw signedError;
         }
@@ -322,11 +429,13 @@ export default function MediaLibrary() {
             storage_path: path,
             file_type: fileTypeFromMime(mimeType),
             file_size: file.size,
+            visibility: isPrivateUpload ? "private" : "standard",
           });
         }
 
         uploads.push({
           ...inserted,
+          preview_storage_path: previewStoragePath,
           signedUrl: signedData?.signedUrl,
           status: "ready",
         });
@@ -366,7 +475,14 @@ export default function MediaLibrary() {
 
   const searchTerm = useMemo(() => search.trim().toLowerCase(), [search]);
   const uploadFiles = useMemo(
-    () => files.filter((f) => (f.source ?? "upload") === "upload"),
+    () =>
+      sortByCreatedAtDesc(
+        files.filter((f) => (f.source ?? "upload") === "upload" && !isPrivateMediaFile(f))
+      ),
+    [files]
+  );
+  const privateFiles = useMemo(
+    () => sortByCreatedAtDesc(files.filter((f) => isPrivateMediaFile(f))),
     [files]
   );
   const uploadedImages = useMemo(
@@ -378,7 +494,7 @@ export default function MediaLibrary() {
     [uploadFiles]
   );
   const aiGenerationFiles = useMemo(
-    () => files.filter((f) => (f.source ?? "upload") === "ai_studio"),
+    () => sortByCreatedAtDesc(files.filter((f) => (f.source ?? "upload") === "ai_studio")),
     [files]
   );
 
@@ -388,30 +504,45 @@ export default function MediaLibrary() {
         ? uploadedImages
         : activeTab === "uploaded_videos"
           ? uploadedVideos
-          : activeTab === "ai_generations"
-            ? aiGenerationFiles
-            : [];
+          : activeTab === "private"
+            ? privateFiles
+            : activeTab === "ai_generations"
+              ? aiGenerationFiles
+              : [];
     if (!searchTerm) return base;
     return base.filter((f) => {
       const name = f.filename?.toLowerCase() ?? "";
       const path = f.storage_path?.toLowerCase() ?? "";
       return name.includes(searchTerm) || path.includes(searchTerm);
     });
-  }, [activeTab, aiGenerationFiles, searchTerm, uploadedImages, uploadedVideos]);
+  }, [activeTab, aiGenerationFiles, privateFiles, searchTerm, uploadedImages, uploadedVideos]);
 
   const filteredPrompts = useMemo(() => {
     if (activeTab !== "saved_prompts") return [];
-    if (!searchTerm) return prompts;
-    return prompts.filter((p) => {
-      const title = p.title?.toLowerCase() ?? "";
-      const text = p.prompt_text?.toLowerCase() ?? "";
-      return title.includes(searchTerm) || text.includes(searchTerm);
-    });
+    const promptRows = !searchTerm
+      ? prompts
+      : prompts.filter((p) => {
+          const title = p.title?.toLowerCase() ?? "";
+          const text = p.prompt_text?.toLowerCase() ?? "";
+          return title.includes(searchTerm) || text.includes(searchTerm);
+        });
+    return sortByCreatedAtDesc(promptRows);
   }, [activeTab, prompts, searchTerm]);
 
   const isPromptTab = activeTab === "saved_prompts";
   const visibleCount = isPromptTab ? filteredPrompts.length : filteredMedia.length;
   const countLabel = isPromptTab ? "prompts" : "files";
+  useEffect(() => {
+    if (loading || firstCardShellLoggedRef.current) return;
+    if (visibleCount <= 0) return;
+    firstCardShellLoggedRef.current = true;
+    logMediaPerf("media.route.first_card_shell", {
+      surface: "media-library-route",
+      tab: activeTab,
+      visible_item_count: visibleCount,
+    });
+  }, [activeTab, loading, visibleCount]);
+
   const selectableMediaIds = useMemo(
     () => filteredMedia.filter((item) => item.status !== "uploading").map((item) => item.id),
     [filteredMedia]
@@ -475,6 +606,7 @@ export default function MediaLibrary() {
     if (!img.naturalWidth || !img.naturalHeight) return;
     signedUrlRetryRef.current[id] = 0;
     setAspectMap((prev) => ({ ...prev, [id]: img.naturalWidth / img.naturalHeight }));
+    markFirstMediaPaint("image");
   };
 
   const handleVideoMeta = (id: string, event: React.SyntheticEvent<HTMLVideoElement>) => {
@@ -482,6 +614,7 @@ export default function MediaLibrary() {
     if (!vid.videoWidth || !vid.videoHeight) return;
     signedUrlRetryRef.current[id] = 0;
     setAspectMap((prev) => ({ ...prev, [id]: vid.videoWidth / vid.videoHeight }));
+    markFirstMediaPaint("video");
   };
 
   const toggleSelect = (file: MediaRow) => {
@@ -521,7 +654,9 @@ export default function MediaLibrary() {
         });
       } else {
         const targets = files.filter((f) => idsToDelete.includes(f.id));
-        const paths = targets.map((t) => t.storage_path).filter(Boolean);
+        const paths = Array.from(
+          new Set(targets.flatMap((target) => [target.storage_path, target.preview_storage_path]))
+        ).filter(isNonEmptyString);
         if (paths.length) {
           const { error: storageError } = await supabase.storage
             .from(BUCKET)
@@ -547,6 +682,49 @@ export default function MediaLibrary() {
       );
     } finally {
       setBulkDeleting(false);
+    }
+  };
+
+  const requestDeleteFile = (file: MediaRow) => {
+    if (file.status === "uploading") return;
+    setDeleteTarget(file);
+    setError(null);
+  };
+
+  const cancelDeleteFile = () => {
+    if (deletingSingle) return;
+    setDeleteTarget(null);
+  };
+
+  const confirmDeleteFile = async () => {
+    if (!deleteTarget) return;
+    setDeletingSingle(true);
+    setError(null);
+    try {
+      const supabase = ensureSupabaseClient();
+      const deletePaths = Array.from(
+        new Set([deleteTarget.storage_path, deleteTarget.preview_storage_path])
+      ).filter(isNonEmptyString);
+      if (deletePaths.length) {
+        const { error: storageError } = await supabase.storage.from(BUCKET).remove(deletePaths);
+        if (storageError) throw storageError;
+      }
+      const { error: deleteError } = await supabase
+        .from("media_files")
+        .delete()
+        .eq("id", deleteTarget.id);
+      if (deleteError) throw deleteError;
+      setFiles((prev) => prev.filter((file) => file.id !== deleteTarget.id));
+      setSelectedIds((prev) => prev.filter((id) => id !== deleteTarget.id));
+      setFocusedFile((prev) => (prev && prev.id === deleteTarget.id ? null : prev));
+      setDeleteTarget(null);
+      void logMediaEvent("delete", "media_file", deleteTarget.id, {
+        storage_path: deleteTarget.storage_path,
+      });
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to delete file"));
+    } finally {
+      setDeletingSingle(false);
     }
   };
 
@@ -604,17 +782,13 @@ export default function MediaLibrary() {
       </a>
       <main id="main-content" className="page page-wide">
         <div className="page-top">
-          <Link href="/dashboard" className="btn-secondary btn-sm">
-            ← Back to dashboard
+          <Link href="/dashboard" className="media-dashboard-link" aria-label="Dashboard">
+            <House size={16} weight="regular" />
+            Dashboard
           </Link>
         </div>
 
-        <section
-          className="panel saved-header-bar saved-hero hero-image-card"
-          style={{
-            backgroundImage: "url('/media-library-hero.png')",
-          }}
-        >
+        <section className="panel saved-header-bar saved-hero hero-image-card">
           <div className="saved-header-left">
             <div className="saved-title-stack">
               <div className="saved-title-row">
@@ -625,8 +799,8 @@ export default function MediaLibrary() {
               </p>
             </div>
           </div>
-          <div className="saved-header-right">
-            <div className="header-stat-card" aria-label="Media storage" role="button" tabIndex={0}>
+          <div className="header-cards media-header-cards">
+            <div className="header-stat-card" aria-label="Media storage">
               <div className="status-icon compact" aria-hidden="true">
                 <CloudArrowUp size={18} weight="bold" />
               </div>
@@ -635,33 +809,13 @@ export default function MediaLibrary() {
                 <p className="status-value small">{storageUsageValue}</p>
               </div>
             </div>
-            <div
-              className="search-usage-card plan-card"
-              aria-label="Plan status"
-              role="button"
-              tabIndex={0}
-            >
-              <div className="search-usage-icon plan-icon" aria-hidden="true">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 18 18"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <circle cx="9" cy="9" r="7" stroke="#25A9BF" strokeWidth="1.4" />
-                  <path
-                    d="M6.3 9.1 8 10.8 11.7 7"
-                    stroke="#25A9BF"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+            <div className="header-stat-card" aria-label="Plan status">
+              <div className="status-icon compact" aria-hidden="true">
+                <ShieldCheck size={16} weight="bold" />
               </div>
-              <div className="search-usage-text">
-                <p className="metric-label subtle">{planUsage.label}</p>
-                <p className="search-usage-value plan-value">{planUsage.name}</p>
+              <div className="header-card-body">
+                <p className="metric-label tiny">{planUsage.label}</p>
+                <p className="status-value small">{planUsage.name}</p>
               </div>
             </div>
           </div>
@@ -705,7 +859,7 @@ export default function MediaLibrary() {
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*,video/*"
+              accept={activeTab === "private" ? "image/*" : "image/*,video/*"}
               onChange={handleFileChange}
               aria-label="Select media files"
               style={{ display: "none" }}
@@ -751,6 +905,14 @@ export default function MediaLibrary() {
             </button>
             <button
               type="button"
+              className={`pill-toggle big ${activeTab === "private" ? "active" : ""}`}
+              onClick={() => setActiveTab("private")}
+            >
+              <LockSimple size={14} weight="bold" aria-hidden />
+              Private
+            </button>
+            <button
+              type="button"
               className={`pill-toggle big ${activeTab === "saved_prompts" ? "active" : ""}`}
               onClick={() => setActiveTab("saved_prompts")}
             >
@@ -791,18 +953,22 @@ export default function MediaLibrary() {
                     ? "Uploaded images"
                     : activeTab === "uploaded_videos"
                       ? "Uploaded videos"
-                      : activeTab === "saved_prompts"
-                        ? "Saved prompts"
-                        : "AI Studio generations"}
+                      : activeTab === "private"
+                        ? "Private images"
+                        : activeTab === "saved_prompts"
+                          ? "Saved prompts"
+                          : "AI Studio generations"}
                 </p>
                 <h3>
                   {activeTab === "uploaded_images"
                     ? "Your uploaded images"
                     : activeTab === "uploaded_videos"
                       ? "Your uploaded videos"
-                      : activeTab === "saved_prompts"
-                        ? "Your saved prompts"
-                        : "AI Studio generations"}
+                      : activeTab === "private"
+                        ? "Your private images"
+                        : activeTab === "saved_prompts"
+                          ? "Your saved prompts"
+                          : "AI Studio generations"}
                 </h3>
               </div>
             </div>
@@ -841,7 +1007,9 @@ export default function MediaLibrary() {
                 ? "No images uploaded yet."
                 : activeTab === "uploaded_videos"
                   ? "No videos uploaded yet."
-                  : "No AI Studio generations saved yet."}
+                  : activeTab === "private"
+                    ? "No private images uploaded yet."
+                    : "No AI Studio generations saved yet."}
             </div>
           )}
           {isPromptTab ? (
@@ -955,6 +1123,20 @@ export default function MediaLibrary() {
                         No preview
                       </div>
                     )}
+                    {file.status !== "uploading" ? (
+                      <button
+                        type="button"
+                        className="media-delete"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          requestDeleteFile(file);
+                        }}
+                        aria-label={`Delete file: ${file.filename || "media file"}`}
+                      >
+                        <Trash size={14} weight="bold" />
+                      </button>
+                    ) : null}
                   </div>
                 );
               })}
@@ -962,6 +1144,41 @@ export default function MediaLibrary() {
           )}
         </section>
       </main>
+
+      {deleteTarget ? (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-file-title"
+        >
+          <div className="modal-card media-delete-confirm-card">
+            <h3 id="delete-file-title">Delete this file from your library?</h3>
+            <p className="subdued tiny media-delete-confirm-copy">
+              This will permanently remove <strong>{deleteTarget.filename}</strong> from your Media
+              Library and private storage. This action cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={cancelDeleteFile}
+                disabled={deletingSingle}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={confirmDeleteFile}
+                disabled={deletingSingle}
+              >
+                {deletingSingle ? "Deleting..." : "Yes, delete file"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {focusedFile ? (
         <div className="media-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -1040,6 +1257,13 @@ export default function MediaLibrary() {
                   onClick={() => void downloadFile(focusedFile)}
                 >
                   Download file
+                </button>
+                <button
+                  className="btn-danger modal-delete-btn"
+                  type="button"
+                  onClick={() => requestDeleteFile(focusedFile)}
+                >
+                  Delete file
                 </button>
                 {renameSuccess && !modalError && !savingRename && (
                   <div className="rename-toast" role="status" aria-live="polite">

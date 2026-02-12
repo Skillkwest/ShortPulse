@@ -31,6 +31,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 
 - Saved creators: run `sql/create_saved_creators_table.sql` to add the `saved_creators` table with RLS.
 - Media library: run `sql/storage_policies.sql` to create the private `media_library` bucket and folder-scoped storage policies. The UI also expects a `media_files` table (see `docs/supabase_full_schema.sql` for a combined script).
+- Private tab support: run `sql/migrations/003_add_private_media_source.sql` and `sql/migrations/004_add_private_media_integrity_checks.sql` to enforce `media_files.source` values and private path/file-type integrity.
 - Billing + credits: run `sql/create_billing_credit_tables.sql` to provision plans, credit packages, billing profiles, ledger, and signup allocation triggers.
 - Legacy billing environments: run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` to add `source/source_ref/metadata/created_by` columns and compatibility triggers before using `/admin` credit adjustments.
 - App error logs: run `sql/create_app_error_logs_table.sql` to provision persistent admin-visible incident logging.
@@ -46,7 +47,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - **Performance Analytics (`/performance`)**: Post‑MVP (Coming Soon); demo analytics surface with filters and scoring.
 - **Performance Placeholder (`/performance-soon`)**: Temporary landing page that explains the analytics workspace is still under construction.
 - **Saved Creators (`/saved-creators`)**: Post‑MVP (Coming Soon); per-user handle list.
-- **Media Library (`/media-library`)**: Upload/download/delete/rename files in a private Supabase bucket.
+- **Media Library (`/media-library`)**: Upload/download/delete/rename files in a private Supabase bucket, including a Private image tab (`<auth.uid()>/private/images/...`).
 - **Profile (`/profile`)**: Profile/account/billing UI with plan badges, Stripe billing actions, and credit purchase entry points.
 - **AI Studio (`/ai-studio`)**: Creative canvas for prompt systems, model/aspect selection, previewing, and saving image/video outputs.
 - **Character Placeholder (`/character-soon`)**: Temporary landing page while the Character workflow is under construction.

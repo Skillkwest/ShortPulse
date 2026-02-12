@@ -16,6 +16,7 @@ import { PromptLibraryButton } from "./PromptLibraryButton";
 import { StudioOutput } from "../types";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
 import type { ToolId } from "../types";
+import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 
 const isVideoUrl = (url: string) =>
   /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
@@ -83,10 +84,21 @@ export function ReferenceCanvas({
   const selectionTheme = resolveReferenceSelectionTheme(selectedTool);
   const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
   const loadedIdsRef = React.useRef<Set<string>>(new Set());
+  const autoplayingIdsRef = React.useRef<Set<string>>(new Set());
+  const lastScrollSampleAtRef = React.useRef(0);
   const linkedPromptReferenceIdSet = React.useMemo(
     () => new Set(linkedPromptReferenceIds),
     [linkedPromptReferenceIds]
   );
+
+  React.useEffect(() => {
+    const validOutputIds = new Set(outputs.map((output) => output.id));
+    autoplayingIdsRef.current.forEach((id) => {
+      if (!validOutputIds.has(id)) {
+        autoplayingIdsRef.current.delete(id);
+      }
+    });
+  }, [outputs]);
 
   const markLoaded = useCallback(
     (id: string, options?: { notifyAutoSave?: boolean }) => {
@@ -134,6 +146,51 @@ export function ReferenceCanvas({
   const handleCardDragEnd = (event: React.DragEvent<HTMLElement>) => {
     clearDragState(event);
   };
+
+  const sampleScrollPerformance = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+      if (now - lastScrollSampleAtRef.current < 1200) return;
+      lastScrollSampleAtRef.current = now;
+      const node = event.currentTarget;
+      logMediaPerf("media.grid.scroll.sample", {
+        surface: "reference-grid",
+        scroll_top: Math.round(node.scrollTop),
+        scroll_height: node.scrollHeight,
+        viewport_height: node.clientHeight,
+        visible_item_count: outputs.length,
+      });
+    },
+    [outputs.length]
+  );
+
+  const handleAutoplayStarted = useCallback(
+    (id: string) => {
+      if (autoplayingIdsRef.current.has(id)) return;
+      autoplayingIdsRef.current.add(id);
+      logMediaPerf("media.grid.autoplay.started", {
+        surface: "reference-grid",
+        output_id: id,
+        active_autoplay_count: autoplayingIdsRef.current.size,
+        visible_item_count: outputs.length,
+      });
+    },
+    [outputs.length]
+  );
+
+  const handleAutoplayStopped = useCallback(
+    (id: string) => {
+      if (!autoplayingIdsRef.current.has(id)) return;
+      autoplayingIdsRef.current.delete(id);
+      logMediaPerf("media.grid.autoplay.stopped", {
+        surface: "reference-grid",
+        output_id: id,
+        active_autoplay_count: autoplayingIdsRef.current.size,
+        visible_item_count: outputs.length,
+      });
+    },
+    [outputs.length]
+  );
 
   const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
     if (!item.saveState || item.saveState === "idle") return null;
@@ -193,7 +250,7 @@ export function ReferenceCanvas({
           </div>
         </div>
       ) : null}
-      <div className="reference-canvas-scroll">
+      <div className="reference-canvas-scroll" onScroll={sampleScrollPerformance}>
         <div
           className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
         >
@@ -262,6 +319,8 @@ export function ReferenceCanvas({
                       loop
                       playsInline
                       onLoadedData={() => markLoaded(item.id)}
+                      onPlay={() => handleAutoplayStarted(item.id)}
+                      onPause={() => handleAutoplayStopped(item.id)}
                     />
                   ) : null}
                   {isImagePreview && item.previewUrl ? (

@@ -16,10 +16,10 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 ### media_files
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `filename` (text): Friendly file name stored alongside the object.
-- `storage_path` (text): Full path in the `media_library` bucket (prefix with `auth.uid()`).
+- `storage_path` (text): Full path in the `media_library` bucket (prefix with `auth.uid()`). Private tab uploads use `<auth.uid()>/private/images/<filename>`.
 - `file_type` (text): image | video (or MIME-derived fallback).
 - `file_size` (bigint, nullable): Bytes.
-- `source` (text, default `upload`): upload | ai_studio.
+- `source` (text, default `upload`): upload | private_upload | ai_studio.
 - `source_ref` (uuid, nullable): References `ai_generations.id` when source is `ai_studio`.
 - `prompt_id` (uuid, nullable): References `media_prompts.id` when saved from a prompt.
 - `metadata` (jsonb, default `{}`): Provider/model metadata and any generation context.
@@ -27,6 +27,10 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Integrity checks:
+  - `source` constrained to `upload | private_upload | ai_studio`.
+  - `source = private_upload` requires `file_type = image` and `storage_path` under `<user_id>/private/images/...`.
+  - Any row with `storage_path` under `<user_id>/private/images/...` must use `source = private_upload`.
 
 ### media_prompts
 - `id` (uuid, pk, default `gen_random_uuid()`)
@@ -180,6 +184,10 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 ### storage.objects (Supabase bucket)
 - Bucket: `media_library` (private).
 - Policy: allow select/insert/update/delete when bucket is `media_library` **and** the folder prefix matches `auth.uid()` (or service role).
+- App path convention:
+  - Standard uploads: `<auth.uid()>/images/...` and `<auth.uid()>/videos/...`
+  - Private tab uploads: `<auth.uid()>/private/images/...`
+  - AI Studio generations: `<auth.uid()>/generations/<images|videos>/...`
 - See `sql/storage_policies.sql` for the full policy script.
 
 ## Demo analytics fields (computed client-side)

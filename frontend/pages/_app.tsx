@@ -9,6 +9,7 @@ import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { PROTECTED_ROUTES, useProtectedRoute } from "../lib/authGuard";
 import { installGlobalAppErrorHandlers } from "../lib/appErrorReporter";
 import { addBreadcrumb, redactUrlForTelemetry } from "../lib/clientBreadcrumbs";
+import { installMediaPerfDebugHandle } from "../lib/mediaPerfTelemetry";
 import "../styles/globals.css";
 
 /**
@@ -28,6 +29,10 @@ export default function App({ Component, pageProps }: AppProps) {
 
   useEffect(() => {
     return installGlobalAppErrorHandlers();
+  }, []);
+
+  useEffect(() => {
+    installMediaPerfDebugHandle();
   }, []);
 
   useEffect(() => {

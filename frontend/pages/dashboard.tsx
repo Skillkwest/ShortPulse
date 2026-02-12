@@ -13,9 +13,9 @@ import {
   ChartBar,
   CloudArrowUp,
   FolderSimple,
+  Person,
   ShieldCheck,
   Sparkle,
-  UserCircle,
   type IconProps,
 } from "phosphor-react";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
@@ -238,7 +238,7 @@ export default function DashboardPage() {
       cta: "Coming soon →",
       variant: "tool-character",
       image: "/dashboard/character.png",
-      icon: UserCircle,
+      icon: Person,
     },
     {
       title: "AI Studio",
@@ -445,7 +445,6 @@ export default function DashboardPage() {
                   role="article"
                   aria-label={`${tool.title}: ${tool.description}`}
                 >
-                  {tool.icon ? <div className="tool-card-icon" aria-hidden="true" /> : null}
                   {tool.image ? (
                     <div className="tool-card-hero">
                       <Image
@@ -459,7 +458,14 @@ export default function DashboardPage() {
                   ) : null}
                   <div className="tool-card-body">
                     {tool.eyebrow ? <p className="tool-card-eyebrow">{tool.eyebrow}</p> : null}
-                    <h3>{tool.title}</h3>
+                    <div className="tool-card-title-row">
+                      <h3>{tool.title}</h3>
+                      {tool.icon ? (
+                        <span className="tool-card-title-icon" aria-hidden="true">
+                          <tool.icon size={19} weight="duotone" />
+                        </span>
+                      ) : null}
+                    </div>
                     <p>{tool.description}</p>
                   </div>
                   <div className="tool-card-footer">{tool.cta}</div>

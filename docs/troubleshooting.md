@@ -20,6 +20,53 @@ Checklist:
 - RLS is enabled for `media_files` and policies enforce `user_id = auth.uid()`.
 - You ran the bootstrap scripts in `sql/` (including `sql/create_media_library_tables.sql`) or `docs/supabase_full_schema.sql`.
 
+## Private tab data looks wrong or empty
+Checklist:
+- Run `sql/migrations/003_add_private_media_source.sql`.
+- Run `sql/migrations/004_add_private_media_integrity_checks.sql`.
+- Validate row classification:
+  ```sql
+  select source, count(*) as rows
+  from media_files
+  group by source
+  order by source;
+  ```
+- Validate private integrity:
+  ```sql
+  select id, user_id, source, file_type, storage_path
+  from media_files
+  where (source = 'private_upload' and (lower(coalesce(file_type, '')) <> 'image' or storage_path not like user_id::text || '/private/images/%'))
+     or (storage_path like user_id::text || '/private/images/%' and source <> 'private_upload')
+  limit 50;
+  ```
+
+## Variant hints or derivative rows are missing
+Checklist:
+- Run `sql/migrations/005_add_media_processing_and_variants.sql`.
+- Run `sql/migrations/006_backfill_media_variant_hints.sql`.
+- Validate media processing status:
+  ```sql
+  select processing_status, count(*) as rows
+  from media_files
+  group by processing_status
+  order by processing_status;
+  ```
+- Validate variant row coverage:
+  ```sql
+  select variant_kind, status, count(*) as rows
+  from media_asset_variants
+  group by variant_kind, status
+  order by variant_kind, status;
+  ```
+- Validate rows still missing variant hints:
+  ```sql
+  select id, file_type, processing_status, thumb_variant_path, poster_variant_path, preview_variant_path
+  from media_files
+  where (lower(coalesce(file_type, '')) like 'image%' and thumb_variant_path is null)
+     or (lower(coalesce(file_type, '')) like 'video%' and (poster_variant_path is null or preview_variant_path is null))
+  limit 50;
+  ```
+
 ## Prompt or AI Generation saves fail
 Checklist:
 - `media_prompts`, `ai_generations`, and `media_events` tables exist.

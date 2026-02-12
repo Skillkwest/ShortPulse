@@ -20,7 +20,8 @@ Keep the Media Library page visually aligned with Saved Creators and dashboard c
 - `.upload-storage` padding 14px; uses flex with even spacing between copy and upgrade button.
 
 ## Tabs
-- Tabs (pill toggles) are: **Uploaded Images**, **Uploaded Videos**, **Saved Prompts**, **AI Studio Generations**.
+- Tabs (pill toggles) are: **Uploaded Images**, **Uploaded Videos**, **Private**, **Saved Prompts**, **AI Studio Generations**.
+- Private tab stores manual private image uploads under `<auth.uid()>/private/images/...` and uses `media_files.source = private_upload`.
 - AI Studio generations appear only in the AI Studio tab (not in uploaded images/videos).
 - Saved Prompts is a text-only grid; prompts are saved manually.
 

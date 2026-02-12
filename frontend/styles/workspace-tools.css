@@ -56,10 +56,6 @@
     0 0 0 1px rgba(245, 185, 66, 0.2);
 }
 
-.tool-card.tool-performance h3 {
-  color: var(--color-amber);
-}
-
 .tool-card.tool-performance {
   border-color: rgba(245, 185, 66, 0.32);
 }
@@ -70,10 +66,6 @@
     0 8px 20px rgba(12, 90, 102, 0.32),
     0 4px 12px rgba(37, 169, 191, 0.34),
     0 0 0 1px rgba(37, 169, 191, 0.2);
-}
-
-.tool-card.tool-creator h3 {
-  color: var(--color-teal);
 }
 
 .tool-card.tool-creator .tool-card-footer {
@@ -92,14 +84,6 @@
 
 .tool-card.tool-saved:hover {
   border-color: rgba(225, 232, 240, 0.5);
-}
-
-.tool-card.tool-saved h3 {
-  color: #f5f9ff;
-}
-
-.tool-card.tool-media h3 {
-  color: #e03091;
 }
 
 .tool-card.tool-media .tool-card-hero img {
@@ -136,8 +120,26 @@
   justify-content: space-between;
 }
 
-.tool-card-body h3 {
+.tool-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin: 0 0 10px;
+  color: #f5f9ff;
+}
+
+.tool-card-title-row h3 {
+  margin: 0;
+  color: currentColor;
+}
+
+.tool-card-title-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  line-height: 0;
 }
 
 .tool-card-eyebrow {
@@ -152,13 +154,6 @@
 .tool-card-body p {
   margin: 0;
   color: #9aa3b1;
-}
-
-.tool-card-icon {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  display: none;
 }
 
 .tool-card-footer {
@@ -183,24 +178,12 @@
   color: #c9d1dc;
 }
 
-.tool-card.tool-saved h3 {
-  color: #c9d1dc;
-}
-
-.tool-card.tool-media .tool-card-icon {
-  color: #e03091;
-}
-
 .tool-card.tool-media:focus-visible {
   outline: 2px solid #e03091;
   outline-offset: 3px;
 }
 
-.tool-card.tool-saved .tool-card-icon {
-  color: var(--color-teal);
-}
-
-.tool-card.tool-performance .tool-card-icon {
+.tool-card.tool-performance .tool-card-title-row {
   color: var(--color-amber);
 }
 
@@ -208,8 +191,16 @@
   color: var(--color-amber);
 }
 
-.tool-card.tool-creator .tool-card-icon {
+.tool-card.tool-creator .tool-card-title-row {
   color: var(--color-teal);
+}
+
+.tool-card.tool-media .tool-card-title-row {
+  color: #e03091;
+}
+
+.tool-card.tool-saved .tool-card-title-row {
+  color: #f5f9ff;
 }
 
 .tool-card.tool-character {
@@ -230,11 +221,10 @@
   outline-offset: 3px;
 }
 
-.tool-card.tool-character h3 {
+.tool-card.tool-character .tool-card-title-row {
   color: #22c55e;
 }
 
-.tool-card.tool-character .tool-card-footer,
-.tool-card.tool-character .tool-card-icon {
+.tool-card.tool-character .tool-card-footer {
   color: #22c55e;
 }

@@ -8,6 +8,9 @@ Purpose: active planning artifacts and current execution backlogs.
 - `mvp-stabilization-plan.md`: scope-locked stabilization plan.
 - `mvp-pre-tester-anchor-plan.md`: pre-tester gating checklist.
 - `ai-studio-agent-tooling-phased-plan.md`: phased rollout for media analysis, prompt optimization, evaluation, and MCP adoption gates.
+- `media-library-reference-grid-optimization-plan.md`: near-instant media loading architecture plan (Media Library + AI Studio Reference Grid).
+- `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
+- `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.
 
 ## Maintenance
 - Keep plans actionable and current.

@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-ShortPulse needs per-user persistence for uploads, AI Studio generations, and saved prompts, all backed by Supabase with strict RLS. The Media Library UI now requires four distinct tabs (uploaded images, uploaded videos, saved prompts, AI Studio generations) and backend-only audit logging without exposing service-role keys. The repo remains client-only per ADR 0001.
+ShortPulse needs per-user persistence for uploads, AI Studio generations, and saved prompts, all backed by Supabase with strict RLS. The Media Library UI initially required four distinct tabs (uploaded images, uploaded videos, saved prompts, AI Studio generations) and backend-only audit logging without exposing service-role keys. The repo remains client-only per ADR 0001. (Private tab extension is covered in ADR 0008.)
 
 ## Decision
 - Keep `media_files` as the canonical metadata table for stored files in the private `media_library` bucket.

@@ -3,16 +3,30 @@
  * Loads user media/prompts and lets creators add them to the reference grid.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle, CloudArrowDown, ImageSquare, VideoCamera, X } from "phosphor-react";
+import {
+  CheckCircle,
+  CloudArrowDown,
+  ImageSquare,
+  LockSimple,
+  VideoCamera,
+  X,
+} from "phosphor-react";
+import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import { resolvePreviewStoragePath } from "../../../lib/mediaPreviewPath";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 
 type MediaFileRow = {
   id: string;
   filename: string;
   storage_path: string;
+  preview_storage_path?: string;
   file_type: string;
   source?: string | null;
   created_at?: string | null;
+  metadata?: Record<string, unknown> | null;
+  thumb_variant_path?: string | null;
+  poster_variant_path?: string | null;
+  preview_variant_path?: string | null;
   signedUrl?: string | null;
 };
 
@@ -26,7 +40,12 @@ type PromptRow = {
   created_at?: string | null;
 };
 
-type MediaTab = "uploaded_images" | "uploaded_videos" | "saved_prompts" | "ai_generations";
+type MediaTab =
+  | "uploaded_images"
+  | "uploaded_videos"
+  | "private"
+  | "saved_prompts"
+  | "ai_generations";
 
 type MediaLibraryModalProps = {
   isOpen: boolean;
@@ -42,9 +61,15 @@ type MediaLibraryModalProps = {
 };
 
 const BUCKET = "media_library";
+const PRIVATE_MEDIA_SOURCE = "private_upload";
+const PRIVATE_MEDIA_FOLDER = "private";
 
 const isVideoFile = (fileType?: string | null) =>
   (fileType ?? "").toLowerCase().startsWith("video");
+const isPrivateStoragePath = (storagePath?: string | null) =>
+  (storagePath ?? "").split("/").filter(Boolean).includes(PRIVATE_MEDIA_FOLDER);
+const isPrivateMediaFile = (file: Pick<MediaFileRow, "source" | "storage_path">) =>
+  (file.source ?? "") === PRIVATE_MEDIA_SOURCE || isPrivateStoragePath(file.storage_path);
 
 const formatDate = (value?: string | null) => {
   if (!value) return "Unknown";
@@ -52,6 +77,21 @@ const formatDate = (value?: string | null) => {
   if (Number.isNaN(date.getTime())) return "Unknown";
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
+
+const createdAtTime = (value?: string | null): number => {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const sortByCreatedAtDesc = <T extends { created_at?: string | null; id?: string | null }>(
+  rows: T[]
+): T[] =>
+  [...rows].sort((a, b) => {
+    const createdDelta = createdAtTime(b.created_at) - createdAtTime(a.created_at);
+    if (createdDelta !== 0) return createdDelta;
+    return (b.id ?? "").localeCompare(a.id ?? "");
+  });
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
@@ -69,6 +109,8 @@ export function MediaLibraryModal({
   const [prompts, setPrompts] = useState<PromptRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const signedUrlRetryRef = useRef<Record<string, number>>({});
+  const firstCardShellLoggedRef = useRef(false);
+  const firstMediaPaintLoggedRef = useRef(false);
 
   const signStoragePath = useCallback(async (storagePath: string): Promise<string | null> => {
     const supabase = ensureSupabaseClient();
@@ -102,14 +144,29 @@ export function MediaLibraryModal({
       const attempts = signedUrlRetryRef.current[file.id] ?? 0;
       if (attempts >= 1) return;
       signedUrlRetryRef.current[file.id] = attempts + 1;
-      void refreshSignedUrl(file.id, file.storage_path);
+      void refreshSignedUrl(file.id, file.preview_storage_path ?? file.storage_path);
     },
     [refreshSignedUrl]
+  );
+
+  const markFirstMediaPaint = useCallback(
+    (assetKind: "image" | "video") => {
+      if (firstMediaPaintLoggedRef.current) return;
+      firstMediaPaintLoggedRef.current = true;
+      logMediaPerf("media.modal.first_media_paint", {
+        surface: "media-library-modal",
+        tab: activeTab,
+        asset_kind: assetKind,
+      });
+    },
+    [activeTab]
   );
 
   useEffect(() => {
     if (!isOpen) return;
     setSelectedIds(new Set());
+    firstCardShellLoggedRef.current = false;
+    firstMediaPaintLoggedRef.current = false;
     let active = true;
     const load = async () => {
       setLoading(true);
@@ -125,27 +182,52 @@ export function MediaLibraryModal({
         const [mediaResponse, promptResponse] = await Promise.all([
           supabase
             .from("media_files")
-            .select("id, filename, storage_path, file_type, source, created_at")
-            .order("created_at", { ascending: false }),
+            .select("id, filename, storage_path, file_type, source, created_at, metadata")
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false }),
           supabase
             .from("media_prompts")
             .select("id, title, prompt_text, mode, model_id, source, created_at")
-            .order("created_at", { ascending: false }),
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false }),
         ]);
         if (mediaResponse.error) throw mediaResponse.error;
         if (promptResponse.error) throw promptResponse.error;
 
         const rows = mediaResponse.data ?? [];
+        const finishSignBatch = createMediaPerfTimer({
+          surface: "media-library-modal",
+          tab: activeTab,
+          batch_size: rows.length,
+        });
         const signedRows = await Promise.all(
           rows.map(async (row) => {
-            const signedUrl = await signStoragePath(row.storage_path).catch(() => null);
+            const previewStoragePath = resolvePreviewStoragePath(row);
+            const signedUrl = await signStoragePath(previewStoragePath ?? row.storage_path).catch(
+              () => null
+            );
             return {
               ...row,
               source: row.source ?? "upload",
+              preview_storage_path: previewStoragePath ?? row.storage_path,
               signedUrl: signedUrl ?? null,
             } as MediaFileRow;
           })
         );
+        const signedCount = signedRows.filter((row) => Boolean(row.signedUrl)).length;
+        const failedCount = Math.max(0, rows.length - signedCount);
+        finishSignBatch("media.sign.batch.completed", {
+          signed_count: signedCount,
+          failed_count: failedCount,
+        });
+        if (failedCount > 0) {
+          logMediaPerf("media.sign.batch.failed", {
+            surface: "media-library-modal",
+            tab: activeTab,
+            batch_size: rows.length,
+            failed_count: failedCount,
+          });
+        }
 
         if (active) {
           setFiles(signedRows);
@@ -163,7 +245,7 @@ export function MediaLibraryModal({
     return () => {
       active = false;
     };
-  }, [isOpen, signStoragePath]);
+  }, [activeTab, isOpen, signStoragePath]);
 
   useEffect(() => {
     if (isOpen) {
@@ -172,7 +254,14 @@ export function MediaLibraryModal({
   }, [isOpen]);
 
   const uploadFiles = useMemo(
-    () => files.filter((item) => (item.source ?? "upload") === "upload"),
+    () =>
+      sortByCreatedAtDesc(
+        files.filter((item) => (item.source ?? "upload") === "upload" && !isPrivateMediaFile(item))
+      ),
+    [files]
+  );
+  const privateFiles = useMemo(
+    () => sortByCreatedAtDesc(files.filter((item) => isPrivateMediaFile(item))),
     [files]
   );
   const uploadedImages = useMemo(
@@ -184,19 +273,34 @@ export function MediaLibraryModal({
     [uploadFiles]
   );
   const aiGenerations = useMemo(
-    () => files.filter((item) => (item.source ?? "upload") === "ai_studio"),
+    () => sortByCreatedAtDesc(files.filter((item) => (item.source ?? "upload") === "ai_studio")),
     [files]
   );
+  const sortedPrompts = useMemo(() => sortByCreatedAtDesc(prompts), [prompts]);
 
   const activeMedia =
     activeTab === "uploaded_images"
       ? uploadedImages
       : activeTab === "uploaded_videos"
         ? uploadedVideos
-        : activeTab === "ai_generations"
-          ? aiGenerations
-          : [];
+        : activeTab === "private"
+          ? privateFiles
+          : activeTab === "ai_generations"
+            ? aiGenerations
+            : [];
   const isMediaTab = activeTab !== "saved_prompts";
+
+  useEffect(() => {
+    if (!isOpen || loading || firstCardShellLoggedRef.current) return;
+    const visibleCount = activeTab === "saved_prompts" ? sortedPrompts.length : activeMedia.length;
+    if (visibleCount <= 0) return;
+    firstCardShellLoggedRef.current = true;
+    logMediaPerf("media.modal.first_card_shell", {
+      surface: "media-library-modal",
+      tab: activeTab,
+      visible_item_count: visibleCount,
+    });
+  }, [activeMedia.length, activeTab, isOpen, loading, sortedPrompts.length]);
 
   if (!isOpen) return null;
 
@@ -250,6 +354,16 @@ export function MediaLibraryModal({
           <button
             type="button"
             role="tab"
+            className={`media-library-tab ${activeTab === "private" ? "is-active" : ""}`}
+            aria-selected={activeTab === "private"}
+            onClick={() => setActiveTab("private")}
+          >
+            <LockSimple size={14} weight="bold" aria-hidden />
+            Private
+          </button>
+          <button
+            type="button"
+            role="tab"
             className={`media-library-tab ${activeTab === "saved_prompts" ? "is-active" : ""}`}
             aria-selected={activeTab === "saved_prompts"}
             onClick={() => setActiveTab("saved_prompts")}
@@ -278,7 +392,7 @@ export function MediaLibraryModal({
               {prompts.length === 0 ? (
                 <p className="tiny subdued">No saved prompts yet.</p>
               ) : (
-                prompts.map((prompt) => {
+                sortedPrompts.map((prompt) => {
                   const isSelected = selectedIds.has(prompt.id);
                   return (
                     <button
@@ -334,7 +448,10 @@ export function MediaLibraryModal({
                       aria-pressed={isSelected}
                       onClick={async () => {
                         const nextUrl =
-                          (await refreshSignedUrl(file.id, file.storage_path)) ?? file.signedUrl;
+                          (await refreshSignedUrl(
+                            file.id,
+                            file.preview_storage_path ?? file.storage_path
+                          )) ?? file.signedUrl;
                         if (!nextUrl) return;
                         setSelectedIds((prev) => {
                           const next = new Set(prev);
@@ -367,6 +484,7 @@ export function MediaLibraryModal({
                             preload="metadata"
                             onLoadedData={() => {
                               signedUrlRetryRef.current[file.id] = 0;
+                              markFirstMediaPaint("video");
                             }}
                             onError={() => handleMediaPreviewError(file)}
                           />
@@ -380,6 +498,7 @@ export function MediaLibraryModal({
                               alt={file.filename}
                               onLoad={() => {
                                 signedUrlRetryRef.current[file.id] = 0;
+                                markFirstMediaPaint("image");
                               }}
                               onError={() => handleMediaPreviewError(file)}
                             />

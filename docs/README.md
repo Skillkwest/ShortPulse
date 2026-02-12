@@ -102,6 +102,9 @@ Start here for all repository documentation.
 - `docs/planning/mvp-stabilization-plan.md`
 - `docs/planning/mvp-pre-tester-anchor-plan.md`
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
+- `docs/planning/media-library-reference-grid-optimization-plan.md`
+- `docs/planning/media-optimization-phase0-measurement-spec.md`
+- `docs/planning/media-optimization-schema-and-migration-spec.md`
 - `docs/change_log.md`
 
 ## ADRs
@@ -113,6 +116,8 @@ Start here for all repository documentation.
 - `docs/adr/0005-ai-studio-modularization-boundaries.md`
 - `docs/adr/0006-ai-studio-agent-api.md`
 - `docs/adr/0007-ai-studio-agent-tooling-strategy.md`
+- `docs/adr/0008-private-media-tab-storage-scope.md`
+- `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`
 
 ## Archive
 - `docs/archive/README.md`

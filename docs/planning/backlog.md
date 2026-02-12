@@ -1,33 +1,46 @@
-# ShortPulse Backlog & Ideas
+# ShortPulse Backlog
 
-Use this as the running list of tasks and future ideas. Keep items concise and scoped; move completed work into the change log.
+Last audited: 2026-02-12
 
-## Near-term (MVP hardening)
-- **[HIGH PRIORITY] Create Stripe price IDs for updated billing tiers** (Free, Media, Studio, Business) and credit packages (starter_500, growth_2000, scale_6000, studio_10000). Document price IDs and update `billing_plans.stripe_price_id` and `billing_credit_packages.stripe_price_id` in Supabase.
-- **[HIGH PRIORITY] Configure Stripe Billing Portal for Subscription tab**: Enable "Subscription update" and "Subscription cancel" features in Stripe Dashboard. Set cancellation behavior to "Cancel at period end" to allow users to manage plans via the new Subscription tab at `/profile?section=subscription`.
-- **Test Subscription tab end-to-end**: Verify upgrade/downgrade/cancel flows work correctly through Stripe portal, webhooks sync plan changes back to `billing_profiles`, and credit allocations trigger on renewal.
-- Confirm Supabase schemas (`saved_creators`, `media_files`) and RLS work end-to-end.
-- Add lightweight component/integration tests for auth + saved creators + media library.
-- Add client-side logging/error surfacing for Supabase operations.
-- Expand manual data actions on Performance (status history, filter reset affordances).
+How to use:
+- Keep this list execution-focused and current.
+- Mark completed items with `[x]` and keep evidence links inline.
+- Move major outcomes into `docs/change_log.md`.
 
-## Product/Data
-- Add CSV import/export for saved creators.
-- Ship additional demo dataset variants (per niche) and allow switching cohorts in the UI.
-- Display plan usage counters (searches/storage/credits) sourced from client-side state.
+## Done (verified in repo)
+- [x] Add platform filter tabs (IG/TikTok/YT) on Performance.
+  Evidence: `frontend/features/performance/components/FilterBars.tsx`
+- [x] Integrate Media Library UI polish (error banners, retry behavior, empty states).
+  Evidence: `frontend/pages/media-library.tsx`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+- [x] Improve Media Library preview modal sizing/fit for mixed media.
+  Evidence: `frontend/pages/media-library.tsx`, `frontend/styles/workspace-media.css`
+- [x] Add client-side logging/error surfacing for Supabase-heavy flows.
+  Evidence: `frontend/pages/media-library.tsx`, `frontend/features/ai-studio/components/MediaLibraryModal.tsx`, `frontend/lib/appErrorReporter.ts`
+- [x] Document Supabase bootstrap paths for media + creators.
+  Evidence: `docs/local-development.md`, `docs/supabase_full_schema.sql`
+- [x] Add contributor/testing guidance after adopting a harness.
+  Evidence: `docs/testing-guide.md`, `docs/contributor-guide.md`
 
-## Frontend/UX
-- Make tooltips resilient to long URLs (truncate with ellipsis).
-- Add platform filter tabs (IG/TikTok/YT) driven by the demo dataset toggle.
-- Integrate Media Library UI polish: error banners, retries, empty state for RLS failures.
-- Fix Media Library blow-up modal aesthetics for images & videos: auto-resize preview container to match media aspect ratio, eliminate blank space, and keep the rounded corners consistent.
-- Add user account setting to permanently hide Beginner Mode toggle card in AI Studio toolbar: Setting labeled "Show Beginner Mode Toggle" (yes/no) to allow users to permanently set their AI Studio to Advanced Mode by disabling the Beginner Mode toggle card display.
+## Now (highest priority)
+- [ ] Create Stripe price IDs for updated tiers/packages and populate `billing_plans.stripe_price_id` + `billing_credit_packages.stripe_price_id` in Supabase.
+- [ ] Configure Stripe Billing Portal for subscription update/cancel behavior (`/profile?section=subscription` flow).
+- [ ] Run and sign off Subscription tab end-to-end validation (upgrade/downgrade/cancel + webhook sync + renewal credits).
+- [ ] Run explicit end-to-end RLS verification for `saved_creators` + `media_files` across two user accounts and document results.
+- [ ] Add targeted automated tests for auth + saved creators + media library critical flows.
+- [ ] Add account setting: "Show Beginner Mode Toggle" (control visibility of the beginner toggle card, not just mode state).
 
-## Documentation
-- Document Supabase bootstrap for `media_files` alongside `saved_creators`.
-- Add SOP for the performance data actions rail and how demo metrics are recomputed client-side.
-- Add contributor guide sections for testing expectations once a harness is chosen.
+## Soon
+- [ ] Add CSV import/export for saved creators.
+- [ ] Add additional demo dataset variants and cohort switching on Performance.
+- [ ] Replace hard-coded usage counters with live client state (searches/storage/credits).
+- [ ] Make tooltip/url treatments resilient for long links (truncate/ellipsis where needed).
+- [ ] Complete Performance data-actions follow-up: add status-history trail (filter reset affordance is already shipped).
+- [ ] Add SOP for Performance data actions rail and demo metric recomputation behavior.
 
-## Later/Future (post-MVP)
-- Explore live data sources or edge functions if we reintroduce backend capabilities.
-- ML experiments: early performance prediction baseline once real data is available again.
+## Research / Spikes
+- [ ] Evaluate a JavaScript masonry layout engine to preserve masonry visual density while improving ordering control (target: left-to-right reading expectations). Keep this as a scoped spike before implementation.
+  Reference: `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`
+
+## Later (post-MVP)
+- [ ] Explore live data sources or edge functions if backend capabilities are reintroduced.
+- [ ] Run ML experiments for early performance prediction once real data is available.

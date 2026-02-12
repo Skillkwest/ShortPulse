@@ -161,9 +161,9 @@
 }
 
 .art-close-btn:hover {
-  background: rgba(255, 80, 80, 0.15);
-  color: #ff9090;
-  border-color: rgba(255, 100, 100, 0.4);
+  background: rgba(52, 200, 255, 0.14);
+  color: #d5f4ff;
+  border-color: rgba(52, 200, 255, 0.42);
 }
 
 .reference-modal-new.is-uploaded .art-close-btn:hover {
@@ -513,8 +513,9 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   padding: 32px;
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 18px;
+  line-height: 1.82;
+  letter-spacing: 0.02em;
   font-family: var(--font-primary);
   color: #fff;
   resize: none;
@@ -527,6 +528,52 @@
 .art-modal-footer {
   display: flex;
   justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.art-modal-footer .art-prompt-save-btn {
+  min-width: 280px;
+  height: 52px;
+  border-radius: 12px;
+  border: 1px solid rgba(52, 200, 255, 0.62);
+  background: #25a9bf;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 12px 26px rgba(8, 119, 168, 0.36);
+}
+
+.art-modal-footer .art-prompt-save-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow:
+    0 14px 30px rgba(8, 119, 168, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.art-modal-footer .art-prompt-save-btn:disabled {
+  opacity: 0.88;
+  cursor: not-allowed;
+}
+
+.art-modal-footer .art-prompt-save-btn.is-saved {
+  border: 1px solid rgba(52, 200, 255, 0.62);
+  background: #25a9bf;
+  color: #052413;
+  box-shadow:
+    0 12px 28px rgba(52, 211, 153, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.art-save-feedback {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(188, 255, 225, 0.9);
+  letter-spacing: 0.01em;
 }
 
 /* ============================================ */
@@ -584,9 +631,9 @@
 }
 
 .media-preview-close:hover {
-  background: rgba(255, 80, 80, 0.15);
-  border-color: rgba(255, 80, 80, 0.3);
-  color: #ffb6b6;
+  background: rgba(52, 200, 255, 0.14);
+  border-color: rgba(52, 200, 255, 0.38);
+  color: #d5f4ff;
   transform: scale(1.05);
 }
 

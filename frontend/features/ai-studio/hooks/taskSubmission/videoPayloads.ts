@@ -10,6 +10,14 @@ type KlingElementPayload =
   | { frontal_image_url: string | undefined; reference_image_urls: string[] | undefined };
 
 /**
+ * Fal currently guarantees `shot_type=customize` support for Kling 3 image-to-video.
+ * Omit other values to avoid provider-side validation failures.
+ */
+export const resolveKlingShotType = (
+  shotType: VideoSubmissionArgs["klingShotType"]
+): "customize" | undefined => (shotType === "customize" ? "customize" : undefined);
+
+/**
  * Normalizes aspect ratio for VEO image/video routes.
  */
 export const resolveVeoAspect = (aspect: string): "16:9" | "9:16" | "auto" =>
@@ -43,9 +51,21 @@ export const resolveSeedanceTextAspect = (
   modelConfig: SubmissionModelConfig
 ): "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9" =>
   modelConfig?.allowedAspects?.includes(aspect) &&
-  (aspect === "16:9" || aspect === "9:16" || aspect === "1:1")
+  (aspect === "16:9" ||
+    aspect === "9:16" ||
+    aspect === "1:1" ||
+    aspect === "4:3" ||
+    aspect === "3:4" ||
+    aspect === "21:9")
     ? aspect
-    : ((modelConfig?.defaultAspect ?? "16:9") as "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9");
+    : modelConfig?.defaultAspect === "16:9" ||
+        modelConfig?.defaultAspect === "9:16" ||
+        modelConfig?.defaultAspect === "1:1" ||
+        modelConfig?.defaultAspect === "4:3" ||
+        modelConfig?.defaultAspect === "3:4" ||
+        modelConfig?.defaultAspect === "21:9"
+      ? modelConfig.defaultAspect
+      : "16:9";
 
 /**
  * Resolves Seedance image-to-video aspect ratio with model fallback defaults.

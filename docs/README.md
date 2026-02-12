@@ -44,11 +44,11 @@ Start here for all repository documentation.
 
 ## APIs
 - `docs/api/README.md`
+- `docs/api/api-internal-routes.md`
 - `docs/api/api-responses.md`
 - `docs/api/api-chat-completions.md`
 - `docs/api/api-fal-kling-3-pro-image-to-video.md`
 - `docs/api/api-fal-kling-3-pro-text-to-video.md`
-- `docs/api/api-fal-kling-2-6-motion-control.md`
 - `docs/api/api-fal-veo3.md`
 - `docs/api/api-fal-veo3-image-to-video.md`
 - `docs/api/api-fal-veo3-first-last-frame.md`
@@ -77,6 +77,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_ai_studio_agent.md`
 - `docs/sops/sop_ai_studio_agent_chat_ops.md`
 - `docs/sops/sop_billing_credits_operations.md`
+- `docs/sops/sop_provider_incident_response.md`
 - `docs/sops/sop_new_model_ingestion.md`
 - `docs/sops/sop_text_generation.md`
 - `docs/sops/sop_image_generation.md`

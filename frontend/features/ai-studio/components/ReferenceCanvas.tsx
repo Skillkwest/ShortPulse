@@ -9,7 +9,6 @@ import {
   CloudArrowUp,
   DownloadSimple,
   FloppyDisk,
-  Sparkle,
   UploadSimple,
   X,
 } from "phosphor-react";
@@ -20,6 +19,18 @@ import type { ToolId } from "../types";
 
 const isVideoUrl = (url: string) =>
   /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
+
+// Temporary UI experiment: set false to revert selection outline theming to default create-blue.
+const ENABLE_TOOL_THEMED_SELECTION_OUTLINE = true;
+
+type ReferenceSelectionTheme = "create" | "edit" | "video";
+
+const resolveReferenceSelectionTheme = (selectedTool: ToolId | null): ReferenceSelectionTheme => {
+  if (!ENABLE_TOOL_THEMED_SELECTION_OUTLINE) return "create";
+  if (selectedTool === "image" || selectedTool === "edit") return "edit";
+  if (selectedTool === "video" || selectedTool === "kling") return "video";
+  return "create";
+};
 
 export type ReferenceCanvasProps = {
   outputs: StudioOutput[];
@@ -40,7 +51,6 @@ export type ReferenceCanvasProps = {
   onGeneratePrompt?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
   generateCostCredits?: number | null;
-  describeCostCredits?: number | null;
 };
 
 /**
@@ -65,8 +75,8 @@ export function ReferenceCanvas({
   onGeneratePrompt,
   onDeleteOutput,
   generateCostCredits,
-  describeCostCredits,
 }: ReferenceCanvasProps) {
+  const selectionTheme = resolveReferenceSelectionTheme(selectedTool);
   const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
   const loadedIdsRef = React.useRef<Set<string>>(new Set());
   const linkedPromptReferenceIdSet = React.useMemo(
@@ -145,6 +155,7 @@ export function ReferenceCanvas({
   return (
     <div
       className="panel ai-panel ai-preview-panel reference-canvas-panel"
+      data-selection-theme={selectionTheme}
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}
     >
@@ -352,20 +363,14 @@ export function ReferenceCanvas({
                   {isImagePreview && onDescribeImage ? (
                     <button
                       type="button"
-                      className="reference-describe-pill"
+                      className="reference-describe-pill reference-generate-pill agent-generate-prefab"
                       onClick={(event) => {
                         event.stopPropagation();
                         onSelectOutput(item.id);
                         onDescribeImage(item);
                       }}
                     >
-                      <span className="reference-pill-label">
-                        <Sparkle size={14} weight="fill" aria-hidden />
-                        <span>Describe</span>
-                        {typeof describeCostCredits === "number" ? (
-                          <span className="reference-pill-cost">+{describeCostCredits}</span>
-                        ) : null}
-                      </span>
+                      <span className="agent-generate-label">Describe</span>
                     </button>
                   ) : null}
                   {isPromptOnly &&

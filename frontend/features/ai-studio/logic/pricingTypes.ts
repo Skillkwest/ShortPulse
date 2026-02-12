@@ -12,7 +12,6 @@ export type PricingStrategyId =
   | "nano-banana-per-image"
   | "seedream-per-image"
   | "veo-3-per-second"
-  | "kling-2.6-motion-per-second"
   | "kling-3-per-second"
   | "sora-2-pro-per-second"
   | "seedance-1.5-per-second";

@@ -9,6 +9,10 @@ type FalSubmitConfig = {
   submitUrl: string;
   routeLabel: string;
   timeoutMs?: number;
+  validatePayload?: (payload: Record<string, unknown>) => {
+    error: string;
+    detail?: unknown;
+  } | null;
 };
 
 type JsonValue = Record<string, unknown>;
@@ -34,7 +38,7 @@ const readProviderRequestId = (payload: JsonValue): string | null => {
  * Builds a Next.js API handler that debits credits before forwarding to Fal.
  */
 export const createFalSubmitHandler =
-  ({ modelId, submitUrl, routeLabel, timeoutMs = 20000 }: FalSubmitConfig) =>
+  ({ modelId, submitUrl, routeLabel, timeoutMs = 20000, validatePayload }: FalSubmitConfig) =>
   async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
@@ -47,6 +51,13 @@ export const createFalSubmitHandler =
 
     const payload =
       typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
+    const payloadValidation = validatePayload?.(payload);
+    if (payloadValidation) {
+      return res.status(400).json({
+        error: payloadValidation.error,
+        detail: payloadValidation.detail ?? null,
+      });
+    }
     const charge = await chargeGenerationRequest({
       req,
       res,

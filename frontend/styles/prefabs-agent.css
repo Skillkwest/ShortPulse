@@ -467,10 +467,15 @@
   border: 1px solid #25a8bf7c;
   background: #6e818d2f;
   color: #25a8bf;
-  box-shadow: 0 4px 1px #25a8bf41;
   transition:
     box-shadow 0.16s ease,
     transform 0.12s ease;
+}
+.agent-send-prefab {
+  box-shadow: var(--agent-send-shadow, 0 4px 1px rgba(37, 168, 191, 0.18));
+}
+.agent-save-prefab {
+  box-shadow: var(--agent-save-shadow, 0 4px 1px rgba(37, 168, 191, 0.18));
 }
 .agent-enhance-prefab {
   flex-direction: row;
@@ -485,9 +490,14 @@
 }
 .agent-send-prefab:hover:not(:disabled),
 .agent-save-prefab:hover:not(:disabled) {
-  box-shadow: 0 5px 12px rgba(4, 234, 255, 0.088);
-  transform: translateY(2px);
+  transform: translateY(1px);
   cursor: pointer;
+}
+.agent-send-prefab:hover:not(:disabled) {
+  box-shadow: var(--agent-send-hover-shadow, 0 5px 12px rgba(4, 234, 255, 0.088));
+}
+.agent-save-prefab:hover:not(:disabled) {
+  box-shadow: var(--agent-save-hover-shadow, 0 5px 12px rgba(4, 234, 255, 0.088));
 }
 .agent-send-prefab:disabled,
 .agent-save-prefab:disabled {
@@ -678,4 +688,28 @@
 }
 .agent-input-prefab-field::-webkit-scrollbar-thumb:hover {
   background: rgba(201, 205, 214, 0.4);
+}
+
+/* Improve readability across AI Studio chat surfaces (inline + expanded agent chat window). */
+.ai-studio-page .agent-chat-panel .agent-drop-hint,
+.ai-studio-page .agent-chat-panel .agent-chat-empty,
+.ai-studio-page .agent-chat-panel .agent-message p,
+.ai-studio-page .agent-chat-panel .agent-message .tiny {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.ai-studio-page .agent-chat-panel .agent-input-prefab-field {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.ai-studio-page .agent-chat-panel .agent-input-prefab-field::placeholder {
+  font-size: 14px;
+}
+
+.ai-studio-page .agent-composer-hint,
+.ai-studio-page .agent-chat-panel .agent-thinking {
+  font-size: 13px;
+  line-height: 1.5;
 }

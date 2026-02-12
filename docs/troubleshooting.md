@@ -1,5 +1,8 @@
 # Troubleshooting
 
+## Provider or webhook outages
+For Fal/OpenAI/Stripe incident triage, use `docs/sops/sop_provider_incident_response.md`.
+
 ## `next build` / `next lint` prompts to “configure ESLint”
 This happens when the repo has `eslint-config-next` installed but no ESLint config file exists.
 

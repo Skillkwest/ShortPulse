@@ -11,12 +11,13 @@ Purpose: ensure user isolation and authenticated access across the frontend-only
 - **Billing tables**: Keep `billing_profiles`, `ai_credit_balance`, and `ai_credit_ledger` isolated per user (`user_id = auth.uid()`). Do not allow users to self-credit with positive ledger rows.
 - **Ledger integrity**: Enforce credit underflow protection at the database layer so debits cannot push balances below zero.
 - **Schema parity**: Keep `ai_credit_ledger` columns aligned with app expectations (`source`, `source_ref`, `metadata`, `created_by`) or run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` before enabling admin credit operations.
+- **Reservation lifecycle**: Keep `ai_credit_reservations` + reservation RPC functions aligned with app expectations (run `sql/migrations/002_add_generation_credit_reservations.sql` before enabling production generation billing).
 - **Webhook idempotency**: Persist Stripe event IDs (`stripe_event_log`) and skip duplicates before applying credits/subscription updates.
 - **Storage isolation**: Keep the `media_library` bucket private; require folder prefixes that start with `auth.uid()` (see `sql/storage_policies.sql`).
 - **Frontend route protection**: Guard dashboard/performance/saved-creators/media-library/profile; redirect unauthenticated users to `/auth`.
 - **Key management**: Never expose the service-role key. Use only the anon key in the browser.
 - **Network calls**: All Supabase requests already include the user’s JWT; avoid any other unauthenticated calls for user-owned data.
-- **API auth boundary**: Require authenticated bearer tokens for provider proxy routes (`/api/fal/*`, `/api/kei/*`, `/api/ai/*`), upload endpoints, billing routes, and admin routes.
+- **API auth boundary**: Require authenticated bearer tokens for provider proxy routes (`/api/fal/*`, `/api/kei/*`, `/api/ai/*`), upload endpoints, billing routes, and admin routes (enforced in `frontend/proxy.ts`, with additional route-level guards where needed).
 - **Admin boundary**: Restrict admin APIs to operator roles from `app_metadata` (`role`/`roles`) or explicit allow-listed admin emails. Do not trust `user_metadata` for admin authorization.
 
 ## Validation

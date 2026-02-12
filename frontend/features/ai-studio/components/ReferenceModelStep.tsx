@@ -38,7 +38,6 @@ type ReferenceModelStepProps = {
  */
 export const ReferenceModelStep: React.FC<ReferenceModelStepProps> = ({
   variant,
-  isVideoVariant,
   isKeyframesMode,
   beginnerMode,
   collapsed,
@@ -81,7 +80,7 @@ export const ReferenceModelStep: React.FC<ReferenceModelStepProps> = ({
       </div>
       {!collapsed ? (
         <div className="create-controls reference-frame-controls frame-model-controls">
-          <div className={`control-row compact ${isVideoVariant ? "full-span" : ""}`}>
+          <div className="control-row compact">
             <label className="input-label">Model</label>
             <button
               type="button"
@@ -116,16 +115,14 @@ export const ReferenceModelStep: React.FC<ReferenceModelStepProps> = ({
               </div>
             </button>
           </div>
-          {!isVideoVariant ? (
-            <div className="control-row compact">
-              <label className="input-label">Aspect ratio</label>
-              <AspectDropdown
-                aspect={aspect}
-                onSelect={onAspectChange}
-                options={aspectOptionsForModel}
-              />
-            </div>
-          ) : null}
+          <div className="control-row compact">
+            <label className="input-label">Aspect ratio</label>
+            <AspectDropdown
+              aspect={aspect}
+              onSelect={onAspectChange}
+              options={aspectOptionsForModel}
+            />
+          </div>
         </div>
       ) : null}
     </div>

@@ -65,21 +65,6 @@ describe("computeCostForModel (Google Veo 3.1)", () => {
   });
 });
 
-describe("computeCostForModel (Kling 2.6 Motion Control)", () => {
-  const modelId = "fal-ai/kling-video/v2.6/pro/motion-control";
-
-  it("defaults to 10s and applies 5-credit rounding", () => {
-    const cost = computeCostForModel(modelId, { durationSeconds: 10 });
-    expect(cost?.credits).toBe(115);
-    expect(cost?.usd).toBeCloseTo(1.15, 2);
-  });
-
-  it("charges $0.112/sec for shorter durations", () => {
-    const cost = computeCostForModel(modelId, { durationSeconds: 5 });
-    expect(cost?.credits).toBe(60);
-  });
-});
-
 describe("computeCostForModel (Kling 3.0 Pro Image to Video)", () => {
   const modelId = "fal-ai/kling-video/v3/pro/image-to-video";
 

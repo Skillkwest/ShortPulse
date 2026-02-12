@@ -91,7 +91,10 @@ export type PromptStepProps = {
   chatOnly?: boolean;
   promptOnly?: boolean;
   enhanceOnly?: boolean;
+  hideEnhanceButton?: boolean;
   promptPlaceholder?: string;
+  beginnerSubtitle?: string;
+  beginnerTitle?: string;
 };
 
 export function PromptStep({
@@ -140,7 +143,10 @@ export function PromptStep({
   chatOnly = false,
   promptOnly = false,
   enhanceOnly = false,
+  hideEnhanceButton = false,
   promptPlaceholder = "Describe what you want, then refine it.",
+  beginnerSubtitle,
+  beginnerTitle,
 }: PromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
@@ -162,7 +168,7 @@ export function PromptStep({
     }
   }, [beginnerMode, chatOnly, promptMode, promptOnly]);
 
-  const effectiveTitle = beginnerMode ? "Build Your Prompt" : title;
+  const effectiveTitle = beginnerMode ? (beginnerTitle ?? "Build Your Prompt") : title;
 
   const handleEnhancedPromptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
@@ -182,6 +188,7 @@ export function PromptStep({
   const canUsePromptSurface = agentEnabled || enhanceOnly;
   const isChatMode = !promptOnly && !enhanceOnly && (chatOnly || promptMode === "chat");
   const promptThinking = Boolean(agentIsSending || isGenerating);
+  const visibleSubtitle = beginnerMode ? beginnerSubtitle : subtitle;
   const canPinAgentInput = agentInput.trim().length > 0;
   const handleAgentSendClick = () => {
     onAgentSend?.();
@@ -221,8 +228,8 @@ export function PromptStep({
         {beginnerMode && <span className="step-badge">{stepNumber}</span>}
         <div className="step-header-copy">
           <p className="step-title">{effectiveTitle}</p>
-          {!beginnerMode ? (
-            <span className="step-subtitle tiny helper-text">{subtitle}</span>
+          {visibleSubtitle ? (
+            <span className="step-subtitle tiny helper-text">{visibleSubtitle}</span>
           ) : null}
         </div>
         <div className="step-header-actions">
@@ -420,16 +427,18 @@ export function PromptStep({
                 </div>
                 <div className="enhanced-actions-row prompt-actions-compact">
                   <div className="enhanced-action-buttons agent-inline-actions">
-                    <AgentEnhanceButton
-                      onClick={
-                        enhanceOnly
-                          ? (onAgentEnhanceSend ?? (() => {}))
-                          : (onAgentEnhanceSend ?? onAgentSend ?? (() => {}))
-                      }
-                      disabled={agentIsSending}
-                      ariaLabel="Enhance prompt"
-                      className="prompt-fab-send"
-                    />
+                    {!hideEnhanceButton ? (
+                      <AgentEnhanceButton
+                        onClick={
+                          enhanceOnly
+                            ? (onAgentEnhanceSend ?? (() => {}))
+                            : (onAgentEnhanceSend ?? onAgentSend ?? (() => {}))
+                        }
+                        disabled={agentIsSending}
+                        ariaLabel="Enhance prompt"
+                        className="prompt-fab-send"
+                      />
+                    ) : null}
                     <AgentSaveButton
                       onClick={onSavePrompt}
                       disabled={shouldDisableSave}

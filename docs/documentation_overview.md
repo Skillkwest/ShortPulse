@@ -46,4 +46,4 @@ Covered after this cleanup:
 Remaining improvement opportunities:
 - Add an automated whole-repo markdown link checker (not only API index validation).
 - Add explicit owner/review cadence metadata for high-churn docs.
-- Add deeper troubleshooting playbooks for provider outages and Stripe webhook failures.
+- Add contract validation between documented route inventories and `frontend/pages/api/*` to catch drift automatically.

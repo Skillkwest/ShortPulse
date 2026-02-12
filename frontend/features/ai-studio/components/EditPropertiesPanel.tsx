@@ -173,6 +173,8 @@ export function EditPropertiesPanel({
           agentIsSending={agentIsSending}
           agentError={agentError}
           onAgentEnhanceSend={onAgentEnhanceSend}
+          showEnhanceButton={false}
+          beginnerHelperText="Think like an art director: describe the subject, setting, style, lighting, and camera angle."
         />
         <ReferenceModelStep
           variant="image"
@@ -254,6 +256,9 @@ export function EditPropertiesPanel({
           isGenerateDisabled={isGenerateDisabled}
           isBusy={agentIsSending}
           costCredits={costCredits}
+          promptRequiredMessage={
+            referenceText?.trim() ? null : 'Add a prompt in "Write Your Prompt" to generate.'
+          }
           referenceImageWarning={referenceImageWarning}
         />
       </div>

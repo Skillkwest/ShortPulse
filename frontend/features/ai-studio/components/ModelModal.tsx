@@ -85,12 +85,6 @@ const modelMeta: Record<string, ModelMeta> = {
     description: "Kling 3.0 text-to-video generates 5 to 10 second clips with native audio.",
     tags: ["Video", "Text-to-Video", "5-10s", "Audio"],
   },
-  "fal-ai/kling-video/v2.6/pro/motion-control": {
-    provider: "Kling AI",
-    description:
-      "Kling 2.6 Motion Control transfers reference motion onto a source image in 5 to 10 second clips.",
-    tags: ["Video", "Image-to-Video", "Motion Transfer", "5-10s"],
-  },
   "fal-ai/veo3.1/first-last-frame-to-video": {
     provider: "Google DeepMind",
     description:

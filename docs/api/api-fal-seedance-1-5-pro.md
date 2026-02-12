@@ -20,7 +20,8 @@ curl --request POST \
     "duration": "10",
     "aspect_ratio": "16:9",
     "negative_prompt": "blur, distort, low quality",
-    "cfg_scale": 0.5
+    "cfg_scale": 0.5,
+    "enable_safety_checker": false
   }'
 ```
 
@@ -30,12 +31,12 @@ curl --request POST \
 - `aspect_ratio` (enum): `16:9` (default), `9:16`, `1:1`, `4:3`, `3:4`, `21:9`.
 - `negative_prompt` (string): Optional; we default to `"blur, distort, and low quality"`.
 - `cfg_scale` (float): Optional guidance strength (default `0.5`).
+- `enable_safety_checker` (boolean): Default true on Fal; ShortPulse sends `false` for minimum filtering.
 - Additional audio/resolution controls are handled by the provider; AI Studio assumes audio on and 1080p-equivalent for pricing.
 
 ## Status
-- Poll: `GET https://queue.fal.run/fal-ai/bytedance/seedance/requests/<request_id>/status`
-- Result: `GET https://queue.fal.run/fal-ai/bytedance/seedance/requests/<request_id>`
-- Proxies: `/api/fal/seedance-status` proxies status + result when complete.
+- Provider queue URLs may resolve through multiple base paths (`/fal-ai/bytedance/requests`, `/fal-ai/bytedance/seedance/requests`, or model-specific paths).
+- ShortPulse proxy `/api/fal/seedance-status` automatically retries across supported Seedance queue URL patterns and returns normalized status/result.
 
 **Typical result**
 ```json
@@ -50,6 +51,7 @@ curl --request POST \
 ## Defaults we apply (AI Studio)
 - Aspect: `16:9` default (allowed: `16:9`, `9:16`, `1:1`, `4:3`, `3:4`, `21:9`).
 - Duration: 10s; audio on; resolution tier equivalent to 1080p (used for pricing).
+- Safety: `enable_safety_checker: false` (minimum filtering).
 - Pricing: `seedance-1.5-per-second` (token-based; audio on).
 - Proxy routes: `/api/fal/seedance-submit` and `/api/fal/seedance-status`.
 

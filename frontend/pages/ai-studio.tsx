@@ -899,8 +899,7 @@ export default function AiStudioPage() {
     await handleGenerate(promptText, {
       modeOverride: "image",
       toolOverride: "create",
-      costOverrideCredits:
-        promptGenerateCostCredits ?? modelPickerCostCredits ?? currentCostCredits,
+      costOverrideCredits: promptReferenceGenerateCostCredits,
     });
   };
 
@@ -1050,12 +1049,7 @@ export default function AiStudioPage() {
       );
     }
     if (selectedTool === "video" && videoReferenceMode === "keyframes") {
-      // Show both Veo first/last frame and Kling 3.0 (supports optional end frame)
-      return base.filter(
-        (opt) =>
-          opt.value === "fal-ai/veo3.1/first-last-frame-to-video" ||
-          opt.value === "fal-ai/kling-video/v3/pro/image-to-video"
-      );
+      return base.filter((opt) => opt.value === "fal-ai/veo3.1/first-last-frame-to-video");
     }
     if (selectedTool === "video" && videoReferenceMode === "kling3") {
       return base.filter((opt) => opt.value === "fal-ai/kling-video/v3/pro/image-to-video");
@@ -1065,9 +1059,9 @@ export default function AiStudioPage() {
 
   const {
     currentCostCredits,
-    modelPickerCostCredits,
     promptGenerateCostCredits,
-    describeCostCredits,
+    promptReferenceGenerateCostCredits,
+    hasSufficientCreditsForPromptReferenceGenerate,
     isCreditGuardrail,
     generationGuardrail,
     isGenerateDisabled,
@@ -1084,6 +1078,9 @@ export default function AiStudioPage() {
     getDefaultDurationSeconds,
     videoDurationSeconds,
     videoResolution,
+    videoReferenceMode,
+    motionReferenceVideoUrl,
+    extraImageUrls,
     imageResolution,
     videoGenerateAudio,
     balanceCredits,
@@ -1423,7 +1420,7 @@ export default function AiStudioPage() {
           showHeader: false,
           onOutputMediaLoaded: onReferenceOutputMediaLoaded,
           linkedPromptReferenceIds,
-          disablePromptGenerate: !model,
+          disablePromptGenerate: !model || !hasSufficientCreditsForPromptReferenceGenerate,
           onSelectOutput: handleSelectOutput,
           onOpenDetails: setDetailOutputId,
           onDescribeImage: (output) => handleDescribeReference(output.id),
@@ -1432,7 +1429,6 @@ export default function AiStudioPage() {
           onGeneratePrompt: (output) => handleGenerateFromPromptReference(output.id),
           onDeleteOutput: deleteOutput,
           generateCostCredits: promptGenerateCostCredits,
-          describeCostCredits,
           selectedTool,
         }}
         studioPreviewProps={{

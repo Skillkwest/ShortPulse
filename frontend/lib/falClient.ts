@@ -50,14 +50,6 @@ export type FalKlingV3TextSubmitRequest = {
   voice_ids?: string[];
 };
 
-export type FalKlingMotionControlSubmitRequest = {
-  prompt: string;
-  image_url: string;
-  video_url: string;
-  keep_original_sound?: boolean;
-  character_orientation?: "image" | "video";
-};
-
 export type FalKlingV3ImageToVideoSubmitRequest = {
   prompt: string;
   start_image_url: string;
@@ -167,6 +159,7 @@ export type FalSeedanceSubmitRequest = {
   aspect_ratio?: "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9";
   negative_prompt?: string;
   cfg_scale?: number;
+  enable_safety_checker?: boolean;
   generate_audio?: boolean;
 };
 
@@ -543,24 +536,6 @@ export const submitFalKlingV3Text = async (
   const requestId = readRequestId(data);
   if (!requestId) {
     throw new Error("Fal Kling v3 text-to-video did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-const FAL_KLING_MOTION_CONTROL_SUBMIT = `${FAL_API_BASE}/kling-v26-motion-control-submit`;
-
-export const submitFalKlingMotionControl = async (
-  payload: FalKlingMotionControlSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(FAL_KLING_MOTION_CONTROL_SUBMIT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Kling 2.6 motion control did not return a request_id");
   }
   return { request_id: requestId };
 };

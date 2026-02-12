@@ -232,3 +232,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added `docs/adr/0007-ai-studio-agent-tooling-strategy.md` to codify the product decision: ship media analysis and prompt optimization now, run evaluation in shadow mode, and defer MCP until objective adoption gates are met.
 - Added `docs/planning/ai-studio-agent-tooling-phased-plan.md` with concrete rollout phases, tool contracts, telemetry requirements, security guardrails, and MCP adoption checklist.
 - Updated `docs/sops/sop_ai_studio_agent.md`, `docs/planning/README.md`, and `docs/README.md` so the strategy and plan are discoverable and operationally durable.
+
+## 2026-02-12
+- Ran a repo-wide documentation audit against the live route/API/schema surface and identified missing coverage for internal API contracts, provider incident response, and credit reservation schema details.
+- Added `docs/api/api-internal-routes.md` to document first-party Next.js API families, auth boundaries (`frontend/proxy.ts` + route-level guards), environment dependencies, and maintenance expectations.
+- Added `docs/sops/sop_provider_incident_response.md` with Fal/OpenAI/Stripe triage, diagnostics queries, mitigation steps, and post-incident requirements.
+- Updated schema/security/ops docs to include reservation billing lifecycle requirements: `docs/data-dictionary.md`, `docs/security-checklist.md`, `docs/local-development.md`, `docs/database-migrations.md`, `docs/monitoring.md`, and `docs/troubleshooting.md`.
+- Updated docs indexes and cross-links so new docs are discoverable from `docs/README.md`, `docs/api/README.md`, `docs/sops/README.md`, and `docs/documentation_overview.md`.

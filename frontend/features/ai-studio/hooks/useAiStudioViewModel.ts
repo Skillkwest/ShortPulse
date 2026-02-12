@@ -22,6 +22,9 @@ type ViewModelInput = {
   getDefaultDurationSeconds: (modelId: string | null) => number;
   videoDurationSeconds: number;
   videoResolution: string;
+  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  motionReferenceVideoUrl: string | null;
+  extraImageUrls: [string | null, string | null, string | null];
   imageResolution: string;
   videoGenerateAudio: boolean;
   balanceCredits: number | null;
@@ -40,6 +43,9 @@ export const useAiStudioViewModel = ({
   getDefaultDurationSeconds,
   videoDurationSeconds,
   videoResolution,
+  videoReferenceMode,
+  motionReferenceVideoUrl,
+  extraImageUrls,
   imageResolution,
   videoGenerateAudio,
   balanceCredits,
@@ -175,6 +181,12 @@ export const useAiStudioViewModel = ({
     );
     return breakdown?.credits ?? null;
   }, [aspect, costParamsForModel, model, pricingImageResolution]);
+  const promptReferenceGenerateCostCredits =
+    promptGenerateCostCredits ?? modelPickerCostCredits ?? currentCostCredits;
+  const hasSufficientCreditsForPromptReferenceGenerate =
+    balanceCredits == null || promptReferenceGenerateCostCredits == null
+      ? true
+      : balanceCredits >= promptReferenceGenerateCostCredits;
 
   const costedFlow =
     ((selectedTool === "create" || selectedTool === "text") &&
@@ -194,26 +206,49 @@ export const useAiStudioViewModel = ({
     if (requiresModelSelection && !isModelSelected)
       return "Select a model before running a generation.";
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
+    const isVeoFirstLastModel = model === "fal-ai/veo3.1/first-last-frame-to-video";
+    const hasBothVeoFrames = Boolean(referenceImageUrl && extraImageUrls[0]);
+    if (
+      isVideoTool &&
+      videoReferenceMode === "keyframes" &&
+      isVeoFirstLastModel &&
+      !hasBothVeoFrames
+    ) {
+      return "Add both first and last frame images before generating.";
+    }
+    if (isVideoTool && videoReferenceMode === "motion") {
+      const hasCharacterImage = Boolean(referenceImageUrl);
+      const hasMotionVideo = Boolean(motionReferenceVideoUrl);
+      if (!hasCharacterImage && !hasMotionVideo) {
+        return "Add a character image and motion reference video before generating.";
+      }
+      if (!hasCharacterImage) {
+        return "Add a character image before generating in Motion Control.";
+      }
+      if (!hasMotionVideo) {
+        return "Add a motion reference video before generating in Motion Control.";
+      }
+    }
     // Removed reference image guardrails - system will automatically fallback to text-to-image/text-to-video when no references exist
     if (isCreditGuardrail) return "You do not have enough credits for this run.";
     return null;
   }, [
+    extraImageUrls,
     hasDescribeImage,
+    isVideoTool,
     isCreditGuardrail,
     isDescribeMode,
     isModelSelected,
+    model,
+    motionReferenceVideoUrl,
+    referenceImageUrl,
     requiresModelSelection,
     mode,
     selectedTool,
+    videoReferenceMode,
   ]);
 
   const isGenerateDisabled = Boolean(generationGuardrail);
-  const describeCostCredits = useMemo(() => {
-    const breakdown = computeCostForModel(TEXT_PROMPT_MODEL_ID, estimateDescribeTokens());
-    return breakdown?.credits ?? null;
-    // estimateDescribeTokens is stable; no dependencies needed
-  }, []);
-
   const modelConfig = useMemo(() => (model ? getModelConfig(model) : null), [model]);
 
   // Warning when user hasn't provided reference image for image-to-image or image-to-video models
@@ -234,6 +269,18 @@ export const useAiStudioViewModel = ({
     // Check if using video tool with image-to-video model but no reference
     if (isVideoTool) {
       const hasReference = Boolean(referenceImageUrl);
+      const hasMotionVideo = Boolean(motionReferenceVideoUrl);
+      if (videoReferenceMode === "motion") {
+        if (!hasReference && !hasMotionVideo) {
+          return "Motion Control requires a character image and motion reference video.";
+        }
+        if (!hasReference) {
+          return "Motion Control requires a character reference image.";
+        }
+        if (!hasMotionVideo) {
+          return "Motion Control requires a motion reference video.";
+        }
+      }
       const isImageToVideoOnly =
         modelConfig.supportsImageToVideo && !modelConfig.mediaType?.includes("video");
 
@@ -243,15 +290,24 @@ export const useAiStudioViewModel = ({
     }
 
     return null;
-  }, [model, modelConfig, selectedTool, referenceImageUrl, isVideoTool]);
+  }, [
+    model,
+    modelConfig,
+    selectedTool,
+    referenceImageUrl,
+    isVideoTool,
+    videoReferenceMode,
+    motionReferenceVideoUrl,
+  ]);
 
   return {
     currentCost,
     currentCostCredits,
     modelPickerCostCredits,
     promptGenerateCostCredits,
-    describeCostCredits,
+    promptReferenceGenerateCostCredits,
     hasSufficientCreditsForCost,
+    hasSufficientCreditsForPromptReferenceGenerate,
     isCreditGuardrail,
     generationGuardrail,
     isGenerateDisabled,

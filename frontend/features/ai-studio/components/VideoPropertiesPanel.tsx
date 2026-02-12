@@ -262,8 +262,10 @@ export function VideoPropertiesPanel({
           agentIsSending={agentIsSending}
           agentError={agentError}
           onAgentEnhanceSend={onAgentEnhanceSend}
+          showEnhanceButton={false}
+          beginnerHelperText="Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip."
         />
-        {!isKeyframesMode && !isMotionMode ? (
+        {!isMotionMode ? (
           <ReferenceModelStep
             variant="video"
             isVideoVariant={true}
@@ -400,9 +402,12 @@ export function VideoPropertiesPanel({
           generateBadge={generateBadge}
           onExpand={() => expandIfCollapsed("generate")}
           onRegenerate={onRegenerate}
-          isGenerateDisabled={isGenerateDisabled}
+          isGenerateDisabled={isGenerateDisabled || !referenceText?.trim()}
           isBusy={agentIsSending}
           costCredits={costCredits}
+          promptRequiredMessage={
+            referenceText?.trim() ? null : 'Add a prompt in "Write Your Prompt" to generate.'
+          }
           referenceImageWarning={referenceImageWarning}
         />
       </div>

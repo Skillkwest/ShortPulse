@@ -23,6 +23,11 @@ import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "./useAiStudioTasks";
 import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
 import { normalizeErrorText } from "../../../lib/errorText";
+import {
+  buildImageReferenceInputs,
+  buildRegenerateReferencePool,
+  buildVideoReferenceInputs,
+} from "../logic/referenceInputs";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
 
@@ -32,6 +37,148 @@ type PendingAutoSave = {
   provider: Provider;
   resultUrls: string[];
 };
+type WorkflowSettingsKey = "create" | "edit" | "video" | "kling";
+type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
+type KlingShotType = "customize" | "intelligent";
+type KlingPromptShot = { id: string; prompt: string; duration: number };
+type KlingElement = {
+  id: string;
+  frontalImageUrl: string;
+  referenceImageUrls: string;
+  videoUrl: string;
+};
+type WorkflowSettingsSnapshot = {
+  mode: StudioMode;
+  model: string | null;
+  aspect: string;
+  imageResolution: string;
+  videoReferenceMode: VideoReferenceMode;
+  videoDurationSeconds: number;
+  videoResolution: string;
+  videoGenerateAudio: boolean;
+  videoCameraFixed: boolean;
+  videoAutoFix: boolean;
+  klingNegativePrompt: string;
+  klingCfgScale: number;
+  klingShotType: KlingShotType;
+  klingVoiceIds: [string, string];
+  klingMultiPrompts: KlingPromptShot[];
+  klingElements: KlingElement[];
+};
+
+const WORKFLOW_SETTINGS_SESSION_KEY = "aiStudioWorkflowSettingsByTool.v1";
+const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
+  mode: "image",
+  model: null,
+  aspect: "9:16",
+  imageResolution: "model_default",
+  videoReferenceMode: "standard",
+  videoDurationSeconds: 6,
+  videoResolution: "1080p",
+  videoGenerateAudio: false,
+  videoCameraFixed: false,
+  videoAutoFix: false,
+  klingNegativePrompt: "blur, distort, and low quality",
+  klingCfgScale: 0.5,
+  klingShotType: "customize",
+  klingVoiceIds: ["", ""],
+  klingMultiPrompts: [],
+  klingElements: [{ id: randomId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }],
+};
+
+const resolveWorkflowSettingsKey = (tool: ToolId | null): WorkflowSettingsKey | null => {
+  if (tool === "create" || tool === "text") return "create";
+  if (tool === "edit" || tool === "image") return "edit";
+  if (tool === "video") return "video";
+  if (tool === "kling") return "kling";
+  return null;
+};
+
+const cloneWorkflowSettingsSnapshot = (
+  snapshot: Partial<WorkflowSettingsSnapshot> | null | undefined
+): WorkflowSettingsSnapshot => ({
+  mode:
+    snapshot?.mode === "image" || snapshot?.mode === "text" || snapshot?.mode === "video"
+      ? snapshot.mode
+      : DEFAULT_WORKFLOW_SETTINGS.mode,
+  model:
+    typeof snapshot?.model === "string" || snapshot?.model === null
+      ? snapshot.model
+      : DEFAULT_WORKFLOW_SETTINGS.model,
+  aspect: typeof snapshot?.aspect === "string" ? snapshot.aspect : DEFAULT_WORKFLOW_SETTINGS.aspect,
+  imageResolution:
+    typeof snapshot?.imageResolution === "string"
+      ? snapshot.imageResolution
+      : DEFAULT_WORKFLOW_SETTINGS.imageResolution,
+  videoReferenceMode:
+    snapshot?.videoReferenceMode === "standard" ||
+    snapshot?.videoReferenceMode === "keyframes" ||
+    snapshot?.videoReferenceMode === "kling3" ||
+    snapshot?.videoReferenceMode === "motion"
+      ? snapshot.videoReferenceMode
+      : DEFAULT_WORKFLOW_SETTINGS.videoReferenceMode,
+  videoDurationSeconds:
+    typeof snapshot?.videoDurationSeconds === "number" &&
+    Number.isFinite(snapshot.videoDurationSeconds)
+      ? snapshot.videoDurationSeconds
+      : DEFAULT_WORKFLOW_SETTINGS.videoDurationSeconds,
+  videoResolution:
+    typeof snapshot?.videoResolution === "string"
+      ? snapshot.videoResolution
+      : DEFAULT_WORKFLOW_SETTINGS.videoResolution,
+  videoGenerateAudio:
+    typeof snapshot?.videoGenerateAudio === "boolean"
+      ? snapshot.videoGenerateAudio
+      : DEFAULT_WORKFLOW_SETTINGS.videoGenerateAudio,
+  videoCameraFixed:
+    typeof snapshot?.videoCameraFixed === "boolean"
+      ? snapshot.videoCameraFixed
+      : DEFAULT_WORKFLOW_SETTINGS.videoCameraFixed,
+  videoAutoFix:
+    typeof snapshot?.videoAutoFix === "boolean"
+      ? snapshot.videoAutoFix
+      : DEFAULT_WORKFLOW_SETTINGS.videoAutoFix,
+  klingNegativePrompt:
+    typeof snapshot?.klingNegativePrompt === "string"
+      ? snapshot.klingNegativePrompt
+      : DEFAULT_WORKFLOW_SETTINGS.klingNegativePrompt,
+  klingCfgScale:
+    typeof snapshot?.klingCfgScale === "number" && Number.isFinite(snapshot.klingCfgScale)
+      ? snapshot.klingCfgScale
+      : DEFAULT_WORKFLOW_SETTINGS.klingCfgScale,
+  klingShotType:
+    snapshot?.klingShotType === "intelligent" || snapshot?.klingShotType === "customize"
+      ? snapshot.klingShotType
+      : DEFAULT_WORKFLOW_SETTINGS.klingShotType,
+  klingVoiceIds: [
+    Array.isArray(snapshot?.klingVoiceIds) ? String(snapshot?.klingVoiceIds?.[0] ?? "") : "",
+    Array.isArray(snapshot?.klingVoiceIds) ? String(snapshot?.klingVoiceIds?.[1] ?? "") : "",
+  ],
+  klingMultiPrompts: Array.isArray(snapshot?.klingMultiPrompts)
+    ? snapshot.klingMultiPrompts
+        .map((shot) => ({
+          id: typeof shot?.id === "string" ? shot.id : randomId(),
+          prompt: typeof shot?.prompt === "string" ? shot.prompt : "",
+          duration:
+            typeof shot?.duration === "number" && Number.isFinite(shot.duration)
+              ? shot.duration
+              : 6,
+        }))
+        .filter((shot) => Boolean(shot.id))
+    : [],
+  klingElements: Array.isArray(snapshot?.klingElements)
+    ? snapshot.klingElements
+        .map((element) => ({
+          id: typeof element?.id === "string" ? element.id : randomId(),
+          frontalImageUrl:
+            typeof element?.frontalImageUrl === "string" ? element.frontalImageUrl : "",
+          referenceImageUrls:
+            typeof element?.referenceImageUrls === "string" ? element.referenceImageUrls : "",
+          videoUrl: typeof element?.videoUrl === "string" ? element.videoUrl : "",
+        }))
+        .filter((element) => Boolean(element.id))
+    : DEFAULT_WORKFLOW_SETTINGS.klingElements.map((element) => ({ ...element })),
+});
 
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
@@ -114,11 +261,6 @@ export const useAiStudioState = () => {
   const [klingElements, setKlingElements] = useState<
     { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
   >([{ id: randomId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }]);
-  const [motionCharacterOrientation, setMotionCharacterOrientation] = useState<"image" | "video">(
-    "video"
-  );
-  const [motionKeepOriginalSound, setMotionKeepOriginalSound] = useState<boolean>(true);
-  const [motionCharacterUrl, setMotionCharacterUrl] = useState<string | null>(null);
   const [motionReferenceVideoUrl, setMotionReferenceVideoUrl] = useState<string | null>(null);
   const [useReferenceImageIndicator, setUseReferenceImageIndicator] = useState<boolean>(false);
   const [detailOutputId, setDetailOutputId] = useState<string | null>(null);
@@ -133,6 +275,120 @@ export const useAiStudioState = () => {
   const lastNonKling3VideoModelRef = useRef<string | null>(null);
   const lastNonKeyframesVideoModelRef = useRef<string | null>(null);
   const lastNonMotionVideoModelRef = useRef<string | null>(null);
+  const [workflowSettingsHydrated, setWorkflowSettingsHydrated] = useState<boolean>(false);
+  const workflowSettingsRef = useRef<
+    Partial<Record<WorkflowSettingsKey, WorkflowSettingsSnapshot>>
+  >({});
+  const previousWorkflowSettingsKeyRef = useRef<WorkflowSettingsKey | null>(null);
+  const activeWorkflowSettingsKey = useMemo(
+    () => resolveWorkflowSettingsKey(selectedTool),
+    [selectedTool]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<
+        Record<WorkflowSettingsKey, Partial<WorkflowSettingsSnapshot>>
+      >;
+      const next: Partial<Record<WorkflowSettingsKey, WorkflowSettingsSnapshot>> = {};
+      (["create", "edit", "video", "kling"] as const).forEach((key) => {
+        next[key] = cloneWorkflowSettingsSnapshot(parsed?.[key]);
+      });
+      workflowSettingsRef.current = next;
+    } catch {
+      workflowSettingsRef.current = {};
+    } finally {
+      setWorkflowSettingsHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!workflowSettingsHydrated) return;
+    if (!activeWorkflowSettingsKey) {
+      previousWorkflowSettingsKeyRef.current = null;
+      return;
+    }
+
+    const previous = previousWorkflowSettingsKeyRef.current;
+    previousWorkflowSettingsKeyRef.current = activeWorkflowSettingsKey;
+    if (previous === activeWorkflowSettingsKey) return;
+
+    let snapshot = workflowSettingsRef.current[activeWorkflowSettingsKey];
+    if (!snapshot) {
+      snapshot = cloneWorkflowSettingsSnapshot(DEFAULT_WORKFLOW_SETTINGS);
+      workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
+    }
+
+    if (activeWorkflowSettingsKey === "create") {
+      setMode(snapshot.mode);
+    }
+    setModelState(snapshot.model);
+    setAspect(snapshot.aspect);
+    setImageResolution(snapshot.imageResolution);
+    setVideoReferenceMode(snapshot.videoReferenceMode);
+    setVideoDurationSeconds(snapshot.videoDurationSeconds);
+    setVideoResolution(snapshot.videoResolution);
+    setVideoGenerateAudio(snapshot.videoGenerateAudio);
+    setVideoCameraFixed(snapshot.videoCameraFixed);
+    setVideoAutoFix(snapshot.videoAutoFix);
+    setKlingNegativePrompt(snapshot.klingNegativePrompt);
+    setKlingCfgScale(snapshot.klingCfgScale);
+    setKlingShotType(snapshot.klingShotType);
+    setKlingVoiceIds([...snapshot.klingVoiceIds] as [string, string]);
+    setKlingMultiPrompts(snapshot.klingMultiPrompts.map((shot) => ({ ...shot })));
+    setKlingElements(snapshot.klingElements.map((element) => ({ ...element })));
+  }, [activeWorkflowSettingsKey, workflowSettingsHydrated]);
+
+  useEffect(() => {
+    if (!workflowSettingsHydrated) return;
+    if (!activeWorkflowSettingsKey) return;
+    const snapshot: WorkflowSettingsSnapshot = {
+      mode,
+      model,
+      aspect,
+      imageResolution,
+      videoReferenceMode,
+      videoDurationSeconds,
+      videoResolution,
+      videoGenerateAudio,
+      videoCameraFixed,
+      videoAutoFix,
+      klingNegativePrompt,
+      klingCfgScale,
+      klingShotType,
+      klingVoiceIds: [...klingVoiceIds] as [string, string],
+      klingMultiPrompts: klingMultiPrompts.map((shot) => ({ ...shot })),
+      klingElements: klingElements.map((element) => ({ ...element })),
+    };
+    workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(
+      WORKFLOW_SETTINGS_SESSION_KEY,
+      JSON.stringify(workflowSettingsRef.current)
+    );
+  }, [
+    activeWorkflowSettingsKey,
+    aspect,
+    imageResolution,
+    klingCfgScale,
+    klingElements,
+    klingMultiPrompts,
+    klingNegativePrompt,
+    klingShotType,
+    klingVoiceIds,
+    mode,
+    model,
+    videoAutoFix,
+    videoCameraFixed,
+    videoDurationSeconds,
+    videoGenerateAudio,
+    videoReferenceMode,
+    videoResolution,
+    workflowSettingsHydrated,
+  ]);
 
   const activeOutput = useMemo(
     () => outputs.find((item) => item.id === activeOutputId) ?? null,
@@ -160,6 +416,7 @@ export const useAiStudioState = () => {
     if (selectedTool === "video" || selectedTool === "kling") {
       const isKeyframesMode = videoReferenceMode === "keyframes";
       const isMotionMode = videoReferenceMode === "motion";
+      const isKling3Mode = videoReferenceMode === "kling3";
       return modelOptions.filter((opt) => {
         // In keyframes mode, only show Veo 3.1 First/Last Frame.
         if (isKeyframesMode) {
@@ -169,16 +426,12 @@ export const useAiStudioState = () => {
         if (isMotionMode) {
           return opt.value === "fal-ai/kling-video/v3/pro/image-to-video";
         }
-        // In standard/kling3 mode, show video and image-to-video models but NOT keyframes-only or Kling models.
-        if (opt.mediaType === "keyframes") return false;
-        // Hide Kling models from standard Image-to-Video modal (they have dedicated tabs)
-        if (opt.value.includes("kling-video")) return false;
-        return (
-          !opt.mediaType ||
-          opt.mediaType === "image-to-video" ||
-          opt.mediaType === "video" ||
-          opt.mediaType === "multi"
-        );
+        // Dedicated Kling mode only allows Kling 3.0 image-to-video.
+        if (selectedTool === "kling" || isKling3Mode) {
+          return opt.value === "fal-ai/kling-video/v3/pro/image-to-video";
+        }
+        // Standard video mode intentionally supports image-to-video only.
+        return opt.mediaType === "image-to-video" && !opt.value.includes("kling-video");
       });
     }
     if ((selectedTool === "create" || selectedTool === "text") && mode === "video") {
@@ -557,17 +810,6 @@ export const useAiStudioState = () => {
     [imageExtraImageUrls, imageReferenceImageUrl, videoExtraImageUrls, videoReferenceImageUrl]
   );
 
-  const buildImageReferenceInputs = useCallback(
-    (primary: string | null, extras: (string | null)[]) => {
-      const orderedExtras = extras.filter((url): url is string => Boolean(url && url !== primary));
-      if (primary) {
-        return [primary, ...orderedExtras];
-      }
-      return orderedExtras;
-    },
-    []
-  );
-
   const generateOutput = useCallback(
     (
       promptOverride?: string | null,
@@ -589,20 +831,23 @@ export const useAiStudioState = () => {
         typeof promptOverride === "string" ? promptOverride : defaultPromptForTool;
       const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
         resolveReferenceInputsForTool(effectiveTool);
+      const isVideoGenerationTool = effectiveTool === "video" || effectiveTool === "kling";
       const baseInputs =
         effectiveTool === "image" || effectiveTool === "edit"
           ? buildImageReferenceInputs(referenceUrl, extraUrls)
-          : [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url));
+          : isVideoGenerationTool
+            ? buildVideoReferenceInputs(referenceUrl, extraUrls, videoReferenceMode)
+            : [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url));
       const imageInputs = baseInputs.slice(0, 8);
       submitTask(promptToSubmit, imageInputs, options);
     },
     [
-      buildImageReferenceInputs,
       editReferenceText,
       prompt,
       resolveReferenceInputsForTool,
       selectedTool,
       submitTask,
+      videoReferenceMode,
       videoReferenceText,
     ]
   );
@@ -618,30 +863,32 @@ export const useAiStudioState = () => {
         ? referencePromptForTool
         : prompt;
     const promptToUse = promptForTool.trim();
-    if (!promptToUse) return;
+    if (!promptToUse) {
+      setUiError("Add a prompt to start a generation.");
+      return;
+    }
     const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
       resolveReferenceInputsForTool(selectedTool);
-    const referencePool =
-      selectedTool === "image" || selectedTool === "edit"
-        ? buildImageReferenceInputs(referenceUrl, extraUrls)
-        : [
-            ...(useReferenceImageIndicator && activeOutput?.previewUrl
-              ? [activeOutput.previewUrl]
-              : []),
-            referenceUrl,
-            ...extraUrls,
-          ].filter((url): url is string => Boolean(url));
+    const referencePool = buildRegenerateReferencePool({
+      selectedTool,
+      useReferenceImageIndicator,
+      activeOutputPreviewUrl: activeOutput?.previewUrl,
+      referenceUrl,
+      extraUrls,
+      videoReferenceMode,
+    });
     const imageInputs = referencePool.slice(0, 8);
     submitTask(promptToUse, imageInputs);
   }, [
     activeOutput,
-    buildImageReferenceInputs,
     editReferenceText,
     prompt,
     resolveReferenceInputsForTool,
     selectedTool,
+    setUiError,
     submitTask,
     useReferenceImageIndicator,
+    videoReferenceMode,
     videoReferenceText,
   ]);
 
@@ -753,7 +1000,6 @@ export const useAiStudioState = () => {
     setImageExtraImageUrls([null, null, null]);
     setVideoReferenceImageUrl(null);
     setVideoExtraImageUrls([null, null, null]);
-    setMotionCharacterUrl(null);
     setMotionReferenceVideoUrl(null);
   }, []);
 
@@ -933,12 +1179,6 @@ export const useAiStudioState = () => {
     setKlingMultiPrompts,
     klingElements,
     setKlingElements,
-    motionCharacterOrientation,
-    setMotionCharacterOrientation,
-    motionKeepOriginalSound,
-    setMotionKeepOriginalSound,
-    motionCharacterUrl,
-    setMotionCharacterUrl,
     motionReferenceVideoUrl,
     setMotionReferenceVideoUrl,
     editReferenceText,

@@ -19,6 +19,8 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 4. Mitigate (rollback, hotfix, or config toggle).
 5. Record outcome in `docs/change_log.md` and, if unresolved, `docs/known-issues.md`.
 
+Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
+
 ## Release checklist tie-in
 - Before release, verify incident ingestion is functioning.
 - After release, spot-check new incidents and confirm no high-severity regressions.

@@ -20,6 +20,7 @@ import type { VideoSubmissionArgs } from "./types";
 import {
   buildKlingElementsPayload,
   buildKlingMultiPromptPayload,
+  resolveKlingShotType,
   buildKlingVoiceIds,
   resolveSeedanceI2VAspect,
   resolveSeedanceI2VDuration,
@@ -113,11 +114,12 @@ export const handleVideoModelSubmission = async ({
         finalPrompt = `${finalPrompt} @Element1`;
       }
 
+      const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
       const { request_id } = await submitFalKlingV3ImageToVideo({
         prompt: finalPrompt,
         start_image_url: characterImageUrl,
-        duration: undefined,
-        aspect_ratio: undefined,
+        duration: klingDuration,
+        aspect_ratio: resolveKlingAspectRatio(aspect),
         negative_prompt: klingNegativePrompt,
         cfg_scale: klingCfgScale,
         generate_audio: requestedAudio,
@@ -150,7 +152,7 @@ export const handleVideoModelSubmission = async ({
       generate_audio: requestedAudio,
       voice_ids: voiceIds.length ? voiceIds : undefined,
       multi_prompt: multiPromptPayload,
-      shot_type: klingShotType,
+      shot_type: resolveKlingShotType(klingShotType),
       elements: elementsPayload,
     });
     startPollingWithGeneration(request_id, "fal-kling-3");
@@ -199,6 +201,7 @@ export const handleVideoModelSubmission = async ({
       negative_prompt: "blur, distort, and low quality",
       cfg_scale: 0.5,
       generate_audio: requestedAudio,
+      enable_safety_checker: false,
     });
     startPollingWithGeneration(request_id, "fal-seedance");
     return true;
@@ -222,7 +225,7 @@ export const handleVideoModelSubmission = async ({
       duration,
       generate_audio: requestedAudio,
       camera_fixed: videoCameraFixed,
-      enable_safety_checker: true,
+      enable_safety_checker: false,
     });
     startPollingWithGeneration(request_id, "fal-seedance-i2v");
     return true;

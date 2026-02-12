@@ -42,6 +42,19 @@ describe("dragDrop payload extraction", () => {
     expect(payload.promptText).toBeNull();
   });
 
+  it("ignores video URLs for image-only drops", () => {
+    const transfer = makeTransfer({
+      "text/uri-list": "https://cdn.example.com/clip.mp4",
+      "image/url": "https://cdn.example.com/clip.mp4",
+      "text/plain": "https://cdn.example.com/clip.mp4",
+    });
+
+    const payload = extractDragDropPayload(transfer);
+
+    expect(payload.imageUrl).toBeNull();
+    expect(payload.promptText).toBeNull();
+  });
+
   it("prefers text/reference-url for video drags when URI list points at the current page", () => {
     const transfer = makeTransfer({
       "text/reference-id": "ref-video-1",

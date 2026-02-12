@@ -15,6 +15,7 @@ type ReferenceGenerateStepProps = {
   isBusy: boolean;
   costCredits?: number | null;
   referenceImageWarning?: string | null;
+  promptRequiredMessage?: string | null;
 };
 
 /**
@@ -31,6 +32,7 @@ export const ReferenceGenerateStep: React.FC<ReferenceGenerateStepProps> = ({
   isBusy,
   costCredits,
   referenceImageWarning,
+  promptRequiredMessage,
 }) => {
   return (
     <div
@@ -57,6 +59,23 @@ export const ReferenceGenerateStep: React.FC<ReferenceGenerateStepProps> = ({
             isBusy={isBusy}
             cost={costCredits != null ? costCredits : "—"}
           />
+          {promptRequiredMessage ? (
+            <div
+              className="reference-image-warning"
+              style={{
+                marginTop: "8px",
+                padding: "8px 12px",
+                backgroundColor: "#1B1200",
+                border: "1px solid rgba(251, 191, 36, 0.45)",
+                borderRadius: "6px",
+                fontSize: "12px",
+                lineHeight: "1.4",
+                color: "#FCD34D",
+              }}
+            >
+              {promptRequiredMessage}
+            </div>
+          ) : null}
           {referenceImageWarning && (
             <div
               className="reference-image-warning"

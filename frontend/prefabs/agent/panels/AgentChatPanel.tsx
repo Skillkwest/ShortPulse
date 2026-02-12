@@ -132,7 +132,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
         >
           <div className="agent-chat-surface-head">
             <p className="tiny helper-text agent-drop-hint">
-              Drag references here to attach context.
+              Drag &amp; drop reference cards here to attach context.
             </p>
             {showClearAttachmentsButton && stagedAttachments.length && onClearAttachments ? (
               <button

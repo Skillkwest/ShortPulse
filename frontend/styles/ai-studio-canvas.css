@@ -11,6 +11,27 @@
   padding-left: 8px;
 }
 
+.reference-canvas-panel {
+  --reference-selection-active-bg: rgb(0, 180, 255);
+  --reference-selection-active-shadow: rgba(0, 255, 251, 0.317);
+  --reference-selection-active-outline: rgb(0, 217, 255);
+  --reference-selection-active-glow: rgba(6, 215, 252, 0.25);
+}
+
+.reference-canvas-panel[data-selection-theme="edit"] {
+  --reference-selection-active-bg: rgba(245, 185, 66, 0.42);
+  --reference-selection-active-shadow: rgba(245, 185, 66, 0.34);
+  --reference-selection-active-outline: rgb(255, 206, 107);
+  --reference-selection-active-glow: rgba(245, 185, 66, 0.25);
+}
+
+.reference-canvas-panel[data-selection-theme="video"] {
+  --reference-selection-active-bg: rgba(165, 101, 239, 0.42);
+  --reference-selection-active-shadow: rgba(101, 145, 239, 0.34);
+  --reference-selection-active-outline: rgb(255, 112, 224);
+  --reference-selection-active-glow: rgba(170, 101, 239, 0.24);
+}
+
 .reference-canvas-grid--wide {
   grid-template-columns: repeat(8, minmax(0, 1fr));
 }
@@ -113,11 +134,11 @@
 }
 
 .reference-card.is-active {
-  background-color: rgb(0, 180, 255);
+  background-color: var(--reference-selection-active-bg);
 
   box-shadow:
-    0 4px 10px rgba(0, 255, 251, 0.317),
-    0 0 0 2px rgb(0, 217, 255);
+    0 4px 10px var(--reference-selection-active-shadow),
+    0 0 0 2px var(--reference-selection-active-outline);
   transform: translateY(-1px);
   z-index: 1;
 }
@@ -127,7 +148,7 @@
   position: absolute;
   inset: 6px;
   border-radius: 30px;
-  box-shadow: 0 18px 18px 10px rgba(6, 215, 252, 0.25);
+  box-shadow: 0 18px 18px 10px var(--reference-selection-active-glow);
   pointer-events: none;
   z-index: 2;
 }
@@ -151,40 +172,13 @@
   box-shadow: 0 0 0 2px rgba(201, 205, 214, 0.16);
 }
 
-.reference-card .reference-describe-pill {
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  background: linear-gradient(
-    135deg,
-    var(--ai-accent-start, rgba(52, 200, 255, 0.9)),
-    var(--ai-accent, rgba(37, 169, 191, 0.95))
-  );
-  color: #0b1820;
-  font-weight: 800;
-  font-size: 12px;
-  line-height: 1.1;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 20px rgba(37, 169, 191, 0.35);
-  opacity: 0;
-  transition:
-    opacity 0.16s ease,
-    box-shadow 0.16s ease;
-  z-index: 3;
-}
-
 .reference-card .reference-generate-pill {
   position: absolute;
-  left: 14px;
-  right: 14px;
+  left: 50%;
+  right: auto;
   bottom: 12px;
+  width: max-content;
+  max-width: calc(100% - 28px);
   opacity: 0;
   transition:
     opacity 0.16s ease,
@@ -195,16 +189,28 @@
 }
 
 .reference-card .reference-generate-pill.agent-generate-prefab {
-  padding: 9px 25px;
-  border-radius: 12px;
+  width: auto;
+  justify-content: center;
+  padding: 9px 16px;
+  border-radius: 999px;
   gap: 6px;
   box-shadow: 0 4px 1px rgba(37, 169, 191, 0.35);
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 
 .reference-card .reference-generate-pill.agent-generate-prefab .agent-generate-label {
   font-size: 12px;
   flex: 0 1 auto;
-  text-align: left;
+  text-align: center;
+}
+
+.reference-card .reference-generate-pill.agent-generate-prefab .generate-pill {
+  margin-left: 0;
+}
+
+.reference-card .reference-generate-pill.agent-generate-prefab:hover:not(:disabled) {
+  transform: translateX(-50%) translateY(1px);
 }
 
 .reference-card .reference-generate-pill.agent-generate-prefab .generate-pill .model-chip-icon {
@@ -224,25 +230,6 @@
   letter-spacing: 0.04em;
 }
 
-.reference-pill-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.reference-pill-cost {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(12, 18, 26, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1.1;
-  color: inherit;
-}
-
 .reference-card.is-active .reference-generate-pill {
   opacity: 1;
   pointer-events: auto;
@@ -250,20 +237,6 @@
 
 .reference-card .reference-generate-pill:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.9);
-  outline-offset: 2px;
-}
-
-.reference-card.is-active .reference-describe-pill {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.reference-card .reference-describe-pill:hover {
-  box-shadow: 0 14px 30px rgba(37, 169, 191, 0.45);
-}
-
-.reference-card .reference-describe-pill:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.8);
   outline-offset: 2px;
 }
 
@@ -380,7 +353,7 @@
 }
 
 .reference-card-text {
-  color: var(--ai-card-text);
+  color: #8b919a;
   font-size: 13px;
   line-height: 1.28;
   overflow: hidden;

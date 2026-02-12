@@ -55,3 +55,14 @@ npm run db:reset
 - Preferred: run paired rollback migration.
 - Fallback: execute targeted corrective SQL and redeploy the previous known-good app revision.
 - Always document migration failures and corrections in project docs.
+
+## Current required migration set (billing + generation)
+
+For environments bootstrapped from `docs/supabase_full_schema.sql`, apply these migrations to match current API behavior:
+
+1. `sql/migrations/001_add_studio_10000_credit_package.sql`
+2. `sql/migrations/002_add_generation_credit_reservations.sql`
+
+If upgrading from a legacy ledger schema, also apply:
+
+3. `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`

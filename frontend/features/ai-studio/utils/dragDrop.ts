@@ -62,11 +62,12 @@ const resolveDraggedUrl = (
 ) => {
   const candidate = value.trim();
   if (!candidate) return null;
-  if (!referenceUrl) return candidate;
+  if (matcher(candidate)) return candidate;
+  if (!referenceUrl) return null;
   if ((isBlobUrl(candidate) || isCurrentDocumentUrl(candidate)) && matcher(referenceUrl)) {
     return referenceUrl;
   }
-  return candidate;
+  return null;
 };
 
 export const looksLikeImageUrl = (value?: string) => {
@@ -285,10 +286,13 @@ export const prepareReferenceDrag = (
   const transfer = event.dataTransfer;
   transfer.effectAllowed = "copy";
   const promptText = dedupeText(output.prompt ?? output.previewText);
-  if (output.previewUrl) {
-    transfer.setData("text/uri-list", output.previewUrl);
-    transfer.setData("image/url", output.previewUrl);
-    transfer.setData("text/reference-url", output.previewUrl);
+  const previewUrl = output.previewUrl?.trim();
+  if (previewUrl) {
+    transfer.setData("text/uri-list", previewUrl);
+    transfer.setData("text/reference-url", previewUrl);
+    if (isLikelyImageTransferUrl(previewUrl)) {
+      transfer.setData("image/url", previewUrl);
+    }
   }
   if (output.id) {
     transfer.setData("text/reference-id", output.id);
@@ -296,8 +300,8 @@ export const prepareReferenceDrag = (
   if (promptText) {
     transfer.setData("text/plain", promptText);
     transfer.setData("text/prompt", promptText);
-  } else if (output.previewUrl) {
-    transfer.setData("text/plain", output.previewUrl);
+  } else if (previewUrl) {
+    transfer.setData("text/plain", previewUrl);
   }
 
   const dragNode = options?.dragImage ?? (event.currentTarget as HTMLElement);

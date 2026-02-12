@@ -198,13 +198,13 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
                   </div>
                   <button
                     type="button"
-                    className={`reference-toggle ${videoAutoFix ? "is-active" : ""}`}
+                    className={`audio-toggle ${videoAutoFix ? "is-active" : ""}`}
                     aria-pressed={videoAutoFix}
                     aria-label={videoAutoFix ? "Disable auto-fix" : "Enable auto-fix"}
                     onClick={() => onVideoAutoFixChange?.(!videoAutoFix)}
                   >
-                    <span className="reference-toggle-track" aria-hidden="true">
-                      <span className="reference-toggle-dot" />
+                    <span className="audio-toggle-track" aria-hidden="true">
+                      <span className="audio-toggle-dot" />
                     </span>
                   </button>
                 </div>

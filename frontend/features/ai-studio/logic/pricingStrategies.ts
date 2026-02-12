@@ -26,7 +26,6 @@ const VEO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.4;
 const VEO_NO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.2;
 const VEO_AUDIO_RATE_4K_USD_PER_SECOND = 0.6;
 const VEO_NO_AUDIO_RATE_4K_USD_PER_SECOND = 0.4;
-const KLING_26_MOTION_USD_PER_SECOND = 0.112;
 const KLING_3_RATE_AUDIO_OFF_USD_PER_SECOND = 0.224;
 const KLING_3_RATE_AUDIO_ON_USD_PER_SECOND = 0.336;
 const KLING_3_RATE_AUDIO_VOICE_USD_PER_SECOND = 0.392;
@@ -198,20 +197,6 @@ const computeNanoBananaPerImageCost: StrategyFn = ({ resolution, webSearch }) =>
   };
 };
 
-const computeKling26MotionPerSecondCost: StrategyFn = (params) => {
-  const duration = resolveDefaultDuration(params, DEFAULT_KLING_DURATION_SECONDS);
-  const usd = KLING_26_MOTION_USD_PER_SECOND * duration;
-  const creditsRaw = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
-    megapixels: 0,
-    width: 0,
-    height: 0,
-  };
-};
-
 const computeKling3PerSecondCost: StrategyFn = (params) => {
   const duration = resolveDefaultDuration(params, DEFAULT_KLING_DURATION_SECONDS);
   const hasAudio = resolveDefaultAudio(params, true);
@@ -334,7 +319,6 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "gpt41nano-per-token": computeGpt41NanoPerTokenCost,
   "nano-banana-per-image": computeNanoBananaPerImageCost,
   "seedream-per-image": computeSeedreamPerImageCost,
-  "kling-2.6-motion-per-second": computeKling26MotionPerSecondCost,
   "kling-3-per-second": computeKling3PerSecondCost,
   "veo-3-per-second": computeVeoPerSecondCost,
   "sora-2-pro-per-second": computeSora2ProPerSecondCost,

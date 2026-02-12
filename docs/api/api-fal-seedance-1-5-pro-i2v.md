@@ -23,7 +23,7 @@ curl --request POST \
     "resolution": "720p",
     "duration": "5",
     "generate_audio": true,
-    "enable_safety_checker": true
+    "enable_safety_checker": false
   }'
 ```
 
@@ -36,13 +36,12 @@ curl --request POST \
 - `duration` (enum): `4`, `5` (default), `6`, `7`, `8`, `9`, `10`, `11`, `12` seconds.
 - `camera_fixed` (boolean, optional): Whether to fix the camera position.
 - `seed` (integer, optional): Random seed for reproducibility (-1 for random).
-- `enable_safety_checker` (boolean): Default true.
+- `enable_safety_checker` (boolean): Default true on Fal; ShortPulse sends `false` for minimum filtering.
 - `generate_audio` (boolean): Default true.
 
 ## Status
-- Poll: `GET https://queue.fal.run/fal-ai/bytedance/seedance/requests/<request_id>/status`
-- Result: `GET https://queue.fal.run/fal-ai/bytedance/seedance/requests/<request_id>`
-- Proxies: `/api/fal/seedance-i2v-status` proxies status + result when complete.
+- Provider queue URLs may resolve through multiple base paths (`/fal-ai/bytedance/requests`, `/fal-ai/bytedance/seedance/requests`, or model-specific paths).
+- ShortPulse proxy `/api/fal/seedance-i2v-status` automatically retries across supported Seedance queue URL patterns and returns normalized status/result.
 
 **Typical result**
 ```json
@@ -58,6 +57,7 @@ curl --request POST \
 ## Defaults we apply (AI Studio)
 - Aspect: `16:9` default (allowed: `16:9`, `9:16`, `1:1`, `4:3`, `3:4`, `21:9`).
 - Duration: 5s; audio on; resolution: 720p.
+- Safety: `enable_safety_checker: false` (minimum filtering).
 - Pricing: `seedance-1.5-per-second` (token-based; audio on).
 - Proxy routes: `/api/fal/seedance-i2v-submit` and `/api/fal/seedance-i2v-status`.
 

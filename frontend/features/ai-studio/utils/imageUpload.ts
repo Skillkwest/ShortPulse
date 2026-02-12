@@ -10,7 +10,13 @@ type ImageUploadResponse = {
   size: number;
 };
 
-const localImageUrlCache = new Map<string, string>();
+type ImageUrlCacheEntry = {
+  url: string;
+  expiresAt: number;
+};
+
+const SIGNED_URL_BUFFER_MS = 55 * 60 * 1000;
+const localImageUrlCache = new Map<string, ImageUrlCacheEntry>();
 
 const isBlobUrl = (url: string): boolean => url.startsWith("blob:");
 const isDataImageUrl = (url: string): boolean => /^data:image\//i.test(url);
@@ -51,7 +57,10 @@ export const uploadImageToStorage = async (localUrl: string): Promise<string> =>
   const cacheable = isBlobUrl(localUrl);
   if (cacheable) {
     const cached = localImageUrlCache.get(localUrl);
-    if (cached) return cached;
+    if (cached && cached.expiresAt > Date.now()) return cached.url;
+    if (cached) {
+      localImageUrlCache.delete(localUrl);
+    }
   }
 
   const response = await fetch(localUrl);
@@ -87,7 +96,10 @@ export const uploadImageToStorage = async (localUrl: string): Promise<string> =>
   }
 
   if (cacheable) {
-    localImageUrlCache.set(localUrl, data.url);
+    localImageUrlCache.set(localUrl, {
+      url: data.url,
+      expiresAt: Date.now() + SIGNED_URL_BUFFER_MS,
+    });
   }
   return data.url;
 };

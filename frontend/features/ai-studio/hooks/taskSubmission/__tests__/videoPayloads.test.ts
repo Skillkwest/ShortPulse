@@ -5,10 +5,26 @@ import { describe, expect, it } from "vitest";
 import {
   buildKlingElementsPayload,
   buildKlingMultiPromptPayload,
+  resolveKlingShotType,
   resolveSeedanceI2VAspect,
+  resolveSeedanceTextAspect,
   resolveSeedanceI2VDuration,
   resolveVeoResolution,
 } from "../videoPayloads";
+import type { SubmissionModelConfig } from "../types";
+
+const makeModelConfig = (
+  overrides: Partial<NonNullable<SubmissionModelConfig>>
+): NonNullable<SubmissionModelConfig> => ({
+  id: "test-model",
+  label: "Test Model",
+  provider: "fal",
+  mediaType: "video",
+  defaultAspect: "16:9",
+  allowedAspects: ["16:9", "9:16"],
+  pricingStrategy: "veo-3-per-second",
+  ...overrides,
+});
 
 describe("resolveVeoResolution", () => {
   it("defaults to 720p for image-to-video style flows", () => {
@@ -31,18 +47,50 @@ describe("resolveSeedanceI2VDuration", () => {
 describe("resolveSeedanceI2VAspect", () => {
   it("falls back to 16:9 when selected aspect is not supported", () => {
     expect(
-      resolveSeedanceI2VAspect("auto", {
-        allowedAspects: ["16:9", "9:16"],
-      })
+      resolveSeedanceI2VAspect(
+        "auto",
+        makeModelConfig({
+          allowedAspects: ["16:9", "9:16"],
+        })
+      )
     ).toBe("16:9");
   });
 
   it("keeps a supported aspect unchanged", () => {
     expect(
-      resolveSeedanceI2VAspect("9:16", {
-        allowedAspects: ["16:9", "9:16"],
-      })
+      resolveSeedanceI2VAspect(
+        "9:16",
+        makeModelConfig({
+          allowedAspects: ["16:9", "9:16"],
+        })
+      )
     ).toBe("9:16");
+  });
+});
+
+describe("resolveSeedanceTextAspect", () => {
+  it("keeps supported non-default text aspects unchanged", () => {
+    expect(
+      resolveSeedanceTextAspect(
+        "4:3",
+        makeModelConfig({
+          allowedAspects: ["16:9", "4:3", "1:1"],
+          defaultAspect: "16:9",
+        })
+      )
+    ).toBe("4:3");
+  });
+
+  it("falls back to model default when selected aspect is unsupported", () => {
+    expect(
+      resolveSeedanceTextAspect(
+        "auto",
+        makeModelConfig({
+          allowedAspects: ["16:9", "9:16", "1:1"],
+          defaultAspect: "16:9",
+        })
+      )
+    ).toBe("16:9");
   });
 });
 
@@ -54,6 +102,13 @@ describe("buildKlingMultiPromptPayload", () => {
     ]);
 
     expect(payload).toEqual([{ prompt: "shot one", duration: 5 }]);
+  });
+});
+
+describe("resolveKlingShotType", () => {
+  it("sends only the provider-supported customize mode", () => {
+    expect(resolveKlingShotType("customize")).toBe("customize");
+    expect(resolveKlingShotType("intelligent")).toBeUndefined();
   });
 });
 

@@ -10,7 +10,7 @@ import {
 } from "./generationBilling";
 
 type FalStatusConfig = {
-  queueBaseUrl: string;
+  queueBaseUrl: string | string[];
   routeLabel: string;
   timeoutMs?: number;
   alwaysHttp200?: boolean;
@@ -199,14 +199,48 @@ export const createFalStatusHandler = ({
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const queueBaseUrls = Array.isArray(queueBaseUrl) ? queueBaseUrl : [queueBaseUrl];
 
     try {
-      const statusResp = await fetch(`${queueBaseUrl}/${requestId}/status`, {
-        method: "GET",
-        headers: { Authorization: `Key ${apiKey}` },
-        signal: controller.signal,
-      });
-      const statusData = await readJsonSafe(statusResp);
+      let statusResp: Response | null = null;
+      let statusData: JsonReadResult | null = null;
+      let resolvedQueueBaseUrl: string | null = null;
+
+      for (const baseUrl of queueBaseUrls) {
+        const response = await fetch(`${baseUrl}/${requestId}/status`, {
+          method: "GET",
+          headers: { Authorization: `Key ${apiKey}` },
+          signal: controller.signal,
+        });
+        const data = await readJsonSafe(response);
+        const canRetryOnAlternateBase =
+          !data.isJson || response.status === 404 || response.status === 405;
+
+        if (canRetryOnAlternateBase) {
+          statusResp = response;
+          statusData = data;
+          continue;
+        }
+
+        statusResp = response;
+        statusData = data;
+        resolvedQueueBaseUrl = baseUrl;
+        break;
+      }
+
+      if (!statusResp || !statusData) {
+        return respondError({
+          res,
+          requestId,
+          alwaysHttp200,
+          statusCode: 500,
+          error: `${routeLabel} status request failed`,
+        });
+      }
+
+      if (!resolvedQueueBaseUrl) {
+        resolvedQueueBaseUrl = queueBaseUrls[0] ?? null;
+      }
 
       if (!statusData.isJson) {
         await settleFailure({
@@ -309,12 +343,43 @@ export const createFalStatusHandler = ({
         return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
       }
 
-      const resultResp = await fetch(`${queueBaseUrl}/${requestId}`, {
-        method: "GET",
-        headers: { Authorization: `Key ${apiKey}` },
-        signal: controller.signal,
-      });
-      const resultData = await readJsonSafe(resultResp);
+      const orderedResultBases = [
+        resolvedQueueBaseUrl,
+        ...queueBaseUrls.filter((baseUrl) => baseUrl !== resolvedQueueBaseUrl),
+      ].filter((baseUrl): baseUrl is string => Boolean(baseUrl));
+
+      let resultResp: Response | null = null;
+      let resultData: JsonReadResult | null = null;
+      for (const baseUrl of orderedResultBases) {
+        const response = await fetch(`${baseUrl}/${requestId}`, {
+          method: "GET",
+          headers: { Authorization: `Key ${apiKey}` },
+          signal: controller.signal,
+        });
+        const data = await readJsonSafe(response);
+        const canRetryOnAlternateBase =
+          !data.isJson || response.status === 404 || response.status === 405;
+
+        if (canRetryOnAlternateBase) {
+          resultResp = response;
+          resultData = data;
+          continue;
+        }
+
+        resultResp = response;
+        resultData = data;
+        break;
+      }
+
+      if (!resultResp || !resultData) {
+        return respondError({
+          res,
+          requestId,
+          alwaysHttp200,
+          statusCode: 500,
+          error: `${routeLabel} result request failed`,
+        });
+      }
 
       if (!resultData.isJson) {
         await settleFailure({

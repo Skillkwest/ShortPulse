@@ -60,6 +60,16 @@ type PollStatus = {
   detail?: unknown;
 };
 
+const longRunningVideoProviders = new Set<Provider>([
+  "fal-kling",
+  "fal-kling-3",
+  "fal-seedance",
+  "fal-seedance-i2v",
+  "fal-sora",
+  "fal-veo",
+  "fal-veo-i2v",
+]);
+
 const condenseError = (message: string) => {
   if (!message) return "";
   const trimmed = message.trim();
@@ -188,7 +198,7 @@ export function useAiStudioTasks({
       startedAt = Date.now()
     ) {
       const elapsedMs = Date.now() - startedAt;
-      const maxWaitMs = 8 * 60 * 1000; // 8 minutes
+      const maxWaitMs = longRunningVideoProviders.has(provider) ? 20 * 60 * 1000 : 8 * 60 * 1000;
       if (elapsedMs > maxWaitMs) {
         notifyGenerationFailure(
           outputId,

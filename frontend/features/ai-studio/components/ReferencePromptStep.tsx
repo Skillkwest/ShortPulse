@@ -17,6 +17,8 @@ type ReferencePromptStepProps = {
   agentIsSending: boolean;
   agentError?: string;
   onAgentEnhanceSend?: () => void;
+  showEnhanceButton?: boolean;
+  beginnerHelperText?: string;
 };
 
 /**
@@ -35,6 +37,8 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   agentIsSending,
   agentError,
   onAgentEnhanceSend,
+  showEnhanceButton = true,
+  beginnerHelperText,
 }) => {
   return (
     <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
@@ -58,9 +62,12 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         onDragOver={(event) => event.preventDefault()}
         className="reference-step-card"
         beginnerMode={beginnerMode}
+        beginnerTitle="Write Your Prompt"
         promptOnly
         enhanceOnly
+        hideEnhanceButton={!showEnhanceButton}
         promptPlaceholder="Describe the image you want to generate. You can also drag & drop a reference prompt here to get started."
+        beginnerSubtitle={beginnerHelperText}
       />
     </div>
   );

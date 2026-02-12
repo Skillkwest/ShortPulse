@@ -64,17 +64,14 @@
 }
 
 .video-properties-panel .mode-toggle-btn:hover {
-  border-color: var(--video-accent-soft);
-  background: rgba(55, 41, 80, 0.86);
+  border-color: #2b9fb363;
+  background: #b2e9f429;
+  cursor: pointer;
 }
 
 .video-properties-panel .mode-toggle-btn.is-active {
-  background: linear-gradient(
-    135deg,
-    var(--video-accent-hover-start),
-    var(--video-accent-hover-end)
-  );
-  border-color: var(--video-accent-medium);
+  background: rgba(55, 41, 80, 0.86);
+  border: 1px solid #912adb;
   box-shadow: 0 6px 14px rgba(170, 101, 239, 0.24);
   color: #efe8ff;
 }

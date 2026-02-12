@@ -126,6 +126,29 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - RLS: users can read own entries; users can only insert negative entries for themselves; positive credits require privileged context.
 - Trigger guards: disallow zero deltas, prevent balance underflow, keep `ai_credit_balance` synchronized.
 
+### ai_credit_reservations
+- `id` (uuid, pk): Reservation row.
+- `user_id` (uuid, fk -> `auth.users.id`): Balance owner.
+- `source_ref` (text): Request correlation/idempotency key for the generation attempt.
+- `provider_request_id` (text, nullable): Provider job/request ID once submission succeeds.
+- `model_id` (text): Model charged for reservation.
+- `amount_cents` (int): Reserved amount (always positive).
+- `status` (text): `reserved` | `captured` | `released`.
+- `reason` (text): Human-readable reservation reason.
+- `metadata` (jsonb): Reservation context and settlement details.
+- `created_at` / `updated_at` (timestamptz)
+- `captured_at` / `released_at` (timestamptz, nullable)
+- RLS: users can select only own reservations (`user_id = auth.uid()`); server-side functions handle writes.
+- Provisioned by: `sql/migrations/002_add_generation_credit_reservations.sql`.
+
+### Reservation lifecycle RPCs
+- `reserve_generation_credits(...)`: creates or idempotently confirms a reservation if funds are available.
+- `mark_generation_reservation_submitted(...)`: attaches provider request id to a reserved row.
+- `capture_generation_reservation_by_provider_request(...)`: writes ledger debit + marks reservation captured.
+- `release_generation_reservation_by_source_ref(...)`: releases reservation by source reference.
+- `release_generation_reservation_by_provider_request(...)`: releases reservation by provider request id.
+- Used by: `frontend/pages/api/_utils/generationBilling.ts`, `frontend/pages/api/_utils/falSubmitProxy.ts`, `frontend/pages/api/_utils/falStatusProxy.ts`.
+
 ### stripe_event_log
 - `id` (text, pk): Stripe event ID (`evt_*`).
 - `event_type` (text): Stripe event type.

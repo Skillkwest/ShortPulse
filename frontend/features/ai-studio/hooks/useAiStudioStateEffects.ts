@@ -251,10 +251,6 @@ export const useAiStudioStateEffects = ({
       setModel(fallback);
       return;
     }
-
-    if (model === "fal-ai/kling-video/v3/pro/image-to-video" && videoReferenceMode === "standard") {
-      setVideoReferenceMode("kling3");
-    }
   }, [
     lastNonKeyframesVideoModelRef,
     lastNonKling3VideoModelRef,

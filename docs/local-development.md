@@ -52,6 +52,10 @@ npm run dev
 
 - Minimal scripts: `sql/create_saved_creators_table.sql` and `sql/storage_policies.sql`
 - Combined schema: `docs/supabase_full_schema.sql`
+- Required billing/generation migrations for current API behavior:
+  - `sql/migrations/001_add_studio_10000_credit_package.sql`
+  - `sql/migrations/002_add_generation_credit_reservations.sql`
+- Legacy ledger environments: run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` before using admin credit adjustments.
 
 ## Quality checks
 

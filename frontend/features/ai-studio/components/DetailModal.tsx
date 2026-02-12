@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FloppyDisk, TrashSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 import { PromptLibraryButton } from "./PromptLibraryButton";
+import { looksLikeVideoUrl } from "../utils/dragDrop";
 
 type DetailModalProps = {
   output: StudioOutput | null;
@@ -29,12 +30,14 @@ export function DetailModal({
 }: DetailModalProps) {
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const promptOnlyCloseTimerRef = useRef<number | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [deleteConfirmOutputId, setDeleteConfirmOutputId] = useState<string | null>(null);
   const [draftPromptsById, setDraftPromptsById] = useState<Record<string, string>>({});
+  const [promptOnlySavedOutputId, setPromptOnlySavedOutputId] = useState<string | null>(null);
 
-  const mediaType =
-    output?.mode === "image" ? "Image" : output?.mode === "video" ? "Video" : "Prompt";
+  const isVideoOutput = Boolean(output?.previewUrl && looksLikeVideoUrl(output.previewUrl));
+  const mediaType = output?.previewUrl ? (isVideoOutput ? "Video" : "Image") : "Prompt";
   const isPromptOnly = output?.mode === "text" && !output.previewUrl;
   const isUploadedReference = useMemo(() => {
     if (!output?.previewUrl) return false;
@@ -52,6 +55,7 @@ export function DetailModal({
       ? (draftPromptsById[outputId] ?? output.prompt ?? "")
       : (output?.prompt ?? "");
   const isDeleteConfirmOpen = Boolean(outputId && deleteConfirmOutputId === outputId);
+  const isPromptOnlySaved = Boolean(outputId && promptOnlySavedOutputId === outputId);
 
   const isPromptEditable = Boolean(isPromptOnly);
   const trimmedPrompt = draftPrompt.trim();
@@ -70,10 +74,30 @@ export function DetailModal({
     element.style.height = `${nextHeight}px`;
   }, []);
 
+  const clearPromptOnlyCloseTimer = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (promptOnlyCloseTimerRef.current == null) return;
+    window.clearTimeout(promptOnlyCloseTimerRef.current);
+    promptOnlyCloseTimerRef.current = null;
+  }, []);
+
   useEffect(() => {
     syncTextareaHeight(promptTextareaRef.current);
     syncTextareaHeight(promptOnlyTextareaRef.current);
   }, [draftPrompt, syncTextareaHeight]);
+
+  useEffect(() => {
+    return () => {
+      clearPromptOnlyCloseTimer();
+    };
+  }, [clearPromptOnlyCloseTimer]);
+
+  const handleCloseModal = useCallback(() => {
+    clearPromptOnlyCloseTimer();
+    setPromptOnlySavedOutputId(null);
+    setDeleteConfirmOutputId(null);
+    onClose();
+  }, [clearPromptOnlyCloseTimer, onClose]);
 
   const filename = (() => {
     if (!output?.previewUrl) return output?.id;
@@ -96,9 +120,29 @@ export function DetailModal({
     }
   };
 
+  const handlePromptOnlySaveAndClose = () => {
+    if (!canSave || !isPromptEditable || isPromptOnlySaved) return;
+
+    handleSavePrompt();
+    if (outputId) {
+      setPromptOnlySavedOutputId(outputId);
+    }
+
+    if (typeof window === "undefined") {
+      handleCloseModal();
+      return;
+    }
+
+    clearPromptOnlyCloseTimer();
+    promptOnlyCloseTimerRef.current = window.setTimeout(() => {
+      handleCloseModal();
+    }, 900);
+  };
+
   const handlePromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!isPromptEditable || !outputId) return;
     const nextValue = event.target.value;
+    setPromptOnlySavedOutputId(null);
     setDraftPromptsById((prev) => ({
       ...prev,
       [outputId]: nextValue,
@@ -142,13 +186,13 @@ export function DetailModal({
     if (!output?.id) return;
     onDeleteOutput(output.id);
     setDeleteConfirmOutputId(null);
-    onClose();
+    handleCloseModal();
   };
 
   if (!output) return null;
 
   return (
-    <div className="reference-modal-backdrop" onClick={onClose}>
+    <div className="reference-modal-backdrop" onClick={handleCloseModal}>
       {/* Background blurred reflect */}
       {output.previewUrl && (
         <div
@@ -219,7 +263,7 @@ export function DetailModal({
                   className="prompt-save-modal-btn"
                 />
               ) : null}
-              <button type="button" className="art-close-btn" onClick={onClose}>
+              <button type="button" className="art-close-btn" onClick={handleCloseModal}>
                 ×
               </button>
             </div>
@@ -238,7 +282,7 @@ export function DetailModal({
                 <TrashSimple size={16} weight="bold" aria-hidden />
                 Delete
               </button>
-              <button type="button" className="art-close-btn" onClick={onClose}>
+              <button type="button" className="art-close-btn" onClick={handleCloseModal}>
                 ×
               </button>
             </div>
@@ -260,19 +304,24 @@ export function DetailModal({
               <div className="art-modal-footer">
                 <button
                   type="button"
-                  className="primary-btn wide"
-                  onClick={handleSavePrompt}
-                  disabled={!canSave || !isPromptEditable}
+                  className={`primary-btn wide art-prompt-save-btn ${isPromptOnlySaved ? "is-saved" : ""}`}
+                  onClick={handlePromptOnlySaveAndClose}
+                  disabled={!canSave || !isPromptEditable || isPromptOnlySaved}
                 >
-                  Save & Apply Changes
+                  {isPromptOnlySaved ? "Saved. Closing..." : "Save & Apply Changes"}
                 </button>
+                {isPromptOnlySaved ? (
+                  <p className="art-save-feedback" role="status" aria-live="polite">
+                    Changes saved successfully.
+                  </p>
+                ) : null}
               </div>
             </div>
           ) : (
             <>
               <div className="art-image-vessel">
                 {output.previewUrl ? (
-                  output.mode === "video" ? (
+                  isVideoOutput ? (
                     <video
                       className="art-hero-image"
                       src={output.previewUrl}

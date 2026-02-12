@@ -136,7 +136,10 @@ export const useAiStudioTaskSubmission = ({
       let finalTool: ToolId | "text" | null = effectiveTool === "edit" ? "image" : effectiveTool;
       let finalModel = model;
       let fallbackMode: "image" | "video" | null = null;
-      if (!hasReferenceImages) {
+      const isStrictReferenceVideoModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
+      const isMotionReferenceVideoRun =
+        normalizedTool === "video" && videoReferenceMode === "motion";
+      if (!hasReferenceImages && !isStrictReferenceVideoModel && !isMotionReferenceVideoRun) {
         if (normalizedTool === "image") {
           finalTool = "text";
           fallbackMode = "image";
@@ -221,10 +224,17 @@ export const useAiStudioTaskSubmission = ({
         ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) }
         : ({} as Record<string, never>);
 
+      const outputMode: StudioMode =
+        effectiveTool === "video" || effectiveTool === "kling"
+          ? "video"
+          : effectiveTool === "image" || effectiveTool === "edit"
+            ? "image"
+            : effectiveMode;
+
       const nextOutput: StudioOutput = {
         id,
         prompt: cleanedPrompt,
-        mode: effectiveMode,
+        mode: outputMode,
         aspect,
         model: modelLabel,
         modelId: finalModel,

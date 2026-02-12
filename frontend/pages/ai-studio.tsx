@@ -76,12 +76,27 @@ const normalizeAttachmentImageUrl = (value: string | null) => {
   return trimmed;
 };
 
+const GENERATE_CLICK_COOLDOWN_MS = 700;
+type OptimisticDebitEntry = {
+  credits: number;
+  outputId: string | null;
+};
+
 export default function AiStudioPage() {
   const { balanceCents, balanceLoading, refreshBalance } = useCredits();
   const balanceCredits = useMemo(() => {
     if (balanceCents == null) return null;
     return Math.max(0, Math.floor(balanceCents)); // cents == credits
   }, [balanceCents]);
+  const [optimisticDebitEntries, setOptimisticDebitEntries] = useState<OptimisticDebitEntry[]>([]);
+  const optimisticDebitTotal = useMemo(
+    () => optimisticDebitEntries.reduce((sum, entry) => sum + entry.credits, 0),
+    [optimisticDebitEntries]
+  );
+  const effectiveBalanceCredits = useMemo(() => {
+    if (balanceCredits == null) return null;
+    return Math.max(0, balanceCredits - optimisticDebitTotal);
+  }, [balanceCredits, optimisticDebitTotal]);
   const [agentConversationId] = useState<string>(() => randomId());
   const [isPromptRefining, setIsPromptRefining] = useState(false);
   const [isReferencePromptEnhancing, setIsReferencePromptEnhancing] = useState(false);
@@ -204,6 +219,7 @@ export default function AiStudioPage() {
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
   const [dismissedFailureIds, setDismissedFailureIds] = useState<Set<string>>(new Set());
   const settledGenerationSignaturesRef = useRef<Set<string>>(new Set());
+  const seenOutputIdsRef = useRef<Set<string>>(new Set());
   const { beginnerMode, setBeginnerMode } = useBeginnerModePreference();
   const agentFlag = process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
   const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(true);
@@ -231,6 +247,10 @@ export default function AiStudioPage() {
   const [agentAttachments, setAgentAttachments] = useState<AgentAttachment[]>([]);
   const [isAgentDropActive, setIsAgentDropActive] = useState(false);
   const agentDropDepthRef = useRef(0);
+  const describedAgentImageCacheRef = useRef<Map<string, string>>(new Map());
+  const generateClickLockUntilRef = useRef(0);
+  const generateClickLockTimerRef = useRef<number | null>(null);
+  const [isGenerateClickLocked, setIsGenerateClickLocked] = useState(false);
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
   const latestAssistantMessage = useMemo(
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
@@ -300,6 +320,37 @@ export default function AiStudioPage() {
     },
     [setVideoReferenceText]
   );
+
+  const tryAcquireGenerateClickLock = useCallback(() => {
+    const now = Date.now();
+    if (now < generateClickLockUntilRef.current) {
+      return false;
+    }
+
+    generateClickLockUntilRef.current = now + GENERATE_CLICK_COOLDOWN_MS;
+    setIsGenerateClickLocked(true);
+
+    if (generateClickLockTimerRef.current) {
+      window.clearTimeout(generateClickLockTimerRef.current);
+    }
+    generateClickLockTimerRef.current = window.setTimeout(() => {
+      setIsGenerateClickLocked(false);
+      generateClickLockTimerRef.current = null;
+      if (Date.now() >= generateClickLockUntilRef.current) {
+        generateClickLockUntilRef.current = 0;
+      }
+    }, GENERATE_CLICK_COOLDOWN_MS);
+
+    return true;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (generateClickLockTimerRef.current) {
+        window.clearTimeout(generateClickLockTimerRef.current);
+      }
+    };
+  }, []);
 
   const shouldRunPromptRefinerFirst = useCallback((text: string, context: AgentContext) => {
     const trimmed = text.trim();
@@ -507,12 +558,18 @@ export default function AiStudioPage() {
     if (agentIsSending || agentUiBusyRef.current) return;
     const rawInput = typeof textOverride === "string" ? textOverride : agentInput;
     const trimmed = rawInput.trim();
+    const hasImageAttachment = agentAttachments.some((attachment) => attachment.kind === "image");
+    const shouldAutoDescribeImages = !trimmed && hasImageAttachment;
     const droppedPromptText =
       [...agentAttachments]
         .reverse()
         .find((attachment) => attachment.kind === "prompt" && attachment.text?.trim())
         ?.text?.trim() ?? "";
-    const outboundText = trimmed || droppedPromptText || prompt.trim();
+    const outboundText =
+      trimmed ||
+      (shouldAutoDescribeImages ? "Describe this image" : "") ||
+      droppedPromptText ||
+      prompt.trim();
     if (!outboundText) return;
     trackAgentUiEvent("studio_agent_send_requested", {
       mode_hint: options?.modeHint ?? "chat",
@@ -525,8 +582,14 @@ export default function AiStudioPage() {
     agentUiBusyRef.current = true;
     setAgentUiBusy(true);
     const sentFromComposer = typeof textOverride !== "string";
+    const optimisticUserMessageId = appendUserMessage(trimmed || outboundText);
+    if (sentFromComposer && trimmed) {
+      // Clear immediately so the user sees instant send feedback.
+      setAgentInput("");
+    }
     try {
       const preparedImageUrls = new Map<string, string>();
+      const preparedImageDescriptions = new Map<string, string>();
       const imageAttachmentsMissingUrl = agentAttachments.filter(
         (attachment) => attachment.kind === "image" && !attachment.imageUrl?.trim()
       );
@@ -553,7 +616,7 @@ export default function AiStudioPage() {
         const imageAttachmentIds = imageAttachments.map((attachment) => attachment.id);
         markAttachmentDelivery(imageAttachmentIds, "preparing");
 
-        const preparedResults = await Promise.all(
+        const preparedResults = await Promise.allSettled(
           imageAttachments.map(async (attachment) => {
             const sourceUrl = attachment.imageUrl?.trim() ?? "";
             const safeUrl = sourceUrl ? await prepareImageUrl(sourceUrl) : null;
@@ -565,20 +628,16 @@ export default function AiStudioPage() {
         );
 
         const failedAttachmentIds: string[] = [];
-        preparedResults.forEach(({ attachmentId, safeUrl }) => {
-          if (safeUrl?.startsWith("https://")) {
-            preparedImageUrls.set(attachmentId, safeUrl);
+        preparedResults.forEach((result, index) => {
+          const attachmentId = imageAttachments[index]?.id;
+          if (!attachmentId) return;
+          if (result.status === "fulfilled" && result.value.safeUrl?.startsWith("https://")) {
+            preparedImageUrls.set(attachmentId, result.value.safeUrl);
             return;
           }
           failedAttachmentIds.push(attachmentId);
         });
 
-        const successfulAttachmentIds = imageAttachmentIds.filter(
-          (id) => !failedAttachmentIds.includes(id)
-        );
-        if (successfulAttachmentIds.length) {
-          markAttachmentDelivery(successfulAttachmentIds, "ready", null);
-        }
         if (failedAttachmentIds.length) {
           markAttachmentDelivery(
             failedAttachmentIds,
@@ -594,12 +653,67 @@ export default function AiStudioPage() {
           });
           return;
         }
-      }
 
-      const optimisticUserMessageId = appendUserMessage(trimmed || outboundText);
-      if (sentFromComposer && trimmed) {
-        // Clear after preflight succeeds so failed prep does not erase user input.
-        setAgentInput("");
+        const describedResults = await Promise.allSettled(
+          imageAttachments.map(async (attachment) => {
+            const safeUrl = preparedImageUrls.get(attachment.id);
+            if (!safeUrl) {
+              throw new Error("Missing prepared image URL.");
+            }
+            const cachedDescription = describedAgentImageCacheRef.current.get(safeUrl)?.trim();
+            if (cachedDescription) {
+              return {
+                attachmentId: attachment.id,
+                description: cachedDescription,
+              };
+            }
+            const described = await postDescribeImage(safeUrl);
+            const description = described.description?.trim();
+            if (!description) {
+              throw new Error("Describe endpoint returned an empty description.");
+            }
+            describedAgentImageCacheRef.current.set(safeUrl, description);
+            if (describedAgentImageCacheRef.current.size > 64) {
+              const oldestCacheKey = describedAgentImageCacheRef.current.keys().next().value;
+              if (oldestCacheKey) {
+                describedAgentImageCacheRef.current.delete(oldestCacheKey);
+              }
+            }
+            return {
+              attachmentId: attachment.id,
+              description,
+            };
+          })
+        );
+
+        const failedDescriptionIds: string[] = [];
+        describedResults.forEach((result, index) => {
+          const attachmentId = imageAttachments[index]?.id;
+          if (!attachmentId) return;
+          if (result.status === "fulfilled" && result.value.description?.trim()) {
+            preparedImageDescriptions.set(attachmentId, result.value.description.trim());
+            return;
+          }
+          failedDescriptionIds.push(attachmentId);
+        });
+
+        if (failedDescriptionIds.length) {
+          markAttachmentDelivery(
+            failedDescriptionIds,
+            "failed",
+            "Image description failed. Remove this image and attach it again."
+          );
+          setAgentAttachmentError(
+            "One or more attached images could not be described. Remove failed images and try again."
+          );
+          trackAgentUiEvent("studio_agent_attachment_describe_failed", {
+            failed_image_attachments: failedDescriptionIds.length,
+            attempted_image_attachments: imageAttachmentIds.length,
+          });
+          return;
+        }
+
+        markAttachmentDelivery(imageAttachmentIds, "ready", null);
       }
 
       const baseContext = getAgentContext({
@@ -626,12 +740,19 @@ export default function AiStudioPage() {
             selectedAttachmentIds.push(attachment.referenceId);
           }
           if (attachment.kind === "image") {
+            const describedImageText = preparedImageDescriptions.get(attachment.id) ?? null;
+            const userNote =
+              attachmentText && attachmentText !== describedImageText
+                ? `User note: ${attachmentText}`
+                : null;
+            const imageContextSummary =
+              [describedImageText, userNote].filter(Boolean).join("\n\n") || attachmentText;
             attachmentRefs.push({
               id: referenceId,
               kind: "image",
-              promptSnippet: attachmentText,
+              promptSnippet: describedImageText ?? attachmentText,
               aspect: attachment.aspect ?? null,
-              caption: attachmentText,
+              caption: imageContextSummary,
             });
             const safeImageUrl = preparedImageUrls.get(attachment.id);
             if (safeImageUrl) {
@@ -639,7 +760,7 @@ export default function AiStudioPage() {
                 id: referenceId,
                 kind: "image",
                 url: safeImageUrl,
-                thumbnailAlt: attachmentText,
+                thumbnailAlt: describedImageText ?? attachmentText,
               });
             }
             return;
@@ -796,9 +917,7 @@ export default function AiStudioPage() {
     if (!target?.previewUrl) return;
 
     const placeholderId = `describe-${randomId()}`;
-    const placeholderModelLabel = model
-      ? (getModelConfig(model)?.label ?? model)
-      : "Model pending selection";
+    const placeholderModelLabel = "OpenAI vision describe";
     setOutputs((prev) => [
       {
         id: placeholderId,
@@ -859,27 +978,19 @@ export default function AiStudioPage() {
     };
 
     try {
-      // Primary: dedicated describe-image endpoint
       const safeUrl = await prepareImageUrl(target.previewUrl);
-      const described = safeUrl ? await postDescribeImage(safeUrl) : null;
-      if (described?.description) {
-        resolvePlaceholder(described.description, "Image describe");
+      if (!safeUrl) {
+        failPlaceholder(
+          "Unable to prepare this image for OpenAI vision. Please remove and re-add the reference."
+        );
         return;
       }
-
-      // Fallback: chat agent with describe hint
-      const result = await handleAgentSend("Describe this image", {
-        captureResult: true,
-        selectedOverride: target,
-        modeHint: "describe",
-      });
-      if (result && typeof result === "object" && "prompt" in result && result.prompt) {
-        resolvePlaceholder(result.prompt, result.referenceTitle ?? "Image describe");
-        return;
-      }
-      failPlaceholder("Unable to describe this image.");
+      const described = await postDescribeImage(safeUrl);
+      resolvePlaceholder(described.description, "Image describe");
     } catch (error: unknown) {
-      failPlaceholder(error instanceof Error ? error.message : "Unable to describe this image.");
+      failPlaceholder(
+        error instanceof Error ? error.message : "Unable to describe this image with OpenAI vision."
+      );
     } finally {
       setDescribeInFlightCount((count) => Math.max(0, count - 1));
     }
@@ -1133,16 +1244,99 @@ export default function AiStudioPage() {
   }, [failedOutputs]);
 
   useEffect(() => {
-    const settled = outputs
-      .filter((item) => item.taskState === "success" || item.taskState === "fail")
-      .map((item) => `${item.id}:${item.taskState}:${item.taskId ?? ""}`);
-    const nextSignatures = new Set(settled);
-    const hasNewSettledGeneration = settled.some(
-      (signature) => !settledGenerationSignaturesRef.current.has(signature)
+    const newlySeenOutputIds: string[] = [];
+    outputs.forEach((output) => {
+      if (!seenOutputIdsRef.current.has(output.id)) {
+        newlySeenOutputIds.push(output.id);
+      }
+      seenOutputIdsRef.current.add(output.id);
+    });
+    if (!newlySeenOutputIds.length) return;
+
+    setOptimisticDebitEntries((prev) => {
+      if (!prev.some((entry) => entry.outputId == null)) return prev;
+      const assignedOutputIds = new Set(
+        prev.map((entry) => entry.outputId).filter((id): id is string => Boolean(id))
+      );
+      const newlyPendingOutputIds = newlySeenOutputIds.filter((id) => {
+        const item = outputs.find((output) => output.id === id);
+        return Boolean(
+          item &&
+          item.id.startsWith("out-") &&
+          item.taskState === "pending" &&
+          !assignedOutputIds.has(item.id)
+        );
+      });
+      const fallbackPendingOutputIds = outputs
+        .filter(
+          (item) =>
+            item.id.startsWith("out-") &&
+            item.taskState === "pending" &&
+            !assignedOutputIds.has(item.id) &&
+            !newlyPendingOutputIds.includes(item.id)
+        )
+        .map((item) => item.id);
+      const availableOutputIds = [...newlyPendingOutputIds, ...fallbackPendingOutputIds];
+      if (!availableOutputIds.length) return prev;
+
+      let nextIndex = 0;
+      let changed = false;
+      const next = prev.map((entry) => {
+        if (entry.outputId != null || nextIndex >= availableOutputIds.length) {
+          return entry;
+        }
+        changed = true;
+        return {
+          ...entry,
+          outputId: availableOutputIds[nextIndex++] ?? null,
+        };
+      });
+      return changed ? next : prev;
+    });
+  }, [outputs]);
+
+  useEffect(() => {
+    const failedOutputIds = new Set(
+      outputs.filter((item) => item.taskState === "fail").map((item) => item.id)
+    );
+    if (!failedOutputIds.size) return;
+
+    setOptimisticDebitEntries((prev) => {
+      const next = prev.filter((entry) => !(entry.outputId && failedOutputIds.has(entry.outputId)));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [outputs]);
+
+  useEffect(() => {
+    const settledOutputs = outputs.filter(
+      (item) => item.taskState === "success" || item.taskState === "fail"
+    );
+    const settledSignatures = settledOutputs.map(
+      (item) => `${item.id}:${item.taskState}:${item.taskId ?? ""}`
+    );
+    const nextSignatures = new Set(settledSignatures);
+    const newlySettledOutputs = settledOutputs.filter(
+      (item) =>
+        !settledGenerationSignaturesRef.current.has(
+          `${item.id}:${item.taskState}:${item.taskId ?? ""}`
+        )
     );
     settledGenerationSignaturesRef.current = nextSignatures;
-    if (!hasNewSettledGeneration) return;
-    void refreshBalance({ silent: true, preferLedger: true });
+    if (!newlySettledOutputs.length) return;
+
+    const successfulOutputIds = new Set(
+      newlySettledOutputs.filter((item) => item.taskState === "success").map((item) => item.id)
+    );
+    void (async () => {
+      const refreshedBalance = await refreshBalance({ silent: true, preferLedger: true });
+      if (refreshedBalance == null || !successfulOutputIds.size) return;
+      setOptimisticDebitEntries((prev) => {
+        const next = prev.filter(
+          (entry) => !(entry.outputId && successfulOutputIds.has(entry.outputId))
+        );
+        return next.length === prev.length ? prev : next;
+      });
+    })();
   }, [outputs, refreshBalance]);
 
   const dismissFailure = (id: string) => {
@@ -1228,7 +1422,7 @@ export default function AiStudioPage() {
     extraImageUrls,
     imageResolution,
     videoGenerateAudio,
-    balanceCredits,
+    balanceCredits: effectiveBalanceCredits,
     costParamsForModel,
   });
 
@@ -1283,10 +1477,22 @@ export default function AiStudioPage() {
       const latestBalance = await refreshBalance({ silent: true });
       const resolvedBalance = latestBalance ?? balanceCredits;
       if (resolvedBalance == null) return true;
-      return resolvedBalance >= requiredCredits;
+      const adjustedBalance = Math.max(0, resolvedBalance - optimisticDebitTotal);
+      return adjustedBalance >= requiredCredits;
     },
-    [balanceCredits, refreshBalance]
+    [balanceCredits, optimisticDebitTotal, refreshBalance]
   );
+
+  const enqueueOptimisticDebit = useCallback((credits: number | null | undefined) => {
+    if (credits == null || credits <= 0) return;
+    setOptimisticDebitEntries((prev) => [
+      ...prev,
+      {
+        credits,
+        outputId: null,
+      },
+    ]);
+  }, []);
 
   const handleGenerate = async (
     promptOverride?: string | null,
@@ -1296,14 +1502,16 @@ export default function AiStudioPage() {
       costOverrideCredits?: number | null;
     }
   ) => {
+    if (!tryAcquireGenerateClickLock()) return;
+
     const effectiveMode = options?.modeOverride ?? mode;
     const effectiveTool = options?.toolOverride ?? selectedTool;
     const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
 
     if (
       options?.costOverrideCredits != null &&
-      balanceCredits != null &&
-      balanceCredits < options.costOverrideCredits
+      effectiveBalanceCredits != null &&
+      effectiveBalanceCredits < options.costOverrideCredits
     ) {
       const hasFreshCredits = await ensureFreshCreditsForRun(options.costOverrideCredits);
       if (!hasFreshCredits) {
@@ -1335,6 +1543,7 @@ export default function AiStudioPage() {
           : editReferenceText
         : prompt;
     const promptToUse = typeof promptOverride === "string" ? promptOverride : defaultPromptForTool;
+    enqueueOptimisticDebit(requiredCredits);
     generateOutput(promptToUse, {
       modeOverride: effectiveMode,
       selectedToolOverride: effectiveTool,
@@ -1356,6 +1565,8 @@ export default function AiStudioPage() {
   };
 
   const handleRegenerateWithDebit = async () => {
+    if (!tryAcquireGenerateClickLock()) return;
+
     if (agentBusy) {
       handleBlockedGeneration();
       return;
@@ -1371,10 +1582,13 @@ export default function AiStudioPage() {
         return;
       }
     }
+    enqueueOptimisticDebit(currentCostCredits);
     regenerateOutput();
   };
 
   const handleImageRegenerateWithDebit = async () => {
+    if (!tryAcquireGenerateClickLock()) return;
+
     if (agentBusy) {
       handleBlockedGeneration();
       return;
@@ -1390,6 +1604,7 @@ export default function AiStudioPage() {
         return;
       }
     }
+    enqueueOptimisticDebit(currentCostCredits);
     regenerateOutput();
   };
 
@@ -1435,7 +1650,7 @@ export default function AiStudioPage() {
     // Treat refine send as a prompt-generating busy state for overlays.
     isPromptGenerating: isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: currentCostCredits,
-    isGenerateDisabled: isGenerateDisabled || agentBusy,
+    isGenerateDisabled: isGenerateDisabled || agentBusy || isGenerateClickLocked,
     guardrailReason: generationGuardrail,
     onExpandChat: handleExpandChat,
     onClearAgentChat: handleClearAgentChat,
@@ -1476,7 +1691,7 @@ export default function AiStudioPage() {
         onDismissCharacterError={clearCharacterError}
         beginnerMode={beginnerMode}
         onBeginnerModeChange={setBeginnerMode}
-        balanceCredits={balanceCredits}
+        balanceCredits={effectiveBalanceCredits}
         balanceLoading={balanceLoading}
         visibleFailures={visibleFailures}
         onDismissFailure={dismissFailure}
@@ -1531,7 +1746,7 @@ export default function AiStudioPage() {
           onSave: () => savePromptReference(editReferenceText ?? ""),
           onRegenerate: handleImageRegenerateWithDebit,
           costCredits: currentCostCredits,
-          isGenerateDisabled: isGenerateDisabled || agentBusy,
+          isGenerateDisabled: isGenerateDisabled || agentBusy || isGenerateClickLocked,
           referenceImageWarning,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
           agentIsSending: isReferencePromptEnhancing,
@@ -1591,7 +1806,7 @@ export default function AiStudioPage() {
           costCredits: currentCostCredits,
           referenceImageWarning,
           resolvePreviewUrlById: (id) => resolvePreviewUrlById(outputs, id), // Wrap to match expected Type
-          isGenerateDisabled: isGenerateDisabled || agentBusy,
+          isGenerateDisabled: isGenerateDisabled || agentBusy || isGenerateClickLocked,
           agentIsSending: agentBusy,
           agentError: agentAttachmentError ?? agentError ?? undefined,
           onAgentEnhanceSend: handleReferencePromptEnhance,
@@ -1626,7 +1841,7 @@ export default function AiStudioPage() {
               : editReferenceText,
           onReferenceImageChange: setReferenceImageUrl,
           onReferenceTextChange: handleManualPromptChange,
-          onRegenerate: regenerateOutput,
+          onRegenerate: handleRegenerateWithDebit,
         }}
         detailModalOutput={detailOutput}
         onDetailClose={() => setDetailOutputId(null)}

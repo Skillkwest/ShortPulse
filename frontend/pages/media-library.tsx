@@ -4,7 +4,7 @@
  */
 import Head from "next/head";
 import Link from "next/link";
-import { CheckCircle, CloudArrowUp, DownloadSimple, MagnifyingGlass, Trash } from "phosphor-react";
+import { CheckCircle, CloudArrowUp, DownloadSimple, MagnifyingGlass } from "phosphor-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 
@@ -38,18 +38,6 @@ type PromptRow = {
 type MediaTab = "uploaded_images" | "uploaded_videos" | "saved_prompts" | "ai_generations";
 
 const BUCKET = "media_library";
-
-const formatBytes = (bytes?: number | null) => {
-  if (!bytes) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  let i = 0;
-  let size = bytes;
-  while (size >= 1024 && i < units.length - 1) {
-    size /= 1024;
-    i += 1;
-  }
-  return `${size.toFixed(1)} ${units[i]}`;
-};
 
 const sanitizeFileName = (name: string) => name.replace(/[^\w.-]+/g, "_");
 
@@ -424,27 +412,28 @@ export default function MediaLibrary() {
   const isPromptTab = activeTab === "saved_prompts";
   const visibleCount = isPromptTab ? filteredPrompts.length : filteredMedia.length;
   const countLabel = isPromptTab ? "prompts" : "files";
+  const selectableMediaIds = useMemo(
+    () => filteredMedia.filter((item) => item.status !== "uploading").map((item) => item.id),
+    [filteredMedia]
+  );
+  const selectablePromptIds = useMemo(
+    () => filteredPrompts.map((item) => item.id),
+    [filteredPrompts]
+  );
+  const selectableIds = isPromptTab ? selectablePromptIds : selectableMediaIds;
+  const allVisibleSelected =
+    selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
+  const deleteButtonLabel = allVisibleSelected ? "Delete all" : "Delete selected";
+  const deleteItemLabel = isPromptTab
+    ? selectedIds.length === 1
+      ? "prompt"
+      : "prompts"
+    : selectedIds.length === 1
+      ? "file"
+      : "files";
 
   const triggerFilePicker = () => {
     fileInputRef.current?.click();
-  };
-
-  const deleteFile = async (row: MediaRow) => {
-    setError(null);
-    try {
-      const supabase = ensureSupabaseClient();
-      const { error: storageError } = await supabase.storage
-        .from(BUCKET)
-        .remove([row.storage_path]);
-      if (storageError) throw storageError;
-      const { error: deleteError } = await supabase.from("media_files").delete().eq("id", row.id);
-      if (deleteError) throw deleteError;
-      setFiles((prev) => prev.filter((f) => f.id !== row.id));
-      setSelectedIds((prev) => prev.filter((id) => id !== row.id));
-      void logMediaEvent("delete", "media_file", row.id, { storage_path: row.storage_path });
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "Unable to delete media"));
-    }
   };
 
   const deletePrompt = async (row: PromptRow) => {
@@ -454,6 +443,7 @@ export default function MediaLibrary() {
       const { error: deleteError } = await supabase.from("media_prompts").delete().eq("id", row.id);
       if (deleteError) throw deleteError;
       setPrompts((prev) => prev.filter((p) => p.id !== row.id));
+      setSelectedIds((prev) => prev.filter((id) => id !== row.id));
       void logMediaEvent("delete", "media_prompt", row.id);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Unable to delete prompt"));
@@ -501,38 +491,60 @@ export default function MediaLibrary() {
     );
   };
 
+  const togglePromptSelect = (promptId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(promptId) ? prev.filter((id) => id !== promptId) : [...prev, promptId]
+    );
+  };
+
   const selectAllVisible = () => {
-    setSelectedIds(filteredMedia.filter((f) => f.status !== "uploading").map((f) => f.id));
+    setSelectedIds(isPromptTab ? selectablePromptIds : selectableMediaIds);
   };
 
   const deleteSelected = async () => {
     if (!selectedIds.length) return;
     setBulkDeleting(true);
     setError(null);
+    const idsToDelete = [...selectedIds];
     try {
       const supabase = ensureSupabaseClient();
-      const targets = files.filter((f) => selectedIds.includes(f.id));
-      const paths = targets.map((t) => t.storage_path).filter(Boolean);
-      if (paths.length) {
-        const { error: storageError } = await supabase.storage
-          .from(BUCKET)
-          .remove(paths as string[]);
-        if (storageError) throw storageError;
-      }
-      if (targets.length) {
-        const ids = targets.map((t) => t.id);
-        const { error: deleteError } = await supabase.from("media_files").delete().in("id", ids);
+      if (isPromptTab) {
+        const { error: deleteError } = await supabase
+          .from("media_prompts")
+          .delete()
+          .in("id", idsToDelete);
         if (deleteError) throw deleteError;
-      }
-      setFiles((prev) => prev.filter((f) => !selectedIds.includes(f.id)));
-      setSelectedIds([]);
-      targets.forEach((target) => {
-        void logMediaEvent("delete", "media_file", target.id, {
-          storage_path: target.storage_path,
+        setPrompts((prev) => prev.filter((prompt) => !idsToDelete.includes(prompt.id)));
+        setSelectedIds([]);
+        idsToDelete.forEach((promptId) => {
+          void logMediaEvent("delete", "media_prompt", promptId);
         });
-      });
+      } else {
+        const targets = files.filter((f) => idsToDelete.includes(f.id));
+        const paths = targets.map((t) => t.storage_path).filter(Boolean);
+        if (paths.length) {
+          const { error: storageError } = await supabase.storage
+            .from(BUCKET)
+            .remove(paths as string[]);
+          if (storageError) throw storageError;
+        }
+        if (targets.length) {
+          const ids = targets.map((t) => t.id);
+          const { error: deleteError } = await supabase.from("media_files").delete().in("id", ids);
+          if (deleteError) throw deleteError;
+        }
+        setFiles((prev) => prev.filter((f) => !idsToDelete.includes(f.id)));
+        setSelectedIds([]);
+        targets.forEach((target) => {
+          void logMediaEvent("delete", "media_file", target.id, {
+            storage_path: target.storage_path,
+          });
+        });
+      }
     } catch (err: unknown) {
-      setError(getErrorMessage(err, "Unable to delete selected media"));
+      setError(
+        getErrorMessage(err, `Unable to delete selected ${isPromptTab ? "prompts" : "media"}`)
+      );
     } finally {
       setBulkDeleting(false);
     }
@@ -768,7 +780,9 @@ export default function MediaLibrary() {
           </div>
         </section>
 
-        <section className="panel media-gallery media-panel">
+        <section
+          className={`panel media-gallery media-panel ${isPromptTab ? "" : "media-gallery-packed"}`}
+        >
           <div className="gallery-actions">
             <div className="section-heading minimal">
               <div>
@@ -792,36 +806,30 @@ export default function MediaLibrary() {
                 </h3>
               </div>
             </div>
-            {!isPromptTab ? (
-              <div className="gallery-btns">
-                {selectedIds.length ? (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setSelectedIds([])}
-                  >
-                    Deselect all
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={selectAllVisible}
-                  disabled={!filteredMedia.length}
-                >
-                  Select all
+            <div className="gallery-btns">
+              {selectedIds.length ? (
+                <button type="button" className="btn-secondary" onClick={() => setSelectedIds([])}>
+                  Deselect all
                 </button>
-                <button
-                  type="button"
-                  className="btn-danger"
-                  onClick={deleteSelected}
-                  disabled={!selectedIds.length || bulkDeleting}
-                  aria-label={`Delete ${selectedIds.length} selected ${selectedIds.length === 1 ? "file" : "files"}`}
-                >
-                  {bulkDeleting ? "Deleting..." : "Delete"}
-                </button>
-              </div>
-            ) : null}
+              ) : null}
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={selectAllVisible}
+                disabled={!selectableIds.length || allVisibleSelected}
+              >
+                Select all
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={deleteSelected}
+                disabled={!selectedIds.length || bulkDeleting}
+                aria-label={`${deleteButtonLabel} ${selectedIds.length} ${deleteItemLabel}`}
+              >
+                {bulkDeleting ? "Deleting..." : deleteButtonLabel}
+              </button>
+            </div>
           </div>
           {loading && <div className="subdued tiny">Loading media…</div>}
           {!loading && isPromptTab && !filteredPrompts.length && (
@@ -839,7 +847,25 @@ export default function MediaLibrary() {
           {isPromptTab ? (
             <div className="prompt-grid">
               {filteredPrompts.map((promptItem) => (
-                <div className="prompt-card" key={promptItem.id}>
+                <div
+                  className={`prompt-card ${selectedIds.includes(promptItem.id) ? "is-selected" : ""}`}
+                  key={promptItem.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={selectedIds.includes(promptItem.id)}
+                  onClick={() => togglePromptSelect(promptItem.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      togglePromptSelect(promptItem.id);
+                    }
+                  }}
+                >
+                  {selectedIds.includes(promptItem.id) ? (
+                    <span className="prompt-select-indicator" aria-hidden>
+                      <CheckCircle size={16} weight="fill" />
+                    </span>
+                  ) : null}
                   <div className="prompt-card-header">
                     <div>
                       <p className="metric-label">{promptItem.title || "Saved prompt"}</p>
@@ -855,7 +881,10 @@ export default function MediaLibrary() {
                     <button
                       type="button"
                       className="btn-secondary prompt-delete-btn"
-                      onClick={() => deletePrompt(promptItem)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void deletePrompt(promptItem);
+                      }}
                       aria-label={`Delete prompt: ${promptItem.title || "Saved prompt"}`}
                     >
                       Delete
@@ -865,7 +894,7 @@ export default function MediaLibrary() {
               ))}
             </div>
           ) : (
-            <div className="media-grid media-grid-fixed media-grid-shell">
+            <div className="media-grid media-grid-fixed media-grid-shell media-grid-packed">
               {filteredMedia.map((file) => {
                 const aspectRatio =
                   aspectMap[file.id] || (isVideoFile(file.file_type) ? 9 / 16 : 4 / 5);
@@ -889,40 +918,20 @@ export default function MediaLibrary() {
                       openModal(file);
                     }}
                   >
-                    <button
-                      className="media-delete"
-                      type="button"
-                      style={{ right: 40 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void downloadFile(file);
-                      }}
-                      aria-label="Download media"
-                    >
-                      <DownloadSimple size={14} weight="bold" />
-                    </button>
-                    <button
-                      className="media-delete"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteFile(file);
-                      }}
-                      aria-label="Delete media"
-                    >
-                      <Trash size={14} weight="bold" />
-                    </button>
                     {file.status === "uploading" ? (
                       <div className="media-thumb placeholder" style={{ aspectRatio }}>
                         <div className="loader-spin" />
-                        <p className="tiny subdued">Uploading…</p>
                       </div>
                     ) : file.signedUrl ? (
                       isVideoFile(file.file_type) ? (
                         <video
                           className="media-thumb"
-                          controls
                           src={file.signedUrl}
+                          muted
+                          playsInline
+                          loop
+                          autoPlay
+                          preload="metadata"
                           onLoadedMetadata={(e) => handleVideoMeta(file.id, e)}
                           onError={() => handleMediaPreviewError(file)}
                           style={{ aspectRatio }}
@@ -946,15 +955,6 @@ export default function MediaLibrary() {
                         No preview
                       </div>
                     )}
-                    <div className="media-meta">
-                      <div>
-                        <p className="metric-label">{file.filename}</p>
-                        <p className="metric-value tiny">{formatBytes(file.file_size)}</p>
-                      </div>
-                      <span className="pill tiny">
-                        {isVideoFile(file.file_type) ? "Video" : "Image"}
-                      </span>
-                    </div>
                   </div>
                 );
               })}

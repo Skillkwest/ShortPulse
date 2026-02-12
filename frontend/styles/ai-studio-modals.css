@@ -249,6 +249,11 @@
   overflow: hidden;
 }
 
+.media-library-modal.media-library-modal-packed {
+  width: min(1380px, 96vw);
+  max-height: min(920px, 94vh);
+}
+
 .media-library-modal-header {
   display: flex;
   justify-content: space-between;
@@ -294,9 +299,22 @@
   overflow: auto;
 }
 
+.media-library-modal.media-library-modal-packed .media-library-modal-body {
+  padding: 0;
+}
+
 .media-library-modal-grid {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   margin-top: 8px;
+}
+
+.media-library-modal-grid.media-library-modal-grid-packed {
+  --media-library-modal-preview-width: 220px;
+  display: block;
+  margin-top: 0;
+  padding: 1px 1px 1px;
+  column-width: var(--media-library-modal-preview-width);
+  column-gap: 1px;
 }
 
 .media-library-modal-card {
@@ -304,8 +322,26 @@
   position: relative;
 }
 
+.media-library-modal-grid.media-library-modal-grid-packed .media-library-modal-card {
+  width: 100%;
+  display: inline-block;
+  margin: 0 0 1px;
+  break-inside: avoid;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
 .media-library-modal-card:hover {
   border-color: rgba(52, 200, 255, 0.35);
+}
+
+.media-library-modal-grid.media-library-modal-grid-packed .media-library-modal-card:hover {
+  transform: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .media-library-prompt-grid {
@@ -329,6 +365,24 @@
 .media-library-prompt-card.is-selected {
   border-color: rgba(110, 231, 183, 0.6);
   box-shadow: 0 0 0 1px rgba(110, 231, 183, 0.2) inset;
+}
+
+.media-library-modal-grid.media-library-modal-grid-packed .media-library-modal-card.is-selected {
+  box-shadow: none;
+  outline: 2px solid rgba(110, 231, 183, 0.8);
+  outline-offset: -2px;
+}
+
+.media-library-modal-grid.media-library-modal-grid-packed .media-thumb {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.media-library-modal-grid.media-library-modal-grid-packed .media-thumb.placeholder {
+  min-height: 160px;
 }
 
 .media-library-select-indicator {

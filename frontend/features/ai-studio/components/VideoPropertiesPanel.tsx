@@ -128,7 +128,6 @@ export function VideoPropertiesPanel({
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
-  referenceImageWarning,
   agentIsSending = false,
   agentError,
   onAgentEnhanceSend,
@@ -264,6 +263,7 @@ export function VideoPropertiesPanel({
           onAgentEnhanceSend={onAgentEnhanceSend}
           showEnhanceButton={false}
           beginnerHelperText="Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip."
+          beginnerPinHelperText="Click this button to pin your prompt to the reference grid."
           promptSaveButtonClassName="video-reference-pin-btn"
           promptSaveButtonUnstyled
         />
@@ -412,7 +412,6 @@ export function VideoPropertiesPanel({
           isBusy={agentIsSending}
           costCredits={costCredits}
           promptRequiredMessage={null}
-          referenceImageWarning={activeVideoMode === "standard" ? null : referenceImageWarning}
         />
       </div>
     </div>

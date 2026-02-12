@@ -6,7 +6,7 @@ import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
@@ -15,19 +15,40 @@ import {
   FolderSimple,
   ShieldCheck,
   Sparkle,
-  UsersThree,
+  UserCircle,
   type IconProps,
 } from "phosphor-react";
+import { useCredits } from "../features/ai-studio/hooks/useCredits";
+import {
+  buildPlanView,
+  normalizePlanId,
+  type BillingPlanRecord,
+} from "../features/billing/catalog";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
+
+const DEFAULT_PLAN_TIER = "business";
+
+const PLAN_MAP: Record<string, { label: string; className: string }> = {
+  free: { label: "Free", className: "plan-free" },
+  media: { label: "Media", className: "plan-media" },
+  studio: { label: "Studio", className: "plan-studio" },
+  business: { label: "Business", className: "plan-business" },
+};
 
 /**
  * Render the dashboard tiles and workspace chrome for the current user.
  */
 export default function DashboardPage() {
   const router = useRouter();
+  const { balanceCents, balanceLoading } = useCredits();
   const [user, setUser] = useState<User | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
+    null
+  );
+  const [mediaBytesUsed, setMediaBytesUsed] = useState(0);
+  const [usageLoading, setUsageLoading] = useState(true);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -79,14 +100,11 @@ export default function DashboardPage() {
     user?.email ??
     "Guest";
   const firstName = (displayName || "creator").split(" ")[0];
-  const planTier = (user?.user_metadata?.plan as string | undefined)?.toLowerCase() || "business";
-  const planMap: Record<string, { label: string; className: string }> = {
-    free: { label: "Free", className: "plan-free" },
-    media: { label: "Media", className: "plan-media" },
-    studio: { label: "Studio", className: "plan-studio" },
-    business: { label: "Business", className: "plan-business" },
-  };
-  const planMeta = planMap[planTier] || planMap.free;
+  const fallbackPlanTier = normalizePlanId(
+    (user?.user_metadata?.plan as string | undefined) ?? DEFAULT_PLAN_TIER
+  );
+  const fallbackPlanMeta = PLAN_MAP[fallbackPlanTier] ?? PLAN_MAP.business;
+  const planMeta = resolvedPlan ?? fallbackPlanMeta;
   const initials =
     displayName
       .split(" ")
@@ -96,9 +114,101 @@ export default function DashboardPage() {
       .slice(0, 2)
       .toUpperCase() || "SP";
 
+  useEffect(() => {
+    let active = true;
+
+    const loadUsage = async () => {
+      if (!user) {
+        if (!active) return;
+        setResolvedPlan(null);
+        setMediaBytesUsed(0);
+        setUsageLoading(false);
+        return;
+      }
+
+      setUsageLoading(true);
+      try {
+        const supabase = ensureSupabaseClient();
+        const [billingProfileResponse, billingPlansResponse, mediaFilesResponse] =
+          await Promise.all([
+            supabase
+              .from("billing_profiles")
+              .select("plan_id")
+              .eq("user_id", user.id)
+              .maybeSingle(),
+            supabase
+              .from("billing_plans")
+              .select("id, display_name, monthly_price_cents, monthly_credits_cents, is_active")
+              .eq("is_active", true),
+            supabase.from("media_files").select("file_size"),
+          ]);
+
+        const billingPlanId =
+          !billingProfileResponse.error && billingProfileResponse.data
+            ? ((billingProfileResponse.data as { plan_id: string | null }).plan_id ?? null)
+            : null;
+        const effectivePlanId =
+          billingPlanId ?? (user.user_metadata?.plan as string | undefined) ?? DEFAULT_PLAN_TIER;
+        const normalizedPlanId = normalizePlanId(effectivePlanId);
+        const plans =
+          !billingPlansResponse.error && Array.isArray(billingPlansResponse.data)
+            ? (billingPlansResponse.data as BillingPlanRecord[])
+            : [];
+        const planView = buildPlanView({
+          planId: normalizedPlanId,
+          plans,
+        });
+        const planFallback = PLAN_MAP[normalizedPlanId] ?? PLAN_MAP.business;
+        const nextPlanLabel = plans.length > 0 ? planView.displayName : planFallback.label;
+
+        const mediaRows =
+          !mediaFilesResponse.error && Array.isArray(mediaFilesResponse.data)
+            ? (mediaFilesResponse.data as Array<{ file_size: number | null }>)
+            : [];
+        const nextMediaBytesUsed = mediaRows.reduce(
+          (sum, file) => sum + Number(file.file_size ?? 0),
+          0
+        );
+
+        if (!active) return;
+        setResolvedPlan({
+          label: nextPlanLabel,
+          className: planView.className,
+        });
+        setMediaBytesUsed(Number.isFinite(nextMediaBytesUsed) ? nextMediaBytesUsed : 0);
+      } catch {
+        if (!active) return;
+        setResolvedPlan(null);
+        setMediaBytesUsed(0);
+      } finally {
+        if (active) {
+          setUsageLoading(false);
+        }
+      }
+    };
+
+    void loadUsage();
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  const storageUsageValue = useMemo(() => {
+    if (usageLoading) return "…";
+    const usedMb = mediaBytesUsed / (1024 * 1024);
+    const limitGb = 1;
+    return `${usedMb.toFixed(1)} MB / ${limitGb.toFixed(1)} GB`;
+  }, [mediaBytesUsed, usageLoading]);
+
+  const aiCreditsValue =
+    balanceLoading && balanceCents == null
+      ? "…"
+      : `${(balanceCents ?? 0).toLocaleString()} credits`;
+
   type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
   type ToolCard = {
     title: string;
+    eyebrow?: string;
     description: string;
     href: string;
     cta: string;
@@ -110,25 +220,29 @@ export default function DashboardPage() {
 
   const toolCards: ToolCard[] = [
     {
-      title: "Saved Creators",
-      description: "Curate the handles you monitor for benchmarking and alerts.",
-      href: "/saved-creators",
-      cta: "Review list →",
-      variant: "tool-saved",
-      image: "/Gray.png",
-      icon: UsersThree,
-    },
-    {
       title: "Media Library",
-      description: "Upload and organize private assets with per-user Supabase storage.",
+      eyebrow: "Storage",
+      description: "Upload and organize private assets with secure, per-user storage.",
       href: "/media-library",
       cta: "Open library →",
       variant: "tool-media",
-      image: "/dashboard/media-library.png",
+      image: "/dashboard/media_library_purp.png",
       icon: FolderSimple,
     },
     {
+      title: "Character",
+      eyebrow: "Identity",
+      description:
+        "Open Character Designer to create new personas and manage every saved character profile.",
+      href: "/character-soon",
+      cta: "Coming soon →",
+      variant: "tool-character",
+      image: "/dashboard/character.png",
+      icon: UserCircle,
+    },
+    {
       title: "AI Studio",
+      eyebrow: "Generation",
       description:
         "Generate and iterate images/videos with prompt systems, models, and aspect control.",
       href: "/ai-studio",
@@ -139,12 +253,13 @@ export default function DashboardPage() {
     },
     {
       title: "Performance Analytics",
+      eyebrow: "Analytics",
       description:
         "Compare high-performing Reels, TikToks, and Shorts across niches (Analytics coming soon).",
       href: "/performance-soon",
       cta: "Open analytics →",
       variant: "tool-performance",
-      image: "/dashboard/performance-analytics.png",
+      image: "/dashboard/performance%20analytics.png",
       icon: ChartBar,
     },
   ];
@@ -152,7 +267,7 @@ export default function DashboardPage() {
   const heroCards = [
     {
       label: "Media Storage",
-      value: "0 / 1 GB",
+      value: storageUsageValue,
       icon: CloudArrowUp,
     },
     {
@@ -162,7 +277,7 @@ export default function DashboardPage() {
     },
     {
       label: "AI credits",
-      value: "0 credits",
+      value: aiCreditsValue,
       icon: Sparkle,
     },
     {
@@ -338,10 +453,12 @@ export default function DashboardPage() {
                         alt={`${tool.title} visual`}
                         width={1200}
                         height={300}
+                        unoptimized
                       />
                     </div>
                   ) : null}
                   <div className="tool-card-body">
+                    {tool.eyebrow ? <p className="tool-card-eyebrow">{tool.eyebrow}</p> : null}
                     <h3>{tool.title}</h3>
                     <p>{tool.description}</p>
                   </div>

@@ -4,10 +4,10 @@
  */
 .tools-section {
   border-radius: 26px;
-  border: 1px solid rgba(201, 205, 214, 0.08);
+  border: 1px solid transparent;
   padding: 26px;
-  background: rgba(11, 14, 21, 0.95);
-  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.45);
+  background: transparent;
+  box-shadow: none;
   margin-bottom: 26px;
 }
 
@@ -20,7 +20,7 @@
 .tool-card {
   border-radius: 20px;
   border: 1px solid rgba(201, 205, 214, 0.14);
-  background: rgba(15, 18, 26, 0.92);
+  background: rgba(201, 205, 214, 0.02);
   padding: 0 18px 18px;
   text-decoration: none;
   color: inherit;
@@ -28,7 +28,9 @@
   flex-direction: column;
   gap: 8px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
-  transition: transform 0.18s ease, border-color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease;
   overflow: hidden;
   min-height: 70px;
   position: relative;
@@ -36,19 +38,38 @@
 
 .tool-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(37, 169, 191, 0.45);
+}
+
+.tool-card.tool-media:hover {
+  border-color: rgba(224, 48, 145, 0.7);
+  box-shadow:
+    0 8px 20px rgba(116, 20, 80, 0.32),
+    0 4px 12px rgba(224, 48, 145, 0.34),
+    0 0 0 1px rgba(224, 48, 145, 0.2);
 }
 
 .tool-card.tool-performance:hover {
-  border-color: rgba(245, 185, 66, 0.45);
+  border-color: rgba(245, 185, 66, 0.7);
+  box-shadow:
+    0 8px 20px rgba(122, 87, 23, 0.32),
+    0 4px 12px rgba(245, 185, 66, 0.34),
+    0 0 0 1px rgba(245, 185, 66, 0.2);
 }
 
 .tool-card.tool-performance h3 {
   color: var(--color-amber);
 }
 
+.tool-card.tool-performance {
+  border-color: rgba(245, 185, 66, 0.32);
+}
+
 .tool-card.tool-creator:hover {
-  border-color: rgba(37, 169, 191, 0.5);
+  border-color: rgba(37, 169, 191, 0.7);
+  box-shadow:
+    0 8px 20px rgba(12, 90, 102, 0.32),
+    0 4px 12px rgba(37, 169, 191, 0.34),
+    0 0 0 1px rgba(37, 169, 191, 0.2);
 }
 
 .tool-card.tool-creator h3 {
@@ -59,6 +80,16 @@
   color: var(--color-teal);
 }
 
+.tool-card.tool-media {
+  border-color: rgba(224, 48, 145, 0.32);
+  background: rgba(201, 205, 214, 0.02);
+}
+
+.tool-card.tool-creator {
+  border-color: rgba(37, 169, 191, 0.32);
+  background: rgba(201, 205, 214, 0.02);
+}
+
 .tool-card.tool-saved:hover {
   border-color: rgba(225, 232, 240, 0.5);
 }
@@ -67,12 +98,14 @@
   color: #f5f9ff;
 }
 
-.tool-card.tool-media:hover {
-  border-color: rgba(225, 232, 240, 0.5);
+.tool-card.tool-media h3 {
+  color: #e03091;
 }
 
-.tool-card.tool-media h3 {
-  color: #4ea09e;
+.tool-card.tool-media .tool-card-hero img {
+  object-fit: contain;
+  object-position: center;
+  background: #0f131b;
 }
 
 .tool-card-hero {
@@ -107,6 +140,15 @@
   margin: 0 0 10px;
 }
 
+.tool-card-eyebrow {
+  margin: 0 0 6px;
+  color: #8e98a8;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .tool-card-body p {
   margin: 0;
   color: #9aa3b1;
@@ -134,7 +176,7 @@
 }
 
 .tool-card.tool-media .tool-card-footer {
-  color: #4ea09e;
+  color: #e03091;
 }
 
 .tool-card.tool-saved .tool-card-footer {
@@ -146,7 +188,12 @@
 }
 
 .tool-card.tool-media .tool-card-icon {
-  color: #4ea09e;
+  color: #e03091;
+}
+
+.tool-card.tool-media:focus-visible {
+  outline: 2px solid #e03091;
+  outline-offset: 3px;
 }
 
 .tool-card.tool-saved .tool-card-icon {
@@ -163,4 +210,31 @@
 
 .tool-card.tool-creator .tool-card-icon {
   color: var(--color-teal);
+}
+
+.tool-card.tool-character {
+  border-color: rgba(34, 197, 94, 0.32);
+  background: rgba(201, 205, 214, 0.02);
+}
+
+.tool-card.tool-character:hover {
+  border-color: rgba(34, 197, 94, 0.7);
+  box-shadow:
+    0 8px 20px rgba(16, 95, 48, 0.32),
+    0 4px 12px rgba(34, 197, 94, 0.34),
+    0 0 0 1px rgba(34, 197, 94, 0.2);
+}
+
+.tool-card.tool-character:focus-visible {
+  outline: 2px solid #34d399;
+  outline-offset: 3px;
+}
+
+.tool-card.tool-character h3 {
+  color: #22c55e;
+}
+
+.tool-card.tool-character .tool-card-footer,
+.tool-card.tool-character .tool-card-icon {
+  color: #22c55e;
 }

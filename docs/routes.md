@@ -13,6 +13,7 @@ Reference for pages, auth expectations, and ownership.
 | `/media-library` | Yes | Private bucket file manager | Uses `media_library` bucket + `media_files` table (RLS). |
 | `/ai-studio` | Yes | Creative canvas (prompt/image/video) | `/creator-studio` forwards here. |
 | `/character` | Yes | Character tool (identity ingest + consistent image gen) | Frontend-triggered; Fal proxy by default. |
+| `/character-soon` | Yes | Temporary placeholder for the Character workspace | Linked from the dashboard while Character is staged. |
 | `/profile` | Yes | Profile/account/billing UI | Logout modal; plan badges. |
 | `/admin` | Yes | Internal admin dashboard | Operator-only surface (`app_metadata` role or admin allowlist); not part of MVP. |
 | `/onboarding` | No | Lightweight onboarding shell | Links to dashboard/features. |

@@ -198,6 +198,14 @@
   min-height: 0;
 }
 
+.reference-step-card.is-collapsed {
+  cursor: pointer;
+}
+
+.reference-step-card.is-collapsed:hover {
+  border-color: var(--ai-accent, var(--ai-accent-moderate, rgba(37, 169, 191, 0.5)));
+}
+
 .reference-step-card .prompt-enhanced-wrapper .prompt-thinking-overlay {
   inset: 0;
   border-radius: 14px;

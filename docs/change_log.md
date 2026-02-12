@@ -239,3 +239,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added `docs/sops/sop_provider_incident_response.md` with Fal/OpenAI/Stripe triage, diagnostics queries, mitigation steps, and post-incident requirements.
 - Updated schema/security/ops docs to include reservation billing lifecycle requirements: `docs/data-dictionary.md`, `docs/security-checklist.md`, `docs/local-development.md`, `docs/database-migrations.md`, `docs/monitoring.md`, and `docs/troubleshooting.md`.
 - Updated docs indexes and cross-links so new docs are discoverable from `docs/README.md`, `docs/api/README.md`, `docs/sops/README.md`, and `docs/documentation_overview.md`.
+
+## 2026-02-12 (dashboard hidden tool reminders)
+- Removed the dashboard “Temporarily hidden” reminder row and the small Saved Creators/Performance pills from the Tools section so hidden surfaces have no in-app visual footprint.
+- Preserved the actual feature routes; this changelog entry is the documentation reminder that those links are intentionally hidden from the dashboard UI.
+
+## 2026-02-12 (character placeholder navigation)
+- Added a temporary `/character-soon` placeholder page and routed the dashboard Character card to it while the full Character workflow remains staged.
+- Updated route documentation in `README.md` and `docs/routes.md` so the temporary Character navigation is explicit.

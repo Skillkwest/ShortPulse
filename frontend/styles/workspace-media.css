@@ -30,6 +30,43 @@
   display: grid;
   gap: var(--spacing-12);
   box-shadow: var(--shadow-lg);
+  position: relative;
+  cursor: pointer;
+  transition:
+    transform var(--transition-base),
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.prompt-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(37, 169, 191, 0.35);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.3),
+    0 4px 12px rgba(37, 169, 191, 0.2);
+}
+
+.prompt-card.is-selected {
+  border-color: rgba(37, 169, 191, 0.85);
+  box-shadow: 0 0 0 2px rgba(37, 169, 191, 0.4);
+}
+
+.prompt-select-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(10, 20, 14, 0.72);
+  border: 1px solid rgba(37, 169, 191, 0.8);
+  color: #6ee7b7;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .prompt-card-header {
@@ -282,6 +319,56 @@
 
 .media-grid-shell {
   margin-top: 24px;
+}
+
+.media-gallery.media-gallery-packed {
+  padding: 0;
+}
+
+.media-gallery.media-gallery-packed .gallery-actions {
+  margin-bottom: 0;
+  padding: 12px 14px 8px;
+}
+
+.media-grid-packed {
+  --media-preview-width: 260px;
+  display: block;
+  margin-top: 1px;
+  padding: 0 1px 1px;
+  column-width: var(--media-preview-width);
+  column-gap: 1px;
+}
+
+.media-grid-packed .media-card {
+  width: 100%;
+  display: inline-block;
+  margin: 0 0 1px;
+  break-inside: avoid;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.media-grid-packed .media-card:hover {
+  transform: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.media-grid-packed .media-card.is-selected {
+  outline: 2px solid rgba(37, 169, 191, 0.85);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+
+.media-grid-packed .media-thumb {
+  display: block;
+  border-radius: 0;
+}
+
+.media-grid-packed .media-thumb.placeholder {
+  min-height: 160px;
 }
 
 .aspect-image {

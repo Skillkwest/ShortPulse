@@ -8,12 +8,12 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border: 1px solid rgba(201, 205, 214, 0.08);
+  border: 1px solid transparent;
   border-radius: 20px;
-  background: rgba(17, 20, 27, 0.85);
+  background: rgba(201, 205, 214, 0.02);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   margin-bottom: 26px;
-  border-bottom: 1px solid rgba(201, 205, 214, 0.08);
+  border-bottom: 1px solid transparent;
 }
 
 .brand-mark {
@@ -73,12 +73,15 @@
   border-radius: 16px;
   padding: 12px 14px;
   border: 1px solid rgba(201, 205, 214, 0.12);
-  background: rgba(11, 15, 22, 0.9);
+  background: rgba(201, 205, 214, 0.02);
   min-width: 180px;
   width: 200px;
   height: var(--header-card-height);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
-  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
   cursor: pointer; /* show finger pointer on hover */
 }
 
@@ -96,7 +99,7 @@
 
 .avatar-card {
   border: 1px solid rgba(201, 205, 214, 0.12);
-  background: rgba(11, 15, 22, 0.8);
+  background: rgba(201, 205, 214, 0.02);
   border-radius: 16px;
   width: var(--header-card-height);
   height: var(--header-card-height);
@@ -104,7 +107,10 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 /* Match the hover affordance of header stat cards on the profile card */
@@ -122,7 +128,8 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  background: radial-gradient(120% 120% at 10% 0%, rgba(37, 169, 191, 0.1), transparent), rgba(5, 7, 13, 0.98);
+  background:
+    radial-gradient(120% 120% at 10% 0%, rgba(37, 169, 191, 0.1), transparent), rgba(5, 7, 13, 0.98);
   border: 1px solid rgba(201, 205, 214, 0.16);
   border-radius: 16px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);

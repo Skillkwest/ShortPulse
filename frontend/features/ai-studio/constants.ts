@@ -190,7 +190,6 @@ export const editToolList: ToolConfig[] = [
 
 export const lowerToolList: ToolConfig[] = [
   { id: "templates", label: "Templates", desc: "Browse AI templates" },
-  { id: "workflows", label: "Workflows", desc: "Open workflow templates" },
 ];
 
 export const creationsToolList: ToolConfig[] = [

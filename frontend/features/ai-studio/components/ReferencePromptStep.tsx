@@ -19,6 +19,7 @@ type ReferencePromptStepProps = {
   onAgentEnhanceSend?: () => void;
   showEnhanceButton?: boolean;
   beginnerHelperText?: string;
+  beginnerPinHelperText?: string;
   promptSaveButtonClassName?: string;
   promptSaveButtonUnstyled?: boolean;
 };
@@ -41,6 +42,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   onAgentEnhanceSend,
   showEnhanceButton = true,
   beginnerHelperText,
+  beginnerPinHelperText,
   promptSaveButtonClassName,
   promptSaveButtonUnstyled = false,
 }) => {
@@ -72,6 +74,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         hideEnhanceButton={!showEnhanceButton}
         promptPlaceholder="Describe the image you want to generate. You can also drag & drop a reference prompt here to get started."
         beginnerSubtitle={beginnerHelperText}
+        beginnerPinHelperText={beginnerPinHelperText}
         promptSaveButtonClassName={promptSaveButtonClassName}
         promptSaveButtonUnstyled={promptSaveButtonUnstyled}
       />

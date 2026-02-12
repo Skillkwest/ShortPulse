@@ -97,6 +97,7 @@ export type PromptStepProps = {
   beginnerTitle?: string;
   promptSaveButtonClassName?: string;
   promptSaveButtonUnstyled?: boolean;
+  beginnerPinHelperText?: string;
   chatPromptSaveButtonClassName?: string;
   chatPromptSaveButtonUnstyled?: boolean;
 };
@@ -153,6 +154,7 @@ export function PromptStep({
   beginnerTitle,
   promptSaveButtonClassName = "prompt-fab-save",
   promptSaveButtonUnstyled = false,
+  beginnerPinHelperText,
   chatPromptSaveButtonClassName = "",
   chatPromptSaveButtonUnstyled = false,
 }: PromptStepProps) {
@@ -471,6 +473,9 @@ export function PromptStep({
                   </div>
                 </div>
                 <div className="enhanced-actions-row prompt-actions-compact">
+                  {beginnerMode && beginnerPinHelperText ? (
+                    <p className="tiny helper-text beginner-pin-helper">{beginnerPinHelperText}</p>
+                  ) : null}
                   <div className="enhanced-action-buttons agent-inline-actions">
                     {!hideEnhanceButton ? (
                       <AgentEnhanceButton

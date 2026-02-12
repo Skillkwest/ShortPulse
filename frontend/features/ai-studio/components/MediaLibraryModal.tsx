@@ -196,13 +196,14 @@ export function MediaLibraryModal({
         : activeTab === "ai_generations"
           ? aiGenerations
           : [];
+  const isMediaTab = activeTab !== "saved_prompts";
 
   if (!isOpen) return null;
 
   return (
     <div className="media-library-modal-backdrop" onClick={onClose}>
       <div
-        className="media-library-modal"
+        className="media-library-modal media-library-modal-packed"
         role="dialog"
         aria-modal="true"
         aria-label="Media library"
@@ -318,8 +319,8 @@ export function MediaLibraryModal({
             </div>
           ) : null}
 
-          {!loading && !error && activeTab !== "saved_prompts" ? (
-            <div className="media-grid media-library-modal-grid">
+          {!loading && !error && isMediaTab ? (
+            <div className="media-grid media-library-modal-grid media-library-modal-grid-packed">
               {activeMedia.length === 0 ? (
                 <p className="tiny subdued">No media found for this tab.</p>
               ) : (
@@ -361,6 +362,9 @@ export function MediaLibraryModal({
                             src={file.signedUrl}
                             muted
                             playsInline
+                            loop
+                            autoPlay
+                            preload="metadata"
                             onLoadedData={() => {
                               signedUrlRetryRef.current[file.id] = 0;
                             }}
@@ -384,15 +388,6 @@ export function MediaLibraryModal({
                       ) : (
                         <div className="media-thumb placeholder">No preview</div>
                       )}
-                      <div className="media-meta">
-                        <div>
-                          <p className="metric-label">{file.filename}</p>
-                          <p className="metric-value tiny">{formatDate(file.created_at)}</p>
-                        </div>
-                        <span className="pill tiny">
-                          {isVideoFile(file.file_type) ? "Video" : "Image"}
-                        </span>
-                      </div>
                     </button>
                   );
                 })

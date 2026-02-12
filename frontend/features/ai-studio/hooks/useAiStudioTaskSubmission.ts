@@ -186,22 +186,6 @@ export const useAiStudioTaskSubmission = ({
         ? videoGenerateAudio
         : (modelConfig?.defaultAudio ?? true);
 
-      const preparedImageInputs = (
-        await Promise.all(
-          imageInputs.map(async (url) => {
-            const normalized = await prepareImageUrlForSubmission(url);
-            return normalized ?? null;
-          })
-        )
-      ).filter((url): url is string => Boolean(url));
-      const pulseReferenceImageUrl =
-        finalTool === "image" && preparedImageInputs.length > 0
-          ? preparedImageInputs[0]
-          : undefined;
-      const falReferencePayload = pulseReferenceImageUrl
-        ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) }
-        : ({} as Record<string, never>);
-
       const outputMode: StudioMode =
         effectiveTool === "video" || effectiveTool === "kling"
           ? "video"
@@ -226,78 +210,106 @@ export const useAiStudioTaskSubmission = ({
         saveError: null,
       };
 
+      // Render the spinner placeholder immediately on generate click,
+      // before any expensive URL prep/submission work begins.
+      setOutputs((prev) => [nextOutput, ...prev]);
+      setSaved(false);
+
+      const preparedImageInputs = (
+        await Promise.all(
+          imageInputs.map(async (url) => {
+            const normalized = await prepareImageUrlForSubmission(url);
+            return normalized ?? null;
+          })
+        )
+      ).filter((url): url is string => Boolean(url));
+      const pulseReferenceImageUrl =
+        finalTool === "image" && preparedImageInputs.length > 0
+          ? preparedImageInputs[0]
+          : undefined;
+      const falReferencePayload = pulseReferenceImageUrl
+        ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) }
+        : ({} as Record<string, never>);
+
       const isStandardVideoRun = normalizedTool === "video" && videoReferenceMode === "standard";
       if (isStandardVideoRun && preparedImageInputs.length < 1) {
-        setOutputs((prev) => [
-          {
-            ...nextOutput,
-            taskState: "fail",
-            status: "ready",
-            timestamp: "Missing image",
-            errorMessage: "Standard video generation requires a reference image.",
-            errorMessageShort: "Reference image required.",
-            errorDetail: "Standard video generation requires a reference image.",
-          },
-          ...prev,
-        ]);
-        setSaved(false);
+        setOutputs((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  taskState: "fail",
+                  status: "ready",
+                  timestamp: "Missing image",
+                  errorMessage: "Standard video generation requires a reference image.",
+                  errorMessageShort: "Reference image required.",
+                  errorDetail: "Standard video generation requires a reference image.",
+                }
+              : item
+          )
+        );
         return;
       }
 
       const requiresImageReference = isKling3ImageModel || isVeoImageToVideoModel;
       if (requiresImageReference && preparedImageInputs.length === 0) {
-        setOutputs((prev) => [
-          {
-            ...nextOutput,
-            taskState: "fail",
-            status: "ready",
-            timestamp: "Missing image",
-            errorMessage: "Video generation requires an image URL.",
-            errorMessageShort: "Image URL required.",
-            errorDetail: "Video generation requires an image URL.",
-          },
-          ...prev,
-        ]);
-        setSaved(false);
+        setOutputs((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  taskState: "fail",
+                  status: "ready",
+                  timestamp: "Missing image",
+                  errorMessage: "Video generation requires an image URL.",
+                  errorMessageShort: "Image URL required.",
+                  errorDetail: "Video generation requires an image URL.",
+                }
+              : item
+          )
+        );
         return;
       }
 
       if (isVeoFirstLastFrameModel && preparedImageInputs.length < 2) {
-        setOutputs((prev) => [
-          {
-            ...nextOutput,
-            taskState: "fail",
-            status: "ready",
-            timestamp: "Missing frames",
-            errorMessage: "First/Last Frame generation requires both a first and last frame image.",
-            errorMessageShort: "First/Last needs two images.",
-            errorDetail: "First/Last Frame generation requires both a first and last frame image.",
-          },
-          ...prev,
-        ]);
-        setSaved(false);
+        setOutputs((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  taskState: "fail",
+                  status: "ready",
+                  timestamp: "Missing frames",
+                  errorMessage:
+                    "First/Last Frame generation requires both a first and last frame image.",
+                  errorMessageShort: "First/Last needs two images.",
+                  errorDetail:
+                    "First/Last Frame generation requires both a first and last frame image.",
+                }
+              : item
+          )
+        );
         return;
       }
 
       if (isVeoImageToVideoModel && preparedImageInputs.length < 1) {
-        setOutputs((prev) => [
-          {
-            ...nextOutput,
-            taskState: "fail",
-            status: "ready",
-            timestamp: "Missing image",
-            errorMessage: "Veo image-to-video requires a reference image.",
-            errorMessageShort: "Reference image required.",
-            errorDetail: "Veo image-to-video requires a reference image.",
-          },
-          ...prev,
-        ]);
-        setSaved(false);
+        setOutputs((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  taskState: "fail",
+                  status: "ready",
+                  timestamp: "Missing image",
+                  errorMessage: "Veo image-to-video requires a reference image.",
+                  errorMessageShort: "Reference image required.",
+                  errorDetail: "Veo image-to-video requires a reference image.",
+                }
+              : item
+          )
+        );
         return;
       }
-
-      setOutputs((prev) => [nextOutput, ...prev]);
-      setSaved(false);
 
       try {
         const startPollingWithGeneration = (

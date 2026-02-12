@@ -350,7 +350,7 @@ export const useAiStudioPersistenceActions = ({
     (customPrompt?: string) => {
       const cleanedPrompt = (typeof customPrompt === "string" ? customPrompt : prompt).trim();
       if (!cleanedPrompt) return;
-      const id = `prompt-${randomId()}`;
+      const id = `prompt-ref-${randomId()}`;
       const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
       const promptReference: StudioOutput = {
         id,
@@ -359,36 +359,15 @@ export const useAiStudioPersistenceActions = ({
         aspect,
         model: placeholderModelLabel,
         modelId: model ?? undefined,
-        status: "saved",
-        timestamp: "Saved prompt",
+        status: "ready",
+        timestamp: "Pinned",
         previewText: cleanedPrompt,
-        saveState: "saving",
+        saveState: "idle",
         saveError: null,
       };
       setOutputs((previous) => [promptReference, ...previous]);
-      void (async () => {
-        const promptId = await persistPromptSave({
-          promptText: cleanedPrompt,
-          modelId: model ?? null,
-        });
-        if (!promptId) {
-          markOutputSaveFailed(id, "Unable to save prompt.");
-          return;
-        }
-        updateOutputById(id, (item) => ({ ...item, promptId }));
-        markOutputSaved(id, undefined, { timestamp: "Saved prompt" });
-      })();
     },
-    [
-      aspect,
-      markOutputSaveFailed,
-      markOutputSaved,
-      model,
-      persistPromptSave,
-      prompt,
-      setOutputs,
-      updateOutputById,
-    ]
+    [aspect, model, prompt, setOutputs]
   );
 
   return {

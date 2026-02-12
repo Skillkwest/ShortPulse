@@ -49,13 +49,14 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - **Media Library (`/media-library`)**: Upload/download/delete/rename files in a private Supabase bucket.
 - **Profile (`/profile`)**: Profile/account/billing UI with plan badges, Stripe billing actions, and credit purchase entry points.
 - **AI Studio (`/ai-studio`)**: Creative canvas for prompt systems, model/aspect selection, previewing, and saving image/video outputs.
+- **Character Placeholder (`/character-soon`)**: Temporary landing page while the Character workflow is under construction.
 - **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls and a live app-error incident feed.
 
 ## Security
 
 - Only the Supabase anon key is used on the client; never share the service role key.
 - Enable RLS on `saved_creators` and `media_files` (per-user isolation) and keep the `media_library` bucket private with paths prefixed by `auth.uid()`.
-- Route protection: `/dashboard`, `/performance`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, and `/admin` expect authenticated sessions and redirect to `/auth` when missing.
+- Route protection: `/dashboard`, `/performance`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/character-soon`, and `/admin` expect authenticated sessions and redirect to `/auth` when missing.
 - API protection: provider proxy routes, billing routes, upload routes, and admin routes require bearer-authenticated Supabase sessions.
 
 ## Testing

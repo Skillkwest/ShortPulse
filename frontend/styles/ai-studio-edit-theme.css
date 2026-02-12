@@ -77,6 +77,55 @@
   color: #1a140c;
 }
 
+.edit-reference-pin-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(245, 185, 66, 0.58);
+  background: linear-gradient(135deg, rgba(45, 35, 19, 0.92), rgba(70, 52, 24, 0.48));
+  color: rgba(245, 185, 66, 0.96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(0, 0, 0, 0.38);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+.edit-reference-pin-btn:not(:disabled) {
+  cursor: pointer;
+}
+
+.edit-reference-pin-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(245, 185, 66, 0.88);
+  background: rgba(245, 185, 66, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(0, 0, 0, 0.38);
+  cursor: pointer;
+}
+
+.edit-reference-pin-btn:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  border-color: rgba(151, 159, 171, 0.55);
+  background: rgba(64, 70, 80, 0.18);
+  color: rgba(151, 159, 171, 0.9);
+  box-shadow: none;
+}
+
+.edit-reference-pin-btn svg {
+  color: currentColor;
+}
+
 .edit-properties-panel .reference-swap-control:not(:disabled):hover,
 .edit-properties-panel .reference-swap-control:not(:disabled):focus-visible {
   background: rgba(245, 185, 66, 0.14);

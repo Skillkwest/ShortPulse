@@ -78,4 +78,72 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.generationGuardrail).toBeNull();
     expect(result.current.isGenerateDisabled).toBe(false);
   });
+
+  it("requires an image in standard video mode", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe("Add a reference image before generating.");
+    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.referenceImageWarning).toBeNull();
+  });
+});
+
+describe("useAiStudioViewModel edit guardrails", () => {
+  const editInput = {
+    ...baseInput,
+    mode: "image" as const,
+    model: "fal-ai/nano-banana/edit",
+    selectedTool: "edit" as const,
+    videoReferenceMode: "standard" as const,
+    motionReferenceVideoUrl: null,
+    costParamsForModel: makeCostParamsForModel("fal-ai/nano-banana/edit"),
+  };
+
+  it("requires a primary reference image in edit workflow", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...editInput,
+        prompt: "Improve color grading",
+        referenceImageUrl: null,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe("Add a reference image before generating.");
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
+  it("requires a prompt in edit workflow", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...editInput,
+        prompt: "   ",
+        referenceImageUrl: "https://example.com/reference.png",
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      'Add a prompt in "Write Your Prompt" before generating.'
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
+  it("enables generate when model, prompt, and primary image are all present", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...editInput,
+        prompt: "Apply cinematic warm tones and increase contrast.",
+        referenceImageUrl: "https://example.com/reference.png",
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
 });

@@ -19,6 +19,8 @@ type ReferencePromptStepProps = {
   onAgentEnhanceSend?: () => void;
   showEnhanceButton?: boolean;
   beginnerHelperText?: string;
+  promptSaveButtonClassName?: string;
+  promptSaveButtonUnstyled?: boolean;
 };
 
 /**
@@ -39,6 +41,8 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   onAgentEnhanceSend,
   showEnhanceButton = true,
   beginnerHelperText,
+  promptSaveButtonClassName,
+  promptSaveButtonUnstyled = false,
 }) => {
   return (
     <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
@@ -68,6 +72,8 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         hideEnhanceButton={!showEnhanceButton}
         promptPlaceholder="Describe the image you want to generate. You can also drag & drop a reference prompt here to get started."
         beginnerSubtitle={beginnerHelperText}
+        promptSaveButtonClassName={promptSaveButtonClassName}
+        promptSaveButtonUnstyled={promptSaveButtonUnstyled}
       />
     </div>
   );

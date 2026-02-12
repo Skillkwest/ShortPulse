@@ -471,6 +471,10 @@
     box-shadow 0.16s ease,
     transform 0.12s ease;
 }
+.agent-send-prefab:not(:disabled),
+.agent-save-prefab:not(:disabled) {
+  cursor: pointer;
+}
 .agent-send-prefab {
   box-shadow: var(--agent-send-shadow, 0 4px 1px rgba(37, 168, 191, 0.18));
 }

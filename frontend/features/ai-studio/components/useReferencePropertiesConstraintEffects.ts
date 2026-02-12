@@ -4,6 +4,7 @@
 import { useEffect } from "react";
 
 type ModelConstraintConfig = {
+  mediaType?: "image" | "video" | "image-to-video" | "multi" | "text";
   allowedDurations?: number[];
   allowedResolutions?: string[];
   defaultResolution?: string;
@@ -35,7 +36,15 @@ export const useReferencePropertiesConstraintEffects = ({
   imageResolutionValue,
   onImageResolutionChange,
 }: UseReferencePropertiesConstraintEffectsArgs) => {
+  const modelSupportsVideoConstraints =
+    modelConfig?.mediaType === "video" ||
+    modelConfig?.mediaType === "image-to-video" ||
+    modelConfig?.mediaType === "multi";
+  const modelSupportsImageConstraints =
+    modelConfig?.mediaType === "image" || modelConfig?.mediaType === "multi";
+
   useEffect(() => {
+    if (isVideoVariant && !modelSupportsVideoConstraints) return;
     if (!modelConfig || !onVideoDurationChange) return;
     if (modelConfig.allowedDurations?.includes(videoDurationValue)) return;
     if (!modelConfig.allowedDurations?.length) return;
@@ -46,9 +55,16 @@ export const useReferencePropertiesConstraintEffects = ({
         : previous
     );
     onVideoDurationChange(closestDuration);
-  }, [modelConfig, onVideoDurationChange, videoDurationValue]);
+  }, [
+    isVideoVariant,
+    modelConfig,
+    modelSupportsVideoConstraints,
+    onVideoDurationChange,
+    videoDurationValue,
+  ]);
 
   useEffect(() => {
+    if (isVideoVariant && !modelSupportsVideoConstraints) return;
     if (!modelConfig || !onVideoResolutionChange) return;
     if (modelConfig.allowedResolutions?.includes(videoResolutionValue)) return;
     if (!modelConfig.allowedResolutions?.length) return;
@@ -57,12 +73,25 @@ export const useReferencePropertiesConstraintEffects = ({
     if (fallbackResolution) {
       onVideoResolutionChange(fallbackResolution);
     }
-  }, [modelConfig, onVideoResolutionChange, videoResolutionValue]);
+  }, [
+    isVideoVariant,
+    modelConfig,
+    modelSupportsVideoConstraints,
+    onVideoResolutionChange,
+    videoResolutionValue,
+  ]);
 
   useEffect(() => {
+    if (!isVideoVariant && !modelSupportsImageConstraints) return;
     if (isVideoVariant || !onImageResolutionChange) return;
     if (imageResolutionValue !== imageResolution) {
       onImageResolutionChange(imageResolutionValue);
     }
-  }, [imageResolution, imageResolutionValue, isVideoVariant, onImageResolutionChange]);
+  }, [
+    imageResolution,
+    imageResolutionValue,
+    isVideoVariant,
+    modelSupportsImageConstraints,
+    onImageResolutionChange,
+  ]);
 };

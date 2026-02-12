@@ -27,6 +27,8 @@ type SendParams = {
   payloadText?: string;
   previousPrompt?: string | null;
   context?: AgentContext;
+  skipUserEcho?: boolean;
+  optimisticUserMessageId?: string | null;
 };
 
 type SendResult = {
@@ -106,8 +108,27 @@ export const useAiAgent = ({
     messagesRef.current = messages;
   }, [messages]);
 
+  const appendUserMessage = useCallback((text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return null;
+    const userMessageId = `agent-user-${randomId()}`;
+    const uiUserMessage: AgentMessage = { id: userMessageId, role: "user", content: trimmed };
+    const nextUiMessages = [...messagesRef.current, uiUserMessage].slice(-24);
+    setMessages(nextUiMessages);
+    messagesRef.current = nextUiMessages;
+    setError(null);
+    return userMessageId;
+  }, []);
+
   const send = useCallback(
-    async ({ text, payloadText, previousPrompt, context }: SendParams): Promise<SendResult> => {
+    async ({
+      text,
+      payloadText,
+      previousPrompt,
+      context,
+      skipUserEcho = false,
+      optimisticUserMessageId = null,
+    }: SendParams): Promise<SendResult> => {
       if (!enabled) {
         setError("Agent is disabled");
         return { response: null, actions: undefined };
@@ -118,11 +139,13 @@ export const useAiAgent = ({
       }
 
       const previousMessages = messagesRef.current;
-      // UI-visible history (keep the user's raw text)
-      const uiUserMessage: AgentMessage = { role: "user", content: trimmed };
-      const nextUiMessages = [...previousMessages, uiUserMessage].slice(-24);
-      setMessages(nextUiMessages);
-      messagesRef.current = nextUiMessages;
+      if (!skipUserEcho) {
+        // UI-visible history (keep the user's raw text)
+        const uiUserMessage: AgentMessage = { role: "user", content: trimmed };
+        const nextUiMessages = [...previousMessages, uiUserMessage].slice(-24);
+        setMessages(nextUiMessages);
+        messagesRef.current = nextUiMessages;
+      }
       setIsSending(true);
       setError(null);
 
@@ -131,7 +154,14 @@ export const useAiAgent = ({
           removeAspectRatioLanguage(payloadText?.trim() || trimmed) ??
           payloadText?.trim() ??
           trimmed;
-        const baseHistory = previousMessages.slice(-12); // small window for API
+        const hasOptimisticUserAtTail =
+          skipUserEcho &&
+          previousMessages.length > 0 &&
+          previousMessages[previousMessages.length - 1]?.id === optimisticUserMessageId;
+        const previousMessagesForApi = hasOptimisticUserAtTail
+          ? previousMessages.slice(0, -1)
+          : previousMessages;
+        const baseHistory = previousMessagesForApi.slice(-12); // small window for API
         // Canonical prompt is sent separately; avoid duplicating assistant content in the message list.
         void previousPrompt;
         const apiMessages: AgentMessage[] = [
@@ -215,5 +245,5 @@ export const useAiAgent = ({
     setError(null);
   }, []);
 
-  return { ...state, send, reset };
+  return { ...state, send, reset, appendUserMessage };
 };

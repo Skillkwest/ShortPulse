@@ -264,6 +264,8 @@ export function VideoPropertiesPanel({
           onAgentEnhanceSend={onAgentEnhanceSend}
           showEnhanceButton={false}
           beginnerHelperText="Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip."
+          promptSaveButtonClassName="video-reference-pin-btn"
+          promptSaveButtonUnstyled
         />
         {!isMotionMode ? (
           <ReferenceModelStep
@@ -402,13 +404,15 @@ export function VideoPropertiesPanel({
           generateBadge={generateBadge}
           onExpand={() => expandIfCollapsed("generate")}
           onRegenerate={onRegenerate}
-          isGenerateDisabled={isGenerateDisabled || !referenceText?.trim()}
+          isGenerateDisabled={
+            isGenerateDisabled ||
+            !referenceText?.trim() ||
+            (activeVideoMode === "standard" && !referenceImageUrl)
+          }
           isBusy={agentIsSending}
           costCredits={costCredits}
-          promptRequiredMessage={
-            referenceText?.trim() ? null : 'Add a prompt in "Write Your Prompt" to generate.'
-          }
-          referenceImageWarning={referenceImageWarning}
+          promptRequiredMessage={null}
+          referenceImageWarning={activeVideoMode === "standard" ? null : referenceImageWarning}
         />
       </div>
     </div>

@@ -71,7 +71,6 @@ export function EditPropertiesPanel({
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
-  referenceImageWarning,
   agentIsSending = false,
   agentError,
   onAgentEnhanceSend,
@@ -175,6 +174,8 @@ export function EditPropertiesPanel({
           onAgentEnhanceSend={onAgentEnhanceSend}
           showEnhanceButton={false}
           beginnerHelperText="Think like an art director: describe the subject, setting, style, lighting, and camera angle."
+          promptSaveButtonClassName="edit-reference-pin-btn"
+          promptSaveButtonUnstyled
         />
         <ReferenceModelStep
           variant="image"
@@ -256,10 +257,6 @@ export function EditPropertiesPanel({
           isGenerateDisabled={isGenerateDisabled}
           isBusy={agentIsSending}
           costCredits={costCredits}
-          promptRequiredMessage={
-            referenceText?.trim() ? null : 'Add a prompt in "Write Your Prompt" to generate.'
-          }
-          referenceImageWarning={referenceImageWarning}
         />
       </div>
     </div>

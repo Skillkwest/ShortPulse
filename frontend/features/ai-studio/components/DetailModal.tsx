@@ -28,6 +28,14 @@ export function DetailModal({
   onDownloadReference,
   onSavePrompt,
 }: DetailModalProps) {
+  const imageVesselRef = useRef<HTMLDivElement | null>(null);
+  const imagePanDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+  } | null>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyCloseTimerRef = useRef<number | null>(null);
@@ -35,8 +43,42 @@ export function DetailModal({
   const [deleteConfirmOutputId, setDeleteConfirmOutputId] = useState<string | null>(null);
   const [draftPromptsById, setDraftPromptsById] = useState<Record<string, string>>({});
   const [promptOnlySavedOutputId, setPromptOnlySavedOutputId] = useState<string | null>(null);
+  const [loadedPreviewAspect, setLoadedPreviewAspect] = useState<{
+    outputId: string;
+    ratio: number;
+  } | null>(null);
+  const [loadedImageNaturalSize, setLoadedImageNaturalSize] = useState<{
+    outputId: string;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [imageZoomScaleByOutput, setImageZoomScaleByOutput] = useState<{
+    outputId: string;
+    value: number;
+  } | null>(null);
+  const [imagePanByOutput, setImagePanByOutput] = useState<{
+    outputId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [imagePanningByOutput, setImagePanningByOutput] = useState<{
+    outputId: string;
+    value: boolean;
+  } | null>(null);
+
+  const parseAspectRatio = useCallback((value?: string | null): number | null => {
+    if (!value || !value.includes(":")) return null;
+    const [wRaw, hRaw] = value.split(":");
+    const width = Number(wRaw);
+    const height = Number(hRaw);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return null;
+    }
+    return width / height;
+  }, []);
 
   const isVideoOutput = Boolean(output?.previewUrl && looksLikeVideoUrl(output.previewUrl));
+  const isImageOutput = Boolean(output?.previewUrl) && !isVideoOutput;
   const mediaType = output?.previewUrl ? (isVideoOutput ? "Video" : "Image") : "Prompt";
   const isPromptOnly = output?.mode === "text" && !output.previewUrl;
   const isUploadedReference = useMemo(() => {
@@ -50,6 +92,27 @@ export function DetailModal({
       ? { aspectRatio: output.aspect.replace(":", " / ") }
       : undefined;
   const outputId = output?.id ?? null;
+  const imageNaturalSize =
+    loadedImageNaturalSize && outputId && loadedImageNaturalSize.outputId === outputId
+      ? loadedImageNaturalSize
+      : null;
+  const imageZoomScale =
+    imageZoomScaleByOutput && outputId && imageZoomScaleByOutput.outputId === outputId
+      ? imageZoomScaleByOutput.value
+      : 1;
+  const imagePan =
+    imagePanByOutput && outputId && imagePanByOutput.outputId === outputId
+      ? { x: imagePanByOutput.x, y: imagePanByOutput.y }
+      : { x: 0, y: 0 };
+  const isImagePanning =
+    imagePanningByOutput && outputId && imagePanningByOutput.outputId === outputId
+      ? imagePanningByOutput.value
+      : false;
+  const outputAspectRatio = parseAspectRatio(output?.aspect);
+  const previewAspectRatio =
+    loadedPreviewAspect && outputId && loadedPreviewAspect.outputId === outputId
+      ? loadedPreviewAspect.ratio
+      : outputAspectRatio;
   const draftPrompt =
     outputId && output
       ? (draftPromptsById[outputId] ?? output.prompt ?? "")
@@ -63,6 +126,76 @@ export function DetailModal({
   const canSave = useMemo(
     () => Boolean(trimmedPrompt) && (Boolean(onSavePrompt) || (isPromptEditable && hasPromptEdits)),
     [hasPromptEdits, isPromptEditable, onSavePrompt, trimmedPrompt]
+  );
+  const detailModalStyle = useMemo(() => {
+    if (isPromptOnly) return undefined;
+    if (!previewAspectRatio || !Number.isFinite(previewAspectRatio)) return undefined;
+    return {
+      "--detail-preview-aspect": String(previewAspectRatio),
+    } as React.CSSProperties;
+  }, [isPromptOnly, previewAspectRatio]);
+  const isImageZoomed = imageZoomScale > 1.001;
+
+  const clampImagePan = useCallback(
+    (nextX: number, nextY: number, scale: number) => {
+      const vessel = imageVesselRef.current;
+      if (!vessel || !imageNaturalSize || scale <= 1) return { x: 0, y: 0 };
+
+      const vesselWidth = vessel.clientWidth;
+      const vesselHeight = vessel.clientHeight;
+      if (vesselWidth <= 0 || vesselHeight <= 0) return { x: 0, y: 0 };
+
+      const fitScale = Math.min(
+        vesselWidth / imageNaturalSize.width,
+        vesselHeight / imageNaturalSize.height
+      );
+      const fittedWidth = imageNaturalSize.width * fitScale;
+      const fittedHeight = imageNaturalSize.height * fitScale;
+      const zoomedWidth = fittedWidth * scale;
+      const zoomedHeight = fittedHeight * scale;
+
+      const maxPanX = Math.max(0, (zoomedWidth - vesselWidth) / 2);
+      const maxPanY = Math.max(0, (zoomedHeight - vesselHeight) / 2);
+
+      return {
+        x: Math.min(maxPanX, Math.max(-maxPanX, nextX)),
+        y: Math.min(maxPanY, Math.max(-maxPanY, nextY)),
+      };
+    },
+    [imageNaturalSize]
+  );
+
+  const setImageZoomScaleForOutput = useCallback(
+    (nextScale: number) => {
+      if (!outputId) return;
+      setImageZoomScaleByOutput({ outputId, value: nextScale });
+    },
+    [outputId]
+  );
+
+  const setIsImagePanningForOutput = useCallback(
+    (isPanning: boolean) => {
+      if (!outputId) return;
+      setImagePanningByOutput({ outputId, value: isPanning });
+    },
+    [outputId]
+  );
+
+  const setImagePanForOutput = useCallback(
+    (
+      next:
+        | { x: number; y: number }
+        | ((prev: { x: number; y: number }) => { x: number; y: number })
+    ) => {
+      if (!outputId) return;
+      setImagePanByOutput((prev) => {
+        const current =
+          prev && prev.outputId === outputId ? { x: prev.x, y: prev.y } : { x: 0, y: 0 };
+        const resolved = typeof next === "function" ? next(current) : next;
+        return { outputId, x: resolved.x, y: resolved.y };
+      });
+    },
+    [outputId]
   );
 
   const syncTextareaHeight = useCallback((element: HTMLTextAreaElement | null) => {
@@ -87,6 +220,21 @@ export function DetailModal({
   }, [draftPrompt, syncTextareaHeight]);
 
   useEffect(() => {
+    if (!isImageOutput) return;
+    const handleResize = () => {
+      setImagePanForOutput((prev) => {
+        const clamped = clampImagePan(prev.x, prev.y, imageZoomScale);
+        if (clamped.x === prev.x && clamped.y === prev.y) return prev;
+        return clamped;
+      });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [clampImagePan, imageZoomScale, isImageOutput, setImagePanForOutput]);
+
+  useEffect(() => {
     return () => {
       clearPromptOnlyCloseTimer();
     };
@@ -99,16 +247,42 @@ export function DetailModal({
     onClose();
   }, [clearPromptOnlyCloseTimer, onClose]);
 
-  const filename = (() => {
-    if (!output?.previewUrl) return output?.id;
+  const looksLikeFilename = (value?: string | null) => {
+    const candidate = value?.trim();
+    if (!candidate) return false;
+    if (candidate.length > 180) return false;
+    if (/^data:/i.test(candidate) || /^blob:/i.test(candidate) || /^https?:\/\//i.test(candidate)) {
+      return false;
+    }
+    if (/[\\/]/.test(candidate)) return false;
+    return /\.[a-z0-9]{2,10}$/i.test(candidate);
+  };
+
+  const filenameFromUrl = (() => {
+    if (!output?.previewUrl) return null;
     try {
       const parsed = new URL(output.previewUrl);
-      const trailing = decodeURIComponent(parsed.pathname.split("/").filter(Boolean).pop() ?? "");
-      return trailing || output?.id;
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+      const trailing = decodeURIComponent(
+        parsed.pathname.split("/").filter(Boolean).pop() ?? ""
+      ).trim();
+      return looksLikeFilename(trailing) ? trailing : null;
     } catch {
-      return output?.id;
+      return null;
     }
   })();
+
+  const promptFilename = looksLikeFilename(output?.prompt) ? output.prompt.trim() : null;
+  const uploadedHeaderFilename = isUploadedReference ? (promptFilename ?? filenameFromUrl) : null;
+  const downloadFilename = uploadedHeaderFilename ?? filenameFromUrl ?? output?.id ?? "media";
+  const normalizedFilename = uploadedHeaderFilename?.toLowerCase() ?? "";
+  const normalizedDraftPrompt = draftPrompt.trim().toLowerCase();
+  const isUploadedFilenamePrompt =
+    isUploadedReference &&
+    Boolean(normalizedFilename) &&
+    normalizedDraftPrompt === normalizedFilename;
+  const uploadedPromptLabel = isUploadedReference && !isVideoOutput ? "(Uploaded Image)" : null;
+  const promptBladeValue = uploadedPromptLabel ?? (isUploadedFilenamePrompt ? "" : draftPrompt);
 
   const handleSavePrompt = () => {
     if (!trimmedPrompt) return;
@@ -170,9 +344,167 @@ export function DetailModal({
     link.href = output.previewUrl;
     link.target = "_blank";
     link.rel = "noreferrer";
-    link.download = filename || "media";
+    link.download = downloadFilename;
     link.click();
   };
+
+  const handlePreviewAspectLoad = useCallback(
+    (width: number, height: number) => {
+      if (!outputId) return;
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
+      setLoadedPreviewAspect({ outputId, ratio: width / height });
+    },
+    [outputId]
+  );
+
+  const handleImageLoad = useCallback(
+    (event: React.SyntheticEvent<HTMLImageElement>) => {
+      if (!outputId) return;
+      const { naturalWidth, naturalHeight } = event.currentTarget;
+      handlePreviewAspectLoad(naturalWidth, naturalHeight);
+      setLoadedImageNaturalSize({
+        outputId,
+        width: naturalWidth,
+        height: naturalHeight,
+      });
+      setImageZoomScaleForOutput(1);
+      setImagePanForOutput({ x: 0, y: 0 });
+      setIsImagePanningForOutput(false);
+      imagePanDragRef.current = null;
+    },
+    [
+      handlePreviewAspectLoad,
+      outputId,
+      setImagePanForOutput,
+      setImageZoomScaleForOutput,
+      setIsImagePanningForOutput,
+    ]
+  );
+
+  const applyZoomAtPoint = useCallback(
+    (container: HTMLDivElement, cursorX: number, cursorY: number, nextScale: number) => {
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const focalX = (cursorX - centerX - imagePan.x) / imageZoomScale;
+      const focalY = (cursorY - centerY - imagePan.y) / imageZoomScale;
+      const nextPanX = cursorX - centerX - focalX * nextScale;
+      const nextPanY = cursorY - centerY - focalY * nextScale;
+      const clamped = clampImagePan(nextPanX, nextPanY, nextScale);
+      setImageZoomScaleForOutput(nextScale);
+      setImagePanForOutput(clamped);
+      if (nextScale <= 1) {
+        setIsImagePanningForOutput(false);
+        imagePanDragRef.current = null;
+      }
+    },
+    [
+      clampImagePan,
+      imagePan.x,
+      imagePan.y,
+      imageZoomScale,
+      setImagePanForOutput,
+      setImageZoomScaleForOutput,
+      setIsImagePanningForOutput,
+    ]
+  );
+
+  const handleImageWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (!isImageOutput) return;
+      event.preventDefault();
+
+      const zoomFactor = event.deltaY < 0 ? 1.12 : 0.88;
+      const nextScale = Math.min(6, Math.max(1, imageZoomScale * zoomFactor));
+      if (Math.abs(nextScale - imageZoomScale) < 0.0001) return;
+
+      const rect = event.currentTarget.getBoundingClientRect();
+      applyZoomAtPoint(
+        event.currentTarget,
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+        nextScale
+      );
+    },
+    [applyZoomAtPoint, imageZoomScale, isImageOutput]
+  );
+
+  const handleImageDoubleClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!isImageOutput) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const targetScale = imageZoomScale > 1 ? 1 : 2;
+      applyZoomAtPoint(
+        event.currentTarget,
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+        targetScale
+      );
+    },
+    [applyZoomAtPoint, imageZoomScale, isImageOutput]
+  );
+
+  const handleImagePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!isImageOutput || imageZoomScale <= 1) return;
+      if (event.button !== 0) return;
+      imagePanDragRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startPanX: imagePan.x,
+        startPanY: imagePan.y,
+      };
+      setIsImagePanningForOutput(true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [imagePan.x, imagePan.y, imageZoomScale, isImageOutput, setIsImagePanningForOutput]
+  );
+
+  const handleImagePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const dragState = imagePanDragRef.current;
+      if (!dragState || dragState.pointerId !== event.pointerId) return;
+
+      const deltaX = event.clientX - dragState.startX;
+      const deltaY = event.clientY - dragState.startY;
+      const clamped = clampImagePan(
+        dragState.startPanX + deltaX,
+        dragState.startPanY + deltaY,
+        imageZoomScale
+      );
+      setImagePanForOutput(clamped);
+    },
+    [clampImagePan, imageZoomScale, setImagePanForOutput]
+  );
+
+  const handleImagePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const dragState = imagePanDragRef.current;
+      if (!dragState || dragState.pointerId !== event.pointerId) return;
+      imagePanDragRef.current = null;
+      setIsImagePanningForOutput(false);
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [setIsImagePanningForOutput]
+  );
+
+  const imageVesselClassName = [
+    "art-image-vessel",
+    isImageOutput ? "is-zoomable" : "",
+    isImageZoomed ? "is-zoomed" : "",
+    isImagePanning ? "is-panning" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const imageStyle = isImageOutput
+    ? ({
+        transform: `translate3d(${imagePan.x}px, ${imagePan.y}px, 0) scale(${imageZoomScale})`,
+        transition: isImagePanning ? "none" : "transform 0.1s ease-out",
+      } as React.CSSProperties)
+    : undefined;
 
   const handleRequestDelete = () => {
     setDeleteConfirmOutputId(outputId);
@@ -206,6 +538,7 @@ export function DetailModal({
         role="dialog"
         aria-modal="true"
         aria-label="Reference details"
+        style={detailModalStyle}
         onClick={(event) => event.stopPropagation()}
       >
         {/* Floating Top Bar (Controls) */}
@@ -215,6 +548,12 @@ export function DetailModal({
               <span className="art-meta-item">{mediaType}</span>
               {output.aspect && <span className="art-meta-divider">/</span>}
               {output.aspect && <span className="art-meta-item">{output.aspect}</span>}
+              {uploadedHeaderFilename && <span className="art-meta-divider">/</span>}
+              {uploadedHeaderFilename && (
+                <span className="art-meta-item art-meta-filename" title={uploadedHeaderFilename}>
+                  {uploadedHeaderFilename}
+                </span>
+              )}
               {!isUploadedReference && (output.model || output.modelId) && (
                 <span className="art-meta-divider">/</span>
               )}
@@ -319,7 +658,16 @@ export function DetailModal({
             </div>
           ) : (
             <>
-              <div className="art-image-vessel">
+              <div
+                ref={imageVesselRef}
+                className={imageVesselClassName}
+                onWheel={isImageOutput ? handleImageWheel : undefined}
+                onDoubleClick={isImageOutput ? handleImageDoubleClick : undefined}
+                onPointerDown={isImageOutput ? handleImagePointerDown : undefined}
+                onPointerMove={isImageOutput ? handleImagePointerMove : undefined}
+                onPointerUp={isImageOutput ? handleImagePointerUp : undefined}
+                onPointerCancel={isImageOutput ? handleImagePointerUp : undefined}
+              >
                 {output.previewUrl ? (
                   isVideoOutput ? (
                     <video
@@ -331,12 +679,26 @@ export function DetailModal({
                       muted
                       playsInline
                       style={aspectStyle}
+                      onLoadedMetadata={(event) => {
+                        handlePreviewAspectLoad(
+                          event.currentTarget.videoWidth,
+                          event.currentTarget.videoHeight
+                        );
+                      }}
                     />
                   ) : (
                     <>
                       {/* Generated media URL can be provider-specific and not allowlisted. */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img className="art-hero-image" src={output.previewUrl} alt={output.prompt} />
+                      <img
+                        className="art-hero-image"
+                        src={output.previewUrl}
+                        alt={output.prompt}
+                        style={imageStyle}
+                        draggable={false}
+                        onDragStart={(event) => event.preventDefault()}
+                        onLoad={handleImageLoad}
+                      />
                     </>
                   )
                 ) : (
@@ -360,7 +722,7 @@ export function DetailModal({
                   <textarea
                     className="art-blade-textarea"
                     ref={promptTextareaRef}
-                    value={draftPrompt}
+                    value={promptBladeValue}
                     onChange={handlePromptChange}
                     readOnly={!isPromptEditable}
                     rows={3}

@@ -314,6 +314,8 @@ export function TextPropertiesPanel({
         shouldDisableSave={shouldDisableSave}
         beginnerMode={beginnerMode}
         chatOnly
+        chatPromptSaveButtonClassName="create-chat-pin-btn"
+        chatPromptSaveButtonUnstyled
       />
       <div
         className={`step-card ${collapsedSteps.model ? "is-collapsed" : ""}`}

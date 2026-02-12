@@ -205,7 +205,14 @@ export const useAiStudioViewModel = ({
     if ((selectedTool === "create" || selectedTool === "text") && mode === "text") return null;
     if (requiresModelSelection && !isModelSelected)
       return "Select a model before running a generation.";
+    if (selectedTool === "edit") {
+      if (!referenceImageUrl) return "Add a reference image before generating.";
+      if (!prompt.trim()) return 'Add a prompt in "Write Your Prompt" before generating.';
+    }
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
+    if (isVideoTool && videoReferenceMode === "standard" && !referenceImageUrl) {
+      return "Add a reference image before generating.";
+    }
     const isVeoFirstLastModel = model === "fal-ai/veo3.1/first-last-frame-to-video";
     const hasBothVeoFrames = Boolean(referenceImageUrl && extraImageUrls[0]);
     if (
@@ -229,7 +236,6 @@ export const useAiStudioViewModel = ({
         return "Add a motion reference video before generating in Motion Control.";
       }
     }
-    // Removed reference image guardrails - system will automatically fallback to text-to-image/text-to-video when no references exist
     if (isCreditGuardrail) return "You do not have enough credits for this run.";
     return null;
   }, [
@@ -241,6 +247,7 @@ export const useAiStudioViewModel = ({
     isModelSelected,
     model,
     motionReferenceVideoUrl,
+    prompt,
     referenceImageUrl,
     requiresModelSelection,
     mode,
@@ -280,12 +287,6 @@ export const useAiStudioViewModel = ({
         if (!hasMotionVideo) {
           return "Motion Control requires a motion reference video.";
         }
-      }
-      const isImageToVideoOnly =
-        modelConfig.supportsImageToVideo && !modelConfig.mediaType?.includes("video");
-
-      if (!hasReference && (modelConfig.mediaType === "image-to-video" || isImageToVideoOnly)) {
-        return "No reference image detected. The system will automatically use the text-to-video version of this model.";
       }
     }
 

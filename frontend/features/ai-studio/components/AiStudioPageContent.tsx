@@ -251,6 +251,7 @@ export function AiStudioPageContent({
   const selectedComingSoonTool = isComingSoonTool(selectedTool) ? selectedTool : null;
   const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
   const ComingSoonIcon = comingSoon ? comingSoon.icon : null;
+  const referenceCanvasFileAccept = selectedTool === "character" ? "image/*" : "image/*,video/*";
 
   const renderProperties = () => {
     switch (resolvePropertiesPanelKind(selectedTool)) {
@@ -289,7 +290,7 @@ export function AiStudioPageContent({
         <input
           ref={referenceCanvasFileInputRef}
           type="file"
-          accept="image/*"
+          accept={referenceCanvasFileAccept}
           multiple
           style={{ display: "none" }}
           onChange={onFileBrowserSelection}

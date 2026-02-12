@@ -10,6 +10,7 @@ type AgentSaveButtonProps = {
   disabled?: boolean;
   ariaLabel?: string;
   className?: string;
+  unstyled?: boolean;
 };
 
 /**
@@ -20,11 +21,14 @@ export function AgentSaveButton({
   disabled = false,
   ariaLabel = "Save prompt",
   className = "",
+  unstyled = false,
 }: AgentSaveButtonProps) {
+  const resolvedClassName = unstyled ? className.trim() : `agent-save-prefab ${className}`.trim();
+
   return (
     <button
       type="button"
-      className={`agent-save-prefab ${className}`.trim()}
+      className={resolvedClassName}
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}

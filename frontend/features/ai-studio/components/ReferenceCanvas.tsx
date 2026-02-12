@@ -107,11 +107,13 @@ export function ReferenceCanvas({
     if (internalRefId) return;
     const files = event.dataTransfer.files;
     if (!files || files.length === 0) return;
-    const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
-    if (imageFiles.length === 0) return;
+    const mediaFiles = Array.from(files).filter(
+      (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
+    );
+    if (mediaFiles.length === 0) return;
     event.preventDefault();
     const dt = new DataTransfer();
-    imageFiles.forEach((file) => dt.items.add(file));
+    mediaFiles.forEach((file) => dt.items.add(file));
     onDropFiles(dt.files);
   };
 
@@ -379,7 +381,7 @@ export function ReferenceCanvas({
                   !disablePromptGenerate ? (
                     <button
                       type="button"
-                      className="reference-generate-pill agent-generate-prefab"
+                      className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill"
                       onClick={(event) => {
                         event.stopPropagation();
                         onSelectOutput(item.id);

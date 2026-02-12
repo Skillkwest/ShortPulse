@@ -210,6 +210,7 @@ export default function AiStudioPage() {
     isSending: agentIsSending,
     error: agentError,
     send: sendToAgent,
+    appendUserMessage,
     reset: resetAgentChat,
   } = useAiAgent({
     enabled: true, // allow first-click activation; API will gate if truly disabled server-side
@@ -465,6 +466,7 @@ export default function AiStudioPage() {
         ?.text?.trim() ?? "";
     const outboundText = trimmed || droppedPromptText || prompt.trim();
     if (!outboundText) return;
+    const optimisticUserMessageId = appendUserMessage(trimmed || outboundText);
     trackAgentUiEvent("studio_agent_send_requested", {
       mode_hint: options?.modeHint ?? "chat",
       has_attachments: agentAttachments.length > 0,
@@ -595,6 +597,8 @@ export default function AiStudioPage() {
         payloadText: refinedPrompt ?? outboundText,
         previousPrompt: latestAgentPrompt ?? refinedPrompt ?? null,
         context: mediaPatchedContext,
+        skipUserEcho: true,
+        optimisticUserMessageId,
       });
 
       if (!response) {
@@ -889,17 +893,32 @@ export default function AiStudioPage() {
     const target = outputs.find((item) => item.id === outputId);
     const promptText = target?.prompt ?? target?.previewText ?? "";
     if (!promptText.trim()) return;
-    setSelectedTool("create");
-    setMode("image");
+
+    const isVideoWorkflow = selectedTool === "video" || selectedTool === "kling";
+    const isEditWorkflow = selectedTool === "edit" || selectedTool === "image";
+    const workflowTool: ToolId = isVideoWorkflow ? "video" : isEditWorkflow ? "edit" : "create";
+    const workflowMode: StudioMode = isVideoWorkflow ? "video" : "image";
+
+    if (workflowTool === "video") {
+      setVideoReferenceText(promptText);
+    } else if (workflowTool === "edit") {
+      setEditReferenceText(promptText);
+    } else {
+      setSharedPrompt(promptText);
+      if (selectedTool !== "create" && selectedTool !== "text") {
+        setSelectedTool("create");
+      }
+      setMode("image");
+    }
+
     if (target?.modelId) {
       setModel(target.modelId);
     }
-    setSharedPrompt(promptText);
     setPromptOrigin("reference");
     await handleGenerate(promptText, {
-      modeOverride: "image",
-      toolOverride: "create",
-      costOverrideCredits: promptReferenceGenerateCostCredits,
+      modeOverride: workflowMode,
+      toolOverride: workflowTool,
+      costOverrideCredits: currentCostCredits,
     });
   };
 
@@ -1057,11 +1076,19 @@ export default function AiStudioPage() {
     return base;
   }, [mode, selectedTool, videoReferenceMode]);
 
+  const promptForViewModel = useMemo(() => {
+    if (selectedTool === "video" || selectedTool === "kling") {
+      return videoReferenceText;
+    }
+    if (selectedTool === "image" || selectedTool === "edit") {
+      return editReferenceText;
+    }
+    return prompt;
+  }, [editReferenceText, prompt, selectedTool, videoReferenceText]);
+
   const {
     currentCostCredits,
-    promptGenerateCostCredits,
-    promptReferenceGenerateCostCredits,
-    hasSufficientCreditsForPromptReferenceGenerate,
+    hasSufficientCreditsForCost,
     isCreditGuardrail,
     generationGuardrail,
     isGenerateDisabled,
@@ -1070,7 +1097,7 @@ export default function AiStudioPage() {
     mode,
     model,
     aspect,
-    prompt,
+    prompt: promptForViewModel,
     referenceImageUrl,
     activeOutput,
     selectedTool,
@@ -1086,6 +1113,22 @@ export default function AiStudioPage() {
     balanceCredits,
     costParamsForModel,
   });
+
+  const isVideoWorkflowSelected = selectedTool === "video" || selectedTool === "kling";
+  const isEditWorkflowSelected = selectedTool === "edit" || selectedTool === "image";
+  const hasVideoPromptText = Boolean(videoReferenceText.trim());
+  const hasVideoPrimaryReference = Boolean(referenceImageUrl);
+  const isVideoPromptReferenceGenerateDisabled =
+    isGenerateDisabled ||
+    agentBusy ||
+    !hasVideoPromptText ||
+    (videoReferenceMode === "standard" && !hasVideoPrimaryReference);
+  const isEditPromptReferenceGenerateDisabled = isGenerateDisabled || agentBusy;
+  const disableReferencePromptGenerate = isVideoWorkflowSelected
+    ? isVideoPromptReferenceGenerateDisabled
+    : isEditWorkflowSelected
+      ? isEditPromptReferenceGenerateDisabled
+      : !model || !hasSufficientCreditsForCost;
 
   const handleBlockedGeneration = () => {
     if (generationGuardrail) {
@@ -1420,7 +1463,7 @@ export default function AiStudioPage() {
           showHeader: false,
           onOutputMediaLoaded: onReferenceOutputMediaLoaded,
           linkedPromptReferenceIds,
-          disablePromptGenerate: !model || !hasSufficientCreditsForPromptReferenceGenerate,
+          disablePromptGenerate: disableReferencePromptGenerate,
           onSelectOutput: handleSelectOutput,
           onOpenDetails: setDetailOutputId,
           onDescribeImage: (output) => handleDescribeReference(output.id),
@@ -1428,7 +1471,7 @@ export default function AiStudioPage() {
           onDownload: (output) => handleDownloadReference(output.id),
           onGeneratePrompt: (output) => handleGenerateFromPromptReference(output.id),
           onDeleteOutput: deleteOutput,
-          generateCostCredits: promptGenerateCostCredits,
+          generateCostCredits: currentCostCredits,
           selectedTool,
         }}
         studioPreviewProps={{

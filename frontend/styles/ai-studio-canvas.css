@@ -16,6 +16,12 @@
   --reference-selection-active-shadow: rgba(0, 255, 251, 0.317);
   --reference-selection-active-outline: rgb(0, 217, 255);
   --reference-selection-active-glow: rgba(6, 215, 252, 0.25);
+  --reference-generate-border: rgba(37, 169, 191, 0.62);
+  --reference-generate-start: rgba(52, 200, 255, 0.92);
+  --reference-generate-end: rgba(37, 169, 191, 0.95);
+  --reference-generate-shadow: rgba(37, 169, 191, 0.35);
+  --reference-generate-hover-shadow: rgba(4, 234, 255, 0.1);
+  --reference-generate-text: #0b1820;
 }
 
 .reference-canvas-panel[data-selection-theme="edit"] {
@@ -23,6 +29,12 @@
   --reference-selection-active-shadow: rgba(245, 185, 66, 0.34);
   --reference-selection-active-outline: rgb(255, 206, 107);
   --reference-selection-active-glow: rgba(245, 185, 66, 0.25);
+  --reference-generate-border: rgba(245, 185, 66, 0.9);
+  --reference-generate-start: #f5b754;
+  --reference-generate-end: #f4921f;
+  --reference-generate-shadow: rgba(245, 185, 66, 0.34);
+  --reference-generate-hover-shadow: rgba(245, 185, 66, 0.3);
+  --reference-generate-text: #1a140c;
 }
 
 .reference-canvas-panel[data-selection-theme="video"] {
@@ -30,6 +42,12 @@
   --reference-selection-active-shadow: rgba(101, 145, 239, 0.34);
   --reference-selection-active-outline: rgb(255, 112, 224);
   --reference-selection-active-glow: rgba(170, 101, 239, 0.24);
+  --reference-generate-border: rgba(170, 101, 239, 0.9);
+  --reference-generate-start: #b32ba9;
+  --reference-generate-end: #4135ab;
+  --reference-generate-shadow: rgba(170, 101, 239, 0.34);
+  --reference-generate-hover-shadow: rgba(170, 101, 239, 0.32);
+  --reference-generate-text: #efe8ff;
 }
 
 .reference-canvas-grid--wide {
@@ -199,6 +217,42 @@
   white-space: nowrap;
 }
 
+.reference-canvas-panel .reference-card .reference-prompt-generate-pill.agent-generate-prefab {
+  border: 1px solid var(--reference-generate-border);
+  background: linear-gradient(
+    135deg,
+    var(--reference-generate-start),
+    var(--reference-generate-end)
+  );
+  box-shadow: 0 4px 1px var(--reference-generate-shadow);
+  color: var(--reference-generate-text);
+}
+
+.reference-canvas-panel
+  .reference-card
+  .reference-prompt-generate-pill.agent-generate-prefab:hover:not(:disabled) {
+  box-shadow: 0 6px 14px var(--reference-generate-hover-shadow);
+}
+
+.reference-canvas-panel .reference-card .reference-prompt-generate-pill .agent-generate-label,
+.reference-canvas-panel
+  .reference-card
+  .reference-prompt-generate-pill
+  .generate-pill
+  .model-chip-icon,
+.reference-canvas-panel
+  .reference-card
+  .reference-prompt-generate-pill
+  .generate-pill
+  .model-chip-credits,
+.reference-canvas-panel
+  .reference-card
+  .reference-prompt-generate-pill
+  .generate-pill
+  .model-chip-credits-label {
+  color: var(--reference-generate-text);
+}
+
 .reference-card .reference-generate-pill.agent-generate-prefab .agent-generate-label {
   font-size: 12px;
   flex: 0 1 auto;
@@ -315,7 +369,7 @@
 
 .reference-card-link-dot {
   position: absolute;
-  right: 8px;
+  left: 8px;
   bottom: 8px;
   width: 8px;
   height: 8px;

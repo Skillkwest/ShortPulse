@@ -135,38 +135,20 @@ export const useAiStudioTaskSubmission = ({
       const hasReferenceImages = imageInputs && imageInputs.length > 0;
       let finalTool: ToolId | "text" | null = effectiveTool === "edit" ? "image" : effectiveTool;
       let finalModel = model;
-      let fallbackMode: "image" | "video" | null = null;
-      const isStrictReferenceVideoModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
-      const isMotionReferenceVideoRun =
-        normalizedTool === "video" && videoReferenceMode === "motion";
-      if (!hasReferenceImages && !isStrictReferenceVideoModel && !isMotionReferenceVideoRun) {
-        if (normalizedTool === "image") {
-          finalTool = "text";
-          fallbackMode = "image";
-          const imageToTextModelMap: Record<string, string> = {
-            "fal/flux-2-pro/edit": "fal/flux-2-pro",
-            "fal/flux-2/edit": "fal/flux-2",
-            "fal-ai/nano-banana/edit": "fal-ai/nano-banana",
-            "fal-ai/nano-banana-pro/edit": "fal-ai/nano-banana-pro",
-            "fal-ai/bytedance/seedream/v4.5/edit": "fal-ai/bytedance/seedream/v4.5/text-to-image",
-            "kei/gpt4o-image": "kei/gpt4o-image",
-          };
-          if (model && imageToTextModelMap[model]) {
-            finalModel = imageToTextModelMap[model];
-          }
-        } else if (normalizedTool === "video") {
-          finalTool = "text";
-          fallbackMode = "video";
-          const imageToVideoTextMap: Record<string, string> = {
-            "fal-ai/kling-video/v3/pro/image-to-video": "fal-ai/kling-video/v3/pro/text-to-video",
-            "fal-ai/veo3.1/first-last-frame-to-video": "fal-ai/veo3.1",
-            "fal-ai/veo3.1/image-to-video": "fal-ai/veo3.1",
-            "fal-ai/bytedance/seedance/v1.5/pro/image-to-video":
-              "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-          };
-          if (model && imageToVideoTextMap[model]) {
-            finalModel = imageToVideoTextMap[model];
-          }
+      let fallbackMode: "image" | null = null;
+      if (!hasReferenceImages && normalizedTool === "image") {
+        finalTool = "text";
+        fallbackMode = "image";
+        const imageToTextModelMap: Record<string, string> = {
+          "fal/flux-2-pro/edit": "fal/flux-2-pro",
+          "fal/flux-2/edit": "fal/flux-2",
+          "fal-ai/nano-banana/edit": "fal-ai/nano-banana",
+          "fal-ai/nano-banana-pro/edit": "fal-ai/nano-banana-pro",
+          "fal-ai/bytedance/seedream/v4.5/edit": "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          "kei/gpt4o-image": "kei/gpt4o-image",
+        };
+        if (model && imageToTextModelMap[model]) {
+          finalModel = imageToTextModelMap[model];
         }
       }
 
@@ -178,11 +160,7 @@ export const useAiStudioTaskSubmission = ({
       const id = `out-${randomId()}`;
       const modelLabel = resolveModelLabel(finalModel);
       if (fallbackMode) {
-        setUiNotice(
-          fallbackMode === "image"
-            ? `No reference images were detected. Running text-to-image with ${modelLabel}.`
-            : `No reference media were detected. Running text-to-video with ${modelLabel}.`
-        );
+        setUiNotice(`No reference images were detected. Running text-to-image with ${modelLabel}.`);
       }
 
       const isKling3ImageModel = finalModel === "fal-ai/kling-video/v3/pro/image-to-video";
@@ -247,6 +225,24 @@ export const useAiStudioTaskSubmission = ({
         saveState: "idle",
         saveError: null,
       };
+
+      const isStandardVideoRun = normalizedTool === "video" && videoReferenceMode === "standard";
+      if (isStandardVideoRun && preparedImageInputs.length < 1) {
+        setOutputs((prev) => [
+          {
+            ...nextOutput,
+            taskState: "fail",
+            status: "ready",
+            timestamp: "Missing image",
+            errorMessage: "Standard video generation requires a reference image.",
+            errorMessageShort: "Reference image required.",
+            errorDetail: "Standard video generation requires a reference image.",
+          },
+          ...prev,
+        ]);
+        setSaved(false);
+        return;
+      }
 
       const requiresImageReference = isKling3ImageModel || isVeoImageToVideoModel;
       if (requiresImageReference && preparedImageInputs.length === 0) {

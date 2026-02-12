@@ -225,25 +225,25 @@ export const useAiStudioState = () => {
   >("standard");
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(() => {
     if (typeof window === "undefined") return 6;
-    const stored = window.localStorage.getItem(VIDEO_DURATION_STORAGE_KEY);
+    const stored = window.sessionStorage.getItem(VIDEO_DURATION_STORAGE_KEY);
     const parsed = stored ? Number(stored) : NaN;
     return Number.isFinite(parsed) ? parsed : 6;
   });
   const [videoResolution, setVideoResolution] = useState<string>(() => {
     if (typeof window === "undefined") return "1080p";
-    const stored = window.localStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY);
+    const stored = window.sessionStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY);
     return stored || "1080p";
   });
   const [imageResolution, setImageResolution] = useState<string>(() => {
     if (typeof window === "undefined") return "model_default";
-    const stored = window.localStorage.getItem(IMAGE_RESOLUTION_STORAGE_KEY);
+    const stored = window.sessionStorage.getItem(IMAGE_RESOLUTION_STORAGE_KEY);
     return stored || "model_default";
   });
   const [hasUserVideoPrefs, setHasUserVideoPrefs] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return Boolean(
-      window.localStorage.getItem(VIDEO_DURATION_STORAGE_KEY) ||
-      window.localStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY)
+      window.sessionStorage.getItem(VIDEO_DURATION_STORAGE_KEY) ||
+      window.sessionStorage.getItem(VIDEO_RESOLUTION_STORAGE_KEY)
     );
   });
   const [videoGenerateAudio, setVideoGenerateAudio] = useState<boolean>(false);
@@ -284,6 +284,10 @@ export const useAiStudioState = () => {
     () => resolveWorkflowSettingsKey(selectedTool),
     [selectedTool]
   );
+  const hasPendingWorkflowRestore =
+    workflowSettingsHydrated &&
+    Boolean(activeWorkflowSettingsKey) &&
+    previousWorkflowSettingsKeyRef.current !== activeWorkflowSettingsKey;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -345,6 +349,7 @@ export const useAiStudioState = () => {
   useEffect(() => {
     if (!workflowSettingsHydrated) return;
     if (!activeWorkflowSettingsKey) return;
+    if (hasPendingWorkflowRestore) return;
     const snapshot: WorkflowSettingsSnapshot = {
       mode,
       model,
@@ -388,6 +393,7 @@ export const useAiStudioState = () => {
     videoReferenceMode,
     videoResolution,
     workflowSettingsHydrated,
+    hasPendingWorkflowRestore,
   ]);
 
   const activeOutput = useMemo(
@@ -507,6 +513,7 @@ export const useAiStudioState = () => {
     setIsModelModalOpen,
     setModelModalAnchor,
     setModelModalPosition,
+    hasPendingWorkflowRestore,
   });
 
   // --- Output + prompt actions -------------------------------------------

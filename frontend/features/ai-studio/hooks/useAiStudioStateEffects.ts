@@ -50,6 +50,7 @@ type UseAiStudioStateEffectsArgs = {
   setIsModelModalOpen: (value: boolean) => void;
   setModelModalAnchor: (value: string | null) => void;
   setModelModalPosition: (value: ModelModalPosition | null) => void;
+  hasPendingWorkflowRestore: boolean;
 };
 
 /**
@@ -91,6 +92,7 @@ export const useAiStudioStateEffects = ({
   setIsModelModalOpen,
   setModelModalAnchor,
   setModelModalPosition,
+  hasPendingWorkflowRestore,
 }: UseAiStudioStateEffectsArgs) => {
   useEffect(() => {
     document.body.classList.add("ai-studio-body");
@@ -103,6 +105,7 @@ export const useAiStudioStateEffects = ({
   }, [promptRef]);
 
   useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
     if (allowedUiAspects.has(aspect)) return;
     if (aspect === "21:9") {
       setAspect("16:9");
@@ -113,7 +116,7 @@ export const useAiStudioStateEffects = ({
       return;
     }
     setAspect("9:16");
-  }, [aspect, setAspect]);
+  }, [aspect, hasPendingWorkflowRestore, setAspect]);
 
   useEffect(() => {
     if (!activeOutputPreviewUrl) {
@@ -122,6 +125,7 @@ export const useAiStudioStateEffects = ({
   }, [activeOutputPreviewUrl, setUseReferenceImageIndicator]);
 
   useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
     if (!model) return;
     const config = getModelConfig(model);
     if (!config?.allowedAspects?.length) return;
@@ -132,26 +136,27 @@ export const useAiStudioStateEffects = ({
     if (fallbackAspect) {
       setAspect(fallbackAspect);
     }
-  }, [aspect, model, setAspect]);
+  }, [aspect, hasPendingWorkflowRestore, model, setAspect]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(videoDurationStorageKey, String(videoDurationSeconds));
+    window.sessionStorage.setItem(videoDurationStorageKey, String(videoDurationSeconds));
     setHasUserVideoPrefs(true);
   }, [setHasUserVideoPrefs, videoDurationSeconds, videoDurationStorageKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(videoResolutionStorageKey, videoResolution);
+    window.sessionStorage.setItem(videoResolutionStorageKey, videoResolution);
     setHasUserVideoPrefs(true);
   }, [setHasUserVideoPrefs, videoResolution, videoResolutionStorageKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(imageResolutionStorageKey, imageResolution);
+    window.sessionStorage.setItem(imageResolutionStorageKey, imageResolution);
   }, [imageResolution, imageResolutionStorageKey]);
 
   useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
     if (!model) return;
     const config = getModelConfig(model);
     if (!config || config.mediaType !== "image") return;
@@ -159,9 +164,10 @@ export const useAiStudioStateEffects = ({
     if (clamped !== imageResolution) {
       setImageResolution(clamped);
     }
-  }, [imageResolution, model, setImageResolution]);
+  }, [hasPendingWorkflowRestore, imageResolution, model, setImageResolution]);
 
   useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
     if (!model) return;
     const config = getModelConfig(model);
     if (!config) return;
@@ -193,9 +199,11 @@ export const useAiStudioStateEffects = ({
     setVideoDurationSeconds,
     setVideoGenerateAudio,
     setVideoResolution,
+    hasPendingWorkflowRestore,
   ]);
 
   useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
     if (selectedTool !== "video" && selectedTool !== "kling") return;
     const previousMode = lastVideoReferenceModeRef.current;
     if (videoReferenceMode !== previousMode) {
@@ -261,9 +269,11 @@ export const useAiStudioStateEffects = ({
     setModel,
     setVideoReferenceMode,
     videoReferenceMode,
+    hasPendingWorkflowRestore,
   ]);
 
   useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
     if (selectedTool !== "video") return;
     if (videoReferenceMode === "keyframes" || videoReferenceMode === "motion") return;
     if (videoReferenceMode === "kling3") {
@@ -284,9 +294,11 @@ export const useAiStudioStateEffects = ({
     setModel,
     setVideoReferenceMode,
     videoReferenceMode,
+    hasPendingWorkflowRestore,
   ]);
 
   useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
     if (selectedTool !== "kling") return;
     if (videoReferenceMode !== "kling3") {
       setVideoReferenceMode("kling3");
@@ -305,15 +317,17 @@ export const useAiStudioStateEffects = ({
     setVideoReferenceMode,
     showCreateTools,
     videoReferenceMode,
+    hasPendingWorkflowRestore,
   ]);
 
   useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
     if (!model) return;
     const allowedValues = new Set(allowedModelValues);
     if (!allowedValues.has(model)) {
       setModel(null);
     }
-  }, [allowedModelValues, model, setModel]);
+  }, [allowedModelValues, hasPendingWorkflowRestore, model, setModel]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

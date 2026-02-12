@@ -95,6 +95,10 @@ export type PromptStepProps = {
   promptPlaceholder?: string;
   beginnerSubtitle?: string;
   beginnerTitle?: string;
+  promptSaveButtonClassName?: string;
+  promptSaveButtonUnstyled?: boolean;
+  chatPromptSaveButtonClassName?: string;
+  chatPromptSaveButtonUnstyled?: boolean;
 };
 
 export function PromptStep({
@@ -147,6 +151,10 @@ export function PromptStep({
   promptPlaceholder = "Describe what you want, then refine it.",
   beginnerSubtitle,
   beginnerTitle,
+  promptSaveButtonClassName = "prompt-fab-save",
+  promptSaveButtonUnstyled = false,
+  chatPromptSaveButtonClassName = "",
+  chatPromptSaveButtonUnstyled = false,
 }: PromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
@@ -190,6 +198,9 @@ export function PromptStep({
   const promptThinking = Boolean(agentIsSending || isGenerating);
   const visibleSubtitle = beginnerMode ? beginnerSubtitle : subtitle;
   const canPinAgentInput = agentInput.trim().length > 0;
+  const shouldDisableChatPin = chatPromptSaveButtonUnstyled
+    ? false
+    : shouldDisableSave || !canPinAgentInput;
   const handleAgentSendClick = () => {
     onAgentSend?.();
     requestAnimationFrame(() => agentInputRef.current?.focus());
@@ -385,8 +396,10 @@ export function PromptStep({
                       />
                       <AgentSaveButton
                         onClick={() => onSavePrompt(agentInput)}
-                        disabled={shouldDisableSave || !canPinAgentInput}
+                        disabled={shouldDisableChatPin}
                         ariaLabel="Pin prompt"
+                        className={chatPromptSaveButtonClassName}
+                        unstyled={chatPromptSaveButtonUnstyled}
                       />
                     </div>
                   </div>
@@ -443,7 +456,8 @@ export function PromptStep({
                       onClick={onSavePrompt}
                       disabled={shouldDisableSave}
                       ariaLabel={enhanceOnly ? "Pin prompt" : "Save prompt"}
-                      className="prompt-fab-save"
+                      className={promptSaveButtonClassName}
+                      unstyled={promptSaveButtonUnstyled}
                     />
                   </div>
                 </div>

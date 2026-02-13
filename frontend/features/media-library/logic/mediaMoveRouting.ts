@@ -23,6 +23,13 @@ export type MediaTabOption = {
   reason?: string;
 };
 
+export type BulkMoveDecision = {
+  allowed: boolean;
+  reason?: string;
+  blockedCount: number;
+  totalCount: number;
+};
+
 type MediaTabRow = {
   source?: string | null;
   storage_path?: string | null;
@@ -154,6 +161,82 @@ export const buildMoveTabOptions = (row: MediaTabRow): MediaTabOption[] => {
       reason: decision.reason,
     };
   });
+};
+
+const getMostFrequentReason = (reasons: string[]): string | undefined => {
+  if (!reasons.length) return undefined;
+  const counts = new Map<string, number>();
+  for (const reason of reasons) {
+    counts.set(reason, (counts.get(reason) ?? 0) + 1);
+  }
+  let topReason = reasons[0];
+  let topCount = counts.get(topReason) ?? 0;
+  for (const [reason, count] of counts.entries()) {
+    if (count > topCount) {
+      topReason = reason;
+      topCount = count;
+    }
+  }
+  return topReason;
+};
+
+/**
+ * Returns whether a destination tab is valid for all selected media rows.
+ */
+export const validateBulkMoveDestination = (
+  rows: MediaTabRow[],
+  destination: MediaMoveDestination
+): BulkMoveDecision => {
+  if (!rows.length) {
+    return {
+      allowed: false,
+      reason: "No files selected",
+      blockedCount: 0,
+      totalCount: 0,
+    };
+  }
+
+  const blocked = rows
+    .map((row) => validateMoveDestination(row, destination))
+    .filter((result) => !result.allowed);
+  if (!blocked.length) {
+    return {
+      allowed: true,
+      blockedCount: 0,
+      totalCount: rows.length,
+    };
+  }
+
+  const blockedReasons = blocked.map((result) => result.reason ?? "Unavailable");
+  const reason =
+    blocked.length === rows.length
+      ? getMostFrequentReason(blockedReasons)
+      : `${blocked.length} of ${rows.length} selected files are incompatible`;
+
+  return {
+    allowed: false,
+    reason,
+    blockedCount: blocked.length,
+    totalCount: rows.length,
+  };
+};
+
+/**
+ * Builds Move dropdown options for a bulk media selection.
+ */
+export const buildBulkMoveTabOptions = (rows: MediaTabRow[]): MediaTabOption[] => {
+  if (!rows.length) return [];
+  return MOVE_TAB_ORDER.filter((tab) => rows.some((row) => getMediaDataTabForRow(row) !== tab)).map(
+    (tab) => {
+      const decision = validateBulkMoveDestination(rows, tab);
+      return {
+        tab,
+        label: moveTabLabels[tab],
+        disabled: !decision.allowed,
+        reason: decision.reason,
+      };
+    }
+  );
 };
 
 /**

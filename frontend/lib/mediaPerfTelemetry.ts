@@ -11,6 +11,8 @@ export type MediaPerfEventName =
   | "media.route.first_media_paint"
   | "media.modal.first_card_shell"
   | "media.modal.first_media_paint"
+  | "media.move.bulk.completed"
+  | "media.move.bulk.failed"
   | "media.sign.batch.completed"
   | "media.sign.batch.failed"
   | "media.grid.scroll.sample"

@@ -1,6 +1,6 @@
 /**
  * Shared types for Character Manager draft intake and slot state.
- * Defines the fixed 10-shot schema used to build a reference pack.
+ * Defines the canonical reference-slot schema and UI assignment types.
  */
 
 export type CharacterReferenceSlotKey =
@@ -21,6 +21,13 @@ export type CharacterReferenceSlotDefinition = {
   helper: string;
   hint: string;
 };
+
+export type CharacterSheetDropZoneKey = "portrait" | "close_up" | "front_shot" | "back_shot";
+
+export type CharacterSheetAssignments = Record<
+  CharacterSheetDropZoneKey,
+  CharacterReferenceSlotKey | null
+>;
 
 export type CharacterSlotValidationStatus = "pending" | "pass" | "warn" | "fail";
 

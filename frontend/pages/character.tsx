@@ -1,6 +1,6 @@
 /**
  * Character Manager route.
- * Hosts the beginner-first 10-shot intake workflow for character consistency.
+ * Hosts the beginner-first character reference intake workflow.
  */
 import Head from "next/head";
 import { useEffect } from "react";
@@ -22,7 +22,7 @@ export default function CharacterPage() {
         <title>Character Manager | ShortPulse</title>
         <meta
           name="description"
-          content="Character Manager for building consistent 10-shot reference packs in ShortPulse."
+          content="Character Manager for uploading and organizing character references in ShortPulse."
         />
       </Head>
       <a href="#main-content" className="skip-link">

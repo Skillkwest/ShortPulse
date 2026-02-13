@@ -21,6 +21,12 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 
 Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 
+## Character Manager compatibility drift monitor
+- During the Character Sheet migration window, run `sql/check_character_sheet_alias_drift.sql` after each deploy that touches Character Manager persistence or schema.
+- Expected result: every `mismatch_count` is `0`.
+- If any non-zero count appears, treat as `medium` severity because cross-surface assignment behavior may diverge.
+- Escalate using the troubleshooting runbook section `Character Manager alias drift (Character Sheet vs legacy Reference Pack fields)`.
+
 ## Release checklist tie-in
 - Before release, verify incident ingestion is functioning.
 - After release, spot-check new incidents and confirm no high-severity regressions.

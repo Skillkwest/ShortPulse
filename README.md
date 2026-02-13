@@ -51,7 +51,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - **Media Library (`/media-library`)**: Upload/download/delete/rename/move files across media tabs in a private Supabase bucket, including a Private image tab (`<auth.uid()>/private/images/...`).
 - **Profile (`/profile`)**: Profile/account/billing UI with plan badges, Stripe billing actions, and credit purchase entry points.
 - **AI Studio (`/ai-studio`)**: Creative canvas for prompt systems, model/aspect selection, previewing, and saving image/video outputs.
-- **Character Manager (`/character`)**: Beginner-first character creation and management workspace with a fixed 10-shot reference intake flow.
+- **Character Manager (`/character`)**: Beginner-first character creation and management workspace with persisted reference intake and persisted character-sheet assignments.
 - **Character Placeholder (`/character-soon`)**: Legacy fallback landing page retained during Character Manager rollout.
 - **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls and a live app-error incident feed.
 
@@ -83,6 +83,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 ## Docs
 
 - Start at `docs/README.md`.
+- Character Manager operations runbook: `docs/sops/sop_character_manager_operations.md`.
 
 ## Repo layout
 

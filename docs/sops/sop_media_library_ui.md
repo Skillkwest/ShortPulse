@@ -34,6 +34,18 @@ Keep the Media Library page visually aligned with Saved Creators and dashboard c
   - Saved Prompts is text-only and is shown as disabled for media moves.
 - After move, the item should disappear from the source tab and appear in the destination tab.
 
+## Gallery Bulk Actions
+- Gallery action row supports selection controls plus bulk operations for media tabs.
+- `Move selected` appears for media tabs (not Saved Prompts) and opens a destination dropdown using the same move eligibility rules as modal move.
+- Bulk move requests are issued through `POST /api/media/move-batch` (single request, per-file results).
+- Bulk move is all-or-nothing per destination option:
+  - Destination is enabled only when every selected media item is eligible for that tab.
+  - Invalid options stay visible but disabled, with an inline reason.
+- After bulk move:
+  - Successfully moved files are removed from the source tab selection/grid.
+  - Destination tab receives moved rows and becomes active on full-success moves when different from the source tab.
+  - Partial failures surface an error while preserving unsuccessful selections for retry.
+
 ## Upgrade Button (Need More Storage?)
 - Base color: brand amber `#F5B942` text, amber border/gradient, soft outer shadow.
 - Hover: slight lift (`translateY(-2px)`) and warmer amber glow (`rgba(255,190,89,0.28)` shadow, `rgba(255,190,89,0.35)` outer); color remains `#F5B942`.

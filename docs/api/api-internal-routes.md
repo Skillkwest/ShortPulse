@@ -16,7 +16,8 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/upload-image` | `POST` multipart | Bearer (proxy + route) | Upload images to private `media_library`; return signed URLs. | `frontend/pages/api/upload-image.ts` |
 | `/api/upload-video` | `POST` multipart | Bearer (proxy + route) | Upload motion-control videos to private `media_library`; return signed URLs. | `frontend/pages/api/upload-video.ts` |
 | `/api/media/sign-batch` | `POST` | Bearer (proxy + route) | Batch-sign user-scoped media paths for list/grid previews. | `frontend/pages/api/media/sign-batch.ts` |
-| `/api/media/move` | `POST` | Bearer (proxy + route) | Move a media file between tabs by updating storage path + `media_files` source/path. | `frontend/pages/api/media/move.ts` |
+| `/api/media/move` | `POST` | Bearer (proxy + route) | Move a media file between tabs by updating storage path + `media_files` source/path (used by modal move and gallery bulk-move loops). | `frontend/pages/api/media/move.ts` |
+| `/api/media/move-batch` | `POST` | Bearer (proxy + route) | Move multiple media files in one request with per-file success/failure summary. | `frontend/pages/api/media/move-batch.ts` |
 | `/api/fal/*` | `POST` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic. | `frontend/pages/api/fal/*.ts`, `frontend/pages/api/_utils/falSubmitProxy.ts`, `frontend/pages/api/_utils/falStatusProxy.ts`, model docs in `docs/api/api-fal-*.md` |
 | `/api/kei/create-task` | `POST` | Bearer (proxy) | Submit Kie task-based generations with billing charge+refund support. | `frontend/pages/api/kei/create-task.ts` |
 | `/api/kei/task-status` and `/api/kei/status` | `POST` | Bearer (proxy) | Poll Kie task status (status route is compatibility alias). | `frontend/pages/api/kei/task-status.ts`, `frontend/pages/api/kei/status.ts` |

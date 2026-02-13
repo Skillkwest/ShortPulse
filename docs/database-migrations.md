@@ -78,7 +78,7 @@ If enabling the derivative-first media optimization architecture (virtualized gr
 7. `sql/migrations/006_backfill_media_variant_hints.sql`
 8. `sql/migrations/007_harden_media_source_and_usage_rpc.sql`
 
-If enabling Character Manager (reference packs + generation history), also apply:
+If enabling Character Manager (character sheets + generation history), also apply:
 
 9. `sql/migrations/008_add_character_manager_foundation.sql`
 
@@ -89,3 +89,18 @@ If Media Library cards still show blank placeholders in legacy environments, als
 If enabling stricter Character Manager media integrity (source/path/metadata + cross-table trigger), also apply:
 
 11. `sql/migrations/010_harden_character_reference_media_integrity.sql`
+12. `sql/migrations/011_add_character_description_to_characters.sql`
+13. `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`
+
+## Character Sheet compatibility verification (post-012)
+
+After applying migration `012_add_character_sheet_aliases_and_compat.sql`:
+
+1. Run drift diagnostics:
+   - Execute `sql/check_character_sheet_alias_drift.sql`.
+2. Confirm every row reports `mismatch_count = 0`.
+3. If any mismatch remains, re-run migration `012` and validate trigger health before promoting to production.
+
+Deprecation note:
+- Legacy aliases (`active_reference_pack_id`, `reference_pack_id`, `reference_pack_assignments`) remain intentionally supported during rollout.
+- Do not remove legacy aliases until drift checks stay at zero through at least one full release cycle across all environments.

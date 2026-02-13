@@ -1,6 +1,6 @@
 # ShortPulse Backlog
 
-Last audited: 2026-02-12
+Last audited: 2026-02-13
 
 How to use:
 - Keep this list execution-focused and current.
@@ -36,6 +36,8 @@ How to use:
 - [ ] Make tooltip/url treatments resilient for long links (truncate/ellipsis where needed).
 - [ ] Complete Performance data-actions follow-up: add status-history trail (filter reset affordance is already shipped).
 - [ ] Add SOP for Performance data actions rail and demo metric recomputation behavior.
+- [ ] Character Manager: monitor `character_sheet_*` vs `reference_pack_*` alias drift for one full release cycle and record evidence.
+- [ ] Character Manager: ship a deprecation migration plan to remove legacy `reference_pack_*` aliases after drift monitoring is stable.
 
 ## Research / Spikes
 - [ ] Evaluate a JavaScript masonry layout engine to preserve masonry visual density while improving ordering control (target: left-to-right reading expectations). Keep this as a scoped spike before implementation.

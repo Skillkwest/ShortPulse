@@ -1,5 +1,7 @@
 # SOP: Character Identity Pipeline (ShortPulse)
 
+> Status: Legacy pipeline reference. For the active `/character` surface, use `docs/sops/sop_character_manager_operations.md`.
+
 Purpose: operational steps to create, validate, and persist character identities for the Character tool. This SOP enforces the architectural guardrails: identity token for generation; embeddings only for analysis/validation.
 
 ## Pipeline (MVP)

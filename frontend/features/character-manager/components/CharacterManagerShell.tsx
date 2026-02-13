@@ -6,24 +6,22 @@ import type { User } from "@supabase/supabase-js";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  CheckCircle,
-  Plus,
-  PencilSimpleLine,
-  ShieldCheck,
-  Trash,
-  UploadSimple,
-  XCircle,
-} from "phosphor-react";
+import { Plus, PencilSimpleLine, ShieldCheck, Trash, UploadSimple, XCircle } from "phosphor-react";
 import { DashboardNavPrefab } from "../../../components/DashboardNavPrefab";
 import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "../../billing/catalog";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import {
   CHARACTER_MANAGER_SLOT_DEFINITIONS,
   CHARACTER_MANAGER_SLOT_LABEL_BY_KEY,
+  CHARACTER_SHEET_DROP_ZONES,
 } from "../constants";
 import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
-import type { CharacterProfileImageTransform } from "../types";
+import type {
+  CharacterProfileImageTransform,
+  CharacterSheetDropZoneKey,
+  CharacterSheetAssignments,
+  CharacterReferenceSlotKey,
+} from "../types";
 
 type CharacterWorkflowTab = "create" | "manage";
 const SIMPLE_REFERENCE_IMAGE_LIMIT = 8;
@@ -34,7 +32,12 @@ const PROFILE_OFFSET_MAX = 40;
 const PROFILE_PREVIEW_IMAGE_SIZE = 172;
 const CHARACTER_CHIP_AVATAR_SIZE = 44;
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
+const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 const DEFAULT_PLAN_TIER = "business";
+const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
+const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
+const DRAG_GHOST_SCALE = 0.74;
+
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: PROFILE_ZOOM_MIN,
   offsetX: 0,
@@ -47,6 +50,13 @@ const PLAN_MAP: Record<string, { label: string; className: string }> = {
   studio: { label: "Studio", className: "plan-studio" },
   business: { label: "Business", className: "plan-business" },
 };
+
+function clampReferencePreviewAspectRatio(value: number | null | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO;
+  }
+  return Math.min(Math.max(value, 0.45), 2.8);
+}
 
 function buildProfileImageTransformStyle(
   transform: CharacterProfileImageTransform,
@@ -69,23 +79,24 @@ export function CharacterManagerShell() {
     characters,
     selectedCharacterId,
     characterName,
+    characterDescription,
+    characterSheetAssignments,
     profileImageUrl,
     profileImageTransform,
     slots,
     error,
-    notice,
     loading,
     isSavingName,
-    isActivating,
     isCreatingCharacter,
     isDeletingCharacter,
     isSwitchingCharacter,
-    isRevalidating,
     isSavingProfileImage,
     setCharacterName,
+    setCharacterDescription,
     setProfileImageFile,
     saveProfileImageTransform,
     clearProfileImage,
+    saveCharacterSheetAssignments,
     setSlotFile,
     clearSlot,
     createCharacter,
@@ -97,13 +108,22 @@ export function CharacterManagerShell() {
 
   const [activeTab, setActiveTab] = useState<CharacterWorkflowTab>("create");
   const [isDropActive, setIsDropActive] = useState(false);
-  const [characterDescription, setCharacterDescription] = useState("");
+  const [draggedReferenceSlotKey, setDraggedReferenceSlotKey] =
+    useState<CharacterReferenceSlotKey | null>(null);
+  const [draggedCharacterSheetZoneKey, setDraggedCharacterSheetZoneKey] =
+    useState<CharacterSheetDropZoneKey | null>(null);
+  const [activeCharacterSheetDropZone, setActiveCharacterSheetDropZone] =
+    useState<CharacterSheetDropZoneKey | null>(null);
   const [isProfileAdjusterVisible, setIsProfileAdjusterVisible] = useState(false);
   const [profileAdjustDraft, setProfileAdjustDraft] =
     useState<CharacterProfileImageTransform | null>(null);
   const [deleteTargetCharacter, setDeleteTargetCharacter] = useState<{
     characterId: string;
     characterName: string;
+  } | null>(null);
+  const [referencePreview, setReferencePreview] = useState<{
+    index: number;
+    aspectRatio: number;
   } | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
@@ -112,11 +132,10 @@ export function CharacterManagerShell() {
   const characterNameInputRef = useRef<HTMLInputElement | null>(null);
   const profileFileInputRef = useRef<HTMLInputElement | null>(null);
   const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
+  const dragGhostMapRef = useRef(new Map<HTMLElement, HTMLElement>());
   const pageBusy =
     loading ||
     isSwitchingCharacter ||
-    isRevalidating ||
-    isActivating ||
     isCreatingCharacter ||
     isDeletingCharacter ||
     isSavingProfileImage;
@@ -190,6 +209,26 @@ export function CharacterManagerShell() {
     0,
     SIMPLE_REFERENCE_IMAGE_LIMIT - uploadedReferenceEntries.length
   );
+  const referencePreviewEntry =
+    referencePreview && uploadedReferenceEntries[referencePreview.index]
+      ? uploadedReferenceEntries[referencePreview.index]
+      : null;
+  const uploadedReferenceBySlotKey = useMemo(
+    () => new Map(uploadedReferenceEntries.map((entry) => [entry.slotKey, entry])),
+    [uploadedReferenceEntries]
+  );
+  const characterSheetAssignmentsUi = characterSheetAssignments;
+
+  const effectiveCharacterSheetAssignments = useMemo(() => {
+    const next = { ...characterSheetAssignmentsUi };
+    for (const dropZone of CHARACTER_SHEET_DROP_ZONES) {
+      const assignedSlotKey = next[dropZone.key];
+      if (assignedSlotKey && !uploadedReferenceBySlotKey.has(assignedSlotKey)) {
+        next[dropZone.key] = null;
+      }
+    }
+    return next;
+  }, [characterSheetAssignmentsUi, uploadedReferenceBySlotKey]);
 
   useEffect(() => {
     let active = true;
@@ -280,6 +319,16 @@ export function CharacterManagerShell() {
     };
   }, [user]);
 
+  useEffect(
+    () => () => {
+      for (const ghost of dragGhostMapRef.current.values()) {
+        ghost.remove();
+      }
+      dragGhostMapRef.current.clear();
+    },
+    []
+  );
+
   const uploadSimpleFiles = useCallback(
     async (incomingFiles: FileList | File[]) => {
       const files = Array.from(incomingFiles);
@@ -348,7 +397,6 @@ export function CharacterManagerShell() {
 
   const handleCreateNewCharacter = useCallback(() => {
     setActiveTab("create");
-    setCharacterDescription("");
     setProfileAdjustDraft(null);
     setIsProfileAdjusterVisible(false);
 
@@ -396,6 +444,249 @@ export function CharacterManagerShell() {
       setDeleteTargetCharacter(null);
     }
   }, [deleteCharacter, deleteTargetCharacter]);
+
+  const applyDragGhost = useCallback((event: React.DragEvent<HTMLElement>) => {
+    const dragNode = event.currentTarget as HTMLElement;
+    const transfer = event.dataTransfer;
+    try {
+      const rect = dragNode.getBoundingClientRect();
+      const ghost = dragNode.cloneNode(true) as HTMLElement;
+      const scaledWidth = Math.max(56, rect.width * DRAG_GHOST_SCALE);
+      const scaledHeight = Math.max(72, rect.height * DRAG_GHOST_SCALE);
+      ghost.classList.add("character-drag-ghost");
+      ghost.style.boxSizing = "border-box";
+      ghost.style.width = `${scaledWidth}px`;
+      ghost.style.height = `${scaledHeight}px`;
+      ghost.style.transform = `scale(${DRAG_GHOST_SCALE}) rotate(-2deg)`;
+      ghost.style.transformOrigin = "center";
+      ghost.style.position = "absolute";
+      ghost.style.top = "-9999px";
+      ghost.style.left = "-9999px";
+      ghost.style.pointerEvents = "none";
+      ghost.style.opacity = "0.96";
+
+      document.body.appendChild(ghost);
+      dragGhostMapRef.current.set(dragNode, ghost);
+      transfer.setDragImage(ghost, scaledWidth / 2, scaledHeight / 2);
+    } catch {
+      transfer.setDragImage(dragNode, dragNode.offsetWidth / 2, dragNode.offsetHeight / 2);
+    }
+    dragNode.classList.add("is-dragging");
+  }, []);
+
+  const persistCharacterSheetAssignments = useCallback(
+    (nextAssignments: CharacterSheetAssignments) => {
+      if (!selectedCharacterId) return;
+      void saveCharacterSheetAssignments(nextAssignments);
+    },
+    [saveCharacterSheetAssignments, selectedCharacterId]
+  );
+
+  const assignReferenceToCharacterSheetSlot = useCallback(
+    (
+      characterSheetSlotKey: CharacterSheetDropZoneKey,
+      referenceSlotKey: CharacterReferenceSlotKey
+    ) => {
+      if (!selectedCharacterId) return;
+      const nextAssignments = {
+        ...effectiveCharacterSheetAssignments,
+        [characterSheetSlotKey]: referenceSlotKey,
+      };
+      persistCharacterSheetAssignments(nextAssignments);
+    },
+    [effectiveCharacterSheetAssignments, persistCharacterSheetAssignments, selectedCharacterId]
+  );
+
+  const clearReferenceAssignmentsFromCharacterSheet = useCallback(
+    (referenceSlotKey: CharacterReferenceSlotKey) => {
+      if (!selectedCharacterId) return;
+      let changed = false;
+      const nextAssignments = { ...effectiveCharacterSheetAssignments };
+      for (const dropZone of CHARACTER_SHEET_DROP_ZONES) {
+        if (nextAssignments[dropZone.key] !== referenceSlotKey) {
+          continue;
+        }
+        nextAssignments[dropZone.key] = null;
+        changed = true;
+      }
+      if (!changed) return;
+      persistCharacterSheetAssignments(nextAssignments);
+    },
+    [effectiveCharacterSheetAssignments, persistCharacterSheetAssignments, selectedCharacterId]
+  );
+
+  const openReferencePreview = useCallback((index: number, aspectRatio: number | null) => {
+    setReferencePreview({
+      index,
+      aspectRatio: clampReferencePreviewAspectRatio(aspectRatio),
+    });
+  }, []);
+
+  const closeReferencePreview = useCallback(() => {
+    setReferencePreview(null);
+  }, []);
+
+  const navigateReferencePreview = useCallback(
+    (step: -1 | 1) => {
+      setReferencePreview((current) => {
+        if (!current || uploadedReferenceEntries.length === 0) return current;
+        const total = uploadedReferenceEntries.length;
+        const nextIndex = (current.index + step + total) % total;
+        const nextEntry = uploadedReferenceEntries[nextIndex];
+        return {
+          index: nextIndex,
+          aspectRatio: clampReferencePreviewAspectRatio(
+            nextEntry?.slotFile.validationNotes.aspectRatio ?? null
+          ),
+        };
+      });
+    },
+    [uploadedReferenceEntries]
+  );
+
+  const handleReferenceDragStart = useCallback(
+    (slotKey: CharacterReferenceSlotKey) => (event: React.DragEvent<HTMLElement>) => {
+      if (pageBusy || isSlotBusy(slotKey)) {
+        event.preventDefault();
+        return;
+      }
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(DND_REFERENCE_SLOT_KEY, slotKey);
+      event.dataTransfer.setData("text/plain", slotKey);
+      setDraggedReferenceSlotKey(slotKey);
+      setDraggedCharacterSheetZoneKey(null);
+      applyDragGhost(event);
+    },
+    [applyDragGhost, isSlotBusy, pageBusy]
+  );
+
+  const handleCharacterSheetDragStart = useCallback(
+    (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: React.DragEvent<HTMLElement>) => {
+      if (pageBusy) {
+        event.preventDefault();
+        return;
+      }
+      const assignedSlotKey = effectiveCharacterSheetAssignments[characterSheetSlotKey];
+      if (!assignedSlotKey) {
+        event.preventDefault();
+        return;
+      }
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(DND_CHARACTER_SHEET_ZONE_KEY, characterSheetSlotKey);
+      event.dataTransfer.setData(DND_REFERENCE_SLOT_KEY, assignedSlotKey);
+      event.dataTransfer.setData("text/plain", assignedSlotKey);
+      setDraggedCharacterSheetZoneKey(characterSheetSlotKey);
+      setDraggedReferenceSlotKey(assignedSlotKey);
+      applyDragGhost(event);
+    },
+    [applyDragGhost, effectiveCharacterSheetAssignments, pageBusy]
+  );
+
+  const handleReferenceDragEnd = useCallback((event: React.DragEvent<HTMLElement>) => {
+    const dragNode = event.currentTarget as HTMLElement;
+    dragNode.classList.remove("is-dragging");
+    const ghost = dragGhostMapRef.current.get(dragNode);
+    if (ghost) {
+      ghost.remove();
+      dragGhostMapRef.current.delete(dragNode);
+    }
+    setDraggedReferenceSlotKey(null);
+    setDraggedCharacterSheetZoneKey(null);
+    setActiveCharacterSheetDropZone(null);
+  }, []);
+
+  const handleCharacterSheetDragOver = useCallback(
+    (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: React.DragEvent<HTMLElement>) => {
+      if (pageBusy) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      setActiveCharacterSheetDropZone(characterSheetSlotKey);
+    },
+    [pageBusy]
+  );
+
+  const clearCharacterSheetAssignment = useCallback(
+    (characterSheetSlotKey: CharacterSheetDropZoneKey) => {
+      if (!selectedCharacterId) return;
+      const assignedSlotKey = effectiveCharacterSheetAssignments[characterSheetSlotKey];
+      if (!assignedSlotKey) return;
+      const nextAssignments = {
+        ...effectiveCharacterSheetAssignments,
+        [characterSheetSlotKey]: null,
+      };
+      persistCharacterSheetAssignments(nextAssignments);
+    },
+    [effectiveCharacterSheetAssignments, persistCharacterSheetAssignments, selectedCharacterId]
+  );
+
+  const handleCharacterSheetDrop = useCallback(
+    (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: React.DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      setActiveCharacterSheetDropZone(null);
+      if (pageBusy) return;
+      const sourceCharacterSheetZoneKey =
+        (event.dataTransfer.getData(DND_CHARACTER_SHEET_ZONE_KEY) as
+          | CharacterSheetDropZoneKey
+          | "") || draggedCharacterSheetZoneKey;
+      if (
+        sourceCharacterSheetZoneKey &&
+        CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === sourceCharacterSheetZoneKey)
+      ) {
+        const sourceSlotKey = effectiveCharacterSheetAssignments[sourceCharacterSheetZoneKey];
+        if (!sourceSlotKey) return;
+        if (sourceCharacterSheetZoneKey === characterSheetSlotKey) return;
+        const targetSlotKey = effectiveCharacterSheetAssignments[characterSheetSlotKey];
+        const nextAssignments = {
+          ...effectiveCharacterSheetAssignments,
+          [sourceCharacterSheetZoneKey]: targetSlotKey ?? null,
+          [characterSheetSlotKey]: sourceSlotKey,
+        };
+        persistCharacterSheetAssignments(nextAssignments);
+        return;
+      }
+
+      const droppedSlotKey =
+        (event.dataTransfer.getData(DND_REFERENCE_SLOT_KEY) as CharacterReferenceSlotKey | "") ||
+        (event.dataTransfer.getData("text/plain") as CharacterReferenceSlotKey | "") ||
+        draggedReferenceSlotKey;
+      if (!droppedSlotKey) return;
+      if (!uploadedReferenceBySlotKey.has(droppedSlotKey)) return;
+      assignReferenceToCharacterSheetSlot(characterSheetSlotKey, droppedSlotKey);
+    },
+    [
+      assignReferenceToCharacterSheetSlot,
+      draggedCharacterSheetZoneKey,
+      draggedReferenceSlotKey,
+      effectiveCharacterSheetAssignments,
+      pageBusy,
+      persistCharacterSheetAssignments,
+      uploadedReferenceBySlotKey,
+    ]
+  );
+
+  useEffect(() => {
+    if (!referencePreview) return;
+    const handleModalKeyboardShortcuts = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeReferencePreview();
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        navigateReferencePreview(1);
+        return;
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        navigateReferencePreview(-1);
+      }
+    };
+    window.addEventListener("keydown", handleModalKeyboardShortcuts);
+    return () => {
+      window.removeEventListener("keydown", handleModalKeyboardShortcuts);
+    };
+  }, [closeReferencePreview, navigateReferencePreview, referencePreview]);
 
   return (
     <main id="main-content" className="page page-wide character-manager-page">
@@ -491,12 +782,6 @@ export function CharacterManagerShell() {
           <span>{error}</span>
         </div>
       ) : null}
-      {notice ? (
-        <div className="character-feedback notice" role="status">
-          <CheckCircle size={16} weight="fill" />
-          <span>{notice}</span>
-        </div>
-      ) : null}
       {isSavingName ? (
         <p className="tiny subdued" aria-live="polite">
           Saving character name...
@@ -510,7 +795,7 @@ export function CharacterManagerShell() {
               <section className="character-section character-section--profile">
                 <div className="character-section-head">
                   <div>
-                    <h3 className="character-section-title">Character Identity</h3>
+                    <h3 className="character-section-title">Identity</h3>
                     <p className="character-section-helper tiny subdued">
                       Define the profile photo and core traits for this character.
                     </p>
@@ -666,12 +951,12 @@ export function CharacterManagerShell() {
                     ) : null}
                   </div>
 
-                  <div className="character-profile-fields">
+                  <div className="character-profile-fields character-profile-fields--label-serif">
                     <label
                       className="control-row character-simple-field"
                       htmlFor="character-manager-name"
                     >
-                      <span className="input-label">Character Name</span>
+                      <span className="input-label">Name:</span>
                       <input
                         ref={characterNameInputRef}
                         id="character-manager-name"
@@ -681,7 +966,7 @@ export function CharacterManagerShell() {
                         maxLength={80}
                         onChange={(event) => setCharacterName(event.target.value)}
                         placeholder="Enter character name"
-                        disabled={loading || isActivating}
+                        disabled={loading}
                       />
                     </label>
 
@@ -689,7 +974,7 @@ export function CharacterManagerShell() {
                       className="control-row character-simple-field"
                       htmlFor="character-manager-description"
                     >
-                      <span className="input-label">Character Description</span>
+                      <span className="input-label">Description:</span>
                       <textarea
                         id="character-manager-description"
                         className="character-description-input"
@@ -697,8 +982,8 @@ export function CharacterManagerShell() {
                         value={characterDescription}
                         maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
                         onChange={(event) => setCharacterDescription(event.target.value)}
-                        placeholder="Describe this character (style, vibe, outfit, key visual traits)."
-                        disabled={loading || isActivating}
+                        placeholder="A gorgeous woman in her early 30s with brown hair and dark amber eyes, she has a slim, toned waist, a curvy lower body, and thick thighs."
+                        disabled={loading}
                       />
                       <div className="character-description-footer-row">
                         <p className="character-description-helper tiny subdued">
@@ -766,20 +1051,32 @@ export function CharacterManagerShell() {
                     <article
                       key={entry.slotKey}
                       role="listitem"
-                      className="character-reference-upload-card"
+                      className={`character-reference-upload-card ${
+                        draggedReferenceSlotKey === entry.slotKey ? "is-dragging" : ""
+                      }`}
+                      draggable={!pageBusy && !isSlotBusy(entry.slotKey)}
+                      onDragStart={handleReferenceDragStart(entry.slotKey)}
+                      onDragEnd={handleReferenceDragEnd}
                     >
                       <button
                         type="button"
                         className="character-list-delete-btn character-reference-delete-btn"
                         aria-label={`Remove reference ${index + 1}`}
                         onClick={() => {
+                          clearReferenceAssignmentsFromCharacterSheet(entry.slotKey);
                           void clearSlot(entry.slotKey);
                         }}
                         disabled={pageBusy || isSlotBusy(entry.slotKey)}
                       >
                         <Trash size={12} weight="bold" />
                       </button>
-                      <div className="character-reference-upload-image-wrap">
+                      <div
+                        className="character-reference-upload-image-wrap"
+                        onDoubleClick={() => {
+                          openReferencePreview(index, entry.slotFile.validationNotes.aspectRatio);
+                        }}
+                        title="Double-click to preview this reference image"
+                      >
                         <Image
                           src={entry.slotFile.previewUrl}
                           alt={`Reference ${index + 1}: ${entry.slotLabel}`}
@@ -805,26 +1102,73 @@ export function CharacterManagerShell() {
             <section className="character-section character-section--references">
               <div className="character-section-head">
                 <div>
-                  <h3 className="character-section-title">Reference Pack</h3>
+                  <h3 className="character-section-title">Character Sheet</h3>
                   <p className="character-section-helper tiny subdued">
                     Follow this shot guide to keep your reference angles consistent.
                   </p>
                 </div>
               </div>
 
-              <div className="character-reference-empty-grid" aria-hidden="true">
-                <span>
-                  <span className="character-reference-empty-hint">Portrait</span>
-                </span>
-                <span>
-                  <span className="character-reference-empty-hint">Close-up</span>
-                </span>
-                <span>
-                  <span className="character-reference-empty-hint">Full-body Front Shot</span>
-                </span>
-                <span>
-                  <span className="character-reference-empty-hint">Full-body Back Shot</span>
-                </span>
+              <div className="character-reference-empty-grid">
+                {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
+                  const assignedSlotKey = effectiveCharacterSheetAssignments[dropZone.key];
+                  const assignedReference = assignedSlotKey
+                    ? uploadedReferenceBySlotKey.get(assignedSlotKey)
+                    : null;
+                  const isDropActive = activeCharacterSheetDropZone === dropZone.key;
+                  return (
+                    <article
+                      key={dropZone.key}
+                      className={`character-character-sheet-card ${
+                        assignedReference ? "is-filled" : ""
+                      } ${isDropActive ? "is-drop-active" : ""} ${
+                        draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
+                      }`}
+                      draggable={!pageBusy && Boolean(assignedReference)}
+                      onDragStart={handleCharacterSheetDragStart(dropZone.key)}
+                      onDragEnd={handleReferenceDragEnd}
+                      onDragOver={handleCharacterSheetDragOver(dropZone.key)}
+                      onDragLeave={() => {
+                        setActiveCharacterSheetDropZone((current) =>
+                          current === dropZone.key ? null : current
+                        );
+                      }}
+                      onDrop={handleCharacterSheetDrop(dropZone.key)}
+                    >
+                      {assignedReference ? (
+                        <button
+                          type="button"
+                          className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
+                          aria-label={`Clear ${dropZone.label} reference`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            clearCharacterSheetAssignment(dropZone.key);
+                          }}
+                          disabled={pageBusy}
+                        >
+                          <Trash size={12} weight="bold" />
+                        </button>
+                      ) : null}
+                      <div className="character-character-sheet-media">
+                        {assignedReference ? (
+                          <Image
+                            src={assignedReference.slotFile.previewUrl}
+                            alt={`${dropZone.label} reference`}
+                            className="character-character-sheet-image"
+                            width={240}
+                            height={300}
+                            unoptimized
+                          />
+                        ) : (
+                          <span className="character-character-sheet-drop-copy tiny">
+                            Drop reference
+                          </span>
+                        )}
+                      </div>
+                      <span className="character-reference-empty-hint">{dropZone.label}</span>
+                    </article>
+                  );
+                })}
               </div>
             </section>
           </div>
@@ -834,7 +1178,7 @@ export function CharacterManagerShell() {
           <div>
             <p className="eyebrow">Manage Existing</p>
             <h2>Character Library</h2>
-            <p className="tiny subdued">Select a character to editing their character profile.</p>
+            <p className="tiny subdued">Select a character to edit their character profile.</p>
           </div>
 
           <div className="character-manage-list" role="list" aria-label="Character list">
@@ -883,9 +1227,7 @@ export function CharacterManagerShell() {
                         )}
                       </span>
                       <div className="character-list-copy">
-                        <p className="metric-label tiny">
-                          {isSelected ? "Current draft" : "Character"}
-                        </p>
+                        <p className="metric-label tiny">{isSelected ? "Selected" : "Character"}</p>
                         <p className="character-list-name">{chipName}</p>
                       </div>
                     </div>
@@ -915,6 +1257,50 @@ export function CharacterManagerShell() {
           ) : null}
         </section>
       )}
+
+      {referencePreview && referencePreviewEntry ? (
+        <div className="character-reference-preview-overlay" role="dialog" aria-modal="true">
+          <div
+            className="character-reference-preview-modal"
+            style={
+              {
+                "--character-reference-preview-aspect-ratio": String(referencePreview.aspectRatio),
+              } as React.CSSProperties
+            }
+          >
+            <button
+              type="button"
+              className="character-reference-preview-close"
+              onClick={closeReferencePreview}
+              aria-label="Close reference preview"
+            >
+              X
+            </button>
+            <Image
+              src={referencePreviewEntry.slotFile.previewUrl}
+              alt={`Reference ${referencePreview.index + 1}: ${referencePreviewEntry.slotLabel}`}
+              className="character-reference-preview-image"
+              width={1600}
+              height={1600}
+              onLoadingComplete={(loadedImage) => {
+                const loadedAspectRatio = loadedImage.naturalWidth / loadedImage.naturalHeight;
+                if (!Number.isFinite(loadedAspectRatio) || loadedAspectRatio <= 0) return;
+                const clampedAspectRatio = clampReferencePreviewAspectRatio(loadedAspectRatio);
+                setReferencePreview((current) => {
+                  if (!current) return current;
+                  const currentEntry = uploadedReferenceEntries[current.index];
+                  if (!currentEntry || currentEntry.slotKey !== referencePreviewEntry.slotKey) {
+                    return current;
+                  }
+                  if (Math.abs(current.aspectRatio - clampedAspectRatio) < 0.001) return current;
+                  return { ...current, aspectRatio: clampedAspectRatio };
+                });
+              }}
+              unoptimized
+            />
+          </div>
+        </div>
+      ) : null}
 
       {deleteTargetCharacter ? (
         <div

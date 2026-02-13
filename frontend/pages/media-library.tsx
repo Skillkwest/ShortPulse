@@ -28,9 +28,12 @@ import {
 } from "../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 import {
+  buildBulkMoveTabOptions,
   buildMoveTabOptions,
+  getMoveTabLabel,
   type MediaMoveDestination,
 } from "../features/media-library/logic/mediaMoveRouting";
+import { buildBulkMoveFeedback } from "../features/media-library/logic/bulkMoveFeedback";
 
 type MediaRow = {
   id: string;
@@ -122,6 +125,34 @@ type MoveMediaResponse = {
   file: MediaRow;
   fromTab: MediaDataTab;
   toTab: MediaDataTab;
+};
+
+type MoveMediaBatchResponse = {
+  destinationTab: MediaDataTab;
+  moved: Array<{
+    fileId: string;
+    file: MediaRow;
+    fromTab: MediaDataTab;
+    toTab: MediaDataTab;
+    previousStoragePath: string;
+    nextStoragePath: string;
+  }>;
+  failed: Array<{
+    fileId: string;
+    error: string;
+    details?: string;
+  }>;
+  summary: {
+    requested: number;
+    moved: number;
+    failed: number;
+  };
+};
+
+type MoveFileResult = {
+  nextFile: MediaRow;
+  toTab: MediaDataTab;
+  previousSignPaths: string[];
 };
 
 const BUCKET = "media_library";
@@ -389,6 +420,10 @@ export default function MediaLibrary() {
   const [aspectMap, setAspectMap] = useState<Record<string, number>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkMoving, setBulkMoving] = useState(false);
+  const [bulkMoveError, setBulkMoveError] = useState<string | null>(null);
+  const [bulkMoveNotice, setBulkMoveNotice] = useState<string | null>(null);
+  const [bulkMoveMenuOpen, setBulkMoveMenuOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<MediaRow | null>(null);
   const [deletingSingle, setDeletingSingle] = useState(false);
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
@@ -538,7 +573,17 @@ export default function MediaLibrary() {
   useEffect(() => {
     setSelectedIds([]);
     setConfirmDeleteIds(null);
+    setBulkMoveError(null);
+    setBulkMoveNotice(null);
+    setBulkMoveMenuOpen(false);
   }, [activeTab]);
+
+  useEffect(() => {
+    if (selectedIds.length) return;
+    setBulkMoveMenuOpen(false);
+    setBulkMoveError(null);
+    setBulkMoveNotice(null);
+  }, [selectedIds.length]);
 
   const getMediaCardRef = useCallback((fileId: string): MediaCardRefCallback => {
     const existing = mediaCardRefCallbacksRef.current[fileId];
@@ -1503,18 +1548,24 @@ export default function MediaLibrary() {
 
   const toggleSelect = (file: MediaRow) => {
     if (file.status === "uploading") return;
+    setBulkMoveError(null);
+    setBulkMoveNotice(null);
     setSelectedIds((prev) =>
       prev.includes(file.id) ? prev.filter((id) => id !== file.id) : [...prev, file.id]
     );
   };
 
   const togglePromptSelect = (promptId: string) => {
+    setBulkMoveError(null);
+    setBulkMoveNotice(null);
     setSelectedIds((prev) =>
       prev.includes(promptId) ? prev.filter((id) => id !== promptId) : [...prev, promptId]
     );
   };
 
   const selectAllVisible = () => {
+    setBulkMoveError(null);
+    setBulkMoveNotice(null);
     setSelectedIds(isPromptTab ? selectablePromptIds : selectableMediaIds);
   };
 
@@ -1715,31 +1766,90 @@ export default function MediaLibrary() {
     }
   };
 
-  const applyMovedFileToCaches = useCallback((file: MediaRow, destinationTab: MediaDataTab) => {
-    setMediaTabCache((prev) => {
-      const next = { ...prev };
-      for (const tab of MEDIA_DATA_TABS) {
-        const cache = prev[tab];
-        const rowsWithoutFile = cache.rows.filter((row) => row.id !== file.id);
-        let nextRows = rowsWithoutFile;
-        if (tab === destinationTab) {
-          const query = normalizeMediaSearchTerm(cache.query).toLowerCase();
-          const filename = file.filename?.toLowerCase() ?? "";
-          const path = file.storage_path?.toLowerCase() ?? "";
-          const queryMatches = !query || filename.includes(query) || path.includes(query);
-          if (queryMatches) {
-            nextRows = mergePageRows(rowsWithoutFile, [file]);
+  const applyMovedFilesToCaches = useCallback(
+    (movedFiles: MediaRow[], destinationTab: MediaDataTab) => {
+      if (!movedFiles.length) return;
+      const movedById = new Map(movedFiles.map((file) => [file.id, file]));
+      setMediaTabCache((prev) => {
+        const next = { ...prev };
+        for (const tab of MEDIA_DATA_TABS) {
+          const cache = prev[tab];
+          const rowsWithoutMoved = cache.rows.filter((row) => !movedById.has(row.id));
+          let nextRows = rowsWithoutMoved;
+          if (tab === destinationTab) {
+            const query = normalizeMediaSearchTerm(cache.query).toLowerCase();
+            const queryMatchedRows = movedFiles.filter((file) => {
+              const filename = file.filename?.toLowerCase() ?? "";
+              const path = file.storage_path?.toLowerCase() ?? "";
+              return !query || filename.includes(query) || path.includes(query);
+            });
+            if (queryMatchedRows.length) {
+              nextRows = mergePageRows(rowsWithoutMoved, queryMatchedRows);
+            }
           }
+          next[tab] = {
+            ...cache,
+            rows: nextRows,
+            loadedAtMs: tab === destinationTab ? Date.now() : null,
+          };
         }
-        next[tab] = {
-          ...cache,
-          rows: nextRows,
-          loadedAtMs: tab === destinationTab ? Date.now() : null,
-        };
+        return next;
+      });
+    },
+    []
+  );
+
+  const applyMovedFileToCaches = useCallback(
+    (file: MediaRow, destinationTab: MediaDataTab) => {
+      applyMovedFilesToCaches([file], destinationTab);
+    },
+    [applyMovedFilesToCaches]
+  );
+
+  const requestMoveFileToTab = useCallback(
+    async (file: MediaRow, destinationTab: MediaDataTab): Promise<MoveFileResult> => {
+      const response = await fetchWithAuth("/api/media/move", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileId: file.id,
+          destinationTab,
+        }),
+        shortpulseLogScope: "app",
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+          details?: string;
+        } | null;
+        throw new Error(
+          payload?.details ?? payload?.error ?? `Unable to move file (${response.status})`
+        );
       }
-      return next;
-    });
-  }, []);
+
+      const payload = (await response.json()) as MoveMediaResponse;
+      const movedFile = payload.file;
+      const previewStoragePath =
+        resolveMediaSigningStoragePaths(movedFile, currentUserIdRef.current)[0] ??
+        movedFile.storage_path;
+      const signedUrl = await signStoragePath(previewStoragePath, { forceRefresh: true });
+
+      return {
+        nextFile: {
+          ...movedFile,
+          preview_storage_path: previewStoragePath,
+          signedUrl: signedUrl ?? undefined,
+          status: "ready",
+        },
+        toTab: payload.toTab,
+        previousSignPaths: resolveMediaSigningStoragePaths(file, currentUserIdRef.current),
+      };
+    },
+    [signStoragePath]
+  );
 
   const moveFocusedFile = useCallback(
     async (destinationTab: MediaDataTab) => {
@@ -1751,62 +1861,25 @@ export default function MediaLibrary() {
       const previousFile = focusedFile;
 
       try {
-        const response = await fetchWithAuth("/api/media/move", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fileId: previousFile.id,
-            destinationTab,
-          }),
-          shortpulseLogScope: "app",
-        });
-
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as {
-            error?: string;
-            details?: string;
-          } | null;
-          throw new Error(
-            payload?.details ?? payload?.error ?? `Unable to move file (${response.status})`
-          );
-        }
-
-        const payload = (await response.json()) as MoveMediaResponse;
-        const movedFile = payload.file;
-        const previewStoragePath =
-          resolveMediaSigningStoragePaths(movedFile, currentUserIdRef.current)[0] ??
-          movedFile.storage_path;
-        const signedUrl = await signStoragePath(previewStoragePath, { forceRefresh: true });
-        const nextFocusedFile: MediaRow = {
-          ...movedFile,
-          preview_storage_path: previewStoragePath,
-          signedUrl: signedUrl ?? undefined,
-          status: "ready",
-        };
-
-        const previousSignPaths = resolveMediaSigningStoragePaths(
-          previousFile,
-          currentUserIdRef.current
-        );
-        for (const path of previousSignPaths) {
+        const result = await requestMoveFileToTab(previousFile, destinationTab);
+        const nextFocusedFile = result.nextFile;
+        for (const path of result.previousSignPaths) {
           invalidateSignedMediaUrl(BUCKET, path);
         }
 
-        applyMovedFileToCaches(nextFocusedFile, payload.toTab);
+        applyMovedFileToCaches(nextFocusedFile, result.toTab);
         setFiles((prev) => {
           const rowsWithoutFile = prev.filter((row) => row.id !== nextFocusedFile.id);
-          if (activeTabRef.current !== payload.toTab) return rowsWithoutFile;
+          if (activeTabRef.current !== result.toTab) return rowsWithoutFile;
           return mergePageRows(rowsWithoutFile, [nextFocusedFile]).filter(
-            (row) => getMediaDataTabForRow(row) === payload.toTab
+            (row) => getMediaDataTabForRow(row) === result.toTab
           );
         });
         setFocusedFile(nextFocusedFile);
         setSelectedIds((prev) => prev.filter((id) => id !== nextFocusedFile.id));
         setMoveMenuOpen(false);
-        if (activeTabRef.current !== payload.toTab) {
-          setActiveTab(payload.toTab);
+        if (activeTabRef.current !== result.toTab) {
+          setActiveTab(result.toTab);
         }
       } catch (err: unknown) {
         const message = getErrorMessage(err, "Unable to move file");
@@ -1815,7 +1888,7 @@ export default function MediaLibrary() {
         setMovingFile(false);
       }
     },
-    [applyMovedFileToCaches, focusedFile, movingFile, signStoragePath]
+    [applyMovedFileToCaches, focusedFile, movingFile, requestMoveFileToTab]
   );
 
   const moveTabOptions = useMemo(
@@ -1825,6 +1898,190 @@ export default function MediaLibrary() {
   const canMoveToAnotherTab = useMemo(
     () => moveTabOptions.some((option) => !option.disabled && isMoveDataTab(option.tab)),
     [moveTabOptions]
+  );
+
+  const selectedMediaRows = useMemo(() => {
+    if (activeMediaTab == null || !selectedIds.length) return [];
+    const selectedIdSet = new Set(selectedIds);
+    return files.filter(
+      (file) =>
+        selectedIdSet.has(file.id) &&
+        file.status !== "uploading" &&
+        getMediaDataTabForRow(file) === activeMediaTab
+    );
+  }, [activeMediaTab, files, selectedIds]);
+
+  const bulkMoveTabOptions = useMemo(
+    () => buildBulkMoveTabOptions(selectedMediaRows),
+    [selectedMediaRows]
+  );
+
+  const canBulkMove = useMemo(
+    () => bulkMoveTabOptions.some((option) => !option.disabled),
+    [bulkMoveTabOptions]
+  );
+
+  const moveSelectedFiles = useCallback(
+    async (destinationTab: MediaDataTab) => {
+      if (!selectedMediaRows.length || bulkMoving || bulkDeleting) return;
+      const selectedCount = selectedMediaRows.length;
+      const destinationOption = bulkMoveTabOptions.find((option) => option.tab === destinationTab);
+      if (!destinationOption || destinationOption.disabled) return;
+      const finishBulkMove = createMediaPerfTimer({
+        surface: "media-library-route",
+        tab: activeTabRef.current,
+        destination_tab: destinationTab,
+        selected_count: selectedCount,
+      });
+
+      setBulkMoving(true);
+      setBulkMoveError(null);
+      setBulkMoveNotice(null);
+      setBulkMoveMenuOpen(false);
+      setError(null);
+      try {
+        const selectedById = new Map(selectedMediaRows.map((row) => [row.id, row]));
+        const response = await fetchWithAuth("/api/media/move-batch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fileIds: selectedMediaRows.map((row) => row.id),
+            destinationTab,
+          }),
+          shortpulseLogScope: "app",
+        });
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as {
+            error?: string;
+            details?: string;
+          } | null;
+          throw new Error(
+            payload?.details ??
+              payload?.error ??
+              `Unable to move selected files (${response.status})`
+          );
+        }
+        const payload = (await response.json()) as MoveMediaBatchResponse;
+
+        for (const movedItem of payload.moved) {
+          const previousRow = selectedById.get(movedItem.fileId);
+          const previousSignPaths = previousRow
+            ? resolveMediaSigningStoragePaths(previousRow, currentUserIdRef.current)
+            : [];
+          const pathsToInvalidate = new Set([...previousSignPaths, movedItem.previousStoragePath]);
+          for (const path of pathsToInvalidate) {
+            if (!path) continue;
+            invalidateSignedMediaUrl(BUCKET, path);
+          }
+        }
+
+        const movedRowsRaw = payload.moved.map((item) => item.file);
+        const previewPathById = new Map<string, string>();
+        const previewPaths: string[] = [];
+        for (const row of movedRowsRaw) {
+          const previewPath =
+            resolveMediaSigningStoragePaths(row, currentUserIdRef.current)[0] ?? row.storage_path;
+          previewPathById.set(row.id, previewPath);
+          previewPaths.push(previewPath);
+        }
+
+        const signedByPath = await getSignedMediaUrlsBatch({
+          bucket: BUCKET,
+          storagePaths: previewPaths,
+          expiresInSeconds: 3600,
+          forceRefresh: true,
+        });
+
+        const movedRows: MediaRow[] = movedRowsRaw.map((row) => {
+          const previewPath = previewPathById.get(row.id) ?? row.storage_path;
+          const signedUrl = signedByPath.get(previewPath);
+          return {
+            ...row,
+            preview_storage_path: previewPath,
+            signedUrl: signedUrl ?? undefined,
+            status: "ready",
+          };
+        });
+
+        const moveFailures = payload.failed.map((failure) => {
+          const filename = selectedById.get(failure.fileId)?.filename?.trim() || "Unnamed file";
+          return `${filename}: ${failure.details ?? failure.error}`;
+        });
+
+        const movedIdSet = new Set(movedRows.map((row) => row.id));
+        if (movedRows.length) {
+          applyMovedFilesToCaches(movedRows, destinationTab);
+          setFiles((prev) => {
+            const rowsWithoutMoved = prev.filter((row) => !movedIdSet.has(row.id));
+            if (activeTabRef.current !== destinationTab) return rowsWithoutMoved;
+            return mergePageRows(rowsWithoutMoved, movedRows).filter(
+              (row) => getMediaDataTabForRow(row) === destinationTab
+            );
+          });
+          setSelectedIds((prev) => prev.filter((id) => !movedIdSet.has(id)));
+          setFocusedFile((prev) => {
+            if (!prev || !movedIdSet.has(prev.id)) return prev;
+            return movedRows.find((row) => row.id === prev.id) ?? prev;
+          });
+        }
+
+        const destinationLabel = getMoveTabLabel(destinationTab);
+        const feedback = buildBulkMoveFeedback({
+          movedCount: movedRows.length,
+          requestedCount: selectedCount,
+          failedCount: moveFailures.length,
+          destinationLabel,
+          firstFailureMessage: moveFailures[0] ?? null,
+        });
+
+        setBulkMoveNotice(feedback.notice);
+        setBulkMoveError(feedback.error);
+        if (
+          movedRows.length &&
+          feedback.shouldSwitchTab &&
+          activeTabRef.current !== destinationTab
+        ) {
+          setActiveTab(destinationTab);
+        }
+
+        finishBulkMove("media.move.bulk.completed", {
+          moved_count: movedRows.length,
+          failed_count: moveFailures.length,
+        });
+        if (moveFailures.length) {
+          logMediaPerf("media.move.bulk.failed", {
+            surface: "media-library-route",
+            tab: activeTabRef.current,
+            destination_tab: destinationTab,
+            selected_count: selectedCount,
+            moved_count: movedRows.length,
+            failed_count: moveFailures.length,
+          });
+        }
+      } catch (err: unknown) {
+        const message = getErrorMessage(err, "Unable to move selected files");
+        setBulkMoveError(message);
+        setBulkMoveNotice(null);
+        finishBulkMove("media.move.bulk.failed", {
+          moved_count: 0,
+          failed_count: selectedCount,
+          error_kind: "request_failed",
+        });
+        logMediaPerf("media.move.bulk.failed", {
+          surface: "media-library-route",
+          tab: activeTabRef.current,
+          destination_tab: destinationTab,
+          selected_count: selectedCount,
+          moved_count: 0,
+          failed_count: selectedCount,
+        });
+      } finally {
+        setBulkMoving(false);
+      }
+    },
+    [applyMovedFilesToCaches, bulkDeleting, bulkMoveTabOptions, bulkMoving, selectedMediaRows]
   );
 
   const openModal = (file: MediaRow) => {
@@ -2075,7 +2332,15 @@ export default function MediaLibrary() {
             </div>
             <div className="gallery-btns">
               {selectedIds.length ? (
-                <button type="button" className="btn-secondary" onClick={() => setSelectedIds([])}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    setSelectedIds([]);
+                    setBulkMoveError(null);
+                    setBulkMoveNotice(null);
+                  }}
+                >
                   Deselect all
                 </button>
               ) : null}
@@ -2083,21 +2348,82 @@ export default function MediaLibrary() {
                 type="button"
                 className="btn-secondary"
                 onClick={selectAllVisible}
-                disabled={!selectableIds.length || allVisibleSelected}
+                disabled={!selectableIds.length || allVisibleSelected || bulkMoving}
               >
                 Select all
               </button>
+              {!isPromptTab ? (
+                <div className="gallery-move">
+                  <button
+                    type="button"
+                    className="btn-secondary gallery-move-toggle"
+                    onClick={() => {
+                      setBulkMoveError(null);
+                      setBulkMoveMenuOpen((prev) => !prev);
+                    }}
+                    disabled={
+                      !selectedMediaRows.length || !canBulkMove || bulkDeleting || bulkMoving
+                    }
+                    aria-haspopup="menu"
+                    aria-expanded={bulkMoveMenuOpen}
+                  >
+                    <span>{bulkMoving ? "Moving..." : "Move selected"}</span>
+                    <CaretDown
+                      size={14}
+                      weight="bold"
+                      className={bulkMoveMenuOpen ? "is-open" : ""}
+                      aria-hidden
+                    />
+                  </button>
+                  {bulkMoveMenuOpen ? (
+                    <div className="gallery-move-menu" role="menu" aria-label="Move selected media">
+                      {bulkMoveTabOptions.map((option) => {
+                        const label = option.reason
+                          ? `${option.label} · ${option.reason}`
+                          : option.label;
+                        return (
+                          <button
+                            key={option.tab}
+                            type="button"
+                            className="gallery-move-option"
+                            role="menuitem"
+                            disabled={option.disabled || !isMoveDataTab(option.tab) || bulkMoving}
+                            onClick={() => {
+                              if (option.disabled || !isMoveDataTab(option.tab)) return;
+                              void moveSelectedFiles(option.tab);
+                            }}
+                            title={label}
+                          >
+                            <span>{option.label}</span>
+                            {option.reason ? <small>{option.reason}</small> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <button
                 type="button"
                 className="btn-danger"
                 onClick={requestDeleteSelected}
-                disabled={!selectedIds.length || bulkDeleting}
+                disabled={!selectedIds.length || bulkDeleting || bulkMoving}
                 aria-label={`${deleteButtonLabel} ${selectedIds.length} ${deleteItemLabel}`}
               >
                 {bulkDeleting ? "Deleting..." : deleteButtonLabel}
               </button>
             </div>
           </div>
+          {bulkMoveNotice && !isPromptTab ? (
+            <div className="subdued tiny media-bulk-move-notice" role="status" aria-live="polite">
+              {bulkMoveNotice}
+            </div>
+          ) : null}
+          {bulkMoveError && !isPromptTab ? (
+            <div className="auth-error media-bulk-move-error" role="alert" aria-live="assertive">
+              {bulkMoveError}
+            </div>
+          ) : null}
           {loading && <div className="subdued tiny">Loading media…</div>}
           {!loading && isPromptTab && !filteredPrompts.length && (
             <div className="subdued tiny">No prompts saved yet.</div>

@@ -7,9 +7,16 @@ import {
   invalidateSignedMediaUrl,
 } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
-import { CHARACTER_MANAGER_SLOT_KEYS, createEmptyCharacterSlotMap } from "../constants";
+import {
+  CHARACTER_MANAGER_SLOT_KEYS,
+  CHARACTER_SHEET_DROP_ZONES,
+  createEmptyCharacterSheetAssignments,
+  createEmptyCharacterSlotMap,
+} from "../constants";
 import { createDefaultCharacterValidationNotes } from "./referenceValidation";
 import type {
+  CharacterSheetAssignments,
+  CharacterSheetDropZoneKey,
   CharacterProfileImageTransform,
   CharacterReferenceSlotKey,
   CharacterSlotFile,
@@ -26,6 +33,8 @@ export const CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY = "profile_image_media_fi
 export const CHARACTER_PROFILE_IMAGE_ZOOM_KEY = "profile_image_zoom";
 export const CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY = "profile_image_offset_x";
 export const CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY = "profile_image_offset_y";
+export const CHARACTER_SHEET_ASSIGNMENTS_KEY = "character_sheet_assignments";
+export const LEGACY_CHARACTER_SHEET_ASSIGNMENTS_KEY = "reference_pack_assignments";
 export const DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: 1,
   offsetX: 0,
@@ -35,12 +44,14 @@ export const DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTra
 type CharacterRow = {
   id: string;
   name: string;
+  description: string;
   status: "draft" | "active" | "archived";
+  active_character_sheet_id: string | null;
   active_reference_pack_id: string | null;
   metadata: unknown;
 };
 
-type CharacterReferencePackRow = {
+type CharacterCharacterSheetRow = {
   id: string;
   version: number;
   status: "draft" | "validating" | "ready" | "failed";
@@ -67,43 +78,40 @@ type MediaFileRow = {
 
 export type CreatedCharacterDraft = {
   character: CharacterRow;
-  referencePack: CharacterReferencePackRow;
+  characterSheet: CharacterCharacterSheetRow;
 };
 
 export type CharacterManagerListItem = {
   characterId: string;
   characterName: string;
   characterStatus: "draft" | "active" | "archived";
-  referencePackId: string;
+  characterSheetId: string;
   profileImageUrl: string | null;
   profileImageTransform: CharacterProfileImageTransform | null;
-  referencePackStatus: "draft" | "validating" | "ready" | "failed";
-  completedCount: number;
-  hasFailedSlots: boolean;
-  totalCount: number;
+  characterSheetStatus: "draft" | "validating" | "ready" | "failed";
   updatedAt: string;
 };
 
 type CharacterIndexRow = {
   id: string;
   name: string;
+  description: string;
   status: "draft" | "active" | "archived";
   updated_at: string;
   metadata: unknown;
 };
 
-type PackIndexRow = {
+type CharacterSheetIndexRow = {
   id: string;
   character_id: string;
   status: "draft" | "validating" | "ready" | "failed";
   version: number;
 };
 
-type PackImageRow = {
-  reference_pack_id: string;
+type CharacterSheetImageRow = {
+  character_sheet_id: string;
   slot_key: string;
   storage_path: string | null;
-  validation_status: CharacterSlotValidationStatus;
 };
 
 export const asErrorMessage = (error: unknown, fallback: string) =>
@@ -111,6 +119,9 @@ export const asErrorMessage = (error: unknown, fallback: string) =>
 
 export const isCharacterReferenceSlotKey = (value: string): value is CharacterReferenceSlotKey =>
   CHARACTER_MANAGER_SLOT_KEYS.includes(value as CharacterReferenceSlotKey);
+
+const isCharacterSheetDropZoneKey = (value: string): value is CharacterSheetDropZoneKey =>
+  CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === value);
 
 const toObjectRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -138,6 +149,24 @@ const asTextArray = (value: unknown): string[] => {
     .filter((item): item is string => typeof item === "string")
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+};
+
+/**
+ * Normalize persisted character-sheet card assignments to a shape-stable record.
+ */
+export const normalizeCharacterSheetAssignments = (
+  assignments: Partial<Record<CharacterSheetDropZoneKey, CharacterReferenceSlotKey | null>>
+): CharacterSheetAssignments => {
+  const normalized = createEmptyCharacterSheetAssignments();
+  for (const [rawZoneKey, rawSlotKey] of Object.entries(assignments)) {
+    if (!isCharacterSheetDropZoneKey(rawZoneKey)) continue;
+    if (typeof rawSlotKey !== "string" || !isCharacterReferenceSlotKey(rawSlotKey)) {
+      normalized[rawZoneKey] = null;
+      continue;
+    }
+    normalized[rawZoneKey] = rawSlotKey;
+  }
+  return normalized;
 };
 
 const toValidationNotes = (value: unknown): CharacterSlotValidationNotes => {
@@ -215,26 +244,43 @@ export const getCharacterProfileImageTransform = (
 };
 
 /**
+ * Parse persisted character-sheet card assignments from character metadata.
+ */
+export const getCharacterSheetAssignments = (metadata: unknown): CharacterSheetAssignments => {
+  const record = toObjectRecord(metadata);
+  const rawAssignments = toObjectRecord(
+    record[CHARACTER_SHEET_ASSIGNMENTS_KEY] ?? record[LEGACY_CHARACTER_SHEET_ASSIGNMENTS_KEY]
+  );
+  const parsedAssignments = Object.fromEntries(
+    Object.entries(rawAssignments).map(([zoneKey, slotKey]) => [
+      zoneKey,
+      typeof slotKey === "string" ? slotKey : null,
+    ])
+  ) as Partial<Record<CharacterSheetDropZoneKey, CharacterReferenceSlotKey | null>>;
+  return normalizeCharacterSheetAssignments(parsedAssignments);
+};
+
+/**
  * Build a user-scoped storage path for a slot image.
  */
 export const createStoragePath = ({
   userId,
   characterId,
-  referencePackId,
+  characterSheetId,
   slotKey,
   filename,
   mimeType,
 }: {
   userId: string;
   characterId: string;
-  referencePackId: string;
+  characterSheetId: string;
   slotKey: CharacterReferenceSlotKey;
   filename: string;
   mimeType: string;
 }) => {
   const extension = inferFileExtension(filename, mimeType);
   const stem = sanitizeFileStem(filename);
-  return `${userId}/characters/${characterId}/${referencePackId}/${slotKey}/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`;
+  return `${userId}/characters/${characterId}/${characterSheetId}/${slotKey}/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`;
 };
 
 /**
@@ -273,7 +319,7 @@ export const resolveSupabaseContext = async () => {
 };
 
 /**
- * Create a new character with an initial draft reference pack.
+ * Create a new character with an initial draft character sheet.
  */
 export const createDraftCharacter = async (name: string): Promise<CreatedCharacterDraft> => {
   const { supabase, userId } = await resolveSupabaseContext();
@@ -285,7 +331,9 @@ export const createDraftCharacter = async (name: string): Promise<CreatedCharact
       name: trimmedName,
       status: "draft",
     })
-    .select("id, name, status, active_reference_pack_id, metadata")
+    .select(
+      "id, name, description, status, active_character_sheet_id, active_reference_pack_id, metadata"
+    )
     .single();
   if (createCharacterError || !createdCharacter) {
     throw new Error(
@@ -293,7 +341,7 @@ export const createDraftCharacter = async (name: string): Promise<CreatedCharact
     );
   }
 
-  const { data: createdPack, error: createPackError } = await supabase
+  const { data: createdCharacterSheet, error: createCharacterSheetError } = await supabase
     .from("character_reference_packs")
     .insert({
       character_id: createdCharacter.id,
@@ -303,24 +351,24 @@ export const createDraftCharacter = async (name: string): Promise<CreatedCharact
     })
     .select("id, version, status")
     .single();
-  if (createPackError || !createdPack) {
+  if (createCharacterSheetError || !createdCharacterSheet) {
     throw new Error(
-      asErrorMessage(createPackError, "Unable to create a character reference pack right now.")
+      asErrorMessage(createCharacterSheetError, "Unable to create a character sheet right now.")
     );
   }
 
   return {
     character: createdCharacter as CharacterRow,
-    referencePack: createdPack as CharacterReferencePackRow,
+    characterSheet: createdCharacterSheet as CharacterCharacterSheetRow,
   };
 };
 
 /**
- * Resolve the latest reference pack for a character, creating the first pack when absent.
+ * Resolve the latest character sheet for a character, creating the first sheet when absent.
  */
-export const resolveReferencePack = async (
+export const resolveCharacterSheet = async (
   characterId: string
-): Promise<CharacterReferencePackRow> => {
+): Promise<CharacterCharacterSheetRow> => {
   const { supabase, userId } = await resolveSupabaseContext();
   const { data, error } = await supabase
     .from("character_reference_packs")
@@ -331,13 +379,13 @@ export const resolveReferencePack = async (
     .limit(1)
     .maybeSingle();
   if (error) {
-    throw new Error(asErrorMessage(error, "Failed to load character reference packs."));
+    throw new Error(asErrorMessage(error, "Failed to load character sheets."));
   }
   if (data) {
-    return data as CharacterReferencePackRow;
+    return data as CharacterCharacterSheetRow;
   }
 
-  const { data: createdPack, error: createPackError } = await supabase
+  const { data: createdCharacterSheet, error: createCharacterSheetError } = await supabase
     .from("character_reference_packs")
     .insert({
       character_id: characterId,
@@ -347,10 +395,12 @@ export const resolveReferencePack = async (
     })
     .select("id, version, status")
     .single();
-  if (createPackError || !createdPack) {
-    throw new Error(asErrorMessage(createPackError, "Unable to create a reference pack."));
+  if (createCharacterSheetError || !createdCharacterSheet) {
+    throw new Error(
+      asErrorMessage(createCharacterSheetError, "Unable to create a character sheet.")
+    );
   }
-  return createdPack as CharacterReferencePackRow;
+  return createdCharacterSheet as CharacterCharacterSheetRow;
 };
 
 /**
@@ -438,10 +488,10 @@ const mapSlotRowsToSlotFileMap = async (
 };
 
 /**
- * Load persisted slot images for a reference pack and map them to UI slot state.
+ * Load persisted slot images for a character sheet and map them to UI slot state.
  */
-export const loadSlotFilesForPack = async (
-  referencePackId: string
+export const loadSlotFilesForCharacterSheet = async (
+  characterSheetId: string
 ): Promise<CharacterSlotFileMap> => {
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: imageRows, error: imagesError } = await supabase
@@ -450,7 +500,7 @@ export const loadSlotFilesForPack = async (
       "id, slot_key, media_file_id, storage_path, validation_status, validation_notes, updated_at"
     )
     .eq("user_id", userId)
-    .eq("reference_pack_id", referencePackId);
+    .eq("character_sheet_id", characterSheetId);
   if (imagesError) {
     throw new Error(asErrorMessage(imagesError, "Failed to load character reference images."));
   }
@@ -474,13 +524,13 @@ export const loadSlotFilesForPack = async (
 };
 
 /**
- * List user characters with latest-pack completion metadata for the Character Manager rail.
+ * List user characters with latest-sheet completion metadata for the Character Manager rail.
  */
 export const fetchCharacterManagerList = async (): Promise<CharacterManagerListItem[]> => {
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: characterRows, error: characterRowsError } = await supabase
     .from("characters")
-    .select("id, name, status, updated_at, metadata")
+    .select("id, name, description, status, updated_at, metadata")
     .eq("user_id", userId)
     .neq("status", "archived")
     .order("updated_at", { ascending: false });
@@ -492,27 +542,29 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
   if (!typedCharacterRows.length) return [];
   const characterIds = typedCharacterRows.map((row) => row.id);
 
-  const { data: packRows, error: packRowsError } = await supabase
+  const { data: characterSheetRows, error: characterSheetRowsError } = await supabase
     .from("character_reference_packs")
     .select("id, character_id, status, version")
     .eq("user_id", userId)
     .in("character_id", characterIds)
     .order("version", { ascending: false });
-  if (packRowsError) {
-    throw new Error(asErrorMessage(packRowsError, "Failed to load character reference packs."));
+  if (characterSheetRowsError) {
+    throw new Error(asErrorMessage(characterSheetRowsError, "Failed to load character sheets."));
   }
 
-  const latestPackByCharacter = new Map<string, PackIndexRow>();
-  for (const pack of (packRows ?? []) as PackIndexRow[]) {
-    if (!latestPackByCharacter.has(pack.character_id)) {
-      latestPackByCharacter.set(pack.character_id, pack);
+  const latestCharacterSheetByCharacter = new Map<string, CharacterSheetIndexRow>();
+  for (const characterSheet of (characterSheetRows ?? []) as CharacterSheetIndexRow[]) {
+    if (!latestCharacterSheetByCharacter.has(characterSheet.character_id)) {
+      latestCharacterSheetByCharacter.set(characterSheet.character_id, characterSheet);
     }
   }
 
-  const referencePackIds = Array.from(latestPackByCharacter.values()).map((pack) => pack.id);
-  const packToCharacterId = new Map<string, string>();
-  for (const [characterId, pack] of latestPackByCharacter.entries()) {
-    packToCharacterId.set(pack.id, characterId);
+  const characterSheetIds = Array.from(latestCharacterSheetByCharacter.values()).map(
+    (characterSheet) => characterSheet.id
+  );
+  const characterSheetToCharacterId = new Map<string, string>();
+  for (const [characterId, characterSheet] of latestCharacterSheetByCharacter.entries()) {
+    characterSheetToCharacterId.set(characterSheet.id, characterId);
   }
 
   const profilePathByCharacter = new Map<string, string>();
@@ -525,29 +577,19 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
     }
   }
 
-  const slotCountsByPack = new Map<string, number>();
-  const failedCountsByPack = new Map<string, number>();
   const fallbackAvatarPathByCharacter = new Map<string, string>();
-  if (referencePackIds.length) {
+  if (characterSheetIds.length) {
     const { data: imageRows, error: imageRowsError } = await supabase
       .from("character_reference_images")
-      .select("reference_pack_id, slot_key, storage_path, validation_status")
+      .select("character_sheet_id, slot_key, storage_path")
       .eq("user_id", userId)
-      .in("reference_pack_id", referencePackIds);
+      .in("character_sheet_id", characterSheetIds);
     if (imageRowsError) {
       throw new Error(asErrorMessage(imageRowsError, "Failed to load character slot metadata."));
     }
-
-    const uniqueSlotsByPack = new Map<string, Set<string>>();
-    for (const row of (imageRows ?? []) as PackImageRow[]) {
-      const nextSet = uniqueSlotsByPack.get(row.reference_pack_id) ?? new Set<string>();
-      if (isCharacterReferenceSlotKey(row.slot_key)) {
-        nextSet.add(row.slot_key);
-      }
-      uniqueSlotsByPack.set(row.reference_pack_id, nextSet);
-
+    for (const row of (imageRows ?? []) as CharacterSheetImageRow[]) {
       if (typeof row.storage_path === "string" && row.storage_path.trim().length) {
-        const characterId = packToCharacterId.get(row.reference_pack_id);
+        const characterId = characterSheetToCharacterId.get(row.character_sheet_id);
         if (!characterId) continue;
         const shouldPromoteToAvatar =
           row.slot_key === "portrait_close" || !fallbackAvatarPathByCharacter.has(characterId);
@@ -555,16 +597,6 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
           fallbackAvatarPathByCharacter.set(characterId, row.storage_path);
         }
       }
-
-      if (row.validation_status === "fail") {
-        failedCountsByPack.set(
-          row.reference_pack_id,
-          (failedCountsByPack.get(row.reference_pack_id) ?? 0) + 1
-        );
-      }
-    }
-    for (const [packId, slots] of uniqueSlotsByPack.entries()) {
-      slotCountsByPack.set(packId, slots.size);
     }
   }
 
@@ -590,19 +622,16 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
 
   return typedCharacterRows
     .map((row) => {
-      const latestPack = latestPackByCharacter.get(row.id);
-      if (!latestPack) return null;
+      const latestCharacterSheet = latestCharacterSheetByCharacter.get(row.id);
+      if (!latestCharacterSheet) return null;
       return {
         characterId: row.id,
         characterName: row.name?.trim() || DEFAULT_CHARACTER_NAME,
         characterStatus: row.status,
-        referencePackId: latestPack.id,
+        characterSheetId: latestCharacterSheet.id,
         profileImageUrl: avatarUrlByCharacter.get(row.id) ?? null,
         profileImageTransform: profileTransformByCharacter.get(row.id) ?? null,
-        referencePackStatus: latestPack.status,
-        completedCount: slotCountsByPack.get(latestPack.id) ?? 0,
-        hasFailedSlots: (failedCountsByPack.get(latestPack.id) ?? 0) > 0,
-        totalCount: CHARACTER_MANAGER_SLOT_KEYS.length,
+        characterSheetStatus: latestCharacterSheet.status,
         updatedAt: row.updated_at,
       } satisfies CharacterManagerListItem;
     })

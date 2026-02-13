@@ -19,14 +19,15 @@ Purpose: operational runbooks for recurring engineering and product workflows.
 - Put new SOPs in this folder and add them to `docs/README.md`.
 
 ## Current SOPs
+- `docs/sops/sop_character_manager_operations.md` (canonical `/character` runbook)
 - `docs/sops/sop_ai_studio_index.md`
 - `docs/sops/sop_ai_studio_agent.md`
 - `docs/sops/sop_ai_studio_agent_chat_ops.md`
 - `docs/sops/sop_text_generation.md`
 - `docs/sops/sop_image_generation.md`
 - `docs/sops/sop_video_generation.md`
-- `docs/sops/sop_character_generation.md`
-- `docs/sops/sop_character_identity.md`
+- `docs/sops/sop_character_generation.md` (legacy, archived pipeline context)
+- `docs/sops/sop_character_identity.md` (legacy, archived pipeline context)
 - `docs/sops/sop_saved_creators.md`
 - `docs/sops/sop_media_library_ui.md`
 - `docs/sops/sop_media_performance_operations.md`

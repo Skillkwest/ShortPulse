@@ -1,5 +1,5 @@
 /**
- * Character Manager reference-pack revalidation.
+ * Character Manager character-sheet revalidation.
  * Re-runs deterministic checks for persisted slot images and stores updated statuses/notes.
  */
 import {
@@ -35,7 +35,7 @@ type SlotValidationRecord = {
   notes: CharacterSlotValidationNotes;
 };
 
-export type CharacterPackRevalidationSummary = {
+export type CharacterSheetRevalidationSummary = {
   totalCount: number;
   passCount: number;
   warnCount: number;
@@ -71,21 +71,21 @@ const markDuplicateFailures = (records: SlotValidationRecord[]) => {
 };
 
 /**
- * Revalidate all persisted slot images in a reference pack and persist updated statuses.
+ * Revalidate all persisted slot images in a character sheet and persist updated statuses.
  */
-export const revalidateCharacterManagerPack = async ({
-  referencePackId,
+export const revalidateCharacterManagerCharacterSheet = async ({
+  characterSheetId,
 }: {
-  referencePackId: string;
-}): Promise<CharacterPackRevalidationSummary> => {
+  characterSheetId: string;
+}): Promise<CharacterSheetRevalidationSummary> => {
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: rows, error } = await supabase
     .from("character_reference_images")
     .select("id, slot_key, storage_path")
     .eq("user_id", userId)
-    .eq("reference_pack_id", referencePackId);
+    .eq("character_sheet_id", characterSheetId);
   if (error) {
-    throw new Error(asErrorMessage(error, "Failed to load reference pack for revalidation."));
+    throw new Error(asErrorMessage(error, "Failed to load character sheet for revalidation."));
   }
 
   const typedRows = (rows ?? []) as CharacterReferenceImageRow[];

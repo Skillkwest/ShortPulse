@@ -33,7 +33,7 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
   - `source` is non-null with default `upload` (see `sql/migrations/007_harden_media_source_and_usage_rpc.sql`).
   - `source = private_upload` requires `file_type = image` and `storage_path` under `<user_id>/private/images/...`.
   - Any row with `storage_path` under `<user_id>/private/images/...` must use `source = private_upload`.
-  - `source = character_reference` requires `file_type = image`, `storage_path` under `<user_id>/characters/...`, and metadata keys for `character_id`, `reference_pack_id`, and `slot_key` (see `sql/migrations/010_harden_character_reference_media_integrity.sql`).
+  - `source = character_reference` requires `file_type = image`, `storage_path` under `<user_id>/characters/...`, and metadata keys for `character_id`, `character_sheet_id` (legacy `reference_pack_id` is still accepted), and `slot_key` (see `sql/migrations/010_harden_character_reference_media_integrity.sql` and `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`).
 
 ### Media usage RPCs
 - `get_media_library_usage_bytes()`: returns total `file_size` bytes for the authenticated user’s `media_files` rows.
@@ -44,7 +44,8 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `name` (text): Character display name.
 - `status` (text): draft | active | archived.
-- `active_reference_pack_id` (uuid, nullable): Active reference pack pointer for generation workflows.
+- `active_character_sheet_id` (uuid, nullable): Active character sheet pointer for generation workflows.
+- `active_reference_pack_id` (uuid, nullable): Legacy alias kept in sync for backward compatibility.
 - `metadata` (jsonb, default `{}`)
   - Character profile image linkage keys:
     - `profile_image_storage_path` (text path in `media_library`)
@@ -52,6 +53,9 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
     - `profile_image_zoom` (number; persisted profile crop zoom)
     - `profile_image_offset_x` (number; persisted profile crop horizontal offset)
     - `profile_image_offset_y` (number; persisted profile crop vertical offset)
+  - Character sheet assignment keys:
+    - `character_sheet_assignments` (canonical key used by current Character Manager UI)
+    - `reference_pack_assignments` (legacy alias kept in sync for backward compatibility)
 - `created_at` / `updated_at` (timestamptz)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
@@ -69,11 +73,12 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 ### character_reference_images
 - `id` (uuid, pk)
 - `character_id` (uuid): Parent character.
-- `reference_pack_id` (uuid): Parent reference pack.
+- `character_sheet_id` (uuid): Parent character sheet (canonical).
+- `reference_pack_id` (uuid): Legacy alias kept in sync for backward compatibility.
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `slot_key` (text): Fixed character reference slot key.
 - `media_file_id` (uuid): Linked `media_files` row.
-- `storage_path` (text): Canonical private object path under `<user_id>/characters/<character_id>/<reference_pack_id>/<slot_key>/...`.
+- `storage_path` (text): Canonical private object path under `<user_id>/characters/<character_id>/<character_sheet_id>/<slot_key>/...`.
 - `validation_status` (text): pending | pass | warn | fail.
 - `validation_notes` (jsonb, default `{}`)
 - `created_at` / `updated_at` (timestamptz)
@@ -85,7 +90,8 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 ### character_generation_jobs
 - `id` (uuid, pk)
 - `character_id` (uuid): Parent character.
-- `reference_pack_id` (uuid): Parent reference pack used by generation.
+- `character_sheet_id` (uuid): Parent character sheet used by generation (canonical).
+- `reference_pack_id` (uuid): Legacy alias kept in sync for backward compatibility.
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `provider` (text), `request_id` (text, nullable), `status` (text), `prompt` (text)
 - `output_media_file_id` (uuid, nullable): Linked generation output in `media_files`.

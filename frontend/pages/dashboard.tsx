@@ -232,8 +232,7 @@ export default function DashboardPage() {
     {
       title: "Character",
       eyebrow: "Identity",
-      description:
-        "Open Character Manager to build the 10-shot reference pack and manage each character profile.",
+      description: "Open Character Manager to upload references and manage each character profile.",
       href: "/character",
       cta: "Open manager →",
       variant: "tool-character",

@@ -117,6 +117,24 @@ Checklist:
   - variant paths (`thumb_variant_path`, `poster_variant_path`, `preview_variant_path`) are populated,
   - device/network constraints are applying reduced sign/autoplay budgets.
 
+## Character Manager alias drift (Character Sheet vs legacy Reference Pack fields)
+Symptoms:
+- Character Sheet slots appear assigned in one surface but missing in another.
+- Character rows load with stale active sheet pointers after mixed-version deployments.
+
+Checklist:
+- Ensure `sql/migrations/012_add_character_sheet_aliases_and_compat.sql` has been applied.
+- Run diagnostics by executing the SQL in `sql/check_character_sheet_alias_drift.sql`.
+- All `mismatch_count` values should be `0`.
+
+Mitigation:
+- Re-run migration `012_add_character_sheet_aliases_and_compat.sql` (safe to re-run).
+- Re-check drift report; if mismatches remain, inspect trigger health:
+  - `trg_characters_sync_character_sheet_aliases`
+  - `trg_character_reference_images_sync_character_sheet_aliases`
+  - `trg_character_generation_jobs_sync_character_sheet_aliases`
+- Record persistent mismatches in `docs/change_log.md` and escalate before removing legacy aliases.
+
 ## Prompt or AI Generation saves fail
 Checklist:
 - `media_prompts`, `ai_generations`, and `media_events` tables exist.

@@ -1,5 +1,7 @@
 # Character Workflow Build-Out Guide (ShortPulse)
 
+> Status: Legacy build guide for the old `features/character/*` pipeline. For current `/character` operations, use `docs/sops/sop_character_manager_operations.md`.
+
 Purpose: living checklist to take the current Character tool from rough UI to production-ready, identity-stable generation.
 
 ## Current baseline

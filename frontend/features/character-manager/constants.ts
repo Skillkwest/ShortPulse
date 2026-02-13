@@ -1,8 +1,10 @@
 /**
  * Character Manager constants.
- * Provides the fixed 10-slot intake definition and lightweight client-side constraints.
+ * Provides canonical reference-slot definitions and lightweight client-side constraints.
  */
 import type {
+  CharacterSheetAssignments,
+  CharacterSheetDropZoneKey,
   CharacterReferenceSlotDefinition,
   CharacterReferenceSlotKey,
   CharacterSlotFileMap,
@@ -29,9 +31,9 @@ export const CHARACTER_MANAGER_SLOT_DEFINITIONS: CharacterReferenceSlotDefinitio
   },
   {
     key: "top_down",
-    label: "Right Side Body Profile",
-    helper: "Exact right-side profile, full body visible.",
-    hint: "Match framing style from the left-side profile shot.",
+    label: "Top-Down View",
+    helper: "Camera above character with a clear silhouette.",
+    hint: "Keep the full body visible from overhead.",
   },
   {
     key: "front_left_34",
@@ -90,3 +92,16 @@ export const CHARACTER_MANAGER_SLOT_LABEL_BY_KEY = CHARACTER_MANAGER_SLOT_DEFINI
   },
   {} as Record<CharacterReferenceSlotKey, string>
 );
+
+export const CHARACTER_SHEET_DROP_ZONES = [
+  { key: "portrait", label: "Portrait" },
+  { key: "close_up", label: "Close-up" },
+  { key: "front_shot", label: "Full-body Front Shot" },
+  { key: "back_shot", label: "Full-body Back Shot" },
+] as const satisfies ReadonlyArray<{ key: CharacterSheetDropZoneKey; label: string }>;
+
+export const createEmptyCharacterSheetAssignments = (): CharacterSheetAssignments =>
+  CHARACTER_SHEET_DROP_ZONES.reduce((acc, slot) => {
+    acc[slot.key] = null;
+    return acc;
+  }, {} as CharacterSheetAssignments);

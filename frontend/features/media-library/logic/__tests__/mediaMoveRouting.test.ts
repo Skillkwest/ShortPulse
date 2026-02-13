@@ -3,10 +3,12 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  buildBulkMoveTabOptions,
   buildMoveTabOptions,
   buildMovedStoragePath,
   getMediaDataTabForRow,
   resolveSourceForDataTab,
+  validateBulkMoveDestination,
   validateMoveDestination,
 } from "../mediaMoveRouting";
 
@@ -58,6 +60,50 @@ describe("mediaMoveRouting", () => {
     const savedPrompts = options.find((option) => option.tab === "saved_prompts");
     expect(savedPrompts).toBeTruthy();
     expect(savedPrompts?.disabled).toBe(true);
+  });
+
+  it("allows bulk moves only when every selected row is eligible", () => {
+    const imageRow = {
+      source: "upload",
+      storage_path: "user-1/images/file.jpg",
+      file_type: "image",
+    };
+    const videoRow = {
+      source: "upload",
+      storage_path: "user-1/videos/file.mp4",
+      file_type: "video/mp4",
+    };
+
+    const allImages = validateBulkMoveDestination([imageRow, imageRow], "private");
+    expect(allImages.allowed).toBe(true);
+    expect(allImages.blockedCount).toBe(0);
+
+    const mixed = validateBulkMoveDestination([imageRow, videoRow], "private");
+    expect(mixed.allowed).toBe(false);
+    expect(mixed.blockedCount).toBe(1);
+    expect(mixed.reason).toContain("1 of 2 selected files");
+  });
+
+  it("builds bulk move options with disabled entries for invalid destinations", () => {
+    const options = buildBulkMoveTabOptions([
+      {
+        source: "upload",
+        storage_path: "user-1/videos/file.mp4",
+        file_type: "video/mp4",
+      },
+      {
+        source: "upload",
+        storage_path: "user-1/videos/file-2.mp4",
+        file_type: "video/mp4",
+      },
+    ]);
+
+    const privateOption = options.find((option) => option.tab === "private");
+    expect(privateOption?.disabled).toBe(true);
+    expect(privateOption?.reason).toBe("Private supports images only");
+
+    const aiOption = options.find((option) => option.tab === "ai_generations");
+    expect(aiOption?.disabled).toBe(false);
   });
 
   it("maps data tabs to expected source values", () => {

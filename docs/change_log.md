@@ -247,3 +247,27 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2026-02-12 (character placeholder navigation)
 - Added a temporary `/character-soon` placeholder page and routed the dashboard Character card to it while the full Character workflow remains staged.
 - Updated route documentation in `README.md` and `docs/routes.md` so the temporary Character navigation is explicit.
+
+## 2026-02-13
+- Completed Character Manager terminology migration follow-through: standardized app/UI copy on **Character Sheet** and added regression coverage so `/character` keeps the label stable (`frontend/features/character-manager/components/__tests__/CharacterManagerShell.copy.test.tsx`).
+- Added backward-compatible schema migration `sql/migrations/012_add_character_sheet_aliases_and_compat.sql` plus rollback script to introduce `character_sheet_*` aliases while keeping legacy `reference_pack_*` fields synchronized.
+- Updated Character Manager persistence to use canonical `character_sheet_id`/`active_character_sheet_id` fields and canonical metadata key `character_sheet_assignments`, while dual-writing legacy aliases for compatibility.
+- Added ADR `docs/adr/0011-character-sheet-terminology-policy.md` to codify naming policy and migration posture.
+- Updated migration/docs inventory to include latest Character Manager migrations and compatibility semantics (`docs/database-migrations.md`, `docs/data-dictionary.md`, `docs/README.md`).
+
+## 2026-02-13 (later)
+- Added `sql/check_character_sheet_alias_drift.sql` to provide a reusable diagnostics query for Character Sheet vs legacy Reference Pack alias mismatch detection.
+- Expanded operational docs with alias drift troubleshooting/monitoring and post-migration verification guidance (`docs/troubleshooting.md`, `docs/monitoring.md`, `docs/database-migrations.md`).
+- Added deprecation-planning backlog items for removing legacy `reference_pack_*` aliases after monitored stability (`docs/planning/backlog.md`).
+- Attempted `npm -C frontend run db:migrate`; command failed in this workspace because Supabase CLI is not linked to a project ref.
+
+## 2026-02-13 (planning archive cleanup)
+- Archived the 10-slot Character Manager redesign planning doc by moving `docs/planning/character-manager-character-sheet-plan.md` to `docs/archive/character-manager-character-sheet-plan.md`.
+- Updated planning/docs indexes to remove active-planning references and list the archived location (`docs/planning/README.md`, `docs/README.md`, `docs/archive/README.md`).
+- Updated `docs/adr/0010-character-manager-character-sheet-architecture.md` to remove the fixed 10-slot requirement language and reference the current phased Character Manager contract.
+
+## 2026-02-13 (character sheet assignment persistence)
+- Wired Character Manager Character Sheet assignments to persist in Supabase character metadata via `saveCharacterManagerCharacterSheetAssignments`, including canonical + compatibility alias keys.
+- Updated `/character` shell state to load and save drop-zone assignments through `useCharacterManagerDraft` so assign/replace/swap survives refresh and character switching.
+- Added/updated Character Manager tests to cover persisted assignment behavior, clear/reupload behavior, and 8-reference cap stability.
+- Updated docs to reflect persisted Character Sheet assignments (`README.md`, `docs/routes.md`, `docs/sops/sop_character_manager_operations.md`).

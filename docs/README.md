@@ -69,6 +69,7 @@ Start here for all repository documentation.
 
 ## SOPs
 - `docs/sops/README.md`
+- `docs/sops/sop_character_manager_operations.md`
 - `docs/sops/sop_new_feature_modularization.md`
 - `docs/sops/sop_saved_creators.md`
 - `docs/sops/sop_media_library_ui.md`
@@ -83,8 +84,8 @@ Start here for all repository documentation.
 - `docs/sops/sop_text_generation.md`
 - `docs/sops/sop_image_generation.md`
 - `docs/sops/sop_video_generation.md`
-- `docs/sops/sop_character_generation.md`
-- `docs/sops/sop_character_identity.md`
+- `docs/sops/sop_character_generation.md` (legacy)
+- `docs/sops/sop_character_identity.md` (legacy)
 
 ## Product
 - `docs/product/README.md`
@@ -106,7 +107,6 @@ Start here for all repository documentation.
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
 - `docs/planning/media-optimization-phase0-measurement-spec.md`
 - `docs/planning/media-optimization-schema-and-migration-spec.md`
-- `docs/planning/character-manager-reference-sheet-plan.md`
 - `docs/change_log.md`
 
 ## ADRs
@@ -120,12 +120,14 @@ Start here for all repository documentation.
 - `docs/adr/0007-ai-studio-agent-tooling-strategy.md`
 - `docs/adr/0008-private-media-tab-storage-scope.md`
 - `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`
-- `docs/adr/0010-character-manager-reference-pack-architecture.md`
+- `docs/adr/0010-character-manager-character-sheet-architecture.md`
+- `docs/adr/0011-character-sheet-terminology-policy.md`
 
 ## Archive
 - `docs/archive/README.md`
 - `docs/archive/ai-studio-agent-implementation-plan.md`
 - `docs/archive/ai-studio-prompts.md`
+- `docs/archive/character-manager-character-sheet-plan.md`
 - `docs/archive/refactor_prompt_archive.md`
 - `docs/archive/design-system-v1-draft.md`
 

@@ -1,5 +1,7 @@
 # SOP: Character Generation Workflow
 
+> Status: Legacy pipeline reference. For the active `/character` surface, use `docs/sops/sop_character_manager_operations.md`.
+
 Purpose: document the frontend-triggered character workflow so consistent identity generation can ship without backend dependencies.
 
 ## Scope

@@ -79,6 +79,7 @@ Key indicators:
 - `p95_duration_ms` for `media.sign.batch.completed`
 - `failed_ratio` grouped by `surface`/`tab`/`query_mode`
 - first-card/first-media-paint timing trends
+- bulk move timings/failures via `media.move.bulk.completed` and `media.move.bulk.failed`
 
 ## Tuning Knobs
 - Media Library sign budget constants:

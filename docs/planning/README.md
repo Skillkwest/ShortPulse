@@ -11,7 +11,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `media-library-reference-grid-optimization-plan.md`: near-instant media loading architecture plan (Media Library + AI Studio Reference Grid).
 - `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
 - `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.
-- `character-manager-reference-sheet-plan.md`: full redesign blueprint for Character Manager, including 10-slot reference intake UX, Seedream consistency pipeline, schema plan, and phased rollout.
 - `media-library-move-tabs-plan.md`: implementation plan for modal Move action and durable tab-to-tab media transfers.
 
 ## Maintenance

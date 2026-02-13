@@ -1,5 +1,7 @@
 # Character Manager Redesign Plan
 
+> Status: Archived (legacy 10-slot/activation planning artifact). The active `/character` behavior is defined by `docs/sops/sop_character_manager_operations.md` (8 persisted reference uploads + UI-only Character Sheet drop-zone assignments).
+
 ## Goal
 Redesign the Character page from scratch into a beginner-first workspace that:
 - Creates and manages characters.
@@ -30,7 +32,7 @@ Primary page structure:
 2. Character list rail (manage existing characters).
 3. Active character builder (10-slot intake).
 4. Validation + activate panel.
-5. Reference pack history/version section.
+5. Character sheet history/version section.
 
 ## 10 Required Reference Slots
 All slots are required before activation.
@@ -144,16 +146,16 @@ Phase 1 validation:
 Phase 2 validation:
 - Add viewpoint classifier for slot confidence scoring.
 
-### C) Reference Pack Assembly
+### C) Character Sheet Assembly
 1. Ensure all 10 slots are present.
 2. Build ordered manifest (`slot_key` canonical order).
 3. Generate signed URLs for the 10 images.
 4. Persist `seedream_payload` snapshot in `character_reference_packs`.
-5. Mark pack `ready` and set as character active pack.
+5. Mark the character sheet `ready` and set it as the active character sheet.
 
 ### D) Seedream Consistency Pipeline
 For character-consistent generation:
-1. Pull active reference pack (10 ordered images).
+1. Pull active character sheet (10 ordered images).
 2. Submit to `/api/fal/seedream-edit-submit` with `image_urls` and user prompt.
 3. Poll `/api/fal/seedream-status`.
 4. Persist output into `media_files` (source `character_generation`).
@@ -162,7 +164,7 @@ For character-consistent generation:
 Notes:
 - Current API supports up to 10 reference images, matching the 10-slot sheet.
 - No LoRA training step is introduced.
-- Reference pack versioning enables rollback and iteration.
+- Character sheet versioning enables rollback and iteration.
 - Generation and polling live inside Character Manager UX.
 
 ## Integration Safeguards (Added by Audit)
@@ -200,10 +202,10 @@ Wizard steps:
 1. Character basics (name + optional short descriptor).
 2. Upload 10 required views.
 3. Review and fix warnings.
-4. Activate character reference pack.
+4. Activate character sheet.
 
 Management actions:
-- Create new version from current pack.
+- Create a new version from the current character sheet.
 - Replace single slot image and revalidate.
 - Duplicate character to branch variants.
 - Archive/restore.
@@ -219,7 +221,7 @@ Global states:
 - `Draft` (`0-9/10`)
 - `Ready for activation` (`10/10`, no hard errors)
 - `Active`
-- `Update available` (new draft exists over active pack)
+- `Update available` (new draft exists over active character sheet)
 
 ## Accessibility and Responsive Requirements
 - Keyboard-operable drop zones and replace/remove actions.
@@ -231,7 +233,7 @@ Global states:
 ## Phased Delivery Plan
 ### Phase 0: Product + Schema Finalization
 - Lock naming, IA, slot taxonomy, and status model.
-- Create migration spec + ADR for reference-pack architecture.
+- Create migration spec + ADR for character-sheet architecture.
 - Add migration updates for `media_files.source` enum and character tables.
 - Add payload validator contract for `/api/fal/seedream-edit-submit`.
 
@@ -240,26 +242,26 @@ Global states:
 - Implement 10 fixed slot cards, upload/replace/remove, progress meter.
 - Save draft characters and slot assets.
 
-### Phase 2: Validation + Pack Activation
+### Phase 2: Validation + Character Sheet Activation
 - Add deterministic validation and warning UX.
-- Activate reference packs and versioning model.
+- Activate character sheets and versioning model.
 
 ### Phase 3: Seedream Integration
-- Wire active pack to Seedream edit submit/status flow.
+- Wire the active character sheet to Seedream edit submit/status flow.
 - Persist generation outputs and history.
 - Add in-page credit estimate + error handling for insufficient credits.
 
 ### Phase 4: Management + Iteration Enhancements
 - Character list management actions.
-- Pack version compare/rollback.
+- Character sheet version compare/rollback.
 - Telemetry and performance polish.
 - Update dashboard route and docs (`README.md`, `docs/routes.md`, SOP index) from placeholder to live route.
 
 ## Acceptance Criteria
 - User can create a character only after all 10 required slots are filled.
 - Each slot is explicitly labeled and beginner-readable.
-- Active reference pack is versioned and reproducible.
-- Seedream requests use the active ordered 10-image pack.
+- Active character sheet is versioned and reproducible.
+- Seedream requests use the active ordered 10-image character sheet.
 - Media and character data remain user-isolated (RLS + private paths).
 - Visual language matches Media Library base surfaces and character green accents.
 - Character Manager handles provider billing failures and duplicate submit protection safely.

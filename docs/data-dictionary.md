@@ -49,6 +49,9 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
   - Character profile image linkage keys:
     - `profile_image_storage_path` (text path in `media_library`)
     - `profile_image_media_file_id` (uuid of linked `media_files` row)
+    - `profile_image_zoom` (number; persisted profile crop zoom)
+    - `profile_image_offset_x` (number; persisted profile crop horizontal offset)
+    - `profile_image_offset_y` (number; persisted profile crop vertical offset)
 - `created_at` / `updated_at` (timestamptz)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 

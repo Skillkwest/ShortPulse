@@ -117,6 +117,9 @@ describe("useAiStudioViewModel edit guardrails", () => {
 
     expect(result.current.generationGuardrail).toBe("Add a reference image before generating.");
     expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.referenceImageWarning).toBe(
+      "No reference image detected. Edit workflow requires a reference image and will not fallback to text-to-image."
+    );
   });
 
   it("requires a prompt in edit workflow", () => {

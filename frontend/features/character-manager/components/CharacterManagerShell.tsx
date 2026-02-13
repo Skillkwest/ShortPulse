@@ -6,7 +6,15 @@ import type { User } from "@supabase/supabase-js";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle, ShieldCheck, Trash, UploadSimple, XCircle } from "phosphor-react";
+import {
+  CheckCircle,
+  Plus,
+  PencilSimpleLine,
+  ShieldCheck,
+  Trash,
+  UploadSimple,
+  XCircle,
+} from "phosphor-react";
 import { DashboardNavPrefab } from "../../../components/DashboardNavPrefab";
 import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "../../billing/catalog";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
@@ -18,11 +26,14 @@ import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
 import type { CharacterProfileImageTransform } from "../types";
 
 type CharacterWorkflowTab = "create" | "manage";
-const SIMPLE_REFERENCE_IMAGE_LIMIT = 4;
+const SIMPLE_REFERENCE_IMAGE_LIMIT = 8;
 const PROFILE_ZOOM_MIN = 1;
 const PROFILE_ZOOM_MAX = 2.4;
 const PROFILE_OFFSET_MIN = -40;
 const PROFILE_OFFSET_MAX = 40;
+const PROFILE_PREVIEW_IMAGE_SIZE = 172;
+const CHARACTER_CHIP_AVATAR_SIZE = 44;
+const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
 const DEFAULT_PLAN_TIER = "business";
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: PROFILE_ZOOM_MIN,
@@ -36,6 +47,19 @@ const PLAN_MAP: Record<string, { label: string; className: string }> = {
   studio: { label: "Studio", className: "plan-studio" },
   business: { label: "Business", className: "plan-business" },
 };
+
+function buildProfileImageTransformStyle(
+  transform: CharacterProfileImageTransform,
+  renderSize: number
+): React.CSSProperties {
+  const offsetScale = renderSize / PROFILE_PREVIEW_IMAGE_SIZE;
+  const offsetX = Math.round(transform.offsetX * offsetScale * 100) / 100;
+  const offsetY = Math.round(transform.offsetY * offsetScale * 100) / 100;
+  return {
+    transform: `translate(${offsetX}px, ${offsetY}px) scale(${transform.zoom})`,
+    transformOrigin: "center center",
+  };
+}
 
 /**
  * Orchestrates simple character creation flow while advanced uploader remains hidden.
@@ -161,6 +185,10 @@ export function CharacterManagerShell() {
           } => Boolean(entry)
         ),
     [simpleReferenceSlotKeys, slots]
+  );
+  const remainingReferenceSlotCount = Math.max(
+    0,
+    SIMPLE_REFERENCE_IMAGE_LIMIT - uploadedReferenceEntries.length
   );
 
   useEffect(() => {
@@ -371,10 +399,6 @@ export function CharacterManagerShell() {
 
   return (
     <main id="main-content" className="page page-wide character-manager-page">
-      <div className="page-top">
-        <DashboardNavPrefab />
-      </div>
-
       <section className="panel saved-header-bar saved-hero hero-image-card character-manager-hero">
         <div className="saved-header-left">
           <div className="saved-title-stack">
@@ -413,6 +437,7 @@ export function CharacterManagerShell() {
         aria-label="Character workflow tabs"
       >
         <div className="character-mode-row">
+          <DashboardNavPrefab variant="inline" className="character-mode-dashboard-link" />
           <div
             className="character-mode-tab-row"
             role="tablist"
@@ -443,7 +468,19 @@ export function CharacterManagerShell() {
             onClick={handleCreateNewCharacter}
             disabled={isCreatingCharacter || loading}
           >
-            {isCreatingCharacter ? "Creating..." : "Create New Character"}
+            {isCreatingCharacter ? (
+              "Creating..."
+            ) : (
+              <>
+                <Plus
+                  size={14}
+                  weight="bold"
+                  className="character-mode-create-btn-icon"
+                  aria-hidden
+                />
+                <span>Create New Character</span>
+              </>
+            )}
           </button>
         </div>
       </section>
@@ -469,241 +506,259 @@ export function CharacterManagerShell() {
       {activeTab === "create" ? (
         <section className="character-simple-panel">
           <div className="character-create-flow">
-            <section className="character-section">
-              <div className="character-section-head">
-                <div>
-                  <p className="eyebrow">1. Character Identity</p>
-                  <h3 className="character-section-title">Profile Setup</h3>
+            <div className="character-create-primary-column">
+              <section className="character-section character-section--profile">
+                <div className="character-section-head">
+                  <div>
+                    <h3 className="character-section-title">Character Identity</h3>
+                    <p className="character-section-helper tiny subdued">
+                      Define the profile photo and core traits for this character.
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="character-profile-card">
-                <div className="character-profile-photo-stack">
+                <div className="character-profile-card">
+                  <div className="character-profile-photo-stack">
+                    <button
+                      type="button"
+                      className={`character-profile-photo-btn ${profileImageUrl ? "has-image" : ""}`}
+                      onClick={openProfilePicker}
+                      disabled={pageBusy}
+                      aria-label={
+                        profileImageUrl && !isProfileAdjusterVisible
+                          ? "Edit profile photo adjustments"
+                          : "Upload profile photo"
+                      }
+                    >
+                      {profileImageUrl ? (
+                        <>
+                          <Image
+                            src={profileImageUrl}
+                            alt="Character profile"
+                            className="character-profile-photo"
+                            style={buildProfileImageTransformStyle(
+                              activeProfileImageTransform,
+                              PROFILE_PREVIEW_IMAGE_SIZE
+                            )}
+                            width={PROFILE_PREVIEW_IMAGE_SIZE}
+                            height={PROFILE_PREVIEW_IMAGE_SIZE}
+                            unoptimized
+                          />
+                          <span className="character-profile-edit-indicator" aria-hidden="true">
+                            <PencilSimpleLine size={14} weight="bold" />
+                            <span>Edit photo</span>
+                          </span>
+                        </>
+                      ) : (
+                        <span className="character-profile-initials" aria-hidden>
+                          {profileInitials}
+                        </span>
+                      )}
+                    </button>
+                    {profileImageUrl && isProfileAdjusterVisible ? (
+                      <div
+                        className="character-profile-adjuster"
+                        role="group"
+                        aria-label="Profile crop controls"
+                      >
+                        <div className="character-profile-adjuster-row">
+                          <label
+                            className="character-profile-adjuster-label"
+                            htmlFor="profile-adjust-zoom"
+                          >
+                            <span>Zoom</span>
+                            <span>{Math.round(activeProfileImageTransform.zoom * 100)}%</span>
+                          </label>
+                          <input
+                            id="profile-adjust-zoom"
+                            className="character-profile-adjuster-range"
+                            type="range"
+                            min={PROFILE_ZOOM_MIN}
+                            max={PROFILE_ZOOM_MAX}
+                            step={0.01}
+                            value={activeProfileImageTransform.zoom}
+                            onChange={(event) => {
+                              const nextZoom = Number(event.target.value);
+                              setProfileAdjustDraft((previous) => ({
+                                ...(previous ?? profileImageTransform),
+                                zoom: nextZoom,
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div className="character-profile-adjuster-row">
+                          <label
+                            className="character-profile-adjuster-label"
+                            htmlFor="profile-adjust-x"
+                          >
+                            <span>Horizontal</span>
+                            <span>
+                              {activeProfileImageTransform.offsetX > 0
+                                ? `+${activeProfileImageTransform.offsetX}`
+                                : activeProfileImageTransform.offsetX}
+                            </span>
+                          </label>
+                          <input
+                            id="profile-adjust-x"
+                            className="character-profile-adjuster-range"
+                            type="range"
+                            min={PROFILE_OFFSET_MIN}
+                            max={PROFILE_OFFSET_MAX}
+                            step={1}
+                            value={activeProfileImageTransform.offsetX}
+                            onChange={(event) => {
+                              const nextOffsetX = Number(event.target.value);
+                              setProfileAdjustDraft((previous) => ({
+                                ...(previous ?? profileImageTransform),
+                                offsetX: nextOffsetX,
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div className="character-profile-adjuster-row">
+                          <label
+                            className="character-profile-adjuster-label"
+                            htmlFor="profile-adjust-y"
+                          >
+                            <span>Vertical</span>
+                            <span>
+                              {activeProfileImageTransform.offsetY > 0
+                                ? `+${activeProfileImageTransform.offsetY}`
+                                : activeProfileImageTransform.offsetY}
+                            </span>
+                          </label>
+                          <input
+                            id="profile-adjust-y"
+                            className="character-profile-adjuster-range"
+                            type="range"
+                            min={PROFILE_OFFSET_MIN}
+                            max={PROFILE_OFFSET_MAX}
+                            step={1}
+                            value={activeProfileImageTransform.offsetY}
+                            onChange={(event) => {
+                              const nextOffsetY = Number(event.target.value);
+                              setProfileAdjustDraft((previous) => ({
+                                ...(previous ?? profileImageTransform),
+                                offsetY: nextOffsetY,
+                              }));
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="ghost-btn small character-profile-adjuster-reset"
+                          onClick={() => {
+                            void saveProfileAdjustments();
+                          }}
+                          disabled={pageBusy}
+                        >
+                          {isSavingProfileImage ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-btn small character-profile-adjuster-remove character-remove-btn"
+                          onClick={clearProfilePreview}
+                          disabled={pageBusy}
+                        >
+                          Remove photo
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="character-profile-fields">
+                    <label
+                      className="control-row character-simple-field"
+                      htmlFor="character-manager-name"
+                    >
+                      <span className="input-label">Character Name</span>
+                      <input
+                        ref={characterNameInputRef}
+                        id="character-manager-name"
+                        className="character-name-input"
+                        type="text"
+                        value={characterName}
+                        maxLength={80}
+                        onChange={(event) => setCharacterName(event.target.value)}
+                        placeholder="Enter character name"
+                        disabled={loading || isActivating}
+                      />
+                    </label>
+
+                    <label
+                      className="control-row character-simple-field"
+                      htmlFor="character-manager-description"
+                    >
+                      <span className="input-label">Character Description</span>
+                      <textarea
+                        id="character-manager-description"
+                        className="character-description-input"
+                        rows={3}
+                        value={characterDescription}
+                        maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
+                        onChange={(event) => setCharacterDescription(event.target.value)}
+                        placeholder="Describe this character (style, vibe, outfit, key visual traits)."
+                        disabled={loading || isActivating}
+                      />
+                      <div className="character-description-footer-row">
+                        <p className="character-description-helper tiny subdued">
+                          This will be used as part of character consistency generation.
+                        </p>
+                        <p className="character-description-count tiny subdued">
+                          {characterDescription.length}/{CHARACTER_DESCRIPTION_MAX_LENGTH}
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </section>
+
+              <section className="character-section character-section--reference-drop">
+                <div className="character-section-head">
+                  <div>
+                    <h3 className="character-section-title">Drop References</h3>
+                    <p className="character-section-helper tiny subdued">
+                      Upload shot references here to fill your active working set.
+                    </p>
+                  </div>
+                </div>
+
+                {availableReferenceSlotKeys.length ? (
                   <button
                     type="button"
-                    className="character-profile-photo-btn"
-                    onClick={openProfilePicker}
+                    className={`character-simple-dropzone character-simple-dropzone--compact ${isDropActive ? "is-active" : ""}`}
+                    onClick={openSimplePicker}
                     disabled={pageBusy}
-                    aria-label={
-                      profileImageUrl && !isProfileAdjusterVisible
-                        ? "Edit profile photo adjustments"
-                        : "Upload profile photo"
-                    }
+                    onDragOver={(event) => {
+                      if (pageBusy) return;
+                      event.preventDefault();
+                      setIsDropActive(true);
+                    }}
+                    onDragLeave={() => setIsDropActive(false)}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      setIsDropActive(false);
+                      if (pageBusy) return;
+                      const files = event.dataTransfer?.files;
+                      if (!files?.length) return;
+                      void uploadSimpleFiles(files);
+                    }}
                   >
-                    {profileImageUrl ? (
-                      <Image
-                        src={profileImageUrl}
-                        alt="Character profile"
-                        className="character-profile-photo"
-                        style={{
-                          transform: `translate(${activeProfileImageTransform.offsetX}px, ${activeProfileImageTransform.offsetY}px) scale(${activeProfileImageTransform.zoom})`,
-                          transformOrigin: "center center",
-                        }}
-                        width={172}
-                        height={172}
-                        unoptimized
-                      />
-                    ) : (
-                      <span className="character-profile-initials" aria-hidden>
-                        {profileInitials}
-                      </span>
-                    )}
-                  </button>
-                  {profileImageUrl && isProfileAdjusterVisible ? (
-                    <div
-                      className="character-profile-adjuster"
-                      role="group"
-                      aria-label="Profile crop controls"
-                    >
-                      <div className="character-profile-adjuster-row">
-                        <label
-                          className="character-profile-adjuster-label"
-                          htmlFor="profile-adjust-zoom"
-                        >
-                          <span>Zoom</span>
-                          <span>{Math.round(activeProfileImageTransform.zoom * 100)}%</span>
-                        </label>
-                        <input
-                          id="profile-adjust-zoom"
-                          className="character-profile-adjuster-range"
-                          type="range"
-                          min={PROFILE_ZOOM_MIN}
-                          max={PROFILE_ZOOM_MAX}
-                          step={0.01}
-                          value={activeProfileImageTransform.zoom}
-                          onChange={(event) => {
-                            const nextZoom = Number(event.target.value);
-                            setProfileAdjustDraft((previous) => ({
-                              ...(previous ?? profileImageTransform),
-                              zoom: nextZoom,
-                            }));
-                          }}
-                        />
-                      </div>
-                      <div className="character-profile-adjuster-row">
-                        <label
-                          className="character-profile-adjuster-label"
-                          htmlFor="profile-adjust-x"
-                        >
-                          <span>Horizontal</span>
-                          <span>
-                            {activeProfileImageTransform.offsetX > 0
-                              ? `+${activeProfileImageTransform.offsetX}`
-                              : activeProfileImageTransform.offsetX}
-                          </span>
-                        </label>
-                        <input
-                          id="profile-adjust-x"
-                          className="character-profile-adjuster-range"
-                          type="range"
-                          min={PROFILE_OFFSET_MIN}
-                          max={PROFILE_OFFSET_MAX}
-                          step={1}
-                          value={activeProfileImageTransform.offsetX}
-                          onChange={(event) => {
-                            const nextOffsetX = Number(event.target.value);
-                            setProfileAdjustDraft((previous) => ({
-                              ...(previous ?? profileImageTransform),
-                              offsetX: nextOffsetX,
-                            }));
-                          }}
-                        />
-                      </div>
-                      <div className="character-profile-adjuster-row">
-                        <label
-                          className="character-profile-adjuster-label"
-                          htmlFor="profile-adjust-y"
-                        >
-                          <span>Vertical</span>
-                          <span>
-                            {activeProfileImageTransform.offsetY > 0
-                              ? `+${activeProfileImageTransform.offsetY}`
-                              : activeProfileImageTransform.offsetY}
-                          </span>
-                        </label>
-                        <input
-                          id="profile-adjust-y"
-                          className="character-profile-adjuster-range"
-                          type="range"
-                          min={PROFILE_OFFSET_MIN}
-                          max={PROFILE_OFFSET_MAX}
-                          step={1}
-                          value={activeProfileImageTransform.offsetY}
-                          onChange={(event) => {
-                            const nextOffsetY = Number(event.target.value);
-                            setProfileAdjustDraft((previous) => ({
-                              ...(previous ?? profileImageTransform),
-                              offsetY: nextOffsetY,
-                            }));
-                          }}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        className="ghost-btn small character-profile-adjuster-reset"
-                        onClick={() => {
-                          void saveProfileAdjustments();
-                        }}
-                        disabled={pageBusy}
-                      >
-                        {isSavingProfileImage ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost-btn small character-profile-adjuster-remove character-remove-btn"
-                        onClick={clearProfilePreview}
-                        disabled={pageBusy}
-                      >
-                        Remove photo
-                      </button>
+                    <div className="character-dropzone-content">
+                      <UploadSimple size={32} weight="bold" className="character-dropzone-icon" />
+                      <p className="character-simple-drop-title">Drop reference images here</p>
+                      <p className="tiny subdued">
+                        Or click to browse files. Add multiple images at once for faster setup.
+                      </p>
+                      <p className="tiny subdued">
+                        {`Up to ${availableReferenceSlotKeys.length} more image(s) can be added (max ${SIMPLE_REFERENCE_IMAGE_LIMIT})`}
+                      </p>
                     </div>
-                  ) : null}
-                </div>
+                  </button>
+                ) : null}
 
-                <div className="character-profile-fields">
-                  <label
-                    className="control-row character-simple-field"
-                    htmlFor="character-manager-name"
-                  >
-                    <span className="input-label">Character Name</span>
-                    <input
-                      ref={characterNameInputRef}
-                      id="character-manager-name"
-                      className="character-name-input"
-                      type="text"
-                      value={characterName}
-                      maxLength={80}
-                      onChange={(event) => setCharacterName(event.target.value)}
-                      placeholder="Enter character name"
-                      disabled={loading || isActivating}
-                    />
-                  </label>
-
-                  <label
-                    className="control-row character-simple-field"
-                    htmlFor="character-manager-description"
-                  >
-                    <span className="input-label">Character Description</span>
-                    <textarea
-                      id="character-manager-description"
-                      className="character-description-input"
-                      rows={6}
-                      value={characterDescription}
-                      maxLength={500}
-                      onChange={(event) => setCharacterDescription(event.target.value)}
-                      placeholder="Describe this character (style, vibe, outfit, key visual traits)."
-                      disabled={loading || isActivating}
-                    />
-                  </label>
-                </div>
-              </div>
-            </section>
-
-            <section className="character-section">
-              <div className="character-section-head">
-                <div>
-                  <p className="eyebrow">2. Reference Images</p>
-                  <h3 className="character-section-title">Reference Pack</h3>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className={`character-simple-dropzone ${isDropActive ? "is-active" : ""}`}
-                onClick={openSimplePicker}
-                disabled={pageBusy || !availableReferenceSlotKeys.length}
-                onDragOver={(event) => {
-                  if (pageBusy || !availableReferenceSlotKeys.length) return;
-                  event.preventDefault();
-                  setIsDropActive(true);
-                }}
-                onDragLeave={() => setIsDropActive(false)}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  setIsDropActive(false);
-                  if (pageBusy || !availableReferenceSlotKeys.length) return;
-                  const files = event.dataTransfer?.files;
-                  if (!files?.length) return;
-                  void uploadSimpleFiles(files);
-                }}
-              >
-                <div className="character-dropzone-content">
-                  <UploadSimple size={32} weight="bold" className="character-dropzone-icon" />
-                  <p className="character-simple-drop-title">Drop reference images here</p>
-                  <p className="tiny subdued">
-                    Or click to browse files. Add multiple images at once for faster setup.
-                  </p>
-                  <p className="tiny subdued">
-                    {availableReferenceSlotKeys.length > 0
-                      ? `Up to ${availableReferenceSlotKeys.length} more image(s) can be added (max ${SIMPLE_REFERENCE_IMAGE_LIMIT})`
-                      : `Maximum of ${SIMPLE_REFERENCE_IMAGE_LIMIT} reference images reached`}
-                  </p>
-                </div>
-              </button>
-
-              {uploadedReferenceEntries.length ? (
                 <div
-                  className="character-reference-upload-grid"
+                  className="character-reference-upload-grid character-reference-upload-grid--drop-card"
                   role="list"
                   aria-label="Uploaded references"
                 >
@@ -713,6 +768,17 @@ export function CharacterManagerShell() {
                       role="listitem"
                       className="character-reference-upload-card"
                     >
+                      <button
+                        type="button"
+                        className="character-list-delete-btn character-reference-delete-btn"
+                        aria-label={`Remove reference ${index + 1}`}
+                        onClick={() => {
+                          void clearSlot(entry.slotKey);
+                        }}
+                        disabled={pageBusy || isSlotBusy(entry.slotKey)}
+                      >
+                        <Trash size={12} weight="bold" />
+                      </button>
                       <div className="character-reference-upload-image-wrap">
                         <Image
                           src={entry.slotFile.previewUrl}
@@ -723,35 +789,43 @@ export function CharacterManagerShell() {
                           unoptimized
                         />
                       </div>
-                      <div className="character-reference-upload-meta">
-                        <p className="character-reference-upload-label tiny">
-                          Reference {index + 1}
-                        </p>
-                        <p className="character-reference-upload-name" title={entry.slotFile.name}>
-                          {entry.slotFile.name}
-                        </p>
-                        <button
-                          type="button"
-                          className="ghost-btn small character-reference-upload-remove character-remove-btn"
-                          onClick={() => {
-                            void clearSlot(entry.slotKey);
-                          }}
-                          disabled={pageBusy || isSlotBusy(entry.slotKey)}
-                        >
-                          Remove
-                        </button>
-                      </div>
                     </article>
                   ))}
+                  {Array.from({ length: remainingReferenceSlotCount }).map((_, index) => (
+                    <span
+                      key={`reference-upload-placeholder-${index}`}
+                      className="character-reference-upload-placeholder"
+                      aria-hidden="true"
+                    />
+                  ))}
                 </div>
-              ) : (
-                <div className="character-reference-empty-grid" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                  <span />
+              </section>
+            </div>
+
+            <section className="character-section character-section--references">
+              <div className="character-section-head">
+                <div>
+                  <h3 className="character-section-title">Reference Pack</h3>
+                  <p className="character-section-helper tiny subdued">
+                    Follow this shot guide to keep your reference angles consistent.
+                  </p>
                 </div>
-              )}
+              </div>
+
+              <div className="character-reference-empty-grid" aria-hidden="true">
+                <span>
+                  <span className="character-reference-empty-hint">Portrait</span>
+                </span>
+                <span>
+                  <span className="character-reference-empty-hint">Close-up</span>
+                </span>
+                <span>
+                  <span className="character-reference-empty-hint">Full-body Front Shot</span>
+                </span>
+                <span>
+                  <span className="character-reference-empty-hint">Full-body Back Shot</span>
+                </span>
+              </div>
             </section>
           </div>
         </section>
@@ -760,9 +834,7 @@ export function CharacterManagerShell() {
           <div>
             <p className="eyebrow">Manage Existing</p>
             <h2>Character Library</h2>
-            <p className="tiny subdued">
-              Select a character to continue editing it in the create flow.
-            </p>
+            <p className="tiny subdued">Select a character to editing their character profile.</p>
           </div>
 
           <div className="character-manage-list" role="list" aria-label="Character list">
@@ -794,8 +866,16 @@ export function CharacterManagerShell() {
                             src={character.profileImageUrl}
                             alt=""
                             className="character-list-avatar-image"
-                            width={44}
-                            height={44}
+                            style={
+                              character.profileImageTransform
+                                ? buildProfileImageTransformStyle(
+                                    character.profileImageTransform,
+                                    CHARACTER_CHIP_AVATAR_SIZE
+                                  )
+                                : undefined
+                            }
+                            width={CHARACTER_CHIP_AVATAR_SIZE}
+                            height={CHARACTER_CHIP_AVATAR_SIZE}
                             unoptimized
                           />
                         ) : (

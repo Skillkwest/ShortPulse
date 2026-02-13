@@ -133,23 +133,12 @@ export const useAiStudioTaskSubmission = ({
       }
 
       const hasReferenceImages = imageInputs && imageInputs.length > 0;
-      let finalTool: ToolId | "text" | null = effectiveTool === "edit" ? "image" : effectiveTool;
-      let finalModel = model;
-      let fallbackMode: "image" | null = null;
-      if (!hasReferenceImages && normalizedTool === "image") {
-        finalTool = "text";
-        fallbackMode = "image";
-        const imageToTextModelMap: Record<string, string> = {
-          "fal/flux-2-pro/edit": "fal/flux-2-pro",
-          "fal/flux-2/edit": "fal/flux-2",
-          "fal-ai/nano-banana/edit": "fal-ai/nano-banana",
-          "fal-ai/nano-banana-pro/edit": "fal-ai/nano-banana-pro",
-          "fal-ai/bytedance/seedream/v4.5/edit": "fal-ai/bytedance/seedream/v4.5/text-to-image",
-          "kei/gpt4o-image": "kei/gpt4o-image",
-        };
-        if (model && imageToTextModelMap[model]) {
-          finalModel = imageToTextModelMap[model];
-        }
+      const isEditWorkflow = normalizedTool === "image";
+      const finalTool: ToolId | "text" | null = effectiveTool === "edit" ? "image" : effectiveTool;
+      const finalModel = model;
+      if (isEditWorkflow && !hasReferenceImages) {
+        setUiError("Add a reference image before generating.");
+        return;
       }
 
       if (!finalModel) {
@@ -159,9 +148,6 @@ export const useAiStudioTaskSubmission = ({
 
       const id = `out-${randomId()}`;
       const modelLabel = resolveModelLabel(finalModel);
-      if (fallbackMode) {
-        setUiNotice(`No reference images were detected. Running text-to-image with ${modelLabel}.`);
-      }
 
       const isKling3ImageModel = finalModel === "fal-ai/kling-video/v3/pro/image-to-video";
       const isVeoFirstLastFrameModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
@@ -244,6 +230,24 @@ export const useAiStudioTaskSubmission = ({
           )
         );
         setUiError(`Reference upload failed: ${detail}`);
+        return;
+      }
+      if (isEditWorkflow && preparedImageInputs.length === 0) {
+        setOutputs((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  taskState: "fail",
+                  status: "ready",
+                  timestamp: "Missing image",
+                  errorMessage: "Edit workflow requires at least one reference image.",
+                  errorMessageShort: "Reference image required.",
+                  errorDetail: "Edit workflow requires at least one reference image.",
+                }
+              : item
+          )
+        );
         return;
       }
       const pulseReferenceImageUrl =

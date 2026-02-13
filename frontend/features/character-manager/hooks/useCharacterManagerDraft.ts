@@ -442,7 +442,6 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           return next;
         });
         await refreshCharacterListSilently(characterId);
-        setNotice(`Removed ${CHARACTER_MANAGER_SLOT_LABEL_BY_KEY[slotKey]}.`);
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to remove this shot."));
       } finally {

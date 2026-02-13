@@ -269,7 +269,7 @@ export const useAiStudioViewModel = ({
         modelConfig.supportsImageToImage && !modelConfig.supportsTextToImage;
 
       if (!hasReference && isImageToImageOnly) {
-        return "No reference image detected. The system will automatically use the text-to-image version of this model.";
+        return "No reference image detected. Edit workflow requires a reference image and will not fallback to text-to-image.";
       }
     }
 

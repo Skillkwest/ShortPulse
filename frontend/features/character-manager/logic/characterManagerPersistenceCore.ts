@@ -76,6 +76,7 @@ export type CharacterManagerListItem = {
   characterStatus: "draft" | "active" | "archived";
   referencePackId: string;
   profileImageUrl: string | null;
+  profileImageTransform: CharacterProfileImageTransform | null;
   referencePackStatus: "draft" | "validating" | "ready" | "failed";
   completedCount: number;
   hasFailedSlots: boolean;
@@ -515,10 +516,12 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
   }
 
   const profilePathByCharacter = new Map<string, string>();
+  const profileTransformByCharacter = new Map<string, CharacterProfileImageTransform>();
   for (const row of typedCharacterRows) {
     const profileMetadata = getCharacterProfileImageMetadata(row.metadata);
     if (profileMetadata.storagePath) {
       profilePathByCharacter.set(row.id, profileMetadata.storagePath);
+      profileTransformByCharacter.set(row.id, getCharacterProfileImageTransform(row.metadata));
     }
   }
 
@@ -595,6 +598,7 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
         characterStatus: row.status,
         referencePackId: latestPack.id,
         profileImageUrl: avatarUrlByCharacter.get(row.id) ?? null,
+        profileImageTransform: profileTransformByCharacter.get(row.id) ?? null,
         referencePackStatus: latestPack.status,
         completedCount: slotCountsByPack.get(latestPack.id) ?? 0,
         hasFailedSlots: (failedCountsByPack.get(latestPack.id) ?? 0) > 0,

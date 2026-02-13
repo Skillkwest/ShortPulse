@@ -1,0 +1,3 @@
+-- Data repair rollback is intentionally no-op.
+-- 009 mutates historical storage_path values only when a verified object match exists.
+-- Restore from backups/snapshots if you need to reverse individual row changes.

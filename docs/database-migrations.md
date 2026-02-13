@@ -76,3 +76,12 @@ If enabling the derivative-first media optimization architecture (virtualized gr
 
 6. `sql/migrations/005_add_media_processing_and_variants.sql`
 7. `sql/migrations/006_backfill_media_variant_hints.sql`
+8. `sql/migrations/007_harden_media_source_and_usage_rpc.sql`
+
+If enabling Character Manager (reference packs + generation history), also apply:
+
+9. `sql/migrations/008_add_character_manager_foundation.sql`
+
+If Media Library cards still show blank placeholders in legacy environments, also apply:
+
+10. `sql/migrations/009_repair_legacy_media_storage_paths.sql`

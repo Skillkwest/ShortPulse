@@ -3,7 +3,7 @@
 Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (auth boundaries, route families, and operational ownership).
 
 ## Auth boundary model
-- Global API auth gate: `frontend/proxy.ts` protects `/api/fal/*`, `/api/kei/*`, `/api/ai/*`, uploads, admin APIs, and billing checkout/portal routes by requiring a Supabase bearer token.
+- Global API auth gate: `frontend/proxy.ts` protects `/api/fal/*`, `/api/kei/*`, `/api/ai/*`, `/api/media/*`, uploads, admin APIs, and billing checkout/portal routes by requiring a Supabase bearer token.
 - Route-level auth: several handlers still call `requireApiUser`/`requireAdminUser` in `frontend/pages/api/_utils/auth.ts` for direct enforcement and user context.
 - Webhook exception: `/api/billing/stripe/webhook` is intentionally unauthenticated and protected by Stripe signature verification.
 
@@ -15,6 +15,8 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/ai/studio-agent` | `POST` | Bearer (proxy) | AI Studio chat agent orchestration with structured actions. | `frontend/pages/api/ai/studio-agent.ts`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_agent_chat_ops.md` |
 | `/api/upload-image` | `POST` multipart | Bearer (proxy + route) | Upload images to private `media_library`; return signed URLs. | `frontend/pages/api/upload-image.ts` |
 | `/api/upload-video` | `POST` multipart | Bearer (proxy + route) | Upload motion-control videos to private `media_library`; return signed URLs. | `frontend/pages/api/upload-video.ts` |
+| `/api/media/sign-batch` | `POST` | Bearer (proxy + route) | Batch-sign user-scoped media paths for list/grid previews. | `frontend/pages/api/media/sign-batch.ts` |
+| `/api/media/move` | `POST` | Bearer (proxy + route) | Move a media file between tabs by updating storage path + `media_files` source/path. | `frontend/pages/api/media/move.ts` |
 | `/api/fal/*` | `POST` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic. | `frontend/pages/api/fal/*.ts`, `frontend/pages/api/_utils/falSubmitProxy.ts`, `frontend/pages/api/_utils/falStatusProxy.ts`, model docs in `docs/api/api-fal-*.md` |
 | `/api/kei/create-task` | `POST` | Bearer (proxy) | Submit Kie task-based generations with billing charge+refund support. | `frontend/pages/api/kei/create-task.ts` |
 | `/api/kei/task-status` and `/api/kei/status` | `POST` | Bearer (proxy) | Poll Kie task status (status route is compatibility alias). | `frontend/pages/api/kei/task-status.ts`, `frontend/pages/api/kei/status.ts` |

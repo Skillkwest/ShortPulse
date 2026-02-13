@@ -40,6 +40,35 @@ Checklist:
   limit 50;
   ```
 
+## Private tab cards show blank placeholders
+Checklist:
+- Run `sql/migrations/009_repair_legacy_media_storage_paths.sql`.
+- Validate remaining non-user-scoped paths:
+  ```sql
+  select id, user_id, source, storage_path, created_at
+  from media_files
+  where source = 'private_upload'
+    and coalesce(storage_path, '') <> ''
+    and storage_path !~* '^https?://'
+    and storage_path not like user_id::text || '/%'
+  order by created_at desc
+  limit 100;
+  ```
+- Validate storage object existence for unresolved rows:
+  ```sql
+  select
+    mf.id,
+    mf.storage_path,
+    (obj.name is not null) as object_exists
+  from media_files mf
+  left join storage.objects obj
+    on obj.bucket_id = 'media_library'
+   and obj.name = mf.storage_path
+  where mf.source = 'private_upload'
+  order by mf.created_at desc
+  limit 100;
+  ```
+
 ## Variant hints or derivative rows are missing
 Checklist:
 - Run `sql/migrations/005_add_media_processing_and_variants.sql`.
@@ -66,6 +95,27 @@ Checklist:
      or (lower(coalesce(file_type, '')) like 'video%' and (poster_variant_path is null or preview_variant_path is null))
   limit 50;
   ```
+
+## Media library or reference grid feels slow
+Checklist:
+- Open DevTools Console and clear existing telemetry:
+  ```js
+  window.__shortpulseMediaPerf?.clear();
+  ```
+- Reproduce the flow (open Media Library/Modal, scroll, load more, interact with Reference Grid).
+- Inspect percentile timing summaries:
+  ```js
+  window.__shortpulseMediaPerf?.durationStats();
+  ```
+- Inspect sign-batch reliability by surface/tab/query mode:
+  ```js
+  window.__shortpulseMediaPerf?.signStats();
+  ```
+- If `failed_ratio` is elevated or `p95_duration_ms` is high, verify:
+  - `/api/media/sign-batch` returns `200` with a `urls` map for authenticated users,
+  - signed URL requests are only for visible/buffered cards,
+  - variant paths (`thumb_variant_path`, `poster_variant_path`, `preview_variant_path`) are populated,
+  - device/network constraints are applying reduced sign/autoplay budgets.
 
 ## Prompt or AI Generation saves fail
 Checklist:

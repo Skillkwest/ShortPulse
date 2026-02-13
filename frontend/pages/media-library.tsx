@@ -1,10 +1,11 @@
 /**
- * Media Library page for per-user uploads/downloads/deletes in the private Supabase bucket.
- * Handles filtering, signed URL fetches, and UI orchestration while delegating storage to Supabase client helpers.
+ * Media Library page for per-user uploads/downloads/deletes/moves in the private Supabase bucket.
+ * Handles filtering, signed URL fetches, tab-aware caching, and modal actions while delegating storage and auth to shared helpers.
  */
 import Head from "next/head";
 import Link from "next/link";
 import {
+  CaretDown,
   CheckCircle,
   CloudArrowUp,
   DownloadSimple,
@@ -16,8 +17,21 @@ import {
 } from "phosphor-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createMediaPerfTimer, logMediaPerf } from "../lib/mediaPerfTelemetry";
-import { resolvePreviewStoragePath } from "../lib/mediaPreviewPath";
+import { fetchWithAuth } from "../lib/authenticatedFetch";
+import {
+  resolveMediaDirectPreviewUrls,
+  resolveMediaSigningStoragePaths,
+} from "../lib/mediaPreviewPath";
+import {
+  getSignedMediaUrl,
+  getSignedMediaUrlsBatch,
+  invalidateSignedMediaUrl,
+} from "../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
+import {
+  buildMoveTabOptions,
+  type MediaMoveDestination,
+} from "../features/media-library/logic/mediaMoveRouting";
 
 type MediaRow = {
   id: string;
@@ -57,9 +71,124 @@ type MediaTab =
   | "saved_prompts"
   | "ai_generations";
 
+type MediaDataTab = Exclude<MediaTab, "saved_prompts">;
+
+type MediaCursor = {
+  createdAt: string;
+  id: string;
+};
+
+type MediaTabCache = {
+  rows: MediaRow[];
+  nextCursor: MediaCursor | null;
+  pagesLoaded: number;
+  query: string;
+  loadedAtMs: number | null;
+  hasMore: boolean;
+  loading: boolean;
+  loaded: boolean;
+  error: string | null;
+};
+
+type MediaTabRequestState = Record<MediaDataTab, number>;
+type MediaTabBooleanState = Record<MediaDataTab, boolean>;
+type MediaCardRefCallback = (node: HTMLDivElement | null) => void;
+
+type MediaVariantPathRow = {
+  storage_path: string | null;
+};
+
+type MediaDeleteTarget = Pick<
+  MediaRow,
+  | "id"
+  | "storage_path"
+  | "preview_storage_path"
+  | "thumb_variant_path"
+  | "poster_variant_path"
+  | "preview_variant_path"
+>;
+
+type MediaDeleteLookupRow = Pick<
+  MediaRow,
+  | "id"
+  | "storage_path"
+  | "file_type"
+  | "metadata"
+  | "thumb_variant_path"
+  | "poster_variant_path"
+  | "preview_variant_path"
+>;
+
+type MoveMediaResponse = {
+  file: MediaRow;
+  fromTab: MediaDataTab;
+  toTab: MediaDataTab;
+};
+
 const BUCKET = "media_library";
 const PRIVATE_MEDIA_SOURCE = "private_upload";
 const PRIVATE_MEDIA_FOLDER = "private";
+const MEDIA_LIBRARY_PAGE_SIZE = 60;
+const MEDIA_LIBRARY_CACHE_TTL_MS = 30_000;
+const STORAGE_DELETE_BATCH_SIZE = 100;
+const MEDIA_ROUTE_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
+
+type MediaSignBudget = {
+  initialSignLimit: number;
+  prefetchWindow: number;
+  signBatchSize: number;
+};
+
+type NavigatorWithConnection = Navigator & {
+  deviceMemory?: number;
+  connection?: {
+    saveData?: boolean;
+    effectiveType?: string;
+    addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
+    removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
+  };
+};
+
+const MEDIA_ROUTE_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
+  initialSignLimit: 12,
+  prefetchWindow: 24,
+  signBatchSize: 10,
+};
+const MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN: MediaSignBudget = {
+  initialSignLimit: 8,
+  prefetchWindow: 16,
+  signBatchSize: 6,
+};
+const MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
+  initialSignLimit: 5,
+  prefetchWindow: 10,
+  signBatchSize: 4,
+};
+
+const resolveRouteSignBudget = (): MediaSignBudget => {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return MEDIA_ROUTE_SIGN_BUDGET_DESKTOP;
+  }
+  const nav = navigator as NavigatorWithConnection;
+  const isSmallScreen = window.matchMedia(MEDIA_ROUTE_SIGN_SMALL_SCREEN_QUERY).matches;
+  const saveData = nav.connection?.saveData === true;
+  const effectiveType = (nav.connection?.effectiveType ?? "").toLowerCase();
+  const isSlowNetwork = effectiveType.includes("2g");
+  const isLowMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
+  if (saveData || isSlowNetwork || isLowMemory) {
+    return MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED;
+  }
+  if (isSmallScreen) {
+    return MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN;
+  }
+  return MEDIA_ROUTE_SIGN_BUDGET_DESKTOP;
+};
+const MEDIA_DATA_TABS: MediaDataTab[] = [
+  "uploaded_images",
+  "uploaded_videos",
+  "private",
+  "ai_generations",
+];
 
 const sanitizeFileName = (name: string) => name.replace(/[^\w.-]+/g, "_");
 
@@ -73,6 +202,111 @@ const isPrivateStoragePath = (storagePath?: string | null) =>
   (storagePath ?? "").split("/").filter(Boolean).includes(PRIVATE_MEDIA_FOLDER);
 const isPrivateMediaFile = (file: Pick<MediaRow, "source" | "storage_path">) =>
   (file.source ?? "") === PRIVATE_MEDIA_SOURCE || isPrivateStoragePath(file.storage_path);
+
+const isMediaDataTab = (tab: MediaTab): tab is MediaDataTab => tab !== "saved_prompts";
+const isMoveDataTab = (tab: MediaMoveDestination): tab is MediaDataTab => tab !== "saved_prompts";
+
+const getMediaDataTabForRow = (
+  row: Pick<MediaRow, "source" | "storage_path" | "file_type">
+): MediaDataTab => {
+  if (isPrivateMediaFile(row)) return "private";
+  if ((row.source ?? "upload") === "ai_studio") return "ai_generations";
+  return isVideoFile(row.file_type) ? "uploaded_videos" : "uploaded_images";
+};
+
+const createEmptyMediaTabCache = (): MediaTabCache => ({
+  rows: [],
+  nextCursor: null,
+  pagesLoaded: 0,
+  query: "",
+  loadedAtMs: null,
+  hasMore: true,
+  loading: false,
+  loaded: false,
+  error: null,
+});
+
+const createMediaTabCacheState = (): Record<MediaDataTab, MediaTabCache> => ({
+  uploaded_images: createEmptyMediaTabCache(),
+  uploaded_videos: createEmptyMediaTabCache(),
+  private: createEmptyMediaTabCache(),
+  ai_generations: createEmptyMediaTabCache(),
+});
+
+const createMediaTabRequestState = (): MediaTabRequestState => ({
+  uploaded_images: 0,
+  uploaded_videos: 0,
+  private: 0,
+  ai_generations: 0,
+});
+
+const createMediaTabBooleanState = (): MediaTabBooleanState => ({
+  uploaded_images: false,
+  uploaded_videos: false,
+  private: false,
+  ai_generations: false,
+});
+
+const withMediaTabFilter = <
+  T extends {
+    eq: (column: string, value: string) => T;
+    ilike: (column: string, pattern: string) => T;
+  },
+>(
+  query: T,
+  tab: MediaDataTab
+): T => {
+  if (tab === "private") return query.eq("source", PRIVATE_MEDIA_SOURCE);
+  if (tab === "ai_generations") return query.eq("source", "ai_studio");
+  if (tab === "uploaded_videos") return query.eq("source", "upload").ilike("file_type", "video%");
+  return query.eq("source", "upload").ilike("file_type", "image%");
+};
+
+const normalizeMediaSearchTerm = (value: string): string =>
+  value
+    .trim()
+    .replace(/[,%*()]/g, " ")
+    .replace(/\s+/g, " ");
+
+const buildMediaSearchOrClause = (value: string): string | null => {
+  const normalized = normalizeMediaSearchTerm(value);
+  if (!normalized) return null;
+  const wildcard = `*${normalized}*`;
+  return `filename.ilike.${wildcard},storage_path.ilike.${wildcard}`;
+};
+
+const withMediaSearchFilter = <T extends { or: (clause: string) => T }>(
+  query: T,
+  rawSearchTerm: string
+): T => {
+  const clause = buildMediaSearchOrClause(rawSearchTerm);
+  if (!clause) return query;
+  return query.or(clause);
+};
+
+const buildCursorFromRows = <T extends { id?: string | null; created_at?: string | null }>(
+  rows: T[]
+): MediaCursor | null => {
+  if (!rows.length) return null;
+  const tail = rows[rows.length - 1];
+  const id = tail.id ?? "";
+  const createdAt = tail.created_at ?? "";
+  if (!id || !createdAt) return null;
+  return { id, createdAt };
+};
+
+const mergePageRows = (current: MediaRow[], incoming: MediaRow[]): MediaRow[] => {
+  if (!incoming.length) return current;
+  const byId = new Map(current.map((row) => [row.id, row]));
+  for (const row of incoming) {
+    byId.set(row.id, row);
+  }
+  return Array.from(byId.values()).sort((a, b) => {
+    const createdDelta = createdAtTime(b.created_at) - createdAtTime(a.created_at);
+    if (createdDelta !== 0) return createdDelta;
+    return b.id.localeCompare(a.id);
+  });
+};
 
 const logMediaEvent = async (
   eventType: string,
@@ -128,9 +362,22 @@ const getErrorMessage = (error: unknown, fallback: string): string =>
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
+const isMissingRelationError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  return "code" in error && (error as { code?: string }).code === "42P01";
+};
+
+const isMissingRoutineError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  return "code" in error && (error as { code?: string }).code === "42883";
+};
+
 export default function MediaLibrary() {
   const [files, setFiles] = useState<MediaRow[]>([]);
   const [prompts, setPrompts] = useState<PromptRow[]>([]);
+  const [promptsLoaded, setPromptsLoaded] = useState(false);
+  const [mediaTabCache, setMediaTabCache] =
+    useState<Record<MediaDataTab, MediaTabCache>>(createMediaTabCacheState);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -138,25 +385,57 @@ export default function MediaLibrary() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<MediaTab>("uploaded_images");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [aspectMap, setAspectMap] = useState<Record<string, number>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<MediaRow | null>(null);
   const [deletingSingle, setDeletingSingle] = useState(false);
+  const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const [focusedFile, setFocusedFile] = useState<MediaRow | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [savingRename, setSavingRename] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const [moveMenuOpen, setMoveMenuOpen] = useState(false);
+  const [movingFile, setMovingFile] = useState(false);
   const [renameSuccess, setRenameSuccess] = useState(false);
+  const [storageUsageBytes, setStorageUsageBytes] = useState<number | null>(null);
   const signedUrlRetryRef = useRef<Record<string, number>>({});
+  const signAttemptRef = useRef<Record<string, number>>({});
+  const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
+  const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
   const firstCardShellLoggedRef = useRef(false);
   const firstMediaPaintLoggedRef = useRef(false);
-  const totalBytes = useMemo(
-    () => files.reduce((sum, file) => sum + (file.file_size || 0), 0),
-    [files]
-  );
+  const bulkDeleteInFlightRef = useRef(false);
+  const activeTabRef = useRef<MediaTab>(activeTab);
+  const activeMediaQueryRef = useRef("");
+  const mediaTabRequestRef = useRef<MediaTabRequestState>(createMediaTabRequestState());
+  const mediaSignInFlightRef = useRef<MediaTabBooleanState>(createMediaTabBooleanState());
+  const mediaCardNodesRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const mediaCardRefCallbacksRef = useRef<Record<string, MediaCardRefCallback>>({});
+  const mediaCardObserverRef = useRef<IntersectionObserver | null>(null);
+  const visibleMediaIdsRef = useRef<Set<string>>(new Set());
+  const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
+  const [signPassNonce, setSignPassNonce] = useState(0);
+  const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveRouteSignBudget);
+  const currentUserIdRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+  const cachedMediaBytes = useMemo(() => {
+    const byId = new Map<string, number>();
+    for (const tab of MEDIA_DATA_TABS) {
+      for (const file of mediaTabCache[tab].rows) {
+        if (!byId.has(file.id)) {
+          byId.set(file.id, file.file_size || 0);
+        }
+      }
+    }
+    return Array.from(byId.values()).reduce((sum, size) => sum + size, 0);
+  }, [mediaTabCache]);
+  const totalBytes = storageUsageBytes ?? cachedMediaBytes;
   const planLimitMb = 1024;
   const planUsage = { label: "Plan", name: "Creative Suite" };
   const storageUsageValue = useMemo(() => {
@@ -164,6 +443,85 @@ export default function MediaLibrary() {
     const limitGb = planLimitMb / 1024;
     return `${usedMb.toFixed(1)} MB / ${limitGb.toFixed(1)} GB`;
   }, [planLimitMb, totalBytes]);
+  const activeMediaTab = isMediaDataTab(activeTab) ? activeTab : null;
+  const activeMediaCache = activeMediaTab ? mediaTabCache[activeMediaTab] : null;
+  const activeMediaQuery = useMemo(
+    () => normalizeMediaSearchTerm(debouncedSearch),
+    [debouncedSearch]
+  );
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 220);
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    activeMediaQueryRef.current = activeMediaQuery;
+  }, [activeMediaQuery]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof navigator === "undefined") return;
+    const nav = navigator as NavigatorWithConnection;
+    const connection = nav.connection;
+    const refreshBudget = () => {
+      setSignBudget((prev) => {
+        const next = resolveRouteSignBudget();
+        if (
+          prev.initialSignLimit === next.initialSignLimit &&
+          prev.prefetchWindow === next.prefetchWindow &&
+          prev.signBatchSize === next.signBatchSize
+        ) {
+          return prev;
+        }
+        return next;
+      });
+    };
+    refreshBudget();
+    window.addEventListener("resize", refreshBudget);
+    connection?.addEventListener?.("change", refreshBudget);
+    return () => {
+      window.removeEventListener("resize", refreshBudget);
+      connection?.removeEventListener?.("change", refreshBudget);
+    };
+  }, []);
+
+  useEffect(() => {
+    signAttemptRef.current = {};
+  }, [activeTab, activeMediaQuery]);
+
+  useEffect(
+    () => () => {
+      for (const objectUrl of Object.values(objectUrlByMediaIdRef.current)) {
+        URL.revokeObjectURL(objectUrl);
+      }
+      objectUrlByMediaIdRef.current = {};
+      isMountedRef.current = false;
+    },
+    []
+  );
+
+  const refreshStorageUsageBytes = useCallback(async () => {
+    try {
+      const supabase = ensureSupabaseClient();
+      const { data, error } = await supabase.rpc("get_media_library_usage_bytes");
+      if (error) {
+        if (isMissingRoutineError(error)) return;
+        throw error;
+      }
+      const parsed = typeof data === "number" ? data : Number.parseInt(String(data ?? "0"), 10);
+      if (Number.isFinite(parsed)) {
+        setStorageUsageBytes(Math.max(0, parsed));
+      }
+    } catch {
+      // Fall back to cached-row estimate when RPC is unavailable.
+    }
+  }, []);
 
   useEffect(() => {
     document.body.classList.add("media-library-body");
@@ -175,47 +533,252 @@ export default function MediaLibrary() {
   }, []);
 
   useEffect(() => {
+    void refreshStorageUsageBytes();
+  }, [refreshStorageUsageBytes]);
+
+  useEffect(() => {
     setSelectedIds([]);
+    setConfirmDeleteIds(null);
   }, [activeTab]);
 
-  const signStoragePath = useCallback(async (storagePath: string): Promise<string | null> => {
-    const supabase = ensureSupabaseClient();
-    const { data: signedData, error: signedError } = await supabase.storage
-      .from(BUCKET)
-      .createSignedUrl(storagePath, 3600);
-    if (signedError) throw signedError;
-    return signedData?.signedUrl ?? null;
+  const getMediaCardRef = useCallback((fileId: string): MediaCardRefCallback => {
+    const existing = mediaCardRefCallbacksRef.current[fileId];
+    if (existing) return existing;
+    const callback: MediaCardRefCallback = (node) => {
+      const previousNode = mediaCardNodesRef.current.get(fileId);
+      if (previousNode && previousNode !== node) {
+        mediaCardObserverRef.current?.unobserve(previousNode);
+      }
+      if (!node) {
+        mediaCardNodesRef.current.delete(fileId);
+        if (visibleMediaIdsRef.current.delete(fileId)) {
+          setVisibleMediaVersion((prev) => prev + 1);
+        }
+        return;
+      }
+      node.dataset.mediaId = fileId;
+      mediaCardNodesRef.current.set(fileId, node);
+      mediaCardObserverRef.current?.observe(node);
+    };
+    mediaCardRefCallbacksRef.current[fileId] = callback;
+    return callback;
   }, []);
 
-  const refreshSignedUrl = useCallback(
-    async (fileId: string, storagePath: string): Promise<string | null> => {
-      if (!storagePath) return null;
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") {
+      return;
+    }
+    const visibleIds = visibleMediaIdsRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        let changed = false;
+        for (const entry of entries) {
+          const fileId = (entry.target as HTMLElement).dataset.mediaId;
+          if (!fileId) continue;
+          if (entry.isIntersecting) {
+            if (!visibleIds.has(fileId)) {
+              visibleIds.add(fileId);
+              changed = true;
+            }
+            continue;
+          }
+          if (visibleIds.delete(fileId)) {
+            changed = true;
+          }
+        }
+        if (changed) {
+          setVisibleMediaVersion((prev) => prev + 1);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "520px 0px",
+        threshold: 0.01,
+      }
+    );
+    mediaCardObserverRef.current = observer;
+    for (const node of mediaCardNodesRef.current.values()) {
+      observer.observe(node);
+    }
+    return () => {
+      observer.disconnect();
+      mediaCardObserverRef.current = null;
+      visibleIds.clear();
+    };
+  }, []);
+
+  const signStoragePath = useCallback(
+    async (storagePath: string, options?: { forceRefresh?: boolean }): Promise<string | null> =>
+      getSignedMediaUrl({
+        bucket: BUCKET,
+        storagePath,
+        expiresInSeconds: 3600,
+        forceRefresh: options?.forceRefresh ?? false,
+      }),
+    []
+  );
+
+  const applySignedUrlsToTab = useCallback((tab: MediaDataTab, signedById: Map<string, string>) => {
+    if (!signedById.size) return;
+    setMediaTabCache((prev) => {
+      const cache = prev[tab];
+      let changed = false;
+      const nextRows = cache.rows.map((row) => {
+        const signedUrl = signedById.get(row.id);
+        if (!signedUrl || row.signedUrl === signedUrl) return row;
+        changed = true;
+        return { ...row, signedUrl };
+      });
+      if (!changed) return prev;
+      return {
+        ...prev,
+        [tab]: {
+          ...cache,
+          rows: nextRows,
+        },
+      };
+    });
+    if (activeTabRef.current === tab) {
+      setFiles((prev) =>
+        prev.map((file) => {
+          const signedUrl = signedById.get(file.id);
+          return signedUrl ? { ...file, signedUrl } : file;
+        })
+      );
+    }
+    setFocusedFile((prev) => {
+      if (!prev) return prev;
+      const signedUrl = signedById.get(prev.id);
+      return signedUrl ? { ...prev, signedUrl } : prev;
+    });
+  }, []);
+
+  const setObjectUrlForMediaRow = useCallback(
+    (file: MediaRow, objectUrl: string) => {
+      const previousObjectUrl = objectUrlByMediaIdRef.current[file.id];
+      if (previousObjectUrl && previousObjectUrl !== objectUrl) {
+        URL.revokeObjectURL(previousObjectUrl);
+      }
+      objectUrlByMediaIdRef.current[file.id] = objectUrl;
+      applySignedUrlsToTab(getMediaDataTabForRow(file), new Map([[file.id, objectUrl]]));
+    },
+    [applySignedUrlsToTab]
+  );
+
+  const hydrateViaStorageDownload = useCallback(
+    async (file: MediaRow): Promise<string | null> => {
+      if (downloadFallbackInFlightRef.current[file.id]) return null;
+      downloadFallbackInFlightRef.current[file.id] = true;
       try {
-        const nextSignedUrl = await signStoragePath(storagePath);
-        setFiles((prev) =>
-          prev.map((file) =>
-            file.id === fileId ? { ...file, signedUrl: nextSignedUrl ?? undefined } : file
-          )
-        );
-        setFocusedFile((prev) =>
-          prev && prev.id === fileId ? { ...prev, signedUrl: nextSignedUrl ?? undefined } : prev
-        );
-        return nextSignedUrl;
+        const supabase = ensureSupabaseClient();
+        const storageCandidates = resolveMediaSigningStoragePaths(file, currentUserIdRef.current);
+        for (const storagePath of storageCandidates) {
+          const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
+          if (error || !data) continue;
+          const blob = data as Blob;
+          if (!blob.size) continue;
+          const objectUrl = URL.createObjectURL(blob);
+          setObjectUrlForMediaRow(file, objectUrl);
+          return objectUrl;
+        }
+        return null;
+      } catch {
+        return null;
+      } finally {
+        downloadFallbackInFlightRef.current[file.id] = false;
+      }
+    },
+    [setObjectUrlForMediaRow]
+  );
+
+  const resolveSignedUrlsByMediaIds = useCallback(
+    async (tab: MediaDataTab, rows: MediaRow[]): Promise<Set<string>> => {
+      const ids = Array.from(new Set(rows.map((row) => row.id).filter(Boolean)));
+      const unresolvedIds = new Set(ids);
+      if (!ids.length) return unresolvedIds;
+      try {
+        const response = await fetchWithAuth("/api/media/resolve-previews", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ids,
+            expiresInSeconds: 3600,
+          }),
+          shortpulseLogScope: "app",
+        }).catch(() => null);
+        if (!response?.ok) return unresolvedIds;
+        const payload = (await response.json().catch(() => null)) as {
+          urls?: Record<string, string | null>;
+        } | null;
+        const urls = payload?.urls ?? {};
+        const resolvedById = new Map<string, string>();
+        for (const mediaId of ids) {
+          const url = urls[mediaId];
+          if (!url) continue;
+          resolvedById.set(mediaId, url);
+          unresolvedIds.delete(mediaId);
+        }
+        applySignedUrlsToTab(tab, resolvedById);
+        return unresolvedIds;
+      } catch {
+        return unresolvedIds;
+      }
+    },
+    [applySignedUrlsToTab]
+  );
+
+  const refreshSignedUrl = useCallback(
+    async (file: MediaRow): Promise<string | null> => {
+      const signingCandidates = resolveMediaSigningStoragePaths(file, currentUserIdRef.current);
+      if (!signingCandidates.length) return null;
+      try {
+        for (const storagePath of signingCandidates) {
+          const nextSignedUrl = await signStoragePath(storagePath, { forceRefresh: true });
+          if (!nextSignedUrl) continue;
+          const previousObjectUrl = objectUrlByMediaIdRef.current[file.id];
+          if (previousObjectUrl) {
+            URL.revokeObjectURL(previousObjectUrl);
+            delete objectUrlByMediaIdRef.current[file.id];
+          }
+          applySignedUrlsToTab(getMediaDataTabForRow(file), new Map([[file.id, nextSignedUrl]]));
+          return nextSignedUrl;
+        }
+        const directUrl = resolveMediaDirectPreviewUrls(file)[0] ?? null;
+        if (directUrl) {
+          const previousObjectUrl = objectUrlByMediaIdRef.current[file.id];
+          if (previousObjectUrl) {
+            URL.revokeObjectURL(previousObjectUrl);
+            delete objectUrlByMediaIdRef.current[file.id];
+          }
+          applySignedUrlsToTab(getMediaDataTabForRow(file), new Map([[file.id, directUrl]]));
+          return directUrl;
+        }
+        return null;
       } catch {
         return null;
       }
     },
-    [signStoragePath]
+    [applySignedUrlsToTab, signStoragePath]
   );
 
   const handleMediaPreviewError = useCallback(
     (file: MediaRow) => {
       const attempts = signedUrlRetryRef.current[file.id] ?? 0;
-      if (attempts >= 1) return;
+      if (attempts >= 3) return;
       signedUrlRetryRef.current[file.id] = attempts + 1;
-      void refreshSignedUrl(file.id, file.preview_storage_path ?? file.storage_path);
+      void refreshSignedUrl(file).then(async (nextUrl) => {
+        const returnedSameUrl = Boolean(nextUrl && file.signedUrl && nextUrl === file.signedUrl);
+        if (nextUrl && !returnedSameUrl) return;
+        const stillUnresolved = await resolveSignedUrlsByMediaIds(getMediaDataTabForRow(file), [
+          file,
+        ]);
+        if (!stillUnresolved.has(file.id)) return;
+        void hydrateViaStorageDownload(file);
+      });
     },
-    [refreshSignedUrl]
+    [hydrateViaStorageDownload, refreshSignedUrl, resolveSignedUrlsByMediaIds]
   );
 
   const markFirstMediaPaint = useCallback(
@@ -231,87 +794,259 @@ export default function MediaLibrary() {
     [activeTab]
   );
 
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
+  const syncActiveMediaCacheRows = useCallback(
+    (rows: MediaRow[]) => {
+      if (!activeMediaTab) return;
+      const queryTerm = activeMediaQuery.toLowerCase();
+      setMediaTabCache((prev) => ({
+        ...prev,
+        [activeMediaTab]: {
+          ...prev[activeMediaTab],
+          rows: rows.filter((row) => {
+            if (getMediaDataTabForRow(row) !== activeMediaTab) return false;
+            if (!queryTerm) return true;
+            const name = row.filename?.toLowerCase() ?? "";
+            const path = row.storage_path?.toLowerCase() ?? "";
+            return name.includes(queryTerm) || path.includes(queryTerm);
+          }),
+          loadedAtMs: Date.now(),
+          loaded: true,
+        },
+      }));
+    },
+    [activeMediaQuery, activeMediaTab]
+  );
+
+  const updateVisibleRows = useCallback(
+    (updater: (prev: MediaRow[]) => MediaRow[]) => {
+      setFiles((prev) => {
+        const next = updater(prev);
+        syncActiveMediaCacheRows(next);
+        return next;
+      });
+    },
+    [syncActiveMediaCacheRows]
+  );
+
+  const markInactiveMediaCachesStale = useCallback((currentTab: MediaDataTab | null) => {
+    setMediaTabCache((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const tab of MEDIA_DATA_TABS) {
+        if (tab === currentTab) continue;
+        if (next[tab].loadedAtMs == null) continue;
+        next[tab] = {
+          ...next[tab],
+          loadedAtMs: null,
+        };
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, []);
+
+  const fetchMediaTabPage = useCallback(
+    async (tab: MediaDataTab, options?: { reset?: boolean; query?: string }) => {
+      const cache = mediaTabCache[tab];
+      const normalizedQuery = normalizeMediaSearchTerm(options?.query ?? cache.query);
+      const shouldReset = (options?.reset ?? false) || cache.query !== normalizedQuery;
+      if (cache.loading) return;
+      if (!shouldReset && !cache.hasMore) return;
+      const requestId = mediaTabRequestRef.current[tab] + 1;
+      mediaTabRequestRef.current[tab] = requestId;
+      const isStaleRequest = () => mediaTabRequestRef.current[tab] !== requestId;
+
+      const pageToLoad = shouldReset ? 0 : cache.pagesLoaded;
+      const cursor = shouldReset ? null : cache.nextCursor;
+      setError(null);
+      setMediaTabCache((prev) => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          rows: shouldReset ? [] : prev[tab].rows,
+          nextCursor: shouldReset ? null : prev[tab].nextCursor,
+          pagesLoaded: shouldReset ? 0 : prev[tab].pagesLoaded,
+          query: normalizedQuery,
+          hasMore: shouldReset ? true : prev[tab].hasMore,
+          loading: true,
+          error: null,
+        },
+      }));
+      if (activeTabRef.current === tab && (shouldReset || !cache.loaded)) {
+        setLoading(true);
+      }
+
       try {
         const supabase = ensureSupabaseClient();
         const { data: sessionData } = await supabase.auth.getSession();
         const userId = sessionData.session?.user?.id;
-        if (!userId) {
-          setError("Not signed in");
-          return;
-        }
-        const [mediaResponse, promptResponse] = await Promise.all([
-          supabase
-            .from("media_files")
-            .select("*")
-            .order("created_at", { ascending: false })
-            .order("id", { ascending: false }),
-          supabase
-            .from("media_prompts")
-            .select("*")
-            .order("created_at", { ascending: false })
-            .order("id", { ascending: false }),
-        ]);
-        if (mediaResponse.error) throw mediaResponse.error;
-        if (promptResponse.error) throw promptResponse.error;
+        if (!userId) throw new Error("Not signed in");
+        currentUserIdRef.current = userId;
 
-        const rows = mediaResponse.data || [];
-        const promptRows = promptResponse.data || [];
-        const finishSignBatch = createMediaPerfTimer({
-          surface: "media-library-route",
-          tab: activeTab,
-          batch_size: rows.length,
-        });
-        const signed = await Promise.all(
-          rows.map(async (row) => {
-            const previewStoragePath = resolvePreviewStoragePath(row);
-            const signedUrl = await signStoragePath(previewStoragePath ?? row.storage_path).catch(
-              (signedError) => {
-                console.error("Signed URL error", signedError);
-                return null;
-              }
-            );
-            return {
-              ...row,
-              source: row.source ?? "upload",
-              preview_storage_path: previewStoragePath ?? row.storage_path,
-              signedUrl: signedUrl ?? undefined,
-            } as MediaRow;
-          })
-        );
-        const signedCount = signed.filter((row) => Boolean(row.signedUrl)).length;
-        const failedCount = Math.max(0, rows.length - signedCount);
-        finishSignBatch("media.sign.batch.completed", {
-          signed_count: signedCount,
-          failed_count: failedCount,
-        });
-        if (failedCount > 0) {
-          logMediaPerf("media.sign.batch.failed", {
-            surface: "media-library-route",
-            tab: activeTab,
-            batch_size: rows.length,
-            failed_count: failedCount,
-          });
+        const selectColumns =
+          "id, filename, storage_path, file_type, file_size, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
+        const buildBaseQuery = () => {
+          let query = supabase.from("media_files").select(selectColumns);
+          query = withMediaTabFilter(query, tab);
+          query = withMediaSearchFilter(query, normalizedQuery);
+          return query.order("created_at", { ascending: false }).order("id", { ascending: false });
+        };
+
+        const fetchedRows: MediaRow[] = [];
+        if (!cursor) {
+          const firstPageResponse = await buildBaseQuery().limit(MEDIA_LIBRARY_PAGE_SIZE);
+          if (firstPageResponse.error) throw firstPageResponse.error;
+          fetchedRows.push(...((firstPageResponse.data ?? []) as MediaRow[]));
+        } else {
+          const sameTimestampResponse = await buildBaseQuery()
+            .eq("created_at", cursor.createdAt)
+            .lt("id", cursor.id)
+            .limit(MEDIA_LIBRARY_PAGE_SIZE);
+          if (sameTimestampResponse.error) throw sameTimestampResponse.error;
+          const sameTimestampRows = (sameTimestampResponse.data ?? []) as MediaRow[];
+          fetchedRows.push(...sameTimestampRows);
+
+          const remaining = MEDIA_LIBRARY_PAGE_SIZE - sameTimestampRows.length;
+          if (remaining > 0) {
+            const olderRowsResponse = await buildBaseQuery()
+              .lt("created_at", cursor.createdAt)
+              .limit(remaining);
+            if (olderRowsResponse.error) throw olderRowsResponse.error;
+            fetchedRows.push(...((olderRowsResponse.data ?? []) as MediaRow[]));
+          }
         }
-        if (active) {
-          setFiles(signed);
-          setPrompts(promptRows as PromptRow[]);
+        if (isStaleRequest()) return;
+
+        const rows = mergePageRows([], fetchedRows).slice(0, MEDIA_LIBRARY_PAGE_SIZE);
+        const existingById = new Map(cache.rows.map((row) => [row.id, row]));
+        const normalizedRows = rows.map((row) => {
+          const signingCandidates = resolveMediaSigningStoragePaths(row, userId);
+          const previewStoragePath = signingCandidates[0] ?? row.storage_path;
+          const cachedRow = existingById.get(row.id);
+          return {
+            ...row,
+            source: row.source ?? "upload",
+            preview_storage_path: previewStoragePath,
+            signedUrl: cachedRow?.signedUrl,
+          } as MediaRow;
+        });
+
+        const derivedCursor = buildCursorFromRows(rows);
+        const hasMore = rows.length === MEDIA_LIBRARY_PAGE_SIZE && Boolean(derivedCursor);
+        const nextRows = shouldReset ? normalizedRows : mergePageRows(cache.rows, normalizedRows);
+        setMediaTabCache((prev) => ({
+          ...prev,
+          [tab]: {
+            ...prev[tab],
+            rows: nextRows,
+            nextCursor: hasMore ? derivedCursor : null,
+            pagesLoaded: pageToLoad + 1,
+            query: normalizedQuery,
+            loadedAtMs: Date.now(),
+            hasMore,
+            loading: false,
+            loaded: true,
+            error: null,
+          },
+        }));
+        if (activeTabRef.current === tab) {
+          setFiles(nextRows);
+          setLoading(false);
         }
       } catch (err: unknown) {
-        setError(getErrorMessage(err, "Unable to load media"));
-      } finally {
-        if (active) {
+        if (isStaleRequest()) return;
+        const message = getErrorMessage(err, "Unable to load media");
+        setMediaTabCache((prev) => ({
+          ...prev,
+          [tab]: {
+            ...prev[tab],
+            loading: false,
+            loaded: true,
+            query: normalizedQuery,
+            error: message,
+          },
+        }));
+        if (activeTabRef.current === tab) {
+          setError(message);
           setLoading(false);
         }
       }
-    };
-    load();
-    return () => {
-      active = false;
-    };
-  }, [activeTab, signStoragePath]);
+    },
+    [mediaTabCache]
+  );
+
+  const loadPrompts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const supabase = ensureSupabaseClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (!userId) throw new Error("Not signed in");
+      const promptResponse = await supabase
+        .from("media_prompts")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false });
+      if (promptResponse.error) throw promptResponse.error;
+      setPrompts((promptResponse.data ?? []) as PromptRow[]);
+      setPromptsLoaded(true);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to load prompts"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "saved_prompts") {
+      if (!promptsLoaded) {
+        void loadPrompts();
+      } else {
+        setLoading(false);
+      }
+      return;
+    }
+    const cache = mediaTabCache[activeTab];
+    const queryChanged = cache.query !== activeMediaQuery;
+    const isStale =
+      cache.loadedAtMs == null || Date.now() - cache.loadedAtMs > MEDIA_LIBRARY_CACHE_TTL_MS;
+    if (cache.loaded && !queryChanged && !isStale) {
+      setFiles(cache.rows);
+      setError(cache.error);
+      setLoading(cache.loading);
+      return;
+    }
+    if (cache.loaded && !queryChanged && isStale) {
+      setFiles(cache.rows);
+      setLoading(true);
+    }
+    void fetchMediaTabPage(activeTab, { reset: true, query: activeMediaQuery });
+  }, [activeMediaQuery, activeTab, fetchMediaTabPage, loadPrompts, mediaTabCache, promptsLoaded]);
+
+  useEffect(() => {
+    if (!activeMediaTab) return;
+    if (!activeMediaCache?.loaded || activeMediaCache.loading || !activeMediaCache.hasMore) return;
+    const node = loadMoreSentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+        void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery });
+      },
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [
+    activeMediaCache?.hasMore,
+    activeMediaCache?.loaded,
+    activeMediaCache?.loading,
+    activeMediaQuery,
+    activeMediaTab,
+    fetchMediaTabPage,
+  ]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const list = event.target.files;
@@ -378,7 +1113,7 @@ export default function MediaLibrary() {
         status: "uploading",
       }));
       placeholderIds = placeholders.map((item) => item.id);
-      setFiles((prev) => [...placeholders, ...prev]);
+      updateVisibleRows((prev) => [...placeholders, ...prev]);
       setUploadCount(filesToProcess.length);
       for (let idx = 0; idx < filesToProcess.length; idx += 1) {
         const file = filesToProcess[idx];
@@ -416,13 +1151,8 @@ export default function MediaLibrary() {
         }
 
         const previewStoragePath =
-          resolvePreviewStoragePath(inserted ?? { storage_path: path }) ?? path;
-        const { data: signedData, error: signedError } = await supabase.storage
-          .from(BUCKET)
-          .createSignedUrl(previewStoragePath, 3600);
-        if (signedError) {
-          throw signedError;
-        }
+          resolveMediaSigningStoragePaths(inserted ?? { storage_path: path }, userId)[0] ?? path;
+        const signedUrl = await signStoragePath(previewStoragePath, { forceRefresh: true });
 
         if (inserted?.id) {
           void logMediaEvent("upload", "media_file", inserted.id, {
@@ -436,12 +1166,12 @@ export default function MediaLibrary() {
         uploads.push({
           ...inserted,
           preview_storage_path: previewStoragePath,
-          signedUrl: signedData?.signedUrl,
+          signedUrl: signedUrl ?? undefined,
           status: "ready",
         });
 
         // swap placeholder with real row
-        setFiles((prev) =>
+        updateVisibleRows((prev) =>
           prev.map((f) =>
             placeholderId && f.id === placeholderId ? { ...uploads[uploads.length - 1] } : f
           )
@@ -449,7 +1179,7 @@ export default function MediaLibrary() {
       }
 
       if (uploads.length) {
-        setFiles((prev) => {
+        updateVisibleRows((prev) => {
           // filter out any placeholders not replaced
           const withoutDangling = prev.filter(
             (f) => f.status !== "uploading" || uploads.some((u) => u.id === f.id)
@@ -457,13 +1187,15 @@ export default function MediaLibrary() {
           // ensure new uploads are present (already inserted via swap above)
           return withoutDangling;
         });
+        markInactiveMediaCachesStale(activeMediaTab);
+        void refreshStorageUsageBytes();
       }
       setSelectedFiles([]);
       setUploadCount(0);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Upload failed"));
       if (placeholderIds.length) {
-        setFiles((prev) =>
+        updateVisibleRows((prev) =>
           prev.filter((file) => !(file.status === "uploading" && placeholderIds.includes(file.id)))
         );
       }
@@ -473,61 +1205,214 @@ export default function MediaLibrary() {
     }
   };
 
-  const searchTerm = useMemo(() => search.trim().toLowerCase(), [search]);
-  const uploadFiles = useMemo(
-    () =>
-      sortByCreatedAtDesc(
-        files.filter((f) => (f.source ?? "upload") === "upload" && !isPrivateMediaFile(f))
-      ),
-    [files]
-  );
-  const privateFiles = useMemo(
-    () => sortByCreatedAtDesc(files.filter((f) => isPrivateMediaFile(f))),
-    [files]
-  );
-  const uploadedImages = useMemo(
-    () => uploadFiles.filter((f) => !isVideoFile(f.file_type)),
-    [uploadFiles]
-  );
-  const uploadedVideos = useMemo(
-    () => uploadFiles.filter((f) => isVideoFile(f.file_type)),
-    [uploadFiles]
-  );
-  const aiGenerationFiles = useMemo(
-    () => sortByCreatedAtDesc(files.filter((f) => (f.source ?? "upload") === "ai_studio")),
-    [files]
-  );
-
+  const mediaSearchTerm = useMemo(() => activeMediaQuery.toLowerCase(), [activeMediaQuery]);
+  const promptSearchTerm = useMemo(() => search.trim().toLowerCase(), [search]);
+  const loadingMoreMedia = Boolean(activeMediaCache?.loaded && activeMediaCache?.loading);
+  const hasMoreMediaPages = Boolean(activeMediaCache?.hasMore);
   const filteredMedia = useMemo(() => {
-    const base =
-      activeTab === "uploaded_images"
-        ? uploadedImages
-        : activeTab === "uploaded_videos"
-          ? uploadedVideos
-          : activeTab === "private"
-            ? privateFiles
-            : activeTab === "ai_generations"
-              ? aiGenerationFiles
-              : [];
-    if (!searchTerm) return base;
+    if (!activeMediaTab) return [];
+    const base = files.filter((file) => getMediaDataTabForRow(file) === activeMediaTab);
+    if (!mediaSearchTerm) return base;
     return base.filter((f) => {
       const name = f.filename?.toLowerCase() ?? "";
       const path = f.storage_path?.toLowerCase() ?? "";
-      return name.includes(searchTerm) || path.includes(searchTerm);
+      return name.includes(mediaSearchTerm) || path.includes(mediaSearchTerm);
     });
-  }, [activeTab, aiGenerationFiles, privateFiles, searchTerm, uploadedImages, uploadedVideos]);
+  }, [activeMediaTab, files, mediaSearchTerm]);
+
+  useEffect(() => {
+    if (!activeMediaTab) return;
+    if (activeMediaCache?.loading) return;
+    if (mediaSignInFlightRef.current[activeMediaTab]) return;
+
+    const readyRows = filteredMedia.filter((row) => row.status !== "uploading");
+    if (!readyRows.length) return;
+
+    const prioritizedRows: MediaRow[] = [];
+    const seen = new Set<string>();
+    const enqueue = (row?: MediaRow) => {
+      if (!row) return;
+      if (
+        !resolveMediaSigningStoragePaths(row, currentUserIdRef.current).length ||
+        row.signedUrl ||
+        seen.has(row.id)
+      )
+        return;
+      seen.add(row.id);
+      prioritizedRows.push(row);
+    };
+
+    for (const row of readyRows.slice(0, signBudget.initialSignLimit)) {
+      enqueue(row);
+    }
+
+    const visibleIndexes: number[] = [];
+    for (let idx = 0; idx < readyRows.length; idx += 1) {
+      if (visibleMediaIdsRef.current.has(readyRows[idx].id)) {
+        visibleIndexes.push(idx);
+      }
+    }
+
+    if (visibleIndexes.length) {
+      const firstVisible = Math.min(...visibleIndexes);
+      const lastVisible = Math.max(...visibleIndexes);
+      const before = Math.floor(signBudget.prefetchWindow / 3);
+      const start = Math.max(0, firstVisible - before);
+      const end = Math.min(readyRows.length, lastVisible + 1 + signBudget.prefetchWindow);
+      for (let idx = start; idx < end; idx += 1) {
+        enqueue(readyRows[idx]);
+      }
+    } else {
+      const fallbackEnd = Math.min(
+        readyRows.length,
+        signBudget.initialSignLimit + signBudget.prefetchWindow
+      );
+      for (let idx = signBudget.initialSignLimit; idx < fallbackEnd; idx += 1) {
+        enqueue(readyRows[idx]);
+      }
+    }
+
+    const signBatch = prioritizedRows.slice(0, signBudget.signBatchSize);
+    if (!signBatch.length) return;
+
+    const tabForBatch = activeMediaTab;
+    const queryForBatch = activeMediaQueryRef.current;
+    mediaSignInFlightRef.current[tabForBatch] = true;
+    const finishSignBatch = createMediaPerfTimer({
+      surface: "media-library-route",
+      tab: tabForBatch,
+      batch_size: signBatch.length,
+      page_index: activeMediaCache?.pagesLoaded ?? 0,
+      query_mode: queryForBatch ? "search" : "default",
+    });
+
+    const signCandidatesByRow = signBatch.map((row) => {
+      const candidates = resolveMediaSigningStoragePaths(row, currentUserIdRef.current);
+      return {
+        id: row.id,
+        primaryPath: candidates[0] ?? null,
+        candidates,
+        directUrls: resolveMediaDirectPreviewUrls(row),
+      };
+    });
+    const signPaths = Array.from(new Set(signCandidatesByRow.flatMap((entry) => entry.candidates)));
+    if (!signPaths.length) {
+      mediaSignInFlightRef.current[tabForBatch] = false;
+      return;
+    }
+
+    void getSignedMediaUrlsBatch({
+      bucket: BUCKET,
+      storagePaths: signPaths,
+      expiresInSeconds: 3600,
+    })
+      .then((signedByPath) =>
+        signCandidatesByRow.map((entry) => {
+          const matchedPath =
+            entry.candidates.find((path) => Boolean(signedByPath.get(path))) ?? null;
+          const signedFromPath = matchedPath ? (signedByPath.get(matchedPath) ?? null) : null;
+          const directUrl = signedFromPath ? null : (entry.directUrls[0] ?? null);
+          const signedUrl = signedFromPath ?? directUrl;
+          const usedFallback = Boolean(
+            matchedPath && entry.primaryPath && matchedPath !== entry.primaryPath
+          );
+          return {
+            id: entry.id,
+            signedUrl,
+            usedFallback,
+            attemptedPaths: entry.candidates.slice(0, 4),
+          };
+        })
+      )
+      .then(async (results) => {
+        if (activeTabRef.current !== tabForBatch) return;
+        if (activeMediaQueryRef.current !== queryForBatch) return;
+        const signedById = new Map<string, string>();
+        for (const result of results) {
+          if (result.signedUrl) {
+            signAttemptRef.current[result.id] = 0;
+            signedById.set(result.id, result.signedUrl);
+          } else {
+            signAttemptRef.current[result.id] = (signAttemptRef.current[result.id] ?? 0) + 1;
+          }
+        }
+        applySignedUrlsToTab(tabForBatch, signedById);
+        const unresolvedRows = signBatch.filter((row) => !signedById.has(row.id));
+        const unresolvedAfterResolver = unresolvedRows.length
+          ? await resolveSignedUrlsByMediaIds(tabForBatch, unresolvedRows)
+          : new Set<string>();
+        for (const unresolvedRow of unresolvedRows.slice(0, 4)) {
+          if (!unresolvedAfterResolver.has(unresolvedRow.id)) continue;
+          void hydrateViaStorageDownload(unresolvedRow);
+        }
+        const failedCount = results.length - signedById.size;
+        const fallbackCount = results.reduce(
+          (count, result) => (result.usedFallback ? count + 1 : count),
+          0
+        );
+        finishSignBatch("media.sign.batch.completed", {
+          signed_count: signedById.size,
+          failed_count: failedCount,
+          fallback_count: fallbackCount,
+        });
+        if (failedCount > 0) {
+          if (process.env.NODE_ENV !== "production") {
+            const unresolved = results
+              .filter((result) => !result.signedUrl)
+              .map((result) => ({
+                id: result.id,
+                paths: result.attemptedPaths,
+              }))
+              .slice(0, 8);
+            if (unresolved.length) {
+              console.warn("[media-library] unresolved preview rows", unresolved);
+            }
+          }
+          logMediaPerf("media.sign.batch.failed", {
+            surface: "media-library-route",
+            tab: tabForBatch,
+            batch_size: results.length,
+            failed_count: failedCount,
+            fallback_count: fallbackCount,
+            page_index: activeMediaCache?.pagesLoaded ?? 0,
+            query_mode: queryForBatch ? "search" : "default",
+          });
+        }
+      })
+      .finally(() => {
+        mediaSignInFlightRef.current[tabForBatch] = false;
+        if (isMountedRef.current) {
+          setSignPassNonce((prev) => prev + 1);
+        }
+      });
+  }, [
+    activeMediaCache?.loading,
+    activeMediaCache?.pagesLoaded,
+    activeMediaTab,
+    activeMediaQuery,
+    applySignedUrlsToTab,
+    filteredMedia,
+    hydrateViaStorageDownload,
+    resolveSignedUrlsByMediaIds,
+    signBudget.initialSignLimit,
+    signBudget.prefetchWindow,
+    signBudget.signBatchSize,
+    signPassNonce,
+    signStoragePath,
+    visibleMediaVersion,
+  ]);
 
   const filteredPrompts = useMemo(() => {
     if (activeTab !== "saved_prompts") return [];
-    const promptRows = !searchTerm
+    const promptRows = !promptSearchTerm
       ? prompts
       : prompts.filter((p) => {
           const title = p.title?.toLowerCase() ?? "";
           const text = p.prompt_text?.toLowerCase() ?? "";
-          return title.includes(searchTerm) || text.includes(searchTerm);
+          return title.includes(promptSearchTerm) || text.includes(promptSearchTerm);
         });
     return sortByCreatedAtDesc(promptRows);
-  }, [activeTab, prompts, searchTerm]);
+  }, [activeTab, promptSearchTerm, prompts]);
 
   const isPromptTab = activeTab === "saved_prompts";
   const visibleCount = isPromptTab ? filteredPrompts.length : filteredMedia.length;
@@ -634,11 +1519,60 @@ export default function MediaLibrary() {
     setSelectedIds(isPromptTab ? selectablePromptIds : selectableMediaIds);
   };
 
-  const deleteSelected = async () => {
-    if (!selectedIds.length) return;
+  const collectMediaStoragePathsForDelete = useCallback(
+    async (targets: MediaDeleteTarget[]): Promise<string[]> => {
+      if (!targets.length) return [];
+      const basePaths = targets.flatMap((target) => [
+        target.storage_path,
+        target.preview_storage_path,
+        target.thumb_variant_path,
+        target.poster_variant_path,
+        target.preview_variant_path,
+      ]);
+      const dedupedBasePaths = Array.from(new Set(basePaths.filter(isNonEmptyString)));
+      const targetIds = targets.map((target) => target.id);
+      if (!targetIds.length) return dedupedBasePaths;
+
+      const supabase = ensureSupabaseClient();
+      const { data: variantRows, error: variantError } = await supabase
+        .from("media_asset_variants")
+        .select("storage_path")
+        .in("media_file_id", targetIds);
+
+      // Backward compatibility for environments that have not applied migration 005 yet.
+      if (variantError && isMissingRelationError(variantError)) {
+        return dedupedBasePaths;
+      }
+      if (variantError) throw variantError;
+
+      const variantPaths = ((variantRows ?? []) as MediaVariantPathRow[]).map(
+        (row) => row.storage_path
+      );
+
+      return Array.from(new Set([...dedupedBasePaths, ...variantPaths.filter(isNonEmptyString)]));
+    },
+    []
+  );
+
+  const removeStoragePaths = useCallback(async (paths: string[]): Promise<void> => {
+    if (!paths.length) return;
+    const supabase = ensureSupabaseClient();
+    for (let start = 0; start < paths.length; start += STORAGE_DELETE_BATCH_SIZE) {
+      const batch = paths.slice(start, start + STORAGE_DELETE_BATCH_SIZE);
+      const { error: storageError } = await supabase.storage.from(BUCKET).remove(batch);
+      if (storageError) throw storageError;
+      batch.forEach((path) => {
+        invalidateSignedMediaUrl(BUCKET, path);
+      });
+    }
+  }, []);
+
+  const deleteSelected = async (idsOverride?: string[]): Promise<boolean> => {
+    const idsToDelete = [...(idsOverride ?? selectedIds)];
+    if (!idsToDelete.length || bulkDeleteInFlightRef.current) return false;
+    bulkDeleteInFlightRef.current = true;
     setBulkDeleting(true);
     setError(null);
-    const idsToDelete = [...selectedIds];
     try {
       const supabase = ensureSupabaseClient();
       if (isPromptTab) {
@@ -648,40 +1582,97 @@ export default function MediaLibrary() {
           .in("id", idsToDelete);
         if (deleteError) throw deleteError;
         setPrompts((prev) => prev.filter((prompt) => !idsToDelete.includes(prompt.id)));
-        setSelectedIds([]);
+        setSelectedIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
         idsToDelete.forEach((promptId) => {
           void logMediaEvent("delete", "media_prompt", promptId);
         });
       } else {
-        const targets = files.filter((f) => idsToDelete.includes(f.id));
-        const paths = Array.from(
-          new Set(targets.flatMap((target) => [target.storage_path, target.preview_storage_path]))
-        ).filter(isNonEmptyString);
-        if (paths.length) {
-          const { error: storageError } = await supabase.storage
-            .from(BUCKET)
-            .remove(paths as string[]);
-          if (storageError) throw storageError;
+        let targets: MediaDeleteTarget[] = files
+          .filter((f) => idsToDelete.includes(f.id))
+          .map((file) => ({
+            id: file.id,
+            storage_path: file.storage_path,
+            preview_storage_path: file.preview_storage_path,
+            thumb_variant_path: file.thumb_variant_path,
+            poster_variant_path: file.poster_variant_path,
+            preview_variant_path: file.preview_variant_path,
+          }));
+        if (targets.length < idsToDelete.length) {
+          const targetIdSet = new Set(targets.map((target) => target.id));
+          const missingIds = idsToDelete.filter((id) => !targetIdSet.has(id));
+          if (missingIds.length) {
+            const { data: missingRows, error: missingRowsError } = await supabase
+              .from("media_files")
+              .select(
+                "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
+              )
+              .in("id", missingIds);
+            if (missingRowsError) throw missingRowsError;
+
+            const supplementalTargets = ((missingRows ?? []) as MediaDeleteLookupRow[]).map(
+              (row) => ({
+                id: row.id,
+                storage_path: row.storage_path,
+                preview_storage_path:
+                  resolveMediaSigningStoragePaths(row, currentUserIdRef.current)[0] ??
+                  row.storage_path,
+                thumb_variant_path: row.thumb_variant_path,
+                poster_variant_path: row.poster_variant_path,
+                preview_variant_path: row.preview_variant_path,
+              })
+            );
+            targets = [...targets, ...supplementalTargets];
+          }
         }
-        if (targets.length) {
-          const ids = targets.map((t) => t.id);
-          const { error: deleteError } = await supabase.from("media_files").delete().in("id", ids);
-          if (deleteError) throw deleteError;
-        }
-        setFiles((prev) => prev.filter((f) => !idsToDelete.includes(f.id)));
-        setSelectedIds([]);
+        const paths = await collectMediaStoragePathsForDelete(targets);
+        await removeStoragePaths(paths);
+        const { error: deleteError } = await supabase
+          .from("media_files")
+          .delete()
+          .in("id", idsToDelete);
+        if (deleteError) throw deleteError;
+        updateVisibleRows((prev) => prev.filter((f) => !idsToDelete.includes(f.id)));
+        setSelectedIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
         targets.forEach((target) => {
           void logMediaEvent("delete", "media_file", target.id, {
             storage_path: target.storage_path,
           });
         });
+        markInactiveMediaCachesStale(activeMediaTab);
+        void refreshStorageUsageBytes();
       }
+      return true;
     } catch (err: unknown) {
       setError(
         getErrorMessage(err, `Unable to delete selected ${isPromptTab ? "prompts" : "media"}`)
       );
+      return false;
     } finally {
+      bulkDeleteInFlightRef.current = false;
       setBulkDeleting(false);
+    }
+  };
+
+  const requestDeleteSelected = () => {
+    if (!selectedIds.length) return;
+    if (isPromptTab) {
+      void deleteSelected();
+      return;
+    }
+    setConfirmDeleteIds([...selectedIds]);
+    setError(null);
+  };
+
+  const cancelDeleteSelected = () => {
+    if (bulkDeleting) return;
+    setConfirmDeleteIds(null);
+  };
+
+  const confirmDeleteSelected = async () => {
+    if (!confirmDeleteIds?.length) return;
+    const deleted = await deleteSelected(confirmDeleteIds);
+    if (deleted) {
+      setConfirmDeleteIds(null);
     }
   };
 
@@ -702,22 +1693,19 @@ export default function MediaLibrary() {
     setError(null);
     try {
       const supabase = ensureSupabaseClient();
-      const deletePaths = Array.from(
-        new Set([deleteTarget.storage_path, deleteTarget.preview_storage_path])
-      ).filter(isNonEmptyString);
-      if (deletePaths.length) {
-        const { error: storageError } = await supabase.storage.from(BUCKET).remove(deletePaths);
-        if (storageError) throw storageError;
-      }
+      const deletePaths = await collectMediaStoragePathsForDelete([deleteTarget]);
+      await removeStoragePaths(deletePaths);
       const { error: deleteError } = await supabase
         .from("media_files")
         .delete()
         .eq("id", deleteTarget.id);
       if (deleteError) throw deleteError;
-      setFiles((prev) => prev.filter((file) => file.id !== deleteTarget.id));
+      updateVisibleRows((prev) => prev.filter((file) => file.id !== deleteTarget.id));
       setSelectedIds((prev) => prev.filter((id) => id !== deleteTarget.id));
       setFocusedFile((prev) => (prev && prev.id === deleteTarget.id ? null : prev));
       setDeleteTarget(null);
+      markInactiveMediaCachesStale(activeMediaTab);
+      void refreshStorageUsageBytes();
       void logMediaEvent("delete", "media_file", deleteTarget.id, {
         storage_path: deleteTarget.storage_path,
       });
@@ -728,16 +1716,132 @@ export default function MediaLibrary() {
     }
   };
 
+  const applyMovedFileToCaches = useCallback((file: MediaRow, destinationTab: MediaDataTab) => {
+    setMediaTabCache((prev) => {
+      const next = { ...prev };
+      for (const tab of MEDIA_DATA_TABS) {
+        const cache = prev[tab];
+        const rowsWithoutFile = cache.rows.filter((row) => row.id !== file.id);
+        let nextRows = rowsWithoutFile;
+        if (tab === destinationTab) {
+          const query = normalizeMediaSearchTerm(cache.query).toLowerCase();
+          const filename = file.filename?.toLowerCase() ?? "";
+          const path = file.storage_path?.toLowerCase() ?? "";
+          const queryMatches = !query || filename.includes(query) || path.includes(query);
+          if (queryMatches) {
+            nextRows = mergePageRows(rowsWithoutFile, [file]);
+          }
+        }
+        next[tab] = {
+          ...cache,
+          rows: nextRows,
+          loadedAtMs: tab === destinationTab ? Date.now() : null,
+        };
+      }
+      return next;
+    });
+  }, []);
+
+  const moveFocusedFile = useCallback(
+    async (destinationTab: MediaDataTab) => {
+      if (!focusedFile || movingFile) return;
+      setMovingFile(true);
+      setMoveError(null);
+      setModalError(null);
+      setError(null);
+      const previousFile = focusedFile;
+
+      try {
+        const response = await fetchWithAuth("/api/media/move", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fileId: previousFile.id,
+            destinationTab,
+          }),
+          shortpulseLogScope: "app",
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as {
+            error?: string;
+            details?: string;
+          } | null;
+          throw new Error(
+            payload?.details ?? payload?.error ?? `Unable to move file (${response.status})`
+          );
+        }
+
+        const payload = (await response.json()) as MoveMediaResponse;
+        const movedFile = payload.file;
+        const previewStoragePath =
+          resolveMediaSigningStoragePaths(movedFile, currentUserIdRef.current)[0] ??
+          movedFile.storage_path;
+        const signedUrl = await signStoragePath(previewStoragePath, { forceRefresh: true });
+        const nextFocusedFile: MediaRow = {
+          ...movedFile,
+          preview_storage_path: previewStoragePath,
+          signedUrl: signedUrl ?? undefined,
+          status: "ready",
+        };
+
+        const previousSignPaths = resolveMediaSigningStoragePaths(
+          previousFile,
+          currentUserIdRef.current
+        );
+        for (const path of previousSignPaths) {
+          invalidateSignedMediaUrl(BUCKET, path);
+        }
+
+        applyMovedFileToCaches(nextFocusedFile, payload.toTab);
+        setFiles((prev) => {
+          const rowsWithoutFile = prev.filter((row) => row.id !== nextFocusedFile.id);
+          if (activeTabRef.current !== payload.toTab) return rowsWithoutFile;
+          return mergePageRows(rowsWithoutFile, [nextFocusedFile]).filter(
+            (row) => getMediaDataTabForRow(row) === payload.toTab
+          );
+        });
+        setFocusedFile(nextFocusedFile);
+        setSelectedIds((prev) => prev.filter((id) => id !== nextFocusedFile.id));
+        setMoveMenuOpen(false);
+        if (activeTabRef.current !== payload.toTab) {
+          setActiveTab(payload.toTab);
+        }
+      } catch (err: unknown) {
+        const message = getErrorMessage(err, "Unable to move file");
+        setMoveError(message);
+      } finally {
+        setMovingFile(false);
+      }
+    },
+    [applyMovedFileToCaches, focusedFile, movingFile, signStoragePath]
+  );
+
+  const moveTabOptions = useMemo(
+    () => (focusedFile ? buildMoveTabOptions(focusedFile) : []),
+    [focusedFile]
+  );
+  const canMoveToAnotherTab = useMemo(
+    () => moveTabOptions.some((option) => !option.disabled && isMoveDataTab(option.tab)),
+    [moveTabOptions]
+  );
+
   const openModal = (file: MediaRow) => {
     setFocusedFile(file);
     setRenameValue(file.filename);
     setModalError(null);
+    setMoveError(null);
+    setMoveMenuOpen(false);
   };
 
   const closeModal = () => {
     setFocusedFile(null);
     setRenameValue("");
     setModalError(null);
+    setMoveError(null);
+    setMoveMenuOpen(false);
     setRenameSuccess(false);
   };
 
@@ -754,10 +1858,11 @@ export default function MediaLibrary() {
         .update({ filename: renameValue.trim() })
         .eq("id", focusedFile.id);
       if (error) throw error;
-      setFiles((prev) =>
+      updateVisibleRows((prev) =>
         prev.map((f) => (f.id === focusedFile.id ? { ...f, filename: renameValue.trim() } : f))
       );
       setFocusedFile((prev) => (prev ? { ...prev, filename: renameValue.trim() } : prev));
+      markInactiveMediaCachesStale(activeMediaTab);
       setRenameSuccess(true);
       setTimeout(() => setRenameSuccess(false), 1800);
       void logMediaEvent("rename", "media_file", focusedFile.id, {
@@ -905,14 +2010,6 @@ export default function MediaLibrary() {
             </button>
             <button
               type="button"
-              className={`pill-toggle big ${activeTab === "private" ? "active" : ""}`}
-              onClick={() => setActiveTab("private")}
-            >
-              <LockSimple size={14} weight="bold" aria-hidden />
-              Private
-            </button>
-            <button
-              type="button"
               className={`pill-toggle big ${activeTab === "saved_prompts" ? "active" : ""}`}
               onClick={() => setActiveTab("saved_prompts")}
             >
@@ -924,6 +2021,14 @@ export default function MediaLibrary() {
               onClick={() => setActiveTab("ai_generations")}
             >
               AI Studio Generations
+            </button>
+            <button
+              type="button"
+              className={`pill-toggle big ${activeTab === "private" ? "active" : ""}`}
+              onClick={() => setActiveTab("private")}
+            >
+              <LockSimple size={14} weight="bold" aria-hidden />
+              Private
             </button>
           </div>
           <span className="pill tiny filter-count">
@@ -989,7 +2094,7 @@ export default function MediaLibrary() {
               <button
                 type="button"
                 className="btn-danger"
-                onClick={deleteSelected}
+                onClick={requestDeleteSelected}
                 disabled={!selectedIds.length || bulkDeleting}
                 aria-label={`${deleteButtonLabel} ${selectedIds.length} ${deleteItemLabel}`}
               >
@@ -1062,85 +2167,124 @@ export default function MediaLibrary() {
               ))}
             </div>
           ) : (
-            <div className="media-grid media-grid-fixed media-grid-shell media-grid-packed">
-              {filteredMedia.map((file) => {
-                const aspectRatio =
-                  aspectMap[file.id] || (isVideoFile(file.file_type) ? 9 / 16 : 4 / 5);
-                return (
-                  <div
-                    className={`media-card ${file.status === "uploading" ? "is-uploading" : ""} ${
-                      selectedIds.includes(file.id) ? "is-selected" : ""
-                    }`}
-                    key={file.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => toggleSelect(file)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        toggleSelect(file);
-                      }
-                    }}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      openModal(file);
-                    }}
-                  >
-                    {file.status === "uploading" ? (
-                      <div className="media-thumb placeholder" style={{ aspectRatio }}>
-                        <div className="loader-spin" />
-                      </div>
-                    ) : file.signedUrl ? (
-                      isVideoFile(file.file_type) ? (
-                        <video
-                          className="media-thumb"
-                          src={file.signedUrl}
-                          muted
-                          playsInline
-                          loop
-                          autoPlay
-                          preload="metadata"
-                          onLoadedMetadata={(e) => handleVideoMeta(file.id, e)}
-                          onError={() => handleMediaPreviewError(file)}
-                          style={{ aspectRatio }}
-                        />
-                      ) : (
-                        <>
-                          {/* Signed URLs are dynamic and may include ephemeral query parameters. */}
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={file.signedUrl}
-                            alt={file.filename}
+            <>
+              <div className="media-grid media-grid-fixed media-grid-shell media-grid-packed">
+                {filteredMedia.map((file) => {
+                  const aspectRatio =
+                    aspectMap[file.id] || (isVideoFile(file.file_type) ? 9 / 16 : 4 / 5);
+                  return (
+                    <div
+                      className={`media-card ${file.status === "uploading" ? "is-uploading" : ""} ${
+                        selectedIds.includes(file.id) ? "is-selected" : ""
+                      }`}
+                      key={file.id}
+                      ref={getMediaCardRef(file.id)}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => toggleSelect(file)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleSelect(file);
+                        }
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        openModal(file);
+                      }}
+                    >
+                      {file.status === "uploading" ? (
+                        <div className="media-thumb placeholder" style={{ aspectRatio }}>
+                          <div className="loader-spin" />
+                        </div>
+                      ) : file.signedUrl ? (
+                        isVideoFile(file.file_type) ? (
+                          <video
                             className="media-thumb"
-                            onLoad={(e) => handleImageLoad(file.id, e)}
+                            src={file.signedUrl}
+                            muted
+                            playsInline
+                            loop
+                            autoPlay
+                            preload="metadata"
+                            onLoadedMetadata={(e) => handleVideoMeta(file.id, e)}
                             onError={() => handleMediaPreviewError(file)}
                             style={{ aspectRatio }}
                           />
-                        </>
-                      )
-                    ) : (
-                      <div className="media-thumb placeholder" style={{ aspectRatio }}>
-                        No preview
-                      </div>
-                    )}
-                    {file.status !== "uploading" ? (
-                      <button
-                        type="button"
-                        className="media-delete"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          requestDeleteFile(file);
-                        }}
-                        aria-label={`Delete file: ${file.filename || "media file"}`}
-                      >
-                        <Trash size={14} weight="bold" />
-                      </button>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
+                        ) : (
+                          <>
+                            {/* Signed URLs are dynamic and may include ephemeral query parameters. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={file.signedUrl}
+                              alt={file.filename}
+                              className="media-thumb"
+                              onLoad={(e) => handleImageLoad(file.id, e)}
+                              onError={() => handleMediaPreviewError(file)}
+                              style={{ aspectRatio }}
+                            />
+                          </>
+                        )
+                      ) : (
+                        <div
+                          className="media-thumb placeholder"
+                          style={{ aspectRatio }}
+                          aria-hidden
+                        />
+                      )}
+                      {selectedIds.includes(file.id) ? (
+                        <span className="media-select-indicator" aria-hidden>
+                          <CheckCircle size={13} weight="fill" />
+                        </span>
+                      ) : null}
+                      {file.status !== "uploading" ? (
+                        <div className="media-card-actions">
+                          <button
+                            type="button"
+                            className="media-download"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              void downloadFile(file);
+                            }}
+                            aria-label={`Download file: ${file.filename || "media file"}`}
+                          >
+                            <DownloadSimple size={14} weight="bold" />
+                          </button>
+                          <button
+                            type="button"
+                            className="media-delete"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              requestDeleteFile(file);
+                            }}
+                            aria-label={`Delete file: ${file.filename || "media file"}`}
+                          >
+                            <Trash size={14} weight="bold" />
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+              {hasMoreMediaPages ? (
+                <div className="media-load-more" ref={loadMoreSentinelRef}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      if (!activeMediaTab) return;
+                      void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery });
+                    }}
+                    disabled={loadingMoreMedia}
+                  >
+                    {loadingMoreMedia ? "Loading more..." : "Load more"}
+                  </button>
+                </div>
+              ) : null}
+            </>
           )}
         </section>
       </main>
@@ -1174,6 +2318,42 @@ export default function MediaLibrary() {
                 disabled={deletingSingle}
               >
                 {deletingSingle ? "Deleting..." : "Yes, delete file"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmDeleteIds?.length ? (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-selected-title"
+        >
+          <div className="modal-card media-delete-confirm-card">
+            <h3 id="delete-selected-title">Delete selected file(s) from your library?</h3>
+            <p className="subdued tiny media-delete-confirm-copy">
+              This will permanently remove{" "}
+              <strong>{confirmDeleteIds.length} selected file(s)</strong> from your Media Library
+              and private storage. This action cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={cancelDeleteSelected}
+                disabled={bulkDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={confirmDeleteSelected}
+                disabled={bulkDeleting}
+              >
+                {bulkDeleting ? "Deleting..." : "Yes, delete selected"}
               </button>
             </div>
           </div>
@@ -1220,7 +2400,7 @@ export default function MediaLibrary() {
                     </>
                   )
                 ) : (
-                  <div className="placeholder">No preview available</div>
+                  <div className="placeholder" aria-hidden />
                 )}
               </div>
               <div className="modal-meta">
@@ -1256,15 +2436,64 @@ export default function MediaLibrary() {
                   type="button"
                   onClick={() => void downloadFile(focusedFile)}
                 >
-                  Download file
+                  Download
                 </button>
                 <button
                   className="btn-danger modal-delete-btn"
                   type="button"
                   onClick={() => requestDeleteFile(focusedFile)}
                 >
-                  Delete file
+                  Delete
                 </button>
+                <div className="modal-move">
+                  <button
+                    className="btn-secondary modal-move-toggle"
+                    type="button"
+                    onClick={() => setMoveMenuOpen((prev) => !prev)}
+                    disabled={movingFile || !canMoveToAnotherTab}
+                    aria-haspopup="menu"
+                    aria-expanded={moveMenuOpen}
+                  >
+                    <span>{movingFile ? "Moving..." : "Move"}</span>
+                    <CaretDown
+                      size={14}
+                      weight="bold"
+                      className={moveMenuOpen ? "is-open" : ""}
+                      aria-hidden
+                    />
+                  </button>
+                  {moveMenuOpen ? (
+                    <div className="modal-move-menu" role="menu" aria-label="Move media to tab">
+                      {moveTabOptions.map((option) => {
+                        const label = option.reason
+                          ? `${option.label} · ${option.reason}`
+                          : option.label;
+                        return (
+                          <button
+                            key={option.tab}
+                            type="button"
+                            className="modal-move-option"
+                            role="menuitem"
+                            disabled={option.disabled || !isMoveDataTab(option.tab) || movingFile}
+                            onClick={() => {
+                              if (option.disabled || !isMoveDataTab(option.tab)) return;
+                              void moveFocusedFile(option.tab);
+                            }}
+                            title={label}
+                          >
+                            <span>{option.label}</span>
+                            {option.reason ? <small>{option.reason}</small> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+                {moveError ? (
+                  <div className="auth-error" role="alert" aria-live="assertive">
+                    {moveError}
+                  </div>
+                ) : null}
                 {renameSuccess && !modalError && !savingRename && (
                   <div className="rename-toast" role="status" aria-live="polite">
                     <CheckCircle size={16} weight="bold" />

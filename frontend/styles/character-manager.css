@@ -1,0 +1,401 @@
+/**
+ * Character Manager page styling.
+ * Provides a beginner-first 10-slot intake surface while preserving workspace visual language.
+ */
+.character-manager-body,
+html.character-manager-body,
+body.character-manager-body {
+  background: var(--color-bg) !important;
+  background-image: none !important;
+}
+
+.character-manager-page {
+  --character-card-bg: rgba(201, 205, 214, 0.02);
+  padding-bottom: 64px;
+}
+
+.character-manager-hero {
+  background:
+    radial-gradient(90% 140% at 110% -10%, rgba(52, 211, 153, 0.2), transparent),
+    radial-gradient(120% 120% at 5% -10%, rgba(15, 118, 110, 0.24), transparent),
+    linear-gradient(135deg, rgba(12, 15, 22, 0.94), rgba(7, 10, 16, 0.9));
+}
+
+.character-hero-summary {
+  margin-left: auto;
+  min-width: 240px;
+  display: grid;
+  gap: 10px;
+}
+
+.character-progress-meter {
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  background: var(--character-card-bg);
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.character-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+  color: #ddf7ee;
+}
+
+.character-progress-track {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(201, 205, 214, 0.14);
+  overflow: hidden;
+}
+
+.character-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(120deg, #0f766e 0%, #059669 54%, #34d399 100%);
+  transition: width 0.2s ease;
+}
+
+.pill-ready {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(16, 72, 55, 0.28);
+  color: #b7ffe2;
+}
+
+.pill-pending {
+  border-color: rgba(201, 205, 214, 0.24);
+  background: rgba(201, 205, 214, 0.07);
+}
+
+.character-manager-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+  align-items: flex-start;
+}
+
+.character-list-panel.media-panel,
+.character-builder-panel.media-panel {
+  background: var(--character-card-bg);
+  border: 1px solid rgba(201, 205, 214, 0.08);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.42);
+}
+
+.character-list-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.character-list-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.character-list-card {
+  text-align: left;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(201, 205, 214, 0.15);
+  background: var(--character-card-bg);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #e6eefc;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.character-list-card:hover {
+  border-color: rgba(201, 205, 214, 0.28);
+}
+
+.character-list-card.is-active {
+  border-color: rgba(16, 185, 129, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(16, 185, 129, 0.2),
+    0 12px 24px rgba(0, 0, 0, 0.3);
+}
+
+.character-list-card:disabled {
+  cursor: wait;
+  opacity: 0.78;
+  transform: none;
+}
+
+.character-list-name {
+  margin: 0;
+  font-weight: 700;
+  color: #f3fbff;
+}
+
+.character-builder-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.character-builder-top {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.character-builder-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.character-name-input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(201, 205, 214, 0.2);
+  background: rgba(12, 15, 22, 0.86);
+  color: #eef7fb;
+  padding: 9px 12px;
+  font-weight: 600;
+}
+
+.character-name-input:focus-visible {
+  outline: 2px solid rgba(52, 211, 153, 0.6);
+  outline-offset: 2px;
+}
+
+.character-primary-btn {
+  min-width: 220px;
+  min-height: 42px;
+  border-color: rgba(16, 185, 129, 0.58);
+  background: linear-gradient(125deg, #0f766e 0%, #059669 56%, #34d399 100%);
+  color: #05251d;
+  box-shadow: 0 10px 24px rgba(5, 150, 105, 0.28);
+}
+
+.character-primary-btn:hover {
+  border-color: rgba(16, 185, 129, 0.9);
+  box-shadow: 0 14px 28px rgba(5, 150, 105, 0.33);
+}
+
+.character-primary-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.character-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+}
+
+.character-feedback.notice {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(11, 95, 70, 0.22);
+  color: #cbffe9;
+}
+
+.character-feedback.warning {
+  border-color: rgba(245, 185, 66, 0.4);
+  background: rgba(245, 185, 66, 0.13);
+  color: #ffe5bb;
+}
+
+.character-feedback.error {
+  border-color: rgba(241, 84, 84, 0.5);
+  background: rgba(241, 84, 84, 0.16);
+  color: #ffe0e0;
+}
+
+.character-shot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.character-shot-card {
+  border-radius: 14px;
+  border: 1px solid rgba(201, 205, 214, 0.15);
+  background: var(--character-card-bg);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.character-shot-card.is-filled {
+  border-color: rgba(16, 185, 129, 0.58);
+  box-shadow:
+    0 0 0 1px rgba(16, 185, 129, 0.22),
+    0 12px 30px rgba(0, 0, 0, 0.36);
+}
+
+.character-shot-card.is-warn {
+  border-color: rgba(245, 185, 66, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(245, 185, 66, 0.18),
+    0 12px 30px rgba(0, 0, 0, 0.33);
+}
+
+.character-shot-card.is-fail {
+  border-color: rgba(241, 84, 84, 0.62);
+  box-shadow:
+    0 0 0 1px rgba(241, 84, 84, 0.25),
+    0 12px 30px rgba(0, 0, 0, 0.33);
+}
+
+.character-shot-card.is-dragging {
+  border-color: rgba(52, 211, 153, 0.8);
+  transform: translateY(-1px);
+}
+
+.character-shot-header h3 {
+  margin: 4px 0 0;
+  font-size: 15px;
+}
+
+.character-required-tag {
+  margin-left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 185, 129, 0.44);
+  background: rgba(15, 118, 110, 0.2);
+  color: #9cf8d6;
+}
+
+.character-shot-dropzone {
+  width: 100%;
+  border: 1px dashed rgba(201, 205, 214, 0.32);
+  border-radius: 12px;
+  background: radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.12), rgba(12, 15, 22, 0.82));
+  padding: 10px;
+  min-height: 164px;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  color: #d9f9ea;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.character-shot-dropzone:hover {
+  border-color: rgba(52, 211, 153, 0.7);
+  transform: translateY(-1px);
+}
+
+.character-shot-dropzone:disabled {
+  cursor: wait;
+  opacity: 0.7;
+  transform: none;
+}
+
+.character-shot-dropzone:focus-visible {
+  outline: 2px solid rgba(52, 211, 153, 0.65);
+  outline-offset: 2px;
+}
+
+.character-shot-thumb {
+  width: 100%;
+  border-radius: 10px;
+  max-height: 160px;
+  object-fit: cover;
+}
+
+.character-shot-file {
+  font-size: 12px;
+  color: #c0d0e6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.character-shot-empty {
+  font-weight: 600;
+  color: #d7ebf3;
+}
+
+.character-shot-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.character-validation-note {
+  border-radius: 10px;
+  border: 1px solid transparent;
+  padding: 6px 8px;
+}
+
+.character-validation-note.is-pass {
+  color: #c6ffe7;
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(11, 95, 70, 0.16);
+}
+
+.character-validation-note.is-warn {
+  color: #ffe5bb;
+  border-color: rgba(245, 185, 66, 0.35);
+  background: rgba(245, 185, 66, 0.13);
+}
+
+.character-validation-note.is-fail {
+  color: #ffd6d6;
+  border-color: rgba(241, 84, 84, 0.42);
+  background: rgba(241, 84, 84, 0.14);
+}
+
+.character-remove-btn {
+  border-color: rgba(241, 84, 84, 0.45);
+  color: #ffc9c9;
+  background: rgba(111, 17, 17, 0.22);
+}
+
+.character-remove-btn:hover {
+  border-color: rgba(241, 84, 84, 0.7);
+  color: #ffd9d9;
+}
+
+@media (max-width: 1100px) and (max-device-width: 1100px) {
+  .character-manager-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .character-builder-top {
+    grid-template-columns: 1fr;
+  }
+
+  .character-primary-btn {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 860px) and (max-device-width: 860px) {
+  .character-shot-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .character-hero-summary {
+    width: 100%;
+  }
+}

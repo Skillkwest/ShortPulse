@@ -29,6 +29,31 @@ export type MediaPerfEvent = {
 type MediaPerfDebugHandle = {
   snapshot: () => MediaPerfEvent[];
   clear: () => void;
+  durationStats: () => MediaPerfDurationStat[];
+  signStats: () => MediaPerfSignStat[];
+};
+
+export type MediaPerfDurationStat = {
+  event: MediaPerfEventName;
+  samples: number;
+  p50_ms: number;
+  p95_ms: number;
+  avg_ms: number;
+  max_ms: number;
+};
+
+export type MediaPerfSignStat = {
+  surface: string;
+  tab: string;
+  query_mode: string;
+  samples: number;
+  avg_duration_ms: number;
+  p50_duration_ms: number;
+  p95_duration_ms: number;
+  total_batch_size: number;
+  total_signed: number;
+  total_failed: number;
+  failed_ratio: number;
 };
 
 const MAX_MEDIA_PERF_EVENTS = 500;
@@ -36,6 +61,20 @@ const MAX_KEY_LENGTH = 48;
 const MAX_STRING_LENGTH = 140;
 
 const eventBuffer: MediaPerfEvent[] = [];
+
+const toFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return null;
+};
+
+const percentile = (sortedValues: number[], ratio: number): number => {
+  if (!sortedValues.length) return 0;
+  const index = Math.min(
+    sortedValues.length - 1,
+    Math.max(0, Math.floor((sortedValues.length - 1) * ratio))
+  );
+  return sortedValues[index] ?? 0;
+};
 
 const trimKey = (key: string): string => {
   const trimmed = key.trim();
@@ -132,6 +171,96 @@ export const clearMediaPerfEvents = (): void => {
 };
 
 /**
+ * Aggregates duration-bearing events into percentile and average stats for quick local audits.
+ */
+export const getMediaPerfDurationStats = (): MediaPerfDurationStat[] => {
+  const durationsByEvent = new Map<MediaPerfEventName, number[]>();
+  for (const event of eventBuffer) {
+    const durationMs = toFiniteNumber(event.data.duration_ms);
+    if (durationMs == null) continue;
+    const list = durationsByEvent.get(event.event) ?? [];
+    list.push(durationMs);
+    durationsByEvent.set(event.event, list);
+  }
+  return Array.from(durationsByEvent.entries())
+    .map(([event, durations]) => {
+      const sorted = [...durations].sort((a, b) => a - b);
+      const total = sorted.reduce((sum, value) => sum + value, 0);
+      const max = sorted[sorted.length - 1] ?? 0;
+      return {
+        event,
+        samples: sorted.length,
+        p50_ms: Math.round(percentile(sorted, 0.5)),
+        p95_ms: Math.round(percentile(sorted, 0.95)),
+        avg_ms: Math.round(total / Math.max(1, sorted.length)),
+        max_ms: Math.round(max),
+      };
+    })
+    .sort((a, b) => b.p95_ms - a.p95_ms);
+};
+
+/**
+ * Aggregates sign-batch completion telemetry by surface/tab/query-mode for tuning.
+ */
+export const getMediaPerfSignStats = (): MediaPerfSignStat[] => {
+  type SignAccumulator = {
+    durations: number[];
+    totalBatchSize: number;
+    totalSigned: number;
+    totalFailed: number;
+  };
+  const buckets = new Map<string, SignAccumulator>();
+
+  for (const event of eventBuffer) {
+    if (event.event !== "media.sign.batch.completed") continue;
+    const surface = String(event.data.surface ?? "unknown");
+    const tab = String(event.data.tab ?? "unknown");
+    const queryMode = String(event.data.query_mode ?? "default");
+    const key = `${surface}|${tab}|${queryMode}`;
+    const bucket = buckets.get(key) ?? {
+      durations: [],
+      totalBatchSize: 0,
+      totalSigned: 0,
+      totalFailed: 0,
+    };
+
+    const durationMs = toFiniteNumber(event.data.duration_ms);
+    const batchSize = toFiniteNumber(event.data.batch_size) ?? 0;
+    const signedCount = toFiniteNumber(event.data.signed_count) ?? 0;
+    const failedCount = toFiniteNumber(event.data.failed_count) ?? 0;
+    if (durationMs != null) bucket.durations.push(durationMs);
+    bucket.totalBatchSize += batchSize;
+    bucket.totalSigned += signedCount;
+    bucket.totalFailed += failedCount;
+    buckets.set(key, bucket);
+  }
+
+  return Array.from(buckets.entries())
+    .map(([key, bucket]) => {
+      const [surface, tab, queryMode] = key.split("|");
+      const sortedDurations = [...bucket.durations].sort((a, b) => a - b);
+      const totalDuration = sortedDurations.reduce((sum, value) => sum + value, 0);
+      const samples = sortedDurations.length;
+      const denominator = bucket.totalSigned + bucket.totalFailed;
+      const failedRatio = denominator > 0 ? bucket.totalFailed / denominator : 0;
+      return {
+        surface,
+        tab,
+        query_mode: queryMode,
+        samples,
+        avg_duration_ms: samples > 0 ? Math.round(totalDuration / samples) : 0,
+        p50_duration_ms: Math.round(percentile(sortedDurations, 0.5)),
+        p95_duration_ms: Math.round(percentile(sortedDurations, 0.95)),
+        total_batch_size: Math.round(bucket.totalBatchSize),
+        total_signed: Math.round(bucket.totalSigned),
+        total_failed: Math.round(bucket.totalFailed),
+        failed_ratio: Number(failedRatio.toFixed(4)),
+      };
+    })
+    .sort((a, b) => b.p95_duration_ms - a.p95_duration_ms);
+};
+
+/**
  * Installs a small debug handle on `window` for manual baseline collection in dev tools.
  */
 export const installMediaPerfDebugHandle = (): void => {
@@ -140,6 +269,8 @@ export const installMediaPerfDebugHandle = (): void => {
   window.__shortpulseMediaPerf = {
     snapshot: getMediaPerfSnapshot,
     clear: clearMediaPerfEvents,
+    durationStats: getMediaPerfDurationStats,
+    signStats: getMediaPerfSignStats,
   };
 };
 

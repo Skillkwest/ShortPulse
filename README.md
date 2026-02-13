@@ -9,6 +9,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - Analytics: In-browser scoring of a demo cohort with user-triggered refresh/rescore controls.
 - AI Studio providers: Next.js API routes under `/api/fal/*` proxy Fal queue requests (server-side `FAL_KEY` required), including the Seedream 4.5 edit proxy at `/api/fal/seedream-edit-submit`.
 - Local AI Studio media uploads: `/api/upload-image` and `/api/upload-video` store user-scoped files in private storage and return short-lived signed URLs for provider fetches.
+- Media preview signing: `/api/media/sign-batch` signs user-scoped media preview paths in a single authenticated request to reduce list/grid signing overhead.
 - Billing/credits: Supabase-backed plan/profile/credit ledger model with Stripe-ready checkout, portal, and webhook routes.
 - Ops telemetry: authenticated app/runtime failures can be ingested at `/api/log/client-error` and viewed via `/api/admin/errors`.
 
@@ -47,18 +48,19 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - **Performance Analytics (`/performance`)**: Post‑MVP (Coming Soon); demo analytics surface with filters and scoring.
 - **Performance Placeholder (`/performance-soon`)**: Temporary landing page that explains the analytics workspace is still under construction.
 - **Saved Creators (`/saved-creators`)**: Post‑MVP (Coming Soon); per-user handle list.
-- **Media Library (`/media-library`)**: Upload/download/delete/rename files in a private Supabase bucket, including a Private image tab (`<auth.uid()>/private/images/...`).
+- **Media Library (`/media-library`)**: Upload/download/delete/rename/move files across media tabs in a private Supabase bucket, including a Private image tab (`<auth.uid()>/private/images/...`).
 - **Profile (`/profile`)**: Profile/account/billing UI with plan badges, Stripe billing actions, and credit purchase entry points.
 - **AI Studio (`/ai-studio`)**: Creative canvas for prompt systems, model/aspect selection, previewing, and saving image/video outputs.
-- **Character Placeholder (`/character-soon`)**: Temporary landing page while the Character workflow is under construction.
+- **Character Manager (`/character`)**: Beginner-first character creation and management workspace with a fixed 10-shot reference intake flow.
+- **Character Placeholder (`/character-soon`)**: Legacy fallback landing page retained during Character Manager rollout.
 - **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls and a live app-error incident feed.
 
 ## Security
 
 - Only the Supabase anon key is used on the client; never share the service role key.
 - Enable RLS on `saved_creators` and `media_files` (per-user isolation) and keep the `media_library` bucket private with paths prefixed by `auth.uid()`.
-- Route protection: `/dashboard`, `/performance`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/character-soon`, and `/admin` expect authenticated sessions and redirect to `/auth` when missing.
-- API protection: provider proxy routes, billing routes, upload routes, and admin routes require bearer-authenticated Supabase sessions.
+- Route protection: `/dashboard`, `/performance`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/character`, `/character-soon`, and `/admin` expect authenticated sessions and redirect to `/auth` when missing.
+- API protection: provider proxy routes, media routes, billing routes, upload routes, and admin routes require bearer-authenticated Supabase sessions.
 
 ## Testing
 

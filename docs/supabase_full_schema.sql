@@ -77,6 +77,18 @@ drop policy if exists modify_media_files_isolation on media_files;
 create policy modify_media_files_isolation on media_files
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+create or replace function get_media_library_usage_bytes()
+returns bigint
+language sql
+stable
+as $$
+    select coalesce(sum(file_size), 0)::bigint
+    from media_files
+    where user_id = auth.uid();
+$$;
+
+grant execute on function get_media_library_usage_bytes() to authenticated;
+
 -- Media prompts (saved prompts)
 create table if not exists media_prompts (
     id uuid primary key default gen_random_uuid(),

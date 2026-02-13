@@ -1,0 +1,126 @@
+/**
+ * Batch-signed URL endpoint for media-library previews.
+ * Requires a bearer-authenticated user and only signs user-scoped storage paths.
+ */
+import type { NextApiRequest, NextApiResponse } from "next";
+import { requireApiUser } from "../_utils/auth";
+import { logApiRouteException } from "../_utils/appErrorLogs";
+import { getSupabaseAdmin } from "../_utils/supabaseAdmin";
+
+type SignBatchSuccessResponse = {
+  urls: Record<string, string | null>;
+};
+
+type SignBatchErrorResponse = {
+  error: string;
+  details?: string;
+};
+
+const MEDIA_BUCKET = "media_library";
+const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
+const MIN_SIGNED_URL_TTL_SECONDS = 60;
+const MAX_SIGNED_URL_TTL_SECONDS = 3600;
+const MAX_SIGN_PATHS = 60;
+const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
+
+const toSafePath = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  if (normalized.startsWith("/") || normalized.includes("\\")) return null;
+  if (TRAVERSAL_SEGMENT_REGEX.test(normalized)) return null;
+  return normalized;
+};
+
+const toSafePathList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  const unique = new Set<string>();
+  for (const rawPath of value) {
+    const path = toSafePath(rawPath);
+    if (!path) continue;
+    unique.add(path);
+    if (unique.size >= MAX_SIGN_PATHS) break;
+  }
+  return Array.from(unique);
+};
+
+const toSafeExpiresInSeconds = (value: unknown): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_SIGNED_URL_TTL_SECONDS;
+  const normalized = Math.trunc(parsed);
+  if (normalized < MIN_SIGNED_URL_TTL_SECONDS) return MIN_SIGNED_URL_TTL_SECONDS;
+  if (normalized > MAX_SIGNED_URL_TTL_SECONDS) return MAX_SIGNED_URL_TTL_SECONDS;
+  return normalized;
+};
+
+/**
+ * Signs media storage paths in a single call for lower list-render latency.
+ */
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<SignBatchSuccessResponse | SignBatchErrorResponse>
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const user = await requireApiUser(req, res);
+  if (!user) return;
+
+  try {
+    const body =
+      typeof req.body === "string" ? (JSON.parse(req.body) as Record<string, unknown>) : req.body;
+    const requestedBucket = typeof body?.bucket === "string" ? body.bucket.trim() : MEDIA_BUCKET;
+    if (requestedBucket !== MEDIA_BUCKET) {
+      return res.status(400).json({ error: "Invalid bucket" });
+    }
+
+    const paths = toSafePathList(body?.paths);
+    if (!paths.length) {
+      return res.status(200).json({ urls: {} });
+    }
+
+    const userPrefix = `${user.id}/`;
+    const hasOutOfScopePath = paths.some((path) => !path.startsWith(userPrefix));
+    if (hasOutOfScopePath) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const expiresInSeconds = toSafeExpiresInSeconds(body?.expiresInSeconds);
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data, error } = await supabaseAdmin.storage
+      .from(MEDIA_BUCKET)
+      .createSignedUrls(paths, expiresInSeconds);
+
+    if (error) {
+      return res.status(500).json({
+        error: "Failed to sign media paths",
+        details: error.message,
+      });
+    }
+
+    const urls: Record<string, string | null> = {};
+    for (const path of paths) {
+      urls[path] = null;
+    }
+    for (const signedItem of data ?? []) {
+      const path = toSafePath((signedItem as { path?: unknown }).path);
+      if (!path || !(path in urls)) continue;
+      const signedUrl = (signedItem as { signedUrl?: unknown }).signedUrl;
+      urls[path] = typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : null;
+    }
+
+    return res.status(200).json({ urls });
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "media-sign-batch",
+      user,
+    });
+    return res.status(500).json({
+      error: "Failed to sign media paths",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}

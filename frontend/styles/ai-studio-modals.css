@@ -269,6 +269,24 @@
   padding: 12px 18px 6px;
 }
 
+.media-library-modal-search {
+  padding: 0 18px 10px;
+}
+
+.media-library-modal-search .search-input {
+  width: min(480px, 100%);
+  border: 1px solid rgba(137, 156, 178, 0.24);
+  background: rgba(12, 15, 22, 0.75);
+}
+
+.media-library-modal-search .search-input input {
+  color: rgba(234, 240, 249, 0.94);
+}
+
+.media-library-modal-search .search-input input::placeholder {
+  color: rgba(174, 187, 205, 0.76);
+}
+
 .media-library-tab {
   border: 1px solid rgba(137, 156, 178, 0.24);
   background: rgba(12, 15, 22, 0.7);

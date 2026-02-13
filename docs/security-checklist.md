@@ -14,11 +14,12 @@ Purpose: ensure user isolation and authenticated access across the frontend-only
 - **Reservation lifecycle**: Keep `ai_credit_reservations` + reservation RPC functions aligned with app expectations (run `sql/migrations/002_add_generation_credit_reservations.sql` before enabling production generation billing).
 - **Webhook idempotency**: Persist Stripe event IDs (`stripe_event_log`) and skip duplicates before applying credits/subscription updates.
 - **Storage isolation**: Keep the `media_library` bucket private; require folder prefixes that start with `auth.uid()` (see `sql/storage_policies.sql`). Private tab uploads must stay under `<auth.uid()>/private/images/...`.
-- **Media source integrity**: Keep `media_files.source` constrained to `upload | private_upload | ai_studio` and enforce private-path/file-type checks (run `sql/migrations/003_add_private_media_source.sql` and `sql/migrations/004_add_private_media_integrity_checks.sql`).
+- **Media source integrity**: Keep `media_files.source` constrained to `upload | private_upload | ai_studio`, enforce non-null/default semantics, and keep private-path/file-type checks aligned (run `sql/migrations/003_add_private_media_source.sql`, `sql/migrations/004_add_private_media_integrity_checks.sql`, and `sql/migrations/007_harden_media_source_and_usage_rpc.sql`).
+- **Media usage aggregate**: Keep `get_media_library_usage_bytes()` available for authenticated users so usage UI can avoid partial totals from paged caches.
 - **Frontend route protection**: Guard dashboard/performance/saved-creators/media-library/profile; redirect unauthenticated users to `/auth`.
 - **Key management**: Never expose the service-role key. Use only the anon key in the browser.
 - **Network calls**: All Supabase requests already include the user’s JWT; avoid any other unauthenticated calls for user-owned data.
-- **API auth boundary**: Require authenticated bearer tokens for provider proxy routes (`/api/fal/*`, `/api/kei/*`, `/api/ai/*`), upload endpoints, billing routes, and admin routes (enforced in `frontend/proxy.ts`, with additional route-level guards where needed).
+- **API auth boundary**: Require authenticated bearer tokens for provider proxy routes (`/api/fal/*`, `/api/kei/*`, `/api/ai/*`), media routes (`/api/media/*`), upload endpoints, billing routes, and admin routes (enforced in `frontend/proxy.ts`, with additional route-level guards where needed).
 - **Admin boundary**: Restrict admin APIs to operator roles from `app_metadata` (`role`/`roles`) or explicit allow-listed admin emails. Do not trust `user_metadata` for admin authorization.
 
 ## Validation

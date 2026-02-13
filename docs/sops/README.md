@@ -29,6 +29,7 @@ Purpose: operational runbooks for recurring engineering and product workflows.
 - `docs/sops/sop_character_identity.md`
 - `docs/sops/sop_saved_creators.md`
 - `docs/sops/sop_media_library_ui.md`
+- `docs/sops/sop_media_performance_operations.md`
 - `docs/sops/sop_performance_ai_detection.md`
 - `docs/sops/sop_billing_credits_operations.md`
 - `docs/sops/sop_provider_incident_response.md`

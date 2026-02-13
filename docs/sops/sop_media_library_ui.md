@@ -25,6 +25,15 @@ Keep the Media Library page visually aligned with Saved Creators and dashboard c
 - AI Studio generations appear only in the AI Studio tab (not in uploaded images/videos).
 - Saved Prompts is a text-only grid; prompts are saved manually.
 
+## Modal Actions
+- Preview modal actions include: **Save name**, **Download**, **Delete**, and **Move**.
+- `Move` opens a destination dropdown and updates both Supabase storage path and `media_files` source/path classification.
+- Destination constraints:
+  - Image-only tabs reject video moves.
+  - Private accepts images only.
+  - Saved Prompts is text-only and is shown as disabled for media moves.
+- After move, the item should disappear from the source tab and appear in the destination tab.
+
 ## Upgrade Button (Need More Storage?)
 - Base color: brand amber `#F5B942` text, amber border/gradient, soft outer shadow.
 - Hover: slight lift (`translateY(-2px)`) and warmer amber glow (`rgba(255,190,89,0.28)` shadow, `rgba(255,190,89,0.35)` outer); color remains `#F5B942`.
@@ -35,3 +44,17 @@ Keep the Media Library page visually aligned with Saved Creators and dashboard c
 ## Implementation Pointers
 - Page: `frontend/pages/media-library.tsx` controls header chips and media-panel classes.
 - Styles: `frontend/styles/workspace-media.css` (upload spacing, media-panel, upgrade hover), `frontend/styles/workspace-dashboard.css` (body background override), `frontend/styles/workspace-chrome.css` (header-stat hover).
+
+## Performance Behavior Contract
+- Data loading:
+  - Media tabs use keyset cursor pagination and tab/query-aware caching.
+  - Modal and route search should be server-filtered for media tabs.
+- Signing behavior:
+  - Media previews are signed lazily for visible/buffered cards.
+  - Signing should use batch API hydration (`/api/media/sign-batch`) through `mediaSignedUrlCache`.
+  - Placeholder-first rendering is expected while previews are being signed/hydrated.
+- Cache freshness:
+  - Tab caches can be reused briefly, then refreshed in the background.
+  - Upload/delete/rename/move operations should invalidate stale tab views.
+
+For operational runbooks and tuning procedures, see `docs/sops/sop_media_performance_operations.md`.

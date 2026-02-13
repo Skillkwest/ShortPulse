@@ -6,6 +6,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Text generation: `docs/sops/sop_text_generation.md` — prompt refinement and image-to-text describe flows.
 - Image generation: `docs/sops/sop_image_generation.md` — text-to-image today; will house image-to-image/image-to-video notes.
 - Video generation: `docs/sops/sop_video_generation.md` — text-to-video and image-to-video.
+- Media performance ops: `docs/sops/sop_media_performance_operations.md` — Reference Grid autoplay budgeting, media signing behavior, and performance triage.
 - Agent collaboration: `docs/sops/sop_ai_studio_agent.md` — chat-based assistant that replaces prompt textareas, sees the reference grid, and applies prompts to generation.
 - Agent chat ops: `docs/sops/sop_ai_studio_agent_chat_ops.md` — UI entry points, context pipeline, fallbacks, and validation checklist for the agent chat surfaces.
 
@@ -15,6 +16,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Pricing strategies: `frontend/features/ai-studio/logic/pricingStrategies.ts` (per-MP, per-image, per-duration).
 - UI orchestration: `frontend/features/ai-studio/hooks/useAiStudioState.ts`, `frontend/pages/ai-studio.tsx`.
 - Model picker + cost badges: `frontend/features/ai-studio/components/ModelModal.tsx` (uses registry defaults).
+- Reference Grid performance controls: `frontend/features/ai-studio/components/ReferenceCanvas.tsx` (virtualization + autoplay budget gating).
 
 ## Default model params (source of truth: modelRegistry.ts)
 | Model | Defaults | Notes |

@@ -44,6 +44,7 @@ ShortPulse is currently a **client-only** Next.js app that uses **Supabase** for
 
 ### `/media-library`
 - Responsibility: per-user file upload/list/download/delete/rename.
+- Uses authenticated batch preview signing via `/api/media/sign-batch` for grid/list hydration.
 - Storage isolation expectations: `docs/security-checklist.md`, `sql/storage_policies.sql`
 
 ### `/ai-studio`

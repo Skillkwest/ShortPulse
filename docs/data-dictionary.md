@@ -29,8 +29,13 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Integrity checks:
   - `source` constrained to `upload | private_upload | ai_studio`.
+  - `source` is non-null with default `upload` (see `sql/migrations/007_harden_media_source_and_usage_rpc.sql`).
   - `source = private_upload` requires `file_type = image` and `storage_path` under `<user_id>/private/images/...`.
   - Any row with `storage_path` under `<user_id>/private/images/...` must use `source = private_upload`.
+
+### Media usage RPCs
+- `get_media_library_usage_bytes()`: returns total `file_size` bytes for the authenticated user’s `media_files` rows.
+- Used by: `frontend/pages/media-library.tsx` for accurate storage usage display independent of paged list cache.
 
 ### media_prompts
 - `id` (uuid, pk, default `gen_random_uuid()`)
@@ -65,7 +70,7 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 ### media_events
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
-- `event_type` (text): upload | delete | rename | prompt_saved | generation_saved | generation_failed.
+- `event_type` (text): upload | delete | rename | move | prompt_saved | generation_saved | generation_failed.
 - `entity_type` (text): media_file | media_prompt | ai_generation.
 - `entity_id` (uuid): Row id the event refers to.
 - `metadata` (jsonb, default `{}`): Event payload details.

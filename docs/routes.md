@@ -12,8 +12,8 @@ Reference for pages, auth expectations, and ownership.
 | `/saved-creators` | Yes | Saved creators list | Post‑MVP (Coming Soon). |
 | `/media-library` | Yes | Private bucket file manager | Uses `media_library` bucket + `media_files` table (RLS), including Private tab uploads under `<auth.uid()>/private/images/...`. |
 | `/ai-studio` | Yes | Creative canvas (prompt/image/video) | `/creator-studio` forwards here. |
-| `/character` | Yes | Character tool (identity ingest + consistent image gen) | Frontend-triggered; Fal proxy by default. |
-| `/character-soon` | Yes | Temporary placeholder for the Character workspace | Linked from the dashboard while Character is staged. |
+| `/character` | Yes | Character Manager (10-shot intake + character management) | Beginner-first reference-sheet workflow; Seedream generation integration follows phased rollout. |
+| `/character-soon` | Yes | Legacy placeholder route for Character | Kept as fallback while Character Manager rollout stabilizes. |
 | `/profile` | Yes | Profile/account/billing UI | Logout modal; plan badges. |
 | `/admin` | Yes | Internal admin dashboard | Operator-only surface (`app_metadata` role or admin allowlist); not part of MVP. |
 | `/onboarding` | No | Lightweight onboarding shell | Links to dashboard/features. |

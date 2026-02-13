@@ -28,8 +28,12 @@ import {
   buildRegenerateReferencePool,
   buildVideoReferenceInputs,
 } from "../logic/referenceInputs";
+import { evaluateStaleOutputCleanup, type OutputLifecycleMap } from "../logic/staleOutputCleanup";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
+const STALE_LOADING_TIMEOUT_MS = 3 * 60 * 1000;
+const AUTO_FAILED_OUTPUT_REMOVAL_MS = 2 * 60 * 1000;
+const STALE_OUTPUT_SWEEP_INTERVAL_MS = 15_000;
 
 type ModelModalPosition = { top: number; left: number };
 type PendingAutoSave = {
@@ -200,6 +204,7 @@ export const useAiStudioState = () => {
   const [saved, setSaved] = useState(false);
   const outputsRef = useRef<StudioOutput[]>([]);
   const pendingAutoSavesRef = useRef<Record<string, PendingAutoSave>>({});
+  const staleOutputLifecycleRef = useRef<OutputLifecycleMap>({});
 
   useEffect(() => {
     outputsRef.current = outputs;
@@ -524,6 +529,76 @@ export const useAiStudioState = () => {
     []
   );
 
+  const sweepStaleOutputs = useCallback(() => {
+    const now = Date.now();
+    const lifecycle = staleOutputLifecycleRef.current;
+    const outputsSnapshot = outputsRef.current;
+    const cleanup = evaluateStaleOutputCleanup(outputsSnapshot, lifecycle, now, {
+      loadingTimeoutMs: STALE_LOADING_TIMEOUT_MS,
+      autoFailedRetentionMs: AUTO_FAILED_OUTPUT_REMOVAL_MS,
+    });
+    const staleLoadingSet = new Set(cleanup.staleLoadingIds);
+    const removableSet = new Set(cleanup.removableIds);
+
+    staleLoadingSet.forEach((id) => {
+      const existing = cleanup.nextLifecycle[id] ?? {};
+      cleanup.nextLifecycle[id] = {
+        ...existing,
+        autoFailedAtMs: now,
+      };
+      delete cleanup.nextLifecycle[id].pendingSinceMs;
+    });
+
+    staleOutputLifecycleRef.current = cleanup.nextLifecycle;
+
+    if (!staleLoadingSet.size && !removableSet.size) return;
+
+    setOutputs((prev) => {
+      let changed = false;
+      const next: StudioOutput[] = [];
+
+      prev.forEach((item) => {
+        if (removableSet.has(item.id)) {
+          changed = true;
+          return;
+        }
+        if (!staleLoadingSet.has(item.id)) {
+          next.push(item);
+          return;
+        }
+        changed = true;
+        next.push({
+          ...item,
+          status: "ready",
+          taskState: "fail",
+          timestamp: "Timed out",
+          errorMessage: "Generation timed out before preview was ready.",
+          errorMessageShort: "Generation timed out.",
+          errorDetail:
+            "This preview remained unresolved for several minutes and was marked as failed.",
+        });
+      });
+
+      return changed ? next : prev;
+    });
+
+    if (removableSet.size) {
+      setActiveOutputId((prev) => (prev && removableSet.has(prev) ? null : prev));
+      removableSet.forEach((id) => {
+        delete pendingAutoSavesRef.current[id];
+      });
+    }
+  }, [setActiveOutputId, setOutputs]);
+
+  useEffect(() => {
+    sweepStaleOutputs();
+  }, [outputs, sweepStaleOutputs]);
+
+  useEffect(() => {
+    const timeoutId = window.setInterval(sweepStaleOutputs, STALE_OUTPUT_SWEEP_INTERVAL_MS);
+    return () => window.clearInterval(timeoutId);
+  }, [sweepStaleOutputs]);
+
   const findOutputById = useCallback(
     (id: string) => outputsRef.current.find((item) => item.id === id) ?? null,
     []
@@ -552,6 +627,7 @@ export const useAiStudioState = () => {
   const deleteOutput = useCallback(
     (id: string) => {
       delete pendingAutoSavesRef.current[id];
+      delete staleOutputLifecycleRef.current[id];
       setOutputs((prev) => prev.filter((item) => item.id !== id));
       if (activeOutputId === id) {
         setActiveOutputId(null);

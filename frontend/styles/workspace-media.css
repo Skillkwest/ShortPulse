@@ -848,41 +848,6 @@ body.media-library-body {
   letter-spacing: 0.1em;
 }
 
-.media-dashboard-link {
-  margin: 0;
-  width: 120px;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 500;
-  min-height: 38px;
-  border: 1px solid rgba(201, 205, 214, 0.2);
-  border-radius: 10px;
-  position: relative;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: rgba(201, 205, 214, 0.06);
-  color: var(--color-ash);
-  line-height: 1.1;
-  text-decoration: none;
-  transition: all 0.15s ease;
-}
-
-.media-dashboard-link:hover {
-  border-color: rgba(201, 205, 214, 0.4);
-}
-
-.media-dashboard-link:focus-visible {
-  outline: 2px solid #22d3ee;
-  outline-offset: 3px;
-}
-
-.media-dashboard-link > * {
-  pointer-events: none;
-}
-
 .media-library-body .media-panel {
   position: relative;
   overflow: hidden;
@@ -1028,7 +993,7 @@ body.media-library-body {
 }
 
 .media-library-body .pill-toggle {
-  border: 1px solid rgba(8, 255, 73, 0.24);
+  border: 1px solid rgba(8, 169, 255, 0.24);
   border-radius: 12px;
   background: var(--media-card-surface);
   color: var(--media-text-secondary);
@@ -1041,21 +1006,21 @@ body.media-library-body {
 }
 
 .media-library-body .pill-toggle:hover {
-  border-color: rgba(76, 255, 136, 0.54);
+  border-color: rgba(76, 201, 255, 0.54);
   color: #e6ffef;
   box-shadow:
     0 10px 24px rgba(2, 4, 10, 0.5),
-    0 0 0 1px rgba(8, 255, 73, 0.16);
+    0 0 0 1px rgba(8, 243, 255, 0.16);
 }
 
 .media-library-body .pill-toggle.active {
   color: #f0fff5;
-  border-color: rgba(105, 255, 159, 0.86);
-  background: linear-gradient(145deg, rgba(0, 191, 68, 0.42), rgba(13, 22, 18, 0.94));
+  border-color: rgba(105, 228, 255, 0.86);
+  background: #214e716c;
   box-shadow:
-    0 16px 28px rgba(0, 191, 68, 0.24),
-    inset 0 1px 0 rgba(173, 255, 206, 0.34),
-    inset 0 0 0 1px rgba(105, 255, 159, 0.22);
+    0 8px 12px rgba(0, 134, 191, 0.153),
+    inset 0 1px 0 rgba(173, 243, 255, 0.279),
+    inset 0 0 0 1px rgba(105, 245, 255, 0.22);
 }
 
 .media-library-body .pill.filter-count {

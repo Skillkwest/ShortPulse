@@ -215,14 +215,37 @@ export const useAiStudioTaskSubmission = ({
       setOutputs((prev) => [nextOutput, ...prev]);
       setSaved(false);
 
-      const preparedImageInputs = (
-        await Promise.all(
-          imageInputs.map(async (url) => {
-            const normalized = await prepareImageUrlForSubmission(url);
-            return normalized ?? null;
-          })
-        )
-      ).filter((url): url is string => Boolean(url));
+      let preparedImageInputs: string[] = [];
+      try {
+        preparedImageInputs = (
+          await Promise.all(
+            imageInputs.map(async (url) => {
+              const normalized = await prepareImageUrlForSubmission(url);
+              return normalized ?? null;
+            })
+          )
+        ).filter((url): url is string => Boolean(url));
+      } catch (error) {
+        const detail =
+          error instanceof Error ? error.message : "Unable to prepare reference media.";
+        setOutputs((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  taskState: "fail",
+                  status: "ready",
+                  timestamp: "Failed",
+                  errorMessage: detail,
+                  errorMessageShort: "Reference upload failed.",
+                  errorDetail: detail,
+                }
+              : item
+          )
+        );
+        setUiError(`Reference upload failed: ${detail}`);
+        return;
+      }
       const pulseReferenceImageUrl =
         finalTool === "image" && preparedImageInputs.length > 0
           ? preparedImageInputs[0]

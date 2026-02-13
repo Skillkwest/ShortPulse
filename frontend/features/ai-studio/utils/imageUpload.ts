@@ -50,6 +50,11 @@ const inferExtension = (mimeType: string): string => {
   }
 };
 
+const normalizeUploadBlob = (blob: Blob): Blob => {
+  if (blob.type && blob.type.startsWith("image/")) return blob;
+  return new Blob([blob], { type: "image/jpeg" });
+};
+
 /**
  * Uploads a local image URL to storage and returns a signed HTTPS URL.
  */
@@ -64,16 +69,18 @@ export const uploadImageToStorage = async (localUrl: string): Promise<string> =>
   }
 
   const response = await fetch(localUrl);
-  const blob = await response.blob();
+  const fetchedBlob = await response.blob();
+  const blob = normalizeUploadBlob(fetchedBlob);
   const extension = inferExtension(blob.type);
   const filename = `reference-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
-  const formData = new FormData();
-  formData.append("file", blob, filename);
-
   const uploadResponse = await fetchWithAuth("/api/upload-image", {
     method: "POST",
-    body: formData,
+    headers: {
+      "Content-Type": blob.type,
+      "x-shortpulse-upload-filename": filename,
+    },
+    body: blob,
     shortpulseLogScope: "generation",
   });
 

@@ -65,6 +65,33 @@
   color: #e8fbff;
 }
 
+.dashboard-nav-prefab {
+  margin: 0;
+  width: 120px;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 500;
+  min-height: 38px;
+  border-radius: 10px;
+  line-height: 1.1;
+  position: relative;
+  z-index: 2;
+}
+
+.dashboard-nav-prefab--inline {
+  width: auto;
+  min-width: 120px;
+}
+
+.dashboard-nav-prefab:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 3px;
+}
+
+.dashboard-nav-prefab > * {
+  pointer-events: none;
+}
+
 .panel {
   background: var(--color-panel);
   border: 1px solid rgba(201, 205, 214, 0.08);
@@ -154,7 +181,8 @@
   padding: 12px;
   border-radius: 12px;
   border: 1px solid rgba(201, 205, 214, 0.12);
-  background: linear-gradient(135deg, rgba(37, 169, 191, 0.06), rgba(245, 185, 66, 0.03)),
+  background:
+    linear-gradient(135deg, rgba(37, 169, 191, 0.06), rgba(245, 185, 66, 0.03)),
     rgba(21, 24, 33, 0.7);
   overflow: hidden;
 }

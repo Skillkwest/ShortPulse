@@ -19,23 +19,76 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `storage_path` (text): Full path in the `media_library` bucket (prefix with `auth.uid()`). Private tab uploads use `<auth.uid()>/private/images/<filename>`.
 - `file_type` (text): image | video (or MIME-derived fallback).
 - `file_size` (bigint, nullable): Bytes.
-- `source` (text, default `upload`): upload | private_upload | ai_studio.
+- `source` (text, default `upload`): upload | private_upload | ai_studio | character_reference | character_generation.
 - `source_ref` (uuid, nullable): References `ai_generations.id` when source is `ai_studio`.
 - `prompt_id` (uuid, nullable): References `media_prompts.id` when saved from a prompt.
 - `metadata` (jsonb, default `{}`): Provider/model metadata and any generation context.
+  - Character profile uploads store `character_id` and `role = character_profile` for traceability.
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Integrity checks:
-  - `source` constrained to `upload | private_upload | ai_studio`.
+  - `source` constrained to `upload | private_upload | ai_studio | character_reference | character_generation`.
   - `source` is non-null with default `upload` (see `sql/migrations/007_harden_media_source_and_usage_rpc.sql`).
   - `source = private_upload` requires `file_type = image` and `storage_path` under `<user_id>/private/images/...`.
   - Any row with `storage_path` under `<user_id>/private/images/...` must use `source = private_upload`.
+  - `source = character_reference` requires `file_type = image`, `storage_path` under `<user_id>/characters/...`, and metadata keys for `character_id`, `reference_pack_id`, and `slot_key` (see `sql/migrations/010_harden_character_reference_media_integrity.sql`).
 
 ### Media usage RPCs
 - `get_media_library_usage_bytes()`: returns total `file_size` bytes for the authenticated user’s `media_files` rows.
 - Used by: `frontend/pages/media-library.tsx` for accurate storage usage display independent of paged list cache.
+
+### characters
+- `id` (uuid, pk)
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `name` (text): Character display name.
+- `status` (text): draft | active | archived.
+- `active_reference_pack_id` (uuid, nullable): Active reference pack pointer for generation workflows.
+- `metadata` (jsonb, default `{}`)
+  - Character profile image linkage keys:
+    - `profile_image_storage_path` (text path in `media_library`)
+    - `profile_image_media_file_id` (uuid of linked `media_files` row)
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
+### character_reference_packs
+- `id` (uuid, pk)
+- `character_id` (uuid): Parent character.
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `version` (int, >0): Draft/version history index per character.
+- `status` (text): draft | validating | ready | failed.
+- `consistency_score` (numeric, nullable)
+- `seedream_payload` (jsonb, default `{}`)
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
+### character_reference_images
+- `id` (uuid, pk)
+- `character_id` (uuid): Parent character.
+- `reference_pack_id` (uuid): Parent reference pack.
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `slot_key` (text): Fixed character reference slot key.
+- `media_file_id` (uuid): Linked `media_files` row.
+- `storage_path` (text): Canonical private object path under `<user_id>/characters/<character_id>/<reference_pack_id>/<slot_key>/...`.
+- `validation_status` (text): pending | pass | warn | fail.
+- `validation_notes` (jsonb, default `{}`)
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Integrity:
+  - `storage_path` must match the character/pack/slot path convention.
+  - Trigger `trg_character_reference_images_media_integrity` enforces that linked `media_files` row stays user-owned, uses `source = character_reference`, and has matching path/metadata.
+
+### character_generation_jobs
+- `id` (uuid, pk)
+- `character_id` (uuid): Parent character.
+- `reference_pack_id` (uuid): Parent reference pack used by generation.
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `provider` (text), `request_id` (text, nullable), `status` (text), `prompt` (text)
+- `output_media_file_id` (uuid, nullable): Linked generation output in `media_files`.
+- `metadata` (jsonb, default `{}`)
+- `created_at` / `updated_at` / `completed_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### media_prompts
 - `id` (uuid, pk, default `gen_random_uuid()`)

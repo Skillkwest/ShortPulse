@@ -418,19 +418,6 @@ body.ai-studio-body {
 
 .toolbar-back-link {
   margin: 12px auto 6px;
-  width: 120px;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 500;
-  min-height: 38px;
-  border: 1px solid rgba(201, 205, 214, 0.2);
-  border-radius: 10px;
-  position: relative;
-  z-index: 2;
-}
-
-.toolbar-back-link > * {
-  pointer-events: none;
 }
 
 .toolbar-back-link-secondary {

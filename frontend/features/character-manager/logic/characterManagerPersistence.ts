@@ -6,6 +6,7 @@ import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { CHARACTER_MANAGER_SLOT_DEFINITIONS, CHARACTER_MANAGER_SLOT_KEYS } from "../constants";
 import { createDefaultCharacterValidationNotes } from "./referenceValidation";
 import type {
+  CharacterProfileImageTransform,
   CharacterReferenceSlotKey,
   CharacterSlotFile,
   CharacterSlotFileMap,
@@ -14,12 +15,21 @@ import type {
 } from "../types";
 import {
   asErrorMessage,
+  CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY,
+  CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY,
+  CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY,
+  CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY,
+  CHARACTER_PROFILE_IMAGE_ZOOM_KEY,
   CHARACTER_REFERENCE_SOURCE,
   cleanupOrphanedMedia,
+  createCharacterProfileStoragePath,
   createDraftCharacter,
   createStoragePath,
+  DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM,
   DEFAULT_CHARACTER_NAME,
   fetchCharacterManagerList,
+  getCharacterProfileImageMetadata,
+  getCharacterProfileImageTransform,
   isCharacterReferenceSlotKey,
   loadSlotFilesForPack,
   resolveReferencePack,
@@ -38,6 +48,8 @@ export type CharacterManagerDraftSnapshot = {
   characterId: string;
   referencePackId: string;
   characterName: string;
+  profileImageUrl: string | null;
+  profileImageTransform: CharacterProfileImageTransform;
   slots: CharacterSlotFileMap;
 };
 
@@ -56,16 +68,62 @@ type ActivateCharacterPackInput = {
   characterName: string;
 };
 
+type SaveCharacterProfileImageInput = {
+  characterId: string;
+  file: File;
+};
+
+type SaveCharacterProfileImageAdjustmentsInput = {
+  characterId: string;
+  zoom: number;
+  offsetX: number;
+  offsetY: number;
+};
+
+const PROFILE_ZOOM_MIN = 1;
+const PROFILE_ZOOM_MAX = 2.4;
+const PROFILE_OFFSET_MIN = -40;
+const PROFILE_OFFSET_MAX = 40;
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value));
+
+const normalizeProfileImageTransform = (
+  transform: CharacterProfileImageTransform
+): CharacterProfileImageTransform => ({
+  zoom: clamp(transform.zoom, PROFILE_ZOOM_MIN, PROFILE_ZOOM_MAX),
+  offsetX: Math.round(clamp(transform.offsetX, PROFILE_OFFSET_MIN, PROFILE_OFFSET_MAX)),
+  offsetY: Math.round(clamp(transform.offsetY, PROFILE_OFFSET_MIN, PROFILE_OFFSET_MAX)),
+});
+
+const toMetadataRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? { ...(value as Record<string, unknown>) }
+    : {};
+
 const toCharacterSnapshot = async (input: {
   characterId: string;
   characterName: string;
+  characterMetadata?: unknown;
 }): Promise<CharacterManagerDraftSnapshot> => {
   const referencePack = await resolveReferencePack(input.characterId);
   const slots = await loadSlotFilesForPack(referencePack.id);
+  const profileMetadata = getCharacterProfileImageMetadata(input.characterMetadata);
+  const profileImageTransform = normalizeProfileImageTransform(
+    getCharacterProfileImageTransform(input.characterMetadata)
+  );
+  const profileImageUrl = profileMetadata.storagePath
+    ? await getSignedMediaUrl({
+        bucket: MEDIA_BUCKET,
+        storagePath: profileMetadata.storagePath,
+      })
+    : null;
   return {
     characterId: input.characterId,
     referencePackId: referencePack.id,
     characterName: input.characterName.trim() || DEFAULT_CHARACTER_NAME,
+    profileImageUrl,
+    profileImageTransform,
     slots,
   };
 };
@@ -83,7 +141,7 @@ export const loadOrCreateCharacterManagerDraft =
     const { supabase, userId } = await resolveSupabaseContext();
     const { data, error } = await supabase
       .from("characters")
-      .select("id, name")
+      .select("id, name, metadata")
       .eq("user_id", userId)
       .neq("status", "archived")
       .order("updated_at", { ascending: false })
@@ -93,12 +151,13 @@ export const loadOrCreateCharacterManagerDraft =
       throw new Error(asErrorMessage(error, "Failed to load characters."));
     }
 
-    const character = (data as { id: string; name: string | null } | null)
-      ? (data as { id: string; name: string | null })
+    const character = (data as { id: string; name: string | null; metadata: unknown } | null)
+      ? (data as { id: string; name: string | null; metadata: unknown })
       : (await createDraftCharacter(DEFAULT_CHARACTER_NAME)).character;
     return toCharacterSnapshot({
       characterId: character.id,
       characterName: character.name || DEFAULT_CHARACTER_NAME,
+      characterMetadata: character.metadata,
     });
   };
 
@@ -113,6 +172,8 @@ export const createCharacterManagerDraft = async (
     characterId: character.id,
     referencePackId: referencePack.id,
     characterName: character.name?.trim() || DEFAULT_CHARACTER_NAME,
+    profileImageUrl: null,
+    profileImageTransform: { ...DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM },
     slots: await loadSlotFilesForPack(referencePack.id),
   };
 };
@@ -126,7 +187,7 @@ export const loadCharacterManagerDraftByCharacterId = async (
   const { supabase, userId } = await resolveSupabaseContext();
   const { data, error } = await supabase
     .from("characters")
-    .select("id, name, status")
+    .select("id, name, status, metadata")
     .eq("user_id", userId)
     .eq("id", characterId)
     .maybeSingle();
@@ -134,7 +195,12 @@ export const loadCharacterManagerDraftByCharacterId = async (
     throw new Error(asErrorMessage(error, "Failed to load character."));
   }
 
-  const character = data as { id: string; name: string | null; status: string } | null;
+  const character = data as {
+    id: string;
+    name: string | null;
+    status: string;
+    metadata: unknown;
+  } | null;
   if (!character || character.status === "archived") {
     throw new Error("Character is no longer available.");
   }
@@ -142,7 +208,211 @@ export const loadCharacterManagerDraftByCharacterId = async (
   return toCharacterSnapshot({
     characterId: character.id,
     characterName: character.name || DEFAULT_CHARACTER_NAME,
+    characterMetadata: character.metadata,
   });
+};
+
+/**
+ * Upload and persist the character profile image so it survives refreshes and tab switches.
+ */
+export const saveCharacterManagerProfileImage = async (
+  input: SaveCharacterProfileImageInput
+): Promise<string> => {
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { data: characterRow, error: characterError } = await supabase
+    .from("characters")
+    .select("metadata")
+    .eq("user_id", userId)
+    .eq("id", input.characterId)
+    .maybeSingle();
+  if (characterError) {
+    throw new Error(asErrorMessage(characterError, "Failed to load character profile metadata."));
+  }
+  if (!characterRow) {
+    throw new Error("Character is no longer available.");
+  }
+
+  const existingProfile = getCharacterProfileImageMetadata(characterRow.metadata);
+  const mimeType = input.file.type || "image/jpeg";
+  const storagePath = createCharacterProfileStoragePath({
+    userId,
+    characterId: input.characterId,
+    filename: input.file.name,
+    mimeType,
+  });
+  const { error: uploadError } = await supabase.storage
+    .from(MEDIA_BUCKET)
+    .upload(storagePath, input.file, {
+      upsert: false,
+      contentType: mimeType,
+    });
+  if (uploadError) {
+    throw new Error(asErrorMessage(uploadError, "Failed to upload profile image."));
+  }
+
+  const { data: mediaRow, error: mediaInsertError } = await supabase
+    .from("media_files")
+    .insert({
+      user_id: userId,
+      filename: input.file.name,
+      storage_path: storagePath,
+      file_type: "image",
+      file_size: input.file.size,
+      source: "upload",
+      metadata: {
+        character_id: input.characterId,
+        role: "character_profile",
+      },
+    })
+    .select("id")
+    .single();
+  if (mediaInsertError || !mediaRow?.id) {
+    await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
+    throw new Error(asErrorMessage(mediaInsertError, "Failed to save profile image metadata."));
+  }
+
+  const nextMetadata = toMetadataRecord(characterRow.metadata);
+  nextMetadata[CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY] = storagePath;
+  nextMetadata[CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY] = mediaRow.id;
+  nextMetadata[CHARACTER_PROFILE_IMAGE_ZOOM_KEY] = DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM.zoom;
+  nextMetadata[CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY] =
+    DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM.offsetX;
+  nextMetadata[CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY] =
+    DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM.offsetY;
+
+  const { error: updateError } = await supabase
+    .from("characters")
+    .update({
+      metadata: nextMetadata,
+    })
+    .eq("user_id", userId)
+    .eq("id", input.characterId);
+  if (updateError) {
+    await cleanupOrphanedMedia({
+      mediaFileId: mediaRow.id,
+      storagePath,
+    });
+    throw new Error(asErrorMessage(updateError, "Failed to save profile image on character."));
+  }
+
+  if (existingProfile.mediaFileId && existingProfile.mediaFileId !== mediaRow.id) {
+    await cleanupOrphanedMedia({
+      mediaFileId: existingProfile.mediaFileId,
+      storagePath: existingProfile.storagePath,
+    });
+  }
+
+  const signedUrl = await getSignedMediaUrl({
+    bucket: MEDIA_BUCKET,
+    storagePath,
+    forceRefresh: true,
+  });
+  if (!signedUrl) {
+    throw new Error("Profile image saved, but preview URL could not be created.");
+  }
+  return signedUrl;
+};
+
+/**
+ * Remove a persisted character profile image.
+ */
+export const clearCharacterManagerProfileImage = async ({
+  characterId,
+}: {
+  characterId: string;
+}): Promise<void> => {
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { data: characterRow, error: characterError } = await supabase
+    .from("characters")
+    .select("metadata")
+    .eq("user_id", userId)
+    .eq("id", characterId)
+    .maybeSingle();
+  if (characterError) {
+    throw new Error(asErrorMessage(characterError, "Failed to load character profile metadata."));
+  }
+  if (!characterRow) {
+    throw new Error("Character is no longer available.");
+  }
+
+  const existingProfile = getCharacterProfileImageMetadata(characterRow.metadata);
+  if (!existingProfile.mediaFileId && !existingProfile.storagePath) {
+    return;
+  }
+
+  const nextMetadata = toMetadataRecord(characterRow.metadata);
+  delete nextMetadata[CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY];
+  delete nextMetadata[CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY];
+  delete nextMetadata[CHARACTER_PROFILE_IMAGE_ZOOM_KEY];
+  delete nextMetadata[CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY];
+  delete nextMetadata[CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY];
+
+  const { error: updateError } = await supabase
+    .from("characters")
+    .update({
+      metadata: nextMetadata,
+    })
+    .eq("user_id", userId)
+    .eq("id", characterId);
+  if (updateError) {
+    throw new Error(asErrorMessage(updateError, "Failed to clear character profile image."));
+  }
+
+  if (existingProfile.mediaFileId) {
+    await cleanupOrphanedMedia({
+      mediaFileId: existingProfile.mediaFileId,
+      storagePath: existingProfile.storagePath,
+    });
+  }
+};
+
+/**
+ * Persist profile-image framing controls so crop/position survives refreshes.
+ */
+export const saveCharacterManagerProfileImageAdjustments = async (
+  input: SaveCharacterProfileImageAdjustmentsInput
+): Promise<CharacterProfileImageTransform> => {
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { data: characterRow, error: characterError } = await supabase
+    .from("characters")
+    .select("metadata")
+    .eq("user_id", userId)
+    .eq("id", input.characterId)
+    .maybeSingle();
+  if (characterError) {
+    throw new Error(asErrorMessage(characterError, "Failed to load character profile metadata."));
+  }
+  if (!characterRow) {
+    throw new Error("Character is no longer available.");
+  }
+
+  const existingProfile = getCharacterProfileImageMetadata(characterRow.metadata);
+  if (!existingProfile.storagePath) {
+    throw new Error("Upload a profile image before saving framing adjustments.");
+  }
+
+  const nextTransform = normalizeProfileImageTransform({
+    zoom: input.zoom,
+    offsetX: input.offsetX,
+    offsetY: input.offsetY,
+  });
+  const nextMetadata = toMetadataRecord(characterRow.metadata);
+  nextMetadata[CHARACTER_PROFILE_IMAGE_ZOOM_KEY] = nextTransform.zoom;
+  nextMetadata[CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY] = nextTransform.offsetX;
+  nextMetadata[CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY] = nextTransform.offsetY;
+
+  const { error: updateError } = await supabase
+    .from("characters")
+    .update({
+      metadata: nextMetadata,
+    })
+    .eq("user_id", userId)
+    .eq("id", input.characterId);
+  if (updateError) {
+    throw new Error(asErrorMessage(updateError, "Failed to save profile image adjustments."));
+  }
+
+  return nextTransform;
 };
 
 /**
@@ -171,6 +441,73 @@ export const updateCharacterManagerName = async ({
   if (error) {
     throw new Error(asErrorMessage(error, "Failed to save character name."));
   }
+};
+
+/**
+ * Permanently deletes a character draft and best-effort cleans orphaned reference media rows/files.
+ */
+export const deleteCharacterManagerDraft = async ({ characterId }: { characterId: string }) => {
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { data: characterRow, error: characterRowError } = await supabase
+    .from("characters")
+    .select("metadata")
+    .eq("user_id", userId)
+    .eq("id", characterId)
+    .maybeSingle();
+  if (characterRowError) {
+    throw new Error(asErrorMessage(characterRowError, "Failed to load character metadata."));
+  }
+
+  const { data: mediaRows, error: mediaRowsError } = await supabase
+    .from("character_reference_images")
+    .select("media_file_id, storage_path")
+    .eq("user_id", userId)
+    .eq("character_id", characterId);
+  if (mediaRowsError) {
+    throw new Error(asErrorMessage(mediaRowsError, "Failed to load character media for deletion."));
+  }
+
+  const profileMedia = getCharacterProfileImageMetadata(characterRow?.metadata);
+  const referenceCleanupCandidates = Array.from(
+    new Map(
+      ((mediaRows ?? []) as Array<{ media_file_id: string; storage_path: string | null }>).map(
+        (row) => [
+          row.media_file_id,
+          {
+            mediaFileId: row.media_file_id,
+            storagePath: row.storage_path ?? null,
+          },
+        ]
+      )
+    ).values()
+  );
+  const cleanupCandidates = profileMedia.mediaFileId
+    ? [
+        ...referenceCleanupCandidates,
+        {
+          mediaFileId: profileMedia.mediaFileId,
+          storagePath: profileMedia.storagePath,
+        },
+      ]
+    : referenceCleanupCandidates;
+
+  const { error: deleteCharacterError } = await supabase
+    .from("characters")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", characterId);
+  if (deleteCharacterError) {
+    throw new Error(asErrorMessage(deleteCharacterError, "Failed to delete character."));
+  }
+
+  await Promise.allSettled(
+    cleanupCandidates.map((candidate) =>
+      cleanupOrphanedMedia({
+        mediaFileId: candidate.mediaFileId,
+        storagePath: candidate.storagePath,
+      })
+    )
+  );
 };
 
 /**

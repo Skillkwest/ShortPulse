@@ -30,7 +30,7 @@ create table if not exists media_files (
     storage_path text not null,
     file_type text not null,
     file_size bigint,
-    source text not null default 'upload', -- upload | private_upload | ai_studio
+    source text not null default 'upload', -- upload | private_upload | ai_studio | character_reference | character_generation
     source_ref uuid,
     prompt_id uuid,
     metadata jsonb not null default '{}'::jsonb,
@@ -43,7 +43,7 @@ alter table media_files
     drop constraint if exists media_files_source_check;
 alter table media_files
     add constraint media_files_source_check
-    check (source in ('upload', 'private_upload', 'ai_studio'));
+    check (source in ('upload', 'private_upload', 'ai_studio', 'character_reference', 'character_generation'));
 
 alter table media_files
     drop constraint if exists media_files_private_source_shape_check;
@@ -64,6 +64,32 @@ alter table media_files
     check (
         storage_path not like user_id::text || '/private/images/%'
         or source = 'private_upload'
+    );
+
+alter table media_files
+    drop constraint if exists media_files_character_reference_source_shape_check;
+alter table media_files
+    add constraint media_files_character_reference_source_shape_check
+    check (
+        source <> 'character_reference'
+        or (
+            lower(coalesce(file_type, '')) = 'image'
+            and storage_path like user_id::text || '/characters/%'
+            and coalesce(metadata->>'character_id', '') <> ''
+            and coalesce(metadata->>'reference_pack_id', '') <> ''
+            and coalesce(metadata->>'slot_key', '') in (
+                'front_full',
+                'side_profile',
+                'back_full',
+                'top_down',
+                'front_left_34',
+                'front_right_34',
+                'back_left_34',
+                'back_right_34',
+                'portrait_close',
+                'fullbody_wide'
+            )
+        )
     );
 
 create index if not exists ix_media_files_user_created on media_files (user_id, created_at desc);

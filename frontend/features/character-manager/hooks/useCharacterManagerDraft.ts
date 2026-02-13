@@ -4,30 +4,39 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  CHARACTER_MANAGER_MAX_IMAGE_BYTES,
   CHARACTER_MANAGER_SLOT_KEYS,
   CHARACTER_MANAGER_SLOT_LABEL_BY_KEY,
   createEmptyCharacterSlotMap,
 } from "../constants";
 import {
   activateCharacterManagerPack,
+  clearCharacterManagerProfileImage,
   clearCharacterManagerSlot,
   createCharacterManagerDraft,
+  deleteCharacterManagerDraft,
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
   loadOrCreateCharacterManagerDraft,
   revalidateCharacterManagerPack,
+  saveCharacterManagerProfileImageAdjustments,
+  saveCharacterManagerProfileImage,
   saveCharacterManagerSlot,
   updateCharacterManagerName,
 } from "../logic/characterManagerPersistence";
-import { validateCharacterReferenceFile } from "../logic/referenceValidation";
-import type { CharacterReferenceSlotKey, CharacterSlotFileMap } from "../types";
+import { createDefaultCharacterValidationNotes } from "../logic/referenceValidation";
+import type {
+  CharacterProfileImageTransform,
+  CharacterReferenceSlotKey,
+  CharacterSlotFileMap,
+} from "../types";
 import type { CharacterManagerListItem } from "../logic/characterManagerPersistence";
 
 type UseCharacterManagerDraftResult = {
   characters: CharacterManagerListItem[];
   selectedCharacterId: string | null;
   characterName: string;
+  profileImageUrl: string | null;
+  profileImageTransform: CharacterProfileImageTransform;
   slots: CharacterSlotFileMap;
   error: string | null;
   notice: string | null;
@@ -38,23 +47,35 @@ type UseCharacterManagerDraftResult = {
   isSavingName: boolean;
   isActivating: boolean;
   isCreatingCharacter: boolean;
+  isDeletingCharacter: boolean;
   isSwitchingCharacter: boolean;
   isRevalidating: boolean;
+  isSavingProfileImage: boolean;
   missingSlotKeys: CharacterReferenceSlotKey[];
   failedSlotKeys: CharacterReferenceSlotKey[];
   setCharacterName: (value: string) => void;
+  setProfileImageFile: (file: File) => Promise<void>;
+  saveProfileImageTransform: (transform: CharacterProfileImageTransform) => Promise<boolean>;
+  clearProfileImage: () => Promise<void>;
   setSlotFile: (slotKey: CharacterReferenceSlotKey, file: File) => Promise<void>;
   clearSlot: (slotKey: CharacterReferenceSlotKey) => Promise<void>;
   activateDraft: () => Promise<void>;
   revalidateCurrentPack: () => Promise<void>;
   createCharacter: () => Promise<void>;
   selectCharacter: (characterId: string) => Promise<void>;
+  deleteCharacter: (characterId: string) => Promise<boolean>;
   isSlotBusy: (slotKey: CharacterReferenceSlotKey) => boolean;
   clearMessages: () => void;
 };
 
 const toErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length ? error.message : fallback;
+const NOTICE_AUTO_DISMISS_MS = 3500;
+const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
+  zoom: 1,
+  offsetX: 0,
+  offsetY: 0,
+};
 
 /**
  * Manages persisted character draft state, slot uploads, and activation flow.
@@ -64,6 +85,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const [characterId, setCharacterId] = useState<string | null>(null);
   const [referencePackId, setReferencePackId] = useState<string | null>(null);
   const [characterName, setCharacterNameState] = useState("New Character");
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [profileImageTransform, setProfileImageTransform] =
+    useState<CharacterProfileImageTransform>(DEFAULT_PROFILE_IMAGE_TRANSFORM);
   const [slots, setSlots] = useState<CharacterSlotFileMap>(() => createEmptyCharacterSlotMap());
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -71,19 +95,38 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const [isSavingName, setIsSavingName] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
   const [isCreatingCharacter, setIsCreatingCharacter] = useState(false);
+  const [isDeletingCharacter, setIsDeletingCharacter] = useState(false);
   const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
   const [isRevalidating, setIsRevalidating] = useState(false);
+  const [isSavingProfileImage, setIsSavingProfileImage] = useState(false);
   const [slotBusyKeys, setSlotBusyKeys] = useState<Set<CharacterReferenceSlotKey>>(() => new Set());
 
   const suppressNextNamePersistRef = useRef(false);
   const namePersistTimerRef = useRef<number | null>(null);
   const lastPersistedNameRef = useRef("New Character");
   const namePersistRequestRef = useRef(0);
+  const slotsRef = useRef<CharacterSlotFileMap>(createEmptyCharacterSlotMap());
 
   const clearMessages = useCallback(() => {
     setError(null);
     setNotice(null);
   }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const activeNotice = notice;
+    const timer = window.setTimeout(() => {
+      setNotice((current) => (current === activeNotice ? null : current));
+    }, NOTICE_AUTO_DISMISS_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [notice]);
+
+  useEffect(() => {
+    slotsRef.current = slots;
+  }, [slots]);
 
   const markSlotBusy = useCallback((slotKey: CharacterReferenceSlotKey, busy: boolean) => {
     setSlotBusyKeys((prev) => {
@@ -125,18 +168,25 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       nextCharacterId,
       nextReferencePackId,
       nextCharacterName,
+      nextProfileImageUrl,
+      nextProfileImageTransform,
       nextSlots,
     }: {
       nextCharacterId: string;
       nextReferencePackId: string;
       nextCharacterName: string;
+      nextProfileImageUrl: string | null;
+      nextProfileImageTransform: CharacterProfileImageTransform;
       nextSlots: CharacterSlotFileMap;
     }) => {
       setCharacterId(nextCharacterId);
       setReferencePackId(nextReferencePackId);
       suppressNextNamePersistRef.current = true;
       setCharacterNameState(nextCharacterName);
+      setProfileImageUrl(nextProfileImageUrl);
+      setProfileImageTransform(nextProfileImageTransform);
       setSlots(nextSlots);
+      slotsRef.current = nextSlots;
       lastPersistedNameRef.current = nextCharacterName.trim();
       setSlotBusyKeys(new Set());
     },
@@ -155,6 +205,8 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           nextCharacterId: snapshot.characterId,
           nextReferencePackId: snapshot.referencePackId,
           nextCharacterName: snapshot.characterName,
+          nextProfileImageUrl: snapshot.profileImageUrl,
+          nextProfileImageTransform: snapshot.profileImageTransform,
           nextSlots: snapshot.slots,
         });
         await refreshCharacterListSilently(snapshot.characterId);
@@ -236,6 +288,93 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     setCharacterNameState(value.slice(0, 80));
   }, []);
 
+  const setProfileImageFile = useCallback(
+    async (file: File) => {
+      clearMessages();
+      if (!characterId) {
+        setError("Character draft is still loading. Try again in a moment.");
+        return;
+      }
+      if (!file.type.toLowerCase().startsWith("image/")) {
+        setError("Only image files are supported in Character Manager.");
+        return;
+      }
+
+      setIsSavingProfileImage(true);
+      try {
+        const signedUrl = await saveCharacterManagerProfileImage({
+          characterId,
+          file,
+        });
+        setProfileImageUrl(signedUrl);
+        setProfileImageTransform(DEFAULT_PROFILE_IMAGE_TRANSFORM);
+        await refreshCharacterListSilently(characterId);
+        setNotice("Updated character profile image.");
+      } catch (nextError) {
+        setError(toErrorMessage(nextError, "Failed to save profile image."));
+      } finally {
+        setIsSavingProfileImage(false);
+      }
+    },
+    [characterId, clearMessages, refreshCharacterListSilently]
+  );
+
+  const saveProfileImageTransform = useCallback(
+    async (transform: CharacterProfileImageTransform) => {
+      clearMessages();
+      if (!characterId) {
+        setError("Character draft is still loading. Try again in a moment.");
+        return false;
+      }
+      if (!profileImageUrl) {
+        setError("Upload a profile image before saving adjustments.");
+        return false;
+      }
+
+      setIsSavingProfileImage(true);
+      try {
+        const persistedTransform = await saveCharacterManagerProfileImageAdjustments({
+          characterId,
+          zoom: transform.zoom,
+          offsetX: transform.offsetX,
+          offsetY: transform.offsetY,
+        });
+        setProfileImageTransform(persistedTransform);
+        setNotice("Saved profile image adjustments.");
+        return true;
+      } catch (nextError) {
+        setError(toErrorMessage(nextError, "Failed to save profile image adjustments."));
+        return false;
+      } finally {
+        setIsSavingProfileImage(false);
+      }
+    },
+    [characterId, clearMessages, profileImageUrl]
+  );
+
+  const clearProfileImage = useCallback(async () => {
+    clearMessages();
+    if (!characterId) {
+      setError("Character draft is still loading. Try again in a moment.");
+      return;
+    }
+
+    setIsSavingProfileImage(true);
+    try {
+      await clearCharacterManagerProfileImage({
+        characterId,
+      });
+      setProfileImageUrl(null);
+      setProfileImageTransform(DEFAULT_PROFILE_IMAGE_TRANSFORM);
+      await refreshCharacterListSilently(characterId);
+      setNotice("Removed character profile image.");
+    } catch (nextError) {
+      setError(toErrorMessage(nextError, "Failed to remove profile image."));
+    } finally {
+      setIsSavingProfileImage(false);
+    }
+  }, [characterId, clearMessages, refreshCharacterListSilently]);
+
   const setSlotFile = useCallback(
     async (slotKey: CharacterReferenceSlotKey, file: File) => {
       clearMessages();
@@ -247,49 +386,37 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         setError("Only image files are supported in Character Manager.");
         return;
       }
-      if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
-        setError("This image is too large. Use files under 20 MB.");
-        return;
-      }
 
       markSlotBusy(slotKey, true);
       try {
-        const validation = await validateCharacterReferenceFile({
-          slotKey,
-          file,
-          existingSlots: slots,
-        });
+        const validationNotes = createDefaultCharacterValidationNotes();
+        validationNotes.mimeType = file.type || null;
+        validationNotes.evaluatedAt = new Date().toISOString();
         const persistedSlot = await saveCharacterManagerSlot({
           characterId,
           referencePackId,
           slotKey,
           file,
-          validationStatus: validation.status,
-          validationNotes: validation.notes,
+          validationStatus: "pass",
+          validationNotes,
         });
-        setSlots((prev) => ({
-          ...prev,
-          [slotKey]: persistedSlot,
-        }));
+        setSlots((prev) => {
+          const next = {
+            ...prev,
+            [slotKey]: persistedSlot,
+          };
+          slotsRef.current = next;
+          return next;
+        });
         await refreshCharacterListSilently(characterId);
-        if (validation.status === "fail") {
-          const reason = validation.notes.hardErrors[0] ?? "Fix this shot before activation.";
-          setError(`${CHARACTER_MANAGER_SLOT_LABEL_BY_KEY[slotKey]} needs attention: ${reason}`);
-        } else if (validation.status === "warn") {
-          const warning = validation.notes.warnings[0] ?? "Quality warning detected.";
-          setNotice(
-            `Updated ${CHARACTER_MANAGER_SLOT_LABEL_BY_KEY[slotKey]} (warning: ${warning})`
-          );
-        } else {
-          setNotice(`Updated ${CHARACTER_MANAGER_SLOT_LABEL_BY_KEY[slotKey]}.`);
-        }
+        setNotice(`Updated ${CHARACTER_MANAGER_SLOT_LABEL_BY_KEY[slotKey]}.`);
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to save this shot."));
       } finally {
         markSlotBusy(slotKey, false);
       }
     },
-    [characterId, clearMessages, markSlotBusy, referencePackId, refreshCharacterListSilently, slots]
+    [characterId, clearMessages, markSlotBusy, referencePackId, refreshCharacterListSilently]
   );
 
   const clearSlot = useCallback(
@@ -306,10 +433,14 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           referencePackId,
           slotKey,
         });
-        setSlots((prev) => ({
-          ...prev,
-          [slotKey]: null,
-        }));
+        setSlots((prev) => {
+          const next = {
+            ...prev,
+            [slotKey]: null,
+          };
+          slotsRef.current = next;
+          return next;
+        });
         await refreshCharacterListSilently(characterId);
         setNotice(`Removed ${CHARACTER_MANAGER_SLOT_LABEL_BY_KEY[slotKey]}.`);
       } catch (nextError) {
@@ -330,6 +461,8 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         nextCharacterId: snapshot.characterId,
         nextReferencePackId: snapshot.referencePackId,
         nextCharacterName: snapshot.characterName,
+        nextProfileImageUrl: snapshot.profileImageUrl,
+        nextProfileImageTransform: snapshot.profileImageTransform,
         nextSlots: snapshot.slots,
       });
       await refreshCharacterListSilently(snapshot.characterId);
@@ -340,6 +473,59 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       setIsCreatingCharacter(false);
     }
   }, [applySnapshot, clearMessages, refreshCharacterListSilently]);
+
+  const deleteCharacter = useCallback(
+    async (targetCharacterId: string) => {
+      const trimmedId = targetCharacterId.trim();
+      if (!trimmedId) return false;
+
+      clearMessages();
+      setIsDeletingCharacter(true);
+      try {
+        await deleteCharacterManagerDraft({ characterId: trimmedId });
+
+        if (characterId && characterId !== trimmedId) {
+          await refreshCharacterListSilently(characterId);
+          setNotice("Character deleted.");
+          return true;
+        }
+
+        const nextCharacterId = await refreshCharacterList(null);
+        if (nextCharacterId) {
+          const snapshot = await loadCharacterManagerDraftByCharacterId(nextCharacterId);
+          applySnapshot({
+            nextCharacterId: snapshot.characterId,
+            nextReferencePackId: snapshot.referencePackId,
+            nextCharacterName: snapshot.characterName,
+            nextProfileImageUrl: snapshot.profileImageUrl,
+            nextProfileImageTransform: snapshot.profileImageTransform,
+            nextSlots: snapshot.slots,
+          });
+          await refreshCharacterListSilently(snapshot.characterId);
+        } else {
+          const snapshot = await createCharacterManagerDraft();
+          applySnapshot({
+            nextCharacterId: snapshot.characterId,
+            nextReferencePackId: snapshot.referencePackId,
+            nextCharacterName: snapshot.characterName,
+            nextProfileImageUrl: snapshot.profileImageUrl,
+            nextProfileImageTransform: snapshot.profileImageTransform,
+            nextSlots: snapshot.slots,
+          });
+          await refreshCharacterListSilently(snapshot.characterId);
+        }
+
+        setNotice("Character deleted.");
+        return true;
+      } catch (nextError) {
+        setError(toErrorMessage(nextError, "Failed to delete character."));
+        return false;
+      } finally {
+        setIsDeletingCharacter(false);
+      }
+    },
+    [applySnapshot, characterId, clearMessages, refreshCharacterList, refreshCharacterListSilently]
+  );
 
   const revalidateCurrentPack = useCallback(async () => {
     clearMessages();
@@ -358,6 +544,8 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         nextCharacterId: snapshot.characterId,
         nextReferencePackId: snapshot.referencePackId,
         nextCharacterName: snapshot.characterName,
+        nextProfileImageUrl: snapshot.profileImageUrl,
+        nextProfileImageTransform: snapshot.profileImageTransform,
         nextSlots: snapshot.slots,
       });
       await refreshCharacterListSilently(snapshot.characterId);
@@ -390,6 +578,8 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           nextCharacterId: snapshot.characterId,
           nextReferencePackId: snapshot.referencePackId,
           nextCharacterName: snapshot.characterName,
+          nextProfileImageUrl: snapshot.profileImageUrl,
+          nextProfileImageTransform: snapshot.profileImageTransform,
           nextSlots: snapshot.slots,
         });
         await refreshCharacterListSilently(snapshot.characterId);
@@ -474,17 +664,28 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     (slotKey: CharacterReferenceSlotKey) =>
       loading ||
       isCreatingCharacter ||
+      isDeletingCharacter ||
       isSwitchingCharacter ||
       isRevalidating ||
       isActivating ||
       slotBusyKeys.has(slotKey),
-    [isActivating, isCreatingCharacter, isRevalidating, isSwitchingCharacter, loading, slotBusyKeys]
+    [
+      isActivating,
+      isCreatingCharacter,
+      isDeletingCharacter,
+      isRevalidating,
+      isSwitchingCharacter,
+      loading,
+      slotBusyKeys,
+    ]
   );
 
   return {
     characters,
     selectedCharacterId: characterId,
     characterName,
+    profileImageUrl,
+    profileImageTransform,
     slots,
     error,
     notice,
@@ -495,17 +696,23 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     isSavingName,
     isActivating,
     isCreatingCharacter,
+    isDeletingCharacter,
     isSwitchingCharacter,
     isRevalidating,
+    isSavingProfileImage,
     missingSlotKeys,
     failedSlotKeys,
     setCharacterName,
+    setProfileImageFile,
+    saveProfileImageTransform,
+    clearProfileImage,
     setSlotFile,
     clearSlot,
     activateDraft,
     revalidateCurrentPack,
     createCharacter,
     selectCharacter,
+    deleteCharacter,
     isSlotBusy,
     clearMessages,
   };

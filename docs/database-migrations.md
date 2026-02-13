@@ -85,3 +85,7 @@ If enabling Character Manager (reference packs + generation history), also apply
 If Media Library cards still show blank placeholders in legacy environments, also apply:
 
 10. `sql/migrations/009_repair_legacy_media_storage_paths.sql`
+
+If enabling stricter Character Manager media integrity (source/path/metadata + cross-table trigger), also apply:
+
+11. `sql/migrations/010_harden_character_reference_media_integrity.sql`

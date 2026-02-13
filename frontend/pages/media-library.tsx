@@ -3,19 +3,18 @@
  * Handles filtering, signed URL fetches, tab-aware caching, and modal actions while delegating storage and auth to shared helpers.
  */
 import Head from "next/head";
-import Link from "next/link";
 import {
   CaretDown,
   CheckCircle,
   CloudArrowUp,
   DownloadSimple,
-  House,
   LockSimple,
   MagnifyingGlass,
   ShieldCheck,
   Trash,
 } from "phosphor-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DashboardNavPrefab } from "../components/DashboardNavPrefab";
 import { createMediaPerfTimer, logMediaPerf } from "../lib/mediaPerfTelemetry";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import {
@@ -1887,10 +1886,7 @@ export default function MediaLibrary() {
       </a>
       <main id="main-content" className="page page-wide">
         <div className="page-top">
-          <Link href="/dashboard" className="media-dashboard-link" aria-label="Dashboard">
-            <House size={16} weight="regular" />
-            Dashboard
-          </Link>
+          <DashboardNavPrefab />
         </div>
 
         <section className="panel saved-header-bar saved-hero hero-image-card">

@@ -10,6 +10,7 @@ import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { CHARACTER_MANAGER_SLOT_KEYS, createEmptyCharacterSlotMap } from "../constants";
 import { createDefaultCharacterValidationNotes } from "./referenceValidation";
 import type {
+  CharacterProfileImageTransform,
   CharacterReferenceSlotKey,
   CharacterSlotFile,
   CharacterSlotFileMap,
@@ -20,12 +21,23 @@ import type {
 const MEDIA_BUCKET = "media_library";
 export const DEFAULT_CHARACTER_NAME = "New Character";
 export const CHARACTER_REFERENCE_SOURCE = "character_reference";
+export const CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY = "profile_image_storage_path";
+export const CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY = "profile_image_media_file_id";
+export const CHARACTER_PROFILE_IMAGE_ZOOM_KEY = "profile_image_zoom";
+export const CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY = "profile_image_offset_x";
+export const CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY = "profile_image_offset_y";
+export const DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
+  zoom: 1,
+  offsetX: 0,
+  offsetY: 0,
+};
 
 type CharacterRow = {
   id: string;
   name: string;
   status: "draft" | "active" | "archived";
   active_reference_pack_id: string | null;
+  metadata: unknown;
 };
 
 type CharacterReferencePackRow = {
@@ -63,6 +75,7 @@ export type CharacterManagerListItem = {
   characterName: string;
   characterStatus: "draft" | "active" | "archived";
   referencePackId: string;
+  profileImageUrl: string | null;
   referencePackStatus: "draft" | "validating" | "ready" | "failed";
   completedCount: number;
   hasFailedSlots: boolean;
@@ -75,6 +88,7 @@ type CharacterIndexRow = {
   name: string;
   status: "draft" | "active" | "archived";
   updated_at: string;
+  metadata: unknown;
 };
 
 type PackIndexRow = {
@@ -87,6 +101,7 @@ type PackIndexRow = {
 type PackImageRow = {
   reference_pack_id: string;
   slot_key: string;
+  storage_path: string | null;
   validation_status: CharacterSlotValidationStatus;
 };
 
@@ -166,6 +181,39 @@ const sanitizeFileStem = (filename: string) => {
 };
 
 /**
+ * Parse persisted profile-image linkage from character metadata.
+ */
+export const getCharacterProfileImageMetadata = (
+  metadata: unknown
+): { storagePath: string | null; mediaFileId: string | null } => {
+  const record = toObjectRecord(metadata);
+  return {
+    storagePath: asText(record[CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY]),
+    mediaFileId: asText(record[CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY]),
+  };
+};
+
+/**
+ * Parse persisted profile-image framing controls from character metadata.
+ */
+export const getCharacterProfileImageTransform = (
+  metadata: unknown
+): CharacterProfileImageTransform => {
+  const record = toObjectRecord(metadata);
+  return {
+    zoom:
+      asNumber(record[CHARACTER_PROFILE_IMAGE_ZOOM_KEY]) ??
+      DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM.zoom,
+    offsetX:
+      asNumber(record[CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY]) ??
+      DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM.offsetX,
+    offsetY:
+      asNumber(record[CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY]) ??
+      DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM.offsetY,
+  };
+};
+
+/**
  * Build a user-scoped storage path for a slot image.
  */
 export const createStoragePath = ({
@@ -186,6 +234,25 @@ export const createStoragePath = ({
   const extension = inferFileExtension(filename, mimeType);
   const stem = sanitizeFileStem(filename);
   return `${userId}/characters/${characterId}/${referencePackId}/${slotKey}/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`;
+};
+
+/**
+ * Build a user-scoped storage path for a persisted character profile image.
+ */
+export const createCharacterProfileStoragePath = ({
+  userId,
+  characterId,
+  filename,
+  mimeType,
+}: {
+  userId: string;
+  characterId: string;
+  filename: string;
+  mimeType: string;
+}) => {
+  const extension = inferFileExtension(filename, mimeType);
+  const stem = sanitizeFileStem(filename);
+  return `${userId}/characters/${characterId}/profile/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`;
 };
 
 /**
@@ -217,7 +284,7 @@ export const createDraftCharacter = async (name: string): Promise<CreatedCharact
       name: trimmedName,
       status: "draft",
     })
-    .select("id, name, status, active_reference_pack_id")
+    .select("id, name, status, active_reference_pack_id, metadata")
     .single();
   if (createCharacterError || !createdCharacter) {
     throw new Error(
@@ -412,7 +479,7 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: characterRows, error: characterRowsError } = await supabase
     .from("characters")
-    .select("id, name, status, updated_at")
+    .select("id, name, status, updated_at, metadata")
     .eq("user_id", userId)
     .neq("status", "archived")
     .order("updated_at", { ascending: false });
@@ -442,12 +509,26 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
   }
 
   const referencePackIds = Array.from(latestPackByCharacter.values()).map((pack) => pack.id);
+  const packToCharacterId = new Map<string, string>();
+  for (const [characterId, pack] of latestPackByCharacter.entries()) {
+    packToCharacterId.set(pack.id, characterId);
+  }
+
+  const profilePathByCharacter = new Map<string, string>();
+  for (const row of typedCharacterRows) {
+    const profileMetadata = getCharacterProfileImageMetadata(row.metadata);
+    if (profileMetadata.storagePath) {
+      profilePathByCharacter.set(row.id, profileMetadata.storagePath);
+    }
+  }
+
   const slotCountsByPack = new Map<string, number>();
   const failedCountsByPack = new Map<string, number>();
+  const fallbackAvatarPathByCharacter = new Map<string, string>();
   if (referencePackIds.length) {
     const { data: imageRows, error: imageRowsError } = await supabase
       .from("character_reference_images")
-      .select("reference_pack_id, slot_key, validation_status")
+      .select("reference_pack_id, slot_key, storage_path, validation_status")
       .eq("user_id", userId)
       .in("reference_pack_id", referencePackIds);
     if (imageRowsError) {
@@ -462,6 +543,16 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
       }
       uniqueSlotsByPack.set(row.reference_pack_id, nextSet);
 
+      if (typeof row.storage_path === "string" && row.storage_path.trim().length) {
+        const characterId = packToCharacterId.get(row.reference_pack_id);
+        if (!characterId) continue;
+        const shouldPromoteToAvatar =
+          row.slot_key === "portrait_close" || !fallbackAvatarPathByCharacter.has(characterId);
+        if (shouldPromoteToAvatar) {
+          fallbackAvatarPathByCharacter.set(characterId, row.storage_path);
+        }
+      }
+
       if (row.validation_status === "fail") {
         failedCountsByPack.set(
           row.reference_pack_id,
@@ -474,6 +565,26 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
     }
   }
 
+  const avatarPathByCharacter = new Map<string, string>();
+  for (const row of typedCharacterRows) {
+    const preferredPath =
+      profilePathByCharacter.get(row.id) ?? fallbackAvatarPathByCharacter.get(row.id) ?? null;
+    if (preferredPath) {
+      avatarPathByCharacter.set(row.id, preferredPath);
+    }
+  }
+
+  const avatarUrlByCharacter = new Map<string, string | null>();
+  if (avatarPathByCharacter.size) {
+    const signedUrlByStoragePath = await getSignedMediaUrlsBatch({
+      bucket: MEDIA_BUCKET,
+      storagePaths: Array.from(avatarPathByCharacter.values()),
+    });
+    for (const [characterId, storagePath] of avatarPathByCharacter.entries()) {
+      avatarUrlByCharacter.set(characterId, signedUrlByStoragePath.get(storagePath) ?? null);
+    }
+  }
+
   return typedCharacterRows
     .map((row) => {
       const latestPack = latestPackByCharacter.get(row.id);
@@ -483,6 +594,7 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
         characterName: row.name?.trim() || DEFAULT_CHARACTER_NAME,
         characterStatus: row.status,
         referencePackId: latestPack.id,
+        profileImageUrl: avatarUrlByCharacter.get(row.id) ?? null,
         referencePackStatus: latestPack.status,
         completedCount: slotCountsByPack.get(latestPack.id) ?? 0,
         hasFailedSlots: (failedCountsByPack.get(latestPack.id) ?? 0) > 0,

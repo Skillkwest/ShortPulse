@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
+import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import {
   handleVideoModelSubmission,
   resolveSubmissionHandlerRoute,
@@ -23,8 +24,11 @@ const asDispatch = <T>(fn: (value: SetStateAction<T>) => void): Dispatch<SetStat
   fn as Dispatch<SetStateAction<T>>;
 
 describe("useAiStudioTaskSubmission", () => {
+  const prepareImageUrlForSubmissionMock = vi.mocked(prepareImageUrlForSubmission);
+
   beforeEach(() => {
     vi.clearAllMocks();
+    prepareImageUrlForSubmissionMock.mockImplementation(async (url: string | null) => url);
   });
 
   it("keeps Veo First/Last strict when references are missing (no text-video fallback)", async () => {
@@ -229,5 +233,70 @@ describe("useAiStudioTaskSubmission", () => {
     expect(setUiNotice).not.toHaveBeenCalledWith(
       expect.stringContaining("No reference media were detected")
     );
+  });
+
+  it("converts reference upload prep failures into failed outputs instead of hanging spinners", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    prepareImageUrlForSubmissionMock.mockRejectedValueOnce(new Error("Upload failed"));
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/edit",
+        prompt: "",
+        selectedTool: "edit",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("edit prompt", ["blob:broken-ref"], {
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+      });
+    });
+
+    expect(outputs[0]?.taskState).toBe("fail");
+    expect(outputs[0]?.errorMessageShort).toBe("Reference upload failed.");
+    expect(setUiError).toHaveBeenCalledWith("Reference upload failed: Upload failed");
+    expect(startPollingTask).not.toHaveBeenCalled();
   });
 });

@@ -2,13 +2,11 @@
  * Toolbar for AI Studio tools.
  * Handles top-level AI Studio tool selection.
  */
-import Link from "next/link";
 import Image from "next/image";
 import React from "react";
 import {
   Globe,
   FlowArrow,
-  House,
   ImageSquare,
   type IconProps,
   Person,
@@ -20,6 +18,7 @@ import {
   VideoCamera,
 } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
+import { DashboardNavPrefab } from "../../../components/DashboardNavPrefab";
 import { creationsToolList, editToolList, lowerToolList, primaryToolList } from "../constants";
 import { ToolId } from "../types";
 
@@ -80,10 +79,7 @@ export function AiStudioToolbar({
       <div className="toolbar-logo">
         <Image src="/brand-logo.png" alt="Brand logo" width={150} height={150} />
       </div>
-      <Link href="/dashboard" className="ghost-btn small toolbar-back-link">
-        <House size={16} weight="regular" />
-        Dashboard
-      </Link>
+      <DashboardNavPrefab className="toolbar-back-link" />
       <div className="toolbar-divider" aria-hidden="true" />
       <div className="toolbar-list">
         {primaryToolList.map((tool) => {

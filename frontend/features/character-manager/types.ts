@@ -49,3 +49,9 @@ export type CharacterSlotFile = {
 };
 
 export type CharacterSlotFileMap = Record<CharacterReferenceSlotKey, CharacterSlotFile | null>;
+
+export type CharacterProfileImageTransform = {
+  zoom: number;
+  offsetX: number;
+  offsetY: number;
+};

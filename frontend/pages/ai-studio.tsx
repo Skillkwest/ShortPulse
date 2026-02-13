@@ -1126,9 +1126,7 @@ export default function AiStudioPage() {
       setMode("image");
     }
 
-    if (target?.modelId) {
-      setModel(target.modelId);
-    }
+    // Keep the currently selected model. Prompt cards persist historical model metadata.
     setPromptOrigin("reference");
     await handleGenerate(promptText, {
       modeOverride: workflowMode,

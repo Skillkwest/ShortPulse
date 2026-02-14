@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBulkMoveTabOptions,
+  buildModalMoveTabOptions,
   buildMoveTabOptions,
   buildMovedStoragePath,
   getMediaDataTabForRow,
@@ -104,6 +105,34 @@ describe("mediaMoveRouting", () => {
 
     const aiOption = options.find((option) => option.tab === "ai_generations");
     expect(aiOption?.disabled).toBe(false);
+  });
+
+  it("builds modal move options for images as enabled non-prompt destinations only", () => {
+    const options = buildModalMoveTabOptions({
+      source: "upload",
+      storage_path: "user-1/images/file.jpg",
+      file_type: "image/jpeg",
+    });
+
+    expect(options.map((option) => option.tab)).toEqual(["ai_generations", "private"]);
+    expect(options.every((option) => option.disabled === false)).toBe(true);
+  });
+
+  it("builds modal move options for videos in fixed video-first order", () => {
+    const options = buildModalMoveTabOptions({
+      source: "upload",
+      storage_path: "user-1/videos/file.mp4",
+      file_type: "video/mp4",
+    });
+
+    expect(options.map((option) => option.tab)).toEqual([
+      "uploaded_videos",
+      "ai_generations",
+      "private",
+    ]);
+    expect(options[0]).toMatchObject({ disabled: true, reason: "Current tab" });
+    expect(options[1].disabled).toBe(false);
+    expect(options[2]).toMatchObject({ disabled: true, reason: "Private supports images only" });
   });
 
   it("maps data tabs to expected source values", () => {

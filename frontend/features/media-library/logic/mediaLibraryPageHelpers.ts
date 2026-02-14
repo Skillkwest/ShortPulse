@@ -1,0 +1,256 @@
+/**
+ * Shared Media Library page helpers for tab routing, cache state, and pagination utilities.
+ * Keep this module React-free so page orchestration stays focused on UI and side effects.
+ */
+
+export const BUCKET = "media_library";
+export const PRIVATE_MEDIA_SOURCE = "private_upload";
+const PRIVATE_MEDIA_FOLDER = "private";
+const MEDIA_ROUTE_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
+
+export type MediaDataTab = "uploaded_images" | "uploaded_videos" | "private" | "ai_generations";
+
+export type MediaCursor = {
+  createdAt: string;
+  id: string;
+};
+
+export type MediaTabCache<TRow> = {
+  rows: TRow[];
+  nextCursor: MediaCursor | null;
+  pagesLoaded: number;
+  query: string;
+  loadedAtMs: number | null;
+  hasMore: boolean;
+  loading: boolean;
+  loaded: boolean;
+  error: string | null;
+};
+
+export type MediaTabRequestState = Record<MediaDataTab, number>;
+export type MediaTabBooleanState = Record<MediaDataTab, boolean>;
+
+export type MediaSignBudget = {
+  initialSignLimit: number;
+  prefetchWindow: number;
+  signBatchSize: number;
+};
+
+type NavigatorWithConnection = Navigator & {
+  deviceMemory?: number;
+  connection?: {
+    saveData?: boolean;
+    effectiveType?: string;
+    addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
+    removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
+  };
+};
+
+const MEDIA_ROUTE_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
+  initialSignLimit: 12,
+  prefetchWindow: 24,
+  signBatchSize: 10,
+};
+const MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN: MediaSignBudget = {
+  initialSignLimit: 8,
+  prefetchWindow: 16,
+  signBatchSize: 6,
+};
+const MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
+  initialSignLimit: 5,
+  prefetchWindow: 10,
+  signBatchSize: 4,
+};
+
+export const resolveRouteSignBudget = (): MediaSignBudget => {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return MEDIA_ROUTE_SIGN_BUDGET_DESKTOP;
+  }
+  const nav = navigator as NavigatorWithConnection;
+  const isSmallScreen =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(MEDIA_ROUTE_SIGN_SMALL_SCREEN_QUERY).matches;
+  const saveData = nav.connection?.saveData === true;
+  const effectiveType = (nav.connection?.effectiveType ?? "").toLowerCase();
+  const isSlowNetwork = effectiveType.includes("2g");
+  const isLowMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
+  if (saveData || isSlowNetwork || isLowMemory) {
+    return MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED;
+  }
+  if (isSmallScreen) {
+    return MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN;
+  }
+  return MEDIA_ROUTE_SIGN_BUDGET_DESKTOP;
+};
+
+export const MEDIA_DATA_TABS: MediaDataTab[] = [
+  "uploaded_images",
+  "uploaded_videos",
+  "private",
+  "ai_generations",
+];
+
+export const sanitizeFileName = (name: string) => name.replace(/[^\w.-]+/g, "_");
+
+export const fileTypeFromMime = (mime: string) => {
+  if (mime.startsWith("video/")) return "video";
+  return "image";
+};
+
+export const isVideoFile = (fileType?: string | null) => (fileType || "").startsWith("video");
+
+export const isPrivateStoragePath = (storagePath?: string | null) =>
+  (storagePath ?? "").split("/").filter(Boolean).includes(PRIVATE_MEDIA_FOLDER);
+
+export const isPrivateMediaFile = (file: {
+  source?: string | null;
+  storage_path?: string | null;
+}) => (file.source ?? "") === PRIVATE_MEDIA_SOURCE || isPrivateStoragePath(file.storage_path);
+
+export const isMediaDataTab = (tab: string): tab is MediaDataTab => tab !== "saved_prompts";
+
+export const getMediaDataTabForRow = (row: {
+  source?: string | null;
+  storage_path?: string | null;
+  file_type?: string | null;
+}): MediaDataTab => {
+  if (isPrivateMediaFile(row)) return "private";
+  if ((row.source ?? "upload") === "ai_studio") return "ai_generations";
+  return isVideoFile(row.file_type) ? "uploaded_videos" : "uploaded_images";
+};
+
+export const createEmptyMediaTabCache = <TRow>(): MediaTabCache<TRow> => ({
+  rows: [],
+  nextCursor: null,
+  pagesLoaded: 0,
+  query: "",
+  loadedAtMs: null,
+  hasMore: true,
+  loading: false,
+  loaded: false,
+  error: null,
+});
+
+export const createMediaTabCacheState = <TRow>(): Record<MediaDataTab, MediaTabCache<TRow>> => ({
+  uploaded_images: createEmptyMediaTabCache<TRow>(),
+  uploaded_videos: createEmptyMediaTabCache<TRow>(),
+  private: createEmptyMediaTabCache<TRow>(),
+  ai_generations: createEmptyMediaTabCache<TRow>(),
+});
+
+export const createMediaTabRequestState = (): MediaTabRequestState => ({
+  uploaded_images: 0,
+  uploaded_videos: 0,
+  private: 0,
+  ai_generations: 0,
+});
+
+export const createMediaTabBooleanState = (): MediaTabBooleanState => ({
+  uploaded_images: false,
+  uploaded_videos: false,
+  private: false,
+  ai_generations: false,
+});
+
+export const withMediaTabFilter = <
+  T extends {
+    eq: (column: string, value: string) => T;
+    ilike: (column: string, pattern: string) => T;
+  },
+>(
+  query: T,
+  tab: MediaDataTab
+): T => {
+  if (tab === "private") return query.eq("source", PRIVATE_MEDIA_SOURCE);
+  if (tab === "ai_generations") return query.eq("source", "ai_studio");
+  if (tab === "uploaded_videos") return query.eq("source", "upload").ilike("file_type", "video%");
+  return query.eq("source", "upload").ilike("file_type", "image%");
+};
+
+export const normalizeMediaSearchTerm = (value: string): string =>
+  value
+    .trim()
+    .replace(/[,%*()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const buildMediaSearchOrClause = (value: string): string | null => {
+  const normalized = normalizeMediaSearchTerm(value);
+  if (!normalized) return null;
+  const wildcard = `*${normalized}*`;
+  return `filename.ilike.${wildcard},storage_path.ilike.${wildcard}`;
+};
+
+export const withMediaSearchFilter = <T extends { or: (clause: string) => T }>(
+  query: T,
+  rawSearchTerm: string
+): T => {
+  const clause = buildMediaSearchOrClause(rawSearchTerm);
+  if (!clause) return query;
+  return query.or(clause);
+};
+
+export const buildCursorFromRows = <T extends { id?: string | null; created_at?: string | null }>(
+  rows: T[]
+): MediaCursor | null => {
+  if (!rows.length) return null;
+  const tail = rows[rows.length - 1];
+  const id = tail.id ?? "";
+  const createdAt = tail.created_at ?? "";
+  if (!id || !createdAt) return null;
+  return { id, createdAt };
+};
+
+const createdAtTime = (value?: string | null): number => {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+export const mergePageRows = <TRow extends { id: string; created_at?: string | null }>(
+  current: TRow[],
+  incoming: TRow[]
+): TRow[] => {
+  if (!incoming.length) return current;
+  const byId = new Map(current.map((row) => [row.id, row]));
+  for (const row of incoming) {
+    byId.set(row.id, row);
+  }
+  return Array.from(byId.values()).sort((a, b) => {
+    const createdDelta = createdAtTime(b.created_at) - createdAtTime(a.created_at);
+    if (createdDelta !== 0) return createdDelta;
+    return b.id.localeCompare(a.id);
+  });
+};
+
+export const formatDate = (value?: string | null) => {
+  if (!value) return "Unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+};
+
+export const sortByCreatedAtDesc = <T extends { created_at?: string | null; id?: string | null }>(
+  rows: T[]
+): T[] =>
+  [...rows].sort((a, b) => {
+    const createdDelta = createdAtTime(b.created_at) - createdAtTime(a.created_at);
+    if (createdDelta !== 0) return createdDelta;
+    return (b.id ?? "").localeCompare(a.id ?? "");
+  });
+
+export const getErrorMessage = (error: unknown, fallback: string): string =>
+  error instanceof Error ? error.message : fallback;
+
+export const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+
+export const isMissingRelationError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  return "code" in error && (error as { code?: string }).code === "42P01";
+};
+
+export const isMissingRoutineError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  return "code" in error && (error as { code?: string }).code === "42883";
+};

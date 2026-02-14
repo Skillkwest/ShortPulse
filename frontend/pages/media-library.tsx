@@ -15,26 +15,49 @@ import {
 } from "phosphor-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardNavPrefab } from "../components/DashboardNavPrefab";
-import { createMediaPerfTimer, logMediaPerf } from "../lib/mediaPerfTelemetry";
+import { logMediaPerf } from "../lib/mediaPerfTelemetry";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import {
   resolveMediaDirectPreviewUrls,
   resolveMediaSigningStoragePaths,
 } from "../lib/mediaPreviewPath";
-import {
-  getSignedMediaUrl,
-  getSignedMediaUrlsBatch,
-  invalidateSignedMediaUrl,
-} from "../lib/mediaSignedUrlCache";
+import { getSignedMediaUrl, invalidateSignedMediaUrl } from "../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 import {
-  buildBulkMoveTabOptions,
-  buildMoveTabOptions,
-  getMoveTabLabel,
-  type MediaMoveDestination,
-  type MediaTabOption,
+  buildModalMoveTabOptions,
+  isMoveDestinationDataTab,
 } from "../features/media-library/logic/mediaMoveRouting";
-import { buildBulkMoveFeedback } from "../features/media-library/logic/bulkMoveFeedback";
+import { useMediaBulkMoveController } from "../features/media-library/hooks/useMediaBulkMoveController";
+import { useMediaFileModalCrud } from "../features/media-library/hooks/useMediaFileModalCrud";
+import { useMediaModalImageZoom } from "../features/media-library/hooks/useMediaModalImageZoom";
+import { useMediaPreviewSigningController } from "../features/media-library/hooks/useMediaPreviewSigningController";
+import { useMediaTabDataController } from "../features/media-library/hooks/useMediaTabDataController";
+import { useMediaUploadController } from "../features/media-library/hooks/useMediaUploadController";
+import { applyMovedRowsToMediaTabCache } from "../features/media-library/logic/mediaMoveCache";
+import {
+  BUCKET,
+  MEDIA_DATA_TABS,
+  createMediaTabBooleanState,
+  createMediaTabCacheState,
+  createMediaTabRequestState,
+  formatDate,
+  getErrorMessage,
+  getMediaDataTabForRow,
+  isMediaDataTab,
+  isMissingRelationError,
+  isMissingRoutineError,
+  isNonEmptyString,
+  isVideoFile,
+  mergePageRows,
+  normalizeMediaSearchTerm,
+  resolveRouteSignBudget,
+  sortByCreatedAtDesc,
+  type MediaDataTab,
+  type MediaSignBudget,
+  type MediaTabBooleanState,
+  type MediaTabCache as MediaTabCacheState,
+  type MediaTabRequestState,
+} from "../features/media-library/logic/mediaLibraryPageHelpers";
 
 type MediaRow = {
   id: string;
@@ -73,27 +96,7 @@ type MediaTab =
   | "saved_prompts"
   | "ai_generations";
 
-type MediaDataTab = Exclude<MediaTab, "saved_prompts">;
-
-type MediaCursor = {
-  createdAt: string;
-  id: string;
-};
-
-type MediaTabCache = {
-  rows: MediaRow[];
-  nextCursor: MediaCursor | null;
-  pagesLoaded: number;
-  query: string;
-  loadedAtMs: number | null;
-  hasMore: boolean;
-  loading: boolean;
-  loaded: boolean;
-  error: string | null;
-};
-
-type MediaTabRequestState = Record<MediaDataTab, number>;
-type MediaTabBooleanState = Record<MediaDataTab, boolean>;
+type MediaTabCache = MediaTabCacheState<MediaRow>;
 type MediaCardRefCallback = (node: HTMLDivElement | null) => void;
 
 type MediaVariantPathRow = {
@@ -127,223 +130,21 @@ type MoveMediaResponse = {
   toTab: MediaDataTab;
 };
 
-type MoveMediaBatchResponse = {
-  destinationTab: MediaDataTab;
-  moved: Array<{
-    fileId: string;
-    file: MediaRow;
-    fromTab: MediaDataTab;
-    toTab: MediaDataTab;
-    previousStoragePath: string;
-    nextStoragePath: string;
-  }>;
-  failed: Array<{
-    fileId: string;
-    error: string;
-    details?: string;
-  }>;
-  summary: {
-    requested: number;
-    moved: number;
-    failed: number;
-  };
-};
-
 type MoveFileResult = {
   nextFile: MediaRow;
   toTab: MediaDataTab;
   previousSignPaths: string[];
 };
 
-const BUCKET = "media_library";
-const PRIVATE_MEDIA_SOURCE = "private_upload";
-const PRIVATE_MEDIA_FOLDER = "private";
 const MEDIA_LIBRARY_PAGE_SIZE = 60;
 const MEDIA_LIBRARY_CACHE_TTL_MS = 30_000;
 const STORAGE_DELETE_BATCH_SIZE = 100;
-const MEDIA_ROUTE_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
-
-type MediaSignBudget = {
-  initialSignLimit: number;
-  prefetchWindow: number;
-  signBatchSize: number;
-};
 
 type NavigatorWithConnection = Navigator & {
-  deviceMemory?: number;
   connection?: {
-    saveData?: boolean;
-    effectiveType?: string;
     addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
     removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
   };
-};
-
-const MEDIA_ROUTE_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
-  initialSignLimit: 12,
-  prefetchWindow: 24,
-  signBatchSize: 10,
-};
-const MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN: MediaSignBudget = {
-  initialSignLimit: 8,
-  prefetchWindow: 16,
-  signBatchSize: 6,
-};
-const MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
-  initialSignLimit: 5,
-  prefetchWindow: 10,
-  signBatchSize: 4,
-};
-
-const resolveRouteSignBudget = (): MediaSignBudget => {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return MEDIA_ROUTE_SIGN_BUDGET_DESKTOP;
-  }
-  const nav = navigator as NavigatorWithConnection;
-  const isSmallScreen = window.matchMedia(MEDIA_ROUTE_SIGN_SMALL_SCREEN_QUERY).matches;
-  const saveData = nav.connection?.saveData === true;
-  const effectiveType = (nav.connection?.effectiveType ?? "").toLowerCase();
-  const isSlowNetwork = effectiveType.includes("2g");
-  const isLowMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
-  if (saveData || isSlowNetwork || isLowMemory) {
-    return MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED;
-  }
-  if (isSmallScreen) {
-    return MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN;
-  }
-  return MEDIA_ROUTE_SIGN_BUDGET_DESKTOP;
-};
-const MEDIA_DATA_TABS: MediaDataTab[] = [
-  "uploaded_images",
-  "uploaded_videos",
-  "private",
-  "ai_generations",
-];
-
-const sanitizeFileName = (name: string) => name.replace(/[^\w.-]+/g, "_");
-
-const fileTypeFromMime = (mime: string) => {
-  if (mime.startsWith("video/")) return "video";
-  return "image";
-};
-
-const isVideoFile = (fileType?: string | null) => (fileType || "").startsWith("video");
-const isPrivateStoragePath = (storagePath?: string | null) =>
-  (storagePath ?? "").split("/").filter(Boolean).includes(PRIVATE_MEDIA_FOLDER);
-const isPrivateMediaFile = (file: Pick<MediaRow, "source" | "storage_path">) =>
-  (file.source ?? "") === PRIVATE_MEDIA_SOURCE || isPrivateStoragePath(file.storage_path);
-
-const isMediaDataTab = (tab: MediaTab): tab is MediaDataTab => tab !== "saved_prompts";
-const isMoveDataTab = (tab: MediaMoveDestination): tab is MediaDataTab => tab !== "saved_prompts";
-const isDataMoveOption = (
-  option: MediaTabOption
-): option is MediaTabOption & { tab: MediaDataTab } => isMoveDataTab(option.tab);
-const isEnabledDataMoveOption = (
-  option: MediaTabOption
-): option is MediaTabOption & { tab: MediaDataTab; disabled: false } =>
-  isDataMoveOption(option) && !option.disabled;
-const VIDEO_MODAL_MOVE_TAB_ORDER: MediaDataTab[] = ["uploaded_videos", "ai_generations", "private"];
-
-const getMediaDataTabForRow = (
-  row: Pick<MediaRow, "source" | "storage_path" | "file_type">
-): MediaDataTab => {
-  if (isPrivateMediaFile(row)) return "private";
-  if ((row.source ?? "upload") === "ai_studio") return "ai_generations";
-  return isVideoFile(row.file_type) ? "uploaded_videos" : "uploaded_images";
-};
-
-const createEmptyMediaTabCache = (): MediaTabCache => ({
-  rows: [],
-  nextCursor: null,
-  pagesLoaded: 0,
-  query: "",
-  loadedAtMs: null,
-  hasMore: true,
-  loading: false,
-  loaded: false,
-  error: null,
-});
-
-const createMediaTabCacheState = (): Record<MediaDataTab, MediaTabCache> => ({
-  uploaded_images: createEmptyMediaTabCache(),
-  uploaded_videos: createEmptyMediaTabCache(),
-  private: createEmptyMediaTabCache(),
-  ai_generations: createEmptyMediaTabCache(),
-});
-
-const createMediaTabRequestState = (): MediaTabRequestState => ({
-  uploaded_images: 0,
-  uploaded_videos: 0,
-  private: 0,
-  ai_generations: 0,
-});
-
-const createMediaTabBooleanState = (): MediaTabBooleanState => ({
-  uploaded_images: false,
-  uploaded_videos: false,
-  private: false,
-  ai_generations: false,
-});
-
-const withMediaTabFilter = <
-  T extends {
-    eq: (column: string, value: string) => T;
-    ilike: (column: string, pattern: string) => T;
-  },
->(
-  query: T,
-  tab: MediaDataTab
-): T => {
-  if (tab === "private") return query.eq("source", PRIVATE_MEDIA_SOURCE);
-  if (tab === "ai_generations") return query.eq("source", "ai_studio");
-  if (tab === "uploaded_videos") return query.eq("source", "upload").ilike("file_type", "video%");
-  return query.eq("source", "upload").ilike("file_type", "image%");
-};
-
-const normalizeMediaSearchTerm = (value: string): string =>
-  value
-    .trim()
-    .replace(/[,%*()]/g, " ")
-    .replace(/\s+/g, " ");
-
-const buildMediaSearchOrClause = (value: string): string | null => {
-  const normalized = normalizeMediaSearchTerm(value);
-  if (!normalized) return null;
-  const wildcard = `*${normalized}*`;
-  return `filename.ilike.${wildcard},storage_path.ilike.${wildcard}`;
-};
-
-const withMediaSearchFilter = <T extends { or: (clause: string) => T }>(
-  query: T,
-  rawSearchTerm: string
-): T => {
-  const clause = buildMediaSearchOrClause(rawSearchTerm);
-  if (!clause) return query;
-  return query.or(clause);
-};
-
-const buildCursorFromRows = <T extends { id?: string | null; created_at?: string | null }>(
-  rows: T[]
-): MediaCursor | null => {
-  if (!rows.length) return null;
-  const tail = rows[rows.length - 1];
-  const id = tail.id ?? "";
-  const createdAt = tail.created_at ?? "";
-  if (!id || !createdAt) return null;
-  return { id, createdAt };
-};
-
-const mergePageRows = (current: MediaRow[], incoming: MediaRow[]): MediaRow[] => {
-  if (!incoming.length) return current;
-  const byId = new Map(current.map((row) => [row.id, row]));
-  for (const row of incoming) {
-    byId.set(row.id, row);
-  }
-  return Array.from(byId.values()).sort((a, b) => {
-    const createdDelta = createdAtTime(b.created_at) - createdAtTime(a.created_at);
-    if (createdDelta !== 0) return createdDelta;
-    return b.id.localeCompare(a.id);
-  });
 };
 
 const logMediaEvent = async (
@@ -372,59 +173,17 @@ const logMediaEvent = async (
   }
 };
 
-const formatDate = (value?: string | null) => {
-  if (!value) return "Unknown";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown";
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-};
-
-const createdAtTime = (value?: string | null): number => {
-  if (!value) return 0;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
-const sortByCreatedAtDesc = <T extends { created_at?: string | null; id?: string | null }>(
-  rows: T[]
-): T[] =>
-  [...rows].sort((a, b) => {
-    const createdDelta = createdAtTime(b.created_at) - createdAtTime(a.created_at);
-    if (createdDelta !== 0) return createdDelta;
-    return (b.id ?? "").localeCompare(a.id ?? "");
-  });
-
-const getErrorMessage = (error: unknown, fallback: string): string =>
-  error instanceof Error ? error.message : fallback;
-
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === "string" && value.trim().length > 0;
-
-const isMissingRelationError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
-  return "code" in error && (error as { code?: string }).code === "42P01";
-};
-
-const isMissingRoutineError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
-  return "code" in error && (error as { code?: string }).code === "42883";
-};
-
 export default function MediaLibrary() {
   const [files, setFiles] = useState<MediaRow[]>([]);
   const [prompts, setPrompts] = useState<PromptRow[]>([]);
   const [promptsLoaded, setPromptsLoaded] = useState(false);
   const [mediaTabCache, setMediaTabCache] =
     useState<Record<MediaDataTab, MediaTabCache>>(createMediaTabCacheState);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [uploadCount, setUploadCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<MediaTab>("uploaded_images");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
   const [aspectMap, setAspectMap] = useState<Record<string, number>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -432,33 +191,19 @@ export default function MediaLibrary() {
   const [bulkMoveError, setBulkMoveError] = useState<string | null>(null);
   const [bulkMoveNotice, setBulkMoveNotice] = useState<string | null>(null);
   const [bulkMoveMenuOpen, setBulkMoveMenuOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<MediaRow | null>(null);
-  const [deletingSingle, setDeletingSingle] = useState(false);
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const [focusedFile, setFocusedFile] = useState<MediaRow | null>(null);
   const [focusedPrompt, setFocusedPrompt] = useState<PromptRow | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const [savingRename, setSavingRename] = useState(false);
-  const [modalError, setModalError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
   const [movingFile, setMovingFile] = useState(false);
-  const [renameSuccess, setRenameSuccess] = useState(false);
   const [promptEditValue, setPromptEditValue] = useState("");
   const [savingPromptEdit, setSavingPromptEdit] = useState(false);
   const [promptModalError, setPromptModalError] = useState<string | null>(null);
   const [promptSaveSuccess, setPromptSaveSuccess] = useState(false);
   const [storageUsageBytes, setStorageUsageBytes] = useState<number | null>(null);
-  const [modalImageZoomScale, setModalImageZoomScale] = useState(1);
-  const [modalImageZoomActive, setModalImageZoomActive] = useState(false);
-  const [modalImagePan, setModalImagePan] = useState({ x: 0, y: 0 });
-  const [modalImageNaturalSize, setModalImageNaturalSize] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-  const [isModalImagePanning, setIsModalImagePanning] = useState(false);
   const signedUrlRetryRef = useRef<Record<string, number>>({});
   const signAttemptRef = useRef<Record<string, number>>({});
   const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
@@ -479,15 +224,6 @@ export default function MediaLibrary() {
   const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveRouteSignBudget);
   const currentUserIdRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
-  const modalPreviewRef = useRef<HTMLDivElement | null>(null);
-  const modalImagePanDragRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    startPanX: number;
-    startPanY: number;
-  } | null>(null);
-  const modalImageDraggedRef = useRef(false);
   const cachedMediaBytes = useMemo(() => {
     const byId = new Map<string, number>();
     for (const tab of MEDIA_DATA_TABS) {
@@ -714,40 +450,43 @@ export default function MediaLibrary() {
     []
   );
 
-  const applySignedUrlsToTab = useCallback((tab: MediaDataTab, signedById: Map<string, string>) => {
-    if (!signedById.size) return;
-    setMediaTabCache((prev) => {
-      const cache = prev[tab];
-      let changed = false;
-      const nextRows = cache.rows.map((row) => {
-        const signedUrl = signedById.get(row.id);
-        if (!signedUrl || row.signedUrl === signedUrl) return row;
-        changed = true;
-        return { ...row, signedUrl };
+  const applySignedUrlsToTab = useCallback(
+    (tab: MediaDataTab, signedById: Map<string, string>) => {
+      if (!signedById.size) return;
+      setMediaTabCache((prev) => {
+        const cache = prev[tab];
+        let changed = false;
+        const nextRows = cache.rows.map((row) => {
+          const signedUrl = signedById.get(row.id);
+          if (!signedUrl || row.signedUrl === signedUrl) return row;
+          changed = true;
+          return { ...row, signedUrl };
+        });
+        if (!changed) return prev;
+        return {
+          ...prev,
+          [tab]: {
+            ...cache,
+            rows: nextRows,
+          },
+        };
       });
-      if (!changed) return prev;
-      return {
-        ...prev,
-        [tab]: {
-          ...cache,
-          rows: nextRows,
-        },
-      };
-    });
-    if (activeTabRef.current === tab) {
-      setFiles((prev) =>
-        prev.map((file) => {
-          const signedUrl = signedById.get(file.id);
-          return signedUrl ? { ...file, signedUrl } : file;
-        })
-      );
-    }
-    setFocusedFile((prev) => {
-      if (!prev) return prev;
-      const signedUrl = signedById.get(prev.id);
-      return signedUrl ? { ...prev, signedUrl } : prev;
-    });
-  }, []);
+      if (activeTabRef.current === tab) {
+        setFiles((prev) =>
+          prev.map((file) => {
+            const signedUrl = signedById.get(file.id);
+            return signedUrl ? { ...file, signedUrl } : file;
+          })
+        );
+      }
+      setFocusedFile((prev) => {
+        if (!prev) return prev;
+        const signedUrl = signedById.get(prev.id);
+        return signedUrl ? { ...prev, signedUrl } : prev;
+      });
+    },
+    [setFocusedFile]
+  );
 
   const setObjectUrlForMediaRow = useCallback(
     (file: MediaRow, objectUrl: string) => {
@@ -890,416 +629,49 @@ export default function MediaLibrary() {
     [activeTab]
   );
 
-  const syncActiveMediaCacheRows = useCallback(
-    (rows: MediaRow[]) => {
-      if (!activeMediaTab) return;
-      const queryTerm = activeMediaQuery.toLowerCase();
-      setMediaTabCache((prev) => ({
-        ...prev,
-        [activeMediaTab]: {
-          ...prev[activeMediaTab],
-          rows: rows.filter((row) => {
-            if (getMediaDataTabForRow(row) !== activeMediaTab) return false;
-            if (!queryTerm) return true;
-            const name = row.filename?.toLowerCase() ?? "";
-            const path = row.storage_path?.toLowerCase() ?? "";
-            return name.includes(queryTerm) || path.includes(queryTerm);
-          }),
-          loadedAtMs: Date.now(),
-          loaded: true,
-        },
-      }));
-    },
-    [activeMediaQuery, activeMediaTab]
-  );
-
-  const updateVisibleRows = useCallback(
-    (updater: (prev: MediaRow[]) => MediaRow[]) => {
-      setFiles((prev) => {
-        const next = updater(prev);
-        syncActiveMediaCacheRows(next);
-        return next;
-      });
-    },
-    [syncActiveMediaCacheRows]
-  );
-
-  const markInactiveMediaCachesStale = useCallback((currentTab: MediaDataTab | null) => {
-    setMediaTabCache((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      for (const tab of MEDIA_DATA_TABS) {
-        if (tab === currentTab) continue;
-        if (next[tab].loadedAtMs == null) continue;
-        next[tab] = {
-          ...next[tab],
-          loadedAtMs: null,
-        };
-        changed = true;
-      }
-      return changed ? next : prev;
+  const { fetchMediaTabPage, markInactiveMediaCachesStale, updateVisibleRows } =
+    useMediaTabDataController<MediaRow, PromptRow>({
+      activeMediaCache,
+      activeMediaQuery,
+      activeMediaTab,
+      activeTab,
+      activeTabRef,
+      cacheTtlMs: MEDIA_LIBRARY_CACHE_TTL_MS,
+      currentUserIdRef,
+      loadMoreSentinelRef,
+      mediaTabCache,
+      mediaTabRequestRef,
+      pageSize: MEDIA_LIBRARY_PAGE_SIZE,
+      promptsLoaded,
+      setError,
+      setFiles,
+      setLoading,
+      setMediaTabCache,
+      setPrompts,
+      setPromptsLoaded,
     });
-  }, []);
 
-  const fetchMediaTabPage = useCallback(
-    async (tab: MediaDataTab, options?: { reset?: boolean; query?: string }) => {
-      const cache = mediaTabCache[tab];
-      const normalizedQuery = normalizeMediaSearchTerm(options?.query ?? cache.query);
-      const shouldReset = (options?.reset ?? false) || cache.query !== normalizedQuery;
-      if (cache.loading) return;
-      if (!shouldReset && !cache.hasMore) return;
-      const requestId = mediaTabRequestRef.current[tab] + 1;
-      mediaTabRequestRef.current[tab] = requestId;
-      const isStaleRequest = () => mediaTabRequestRef.current[tab] !== requestId;
-
-      const pageToLoad = shouldReset ? 0 : cache.pagesLoaded;
-      const cursor = shouldReset ? null : cache.nextCursor;
-      setError(null);
-      setMediaTabCache((prev) => ({
-        ...prev,
-        [tab]: {
-          ...prev[tab],
-          rows: shouldReset ? [] : prev[tab].rows,
-          nextCursor: shouldReset ? null : prev[tab].nextCursor,
-          pagesLoaded: shouldReset ? 0 : prev[tab].pagesLoaded,
-          query: normalizedQuery,
-          hasMore: shouldReset ? true : prev[tab].hasMore,
-          loading: true,
-          error: null,
-        },
-      }));
-      if (activeTabRef.current === tab && (shouldReset || !cache.loaded)) {
-        setLoading(true);
-      }
-
-      try {
-        const supabase = ensureSupabaseClient();
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user?.id;
-        if (!userId) throw new Error("Not signed in");
-        currentUserIdRef.current = userId;
-
-        const selectColumns =
-          "id, filename, storage_path, file_type, file_size, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
-        const buildBaseQuery = () => {
-          let query = supabase.from("media_files").select(selectColumns).eq("user_id", userId);
-          query = withMediaTabFilter(query, tab);
-          query = withMediaSearchFilter(query, normalizedQuery);
-          return query.order("created_at", { ascending: false }).order("id", { ascending: false });
-        };
-
-        const fetchedRows: MediaRow[] = [];
-        if (!cursor) {
-          const firstPageResponse = await buildBaseQuery().limit(MEDIA_LIBRARY_PAGE_SIZE);
-          if (firstPageResponse.error) throw firstPageResponse.error;
-          fetchedRows.push(...((firstPageResponse.data ?? []) as MediaRow[]));
-        } else {
-          const sameTimestampResponse = await buildBaseQuery()
-            .eq("created_at", cursor.createdAt)
-            .lt("id", cursor.id)
-            .limit(MEDIA_LIBRARY_PAGE_SIZE);
-          if (sameTimestampResponse.error) throw sameTimestampResponse.error;
-          const sameTimestampRows = (sameTimestampResponse.data ?? []) as MediaRow[];
-          fetchedRows.push(...sameTimestampRows);
-
-          const remaining = MEDIA_LIBRARY_PAGE_SIZE - sameTimestampRows.length;
-          if (remaining > 0) {
-            const olderRowsResponse = await buildBaseQuery()
-              .lt("created_at", cursor.createdAt)
-              .limit(remaining);
-            if (olderRowsResponse.error) throw olderRowsResponse.error;
-            fetchedRows.push(...((olderRowsResponse.data ?? []) as MediaRow[]));
-          }
-        }
-        if (isStaleRequest()) return;
-
-        const rows = mergePageRows([], fetchedRows).slice(0, MEDIA_LIBRARY_PAGE_SIZE);
-        const existingById = new Map(cache.rows.map((row) => [row.id, row]));
-        const normalizedRows = rows.map((row) => {
-          const signingCandidates = resolveMediaSigningStoragePaths(row, userId);
-          const previewStoragePath = signingCandidates[0] ?? row.storage_path;
-          const cachedRow = existingById.get(row.id);
-          return {
-            ...row,
-            source: row.source ?? "upload",
-            preview_storage_path: previewStoragePath,
-            signedUrl: cachedRow?.signedUrl,
-          } as MediaRow;
-        });
-
-        const derivedCursor = buildCursorFromRows(rows);
-        const hasMore = rows.length === MEDIA_LIBRARY_PAGE_SIZE && Boolean(derivedCursor);
-        const nextRows = shouldReset ? normalizedRows : mergePageRows(cache.rows, normalizedRows);
-        setMediaTabCache((prev) => ({
-          ...prev,
-          [tab]: {
-            ...prev[tab],
-            rows: nextRows,
-            nextCursor: hasMore ? derivedCursor : null,
-            pagesLoaded: pageToLoad + 1,
-            query: normalizedQuery,
-            loadedAtMs: Date.now(),
-            hasMore,
-            loading: false,
-            loaded: true,
-            error: null,
-          },
-        }));
-        if (activeTabRef.current === tab) {
-          setFiles(nextRows);
-          setLoading(false);
-        }
-      } catch (err: unknown) {
-        if (isStaleRequest()) return;
-        const message = getErrorMessage(err, "Unable to load media");
-        setMediaTabCache((prev) => ({
-          ...prev,
-          [tab]: {
-            ...prev[tab],
-            loading: false,
-            loaded: true,
-            query: normalizedQuery,
-            error: message,
-          },
-        }));
-        if (activeTabRef.current === tab) {
-          setError(message);
-          setLoading(false);
-        }
-      }
-    },
-    [mediaTabCache]
-  );
-
-  const loadPrompts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const supabase = ensureSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user?.id;
-      if (!userId) throw new Error("Not signed in");
-      const promptResponse = await supabase
-        .from("media_prompts")
-        .select("id, title, prompt_text, mode, source, created_at, updated_at")
-        .order("created_at", { ascending: false })
-        .order("id", { ascending: false });
-      if (promptResponse.error) throw promptResponse.error;
-      setPrompts((promptResponse.data ?? []) as PromptRow[]);
-      setPromptsLoaded(true);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "Unable to load prompts"));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === "saved_prompts") {
-      if (!promptsLoaded) {
-        void loadPrompts();
-      } else {
-        setLoading(false);
-      }
-      return;
-    }
-    const cache = mediaTabCache[activeTab];
-    const queryChanged = cache.query !== activeMediaQuery;
-    const isStale =
-      cache.loadedAtMs == null || Date.now() - cache.loadedAtMs > MEDIA_LIBRARY_CACHE_TTL_MS;
-    if (cache.loaded && !queryChanged && !isStale) {
-      setFiles(cache.rows);
-      setError(cache.error);
-      setLoading(cache.loading);
-      return;
-    }
-    if (cache.loaded && !queryChanged && isStale) {
-      setFiles(cache.rows);
-      setLoading(true);
-    }
-    void fetchMediaTabPage(activeTab, { reset: true, query: activeMediaQuery });
-  }, [activeMediaQuery, activeTab, fetchMediaTabPage, loadPrompts, mediaTabCache, promptsLoaded]);
-
-  useEffect(() => {
-    if (!activeMediaTab) return;
-    if (!activeMediaCache?.loaded || activeMediaCache.loading || !activeMediaCache.hasMore) return;
-    const node = loadMoreSentinelRef.current;
-    if (!node) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery });
-      },
-      { rootMargin: "600px 0px" }
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [
-    activeMediaCache?.hasMore,
-    activeMediaCache?.loaded,
-    activeMediaCache?.loading,
-    activeMediaQuery,
+  const {
+    handleDragLeave,
+    handleDragOver,
+    handleDrop,
+    handleFileChange,
+    isDragging,
+    selectedFiles,
+    uploadCount,
+    uploading,
+  } = useMediaUploadController<MediaRow>({
     activeMediaTab,
-    fetchMediaTabPage,
-  ]);
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const list = event.target.files;
-    if (!list) return;
-    const filesToUpload = Array.from(list);
-    setSelectedFiles(filesToUpload);
-    void uploadSelected(filesToUpload);
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsDragging(false);
-    const dropped = event.dataTransfer.files;
-    if (!dropped?.length) return;
-    const filesToUpload = Array.from(dropped);
-    setSelectedFiles(filesToUpload);
-    void uploadSelected(filesToUpload);
-  };
-
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const uploadSelected = async (incoming?: File[]) => {
-    setError(null);
-    setUploading(true);
-    let placeholderIds: string[] = [];
-    try {
-      const supabase = ensureSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user?.id;
-      if (!userId) {
-        setError("Not signed in");
-        return;
-      }
-
-      const filesToProcess = incoming ?? selectedFiles;
-      const isPrivateUpload = activeTab === "private";
-      if (isPrivateUpload) {
-        const hasUnsupportedFile = filesToProcess.some(
-          (file) => !file.type.toLowerCase().startsWith("image/")
-        );
-        if (hasUnsupportedFile) {
-          setError("Private uploads only support images.");
-          return;
-        }
-      }
-      const uploads: MediaRow[] = [];
-      // create optimistic placeholders so users see upload activity in the grid
-      const placeholders: MediaRow[] = filesToProcess.map((file) => ({
-        id: crypto.randomUUID(),
-        filename: file.name,
-        storage_path: "",
-        preview_storage_path: "",
-        file_type: fileTypeFromMime(file.type || "application/octet-stream"),
-        file_size: file.size,
-        source: isPrivateUpload ? PRIVATE_MEDIA_SOURCE : "upload",
-        created_at: new Date().toISOString(),
-        status: "uploading",
-      }));
-      placeholderIds = placeholders.map((item) => item.id);
-      updateVisibleRows((prev) => [...placeholders, ...prev]);
-      setUploadCount(filesToProcess.length);
-      for (let idx = 0; idx < filesToProcess.length; idx += 1) {
-        const file = filesToProcess[idx];
-        const placeholderId = placeholders[idx]?.id;
-        const mimeType = file.type || "application/octet-stream";
-        const typeFolder = fileTypeFromMime(mimeType) === "video" ? "videos" : "images";
-        const extension = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
-        const storedName = `${crypto.randomUUID()}-${sanitizeFileName(file.name.replace(extension, ""))}${extension}`;
-        const path = isPrivateUpload
-          ? `${userId}/${PRIVATE_MEDIA_FOLDER}/images/${storedName}`
-          : `${userId}/${typeFolder}/${storedName}`;
-
-        const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
-          upsert: false,
-          contentType: mimeType,
-        });
-        if (uploadError) {
-          throw uploadError;
-        }
-
-        const { data: inserted, error: insertError } = await supabase
-          .from("media_files")
-          .insert({
-            user_id: userId,
-            filename: file.name,
-            storage_path: path,
-            file_type: fileTypeFromMime(mimeType),
-            file_size: file.size,
-            source: isPrivateUpload ? PRIVATE_MEDIA_SOURCE : "upload",
-          })
-          .select("*")
-          .single();
-        if (insertError) {
-          throw insertError;
-        }
-
-        const previewStoragePath =
-          resolveMediaSigningStoragePaths(inserted ?? { storage_path: path }, userId)[0] ?? path;
-        const signedUrl = await signStoragePath(previewStoragePath, { forceRefresh: true });
-
-        if (inserted?.id) {
-          void logMediaEvent("upload", "media_file", inserted.id, {
-            storage_path: path,
-            file_type: fileTypeFromMime(mimeType),
-            file_size: file.size,
-            visibility: isPrivateUpload ? "private" : "standard",
-          });
-        }
-
-        uploads.push({
-          ...inserted,
-          preview_storage_path: previewStoragePath,
-          signedUrl: signedUrl ?? undefined,
-          status: "ready",
-        });
-
-        // swap placeholder with real row
-        updateVisibleRows((prev) =>
-          prev.map((f) =>
-            placeholderId && f.id === placeholderId ? { ...uploads[uploads.length - 1] } : f
-          )
-        );
-      }
-
-      if (uploads.length) {
-        updateVisibleRows((prev) => {
-          // filter out any placeholders not replaced
-          const withoutDangling = prev.filter(
-            (f) => f.status !== "uploading" || uploads.some((u) => u.id === f.id)
-          );
-          // ensure new uploads are present (already inserted via swap above)
-          return withoutDangling;
-        });
-        markInactiveMediaCachesStale(activeMediaTab);
-        void refreshStorageUsageBytes();
-      }
-      setSelectedFiles([]);
-      setUploadCount(0);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "Upload failed"));
-      if (placeholderIds.length) {
-        updateVisibleRows((prev) =>
-          prev.filter((file) => !(file.status === "uploading" && placeholderIds.includes(file.id)))
-        );
-      }
-    } finally {
-      setUploading(false);
-      setUploadCount(0);
-    }
-  };
+    activeTab,
+    currentUserIdRef,
+    getErrorMessage,
+    logMediaEvent,
+    markInactiveMediaCachesStale,
+    refreshStorageUsageBytes,
+    setError,
+    signStoragePath,
+    updateVisibleRows,
+  });
 
   const mediaSearchTerm = useMemo(() => activeMediaQuery.toLowerCase(), [activeMediaQuery]);
   const promptSearchTerm = useMemo(() => search.trim().toLowerCase(), [search]);
@@ -1316,187 +688,26 @@ export default function MediaLibrary() {
     });
   }, [activeMediaTab, files, mediaSearchTerm]);
 
-  useEffect(() => {
-    if (!activeMediaTab) return;
-    if (activeMediaCache?.loading) return;
-    if (mediaSignInFlightRef.current[activeMediaTab]) return;
-
-    const readyRows = filteredMedia.filter((row) => row.status !== "uploading");
-    if (!readyRows.length) return;
-
-    const prioritizedRows: MediaRow[] = [];
-    const seen = new Set<string>();
-    const enqueue = (row?: MediaRow) => {
-      if (!row) return;
-      if (
-        !resolveMediaSigningStoragePaths(row, currentUserIdRef.current).length ||
-        row.signedUrl ||
-        seen.has(row.id)
-      )
-        return;
-      seen.add(row.id);
-      prioritizedRows.push(row);
-    };
-
-    for (const row of readyRows.slice(0, signBudget.initialSignLimit)) {
-      enqueue(row);
-    }
-
-    const visibleIndexes: number[] = [];
-    for (let idx = 0; idx < readyRows.length; idx += 1) {
-      if (visibleMediaIdsRef.current.has(readyRows[idx].id)) {
-        visibleIndexes.push(idx);
-      }
-    }
-
-    if (visibleIndexes.length) {
-      const firstVisible = Math.min(...visibleIndexes);
-      const lastVisible = Math.max(...visibleIndexes);
-      const before = Math.floor(signBudget.prefetchWindow / 3);
-      const start = Math.max(0, firstVisible - before);
-      const end = Math.min(readyRows.length, lastVisible + 1 + signBudget.prefetchWindow);
-      for (let idx = start; idx < end; idx += 1) {
-        enqueue(readyRows[idx]);
-      }
-    } else {
-      const fallbackEnd = Math.min(
-        readyRows.length,
-        signBudget.initialSignLimit + signBudget.prefetchWindow
-      );
-      for (let idx = signBudget.initialSignLimit; idx < fallbackEnd; idx += 1) {
-        enqueue(readyRows[idx]);
-      }
-    }
-
-    const signBatch = prioritizedRows.slice(0, signBudget.signBatchSize);
-    if (!signBatch.length) return;
-
-    const tabForBatch = activeMediaTab;
-    const queryForBatch = activeMediaQueryRef.current;
-    mediaSignInFlightRef.current[tabForBatch] = true;
-    const finishSignBatch = createMediaPerfTimer({
-      surface: "media-library-route",
-      tab: tabForBatch,
-      batch_size: signBatch.length,
-      page_index: activeMediaCache?.pagesLoaded ?? 0,
-      query_mode: queryForBatch ? "search" : "default",
-    });
-
-    const signCandidatesByRow = signBatch.map((row) => {
-      const candidates = resolveMediaSigningStoragePaths(row, currentUserIdRef.current);
-      return {
-        id: row.id,
-        primaryPath: candidates[0] ?? null,
-        candidates,
-        directUrls: resolveMediaDirectPreviewUrls(row),
-      };
-    });
-    const signPaths = Array.from(new Set(signCandidatesByRow.flatMap((entry) => entry.candidates)));
-    if (!signPaths.length) {
-      mediaSignInFlightRef.current[tabForBatch] = false;
-      return;
-    }
-
-    void getSignedMediaUrlsBatch({
-      bucket: BUCKET,
-      storagePaths: signPaths,
-      expiresInSeconds: 3600,
-    })
-      .then((signedByPath) =>
-        signCandidatesByRow.map((entry) => {
-          const matchedPath =
-            entry.candidates.find((path) => Boolean(signedByPath.get(path))) ?? null;
-          const signedFromPath = matchedPath ? (signedByPath.get(matchedPath) ?? null) : null;
-          const directUrl = signedFromPath ? null : (entry.directUrls[0] ?? null);
-          const signedUrl = signedFromPath ?? directUrl;
-          const usedFallback = Boolean(
-            matchedPath && entry.primaryPath && matchedPath !== entry.primaryPath
-          );
-          return {
-            id: entry.id,
-            signedUrl,
-            usedFallback,
-            attemptedPaths: entry.candidates.slice(0, 4),
-          };
-        })
-      )
-      .then(async (results) => {
-        if (activeTabRef.current !== tabForBatch) return;
-        if (activeMediaQueryRef.current !== queryForBatch) return;
-        const signedById = new Map<string, string>();
-        for (const result of results) {
-          if (result.signedUrl) {
-            signAttemptRef.current[result.id] = 0;
-            signedById.set(result.id, result.signedUrl);
-          } else {
-            signAttemptRef.current[result.id] = (signAttemptRef.current[result.id] ?? 0) + 1;
-          }
-        }
-        applySignedUrlsToTab(tabForBatch, signedById);
-        const unresolvedRows = signBatch.filter((row) => !signedById.has(row.id));
-        const unresolvedAfterResolver = unresolvedRows.length
-          ? await resolveSignedUrlsByMediaIds(tabForBatch, unresolvedRows)
-          : new Set<string>();
-        for (const unresolvedRow of unresolvedRows.slice(0, 4)) {
-          if (!unresolvedAfterResolver.has(unresolvedRow.id)) continue;
-          void hydrateViaStorageDownload(unresolvedRow);
-        }
-        const failedCount = results.length - signedById.size;
-        const fallbackCount = results.reduce(
-          (count, result) => (result.usedFallback ? count + 1 : count),
-          0
-        );
-        finishSignBatch("media.sign.batch.completed", {
-          signed_count: signedById.size,
-          failed_count: failedCount,
-          fallback_count: fallbackCount,
-        });
-        if (failedCount > 0) {
-          if (process.env.NODE_ENV !== "production") {
-            const unresolved = results
-              .filter((result) => !result.signedUrl)
-              .map((result) => ({
-                id: result.id,
-                paths: result.attemptedPaths,
-              }))
-              .slice(0, 8);
-            if (unresolved.length) {
-              console.warn("[media-library] unresolved preview rows", unresolved);
-            }
-          }
-          logMediaPerf("media.sign.batch.failed", {
-            surface: "media-library-route",
-            tab: tabForBatch,
-            batch_size: results.length,
-            failed_count: failedCount,
-            fallback_count: fallbackCount,
-            page_index: activeMediaCache?.pagesLoaded ?? 0,
-            query_mode: queryForBatch ? "search" : "default",
-          });
-        }
-      })
-      .finally(() => {
-        mediaSignInFlightRef.current[tabForBatch] = false;
-        if (isMountedRef.current) {
-          setSignPassNonce((prev) => prev + 1);
-        }
-      });
-  }, [
-    activeMediaCache?.loading,
-    activeMediaCache?.pagesLoaded,
+  useMediaPreviewSigningController({
     activeMediaTab,
-    activeMediaQuery,
+    activeMediaCacheLoading: Boolean(activeMediaCache?.loading),
+    activeMediaCachePagesLoaded: activeMediaCache?.pagesLoaded ?? 0,
+    activeMediaQueryRef,
+    activeTabRef,
     applySignedUrlsToTab,
+    currentUserIdRef,
     filteredMedia,
     hydrateViaStorageDownload,
+    isMountedRef,
+    mediaSignInFlightRef,
     resolveSignedUrlsByMediaIds,
-    signBudget.initialSignLimit,
-    signBudget.prefetchWindow,
-    signBudget.signBatchSize,
+    setSignPassNonce,
+    signAttemptRef,
+    signBudget,
     signPassNonce,
-    signStoragePath,
+    visibleMediaIdsRef,
     visibleMediaVersion,
-  ]);
+  });
 
   const filteredPrompts = useMemo(() => {
     if (activeTab !== "saved_prompts") return [];
@@ -1622,201 +833,6 @@ export default function MediaLibrary() {
     markFirstMediaPaint("video");
   };
 
-  const focusedAspectRatio = useMemo(() => {
-    if (!focusedFile) return 4 / 5;
-    const ratio = aspectMap[focusedFile.id];
-    if (Number.isFinite(ratio) && ratio > 0) return ratio;
-    return isVideoFile(focusedFile.file_type) ? 9 / 16 : 4 / 5;
-  }, [aspectMap, focusedFile]);
-  const isFocusedImage = Boolean(focusedFile && !isVideoFile(focusedFile.file_type));
-
-  const clampModalImagePan = useCallback(
-    (nextX: number, nextY: number, scale: number) => {
-      const vessel = modalPreviewRef.current;
-      if (!vessel || !modalImageNaturalSize || scale <= 1) {
-        return { x: 0, y: 0 };
-      }
-      const vesselWidth = vessel.clientWidth;
-      const vesselHeight = vessel.clientHeight;
-      if (!vesselWidth || !vesselHeight) return { x: 0, y: 0 };
-
-      const naturalRatio = modalImageNaturalSize.width / modalImageNaturalSize.height;
-      const vesselRatio = vesselWidth / vesselHeight;
-      const fittedWidth = naturalRatio > vesselRatio ? vesselWidth : vesselHeight * naturalRatio;
-      const fittedHeight = naturalRatio > vesselRatio ? vesselWidth / naturalRatio : vesselHeight;
-
-      const zoomedWidth = fittedWidth * scale;
-      const zoomedHeight = fittedHeight * scale;
-      const maxPanX = Math.max(0, (zoomedWidth - vesselWidth) / 2);
-      const maxPanY = Math.max(0, (zoomedHeight - vesselHeight) / 2);
-
-      return {
-        x: Math.max(-maxPanX, Math.min(maxPanX, nextX)),
-        y: Math.max(-maxPanY, Math.min(maxPanY, nextY)),
-      };
-    },
-    [modalImageNaturalSize]
-  );
-
-  const resetModalImageTransform = useCallback(() => {
-    setModalImageZoomScale(1);
-    setModalImageZoomActive(false);
-    setModalImagePan({ x: 0, y: 0 });
-    setIsModalImagePanning(false);
-    modalImagePanDragRef.current = null;
-    modalImageDraggedRef.current = false;
-  }, []);
-
-  const resetModalImageZoom = useCallback(() => {
-    resetModalImageTransform();
-    setModalImageNaturalSize(null);
-  }, [resetModalImageTransform]);
-
-  const applyModalZoomAtPoint = useCallback(
-    (clientX: number, clientY: number, nextScale: number) => {
-      const vessel = modalPreviewRef.current;
-      if (!vessel) return;
-      const rect = vessel.getBoundingClientRect();
-      const pointerX = clientX - rect.left;
-      const pointerY = clientY - rect.top;
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
-      const clampedScale = Math.min(6, Math.max(1, nextScale));
-
-      setModalImagePan((prev) => {
-        if (clampedScale <= 1) return { x: 0, y: 0 };
-        const currentScale = Math.max(0.0001, modalImageZoomScale);
-        const localX = pointerX - centerX;
-        const localY = pointerY - centerY;
-        const sourceX = (localX - prev.x) / currentScale;
-        const sourceY = (localY - prev.y) / currentScale;
-        const nextX = localX - sourceX * clampedScale;
-        const nextY = localY - sourceY * clampedScale;
-        return clampModalImagePan(nextX, nextY, clampedScale);
-      });
-      setModalImageZoomScale(clampedScale);
-    },
-    [clampModalImagePan, modalImageZoomScale]
-  );
-
-  const handleModalImageClick = useCallback(
-    (event: React.MouseEvent<HTMLImageElement>) => {
-      if (!isFocusedImage) return;
-      if (modalImageDraggedRef.current) {
-        modalImageDraggedRef.current = false;
-        return;
-      }
-      if (modalImageZoomActive) {
-        resetModalImageTransform();
-        return;
-      }
-      setModalImageZoomActive(true);
-      applyModalZoomAtPoint(event.clientX, event.clientY, 2);
-    },
-    [applyModalZoomAtPoint, isFocusedImage, modalImageZoomActive, resetModalImageTransform]
-  );
-
-  const handleModalImageKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLImageElement>) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        if (modalImageZoomActive) {
-          resetModalImageTransform();
-          return;
-        }
-        setModalImageZoomActive(true);
-        const vessel = modalPreviewRef.current;
-        if (!vessel) {
-          setModalImageZoomScale(2);
-          return;
-        }
-        const rect = vessel.getBoundingClientRect();
-        applyModalZoomAtPoint(rect.left + rect.width / 2, rect.top + rect.height / 2, 2);
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        resetModalImageTransform();
-      }
-    },
-    [applyModalZoomAtPoint, modalImageZoomActive, resetModalImageTransform]
-  );
-
-  const handleModalImageWheel = useCallback(
-    (event: React.WheelEvent<HTMLImageElement>) => {
-      if (!isFocusedImage || !modalImageZoomActive) return;
-      event.preventDefault();
-      event.stopPropagation();
-
-      const zoomFactor = event.deltaY < 0 ? 1.12 : 0.88;
-      const nextScale = Math.min(6, Math.max(1, modalImageZoomScale * zoomFactor));
-      if (Math.abs(nextScale - modalImageZoomScale) < 0.0001) return;
-      applyModalZoomAtPoint(event.clientX, event.clientY, nextScale);
-    },
-    [applyModalZoomAtPoint, isFocusedImage, modalImageZoomActive, modalImageZoomScale]
-  );
-
-  const handleModalPreviewWheel = useCallback(
-    (event: React.WheelEvent<HTMLDivElement>) => {
-      if (!isFocusedImage || !modalImageZoomActive) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const zoomFactor = event.deltaY < 0 ? 1.12 : 0.88;
-      const nextScale = Math.min(6, Math.max(1, modalImageZoomScale * zoomFactor));
-      if (Math.abs(nextScale - modalImageZoomScale) < 0.0001) return;
-      applyModalZoomAtPoint(event.clientX, event.clientY, nextScale);
-    },
-    [applyModalZoomAtPoint, isFocusedImage, modalImageZoomActive, modalImageZoomScale]
-  );
-
-  const handleModalImagePointerDown = useCallback(
-    (event: React.PointerEvent<HTMLImageElement>) => {
-      if (!isFocusedImage || !modalImageZoomActive || modalImageZoomScale <= 1) return;
-      if (event.button !== 0) return;
-      modalImagePanDragRef.current = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        startPanX: modalImagePan.x,
-        startPanY: modalImagePan.y,
-      };
-      modalImageDraggedRef.current = false;
-      setIsModalImagePanning(true);
-      event.currentTarget.setPointerCapture(event.pointerId);
-      event.preventDefault();
-    },
-    [isFocusedImage, modalImagePan.x, modalImagePan.y, modalImageZoomActive, modalImageZoomScale]
-  );
-
-  const handleModalImagePointerMove = useCallback(
-    (event: React.PointerEvent<HTMLImageElement>) => {
-      const dragState = modalImagePanDragRef.current;
-      if (!dragState || dragState.pointerId !== event.pointerId) return;
-      const deltaX = event.clientX - dragState.startX;
-      const deltaY = event.clientY - dragState.startY;
-      if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
-        modalImageDraggedRef.current = true;
-      }
-      setModalImagePan(
-        clampModalImagePan(
-          dragState.startPanX + deltaX,
-          dragState.startPanY + deltaY,
-          modalImageZoomScale
-        )
-      );
-    },
-    [clampModalImagePan, modalImageZoomScale]
-  );
-
-  const handleModalImagePointerUp = useCallback((event: React.PointerEvent<HTMLImageElement>) => {
-    const dragState = modalImagePanDragRef.current;
-    if (!dragState || dragState.pointerId !== event.pointerId) return;
-    modalImagePanDragRef.current = null;
-    setIsModalImagePanning(false);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  }, []);
-
   const toggleSelect = (file: MediaRow) => {
     if (file.status === "uploading") return;
     setBulkMoveError(null);
@@ -1887,6 +903,60 @@ export default function MediaLibrary() {
       });
     }
   }, []);
+
+  const {
+    cancelDeleteFile,
+    closeModal: closeFileModal,
+    confirmDeleteFile,
+    deleteTarget,
+    deletingSingle,
+    handleRenameInputChange,
+    modalError,
+    openModal: openFileModal,
+    renameSuccess,
+    renameValue,
+    requestDeleteFile,
+    saveRename,
+    savingRename,
+    setModalError,
+  } = useMediaFileModalCrud<MediaRow>({
+    activeMediaTab,
+    collectMediaStoragePathsForDelete,
+    focusedFile,
+    getErrorMessage,
+    logMediaEvent,
+    markInactiveMediaCachesStale,
+    refreshStorageUsageBytes,
+    removeStoragePaths,
+    setPageError: setError,
+    setFocusedFile,
+    setSelectedIds,
+    updateVisibleRows,
+  });
+
+  const focusedAspectRatio = useMemo(() => {
+    if (!focusedFile) return 4 / 5;
+    const ratio = aspectMap[focusedFile.id];
+    if (Number.isFinite(ratio) && ratio > 0) return ratio;
+    return isVideoFile(focusedFile.file_type) ? 9 / 16 : 4 / 5;
+  }, [aspectMap, focusedFile]);
+  const isFocusedImage = Boolean(focusedFile && !isVideoFile(focusedFile.file_type));
+  const {
+    cacheModalImageNaturalSize,
+    handleModalImageClick,
+    handleModalImageKeyDown,
+    handleModalImagePointerDown,
+    handleModalImagePointerMove,
+    handleModalImagePointerUp,
+    handleModalImageWheel,
+    handleModalPreviewWheel,
+    isModalImagePanning,
+    modalImagePan,
+    modalImageZoomActive,
+    modalImageZoomScale,
+    modalPreviewRef,
+    resetModalImageZoom,
+  } = useMediaModalImageZoom({ isFocusedImage });
 
   const deleteSelected = async (idsOverride?: string[]): Promise<boolean> => {
     const idsToDelete = [...(idsOverride ?? selectedIds)];
@@ -1997,75 +1067,16 @@ export default function MediaLibrary() {
     }
   };
 
-  const requestDeleteFile = (file: MediaRow) => {
-    if (file.status === "uploading") return;
-    setDeleteTarget(file);
-    setError(null);
-  };
-
-  const cancelDeleteFile = () => {
-    if (deletingSingle) return;
-    setDeleteTarget(null);
-  };
-
-  const confirmDeleteFile = async () => {
-    if (!deleteTarget) return;
-    setDeletingSingle(true);
-    setError(null);
-    try {
-      const supabase = ensureSupabaseClient();
-      const deletePaths = await collectMediaStoragePathsForDelete([deleteTarget]);
-      await removeStoragePaths(deletePaths);
-      const { error: deleteError } = await supabase
-        .from("media_files")
-        .delete()
-        .eq("id", deleteTarget.id);
-      if (deleteError) throw deleteError;
-      updateVisibleRows((prev) => prev.filter((file) => file.id !== deleteTarget.id));
-      setSelectedIds((prev) => prev.filter((id) => id !== deleteTarget.id));
-      setFocusedFile((prev) => (prev && prev.id === deleteTarget.id ? null : prev));
-      setDeleteTarget(null);
-      markInactiveMediaCachesStale(activeMediaTab);
-      void refreshStorageUsageBytes();
-      void logMediaEvent("delete", "media_file", deleteTarget.id, {
-        storage_path: deleteTarget.storage_path,
-      });
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "Unable to delete file"));
-    } finally {
-      setDeletingSingle(false);
-    }
-  };
-
   const applyMovedFilesToCaches = useCallback(
     (movedFiles: MediaRow[], destinationTab: MediaDataTab) => {
       if (!movedFiles.length) return;
-      const movedById = new Map(movedFiles.map((file) => [file.id, file]));
-      setMediaTabCache((prev) => {
-        const next = { ...prev };
-        for (const tab of MEDIA_DATA_TABS) {
-          const cache = prev[tab];
-          const rowsWithoutMoved = cache.rows.filter((row) => !movedById.has(row.id));
-          let nextRows = rowsWithoutMoved;
-          if (tab === destinationTab) {
-            const query = normalizeMediaSearchTerm(cache.query).toLowerCase();
-            const queryMatchedRows = movedFiles.filter((file) => {
-              const filename = file.filename?.toLowerCase() ?? "";
-              const path = file.storage_path?.toLowerCase() ?? "";
-              return !query || filename.includes(query) || path.includes(query);
-            });
-            if (queryMatchedRows.length) {
-              nextRows = mergePageRows(rowsWithoutMoved, queryMatchedRows);
-            }
-          }
-          next[tab] = {
-            ...cache,
-            rows: nextRows,
-            loadedAtMs: tab === destinationTab ? Date.now() : null,
-          };
-        }
-        return next;
-      });
+      setMediaTabCache((prev) =>
+        applyMovedRowsToMediaTabCache({
+          cacheState: prev,
+          movedRows: movedFiles,
+          destinationTab,
+        })
+      );
     },
     []
   );
@@ -2159,280 +1170,60 @@ export default function MediaLibrary() {
         setMovingFile(false);
       }
     },
-    [applyMovedFileToCaches, focusedFile, movingFile, requestMoveFileToTab]
+    [
+      applyMovedFileToCaches,
+      focusedFile,
+      movingFile,
+      requestMoveFileToTab,
+      setFocusedFile,
+      setModalError,
+    ]
   );
 
-  const moveTabOptions = useMemo(
-    () => (focusedFile ? buildMoveTabOptions(focusedFile) : []),
-    [focusedFile]
-  );
-  const modalMoveTabOptions = useMemo(() => {
-    if (!focusedFile) return [];
-    const dataOptions = moveTabOptions.filter(isDataMoveOption);
-    if (!isVideoFile(focusedFile.file_type)) {
-      return dataOptions.filter(isEnabledDataMoveOption);
-    }
-
-    const currentTab = getMediaDataTabForRow(focusedFile);
-    const optionByTab = new Map(dataOptions.map((option) => [option.tab, option]));
-
-    return VIDEO_MODAL_MOVE_TAB_ORDER.map((tab) => {
-      if (tab === currentTab) {
-        return {
-          tab,
-          label: getMoveTabLabel(tab),
-          disabled: true,
-          reason: "Current tab",
-        };
-      }
-      return (
-        optionByTab.get(tab) ?? {
-          tab,
-          label: getMoveTabLabel(tab),
-          disabled: true,
-          reason: "Unavailable",
-        }
-      );
-    });
-  }, [focusedFile, moveTabOptions]);
+  const modalMoveTabOptions = useMemo(() => buildModalMoveTabOptions(focusedFile), [focusedFile]);
   const canMoveToAnotherTab = useMemo(
     () => modalMoveTabOptions.some((option) => !option.disabled),
     [modalMoveTabOptions]
   );
 
-  const selectedMediaRows = useMemo(() => {
-    if (activeMediaTab == null || !selectedIds.length) return [];
-    const selectedIdSet = new Set(selectedIds);
-    return files.filter(
-      (file) =>
-        selectedIdSet.has(file.id) &&
-        file.status !== "uploading" &&
-        getMediaDataTabForRow(file) === activeMediaTab
-    );
-  }, [activeMediaTab, files, selectedIds]);
+  const { bulkMoveTabOptions, canBulkMove, moveSelectedFiles, selectedMediaRows } =
+    useMediaBulkMoveController({
+      activeMediaTab,
+      activeTabRef,
+      applyMovedFilesToCaches,
+      bulkDeleting,
+      bulkMoving,
+      currentUserIdRef,
+      files,
+      getErrorMessage,
+      selectedIds,
+      setActiveTab,
+      setBulkMoveError,
+      setBulkMoveMenuOpen,
+      setBulkMoveNotice,
+      setBulkMoving,
+      setError,
+      setFiles,
+      setFocusedFile,
+      setSelectedIds,
+    });
 
-  const bulkMoveTabOptions = useMemo(
-    () => buildBulkMoveTabOptions(selectedMediaRows),
-    [selectedMediaRows]
-  );
-
-  const canBulkMove = useMemo(
-    () => bulkMoveTabOptions.some((option) => !option.disabled),
-    [bulkMoveTabOptions]
-  );
-
-  const moveSelectedFiles = useCallback(
-    async (destinationTab: MediaDataTab) => {
-      if (!selectedMediaRows.length || bulkMoving || bulkDeleting) return;
-      const selectedCount = selectedMediaRows.length;
-      const destinationOption = bulkMoveTabOptions.find((option) => option.tab === destinationTab);
-      if (!destinationOption || destinationOption.disabled) return;
-      const finishBulkMove = createMediaPerfTimer({
-        surface: "media-library-route",
-        tab: activeTabRef.current,
-        destination_tab: destinationTab,
-        selected_count: selectedCount,
-      });
-
-      setBulkMoving(true);
-      setBulkMoveError(null);
-      setBulkMoveNotice(null);
-      setBulkMoveMenuOpen(false);
-      setError(null);
-      try {
-        const selectedById = new Map(selectedMediaRows.map((row) => [row.id, row]));
-        const response = await fetchWithAuth("/api/media/move-batch", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fileIds: selectedMediaRows.map((row) => row.id),
-            destinationTab,
-          }),
-          shortpulseLogScope: "app",
-        });
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as {
-            error?: string;
-            details?: string;
-          } | null;
-          throw new Error(
-            payload?.details ??
-              payload?.error ??
-              `Unable to move selected files (${response.status})`
-          );
-        }
-        const payload = (await response.json()) as MoveMediaBatchResponse;
-
-        for (const movedItem of payload.moved) {
-          const previousRow = selectedById.get(movedItem.fileId);
-          const previousSignPaths = previousRow
-            ? resolveMediaSigningStoragePaths(previousRow, currentUserIdRef.current)
-            : [];
-          const pathsToInvalidate = new Set([...previousSignPaths, movedItem.previousStoragePath]);
-          for (const path of pathsToInvalidate) {
-            if (!path) continue;
-            invalidateSignedMediaUrl(BUCKET, path);
-          }
-        }
-
-        const movedRowsRaw = payload.moved.map((item) => item.file);
-        const previewPathById = new Map<string, string>();
-        const previewPaths: string[] = [];
-        for (const row of movedRowsRaw) {
-          const previewPath =
-            resolveMediaSigningStoragePaths(row, currentUserIdRef.current)[0] ?? row.storage_path;
-          previewPathById.set(row.id, previewPath);
-          previewPaths.push(previewPath);
-        }
-
-        const signedByPath = await getSignedMediaUrlsBatch({
-          bucket: BUCKET,
-          storagePaths: previewPaths,
-          expiresInSeconds: 3600,
-          forceRefresh: true,
-        });
-
-        const movedRows: MediaRow[] = movedRowsRaw.map((row) => {
-          const previewPath = previewPathById.get(row.id) ?? row.storage_path;
-          const signedUrl = signedByPath.get(previewPath);
-          return {
-            ...row,
-            preview_storage_path: previewPath,
-            signedUrl: signedUrl ?? undefined,
-            status: "ready",
-          };
-        });
-
-        const moveFailures = payload.failed.map((failure) => {
-          const filename = selectedById.get(failure.fileId)?.filename?.trim() || "Unnamed file";
-          return `${filename}: ${failure.details ?? failure.error}`;
-        });
-
-        const movedIdSet = new Set(movedRows.map((row) => row.id));
-        if (movedRows.length) {
-          applyMovedFilesToCaches(movedRows, destinationTab);
-          setFiles((prev) => {
-            const rowsWithoutMoved = prev.filter((row) => !movedIdSet.has(row.id));
-            if (activeTabRef.current !== destinationTab) return rowsWithoutMoved;
-            return mergePageRows(rowsWithoutMoved, movedRows).filter(
-              (row) => getMediaDataTabForRow(row) === destinationTab
-            );
-          });
-          setSelectedIds((prev) => prev.filter((id) => !movedIdSet.has(id)));
-          setFocusedFile((prev) => {
-            if (!prev || !movedIdSet.has(prev.id)) return prev;
-            return movedRows.find((row) => row.id === prev.id) ?? prev;
-          });
-        }
-
-        const destinationLabel = getMoveTabLabel(destinationTab);
-        const feedback = buildBulkMoveFeedback({
-          movedCount: movedRows.length,
-          requestedCount: selectedCount,
-          failedCount: moveFailures.length,
-          destinationLabel,
-          firstFailureMessage: moveFailures[0] ?? null,
-        });
-
-        setBulkMoveNotice(feedback.notice);
-        setBulkMoveError(feedback.error);
-        if (
-          movedRows.length &&
-          feedback.shouldSwitchTab &&
-          activeTabRef.current !== destinationTab
-        ) {
-          setActiveTab(destinationTab);
-        }
-
-        finishBulkMove("media.move.bulk.completed", {
-          moved_count: movedRows.length,
-          failed_count: moveFailures.length,
-        });
-        if (moveFailures.length) {
-          logMediaPerf("media.move.bulk.failed", {
-            surface: "media-library-route",
-            tab: activeTabRef.current,
-            destination_tab: destinationTab,
-            selected_count: selectedCount,
-            moved_count: movedRows.length,
-            failed_count: moveFailures.length,
-          });
-        }
-      } catch (err: unknown) {
-        const message = getErrorMessage(err, "Unable to move selected files");
-        setBulkMoveError(message);
-        setBulkMoveNotice(null);
-        finishBulkMove("media.move.bulk.failed", {
-          moved_count: 0,
-          failed_count: selectedCount,
-          error_kind: "request_failed",
-        });
-        logMediaPerf("media.move.bulk.failed", {
-          surface: "media-library-route",
-          tab: activeTabRef.current,
-          destination_tab: destinationTab,
-          selected_count: selectedCount,
-          moved_count: 0,
-          failed_count: selectedCount,
-        });
-      } finally {
-        setBulkMoving(false);
-      }
+  const openModal = useCallback(
+    (file: MediaRow) => {
+      openFileModal(file);
+      setMoveError(null);
+      setMoveMenuOpen(false);
+      resetModalImageZoom();
     },
-    [applyMovedFilesToCaches, bulkDeleting, bulkMoveTabOptions, bulkMoving, selectedMediaRows]
+    [openFileModal, resetModalImageZoom]
   );
 
-  const openModal = (file: MediaRow) => {
-    setFocusedFile(file);
-    setRenameValue(file.filename);
-    setModalError(null);
+  const closeModal = useCallback(() => {
+    closeFileModal();
     setMoveError(null);
     setMoveMenuOpen(false);
     resetModalImageZoom();
-  };
-
-  const closeModal = () => {
-    setFocusedFile(null);
-    setRenameValue("");
-    setModalError(null);
-    setMoveError(null);
-    setMoveMenuOpen(false);
-    setRenameSuccess(false);
-    resetModalImageZoom();
-  };
-
-  const saveRename = async () => {
-    if (!focusedFile) return;
-    setSavingRename(true);
-    setModalError(null);
-    setRenameSuccess(false);
-    try {
-      const previousName = focusedFile.filename;
-      const supabase = ensureSupabaseClient();
-      const { error } = await supabase
-        .from("media_files")
-        .update({ filename: renameValue.trim() })
-        .eq("id", focusedFile.id);
-      if (error) throw error;
-      updateVisibleRows((prev) =>
-        prev.map((f) => (f.id === focusedFile.id ? { ...f, filename: renameValue.trim() } : f))
-      );
-      setFocusedFile((prev) => (prev ? { ...prev, filename: renameValue.trim() } : prev));
-      markInactiveMediaCachesStale(activeMediaTab);
-      setRenameSuccess(true);
-      setTimeout(() => setRenameSuccess(false), 1800);
-      void logMediaEvent("rename", "media_file", focusedFile.id, {
-        from: previousName,
-        to: renameValue.trim(),
-      });
-    } catch (err: unknown) {
-      setModalError(getErrorMessage(err, "Unable to rename file"));
-    } finally {
-      setSavingRename(false);
-    }
-  };
+  }, [closeFileModal, resetModalImageZoom]);
 
   const openPromptModal = (prompt: PromptRow) => {
     setFocusedPrompt(prompt);
@@ -2761,9 +1552,11 @@ export default function MediaLibrary() {
                             type="button"
                             className="gallery-move-option"
                             role="menuitem"
-                            disabled={option.disabled || !isMoveDataTab(option.tab) || bulkMoving}
+                            disabled={
+                              option.disabled || !isMoveDestinationDataTab(option.tab) || bulkMoving
+                            }
                             onClick={() => {
-                              if (option.disabled || !isMoveDataTab(option.tab)) return;
+                              if (option.disabled || !isMoveDestinationDataTab(option.tab)) return;
                               void moveSelectedFiles(option.tab);
                             }}
                             title={label}
@@ -3114,10 +1907,7 @@ export default function MediaLibrary() {
                             focusedFile.id,
                             image.naturalWidth / image.naturalHeight
                           );
-                          setModalImageNaturalSize({
-                            width: image.naturalWidth,
-                            height: image.naturalHeight,
-                          });
+                          cacheModalImageNaturalSize(image.naturalWidth, image.naturalHeight);
                         }}
                         onError={() => handleMediaPreviewError(focusedFile)}
                       />
@@ -3159,10 +1949,7 @@ export default function MediaLibrary() {
                   id="renameInput"
                   type="text"
                   value={renameValue}
-                  onChange={(e) => {
-                    setRenameValue(e.target.value);
-                    setRenameSuccess(false);
-                  }}
+                  onChange={(e) => handleRenameInputChange(e.target.value)}
                   className="input"
                   aria-label="Enter new filename"
                 />

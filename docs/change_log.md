@@ -238,6 +238,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added `docs/api/api-internal-routes.md` to document first-party Next.js API families, auth boundaries (`frontend/proxy.ts` + route-level guards), environment dependencies, and maintenance expectations.
 - Added `docs/sops/sop_provider_incident_response.md` with Fal/OpenAI/Stripe triage, diagnostics queries, mitigation steps, and post-incident requirements.
 - Updated schema/security/ops docs to include reservation billing lifecycle requirements: `docs/data-dictionary.md`, `docs/security-checklist.md`, `docs/local-development.md`, `docs/database-migrations.md`, `docs/monitoring.md`, and `docs/troubleshooting.md`.
+
+## 2026-02-14
 - Updated docs indexes and cross-links so new docs are discoverable from `docs/README.md`, `docs/api/README.md`, `docs/sops/README.md`, and `docs/documentation_overview.md`.
 
 ## 2026-02-12 (dashboard hidden tool reminders)
@@ -286,6 +288,157 @@ Append new entries at the end of this file; each entry should include date (UTC)
 
 ## 2026-02-14 (Character pipeline audit follow-through)
 - Added migration `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql` and documented it as required in `docs/database-migrations.md` to prevent reservation RPC failures (`column reference "source_ref" is ambiguous`) in Fal submit paths.
-- Hardened billing API error exposure so generation credit failures now return a safe user-facing message while preserving server-side diagnostic logs (`frontend/pages/api/_utils/generationBilling.ts` + `frontend/tests/api/generation-billing.reservations.test.ts`).
+- Hardened billing API error exposure so generation credit failures now return a safe user-facing message while preserving server-side diagnostic logs (`frontend/lib/server/api/generationBilling.ts` + `frontend/tests/api/generation-billing.reservations.test.ts`).
 - Added Playwright-backed E2E audit baseline for auth -> Character Manager -> AI Studio character mode submit (`frontend/tests/e2e/character-pipeline.audit.js`) and wired `npm run test:e2e:character`.
 - Updated operations/testing docs to include the new migration + audit command (`docs/sops/sop_billing_credits_operations.md`, `docs/testing-guide.md`, `docs/planning/audit-progress.md`).
+
+## 2026-02-14 (MVP pre-tester full audit remediation plan)
+- Added `docs/planning/mvp-pretester-full-audit-remediation-plan.md` as the execution runbook for security hardening, reliability gates, modularization, performance, and docs/SOP alignment before external tester rollout.
+- Updated planning and docs indexes so the plan is discoverable from `docs/planning/README.md` and `docs/README.md`.
+- Verified docs integrity via `cd frontend && npm run docs:check`.
+
+## 2026-02-14 (MVP audit skills)
+- Added three execution skills for repeated audit/remediation work: `skills/skill-mvp-security-audit/`, `skills/skill-mvp-modularization-pass/`, and `skills/skill-mvp-docs-sop-governance/`.
+- Added skill metadata files (`agents/openai.yaml`) for each new skill to support skill picker usage.
+- Updated skill discoverability in `docs/README.md` and `docs/agent-playbook.md`.
+
+## 2026-02-14 (stabilization plan archived)
+- Archived `docs/planning/mvp-stabilization-plan.md` to `docs/archive/mvp-stabilization-plan.md` and marked it superseded.
+- Updated planning/docs/archive indexes and agent references to point to `docs/planning/mvp-pretester-full-audit-remediation-plan.md` as the active pre-tester execution source.
+
+## 2026-02-14 (Phase 1 security hardening start)
+- Hardened generation reservation RPCs with caller-binding checks and explicit execute grants in `sql/migrations/002_add_generation_credit_reservations.sql` and `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`; added upgrade migration `sql/migrations/014_harden_generation_reservation_rpc_security.sql`.
+- Hardened Stripe billing routes to use canonical `APP_BASE_URL` for checkout/portal redirects and added webhook timestamp tolerance checks (`frontend/lib/server/api/stripe.ts`, `frontend/pages/api/billing/stripe/checkout.ts`, `frontend/pages/api/billing/stripe/portal.ts`).
+- Added server-side magic-byte validation for image/video uploads via `frontend/lib/server/uploadSignature.ts` and wired it into `frontend/pages/api/upload-image.ts` and `frontend/pages/api/upload-video.ts`.
+- Relocated internal API helper modules from `frontend/pages/api/_utils/` to `frontend/lib/server/api/` and added a middleware denylist for `/api/_utils/*` in `frontend/proxy.ts` as a fail-closed guard.
+- Added targeted tests for new hardening behavior (`frontend/tests/api/stripe-utils.test.ts`, `frontend/tests/api/upload-signature.test.ts`, `frontend/tests/api/proxy-internal-utils.test.ts`) and updated env/migration docs.
+
+## 2026-02-14 (UI/UX remediation planning separation)
+- Added `docs/planning/mvp-ui-ux-stabilization-remediation-plan.md` as a dedicated UI/UX remediation execution track separate from `mvp-pretester-full-audit-remediation-plan.md`.
+- Updated `docs/planning/README.md` to index the standalone UI/UX stabilization plan.
+
+## 2026-02-14 (Phase 2 reliability gates complete)
+- Updated lint scope to ignore generated Playwright artifacts in `frontend/eslint.config.mjs` (`playwright-report/**`, `test-results/**`) and removed CI lint soft-fail from `.github/workflows/ci.yml`.
+- Added missing API handler coverage for Phase 2: `frontend/tests/api/stripe-checkout.test.ts`, `frontend/tests/api/stripe-portal.test.ts`, `frontend/tests/api/stripe-webhook.test.ts`, `frontend/tests/api/upload-image-route.test.ts`, `frontend/tests/api/upload-video-route.test.ts`, `frontend/tests/api/admin-users.test.ts`, `frontend/tests/api/admin-errors.test.ts`, `frontend/tests/api/admin-errors-status.test.ts`, and `frontend/tests/api/admin-credits-adjust.test.ts`.
+- Verified reliability gate with `cd frontend && npm run validate` passing (`lint`, `type-check`, `test`).
+
+## 2026-02-14 (UI/UX sprint tickets + UX-0 baseline kit)
+- Added `docs/planning/mvp-ui-ux-sprint-ticket-breakdown.md` with one sprint-ready ticket per UI/UX checklist item, including owner role, estimate, and dependency.
+- Added UX-0 execution artifacts: `docs/planning/mvp-ui-ux-phase0-baseline-qa-checklist.md` and `docs/planning/mvp-ui-ux-phase0-baseline-capture-template.md`.
+- Updated indexes and source plan references so the new ticket/QA artifacts are discoverable from `docs/planning/README.md`, `docs/README.md`, and `docs/planning/mvp-ui-ux-stabilization-remediation-plan.md`.
+
+## 2026-02-14 (UI/UX owner assignment kickoff)
+- Added `docs/planning/mvp-ui-ux-issue-board.md` as the execution board of record with current assignee mappings, UX-0 status, and acceptance evidence links.
+- Updated the source UI/UX stabilization plan to mark UX-0 board mapping + ownership confirmation checklist items complete.
+- Updated planning/doc indexes and sprint-ticket metadata to point to the owner-assigned issue board.
+
+## 2026-02-14 (UI/UX baseline capture run: dashboard + ai-studio)
+- Executed a real UX-0 baseline capture pass against local app routes `/dashboard` and `/ai-studio` at `1440`, `1024`, `768`, and `390` widths.
+- Added filled baseline evidence report `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md` with artifact paths and initial findings.
+- Updated UI/UX plan + issue board to reflect partial completion of `UX0-01` and linked the report as current acceptance evidence.
+
+## 2026-02-14 (UI/UX baseline completion + keyboard pass kickoff)
+- Completed UX-0 screenshot matrix across all priority routes (`/dashboard`, `/ai-studio`, `/media-library`, `/profile`, `/performance`) at `1440`, `1024`, `768`, and `390`.
+- Added consolidated report `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md` with full artifact table and first-pass keyboard baseline findings.
+- Updated UI/UX issue board and source plan status: `UX0-01` marked done; `UX0-02` moved to in-progress with blockers logged (no media cards present, no visible downgrade action in billing section for cancel-modal path).
+
+## 2026-02-14 (UI/UX keyboard baseline rerun with seeded media)
+- Re-ran UX-0 keyboard baseline with forced media upload seeding and subscription-section targeting to reduce false blockers in modal checks.
+- Updated full baseline report findings: AI Studio generate keypath exercised, Media Library modal opened but did not close on Escape in this run, and profile subscription modal path remained blocked by account-state controls not being visible.
+- Updated UI/UX source plan and issue board notes to reflect narrowed blocker scope and latest keyboard evidence.
+
+## 2026-02-14 (AI Studio state seam: reference selection + modal wiring)
+- Extracted reference input state and modal/selection orchestration from `frontend/features/ai-studio/hooks/useAiStudioState.ts` into `frontend/features/ai-studio/hooks/useAiStudioReferenceSelectionState.ts`.
+- Added focused hook coverage in `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceSelectionState.test.ts` for tool-routed reference updates, indicator toggling guardrails, and model modal open/close behavior.
+- Updated `docs/planning/mvp-pretester-full-audit-remediation-plan.md` to mark the seam complete and set the next `useAiStudioState` split target.
+
+## 2026-02-14 (AI Studio state seam: generation prompt/reference composition)
+- Extracted generate/regenerate prompt + reference input composition from `frontend/features/ai-studio/hooks/useAiStudioState.ts` into `frontend/features/ai-studio/hooks/useAiStudioGenerationPromptComposer.ts`.
+- Added focused hook coverage in `frontend/features/ai-studio/hooks/__tests__/useAiStudioGenerationPromptComposer.test.ts` for override precedence, video reference-mode behavior, regenerate empty-prompt guardrails, and reference-pool ordering.
+- Updated `docs/planning/mvp-pretester-full-audit-remediation-plan.md` to mark this seam complete and move the next `useAiStudioState` target to task polling/submission orchestration.
+
+## 2026-02-14 (AI Studio state seam: task polling/submission orchestration)
+- Extracted polling lifecycle, deferred autosave finalization, status retry handling, and submission wiring from `frontend/features/ai-studio/hooks/useAiStudioState.ts` into `frontend/features/ai-studio/hooks/useAiStudioTaskOrchestration.ts`.
+- Added focused hook coverage in `frontend/features/ai-studio/hooks/__tests__/useAiStudioTaskOrchestration.test.ts` for deferred autosave completion, missing-task retry guardrail, and retry poll restart behavior.
+- Updated `docs/planning/mvp-pretester-full-audit-remediation-plan.md` to mark the `useAiStudioState` concern split complete for this pass and move the next target to `frontend/pages/ai-studio.tsx` controller decomposition.
+
+## 2026-02-14 (AI Studio page seam: panel props composition)
+- Extracted text/image/video properties-panel prop composition from `frontend/pages/ai-studio.tsx` into `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts`.
+- Added focused hook coverage in `frontend/features/ai-studio/hooks/__tests__/useAiStudioPanelProps.test.ts` for derived generation flags, nullable preview resolution, and Kling voice slot update behavior.
+- Aligned `AiStudioPageContent` text-panel prop typing with `TextPropertiesPanel` props to prevent type drift and verified quality gates with `cd frontend && npm run validate` and `cd frontend && npm run build`.
+
+## 2026-02-14 (AI Studio page seam: character panel props composition)
+- Extracted Character tool properties-panel prop composition from `frontend/pages/ai-studio.tsx` into `frontend/features/ai-studio/hooks/useAiStudioCharacterPanelProps.ts`.
+- Added focused hook coverage in `frontend/features/ai-studio/hooks/__tests__/useAiStudioCharacterPanelProps.test.ts` for identity-build eligibility derivation and action handler routing.
+- Verified quality gates with `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
+
+## 2026-02-14 (AI Studio page seams: reference canvas + preview/detail wiring)
+- Extracted reference-canvas prop composition from `frontend/pages/ai-studio.tsx` into `frontend/features/ai-studio/hooks/useAiStudioReferenceCanvasProps.ts`.
+- Extracted studio-preview prop composition + detail-modal action wiring from `frontend/pages/ai-studio.tsx` into `frontend/features/ai-studio/hooks/useAiStudioPreviewDetailProps.ts`.
+- Added focused hook tests in `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceCanvasProps.test.ts` and `frontend/features/ai-studio/hooks/__tests__/useAiStudioPreviewDetailProps.test.ts` and re-ran targeted AI Studio seam coverage.
+
+## 2026-02-14 (P0 docs alignment + plan status sync)
+- Updated architecture/local-dev docs to remove stale client-only wording and reflect internal API-route architecture (`docs/architecture-overview.md`, `docs/local-development.md`).
+- Updated frontend architecture guidance to remove stale "thin orchestrator" wording for AI Studio and reflect ongoing seam extraction (`docs/frontend-architecture.md`).
+- Added missing `/api/media/resolve-previews` coverage to internal API route docs (`docs/api/api-internal-routes.md`).
+- Segregated legacy Character SOPs from active SOPs in the SOP index (`docs/sops/README.md`).
+- Re-synced remediation tracking docs: updated `docs/planning/mvp-pretester-full-audit-remediation-plan.md`, `docs/planning/mvp-ui-ux-stabilization-remediation-plan.md`, and `docs/planning/mvp-ui-ux-issue-board.md` to match completed reliability/doc-governance status and current seam progress.
+- Confirmed `P0` staging migration verification remains blocked in this workspace pending Supabase CLI environment readiness (`supabase status` failed: Docker daemon unavailable).
+
+## 2026-02-14 (staging migration 014 applied + verified)
+- Applied `sql/migrations/014_harden_generation_reservation_rpc_security.sql` to staging project `jwmcytzyhcvacjwqtynn` via Supabase CLI using a temporary workdir migration push.
+- Verified remote migration history includes `014` with `supabase migration list --workdir /tmp/sp-supabase-run --debug`.
+- Pulled remote migration statements (`supabase migration fetch --workdir /tmp/sp-supabase-run --yes --debug`) and decoded the stored SQL payload, confirming all five reservation RPCs include `auth.uid()` caller-binding checks and explicit grant hardening (`revoke ... from public, anon, authenticated` + `grant execute ... to service_role`).
+
+## 2026-02-14 (P0 UX tooling closure + plan refresh)
+- Expanded `.github/pull_request_template.md` with a UI accessibility checklist and explicit before/after screenshot requirement for `P0` UX layout/navigation fixes, completing `UX6-03` and `UX6-04`.
+- Updated `docs/planning/mvp-ui-ux-stabilization-remediation-plan.md` to mark UX-6 tooling cleanup complete and logged the completion milestone.
+- Updated `docs/planning/mvp-ui-ux-issue-board.md` to mark `UX6-01` through `UX6-04` complete with consolidated evidence references.
+- Removed remaining stale `client-only` wording in active contributor/testing guidance (`docs/agent-playbook.md`, `docs/testing-guide.md`).
+- Refreshed `docs/planning/mvp-pretester-full-audit-remediation-plan.md` current sprint focus to the next `P1` modularization targets (`media-library.tsx`, `generationBilling.ts`, `falClient.ts`) and marked active-scope `P0` documentation alignment complete.
+
+## 2026-02-14 (Media Library modularization seam: move-cache reconciliation)
+- Extracted moved-row cache reconciliation logic from `frontend/pages/media-library.tsx` into `frontend/features/media-library/logic/mediaMoveCache.ts`.
+- Added focused unit coverage in `frontend/features/media-library/logic/__tests__/mediaMoveCache.test.ts` for destination-query matching behavior, cross-tab row removal, and cache no-op guardrails.
+- Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
+
+## 2026-02-14 (Media Library modularization seam: modal image zoom/pan controller)
+- Extracted modal image zoom/pan state and interaction handlers from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaModalImageZoom.ts`.
+- Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaModalImageZoom.test.ts` for keyboard zoom toggles, non-image guardrails, and pointer pan/capture lifecycle behavior.
+- Updated `frontend/pages/media-library.tsx` to consume the new hook and reduced page length to `2871` lines.
+- Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
+
+## 2026-02-14 (Media Library modularization seam: file-modal CRUD controller)
+- Extracted file-modal CRUD handlers (open/close, rename, single-delete) from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaFileModalCrud.ts`.
+- Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaFileModalCrud.test.ts` for modal lifecycle, rename update flow, and single-delete state reconciliation.
+- Updated `frontend/pages/media-library.tsx` to consume the new hook and reduced page length to `2820` lines.
+- Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
+
+## 2026-02-14 (Media Library modularization seam: bulk move controller)
+- Extracted bulk-selection move orchestration (eligible-row derivation, destination option gating, move-batch request handling, cache reconciliation, and feedback state) from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaBulkMoveController.ts`.
+- Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaBulkMoveController.test.ts` for selection filtering, success-path cache/state updates, and request-failure error surfacing.
+- Updated `frontend/pages/media-library.tsx` to consume the new hook and reduced page length to `2634` lines.
+- Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
+
+## 2026-02-14 (Media Library modularization seam: preview signing/hydration controller)
+- Extracted preview signing/hydration pass orchestration (row prioritization, batch signing, resolver fallback, and failure telemetry) from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`.
+- Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts` for successful signing application, unresolved fallback behavior, and in-flight guardrails.
+- Updated `frontend/pages/media-library.tsx` to consume the new hook and reduced page length to `2473` lines.
+- Re-ran quality gates: `cd frontend && npm run validate`, `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.
+
+## 2026-02-14 (Generation billing modularization split)
+- Split `frontend/lib/server/api/generationBilling.ts` into focused modules under `frontend/lib/server/api/generationBilling/`: `pricingParams.ts`, `reservationRpcAdapter.ts`, `ownershipResolver.ts`, `settlementService.ts`, plus shared `types.ts`/`utils.ts`/`errorGuards.ts`.
+- Kept `frontend/lib/server/api/generationBilling.ts` as the route-facing orchestrator and public export surface (`chargeGenerationRequest`, ownership resolver, settlement/capture entry points), reducing it to `249` lines.
+- Re-ran targeted API tests for reservation fallback + ownership enforcement (`frontend/tests/api/generation-billing.reservations.test.ts`, `frontend/tests/api/fal-status.ownership.test.ts`, `frontend/tests/api/kei-task-status.ownership.test.ts`) and full quality gates (`cd frontend && npm run validate`, `cd frontend && npm run build`, `cd frontend && npm run docs:check`).
+
+## 2026-02-14 (Fal client registry-driven conversion)
+- Reworked `frontend/lib/falClient.ts` from many repeated submit/status wrappers into a registry-driven endpoint client with shared generic submit/status handlers and per-endpoint route/validation metadata.
+- Preserved existing exported helper API names used by the app (`submitFal*` and `fetchFal*Status`) so no call-site changes were required; retained Veo image-to-video status `405 -> GET` fallback behavior inside registry config.
+- Reduced `frontend/lib/falClient.ts` to `523` lines and verified compatibility via targeted Fal/UI tests plus full quality gates (`cd frontend && npm run validate`, `cd frontend && npm run build`, `cd frontend && npm run docs:check`).
+
+## 2026-02-14 (Media Library modularization seam: tab-data/cache + upload pipeline controllers)
+- Extracted media-tab fetch/cache orchestration from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaTabDataController.ts` (prompt loading, tab-page fetch/cursor handling, stale-cache policy, and load-more observer wiring).
+- Extracted upload pipeline controllers from `frontend/pages/media-library.tsx` into `frontend/features/media-library/hooks/useMediaUploadController.ts` (drag/drop and picker intake, optimistic placeholders, storage upload + row insert + preview-sign reconciliation).
+- Added focused hook coverage in `frontend/features/media-library/hooks/__tests__/useMediaTabDataController.test.ts` and `frontend/features/media-library/hooks/__tests__/useMediaUploadController.test.ts`.
+- Updated `frontend/pages/media-library.tsx` to consume both hooks and reduced page length to `2093` lines (from `2473`).
+- Re-ran quality gates: `cd frontend && npm run validate` (`78` files, `273` tests), `cd frontend && npm run build`, and `cd frontend && npm run docs:check`.

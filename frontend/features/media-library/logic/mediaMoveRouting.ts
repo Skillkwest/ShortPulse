@@ -23,6 +23,9 @@ export type MediaTabOption = {
   reason?: string;
 };
 
+export const isMoveDestinationDataTab = (tab: MediaMoveDestination): tab is MediaDataTab =>
+  tab !== "saved_prompts";
+
 export type BulkMoveDecision = {
   allowed: boolean;
   reason?: string;
@@ -47,6 +50,7 @@ const MOVE_TAB_ORDER: MediaMoveDestination[] = [
   "ai_generations",
   "private",
 ];
+const VIDEO_MODAL_MOVE_TAB_ORDER: MediaDataTab[] = ["uploaded_videos", "ai_generations", "private"];
 
 const moveTabLabels: Record<MediaMoveDestination, string> = {
   uploaded_images: "Uploaded Images",
@@ -160,6 +164,50 @@ export const buildMoveTabOptions = (row: MediaTabRow): MediaTabOption[] => {
       disabled: !decision.allowed,
       reason: decision.reason,
     };
+  });
+};
+
+const isDataMoveOption = (
+  option: MediaTabOption
+): option is MediaTabOption & { tab: MediaDataTab } => isMoveDestinationDataTab(option.tab);
+
+const isEnabledDataMoveOption = (
+  option: MediaTabOption
+): option is MediaTabOption & { tab: MediaDataTab; disabled: false } =>
+  isDataMoveOption(option) && !option.disabled;
+
+/**
+ * Builds focused-file modal move options with video-first ordering for video assets.
+ */
+export const buildModalMoveTabOptions = (
+  row: MediaTabRow | null | undefined
+): Array<MediaTabOption & { tab: MediaDataTab }> => {
+  if (!row) return [];
+  const dataOptions = buildMoveTabOptions(row).filter(isDataMoveOption);
+  if (!isVideoFile(row.file_type)) {
+    return dataOptions.filter(isEnabledDataMoveOption);
+  }
+
+  const currentTab = getMediaDataTabForRow(row);
+  const optionByTab = new Map(dataOptions.map((option) => [option.tab, option]));
+
+  return VIDEO_MODAL_MOVE_TAB_ORDER.map((tab) => {
+    if (tab === currentTab) {
+      return {
+        tab,
+        label: getMoveTabLabel(tab),
+        disabled: true,
+        reason: "Current tab",
+      };
+    }
+    return (
+      optionByTab.get(tab) ?? {
+        tab,
+        label: getMoveTabLabel(tab),
+        disabled: true,
+        reason: "Unavailable",
+      }
+    );
   });
 };
 

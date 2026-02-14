@@ -3,8 +3,8 @@
  * Accepts authenticated browser runtime/API failure reports and stores actionable app incidents.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../_utils/auth";
-import { writeAppErrorLog } from "../_utils/appErrorLogs";
+import { requireApiUser } from "../../../lib/server/api/auth";
+import { writeAppErrorLog } from "../../../lib/server/api/appErrorLogs";
 
 type ClientErrorRequest = {
   source?: string;

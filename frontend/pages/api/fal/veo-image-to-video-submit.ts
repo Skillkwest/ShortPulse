@@ -3,7 +3,7 @@
  * Keeps FAL_KEY server-side and forwards payloads to the Fal queue.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { chargeGenerationRequest } from "../_utils/generationBilling";
+import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
 
 const FAL_VEO_I2V_SUBMIT_URL = "https://queue.fal.run/fal-ai/veo3.1/image-to-video";
 const FAL_VEO_I2V_SUBMIT_FALLBACK_URL = "https://queue.fal.run/fal-ai/veo3.1/reference-to-video";

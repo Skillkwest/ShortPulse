@@ -3,9 +3,9 @@
  * Supports operator triage workflows (resolve, ignore, reopen) with audit metadata.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireAdminUser } from "../_utils/auth";
-import { getSupabaseAdmin } from "../_utils/supabaseAdmin";
-import { logApiRouteException } from "../_utils/appErrorLogs";
+import { requireAdminUser } from "../../../lib/server/api/auth";
+import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 
 type ErrorStatus = "open" | "resolved" | "ignored";
 

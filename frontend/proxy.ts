@@ -17,6 +17,7 @@ const PROTECTED_API_PREFIXES = [
 ];
 
 const WEBHOOK_PATHS = new Set(["/api/billing/stripe/webhook"]);
+const INTERNAL_API_PREFIXES = ["/api/_utils", "/api/_utils/"];
 
 const parseBearerToken = (authorizationHeader: string | null): string | null => {
   if (!authorizationHeader) return null;
@@ -34,6 +35,15 @@ const unauthorized = () =>
     status: 401,
     headers: { "Content-Type": "application/json" },
   });
+
+const notFound = () =>
+  new NextResponse(JSON.stringify({ error: "Not found" }), {
+    status: 404,
+    headers: { "Content-Type": "application/json" },
+  });
+
+const isInternalApiPath = (pathname: string): boolean =>
+  INTERNAL_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
 
 const getSupabaseUser = async (token: string): Promise<SupabaseUser> => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -64,6 +74,9 @@ export async function proxy(request: NextRequest) {
 
   if (!pathname.startsWith("/api/")) {
     return NextResponse.next();
+  }
+  if (isInternalApiPath(pathname)) {
+    return notFound();
   }
   if (WEBHOOK_PATHS.has(pathname)) {
     return NextResponse.next();

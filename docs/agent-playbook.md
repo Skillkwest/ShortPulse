@@ -8,7 +8,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Optional checks: `cd frontend && npm run lint` / `npm run build`
 
 ## Structure to respect
-- App lives in `frontend/` (Next.js pages router, client-only).
+- App lives in `frontend/` (Next.js pages router with client UI plus internal server API routes).
 - Docs in `docs/`; start at `docs/README.md`, keep API refs in `docs/api/`, SOPs in `docs/sops/`, and ADRs in `docs/adr/`.
 - Supabase bootstrap SQL in `sql/`; do not add secrets.
 - Follow feature module pattern (`features/<name>/{types,constants,data,utils,logic,components}`) and keep pages thin.
@@ -44,3 +44,6 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.
 - Use `skills/skill-doc-index/SKILL.md` when adding or renaming docs.
 - Use `skills/skill-ui-ux-critic/SKILL.md` for UI-focused PR audits and trend-fit recommendations.
+- Use `skills/skill-mvp-security-audit/SKILL.md` when executing P0 security blockers from the MVP pre-tester remediation plan.
+- Use `skills/skill-mvp-modularization-pass/SKILL.md` when splitting oversized files and enforcing modularity thresholds.
+- Use `skills/skill-mvp-docs-sop-governance/SKILL.md` when resolving docs/SOP drift and archive/index hygiene.

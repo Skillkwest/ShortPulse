@@ -1,6 +1,7 @@
-import { createFalSubmitHandler } from "../_utils/falSubmitProxy";
+import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
 
-const FAL_KLING_V3_TEXT_SUBMIT_URL = "https://queue.fal.run/fal-ai/kling-video/v3/pro/text-to-video";
+const FAL_KLING_V3_TEXT_SUBMIT_URL =
+  "https://queue.fal.run/fal-ai/kling-video/v3/pro/text-to-video";
 
 export default createFalSubmitHandler({
   modelId: "fal-ai/kling-video/v3/pro/text-to-video",

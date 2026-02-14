@@ -2,17 +2,12 @@
  * Creates a Stripe billing portal session for the authenticated user.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../../_utils/auth";
-import { logApiRouteException } from "../../_utils/appErrorLogs";
-import { getSupabaseAdmin } from "../../_utils/supabaseAdmin";
-import { stripePostForm } from "../../_utils/stripe";
+import { requireApiUser } from "../../../../lib/server/api/auth";
+import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
+import { getCanonicalAppBaseUrl, stripePostForm } from "../../../../lib/server/api/stripe";
 
 type StripePortalSession = { id: string; url: string };
-
-const resolveReturnUrl = (req: NextApiRequest): string => {
-  const origin = req.headers.origin || (req.headers.host ? `https://${req.headers.host}` : "http://localhost:3000");
-  return `${origin}/profile?section=billing`;
-};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -44,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const session = await stripePostForm<StripePortalSession>("/billing_portal/sessions", {
       customer: profile.stripe_customer_id,
-      return_url: resolveReturnUrl(req),
+      return_url: `${getCanonicalAppBaseUrl()}/profile?section=billing`,
     });
 
     return res.status(200).json({ portalUrl: session.url });

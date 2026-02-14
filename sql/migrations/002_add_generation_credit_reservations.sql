@@ -48,6 +48,13 @@ declare
     current_balance bigint;
     reserved_total bigint;
 begin
+    if p_user_id is null then
+        raise exception 'User id is required';
+    end if;
+    if auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id then
+        raise exception 'Caller is not authorized for this user id';
+    end if;
+
     perform pg_advisory_xact_lock(hashtext(p_user_id::text));
 
     if coalesce(p_amount_cents, 0) <= 0 then
@@ -148,6 +155,13 @@ declare
     existing_status text;
     existing_source_ref text;
 begin
+    if p_user_id is null then
+        raise exception 'User id is required';
+    end if;
+    if auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id then
+        raise exception 'Caller is not authorized for this user id';
+    end if;
+
     perform pg_advisory_xact_lock(hashtext(p_user_id::text));
 
     update ai_credit_reservations
@@ -197,6 +211,13 @@ as $$
 declare
     reservation_row ai_credit_reservations%rowtype;
 begin
+    if p_user_id is null then
+        raise exception 'User id is required';
+    end if;
+    if auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id then
+        raise exception 'Caller is not authorized for this user id';
+    end if;
+
     perform pg_advisory_xact_lock(hashtext(p_user_id::text));
 
     select *
@@ -246,6 +267,13 @@ as $$
 declare
     reservation_row ai_credit_reservations%rowtype;
 begin
+    if p_user_id is null then
+        raise exception 'User id is required';
+    end if;
+    if auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id then
+        raise exception 'Caller is not authorized for this user id';
+    end if;
+
     perform pg_advisory_xact_lock(hashtext(p_user_id::text));
 
     select *
@@ -295,6 +323,13 @@ as $$
 declare
     reservation_row ai_credit_reservations%rowtype;
 begin
+    if p_user_id is null then
+        raise exception 'User id is required';
+    end if;
+    if auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id then
+        raise exception 'Caller is not authorized for this user id';
+    end if;
+
     perform pg_advisory_xact_lock(hashtext(p_user_id::text));
 
     select *
@@ -344,3 +379,25 @@ begin
     return query select 'captured'::text, reservation_row.source_ref, null::text;
 end;
 $$;
+
+revoke all on function reserve_generation_credits(uuid, text, text, integer, text, jsonb)
+    from public, anon, authenticated;
+revoke all on function mark_generation_reservation_submitted(uuid, text, text, jsonb)
+    from public, anon, authenticated;
+revoke all on function release_generation_reservation_by_source_ref(uuid, text, text, jsonb)
+    from public, anon, authenticated;
+revoke all on function release_generation_reservation_by_provider_request(uuid, text, text, jsonb)
+    from public, anon, authenticated;
+revoke all on function capture_generation_reservation_by_provider_request(uuid, text, text, jsonb)
+    from public, anon, authenticated;
+
+grant execute on function reserve_generation_credits(uuid, text, text, integer, text, jsonb)
+    to service_role;
+grant execute on function mark_generation_reservation_submitted(uuid, text, text, jsonb)
+    to service_role;
+grant execute on function release_generation_reservation_by_source_ref(uuid, text, text, jsonb)
+    to service_role;
+grant execute on function release_generation_reservation_by_provider_request(uuid, text, text, jsonb)
+    to service_role;
+grant execute on function capture_generation_reservation_by_provider_request(uuid, text, text, jsonb)
+    to service_role;

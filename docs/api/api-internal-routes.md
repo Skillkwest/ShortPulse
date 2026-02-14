@@ -4,7 +4,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 
 ## Auth boundary model
 - Global API auth gate: `frontend/proxy.ts` protects `/api/fal/*`, `/api/kei/*`, `/api/ai/*`, `/api/media/*`, uploads, admin APIs, and billing checkout/portal routes by requiring a Supabase bearer token.
-- Route-level auth: several handlers still call `requireApiUser`/`requireAdminUser` in `frontend/pages/api/_utils/auth.ts` for direct enforcement and user context.
+- Route-level auth: several handlers still call `requireApiUser`/`requireAdminUser` in `frontend/lib/server/api/auth.ts` for direct enforcement and user context.
 - Webhook exception: `/api/billing/stripe/webhook` is intentionally unauthenticated and protected by Stripe signature verification.
 
 ## Route families
@@ -18,7 +18,8 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/media/sign-batch` | `POST` | Bearer (proxy + route) | Batch-sign user-scoped media paths for list/grid previews. | `frontend/pages/api/media/sign-batch.ts` |
 | `/api/media/move` | `POST` | Bearer (proxy + route) | Move a media file between tabs by updating storage path + `media_files` source/path (used by modal move and gallery bulk-move loops). | `frontend/pages/api/media/move.ts` |
 | `/api/media/move-batch` | `POST` | Bearer (proxy + route) | Move multiple media files in one request with per-file success/failure summary. | `frontend/pages/api/media/move-batch.ts` |
-| `/api/fal/*` | `POST` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic. | `frontend/pages/api/fal/*.ts`, `frontend/pages/api/_utils/falSubmitProxy.ts`, `frontend/pages/api/_utils/falStatusProxy.ts`, model docs in `docs/api/api-fal-*.md` |
+| `/api/media/resolve-previews` | `POST` | Bearer (proxy + route) | Resolve media preview URLs in bulk (signed-url hydration + fallback normalization for mixed/legacy media records). | `frontend/pages/api/media/resolve-previews.ts`, `frontend/lib/mediaPreviewPath.ts` |
+| `/api/fal/*` | `POST` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic. | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, model docs in `docs/api/api-fal-*.md` |
 | `/api/kei/create-task` | `POST` | Bearer (proxy) | Submit Kie task-based generations with billing charge+refund support. | `frontend/pages/api/kei/create-task.ts` |
 | `/api/kei/task-status` and `/api/kei/status` | `POST` | Bearer (proxy) | Poll Kie task status (status route is compatibility alias). | `frontend/pages/api/kei/task-status.ts`, `frontend/pages/api/kei/status.ts` |
 | `/api/kei/gpt4o-generate` | `POST` | Bearer (proxy) | Kie GPT-4o image generation proxy with billing handling. | `frontend/pages/api/kei/gpt4o-generate.ts` |
@@ -30,7 +31,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/credits/adjust` | `POST` | Admin bearer | Manual credit adjustments (bounded, audited). | `frontend/pages/api/admin/credits/adjust.ts`, `docs/sops/sop_billing_credits_operations.md` |
 | `/api/admin/errors` | `GET` | Admin bearer | Incident feed with filters, summary stats, and pagination. | `frontend/pages/api/admin/errors.ts`, `docs/monitoring.md` |
 | `/api/admin/errors-status` | `POST` | Admin bearer | Update incident status (`open`/`resolved`/`ignored`) with metadata history. | `frontend/pages/api/admin/errors-status.ts` |
-| `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime failures into `app_error_logs`. | `frontend/pages/api/log/client-error.ts`, `frontend/pages/api/_utils/appErrorLogs.ts` |
+| `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime failures into `app_error_logs`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
 
 ## Shared runtime contracts
 - Credit lifecycle for generation:

@@ -1,6 +1,6 @@
 # Testing Guide
 
-Purpose: outline how to test the client-only ShortPulse experience.
+Purpose: outline how to test the ShortPulse app (client UI plus internal API route behavior).
 
 ## Commands
 

@@ -3,7 +3,7 @@
  * Accepts GPT-4o image payload and returns the upstream response.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { chargeGenerationRequest } from "../_utils/generationBilling";
+import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
 
 const KEI_BASE_URL = "https://api.kie.ai/api/v1";
 const GPT4O_IMAGE_MODEL_ID = "kei/gpt4o-image";

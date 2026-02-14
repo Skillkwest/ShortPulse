@@ -1,6 +1,6 @@
 # Local Development
 
-ShortPulse runs as a client-only Next.js app.
+ShortPulse runs as a Next.js app with browser routes and internal API routes.
 
 ## Prerequisites
 
@@ -18,10 +18,12 @@ ShortPulse runs as a client-only Next.js app.
    - `FAL_KEY` (required for Fal API routes)
    - `KEI_API_KEY` (required for KEI/OpenAI proxy routes)
 3. Set optional production/ops values when needed:
+   - `APP_BASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `SHORTPULSE_ADMIN_EMAILS`
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
+   - `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (defaults to `300`)
    - `OPENAI_API_KEY`
    - `OPENAI_API_BASE`
    - `OPENAI_MODEL`
@@ -55,6 +57,8 @@ npm run dev
 - Required billing/generation migrations for current API behavior:
   - `sql/migrations/001_add_studio_10000_credit_package.sql`
   - `sql/migrations/002_add_generation_credit_reservations.sql`
+  - `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`
+  - `sql/migrations/014_harden_generation_reservation_rpc_security.sql`
 - Legacy ledger environments: run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` before using admin credit adjustments.
 
 ## Quality checks

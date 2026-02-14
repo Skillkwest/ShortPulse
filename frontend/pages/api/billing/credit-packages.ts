@@ -2,9 +2,9 @@
  * Returns active credit top-up packages for authenticated users.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../_utils/auth";
-import { logApiRouteException } from "../_utils/appErrorLogs";
-import { getSupabaseAdmin } from "../_utils/supabaseAdmin";
+import { requireApiUser } from "../../../lib/server/api/auth";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 type PackageResponse = {
   id: string;

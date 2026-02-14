@@ -5,9 +5,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import formidable from "formidable";
 import fs from "fs";
-import { requireApiUser } from "./_utils/auth";
-import { logApiRouteException } from "./_utils/appErrorLogs";
-import { getSupabaseAdmin } from "./_utils/supabaseAdmin";
+import { requireApiUser } from "../../lib/server/api/auth";
+import { logApiRouteException } from "../../lib/server/api/appErrorLogs";
+import { getSupabaseAdmin } from "../../lib/server/api/supabaseAdmin";
+import { areCompatibleMimeTypes, detectVideoMimeType } from "../../lib/server/uploadSignature";
 
 type UploadResponse = {
   url: string;
@@ -27,6 +28,12 @@ export const config = {
 };
 
 const ALLOWED_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime", "video/x-m4v"]);
+const EXTENSION_BY_MIME: Record<string, string> = {
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
+  "video/x-m4v": "m4v",
+};
 
 const parseForm = async (req: NextApiRequest): Promise<formidable.File> => {
   const form = formidable({
@@ -51,7 +58,10 @@ const parseForm = async (req: NextApiRequest): Promise<formidable.File> => {
   return file;
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<UploadResponse | ErrorResponse>) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<UploadResponse | ErrorResponse>
+) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -64,16 +74,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   let parsedFile: formidable.File | null = null;
   try {
     parsedFile = await parseForm(req);
-    const mimeType = parsedFile.mimetype ?? "";
-    if (!ALLOWED_TYPES.has(mimeType)) {
+    const declaredMimeType = parsedFile.mimetype?.toLowerCase() ?? "";
+    const fileBuffer = fs.readFileSync(parsedFile.filepath);
+    const detectedMimeType = detectVideoMimeType(fileBuffer);
+    if (!detectedMimeType || !ALLOWED_TYPES.has(detectedMimeType)) {
       return res.status(400).json({
         error: "Invalid file type",
-        details: "Only MP4, WebM, and MOV videos are supported.",
+        details: "File content is not a supported video format.",
+      });
+    }
+    if (
+      declaredMimeType &&
+      (!ALLOWED_TYPES.has(declaredMimeType) ||
+        !areCompatibleMimeTypes(declaredMimeType, detectedMimeType))
+    ) {
+      return res.status(400).json({
+        error: "Invalid file type",
+        details: "Content type does not match file content.",
       });
     }
 
-    const fileBuffer = fs.readFileSync(parsedFile.filepath);
-    const extension = parsedFile.originalFilename?.split(".").pop() || "mp4";
+    const mimeType = detectedMimeType;
+    const extension = EXTENSION_BY_MIME[mimeType] ?? "mp4";
     const storagePath = `${user.id}/videos/motion-control/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
     const supabaseAdmin = getSupabaseAdmin();

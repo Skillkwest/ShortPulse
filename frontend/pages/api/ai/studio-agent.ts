@@ -20,8 +20,8 @@ import { removeAspectRatioLanguage } from "../../../features/ai-studio/logic/age
 import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/logic/studioAgentReferenceSelection";
 import { buildStudioAgentOrchestration } from "../../../features/ai-agent/logic/studioAgentOrchestration";
 import { runThinkerFormatterTurn } from "../../../features/ai-agent/logic/studioAgentThinkerFormatter";
-import { logApiRouteException } from "../_utils/appErrorLogs";
-import { requireApiUser } from "../_utils/auth";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { requireApiUser } from "../../../lib/server/api/auth";
 
 const OPENAI_URL =
   (process.env.OPENAI_API_BASE || "https://api.openai.com/v1") + "/chat/completions";

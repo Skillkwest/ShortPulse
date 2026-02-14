@@ -1,4 +1,4 @@
-import { createFalSubmitHandler } from "../_utils/falSubmitProxy";
+import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
 
 const FAL_FLUX2_KLEIN_SUBMIT_URL = "https://queue.fal.run/fal-ai/flux-2/klein/9b";
 

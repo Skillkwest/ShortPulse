@@ -1,6 +1,7 @@
-import { createFalSubmitHandler } from "../_utils/falSubmitProxy";
+import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
 
-const FAL_SEEDREAM_SUBMIT_URL = "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image";
+const FAL_SEEDREAM_SUBMIT_URL =
+  "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image";
 
 export default createFalSubmitHandler({
   modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",

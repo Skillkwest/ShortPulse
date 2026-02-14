@@ -150,6 +150,23 @@ Fix:
 - Run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` in the Supabase SQL editor.
 - Refresh Supabase table metadata (or reload the dashboard) and retry `/admin` credit adjustments.
 
+## AI Studio generation fails with `Unable to process generation credits. Please retry.`
+Symptoms:
+- Fal submit routes fail before provider submit with the generic billing error above.
+- Server logs may include SQL `42702` with `column reference "source_ref" is ambiguous`.
+
+Cause:
+- Environment is running an older `reserve_generation_credits`/reservation RPC definition (pre-fix for ambiguous output-column names).
+
+Fix:
+- Run `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`.
+- Then run `sql/migrations/014_harden_generation_reservation_rpc_security.sql`.
+- Refresh Supabase schema cache and retry generation.
+
+Notes:
+- The API now falls back to legacy direct-debit billing when reservation RPCs are stale/missing so generation can proceed.
+- Applying `013` + `014` is still the durable fix to restore full reservation/capture/release behavior.
+
 ## SQL role update fails with `column "app_metadata" does not exist`
 Symptom:
 - Query against `auth.users.app_metadata` fails with `ERROR: 42703`.

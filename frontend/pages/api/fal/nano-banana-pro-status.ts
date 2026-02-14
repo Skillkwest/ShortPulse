@@ -2,7 +2,7 @@
  * Proxies Fal Nano Banana Pro status + result fetch.
  * Accepts { requestId }, returns normalized status payloads.
  */
-import { createFalStatusHandler } from "../_utils/falStatusProxy";
+import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
 
 const QUEUE_BASE_URL = "https://queue.fal.run/fal-ai/nano-banana-pro/requests";
 

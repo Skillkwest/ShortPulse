@@ -4,11 +4,11 @@ import handler from "../../pages/api/fal/status";
 const requireApiUserMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
 
-vi.mock("../../pages/api/_utils/auth", () => ({
+vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
 }));
 
-vi.mock("../../pages/api/_utils/generationBilling", () => ({
+vi.mock("../../lib/server/api/generationBilling", () => ({
   captureSucceededGenerationByProviderRequest: vi.fn(),
   resolveProviderRequestOwnership: (...args: unknown[]) =>
     resolveProviderRequestOwnershipMock(...args),

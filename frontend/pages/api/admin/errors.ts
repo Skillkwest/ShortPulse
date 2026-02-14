@@ -2,9 +2,9 @@
  * Admin API: fetch grouped app error incidents for operator triage.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireAdminUser } from "../_utils/auth";
-import { getSupabaseAdmin } from "../_utils/supabaseAdmin";
-import { logApiRouteException } from "../_utils/appErrorLogs";
+import { requireAdminUser } from "../../../lib/server/api/auth";
+import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;

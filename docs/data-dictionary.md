@@ -218,7 +218,7 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `capture_generation_reservation_by_provider_request(...)`: writes ledger debit + marks reservation captured.
 - `release_generation_reservation_by_source_ref(...)`: releases reservation by source reference.
 - `release_generation_reservation_by_provider_request(...)`: releases reservation by provider request id.
-- Used by: `frontend/pages/api/_utils/generationBilling.ts`, `frontend/pages/api/_utils/falSubmitProxy.ts`, `frontend/pages/api/_utils/falStatusProxy.ts`.
+- Used by: `frontend/lib/server/api/generationBilling.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`.
 
 ### stripe_event_log
 - `id` (text, pk): Stripe event ID (`evt_*`).

@@ -2,10 +2,10 @@
  * Admin API: manually add/remove credits from a user account.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireAdminUser } from "../../_utils/auth";
-import { logApiRouteException } from "../../_utils/appErrorLogs";
-import { getSupabaseAdmin } from "../../_utils/supabaseAdmin";
-import { insertCreditLedgerEntry } from "../../_utils/creditLedger";
+import { requireAdminUser } from "../../../../lib/server/api/auth";
+import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
+import { insertCreditLedgerEntry } from "../../../../lib/server/api/creditLedger";
 
 type AdjustRequest = {
   userId?: string;

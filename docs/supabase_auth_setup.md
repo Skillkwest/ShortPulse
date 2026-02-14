@@ -26,7 +26,7 @@ Optional role-based admin access (without email allowlist):
 
 ## Supabase client initialization
 - Browser/client calls should use `frontend/lib/supabaseClient.ts` (anon key only).
-- Server-side admin operations should use a service-role client (`frontend/pages/api/_utils/supabaseAdmin.ts`).
+- Server-side admin operations should use a service-role client (`frontend/lib/server/api/supabaseAdmin.ts`).
 
 ## Security requirements
 - Never commit real keys to docs, code, or `.env.example`.

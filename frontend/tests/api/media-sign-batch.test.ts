@@ -5,15 +5,15 @@ const requireApiUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 
-vi.mock("../../pages/api/_utils/auth", () => ({
+vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
 }));
 
-vi.mock("../../pages/api/_utils/supabaseAdmin", () => ({
+vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
 }));
 
-vi.mock("../../pages/api/_utils/appErrorLogs", () => ({
+vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
 }));
 

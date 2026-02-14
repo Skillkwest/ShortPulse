@@ -3,8 +3,8 @@
  * Accepts `{ taskId }` and forwards to `https://api.kie.ai/api/v1/jobs/queryTask`.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../_utils/auth";
-import { resolveProviderRequestOwnership } from "../_utils/generationBilling";
+import { requireApiUser } from "../../../lib/server/api/auth";
+import { resolveProviderRequestOwnership } from "../../../lib/server/api/generationBilling";
 
 const KEI_BASE_URL = "https://api.kie.ai/api/v1";
 

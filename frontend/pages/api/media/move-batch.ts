@@ -3,8 +3,8 @@
  * Uses per-file move semantics while returning a batched success/failure summary.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { logApiRouteException } from "../_utils/appErrorLogs";
-import { requireApiUser } from "../_utils/auth";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { requireApiUser } from "../../../lib/server/api/auth";
 import {
   isMediaDataTab,
   moveMediaFileForUser,

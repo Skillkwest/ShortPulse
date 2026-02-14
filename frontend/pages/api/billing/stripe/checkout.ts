@@ -2,10 +2,10 @@
  * Creates a Stripe Checkout session for one-time credit package purchases.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../../_utils/auth";
-import { logApiRouteException } from "../../_utils/appErrorLogs";
-import { getSupabaseAdmin } from "../../_utils/supabaseAdmin";
-import { stripePostForm } from "../../_utils/stripe";
+import { requireApiUser } from "../../../../lib/server/api/auth";
+import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
+import { getCanonicalAppBaseUrl, stripePostForm } from "../../../../lib/server/api/stripe";
 
 type CheckoutRequest = {
   packageId?: string;
@@ -13,14 +13,6 @@ type CheckoutRequest = {
 
 type StripeCustomerResponse = { id: string };
 type StripeCheckoutResponse = { id: string; url?: string | null };
-
-const resolveOrigin = (req: NextApiRequest): string => {
-  const explicitOrigin = req.headers.origin;
-  if (explicitOrigin) return explicitOrigin;
-  const host = req.headers.host;
-  if (host) return `https://${host}`;
-  return "http://localhost:3000";
-};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -53,7 +45,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: "Credit package not found." });
     }
     if (!pkg.stripe_price_id) {
-      return res.status(409).json({ error: `Credit package '${pkg.id}' is missing a Stripe price id.` });
+      return res
+        .status(409)
+        .json({ error: `Credit package '${pkg.id}' is missing a Stripe price id.` });
     }
 
     const { data: profile } = await supabaseAdmin
@@ -77,18 +71,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           subscription_status: profile?.subscription_status ?? "inactive",
           stripe_customer_id: stripeCustomerId,
         },
-        { onConflict: "user_id" },
+        { onConflict: "user_id" }
       );
     }
 
-    const origin = resolveOrigin(req);
+    const baseUrl = getCanonicalAppBaseUrl();
     const session = await stripePostForm<StripeCheckoutResponse>("/checkout/sessions", {
       mode: "payment",
       customer: stripeCustomerId,
       "line_items[0][price]": pkg.stripe_price_id,
       "line_items[0][quantity]": 1,
-      success_url: `${origin}/profile?section=billing&checkout=success`,
-      cancel_url: `${origin}/profile?section=billing&checkout=cancel`,
+      success_url: `${baseUrl}/profile?section=billing&checkout=success`,
+      cancel_url: `${baseUrl}/profile?section=billing&checkout=cancel`,
       client_reference_id: user.id,
       "metadata[user_id]": user.id,
       "metadata[credit_package_id]": pkg.id,

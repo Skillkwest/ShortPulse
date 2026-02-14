@@ -5,9 +5,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import formidable from "formidable";
 import fs from "fs";
-import { requireApiUser } from "./_utils/auth";
-import { logApiRouteException } from "./_utils/appErrorLogs";
-import { getSupabaseAdmin } from "./_utils/supabaseAdmin";
+import { requireApiUser } from "../../lib/server/api/auth";
+import { logApiRouteException } from "../../lib/server/api/appErrorLogs";
+import { getSupabaseAdmin } from "../../lib/server/api/supabaseAdmin";
+import { areCompatibleMimeTypes, detectImageMimeType } from "../../lib/server/uploadSignature";
 
 type UploadImageResponse = {
   url: string;
@@ -172,15 +173,27 @@ export default async function handler(
   let parsedUpload: ParsedUpload | null = null;
   try {
     parsedUpload = await parseUpload(req);
-    const mimeType = parsedUpload.mimeType;
-    if (!ALLOWED_TYPES.has(mimeType)) {
+    const declaredMimeType = parsedUpload.mimeType;
+    const detectedMimeType = detectImageMimeType(parsedUpload.buffer);
+    if (!detectedMimeType || !ALLOWED_TYPES.has(detectedMimeType)) {
       return res.status(400).json({
         error: "Invalid file type",
-        details: "Only JPEG, PNG, WEBP, GIF, HEIC, HEIF, and AVIF images are supported.",
+        details: "File content is not a supported image format.",
+      });
+    }
+    if (
+      declaredMimeType &&
+      (!ALLOWED_TYPES.has(declaredMimeType) ||
+        !areCompatibleMimeTypes(declaredMimeType, detectedMimeType))
+    ) {
+      return res.status(400).json({
+        error: "Invalid file type",
+        details: "Content type does not match file content.",
       });
     }
 
     const fileBuffer = parsedUpload.buffer;
+    const mimeType = detectedMimeType;
     const extension = EXTENSION_BY_MIME[mimeType] ?? "jpg";
     const storagePath = `${user.id}/images/reference/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 

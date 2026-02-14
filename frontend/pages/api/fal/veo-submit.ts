@@ -1,4 +1,4 @@
-import { createFalSubmitHandler } from "../_utils/falSubmitProxy";
+import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
 
 const FAL_VEO_SUBMIT_URL = "https://queue.fal.run/fal-ai/veo3.1";
 

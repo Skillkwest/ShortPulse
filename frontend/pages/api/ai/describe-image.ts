@@ -5,7 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
 import { AgentPromptId } from "../../../lib/agentPromptsConfig";
-import { requireApiUser } from "../_utils/auth";
+import { requireApiUser } from "../../../lib/server/api/auth";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_DESCRIBER_ID: AgentPromptId = "OPENAI_PROMPT_IMAGE_DESCRIBE";

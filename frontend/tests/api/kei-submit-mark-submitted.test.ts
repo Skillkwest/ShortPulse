@@ -5,7 +5,7 @@ import gpt4oGenerateHandler from "../../pages/api/kei/gpt4o-generate";
 const chargeGenerationRequestMock = vi.fn();
 const getModelConfigMock = vi.fn();
 
-vi.mock("../../pages/api/_utils/generationBilling", () => ({
+vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
 }));
 

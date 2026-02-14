@@ -7,9 +7,9 @@ import {
   resolveMediaDirectPreviewUrls,
   resolveMediaSigningStoragePaths,
 } from "../../../lib/mediaPreviewPath";
-import { requireApiUser } from "../_utils/auth";
-import { logApiRouteException } from "../_utils/appErrorLogs";
-import { getSupabaseAdmin } from "../_utils/supabaseAdmin";
+import { requireApiUser } from "../../../lib/server/api/auth";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 type ResolvePreviewsSuccessResponse = {
   urls: Record<string, string | null>;

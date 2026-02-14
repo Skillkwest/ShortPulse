@@ -6,7 +6,7 @@ import keiTaskStatusHandler from "../../pages/api/kei/task-status";
 
 const requireApiUserMock = vi.fn();
 
-vi.mock("../../pages/api/_utils/auth", () => ({
+vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
 }));
 

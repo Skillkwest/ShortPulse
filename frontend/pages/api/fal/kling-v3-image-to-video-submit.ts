@@ -1,4 +1,4 @@
-import { createFalSubmitHandler } from "../_utils/falSubmitProxy";
+import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
 
 const FAL_KLING_V3_SUBMIT_URL = "https://queue.fal.run/fal-ai/kling-video/v3/pro/image-to-video";
 

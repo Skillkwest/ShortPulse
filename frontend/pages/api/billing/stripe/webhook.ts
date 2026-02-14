@@ -3,10 +3,10 @@
  * Applies credit grants and subscription state updates to Supabase.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { logApiRouteException } from "../../_utils/appErrorLogs";
-import { getSupabaseAdmin } from "../../_utils/supabaseAdmin";
-import { verifyStripeWebhookSignature } from "../../_utils/stripe";
-import { insertCreditLedgerEntry } from "../../_utils/creditLedger";
+import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
+import { verifyStripeWebhookSignature } from "../../../../lib/server/api/stripe";
+import { insertCreditLedgerEntry } from "../../../../lib/server/api/creditLedger";
 
 type StripeEvent = {
   id: string;

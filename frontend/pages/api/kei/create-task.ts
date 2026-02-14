@@ -3,7 +3,7 @@
  * Accepts `{ model, input }` and forwards to `https://api.kie.ai/api/v1/jobs/createTask`.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { chargeGenerationRequest } from "../_utils/generationBilling";
+import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
 import { getModelConfig } from "../../../features/ai-studio/logic/pricing";
 
 const KEI_BASE_URL = "https://api.kie.ai/api/v1";

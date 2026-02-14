@@ -1,4 +1,4 @@
-import { createFalSubmitHandler } from "../_utils/falSubmitProxy";
+import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
 
 const FAL_NANO_BANANA_PRO_EDIT_SUBMIT_URL = "https://queue.fal.run/fal-ai/nano-banana-pro/edit";
 

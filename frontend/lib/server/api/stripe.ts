@@ -5,6 +5,7 @@
 import crypto from "crypto";
 
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
+const DEFAULT_STRIPE_WEBHOOK_TOLERANCE_SECONDS = 300;
 
 type StripeFormValue = string | number | boolean | null | undefined;
 type StripeFormPayload = Record<string, StripeFormValue>;
@@ -24,6 +25,19 @@ export const getStripeSecretKey = (): string => {
     throw new Error("STRIPE_SECRET_KEY is not configured.");
   }
   return key;
+};
+
+export const getCanonicalAppBaseUrl = (): string => {
+  const configured = process.env.APP_BASE_URL?.trim();
+  if (!configured) {
+    if (process.env.NODE_ENV !== "production") {
+      return "http://localhost:3000";
+    }
+    throw new Error("APP_BASE_URL is not configured.");
+  }
+
+  const url = new URL(configured);
+  return url.origin;
 };
 
 /**
@@ -48,7 +62,9 @@ export const stripePostForm = async <T>(path: string, payload: StripeFormPayload
   return data as T;
 };
 
-const parseStripeSignature = (header: string): { timestamp: string; signatures: string[] } | null => {
+const parseStripeSignature = (
+  header: string
+): { timestamp: string; signatures: string[] } | null => {
   const parts = header.split(",").map((part) => part.trim());
   let timestamp = "";
   const signatures: string[] = [];
@@ -65,15 +81,33 @@ const parseStripeSignature = (header: string): { timestamp: string; signatures: 
 /**
  * Verifies Stripe webhook signatures (`Stripe-Signature`) using HMAC SHA-256.
  */
-export const verifyStripeWebhookSignature = (rawBody: string, signatureHeader: string | undefined): boolean => {
+export const verifyStripeWebhookSignature = (
+  rawBody: string,
+  signatureHeader: string | undefined
+): boolean => {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret || !signatureHeader) return false;
 
   const parsed = parseStripeSignature(signatureHeader);
   if (!parsed) return false;
+  const timestampSeconds = Number(parsed.timestamp);
+  if (!Number.isFinite(timestampSeconds)) return false;
+
+  const toleranceSeconds = Number(
+    process.env.STRIPE_WEBHOOK_TOLERANCE_SECONDS ?? DEFAULT_STRIPE_WEBHOOK_TOLERANCE_SECONDS
+  );
+  if (!Number.isFinite(toleranceSeconds) || toleranceSeconds <= 0) return false;
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (Math.abs(nowSeconds - timestampSeconds) > toleranceSeconds) {
+    return false;
+  }
 
   const signedPayload = `${parsed.timestamp}.${rawBody}`;
-  const expected = crypto.createHmac("sha256", webhookSecret).update(signedPayload, "utf8").digest("hex");
+  const expected = crypto
+    .createHmac("sha256", webhookSecret)
+    .update(signedPayload, "utf8")
+    .digest("hex");
 
   return parsed.signatures.some((candidate) => {
     try {

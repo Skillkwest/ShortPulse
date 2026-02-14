@@ -2,9 +2,9 @@
  * Admin API: list users with plan + credit balance snapshot.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireAdminUser } from "../_utils/auth";
-import { logApiRouteException } from "../_utils/appErrorLogs";
-import { getSupabaseAdmin } from "../_utils/supabaseAdmin";
+import { requireAdminUser } from "../../../lib/server/api/auth";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 const DEFAULT_PER_PAGE = 100;
 const MAX_PER_PAGE = 200;

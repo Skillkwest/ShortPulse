@@ -1,6 +1,6 @@
 # Architecture Overview
 
-ShortPulse is currently a **client-only** Next.js app that uses **Supabase** for authentication, database access, and private file storage. There is no backend service required to run the product locally.
+ShortPulse is a Next.js pages-router app with both browser surfaces and first-party API routes under `frontend/pages/api/*`. It uses Supabase for authentication, database access, and private file storage.
 
 ## High-level components
 - **Frontend (Next.js pages router)**: `frontend/`
@@ -10,15 +10,16 @@ ShortPulse is currently a **client-only** Next.js app that uses **Supabase** for
   - Storage: private bucket with user-scoped paths
 - **Bootstrap SQL**: `sql/` and `docs/supabase_full_schema.sql`
 
-## Request/data flow (client-only)
+## Request/data flow
 1. User signs in via Supabase Auth (`frontend/lib/supabaseClient.ts`).
-2. The browser holds a session; Supabase client attaches the user JWT to requests.
-3. Reads/writes to Postgres/storage are authorized by **RLS policies** and storage policies (see `docs/security-checklist.md`).
+2. Browser surfaces call both Supabase directly (user-scoped reads/writes) and internal API routes (`frontend/pages/api/*`) for provider operations, billing, uploads, and admin flows.
+3. API routes enforce auth/ownership through middleware and route-level checks before server-side actions.
+4. Supabase reads/writes remain authorized by **RLS policies** and storage policies (see `docs/security-checklist.md`).
 
 ## Operational error telemetry
 - Browser runtime failures are captured by global handlers in `frontend/pages/_app.tsx` via `frontend/lib/appErrorReporter.ts`.
 - Authenticated API failures (`5xx`) from `frontend/lib/authenticatedFetch.ts` are reported to `/api/log/client-error` unless marked as generation-scope.
-- Server-side API catch blocks can write direct incidents via `frontend/pages/api/_utils/appErrorLogs.ts`.
+- Server-side API catch blocks can write direct incidents via `frontend/lib/server/api/appErrorLogs.ts`.
 - Admin incidents are queried from `/api/admin/errors` and rendered in `/admin` for operator triage.
 
 ## Route surfaces (what owns what)

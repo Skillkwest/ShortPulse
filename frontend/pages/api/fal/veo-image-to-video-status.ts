@@ -3,12 +3,12 @@
  * Accepts { requestId }, returns status as-is, and fetches the result when completed.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../_utils/auth";
+import { requireApiUser } from "../../../lib/server/api/auth";
 import {
   captureSucceededGenerationByProviderRequest,
   resolveProviderRequestOwnership,
   settleFailedGenerationByProviderRequest,
-} from "../_utils/generationBilling";
+} from "../../../lib/server/api/generationBilling";
 
 // Queue status/result endpoints use the base model id (no subpath).
 const FAL_VEO_QUEUE_BASE = "https://queue.fal.run/fal-ai/veo3.1/requests";

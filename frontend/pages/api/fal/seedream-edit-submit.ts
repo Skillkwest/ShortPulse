@@ -2,7 +2,7 @@
  * Seedream edit submit proxy with payload validation.
  * Enforces prompt + 1..10 image references before charging/submitting upstream.
  */
-import { createFalSubmitHandler } from "../_utils/falSubmitProxy";
+import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
 
 const FAL_SEEDREAM_EDIT_SUBMIT_URL = "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit";
 const VIDEO_FILE_PATTERN = /\.(mp4|webm|mov|m4v)(?:[?#].*)?$/i;

@@ -1,0 +1,190 @@
+import { renderHook } from "@testing-library/react";
+import type { Dispatch, SetStateAction } from "react";
+import { describe, expect, it, vi } from "vitest";
+import type { StudioOutput } from "../../types";
+import { useAiStudioPanelProps } from "../useAiStudioPanelProps";
+
+const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
+  fn as unknown as Dispatch<SetStateAction<T>>;
+
+const createParams = (
+  overrides: Partial<Parameters<typeof useAiStudioPanelProps>[0]> = {}
+): Parameters<typeof useAiStudioPanelProps>[0] => {
+  const outputs: StudioOutput[] = [
+    {
+      id: "out-1",
+      previewUrl: "https://example.com/out-1.png",
+      prompt: "prompt",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      modelId: "model-id",
+      status: "ready",
+      timestamp: "2026-02-14T00:00:00.000Z",
+    },
+  ];
+  return {
+    mode: "text",
+    aspect: "1:1",
+    model: "model-id",
+    currentModelLabel: "Model",
+    prompt: "Draft prompt",
+    promptRef: { current: null },
+    agentEnabled: true,
+    agentMessages: [],
+    agentActions: undefined,
+    agentInput: "Agent input",
+    agentBusy: false,
+    agentAttachmentError: null,
+    agentError: null,
+    agentPrimarySource: "manual",
+    stagedAgentPrompt: null,
+    agentAttachments: [],
+    isAgentDropActive: false,
+    handleAgentInputChange: vi.fn(),
+    handleAgentSend: vi.fn(),
+    handleAgentEnhanceSend: vi.fn(),
+    handleAgentMessageClick: vi.fn(),
+    handleAgentAttachmentDrop: vi.fn(),
+    handleAgentAttachmentDragOver: vi.fn(),
+    handleAgentAttachmentDragEnter: vi.fn(),
+    handleAgentAttachmentDragLeave: vi.fn(),
+    handleRemoveAgentAttachment: vi.fn(),
+    handleClearAgentAttachments: vi.fn(),
+    handleAgentApplyPrompt: vi.fn(),
+    handleAgentSelectVariation: vi.fn(),
+    handleAgentUseQuestion: vi.fn(),
+    handleAgentDescribeTargets: vi.fn(),
+    useReferenceImageIndicator: false,
+    activeOutput: outputs[0] ?? null,
+    isModelModalOpen: false,
+    modelModalAnchor: null,
+    handleOpenModelModal: vi.fn(),
+    handleManualPromptChange: vi.fn(),
+    toggleReferenceIndicator: vi.fn(),
+    isPromptGenerating: false,
+    isPromptRefining: false,
+    describeInFlightCount: 0,
+    currentCostCredits: 2,
+    isGenerateDisabled: false,
+    isGenerateClickLocked: false,
+    generationGuardrail: null,
+    handleExpandChat: vi.fn(),
+    handleClearAgentChat: vi.fn(),
+    isAgentChatOpen: false,
+    handlePrimarySubmit: vi.fn(),
+    savePromptReference: vi.fn(),
+    characterOptions: [],
+    selectedCharacterId: "",
+    setSelectedCharacterId: asDispatch<string>(vi.fn()),
+    isCharacterOptionsLoading: false,
+    isCharacterModeEnabled: true,
+    setIsCharacterModeEnabled: asDispatch<boolean>(vi.fn()),
+    videoDurationSeconds: 6,
+    videoResolution: "720p",
+    imageResolution: "model_default",
+    videoGenerateAudio: false,
+    videoCameraFixed: false,
+    videoAutoFix: false,
+    setAspect: vi.fn(),
+    setVideoDurationSeconds: asDispatch<number>(vi.fn()),
+    setVideoResolution: asDispatch<string>(vi.fn()),
+    setImageResolution: asDispatch<string>(vi.fn()),
+    setVideoGenerateAudio: asDispatch<boolean>(vi.fn()),
+    setVideoCameraFixed: asDispatch<boolean>(vi.fn()),
+    setVideoAutoFix: asDispatch<boolean>(vi.fn()),
+    beginnerMode: true,
+    referenceImageUrl: null,
+    extraImageUrls: [null, null, null],
+    editReferenceText: "Edit prompt",
+    handleImageRegenerateWithDebit: vi.fn(),
+    referenceImageWarning: null,
+    resolvePreviewUrlById: vi.fn((list: StudioOutput[], id: string | null | undefined) => {
+      if (!id) return null;
+      return list.find((item) => item.id === id)?.previewUrl ?? null;
+    }),
+    outputs,
+    isReferencePromptEnhancing: false,
+    handleReferencePromptEnhance: vi.fn(),
+    setReferenceImageUrl: vi.fn(),
+    setExtraImageUrl: vi.fn(),
+    handleEditPromptTextChange: vi.fn(),
+    videoReferenceText: "Video prompt",
+    videoReferenceMode: "standard",
+    setVideoReferenceMode: asDispatch<"standard" | "keyframes" | "kling3" | "motion">(vi.fn()),
+    klingNegativePrompt: "",
+    klingCfgScale: 0.5,
+    klingShotType: "customize",
+    klingVoiceIds: ["voice-a", "voice-b"],
+    klingMultiPrompts: [],
+    klingElements: [],
+    setKlingNegativePrompt: asDispatch<string>(vi.fn()),
+    setKlingCfgScale: asDispatch<number>(vi.fn()),
+    setKlingShotType: asDispatch<"customize" | "intelligent">(vi.fn()),
+    setKlingVoiceIds: asDispatch<[string, string]>(vi.fn()),
+    setKlingMultiPrompts: asDispatch<{ id: string; prompt: string; duration: number }[]>(vi.fn()),
+    setKlingElements: asDispatch<
+      { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
+    >(vi.fn()),
+    motionReferenceVideoUrl: null,
+    setMotionReferenceVideoUrl: vi.fn(),
+    handleVideoPromptTextChange: vi.fn(),
+    handleRegenerateWithDebit: vi.fn(),
+    ...overrides,
+  };
+};
+
+describe("useAiStudioPanelProps", () => {
+  it("builds text props with generation flags derived from orchestration state", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          isPromptRefining: true,
+          isGenerateClickLocked: true,
+        })
+      )
+    );
+
+    expect(result.current.propertiesText.isPromptGenerating).toBe(true);
+    expect(result.current.propertiesText.isGenerateDisabled).toBe(true);
+  });
+
+  it("accepts nullable output ids when resolving image/video preview links", () => {
+    const resolvePreviewUrlById = vi.fn((_: StudioOutput[], id: string | null | undefined) =>
+      id === "out-1" ? "https://example.com/out-1.png" : null
+    );
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          resolvePreviewUrlById,
+        })
+      )
+    );
+
+    expect(result.current.propertiesImage.resolvePreviewUrlById?.(null)).toBeNull();
+    expect(result.current.propertiesImage.resolvePreviewUrlById?.("out-1")).toBe(
+      "https://example.com/out-1.png"
+    );
+    expect(result.current.propertiesVideo.resolvePreviewUrlById?.(null)).toBeNull();
+  });
+
+  it("updates only the targeted Kling voice slot", () => {
+    const setKlingVoiceIds = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          setKlingVoiceIds: asDispatch<[string, string]>(setKlingVoiceIds),
+        })
+      )
+    );
+
+    expect(result.current.propertiesVideo.onKlingVoiceIdChange).toBeDefined();
+    result.current.propertiesVideo.onKlingVoiceIdChange?.(1, "voice-z");
+    const updater = setKlingVoiceIds.mock.calls[0]?.[0] as
+      | ((prev: [string, string]) => [string, string])
+      | undefined;
+
+    expect(typeof updater).toBe("function");
+    expect(updater?.(["voice-a", "voice-b"])).toEqual(["voice-a", "voice-z"]);
+  });
+});

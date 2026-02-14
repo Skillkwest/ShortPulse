@@ -28,7 +28,7 @@ import { KlingComingSoonCard } from "./KlingComingSoonCard";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { AgentChatPanel } from "../../../prefabs/agent";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { StudioOutput, ToolId } from "../types";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 
@@ -74,66 +74,7 @@ const comingSoonCopy: Record<
 const isComingSoonTool = (tool: ToolId | null): tool is ComingSoonToolId =>
   tool === "templates" || tool === "workflows" || tool === "my-generations" || tool === "community";
 
-type TextSectionProps = {
-  mode: StudioMode;
-  aspect: string;
-  modelId: string | null;
-  modelLabel: string;
-  prompt: string;
-  promptRef: React.RefObject<HTMLTextAreaElement>;
-  agentEnabled: boolean;
-  agentMessages: AgentMessage[];
-  agentActions?: AgentActions;
-  agentInput: string;
-  agentIsSending: boolean;
-  agentError?: string;
-  agentPrimarySource?: "agent" | "manual" | "reference";
-  stagedPrompt?: string | null;
-  stagedAttachments?: AgentAttachment[];
-  agentDropActive?: boolean;
-  useReferenceImageIndicator: boolean;
-  hasReferencePreview: boolean;
-  isModelModalOpen: boolean;
-  modelModalAnchor: string | null;
-  costCredits?: number | null;
-  isPromptGenerating: boolean;
-  isGenerateDisabled: boolean;
-  guardrailReason: string | null;
-  shouldDisableSave: boolean;
-  onStepActionClick?: (step: "character" | "model" | "prompt" | "imageSettings") => void;
-  onAspectChange: (value: string) => void;
-  onModelPickerOpen: (
-    anchorId: string,
-    target: HTMLElement,
-    context?: ModelModalContext | null
-  ) => void;
-  onPromptChange: (value: string) => void;
-  onToggleReferenceIndicator: () => void;
-  onAgentInputChange: (value: string) => void;
-  onAgentSend: () => void;
-  onAgentEnhanceSend?: () => void;
-  onAgentMessageClick: (message: AgentMessage) => void;
-  onAgentAttachmentDrop: (event: React.DragEvent<HTMLDivElement>) => void;
-  onAgentAttachmentDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
-  onAgentAttachmentDragEnter: (event: React.DragEvent<HTMLDivElement>) => void;
-  onAgentAttachmentDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
-  onRemoveAgentAttachment: (id: string) => void;
-  onClearAgentAttachments: () => void;
-  onAgentApplyPrompt: (prompt: string) => void;
-  onAgentSelectVariation: (prompt: string) => void;
-  onAgentUseQuestion: (question: string) => void;
-  onAgentDescribeTargets: (targets: string[]) => void;
-  onExpandChat: () => void;
-  agentChatOpen: boolean;
-  onGenerate: () => void;
-  onSavePrompt: (customPrompt?: string) => void;
-  characterOptions?: Array<{ id: string; name: string; profileImageUrl?: string | null }>;
-  selectedCharacterId?: string;
-  onSelectedCharacterIdChange?: (value: string) => void;
-  isCharacterOptionsLoading?: boolean;
-  characterModeEnabled?: boolean;
-  onCharacterModeEnabledChange?: (value: boolean) => void;
-};
+type TextSectionProps = React.ComponentProps<typeof TextPropertiesPanel>;
 
 type CharacterSectionProps = React.ComponentProps<typeof CharacterPropertiesPanel>;
 
@@ -167,7 +108,7 @@ type AgentChatProps = {
   onAgentDescribeTargets?: (targets: string[]) => void;
 };
 
-type AiStudioPageContentProps = {
+export type AiStudioPageContentProps = {
   referenceCanvasFileInputRef: React.RefObject<HTMLInputElement>;
   onFileBrowserSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
   uiError: string | null;

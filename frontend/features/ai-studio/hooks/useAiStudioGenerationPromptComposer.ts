@@ -1,0 +1,193 @@
+/**
+ * AI Studio generation prompt/reference composition hook.
+ * Owns prompt selection and ordered reference input composition for generate/regenerate submit paths.
+ */
+import { useCallback, type Dispatch, type SetStateAction } from "react";
+import {
+  buildImageReferenceInputs,
+  buildRegenerateReferencePool,
+  buildVideoReferenceInputs,
+} from "../logic/referenceInputs";
+import type { StudioMode, StudioOutput, ToolId } from "../types";
+
+export type AiStudioGenerateSubmissionOverrides = {
+  submissionPromptOverride?: string | null;
+  displayPromptOverride?: string | null;
+  referenceInputsOverride?: string[];
+  characterContextOverride?: StudioOutput["characterContext"];
+};
+
+type GenerateOutputOptions = {
+  modeOverride?: StudioMode;
+  selectedToolOverride?: ToolId | null;
+} & AiStudioGenerateSubmissionOverrides;
+
+type UseAiStudioGenerationPromptComposerParams = {
+  prompt: string;
+  editReferenceText: string;
+  videoReferenceText: string;
+  selectedTool: ToolId | null;
+  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  useReferenceImageIndicator: boolean;
+  activeOutputPreviewUrl: string | null;
+  resolveReferenceInputsForTool: (tool: ToolId | null) => {
+    referenceImageUrl: string | null;
+    extraImageUrls: [string | null, string | null, string | null];
+  };
+  submitTask: (
+    promptText: string,
+    imageInputs: string[],
+    options?: {
+      modeOverride?: StudioMode;
+      selectedToolOverride?: ToolId | null;
+      displayPromptOverride?: string | null;
+      characterContextOverride?: StudioOutput["characterContext"];
+    }
+  ) => void;
+  setUiError: Dispatch<SetStateAction<string | null>>;
+};
+
+const resolvePromptForTool = ({
+  tool,
+  prompt,
+  editReferenceText,
+  videoReferenceText,
+}: {
+  tool: ToolId | null;
+  prompt: string;
+  editReferenceText: string;
+  videoReferenceText: string;
+}): string => {
+  const referencePromptForTool =
+    tool === "video" || tool === "kling" ? videoReferenceText : editReferenceText;
+  if (tool === "image" || tool === "edit" || tool === "video" || tool === "kling") {
+    return referencePromptForTool;
+  }
+  return prompt;
+};
+
+/**
+ * Returns generate/regenerate handlers with stable prompt and reference composition rules.
+ */
+export const useAiStudioGenerationPromptComposer = ({
+  prompt,
+  editReferenceText,
+  videoReferenceText,
+  selectedTool,
+  videoReferenceMode,
+  useReferenceImageIndicator,
+  activeOutputPreviewUrl,
+  resolveReferenceInputsForTool,
+  submitTask,
+  setUiError,
+}: UseAiStudioGenerationPromptComposerParams) => {
+  const generateOutput = useCallback(
+    (promptOverride?: string | null, options?: GenerateOutputOptions) => {
+      const effectiveTool = options?.selectedToolOverride ?? selectedTool;
+      const defaultPromptForTool = resolvePromptForTool({
+        tool: effectiveTool,
+        prompt,
+        editReferenceText,
+        videoReferenceText,
+      });
+      const displayPromptToSubmit =
+        typeof options?.displayPromptOverride === "string"
+          ? options.displayPromptOverride
+          : typeof promptOverride === "string"
+            ? promptOverride
+            : defaultPromptForTool;
+      const submissionPromptToSubmit =
+        typeof options?.submissionPromptOverride === "string"
+          ? options.submissionPromptOverride
+          : displayPromptToSubmit;
+      const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
+        resolveReferenceInputsForTool(effectiveTool);
+      const isVideoGenerationTool = effectiveTool === "video" || effectiveTool === "kling";
+      const baseInputs =
+        effectiveTool === "image" || effectiveTool === "edit"
+          ? buildImageReferenceInputs(referenceUrl, extraUrls)
+          : isVideoGenerationTool
+            ? buildVideoReferenceInputs(referenceUrl, extraUrls, videoReferenceMode)
+            : [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url));
+      const imageInputs = (
+        Array.isArray(options?.referenceInputsOverride)
+          ? options.referenceInputsOverride
+          : baseInputs
+      ).slice(0, 8);
+      submitTask(submissionPromptToSubmit, imageInputs, {
+        modeOverride: options?.modeOverride,
+        selectedToolOverride: options?.selectedToolOverride,
+        displayPromptOverride: displayPromptToSubmit,
+        characterContextOverride: options?.characterContextOverride,
+      });
+    },
+    [
+      editReferenceText,
+      prompt,
+      resolveReferenceInputsForTool,
+      selectedTool,
+      submitTask,
+      videoReferenceMode,
+      videoReferenceText,
+    ]
+  );
+
+  const regenerateOutput = useCallback(
+    (options?: AiStudioGenerateSubmissionOverrides) => {
+      const promptForTool = resolvePromptForTool({
+        tool: selectedTool,
+        prompt,
+        editReferenceText,
+        videoReferenceText,
+      });
+      const displayPromptToUse =
+        typeof options?.displayPromptOverride === "string"
+          ? options.displayPromptOverride.trim()
+          : promptForTool.trim();
+      const submissionPromptToUse =
+        typeof options?.submissionPromptOverride === "string"
+          ? options.submissionPromptOverride.trim()
+          : displayPromptToUse;
+      if (!submissionPromptToUse) {
+        setUiError("Add a prompt to start a generation.");
+        return;
+      }
+      const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
+        resolveReferenceInputsForTool(selectedTool);
+      const referencePool = buildRegenerateReferencePool({
+        selectedTool,
+        useReferenceImageIndicator,
+        activeOutputPreviewUrl,
+        referenceUrl,
+        extraUrls,
+        videoReferenceMode,
+      });
+      const imageInputs = (
+        Array.isArray(options?.referenceInputsOverride)
+          ? options.referenceInputsOverride
+          : referencePool
+      ).slice(0, 8);
+      submitTask(submissionPromptToUse, imageInputs, {
+        displayPromptOverride: displayPromptToUse,
+        characterContextOverride: options?.characterContextOverride,
+      });
+    },
+    [
+      activeOutputPreviewUrl,
+      editReferenceText,
+      prompt,
+      resolveReferenceInputsForTool,
+      selectedTool,
+      setUiError,
+      submitTask,
+      useReferenceImageIndicator,
+      videoReferenceMode,
+      videoReferenceText,
+    ]
+  );
+
+  return {
+    generateOutput,
+    regenerateOutput,
+  };
+};

@@ -6,6 +6,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../_utils/auth";
 import {
   captureSucceededGenerationByProviderRequest,
+  resolveProviderRequestOwnership,
   settleFailedGenerationByProviderRequest,
 } from "../_utils/generationBilling";
 
@@ -102,6 +103,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     req.body?.requestId;
   if (!requestId || typeof requestId !== "string") {
     return res.status(400).json({ error: "Missing requestId" });
+  }
+  const ownership = await resolveProviderRequestOwnership({
+    userId: user.id,
+    providerRequestId: requestId,
+  });
+  if (ownership !== "owned") {
+    return res.status(403).json({ error: "Forbidden" });
   }
 
   const controller = new AbortController();

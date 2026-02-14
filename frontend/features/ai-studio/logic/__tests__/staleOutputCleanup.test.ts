@@ -38,6 +38,18 @@ describe("evaluateStaleOutputCleanup", () => {
     expect(result.nextLifecycle["out-stale"]?.pendingSinceMs).toBe(BASE_TIME_MS - 3 * 60 * 1000);
   });
 
+  it("does not stale-timeout outputs that already have a provider task id", () => {
+    const outputs = [makeOutput({ id: "out-tasked", taskId: "req-123", taskState: "running" })];
+    const lifecycle: OutputLifecycleMap = {
+      "out-tasked": { pendingSinceMs: BASE_TIME_MS - 20 * 60 * 1000 },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toHaveLength(0);
+    expect(result.nextLifecycle["out-tasked"]).toBeUndefined();
+  });
+
   it("does not track non-generated pending outputs", () => {
     const outputs = [makeOutput({ id: "library-1" })];
     const result = evaluateStaleOutputCleanup(outputs, {}, BASE_TIME_MS, config);
@@ -75,5 +87,24 @@ describe("evaluateStaleOutputCleanup", () => {
     const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
 
     expect(result.removableIds).toEqual(["out-failed"]);
+  });
+
+  it("does not auto-remove failed outputs that have task ids", () => {
+    const outputs = [
+      makeOutput({
+        id: "out-failed-tasked",
+        taskState: "fail",
+        taskId: "req-456",
+        timestamp: "Timed out",
+      }),
+    ];
+    const lifecycle: OutputLifecycleMap = {
+      "out-failed-tasked": { autoFailedAtMs: BASE_TIME_MS - 10 * 60 * 1000 },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.removableIds).toHaveLength(0);
+    expect(result.nextLifecycle["out-failed-tasked"]).toBeUndefined();
   });
 });

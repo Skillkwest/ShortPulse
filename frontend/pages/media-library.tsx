@@ -32,6 +32,7 @@ import {
   buildMoveTabOptions,
   getMoveTabLabel,
   type MediaMoveDestination,
+  type MediaTabOption,
 } from "../features/media-library/logic/mediaMoveRouting";
 import { buildBulkMoveFeedback } from "../features/media-library/logic/bulkMoveFeedback";
 
@@ -60,7 +61,6 @@ type PromptRow = {
   title: string | null;
   prompt_text: string;
   mode: "text" | "image" | "video" | string;
-  model_id: string | null;
   source: "manual" | "ai_studio" | "agent" | string;
   created_at: string;
   updated_at: string;
@@ -235,6 +235,14 @@ const isPrivateMediaFile = (file: Pick<MediaRow, "source" | "storage_path">) =>
 
 const isMediaDataTab = (tab: MediaTab): tab is MediaDataTab => tab !== "saved_prompts";
 const isMoveDataTab = (tab: MediaMoveDestination): tab is MediaDataTab => tab !== "saved_prompts";
+const isDataMoveOption = (
+  option: MediaTabOption
+): option is MediaTabOption & { tab: MediaDataTab } => isMoveDataTab(option.tab);
+const isEnabledDataMoveOption = (
+  option: MediaTabOption
+): option is MediaTabOption & { tab: MediaDataTab; disabled: false } =>
+  isDataMoveOption(option) && !option.disabled;
+const VIDEO_MODAL_MOVE_TAB_ORDER: MediaDataTab[] = ["uploaded_videos", "ai_generations", "private"];
 
 const getMediaDataTabForRow = (
   row: Pick<MediaRow, "source" | "storage_path" | "file_type">
@@ -430,6 +438,7 @@ export default function MediaLibrary() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const [focusedFile, setFocusedFile] = useState<MediaRow | null>(null);
+  const [focusedPrompt, setFocusedPrompt] = useState<PromptRow | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [savingRename, setSavingRename] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -437,7 +446,19 @@ export default function MediaLibrary() {
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
   const [movingFile, setMovingFile] = useState(false);
   const [renameSuccess, setRenameSuccess] = useState(false);
+  const [promptEditValue, setPromptEditValue] = useState("");
+  const [savingPromptEdit, setSavingPromptEdit] = useState(false);
+  const [promptModalError, setPromptModalError] = useState<string | null>(null);
+  const [promptSaveSuccess, setPromptSaveSuccess] = useState(false);
   const [storageUsageBytes, setStorageUsageBytes] = useState<number | null>(null);
+  const [modalImageZoomScale, setModalImageZoomScale] = useState(1);
+  const [modalImageZoomActive, setModalImageZoomActive] = useState(false);
+  const [modalImagePan, setModalImagePan] = useState({ x: 0, y: 0 });
+  const [modalImageNaturalSize, setModalImageNaturalSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [isModalImagePanning, setIsModalImagePanning] = useState(false);
   const signedUrlRetryRef = useRef<Record<string, number>>({});
   const signAttemptRef = useRef<Record<string, number>>({});
   const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
@@ -458,6 +479,15 @@ export default function MediaLibrary() {
   const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveRouteSignBudget);
   const currentUserIdRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
+  const modalPreviewRef = useRef<HTMLDivElement | null>(null);
+  const modalImagePanDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+  } | null>(null);
+  const modalImageDraggedRef = useRef(false);
   const cachedMediaBytes = useMemo(() => {
     const byId = new Map<string, number>();
     for (const tab of MEDIA_DATA_TABS) {
@@ -498,6 +528,28 @@ export default function MediaLibrary() {
   useEffect(() => {
     activeMediaQueryRef.current = activeMediaQuery;
   }, [activeMediaQuery]);
+
+  useEffect(() => {
+    if ((!focusedFile && !focusedPrompt) || typeof document === "undefined") return;
+    const body = document.body;
+    const html = document.documentElement;
+    const previousBodyOverflow = body.style.overflow;
+    const previousHtmlOverflow = html.style.overflow;
+    const previousBodyOverscroll = body.style.overscrollBehavior;
+    const previousHtmlOverscroll = html.style.overscrollBehavior;
+
+    body.style.overflow = "hidden";
+    html.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    html.style.overscrollBehavior = "none";
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      html.style.overflow = previousHtmlOverflow;
+      body.style.overscrollBehavior = previousBodyOverscroll;
+      html.style.overscrollBehavior = previousHtmlOverscroll;
+    };
+  }, [focusedFile, focusedPrompt]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof navigator === "undefined") return;
@@ -930,7 +982,7 @@ export default function MediaLibrary() {
         const selectColumns =
           "id, filename, storage_path, file_type, file_size, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
         const buildBaseQuery = () => {
-          let query = supabase.from("media_files").select(selectColumns);
+          let query = supabase.from("media_files").select(selectColumns).eq("user_id", userId);
           query = withMediaTabFilter(query, tab);
           query = withMediaSearchFilter(query, normalizedQuery);
           return query.order("created_at", { ascending: false }).order("id", { ascending: false });
@@ -1029,7 +1081,7 @@ export default function MediaLibrary() {
       if (!userId) throw new Error("Not signed in");
       const promptResponse = await supabase
         .from("media_prompts")
-        .select("*")
+        .select("id, title, prompt_text, mode, source, created_at, updated_at")
         .order("created_at", { ascending: false })
         .order("id", { ascending: false });
       if (promptResponse.error) throw promptResponse.error;
@@ -1496,17 +1548,33 @@ export default function MediaLibrary() {
     fileInputRef.current?.click();
   };
 
-  const deletePrompt = async (row: PromptRow) => {
+  const deletePrompt = async (
+    row: PromptRow,
+    options: {
+      fromPromptModal?: boolean;
+    } = {}
+  ): Promise<boolean> => {
     setError(null);
+    if (options.fromPromptModal) {
+      setPromptModalError(null);
+    }
     try {
       const supabase = ensureSupabaseClient();
       const { error: deleteError } = await supabase.from("media_prompts").delete().eq("id", row.id);
       if (deleteError) throw deleteError;
       setPrompts((prev) => prev.filter((p) => p.id !== row.id));
       setSelectedIds((prev) => prev.filter((id) => id !== row.id));
+      setFocusedPrompt((prev) => (prev && prev.id === row.id ? null : prev));
       void logMediaEvent("delete", "media_prompt", row.id);
+      return true;
     } catch (err: unknown) {
-      setError(getErrorMessage(err, "Unable to delete prompt"));
+      const message = getErrorMessage(err, "Unable to delete prompt");
+      if (options.fromPromptModal) {
+        setPromptModalError(message);
+      } else {
+        setError(message);
+      }
+      return false;
     }
   };
 
@@ -1530,11 +1598,19 @@ export default function MediaLibrary() {
     }
   };
 
+  const cacheAspectRatio = useCallback((id: string, ratio: number) => {
+    if (!Number.isFinite(ratio) || ratio <= 0) return;
+    setAspectMap((prev) => {
+      if (prev[id] === ratio) return prev;
+      return { ...prev, [id]: ratio };
+    });
+  }, []);
+
   const handleImageLoad = (id: string, event: React.SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget;
     if (!img.naturalWidth || !img.naturalHeight) return;
     signedUrlRetryRef.current[id] = 0;
-    setAspectMap((prev) => ({ ...prev, [id]: img.naturalWidth / img.naturalHeight }));
+    cacheAspectRatio(id, img.naturalWidth / img.naturalHeight);
     markFirstMediaPaint("image");
   };
 
@@ -1542,9 +1618,204 @@ export default function MediaLibrary() {
     const vid = event.currentTarget;
     if (!vid.videoWidth || !vid.videoHeight) return;
     signedUrlRetryRef.current[id] = 0;
-    setAspectMap((prev) => ({ ...prev, [id]: vid.videoWidth / vid.videoHeight }));
+    cacheAspectRatio(id, vid.videoWidth / vid.videoHeight);
     markFirstMediaPaint("video");
   };
+
+  const focusedAspectRatio = useMemo(() => {
+    if (!focusedFile) return 4 / 5;
+    const ratio = aspectMap[focusedFile.id];
+    if (Number.isFinite(ratio) && ratio > 0) return ratio;
+    return isVideoFile(focusedFile.file_type) ? 9 / 16 : 4 / 5;
+  }, [aspectMap, focusedFile]);
+  const isFocusedImage = Boolean(focusedFile && !isVideoFile(focusedFile.file_type));
+
+  const clampModalImagePan = useCallback(
+    (nextX: number, nextY: number, scale: number) => {
+      const vessel = modalPreviewRef.current;
+      if (!vessel || !modalImageNaturalSize || scale <= 1) {
+        return { x: 0, y: 0 };
+      }
+      const vesselWidth = vessel.clientWidth;
+      const vesselHeight = vessel.clientHeight;
+      if (!vesselWidth || !vesselHeight) return { x: 0, y: 0 };
+
+      const naturalRatio = modalImageNaturalSize.width / modalImageNaturalSize.height;
+      const vesselRatio = vesselWidth / vesselHeight;
+      const fittedWidth = naturalRatio > vesselRatio ? vesselWidth : vesselHeight * naturalRatio;
+      const fittedHeight = naturalRatio > vesselRatio ? vesselWidth / naturalRatio : vesselHeight;
+
+      const zoomedWidth = fittedWidth * scale;
+      const zoomedHeight = fittedHeight * scale;
+      const maxPanX = Math.max(0, (zoomedWidth - vesselWidth) / 2);
+      const maxPanY = Math.max(0, (zoomedHeight - vesselHeight) / 2);
+
+      return {
+        x: Math.max(-maxPanX, Math.min(maxPanX, nextX)),
+        y: Math.max(-maxPanY, Math.min(maxPanY, nextY)),
+      };
+    },
+    [modalImageNaturalSize]
+  );
+
+  const resetModalImageTransform = useCallback(() => {
+    setModalImageZoomScale(1);
+    setModalImageZoomActive(false);
+    setModalImagePan({ x: 0, y: 0 });
+    setIsModalImagePanning(false);
+    modalImagePanDragRef.current = null;
+    modalImageDraggedRef.current = false;
+  }, []);
+
+  const resetModalImageZoom = useCallback(() => {
+    resetModalImageTransform();
+    setModalImageNaturalSize(null);
+  }, [resetModalImageTransform]);
+
+  const applyModalZoomAtPoint = useCallback(
+    (clientX: number, clientY: number, nextScale: number) => {
+      const vessel = modalPreviewRef.current;
+      if (!vessel) return;
+      const rect = vessel.getBoundingClientRect();
+      const pointerX = clientX - rect.left;
+      const pointerY = clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const clampedScale = Math.min(6, Math.max(1, nextScale));
+
+      setModalImagePan((prev) => {
+        if (clampedScale <= 1) return { x: 0, y: 0 };
+        const currentScale = Math.max(0.0001, modalImageZoomScale);
+        const localX = pointerX - centerX;
+        const localY = pointerY - centerY;
+        const sourceX = (localX - prev.x) / currentScale;
+        const sourceY = (localY - prev.y) / currentScale;
+        const nextX = localX - sourceX * clampedScale;
+        const nextY = localY - sourceY * clampedScale;
+        return clampModalImagePan(nextX, nextY, clampedScale);
+      });
+      setModalImageZoomScale(clampedScale);
+    },
+    [clampModalImagePan, modalImageZoomScale]
+  );
+
+  const handleModalImageClick = useCallback(
+    (event: React.MouseEvent<HTMLImageElement>) => {
+      if (!isFocusedImage) return;
+      if (modalImageDraggedRef.current) {
+        modalImageDraggedRef.current = false;
+        return;
+      }
+      if (modalImageZoomActive) {
+        resetModalImageTransform();
+        return;
+      }
+      setModalImageZoomActive(true);
+      applyModalZoomAtPoint(event.clientX, event.clientY, 2);
+    },
+    [applyModalZoomAtPoint, isFocusedImage, modalImageZoomActive, resetModalImageTransform]
+  );
+
+  const handleModalImageKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLImageElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        if (modalImageZoomActive) {
+          resetModalImageTransform();
+          return;
+        }
+        setModalImageZoomActive(true);
+        const vessel = modalPreviewRef.current;
+        if (!vessel) {
+          setModalImageZoomScale(2);
+          return;
+        }
+        const rect = vessel.getBoundingClientRect();
+        applyModalZoomAtPoint(rect.left + rect.width / 2, rect.top + rect.height / 2, 2);
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        resetModalImageTransform();
+      }
+    },
+    [applyModalZoomAtPoint, modalImageZoomActive, resetModalImageTransform]
+  );
+
+  const handleModalImageWheel = useCallback(
+    (event: React.WheelEvent<HTMLImageElement>) => {
+      if (!isFocusedImage || !modalImageZoomActive) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const zoomFactor = event.deltaY < 0 ? 1.12 : 0.88;
+      const nextScale = Math.min(6, Math.max(1, modalImageZoomScale * zoomFactor));
+      if (Math.abs(nextScale - modalImageZoomScale) < 0.0001) return;
+      applyModalZoomAtPoint(event.clientX, event.clientY, nextScale);
+    },
+    [applyModalZoomAtPoint, isFocusedImage, modalImageZoomActive, modalImageZoomScale]
+  );
+
+  const handleModalPreviewWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (!isFocusedImage || !modalImageZoomActive) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const zoomFactor = event.deltaY < 0 ? 1.12 : 0.88;
+      const nextScale = Math.min(6, Math.max(1, modalImageZoomScale * zoomFactor));
+      if (Math.abs(nextScale - modalImageZoomScale) < 0.0001) return;
+      applyModalZoomAtPoint(event.clientX, event.clientY, nextScale);
+    },
+    [applyModalZoomAtPoint, isFocusedImage, modalImageZoomActive, modalImageZoomScale]
+  );
+
+  const handleModalImagePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLImageElement>) => {
+      if (!isFocusedImage || !modalImageZoomActive || modalImageZoomScale <= 1) return;
+      if (event.button !== 0) return;
+      modalImagePanDragRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startPanX: modalImagePan.x,
+        startPanY: modalImagePan.y,
+      };
+      modalImageDraggedRef.current = false;
+      setIsModalImagePanning(true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    },
+    [isFocusedImage, modalImagePan.x, modalImagePan.y, modalImageZoomActive, modalImageZoomScale]
+  );
+
+  const handleModalImagePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLImageElement>) => {
+      const dragState = modalImagePanDragRef.current;
+      if (!dragState || dragState.pointerId !== event.pointerId) return;
+      const deltaX = event.clientX - dragState.startX;
+      const deltaY = event.clientY - dragState.startY;
+      if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+        modalImageDraggedRef.current = true;
+      }
+      setModalImagePan(
+        clampModalImagePan(
+          dragState.startPanX + deltaX,
+          dragState.startPanY + deltaY,
+          modalImageZoomScale
+        )
+      );
+    },
+    [clampModalImagePan, modalImageZoomScale]
+  );
+
+  const handleModalImagePointerUp = useCallback((event: React.PointerEvent<HTMLImageElement>) => {
+    const dragState = modalImagePanDragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    modalImagePanDragRef.current = null;
+    setIsModalImagePanning(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }, []);
 
   const toggleSelect = (file: MediaRow) => {
     if (file.status === "uploading") return;
@@ -1895,9 +2166,38 @@ export default function MediaLibrary() {
     () => (focusedFile ? buildMoveTabOptions(focusedFile) : []),
     [focusedFile]
   );
+  const modalMoveTabOptions = useMemo(() => {
+    if (!focusedFile) return [];
+    const dataOptions = moveTabOptions.filter(isDataMoveOption);
+    if (!isVideoFile(focusedFile.file_type)) {
+      return dataOptions.filter(isEnabledDataMoveOption);
+    }
+
+    const currentTab = getMediaDataTabForRow(focusedFile);
+    const optionByTab = new Map(dataOptions.map((option) => [option.tab, option]));
+
+    return VIDEO_MODAL_MOVE_TAB_ORDER.map((tab) => {
+      if (tab === currentTab) {
+        return {
+          tab,
+          label: getMoveTabLabel(tab),
+          disabled: true,
+          reason: "Current tab",
+        };
+      }
+      return (
+        optionByTab.get(tab) ?? {
+          tab,
+          label: getMoveTabLabel(tab),
+          disabled: true,
+          reason: "Unavailable",
+        }
+      );
+    });
+  }, [focusedFile, moveTabOptions]);
   const canMoveToAnotherTab = useMemo(
-    () => moveTabOptions.some((option) => !option.disabled && isMoveDataTab(option.tab)),
-    [moveTabOptions]
+    () => modalMoveTabOptions.some((option) => !option.disabled),
+    [modalMoveTabOptions]
   );
 
   const selectedMediaRows = useMemo(() => {
@@ -2090,6 +2390,7 @@ export default function MediaLibrary() {
     setModalError(null);
     setMoveError(null);
     setMoveMenuOpen(false);
+    resetModalImageZoom();
   };
 
   const closeModal = () => {
@@ -2099,6 +2400,7 @@ export default function MediaLibrary() {
     setMoveError(null);
     setMoveMenuOpen(false);
     setRenameSuccess(false);
+    resetModalImageZoom();
   };
 
   const saveRename = async () => {
@@ -2132,6 +2434,69 @@ export default function MediaLibrary() {
     }
   };
 
+  const openPromptModal = (prompt: PromptRow) => {
+    setFocusedPrompt(prompt);
+    setPromptEditValue(prompt.prompt_text ?? "");
+    setPromptModalError(null);
+    setPromptSaveSuccess(false);
+  };
+
+  const closePromptModal = () => {
+    if (savingPromptEdit) return;
+    setFocusedPrompt(null);
+    setPromptEditValue("");
+    setPromptModalError(null);
+    setPromptSaveSuccess(false);
+  };
+
+  const savePromptEdits = async () => {
+    if (!focusedPrompt || !promptEditValue.trim()) return;
+    setSavingPromptEdit(true);
+    setPromptModalError(null);
+    setPromptSaveSuccess(false);
+    try {
+      const supabase = ensureSupabaseClient();
+      const nextPromptText = promptEditValue;
+      const updatedAt = new Date().toISOString();
+      const { error } = await supabase
+        .from("media_prompts")
+        .update({ prompt_text: nextPromptText })
+        .eq("id", focusedPrompt.id);
+      if (error) throw error;
+      setPrompts((prev) =>
+        prev.map((prompt) =>
+          prompt.id === focusedPrompt.id
+            ? {
+                ...prompt,
+                prompt_text: nextPromptText,
+                updated_at: updatedAt,
+              }
+            : prompt
+        )
+      );
+      setFocusedPrompt((prev) =>
+        prev
+          ? {
+              ...prev,
+              prompt_text: nextPromptText,
+              updated_at: updatedAt,
+            }
+          : prev
+      );
+      setPromptSaveSuccess(true);
+      window.setTimeout(() => {
+        setPromptSaveSuccess(false);
+      }, 1600);
+      void logMediaEvent("edit", "media_prompt", focusedPrompt.id, {
+        updated_fields: ["prompt_text"],
+      });
+    } catch (err: unknown) {
+      setPromptModalError(getErrorMessage(err, "Unable to save prompt edits"));
+    } finally {
+      setSavingPromptEdit(false);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -2142,10 +2507,6 @@ export default function MediaLibrary() {
         Skip to main content
       </a>
       <main id="main-content" className="page page-wide">
-        <div className="page-top">
-          <DashboardNavPrefab />
-        </div>
-
         <section className="panel saved-header-bar saved-hero hero-image-card">
           <div className="saved-header-left">
             <div className="saved-title-stack">
@@ -2245,60 +2606,73 @@ export default function MediaLibrary() {
           </div>
         </section>
 
-        <section className="panel media-filters media-panel" aria-label="Media filters and search">
-          <div className="filter-tabs" role="tablist" aria-label="Media categories">
-            <button
-              type="button"
-              className={`pill-toggle big ${activeTab === "uploaded_images" ? "active" : ""}`}
-              onClick={() => setActiveTab("uploaded_images")}
-            >
-              Uploaded Images
-            </button>
-            <button
-              type="button"
-              className={`pill-toggle big ${activeTab === "uploaded_videos" ? "active" : ""}`}
-              onClick={() => setActiveTab("uploaded_videos")}
-            >
-              Uploaded Videos
-            </button>
-            <button
-              type="button"
-              className={`pill-toggle big ${activeTab === "saved_prompts" ? "active" : ""}`}
-              onClick={() => setActiveTab("saved_prompts")}
-            >
-              Saved Prompts
-            </button>
-            <button
-              type="button"
-              className={`pill-toggle big ${activeTab === "ai_generations" ? "active" : ""}`}
-              onClick={() => setActiveTab("ai_generations")}
-            >
-              AI Studio Generations
-            </button>
-            <button
-              type="button"
-              className={`pill-toggle big ${activeTab === "private" ? "active" : ""}`}
-              onClick={() => setActiveTab("private")}
-            >
-              <LockSimple size={14} weight="bold" aria-hidden />
-              Private
-            </button>
+        <div className="media-filters-row">
+          <div
+            className="panel media-filter-dashboard-card media-panel"
+            aria-label="Workspace navigation"
+          >
+            <DashboardNavPrefab />
           </div>
-          <span className="pill tiny filter-count">
-            {visibleCount} {countLabel}
-          </span>
-          <div className="search-wrap">
-            <div className="search-input">
-              <MagnifyingGlass size={16} weight="bold" />
-              <input
-                type="text"
-                placeholder={isPromptTab ? "Search saved prompts" : "Search media by name or file"}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+          <section
+            className="panel media-filters media-panel"
+            aria-label="Media filters and search"
+          >
+            <div className="filter-tabs" role="tablist" aria-label="Media categories">
+              <button
+                type="button"
+                className={`pill-toggle big ${activeTab === "uploaded_images" ? "active" : ""}`}
+                onClick={() => setActiveTab("uploaded_images")}
+              >
+                Uploaded Images
+              </button>
+              <button
+                type="button"
+                className={`pill-toggle big ${activeTab === "uploaded_videos" ? "active" : ""}`}
+                onClick={() => setActiveTab("uploaded_videos")}
+              >
+                Uploaded Videos
+              </button>
+              <button
+                type="button"
+                className={`pill-toggle big ${activeTab === "saved_prompts" ? "active" : ""}`}
+                onClick={() => setActiveTab("saved_prompts")}
+              >
+                Saved Prompts
+              </button>
+              <button
+                type="button"
+                className={`pill-toggle big ${activeTab === "ai_generations" ? "active" : ""}`}
+                onClick={() => setActiveTab("ai_generations")}
+              >
+                AI Studio Generations
+              </button>
+              <button
+                type="button"
+                className={`pill-toggle big ${activeTab === "private" ? "active" : ""}`}
+                onClick={() => setActiveTab("private")}
+              >
+                <LockSimple size={14} weight="bold" aria-hidden />
+                Private
+              </button>
             </div>
-          </div>
-        </section>
+            <span className="pill tiny filter-count">
+              {visibleCount} {countLabel}
+            </span>
+            <div className="search-wrap">
+              <div className="search-input">
+                <MagnifyingGlass size={16} weight="bold" />
+                <input
+                  type="text"
+                  placeholder={
+                    isPromptTab ? "Search saved prompts" : "Search media by name or file"
+                  }
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+          </section>
+        </div>
 
         <section
           className={`panel media-gallery media-panel ${isPromptTab ? "" : "media-gallery-packed"}`}
@@ -2449,6 +2823,10 @@ export default function MediaLibrary() {
                   tabIndex={0}
                   aria-pressed={selectedIds.includes(promptItem.id)}
                   onClick={() => togglePromptSelect(promptItem.id)}
+                  onDoubleClick={(event) => {
+                    event.stopPropagation();
+                    openPromptModal(promptItem);
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
@@ -2470,9 +2848,6 @@ export default function MediaLibrary() {
                   </div>
                   <p className="prompt-card-body">{promptItem.prompt_text}</p>
                   <div className="prompt-card-footer">
-                    <span className="metric-label tiny">
-                      {promptItem.model_id || "Model not set"}
-                    </span>
                     <button
                       type="button"
                       className="btn-secondary prompt-delete-btn"
@@ -2686,28 +3061,28 @@ export default function MediaLibrary() {
         <div className="media-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           <div className="media-modal-backdrop" onClick={closeModal} />
           <div className="media-modal-content">
-            <button
-              className="btn-secondary close-btn"
-              type="button"
-              onClick={closeModal}
-              aria-label="Close preview"
-            >
-              ×
-            </button>
             <div className="modal-body">
               <div
                 className="modal-preview"
-                style={{
-                  aspectRatio:
-                    aspectMap[focusedFile.id] ||
-                    (isVideoFile(focusedFile.file_type) ? 9 / 16 : 4 / 5),
-                }}
+                ref={modalPreviewRef}
+                style={
+                  {
+                    aspectRatio: focusedAspectRatio,
+                    "--modal-preview-aspect": String(focusedAspectRatio),
+                  } as React.CSSProperties
+                }
+                onWheel={handleModalPreviewWheel}
               >
                 {focusedFile.signedUrl ? (
                   isVideoFile(focusedFile.file_type) ? (
                     <video
                       src={focusedFile.signedUrl}
                       controls
+                      onLoadedMetadata={(event) => {
+                        const video = event.currentTarget;
+                        if (!video.videoWidth || !video.videoHeight) return;
+                        cacheAspectRatio(focusedFile.id, video.videoWidth / video.videoHeight);
+                      }}
                       onError={() => handleMediaPreviewError(focusedFile)}
                     />
                   ) : (
@@ -2717,6 +3092,33 @@ export default function MediaLibrary() {
                       <img
                         src={focusedFile.signedUrl}
                         alt={focusedFile.filename}
+                        className={`modal-zoomable-image ${modalImageZoomActive ? "is-zoom-active" : ""} ${modalImageZoomScale > 1 ? "is-zoomed" : ""} ${isModalImagePanning ? "is-panning" : ""}`}
+                        style={{
+                          transform: `translate3d(${modalImagePan.x}px, ${modalImagePan.y}px, 0) scale(${modalImageZoomScale})`,
+                          transformOrigin: "50% 50%",
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Toggle zoom mode for image preview"
+                        onClick={handleModalImageClick}
+                        onKeyDown={handleModalImageKeyDown}
+                        onWheel={handleModalImageWheel}
+                        onPointerDown={handleModalImagePointerDown}
+                        onPointerMove={handleModalImagePointerMove}
+                        onPointerUp={handleModalImagePointerUp}
+                        onPointerCancel={handleModalImagePointerUp}
+                        onLoad={(event) => {
+                          const image = event.currentTarget;
+                          if (!image.naturalWidth || !image.naturalHeight) return;
+                          cacheAspectRatio(
+                            focusedFile.id,
+                            image.naturalWidth / image.naturalHeight
+                          );
+                          setModalImageNaturalSize({
+                            width: image.naturalWidth,
+                            height: image.naturalHeight,
+                          });
+                        }}
                         onError={() => handleMediaPreviewError(focusedFile)}
                       />
                     </>
@@ -2726,6 +3128,30 @@ export default function MediaLibrary() {
                 )}
               </div>
               <div className="modal-meta">
+                <div className="modal-top-actions">
+                  <button
+                    className="btn-secondary modal-pill-btn"
+                    type="button"
+                    onClick={() => void downloadFile(focusedFile)}
+                  >
+                    Download
+                  </button>
+                  <button
+                    className="btn-danger modal-delete-btn modal-pill-btn"
+                    type="button"
+                    onClick={() => requestDeleteFile(focusedFile)}
+                  >
+                    Delete
+                  </button>
+                  <button
+                    className="btn-secondary close-btn modal-pill-btn modal-close-pill"
+                    type="button"
+                    onClick={closeModal}
+                    aria-label="Close preview"
+                  >
+                    ×
+                  </button>
+                </div>
                 <label htmlFor="renameInput" id="modal-title" className="eyebrow">
                   File name
                 </label>
@@ -2751,21 +3177,7 @@ export default function MediaLibrary() {
                   onClick={saveRename}
                   disabled={savingRename || !renameValue.trim()}
                 >
-                  {savingRename ? "Saving..." : "Save name"}
-                </button>
-                <button
-                  className="btn-secondary"
-                  type="button"
-                  onClick={() => void downloadFile(focusedFile)}
-                >
-                  Download
-                </button>
-                <button
-                  className="btn-danger modal-delete-btn"
-                  type="button"
-                  onClick={() => requestDeleteFile(focusedFile)}
-                >
-                  Delete
+                  {savingRename ? "Renaming..." : "Rename"}
                 </button>
                 <div className="modal-move">
                   <button
@@ -2786,25 +3198,21 @@ export default function MediaLibrary() {
                   </button>
                   {moveMenuOpen ? (
                     <div className="modal-move-menu" role="menu" aria-label="Move media to tab">
-                      {moveTabOptions.map((option) => {
-                        const label = option.reason
-                          ? `${option.label} · ${option.reason}`
-                          : option.label;
+                      {modalMoveTabOptions.map((option) => {
                         return (
                           <button
                             key={option.tab}
                             type="button"
                             className="modal-move-option"
                             role="menuitem"
-                            disabled={option.disabled || !isMoveDataTab(option.tab) || movingFile}
+                            disabled={movingFile || option.disabled}
                             onClick={() => {
-                              if (option.disabled || !isMoveDataTab(option.tab)) return;
+                              if (option.disabled) return;
                               void moveFocusedFile(option.tab);
                             }}
-                            title={label}
+                            title={option.label}
                           >
                             <span>{option.label}</span>
-                            {option.reason ? <small>{option.reason}</small> : null}
                           </button>
                         );
                       })}
@@ -2823,6 +3231,81 @@ export default function MediaLibrary() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {focusedPrompt ? (
+        <div
+          className="media-modal prompt-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="prompt-modal-title"
+        >
+          <div className="media-modal-backdrop" onClick={closePromptModal} />
+          <div className="prompt-modal-content">
+            <div className="prompt-modal-top-actions">
+              <button
+                className="btn-danger modal-pill-btn prompt-modal-delete-btn"
+                type="button"
+                onClick={() => {
+                  void deletePrompt(focusedPrompt, { fromPromptModal: true });
+                }}
+                disabled={savingPromptEdit}
+              >
+                Delete
+              </button>
+              <button
+                className="btn-secondary close-btn modal-pill-btn modal-close-pill prompt-modal-close-btn"
+                type="button"
+                onClick={closePromptModal}
+                aria-label="Close prompt editor"
+                disabled={savingPromptEdit}
+              >
+                ×
+              </button>
+            </div>
+
+            <label htmlFor="promptEditInput" id="prompt-modal-title" className="eyebrow">
+              Saved prompt
+            </label>
+            <textarea
+              id="promptEditInput"
+              className="prompt-modal-textarea"
+              value={promptEditValue}
+              onChange={(event) => {
+                setPromptEditValue(event.target.value);
+                setPromptSaveSuccess(false);
+              }}
+              placeholder="Edit your prompt..."
+            />
+
+            {promptModalError ? (
+              <div className="auth-error" role="alert" aria-live="assertive">
+                {promptModalError}
+              </div>
+            ) : null}
+
+            <div className="prompt-modal-footer">
+              {promptSaveSuccess ? (
+                <div className="rename-toast prompt-modal-toast" role="status" aria-live="polite">
+                  <CheckCircle size={16} weight="bold" />
+                  <span>Saved</span>
+                </div>
+              ) : (
+                <span aria-hidden />
+              )}
+              <button
+                className="btn-primary prompt-modal-save-btn"
+                type="button"
+                onClick={() => {
+                  void savePromptEdits();
+                }}
+                disabled={savingPromptEdit || !promptEditValue.trim()}
+              >
+                {savingPromptEdit ? "Saving..." : "Save edits"}
+              </button>
             </div>
           </div>
         </div>

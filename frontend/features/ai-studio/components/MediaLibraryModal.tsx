@@ -676,7 +676,7 @@ export function MediaLibraryModal({
         const selectColumns =
           "id, filename, storage_path, file_type, source, created_at, metadata, thumb_variant_path, poster_variant_path, preview_variant_path";
         const buildBaseQuery = () => {
-          let query = supabase.from("media_files").select(selectColumns);
+          let query = supabase.from("media_files").select(selectColumns).eq("user_id", userId);
           query = withMediaTabFilter(query, tab);
           query = withMediaSearchFilter(query, normalizedQuery);
           return query.order("created_at", { ascending: false }).order("id", { ascending: false });

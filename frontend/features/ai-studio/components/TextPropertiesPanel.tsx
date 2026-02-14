@@ -240,10 +240,9 @@ export function TextPropertiesPanel({
     [imageResolution, modelId]
   );
   const shouldShowImageResolutionCard = useMemo(() => {
-    if (characterModeEnabled) return false;
     if (imageResolutionOptions.length !== 1) return true;
     return imageResolutionOptions[0]?.value !== MODEL_DEFAULT_IMAGE_RESOLUTION;
-  }, [characterModeEnabled, imageResolutionOptions]);
+  }, [imageResolutionOptions]);
   const hasCharacterOptions = characterOptions.length > 0;
   const characterSelectDisabled =
     isCharacterOptionsLoading || !hasCharacterOptions || !characterModeEnabled;

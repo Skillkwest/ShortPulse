@@ -21,6 +21,7 @@ import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/log
 import { buildStudioAgentOrchestration } from "../../../features/ai-agent/logic/studioAgentOrchestration";
 import { runThinkerFormatterTurn } from "../../../features/ai-agent/logic/studioAgentThinkerFormatter";
 import { logApiRouteException } from "../_utils/appErrorLogs";
+import { requireApiUser } from "../_utils/auth";
 
 const OPENAI_URL =
   (process.env.OPENAI_API_BASE || "https://api.openai.com/v1") + "/chat/completions";
@@ -29,7 +30,20 @@ const DEFAULT_MODEL = "gpt-4.1";
 const MAX_MESSAGES = 24;
 const MAX_IMAGE_BYTES = 350 * 1024;
 const MAX_MEDIA = 3;
+const MAX_CANONICAL_PROMPT_CACHE = 2000;
 const canonicalPromptStore = new Map<string, string>();
+
+const buildCanonicalPromptCacheKey = (userId: string, conversationId: string): string =>
+  `${userId}:${conversationId}`;
+
+const setCanonicalPromptCache = (key: string, value: string) => {
+  canonicalPromptStore.set(key, value);
+  if (canonicalPromptStore.size <= MAX_CANONICAL_PROMPT_CACHE) return;
+  const oldestKey = canonicalPromptStore.keys().next().value;
+  if (typeof oldestKey === "string") {
+    canonicalPromptStore.delete(oldestKey);
+  }
+};
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
@@ -246,6 +260,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const user = await requireApiUser(req, res);
+  if (!user) return;
+
   // Feature gate: defaults to enabled; can be disabled explicitly server-side.
   const featureEnabled =
     process.env.STUDIO_AGENT_ENABLED === "true" ||
@@ -273,13 +290,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // conversationId is currently informational (could be logged/audited later)
   const conversationId =
     typeof req.body?.conversationId === "string" ? req.body.conversationId : null;
+  const conversationCacheKey =
+    conversationId && conversationId.trim()
+      ? buildCanonicalPromptCacheKey(user.id, conversationId.trim())
+      : null;
   const context = safeContext(req.body?.context);
   const incomingCanonical =
     typeof req.body?.canonicalPrompt === "string" && req.body.canonicalPrompt.trim().length
       ? (removeAspectRatioLanguage(req.body.canonicalPrompt.trim()) ?? null)
       : null;
-  const storedCanonical = conversationId
-    ? (removeAspectRatioLanguage(canonicalPromptStore.get(conversationId) ?? null) ?? null)
+  const storedCanonical = conversationCacheKey
+    ? (removeAspectRatioLanguage(canonicalPromptStore.get(conversationCacheKey) ?? null) ?? null)
     : null;
   const canonicalPrompt = incomingCanonical ?? storedCanonical ?? null;
   const effectiveCanonical = canonicalPrompt ?? context.lastAssistantMessage ?? null;
@@ -425,8 +446,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         effectiveCanonical
       );
 
-      if (conversationId && resolvedCanonical) {
-        canonicalPromptStore.set(conversationId, resolvedCanonical);
+      if (conversationCacheKey && resolvedCanonical) {
+        setCanonicalPromptCache(conversationCacheKey, resolvedCanonical);
       }
 
       return res.status(200).json({
@@ -498,8 +519,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       canonicalPrompt
     );
 
-    if (conversationId && resolvedCanonical) {
-      canonicalPromptStore.set(conversationId, resolvedCanonical);
+    if (conversationCacheKey && resolvedCanonical) {
+      setCanonicalPromptCache(conversationCacheKey, resolvedCanonical);
     }
 
     return res.status(200).json({
@@ -516,6 +537,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       error,
       routeLabel: "ai/studio-agent",
       metadata: {
+        user_id: user.id,
         conversation_id: conversationId,
       },
     });

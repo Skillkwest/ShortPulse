@@ -18,6 +18,10 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Dragging from one drop zone to another swaps assignments.
    - Assignments are saved to character metadata (`character_sheet_assignments` + compatibility alias).
    - No activation gate or completion requirement is enforced in the current UI.
+5. AI Studio Create Character Mode consumes Character Manager data at generation time:
+   - Selected character description is injected as hidden prompt context when available.
+   - Character Sheet assignments resolve to ordered references (`portrait`, `close_up`, `front_shot`, `back_shot`) sent to Seedream edit when available.
+   - Missing description/references are non-blocking; AI Studio falls back to best-effort injection.
 
 ## Architecture Map
 - Shell/UI orchestration: `frontend/features/character-manager/components/CharacterManagerShell.tsx`
@@ -25,6 +29,7 @@ Define the operational contract for the `/character` Character Manager surface, 
 - Supabase persistence primitives: `frontend/features/character-manager/logic/characterManagerPersistence.ts`
 - File validation rules: `frontend/features/character-manager/logic/referenceValidation.ts`
 - Character Manager route shell: `frontend/pages/character.tsx`
+- AI Studio Create integration: `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/logic/characterModePayload.ts`
 - Compatibility drift SQL: `sql/check_character_sheet_alias_drift.sql`
 
 ## Operational Flow
@@ -91,7 +96,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
   - `docs/routes.md` (if route behavior changes),
   - this SOP,
   - relevant ADR(s) for durable architecture changes.
-- If Character Sheet assignments become persisted or generation-driving, create a new ADR and expand this SOP before shipping.
+- Character Sheet assignments are now generation-driving for AI Studio Create Character Mode; keep integration contracts in this SOP and `docs/sops/sop_image_generation.md` in sync when changing assignment semantics.
 
 ## Legacy SOP Status
 - `docs/sops/sop_character_generation.md` and `docs/sops/sop_character_identity.md` are legacy references for the old character pipeline and are not authoritative for current `/character` behavior.

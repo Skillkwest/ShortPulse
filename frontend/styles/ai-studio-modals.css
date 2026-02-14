@@ -514,7 +514,7 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   margin-bottom: 20px;
   padding-bottom: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -528,22 +528,58 @@
   text-transform: uppercase;
 }
 
-.art-mini-save {
-  font-size: 12px;
-  font-weight: 800;
-  color: #34c8ff;
-  background: rgba(52, 200, 255, 0.1);
-  border: 1px solid rgba(52, 200, 255, 0.2);
-  cursor: pointer;
-  padding: 4px 12px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+.art-character-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
 }
 
-.art-mini-save:hover {
-  background: rgba(52, 200, 255, 0.2);
-  border-color: rgba(52, 200, 255, 0.4);
-  transform: scale(1.05);
+.art-character-chip-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  flex-shrink: 0;
+}
+
+.art-character-chip-avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(82, 197, 255, 0.15);
+  color: rgba(221, 242, 255, 0.95);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.art-character-chip-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.art-character-chip-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(193, 213, 233, 0.56);
+}
+
+.art-character-chip-name {
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgba(242, 247, 255, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .art-blade-textarea {

@@ -41,6 +41,23 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 6. Reference Grid prepends the new output card; Studio Preview shows the latest image.  
 7. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
 
+## Character Mode (Create workflow)
+
+- Scope: applies only to Create workflow when Character Mode is enabled in `TextPropertiesPanel`.
+- Model/quality lock:
+  - Model is forced to `fal-ai/bytedance/seedream/v4.5/edit`.
+  - Image resolution is forced to highest allowed for that model (`auto_4K` currently via `getHighestImageResolutionForModel`).
+- Hidden prompt composition:
+  - Provider-facing prompt prepends character description (when present), then appends user prompt.
+  - UI-visible prompt (output cards, modals, saved prompt text) remains the user prompt only.
+- Character Sheet references:
+  - References are resolved from Character Manager `character_sheet_assignments` in canonical zone order (`portrait`, `close_up`, `front_shot`, `back_shot`).
+  - Resolved URLs are deduped and capped by provider limits.
+- Fallback behavior (non-blocking):
+  - Missing character description does not block generation (runs with references only when available).
+  - Missing Character Sheet references does not block generation (runs with prompt-only or description+prompt).
+  - Missing selected character does not block generation (runs prompt-only under the locked model).
+
 ## Reference handling
 
 - Users can drag existing reference cards (images) or drop external image files into Reference Canvas or Studio Preview; dropped files become `StudioOutput` entries with object URLs.  

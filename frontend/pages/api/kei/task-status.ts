@@ -3,6 +3,8 @@
  * Accepts `{ taskId }` and forwards to `https://api.kie.ai/api/v1/jobs/queryTask`.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { requireApiUser } from "../_utils/auth";
+import { resolveProviderRequestOwnership } from "../_utils/generationBilling";
 
 const KEI_BASE_URL = "https://api.kie.ai/api/v1";
 
@@ -10,6 +12,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+
+  const user = await requireApiUser(req, res);
+  if (!user) return;
 
   const apiKey = process.env.KEI_API_KEY;
   if (!apiKey) {
@@ -19,6 +24,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { taskId } = req.body || {};
   if (!taskId || typeof taskId !== "string") {
     return res.status(400).json({ error: "taskId is required" });
+  }
+  const ownership = await resolveProviderRequestOwnership({
+    userId: user.id,
+    providerRequestId: taskId,
+  });
+  if (ownership !== "owned") {
+    return res.status(403).json({ error: "Forbidden" });
   }
 
   const controller = new AbortController();

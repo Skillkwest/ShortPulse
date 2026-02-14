@@ -13,6 +13,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:character": "NODE_PATH=./node_modules node ./tests/e2e/character-pipeline.audit.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "validate": "npm run lint && npm run type-check && npm run test",

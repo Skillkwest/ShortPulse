@@ -6,6 +6,8 @@ node_modules/
 .next/
 frontend/.next
 frontend/node_modules
+frontend/playwright-report
+frontend/test-results
 backend/.venv
 .venv
 dist/

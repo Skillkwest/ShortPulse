@@ -27,6 +27,9 @@ const isGeneratedOutput = (output: StudioOutput): boolean => output.id.startsWit
 const isLoadingWithoutPreview = (output: StudioOutput): boolean => {
   if (!isGeneratedOutput(output)) return false;
   if (output.previewUrl || output.previewText) return false;
+  // Once a provider task id exists, polling owns timeout/failure behavior.
+  // Cleanup is only for placeholders that never reached task-backed polling.
+  if (output.taskId) return false;
   return (
     output.taskState === "pending" ||
     output.taskState === "running" ||
@@ -35,7 +38,7 @@ const isLoadingWithoutPreview = (output: StudioOutput): boolean => {
 };
 
 const isFailedWithoutPreview = (output: StudioOutput): boolean =>
-  output.taskState === "fail" && !output.previewUrl && !output.previewText;
+  output.taskState === "fail" && !output.previewUrl && !output.previewText && !output.taskId;
 
 /**
  * Returns stale-loading and removable ids plus next lifecycle tracking state.

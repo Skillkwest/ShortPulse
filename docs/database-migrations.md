@@ -62,35 +62,40 @@ For environments bootstrapped from `docs/supabase_full_schema.sql`, apply these 
 
 1. `sql/migrations/001_add_studio_10000_credit_package.sql`
 2. `sql/migrations/002_add_generation_credit_reservations.sql`
+3. `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`
 
 If upgrading from a legacy ledger schema, also apply:
 
-3. `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`
+4. `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`
 
 If enabling the Media Library Private tab, also apply:
 
-4. `sql/migrations/003_add_private_media_source.sql`
-5. `sql/migrations/004_add_private_media_integrity_checks.sql`
+5. `sql/migrations/003_add_private_media_source.sql`
+6. `sql/migrations/004_add_private_media_integrity_checks.sql`
 
 If enabling the derivative-first media optimization architecture (virtualized grid + variant hints), also apply:
 
-6. `sql/migrations/005_add_media_processing_and_variants.sql`
-7. `sql/migrations/006_backfill_media_variant_hints.sql`
-8. `sql/migrations/007_harden_media_source_and_usage_rpc.sql`
+7. `sql/migrations/005_add_media_processing_and_variants.sql`
+8. `sql/migrations/006_backfill_media_variant_hints.sql`
+9. `sql/migrations/007_harden_media_source_and_usage_rpc.sql`
 
 If enabling Character Manager (character sheets + generation history), also apply:
 
-9. `sql/migrations/008_add_character_manager_foundation.sql`
+10. `sql/migrations/008_add_character_manager_foundation.sql`
 
 If Media Library cards still show blank placeholders in legacy environments, also apply:
 
-10. `sql/migrations/009_repair_legacy_media_storage_paths.sql`
+11. `sql/migrations/009_repair_legacy_media_storage_paths.sql`
 
 If enabling stricter Character Manager media integrity (source/path/metadata + cross-table trigger), also apply:
 
-11. `sql/migrations/010_harden_character_reference_media_integrity.sql`
-12. `sql/migrations/011_add_character_description_to_characters.sql`
-13. `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`
+12. `sql/migrations/010_harden_character_reference_media_integrity.sql`
+13. `sql/migrations/011_add_character_description_to_characters.sql`
+14. `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`
+
+Billing safety note:
+- Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
+  `column reference "source_ref" is ambiguous` failures in reservation-mode Fal submit paths.
 
 ## Character Sheet compatibility verification (post-012)
 

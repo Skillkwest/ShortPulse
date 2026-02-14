@@ -271,3 +271,21 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated `/character` shell state to load and save drop-zone assignments through `useCharacterManagerDraft` so assign/replace/swap survives refresh and character switching.
 - Added/updated Character Manager tests to cover persisted assignment behavior, clear/reupload behavior, and 8-reference cap stability.
 - Updated docs to reflect persisted Character Sheet assignments (`README.md`, `docs/routes.md`, `docs/sops/sop_character_manager_operations.md`).
+
+## 2026-02-14 (AI Studio Create Character Mode injection)
+- Implemented Create-only Character Mode payload wiring in `/ai-studio`: selected Character Manager description + Character Sheet assignments now resolve to best-effort hidden prompt/reference injection for Seedream 4.5 Edit at forced highest resolution.
+- Added explicit display-vs-submission prompt separation in task submission so hidden character context is sent to providers without leaking into UI-visible output prompt text.
+- Added shared Character Mode payload helpers (`resolveCharacterSheetReferenceUrls`, `composeCharacterModePrompt`, `mergeCharacterAndUserReferences`) and regression tests for ordering, prompt composition, dedupe, and submission behavior.
+- Preserved non-blocking fallbacks: missing selected character, missing description, or missing Character Sheet refs no longer block generation and now run prompt-only or partial injection.
+- Updated operational docs for the new generation-driving contract (`docs/sops/sop_image_generation.md`, `docs/sops/sop_character_manager_operations.md`) and added implementation plan artifact (`docs/planning/ai-studio-character-mode-injection-plan.md`).
+
+## 2026-02-14 (AI Studio Character Mode hardening)
+- Added stale Character Mode bundle refresh before Create submit/regenerate so Character Sheet signed URLs are reloaded when bundle age exceeds threshold, reducing expiry-related submission failures.
+- Added client breadcrumbs for Character Mode fallback telemetry (`character_mode_injection_fallback`) and refresh lifecycle (`character_mode_bundle_refresh_before_submit`, `character_mode_bundle_refresh_failed`) to improve ops/debug visibility.
+- Added page-level integration coverage for `/ai-studio` Create submission wiring (`frontend/pages/__tests__/ai-studio.character-mode.test.tsx`) to verify hidden prompt/reference injection and stale-refresh behavior.
+
+## 2026-02-14 (Character pipeline audit follow-through)
+- Added migration `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql` and documented it as required in `docs/database-migrations.md` to prevent reservation RPC failures (`column reference "source_ref" is ambiguous`) in Fal submit paths.
+- Hardened billing API error exposure so generation credit failures now return a safe user-facing message while preserving server-side diagnostic logs (`frontend/pages/api/_utils/generationBilling.ts` + `frontend/tests/api/generation-billing.reservations.test.ts`).
+- Added Playwright-backed E2E audit baseline for auth -> Character Manager -> AI Studio character mode submit (`frontend/tests/e2e/character-pipeline.audit.js`) and wired `npm run test:e2e:character`.
+- Updated operations/testing docs to include the new migration + audit command (`docs/sops/sop_billing_credits_operations.md`, `docs/testing-guide.md`, `docs/planning/audit-progress.md`).

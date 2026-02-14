@@ -269,7 +269,8 @@ export function useAiStudioTasks({
           if (isTerminalSuccess || (hasMedia && canUseMediaShortcut)) {
             // Provider may report terminal success before media URLs are materialized.
             // Track a dedicated "no media yet" retry budget instead of using total poll attempts.
-            const maxNoMediaAttempts = longRunningVideoProviders.has(provider) ? 20 : 10;
+            const maxNoMediaAttempts =
+              provider === "kei" ? 10 : longRunningVideoProviders.has(provider) ? 30 : 20;
             const shouldRetryForMedia = !hasMedia && noMediaAttempt < maxNoMediaAttempts;
             if (shouldRetryForMedia) {
               if (noMediaAttempt === 0) {

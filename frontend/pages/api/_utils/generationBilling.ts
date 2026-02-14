@@ -52,6 +52,8 @@ type FailedGenerationSettlementResult = {
   note: string;
 };
 
+export type ProviderRequestOwnership = "owned" | "forbidden" | "unknown";
+
 type ReservationRpcState =
   | "reserved"
   | "already_reserved"
@@ -215,13 +217,29 @@ const isInsufficientCreditError = (message?: string): boolean =>
   /insufficient credits/i.test(message ?? "");
 const isDuplicateError = (code?: string | null, message?: string): boolean =>
   code === "23505" || /duplicate key value/i.test(message ?? "");
+const GENERATION_BILLING_FAILURE_MESSAGE = "Unable to process generation credits. Please retry.";
 const isMissingLedgerSchemaError = (code?: string | null, message?: string): boolean => {
   const normalizedCode = String(code ?? "").toUpperCase();
-  if (normalizedCode === "42703" || normalizedCode === "PGRST204") return true;
+  if (normalizedCode === "42703" || normalizedCode === "PGRST204" || normalizedCode === "42P01")
+    return true;
   const text = String(message ?? "");
   return (
+    /relation .* does not exist/i.test(text) ||
+    /could not find the table/i.test(text) ||
     /column .*ai_credit_ledger.*does not exist/i.test(text) ||
     /could not find the '.*' column of 'ai_credit_ledger'/i.test(text)
+  );
+};
+const isMissingReservationSchemaError = (code?: string | null, message?: string): boolean => {
+  const normalizedCode = String(code ?? "").toUpperCase();
+  if (normalizedCode === "42703" || normalizedCode === "PGRST204" || normalizedCode === "42P01")
+    return true;
+  const text = String(message ?? "");
+  return (
+    /relation .* does not exist/i.test(text) ||
+    /could not find the table/i.test(text) ||
+    /column .*ai_credit_reservations.*does not exist/i.test(text) ||
+    /could not find the '.*' column of 'ai_credit_reservations'/i.test(text)
   );
 };
 const isMissingRpcFunctionError = (code?: string | null, message?: string): boolean => {
@@ -527,6 +545,95 @@ const lookupChargeByProviderRequestId = async (
   }
 };
 
+const lookupReservationOwnerByProviderRequestId = async (
+  providerRequestId: string
+): Promise<string | null> => {
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data, error } = await supabaseAdmin
+      .from("ai_credit_reservations")
+      .select("user_id")
+      .eq("provider_request_id", providerRequestId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      if (!isMissingReservationSchemaError(readErrorCode(error), error.message)) {
+        console.error("[generationBilling] lookupReservationOwnerByProviderRequestId failed", {
+          providerRequestId,
+          message: error.message,
+        });
+      }
+      return null;
+    }
+    const ownerUserId = (data as { user_id?: unknown } | null)?.user_id;
+    return typeof ownerUserId === "string" && ownerUserId.trim().length ? ownerUserId : null;
+  } catch (error) {
+    console.error(
+      "[generationBilling] lookupReservationOwnerByProviderRequestId threw",
+      String(error)
+    );
+    return null;
+  }
+};
+
+const lookupLedgerOwnerByProviderRequestId = async (
+  providerRequestId: string
+): Promise<string | null> => {
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data, error } = await supabaseAdmin
+      .from("ai_credit_ledger")
+      .select("user_id")
+      .eq("source", "generation_charge")
+      .contains("metadata", { provider_request_id: providerRequestId })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      if (!isMissingLedgerSchemaError(readErrorCode(error), error.message)) {
+        console.error("[generationBilling] lookupLedgerOwnerByProviderRequestId failed", {
+          providerRequestId,
+          message: error.message,
+        });
+      }
+      return null;
+    }
+    const ownerUserId = (data as { user_id?: unknown } | null)?.user_id;
+    return typeof ownerUserId === "string" && ownerUserId.trim().length ? ownerUserId : null;
+  } catch (error) {
+    console.error("[generationBilling] lookupLedgerOwnerByProviderRequestId threw", String(error));
+    return null;
+  }
+};
+
+/**
+ * Resolves whether a provider request id is owned by the current user.
+ * "unknown" means ownership could not be proven from persisted reservation/ledger records.
+ */
+export const resolveProviderRequestOwnership = async ({
+  userId,
+  providerRequestId,
+}: {
+  userId: string;
+  providerRequestId: string;
+}): Promise<ProviderRequestOwnership> => {
+  const normalized = providerRequestId.trim();
+  if (!normalized) return "unknown";
+
+  const reservationOwner = await lookupReservationOwnerByProviderRequestId(normalized);
+  if (reservationOwner) {
+    return reservationOwner === userId ? "owned" : "forbidden";
+  }
+
+  const ledgerOwner = await lookupLedgerOwnerByProviderRequestId(normalized);
+  if (ledgerOwner) {
+    return ledgerOwner === userId ? "owned" : "forbidden";
+  }
+
+  return "unknown";
+};
+
 const attachProviderRequestToCharge = async ({
   userId,
   sourceRef,
@@ -772,8 +879,14 @@ export const chargeGenerationRequest = async ({
         return null;
       }
       if (reserveResult.message !== "missing_reservation_function") {
+        console.error("[generationBilling] reserve_generation_credits failed", {
+          modelId,
+          route: req.url ?? null,
+          sourceRef,
+          message: reserveResult.message ?? null,
+        });
         res.status(500).json({
-          error: reserveResult.message ?? "Unable to reserve credits for generation.",
+          error: GENERATION_BILLING_FAILURE_MESSAGE,
         });
         return null;
       }
@@ -858,7 +971,14 @@ export const chargeGenerationRequest = async ({
       res.status(409).json({ error: "Duplicate submit request id. Retry with a new request id." });
       return null;
     }
-    res.status(500).json({ error: debitError.message });
+    console.error("[generationBilling] direct debit failed", {
+      modelId,
+      route: req.url ?? null,
+      sourceRef,
+      code: readErrorCode(debitError),
+      message: debitError.message ?? null,
+    });
+    res.status(500).json({ error: GENERATION_BILLING_FAILURE_MESSAGE });
     return null;
   }
 

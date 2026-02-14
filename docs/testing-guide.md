@@ -10,6 +10,7 @@ Purpose: outline how to test the client-only ShortPulse experience.
   - `cd frontend && npm run test:coverage`
 - End-to-end tests (Playwright, when specs exist):
   - `cd frontend && npm run test:e2e`
+  - Character pipeline audit: `cd frontend && npm run test:e2e:character`
 - Full local validation:
   - `cd frontend && npm run validate`
 
@@ -28,6 +29,6 @@ Purpose: outline how to test the client-only ShortPulse experience.
 
 ## Gaps/TBD
 
-- E2E test specs are not yet populated for core user journeys.
-- CI currently enforces lint/unit tests/build; expand coverage targets as new tests are added.
+- CI currently enforces lint/unit tests/build; add Playwright execution once environment credentials and stable test data are provisioned.
+- Expand E2E coverage beyond character pipeline into media library, billing, and admin operations.
 - A repo-wide Prettier baseline pass is still pending before format checks are enforced in CI.

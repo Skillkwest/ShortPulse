@@ -113,10 +113,22 @@ const asText = (value: unknown): string | null =>
 const asStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 
+const extractDirectUrlFromRecord = (record: Record<string, unknown>): string | null =>
+  asText(record.url) ||
+  asText(record.download_url) ||
+  asText(record.video_url) ||
+  asText(record.image_url) ||
+  asText(record.file_url) ||
+  asText(record.media_url);
+
 const extractUrlObjects = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return value
-    .map((item) => asText(toRecord(item).url))
+    .map((item) => {
+      if (typeof item === "string") return asText(item);
+      const record = toRecord(item);
+      return extractDirectUrlFromRecord(record);
+    })
     .filter((url): url is string => Boolean(url));
 };
 
@@ -270,8 +282,25 @@ const collectFalCandidates = (status: unknown) => [
 export const extractFalUrls = (status: unknown): string[] => {
   const candidates = collectFalCandidates(status);
   for (const candidate of candidates) {
-    const images = extractUrlObjects(toRecord(candidate).images);
+    const candidateRecord = toRecord(candidate);
+    const images = extractUrlObjects(candidateRecord.images);
     if (images.length) return images;
+    const outputs = extractUrlObjects(candidateRecord.outputs);
+    if (outputs.length) return outputs;
+    const artifacts = extractUrlObjects(candidateRecord.artifacts);
+    if (artifacts.length) return artifacts;
+    const imageUrls = extractUrlObjects(candidateRecord.image_urls);
+    if (imageUrls.length) return imageUrls;
+    const resultUrls = extractUrlObjects(candidateRecord.result_urls ?? candidateRecord.resultUrls);
+    if (resultUrls.length) return resultUrls;
+    const imageUrl =
+      asText(candidateRecord.image) ||
+      asText(toRecord(candidateRecord.image).url) ||
+      asText(candidateRecord.image_url) ||
+      asText(candidateRecord.url) ||
+      asText(toRecord(toRecord(candidateRecord.assets).image).url) ||
+      asText(toRecord(toRecord(candidateRecord.assets).image).download_url);
+    if (imageUrl) return [imageUrl];
   }
   return [];
 };
@@ -280,10 +309,22 @@ const extractVideoUrlsFrom = (candidate: unknown): string[] => {
   const candidateRecord = toRecord(candidate);
   const videos = extractUrlObjects(candidateRecord.videos);
   if (videos.length) return videos;
+  const outputs = extractUrlObjects(candidateRecord.outputs);
+  if (outputs.length) return outputs;
+  const artifacts = extractUrlObjects(candidateRecord.artifacts);
+  if (artifacts.length) return artifacts;
+  const videoUrls = extractUrlObjects(candidateRecord.video_urls);
+  if (videoUrls.length) return videoUrls;
+  const resultUrls = extractUrlObjects(candidateRecord.result_urls ?? candidateRecord.resultUrls);
+  if (resultUrls.length) return resultUrls;
   const videoUrl =
+    asText(candidateRecord.video) ||
+    asText(candidateRecord.url) ||
     asText(toRecord(candidateRecord.video).url) ||
     asText(candidateRecord.video_url) ||
     asText(toRecord(toRecord(candidateRecord.assets).video).url) ||
+    asText(toRecord(toRecord(candidateRecord.assets).video).download_url) ||
+    asText(candidateRecord.file_url) ||
     asText(candidateRecord.download_url);
   return videoUrl ? [videoUrl] : [];
 };

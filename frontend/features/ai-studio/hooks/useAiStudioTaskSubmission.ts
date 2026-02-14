@@ -113,7 +113,12 @@ export const useAiStudioTaskSubmission = ({
     async (
       promptArg: string | null | undefined,
       imageInputs: string[],
-      options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null }
+      options?: {
+        modeOverride?: StudioMode;
+        selectedToolOverride?: ToolId | null;
+        displayPromptOverride?: string | null;
+        characterContextOverride?: StudioOutput["characterContext"];
+      }
     ) => {
       setUiError(null);
       setUiNotice(null);
@@ -121,13 +126,14 @@ export const useAiStudioTaskSubmission = ({
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
       const normalizedTool =
         effectiveTool === "kling" ? "video" : effectiveTool === "edit" ? "image" : effectiveTool;
-      const cleanedPrompt = (promptArg ?? prompt).trim();
+      const cleanedSubmissionPrompt = (promptArg ?? prompt).trim();
+      const cleanedDisplayPrompt = (options?.displayPromptOverride ?? promptArg ?? prompt).trim();
 
       if ((effectiveTool === "create" || effectiveTool === "text") && effectiveMode === "text") {
         setIsPromptGenerating(false);
         return;
       }
-      if (!cleanedPrompt) {
+      if (!cleanedSubmissionPrompt) {
         setUiError("Add a prompt to start a generation.");
         return;
       }
@@ -181,7 +187,7 @@ export const useAiStudioTaskSubmission = ({
 
       const nextOutput: StudioOutput = {
         id,
-        prompt: cleanedPrompt,
+        prompt: cleanedDisplayPrompt,
         mode: outputMode,
         aspect,
         model: modelLabel,
@@ -194,6 +200,7 @@ export const useAiStudioTaskSubmission = ({
         errorDetail: null,
         saveState: "idle",
         saveError: null,
+        characterContext: options?.characterContextOverride,
       };
 
       // Render the spinner placeholder immediately on generate click,
@@ -373,7 +380,7 @@ export const useAiStudioTaskSubmission = ({
           await handleVideoModelSubmission({
             id,
             finalModel,
-            cleanedPrompt,
+            cleanedPrompt: cleanedSubmissionPrompt,
             aspect,
             requestedDurationSeconds,
             requestedResolution,
@@ -402,7 +409,7 @@ export const useAiStudioTaskSubmission = ({
           await handleImageModelSubmission({
             id,
             finalModel,
-            cleanedPrompt,
+            cleanedPrompt: cleanedSubmissionPrompt,
             aspect,
             requestedDurationSeconds,
             requestedResolution,
@@ -420,7 +427,7 @@ export const useAiStudioTaskSubmission = ({
         await handleDefaultModelSubmission({
           id,
           finalModel,
-          cleanedPrompt,
+          cleanedPrompt: cleanedSubmissionPrompt,
           aspect,
           requestedDurationSeconds,
           requestedResolution,

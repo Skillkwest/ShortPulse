@@ -12,6 +12,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
 - `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.
 - `media-library-move-tabs-plan.md`: implementation plan for modal Move action and durable tab-to-tab media transfers.
+- `ai-studio-character-mode-injection-plan.md`: implementation plan for injecting Character Sheet references + hidden character description into AI Studio Create generation payloads.
 
 ## Maintenance
 - Keep plans actionable and current.

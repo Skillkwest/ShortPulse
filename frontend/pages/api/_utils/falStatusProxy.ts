@@ -6,6 +6,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
 import {
   captureSucceededGenerationByProviderRequest,
+  resolveProviderRequestOwnership,
   settleFailedGenerationByProviderRequest,
 } from "./generationBilling";
 
@@ -41,8 +42,15 @@ const toRecord = (value: unknown): Record<string, unknown> =>
 const hasUrlArray = (value: unknown): boolean =>
   Array.isArray(value) &&
   value.some((item) => {
+    if (typeof item === "string") return Boolean(asString(item));
     const record = toRecord(item);
-    return Boolean(asString(record.url));
+    return Boolean(
+      asString(record.url) ||
+      asString(record.download_url) ||
+      asString(record.video_url) ||
+      asString(record.image_url) ||
+      asString(record.file_url)
+    );
   });
 
 const normalizeStatus = (value: unknown): string | null => {
@@ -90,19 +98,59 @@ const hasMediaPayload = (payload: JsonObject): boolean => {
   for (const candidate of candidates) {
     if (hasUrlArray(candidate.images)) return true;
     if (hasUrlArray(candidate.videos)) return true;
-    const urls = candidate.resultUrls ?? toRecord(candidate.info).result_urls;
-    if (Array.isArray(urls) && urls.length > 0) return true;
+    if (hasUrlArray(candidate.outputs)) return true;
+    if (hasUrlArray(candidate.artifacts)) return true;
+    const urls =
+      candidate.resultUrls ??
+      candidate.result_urls ??
+      candidate.image_urls ??
+      candidate.video_urls ??
+      toRecord(candidate.info).result_urls;
+    if (hasUrlArray(urls)) return true;
     const mediaUrl =
+      asString(candidate.url) ||
+      asString(candidate.video) ||
+      asString(candidate.image) ||
       asString(toRecord(candidate.video).url) ||
       asString(toRecord(candidate.image).url) ||
       asString(candidate.video_url) ||
       asString(candidate.image_url) ||
       asString(toRecord(toRecord(candidate.assets).video).url) ||
+      asString(toRecord(toRecord(candidate.assets).image).url) ||
+      asString(toRecord(toRecord(candidate.assets).video).download_url) ||
+      asString(toRecord(toRecord(candidate.assets).image).download_url) ||
+      asString(candidate.file_url) ||
+      asString(candidate.media_url) ||
       asString(candidate.download_url);
     if (mediaUrl) return true;
   }
 
   return false;
+};
+
+const extractResponseUrl = (payload: JsonObject): string | null => {
+  const data = toRecord(payload.data);
+  const output = toRecord(payload.output);
+  const result = toRecord(payload.result);
+  const response = toRecord(payload.response);
+  const candidates = [
+    payload,
+    data,
+    output,
+    result,
+    response,
+    toRecord(data.result),
+    toRecord(result.data),
+    toRecord(response.result),
+  ];
+  for (const candidate of candidates) {
+    const responseUrl =
+      asString(candidate.response_url) ||
+      asString(candidate.responseUrl) ||
+      asString(toRecord(candidate.response).url);
+    if (responseUrl) return responseUrl;
+  }
+  return null;
 };
 
 const buildErrorPayload = ({
@@ -196,6 +244,13 @@ export const createFalStatusHandler = ({
     if (!requestId) {
       return res.status(400).json({ error: "requestId is required" });
     }
+    const ownership = await resolveProviderRequestOwnership({
+      userId: user.id,
+      providerRequestId: requestId,
+    });
+    if (ownership !== "owned") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -206,7 +261,40 @@ export const createFalStatusHandler = ({
       let statusData: JsonReadResult | null = null;
       let resolvedQueueBaseUrl: string | null = null;
 
-      for (const baseUrl of queueBaseUrls) {
+      const captureAndRespondSuccess = async ({
+        payload,
+        payloadStatus,
+      }: {
+        payload: JsonObject;
+        payloadStatus: string;
+      }) => {
+        const captureResult = await captureSucceededGenerationByProviderRequest({
+          userId: user.id,
+          providerRequestId: requestId,
+          reason: "Generation charge captured after successful Fal output.",
+          routeLabel,
+          detail: {
+            stage: "result",
+            payload_status: payloadStatus,
+          },
+        });
+        if (!captureResult.settled && captureResult.note !== "charge_not_found") {
+          console.error("[falStatusProxy] capture did not settle", {
+            requestId,
+            routeLabel,
+            note: captureResult.note,
+          });
+        }
+
+        return res.status(200).json({
+          status: payloadStatus,
+          state: payloadStatus,
+          request_id: requestId,
+          ...payload,
+        });
+      };
+
+      for (const [index, baseUrl] of queueBaseUrls.entries()) {
         const response = await fetch(`${baseUrl}/${requestId}/status`, {
           method: "GET",
           headers: { Authorization: `Key ${apiKey}` },
@@ -225,6 +313,21 @@ export const createFalStatusHandler = ({
         statusResp = response;
         statusData = data;
         resolvedQueueBaseUrl = baseUrl;
+        const hasMoreBaseUrls = index < queueBaseUrls.length - 1;
+        const candidateStatus =
+          normalizeStatus(data.json.status) ?? normalizeStatus(toRecord(data.json).state);
+        const isCandidateTerminal = Boolean(
+          candidateStatus &&
+          (completedStatuses.has(candidateStatus) || failedStatuses.has(candidateStatus))
+        );
+        const hasCandidateResponseUrl = Boolean(extractResponseUrl(data.json));
+
+        // Some Fal aliases lag behind others. When this base is still non-terminal and
+        // has no response URL yet, keep probing alternate bases before settling.
+        if (hasMoreBaseUrls && !isCandidateTerminal && !hasCandidateResponseUrl) {
+          continue;
+        }
+
         break;
       }
 
@@ -241,6 +344,11 @@ export const createFalStatusHandler = ({
       if (!resolvedQueueBaseUrl) {
         resolvedQueueBaseUrl = queueBaseUrls[0] ?? null;
       }
+
+      const orderedResultBases = [
+        resolvedQueueBaseUrl,
+        ...queueBaseUrls.filter((baseUrl) => baseUrl !== resolvedQueueBaseUrl),
+      ].filter((baseUrl): baseUrl is string => Boolean(baseUrl));
 
       if (!statusData.isJson) {
         await settleFailure({
@@ -286,7 +394,8 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const normalizedStatus = normalizeStatus(statusData.json.status);
+      const normalizedStatus =
+        normalizeStatus(statusData.json.status) ?? normalizeStatus(toRecord(statusData.json).state);
       if (normalizedStatus && failedStatuses.has(normalizedStatus)) {
         await settleFailure({
           userId: user.id,
@@ -340,16 +449,73 @@ export const createFalStatusHandler = ({
 
       const isComplete = Boolean(normalizedStatus && completedStatuses.has(normalizedStatus));
       if (!isComplete) {
+        const responseUrl = extractResponseUrl(statusData.json);
+        if (responseUrl) {
+          const responseProbe = await fetch(responseUrl, {
+            method: "GET",
+            headers: { Authorization: `Key ${apiKey}` },
+            signal: controller.signal,
+          });
+          const responseProbeData = await readJsonSafe(responseProbe);
+          if (
+            responseProbe.ok &&
+            responseProbeData.isJson &&
+            hasMediaPayload(responseProbeData.json)
+          ) {
+            return captureAndRespondSuccess({
+              payload: responseProbeData.json,
+              payloadStatus: "completed",
+            });
+          }
+        }
+
+        // Probe direct result endpoints as a fallback when status is lagging.
+        // Fal occasionally materializes result payload before status transitions.
+        for (const baseUrl of orderedResultBases) {
+          const probeResponse = await fetch(`${baseUrl}/${requestId}`, {
+            method: "GET",
+            headers: { Authorization: `Key ${apiKey}` },
+            signal: controller.signal,
+          });
+          const probeData = await readJsonSafe(probeResponse);
+          if (!probeResponse.ok || !probeData.isJson || !hasMediaPayload(probeData.json)) {
+            continue;
+          }
+          return captureAndRespondSuccess({
+            payload: probeData.json,
+            payloadStatus: "completed",
+          });
+        }
         return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
       }
 
-      const orderedResultBases = [
-        resolvedQueueBaseUrl,
-        ...queueBaseUrls.filter((baseUrl) => baseUrl !== resolvedQueueBaseUrl),
-      ].filter((baseUrl): baseUrl is string => Boolean(baseUrl));
-
       let resultResp: Response | null = null;
       let resultData: JsonReadResult | null = null;
+      const responseUrl = extractResponseUrl(statusData.json);
+      if (responseUrl) {
+        const responseProbe = await fetch(responseUrl, {
+          method: "GET",
+          headers: { Authorization: `Key ${apiKey}` },
+          signal: controller.signal,
+        });
+        const responseProbeData = await readJsonSafe(responseProbe);
+        if (
+          responseProbe.ok &&
+          responseProbeData.isJson &&
+          hasMediaPayload(responseProbeData.json)
+        ) {
+          const probeStatus =
+            normalizeStatus(responseProbeData.json.status) ??
+            normalizeStatus(toRecord(responseProbeData.json).state) ??
+            normalizedStatus ??
+            "completed";
+          return captureAndRespondSuccess({
+            payload: responseProbeData.json,
+            payloadStatus: probeStatus,
+          });
+        }
+      }
+
       for (const baseUrl of orderedResultBases) {
         const response = await fetch(`${baseUrl}/${requestId}`, {
           method: "GET",
@@ -361,6 +527,22 @@ export const createFalStatusHandler = ({
           !data.isJson || response.status === 404 || response.status === 405;
 
         if (canRetryOnAlternateBase) {
+          resultResp = response;
+          resultData = data;
+          continue;
+        }
+
+        const candidateStatus =
+          normalizeStatus(data.json.status) ?? normalizeStatus(toRecord(data.json).state);
+        const candidateHasError =
+          candidateStatus === "error" ||
+          candidateStatus === "failed" ||
+          Boolean(asString(data.json.error));
+        const candidateHasMedia = hasMediaPayload(data.json);
+
+        // Probe alternates before declaring no-media failure. Queue aliases can disagree
+        // transiently, and another base often has the completed payload.
+        if (!candidateHasError && !candidateHasMedia) {
           resultResp = response;
           resultData = data;
           continue;
@@ -479,29 +661,9 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const captureResult = await captureSucceededGenerationByProviderRequest({
-        userId: user.id,
-        providerRequestId: requestId,
-        reason: "Generation charge captured after successful Fal output.",
-        routeLabel,
-        detail: {
-          stage: "result",
-          payload_status: resultStatus ?? normalizedStatus ?? "completed",
-        },
-      });
-      if (!captureResult.settled && captureResult.note !== "charge_not_found") {
-        console.error("[falStatusProxy] capture did not settle", {
-          requestId,
-          routeLabel,
-          note: captureResult.note,
-        });
-      }
-
-      return res.status(200).json({
-        status: normalizedStatus ?? "completed",
-        state: normalizedStatus ?? "completed",
-        request_id: requestId,
-        ...resultData.json,
+      return captureAndRespondSuccess({
+        payload: resultData.json,
+        payloadStatus: resultStatus ?? normalizedStatus ?? "completed",
       });
     } catch (error) {
       await settleFailure({

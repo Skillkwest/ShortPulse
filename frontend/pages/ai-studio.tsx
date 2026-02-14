@@ -44,15 +44,20 @@ import {
   shouldApplyAgentPromptToSharedPrompt,
 } from "../features/ai-studio/logic/promptTargeting";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
-import { listCharacterManagerCharacters } from "../features/character-manager/logic/characterManagerPersistence";
-import { getHighestImageResolutionForModel } from "../features/ai-studio/logic/imageResolution";
+import {
+  listCharacterManagerCharacters,
+  loadCharacterManagerDraftByCharacterId,
+} from "../features/character-manager/logic/characterManagerPersistence";
+import {
+  composeCharacterModePrompt,
+  mergeCharacterAndUserReferences,
+  resolveCharacterSheetReferenceUrls,
+} from "../features/ai-studio/logic/characterModePayload";
 
 const MAX_AGENT_ATTACHMENTS = 10;
 const MAX_AGENT_IMAGE_ATTACHMENTS = 3;
 const CHARACTER_MODE_BACKGROUND_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/edit";
-const CHARACTER_MODE_FORCED_IMAGE_RESOLUTION = getHighestImageResolutionForModel(
-  CHARACTER_MODE_BACKGROUND_MODEL_ID
-);
+const CHARACTER_MODE_BUNDLE_STALE_AFTER_MS = 45 * 60 * 1000;
 
 const attachmentSignature = (attachment: AgentAttachment) =>
   attachment.referenceId
@@ -94,6 +99,21 @@ type CharacterSelectOption = {
   profileImageUrl: string | null;
 };
 
+type CharacterModeInjectionBundle = {
+  characterId: string;
+  characterDescription: string;
+  sheetReferenceUrls: string[];
+  loadedAtMs: number;
+};
+
+type CharacterModeFallbackCode =
+  | "no_character_selected"
+  | "bundle_loading"
+  | "bundle_unavailable"
+  | "no_description_or_references"
+  | "no_description"
+  | "no_references";
+
 export default function AiStudioPage() {
   const { balanceCents, balanceLoading, refreshBalance } = useCredits();
   const balanceCredits = useMemo(() => {
@@ -104,7 +124,10 @@ export default function AiStudioPage() {
   const [characterOptions, setCharacterOptions] = useState<CharacterSelectOption[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const [isCharacterOptionsLoading, setIsCharacterOptionsLoading] = useState(true);
+  const [isCharacterBundleLoading, setIsCharacterBundleLoading] = useState(false);
   const [isCharacterModeEnabled, setIsCharacterModeEnabled] = useState(true);
+  const [characterModeInjectionBundle, setCharacterModeInjectionBundle] =
+    useState<CharacterModeInjectionBundle | null>(null);
   const optimisticDebitTotal = useMemo(
     () => optimisticDebitEntries.reduce((sum, entry) => sum + entry.credits, 0),
     [optimisticDebitEntries]
@@ -269,7 +292,6 @@ export default function AiStudioPage() {
   const [isGenerateClickLocked, setIsGenerateClickLocked] = useState(false);
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
   const previousCreateModelBeforeCharacterModeRef = useRef<string | null>(null);
-  const previousCreateImageResolutionBeforeCharacterModeRef = useRef<string | null>(null);
   const latestAssistantMessage = useMemo(
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
     [agentMessages]
@@ -287,6 +309,27 @@ export default function AiStudioPage() {
   );
   const agentPrimarySource = resolvePromptSourceBadge(promptOrigin);
   const stagedAgentPrompt = getStagedAgentPrompt(promptOrigin, latestAgentPrompt);
+  const trackCharacterModeEvent = useCallback((message: string, data?: Record<string, unknown>) => {
+    addBreadcrumb({
+      type: "ui",
+      message,
+      data,
+    });
+  }, []);
+  const toCharacterModeInjectionBundle = useCallback(
+    (
+      snapshot: Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>
+    ): CharacterModeInjectionBundle => ({
+      characterId: snapshot.characterId,
+      characterDescription: snapshot.characterDescription,
+      sheetReferenceUrls: resolveCharacterSheetReferenceUrls(
+        snapshot.characterSheetAssignments,
+        snapshot.slots
+      ),
+      loadedAtMs: Date.now(),
+    }),
+    []
+  );
 
   useEffect(() => {
     let active = true;
@@ -328,6 +371,37 @@ export default function AiStudioPage() {
   }, [setUiError]);
 
   useEffect(() => {
+    let active = true;
+    if (!selectedCharacterId) {
+      setCharacterModeInjectionBundle(null);
+      setIsCharacterBundleLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setIsCharacterBundleLoading(true);
+    setCharacterModeInjectionBundle(null);
+    void loadCharacterManagerDraftByCharacterId(selectedCharacterId)
+      .then((snapshot) => {
+        if (!active) return;
+        setCharacterModeInjectionBundle(toCharacterModeInjectionBundle(snapshot));
+      })
+      .catch(() => {
+        if (!active) return;
+        setCharacterModeInjectionBundle(null);
+      })
+      .finally(() => {
+        if (!active) return;
+        setIsCharacterBundleLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedCharacterId, toCharacterModeInjectionBundle]);
+
+  useEffect(() => {
     const characterModeAppliesToCreate =
       isCharacterModeEnabled && (selectedTool === "create" || selectedTool === "text");
 
@@ -342,16 +416,6 @@ export default function AiStudioPage() {
       if (model !== CHARACTER_MODE_BACKGROUND_MODEL_ID) {
         setModel(CHARACTER_MODE_BACKGROUND_MODEL_ID);
       }
-      if (
-        imageResolution &&
-        imageResolution !== CHARACTER_MODE_FORCED_IMAGE_RESOLUTION &&
-        !previousCreateImageResolutionBeforeCharacterModeRef.current
-      ) {
-        previousCreateImageResolutionBeforeCharacterModeRef.current = imageResolution;
-      }
-      if (imageResolution !== CHARACTER_MODE_FORCED_IMAGE_RESOLUTION) {
-        setImageResolution(CHARACTER_MODE_FORCED_IMAGE_RESOLUTION);
-      }
       return;
     }
 
@@ -364,16 +428,150 @@ export default function AiStudioPage() {
     ) {
       setModel(previousModel);
     }
-    const previousImageResolution = previousCreateImageResolutionBeforeCharacterModeRef.current;
-    previousCreateImageResolutionBeforeCharacterModeRef.current = null;
-    if (
-      imageResolution === CHARACTER_MODE_FORCED_IMAGE_RESOLUTION &&
-      previousImageResolution &&
-      previousImageResolution !== CHARACTER_MODE_FORCED_IMAGE_RESOLUTION
-    ) {
-      setImageResolution(previousImageResolution);
-    }
-  }, [imageResolution, isCharacterModeEnabled, model, selectedTool, setImageResolution, setModel]);
+  }, [isCharacterModeEnabled, model, selectedTool, setModel]);
+
+  const resolveDefaultPromptForTool = useCallback(
+    (tool: ToolId | null) => {
+      if (tool === "video" || tool === "kling") return videoReferenceText;
+      if (tool === "image" || tool === "edit") return editReferenceText;
+      return prompt;
+    },
+    [editReferenceText, prompt, videoReferenceText]
+  );
+
+  const refreshCharacterModeInjectionBundleForSubmission = useCallback(
+    async (tool: ToolId | null): Promise<CharacterModeInjectionBundle | null> => {
+      const isCreateWorkflowTool = tool === "create" || tool === "text";
+      if (!isCharacterModeEnabled || !isCreateWorkflowTool) return characterModeInjectionBundle;
+      if (!selectedCharacterId) return null;
+
+      const currentBundle = characterModeInjectionBundle;
+      const isMissingBundleForSelectedCharacter =
+        !currentBundle || currentBundle.characterId !== selectedCharacterId;
+      const bundleAgeMs = currentBundle ? Date.now() - currentBundle.loadedAtMs : 0;
+      const isBundleStale = currentBundle
+        ? bundleAgeMs >= CHARACTER_MODE_BUNDLE_STALE_AFTER_MS
+        : true;
+      if (!isMissingBundleForSelectedCharacter && !isBundleStale) {
+        return currentBundle;
+      }
+
+      setIsCharacterBundleLoading(true);
+      trackCharacterModeEvent("character_mode_bundle_refresh_before_submit", {
+        reason: isMissingBundleForSelectedCharacter ? "missing_bundle" : "stale_signed_urls",
+        selected_character_id: selectedCharacterId,
+        bundle_age_ms: currentBundle ? bundleAgeMs : null,
+      });
+      try {
+        const snapshot = await loadCharacterManagerDraftByCharacterId(selectedCharacterId);
+        const refreshedBundle = toCharacterModeInjectionBundle(snapshot);
+        setCharacterModeInjectionBundle(refreshedBundle);
+        return refreshedBundle;
+      } catch (error) {
+        trackCharacterModeEvent("character_mode_bundle_refresh_failed", {
+          selected_character_id: selectedCharacterId,
+          error:
+            error instanceof Error && error.message.trim().length ? error.message : "unknown_error",
+        });
+        return currentBundle?.characterId === selectedCharacterId ? currentBundle : null;
+      } finally {
+        setIsCharacterBundleLoading(false);
+      }
+    },
+    [
+      characterModeInjectionBundle,
+      isCharacterModeEnabled,
+      selectedCharacterId,
+      toCharacterModeInjectionBundle,
+      trackCharacterModeEvent,
+    ]
+  );
+
+  const resolveCharacterModeSubmissionOverrides = useCallback(
+    (
+      userPrompt: string,
+      tool: ToolId | null,
+      bundleOverride?: CharacterModeInjectionBundle | null
+    ): {
+      submissionPromptOverride: string;
+      displayPromptOverride: string;
+      referenceInputsOverride: string[];
+      characterContextOverride?: StudioOutput["characterContext"];
+      notice: string | null;
+      fallbackCode: CharacterModeFallbackCode | null;
+      characterReferenceCount: number;
+      hasCharacterDescription: boolean;
+    } | null => {
+      const isCreateWorkflowTool = tool === "create" || tool === "text";
+      if (!isCharacterModeEnabled || !isCreateWorkflowTool) return null;
+
+      const bundle = bundleOverride ?? characterModeInjectionBundle;
+      const characterDescription = bundle?.characterDescription ?? "";
+      const characterReferences = bundle?.sheetReferenceUrls ?? [];
+      const submissionPrompt = composeCharacterModePrompt({
+        characterDescription,
+        userPrompt,
+      });
+      const referenceInputs = mergeCharacterAndUserReferences(characterReferences, []);
+      const hasCharacterDescription = Boolean(characterDescription.trim());
+      const selectedCharacterOption =
+        characterOptions.find((option) => option.id === selectedCharacterId) ?? null;
+      const hasCharacterInjection = hasCharacterDescription || referenceInputs.length > 0;
+      const characterContextOverride = hasCharacterInjection
+        ? {
+            applied: true,
+            characterId: bundle?.characterId ?? selectedCharacterId,
+            characterName: selectedCharacterOption?.name ?? null,
+            characterProfileImageUrl: selectedCharacterOption?.profileImageUrl ?? null,
+          }
+        : undefined;
+
+      let notice: string | null = null;
+      let fallbackCode: CharacterModeFallbackCode | null = null;
+      if (!selectedCharacterId) {
+        notice =
+          "Character Mode is enabled with no character selected. Generated without character injection.";
+        fallbackCode = "no_character_selected";
+      } else if (isCharacterBundleLoading) {
+        notice = "Character Mode context is still loading. Generated without character injection.";
+        fallbackCode = "bundle_loading";
+      } else if (!bundle) {
+        notice =
+          "Selected character context could not be loaded. Generated without character injection.";
+        fallbackCode = "bundle_unavailable";
+      } else if (!hasCharacterDescription && referenceInputs.length === 0) {
+        notice =
+          "Selected character has no description or Character Sheet references. Generated without character injection.";
+        fallbackCode = "no_description_or_references";
+      } else if (!hasCharacterDescription) {
+        notice =
+          "Selected character has no description. Generated using Character Sheet references only.";
+        fallbackCode = "no_description";
+      } else if (referenceInputs.length === 0) {
+        notice =
+          "Selected character has no Character Sheet references. Generated using description only.";
+        fallbackCode = "no_references";
+      }
+
+      return {
+        submissionPromptOverride: submissionPrompt || userPrompt,
+        displayPromptOverride: userPrompt,
+        referenceInputsOverride: referenceInputs,
+        characterContextOverride,
+        notice,
+        fallbackCode,
+        characterReferenceCount: referenceInputs.length,
+        hasCharacterDescription,
+      };
+    },
+    [
+      characterModeInjectionBundle,
+      characterOptions,
+      isCharacterBundleLoading,
+      isCharacterModeEnabled,
+      selectedCharacterId,
+    ]
+  );
 
   const trackAgentUiEvent = useCallback((message: string, data?: Record<string, unknown>) => {
     addBreadcrumb({
@@ -382,6 +580,26 @@ export default function AiStudioPage() {
       data,
     });
   }, []);
+  const trackCharacterModeFallback = useCallback(
+    (
+      overrides: {
+        fallbackCode: CharacterModeFallbackCode | null;
+        characterReferenceCount: number;
+        hasCharacterDescription: boolean;
+      } | null,
+      tool: ToolId | null
+    ) => {
+      if (!overrides?.fallbackCode) return;
+      trackCharacterModeEvent("character_mode_injection_fallback", {
+        fallback_code: overrides.fallbackCode,
+        selected_character_id: selectedCharacterId || null,
+        tool: tool ?? null,
+        has_character_description: overrides.hasCharacterDescription,
+        character_reference_count: overrides.characterReferenceCount,
+      });
+    },
+    [selectedCharacterId, trackCharacterModeEvent]
+  );
   const handleOpenModelModal = (
     anchorId: string,
     target: HTMLElement,
@@ -1637,21 +1855,30 @@ export default function AiStudioPage() {
       }
     }
 
-    const defaultPromptForTool =
-      effectiveTool === "image" ||
-      effectiveTool === "edit" ||
-      effectiveTool === "video" ||
-      effectiveTool === "kling"
-        ? effectiveTool === "video" || effectiveTool === "kling"
-          ? videoReferenceText
-          : editReferenceText
-        : prompt;
+    const defaultPromptForTool = resolveDefaultPromptForTool(effectiveTool);
     const promptToUse = typeof promptOverride === "string" ? promptOverride : defaultPromptForTool;
+    const characterModeBundleForSubmit =
+      await refreshCharacterModeInjectionBundleForSubmission(effectiveTool);
+    const characterModeOverrides = resolveCharacterModeSubmissionOverrides(
+      promptToUse,
+      effectiveTool,
+      characterModeBundleForSubmit
+    );
+    trackCharacterModeFallback(characterModeOverrides, effectiveTool);
     enqueueOptimisticDebit(requiredCredits);
     generateOutput(promptToUse, {
       modeOverride: effectiveMode,
       selectedToolOverride: effectiveTool,
+      submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
+      displayPromptOverride: characterModeOverrides?.displayPromptOverride,
+      referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
+      ...(characterModeOverrides?.characterContextOverride
+        ? { characterContextOverride: characterModeOverrides.characterContextOverride }
+        : {}),
     });
+    if (characterModeOverrides?.notice) {
+      setUiNotice(characterModeOverrides.notice);
+    }
   };
 
   const handlePrimarySubmit = () => {
@@ -1686,8 +1913,27 @@ export default function AiStudioPage() {
         return;
       }
     }
+    const promptToUse = resolveDefaultPromptForTool(selectedTool);
+    const characterModeBundleForSubmit =
+      await refreshCharacterModeInjectionBundleForSubmission(selectedTool);
+    const characterModeOverrides = resolveCharacterModeSubmissionOverrides(
+      promptToUse,
+      selectedTool,
+      characterModeBundleForSubmit
+    );
+    trackCharacterModeFallback(characterModeOverrides, selectedTool);
     enqueueOptimisticDebit(currentCostCredits);
-    regenerateOutput();
+    regenerateOutput({
+      submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
+      displayPromptOverride: characterModeOverrides?.displayPromptOverride,
+      referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
+      ...(characterModeOverrides?.characterContextOverride
+        ? { characterContextOverride: characterModeOverrides.characterContextOverride }
+        : {}),
+    });
+    if (characterModeOverrides?.notice) {
+      setUiNotice(characterModeOverrides.notice);
+    }
   };
 
   const handleImageRegenerateWithDebit = async () => {
@@ -1708,8 +1954,27 @@ export default function AiStudioPage() {
         return;
       }
     }
+    const promptToUse = resolveDefaultPromptForTool(selectedTool);
+    const characterModeBundleForSubmit =
+      await refreshCharacterModeInjectionBundleForSubmission(selectedTool);
+    const characterModeOverrides = resolveCharacterModeSubmissionOverrides(
+      promptToUse,
+      selectedTool,
+      characterModeBundleForSubmit
+    );
+    trackCharacterModeFallback(characterModeOverrides, selectedTool);
     enqueueOptimisticDebit(currentCostCredits);
-    regenerateOutput();
+    regenerateOutput({
+      submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
+      displayPromptOverride: characterModeOverrides?.displayPromptOverride,
+      referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
+      ...(characterModeOverrides?.characterContextOverride
+        ? { characterContextOverride: characterModeOverrides.characterContextOverride }
+        : {}),
+    });
+    if (characterModeOverrides?.notice) {
+      setUiNotice(characterModeOverrides.notice);
+    }
   };
 
   const propertiesText = {

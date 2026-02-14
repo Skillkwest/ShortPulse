@@ -19,7 +19,6 @@ type BalanceSnapshot = {
 
 type BalanceQueryAttempt = {
   select: string;
-  scoped: boolean;
 };
 
 let preferredBalanceQueryAttempt: BalanceQueryAttempt | null = null;
@@ -49,25 +48,14 @@ const fetchUserId = async () => {
   return data.user.id;
 };
 
-const queryBalanceRow = async ({
-  userId,
-  select,
-  scoped,
-}: {
-  userId: string;
-  select: string;
-  scoped: boolean;
-}) => {
+const queryBalanceRow = async ({ userId, select }: { userId: string; select: string }) => {
   const supabase = ensureSupabaseClient();
-  if (scoped) {
-    return supabase
-      .from("ai_credit_balance")
-      .select(select)
-      .eq("user_id", userId)
-      .limit(1)
-      .maybeSingle();
-  }
-  return supabase.from("ai_credit_balance").select(select).limit(1).maybeSingle();
+  return supabase
+    .from("ai_credit_balance")
+    .select(select)
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
 };
 
 const fetchBalanceFromTable = async (userId: string): Promise<BalanceSnapshot | null> => {
@@ -76,22 +64,14 @@ const fetchBalanceFromTable = async (userId: string): Promise<BalanceSnapshot | 
   }
 
   const attempts: BalanceQueryAttempt[] = [
-    { select: "balance_cents, updated_at", scoped: true },
-    { select: "balance_cents", scoped: true },
-    { select: "balance_cents, updated_at", scoped: false },
-    { select: "balance_cents", scoped: false },
+    { select: "balance_cents, updated_at" },
+    { select: "balance_cents" },
   ];
 
   const orderedAttempts = preferredBalanceQueryAttempt
     ? [
         preferredBalanceQueryAttempt,
-        ...attempts.filter(
-          (attempt) =>
-            !(
-              attempt.select === preferredBalanceQueryAttempt?.select &&
-              attempt.scoped === preferredBalanceQueryAttempt?.scoped
-            )
-        ),
+        ...attempts.filter((attempt) => attempt.select !== preferredBalanceQueryAttempt?.select),
       ]
     : attempts;
 
@@ -101,7 +81,6 @@ const fetchBalanceFromTable = async (userId: string): Promise<BalanceSnapshot | 
     const { data, error } = await queryBalanceRow({
       userId,
       select: attempt.select,
-      scoped: attempt.scoped,
     });
     if (error) {
       sawSchemaCompatibilityError =

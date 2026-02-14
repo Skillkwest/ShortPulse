@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateVeoFirstLastPayload } from "../veo-first-last-frame-submit";
+import { validateVeoFirstLastPayload } from "../../pages/api/fal/veo-first-last-frame-submit";
 
 describe("validateVeoFirstLastPayload", () => {
   it("accepts a valid first/last frame payload", () => {

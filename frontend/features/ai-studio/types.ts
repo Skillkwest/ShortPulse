@@ -17,6 +17,13 @@ export type PromptTemplate = {
   text: string;
 };
 
+export type StudioOutputCharacterContext = {
+  applied: boolean;
+  characterId?: string | null;
+  characterName?: string | null;
+  characterProfileImageUrl?: string | null;
+};
+
 export type StudioOutput = {
   id: string;
   prompt: string;
@@ -40,6 +47,7 @@ export type StudioOutput = {
   resultUrls?: string[];
   previewUrl?: string;
   previewText?: string;
+  characterContext?: StudioOutputCharacterContext;
 };
 
 export type ToolId =

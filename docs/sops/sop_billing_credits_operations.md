@@ -12,7 +12,9 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Billing bootstrap schema: `sql/create_billing_credit_tables.sql`.
 - Pricing catalog updates: `sql/update_billing_pricing_catalog_20260210.sql`.
 - Legacy-to-v2 alignment migration: `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`.
+- Billing/RLS audit helper: `sql/audit_billing_credit_rls.sql`.
 - Reservation/capture migration: `sql/migrations/002_add_generation_credit_reservations.sql`.
+- Reservation RPC ambiguity fix: `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`.
 - Server debit helper: `frontend/pages/api/_utils/generationBilling.ts`.
 - Fal status settlement helper: `frontend/pages/api/_utils/falStatusProxy.ts`.
 - Ledger compatibility insert helper: `frontend/pages/api/_utils/creditLedger.ts`.
@@ -29,11 +31,16 @@ The API currently supports both shapes during rollout by falling back to `ref_id
 
 ## Migration runbook (required)
 1. Run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` in Supabase SQL editor.
-2. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
-3. Confirm relation type for `ai_credit_balance`:
+2. Run `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql` in Supabase SQL editor.
+3. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
+4. Confirm relation type for `ai_credit_balance`:
    - Table (`relkind = 'r'`/`'p'`): trigger-based balance sync remains enabled.
    - View (`relkind = 'v'`): migration skips incompatible RLS/trigger steps by design.
-4. Verify admin credit adjustment in `/admin` succeeds.
+5. Verify admin credit adjustment in `/admin` succeeds.
+6. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
+7. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
+   - `cd frontend && npm run test:e2e:character` (with local app server running)
+   - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
 
 Verification SQL:
 ```sql
@@ -67,6 +74,8 @@ Safety checks:
 - Fal generation submit endpoints reserve credits server-side before provider submission.
 - Submit rejection/transport failure auto-releases reservation (no debit posted).
 - Successful submit records `provider_request_id` on the reservation/charge context.
+- KEI submit routes also persist `taskId` as `provider_request_id` on the charge context for ownership checks during status polling.
+- Status polling denies requests unless provider request ownership resolves as `owned` for the caller.
 - Fal status routes settle generation outcomes idempotently by `provider_request_id`:
   - Success with usable media: capture reservation into `generation_charge` ledger debit.
   - Failed/error/content-policy/malformed output: release reservation (no debit posted).

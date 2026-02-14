@@ -15,7 +15,7 @@ This captures the “Week 1 foundation” work we just completed plus the remain
 ## Backlog for later weeks (from the original audit plan)
 1. **Formatter baseline sweep.** Run Prettier across the repo, then re-enable `npm run format:check` in CI and add it to `docs/local-development.md` as a required validation once it’s affordable.
 2. **Dependency upgrades.** Resolve the remaining `npm audit` findings by upgrading `next`/`eslint-config-next` (and their `glob`/`lodash` chains) or applying targeted patches.
-3. **Playwright E2E** for auth flow, AI Studio generation, media library, billing, and admin dashboards (`test:e2e`).
+3. **Playwright E2E expansion.** Baseline character pipeline audit exists at `frontend/tests/e2e/character-pipeline.audit.js`; expand to media library, billing, and admin dashboards (`test:e2e`).
 4. **Monitoring enhancement.** `docs/monitoring.md` exists now; next step is wiring external monitoring (e.g., Sentry) while keeping custom client logging as complementary telemetry.
 5. **Disaster recovery & performance docs.** Baseline docs now exist (`docs/disaster-recovery.md`, `docs/performance.md`); next step is to expand them with environment-specific drills and SLAs.
 6. **Agent skills.** Implement `/skills/commit-with-tests`, `/skills/deploy`, `/skills/security-scan`, `/skills/db-migrate`, plus the test-generation, API doc, security audit, and migration validator agents described in the plan.

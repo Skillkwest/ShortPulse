@@ -140,7 +140,7 @@ export default function DashboardPage() {
               .from("billing_plans")
               .select("id, display_name, monthly_price_cents, monthly_credits_cents, is_active")
               .eq("is_active", true),
-            supabase.from("media_files").select("file_size"),
+            supabase.from("media_files").select("file_size").eq("user_id", user.id),
           ]);
 
         const billingPlanId =

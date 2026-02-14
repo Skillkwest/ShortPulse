@@ -51,6 +51,12 @@ type KlingElement = {
   referenceImageUrls: string;
   videoUrl: string;
 };
+type GenerateSubmissionOverrides = {
+  submissionPromptOverride?: string | null;
+  displayPromptOverride?: string | null;
+  referenceInputsOverride?: string[];
+  characterContextOverride?: StudioOutput["characterContext"];
+};
 type WorkflowSettingsSnapshot = {
   mode: StudioMode;
   model: string | null;
@@ -930,7 +936,10 @@ export const useAiStudioState = () => {
   const generateOutput = useCallback(
     (
       promptOverride?: string | null,
-      options?: { modeOverride?: StudioMode; selectedToolOverride?: ToolId | null }
+      options?: {
+        modeOverride?: StudioMode;
+        selectedToolOverride?: ToolId | null;
+      } & GenerateSubmissionOverrides
     ) => {
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
       const referencePromptForTool =
@@ -944,8 +953,16 @@ export const useAiStudioState = () => {
         effectiveTool === "kling"
           ? referencePromptForTool
           : prompt;
-      const promptToSubmit =
-        typeof promptOverride === "string" ? promptOverride : defaultPromptForTool;
+      const displayPromptToSubmit =
+        typeof options?.displayPromptOverride === "string"
+          ? options.displayPromptOverride
+          : typeof promptOverride === "string"
+            ? promptOverride
+            : defaultPromptForTool;
+      const submissionPromptToSubmit =
+        typeof options?.submissionPromptOverride === "string"
+          ? options.submissionPromptOverride
+          : displayPromptToSubmit;
       const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
         resolveReferenceInputsForTool(effectiveTool);
       const isVideoGenerationTool = effectiveTool === "video" || effectiveTool === "kling";
@@ -955,8 +972,17 @@ export const useAiStudioState = () => {
           : isVideoGenerationTool
             ? buildVideoReferenceInputs(referenceUrl, extraUrls, videoReferenceMode)
             : [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url));
-      const imageInputs = baseInputs.slice(0, 8);
-      submitTask(promptToSubmit, imageInputs, options);
+      const imageInputs = (
+        Array.isArray(options?.referenceInputsOverride)
+          ? options.referenceInputsOverride
+          : baseInputs
+      ).slice(0, 8);
+      submitTask(submissionPromptToSubmit, imageInputs, {
+        modeOverride: options?.modeOverride,
+        selectedToolOverride: options?.selectedToolOverride,
+        displayPromptOverride: displayPromptToSubmit,
+        characterContextOverride: options?.characterContextOverride,
+      });
     },
     [
       editReferenceText,
@@ -969,45 +995,64 @@ export const useAiStudioState = () => {
     ]
   );
 
-  const regenerateOutput = useCallback(() => {
-    const referencePromptForTool =
-      selectedTool === "video" || selectedTool === "kling" ? videoReferenceText : editReferenceText;
-    const promptForTool =
-      selectedTool === "image" ||
-      selectedTool === "edit" ||
-      selectedTool === "video" ||
-      selectedTool === "kling"
-        ? referencePromptForTool
-        : prompt;
-    const promptToUse = promptForTool.trim();
-    if (!promptToUse) {
-      setUiError("Add a prompt to start a generation.");
-      return;
-    }
-    const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
-      resolveReferenceInputsForTool(selectedTool);
-    const referencePool = buildRegenerateReferencePool({
+  const regenerateOutput = useCallback(
+    (options?: GenerateSubmissionOverrides) => {
+      const referencePromptForTool =
+        selectedTool === "video" || selectedTool === "kling"
+          ? videoReferenceText
+          : editReferenceText;
+      const promptForTool =
+        selectedTool === "image" ||
+        selectedTool === "edit" ||
+        selectedTool === "video" ||
+        selectedTool === "kling"
+          ? referencePromptForTool
+          : prompt;
+      const displayPromptToUse =
+        typeof options?.displayPromptOverride === "string"
+          ? options.displayPromptOverride.trim()
+          : promptForTool.trim();
+      const submissionPromptToUse =
+        typeof options?.submissionPromptOverride === "string"
+          ? options.submissionPromptOverride.trim()
+          : displayPromptToUse;
+      if (!submissionPromptToUse) {
+        setUiError("Add a prompt to start a generation.");
+        return;
+      }
+      const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
+        resolveReferenceInputsForTool(selectedTool);
+      const referencePool = buildRegenerateReferencePool({
+        selectedTool,
+        useReferenceImageIndicator,
+        activeOutputPreviewUrl: activeOutput?.previewUrl,
+        referenceUrl,
+        extraUrls,
+        videoReferenceMode,
+      });
+      const imageInputs = (
+        Array.isArray(options?.referenceInputsOverride)
+          ? options.referenceInputsOverride
+          : referencePool
+      ).slice(0, 8);
+      submitTask(submissionPromptToUse, imageInputs, {
+        displayPromptOverride: displayPromptToUse,
+        characterContextOverride: options?.characterContextOverride,
+      });
+    },
+    [
+      activeOutput,
+      editReferenceText,
+      prompt,
+      resolveReferenceInputsForTool,
       selectedTool,
+      setUiError,
+      submitTask,
       useReferenceImageIndicator,
-      activeOutputPreviewUrl: activeOutput?.previewUrl,
-      referenceUrl,
-      extraUrls,
       videoReferenceMode,
-    });
-    const imageInputs = referencePool.slice(0, 8);
-    submitTask(promptToUse, imageInputs);
-  }, [
-    activeOutput,
-    editReferenceText,
-    prompt,
-    resolveReferenceInputsForTool,
-    selectedTool,
-    setUiError,
-    submitTask,
-    useReferenceImageIndicator,
-    videoReferenceMode,
-    videoReferenceText,
-  ]);
+      videoReferenceText,
+    ]
+  );
 
   const addAgentPromptReference = useCallback(
     (promptText: string, title?: string | null) => {

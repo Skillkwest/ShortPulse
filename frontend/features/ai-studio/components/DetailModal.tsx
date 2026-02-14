@@ -3,9 +3,8 @@
  * Supports prompt-only view and media preview with metadata.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FloppyDisk, TrashSimple } from "phosphor-react";
+import { TrashSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
-import { PromptLibraryButton } from "./PromptLibraryButton";
 import { looksLikeVideoUrl } from "../utils/dragDrop";
 
 type DetailModalProps = {
@@ -39,7 +38,6 @@ export function DetailModal({
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyCloseTimerRef = useRef<number | null>(null);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [deleteConfirmOutputId, setDeleteConfirmOutputId] = useState<string | null>(null);
   const [draftPromptsById, setDraftPromptsById] = useState<Record<string, string>>({});
   const [promptOnlySavedOutputId, setPromptOnlySavedOutputId] = useState<string | null>(null);
@@ -81,6 +79,19 @@ export function DetailModal({
   const isImageOutput = Boolean(output?.previewUrl) && !isVideoOutput;
   const mediaType = output?.previewUrl ? (isVideoOutput ? "Video" : "Image") : "Prompt";
   const isPromptOnly = output?.mode === "text" && !output.previewUrl;
+  const characterContext = output?.characterContext;
+  const hasCharacterContext = Boolean(characterContext?.applied);
+  const characterName =
+    characterContext?.characterName?.trim() ||
+    characterContext?.characterId?.trim() ||
+    "Selected Character";
+  const characterInitials = useMemo(() => {
+    const trimmed = characterName.trim();
+    if (!trimmed) return "PC";
+    const parts = trimmed.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0]?.[0] ?? ""}${parts[parts.length - 1]?.[0] ?? ""}`.toUpperCase();
+  }, [characterName]);
   const isUploadedReference = useMemo(() => {
     if (!output?.previewUrl) return false;
     if (output?.id?.startsWith("upload-")) return true;
@@ -284,6 +295,10 @@ export function DetailModal({
     normalizedDraftPrompt === normalizedFilename;
   const uploadedPromptLabel = isUploadedReference && !isVideoOutput ? "(Uploaded Image)" : null;
   const promptBladeValue = uploadedPromptLabel ?? (isUploadedFilenamePrompt ? "" : draftPrompt);
+  const displayModelLabel =
+    !isUploadedReference && hasCharacterContext
+      ? "Pulse Character"
+      : (output?.model ?? output?.modelId);
 
   const handleSavePrompt = () => {
     if (!trimmedPrompt) return;
@@ -324,17 +339,6 @@ export function DetailModal({
       [outputId]: nextValue,
     }));
   };
-
-  const handleCopy = useCallback((text: string | undefined | null, field: string) => {
-    if (!text || typeof window === "undefined" || !navigator?.clipboard) return;
-    navigator.clipboard
-      .writeText(text)
-      .then(() => setCopiedField(field))
-      .catch(() => setCopiedField(field));
-    window.setTimeout(() => {
-      setCopiedField((prev) => (prev === field ? null : prev));
-    }, 1200);
-  }, []);
 
   const handleDownload = () => {
     if (output?.id && onDownloadReference) {
@@ -556,13 +560,11 @@ export function DetailModal({
                   {uploadedHeaderFilename}
                 </span>
               )}
-              {!isUploadedReference && (output.model || output.modelId) && (
+              {!isUploadedReference && displayModelLabel && (
                 <span className="art-meta-divider">/</span>
               )}
               {!isUploadedReference && (
-                <span className="art-meta-item truncate-model">
-                  {output.model ?? output.modelId}
-                </span>
+                <span className="art-meta-item truncate-model">{displayModelLabel}</span>
               )}
             </div>
 
@@ -585,25 +587,6 @@ export function DetailModal({
                 <TrashSimple size={16} weight="bold" aria-hidden />
                 Delete
               </button>
-              {!isUploadedReference ? (
-                <button
-                  type="button"
-                  className="art-action-btn"
-                  onClick={() => handleCopy(draftPrompt || output.prompt, "prompt")}
-                >
-                  {copiedField === "prompt" ? "Copied!" : "Copy Prompt"}
-                </button>
-              ) : null}
-              {!isUploadedReference ? (
-                <PromptLibraryButton
-                  tone="save"
-                  label="Save prompt"
-                  icon={<FloppyDisk size={16} weight="regular" aria-hidden />}
-                  onClick={handleSavePrompt}
-                  disabled={!canSave}
-                  className="prompt-save-modal-btn"
-                />
-              ) : null}
               <button type="button" className="art-close-btn" onClick={handleCloseModal}>
                 ×
               </button>
@@ -713,13 +696,29 @@ export function DetailModal({
               {/* Floating Prompt Blade */}
               <div className="art-prompt-blade">
                 <div className="art-blade-inner">
+                  {hasCharacterContext ? (
+                    <div className="art-character-chip" aria-label="Character used for generation">
+                      {characterContext?.characterProfileImageUrl ? (
+                        // Character profile URLs can be signed/external and are not guaranteed to be allowlisted.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          className="art-character-chip-avatar"
+                          src={characterContext.characterProfileImageUrl}
+                          alt={`${characterName} profile`}
+                        />
+                      ) : (
+                        <span className="art-character-chip-avatar art-character-chip-avatar--fallback">
+                          {characterInitials}
+                        </span>
+                      )}
+                      <div className="art-character-chip-copy">
+                        <span className="art-character-chip-label">Character</span>
+                        <span className="art-character-chip-name">{characterName}</span>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="art-blade-header">
                     <span className="art-label">PROMPT</span>
-                    {canSave && !isUploadedReference && (
-                      <button type="button" className="art-mini-save" onClick={handleSavePrompt}>
-                        Update
-                      </button>
-                    )}
                   </div>
                   <textarea
                     className="art-blade-textarea"

@@ -10,7 +10,7 @@ import {
   type MediaMoveDestination,
   validateMoveDestination,
 } from "../../features/media-library/logic/mediaMoveRouting";
-import { getSupabaseAdmin } from "../../pages/api/_utils/supabaseAdmin";
+import { getSupabaseAdmin } from "./api/supabaseAdmin";
 
 export type MediaFileRow = {
   id: string;

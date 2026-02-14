@@ -11,6 +11,8 @@ export default tseslint.config(
       ".next/**",
       "node_modules/**",
       "coverage/**",
+      "playwright-report/**",
+      "test-results/**",
       "public/**",
       ".swc/**",
       "*.config.js",

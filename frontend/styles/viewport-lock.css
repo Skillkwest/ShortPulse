@@ -1,19 +1,23 @@
 /**
- * Viewport lock styles.
- * Freezes the app to its initial viewport size so window resizing clips instead of reflowing.
+ * Viewport baseline variables and scrolling styles.
+ * Keeps viewport-relative sizing dynamic while preserving shared scrollbar treatment.
  */
 :root {
   --app-fixed-width: 100vw;
   --app-fixed-height: 100vh;
 }
 
+@supports (height: 100dvh) {
+  :root {
+    --app-fixed-height: 100dvh;
+  }
+}
+
 html,
 body,
 #__next {
-  width: var(--app-fixed-width);
+  width: 100%;
   min-height: var(--app-fixed-height);
-  min-width: var(--app-fixed-width);
-  max-width: var(--app-fixed-width);
 }
 
 html {

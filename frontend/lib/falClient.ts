@@ -1,6 +1,6 @@
 /**
- * Thin client for Fal.ai interactions (flux/dev, flux-2, flux-2-pro text-to-image + Kling video).
- * Proxies through Next API routes to keep keys server-side.
+ * Registry-driven client for Fal.ai submit/status interactions.
+ * Proxies through Next API routes to keep provider keys server-side.
  */
 import { fetchWithAuth } from "./authenticatedFetch";
 
@@ -103,7 +103,7 @@ export type FalVeoSubmitRequest = {
 
 export type FalVeoImageToVideoSubmitRequest = {
   prompt: string;
-  image_url?: string; // legacy single-image field
+  image_url?: string;
   image_urls?: string[];
   aspect_ratio?: "16:9" | "9:16" | "auto";
   duration?: "4s" | "6s" | "8s";
@@ -186,6 +186,28 @@ export type FalNanoBananaEditSubmitRequest = {
   limit_generations?: boolean;
 };
 
+export type FalNanoBananaSubmitRequest = {
+  prompt: string;
+  num_images?: number;
+  aspect_ratio?: string;
+  output_format?: "jpeg" | "png" | "webp";
+  sync_mode?: boolean;
+  limit_generations?: boolean;
+};
+
+export type FalNanoBananaProSubmitRequest = {
+  prompt: string;
+  num_images?: number;
+  aspect_ratio?: string;
+  output_format?: "jpeg" | "png" | "webp";
+  resolution?: "1K" | "2K" | "4K";
+  seed?: number;
+  sync_mode?: boolean;
+  limit_generations?: boolean;
+  enable_web_search?: boolean;
+  image_urls?: string[];
+};
+
 const FAL_API_BASE = "/api/fal";
 
 const fetchWithTimeout = async (
@@ -254,102 +276,127 @@ const handleJson = async <T>(response: Response) => {
   return data as T;
 };
 
-export const submitFalFlux = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal did not return a request_id");
-  }
-  return { request_id: requestId };
+const submitEndpointRegistry = {
+  flux: {
+    route: `${FAL_API_BASE}/submit`,
+    missingRequestIdMessage: "Fal did not return a request_id",
+  },
+  flux2: {
+    route: `${FAL_API_BASE}/flux2-submit`,
+    missingRequestIdMessage: "Fal FLUX 2 did not return a request_id",
+  },
+  flux2Edit: {
+    route: `${FAL_API_BASE}/flux2-edit-submit`,
+    missingRequestIdMessage: "Fal FLUX 2 Edit did not return a request_id",
+  },
+  flux2Pro: {
+    route: `${FAL_API_BASE}/flux2pro-submit`,
+    missingRequestIdMessage: "Fal FLUX 2 PRO did not return a request_id",
+  },
+  flux2ProEdit: {
+    route: `${FAL_API_BASE}/flux2pro-edit-submit`,
+    missingRequestIdMessage: "Fal FLUX 2 PRO Edit did not return a request_id",
+  },
+  flux2Klein: {
+    route: `${FAL_API_BASE}/flux2klein-submit`,
+    missingRequestIdMessage: "Fal FLUX 2 Klein did not return a request_id",
+  },
+  nanoBanana: {
+    route: `${FAL_API_BASE}/nano-banana-submit`,
+    missingRequestIdMessage: "Fal Nano Banana did not return a request_id",
+  },
+  nanoBananaEdit: {
+    route: `${FAL_API_BASE}/nano-banana-edit-submit`,
+    missingRequestIdMessage: "Fal Nano Banana Edit did not return a request_id",
+  },
+  nanoBananaPro: {
+    route: `${FAL_API_BASE}/nano-banana-pro-submit`,
+    missingRequestIdMessage: "Fal Nano Banana Pro did not return a request_id",
+  },
+  nanoBananaProEdit: {
+    route: `${FAL_API_BASE}/nano-banana-pro-edit-submit`,
+    missingRequestIdMessage: "Fal Nano Banana Pro Edit did not return a request_id",
+  },
+  klingV3Text: {
+    route: `${FAL_API_BASE}/kling-v3-text-submit`,
+    missingRequestIdMessage: "Fal Kling v3 text-to-video did not return a request_id",
+  },
+  sora: {
+    route: `${FAL_API_BASE}/sora-submit`,
+    missingRequestIdMessage: "Fal Sora did not return a request_id",
+  },
+  veo: {
+    route: `${FAL_API_BASE}/veo-submit`,
+    missingRequestIdMessage: "Fal Veo did not return a request_id",
+  },
+  veoImageToVideo: {
+    route: `${FAL_API_BASE}/veo-image-to-video-submit`,
+    missingRequestIdMessage: "Fal Veo image-to-video did not return a request_id",
+  },
+  veoFirstLast: {
+    route: `${FAL_API_BASE}/veo-first-last-frame-submit`,
+    missingRequestIdMessage: "Fal Veo first/last frame did not return a request_id",
+  },
+  seedream: {
+    route: `${FAL_API_BASE}/seedream-submit`,
+    missingRequestIdMessage: "Fal Seedream did not return a request_id",
+  },
+  seedreamEdit: {
+    route: `${FAL_API_BASE}/seedream-edit-submit`,
+    missingRequestIdMessage: "Fal Seedream Edit did not return a request_id",
+  },
+  seedance: {
+    route: `${FAL_API_BASE}/seedance-submit`,
+    missingRequestIdMessage: "Fal Seedance did not return a request_id",
+  },
+  seedanceI2V: {
+    route: `${FAL_API_BASE}/seedance-i2v-submit`,
+    missingRequestIdMessage: "Fal Seedance I2V did not return a request_id",
+  },
+  klingV3ImageToVideo: {
+    route: `${FAL_API_BASE}/kling-v3-image-to-video-submit`,
+    missingRequestIdMessage: "Fal Kling 3.0 image-to-video did not return a request_id",
+  },
+} as const;
+
+type StatusEndpointConfig = {
+  route: string;
+  fallbackGetOn405?: boolean;
 };
 
-export const fetchFalStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
+const statusEndpointRegistry = {
+  flux: { route: `${FAL_API_BASE}/status` },
+  flux2: { route: `${FAL_API_BASE}/flux2-status` },
+  flux2Edit: { route: `${FAL_API_BASE}/flux2-edit-status` },
+  flux2Pro: { route: `${FAL_API_BASE}/flux2pro-status` },
+  flux2ProEdit: { route: `${FAL_API_BASE}/flux2pro-edit-status` },
+  flux2Klein: { route: `${FAL_API_BASE}/flux2klein-status` },
+  nanoBanana: { route: `${FAL_API_BASE}/nano-banana-status` },
+  nanoBananaEdit: { route: `${FAL_API_BASE}/nano-banana-edit-status` },
+  nanoBananaPro: { route: `${FAL_API_BASE}/nano-banana-pro-status` },
+  nanoBananaProEdit: { route: `${FAL_API_BASE}/nano-banana-pro-edit-status` },
+  kling: { route: `${FAL_API_BASE}/kling-status` },
+  sora: { route: `${FAL_API_BASE}/sora-status` },
+  veo: { route: `${FAL_API_BASE}/veo-status` },
+  veoImageToVideo: {
+    route: `${FAL_API_BASE}/veo-image-to-video-status`,
+    fallbackGetOn405: true,
+  },
+  seedream: { route: `${FAL_API_BASE}/seedream-status` },
+  seedance: { route: `${FAL_API_BASE}/seedance-status` },
+  seedanceI2V: { route: `${FAL_API_BASE}/seedance-i2v-status` },
+  klingV3ImageToVideo: { route: `${FAL_API_BASE}/kling-v3-image-to-video-status` },
+} as const satisfies Record<string, StatusEndpointConfig>;
 
-export const submitFalFlux2 = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal FLUX 2 did not return a request_id");
-  }
-  return { request_id: requestId };
-};
+type SubmitEndpointKey = keyof typeof submitEndpointRegistry;
+type StatusEndpointKey = keyof typeof statusEndpointRegistry;
 
-export const fetchFalFlux2Status = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export const submitFalFlux2Edit = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2-edit-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal FLUX 2 Edit did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalFlux2EditStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2-edit-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export const submitFalFlux2Pro = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2pro-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal FLUX 2 PRO did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalFlux2ProStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2pro-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export const submitFalFlux2ProEdit = async (
-  payload: FalSubmitRequest
+const submitFalEndpoint = async <TPayload>(
+  endpoint: SubmitEndpointKey,
+  payload: TPayload
 ): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2pro-edit-submit`, {
+  const config = submitEndpointRegistry[endpoint];
+  const response = await fetchWithTimeout(config.route, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -357,415 +404,119 @@ export const submitFalFlux2ProEdit = async (
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
   const requestId = readRequestId(data);
   if (!requestId) {
-    throw new Error("Fal FLUX 2 PRO Edit did not return a request_id");
+    throw new Error(config.missingRequestIdMessage);
   }
   return { request_id: requestId };
 };
 
-export const fetchFalFlux2ProEditStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2pro-edit-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export const submitFalFlux2Klein = async (
-  payload: FalSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2klein-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal FLUX 2 Klein did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalFlux2KleinStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/flux2klein-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export type FalNanoBananaSubmitRequest = {
-  prompt: string;
-  num_images?: number;
-  aspect_ratio?: string;
-  output_format?: "jpeg" | "png" | "webp";
-  sync_mode?: boolean;
-  limit_generations?: boolean;
-};
-
-export const submitFalNanoBanana = async (
-  payload: FalNanoBananaSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Nano Banana did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalNanoBananaStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export const submitFalNanoBananaEdit = async (
-  payload: FalNanoBananaEditSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-edit-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Nano Banana Edit did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalNanoBananaEditStatus = async (
+const fetchFalStatusEndpoint = async <TStatus>(
+  endpoint: StatusEndpointKey,
   requestId: string
-): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-edit-status`, {
+): Promise<TStatus> => {
+  const config = statusEndpointRegistry[endpoint];
+  const response = await fetchWithTimeout(config.route, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ requestId }),
   });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export type FalNanoBananaProSubmitRequest = {
-  prompt: string;
-  num_images?: number;
-  aspect_ratio?: string;
-  output_format?: "jpeg" | "png" | "webp";
-  resolution?: "1K" | "2K" | "4K";
-  seed?: number;
-  sync_mode?: boolean;
-  limit_generations?: boolean;
-  enable_web_search?: boolean;
-  image_urls?: string[];
-};
-
-export const submitFalNanoBananaPro = async (
-  payload: FalNanoBananaProSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-pro-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Nano Banana Pro did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalNanoBananaProStatus = async (
-  requestId: string
-): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-pro-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export const submitFalNanoBananaProEdit = async (
-  payload: FalNanoBananaProSubmitRequest & { image_urls: string[] }
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-pro-edit-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Nano Banana Pro Edit did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalNanoBananaProEditStatus = async (
-  requestId: string
-): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/nano-banana-pro-edit-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export const submitFalKlingV3Text = async (
-  payload: FalKlingV3TextSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-v3-text-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Kling v3 text-to-video did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalKlingStatus = async (requestId: string): Promise<FalKlingStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/kling-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalKlingStatusResponse>(response);
-};
-
-export const submitFalSoraPro = async (
-  payload: FalSoraSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/sora-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Sora did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalSoraStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/sora-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export const submitFalVeo = async (payload: FalVeoSubmitRequest): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Veo did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const submitFalVeoImageToVideo = async (
-  payload: FalVeoImageToVideoSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-image-to-video-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Veo image-to-video did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const submitFalVeoFirstLast = async (
-  payload: FalVeoFirstLastSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-first-last-frame-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Veo first/last frame did not return a request_id");
-  }
-  return { request_id: requestId };
-};
-
-export const fetchFalVeoStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
-
-export const fetchFalVeoImageToVideoStatus = async (
-  requestId: string
-): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/veo-image-to-video-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  if (response.status === 405) {
+  const fallbackGetOn405 = "fallbackGetOn405" in config && config.fallbackGetOn405 === true;
+  if (response.status === 405 && fallbackGetOn405) {
     const fallback = await fetchWithTimeout(
-      `${FAL_API_BASE}/veo-image-to-video-status?requestId=${encodeURIComponent(requestId)}`,
-      {
-        method: "GET",
-      }
+      `${config.route}?requestId=${encodeURIComponent(requestId)}`,
+      { method: "GET" }
     );
-    return handleJson<FalStatusResponse>(fallback);
+    return handleJson<TStatus>(fallback);
   }
-  return handleJson<FalStatusResponse>(response);
+  return handleJson<TStatus>(response);
 };
 
-export const submitFalSeedream = async (
-  payload: FalSeedreamSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/seedream-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Seedream did not return a request_id");
-  }
-  return { request_id: requestId };
-};
+export const submitFalFlux = (payload: FalSubmitRequest) => submitFalEndpoint("flux", payload);
+export const fetchFalStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("flux", requestId);
 
-export const submitFalSeedreamEdit = async (
-  payload: FalSeedreamEditSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/seedream-edit-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Seedream Edit did not return a request_id");
-  }
-  return { request_id: requestId };
-};
+export const submitFalFlux2 = (payload: FalSubmitRequest) => submitFalEndpoint("flux2", payload);
+export const fetchFalFlux2Status = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("flux2", requestId);
 
-export const fetchFalSeedreamStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/seedream-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
+export const submitFalFlux2Edit = (payload: FalSubmitRequest) =>
+  submitFalEndpoint("flux2Edit", payload);
+export const fetchFalFlux2EditStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("flux2Edit", requestId);
 
-export const submitFalSeedance = async (
-  payload: FalSeedanceSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/seedance-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Seedance did not return a request_id");
-  }
-  return { request_id: requestId };
-};
+export const submitFalFlux2Pro = (payload: FalSubmitRequest) =>
+  submitFalEndpoint("flux2Pro", payload);
+export const fetchFalFlux2ProStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("flux2Pro", requestId);
 
-export const fetchFalSeedanceStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/seedance-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
+export const submitFalFlux2ProEdit = (payload: FalSubmitRequest) =>
+  submitFalEndpoint("flux2ProEdit", payload);
+export const fetchFalFlux2ProEditStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("flux2ProEdit", requestId);
 
-export const submitFalSeedanceI2V = async (
-  payload: FalSeedanceI2VSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/seedance-i2v-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Seedance I2V did not return a request_id");
-  }
-  return { request_id: requestId };
-};
+export const submitFalFlux2Klein = (payload: FalSubmitRequest) =>
+  submitFalEndpoint("flux2Klein", payload);
+export const fetchFalFlux2KleinStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("flux2Klein", requestId);
 
-export const fetchFalSeedanceI2VStatus = async (requestId: string): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/seedance-i2v-status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
+export const submitFalNanoBanana = (payload: FalNanoBananaSubmitRequest) =>
+  submitFalEndpoint("nanoBanana", payload);
+export const fetchFalNanoBananaStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBanana", requestId);
 
-const FAL_KLING_V3_SUBMIT = `${FAL_API_BASE}/kling-v3-image-to-video-submit`;
-const FAL_KLING_V3_STATUS = `${FAL_API_BASE}/kling-v3-image-to-video-status`;
+export const submitFalNanoBananaEdit = (payload: FalNanoBananaEditSubmitRequest) =>
+  submitFalEndpoint("nanoBananaEdit", payload);
+export const fetchFalNanoBananaEditStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBananaEdit", requestId);
 
-export const submitFalKlingV3ImageToVideo = async (
-  payload: FalKlingV3ImageToVideoSubmitRequest
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(FAL_KLING_V3_SUBMIT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
-  const requestId = readRequestId(data);
-  if (!requestId) {
-    throw new Error("Fal Kling 3.0 image-to-video did not return a request_id");
-  }
-  return { request_id: requestId };
-};
+export const submitFalNanoBananaPro = (payload: FalNanoBananaProSubmitRequest) =>
+  submitFalEndpoint("nanoBananaPro", payload);
+export const fetchFalNanoBananaProStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBananaPro", requestId);
 
-export const fetchFalKlingV3ImageToVideoStatus = async (
-  requestId: string
-): Promise<FalStatusResponse> => {
-  const response = await fetchWithTimeout(FAL_KLING_V3_STATUS, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  return handleJson<FalStatusResponse>(response);
-};
+export const submitFalNanoBananaProEdit = (
+  payload: FalNanoBananaProSubmitRequest & { image_urls: string[] }
+) => submitFalEndpoint("nanoBananaProEdit", payload);
+export const fetchFalNanoBananaProEditStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBananaProEdit", requestId);
+
+export const submitFalKlingV3Text = (payload: FalKlingV3TextSubmitRequest) =>
+  submitFalEndpoint("klingV3Text", payload);
+export const fetchFalKlingStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalKlingStatusResponse>("kling", requestId);
+
+export const submitFalSoraPro = (payload: FalSoraSubmitRequest) =>
+  submitFalEndpoint("sora", payload);
+export const fetchFalSoraStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("sora", requestId);
+
+export const submitFalVeo = (payload: FalVeoSubmitRequest) => submitFalEndpoint("veo", payload);
+export const submitFalVeoImageToVideo = (payload: FalVeoImageToVideoSubmitRequest) =>
+  submitFalEndpoint("veoImageToVideo", payload);
+export const submitFalVeoFirstLast = (payload: FalVeoFirstLastSubmitRequest) =>
+  submitFalEndpoint("veoFirstLast", payload);
+export const fetchFalVeoStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("veo", requestId);
+export const fetchFalVeoImageToVideoStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("veoImageToVideo", requestId);
+
+export const submitFalSeedream = (payload: FalSeedreamSubmitRequest) =>
+  submitFalEndpoint("seedream", payload);
+export const submitFalSeedreamEdit = (payload: FalSeedreamEditSubmitRequest) =>
+  submitFalEndpoint("seedreamEdit", payload);
+export const fetchFalSeedreamStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("seedream", requestId);
+
+export const submitFalSeedance = (payload: FalSeedanceSubmitRequest) =>
+  submitFalEndpoint("seedance", payload);
+export const fetchFalSeedanceStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("seedance", requestId);
+
+export const submitFalSeedanceI2V = (payload: FalSeedanceI2VSubmitRequest) =>
+  submitFalEndpoint("seedanceI2V", payload);
+export const fetchFalSeedanceI2VStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("seedanceI2V", requestId);
+
+export const submitFalKlingV3ImageToVideo = (payload: FalKlingV3ImageToVideoSubmitRequest) =>
+  submitFalEndpoint("klingV3ImageToVideo", payload);
+export const fetchFalKlingV3ImageToVideoStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("klingV3ImageToVideo", requestId);

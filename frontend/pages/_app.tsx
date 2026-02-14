@@ -21,13 +21,6 @@ export default function App({ Component, pageProps }: AppProps) {
   const { loading, session } = useProtectedRoute(isProtected);
 
   useEffect(() => {
-    // Lock the CSS viewport variables to the initial window size.
-    const root = document.documentElement;
-    root.style.setProperty("--app-fixed-width", `${window.innerWidth}px`);
-    root.style.setProperty("--app-fixed-height", `${window.innerHeight}px`);
-  }, []);
-
-  useEffect(() => {
     return installGlobalAppErrorHandlers();
   }, []);
 

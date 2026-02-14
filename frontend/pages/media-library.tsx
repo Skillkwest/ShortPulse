@@ -4,14 +4,11 @@
  */
 import Head from "next/head";
 import {
-  CaretDown,
-  CheckCircle,
   CloudArrowUp,
   DownloadSimple,
   LockSimple,
   MagnifyingGlass,
   ShieldCheck,
-  Trash,
 } from "phosphor-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardNavPrefab } from "../components/DashboardNavPrefab";
@@ -23,18 +20,22 @@ import {
 } from "../lib/mediaPreviewPath";
 import { getSignedMediaUrl, invalidateSignedMediaUrl } from "../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
-import {
-  buildModalMoveTabOptions,
-  isMoveDestinationDataTab,
-} from "../features/media-library/logic/mediaMoveRouting";
+import { isMoveDestinationDataTab } from "../features/media-library/logic/mediaMoveRouting";
 import { useMediaBulkMoveController } from "../features/media-library/hooks/useMediaBulkMoveController";
+import { useMediaBulkDeleteController } from "../features/media-library/hooks/useMediaBulkDeleteController";
+import { MediaDeleteConfirmModal } from "../features/media-library/components/MediaDeleteConfirmModal";
+import { MediaAssetGallery } from "../features/media-library/components/MediaAssetGallery";
+import { MediaFileModal } from "../features/media-library/components/MediaFileModal";
+import { MediaGalleryActions } from "../features/media-library/components/MediaGalleryActions";
+import { MediaPromptGrid } from "../features/media-library/components/MediaPromptGrid";
+import { MediaPromptModal } from "../features/media-library/components/MediaPromptModal";
 import { useMediaFileModalCrud } from "../features/media-library/hooks/useMediaFileModalCrud";
 import { useMediaModalImageZoom } from "../features/media-library/hooks/useMediaModalImageZoom";
 import { useMediaPromptModalCrud } from "../features/media-library/hooks/useMediaPromptModalCrud";
 import { useMediaPreviewSigningController } from "../features/media-library/hooks/useMediaPreviewSigningController";
+import { useMediaSingleMoveController } from "../features/media-library/hooks/useMediaSingleMoveController";
 import { useMediaTabDataController } from "../features/media-library/hooks/useMediaTabDataController";
 import { useMediaUploadController } from "../features/media-library/hooks/useMediaUploadController";
-import { applyMovedRowsToMediaTabCache } from "../features/media-library/logic/mediaMoveCache";
 import {
   BUCKET,
   MEDIA_DATA_TABS,
@@ -49,7 +50,6 @@ import {
   isMissingRoutineError,
   isNonEmptyString,
   isVideoFile,
-  mergePageRows,
   normalizeMediaSearchTerm,
   resolveRouteSignBudget,
   sortByCreatedAtDesc,
@@ -114,29 +114,6 @@ type MediaDeleteTarget = Pick<
   | "preview_variant_path"
 >;
 
-type MediaDeleteLookupRow = Pick<
-  MediaRow,
-  | "id"
-  | "storage_path"
-  | "file_type"
-  | "metadata"
-  | "thumb_variant_path"
-  | "poster_variant_path"
-  | "preview_variant_path"
->;
-
-type MoveMediaResponse = {
-  file: MediaRow;
-  fromTab: MediaDataTab;
-  toTab: MediaDataTab;
-};
-
-type MoveFileResult = {
-  nextFile: MediaRow;
-  toTab: MediaDataTab;
-  previousSignPaths: string[];
-};
-
 const MEDIA_LIBRARY_PAGE_SIZE = 60;
 const MEDIA_LIBRARY_CACHE_TTL_MS = 30_000;
 const STORAGE_DELETE_BATCH_SIZE = 100;
@@ -187,18 +164,13 @@ export default function MediaLibrary() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [aspectMap, setAspectMap] = useState<Record<string, number>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkMoving, setBulkMoving] = useState(false);
   const [bulkMoveError, setBulkMoveError] = useState<string | null>(null);
   const [bulkMoveNotice, setBulkMoveNotice] = useState<string | null>(null);
   const [bulkMoveMenuOpen, setBulkMoveMenuOpen] = useState(false);
-  const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const [focusedFile, setFocusedFile] = useState<MediaRow | null>(null);
-  const [moveError, setMoveError] = useState<string | null>(null);
-  const [moveMenuOpen, setMoveMenuOpen] = useState(false);
-  const [movingFile, setMovingFile] = useState(false);
   const [storageUsageBytes, setStorageUsageBytes] = useState<number | null>(null);
   const {
     closePromptModal,
@@ -224,7 +196,6 @@ export default function MediaLibrary() {
   const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
   const firstCardShellLoggedRef = useRef(false);
   const firstMediaPaintLoggedRef = useRef(false);
-  const bulkDeleteInFlightRef = useRef(false);
   const activeTabRef = useRef<MediaTab>(activeTab);
   const activeMediaQueryRef = useRef("");
   const mediaTabRequestRef = useRef<MediaTabRequestState>(createMediaTabRequestState());
@@ -374,7 +345,6 @@ export default function MediaLibrary() {
 
   useEffect(() => {
     setSelectedIds([]);
-    setConfirmDeleteIds(null);
     setBulkMoveError(null);
     setBulkMoveNotice(null);
     setBulkMoveMenuOpen(false);
@@ -942,233 +912,55 @@ export default function MediaLibrary() {
     resetModalImageZoom,
   } = useMediaModalImageZoom({ isFocusedImage });
 
-  const deleteSelected = async (idsOverride?: string[]): Promise<boolean> => {
-    const idsToDelete = [...(idsOverride ?? selectedIds)];
-    if (!idsToDelete.length || bulkDeleteInFlightRef.current) return false;
-    bulkDeleteInFlightRef.current = true;
-    setBulkDeleting(true);
-    setError(null);
-    try {
-      const supabase = ensureSupabaseClient();
-      if (isPromptTab) {
-        const { error: deleteError } = await supabase
-          .from("media_prompts")
-          .delete()
-          .in("id", idsToDelete);
-        if (deleteError) throw deleteError;
-        setPrompts((prev) => prev.filter((prompt) => !idsToDelete.includes(prompt.id)));
-        setSelectedIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
-        idsToDelete.forEach((promptId) => {
-          void logMediaEvent("delete", "media_prompt", promptId);
-        });
-      } else {
-        let targets: MediaDeleteTarget[] = files
-          .filter((f) => idsToDelete.includes(f.id))
-          .map((file) => ({
-            id: file.id,
-            storage_path: file.storage_path,
-            preview_storage_path: file.preview_storage_path,
-            thumb_variant_path: file.thumb_variant_path,
-            poster_variant_path: file.poster_variant_path,
-            preview_variant_path: file.preview_variant_path,
-          }));
-        if (targets.length < idsToDelete.length) {
-          const targetIdSet = new Set(targets.map((target) => target.id));
-          const missingIds = idsToDelete.filter((id) => !targetIdSet.has(id));
-          if (missingIds.length) {
-            const { data: missingRows, error: missingRowsError } = await supabase
-              .from("media_files")
-              .select(
-                "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
-              )
-              .in("id", missingIds);
-            if (missingRowsError) throw missingRowsError;
+  const {
+    bulkDeleting,
+    cancelDeleteSelected,
+    confirmDeleteIds,
+    confirmDeleteSelected,
+    requestDeleteSelected,
+  } = useMediaBulkDeleteController<MediaRow, PromptRow>({
+    activeTabKey: activeTab,
+    activeMediaTab,
+    collectMediaStoragePathsForDelete,
+    currentUserIdRef,
+    files,
+    getErrorMessage,
+    isPromptTab,
+    logMediaEvent,
+    markInactiveMediaCachesStale,
+    refreshStorageUsageBytes,
+    removeStoragePaths,
+    selectedIds,
+    setPageError: setError,
+    setPrompts,
+    setSelectedIds,
+    updateVisibleRows,
+  });
 
-            const supplementalTargets = ((missingRows ?? []) as MediaDeleteLookupRow[]).map(
-              (row) => ({
-                id: row.id,
-                storage_path: row.storage_path,
-                preview_storage_path:
-                  resolveMediaSigningStoragePaths(row, currentUserIdRef.current)[0] ??
-                  row.storage_path,
-                thumb_variant_path: row.thumb_variant_path,
-                poster_variant_path: row.poster_variant_path,
-                preview_variant_path: row.preview_variant_path,
-              })
-            );
-            targets = [...targets, ...supplementalTargets];
-          }
-        }
-        const paths = await collectMediaStoragePathsForDelete(targets);
-        await removeStoragePaths(paths);
-        const { error: deleteError } = await supabase
-          .from("media_files")
-          .delete()
-          .in("id", idsToDelete);
-        if (deleteError) throw deleteError;
-        updateVisibleRows((prev) => prev.filter((f) => !idsToDelete.includes(f.id)));
-        setSelectedIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
-        targets.forEach((target) => {
-          void logMediaEvent("delete", "media_file", target.id, {
-            storage_path: target.storage_path,
-          });
-        });
-        markInactiveMediaCachesStale(activeMediaTab);
-        void refreshStorageUsageBytes();
-      }
-      return true;
-    } catch (err: unknown) {
-      setError(
-        getErrorMessage(err, `Unable to delete selected ${isPromptTab ? "prompts" : "media"}`)
-      );
-      return false;
-    } finally {
-      bulkDeleteInFlightRef.current = false;
-      setBulkDeleting(false);
-    }
-  };
-
-  const requestDeleteSelected = () => {
-    if (!selectedIds.length) return;
-    if (isPromptTab) {
-      void deleteSelected();
-      return;
-    }
-    setConfirmDeleteIds([...selectedIds]);
-    setError(null);
-  };
-
-  const cancelDeleteSelected = () => {
-    if (bulkDeleting) return;
-    setConfirmDeleteIds(null);
-  };
-
-  const confirmDeleteSelected = async () => {
-    if (!confirmDeleteIds?.length) return;
-    const deleted = await deleteSelected(confirmDeleteIds);
-    if (deleted) {
-      setConfirmDeleteIds(null);
-    }
-  };
-
-  const applyMovedFilesToCaches = useCallback(
-    (movedFiles: MediaRow[], destinationTab: MediaDataTab) => {
-      if (!movedFiles.length) return;
-      setMediaTabCache((prev) =>
-        applyMovedRowsToMediaTabCache({
-          cacheState: prev,
-          movedRows: movedFiles,
-          destinationTab,
-        })
-      );
-    },
-    []
-  );
-
-  const applyMovedFileToCaches = useCallback(
-    (file: MediaRow, destinationTab: MediaDataTab) => {
-      applyMovedFilesToCaches([file], destinationTab);
-    },
-    [applyMovedFilesToCaches]
-  );
-
-  const requestMoveFileToTab = useCallback(
-    async (file: MediaRow, destinationTab: MediaDataTab): Promise<MoveFileResult> => {
-      const response = await fetchWithAuth("/api/media/move", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileId: file.id,
-          destinationTab,
-        }),
-        shortpulseLogScope: "app",
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          error?: string;
-          details?: string;
-        } | null;
-        throw new Error(
-          payload?.details ?? payload?.error ?? `Unable to move file (${response.status})`
-        );
-      }
-
-      const payload = (await response.json()) as MoveMediaResponse;
-      const movedFile = payload.file;
-      const previewStoragePath =
-        resolveMediaSigningStoragePaths(movedFile, currentUserIdRef.current)[0] ??
-        movedFile.storage_path;
-      const signedUrl = await signStoragePath(previewStoragePath, { forceRefresh: true });
-
-      return {
-        nextFile: {
-          ...movedFile,
-          preview_storage_path: previewStoragePath,
-          signedUrl: signedUrl ?? undefined,
-          status: "ready",
-        },
-        toTab: payload.toTab,
-        previousSignPaths: resolveMediaSigningStoragePaths(file, currentUserIdRef.current),
-      };
-    },
-    [signStoragePath]
-  );
-
-  const moveFocusedFile = useCallback(
-    async (destinationTab: MediaDataTab) => {
-      if (!focusedFile || movingFile) return;
-      setMovingFile(true);
-      setMoveError(null);
-      setModalError(null);
-      setError(null);
-      const previousFile = focusedFile;
-
-      try {
-        const result = await requestMoveFileToTab(previousFile, destinationTab);
-        const nextFocusedFile = result.nextFile;
-        for (const path of result.previousSignPaths) {
-          invalidateSignedMediaUrl(BUCKET, path);
-        }
-
-        applyMovedFileToCaches(nextFocusedFile, result.toTab);
-        setFiles((prev) => {
-          const rowsWithoutFile = prev.filter((row) => row.id !== nextFocusedFile.id);
-          if (activeTabRef.current !== result.toTab) return rowsWithoutFile;
-          return mergePageRows(rowsWithoutFile, [nextFocusedFile]).filter(
-            (row) => getMediaDataTabForRow(row) === result.toTab
-          );
-        });
-        setFocusedFile(nextFocusedFile);
-        setSelectedIds((prev) => prev.filter((id) => id !== nextFocusedFile.id));
-        setMoveMenuOpen(false);
-        if (activeTabRef.current !== result.toTab) {
-          setActiveTab(result.toTab);
-        }
-      } catch (err: unknown) {
-        const message = getErrorMessage(err, "Unable to move file");
-        setMoveError(message);
-      } finally {
-        setMovingFile(false);
-      }
-    },
-    [
-      applyMovedFileToCaches,
-      focusedFile,
-      movingFile,
-      requestMoveFileToTab,
-      setFocusedFile,
-      setModalError,
-    ]
-  );
-
-  const modalMoveTabOptions = useMemo(() => buildModalMoveTabOptions(focusedFile), [focusedFile]);
-  const canMoveToAnotherTab = useMemo(
-    () => modalMoveTabOptions.some((option) => !option.disabled),
-    [modalMoveTabOptions]
-  );
+  const {
+    applyMovedFilesToCaches,
+    canMoveToAnotherTab,
+    clearMoveState,
+    modalMoveTabOptions,
+    moveError,
+    moveFocusedFile,
+    moveMenuOpen,
+    movingFile,
+    setMoveMenuOpen,
+  } = useMediaSingleMoveController<MediaRow>({
+    activeTabRef,
+    currentUserIdRef,
+    focusedFile,
+    getErrorMessage,
+    setActiveTab,
+    setFiles,
+    setFocusedFile,
+    setMediaTabCache,
+    setModalError,
+    setPageError: setError,
+    setSelectedIds,
+    signStoragePath,
+  });
 
   const { bulkMoveTabOptions, canBulkMove, moveSelectedFiles, selectedMediaRows } =
     useMediaBulkMoveController({
@@ -1195,19 +987,17 @@ export default function MediaLibrary() {
   const openModal = useCallback(
     (file: MediaRow) => {
       openFileModal(file);
-      setMoveError(null);
-      setMoveMenuOpen(false);
+      clearMoveState();
       resetModalImageZoom();
     },
-    [openFileModal, resetModalImageZoom]
+    [clearMoveState, openFileModal, resetModalImageZoom]
   );
 
   const closeModal = useCallback(() => {
     closeFileModal();
-    setMoveError(null);
-    setMoveMenuOpen(false);
+    clearMoveState();
     resetModalImageZoom();
-  }, [closeFileModal, resetModalImageZoom]);
+  }, [clearMoveState, closeFileModal, resetModalImageZoom]);
 
   return (
     <>
@@ -1389,129 +1179,38 @@ export default function MediaLibrary() {
         <section
           className={`panel media-gallery media-panel ${isPromptTab ? "" : "media-gallery-packed"}`}
         >
-          <div className="gallery-actions">
-            <div className="section-heading minimal">
-              <div>
-                <p className="eyebrow">
-                  {activeTab === "uploaded_images"
-                    ? "Uploaded images"
-                    : activeTab === "uploaded_videos"
-                      ? "Uploaded videos"
-                      : activeTab === "private"
-                        ? "Private images"
-                        : activeTab === "saved_prompts"
-                          ? "Saved prompts"
-                          : "AI Studio generations"}
-                </p>
-                <h3>
-                  {activeTab === "uploaded_images"
-                    ? "Your uploaded images"
-                    : activeTab === "uploaded_videos"
-                      ? "Your uploaded videos"
-                      : activeTab === "private"
-                        ? "Your private images"
-                        : activeTab === "saved_prompts"
-                          ? "Your saved prompts"
-                          : "AI Studio generations"}
-                </h3>
-              </div>
-            </div>
-            <div className="gallery-btns">
-              {selectedIds.length ? (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setSelectedIds([]);
-                    setBulkMoveError(null);
-                    setBulkMoveNotice(null);
-                  }}
-                >
-                  Deselect all
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={selectAllVisible}
-                disabled={!selectableIds.length || allVisibleSelected || bulkMoving}
-              >
-                Select all
-              </button>
-              {!isPromptTab ? (
-                <div className="gallery-move">
-                  <button
-                    type="button"
-                    className="btn-secondary gallery-move-toggle"
-                    onClick={() => {
-                      setBulkMoveError(null);
-                      setBulkMoveMenuOpen((prev) => !prev);
-                    }}
-                    disabled={
-                      !selectedMediaRows.length || !canBulkMove || bulkDeleting || bulkMoving
-                    }
-                    aria-haspopup="menu"
-                    aria-expanded={bulkMoveMenuOpen}
-                  >
-                    <span>{bulkMoving ? "Moving..." : "Move selected"}</span>
-                    <CaretDown
-                      size={14}
-                      weight="bold"
-                      className={bulkMoveMenuOpen ? "is-open" : ""}
-                      aria-hidden
-                    />
-                  </button>
-                  {bulkMoveMenuOpen ? (
-                    <div className="gallery-move-menu" role="menu" aria-label="Move selected media">
-                      {bulkMoveTabOptions.map((option) => {
-                        const label = option.reason
-                          ? `${option.label} · ${option.reason}`
-                          : option.label;
-                        return (
-                          <button
-                            key={option.tab}
-                            type="button"
-                            className="gallery-move-option"
-                            role="menuitem"
-                            disabled={
-                              option.disabled || !isMoveDestinationDataTab(option.tab) || bulkMoving
-                            }
-                            onClick={() => {
-                              if (option.disabled || !isMoveDestinationDataTab(option.tab)) return;
-                              void moveSelectedFiles(option.tab);
-                            }}
-                            title={label}
-                          >
-                            <span>{option.label}</span>
-                            {option.reason ? <small>{option.reason}</small> : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={requestDeleteSelected}
-                disabled={!selectedIds.length || bulkDeleting || bulkMoving}
-                aria-label={`${deleteButtonLabel} ${selectedIds.length} ${deleteItemLabel}`}
-              >
-                {bulkDeleting ? "Deleting..." : deleteButtonLabel}
-              </button>
-            </div>
-          </div>
-          {bulkMoveNotice && !isPromptTab ? (
-            <div className="subdued tiny media-bulk-move-notice" role="status" aria-live="polite">
-              {bulkMoveNotice}
-            </div>
-          ) : null}
-          {bulkMoveError && !isPromptTab ? (
-            <div className="auth-error media-bulk-move-error" role="alert" aria-live="assertive">
-              {bulkMoveError}
-            </div>
-          ) : null}
+          <MediaGalleryActions
+            activeTab={activeTab}
+            allVisibleSelected={allVisibleSelected}
+            bulkDeleting={bulkDeleting}
+            bulkMoveError={bulkMoveError}
+            bulkMoveMenuOpen={bulkMoveMenuOpen}
+            bulkMoveNotice={bulkMoveNotice}
+            bulkMoveTabOptions={bulkMoveTabOptions}
+            bulkMoving={bulkMoving}
+            canBulkMove={canBulkMove}
+            deleteButtonLabel={deleteButtonLabel}
+            deleteItemLabel={deleteItemLabel}
+            isPromptTab={isPromptTab}
+            onClearSelection={() => {
+              setSelectedIds([]);
+              setBulkMoveError(null);
+              setBulkMoveNotice(null);
+            }}
+            onMoveSelected={(destinationTab) => {
+              if (!isMoveDestinationDataTab(destinationTab)) return;
+              void moveSelectedFiles(destinationTab);
+            }}
+            onRequestDeleteSelected={requestDeleteSelected}
+            onSelectAllVisible={selectAllVisible}
+            onToggleBulkMoveMenu={() => {
+              setBulkMoveError(null);
+              setBulkMoveMenuOpen((prev) => !prev);
+            }}
+            selectedIdsCount={selectedIds.length}
+            selectedMediaRowsCount={selectedMediaRows.length}
+            selectableIdsCount={selectableIds.length}
+          />
           {loading && <div className="subdued tiny">Loading media…</div>}
           {!loading && isPromptTab && !filteredPrompts.length && (
             <div className="subdued tiny">No prompts saved yet.</div>
@@ -1528,494 +1227,131 @@ export default function MediaLibrary() {
             </div>
           )}
           {isPromptTab ? (
-            <div className="prompt-grid">
-              {filteredPrompts.map((promptItem) => (
-                <div
-                  className={`prompt-card ${selectedIds.includes(promptItem.id) ? "is-selected" : ""}`}
-                  key={promptItem.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={selectedIds.includes(promptItem.id)}
-                  onClick={() => togglePromptSelect(promptItem.id)}
-                  onDoubleClick={(event) => {
-                    event.stopPropagation();
-                    openPromptModal(promptItem);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      togglePromptSelect(promptItem.id);
-                    }
-                  }}
-                >
-                  {selectedIds.includes(promptItem.id) ? (
-                    <span className="prompt-select-indicator" aria-hidden>
-                      <CheckCircle size={16} weight="fill" />
-                    </span>
-                  ) : null}
-                  <div className="prompt-card-header">
-                    <div>
-                      <p className="metric-label">{promptItem.title || "Saved prompt"}</p>
-                      <p className="metric-value tiny">{formatDate(promptItem.created_at)}</p>
-                    </div>
-                    <span className="pill tiny">{promptItem.mode}</span>
-                  </div>
-                  <p className="prompt-card-body">{promptItem.prompt_text}</p>
-                  <div className="prompt-card-footer">
-                    <button
-                      type="button"
-                      className="btn-secondary prompt-delete-btn"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void deletePrompt(promptItem);
-                      }}
-                      aria-label={`Delete prompt: ${promptItem.title || "Saved prompt"}`}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <MediaPromptGrid
+              deletePrompt={deletePrompt}
+              formatDate={formatDate}
+              openPromptModal={openPromptModal}
+              prompts={filteredPrompts}
+              selectedIds={selectedIds}
+              togglePromptSelect={togglePromptSelect}
+            />
           ) : (
-            <>
-              <div className="media-grid media-grid-fixed media-grid-shell media-grid-packed">
-                {filteredMedia.map((file) => {
-                  const aspectRatio =
-                    aspectMap[file.id] || (isVideoFile(file.file_type) ? 9 / 16 : 4 / 5);
-                  return (
-                    <div
-                      className={`media-card ${file.status === "uploading" ? "is-uploading" : ""} ${
-                        selectedIds.includes(file.id) ? "is-selected" : ""
-                      }`}
-                      key={file.id}
-                      ref={getMediaCardRef(file.id)}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => toggleSelect(file)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          toggleSelect(file);
-                        }
-                      }}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        openModal(file);
-                      }}
-                    >
-                      {file.status === "uploading" ? (
-                        <div className="media-thumb placeholder" style={{ aspectRatio }}>
-                          <div className="loader-spin" />
-                        </div>
-                      ) : file.signedUrl ? (
-                        isVideoFile(file.file_type) ? (
-                          <video
-                            className="media-thumb"
-                            src={file.signedUrl}
-                            muted
-                            playsInline
-                            loop
-                            autoPlay
-                            preload="metadata"
-                            onLoadedMetadata={(e) => handleVideoMeta(file.id, e)}
-                            onError={() => handleMediaPreviewError(file)}
-                            style={{ aspectRatio }}
-                          />
-                        ) : (
-                          <>
-                            {/* Signed URLs are dynamic and may include ephemeral query parameters. */}
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={file.signedUrl}
-                              alt={file.filename}
-                              className="media-thumb"
-                              onLoad={(e) => handleImageLoad(file.id, e)}
-                              onError={() => handleMediaPreviewError(file)}
-                              style={{ aspectRatio }}
-                            />
-                          </>
-                        )
-                      ) : (
-                        <div
-                          className="media-thumb placeholder"
-                          style={{ aspectRatio }}
-                          aria-hidden
-                        />
-                      )}
-                      {selectedIds.includes(file.id) ? (
-                        <span className="media-select-indicator" aria-hidden>
-                          <CheckCircle size={13} weight="fill" />
-                        </span>
-                      ) : null}
-                      {file.status !== "uploading" ? (
-                        <div className="media-card-actions">
-                          <button
-                            type="button"
-                            className="media-download"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              void downloadFile(file);
-                            }}
-                            aria-label={`Download file: ${file.filename || "media file"}`}
-                          >
-                            <DownloadSimple size={14} weight="bold" />
-                          </button>
-                          <button
-                            type="button"
-                            className="media-delete"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              requestDeleteFile(file);
-                            }}
-                            aria-label={`Delete file: ${file.filename || "media file"}`}
-                          >
-                            <Trash size={14} weight="bold" />
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-              {hasMoreMediaPages ? (
-                <div className="media-load-more" ref={loadMoreSentinelRef}>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => {
-                      if (!activeMediaTab) return;
-                      void fetchMediaTabPage(activeMediaTab, { query: activeMediaQuery });
-                    }}
-                    disabled={loadingMoreMedia}
-                  >
-                    {loadingMoreMedia ? "Loading more..." : "Load more"}
-                  </button>
-                </div>
-              ) : null}
-            </>
+            <MediaAssetGallery
+              activeMediaQuery={activeMediaQuery}
+              activeMediaTab={activeMediaTab}
+              aspectMap={aspectMap}
+              downloadFile={downloadFile}
+              fetchMediaTabPage={fetchMediaTabPage}
+              files={filteredMedia}
+              getMediaCardRef={getMediaCardRef}
+              handleImageLoad={handleImageLoad}
+              handleMediaPreviewError={handleMediaPreviewError}
+              handleVideoMeta={handleVideoMeta}
+              hasMoreMediaPages={hasMoreMediaPages}
+              isVideoFile={isVideoFile}
+              loadMoreSentinelRef={loadMoreSentinelRef}
+              loadingMoreMedia={loadingMoreMedia}
+              openModal={openModal}
+              requestDeleteFile={requestDeleteFile}
+              selectedIds={selectedIds}
+              toggleSelect={toggleSelect}
+            />
           )}
         </section>
       </main>
 
       {deleteTarget ? (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-file-title"
-        >
-          <div className="modal-card media-delete-confirm-card">
-            <h3 id="delete-file-title">Delete this file from your library?</h3>
-            <p className="subdued tiny media-delete-confirm-copy">
+        <MediaDeleteConfirmModal
+          body={
+            <>
               This will permanently remove <strong>{deleteTarget.filename}</strong> from your Media
               Library and private storage. This action cannot be undone.
-            </p>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={cancelDeleteFile}
-                disabled={deletingSingle}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={confirmDeleteFile}
-                disabled={deletingSingle}
-              >
-                {deletingSingle ? "Deleting..." : "Yes, delete file"}
-              </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+          cancelDisabled={deletingSingle}
+          confirmDisabled={deletingSingle}
+          confirmLabel={deletingSingle ? "Deleting..." : "Yes, delete file"}
+          confirmTitleId="delete-file-title"
+          onCancel={cancelDeleteFile}
+          onConfirm={() => {
+            void confirmDeleteFile();
+          }}
+          title="Delete this file from your library?"
+        />
       ) : null}
 
       {confirmDeleteIds?.length ? (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-selected-title"
-        >
-          <div className="modal-card media-delete-confirm-card">
-            <h3 id="delete-selected-title">Delete selected file(s) from your library?</h3>
-            <p className="subdued tiny media-delete-confirm-copy">
+        <MediaDeleteConfirmModal
+          body={
+            <>
               This will permanently remove{" "}
               <strong>{confirmDeleteIds.length} selected file(s)</strong> from your Media Library
               and private storage. This action cannot be undone.
-            </p>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={cancelDeleteSelected}
-                disabled={bulkDeleting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={confirmDeleteSelected}
-                disabled={bulkDeleting}
-              >
-                {bulkDeleting ? "Deleting..." : "Yes, delete selected"}
-              </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+          cancelDisabled={bulkDeleting}
+          confirmDisabled={bulkDeleting}
+          confirmLabel={bulkDeleting ? "Deleting..." : "Yes, delete selected"}
+          confirmTitleId="delete-selected-title"
+          onCancel={cancelDeleteSelected}
+          onConfirm={() => {
+            void confirmDeleteSelected();
+          }}
+          title="Delete selected file(s) from your library?"
+        />
       ) : null}
 
       {focusedFile ? (
-        <div className="media-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-          <div className="media-modal-backdrop" onClick={closeModal} />
-          <div className="media-modal-content">
-            <div className="modal-body">
-              <div
-                className="modal-preview"
-                ref={modalPreviewRef}
-                style={
-                  {
-                    aspectRatio: focusedAspectRatio,
-                    "--modal-preview-aspect": String(focusedAspectRatio),
-                  } as React.CSSProperties
-                }
-                onWheel={handleModalPreviewWheel}
-              >
-                {focusedFile.signedUrl ? (
-                  isVideoFile(focusedFile.file_type) ? (
-                    <video
-                      src={focusedFile.signedUrl}
-                      controls
-                      onLoadedMetadata={(event) => {
-                        const video = event.currentTarget;
-                        if (!video.videoWidth || !video.videoHeight) return;
-                        cacheAspectRatio(focusedFile.id, video.videoWidth / video.videoHeight);
-                      }}
-                      onError={() => handleMediaPreviewError(focusedFile)}
-                    />
-                  ) : (
-                    <>
-                      {/* Signed URLs are dynamic and may include ephemeral query parameters. */}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={focusedFile.signedUrl}
-                        alt={focusedFile.filename}
-                        className={`modal-zoomable-image ${modalImageZoomActive ? "is-zoom-active" : ""} ${modalImageZoomScale > 1 ? "is-zoomed" : ""} ${isModalImagePanning ? "is-panning" : ""}`}
-                        style={{
-                          transform: `translate3d(${modalImagePan.x}px, ${modalImagePan.y}px, 0) scale(${modalImageZoomScale})`,
-                          transformOrigin: "50% 50%",
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        aria-label="Toggle zoom mode for image preview"
-                        onClick={handleModalImageClick}
-                        onKeyDown={handleModalImageKeyDown}
-                        onWheel={handleModalImageWheel}
-                        onPointerDown={handleModalImagePointerDown}
-                        onPointerMove={handleModalImagePointerMove}
-                        onPointerUp={handleModalImagePointerUp}
-                        onPointerCancel={handleModalImagePointerUp}
-                        onLoad={(event) => {
-                          const image = event.currentTarget;
-                          if (!image.naturalWidth || !image.naturalHeight) return;
-                          cacheAspectRatio(
-                            focusedFile.id,
-                            image.naturalWidth / image.naturalHeight
-                          );
-                          cacheModalImageNaturalSize(image.naturalWidth, image.naturalHeight);
-                        }}
-                        onError={() => handleMediaPreviewError(focusedFile)}
-                      />
-                    </>
-                  )
-                ) : (
-                  <div className="placeholder" aria-hidden />
-                )}
-              </div>
-              <div className="modal-meta">
-                <div className="modal-top-actions">
-                  <button
-                    className="btn-secondary modal-pill-btn"
-                    type="button"
-                    onClick={() => void downloadFile(focusedFile)}
-                  >
-                    Download
-                  </button>
-                  <button
-                    className="btn-danger modal-delete-btn modal-pill-btn"
-                    type="button"
-                    onClick={() => requestDeleteFile(focusedFile)}
-                  >
-                    Delete
-                  </button>
-                  <button
-                    className="btn-secondary close-btn modal-pill-btn modal-close-pill"
-                    type="button"
-                    onClick={closeModal}
-                    aria-label="Close preview"
-                  >
-                    ×
-                  </button>
-                </div>
-                <label htmlFor="renameInput" id="modal-title" className="eyebrow">
-                  File name
-                </label>
-                <input
-                  id="renameInput"
-                  type="text"
-                  value={renameValue}
-                  onChange={(e) => handleRenameInputChange(e.target.value)}
-                  className="input"
-                  aria-label="Enter new filename"
-                />
-                {modalError && (
-                  <div className="auth-error" role="alert" aria-live="assertive">
-                    {modalError}
-                  </div>
-                )}
-                <button
-                  className="btn-primary"
-                  type="button"
-                  onClick={saveRename}
-                  disabled={savingRename || !renameValue.trim()}
-                >
-                  {savingRename ? "Renaming..." : "Rename"}
-                </button>
-                <div className="modal-move">
-                  <button
-                    className="btn-secondary modal-move-toggle"
-                    type="button"
-                    onClick={() => setMoveMenuOpen((prev) => !prev)}
-                    disabled={movingFile || !canMoveToAnotherTab}
-                    aria-haspopup="menu"
-                    aria-expanded={moveMenuOpen}
-                  >
-                    <span>{movingFile ? "Moving..." : "Move"}</span>
-                    <CaretDown
-                      size={14}
-                      weight="bold"
-                      className={moveMenuOpen ? "is-open" : ""}
-                      aria-hidden
-                    />
-                  </button>
-                  {moveMenuOpen ? (
-                    <div className="modal-move-menu" role="menu" aria-label="Move media to tab">
-                      {modalMoveTabOptions.map((option) => {
-                        return (
-                          <button
-                            key={option.tab}
-                            type="button"
-                            className="modal-move-option"
-                            role="menuitem"
-                            disabled={movingFile || option.disabled}
-                            onClick={() => {
-                              if (option.disabled) return;
-                              void moveFocusedFile(option.tab);
-                            }}
-                            title={option.label}
-                          >
-                            <span>{option.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-                {moveError ? (
-                  <div className="auth-error" role="alert" aria-live="assertive">
-                    {moveError}
-                  </div>
-                ) : null}
-                {renameSuccess && !modalError && !savingRename && (
-                  <div className="rename-toast" role="status" aria-live="polite">
-                    <CheckCircle size={16} weight="bold" />
-                    <span>Saved</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <MediaFileModal
+          canMoveToAnotherTab={canMoveToAnotherTab}
+          cacheModalImageNaturalSize={cacheModalImageNaturalSize}
+          cacheAspectRatio={cacheAspectRatio}
+          closeModal={closeModal}
+          downloadFile={downloadFile}
+          focusedAspectRatio={focusedAspectRatio}
+          focusedFile={focusedFile}
+          handleMediaPreviewError={handleMediaPreviewError}
+          handleModalImageClick={handleModalImageClick}
+          handleModalImageKeyDown={handleModalImageKeyDown}
+          handleModalImagePointerDown={handleModalImagePointerDown}
+          handleModalImagePointerMove={handleModalImagePointerMove}
+          handleModalImagePointerUp={handleModalImagePointerUp}
+          handleModalImageWheel={handleModalImageWheel}
+          handleModalPreviewWheel={handleModalPreviewWheel}
+          handleRenameInputChange={handleRenameInputChange}
+          isModalImagePanning={isModalImagePanning}
+          isVideoFile={isVideoFile}
+          modalError={modalError}
+          modalImagePan={modalImagePan}
+          modalImageZoomActive={modalImageZoomActive}
+          modalImageZoomScale={modalImageZoomScale}
+          modalMoveTabOptions={modalMoveTabOptions}
+          modalPreviewRef={modalPreviewRef}
+          moveError={moveError}
+          moveFocusedFile={moveFocusedFile}
+          moveMenuOpen={moveMenuOpen}
+          movingFile={movingFile}
+          renameSuccess={renameSuccess}
+          renameValue={renameValue}
+          requestDeleteFile={requestDeleteFile}
+          saveRename={saveRename}
+          savingRename={savingRename}
+          setMoveMenuOpen={setMoveMenuOpen}
+        />
       ) : null}
 
       {focusedPrompt ? (
-        <div
-          className="media-modal prompt-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="prompt-modal-title"
-        >
-          <div className="media-modal-backdrop" onClick={closePromptModal} />
-          <div className="prompt-modal-content">
-            <div className="prompt-modal-top-actions">
-              <button
-                className="btn-danger modal-pill-btn prompt-modal-delete-btn"
-                type="button"
-                onClick={() => {
-                  void deletePrompt(focusedPrompt, { fromPromptModal: true });
-                }}
-                disabled={savingPromptEdit}
-              >
-                Delete
-              </button>
-              <button
-                className="btn-secondary close-btn modal-pill-btn modal-close-pill prompt-modal-close-btn"
-                type="button"
-                onClick={closePromptModal}
-                aria-label="Close prompt editor"
-                disabled={savingPromptEdit}
-              >
-                ×
-              </button>
-            </div>
-
-            <label htmlFor="promptEditInput" id="prompt-modal-title" className="eyebrow">
-              Saved prompt
-            </label>
-            <textarea
-              id="promptEditInput"
-              className="prompt-modal-textarea"
-              value={promptEditValue}
-              onChange={(event) => {
-                handlePromptEditChange(event.target.value);
-              }}
-              placeholder="Edit your prompt..."
-            />
-
-            {promptModalError ? (
-              <div className="auth-error" role="alert" aria-live="assertive">
-                {promptModalError}
-              </div>
-            ) : null}
-
-            <div className="prompt-modal-footer">
-              {promptSaveSuccess ? (
-                <div className="rename-toast prompt-modal-toast" role="status" aria-live="polite">
-                  <CheckCircle size={16} weight="bold" />
-                  <span>Saved</span>
-                </div>
-              ) : (
-                <span aria-hidden />
-              )}
-              <button
-                className="btn-primary prompt-modal-save-btn"
-                type="button"
-                onClick={() => {
-                  void savePromptEdits();
-                }}
-                disabled={savingPromptEdit || !promptEditValue.trim()}
-              >
-                {savingPromptEdit ? "Saving..." : "Save edits"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <MediaPromptModal
+          closePromptModal={closePromptModal}
+          deletePrompt={deletePrompt}
+          focusedPrompt={focusedPrompt}
+          handlePromptEditChange={handlePromptEditChange}
+          promptEditValue={promptEditValue}
+          promptModalError={promptModalError}
+          promptSaveSuccess={promptSaveSuccess}
+          savePromptEdits={savePromptEdits}
+          savingPromptEdit={savingPromptEdit}
+        />
       ) : null}
     </>
   );

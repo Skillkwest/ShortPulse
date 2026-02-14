@@ -134,7 +134,7 @@
 }
 
 .character-step-card .step-header-actions {
-  gap: 10px;
+  gap: 28px;
 }
 
 .character-step-card .step-card-header {
@@ -170,13 +170,13 @@
   display: grid;
   grid-template-columns: auto 230px;
   align-items: center;
-  gap: 20px;
+  gap: 28px;
   transition:
     grid-template-columns 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
     gap 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.character-header-actions--mode-off {
+.character-step-card .character-header-actions--mode-off {
   grid-template-columns: auto 0px;
   gap: 0;
 }

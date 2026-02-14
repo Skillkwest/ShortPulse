@@ -23,6 +23,17 @@ Purpose: define the documentation information architecture, ownership rules, and
 3. Historical:
 - Files in `docs/archive/` and `docs/brainstorming/`.
 
+## Lifecycle states and archive policy
+- `Active`: current source-of-truth docs used for implementation/operations.
+- `Working`: in-flight plans and execution artifacts under `docs/planning/`.
+- `Archived`: superseded or historical docs under `docs/archive/` only.
+
+Archive requirements:
+- Move superseded docs into `docs/archive/` (use subfolders like `docs/archive/sops/` and `docs/archive/product/` when helpful).
+- Add an explicit archive note at the top of archived docs (for example: moved date + superseded-by path).
+- Keep `Status: Legacy` markers only in files under `docs/archive/`.
+- Update `docs/README.md` and relevant section indexes when docs move.
+
 ## Done state for docs cleanup
 A docs cleanup is complete when all are true:
 - Every doc is in the correct category folder.
@@ -44,6 +55,5 @@ Covered after this cleanup:
 - Monitoring, disaster recovery, and performance operations baseline docs.
 
 Remaining improvement opportunities:
-- Add an automated whole-repo markdown link checker (not only API index validation).
 - Add explicit owner/review cadence metadata for high-churn docs.
 - Add contract validation between documented route inventories and `frontend/pages/api/*` to catch drift automatically.

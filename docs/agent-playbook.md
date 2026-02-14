@@ -40,7 +40,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - For large refactors, propose a plan and execute incrementally; avoid exceeding file size limits.
 
 ## Maintenance skills
-- Run `npm -C frontend run docs:check` to validate API docs are indexed.
+- Run `npm -C frontend run docs:check` to validate docs API indexing, markdown link integrity, and legacy-status placement rules.
 - Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.
 - Use `skills/skill-doc-index/SKILL.md` when adding or renaming docs.
 - Use `skills/skill-ui-ux-critic/SKILL.md` for UI-focused PR audits and trend-fit recommendations.

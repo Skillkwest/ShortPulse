@@ -127,6 +127,12 @@ type TextSectionProps = {
   agentChatOpen: boolean;
   onGenerate: () => void;
   onSavePrompt: (customPrompt?: string) => void;
+  characterOptions?: Array<{ id: string; name: string; profileImageUrl?: string | null }>;
+  selectedCharacterId?: string;
+  onSelectedCharacterIdChange?: (value: string) => void;
+  isCharacterOptionsLoading?: boolean;
+  characterModeEnabled?: boolean;
+  onCharacterModeEnabledChange?: (value: boolean) => void;
 };
 
 type CharacterSectionProps = React.ComponentProps<typeof CharacterPropertiesPanel>;

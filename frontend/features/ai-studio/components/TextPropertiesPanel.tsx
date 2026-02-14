@@ -4,7 +4,7 @@
  */
 import Image from "next/image";
 import React, { useEffect, useMemo } from "react";
-import { CaretDown } from "phosphor-react";
+import { CaretDown, X } from "phosphor-react";
 import { AspectDropdown } from "./AspectDropdown";
 import { AspectOption, StudioMode } from "../types";
 import { aspectOptions, modelLogos } from "../constants";
@@ -19,13 +19,8 @@ import {
 } from "../logic/imageResolution";
 import { getModelConfig } from "../logic/modelRegistry";
 
-const PREBUILT_CHARACTER_OWNER_OPTIONS = [
-  { value: "ava", label: "Ava Mercer" },
-  { value: "liam", label: "Liam Park" },
-  { value: "zoe", label: "Zoe Bennett" },
-  { value: "noah", label: "Noah Carter" },
-  { value: "mia", label: "Mia Chen" },
-];
+const CHARACTER_MODE_UI_MODEL_LABEL = "Pulse Character";
+const CHARACTER_MODE_UI_MODEL_LOGO = "/tiny%20logo.png";
 
 type TextPropertiesPanelProps = {
   mode: StudioMode;
@@ -86,6 +81,12 @@ type TextPropertiesPanelProps = {
   beginnerMode?: boolean;
   imageResolution?: string;
   onImageResolutionChange?: (value: string) => void;
+  characterOptions?: Array<{ id: string; name: string; profileImageUrl?: string | null }>;
+  selectedCharacterId?: string;
+  onSelectedCharacterIdChange?: (value: string) => void;
+  isCharacterOptionsLoading?: boolean;
+  characterModeEnabled?: boolean;
+  onCharacterModeEnabledChange?: (value: boolean) => void;
 };
 
 type ComposeSendCardProps = {
@@ -123,6 +124,16 @@ const StepHeaderActionButton: React.FC<StepHeaderActionButtonProps> = ({
       <CaretDown size={16} weight="bold" aria-hidden />
     </button>
   );
+};
+
+const getCharacterInitials = (name: string): string => {
+  const trimmed = name.trim();
+  if (!trimmed) return "?";
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return `${parts[0]?.[0] ?? ""}${parts[parts.length - 1]?.[0] ?? ""}`.toUpperCase();
 };
 
 /**
@@ -172,9 +183,20 @@ export function TextPropertiesPanel({
   beginnerMode = false,
   imageResolution,
   onImageResolutionChange,
+  characterOptions = [],
+  selectedCharacterId = "",
+  onSelectedCharacterIdChange,
+  isCharacterOptionsLoading = false,
+  characterModeEnabled = true,
+  onCharacterModeEnabledChange,
 }: TextPropertiesPanelProps) {
   const promptStepNumber = beginnerMode ? "1" : "2";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
+  const effectiveModelLabel = characterModeEnabled ? CHARACTER_MODE_UI_MODEL_LABEL : modelLabel;
+  const effectiveModelLogoSrc = characterModeEnabled ? CHARACTER_MODE_UI_MODEL_LOGO : modelLogoSrc;
+  const useUnoptimizedModelLogo =
+    characterModeEnabled && effectiveModelLogoSrc === CHARACTER_MODE_UI_MODEL_LOGO;
+  const isModelPickerLockedByCharacterMode = characterModeEnabled;
   const modelConfig = useMemo(() => (modelId ? getModelConfig(modelId) : null), [modelId]);
   const aspectOptionsForModel: AspectOption[] = useMemo(() => {
     if (modelConfig?.allowedAspects?.length) {
@@ -182,7 +204,6 @@ export function TextPropertiesPanel({
     }
     return aspectOptions;
   }, [modelConfig]);
-  const [selectedCharacterOwner, setSelectedCharacterOwner] = React.useState<string>("");
   const [collapsedSteps, setCollapsedSteps] = React.useState<{
     model: boolean;
     prompt: boolean;
@@ -190,6 +211,7 @@ export function TextPropertiesPanel({
     model: false,
     prompt: false,
   });
+  const [isCharacterPickerOpen, setIsCharacterPickerOpen] = React.useState(false);
 
   const toggleStep = (step: "model" | "prompt") => {
     setCollapsedSteps((prev) => ({ ...prev, [step]: !prev[step] }));
@@ -218,9 +240,24 @@ export function TextPropertiesPanel({
     [imageResolution, modelId]
   );
   const shouldShowImageResolutionCard = useMemo(() => {
+    if (characterModeEnabled) return false;
     if (imageResolutionOptions.length !== 1) return true;
     return imageResolutionOptions[0]?.value !== MODEL_DEFAULT_IMAGE_RESOLUTION;
-  }, [imageResolutionOptions]);
+  }, [characterModeEnabled, imageResolutionOptions]);
+  const hasCharacterOptions = characterOptions.length > 0;
+  const characterSelectDisabled =
+    isCharacterOptionsLoading || !hasCharacterOptions || !characterModeEnabled;
+  const characterSelectPlaceholder = !characterModeEnabled
+    ? "Character mode is off"
+    : isCharacterOptionsLoading
+      ? "Loading characters..."
+      : hasCharacterOptions
+        ? "Choose Character"
+        : "No characters available";
+  const selectedCharacterOption = useMemo(
+    () => characterOptions.find((option) => option.id === selectedCharacterId) ?? null,
+    [characterOptions, selectedCharacterId]
+  );
 
   // Auto-clamp invalid image resolution values when switching image models.
   useEffect(() => {
@@ -229,6 +266,18 @@ export function TextPropertiesPanel({
       onImageResolutionChange(imageResolutionValue);
     }
   }, [imageResolution, imageResolutionValue, onImageResolutionChange]);
+
+  useEffect(() => {
+    if (!isCharacterPickerOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsCharacterPickerOpen(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isCharacterPickerOpen]);
 
   return (
     <div className="tool-properties text-properties-panel">
@@ -239,38 +288,172 @@ export function TextPropertiesPanel({
         <div
           className="step-card character-step-card"
           role="group"
-          aria-label="Choose character section"
+          aria-label="Character mode section"
         >
           <div className="step-card-header">
             <div className="step-header-copy">
               <p className="step-title">
-                Choose Character <span className="step-title-optional">(Optional)</span>
+                Character Mode
+                {!characterModeEnabled ? (
+                  <span className="step-title-optional">(Optional)</span>
+                ) : null}
               </p>
               <span className="step-subtitle tiny helper-text">
-                Select a user with pre-created character profiles.
+                Select one of your Character Manager profiles.
               </span>
             </div>
-            <div className="step-header-actions">
-              <div className="fixed-select character-owner-header">
-                <select
-                  className="model-select character-owner-header-select"
-                  aria-label="Character owner"
-                  value={selectedCharacterOwner}
-                  onChange={(event) => setSelectedCharacterOwner(event.target.value)}
+            <div
+              className={`step-header-actions character-header-actions ${
+                !characterModeEnabled ? "character-header-actions--mode-off" : ""
+              }`}
+            >
+              <div className="character-mode-row">
+                <button
+                  type="button"
+                  className={`audio-toggle character-mode-toggle ${characterModeEnabled ? "is-active" : ""}`}
+                  aria-pressed={characterModeEnabled}
+                  aria-label={
+                    characterModeEnabled ? "Disable character mode" : "Enable character mode"
+                  }
+                  onClick={() => {
+                    onCharacterModeEnabledChange?.(!characterModeEnabled);
+                    onStepActionClick?.("character");
+                  }}
                 >
-                  <option value="" disabled>
-                    Choose Character
-                  </option>
-                  {PREBUILT_CHARACTER_OWNER_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  <span className="audio-toggle-track" aria-hidden="true">
+                    <span className="audio-toggle-dot" />
+                  </span>
+                </button>
+              </div>
+              <div
+                className={`character-picker-row ${characterModeEnabled ? "is-visible" : "is-hidden"}`}
+                aria-hidden={!characterModeEnabled}
+              >
+                <button
+                  type="button"
+                  className={`model-picker-btn character-picker-trigger ${
+                    !selectedCharacterOption ? "is-empty" : ""
+                  } ${isCharacterPickerOpen ? "is-open" : ""}`}
+                  aria-haspopup="dialog"
+                  aria-expanded={isCharacterPickerOpen}
+                  aria-label="Open character picker"
+                  disabled={characterSelectDisabled}
+                  onClick={() => setIsCharacterPickerOpen(true)}
+                >
+                  <div className="model-picker-row">
+                    <span className="character-picker-trigger-value">
+                      {selectedCharacterOption?.profileImageUrl ? (
+                        <Image
+                          src={selectedCharacterOption.profileImageUrl}
+                          alt={`${selectedCharacterOption.name} profile`}
+                          className="character-picker-trigger-avatar"
+                          width={24}
+                          height={24}
+                          unoptimized
+                        />
+                      ) : selectedCharacterOption ? (
+                        <span className="character-picker-trigger-avatar character-picker-trigger-avatar--fallback">
+                          {getCharacterInitials(selectedCharacterOption.name)}
+                        </span>
+                      ) : null}
+                      <span className="model-picker-name">
+                        {selectedCharacterOption?.name ?? characterSelectPlaceholder}
+                      </span>
+                    </span>
+                  </div>
+                </button>
               </div>
             </div>
           </div>
         </div>
+      ) : null}
+      {isCharacterPickerOpen && characterModeEnabled && !beginnerMode ? (
+        <>
+          <div
+            className="model-modal-backdrop character-picker-backdrop"
+            onClick={() => setIsCharacterPickerOpen(false)}
+          />
+          <div
+            className="model-modal character-picker-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose character"
+          >
+            <div className="model-modal-header">
+              <div className="model-modal-title-group">
+                <h3 className="model-modal-title">Character Picker</h3>
+                <p className="model-modal-subtitle">
+                  Select a character profile from Character Manager.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ghost-btn mini model-modal-close"
+                aria-label="Close character picker"
+                onClick={() => setIsCharacterPickerOpen(false)}
+              >
+                <X size={16} weight="bold" />
+              </button>
+            </div>
+            <div className="model-modal-scroll">
+              {characterOptions.length > 0 ? (
+                <div className="character-picker-grid" role="list" aria-label="Character options">
+                  {characterOptions.map((option) => {
+                    const isActive = option.id === selectedCharacterId;
+                    return (
+                      <article
+                        key={option.id}
+                        role="listitem"
+                        className={`character-list-card character-picker-card ${
+                          isActive ? "is-active" : ""
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          className="character-list-select-btn"
+                          aria-pressed={isActive}
+                          onClick={() => {
+                            onSelectedCharacterIdChange?.(option.id);
+                            setIsCharacterPickerOpen(false);
+                          }}
+                        >
+                          <div className="character-list-main">
+                            <span className="character-list-avatar" aria-hidden="true">
+                              {option.profileImageUrl ? (
+                                <Image
+                                  src={option.profileImageUrl}
+                                  alt=""
+                                  className="character-list-avatar-image"
+                                  width={44}
+                                  height={44}
+                                  unoptimized
+                                />
+                              ) : (
+                                <span className="character-list-avatar-initials">
+                                  {getCharacterInitials(option.name)}
+                                </span>
+                              )}
+                            </span>
+                            <div className="character-list-copy">
+                              <p className="metric-label tiny">
+                                {isActive ? "Selected" : "Character"}
+                              </p>
+                              <p className="character-list-name">{option.name}</p>
+                            </div>
+                          </div>
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="tiny subdued character-picker-empty">
+                  No character profiles available.
+                </p>
+              )}
+            </div>
+          </div>
+        </>
       ) : null}
       <PromptStep
         stepNumber={promptStepNumber}
@@ -347,23 +530,32 @@ export function TextPropertiesPanel({
               <label className="input-label">Model</label>
               <button
                 type="button"
-                className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""}`}
+                className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""} ${
+                  isModelPickerLockedByCharacterMode ? "is-locked" : ""
+                }`}
                 data-model-anchor="create-model"
+                disabled={isModelPickerLockedByCharacterMode}
+                aria-label={
+                  isModelPickerLockedByCharacterMode
+                    ? "Model locked while character mode is enabled"
+                    : "Open model picker"
+                }
                 onClick={handleCreateModelOpen}
               >
                 <div className="model-picker-row">
                   <span className="model-picker-value">
-                    {modelLogoSrc ? (
+                    {effectiveModelLogoSrc ? (
                       <Image
                         className="model-chip-logo-img"
-                        src={modelLogoSrc}
+                        src={effectiveModelLogoSrc}
                         alt=""
                         aria-hidden
                         width={80}
                         height={20}
+                        unoptimized={useUnoptimizedModelLogo}
                       />
                     ) : null}
-                    <span className="model-picker-name">{modelLabel}</span>
+                    <span className="model-picker-name">{effectiveModelLabel}</span>
                   </span>
                 </div>
               </button>

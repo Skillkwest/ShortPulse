@@ -34,6 +34,40 @@ export const getImageResolutionOptions = (modelId: string | null): ImageResoluti
   return values.map((value) => ({ value, label: formatImageResolutionLabel(value) }));
 };
 
+const getImageResolutionPriority = (value: string): number => {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "auto_4k" || normalized === "4k") return 500;
+  if (normalized === "auto_2k" || normalized === "2k") return 400;
+  if (normalized === "1080p") return 350;
+  if (normalized === "720p") return 300;
+  if (normalized === "1k") return 200;
+  if (normalized === MODEL_DEFAULT_IMAGE_RESOLUTION) return 0;
+
+  const kiloMatch = normalized.match(/^(\d+)k$/);
+  if (kiloMatch) {
+    const numeric = Number(kiloMatch[1]);
+    if (Number.isFinite(numeric)) {
+      return 200 + numeric;
+    }
+  }
+
+  return 100;
+};
+
+export const getHighestImageResolutionForModel = (modelId: string | null): string => {
+  const options = getImageResolutionOptions(modelId);
+  if (!options.length) {
+    return MODEL_DEFAULT_IMAGE_RESOLUTION;
+  }
+
+  return options.reduce((best, option) => {
+    if (getImageResolutionPriority(option.value) > getImageResolutionPriority(best.value)) {
+      return option;
+    }
+    return best;
+  }).value;
+};
+
 export const clampImageResolutionForModel = (
   modelId: string | null,
   value: string | null | undefined

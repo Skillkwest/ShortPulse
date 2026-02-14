@@ -9,6 +9,7 @@ import { computeModalPosition } from "../logic/stateParsers";
 import type { ToolId } from "../types";
 
 const KEYFRAME_COMPATIBLE_MODELS = new Set(["fal-ai/veo3.1/first-last-frame-to-video"]);
+const CREATE_CHARACTER_MODE_LOCKED_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/edit";
 const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
 
 type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
@@ -325,9 +326,15 @@ export const useAiStudioStateEffects = ({
     if (!model) return;
     const allowedValues = new Set(allowedModelValues);
     if (!allowedValues.has(model)) {
+      const isCharacterModeCreateModel =
+        (selectedTool === "create" || selectedTool === "text") &&
+        model === CREATE_CHARACTER_MODE_LOCKED_MODEL_ID;
+      if (isCharacterModeCreateModel) {
+        return;
+      }
       setModel(null);
     }
-  }, [allowedModelValues, hasPendingWorkflowRestore, model, setModel]);
+  }, [allowedModelValues, hasPendingWorkflowRestore, model, selectedTool, setModel]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

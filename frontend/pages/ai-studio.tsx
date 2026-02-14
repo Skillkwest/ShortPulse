@@ -44,9 +44,15 @@ import {
   shouldApplyAgentPromptToSharedPrompt,
 } from "../features/ai-studio/logic/promptTargeting";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
+import { listCharacterManagerCharacters } from "../features/character-manager/logic/characterManagerPersistence";
+import { getHighestImageResolutionForModel } from "../features/ai-studio/logic/imageResolution";
 
 const MAX_AGENT_ATTACHMENTS = 10;
 const MAX_AGENT_IMAGE_ATTACHMENTS = 3;
+const CHARACTER_MODE_BACKGROUND_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/edit";
+const CHARACTER_MODE_FORCED_IMAGE_RESOLUTION = getHighestImageResolutionForModel(
+  CHARACTER_MODE_BACKGROUND_MODEL_ID
+);
 
 const attachmentSignature = (attachment: AgentAttachment) =>
   attachment.referenceId
@@ -82,6 +88,12 @@ type OptimisticDebitEntry = {
   outputId: string | null;
 };
 
+type CharacterSelectOption = {
+  id: string;
+  name: string;
+  profileImageUrl: string | null;
+};
+
 export default function AiStudioPage() {
   const { balanceCents, balanceLoading, refreshBalance } = useCredits();
   const balanceCredits = useMemo(() => {
@@ -89,6 +101,10 @@ export default function AiStudioPage() {
     return Math.max(0, Math.floor(balanceCents)); // cents == credits
   }, [balanceCents]);
   const [optimisticDebitEntries, setOptimisticDebitEntries] = useState<OptimisticDebitEntry[]>([]);
+  const [characterOptions, setCharacterOptions] = useState<CharacterSelectOption[]>([]);
+  const [selectedCharacterId, setSelectedCharacterId] = useState("");
+  const [isCharacterOptionsLoading, setIsCharacterOptionsLoading] = useState(true);
+  const [isCharacterModeEnabled, setIsCharacterModeEnabled] = useState(true);
   const optimisticDebitTotal = useMemo(
     () => optimisticDebitEntries.reduce((sum, entry) => sum + entry.credits, 0),
     [optimisticDebitEntries]
@@ -252,6 +268,8 @@ export default function AiStudioPage() {
   const generateClickLockTimerRef = useRef<number | null>(null);
   const [isGenerateClickLocked, setIsGenerateClickLocked] = useState(false);
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
+  const previousCreateModelBeforeCharacterModeRef = useRef<string | null>(null);
+  const previousCreateImageResolutionBeforeCharacterModeRef = useRef<string | null>(null);
   const latestAssistantMessage = useMemo(
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
     [agentMessages]
@@ -269,6 +287,94 @@ export default function AiStudioPage() {
   );
   const agentPrimarySource = resolvePromptSourceBadge(promptOrigin);
   const stagedAgentPrompt = getStagedAgentPrompt(promptOrigin, latestAgentPrompt);
+
+  useEffect(() => {
+    let active = true;
+    setIsCharacterOptionsLoading(true);
+    void listCharacterManagerCharacters()
+      .then((items) => {
+        if (!active) return;
+        const mappedOptions = items.map((item) => ({
+          id: item.characterId,
+          name: item.characterName,
+          profileImageUrl: item.profileImageUrl,
+        }));
+        setCharacterOptions(mappedOptions);
+        setSelectedCharacterId((current) =>
+          mappedOptions.some((option) => option.id === current) ? current : ""
+        );
+      })
+      .catch((error) => {
+        if (!active) return;
+        const message =
+          error instanceof Error && error.message.trim().length
+            ? error.message
+            : "Failed to load Character Manager profiles.";
+        const normalized = message.toLowerCase();
+        const isSessionTransitionError =
+          normalized.includes("no active session") || normalized.includes("not authenticated");
+        if (!isSessionTransitionError) {
+          setUiError(message);
+        }
+      })
+      .finally(() => {
+        if (!active) return;
+        setIsCharacterOptionsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [setUiError]);
+
+  useEffect(() => {
+    const characterModeAppliesToCreate =
+      isCharacterModeEnabled && (selectedTool === "create" || selectedTool === "text");
+
+    if (characterModeAppliesToCreate) {
+      if (
+        model &&
+        model !== CHARACTER_MODE_BACKGROUND_MODEL_ID &&
+        !previousCreateModelBeforeCharacterModeRef.current
+      ) {
+        previousCreateModelBeforeCharacterModeRef.current = model;
+      }
+      if (model !== CHARACTER_MODE_BACKGROUND_MODEL_ID) {
+        setModel(CHARACTER_MODE_BACKGROUND_MODEL_ID);
+      }
+      if (
+        imageResolution &&
+        imageResolution !== CHARACTER_MODE_FORCED_IMAGE_RESOLUTION &&
+        !previousCreateImageResolutionBeforeCharacterModeRef.current
+      ) {
+        previousCreateImageResolutionBeforeCharacterModeRef.current = imageResolution;
+      }
+      if (imageResolution !== CHARACTER_MODE_FORCED_IMAGE_RESOLUTION) {
+        setImageResolution(CHARACTER_MODE_FORCED_IMAGE_RESOLUTION);
+      }
+      return;
+    }
+
+    const previousModel = previousCreateModelBeforeCharacterModeRef.current;
+    previousCreateModelBeforeCharacterModeRef.current = null;
+    if (
+      model === CHARACTER_MODE_BACKGROUND_MODEL_ID &&
+      previousModel &&
+      previousModel !== CHARACTER_MODE_BACKGROUND_MODEL_ID
+    ) {
+      setModel(previousModel);
+    }
+    const previousImageResolution = previousCreateImageResolutionBeforeCharacterModeRef.current;
+    previousCreateImageResolutionBeforeCharacterModeRef.current = null;
+    if (
+      imageResolution === CHARACTER_MODE_FORCED_IMAGE_RESOLUTION &&
+      previousImageResolution &&
+      previousImageResolution !== CHARACTER_MODE_FORCED_IMAGE_RESOLUTION
+    ) {
+      setImageResolution(previousImageResolution);
+    }
+  }, [imageResolution, isCharacterModeEnabled, model, selectedTool, setImageResolution, setModel]);
+
   const trackAgentUiEvent = useCallback((message: string, data?: Record<string, unknown>) => {
     addBreadcrumb({
       type: "ui",
@@ -1656,6 +1762,12 @@ export default function AiStudioPage() {
     onGenerate: handlePrimarySubmit,
     onSavePrompt: savePromptReference,
     agentChatOpen: isAgentChatOpen,
+    characterOptions,
+    selectedCharacterId,
+    onSelectedCharacterIdChange: setSelectedCharacterId,
+    isCharacterOptionsLoading,
+    characterModeEnabled: isCharacterModeEnabled,
+    onCharacterModeEnabledChange: setIsCharacterModeEnabled,
     // Video settings props
     videoDurationSeconds,
     videoResolution,
@@ -1670,7 +1782,7 @@ export default function AiStudioPage() {
     onVideoCameraFixedChange: setVideoCameraFixed,
     onVideoAutoFixChange: setVideoAutoFix,
     beginnerMode,
-  } as const;
+  };
 
   return (
     <>

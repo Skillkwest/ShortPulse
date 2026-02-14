@@ -52,6 +52,21 @@
   box-shadow: 0 12px 24px var(--ai-accent-shadow, rgba(37, 169, 191, 0.25));
 }
 
+.model-picker-btn.is-locked,
+.model-picker-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.82;
+  background-image: none;
+  padding-right: 12px;
+}
+
+.model-picker-btn.is-locked:hover,
+.model-picker-btn:disabled:hover {
+  transform: none;
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
 .model-picker-title {
   font-size: 12px;
   letter-spacing: 0.02em;

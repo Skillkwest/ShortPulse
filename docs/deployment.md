@@ -31,8 +31,10 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SUPABASE_SERVICE_ROLE_KEY`
   - `SHORTPULSE_ADMIN_EMAILS`
 - Billing:
+  - `APP_BASE_URL`
   - `STRIPE_SECRET_KEY`
   - `STRIPE_WEBHOOK_SECRET`
+  - `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (optional override; default `300`)
 - Optional agent/runtime toggles:
   - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
   - `NEXT_PUBLIC_AGENT_V2`

@@ -9,3 +9,4 @@ Purpose: historical documents that are retained for context but are not authorit
 
 ## Notable archived docs
 - `docs/archive/character-manager-character-sheet-plan.md` (superseded by current Character Manager operations and UI-only sheet behavior).
+- `docs/archive/mvp-stabilization-plan.md` (superseded by `docs/planning/mvp-pretester-full-audit-remediation-plan.md`).

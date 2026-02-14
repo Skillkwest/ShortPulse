@@ -1,0 +1,4 @@
+interface:
+  display_name: "MVP Modularization Pass"
+  short_description: "Split oversized files with low regression risk"
+  default_prompt: "Use $skill-mvp-modularization-pass to modularize MVP high-churn files while preserving behavior and tests."

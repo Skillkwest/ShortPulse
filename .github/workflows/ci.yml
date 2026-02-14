@@ -22,7 +22,6 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-        continue-on-error: true  # Temporarily allow lint to fail due to Next.js 16 React Compiler issues
       - run: npm test
       - run: npm run build
 

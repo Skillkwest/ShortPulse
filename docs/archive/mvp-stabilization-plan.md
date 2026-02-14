@@ -1,11 +1,13 @@
 ---
 title: MVP Stabilization Plan
-status: Draft
+status: Archived (Superseded)
 owner: Product + Engineering
-last_updated: 2026-02-05
+last_updated: 2026-02-14
 ---
 
 # MVP Stabilization Plan
+
+Archived on 2026-02-14. Superseded by `docs/planning/mvp-pretester-full-audit-remediation-plan.md` for current pre-tester execution.
 
 Purpose: Provide a procedural, single-source runbook to align the repo with the current MVP scope and execute the work in a controlled sequence without scope creep.
 

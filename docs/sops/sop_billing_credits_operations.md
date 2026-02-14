@@ -15,9 +15,10 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Billing/RLS audit helper: `sql/audit_billing_credit_rls.sql`.
 - Reservation/capture migration: `sql/migrations/002_add_generation_credit_reservations.sql`.
 - Reservation RPC ambiguity fix: `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`.
-- Server debit helper: `frontend/pages/api/_utils/generationBilling.ts`.
-- Fal status settlement helper: `frontend/pages/api/_utils/falStatusProxy.ts`.
-- Ledger compatibility insert helper: `frontend/pages/api/_utils/creditLedger.ts`.
+- Reservation RPC auth/grant hardening: `sql/migrations/014_harden_generation_reservation_rpc_security.sql`.
+- Server debit helper: `frontend/lib/server/api/generationBilling.ts`.
+- Fal status settlement helper: `frontend/lib/server/api/falStatusProxy.ts`.
+- Ledger compatibility insert helper: `frontend/lib/server/api/creditLedger.ts`.
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
 
 ## Ledger schema contract
@@ -32,15 +33,20 @@ The API currently supports both shapes during rollout by falling back to `ref_id
 ## Migration runbook (required)
 1. Run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` in Supabase SQL editor.
 2. Run `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql` in Supabase SQL editor.
-3. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
-4. Confirm relation type for `ai_credit_balance`:
+3. Run `sql/migrations/014_harden_generation_reservation_rpc_security.sql` in Supabase SQL editor.
+4. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
+5. Confirm relation type for `ai_credit_balance`:
    - Table (`relkind = 'r'`/`'p'`): trigger-based balance sync remains enabled.
    - View (`relkind = 'v'`): migration skips incompatible RLS/trigger steps by design.
-5. Verify admin credit adjustment in `/admin` succeeds.
-6. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
-7. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
+6. Verify admin credit adjustment in `/admin` succeeds.
+7. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
+8. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
    - `cd frontend && npm run test:e2e:character` (with local app server running)
    - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
+9. Verify reservation RPC hardening checks are present in staged function bodies and grants:
+   - auth binding clause: `auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id`
+   - explicit `revoke ... from public, anon, authenticated`
+   - explicit `grant execute ... to service_role`
 
 Verification SQL:
 ```sql

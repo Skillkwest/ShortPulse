@@ -20,6 +20,6 @@ Purpose: prevent MVP scope creep and keep docs in sync when changes land.
 5. Docs index: New docs -> add to `docs/README.md` and the appropriate section folder index (`docs/api/README.md`, `docs/sops/README.md`, etc.) when applicable.
 
 ## References
-- `docs/planning/mvp-stabilization-plan.md`
+- `docs/planning/mvp-pretester-full-audit-remediation-plan.md`
 - `docs/routes.md`
 - `docs/release-checklist.md`

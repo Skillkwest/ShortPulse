@@ -101,7 +101,14 @@ Start here for all repository documentation.
 - `docs/planning/README.md`
 - `docs/planning/backlog.md`
 - `docs/planning/audit-progress.md`
-- `docs/planning/mvp-stabilization-plan.md`
+- `docs/planning/mvp-pretester-full-audit-remediation-plan.md`
+- `docs/planning/mvp-ui-ux-stabilization-remediation-plan.md`
+- `docs/planning/mvp-ui-ux-sprint-ticket-breakdown.md`
+- `docs/planning/mvp-ui-ux-issue-board.md`
+- `docs/planning/mvp-ui-ux-phase0-baseline-qa-checklist.md`
+- `docs/planning/mvp-ui-ux-phase0-baseline-capture-template.md`
+- `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
+- `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md`
 - `docs/planning/mvp-pre-tester-anchor-plan.md`
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
@@ -128,6 +135,7 @@ Start here for all repository documentation.
 - `docs/archive/ai-studio-agent-implementation-plan.md`
 - `docs/archive/ai-studio-prompts.md`
 - `docs/archive/character-manager-character-sheet-plan.md`
+- `docs/archive/mvp-stabilization-plan.md`
 - `docs/archive/refactor_prompt_archive.md`
 - `docs/archive/design-system-v1-draft.md`
 
@@ -140,3 +148,6 @@ Start here for all repository documentation.
 - `skills/skill-pricing-audit/SKILL.md`
 - `skills/skill-doc-index/SKILL.md`
 - `skills/skill-ui-ux-critic/SKILL.md`
+- `skills/skill-mvp-security-audit/SKILL.md`
+- `skills/skill-mvp-modularization-pass/SKILL.md`
+- `skills/skill-mvp-docs-sop-governance/SKILL.md`

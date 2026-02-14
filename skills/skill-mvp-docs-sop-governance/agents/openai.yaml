@@ -1,0 +1,4 @@
+interface:
+  display_name: "MVP Docs SOP Governance"
+  short_description: "Align docs and SOPs with live MVP reality"
+  default_prompt: "Use $skill-mvp-docs-sop-governance to audit docs drift, clean legacy SOP indexing, and verify docs integrity."

@@ -18,7 +18,7 @@ Purpose: operational runbooks for recurring engineering and product workflows.
 - Use `sop_<domain>.md`.
 - Put new SOPs in this folder and add them to `docs/README.md`.
 
-## Current SOPs
+## Active SOPs
 - `docs/sops/sop_character_manager_operations.md` (canonical `/character` runbook)
 - `docs/sops/sop_ai_studio_index.md`
 - `docs/sops/sop_ai_studio_agent.md`
@@ -26,8 +26,6 @@ Purpose: operational runbooks for recurring engineering and product workflows.
 - `docs/sops/sop_text_generation.md`
 - `docs/sops/sop_image_generation.md`
 - `docs/sops/sop_video_generation.md`
-- `docs/sops/sop_character_generation.md` (legacy, archived pipeline context)
-- `docs/sops/sop_character_identity.md` (legacy, archived pipeline context)
 - `docs/sops/sop_saved_creators.md`
 - `docs/sops/sop_media_library_ui.md`
 - `docs/sops/sop_media_performance_operations.md`
@@ -36,3 +34,7 @@ Purpose: operational runbooks for recurring engineering and product workflows.
 - `docs/sops/sop_provider_incident_response.md`
 - `docs/sops/sop_new_model_ingestion.md`
 - `docs/sops/sop_new_feature_modularization.md`
+
+## Legacy SOPs (do not use for active operations)
+- `docs/sops/sop_character_generation.md` (legacy, archived pipeline context)
+- `docs/sops/sop_character_identity.md` (legacy, archived pipeline context)

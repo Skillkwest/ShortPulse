@@ -37,7 +37,7 @@ Purpose: describe how the frontend is structured after modularization so new wor
 4) Add doc comments to new files and exported functions/components.
 
 ### AI Studio page (current state)
-- Page is now a thin orchestrator (`frontend/pages/ai-studio.tsx`) that wires feature components from `frontend/features/ai-studio/`.
+- Page remains the orchestration boundary (`frontend/pages/ai-studio.tsx`) and ongoing seam extraction continues to move prop composition and controller wiring into focused hooks under `frontend/features/ai-studio/hooks/`.
 - Feature module includes types/constants, a state hook (`hooks/useAiStudioState`), and scoped components (toolbar, create/regen panels, aspect picker, reference canvas, preview, anchored model modal, detail modal).
 - CSS is split across `styles/ai-studio-*.css` (layout, canvas, controls, dropzones, properties, prompts, prompt-actions, model-picker, history, modals, responsive) imported via `globals.css`.
 - Preview column remains hidden by CSS (`.studio-column { display: none; }`) so the Reference Canvas can expand until the preview experience is finalized.

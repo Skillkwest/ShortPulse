@@ -1,0 +1,4 @@
+interface:
+  display_name: "MVP Security Audit"
+  short_description: "Run pre-tester security hardening checks"
+  default_prompt: "Use $skill-mvp-security-audit to execute Phase 1 P0 security blockers and produce a verification report."

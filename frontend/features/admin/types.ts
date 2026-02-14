@@ -64,11 +64,20 @@ export type AdminErrorEventRow = {
 };
 
 export type AdminErrorEventSummary = {
+  last15mCount: number;
+  high15mCount: number;
+  generation15mCount: number;
   lastHourCount: number;
   last24hCount: number;
   app24hCount: number;
   generation24hCount: number;
   high24hCount: number;
+  total15mThreshold: number;
+  high15mThreshold: number;
+  generation15mThreshold: number;
+  total15mBreached: boolean;
+  high15mBreached: boolean;
+  generation15mBreached: boolean;
 };
 
 export type AdminPagination = {

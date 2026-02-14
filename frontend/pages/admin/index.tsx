@@ -46,6 +46,7 @@ const USERS_PER_PAGE = 50;
 const ERRORS_PER_PAGE = 50;
 const ERROR_EVENTS_PER_PAGE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
+const ERROR_REFRESH_INTERVAL_MS = 30000;
 const ADJUSTMENT_PRESETS = [100, 500, -100, -500] as const;
 type ErrorLoadOverrides = {
   page?: number;
@@ -111,11 +112,20 @@ export default function AdminDashboardPage() {
   const [errorEventsLoading, setErrorEventsLoading] = useState(false);
   const [errorEventsError, setErrorEventsError] = useState<string | null>(null);
   const [errorEventsSummary, setErrorEventsSummary] = useState<AdminErrorEventSummary>({
+    last15mCount: 0,
+    high15mCount: 0,
+    generation15mCount: 0,
     lastHourCount: 0,
     last24hCount: 0,
     app24hCount: 0,
     generation24hCount: 0,
     high24hCount: 0,
+    total15mThreshold: 40,
+    high15mThreshold: 8,
+    generation15mThreshold: 20,
+    total15mBreached: false,
+    high15mBreached: false,
+    generation15mBreached: false,
   });
   const [errorEventsPage, setErrorEventsPage] = useState(1);
   const [errorEventsPagination, setErrorEventsPagination] = useState<AdminPagination>({
@@ -373,6 +383,22 @@ export default function AdminDashboardPage() {
             setServerDenied(true);
             setServerValidated(false);
             setErrorEvents([]);
+            setErrorEventsSummary({
+              last15mCount: 0,
+              high15mCount: 0,
+              generation15mCount: 0,
+              lastHourCount: 0,
+              last24hCount: 0,
+              app24hCount: 0,
+              generation24hCount: 0,
+              high24hCount: 0,
+              total15mThreshold: 40,
+              high15mThreshold: 8,
+              generation15mThreshold: 20,
+              total15mBreached: false,
+              high15mBreached: false,
+              generation15mBreached: false,
+            });
             setErrorEventsPagination({
               page: 1,
               perPage: ERROR_EVENTS_PER_PAGE,
@@ -430,11 +456,20 @@ export default function AdminDashboardPage() {
 
         setErrorEvents(rows);
         setErrorEventsSummary({
+          last15mCount: Number(data.summary?.last15mCount ?? 0),
+          high15mCount: Number(data.summary?.high15mCount ?? 0),
+          generation15mCount: Number(data.summary?.generation15mCount ?? 0),
           lastHourCount: Number(data.summary?.lastHourCount ?? 0),
           last24hCount: Number(data.summary?.last24hCount ?? 0),
           app24hCount: Number(data.summary?.app24hCount ?? 0),
           generation24hCount: Number(data.summary?.generation24hCount ?? 0),
           high24hCount: Number(data.summary?.high24hCount ?? 0),
+          total15mThreshold: Number(data.summary?.total15mThreshold ?? 40),
+          high15mThreshold: Number(data.summary?.high15mThreshold ?? 8),
+          generation15mThreshold: Number(data.summary?.generation15mThreshold ?? 20),
+          total15mBreached: Boolean(data.summary?.total15mBreached),
+          high15mBreached: Boolean(data.summary?.high15mBreached),
+          generation15mBreached: Boolean(data.summary?.generation15mBreached),
         });
         setErrorEventsPagination({
           page: resolvedPage,
@@ -589,6 +624,27 @@ export default function AdminDashboardPage() {
   const refreshErrorData = useCallback(async () => {
     await Promise.all([loadErrors(), loadErrorEvents()]);
   }, [loadErrorEvents, loadErrors]);
+
+  useEffect(() => {
+    if (!user || !adminEnabled || activeTab !== "errors") return;
+
+    const intervalId = window.setInterval(() => {
+      if (errorsLoading || errorEventsLoading || testIncidentSubmittingScope !== null) {
+        return;
+      }
+      void refreshErrorData();
+    }, ERROR_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    activeTab,
+    adminEnabled,
+    errorEventsLoading,
+    errorsLoading,
+    refreshErrorData,
+    testIncidentSubmittingScope,
+    user,
+  ]);
 
   const handleTriggerTestIncident = useCallback(
     async (scope: "app" | "generation") => {

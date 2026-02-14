@@ -24,6 +24,15 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Admin UI shortcut: Errors tab buttons `Trigger app test` / `Trigger generation test`.
 - Synthetic incidents are tagged in metadata (`synthetic: true`) and should be resolved/ignored after verification.
 
+## Alert thresholds
+- `/api/admin/error-events` computes 15-minute spike indicators and breach flags for:
+  - total event volume,
+  - high-severity event volume,
+  - generation-scope event volume.
+- Alert metrics are computed against real traffic only (synthetic admin test events excluded) and are not altered by UI filter state.
+- Threshold env vars (server-side): `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, `SHORTPULSE_ADMIN_ALERT_GENERATION_15M`.
+- Defaults if unset: `40`, `8`, `20`.
+
 Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 
 ## Character Manager compatibility drift monitor
@@ -43,3 +52,34 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
   - Middleware context path: `p50=0.07–0.08ms`, `p95=0.25–0.72ms`
   - Fallback verification path: `p50=13.16–13.28ms`, `p95=13.30–14.61ms`
 - Command: `cd frontend && npm run test -- auth-latency-benchmark`
+
+## Protected-Route Staging Latency Capture (2026-02-14)
+- Goal: collect one real staging p50/p95 sample on a protected API route before external tester rollout.
+- Preferred route: `/api/billing/credit-packages` (auth-protected read path, no mutation side effects).
+- Script: `scripts/capture_protected_route_latency.mjs`.
+- Shortcut command: `cd frontend && npm run latency:protected-route -- --path /api/billing/credit-packages --samples 30 --warmup 5`.
+- Required inputs:
+  - Base URL: `SHORTPULSE_STAGING_BASE_URL` (or `APP_BASE_URL`) (for example, `https://staging.shortpulse.app`)
+  - Auth token, one of:
+    - `SHORTPULSE_STAGING_BEARER_TOKEN` (real authenticated non-admin token), or
+    - `--bootstrap-token-from-supabase` with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to create/sign-in/delete a short-lived test user automatically.
+- Example command:
+  - `SHORTPULSE_STAGING_BASE_URL=https://staging.example.com SHORTPULSE_STAGING_BEARER_TOKEN=*** node scripts/capture_protected_route_latency.mjs --path /api/billing/credit-packages --samples 30 --warmup 5`
+- Example with auto token bootstrap:
+  - `SHORTPULSE_STAGING_BASE_URL=https://staging.example.com node scripts/capture_protected_route_latency.mjs --path /api/billing/credit-packages --samples 30 --warmup 5 --bootstrap-token-from-supabase`
+- Same via npm shortcut:
+  - `cd frontend && SHORTPULSE_STAGING_BASE_URL=https://staging.example.com npm run latency:protected-route -- --path /api/billing/credit-packages --samples 30 --warmup 5 --bootstrap-token-from-supabase`
+- Optional multi-route sample:
+  - `node scripts/capture_protected_route_latency.mjs --path /api/billing/credit-packages --path /api/media/resolve-previews --samples 25 --bootstrap-token-from-supabase`
+- Output format:
+  - `[auth-staging-latency] route=<path> p50=<ms> p95=<ms> min=<ms> max=<ms> success_rate=<pct>% statuses=<code:count,...>`
+- Recording requirement:
+  - Copy one successful sample into `docs/planning/mvp-pretester-full-audit-remediation-plan.md` and `docs/change_log.md` with capture date/time and route list.
+
+Latest captured sample (credentialed runtime probe on 2026-02-14):
+- Environment: local running app (`http://127.0.0.1:3000`) with real Supabase-authenticated bearer token from a short-lived test user.
+- Route: `/api/billing/credit-packages` (`30` measured samples, `5` warmup).
+- Result: `p50=222.99ms`, `p95=291.78ms`, `min=204.88ms`, `max=294.34ms`, `success_rate=100.0%`, `statuses=200:30`.
+- Bootstrap-mode validation run (same date): `--bootstrap-token-from-supabase` (`8` measured samples, `2` warmup) returned `p50=246.50ms`, `p95=274.55ms`, `success_rate=100.0%`, `statuses=200:8`, with confirmed cleanup log `supabase_bootstrap_user_deleted=true`.
+- Npm-shortcut validation run (same date): `cd frontend && npm run latency:protected-route -- --base-url http://127.0.0.1:3000 --path /api/billing/credit-packages --samples 5 --warmup 1 --bootstrap-token-from-supabase` returned `p50=228.38ms`, `p95=248.98ms`, `success_rate=100.0%`, `statuses=200:5`, with confirmed cleanup log `supabase_bootstrap_user_deleted=true`.
+- Note: staging-host capture remains pending because no resolvable staging app base URL is currently configured in this workspace.

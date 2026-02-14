@@ -20,6 +20,7 @@
     "db:migrate": "cd .. && supabase db push",
     "db:reset": "cd .. && supabase db reset",
     "docs:check": "cd .. && node scripts/check_docs_links.js",
+    "latency:protected-route": "cd .. && node scripts/capture_protected_route_latency.mjs",
     "prepare": "cd .. && husky"
   },
   "dependencies": {

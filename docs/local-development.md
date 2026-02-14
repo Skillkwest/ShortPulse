@@ -19,6 +19,8 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `KEI_API_KEY` (required for KEI/OpenAI proxy routes)
 3. Set optional production/ops values when needed:
    - `APP_BASE_URL`
+   - `SHORTPULSE_STAGING_BASE_URL` (optional helper for protected-route latency capture script)
+   - `SHORTPULSE_STAGING_BEARER_TOKEN` (optional helper for protected-route latency capture script; prefer temporary tokens)
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `SHORTPULSE_ADMIN_EMAILS`
    - `STRIPE_SECRET_KEY`
@@ -37,6 +39,9 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `NEXT_PUBLIC_AGENT_V2`
    - `SHORTPULSE_RELEASE` (optional explicit release/build tag for error incidents)
    - `NEXT_PUBLIC_SHORTPULSE_RELEASE` (optional client release tag for error incidents)
+   - `SHORTPULSE_ADMIN_ALERT_TOTAL_15M` (optional admin event spike threshold; default `40`)
+   - `SHORTPULSE_ADMIN_ALERT_HIGH_15M` (optional admin high-severity spike threshold; default `8`)
+   - `SHORTPULSE_ADMIN_ALERT_GENERATION_15M` (optional admin generation spike threshold; default `20`)
 
 Never commit `.env.local`.
 
@@ -77,4 +82,11 @@ Optional formatter check (after baseline formatting pass):
 ```bash
 cd frontend
 npm run format:check
+```
+
+Optional protected-route latency probe:
+
+```bash
+cd frontend
+npm run latency:protected-route -- --path /api/billing/credit-packages --samples 30 --warmup 5 --bootstrap-token-from-supabase
 ```

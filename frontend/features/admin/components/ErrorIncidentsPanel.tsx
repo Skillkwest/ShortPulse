@@ -2,7 +2,7 @@
  * Admin error incidents panel.
  * Renders summary cards, filters, and grouped incident rows for operator triage.
  */
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { WarningCircle } from "phosphor-react";
 import type {
   AdminErrorLogRow,
@@ -236,7 +236,7 @@ export function ErrorIncidentsPanel({
 }: ErrorIncidentsPanelProps) {
   const [copiedIncidentId, setCopiedIncidentId] = useState<string | null>(null);
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<AdminErrorEventRow | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const errorSourceOptions = useMemo(() => {
     const values = new Set([
       ...errors.map((row) => row.source),
@@ -244,6 +244,10 @@ export function ErrorIncidentsPanel({
     ]);
     return ["all", ...Array.from(values).sort()];
   }, [errorEvents, errors]);
+  const selectedEvent = useMemo(
+    () => errorEvents.find((row) => row.id === selectedEventId) ?? null,
+    [errorEvents, selectedEventId]
+  );
 
   const resultStart =
     errorPagination.totalCount === 0 ? 0 : (errorPagination.page - 1) * errorPagination.perPage + 1;
@@ -283,6 +287,19 @@ export function ErrorIncidentsPanel({
     return JSON.stringify(selectedEvent.metadata ?? {}, null, 2);
   }, [selectedEvent]);
   const selectedIncidentId = selectedEvent?.incidentId ?? null;
+
+  useEffect(() => {
+    if (!selectedEventId) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedEventId(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [selectedEventId]);
 
   return (
     <section className={styles.adminSection}>
@@ -574,12 +591,60 @@ export function ErrorIncidentsPanel({
             <p className="tiny subdued">Raw per-occurrence events (every logged failure).</p>
           </div>
           <div className={styles.tabRow}>
-            <span className="tiny subdued">{`1h ${errorEventsSummary.lastHourCount} · 24h ${errorEventsSummary.last24hCount}`}</span>
+            <span className="tiny subdued">{`15m ${errorEventsSummary.last15mCount} · 1h ${errorEventsSummary.lastHourCount} · 24h ${errorEventsSummary.last24hCount}`}</span>
             <span className="tiny subdued">
               {`App ${errorEventsSummary.app24hCount} · Generation ${errorEventsSummary.generation24hCount} · High ${errorEventsSummary.high24hCount}`}
             </span>
           </div>
         </div>
+
+        <section className={styles.adminGrid}>
+          <div
+            className={`${styles.adminCard} ${
+              errorEventsSummary.total15mBreached ? styles.alert : ""
+            }`}
+          >
+            <div className={styles.adminCardTop}>
+              <span className={styles.adminLabel}>15m total events</span>
+            </div>
+            <p className={styles.adminMetric}>{errorEventsSummary.last15mCount}</p>
+            <p className={styles.adminSubtext}>
+              {`Threshold ${errorEventsSummary.total15mThreshold} · ${
+                errorEventsSummary.total15mBreached ? "Alert" : "Normal"
+              }`}
+            </p>
+          </div>
+          <div
+            className={`${styles.adminCard} ${
+              errorEventsSummary.high15mBreached ? styles.alert : ""
+            }`}
+          >
+            <div className={styles.adminCardTop}>
+              <span className={styles.adminLabel}>15m high severity</span>
+            </div>
+            <p className={styles.adminMetric}>{errorEventsSummary.high15mCount}</p>
+            <p className={styles.adminSubtext}>
+              {`Threshold ${errorEventsSummary.high15mThreshold} · ${
+                errorEventsSummary.high15mBreached ? "Alert" : "Normal"
+              }`}
+            </p>
+          </div>
+          <div
+            className={`${styles.adminCard} ${
+              errorEventsSummary.generation15mBreached ? styles.warning : ""
+            }`}
+          >
+            <div className={styles.adminCardTop}>
+              <span className={styles.adminLabel}>15m generation events</span>
+            </div>
+            <p className={styles.adminMetric}>{errorEventsSummary.generation15mCount}</p>
+            <p className={styles.adminSubtext}>
+              {`Threshold ${errorEventsSummary.generation15mThreshold} · ${
+                errorEventsSummary.generation15mBreached ? "Elevated" : "Normal"
+              }`}
+            </p>
+          </div>
+        </section>
 
         <div className={styles.searchRow}>
           <p className="tiny subdued">
@@ -697,7 +762,7 @@ export function ErrorIncidentsPanel({
                   <button
                     type="button"
                     className="ghost-btn mini"
-                    onClick={() => setSelectedEvent(row)}
+                    onClick={() => setSelectedEventId(row.id)}
                     disabled={errorEventsLoading}
                   >
                     View
@@ -710,8 +775,13 @@ export function ErrorIncidentsPanel({
       </section>
 
       {selectedEvent ? (
-        <section className={styles.adminModalBackdrop} role="dialog" aria-modal="true">
-          <div className={styles.adminModalCard}>
+        <section
+          className={styles.adminModalBackdrop}
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setSelectedEventId(null)}
+        >
+          <div className={styles.adminModalCard} onClick={(event) => event.stopPropagation()}>
             <div className={styles.adminSectionHead}>
               <div>
                 <p className="eyebrow">Event Detail</p>
@@ -723,7 +793,7 @@ export function ErrorIncidentsPanel({
               <button
                 type="button"
                 className="ghost-btn mini"
-                onClick={() => setSelectedEvent(null)}
+                onClick={() => setSelectedEventId(null)}
               >
                 Close
               </button>

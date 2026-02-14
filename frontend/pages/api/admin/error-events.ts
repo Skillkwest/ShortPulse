@@ -8,6 +8,9 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+const DEFAULT_TOTAL_15M_THRESHOLD = 40;
+const DEFAULT_HIGH_15M_THRESHOLD = 8;
+const DEFAULT_GENERATION_15M_THRESHOLD = 20;
 
 type EventQuery = {
   eq: (column: string, value: string) => EventQuery;
@@ -65,6 +68,12 @@ const normalizeSearchTerm = (value: unknown): string => {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80);
+};
+
+const asThreshold = (value: string | undefined, fallback: number): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.trunc(parsed));
 };
 
 const applyEventFilters = (
@@ -173,10 +182,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       search: normalizeSearchTerm(req.query.search),
       synthetic: asSyntheticFilter(req.query.synthetic),
     };
-    const summaryFilters = { ...filters, search: "" };
+    const summaryFilters: {
+      scope: string;
+      severity: string;
+      source: string;
+      search: string;
+      synthetic: SyntheticFilterValue;
+    } = {
+      scope: "all",
+      severity: "all",
+      source: "all",
+      search: "",
+      // Operational summaries should reflect real traffic, not operator test events.
+      synthetic: "exclude",
+    };
     const nowMs = Date.now();
+    const since15mIso = new Date(nowMs - 15 * 60 * 1000).toISOString();
     const sinceHourIso = new Date(nowMs - 60 * 60 * 1000).toISOString();
     const since24hIso = new Date(nowMs - 24 * 60 * 60 * 1000).toISOString();
+    const total15mThreshold = asThreshold(
+      process.env.SHORTPULSE_ADMIN_ALERT_TOTAL_15M,
+      DEFAULT_TOTAL_15M_THRESHOLD
+    );
+    const high15mThreshold = asThreshold(
+      process.env.SHORTPULSE_ADMIN_ALERT_HIGH_15M,
+      DEFAULT_HIGH_15M_THRESHOLD
+    );
+    const generation15mThreshold = asThreshold(
+      process.env.SHORTPULSE_ADMIN_ALERT_GENERATION_15M,
+      DEFAULT_GENERATION_15M_THRESHOLD
+    );
 
     const eventsQuery = applyEventFilters(
       supabaseAdmin
@@ -200,6 +235,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const [
       eventsResult,
       filteredCountResult,
+      last15mCountResult,
+      high15mCountResult,
+      generation15mCountResult,
       lastHourCountResult,
       last24hCountResult,
       app24hCountResult,
@@ -208,6 +246,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ] = await Promise.all([
       eventsQuery,
       filteredCountQuery,
+      applyEventFilters(
+        supabaseAdmin
+          .from("app_error_events")
+          .select("id", { count: "exact", head: true })
+          .gte("occurred_at", since15mIso) as unknown as EventQuery,
+        summaryFilters
+      ) as unknown as Promise<CountQueryResult>,
+      applyEventFilters(
+        supabaseAdmin
+          .from("app_error_events")
+          .select("id", { count: "exact", head: true })
+          .gte("occurred_at", since15mIso)
+          .eq("severity", "high") as unknown as EventQuery,
+        summaryFilters
+      ) as unknown as Promise<CountQueryResult>,
+      applyEventFilters(
+        supabaseAdmin
+          .from("app_error_events")
+          .select("id", { count: "exact", head: true })
+          .gte("occurred_at", since15mIso)
+          .eq("scope", "generation") as unknown as EventQuery,
+        summaryFilters
+      ) as unknown as Promise<CountQueryResult>,
       applyEventFilters(
         supabaseAdmin
           .from("app_error_events")
@@ -251,6 +312,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (
       eventsResult.error ||
       filteredCountResult.error ||
+      last15mCountResult.error ||
+      high15mCountResult.error ||
+      generation15mCountResult.error ||
       lastHourCountResult.error ||
       last24hCountResult.error ||
       app24hCountResult.error ||
@@ -260,6 +324,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const detail = [
         eventsResult.error?.message,
         filteredCountResult.error?.message,
+        last15mCountResult.error?.message,
+        high15mCountResult.error?.message,
+        generation15mCountResult.error?.message,
         lastHourCountResult.error?.message,
         last24hCountResult.error?.message,
         app24hCountResult.error?.message,
@@ -299,11 +366,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       events: enrichedEvents,
       summary: {
+        last15mCount: Number(last15mCountResult.count ?? 0),
+        high15mCount: Number(high15mCountResult.count ?? 0),
+        generation15mCount: Number(generation15mCountResult.count ?? 0),
         lastHourCount: Number(lastHourCountResult.count ?? 0),
         last24hCount: Number(last24hCountResult.count ?? 0),
         app24hCount: Number(app24hCountResult.count ?? 0),
         generation24hCount: Number(generation24hCountResult.count ?? 0),
         high24hCount: Number(high24hCountResult.count ?? 0),
+        total15mThreshold,
+        high15mThreshold,
+        generation15mThreshold,
+        total15mBreached: Number(last15mCountResult.count ?? 0) >= total15mThreshold,
+        high15mBreached: Number(high15mCountResult.count ?? 0) >= high15mThreshold,
+        generation15mBreached:
+          Number(generation15mCountResult.count ?? 0) >= generation15mThreshold,
       },
       pagination: {
         page: resolvedPage,

@@ -94,6 +94,11 @@ All `P0` items must be complete before external tester access.
 - Verification state: `validate`, `build`, and `docs:check` currently passing after Phase 4 closeout.
 - Next-step hardening completed: fast CI auth-regression lane added for auth-boundary/status-ownership tests.
 - Pause-governance completed: explicit Stripe/subscription resume criteria now documented in this plan.
+- Protected-route runtime sampling completed with real authenticated traffic (`/api/billing/credit-packages`), and evidence is documented in monitoring notes.
+- Staging-host p50/p95 capture remains pending due missing/unresolved staging app base URL in current workspace context.
+- Staging-capture blocker reduced: probe now supports Supabase token bootstrap (short-lived user create/sign-in/delete), so only staging host URL resolution remains.
+- Token-bootstrap path validated end-to-end on local runtime sample (`token_source=supabase_bootstrap` plus confirmed cleanup log).
+- Operator handoff path validated: `frontend` npm shortcut `latency:protected-route` executes bootstrap flow + cleanup successfully.
 
 ## Current Sprint Focus (2026-02-14, refreshed after Phase 4 closeout)
 Goal: keep release gates stable while active-scope remediation phases remain complete.
@@ -120,7 +125,10 @@ Validation commands for this sprint:
 ## High-Level Recommendations (Non-Blocking)
 1. [x] Keep auth-boundary regression tests (`auth-helper`, `proxy-internal-utils`, KEI/Fal auth-context ownership, auth latency benchmark) in fast CI paths so duplicate-lookup/security regressions fail early.
    Evidence path: `.github/workflows/ci.yml`
-2. Capture one real staging p50/p95 sample for protected routes to complement synthetic benchmark evidence before external tester rollout.
+2. [ ] Capture one real staging p50/p95 sample for protected routes to complement synthetic benchmark evidence before external tester rollout.
+   Current status: completed credentialed runtime sample against local running app; probe now supports automatic token bootstrap; pending direct staging-host run once a resolvable staging base URL is provided.
+   Ready-to-run command: `cd frontend && SHORTPULSE_STAGING_BASE_URL=<staging-host> npm run latency:protected-route -- --path /api/billing/credit-packages --samples 30 --warmup 5 --bootstrap-token-from-supabase`
+   Evidence paths: `scripts/capture_protected_route_latency.mjs`, `docs/monitoring.md`
 3. [x] Define explicit resume criteria for the paused Stripe/subscription backlog item to avoid ambiguity when pause is lifted.
    Evidence path: `docs/planning/mvp-pretester-full-audit-remediation-plan.md`
 
@@ -465,3 +473,9 @@ Documentation verification:
 - 2026-02-14: Completed a missing-anything audit pass; confirmed active-scope checklist has no unchecked items and retained only the explicitly paused Stripe/subscription backlog item.
 - 2026-02-14: Added a fast CI auth-regression lane (`auth-helper`, `proxy-internal-utils`, `kei-task-status.auth-context`, `fal-status.auth-context`, `auth-latency-benchmark`) so auth-boundary and ownership regressions fail before the full suite.
 - 2026-02-14: Added explicit pause-lift resume criteria for deferred Stripe/subscription backlog work to remove ambiguity on when the remaining Phase 5 item can restart.
+- 2026-02-14: Added a staging protected-route latency capture script (`scripts/capture_protected_route_latency.mjs`) and monitoring runbook instructions so one real p50/p95 sample can be recorded with authenticated staging traffic.
+- 2026-02-14: Captured a credentialed runtime latency sample on `/api/billing/credit-packages` against the running app (`http://127.0.0.1:3000`) with a short-lived Supabase test-user token (`p50=222.99ms`, `p95=291.78ms`, `statuses=200:30`) and cleaned up the temporary user after sampling.
+- 2026-02-14: Enhanced the protected-route latency probe with optional Supabase token bootstrap (temporary user create/sign-in/delete), and updated monitoring/local-env docs so staging capture execution now only depends on resolving the staging app base URL.
+- 2026-02-14: Verified bootstrap mode for the protected-route latency probe (`--bootstrap-token-from-supabase`) against the running app; sample run logged `p50=246.50ms`, `p95=274.55ms`, and confirmed temporary-user cleanup via `supabase_bootstrap_user_deleted=true`.
+- 2026-02-14: Added `frontend` npm shortcut `latency:protected-route` and documented the exact staging capture command so recommendation #2 can be executed immediately once staging host URL is available.
+- 2026-02-14: Verified the npm shortcut handoff flow (`cd frontend && npm run latency:protected-route -- ... --bootstrap-token-from-supabase`) against the running app; sample run logged `p50=228.38ms`, `p95=248.98ms`, and confirmed cleanup via `supabase_bootstrap_user_deleted=true`.

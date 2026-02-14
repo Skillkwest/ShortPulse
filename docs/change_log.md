@@ -462,6 +462,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - raw per-occurrence event stream (`app_error_events`) with independent pagination and copyable event payloads.
 - Added synthetic-event operator controls in the shared filter bar (`real + synthetic`, `real only`, `synthetic only`) and unified refresh/test-trigger behavior so smoke-test incidents are immediately visible.
 - Added incident-aware event enrichment and operator detail workflow: event rows now include linked incident status, event detail modal exposes stack/metadata, and incident status can be resolved/ignored/reopened directly from event context.
+- Added 15-minute event-spike thresholding to `/api/admin/error-events` (total/high/generation breach flags), surfaced with Admin alert cards and configurable env vars in `frontend/.env.example`.
+- Hardened operator reliability: `/api/admin/error-events` alert summaries now always use real (non-synthetic) traffic regardless UI filters, and Admin Errors tab auto-refreshes telemetry on a 30-second interval while active.
 - Added route test coverage in `frontend/tests/api/admin-error-events.test.ts` and re-ran targeted admin API tests, type-check, lint, and docs index checks.
 
 ## 2026-02-14 (Phase 4 auth-boundary consolidation + verification)
@@ -482,3 +484,38 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added a fast auth-regression lane to frontend CI (`.github/workflows/ci.yml`) that runs `auth-helper`, `proxy-internal-utils`, `kei-task-status.auth-context`, `fal-status.auth-context`, and `auth-latency-benchmark` before the full suite.
 - Re-ran the targeted auth regression suite (`11` tests) and confirmed pass.
 - Updated `docs/planning/mvp-pretester-full-audit-remediation-plan.md` with explicit Stripe/subscription pause-lift resume criteria and synced non-blocking recommendation status.
+
+## 2026-02-14 (Staging latency capture workflow for auth-boundary release evidence)
+- Added `scripts/capture_protected_route_latency.mjs` to capture real protected-route latency samples (`p50`/`p95`, status distribution, success rate) from staging with a real bearer token.
+- Updated `docs/monitoring.md` with a staging latency capture runbook, default route (`/api/billing/credit-packages`), env requirements, example commands, and evidence-recording instructions.
+- Updated `docs/planning/mvp-pretester-full-audit-remediation-plan.md` to track recommendation #2 as pending execution with tooling complete and explicit evidence paths.
+
+## 2026-02-14 (Protected-route runtime latency sample captured with real auth)
+- Executed `scripts/capture_protected_route_latency.mjs` against the running app (`http://127.0.0.1:3000`) on `/api/billing/credit-packages` using a real Supabase bearer token from a short-lived, email-confirmed test user.
+- Sample result (`30` measured requests, `5` warmup): `p50=222.99ms`, `p95=291.78ms`, `min=204.88ms`, `max=294.34ms`, `success_rate=100.0%`, `statuses=200:30`.
+- Cleaned up the temporary Supabase test user immediately after the run and recorded evidence/status updates in `docs/monitoring.md` and `docs/planning/mvp-pretester-full-audit-remediation-plan.md`.
+
+## 2026-02-14 (Latency probe hardening: auto token bootstrap + env alignment)
+- Enhanced `scripts/capture_protected_route_latency.mjs` with optional `--bootstrap-token-from-supabase` mode that creates a short-lived confirmed user via Supabase admin API, signs in for a bearer token, and auto-deletes the user after sampling.
+- Added base URL fallback support (`APP_BASE_URL`) and documented the bootstrap path in `docs/monitoring.md`.
+- Updated `docs/local-development.md` and `frontend/.env.example` to include staging-latency helper env vars (`SHORTPULSE_STAGING_BASE_URL`, `SHORTPULSE_STAGING_BEARER_TOKEN`) for repeatable operator runs.
+- Synced remediation-plan status to reflect that staging capture now only depends on resolving the staging app host URL.
+
+## 2026-02-14 (Latency probe bootstrap-mode verification)
+- Ran `scripts/capture_protected_route_latency.mjs` with `--bootstrap-token-from-supabase` against `http://127.0.0.1:3000` to validate the new automated token flow end to end.
+- Result (`8` measured requests, `2` warmup) on `/api/billing/credit-packages`: `p50=246.50ms`, `p95=274.55ms`, `success_rate=100.0%`, `statuses=200:8`.
+- Confirmed temporary-user cleanup via emitted probe log `supabase_bootstrap_user_deleted=true`.
+
+## 2026-02-14 (Latency probe operator handoff hardening)
+- Added `frontend` script shortcut `npm run latency:protected-route` that wraps `scripts/capture_protected_route_latency.mjs` for repeatable operator runs.
+- Updated `docs/monitoring.md`, `docs/local-development.md`, and `docs/planning/mvp-pretester-full-audit-remediation-plan.md` with a copy/paste staging capture command that uses `SHORTPULSE_STAGING_BASE_URL` plus `--bootstrap-token-from-supabase`.
+- Attempted automatic staging-host discovery against common domains; no resolvable staging host was found in current workspace context, so the final staging p50/p95 capture remains pending URL confirmation.
+- Validated the npm handoff command end to end against the running app (`5` measured requests, `1` warmup) with result `p50=228.38ms`, `p95=248.98ms`, `success_rate=100.0%`, and confirmed temp-user cleanup.
+
+## 2026-02-14 (Docs governance hardening: link + legacy placement checks)
+- Replaced `scripts/check_docs_links.js` with a broader docs integrity checker that now validates:
+  - API docs are indexed in `docs/README.md`.
+  - Markdown links resolve across repository markdown files.
+  - `Status: Legacy` markers exist only under `docs/archive/`.
+- Added `npm run docs:check` to CI in `.github/workflows/ci.yml` so docs integrity and archive-governance checks run on PRs/pushes.
+- Updated `docs/documentation_overview.md` with explicit lifecycle states (`Active`, `Working`, `Archived`) and concrete archive requirements.

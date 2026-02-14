@@ -30,6 +30,7 @@ import {
 import { useMediaBulkMoveController } from "../features/media-library/hooks/useMediaBulkMoveController";
 import { useMediaFileModalCrud } from "../features/media-library/hooks/useMediaFileModalCrud";
 import { useMediaModalImageZoom } from "../features/media-library/hooks/useMediaModalImageZoom";
+import { useMediaPromptModalCrud } from "../features/media-library/hooks/useMediaPromptModalCrud";
 import { useMediaPreviewSigningController } from "../features/media-library/hooks/useMediaPreviewSigningController";
 import { useMediaTabDataController } from "../features/media-library/hooks/useMediaTabDataController";
 import { useMediaUploadController } from "../features/media-library/hooks/useMediaUploadController";
@@ -195,15 +196,28 @@ export default function MediaLibrary() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const [focusedFile, setFocusedFile] = useState<MediaRow | null>(null);
-  const [focusedPrompt, setFocusedPrompt] = useState<PromptRow | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
   const [movingFile, setMovingFile] = useState(false);
-  const [promptEditValue, setPromptEditValue] = useState("");
-  const [savingPromptEdit, setSavingPromptEdit] = useState(false);
-  const [promptModalError, setPromptModalError] = useState<string | null>(null);
-  const [promptSaveSuccess, setPromptSaveSuccess] = useState(false);
   const [storageUsageBytes, setStorageUsageBytes] = useState<number | null>(null);
+  const {
+    closePromptModal,
+    deletePrompt,
+    focusedPrompt,
+    handlePromptEditChange,
+    openPromptModal,
+    promptEditValue,
+    promptModalError,
+    promptSaveSuccess,
+    savePromptEdits,
+    savingPromptEdit,
+  } = useMediaPromptModalCrud<PromptRow>({
+    getErrorMessage,
+    logMediaEvent,
+    setPageError: setError,
+    setPrompts,
+    setSelectedIds,
+  });
   const signedUrlRetryRef = useRef<Record<string, number>>({});
   const signAttemptRef = useRef<Record<string, number>>({});
   const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
@@ -759,36 +773,6 @@ export default function MediaLibrary() {
     fileInputRef.current?.click();
   };
 
-  const deletePrompt = async (
-    row: PromptRow,
-    options: {
-      fromPromptModal?: boolean;
-    } = {}
-  ): Promise<boolean> => {
-    setError(null);
-    if (options.fromPromptModal) {
-      setPromptModalError(null);
-    }
-    try {
-      const supabase = ensureSupabaseClient();
-      const { error: deleteError } = await supabase.from("media_prompts").delete().eq("id", row.id);
-      if (deleteError) throw deleteError;
-      setPrompts((prev) => prev.filter((p) => p.id !== row.id));
-      setSelectedIds((prev) => prev.filter((id) => id !== row.id));
-      setFocusedPrompt((prev) => (prev && prev.id === row.id ? null : prev));
-      void logMediaEvent("delete", "media_prompt", row.id);
-      return true;
-    } catch (err: unknown) {
-      const message = getErrorMessage(err, "Unable to delete prompt");
-      if (options.fromPromptModal) {
-        setPromptModalError(message);
-      } else {
-        setError(message);
-      }
-      return false;
-    }
-  };
-
   const downloadFile = async (row: MediaRow) => {
     setError(null);
     try {
@@ -1224,69 +1208,6 @@ export default function MediaLibrary() {
     setMoveMenuOpen(false);
     resetModalImageZoom();
   }, [closeFileModal, resetModalImageZoom]);
-
-  const openPromptModal = (prompt: PromptRow) => {
-    setFocusedPrompt(prompt);
-    setPromptEditValue(prompt.prompt_text ?? "");
-    setPromptModalError(null);
-    setPromptSaveSuccess(false);
-  };
-
-  const closePromptModal = () => {
-    if (savingPromptEdit) return;
-    setFocusedPrompt(null);
-    setPromptEditValue("");
-    setPromptModalError(null);
-    setPromptSaveSuccess(false);
-  };
-
-  const savePromptEdits = async () => {
-    if (!focusedPrompt || !promptEditValue.trim()) return;
-    setSavingPromptEdit(true);
-    setPromptModalError(null);
-    setPromptSaveSuccess(false);
-    try {
-      const supabase = ensureSupabaseClient();
-      const nextPromptText = promptEditValue;
-      const updatedAt = new Date().toISOString();
-      const { error } = await supabase
-        .from("media_prompts")
-        .update({ prompt_text: nextPromptText })
-        .eq("id", focusedPrompt.id);
-      if (error) throw error;
-      setPrompts((prev) =>
-        prev.map((prompt) =>
-          prompt.id === focusedPrompt.id
-            ? {
-                ...prompt,
-                prompt_text: nextPromptText,
-                updated_at: updatedAt,
-              }
-            : prompt
-        )
-      );
-      setFocusedPrompt((prev) =>
-        prev
-          ? {
-              ...prev,
-              prompt_text: nextPromptText,
-              updated_at: updatedAt,
-            }
-          : prev
-      );
-      setPromptSaveSuccess(true);
-      window.setTimeout(() => {
-        setPromptSaveSuccess(false);
-      }, 1600);
-      void logMediaEvent("edit", "media_prompt", focusedPrompt.id, {
-        updated_fields: ["prompt_text"],
-      });
-    } catch (err: unknown) {
-      setPromptModalError(getErrorMessage(err, "Unable to save prompt edits"));
-    } finally {
-      setSavingPromptEdit(false);
-    }
-  };
 
   return (
     <>
@@ -2062,8 +1983,7 @@ export default function MediaLibrary() {
               className="prompt-modal-textarea"
               value={promptEditValue}
               onChange={(event) => {
-                setPromptEditValue(event.target.value);
-                setPromptSaveSuccess(false);
+                handlePromptEditChange(event.target.value);
               }}
               placeholder="Edit your prompt..."
             />

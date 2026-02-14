@@ -237,6 +237,8 @@ Checklist:
   Evidence paths: `frontend/features/media-library/hooks/useMediaTabDataController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaTabDataController.test.ts`, `frontend/pages/media-library.tsx`
 - [x] Extract Media Library upload pipeline controllers (drag/drop intake, optimistic placeholders, upload/insert/sign reconciliation) into a dedicated hook.
   Evidence paths: `frontend/features/media-library/hooks/useMediaUploadController.ts`, `frontend/features/media-library/hooks/__tests__/useMediaUploadController.test.ts`, `frontend/pages/media-library.tsx`
+- [x] Extract Media Library prompt-modal CRUD handlers (open/close, edit-save, prompt delete, and prompt-modal error routing) into a dedicated hook.
+  Evidence paths: `frontend/features/media-library/hooks/useMediaPromptModalCrud.ts`, `frontend/features/media-library/hooks/__tests__/useMediaPromptModalCrud.test.ts`, `frontend/pages/media-library.tsx`
 - [x] Extract `ai-studio` agent composer/attachment lifecycle state and drag-drop handlers into a dedicated hook.
   Evidence paths: `frontend/features/ai-studio/hooks/useAiStudioAgentComposer.ts`, `frontend/features/ai-studio/hooks/__tests__/useAiStudioAgentComposer.test.ts`, `frontend/pages/ai-studio.tsx`
 - [x] Extract `ai-studio` agent send/refine/enhance/describe orchestration into a dedicated hook.
@@ -386,3 +388,4 @@ Documentation verification:
 - 2026-02-14: Completed `generationBilling` modularization split by extracting reservation RPC adapter, ownership resolver, settlement/capture service, and pricing-param derivation into `frontend/lib/server/api/generationBilling/*` modules while keeping `frontend/lib/server/api/generationBilling.ts` as orchestration.
 - 2026-02-14: Completed `falClient` modularization pass by replacing repeated submit/status wrappers with a registry-driven generic endpoint client while preserving existing exported submit/status helpers.
 - 2026-02-14: Continued `media-library` modularization by extracting tab fetch/cache orchestration into `frontend/features/media-library/hooks/useMediaTabDataController.ts` and upload pipeline controllers into `frontend/features/media-library/hooks/useMediaUploadController.ts`, with focused hook tests and full `validate`/`build`/`docs:check` verification.
+- 2026-02-14: Continued `media-library` modularization by extracting saved-prompt modal CRUD orchestration into `frontend/features/media-library/hooks/useMediaPromptModalCrud.ts` with focused hook tests and page integration.

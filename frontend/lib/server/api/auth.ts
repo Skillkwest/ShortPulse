@@ -2,6 +2,7 @@
  * Server-side helpers for validating Supabase bearer tokens in API routes.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { isProtectedApiPath } from "./protectedApiPaths";
 
 export type AuthenticatedApiUser = {
   id: string;
@@ -16,6 +17,56 @@ const parseBearerToken = (authorizationHeader: string | undefined): string | nul
   if (!scheme || !value) return null;
   if (scheme.toLowerCase() !== "bearer") return null;
   return value.trim() || null;
+};
+
+const readRequestHeader = (req: NextApiRequest, name: string): string | null => {
+  const raw = req.headers[name.toLowerCase()];
+  if (Array.isArray(raw)) return raw[0] ?? null;
+  return typeof raw === "string" ? raw : null;
+};
+
+const parsePathname = (url?: string): string | null => {
+  if (!url) return null;
+  try {
+    return new URL(url, "http://localhost").pathname;
+  } catch {
+    return url.split("?")[0] ?? null;
+  }
+};
+
+const parseJsonHeader = (value: string | null): Record<string, unknown> | undefined => {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(decodeURIComponent(value)) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return undefined;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+};
+
+const getProxyAuthenticatedUser = (req: NextApiRequest): AuthenticatedApiUser | null => {
+  const pathname = parsePathname(req.url);
+  if (!pathname || !isProtectedApiPath(pathname)) return null;
+
+  const proxyAuthenticated = readRequestHeader(req, "x-shortpulse-authenticated");
+  if (proxyAuthenticated !== "1") return null;
+
+  const id = readRequestHeader(req, "x-shortpulse-user-id")?.trim();
+  if (!id) return null;
+
+  const email = readRequestHeader(req, "x-shortpulse-user-email")?.trim();
+  const appMetadata = parseJsonHeader(readRequestHeader(req, "x-shortpulse-user-app-metadata"));
+  const userMetadata = parseJsonHeader(readRequestHeader(req, "x-shortpulse-user-user-metadata"));
+
+  return {
+    id,
+    email: email || undefined,
+    app_metadata: appMetadata,
+    user_metadata: userMetadata,
+  };
 };
 
 const fetchSupabaseUser = async (token: string): Promise<AuthenticatedApiUser | null> => {
@@ -43,6 +94,9 @@ const fetchSupabaseUser = async (token: string): Promise<AuthenticatedApiUser | 
 export const getOptionalApiUser = async (
   req: NextApiRequest
 ): Promise<AuthenticatedApiUser | null> => {
+  const userFromProxy = getProxyAuthenticatedUser(req);
+  if (userFromProxy) return userFromProxy;
+
   const token = parseBearerToken(req.headers.authorization);
   if (!token) return null;
   try {
@@ -59,6 +113,9 @@ export const requireApiUser = async (
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<AuthenticatedApiUser | null> => {
+  const userFromProxy = getProxyAuthenticatedUser(req);
+  if (userFromProxy) return userFromProxy;
+
   const token = parseBearerToken(req.headers.authorization);
   if (!token) {
     res.status(401).json({ error: "Unauthorized" });

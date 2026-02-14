@@ -30,7 +30,9 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/users` | `GET` | Admin bearer | List users + plan/credit snapshots with pagination/search. | `frontend/pages/api/admin/users.ts` |
 | `/api/admin/credits/adjust` | `POST` | Admin bearer | Manual credit adjustments (bounded, audited). | `frontend/pages/api/admin/credits/adjust.ts`, `docs/sops/sop_billing_credits_operations.md` |
 | `/api/admin/errors` | `GET` | Admin bearer | Incident feed with filters (status/severity/source/scope/search), summary stats, and pagination. | `frontend/pages/api/admin/errors.ts`, `docs/monitoring.md` |
+| `/api/admin/error-events` | `GET` | Admin bearer | Raw per-occurrence event stream with scope/severity/source/search/synthetic filters, pagination, and linked incident status enrichment. | `frontend/pages/api/admin/error-events.ts`, `docs/monitoring.md` |
 | `/api/admin/errors-status` | `POST` | Admin bearer | Update incident status (`open`/`resolved`/`ignored`) with metadata history. | `frontend/pages/api/admin/errors-status.ts` |
+| `/api/admin/errors-test` | `POST` | Admin bearer | Create a synthetic app or generation incident for operator smoke tests of telemetry ingestion/UI. | `frontend/pages/api/admin/errors-test.ts`, `docs/monitoring.md` |
 | `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
 
 ## Shared runtime contracts

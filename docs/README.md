@@ -84,15 +84,12 @@ Start here for all repository documentation.
 - `docs/sops/sop_text_generation.md`
 - `docs/sops/sop_image_generation.md`
 - `docs/sops/sop_video_generation.md`
-- `docs/sops/sop_character_generation.md` (legacy)
-- `docs/sops/sop_character_identity.md` (legacy)
 
 ## Product
 - `docs/product/README.md`
 - `docs/product/ai-studio-pricing.md`
 - `docs/product/billing-pricing-catalog.md`
 - `docs/product/shortpulse_ai_studio.md`
-- `docs/product/character_workflow_build_guide.md`
 - `docs/product/shortflow_outlier_source_of_truth.md`
 - `docs/product/shortpulse_top_performing_videos_source_of_truth.md`
 - `docs/product/short_pulse_ideal_customer_profile_icp.md`
@@ -108,7 +105,6 @@ Start here for all repository documentation.
 - `docs/planning/mvp-ui-ux-phase0-baseline-qa-checklist.md`
 - `docs/planning/mvp-ui-ux-phase0-baseline-capture-template.md`
 - `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
-- `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md`
 - `docs/planning/mvp-pre-tester-anchor-plan.md`
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
@@ -136,6 +132,10 @@ Start here for all repository documentation.
 - `docs/archive/ai-studio-prompts.md`
 - `docs/archive/character-manager-character-sheet-plan.md`
 - `docs/archive/mvp-stabilization-plan.md`
+- `docs/archive/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md`
+- `docs/archive/product/character_workflow_build_guide.md`
+- `docs/archive/sops/sop_character_generation.md`
+- `docs/archive/sops/sop_character_identity.md`
 - `docs/archive/refactor_prompt_archive.md`
 - `docs/archive/design-system-v1-draft.md`
 

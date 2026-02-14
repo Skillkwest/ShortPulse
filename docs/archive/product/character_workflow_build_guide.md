@@ -1,5 +1,7 @@
 # Character Workflow Build-Out Guide (ShortPulse)
 
+Archive status: moved from `docs/product/character_workflow_build_guide.md` on 2026-02-14; superseded by `docs/sops/sop_character_manager_operations.md`.
+
 > Status: Legacy build guide for the old `features/character/*` pipeline. For current `/character` operations, use `docs/sops/sop_character_manager_operations.md`.
 
 Purpose: living checklist to take the current Character tool from rough UI to production-ready, identity-stable generation.
@@ -57,7 +59,7 @@ Purpose: living checklist to take the current Character tool from rough UI to pr
 - Pose controls change structure, never identity.
 - Local-first: characters, tokens, embeddings, refs live in IndexedDB; cloud sync is an optional mirror.
 - Preserve forward compatibility: character objects must remain valid if/when we add per-character LoRA/adapter training.
-- Follow the operational steps in `docs/sops/sop_character_identity.md` for vetting, token creation, and reinforcement.
+- Follow the legacy reference in `docs/archive/sops/sop_character_identity.md` for historical vetting/token context; use `docs/sops/sop_character_manager_operations.md` for current operations.
 
 ## File map to extend
 - `frontend/features/character/logic/identity.ts`: swap stub for ArcFace detection+analysis, create identity token, vet references, store embeddings for validation only.

@@ -6,6 +6,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import { WarningCircle } from "phosphor-react";
 import type {
   AdminErrorLogRow,
+  AdminErrorEventRow,
+  AdminErrorEventSummary,
   AdminErrorSummary,
   AdminPagination,
   AdminErrorStatus,
@@ -17,21 +19,33 @@ type ErrorIncidentsPanelProps = {
   errorsLoading: boolean;
   errorsError: string | null;
   errorSummary: AdminErrorSummary;
+  errorEvents: AdminErrorEventRow[];
+  errorEventsLoading: boolean;
+  errorEventsError: string | null;
+  errorEventsSummary: AdminErrorEventSummary;
+  errorEventsPagination: AdminPagination;
   errorStatusFilter: "open" | "all";
   errorScopeFilter: "all" | "app" | "generation";
   errorSeverityFilter: "all" | "high" | "medium" | "low";
   errorSourceFilter: string;
+  errorEventSyntheticFilter: "all" | "exclude" | "only";
   errorSearch: string;
   errorPagination: AdminPagination;
   statusUpdatingErrorId: string | null;
+  testIncidentSubmittingScope: "app" | "generation" | null;
+  testIncidentResult: string | null;
   onErrorStatusFilterChange: (value: "open" | "all") => void;
   onErrorScopeFilterChange: (value: "all" | "app" | "generation") => void;
   onErrorSeverityFilterChange: (value: "all" | "high" | "medium" | "low") => void;
   onErrorSourceFilterChange: (value: string) => void;
+  onErrorEventSyntheticFilterChange: (value: "all" | "exclude" | "only") => void;
   onErrorSearchChange: (value: string) => void;
   onUpdateErrorStatus: (errorId: string, status: AdminErrorStatus) => void;
+  onTriggerTestIncident: (scope: "app" | "generation") => void;
   onPrevPage: () => void;
   onNextPage: () => void;
+  onEventPrevPage: () => void;
+  onEventNextPage: () => void;
   onRefresh: () => void;
 };
 
@@ -47,6 +61,13 @@ const sourceLabel = (value: string): string =>
     .split(".")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" · ");
+
+const incidentStatusLabel = (status: AdminErrorStatus | null): string => {
+  if (status === "resolved") return "Resolved";
+  if (status === "ignored") return "Ignored";
+  if (status === "open") return "Open";
+  return "Unlinked";
+};
 
 const buildIncidentPacket = (row: AdminErrorLogRow): string =>
   JSON.stringify(
@@ -106,6 +127,35 @@ const buildIncidentPacket = (row: AdminErrorLogRow): string =>
     2
   );
 
+const buildEventPacket = (row: AdminErrorEventRow): string =>
+  JSON.stringify(
+    {
+      shortpulseEventVersion: 1,
+      copiedAt: new Date().toISOString(),
+      event: {
+        id: row.id,
+        incidentId: row.incidentId,
+        fingerprint: row.fingerprint,
+        source: row.source,
+        scope: row.scope,
+        severity: row.severity,
+        message: row.message,
+        stack: row.stack,
+        route: row.route,
+        endpoint: row.endpoint,
+        requestId: row.requestId,
+        httpStatus: row.httpStatus,
+        userId: row.userId,
+        userEmail: row.userEmail,
+        occurredAt: row.occurredAt,
+        createdAt: row.createdAt,
+        metadata: row.metadata ?? {},
+      },
+    },
+    null,
+    2
+  );
+
 const copyToClipboard = async (text: string): Promise<boolean> => {
   if (typeof window === "undefined") return false;
 
@@ -155,34 +205,59 @@ export function ErrorIncidentsPanel({
   errorsLoading,
   errorsError,
   errorSummary,
+  errorEvents,
+  errorEventsLoading,
+  errorEventsError,
+  errorEventsSummary,
+  errorEventsPagination,
   errorStatusFilter,
   errorScopeFilter,
   errorSeverityFilter,
   errorSourceFilter,
+  errorEventSyntheticFilter,
   errorSearch,
   errorPagination,
   statusUpdatingErrorId,
+  testIncidentSubmittingScope,
+  testIncidentResult,
   onErrorStatusFilterChange,
   onErrorScopeFilterChange,
   onErrorSeverityFilterChange,
   onErrorSourceFilterChange,
+  onErrorEventSyntheticFilterChange,
   onErrorSearchChange,
   onUpdateErrorStatus,
+  onTriggerTestIncident,
   onPrevPage,
   onNextPage,
+  onEventPrevPage,
+  onEventNextPage,
   onRefresh,
 }: ErrorIncidentsPanelProps) {
   const [copiedIncidentId, setCopiedIncidentId] = useState<string | null>(null);
+  const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<AdminErrorEventRow | null>(null);
   const errorSourceOptions = useMemo(() => {
-    const values = new Set(errors.map((row) => row.source));
+    const values = new Set([
+      ...errors.map((row) => row.source),
+      ...errorEvents.map((row) => row.source),
+    ]);
     return ["all", ...Array.from(values).sort()];
-  }, [errors]);
+  }, [errorEvents, errors]);
 
   const resultStart =
     errorPagination.totalCount === 0 ? 0 : (errorPagination.page - 1) * errorPagination.perPage + 1;
   const resultEnd = Math.min(
     errorPagination.page * errorPagination.perPage,
     errorPagination.totalCount
+  );
+  const eventResultStart =
+    errorEventsPagination.totalCount === 0
+      ? 0
+      : (errorEventsPagination.page - 1) * errorEventsPagination.perPage + 1;
+  const eventResultEnd = Math.min(
+    errorEventsPagination.page * errorEventsPagination.perPage,
+    errorEventsPagination.totalCount
   );
 
   const handleCopyIncident = useCallback(async (row: AdminErrorLogRow) => {
@@ -194,6 +269,21 @@ export function ErrorIncidentsPanel({
     }, 1200);
   }, []);
 
+  const handleCopyEvent = useCallback(async (row: AdminErrorEventRow) => {
+    const success = await copyToClipboard(buildEventPacket(row));
+    if (!success) return;
+    setCopiedEventId(row.id);
+    window.setTimeout(() => {
+      setCopiedEventId((current) => (current === row.id ? null : current));
+    }, 1200);
+  }, []);
+
+  const eventMetadataText = useMemo(() => {
+    if (!selectedEvent) return "";
+    return JSON.stringify(selectedEvent.metadata ?? {}, null, 2);
+  }, [selectedEvent]);
+  const selectedIncidentId = selectedEvent?.incidentId ?? null;
+
   return (
     <section className={styles.adminSection}>
       <div className={styles.adminSectionHead}>
@@ -203,14 +293,32 @@ export function ErrorIncidentsPanel({
             Actionable app/runtime failures grouped by fingerprint and user.
           </p>
         </div>
-        <button
-          type="button"
-          className="ghost-btn mini"
-          onClick={onRefresh}
-          disabled={errorsLoading}
-        >
-          {errorsLoading ? "Refreshing…" : "Refresh"}
-        </button>
+        <div className={styles.tabRow}>
+          <button
+            type="button"
+            className="ghost-btn mini"
+            onClick={() => onTriggerTestIncident("app")}
+            disabled={errorsLoading || testIncidentSubmittingScope !== null}
+          >
+            {testIncidentSubmittingScope === "app" ? "Creating…" : "Trigger app test"}
+          </button>
+          <button
+            type="button"
+            className="ghost-btn mini"
+            onClick={() => onTriggerTestIncident("generation")}
+            disabled={errorsLoading || testIncidentSubmittingScope !== null}
+          >
+            {testIncidentSubmittingScope === "generation" ? "Creating…" : "Trigger generation test"}
+          </button>
+          <button
+            type="button"
+            className="ghost-btn mini"
+            onClick={onRefresh}
+            disabled={errorsLoading}
+          >
+            {errorsLoading ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       <section className={styles.adminGrid}>
@@ -287,6 +395,18 @@ export function ErrorIncidentsPanel({
           ))}
         </select>
 
+        <select
+          className={styles.searchInput}
+          value={errorEventSyntheticFilter}
+          onChange={(event) =>
+            onErrorEventSyntheticFilterChange(event.target.value as "all" | "exclude" | "only")
+          }
+        >
+          <option value="all">Events: Real + synthetic</option>
+          <option value="exclude">Events: Real only</option>
+          <option value="only">Events: Synthetic only</option>
+        </select>
+
         <input
           className={styles.searchInput}
           type="search"
@@ -321,6 +441,7 @@ export function ErrorIncidentsPanel({
           </button>
         </div>
       </div>
+      {testIncidentResult ? <p className="tiny subdued">{testIncidentResult}</p> : null}
 
       <div className={styles.adminTable}>
         <div className={styles.adminErrorsHead}>
@@ -445,6 +566,269 @@ export function ErrorIncidentsPanel({
           ))
         )}
       </div>
+
+      <section className={styles.adminSection}>
+        <div className={styles.adminSectionHead}>
+          <div>
+            <p className="eyebrow">Event Stream</p>
+            <p className="tiny subdued">Raw per-occurrence events (every logged failure).</p>
+          </div>
+          <div className={styles.tabRow}>
+            <span className="tiny subdued">{`1h ${errorEventsSummary.lastHourCount} · 24h ${errorEventsSummary.last24hCount}`}</span>
+            <span className="tiny subdued">
+              {`App ${errorEventsSummary.app24hCount} · Generation ${errorEventsSummary.generation24hCount} · High ${errorEventsSummary.high24hCount}`}
+            </span>
+          </div>
+        </div>
+
+        <div className={styles.searchRow}>
+          <p className="tiny subdued">
+            Showing {eventResultStart}-{eventResultEnd} of {errorEventsPagination.totalCount}
+          </p>
+          <div className={styles.tabRow}>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={onEventPrevPage}
+              disabled={errorEventsLoading || !errorEventsPagination.hasPrevPage}
+            >
+              Prev
+            </button>
+            <span className="tiny subdued">
+              Page {errorEventsPagination.page} of {errorEventsPagination.totalPages}
+            </span>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={onEventNextPage}
+              disabled={errorEventsLoading || !errorEventsPagination.hasNextPage}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.adminTable}>
+          <div className={styles.adminEventsHead}>
+            <span>Time</span>
+            <span>Severity</span>
+            <span>Source</span>
+            <span>Error</span>
+            <span>User</span>
+            <span>Incident</span>
+            <span>Actions</span>
+          </div>
+          {errorEventsError ? (
+            <div className={`${styles.adminEventsRow} ${styles.severityMedium}`}>
+              <span className="subdued">—</span>
+              <span className="subdued">—</span>
+              <span className="subdued">—</span>
+              <span className="subdued">{errorEventsError}</span>
+              <span className="subdued">—</span>
+              <span className="subdued">—</span>
+              <span className="subdued">—</span>
+            </div>
+          ) : errorEvents.length === 0 ? (
+            <div className={`${styles.adminEventsRow} ${styles.severityLow}`}>
+              <span className="subdued">None</span>
+              <span className="subdued">—</span>
+              <span className="subdued">—</span>
+              <span className="subdued">No events matched the current filters.</span>
+              <span className="subdued">—</span>
+              <span className="subdued">—</span>
+              <span className="subdued">—</span>
+            </div>
+          ) : (
+            errorEvents.map((row) => (
+              <div
+                key={row.id}
+                className={`${styles.adminEventsRow} ${
+                  row.severity === "high"
+                    ? styles.severityHigh
+                    : row.severity === "low"
+                      ? styles.severityLow
+                      : styles.severityMedium
+                }`}
+              >
+                <div className={styles.errorCell}>
+                  <span>{formatDateTime(row.occurredAt)}</span>
+                  <span className="tiny subdued">
+                    {row.requestId ? `req ${row.requestId}` : "—"}
+                  </span>
+                </div>
+                <span
+                  className={`${styles.pill} ${row.severity === "high" ? styles.pillWarn : styles.pillOk}`}
+                >
+                  {row.severity}
+                </span>
+                <div className={styles.errorCell}>
+                  <span>{sourceLabel(row.source)}</span>
+                  <span className="tiny subdued">{`Scope ${row.scope}`}</span>
+                </div>
+                <div className={styles.errorCell}>
+                  <span>{row.message}</span>
+                  <span className="tiny subdued">
+                    {row.httpStatus ? `HTTP ${row.httpStatus}` : "No HTTP status"}
+                  </span>
+                </div>
+                <div className={styles.errorCell}>
+                  <span>{row.userEmail ?? "Unknown user"}</span>
+                  <span className="tiny subdued">{row.userId ?? "No user id"}</span>
+                </div>
+                <div className={styles.errorCell}>
+                  <span>{row.incidentId ? row.incidentId.slice(0, 10) : "Unlinked"}</span>
+                  <span className="tiny subdued">
+                    {`${incidentStatusLabel(row.incidentStatus)} · ${
+                      row.fingerprint ? `fp ${row.fingerprint.slice(0, 10)}` : "No fingerprint"
+                    }`}
+                  </span>
+                </div>
+                <div className={styles.errorActions}>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => {
+                      void handleCopyEvent(row);
+                    }}
+                    disabled={errorEventsLoading}
+                  >
+                    {copiedEventId === row.id ? "Copied" : "Copy"}
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => setSelectedEvent(row)}
+                    disabled={errorEventsLoading}
+                  >
+                    View
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      {selectedEvent ? (
+        <section className={styles.adminModalBackdrop} role="dialog" aria-modal="true">
+          <div className={styles.adminModalCard}>
+            <div className={styles.adminSectionHead}>
+              <div>
+                <p className="eyebrow">Event Detail</p>
+                <p className="tiny subdued">
+                  {selectedEvent.id}
+                  {selectedEvent.requestId ? ` · req ${selectedEvent.requestId}` : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={() => setSelectedEvent(null)}
+              >
+                Close
+              </button>
+            </div>
+            <div className={styles.adminModalGrid}>
+              <div className={styles.errorCell}>
+                <span className="tiny subdued">Occurred</span>
+                <span>{formatDateTime(selectedEvent.occurredAt)}</span>
+              </div>
+              <div className={styles.errorCell}>
+                <span className="tiny subdued">Severity</span>
+                <span>{selectedEvent.severity}</span>
+              </div>
+              <div className={styles.errorCell}>
+                <span className="tiny subdued">Scope</span>
+                <span>{selectedEvent.scope}</span>
+              </div>
+              <div className={styles.errorCell}>
+                <span className="tiny subdued">Incident</span>
+                <span>
+                  {selectedEvent.incidentId
+                    ? `${selectedEvent.incidentId} · ${incidentStatusLabel(selectedEvent.incidentStatus)}`
+                    : "Unlinked"}
+                </span>
+              </div>
+            </div>
+            <div className={styles.errorCell}>
+              <span className="tiny subdued">Message</span>
+              <span>{selectedEvent.message}</span>
+            </div>
+            <div className={styles.errorCell}>
+              <span className="tiny subdued">Source</span>
+              <span>{selectedEvent.source}</span>
+            </div>
+            <div className={styles.errorCell}>
+              <span className="tiny subdued">Route / endpoint</span>
+              <span>{selectedEvent.endpoint ?? selectedEvent.route ?? "Unknown route"}</span>
+            </div>
+            {selectedEvent.stack ? (
+              <div className={styles.errorCell}>
+                <span className="tiny subdued">Stack</span>
+                <pre className={styles.adminPreBlock}>{selectedEvent.stack}</pre>
+              </div>
+            ) : null}
+            <div className={styles.errorCell}>
+              <span className="tiny subdued">Metadata</span>
+              <pre className={styles.adminPreBlock}>{eventMetadataText}</pre>
+            </div>
+            <div className={styles.errorActions}>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={() => {
+                  void handleCopyEvent(selectedEvent);
+                }}
+              >
+                {copiedEventId === selectedEvent.id ? "Copied" : "Copy event JSON"}
+              </button>
+              {selectedEvent.incidentId ? (
+                <>
+                  {selectedEvent.incidentStatus === "open" ? (
+                    <>
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() =>
+                          selectedIncidentId && onUpdateErrorStatus(selectedIncidentId, "resolved")
+                        }
+                        disabled={statusUpdatingErrorId === selectedIncidentId}
+                      >
+                        {statusUpdatingErrorId === selectedIncidentId
+                          ? "Updating…"
+                          : "Resolve incident"}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() =>
+                          selectedIncidentId && onUpdateErrorStatus(selectedIncidentId, "ignored")
+                        }
+                        disabled={statusUpdatingErrorId === selectedIncidentId}
+                      >
+                        Ignore incident
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() =>
+                        selectedIncidentId && onUpdateErrorStatus(selectedIncidentId, "open")
+                      }
+                      disabled={statusUpdatingErrorId === selectedIncidentId}
+                    >
+                      {statusUpdatingErrorId === selectedIncidentId
+                        ? "Updating…"
+                        : "Reopen incident"}
+                    </button>
+                  )}
+                </>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }

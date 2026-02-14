@@ -1,23 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  isInternalApiPath,
+  isProtectedApiPath,
+  isWebhookPath,
+} from "./lib/server/api/protectedApiPaths";
 
-type SupabaseUser = { id: string } | null;
-
-const PROTECTED_API_PREFIXES = [
-  "/api/fal/",
-  "/api/kei/",
-  "/api/ai/",
-  "/api/media/",
-  "/api/upload-video",
-  "/api/upload-image",
-  "/api/admin/",
-  "/api/credits/",
-  "/api/billing/credit-packages",
-  "/api/billing/stripe/checkout",
-  "/api/billing/stripe/portal",
-];
-
-const WEBHOOK_PATHS = new Set(["/api/billing/stripe/webhook"]);
-const INTERNAL_API_PREFIXES = ["/api/_utils", "/api/_utils/"];
+type SupabaseUser = {
+  id: string;
+  email?: string;
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
+} | null;
 
 const parseBearerToken = (authorizationHeader: string | null): string | null => {
   if (!authorizationHeader) return null;
@@ -26,9 +19,6 @@ const parseBearerToken = (authorizationHeader: string | null): string | null => 
   if (scheme.toLowerCase() !== "bearer") return null;
   return value.trim() || null;
 };
-
-const isProtectedApiPath = (pathname: string): boolean =>
-  PROTECTED_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
 
 const unauthorized = () =>
   new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
@@ -41,9 +31,6 @@ const notFound = () =>
     status: 404,
     headers: { "Content-Type": "application/json" },
   });
-
-const isInternalApiPath = (pathname: string): boolean =>
-  INTERNAL_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
 
 const getSupabaseUser = async (token: string): Promise<SupabaseUser> => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -60,9 +47,19 @@ const getSupabaseUser = async (token: string): Promise<SupabaseUser> => {
     });
 
     if (!response.ok) return null;
-    const data = (await response.json()) as { id?: string };
+    const data = (await response.json()) as {
+      id?: string;
+      email?: string;
+      user_metadata?: Record<string, unknown>;
+      app_metadata?: Record<string, unknown>;
+    };
     if (!data?.id) return null;
-    return { id: data.id };
+    return {
+      id: data.id,
+      email: data.email,
+      user_metadata: data.user_metadata,
+      app_metadata: data.app_metadata,
+    };
   } catch (error) {
     console.error("[proxy] Supabase auth lookup failed", error);
     return null;
@@ -78,7 +75,7 @@ export async function proxy(request: NextRequest) {
   if (isInternalApiPath(pathname)) {
     return notFound();
   }
-  if (WEBHOOK_PATHS.has(pathname)) {
+  if (isWebhookPath(pathname)) {
     return NextResponse.next();
   }
   if (!isProtectedApiPath(pathname)) {
@@ -96,7 +93,13 @@ export async function proxy(request: NextRequest) {
   }
 
   const requestHeaders = new Headers(request.headers);
+  const encodedAppMetadata = encodeURIComponent(JSON.stringify(user.app_metadata ?? {}));
+  const encodedUserMetadata = encodeURIComponent(JSON.stringify(user.user_metadata ?? {}));
+  requestHeaders.set("x-shortpulse-authenticated", "1");
   requestHeaders.set("x-shortpulse-user-id", user.id);
+  requestHeaders.set("x-shortpulse-user-email", user.email ?? "");
+  requestHeaders.set("x-shortpulse-user-app-metadata", encodedAppMetadata);
+  requestHeaders.set("x-shortpulse-user-user-metadata", encodedUserMetadata);
 
   return NextResponse.next({
     request: {

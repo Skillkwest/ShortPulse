@@ -9,6 +9,8 @@ import { CloudSlash, ShieldCheck, UserCircle } from "phosphor-react";
 import { ErrorIncidentsPanel } from "../../features/admin/components/ErrorIncidentsPanel";
 import type {
   AdminErrorLogRow,
+  AdminErrorEventRow,
+  AdminErrorEventSummary,
   AdminErrorStatus,
   AdminErrorSummary,
   AdminPagination,
@@ -42,8 +44,25 @@ const planLabel = (planId: string | null): string => {
 
 const USERS_PER_PAGE = 50;
 const ERRORS_PER_PAGE = 50;
+const ERROR_EVENTS_PER_PAGE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
 const ADJUSTMENT_PRESETS = [100, 500, -100, -500] as const;
+type ErrorLoadOverrides = {
+  page?: number;
+  status?: "open" | "all";
+  scope?: "all" | "app" | "generation";
+  severity?: "all" | "high" | "medium" | "low";
+  source?: string;
+  search?: string;
+};
+type ErrorEventsLoadOverrides = {
+  page?: number;
+  scope?: "all" | "app" | "generation";
+  severity?: "all" | "high" | "medium" | "low";
+  source?: string;
+  synthetic?: "all" | "exclude" | "only";
+  search?: string;
+};
 
 const sanitizeSignedIntegerInput = (rawValue: string): string => {
   const compact = rawValue.replace(/\s+/g, "");
@@ -88,7 +107,30 @@ export default function AdminDashboardPage() {
   const [errors, setErrors] = useState<AdminErrorLogRow[]>([]);
   const [errorsLoading, setErrorsLoading] = useState(false);
   const [errorsError, setErrorsError] = useState<string | null>(null);
+  const [errorEvents, setErrorEvents] = useState<AdminErrorEventRow[]>([]);
+  const [errorEventsLoading, setErrorEventsLoading] = useState(false);
+  const [errorEventsError, setErrorEventsError] = useState<string | null>(null);
+  const [errorEventsSummary, setErrorEventsSummary] = useState<AdminErrorEventSummary>({
+    lastHourCount: 0,
+    last24hCount: 0,
+    app24hCount: 0,
+    generation24hCount: 0,
+    high24hCount: 0,
+  });
+  const [errorEventsPage, setErrorEventsPage] = useState(1);
+  const [errorEventsPagination, setErrorEventsPagination] = useState<AdminPagination>({
+    page: 1,
+    perPage: ERROR_EVENTS_PER_PAGE,
+    totalCount: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
   const [errorStatusUpdatingId, setErrorStatusUpdatingId] = useState<string | null>(null);
+  const [testIncidentSubmittingScope, setTestIncidentSubmittingScope] = useState<
+    "app" | "generation" | null
+  >(null);
+  const [testIncidentResult, setTestIncidentResult] = useState<string | null>(null);
   const [errorSummary, setErrorSummary] = useState<AdminErrorSummary>({
     openCount: 0,
     highSeverityOpenCount: 0,
@@ -102,6 +144,9 @@ export default function AdminDashboardPage() {
     "all"
   );
   const [errorSourceFilter, setErrorSourceFilter] = useState<string>("all");
+  const [errorEventSyntheticFilter, setErrorEventSyntheticFilter] = useState<
+    "all" | "exclude" | "only"
+  >("all");
   const [errorSearch, setErrorSearch] = useState("");
   const [debouncedErrorSearch, setDebouncedErrorSearch] = useState("");
   const [errorsPage, setErrorsPage] = useState(1);
@@ -182,109 +227,243 @@ export default function AdminDashboardPage() {
     }
   }, [debouncedUserSearch, usersPage]);
 
-  const loadErrors = useCallback(async () => {
-    setErrorsLoading(true);
-    setErrorsError(null);
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(errorsPage));
-      params.set("limit", String(ERRORS_PER_PAGE));
-      params.set("status", errorStatusFilter);
-      if (errorScopeFilter !== "all") params.set("scope", errorScopeFilter);
-      if (errorSeverityFilter !== "all") params.set("severity", errorSeverityFilter);
-      if (errorSourceFilter !== "all") params.set("source", errorSourceFilter);
-      if (debouncedErrorSearch.trim()) params.set("search", debouncedErrorSearch.trim());
+  const loadErrors = useCallback(
+    async (overrides?: ErrorLoadOverrides) => {
+      setErrorsLoading(true);
+      setErrorsError(null);
+      try {
+        const activePage = overrides?.page ?? errorsPage;
+        const activeStatus = overrides?.status ?? errorStatusFilter;
+        const activeScope = overrides?.scope ?? errorScopeFilter;
+        const activeSeverity = overrides?.severity ?? errorSeverityFilter;
+        const activeSource = overrides?.source ?? errorSourceFilter;
+        const activeSearch = overrides?.search ?? debouncedErrorSearch;
 
-      const response = await fetchWithAuth(`/api/admin/errors?${params.toString()}`, {
-        method: "GET",
-      });
-      if (!response.ok) {
-        if (response.status === 403) {
-          setServerDenied(true);
-          setServerValidated(false);
-          setErrors([]);
-          setErrorsPagination({
-            page: 1,
-            perPage: ERRORS_PER_PAGE,
-            totalCount: 0,
-            totalPages: 1,
-            hasNextPage: false,
-            hasPrevPage: false,
-          });
-          return;
+        const params = new URLSearchParams();
+        params.set("page", String(activePage));
+        params.set("limit", String(ERRORS_PER_PAGE));
+        params.set("status", activeStatus);
+        if (activeScope !== "all") params.set("scope", activeScope);
+        if (activeSeverity !== "all") params.set("severity", activeSeverity);
+        if (activeSource !== "all") params.set("source", activeSource);
+        if (activeSearch.trim()) params.set("search", activeSearch.trim());
+
+        const response = await fetchWithAuth(`/api/admin/errors?${params.toString()}`, {
+          method: "GET",
+        });
+        if (!response.ok) {
+          if (response.status === 403) {
+            setServerDenied(true);
+            setServerValidated(false);
+            setErrors([]);
+            setErrorsPagination({
+              page: 1,
+              perPage: ERRORS_PER_PAGE,
+              totalCount: 0,
+              totalPages: 1,
+              hasNextPage: false,
+              hasPrevPage: false,
+            });
+            return;
+          }
+          const details = await response.json().catch(() => ({}));
+          throw new Error(details?.error || "Failed to load error incidents.");
         }
-        const details = await response.json().catch(() => ({}));
-        throw new Error(details?.error || "Failed to load error incidents.");
-      }
-      const data = (await response.json()) as {
-        errors?: unknown[];
-        summary?: AdminErrorSummary;
-        pagination?: Partial<AdminPagination>;
-      };
-      const resolvedPage = Number(data.pagination?.page ?? errorsPage);
-
-      const rows = (data.errors ?? []).map((item) => {
-        const value = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
-        return {
-          id: String(value.id ?? ""),
-          fingerprint: String(value.fingerprint ?? ""),
-          source: String(value.source ?? "unknown"),
-          scope: value.scope === "generation" ? "generation" : "app",
-          severity:
-            value.severity === "high" || value.severity === "low" ? value.severity : "medium",
-          status: value.status === "resolved" || value.status === "ignored" ? value.status : "open",
-          message: String(value.message ?? "Unknown error"),
-          stack: typeof value.stack === "string" ? value.stack : null,
-          route: typeof value.route === "string" ? value.route : null,
-          endpoint: typeof value.endpoint === "string" ? value.endpoint : null,
-          requestId: typeof value.request_id === "string" ? value.request_id : null,
-          httpStatus: Number.isFinite(Number(value.http_status)) ? Number(value.http_status) : null,
-          userId: typeof value.user_id === "string" ? value.user_id : null,
-          userEmail: typeof value.user_email === "string" ? value.user_email : null,
-          metadata:
-            value.metadata && typeof value.metadata === "object"
-              ? (value.metadata as Record<string, unknown>)
-              : null,
-          firstSeenAt: typeof value.first_seen_at === "string" ? value.first_seen_at : null,
-          lastSeenAt: typeof value.last_seen_at === "string" ? value.last_seen_at : null,
-          occurrencesCount: Number.isFinite(Number(value.occurrences_count))
-            ? Number(value.occurrences_count)
-            : 1,
+        const data = (await response.json()) as {
+          errors?: unknown[];
+          summary?: AdminErrorSummary;
+          pagination?: Partial<AdminPagination>;
         };
-      }) as AdminErrorLogRow[];
+        const resolvedPage = Number(data.pagination?.page ?? activePage);
 
-      setErrors(rows);
-      setErrorSummary({
-        openCount: Number(data.summary?.openCount ?? 0),
-        highSeverityOpenCount: Number(data.summary?.highSeverityOpenCount ?? 0),
-        last24hCount: Number(data.summary?.last24hCount ?? 0),
-        appOpenCount: Number(data.summary?.appOpenCount ?? 0),
-        generationOpenCount: Number(data.summary?.generationOpenCount ?? 0),
-      });
-      setErrorsPagination({
-        page: resolvedPage,
-        perPage: Number(data.pagination?.perPage ?? ERRORS_PER_PAGE),
-        totalCount: Number(data.pagination?.totalCount ?? 0),
-        totalPages: Number(data.pagination?.totalPages ?? 1),
-        hasNextPage: Boolean(data.pagination?.hasNextPage),
-        hasPrevPage: Boolean(data.pagination?.hasPrevPage),
-      });
-      if (resolvedPage !== errorsPage) {
-        setErrorsPage(resolvedPage);
+        const rows = (data.errors ?? []).map((item) => {
+          const value = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+          return {
+            id: String(value.id ?? ""),
+            fingerprint: String(value.fingerprint ?? ""),
+            source: String(value.source ?? "unknown"),
+            scope: value.scope === "generation" ? "generation" : "app",
+            severity:
+              value.severity === "high" || value.severity === "low" ? value.severity : "medium",
+            status:
+              value.status === "resolved" || value.status === "ignored" ? value.status : "open",
+            message: String(value.message ?? "Unknown error"),
+            stack: typeof value.stack === "string" ? value.stack : null,
+            route: typeof value.route === "string" ? value.route : null,
+            endpoint: typeof value.endpoint === "string" ? value.endpoint : null,
+            requestId: typeof value.request_id === "string" ? value.request_id : null,
+            httpStatus: Number.isFinite(Number(value.http_status))
+              ? Number(value.http_status)
+              : null,
+            userId: typeof value.user_id === "string" ? value.user_id : null,
+            userEmail: typeof value.user_email === "string" ? value.user_email : null,
+            metadata:
+              value.metadata && typeof value.metadata === "object"
+                ? (value.metadata as Record<string, unknown>)
+                : null,
+            firstSeenAt: typeof value.first_seen_at === "string" ? value.first_seen_at : null,
+            lastSeenAt: typeof value.last_seen_at === "string" ? value.last_seen_at : null,
+            occurrencesCount: Number.isFinite(Number(value.occurrences_count))
+              ? Number(value.occurrences_count)
+              : 1,
+          };
+        }) as AdminErrorLogRow[];
+
+        setErrors(rows);
+        setErrorSummary({
+          openCount: Number(data.summary?.openCount ?? 0),
+          highSeverityOpenCount: Number(data.summary?.highSeverityOpenCount ?? 0),
+          last24hCount: Number(data.summary?.last24hCount ?? 0),
+          appOpenCount: Number(data.summary?.appOpenCount ?? 0),
+          generationOpenCount: Number(data.summary?.generationOpenCount ?? 0),
+        });
+        setErrorsPagination({
+          page: resolvedPage,
+          perPage: Number(data.pagination?.perPage ?? ERRORS_PER_PAGE),
+          totalCount: Number(data.pagination?.totalCount ?? 0),
+          totalPages: Number(data.pagination?.totalPages ?? 1),
+          hasNextPage: Boolean(data.pagination?.hasNextPage),
+          hasPrevPage: Boolean(data.pagination?.hasPrevPage),
+        });
+        if (resolvedPage !== errorsPage) {
+          setErrorsPage(resolvedPage);
+        }
+      } catch (error) {
+        setErrorsError(error instanceof Error ? error.message : "Failed to load error incidents.");
+      } finally {
+        setErrorsLoading(false);
       }
-    } catch (error) {
-      setErrorsError(error instanceof Error ? error.message : "Failed to load error incidents.");
-    } finally {
-      setErrorsLoading(false);
-    }
-  }, [
-    debouncedErrorSearch,
-    errorScopeFilter,
-    errorSeverityFilter,
-    errorSourceFilter,
-    errorStatusFilter,
-    errorsPage,
-  ]);
+    },
+    [
+      debouncedErrorSearch,
+      errorScopeFilter,
+      errorSeverityFilter,
+      errorSourceFilter,
+      errorStatusFilter,
+      errorsPage,
+    ]
+  );
+
+  const loadErrorEvents = useCallback(
+    async (overrides?: ErrorEventsLoadOverrides) => {
+      setErrorEventsLoading(true);
+      setErrorEventsError(null);
+      try {
+        const activePage = overrides?.page ?? errorEventsPage;
+        const activeScope = overrides?.scope ?? errorScopeFilter;
+        const activeSeverity = overrides?.severity ?? errorSeverityFilter;
+        const activeSource = overrides?.source ?? errorSourceFilter;
+        const activeSynthetic = overrides?.synthetic ?? errorEventSyntheticFilter;
+        const activeSearch = overrides?.search ?? debouncedErrorSearch;
+
+        const params = new URLSearchParams();
+        params.set("page", String(activePage));
+        params.set("limit", String(ERROR_EVENTS_PER_PAGE));
+        if (activeScope !== "all") params.set("scope", activeScope);
+        if (activeSeverity !== "all") params.set("severity", activeSeverity);
+        if (activeSource !== "all") params.set("source", activeSource);
+        if (activeSynthetic !== "all") params.set("synthetic", activeSynthetic);
+        if (activeSearch.trim()) params.set("search", activeSearch.trim());
+
+        const response = await fetchWithAuth(`/api/admin/error-events?${params.toString()}`, {
+          method: "GET",
+        });
+        if (!response.ok) {
+          if (response.status === 403) {
+            setServerDenied(true);
+            setServerValidated(false);
+            setErrorEvents([]);
+            setErrorEventsPagination({
+              page: 1,
+              perPage: ERROR_EVENTS_PER_PAGE,
+              totalCount: 0,
+              totalPages: 1,
+              hasNextPage: false,
+              hasPrevPage: false,
+            });
+            return;
+          }
+          const details = await response.json().catch(() => ({}));
+          throw new Error(details?.error || "Failed to load error events.");
+        }
+
+        const data = (await response.json()) as {
+          events?: unknown[];
+          summary?: AdminErrorEventSummary;
+          pagination?: Partial<AdminPagination>;
+        };
+        const resolvedPage = Number(data.pagination?.page ?? activePage);
+        const rows = (data.events ?? []).map((item) => {
+          const value = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+          return {
+            id: String(value.id ?? ""),
+            incidentId: typeof value.incident_id === "string" ? value.incident_id : null,
+            incidentStatus:
+              value.incident_status === "resolved" || value.incident_status === "ignored"
+                ? value.incident_status
+                : value.incident_status === "open"
+                  ? "open"
+                  : null,
+            fingerprint: String(value.fingerprint ?? ""),
+            source: String(value.source ?? "unknown"),
+            scope: value.scope === "generation" ? "generation" : "app",
+            severity:
+              value.severity === "high" || value.severity === "low" ? value.severity : "medium",
+            message: String(value.message ?? "Unknown error event"),
+            stack: typeof value.stack === "string" ? value.stack : null,
+            route: typeof value.route === "string" ? value.route : null,
+            endpoint: typeof value.endpoint === "string" ? value.endpoint : null,
+            requestId: typeof value.request_id === "string" ? value.request_id : null,
+            httpStatus: Number.isFinite(Number(value.http_status))
+              ? Number(value.http_status)
+              : null,
+            userId: typeof value.user_id === "string" ? value.user_id : null,
+            userEmail: typeof value.user_email === "string" ? value.user_email : null,
+            metadata:
+              value.metadata && typeof value.metadata === "object"
+                ? (value.metadata as Record<string, unknown>)
+                : null,
+            occurredAt: typeof value.occurred_at === "string" ? value.occurred_at : null,
+            createdAt: typeof value.created_at === "string" ? value.created_at : null,
+          };
+        }) as AdminErrorEventRow[];
+
+        setErrorEvents(rows);
+        setErrorEventsSummary({
+          lastHourCount: Number(data.summary?.lastHourCount ?? 0),
+          last24hCount: Number(data.summary?.last24hCount ?? 0),
+          app24hCount: Number(data.summary?.app24hCount ?? 0),
+          generation24hCount: Number(data.summary?.generation24hCount ?? 0),
+          high24hCount: Number(data.summary?.high24hCount ?? 0),
+        });
+        setErrorEventsPagination({
+          page: resolvedPage,
+          perPage: Number(data.pagination?.perPage ?? ERROR_EVENTS_PER_PAGE),
+          totalCount: Number(data.pagination?.totalCount ?? 0),
+          totalPages: Number(data.pagination?.totalPages ?? 1),
+          hasNextPage: Boolean(data.pagination?.hasNextPage),
+          hasPrevPage: Boolean(data.pagination?.hasPrevPage),
+        });
+        if (resolvedPage !== errorEventsPage) {
+          setErrorEventsPage(resolvedPage);
+        }
+      } catch (error) {
+        setErrorEventsError(
+          error instanceof Error ? error.message : "Failed to load error events."
+        );
+      } finally {
+        setErrorEventsLoading(false);
+      }
+    },
+    [
+      debouncedErrorSearch,
+      errorEventSyntheticFilter,
+      errorEventsPage,
+      errorScopeFilter,
+      errorSeverityFilter,
+      errorSourceFilter,
+    ]
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedUserSearch(userSearch), SEARCH_DEBOUNCE_MS);
@@ -316,6 +495,11 @@ export default function AdminDashboardPage() {
     if (!user || !adminEnabled) return;
     loadErrors();
   }, [adminEnabled, loadErrors, user]);
+
+  useEffect(() => {
+    if (!user || !adminEnabled) return;
+    loadErrorEvents();
+  }, [adminEnabled, loadErrorEvents, user]);
 
   const overview = useMemo(
     () => ({
@@ -378,6 +562,7 @@ export default function AdminDashboardPage() {
     async (errorId: string, status: AdminErrorStatus) => {
       setErrorStatusUpdatingId(errorId);
       setErrorsError(null);
+      setErrorEventsError(null);
       try {
         const response = await fetchWithAuth("/api/admin/errors-status", {
           method: "POST",
@@ -388,16 +573,82 @@ export default function AdminDashboardPage() {
         if (!response.ok) {
           throw new Error(data?.error || "Failed to update incident status.");
         }
-        await loadErrors();
+        await Promise.all([loadErrors(), loadErrorEvents()]);
       } catch (error) {
-        setErrorsError(
-          error instanceof Error ? error.message : "Failed to update incident status."
-        );
+        const message =
+          error instanceof Error ? error.message : "Failed to update incident status.";
+        setErrorsError(message);
+        setErrorEventsError(message);
       } finally {
         setErrorStatusUpdatingId((current) => (current === errorId ? null : current));
       }
     },
-    [loadErrors]
+    [loadErrorEvents, loadErrors]
+  );
+
+  const refreshErrorData = useCallback(async () => {
+    await Promise.all([loadErrors(), loadErrorEvents()]);
+  }, [loadErrorEvents, loadErrors]);
+
+  const handleTriggerTestIncident = useCallback(
+    async (scope: "app" | "generation") => {
+      setTestIncidentSubmittingScope(scope);
+      setTestIncidentResult(null);
+      setErrorsError(null);
+      try {
+        const response = await fetchWithAuth("/api/admin/errors-test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scope,
+            severity: "high",
+            statusCode: scope === "generation" ? 502 : 500,
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to create synthetic incident.");
+        }
+
+        setErrorStatusFilter("open");
+        setErrorScopeFilter("all");
+        setErrorSeverityFilter("all");
+        setErrorSourceFilter("all");
+        setErrorEventSyntheticFilter("all");
+        setErrorSearch("");
+        setDebouncedErrorSearch("");
+        setErrorsPage(1);
+        setErrorEventsPage(1);
+        await Promise.all([
+          loadErrors({
+            page: 1,
+            status: "open",
+            scope: "all",
+            severity: "all",
+            source: "all",
+            search: "",
+          }),
+          loadErrorEvents({
+            page: 1,
+            scope: "all",
+            severity: "all",
+            source: "all",
+            synthetic: "all",
+            search: "",
+          }),
+        ]);
+        setTestIncidentResult(
+          `Synthetic ${scope} incident logged${data?.incidentId ? ` (${String(data.incidentId).slice(0, 8)}…)` : ""}.`
+        );
+      } catch (error) {
+        setTestIncidentResult(
+          error instanceof Error ? error.message : "Failed to create synthetic incident."
+        );
+      } finally {
+        setTestIncidentSubmittingScope((current) => (current === scope ? null : current));
+      }
+    },
+    [loadErrorEvents, loadErrors]
   );
 
   if (loading) {
@@ -709,13 +960,21 @@ export default function AdminDashboardPage() {
             errorsLoading={errorsLoading}
             errorsError={errorsError}
             errorSummary={errorSummary}
+            errorEvents={errorEvents}
+            errorEventsLoading={errorEventsLoading}
+            errorEventsError={errorEventsError}
+            errorEventsSummary={errorEventsSummary}
+            errorEventsPagination={errorEventsPagination}
             errorStatusFilter={errorStatusFilter}
             errorScopeFilter={errorScopeFilter}
             errorSeverityFilter={errorSeverityFilter}
             errorSourceFilter={errorSourceFilter}
+            errorEventSyntheticFilter={errorEventSyntheticFilter}
             errorSearch={errorSearch}
             errorPagination={errorsPagination}
             statusUpdatingErrorId={errorStatusUpdatingId}
+            testIncidentSubmittingScope={testIncidentSubmittingScope}
+            testIncidentResult={testIncidentResult}
             onErrorStatusFilterChange={(value) => {
               setErrorStatusFilter(value);
               setErrorsPage(1);
@@ -723,23 +982,34 @@ export default function AdminDashboardPage() {
             onErrorScopeFilterChange={(value) => {
               setErrorScopeFilter(value);
               setErrorsPage(1);
+              setErrorEventsPage(1);
             }}
             onErrorSeverityFilterChange={(value) => {
               setErrorSeverityFilter(value);
               setErrorsPage(1);
+              setErrorEventsPage(1);
             }}
             onErrorSourceFilterChange={(value) => {
               setErrorSourceFilter(value);
               setErrorsPage(1);
+              setErrorEventsPage(1);
+            }}
+            onErrorEventSyntheticFilterChange={(value) => {
+              setErrorEventSyntheticFilter(value);
+              setErrorEventsPage(1);
             }}
             onErrorSearchChange={(value) => {
               setErrorSearch(value);
               setErrorsPage(1);
+              setErrorEventsPage(1);
             }}
             onUpdateErrorStatus={handleUpdateErrorStatus}
+            onTriggerTestIncident={handleTriggerTestIncident}
             onPrevPage={() => setErrorsPage((value) => Math.max(1, value - 1))}
             onNextPage={() => setErrorsPage((value) => value + 1)}
-            onRefresh={loadErrors}
+            onEventPrevPage={() => setErrorEventsPage((value) => Math.max(1, value - 1))}
+            onEventNextPage={() => setErrorEventsPage((value) => value + 1)}
+            onRefresh={refreshErrorData}
           />
         )}
       </main>

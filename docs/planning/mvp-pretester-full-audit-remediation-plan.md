@@ -60,7 +60,7 @@ Documentation/SOP drift:
 - Billing RLS audit script expectations drift from schema policy reality for `stripe_event_log`.
   Evidence paths: `sql/audit_billing_credit_rls.sql`, `sql/create_billing_credit_tables.sql`
 - Legacy Character SOPs remain in active index and can cause confusion.
-  Evidence paths: `docs/sops/sop_character_generation.md`, `docs/sops/sop_character_identity.md`, `docs/sops/README.md`
+  Evidence paths: `docs/archive/sops/sop_character_generation.md`, `docs/archive/sops/sop_character_identity.md`, `docs/sops/README.md`
 
 ## Scope Lock For This Plan
 In scope:
@@ -78,24 +78,37 @@ Out of scope:
 - Do not start new Stripe checkout/portal/webhook/subscription tasks in this plan during the pause window.
 - Stripe/subscription findings and completed evidence remain documented here for history; remaining Stripe/subscription items move to deferred backlog status.
 
+Resume criteria (must all be true before pause lift):
+- Product + Engineering explicitly record pause-lift approval in `docs/change_log.md` and this plan.
+- Deferred Phase 5 task for `stripe_event_log` RLS audit reconciliation is re-scoped with owner + verification commands.
+- Stripe-focused API regression suite is green (`stripe-checkout`, `stripe-portal`, `stripe-webhook`) in CI before merge.
+- Canonical Stripe app URL + webhook timestamp tolerance controls remain unchanged and documented.
+
 ## Release Gate
 All `P0` items must be complete before external tester access.
 
-## Current Sprint Focus (2026-02-14, refreshed)
-Goal: continue `P1` modularization while keeping `P0` completion state accurate and release-safe.
+## Missing-Anything Audit (2026-02-14)
+- Active-scope unchecked items: `0`.
+- Remaining unchecked checklist item count: `1` (Stripe/subscription billing RLS reconciliation), currently paused by scope policy.
+- Active-scope release blockers: none identified in this audit pass.
+- Verification state: `validate`, `build`, and `docs:check` currently passing after Phase 4 closeout.
+- Next-step hardening completed: fast CI auth-regression lane added for auth-boundary/status-ownership tests.
+- Pause-governance completed: explicit Stripe/subscription resume criteria now documented in this plan.
 
-1. `P1` Split `frontend/pages/media-library.tsx` into page orchestration plus focused modules for modal actions, tab data flow, and signing/performance orchestration.
-   Definition of done: move one cohesive concern at a time into feature modules/hooks with focused tests and no behavior change.
-   Evidence paths: `frontend/pages/media-library.tsx`, `frontend/features/media-library/logic/`, `frontend/features/media-library/hooks/`
-2. `P1` Split `frontend/lib/server/api/generationBilling.ts` into reservation RPC adapter, ownership resolver, settlement/capture service, and pricing param derivation.
-   Definition of done: modules are concern-scoped, API behavior preserved, and reservation/capture/release tests remain green.
-   Evidence paths: `frontend/lib/server/api/generationBilling.ts`, `frontend/lib/server/api/`, `frontend/tests/api/generation-billing.reservations.test.ts`
-3. `P1` Convert `frontend/lib/falClient.ts` to a registry-driven generic client API to remove repetitive provider wrappers.
-   Definition of done: existing callers keep stable behavior/contracts while duplicated wrapper logic is removed.
-   Evidence paths: `frontend/lib/falClient.ts`, `frontend/pages/api/fal/`, `frontend/tests/api/`
+## Current Sprint Focus (2026-02-14, refreshed after Phase 4 closeout)
+Goal: keep release gates stable while active-scope remediation phases remain complete.
+
+1. `P1` Preserve consolidated auth-boundary behavior and monitor for regressions.
+   Definition of done: protected-route middleware context remains the primary auth path and fast + full CI tests keep duplicate-lookup regressions blocked.
+   Evidence paths: `frontend/proxy.ts`, `frontend/lib/server/api/auth.ts`, `frontend/tests/api/auth-latency-benchmark.test.ts`, `.github/workflows/ci.yml`
+2. `P1` Keep ownership-safety assertions in status polling routes.
+   Definition of done: provider status routes continue rejecting non-owned request IDs under middleware-authenticated context.
+   Evidence paths: `frontend/pages/api/kei/task-status.ts`, `frontend/pages/api/fal/status.ts`, `frontend/lib/server/api/falStatusProxy.ts`, `frontend/tests/api/kei-task-status.auth-context.test.ts`, `frontend/tests/api/kei-task-status.ownership.test.ts`, `frontend/tests/api/fal-status.auth-context.test.ts`, `frontend/tests/api/fal-status.ownership.test.ts`
 
 Recent completion carried forward:
 - `P0` staging migration `014_harden_generation_reservation_rpc_security.sql` completed and verified on 2026-02-14.
+- Phase 3 modularization targets completed on 2026-02-14 (`media-library.tsx`, `ai-studio.tsx`, `generationBilling.ts`, `falClient.ts`).
+- Phase 4 performance/API-efficiency targets completed on 2026-02-14 (auth-boundary consolidation + latency benchmark + ownership-safety verification).
 
 Validation commands for this sprint:
 - `cd frontend && npm run type-check`
@@ -103,6 +116,13 @@ Validation commands for this sprint:
 - `cd frontend && npm run validate`
 - `cd frontend && npm run build`
 - `cd frontend && npm run docs:check`
+
+## High-Level Recommendations (Non-Blocking)
+1. [x] Keep auth-boundary regression tests (`auth-helper`, `proxy-internal-utils`, KEI/Fal auth-context ownership, auth latency benchmark) in fast CI paths so duplicate-lookup/security regressions fail early.
+   Evidence path: `.github/workflows/ci.yml`
+2. Capture one real staging p50/p95 sample for protected routes to complement synthetic benchmark evidence before external tester rollout.
+3. [x] Define explicit resume criteria for the paused Stripe/subscription backlog item to avoid ambiguity when pause is lifted.
+   Evidence path: `docs/planning/mvp-pretester-full-audit-remediation-plan.md`
 
 ### AI Studio First Split Boundary (Selected)
 Selected seam:
@@ -136,7 +156,8 @@ Execution status:
 - Completed: extracted studio-preview prop composition and detail-modal action wiring from `frontend/pages/ai-studio.tsx` into `frontend/features/ai-studio/hooks/useAiStudioPreviewDetailProps.ts` with focused hook tests.
 
 Next pass target:
-- Continue Phase 3 by splitting `frontend/pages/media-library.tsx` and `frontend/lib/server/api/generationBilling.ts` into focused modules while preserving current runtime behavior.
+- Hold completed Phase 3/Phase 4 scope stable while paused Stripe/subscription backlog remains deferred.
+- Maintain auth-boundary and status-ownership regression coverage as route/provider integrations evolve.
 
 Evidence paths:
 - `frontend/pages/ai-studio.tsx`
@@ -305,14 +326,17 @@ Checklist:
   Evidence paths: `frontend/features/ai-studio/hooks/useAiStudioReferenceCanvasProps.ts`, `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceCanvasProps.test.ts`, `frontend/pages/ai-studio.tsx`
 - [x] Extract `ai-studio` studio-preview prop composition + detail-modal action wiring into a dedicated hook.
   Evidence paths: `frontend/features/ai-studio/hooks/useAiStudioPreviewDetailProps.ts`, `frontend/features/ai-studio/hooks/__tests__/useAiStudioPreviewDetailProps.test.ts`, `frontend/pages/ai-studio.tsx`
-- [ ] Split `frontend/pages/media-library.tsx` into page orchestration + feature modules for tab data, modal actions, and performance/signing logic.
-- [ ] Split `frontend/pages/ai-studio.tsx` into focused controllers (character mode, agent orchestration, generation submission, UI composition).
+- [x] Split `frontend/pages/media-library.tsx` into page orchestration + feature modules for tab data, modal actions, and performance/signing logic.
+  Evidence paths: `frontend/pages/media-library.tsx`, `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts`, `frontend/features/media-library/hooks/__tests__/useMediaPreviewRuntime.test.ts`
+- [x] Split `frontend/pages/ai-studio.tsx` into focused controllers (character mode, agent orchestration, generation submission, UI composition).
+  Evidence paths: `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/hooks/useAiStudioCharacterModeController.ts`, `frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts`, `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`, `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts`
 - [x] Split `frontend/features/ai-studio/hooks/useAiStudioState.ts` into smaller hooks by concern for this pass (output lifecycle, workflow settings, reference/modal state, prompt/reference composition, task orchestration).
 - [x] Split `frontend/lib/server/api/generationBilling.ts` into reservation RPC adapter, ownership resolver, settlement/capture service, and pricing param derivation.
   Evidence paths: `frontend/lib/server/api/generationBilling.ts`, `frontend/lib/server/api/generationBilling/reservationRpcAdapter.ts`, `frontend/lib/server/api/generationBilling/ownershipResolver.ts`, `frontend/lib/server/api/generationBilling/settlementService.ts`, `frontend/lib/server/api/generationBilling/pricingParams.ts`, `frontend/tests/api/generation-billing.reservations.test.ts`
 - [x] Convert `frontend/lib/falClient.ts` from many repeated submit/status wrappers to a registry-driven generic client API.
   Evidence paths: `frontend/lib/falClient.ts`, `frontend/pages/api/fal/`, `frontend/tests/pages/ai-studio.character-mode.test.tsx`, `frontend/tests/api/fal-status.ownership.test.ts`
-- [ ] Set measurable modularity targets: no core source file above `800` lines in this pass; no new file above `500` lines without explicit rationale in doc comments.
+- [x] Set measurable modularity targets: no core source file above `800` lines in this pass; no new file above `500` lines without explicit rationale in doc comments.
+  Evidence paths: `frontend/pages/media-library.tsx` (`743` lines), `frontend/pages/ai-studio.tsx` (`756` lines), `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts` (`446` lines)
 
 Exit criteria:
 - High-churn files are decomposed with behavior preserved.
@@ -322,10 +346,12 @@ Exit criteria:
 Goal: remove avoidable latency and operational overhead.
 
 Checklist:
-- [ ] Remove duplicated Supabase auth lookups where middleware and route-level checks both call `/auth/v1/user`; choose one authoritative path per route family.
-  Evidence paths: `frontend/proxy.ts`, `frontend/lib/server/api/auth.ts`
-- [ ] Measure and document p50/p95 latency impact before and after auth-boundary consolidation.
-- [ ] Confirm generation status polling remains ownership-safe after auth flow simplification.
+- [x] Remove duplicated Supabase auth lookups where middleware and route-level checks both call `/auth/v1/user`; choose one authoritative path per route family.
+  Evidence paths: `frontend/proxy.ts`, `frontend/lib/server/api/auth.ts`, `frontend/lib/server/api/protectedApiPaths.ts`, `frontend/tests/api/auth-helper.test.ts`, `frontend/tests/api/proxy-internal-utils.test.ts`
+- [x] Measure and document p50/p95 latency impact before and after auth-boundary consolidation.
+  Evidence paths: `frontend/tests/api/auth-latency-benchmark.test.ts` (recent sampled range with `40` iterations and `12ms` mocked upstream delay: `proxy-context p50=0.07–0.08ms`, `p95=0.25–0.72ms`; `fallback p50=13.16–13.28ms`, `p95=13.30–14.61ms`), `docs/monitoring.md`
+- [x] Confirm generation status polling remains ownership-safe after auth flow simplification.
+  Evidence paths: `frontend/tests/api/kei-task-status.auth-context.test.ts`, `frontend/tests/api/kei-task-status.ownership.test.ts`, `frontend/tests/api/fal-status.auth-context.test.ts`, `frontend/tests/api/fal-status.ownership.test.ts`, `frontend/pages/api/kei/task-status.ts`, `frontend/pages/api/fal/status.ts`
 
 Exit criteria:
 - Auth-protected APIs show lower median latency without reducing security guarantees.
@@ -343,7 +369,7 @@ Checklist:
 - [ ] Reconcile billing RLS audit script expectations with actual schema policies for `stripe_event_log`. (`Paused` until Stripe/subscription pipeline work resumes)
   Evidence paths: `sql/audit_billing_credit_rls.sql`, `sql/create_billing_credit_tables.sql`
 - [x] Archive or clearly segregate legacy Character SOPs to reduce operational confusion.
-  Evidence paths: `docs/sops/sop_character_generation.md`, `docs/sops/sop_character_identity.md`, `docs/sops/README.md`
+  Evidence paths: `docs/archive/sops/sop_character_generation.md`, `docs/archive/sops/sop_character_identity.md`, `docs/sops/README.md`
 - [x] Add this plan and completion status updates to `docs/change_log.md` as phases close.
 
 Exit criteria:
@@ -370,8 +396,8 @@ Documentation verification:
 - `P0` security blockers: `Complete`
 - `P0` reliability gates: `Complete`
 - `P0` documentation alignment required for release: `Complete` (active scope; paused Stripe/subscription backlog item tracked separately)
-- `P1` modularization: `In Progress`
-- `P1` performance/API efficiency: `Not Started`
+- `P1` modularization: `Complete`
+- `P1` performance/API efficiency: `Complete`
 - `Paused` Stripe/subscription pipeline backlog: `Active pause`
 
 ## Sign-Off Criteria For Tester Launch
@@ -432,3 +458,10 @@ Documentation verification:
 - 2026-02-14: Continued `media-library` modularization by extracting the filters-row shell into `frontend/features/media-library/components/MediaFiltersRow.tsx`, moving dashboard-nav and filter-panel composition out of `frontend/pages/media-library.tsx` with focused component test coverage and page integration.
 - 2026-02-14: Continued `media-library` modularization by extracting workspace content composition into `frontend/features/media-library/components/MediaLibraryWorkspaceContent.tsx`, consolidating header/upload/filters/gallery ordering and prop-group wiring outside `frontend/pages/media-library.tsx` with focused component test coverage and page integration.
 - 2026-02-14: Continued `media-library` modularization by extracting media event logging and storage delete-path helpers into `frontend/features/media-library/logic/mediaLibraryDataEffects.ts`, removing side-effect utility internals from `frontend/pages/media-library.tsx` with focused logic test coverage and page integration.
+- 2026-02-14: Completed active `media-library` page split by extracting preview/signing/viewport runtime into `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts` with focused hook coverage, reducing `frontend/pages/media-library.tsx` to `743` lines and closing Phase 3 modularity checklist targets for `media-library.tsx` + `ai-studio.tsx`.
+- 2026-02-14: Started Phase 4 auth-boundary consolidation by centralizing protected-path rules in `frontend/lib/server/api/protectedApiPaths.ts`, reusing middleware-authenticated user context headers in `requireApiUser/getOptionalApiUser/requireAdminUser`, and keeping non-protected-route fallback verification; validated with new auth/proxy tests plus full `validate`.
+- 2026-02-14: Completed Phase 4 by capturing synthetic auth-boundary latency evidence (`proxy-context p50=0.07ms/p95=0.25ms` vs fallback `p50=13.28ms/p95=13.42ms`) and adding middleware-auth-context ownership tests for `kei/task-status`, then validating with full `validate` and `docs:check`.
+- 2026-02-14: Extended Phase 4 ownership-safety verification by adding middleware-auth-context regression coverage for `fal/status` so both KEI and Fal status polling paths enforce provider-request ownership after auth-boundary consolidation.
+- 2026-02-14: Completed a missing-anything audit pass; confirmed active-scope checklist has no unchecked items and retained only the explicitly paused Stripe/subscription backlog item.
+- 2026-02-14: Added a fast CI auth-regression lane (`auth-helper`, `proxy-internal-utils`, `kei-task-status.auth-context`, `fal-status.auth-context`, `auth-latency-benchmark`) so auth-boundary and ownership regressions fail before the full suite.
+- 2026-02-14: Added explicit pause-lift resume criteria for deferred Stripe/subscription backlog work to remove ambiguity on when the remaining Phase 5 item can restart.

@@ -16,3 +16,4 @@ Purpose: product/domain source-of-truth documents used by engineering, product, 
 - Clearly label source-of-truth vs conceptual guidance.
 - Include update triggers (when this doc must change).
 - Keep references to related SOP/API docs current.
+- Move legacy product guides to `docs/archive/product/` when superseded.

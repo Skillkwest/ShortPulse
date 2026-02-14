@@ -5,14 +5,11 @@
 import Head from "next/head";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { logMediaPerf } from "../lib/mediaPerfTelemetry";
-import { fetchWithAuth } from "../lib/authenticatedFetch";
-import {
-  resolveMediaDirectPreviewUrls,
-  resolveMediaSigningStoragePaths,
-} from "../lib/mediaPreviewPath";
-import { getSignedMediaUrl } from "../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
-import { isMoveDestinationDataTab } from "../features/media-library/logic/mediaMoveRouting";
+import {
+  isMoveDestinationDataTab,
+  type MediaTab,
+} from "../features/media-library/logic/mediaMoveRouting";
 import { useMediaBulkMoveController } from "../features/media-library/hooks/useMediaBulkMoveController";
 import { useMediaBulkDeleteController } from "../features/media-library/hooks/useMediaBulkDeleteController";
 import { MediaLibraryModalStack } from "../features/media-library/components/MediaLibraryModalStack";
@@ -25,6 +22,7 @@ import {
 import { useMediaFileModalCrud } from "../features/media-library/hooks/useMediaFileModalCrud";
 import { useMediaModalImageZoom } from "../features/media-library/hooks/useMediaModalImageZoom";
 import { useMediaPromptModalCrud } from "../features/media-library/hooks/useMediaPromptModalCrud";
+import { useMediaPreviewRuntime } from "../features/media-library/hooks/useMediaPreviewRuntime";
 import { useMediaPreviewSigningController } from "../features/media-library/hooks/useMediaPreviewSigningController";
 import { useMediaSingleMoveController } from "../features/media-library/hooks/useMediaSingleMoveController";
 import { useMediaTabDataController } from "../features/media-library/hooks/useMediaTabDataController";
@@ -32,9 +30,7 @@ import { useMediaUploadController } from "../features/media-library/hooks/useMed
 import {
   BUCKET,
   MEDIA_DATA_TABS,
-  createMediaTabBooleanState,
   createMediaTabCacheState,
-  createMediaTabRequestState,
   formatDate,
   getErrorMessage,
   getMediaDataTabForRow,
@@ -42,13 +38,9 @@ import {
   isMissingRoutineError,
   isVideoFile,
   normalizeMediaSearchTerm,
-  resolveRouteSignBudget,
   sortByCreatedAtDesc,
   type MediaDataTab,
-  type MediaSignBudget,
-  type MediaTabBooleanState,
   type MediaTabCache as MediaTabCacheState,
-  type MediaTabRequestState,
 } from "../features/media-library/logic/mediaLibraryPageHelpers";
 
 type MediaRow = {
@@ -81,25 +73,10 @@ type PromptRow = {
   updated_at: string;
 };
 
-type MediaTab =
-  | "uploaded_images"
-  | "uploaded_videos"
-  | "private"
-  | "saved_prompts"
-  | "ai_generations";
-
 type MediaTabCache = MediaTabCacheState<MediaRow>;
-type MediaCardRefCallback = (node: HTMLDivElement | null) => void;
 
 const MEDIA_LIBRARY_PAGE_SIZE = 60;
 const MEDIA_LIBRARY_CACHE_TTL_MS = 30_000;
-
-type NavigatorWithConnection = Navigator & {
-  connection?: {
-    addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-    removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-  };
-};
 
 export default function MediaLibrary() {
   const [files, setFiles] = useState<MediaRow[]>([]);
@@ -140,25 +117,7 @@ export default function MediaLibrary() {
     setPrompts,
     setSelectedIds,
   });
-  const signedUrlRetryRef = useRef<Record<string, number>>({});
-  const signAttemptRef = useRef<Record<string, number>>({});
-  const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
-  const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
   const firstCardShellLoggedRef = useRef(false);
-  const firstMediaPaintLoggedRef = useRef(false);
-  const activeTabRef = useRef<MediaTab>(activeTab);
-  const activeMediaQueryRef = useRef("");
-  const mediaTabRequestRef = useRef<MediaTabRequestState>(createMediaTabRequestState());
-  const mediaSignInFlightRef = useRef<MediaTabBooleanState>(createMediaTabBooleanState());
-  const mediaCardNodesRef = useRef<Map<string, HTMLDivElement>>(new Map());
-  const mediaCardRefCallbacksRef = useRef<Record<string, MediaCardRefCallback>>({});
-  const mediaCardObserverRef = useRef<IntersectionObserver | null>(null);
-  const visibleMediaIdsRef = useRef<Set<string>>(new Set());
-  const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
-  const [signPassNonce, setSignPassNonce] = useState(0);
-  const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveRouteSignBudget);
-  const currentUserIdRef = useRef<string | null>(null);
-  const isMountedRef = useRef(true);
   const cachedMediaBytes = useMemo(() => {
     const byId = new Map<string, number>();
     for (const tab of MEDIA_DATA_TABS) {
@@ -184,6 +143,34 @@ export default function MediaLibrary() {
     () => normalizeMediaSearchTerm(debouncedSearch),
     [debouncedSearch]
   );
+  const {
+    activeMediaQueryRef,
+    activeTabRef,
+    applySignedUrlsToTab,
+    currentUserIdRef,
+    getMediaCardRef,
+    handleMediaPreviewError,
+    hydrateViaStorageDownload,
+    isMountedRef,
+    markFirstMediaPaint,
+    mediaSignInFlightRef,
+    mediaTabRequestRef,
+    resolveSignedUrlsByMediaIds,
+    setSignPassNonce,
+    signAttemptRef,
+    signBudget,
+    signPassNonce,
+    signStoragePath,
+    signedUrlRetryRef,
+    visibleMediaIdsRef,
+    visibleMediaVersion,
+  } = useMediaPreviewRuntime<MediaRow>({
+    activeMediaQuery,
+    activeTab,
+    setFiles,
+    setFocusedFile,
+    setMediaTabCache,
+  });
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -191,14 +178,6 @@ export default function MediaLibrary() {
     }, 220);
     return () => window.clearTimeout(timeoutId);
   }, [search]);
-
-  useEffect(() => {
-    activeTabRef.current = activeTab;
-  }, [activeTab]);
-
-  useEffect(() => {
-    activeMediaQueryRef.current = activeMediaQuery;
-  }, [activeMediaQuery]);
 
   useEffect(() => {
     if ((!focusedFile && !focusedPrompt) || typeof document === "undefined") return;
@@ -221,47 +200,6 @@ export default function MediaLibrary() {
       html.style.overscrollBehavior = previousHtmlOverscroll;
     };
   }, [focusedFile, focusedPrompt]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof navigator === "undefined") return;
-    const nav = navigator as NavigatorWithConnection;
-    const connection = nav.connection;
-    const refreshBudget = () => {
-      setSignBudget((prev) => {
-        const next = resolveRouteSignBudget();
-        if (
-          prev.initialSignLimit === next.initialSignLimit &&
-          prev.prefetchWindow === next.prefetchWindow &&
-          prev.signBatchSize === next.signBatchSize
-        ) {
-          return prev;
-        }
-        return next;
-      });
-    };
-    refreshBudget();
-    window.addEventListener("resize", refreshBudget);
-    connection?.addEventListener?.("change", refreshBudget);
-    return () => {
-      window.removeEventListener("resize", refreshBudget);
-      connection?.removeEventListener?.("change", refreshBudget);
-    };
-  }, []);
-
-  useEffect(() => {
-    signAttemptRef.current = {};
-  }, [activeTab, activeMediaQuery]);
-
-  useEffect(
-    () => () => {
-      for (const objectUrl of Object.values(objectUrlByMediaIdRef.current)) {
-        URL.revokeObjectURL(objectUrl);
-      }
-      objectUrlByMediaIdRef.current = {};
-      isMountedRef.current = false;
-    },
-    []
-  );
 
   const refreshStorageUsageBytes = useCallback(async () => {
     try {
@@ -306,262 +244,6 @@ export default function MediaLibrary() {
     setBulkMoveError(null);
     setBulkMoveNotice(null);
   }, [selectedIds.length]);
-
-  const getMediaCardRef = useCallback((fileId: string): MediaCardRefCallback => {
-    const existing = mediaCardRefCallbacksRef.current[fileId];
-    if (existing) return existing;
-    const callback: MediaCardRefCallback = (node) => {
-      const previousNode = mediaCardNodesRef.current.get(fileId);
-      if (previousNode && previousNode !== node) {
-        mediaCardObserverRef.current?.unobserve(previousNode);
-      }
-      if (!node) {
-        mediaCardNodesRef.current.delete(fileId);
-        if (visibleMediaIdsRef.current.delete(fileId)) {
-          setVisibleMediaVersion((prev) => prev + 1);
-        }
-        return;
-      }
-      node.dataset.mediaId = fileId;
-      mediaCardNodesRef.current.set(fileId, node);
-      mediaCardObserverRef.current?.observe(node);
-    };
-    mediaCardRefCallbacksRef.current[fileId] = callback;
-    return callback;
-  }, []);
-
-  useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") {
-      return;
-    }
-    const visibleIds = visibleMediaIdsRef.current;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        let changed = false;
-        for (const entry of entries) {
-          const fileId = (entry.target as HTMLElement).dataset.mediaId;
-          if (!fileId) continue;
-          if (entry.isIntersecting) {
-            if (!visibleIds.has(fileId)) {
-              visibleIds.add(fileId);
-              changed = true;
-            }
-            continue;
-          }
-          if (visibleIds.delete(fileId)) {
-            changed = true;
-          }
-        }
-        if (changed) {
-          setVisibleMediaVersion((prev) => prev + 1);
-        }
-      },
-      {
-        root: null,
-        rootMargin: "520px 0px",
-        threshold: 0.01,
-      }
-    );
-    mediaCardObserverRef.current = observer;
-    for (const node of mediaCardNodesRef.current.values()) {
-      observer.observe(node);
-    }
-    return () => {
-      observer.disconnect();
-      mediaCardObserverRef.current = null;
-      visibleIds.clear();
-    };
-  }, []);
-
-  const signStoragePath = useCallback(
-    async (storagePath: string, options?: { forceRefresh?: boolean }): Promise<string | null> =>
-      getSignedMediaUrl({
-        bucket: BUCKET,
-        storagePath,
-        expiresInSeconds: 3600,
-        forceRefresh: options?.forceRefresh ?? false,
-      }),
-    []
-  );
-
-  const applySignedUrlsToTab = useCallback(
-    (tab: MediaDataTab, signedById: Map<string, string>) => {
-      if (!signedById.size) return;
-      setMediaTabCache((prev) => {
-        const cache = prev[tab];
-        let changed = false;
-        const nextRows = cache.rows.map((row) => {
-          const signedUrl = signedById.get(row.id);
-          if (!signedUrl || row.signedUrl === signedUrl) return row;
-          changed = true;
-          return { ...row, signedUrl };
-        });
-        if (!changed) return prev;
-        return {
-          ...prev,
-          [tab]: {
-            ...cache,
-            rows: nextRows,
-          },
-        };
-      });
-      if (activeTabRef.current === tab) {
-        setFiles((prev) =>
-          prev.map((file) => {
-            const signedUrl = signedById.get(file.id);
-            return signedUrl ? { ...file, signedUrl } : file;
-          })
-        );
-      }
-      setFocusedFile((prev) => {
-        if (!prev) return prev;
-        const signedUrl = signedById.get(prev.id);
-        return signedUrl ? { ...prev, signedUrl } : prev;
-      });
-    },
-    [setFocusedFile]
-  );
-
-  const setObjectUrlForMediaRow = useCallback(
-    (file: MediaRow, objectUrl: string) => {
-      const previousObjectUrl = objectUrlByMediaIdRef.current[file.id];
-      if (previousObjectUrl && previousObjectUrl !== objectUrl) {
-        URL.revokeObjectURL(previousObjectUrl);
-      }
-      objectUrlByMediaIdRef.current[file.id] = objectUrl;
-      applySignedUrlsToTab(getMediaDataTabForRow(file), new Map([[file.id, objectUrl]]));
-    },
-    [applySignedUrlsToTab]
-  );
-
-  const hydrateViaStorageDownload = useCallback(
-    async (file: MediaRow): Promise<string | null> => {
-      if (downloadFallbackInFlightRef.current[file.id]) return null;
-      downloadFallbackInFlightRef.current[file.id] = true;
-      try {
-        const supabase = ensureSupabaseClient();
-        const storageCandidates = resolveMediaSigningStoragePaths(file, currentUserIdRef.current);
-        for (const storagePath of storageCandidates) {
-          const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
-          if (error || !data) continue;
-          const blob = data as Blob;
-          if (!blob.size) continue;
-          const objectUrl = URL.createObjectURL(blob);
-          setObjectUrlForMediaRow(file, objectUrl);
-          return objectUrl;
-        }
-        return null;
-      } catch {
-        return null;
-      } finally {
-        downloadFallbackInFlightRef.current[file.id] = false;
-      }
-    },
-    [setObjectUrlForMediaRow]
-  );
-
-  const resolveSignedUrlsByMediaIds = useCallback(
-    async (tab: MediaDataTab, rows: MediaRow[]): Promise<Set<string>> => {
-      const ids = Array.from(new Set(rows.map((row) => row.id).filter(Boolean)));
-      const unresolvedIds = new Set(ids);
-      if (!ids.length) return unresolvedIds;
-      try {
-        const response = await fetchWithAuth("/api/media/resolve-previews", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ids,
-            expiresInSeconds: 3600,
-          }),
-          shortpulseLogScope: "app",
-        }).catch(() => null);
-        if (!response?.ok) return unresolvedIds;
-        const payload = (await response.json().catch(() => null)) as {
-          urls?: Record<string, string | null>;
-        } | null;
-        const urls = payload?.urls ?? {};
-        const resolvedById = new Map<string, string>();
-        for (const mediaId of ids) {
-          const url = urls[mediaId];
-          if (!url) continue;
-          resolvedById.set(mediaId, url);
-          unresolvedIds.delete(mediaId);
-        }
-        applySignedUrlsToTab(tab, resolvedById);
-        return unresolvedIds;
-      } catch {
-        return unresolvedIds;
-      }
-    },
-    [applySignedUrlsToTab]
-  );
-
-  const refreshSignedUrl = useCallback(
-    async (file: MediaRow): Promise<string | null> => {
-      const signingCandidates = resolveMediaSigningStoragePaths(file, currentUserIdRef.current);
-      if (!signingCandidates.length) return null;
-      try {
-        for (const storagePath of signingCandidates) {
-          const nextSignedUrl = await signStoragePath(storagePath, { forceRefresh: true });
-          if (!nextSignedUrl) continue;
-          const previousObjectUrl = objectUrlByMediaIdRef.current[file.id];
-          if (previousObjectUrl) {
-            URL.revokeObjectURL(previousObjectUrl);
-            delete objectUrlByMediaIdRef.current[file.id];
-          }
-          applySignedUrlsToTab(getMediaDataTabForRow(file), new Map([[file.id, nextSignedUrl]]));
-          return nextSignedUrl;
-        }
-        const directUrl = resolveMediaDirectPreviewUrls(file)[0] ?? null;
-        if (directUrl) {
-          const previousObjectUrl = objectUrlByMediaIdRef.current[file.id];
-          if (previousObjectUrl) {
-            URL.revokeObjectURL(previousObjectUrl);
-            delete objectUrlByMediaIdRef.current[file.id];
-          }
-          applySignedUrlsToTab(getMediaDataTabForRow(file), new Map([[file.id, directUrl]]));
-          return directUrl;
-        }
-        return null;
-      } catch {
-        return null;
-      }
-    },
-    [applySignedUrlsToTab, signStoragePath]
-  );
-
-  const handleMediaPreviewError = useCallback(
-    (file: MediaRow) => {
-      const attempts = signedUrlRetryRef.current[file.id] ?? 0;
-      if (attempts >= 3) return;
-      signedUrlRetryRef.current[file.id] = attempts + 1;
-      void refreshSignedUrl(file).then(async (nextUrl) => {
-        const returnedSameUrl = Boolean(nextUrl && file.signedUrl && nextUrl === file.signedUrl);
-        if (nextUrl && !returnedSameUrl) return;
-        const stillUnresolved = await resolveSignedUrlsByMediaIds(getMediaDataTabForRow(file), [
-          file,
-        ]);
-        if (!stillUnresolved.has(file.id)) return;
-        void hydrateViaStorageDownload(file);
-      });
-    },
-    [hydrateViaStorageDownload, refreshSignedUrl, resolveSignedUrlsByMediaIds]
-  );
-
-  const markFirstMediaPaint = useCallback(
-    (assetKind: "image" | "video") => {
-      if (firstMediaPaintLoggedRef.current) return;
-      firstMediaPaintLoggedRef.current = true;
-      logMediaPerf("media.route.first_media_paint", {
-        surface: "media-library-route",
-        tab: activeTab,
-        asset_kind: assetKind,
-      });
-    },
-    [activeTab]
-  );
 
   const { fetchMediaTabPage, markInactiveMediaCachesStale, updateVisibleRows } =
     useMediaTabDataController<MediaRow, PromptRow>({

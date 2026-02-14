@@ -99,4 +99,4 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Character Sheet assignments are now generation-driving for AI Studio Create Character Mode; keep integration contracts in this SOP and `docs/sops/sop_image_generation.md` in sync when changing assignment semantics.
 
 ## Legacy SOP Status
-- `docs/sops/sop_character_generation.md` and `docs/sops/sop_character_identity.md` are legacy references for the old character pipeline and are not authoritative for current `/character` behavior.
+- `docs/archive/sops/sop_character_generation.md` and `docs/archive/sops/sop_character_identity.md` are legacy references for the old character pipeline and are not authoritative for current `/character` behavior.

@@ -42,6 +42,35 @@ export type AdminErrorSummary = {
   generationOpenCount: number;
 };
 
+export type AdminErrorEventRow = {
+  id: string;
+  incidentId: string | null;
+  incidentStatus: AdminErrorStatus | null;
+  fingerprint: string;
+  source: string;
+  scope: "app" | "generation";
+  severity: "low" | "medium" | "high";
+  message: string;
+  stack: string | null;
+  route: string | null;
+  endpoint: string | null;
+  requestId: string | null;
+  httpStatus: number | null;
+  userId: string | null;
+  userEmail: string | null;
+  metadata: Record<string, unknown> | null;
+  occurredAt: string | null;
+  createdAt: string | null;
+};
+
+export type AdminErrorEventSummary = {
+  lastHourCount: number;
+  last24hCount: number;
+  app24hCount: number;
+  generation24hCount: number;
+  high24hCount: number;
+};
+
 export type AdminPagination = {
   page: number;
   perPage: number;

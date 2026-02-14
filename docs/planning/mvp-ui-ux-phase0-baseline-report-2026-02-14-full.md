@@ -6,7 +6,7 @@ created: 2026-02-14
 last_updated: 2026-02-14
 related_plan: docs/planning/mvp-ui-ux-stabilization-remediation-plan.md
 related_issue_board: docs/planning/mvp-ui-ux-issue-board.md
-supersedes: docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md
+supersedes: docs/archive/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md
 ---
 
 # MVP UI/UX Phase UX-0 Baseline Report (Full Route Set)

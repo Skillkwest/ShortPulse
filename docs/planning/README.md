@@ -12,7 +12,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `mvp-ui-ux-phase0-baseline-qa-checklist.md`: runbook checklist for UX-0 baseline capture and keyboard/accessibility verification.
 - `mvp-ui-ux-phase0-baseline-capture-template.md`: fill-in template for per-route baseline evidence and sign-off.
 - `mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`: full UX-0 baseline report for all priority routes plus first-pass keyboard baseline.
-- `mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md`: initial partial baseline snapshot (superseded by full report).
 - `mvp-pre-tester-anchor-plan.md`: pre-tester gating checklist.
 - `ai-studio-agent-tooling-phased-plan.md`: phased rollout for media analysis, prompt optimization, evaluation, and MCP adoption gates.
 - `media-library-reference-grid-optimization-plan.md`: near-instant media loading architecture plan (Media Library + AI Studio Reference Grid).
@@ -24,4 +23,5 @@ Purpose: active planning artifacts and current execution backlogs.
 ## Maintenance
 - Keep plans actionable and current.
 - Move obsolete plans to `docs/archive/` when superseded.
+- Superseded UX-0 partial baseline report moved to `docs/archive/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md`.
 - Log notable plan outcomes in `docs/change_log.md`.

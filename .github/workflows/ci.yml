@@ -22,6 +22,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm run test -- auth-helper proxy-internal-utils kei-task-status.auth-context fal-status.auth-context auth-latency-benchmark
       - run: npm test
       - run: npm run build
 

@@ -334,7 +334,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 
 ## 2026-02-14 (UI/UX baseline capture run: dashboard + ai-studio)
 - Executed a real UX-0 baseline capture pass against local app routes `/dashboard` and `/ai-studio` at `1440`, `1024`, `768`, and `390` widths.
-- Added filled baseline evidence report `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md` with artifact paths and initial findings.
+- Added filled baseline evidence report `docs/archive/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md` with artifact paths and initial findings.
 - Updated UI/UX plan + issue board to reflect partial completion of `UX0-01` and linked the report as current acceptance evidence.
 
 ## 2026-02-14 (UI/UX baseline completion + keyboard pass kickoff)
@@ -449,3 +449,36 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Expanded generation-scope server logging coverage across billing + provider routes (`frontend/lib/server/api/generationBilling.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, `frontend/pages/api/ai/*`, `frontend/pages/api/kei/*`, `frontend/pages/api/fal/veo-image-to-video-*.ts`) so handled `4xx/5xx`, upstream failures, transport exceptions, and ownership denials are all recorded.
 - Updated admin/API/docs surfaces for the new scope and storage model (`frontend/pages/api/admin/errors.ts`, `frontend/features/admin/components/ErrorIncidentsPanel.tsx`, `frontend/pages/admin/index.tsx`, `docs/monitoring.md`, `docs/data-dictionary.md`, `docs/api/api-internal-routes.md`, `docs/database-migrations.md`, `docs/local-development.md`, `README.md`).
 - Validation pass: `npm -C frontend run type-check`; targeted `vitest` suites for admin errors, AI/KEI auth+ownership, generation billing reservations, Fal status ownership, and AI Studio lifecycle hook; targeted `eslint` on touched telemetry/admin files; `npm -C frontend run docs:check`.
+
+## 2026-02-14 (Admin synthetic incident trigger for UI visibility checks)
+- Added admin-only route `frontend/pages/api/admin/errors-test.ts` to generate synthetic app/generation incidents (tagged in metadata) for smoke-testing telemetry ingestion and admin UI visibility.
+- Added Errors-tab controls in `frontend/features/admin/components/ErrorIncidentsPanel.tsx` and wiring in `frontend/pages/admin/index.tsx` to trigger synthetic incidents and auto-refresh open incident results.
+- Added API coverage in `frontend/tests/api/admin-errors-test.test.ts` and updated operator docs (`docs/monitoring.md`, `docs/api/api-internal-routes.md`, `README.md`).
+
+## 2026-02-14 (Admin Errors V2: raw event stream + synthetic controls)
+- Added admin-only event-stream API `frontend/pages/api/admin/error-events.ts` backed by `app_error_events` with filters (`scope`, `severity`, `source`, `search`, `synthetic`), pagination, and operational summaries (`lastHour`, `last24h`, app/generation split, high-severity 24h).
+- Expanded Admin Errors UI (`frontend/pages/admin/index.tsx`, `frontend/features/admin/components/ErrorIncidentsPanel.tsx`) to include:
+  - grouped incident table (`app_error_logs`) and
+  - raw per-occurrence event stream (`app_error_events`) with independent pagination and copyable event payloads.
+- Added synthetic-event operator controls in the shared filter bar (`real + synthetic`, `real only`, `synthetic only`) and unified refresh/test-trigger behavior so smoke-test incidents are immediately visible.
+- Added incident-aware event enrichment and operator detail workflow: event rows now include linked incident status, event detail modal exposes stack/metadata, and incident status can be resolved/ignored/reopened directly from event context.
+- Added route test coverage in `frontend/tests/api/admin-error-events.test.ts` and re-ran targeted admin API tests, type-check, lint, and docs index checks.
+
+## 2026-02-14 (Phase 4 auth-boundary consolidation + verification)
+- Centralized protected API routing rules in `frontend/lib/server/api/protectedApiPaths.ts` and reused them across middleware (`frontend/proxy.ts`) and API auth helpers (`frontend/lib/server/api/auth.ts`) to prevent boundary-rule drift.
+- Eliminated duplicate protected-route Supabase user lookups by reusing middleware-authenticated context headers in `requireApiUser/getOptionalApiUser/requireAdminUser`, while preserving fallback token verification for non-protected routes.
+- Added coverage for middleware context behavior and spoof-resistance boundaries in `frontend/tests/api/auth-helper.test.ts` and `frontend/tests/api/proxy-internal-utils.test.ts`.
+- Added synthetic latency benchmark evidence in `frontend/tests/api/auth-latency-benchmark.test.ts` showing middleware-context auth path `p50=0.07ms/p95=0.25ms` vs fallback verification `p50=13.28ms/p95=13.42ms` (40 samples, 12ms mocked upstream delay), and documented it in `docs/monitoring.md`.
+- Added middleware-auth-context ownership regression coverage for KEI status polling in `frontend/tests/api/kei-task-status.auth-context.test.ts`; ownership checks continue to block non-owned task IDs.
+- Added middleware-auth-context ownership regression coverage for Fal status polling in `frontend/tests/api/fal-status.auth-context.test.ts`; Fal status polling still blocks non-owned request IDs.
+
+## 2026-02-14 (Docs cleanup pass: legacy character docs archived)
+- Moved legacy Character SOPs from active operations into archive folders: `docs/archive/sops/sop_character_generation.md` and `docs/archive/sops/sop_character_identity.md`.
+- Moved legacy Character product build guide into archive: `docs/archive/product/character_workflow_build_guide.md`.
+- Updated docs indexes and references to keep active docs clean and links intact (`docs/README.md`, `docs/sops/README.md`, `docs/archive/README.md`, `docs/sops/sop_character_manager_operations.md`, and `docs/planning/mvp-pretester-full-audit-remediation-plan.md`).
+- Added archive-status notes inside moved docs and documented archive subfolder structure (`docs/archive/sops/`, `docs/archive/product/`).
+
+## 2026-02-14 (Plan follow-through: auth-regression CI lane + pause criteria)
+- Added a fast auth-regression lane to frontend CI (`.github/workflows/ci.yml`) that runs `auth-helper`, `proxy-internal-utils`, `kei-task-status.auth-context`, `fal-status.auth-context`, and `auth-latency-benchmark` before the full suite.
+- Re-ran the targeted auth regression suite (`11` tests) and confirmed pass.
+- Updated `docs/planning/mvp-pretester-full-audit-remediation-plan.md` with explicit Stripe/subscription pause-lift resume criteria and synced non-blocking recommendation status.

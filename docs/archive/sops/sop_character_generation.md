@@ -1,5 +1,7 @@
 # SOP: Character Generation Workflow
 
+Archive status: moved from `docs/sops/sop_character_generation.md` on 2026-02-14; superseded by `docs/sops/sop_character_manager_operations.md`.
+
 > Status: Legacy pipeline reference. For the active `/character` surface, use `docs/sops/sop_character_manager_operations.md`.
 
 Purpose: document the frontend-triggered character workflow so consistent identity generation can ship without backend dependencies.
@@ -30,7 +32,7 @@ Purpose: document the frontend-triggered character workflow so consistent identi
 - Feature scaffold: `frontend/features/character/*`.
 - Page: `frontend/pages/character.tsx`.
 - Styles: `frontend/styles/character.css` (imported via `globals.css`).
-- Build-out guide: `docs/product/character_workflow_build_guide.md` (living checklist for next milestones).
+- Build-out guide: `docs/archive/product/character_workflow_build_guide.md` (legacy checklist for the old character pipeline).
 
 ## Next steps
 - Replace stub embedding with ArcFace ONNX via `onnxruntime-web` (WebGPU EP).

@@ -1,0 +1,124 @@
+/**
+ * Verifies Fal status polling ownership checks when auth context comes from middleware headers.
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import handler from "../../pages/api/fal/status";
+
+const resolveProviderRequestOwnershipMock = vi.fn();
+const captureSucceededGenerationByProviderRequestMock = vi.fn();
+const settleFailedGenerationByProviderRequestMock = vi.fn();
+const logGenerationFailureMock = vi.fn();
+
+vi.mock("../../lib/server/api/generationBilling", () => ({
+  resolveProviderRequestOwnership: (...args: unknown[]) =>
+    resolveProviderRequestOwnershipMock(...args),
+  captureSucceededGenerationByProviderRequest: (...args: unknown[]) =>
+    captureSucceededGenerationByProviderRequestMock(...args),
+  settleFailedGenerationByProviderRequest: (...args: unknown[]) =>
+    settleFailedGenerationByProviderRequestMock(...args),
+}));
+
+vi.mock("../../lib/server/api/appErrorLogs", () => ({
+  logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
+}));
+
+const createMockResponse = () => ({
+  status: vi.fn().mockReturnThis(),
+  json: vi.fn().mockReturnThis(),
+});
+
+const mockFetchResponse = ({
+  status,
+  body,
+}: {
+  status: number;
+  body: Record<string, unknown>;
+}) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  text: async () => JSON.stringify(body),
+});
+
+describe("POST /api/fal/status middleware auth-context ownership", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.FAL_KEY = "test-key";
+    captureSucceededGenerationByProviderRequestMock.mockResolvedValue({
+      settled: true,
+      note: "captured",
+    });
+    settleFailedGenerationByProviderRequestMock.mockResolvedValue({
+      settled: true,
+      note: "released",
+    });
+  });
+
+  it("keeps ownership enforcement with middleware-authenticated user context", async () => {
+    resolveProviderRequestOwnershipMock.mockResolvedValue("forbidden");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      url: "/api/fal/status",
+      headers: {
+        "x-shortpulse-authenticated": "1",
+        "x-shortpulse-user-id": "user-ctx",
+        "x-shortpulse-user-app-metadata": encodeURIComponent("{}"),
+        "x-shortpulse-user-user-metadata": encodeURIComponent("{}"),
+      },
+      body: { requestId: "foreign-request-id" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(resolveProviderRequestOwnershipMock).toHaveBeenCalledWith({
+      userId: "user-ctx",
+      providerRequestId: "foreign-request-id",
+    });
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("still proxies status when middleware-authenticated ownership is confirmed", async () => {
+    resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
+    const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      mockFetchResponse({
+        status: 200,
+        body: { status: "processing" },
+      })
+    );
+    fetchMock.mockResolvedValueOnce(
+      mockFetchResponse({
+        status: 404,
+        body: { error: "Not found" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      url: "/api/fal/status",
+      headers: {
+        "x-shortpulse-authenticated": "1",
+        "x-shortpulse-user-id": "user-ctx",
+        "x-shortpulse-user-app-metadata": encodeURIComponent("{}"),
+        "x-shortpulse-user-user-metadata": encodeURIComponent("{}"),
+      },
+      body: { requestId: "owned-request-id" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(resolveProviderRequestOwnershipMock).toHaveBeenCalledWith({
+      userId: "user-ctx",
+      providerRequestId: "owned-request-id",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ status: "processing" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});

@@ -3,6 +3,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { chargeGenerationRequest } from "./generationBilling";
+import { logGenerationFailure } from "./appErrorLogs";
 
 type FalSubmitConfig = {
   modelId: string;
@@ -46,6 +47,14 @@ export const createFalSubmitHandler =
 
     const apiKey = process.env.FAL_KEY;
     if (!apiKey) {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_submit.config_missing",
+        message: "FAL_KEY is not set on the server",
+        statusCode: 500,
+        metadata: { model_id: modelId },
+      });
       return res.status(500).json({ error: "FAL_KEY is not set on the server" });
     }
 
@@ -53,6 +62,17 @@ export const createFalSubmitHandler =
       typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
     const payloadValidation = validatePayload?.(payload);
     if (payloadValidation) {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_submit.validation_failed",
+        message: payloadValidation.error,
+        statusCode: 400,
+        metadata: {
+          model_id: modelId,
+          detail: payloadValidation.detail ?? null,
+        },
+      });
       return res.status(400).json({
         error: payloadValidation.error,
         detail: payloadValidation.detail ?? null,
@@ -86,12 +106,39 @@ export const createFalSubmitHandler =
           upstream_status: upstream.status,
           upstream_error: data,
         });
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "api.fal_submit.upstream_error",
+          message:
+            (typeof data.error === "string" && data.error) ||
+            (typeof data.message === "string" && data.message) ||
+            `${routeLabel} submit rejected`,
+          statusCode: upstream.status,
+          userId: charge.userId,
+          metadata: {
+            model_id: modelId,
+            upstream_payload: data,
+          },
+        });
       } else {
         const providerRequestId = readProviderRequestId(data);
         if (!providerRequestId) {
           await charge.refund("Auto-refund: Fal submit missing request id.", {
             upstream_status: upstream.status,
             upstream_payload: data,
+          });
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "api.fal_submit.missing_request_id",
+            message: `${routeLabel} submit response did not include request_id`,
+            statusCode: 502,
+            userId: charge.userId,
+            metadata: {
+              model_id: modelId,
+              upstream_payload: data,
+            },
           });
           return res.status(502).json({
             error: `${routeLabel} submit response did not include request_id`,
@@ -106,6 +153,19 @@ export const createFalSubmitHandler =
     } catch (error) {
       await charge.refund("Auto-refund: Fal submit transport failure.", {
         error: String(error),
+      });
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_submit.transport_error",
+        message: `${routeLabel} submit failed`,
+        statusCode: 500,
+        userId: charge.userId,
+        stack: error instanceof Error ? (error.stack ?? null) : null,
+        metadata: {
+          model_id: modelId,
+          detail: String(error),
+        },
       });
       return res.status(500).json({ error: `${routeLabel} submit failed`, detail: String(error) });
     } finally {

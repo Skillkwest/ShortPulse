@@ -18,8 +18,9 @@ ShortPulse is a Next.js pages-router app with both browser surfaces and first-pa
 
 ## Operational error telemetry
 - Browser runtime failures are captured by global handlers in `frontend/pages/_app.tsx` via `frontend/lib/appErrorReporter.ts`.
-- Authenticated API failures (`5xx`) from `frontend/lib/authenticatedFetch.ts` are reported to `/api/log/client-error` unless marked as generation-scope.
-- Server-side API catch blocks can write direct incidents via `frontend/lib/server/api/appErrorLogs.ts`.
+- Authenticated API failures are reported by scope in `frontend/lib/authenticatedFetch.ts`: both `app` and `generation` log `4xx/5xx` failures.
+- AI Studio generation lifecycle failures (provider errors, timeouts, no-media terminal states) are reported from `frontend/features/ai-studio/hooks/useAiStudioOutputLifecycle.ts`.
+- Server-side API handlers can write direct incidents/events via `frontend/lib/server/api/appErrorLogs.ts`.
 - Admin incidents are queried from `/api/admin/errors` and rendered in `/admin` for operator triage.
 
 ## Route surfaces (what owns what)

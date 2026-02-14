@@ -59,6 +59,7 @@ npm run dev
   - `sql/migrations/002_add_generation_credit_reservations.sql`
   - `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`
   - `sql/migrations/014_harden_generation_reservation_rpc_security.sql`
+  - `sql/migrations/015_add_app_error_events.sql`
 - Legacy ledger environments: run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` before using admin credit adjustments.
 
 ## Quality checks

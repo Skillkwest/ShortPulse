@@ -38,6 +38,8 @@ export type AdminErrorSummary = {
   openCount: number;
   highSeverityOpenCount: number;
   last24hCount: number;
+  appOpenCount: number;
+  generationOpenCount: number;
 };
 
 export type AdminPagination = {

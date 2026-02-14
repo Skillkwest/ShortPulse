@@ -4,6 +4,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
+import { logGenerationFailure } from "../../../lib/server/api/appErrorLogs";
 
 const KEI_BASE_URL = "https://api.kie.ai/api/v1";
 const GPT4O_IMAGE_MODEL_ID = "kei/gpt4o-image";
@@ -30,12 +31,20 @@ const readTaskId = (payload: Record<string, unknown>): string | null => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const routeLabel = "kei/gpt4o-generate";
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   const apiKey = process.env.KEI_API_KEY;
   if (!apiKey) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.kei_gpt4o_generate.config_missing",
+      message: "KEI_API_KEY is not set on the server",
+      statusCode: 500,
+    });
     return res.status(500).json({ error: "KEI_API_KEY is not set on the server" });
   }
 
@@ -69,6 +78,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         upstream_status: upstream.status,
         upstream_error: data,
       });
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.kei_gpt4o_generate.upstream_error",
+        message:
+          (typeof data.error === "string" && data.error) ||
+          (typeof data.message === "string" && data.message) ||
+          "Kie.ai 4o image generate rejected",
+        statusCode: upstream.status,
+        userId: charge.userId,
+        metadata: {
+          model_id: GPT4O_IMAGE_MODEL_ID,
+          upstream_payload: data,
+        },
+      });
     } else {
       const taskId = readTaskId(data);
       if (taskId) {
@@ -83,6 +107,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error) {
     await charge.refund("Auto-refund: Kie.ai GPT-4o generate transport failure.", {
       error: String(error),
+    });
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.kei_gpt4o_generate.transport_error",
+      message: "Kie.ai 4o image generate failed",
+      statusCode: 500,
+      stack: error instanceof Error ? (error.stack ?? null) : null,
+      userId: charge.userId,
+      metadata: {
+        model_id: GPT4O_IMAGE_MODEL_ID,
+        detail: String(error),
+      },
     });
     return res
       .status(500)

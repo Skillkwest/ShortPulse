@@ -230,8 +230,8 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 ### app_error_logs
 - `id` (uuid, pk): Incident record ID.
 - `fingerprint` (text): Hash of normalized source/message/stack/location for deduping repeats.
-- `source` (text): client.runtime | client.unhandledrejection | client.api_response | client.api_network | api.exception | db.trigger.handle_new_user_billing_setup.
-- `scope` (text): app | generation (generation scope is currently filtered from admin ingest).
+- `source` (text): e.g. client.runtime | client.unhandledrejection | client.api_response | client.api_network | client.react_error_boundary | generation.workflow_failure | generation.stale_timeout | api.exception | db.trigger.handle_new_user_billing_setup.
+- `scope` (text): app | generation.
 - `severity` (text): low | medium | high.
 - `status` (text): open | ignored | resolved.
 - `message` (text): Normalized error message.
@@ -246,6 +246,24 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `first_seen_at` / `last_seen_at` (timestamptz): First/most recent observed timestamps for this grouped incident.
 - `occurrences_count` (int): Number of times this incident has recurred.
 - `created_at` / `updated_at` (timestamptz)
+- RLS: enabled with no client policies by default (service-role/server-only writes and reads).
+
+### app_error_events
+- `id` (uuid, pk): Immutable event row ID.
+- `incident_id` (uuid, nullable): Optional link to grouped `app_error_logs.id`.
+- `fingerprint` (text): Same normalized fingerprint used for incident grouping.
+- `source` (text): Event source channel (client/runtime/api/provider-specific).
+- `scope` (text): app | generation.
+- `severity` (text): low | medium | high.
+- `message` (text): Event message at the time of occurrence.
+- `stack` (text, nullable): Event stack snapshot where available.
+- `route` (text, nullable): Frontend/API route context.
+- `endpoint` (text, nullable): Endpoint involved where applicable.
+- `request_id` (text, nullable): Correlation id from `x-shortpulse-request-id`.
+- `http_status` (int, nullable): HTTP status when available.
+- `user_id` / `user_email` (nullable): user context snapshot.
+- `metadata` (jsonb): sanitized structured context captured at event time.
+- `occurred_at` / `created_at` (timestamptz)
 - RLS: enabled with no client policies by default (service-role/server-only writes and reads).
 
 ### storage.objects (Supabase bucket)

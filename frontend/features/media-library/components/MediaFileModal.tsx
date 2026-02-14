@@ -15,7 +15,7 @@ import type {
 } from "react";
 import type { MediaDataTab } from "../logic/mediaLibraryPageHelpers";
 
-type MediaFileModalRow = {
+export type MediaFileModalRow = {
   id: string;
   filename: string;
   file_type: string;
@@ -28,7 +28,7 @@ type MediaFileMoveOption = {
   disabled: boolean;
 };
 
-type MediaFileModalProps<TRow extends MediaFileModalRow> = {
+export type MediaFileModalProps<TRow extends MediaFileModalRow> = {
   canMoveToAnotherTab: boolean;
   cacheModalImageNaturalSize: (width: number, height: number) => void;
   cacheAspectRatio: (id: string, ratio: number) => void;

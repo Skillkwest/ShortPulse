@@ -4,6 +4,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
+import { logGenerationFailure } from "./appErrorLogs";
 import {
   captureSucceededGenerationByProviderRequest,
   resolveProviderRequestOwnership,
@@ -237,11 +238,27 @@ export const createFalStatusHandler = ({
 
     const apiKey = process.env.FAL_KEY;
     if (!apiKey) {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_status.config_missing",
+        message: "FAL_KEY is not set on the server",
+        statusCode: 500,
+      });
       return res.status(500).json({ error: "FAL_KEY is not set on the server" });
     }
 
     const requestId = asString(req.body?.requestId);
     if (!requestId) {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_status.validation_failed",
+        message: "requestId is required",
+        statusCode: 400,
+        userId: user.id,
+        userEmail: user.email ?? null,
+      });
       return res.status(400).json({ error: "requestId is required" });
     }
     const ownership = await resolveProviderRequestOwnership({
@@ -249,8 +266,60 @@ export const createFalStatusHandler = ({
       providerRequestId: requestId,
     });
     if (ownership !== "owned") {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_status.ownership_forbidden",
+        message: "Forbidden",
+        statusCode: 403,
+        userId: user.id,
+        userEmail: user.email ?? null,
+        metadata: {
+          provider_request_id: requestId,
+          ownership,
+        },
+      });
       return res.status(403).json({ error: "Forbidden" });
     }
+
+    const respondErrorWithLogging = async ({
+      requestId,
+      error,
+      detail,
+      statusCode = 500,
+      source = "api.fal_status.error",
+      stage = null,
+    }: {
+      requestId: string;
+      error: string;
+      detail?: unknown;
+      statusCode?: number;
+      source?: string;
+      stage?: string | null;
+    }) => {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source,
+        message: error,
+        statusCode,
+        userId: user.id,
+        userEmail: user.email ?? null,
+        metadata: {
+          provider_request_id: requestId,
+          stage,
+          detail,
+        },
+      });
+      return respondError({
+        res,
+        requestId,
+        error,
+        detail,
+        alwaysHttp200,
+        statusCode,
+      });
+    };
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -332,12 +401,12 @@ export const createFalStatusHandler = ({
       }
 
       if (!statusResp || !statusData) {
-        return respondError({
-          res,
+        return respondErrorWithLogging({
           requestId,
-          alwaysHttp200,
-          statusCode: 500,
           error: `${routeLabel} status request failed`,
+          statusCode: 500,
+          source: "api.fal_status.status_request_failed",
+          stage: "status",
         });
       }
 
@@ -361,12 +430,12 @@ export const createFalStatusHandler = ({
             malformed: true,
           },
         });
-        return respondError({
-          res,
+        return respondErrorWithLogging({
           requestId,
-          alwaysHttp200,
-          statusCode: 500,
           error: `${routeLabel} returned non-JSON status response`,
+          statusCode: 500,
+          source: "api.fal_status.status_non_json",
+          stage: "status",
           detail: statusData.text.slice(0, 500),
         });
       }
@@ -384,12 +453,12 @@ export const createFalStatusHandler = ({
             payload: statusData.json,
           },
         });
-        return respondError({
-          res,
+        return respondErrorWithLogging({
           requestId,
-          alwaysHttp200,
-          statusCode: 200,
           error: contentPolicyMessage,
+          statusCode: 422,
+          source: "api.fal_status.content_policy",
+          stage: "status",
           detail: contentPolicyMessage,
         });
       }
@@ -408,16 +477,16 @@ export const createFalStatusHandler = ({
             payload: statusData.json,
           },
         });
-        return respondError({
-          res,
+        return respondErrorWithLogging({
           requestId,
-          alwaysHttp200,
-          statusCode: 200,
           error:
             asString(statusData.json.error) ||
             asString(statusData.json.message) ||
             asString(toRecord(statusData.json).statusMessage) ||
             "Generation failed",
+          statusCode: 422,
+          source: "api.fal_status.status_failed",
+          stage: "status",
           detail: statusData.json,
         });
       }
@@ -434,15 +503,15 @@ export const createFalStatusHandler = ({
             payload: statusData.json,
           },
         });
-        return respondError({
-          res,
+        return respondErrorWithLogging({
           requestId,
-          alwaysHttp200,
-          statusCode: statusResp.status,
           error:
             asString(statusData.json.error) ||
             asString(statusData.json.message) ||
             `${routeLabel} status request failed`,
+          statusCode: statusResp.status,
+          source: "api.fal_status.status_upstream_non_ok",
+          stage: "status",
           detail: statusData.json,
         });
       }
@@ -554,12 +623,12 @@ export const createFalStatusHandler = ({
       }
 
       if (!resultResp || !resultData) {
-        return respondError({
-          res,
+        return respondErrorWithLogging({
           requestId,
-          alwaysHttp200,
-          statusCode: 500,
           error: `${routeLabel} result request failed`,
+          statusCode: 500,
+          source: "api.fal_status.result_request_failed",
+          stage: "result",
         });
       }
 
@@ -575,12 +644,12 @@ export const createFalStatusHandler = ({
             raw: resultData.text.slice(0, 500),
           },
         });
-        return respondError({
-          res,
+        return respondErrorWithLogging({
           requestId,
-          alwaysHttp200,
-          statusCode: 200,
           error: `${routeLabel} result returned non-JSON response`,
+          statusCode: 500,
+          source: "api.fal_status.result_non_json",
+          stage: "result",
           detail: resultData.text.slice(0, 500),
         });
       }
@@ -598,12 +667,12 @@ export const createFalStatusHandler = ({
             payload: resultData.json,
           },
         });
-        return respondError({
-          res,
+        return respondErrorWithLogging({
           requestId,
-          alwaysHttp200,
-          statusCode: 200,
           error: resultPolicyMessage,
+          statusCode: 422,
+          source: "api.fal_status.content_policy",
+          stage: "result",
           detail: resultPolicyMessage,
         });
       }
@@ -620,15 +689,15 @@ export const createFalStatusHandler = ({
             payload: resultData.json,
           },
         });
-        return respondError({
-          res,
+        return respondErrorWithLogging({
           requestId,
-          alwaysHttp200,
-          statusCode: 200,
           error:
             asString(resultData.json.error) ||
             asString(resultData.json.message) ||
             "Generation failed",
+          statusCode: resultResp.status,
+          source: "api.fal_status.result_upstream_non_ok",
+          stage: "result",
           detail: resultData.json,
         });
       }
@@ -651,12 +720,12 @@ export const createFalStatusHandler = ({
             payload: resultData.json,
           },
         });
-        return respondError({
-          res,
+        return respondErrorWithLogging({
           requestId,
-          alwaysHttp200,
-          statusCode: 200,
           error: asString(resultData.json.error) || "Generation failed to produce media output",
+          statusCode: 502,
+          source: "api.fal_status.result_missing_media",
+          stage: "result",
           detail: resultData.json,
         });
       }
@@ -676,12 +745,12 @@ export const createFalStatusHandler = ({
           transport_error: String(error),
         },
       });
-      return respondError({
-        res,
+      return respondErrorWithLogging({
         requestId,
-        alwaysHttp200,
-        statusCode: 200,
         error: `${routeLabel} status check failed`,
+        statusCode: 500,
+        source: "api.fal_status.transport_error",
+        stage: "status",
         detail: String(error),
       });
     } finally {

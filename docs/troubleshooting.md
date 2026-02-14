@@ -203,7 +203,7 @@ Symptom:
 Checklist:
 - Run the latest `sql/migrate_new_user_plan_default_to_free.sql` to replace `handle_new_user_billing_setup()` with the hardened, fail-open version.
 - Ensure billing bootstrap tables exist (`billing_profiles`, `billing_plans`, `ai_credit_ledger`).
-- Ensure `app_error_logs` table exists to capture trigger failures in the Admin Errors page.
+- Ensure `app_error_logs` and `app_error_events` tables exist to capture trigger failures in the Admin Errors page.
 
 Diagnostics:
 ```sql

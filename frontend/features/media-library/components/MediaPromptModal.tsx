@@ -4,11 +4,11 @@
  */
 import { CheckCircle } from "phosphor-react";
 
-type MediaPromptModalRow = {
+export type MediaPromptModalRow = {
   id: string;
 };
 
-type MediaPromptModalProps<TRow extends MediaPromptModalRow> = {
+export type MediaPromptModalProps<TRow extends MediaPromptModalRow> = {
   closePromptModal: () => void;
   deletePrompt: (row: TRow, options?: { fromPromptModal?: boolean }) => Promise<boolean>;
   focusedPrompt: TRow;

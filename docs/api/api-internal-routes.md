@@ -29,9 +29,9 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/billing/stripe/webhook` | `POST` raw body | Stripe signature | Apply Stripe events idempotently (`stripe_event_log`) and credit/profile updates. | `frontend/pages/api/billing/stripe/webhook.ts`, `docs/sops/sop_billing_credits_operations.md` |
 | `/api/admin/users` | `GET` | Admin bearer | List users + plan/credit snapshots with pagination/search. | `frontend/pages/api/admin/users.ts` |
 | `/api/admin/credits/adjust` | `POST` | Admin bearer | Manual credit adjustments (bounded, audited). | `frontend/pages/api/admin/credits/adjust.ts`, `docs/sops/sop_billing_credits_operations.md` |
-| `/api/admin/errors` | `GET` | Admin bearer | Incident feed with filters, summary stats, and pagination. | `frontend/pages/api/admin/errors.ts`, `docs/monitoring.md` |
+| `/api/admin/errors` | `GET` | Admin bearer | Incident feed with filters (status/severity/source/scope/search), summary stats, and pagination. | `frontend/pages/api/admin/errors.ts`, `docs/monitoring.md` |
 | `/api/admin/errors-status` | `POST` | Admin bearer | Update incident status (`open`/`resolved`/`ignored`) with metadata history. | `frontend/pages/api/admin/errors-status.ts` |
-| `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime failures into `app_error_logs`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
+| `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
 
 ## Shared runtime contracts
 - Credit lifecycle for generation:
@@ -41,7 +41,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - Failure path: release reservation (no debit).
 - Incident logging:
   - API catch blocks should call `logApiRouteException`.
-  - Client/runtime incidents should be sent to `/api/log/client-error`.
+  - Client/runtime and generation workflow incidents should be sent to `/api/log/client-error`.
 - Request correlation:
   - `x-shortpulse-request-id` is used where present for traceability and ledger/source references.
 

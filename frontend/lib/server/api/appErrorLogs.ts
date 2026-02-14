@@ -1,6 +1,6 @@
 /**
  * Centralized app-error logging helpers.
- * Normalizes payloads, filters non-actionable cases, and deduplicates repeated incidents.
+ * Normalizes payloads, records immutable per-occurrence events, and maintains deduplicated incidents.
  */
 import { createHash } from "crypto";
 import type { NextApiRequest } from "next";
@@ -44,6 +44,19 @@ type ApiExceptionOptions = {
   user?: AuthenticatedApiUser | null;
 };
 
+type GenerationFailureLogOptions = {
+  req: NextApiRequest;
+  routeLabel: string;
+  message: string;
+  statusCode?: number | null;
+  source?: string;
+  severity?: AppErrorSeverity;
+  stack?: string | null;
+  metadata?: JsonObject;
+  userId?: string | null;
+  userEmail?: string | null;
+};
+
 type ExistingOpenLogRow = {
   id: string | null;
   occurrences_count: number | null;
@@ -74,11 +87,28 @@ type AppErrorLogsTable = {
   insert: (values: Record<string, unknown>) => AppErrorLogsInsert;
 };
 
+type AppErrorEventsMutation = {
+  eq: (column: string, value: unknown) => Promise<{ error: { message: string } | null }>;
+};
+
+type AppErrorEventsInsert = {
+  select: (columns: string) => {
+    maybeSingle: () => Promise<{ data: { id?: string } | null; error: { message: string } | null }>;
+  };
+};
+
+type AppErrorEventsTable = {
+  insert: (values: Record<string, unknown>) => AppErrorEventsInsert;
+  update: (values: Record<string, unknown>) => AppErrorEventsMutation;
+};
+
 const MAX_MESSAGE_LENGTH = 600;
 const MAX_STACK_LENGTH = 6000;
 const MAX_TEXT_FIELD_LENGTH = 300;
 const MAX_METADATA_ENTRIES = 40;
 const MAX_METADATA_TEXT_LENGTH = 300;
+const MAX_METADATA_NESTED_ENTRIES = 20;
+let warnedSupabaseUnavailable = false;
 
 const toTrimmedString = (value: unknown, maxLength = MAX_TEXT_FIELD_LENGTH): string | null => {
   if (typeof value !== "string") return null;
@@ -118,33 +148,42 @@ const sanitizeScope = (value: unknown): AppErrorScope => {
   return String(value ?? "").toLowerCase() === "generation" ? "generation" : "app";
 };
 
+const sanitizeMetadataValue = (value: unknown, depth = 0): unknown => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return value.slice(0, MAX_METADATA_TEXT_LENGTH);
+  if (typeof value === "number" || typeof value === "boolean") return value;
+
+  if (Array.isArray(value)) {
+    return value.slice(0, 10).map((item) => sanitizeMetadataValue(item, depth + 1));
+  }
+
+  if (typeof value === "object") {
+    if (depth >= 2) {
+      try {
+        return JSON.stringify(value).slice(0, MAX_METADATA_TEXT_LENGTH);
+      } catch {
+        return String(value).slice(0, MAX_METADATA_TEXT_LENGTH);
+      }
+    }
+    const output: JsonObject = {};
+    const entries = Object.entries(value as JsonObject).slice(0, MAX_METADATA_NESTED_ENTRIES);
+    for (const [key, nestedValue] of entries) {
+      if (!key.trim()) continue;
+      output[key] = sanitizeMetadataValue(nestedValue, depth + 1);
+    }
+    return output;
+  }
+
+  return String(value).slice(0, MAX_METADATA_TEXT_LENGTH);
+};
+
 const sanitizeMetadata = (value: unknown): JsonObject => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const entries = Object.entries(value as JsonObject).slice(0, MAX_METADATA_ENTRIES);
   const output: JsonObject = {};
   for (const [key, raw] of entries) {
     if (!key.trim()) continue;
-    if (raw === null || raw === undefined) {
-      output[key] = null;
-      continue;
-    }
-    if (typeof raw === "string") {
-      output[key] = raw.slice(0, MAX_METADATA_TEXT_LENGTH);
-      continue;
-    }
-    if (typeof raw === "number" || typeof raw === "boolean") {
-      output[key] = raw;
-      continue;
-    }
-    if (Array.isArray(raw)) {
-      output[key] = raw.slice(0, 10).map((item) => {
-        if (typeof item === "string") return item.slice(0, MAX_METADATA_TEXT_LENGTH);
-        if (typeof item === "number" || typeof item === "boolean" || item === null) return item;
-        return String(item).slice(0, MAX_METADATA_TEXT_LENGTH);
-      });
-      continue;
-    }
-    output[key] = String(raw).slice(0, MAX_METADATA_TEXT_LENGTH);
+    output[key] = sanitizeMetadataValue(raw, 0);
   }
   return output;
 };
@@ -185,11 +224,18 @@ const shouldSkipLog = (params: {
   endpoint: string | null;
   message: string;
 }): boolean => {
-  if (params.scope !== "app") return true;
-  if (params.statusCode !== null && params.statusCode < 500) return true;
   if (params.endpoint?.includes("/api/log/client-error")) return true;
-  if (params.source === "client.api_network" && /aborterror|aborted/i.test(params.message))
+  if (params.statusCode !== null) {
+    if (params.scope === "app" && params.statusCode < 400) return true;
+    if (params.scope === "generation" && params.statusCode < 400) return true;
+  }
+  if (
+    params.scope === "app" &&
+    params.source === "client.api_network" &&
+    /aborterror|aborted/i.test(params.message)
+  ) {
     return true;
+  }
   return false;
 };
 
@@ -197,6 +243,40 @@ const requestHeaderValue = (value: string | string[] | undefined): string | null
   if (typeof value === "string") return toTrimmedString(value);
   if (Array.isArray(value) && value[0]) return toTrimmedString(value[0]);
   return null;
+};
+
+const reportSupabaseUnavailable = (reason: unknown) => {
+  if (process.env.NODE_ENV === "test") return;
+  if (warnedSupabaseUnavailable) return;
+  warnedSupabaseUnavailable = true;
+  if (reason instanceof Error) {
+    console.error("[appErrorLogs] Supabase admin unavailable for error logging", reason.message);
+    return;
+  }
+  console.error("[appErrorLogs] Supabase admin unavailable for error logging");
+};
+
+const getTable = <T>(tableName: string): T | null => {
+  try {
+    const supabaseAdmin = getSupabaseAdmin() as { from?: (name: string) => unknown };
+    if (typeof supabaseAdmin.from !== "function") {
+      reportSupabaseUnavailable("missing from()");
+      return null;
+    }
+    return supabaseAdmin.from(tableName) as T;
+  } catch (error) {
+    reportSupabaseUnavailable(error);
+    return null;
+  }
+};
+
+const getRequestHeader = (
+  req: NextApiRequest,
+  headerName: string
+): string | string[] | undefined => {
+  const headers = req && typeof req === "object" ? (req as { headers?: unknown }).headers : null;
+  if (!headers || typeof headers !== "object") return undefined;
+  return (headers as Record<string, string | string[] | undefined>)[headerName];
 };
 
 const jsonValueEquals = (left: unknown, right: unknown): boolean => {
@@ -257,6 +337,71 @@ const resolveReleaseMetadata = (): JsonObject => {
   return sanitizeMetadata(metadata);
 };
 
+const writeAppErrorEvent = async (params: {
+  source: string;
+  fingerprint: string;
+  scope: AppErrorScope;
+  severity: AppErrorSeverity;
+  message: string;
+  stack: string | null;
+  route: string | null;
+  endpoint: string | null;
+  requestId: string | null;
+  statusCode: number | null;
+  userId: string | null;
+  userEmail: string | null;
+  metadata: JsonObject;
+  occurredAt: string;
+}): Promise<string | null> => {
+  try {
+    const appErrorEventsTable = getTable<AppErrorEventsTable>("app_error_events");
+    if (!appErrorEventsTable) return null;
+    const { data, error } = await appErrorEventsTable
+      .insert({
+        fingerprint: params.fingerprint,
+        source: params.source,
+        scope: params.scope,
+        severity: params.severity,
+        message: params.message,
+        stack: params.stack,
+        route: params.route,
+        endpoint: params.endpoint,
+        request_id: params.requestId,
+        http_status: params.statusCode,
+        user_id: params.userId,
+        user_email: params.userEmail,
+        metadata: params.metadata,
+        occurred_at: params.occurredAt,
+      })
+      .select("id")
+      .maybeSingle();
+    if (error) {
+      console.error("[appErrorLogs] failed to insert error event", error.message);
+      return null;
+    }
+    return (data?.id as string | undefined) ?? null;
+  } catch (error) {
+    console.error("[appErrorLogs] failed to write error event", error);
+    return null;
+  }
+};
+
+const attachEventToIncident = async (eventId: string | null, incidentId: string | null) => {
+  if (!eventId || !incidentId) return;
+  try {
+    const appErrorEventsTable = getTable<AppErrorEventsTable>("app_error_events");
+    if (!appErrorEventsTable) return;
+    const { error } = await appErrorEventsTable
+      .update({ incident_id: incidentId })
+      .eq("id", eventId);
+    if (error) {
+      console.error("[appErrorLogs] failed to attach event to incident", error.message);
+    }
+  } catch (error) {
+    console.error("[appErrorLogs] failed to attach event to incident", error);
+  }
+};
+
 /**
  * Persists one app error entry, or increments an existing open incident fingerprint.
  */
@@ -289,8 +434,27 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
     statusCode,
   });
 
-  const supabaseAdmin = getSupabaseAdmin();
-  const appErrorLogsTable = supabaseAdmin.from("app_error_logs") as unknown as AppErrorLogsTable;
+  const eventId = await writeAppErrorEvent({
+    source,
+    fingerprint,
+    scope,
+    severity,
+    message,
+    stack,
+    route,
+    endpoint,
+    requestId,
+    statusCode,
+    userId,
+    userEmail,
+    metadata,
+    occurredAt,
+  });
+
+  const appErrorLogsTable = getTable<AppErrorLogsTable>("app_error_logs");
+  if (!appErrorLogsTable) {
+    return { ok: false, skipped: false, id: null };
+  }
 
   let existingQuery = appErrorLogsTable
     .select("id, occurrences_count, metadata")
@@ -333,6 +497,7 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
       console.error("[appErrorLogs] failed to update existing log", updateError.message);
       return { ok: false, skipped: false, id: null };
     }
+    await attachEventToIncident(eventId, existing.id as string);
     return { ok: true, skipped: false, id: existing.id as string };
   }
 
@@ -362,7 +527,9 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
     return { ok: false, skipped: false, id: null };
   }
 
-  return { ok: true, skipped: false, id: (inserted?.id as string | undefined) ?? null };
+  const insertedId = (inserted?.id as string | undefined) ?? null;
+  await attachEventToIncident(eventId, insertedId);
+  return { ok: true, skipped: false, id: insertedId };
 };
 
 /**
@@ -381,7 +548,7 @@ export const logApiRouteException = async ({
     const message =
       error instanceof Error ? error.message : String(error ?? "Unknown API exception");
     const stack = error instanceof Error ? (error.stack ?? null) : null;
-    const requestId = requestHeaderValue(req.headers["x-shortpulse-request-id"]);
+    const requestId = requestHeaderValue(getRequestHeader(req, "x-shortpulse-request-id"));
 
     await writeAppErrorLog({
       source: "api.exception",
@@ -402,5 +569,59 @@ export const logApiRouteException = async ({
     });
   } catch (loggingError) {
     console.error("[appErrorLogs] API exception log write failed", loggingError);
+  }
+};
+
+/**
+ * Writes a handled generation/API failure without throwing.
+ */
+export const logGenerationFailure = async ({
+  req,
+  routeLabel,
+  message,
+  statusCode = null,
+  source = "api.generation_failure",
+  severity,
+  stack = null,
+  metadata = {},
+  userId = null,
+  userEmail = null,
+}: GenerationFailureLogOptions): Promise<void> => {
+  try {
+    let resolvedUserId = toTrimmedString(userId, 120);
+    let resolvedUserEmail = toTrimmedString(userEmail, 320);
+
+    if (!resolvedUserId && !resolvedUserEmail) {
+      const resolvedUser = await getOptionalApiUser(req);
+      resolvedUserId = toTrimmedString(resolvedUser?.id, 120);
+      resolvedUserEmail = toTrimmedString(resolvedUser?.email, 320);
+    }
+
+    const normalizedStatusCode = sanitizeStatusCode(statusCode);
+    const resolvedSeverity =
+      severity ??
+      (normalizedStatusCode !== null && normalizedStatusCode >= 500 ? "high" : "medium");
+    const requestId = requestHeaderValue(getRequestHeader(req, "x-shortpulse-request-id"));
+
+    await writeAppErrorLog({
+      source: toTrimmedString(source, 80) ?? "api.generation_failure",
+      scope: "generation",
+      severity: resolvedSeverity,
+      message,
+      stack,
+      route: routeLabel,
+      endpoint: req.url ?? null,
+      requestId,
+      statusCode: normalizedStatusCode,
+      userId: resolvedUserId,
+      userEmail: resolvedUserEmail,
+      metadata: {
+        method: req.method ?? null,
+        route_label: routeLabel,
+        ...metadata,
+      },
+    });
+  } catch (loggingError) {
+    console.error("[appErrorLogs] generation failure log write failed", loggingError);
   }
 };

@@ -53,6 +53,12 @@ const normalizeEndpoint = (input: RequestInfo | URL): string => {
   }
 };
 
+const shouldLogHttpFailure = (scope: "app" | "generation", status: number): boolean => {
+  if (!Number.isFinite(status)) return false;
+  if (scope === "generation") return status >= 400;
+  return status >= 400;
+};
+
 /**
  * Executes `fetch` with a bearer token from the active Supabase session.
  */
@@ -106,14 +112,13 @@ export const fetchWithAuth = async (
 
     if (
       !skipErrorLogging &&
-      scope === "app" &&
-      response.status >= 500 &&
+      shouldLogHttpFailure(scope, response.status) &&
       !endpoint.includes("/api/log/client-error")
     ) {
       void reportAppError({
         source: "client.api_response",
-        scope: "app",
-        severity: response.status >= 502 ? "high" : "medium",
+        scope,
+        severity: response.status >= 502 ? "high" : response.status >= 500 ? "medium" : "low",
         message: `API ${response.status} response from ${endpoint}`,
         endpoint,
         requestId,
@@ -139,10 +144,10 @@ export const fetchWithAuth = async (
       },
     });
 
-    if (!skipErrorLogging && scope === "app" && !endpoint.includes("/api/log/client-error")) {
+    if (!skipErrorLogging && !endpoint.includes("/api/log/client-error")) {
       void reportAppError({
         source: "client.api_network",
-        scope: "app",
+        scope,
         severity: "high",
         message: error instanceof Error ? error.message : "Network request failed",
         stack: error instanceof Error ? error.stack : null,

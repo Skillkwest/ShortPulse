@@ -41,7 +41,8 @@ The API currently supports both shapes during rollout by falling back to `ref_id
 6. Verify admin credit adjustment in `/admin` succeeds.
 7. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
 8. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
-   - `cd frontend && npm run test:e2e:character` (with local app server running)
+   - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character` (with local app server running)
+   - Audit safety guardrail: `test:e2e:character` refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and rejects `@example.com` emails.
    - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
 9. Verify reservation RPC hardening checks are present in staged function bodies and grants:
    - auth binding clause: `auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id`

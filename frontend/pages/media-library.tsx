@@ -3,32 +3,25 @@
  * Handles filtering, signed URL fetches, tab-aware caching, and modal actions while delegating storage and auth to shared helpers.
  */
 import Head from "next/head";
-import {
-  CloudArrowUp,
-  DownloadSimple,
-  LockSimple,
-  MagnifyingGlass,
-  ShieldCheck,
-} from "phosphor-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DashboardNavPrefab } from "../components/DashboardNavPrefab";
 import { logMediaPerf } from "../lib/mediaPerfTelemetry";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import {
   resolveMediaDirectPreviewUrls,
   resolveMediaSigningStoragePaths,
 } from "../lib/mediaPreviewPath";
-import { getSignedMediaUrl, invalidateSignedMediaUrl } from "../lib/mediaSignedUrlCache";
+import { getSignedMediaUrl } from "../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
 import { isMoveDestinationDataTab } from "../features/media-library/logic/mediaMoveRouting";
 import { useMediaBulkMoveController } from "../features/media-library/hooks/useMediaBulkMoveController";
 import { useMediaBulkDeleteController } from "../features/media-library/hooks/useMediaBulkDeleteController";
-import { MediaDeleteConfirmModal } from "../features/media-library/components/MediaDeleteConfirmModal";
-import { MediaAssetGallery } from "../features/media-library/components/MediaAssetGallery";
-import { MediaFileModal } from "../features/media-library/components/MediaFileModal";
-import { MediaGalleryActions } from "../features/media-library/components/MediaGalleryActions";
-import { MediaPromptGrid } from "../features/media-library/components/MediaPromptGrid";
-import { MediaPromptModal } from "../features/media-library/components/MediaPromptModal";
+import { MediaLibraryModalStack } from "../features/media-library/components/MediaLibraryModalStack";
+import { MediaLibraryWorkspaceContent } from "../features/media-library/components/MediaLibraryWorkspaceContent";
+import {
+  collectMediaStoragePathsForDelete,
+  logMediaEvent,
+  removeStoragePaths,
+} from "../features/media-library/logic/mediaLibraryDataEffects";
 import { useMediaFileModalCrud } from "../features/media-library/hooks/useMediaFileModalCrud";
 import { useMediaModalImageZoom } from "../features/media-library/hooks/useMediaModalImageZoom";
 import { useMediaPromptModalCrud } from "../features/media-library/hooks/useMediaPromptModalCrud";
@@ -46,9 +39,7 @@ import {
   getErrorMessage,
   getMediaDataTabForRow,
   isMediaDataTab,
-  isMissingRelationError,
   isMissingRoutineError,
-  isNonEmptyString,
   isVideoFile,
   normalizeMediaSearchTerm,
   resolveRouteSignBudget,
@@ -100,55 +91,14 @@ type MediaTab =
 type MediaTabCache = MediaTabCacheState<MediaRow>;
 type MediaCardRefCallback = (node: HTMLDivElement | null) => void;
 
-type MediaVariantPathRow = {
-  storage_path: string | null;
-};
-
-type MediaDeleteTarget = Pick<
-  MediaRow,
-  | "id"
-  | "storage_path"
-  | "preview_storage_path"
-  | "thumb_variant_path"
-  | "poster_variant_path"
-  | "preview_variant_path"
->;
-
 const MEDIA_LIBRARY_PAGE_SIZE = 60;
 const MEDIA_LIBRARY_CACHE_TTL_MS = 30_000;
-const STORAGE_DELETE_BATCH_SIZE = 100;
 
 type NavigatorWithConnection = Navigator & {
   connection?: {
     addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
     removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
   };
-};
-
-const logMediaEvent = async (
-  eventType: string,
-  entityType: string,
-  entityId: string,
-  metadata: Record<string, unknown> = {}
-) => {
-  try {
-    const supabase = ensureSupabaseClient();
-    const { data } = await supabase.auth.getSession();
-    const userId = data.session?.user?.id;
-    if (!userId) return;
-    const { error } = await supabase.from("media_events").insert({
-      user_id: userId,
-      event_type: eventType,
-      entity_type: entityType,
-      entity_id: entityId,
-      metadata,
-    });
-    if (error) {
-      console.warn("Media event log failed", error);
-    }
-  } catch (err) {
-    console.warn("Media event log error", err);
-  }
 };
 
 export default function MediaLibrary() {
@@ -810,54 +760,6 @@ export default function MediaLibrary() {
     setSelectedIds(isPromptTab ? selectablePromptIds : selectableMediaIds);
   };
 
-  const collectMediaStoragePathsForDelete = useCallback(
-    async (targets: MediaDeleteTarget[]): Promise<string[]> => {
-      if (!targets.length) return [];
-      const basePaths = targets.flatMap((target) => [
-        target.storage_path,
-        target.preview_storage_path,
-        target.thumb_variant_path,
-        target.poster_variant_path,
-        target.preview_variant_path,
-      ]);
-      const dedupedBasePaths = Array.from(new Set(basePaths.filter(isNonEmptyString)));
-      const targetIds = targets.map((target) => target.id);
-      if (!targetIds.length) return dedupedBasePaths;
-
-      const supabase = ensureSupabaseClient();
-      const { data: variantRows, error: variantError } = await supabase
-        .from("media_asset_variants")
-        .select("storage_path")
-        .in("media_file_id", targetIds);
-
-      // Backward compatibility for environments that have not applied migration 005 yet.
-      if (variantError && isMissingRelationError(variantError)) {
-        return dedupedBasePaths;
-      }
-      if (variantError) throw variantError;
-
-      const variantPaths = ((variantRows ?? []) as MediaVariantPathRow[]).map(
-        (row) => row.storage_path
-      );
-
-      return Array.from(new Set([...dedupedBasePaths, ...variantPaths.filter(isNonEmptyString)]));
-    },
-    []
-  );
-
-  const removeStoragePaths = useCallback(async (paths: string[]): Promise<void> => {
-    if (!paths.length) return;
-    const supabase = ensureSupabaseClient();
-    for (let start = 0; start < paths.length; start += STORAGE_DELETE_BATCH_SIZE) {
-      const batch = paths.slice(start, start + STORAGE_DELETE_BATCH_SIZE);
-      const { error: storageError } = await supabase.storage.from(BUCKET).remove(batch);
-      if (storageError) throw storageError;
-      batch.forEach((path) => {
-        invalidateSignedMediaUrl(BUCKET, path);
-      });
-    }
-  }, []);
-
   const {
     cancelDeleteFile,
     closeModal: closeFileModal,
@@ -1009,350 +911,151 @@ export default function MediaLibrary() {
         Skip to main content
       </a>
       <main id="main-content" className="page page-wide">
-        <section className="panel saved-header-bar saved-hero hero-image-card">
-          <div className="saved-header-left">
-            <div className="saved-title-stack">
-              <div className="saved-title-row">
-                <h1 className="title">Media Library</h1>
-              </div>
-              <p className="subdued">
-                Upload, organize, and manage your workspace media in one place.
-              </p>
-            </div>
-          </div>
-          <div className="header-cards media-header-cards">
-            <div className="header-stat-card" aria-label="Media storage">
-              <div className="status-icon compact" aria-hidden="true">
-                <CloudArrowUp size={18} weight="bold" />
-              </div>
-              <div className="header-card-body">
-                <p className="metric-label tiny">Media storage</p>
-                <p className="status-value small">{storageUsageValue}</p>
-              </div>
-            </div>
-            <div className="header-stat-card" aria-label="Plan status">
-              <div className="status-icon compact" aria-hidden="true">
-                <ShieldCheck size={16} weight="bold" />
-              </div>
-              <div className="header-card-body">
-                <p className="metric-label tiny">{planUsage.label}</p>
-                <p className="status-value small">{planUsage.name}</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section
-          className="panel media-stage hero-image-card media-panel"
-          style={{
-            backgroundImage: "none",
+        <MediaLibraryWorkspaceContent
+          filtersRowProps={{
+            activeTab,
+            countLabel,
+            search,
+            visibleCount,
+            onSearchChange: (value) => setSearch(value),
+            onSelectTab: (tab) => setActiveTab(tab),
           }}
-        >
-          <div
-            className={`drop-zone ${isDragging ? "dragging" : ""}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            role="region"
-            aria-label="File upload area"
-          >
-            <p className="title">Drag and drop media here</p>
-            {uploading && (
-              <div className="subdued tiny" role="status" aria-live="polite">
-                Uploading {uploadCount || ""} file{uploadCount === 1 ? "" : "s"}…
-              </div>
-            )}
-            {error && (
-              <div className="auth-error" role="alert" aria-live="assertive">
-                {error}
-              </div>
-            )}
-          </div>
-
-          <div className="upload-side">
-            <p className="eyebrow">Add files</p>
-            <h3>Browse your computer</h3>
-            <button className="btn-primary add-files-cta" type="button" onClick={triggerFilePicker}>
-              <DownloadSimple size={20} weight="bold" />
-              Add Files
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={activeTab === "private" ? "image/*" : "image/*,video/*"}
-              onChange={handleFileChange}
-              aria-label="Select media files"
-              style={{ display: "none" }}
-            />
-            {selectedFiles.length > 0 && (
-              <div className="subdued tiny">
-                {selectedFiles.length} selected •{" "}
-                {selectedFiles
-                  .map((f) => f.name)
-                  .slice(0, 3)
-                  .join(", ")}
-                {selectedFiles.length > 3 ? "…" : ""}
-              </div>
-            )}
-            <div className="upload-storage">
-              <div>
-                <p className="tiny subdued">Storage used</p>
-                <strong>{(totalBytes / (1024 * 1024)).toFixed(1)} MB</strong>
-                <span className="tiny subdued">of {(planLimitMb / 1024).toFixed(1)} GB</span>
-              </div>
-              <button type="button" className="btn-secondary upgrade-btn">
-                Need more storage?
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <div className="media-filters-row">
-          <div
-            className="panel media-filter-dashboard-card media-panel"
-            aria-label="Workspace navigation"
-          >
-            <DashboardNavPrefab />
-          </div>
-          <section
-            className="panel media-filters media-panel"
-            aria-label="Media filters and search"
-          >
-            <div className="filter-tabs" role="tablist" aria-label="Media categories">
-              <button
-                type="button"
-                className={`pill-toggle big ${activeTab === "uploaded_images" ? "active" : ""}`}
-                onClick={() => setActiveTab("uploaded_images")}
-              >
-                Uploaded Images
-              </button>
-              <button
-                type="button"
-                className={`pill-toggle big ${activeTab === "uploaded_videos" ? "active" : ""}`}
-                onClick={() => setActiveTab("uploaded_videos")}
-              >
-                Uploaded Videos
-              </button>
-              <button
-                type="button"
-                className={`pill-toggle big ${activeTab === "saved_prompts" ? "active" : ""}`}
-                onClick={() => setActiveTab("saved_prompts")}
-              >
-                Saved Prompts
-              </button>
-              <button
-                type="button"
-                className={`pill-toggle big ${activeTab === "ai_generations" ? "active" : ""}`}
-                onClick={() => setActiveTab("ai_generations")}
-              >
-                AI Studio Generations
-              </button>
-              <button
-                type="button"
-                className={`pill-toggle big ${activeTab === "private" ? "active" : ""}`}
-                onClick={() => setActiveTab("private")}
-              >
-                <LockSimple size={14} weight="bold" aria-hidden />
-                Private
-              </button>
-            </div>
-            <span className="pill tiny filter-count">
-              {visibleCount} {countLabel}
-            </span>
-            <div className="search-wrap">
-              <div className="search-input">
-                <MagnifyingGlass size={16} weight="bold" />
-                <input
-                  type="text"
-                  placeholder={
-                    isPromptTab ? "Search saved prompts" : "Search media by name or file"
-                  }
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <section
-          className={`panel media-gallery media-panel ${isPromptTab ? "" : "media-gallery-packed"}`}
-        >
-          <MediaGalleryActions
-            activeTab={activeTab}
-            allVisibleSelected={allVisibleSelected}
-            bulkDeleting={bulkDeleting}
-            bulkMoveError={bulkMoveError}
-            bulkMoveMenuOpen={bulkMoveMenuOpen}
-            bulkMoveNotice={bulkMoveNotice}
-            bulkMoveTabOptions={bulkMoveTabOptions}
-            bulkMoving={bulkMoving}
-            canBulkMove={canBulkMove}
-            deleteButtonLabel={deleteButtonLabel}
-            deleteItemLabel={deleteItemLabel}
-            isPromptTab={isPromptTab}
-            onClearSelection={() => {
+          gallerySectionProps={{
+            activeMediaQuery,
+            activeMediaTab,
+            activeTab,
+            allVisibleSelected,
+            aspectMap,
+            bulkDeleting,
+            bulkMoveError,
+            bulkMoveMenuOpen,
+            bulkMoveNotice,
+            bulkMoveTabOptions,
+            bulkMoving,
+            canBulkMove,
+            deleteButtonLabel,
+            deleteItemLabel,
+            files: filteredMedia,
+            formatDate,
+            getMediaCardRef,
+            handleImageLoad,
+            handleMediaPreviewError,
+            handleVideoMeta,
+            hasMoreMediaPages,
+            isPromptTab,
+            isVideoFile,
+            loadMoreSentinelRef,
+            loading,
+            loadingMoreMedia,
+            onClearSelection: () => {
               setSelectedIds([]);
               setBulkMoveError(null);
               setBulkMoveNotice(null);
-            }}
-            onMoveSelected={(destinationTab) => {
+            },
+            onDeletePrompt: deletePrompt,
+            onDownloadFile: downloadFile,
+            onFetchMediaTabPage: fetchMediaTabPage,
+            onMoveSelected: (destinationTab) => {
               if (!isMoveDestinationDataTab(destinationTab)) return;
               void moveSelectedFiles(destinationTab);
-            }}
-            onRequestDeleteSelected={requestDeleteSelected}
-            onSelectAllVisible={selectAllVisible}
-            onToggleBulkMoveMenu={() => {
+            },
+            onOpenFileModal: openModal,
+            onOpenPromptModal: openPromptModal,
+            onRequestDeleteFile: requestDeleteFile,
+            onRequestDeleteSelected: requestDeleteSelected,
+            onSelectAllVisible: selectAllVisible,
+            onToggleBulkMoveMenu: () => {
               setBulkMoveError(null);
               setBulkMoveMenuOpen((prev) => !prev);
-            }}
-            selectedIdsCount={selectedIds.length}
-            selectedMediaRowsCount={selectedMediaRows.length}
-            selectableIdsCount={selectableIds.length}
-          />
-          {loading && <div className="subdued tiny">Loading media…</div>}
-          {!loading && isPromptTab && !filteredPrompts.length && (
-            <div className="subdued tiny">No prompts saved yet.</div>
-          )}
-          {!loading && !isPromptTab && !filteredMedia.length && (
-            <div className="subdued tiny">
-              {activeTab === "uploaded_images"
-                ? "No images uploaded yet."
-                : activeTab === "uploaded_videos"
-                  ? "No videos uploaded yet."
-                  : activeTab === "private"
-                    ? "No private images uploaded yet."
-                    : "No AI Studio generations saved yet."}
-            </div>
-          )}
-          {isPromptTab ? (
-            <MediaPromptGrid
-              deletePrompt={deletePrompt}
-              formatDate={formatDate}
-              openPromptModal={openPromptModal}
-              prompts={filteredPrompts}
-              selectedIds={selectedIds}
-              togglePromptSelect={togglePromptSelect}
-            />
-          ) : (
-            <MediaAssetGallery
-              activeMediaQuery={activeMediaQuery}
-              activeMediaTab={activeMediaTab}
-              aspectMap={aspectMap}
-              downloadFile={downloadFile}
-              fetchMediaTabPage={fetchMediaTabPage}
-              files={filteredMedia}
-              getMediaCardRef={getMediaCardRef}
-              handleImageLoad={handleImageLoad}
-              handleMediaPreviewError={handleMediaPreviewError}
-              handleVideoMeta={handleVideoMeta}
-              hasMoreMediaPages={hasMoreMediaPages}
-              isVideoFile={isVideoFile}
-              loadMoreSentinelRef={loadMoreSentinelRef}
-              loadingMoreMedia={loadingMoreMedia}
-              openModal={openModal}
-              requestDeleteFile={requestDeleteFile}
-              selectedIds={selectedIds}
-              toggleSelect={toggleSelect}
-            />
-          )}
-        </section>
+            },
+            onToggleFileSelect: toggleSelect,
+            onTogglePromptSelect: togglePromptSelect,
+            prompts: filteredPrompts,
+            selectedIds,
+            selectedMediaRowsCount: selectedMediaRows.length,
+            selectableIdsCount: selectableIds.length,
+          }}
+          headerProps={{
+            planLabel: planUsage.label,
+            planName: planUsage.name,
+            storageUsageValue,
+          }}
+          uploadStageProps={{
+            activeTab,
+            error,
+            fileInputRef,
+            isDragging,
+            planLimitMb,
+            selectedFiles,
+            totalBytes,
+            uploadCount,
+            uploading,
+            onDragLeave: handleDragLeave,
+            onDragOver: handleDragOver,
+            onDrop: handleDrop,
+            onFileChange: handleFileChange,
+            onTriggerFilePicker: triggerFilePicker,
+          }}
+        />
       </main>
 
-      {deleteTarget ? (
-        <MediaDeleteConfirmModal
-          body={
-            <>
-              This will permanently remove <strong>{deleteTarget.filename}</strong> from your Media
-              Library and private storage. This action cannot be undone.
-            </>
-          }
-          cancelDisabled={deletingSingle}
-          confirmDisabled={deletingSingle}
-          confirmLabel={deletingSingle ? "Deleting..." : "Yes, delete file"}
-          confirmTitleId="delete-file-title"
-          onCancel={cancelDeleteFile}
-          onConfirm={() => {
-            void confirmDeleteFile();
-          }}
-          title="Delete this file from your library?"
-        />
-      ) : null}
-
-      {confirmDeleteIds?.length ? (
-        <MediaDeleteConfirmModal
-          body={
-            <>
-              This will permanently remove{" "}
-              <strong>{confirmDeleteIds.length} selected file(s)</strong> from your Media Library
-              and private storage. This action cannot be undone.
-            </>
-          }
-          cancelDisabled={bulkDeleting}
-          confirmDisabled={bulkDeleting}
-          confirmLabel={bulkDeleting ? "Deleting..." : "Yes, delete selected"}
-          confirmTitleId="delete-selected-title"
-          onCancel={cancelDeleteSelected}
-          onConfirm={() => {
-            void confirmDeleteSelected();
-          }}
-          title="Delete selected file(s) from your library?"
-        />
-      ) : null}
-
-      {focusedFile ? (
-        <MediaFileModal
-          canMoveToAnotherTab={canMoveToAnotherTab}
-          cacheModalImageNaturalSize={cacheModalImageNaturalSize}
-          cacheAspectRatio={cacheAspectRatio}
-          closeModal={closeModal}
-          downloadFile={downloadFile}
-          focusedAspectRatio={focusedAspectRatio}
-          focusedFile={focusedFile}
-          handleMediaPreviewError={handleMediaPreviewError}
-          handleModalImageClick={handleModalImageClick}
-          handleModalImageKeyDown={handleModalImageKeyDown}
-          handleModalImagePointerDown={handleModalImagePointerDown}
-          handleModalImagePointerMove={handleModalImagePointerMove}
-          handleModalImagePointerUp={handleModalImagePointerUp}
-          handleModalImageWheel={handleModalImageWheel}
-          handleModalPreviewWheel={handleModalPreviewWheel}
-          handleRenameInputChange={handleRenameInputChange}
-          isModalImagePanning={isModalImagePanning}
-          isVideoFile={isVideoFile}
-          modalError={modalError}
-          modalImagePan={modalImagePan}
-          modalImageZoomActive={modalImageZoomActive}
-          modalImageZoomScale={modalImageZoomScale}
-          modalMoveTabOptions={modalMoveTabOptions}
-          modalPreviewRef={modalPreviewRef}
-          moveError={moveError}
-          moveFocusedFile={moveFocusedFile}
-          moveMenuOpen={moveMenuOpen}
-          movingFile={movingFile}
-          renameSuccess={renameSuccess}
-          renameValue={renameValue}
-          requestDeleteFile={requestDeleteFile}
-          saveRename={saveRename}
-          savingRename={savingRename}
-          setMoveMenuOpen={setMoveMenuOpen}
-        />
-      ) : null}
-
-      {focusedPrompt ? (
-        <MediaPromptModal
-          closePromptModal={closePromptModal}
-          deletePrompt={deletePrompt}
-          focusedPrompt={focusedPrompt}
-          handlePromptEditChange={handlePromptEditChange}
-          promptEditValue={promptEditValue}
-          promptModalError={promptModalError}
-          promptSaveSuccess={promptSaveSuccess}
-          savePromptEdits={savePromptEdits}
-          savingPromptEdit={savingPromptEdit}
-        />
-      ) : null}
+      <MediaLibraryModalStack
+        bulkDeleting={bulkDeleting}
+        confirmDeleteIds={confirmDeleteIds}
+        deleteTarget={deleteTarget}
+        deletingSingle={deletingSingle}
+        fileModal={{
+          canMoveToAnotherTab,
+          cacheModalImageNaturalSize,
+          cacheAspectRatio,
+          closeModal,
+          downloadFile,
+          focusedAspectRatio,
+          focusedFile,
+          handleMediaPreviewError,
+          handleModalImageClick,
+          handleModalImageKeyDown,
+          handleModalImagePointerDown,
+          handleModalImagePointerMove,
+          handleModalImagePointerUp,
+          handleModalImageWheel,
+          handleModalPreviewWheel,
+          handleRenameInputChange,
+          isModalImagePanning,
+          isVideoFile,
+          modalError,
+          modalImagePan,
+          modalImageZoomActive,
+          modalImageZoomScale,
+          modalMoveTabOptions,
+          modalPreviewRef,
+          moveError,
+          moveFocusedFile,
+          moveMenuOpen,
+          movingFile,
+          renameSuccess,
+          renameValue,
+          requestDeleteFile,
+          saveRename,
+          savingRename,
+          setMoveMenuOpen,
+        }}
+        onCancelDeleteFile={cancelDeleteFile}
+        onCancelDeleteSelected={cancelDeleteSelected}
+        onConfirmDeleteFile={confirmDeleteFile}
+        onConfirmDeleteSelected={confirmDeleteSelected}
+        promptModal={{
+          closePromptModal,
+          deletePrompt,
+          focusedPrompt,
+          handlePromptEditChange,
+          promptEditValue,
+          promptModalError,
+          promptSaveSuccess,
+          savePromptEdits,
+          savingPromptEdit,
+        }}
+      />
     </>
   );
 }

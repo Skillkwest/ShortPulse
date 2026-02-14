@@ -47,7 +47,7 @@ const normalizeSearchTerm = (value: unknown): string => {
 
 const applyIncidentFilters = (
   query: IncidentQuery,
-  filters: { status: string; severity: string; source: string; search: string }
+  filters: { status: string; severity: string; source: string; scope: string; search: string }
 ): IncidentQuery => {
   let next = query;
   if (filters.status && filters.status !== "all") {
@@ -58,6 +58,9 @@ const applyIncidentFilters = (
   }
   if (filters.source && filters.source !== "all") {
     next = next.eq("source", filters.source);
+  }
+  if (filters.scope && filters.scope !== "all") {
+    next = next.eq("scope", filters.scope);
   }
   if (filters.search) {
     const pattern = `%${filters.search.replace(/\s+/g, "%")}%`;
@@ -97,6 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       status: asFilterValue(req.query.status),
       severity: asFilterValue(req.query.severity),
       source: asFilterValue(req.query.source),
+      scope: asFilterValue(req.query.scope),
       search: normalizeSearchTerm(req.query.search),
     };
 
@@ -125,6 +129,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       filteredCountResult,
       openCountResult,
       highSeverityOpenResult,
+      appOpenCountResult,
+      generationOpenCountResult,
       last24hResult,
     ] = await Promise.all([
       logsQuery,
@@ -141,6 +147,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       supabaseAdmin
         .from("app_error_logs")
         .select("id", { count: "exact", head: true })
+        .eq("status", "open")
+        .eq("scope", "app"),
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "open")
+        .eq("scope", "generation"),
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true })
         .gte("last_seen_at", sinceIso),
     ]);
 
@@ -149,6 +165,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       filteredCountResult.error ||
       openCountResult.error ||
       highSeverityOpenResult.error ||
+      appOpenCountResult.error ||
+      generationOpenCountResult.error ||
       last24hResult.error
     ) {
       const detail = [
@@ -156,6 +174,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         filteredCountResult.error?.message,
         openCountResult.error?.message,
         highSeverityOpenResult.error?.message,
+        appOpenCountResult.error?.message,
+        generationOpenCountResult.error?.message,
         last24hResult.error?.message,
       ]
         .filter(Boolean)
@@ -192,6 +212,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         openCount: Number(openCountResult.count ?? 0),
         highSeverityOpenCount: Number(highSeverityOpenResult.count ?? 0),
         last24hCount: Number(last24hResult.count ?? 0),
+        appOpenCount: Number(appOpenCountResult.count ?? 0),
+        generationOpenCount: Number(generationOpenCountResult.count ?? 0),
       },
       pagination: {
         page: resolvedPage,
@@ -212,6 +234,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         status_filter: typeof req.query.status === "string" ? req.query.status : null,
         severity_filter: typeof req.query.severity === "string" ? req.query.severity : null,
         source_filter: typeof req.query.source === "string" ? req.query.source : null,
+        scope_filter: typeof req.query.scope === "string" ? req.query.scope : null,
         search_filter: typeof req.query.search === "string" ? req.query.search : null,
       },
     });

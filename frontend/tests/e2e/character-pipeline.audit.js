@@ -42,7 +42,21 @@ async function signIn(page, email, password) {
 async function main() {
   const runId = Date.now();
   const forcedEmail = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
-  const email = forcedEmail || `audit.${runId}@example.com`;
+  if (!forcedEmail) {
+    console.error(
+      "[character-pipeline.audit] PLAYWRIGHT_AUDIT_EMAIL is required. Refusing to auto-create test users."
+    );
+    process.exitCode = 1;
+    return;
+  }
+  if (/@example\.com$/i.test(forcedEmail)) {
+    console.error(
+      "[character-pipeline.audit] PLAYWRIGHT_AUDIT_EMAIL cannot use @example.com. Use a dedicated real test account."
+    );
+    process.exitCode = 1;
+    return;
+  }
+  const email = forcedEmail;
   const password = (process.env.PLAYWRIGHT_AUDIT_PASSWORD || "").trim() || "AuditPass!12345";
   const characterName = `Audit Character ${String(runId).slice(-6)}`;
   const characterDescription =
@@ -115,17 +129,7 @@ async function main() {
     await page.waitForTimeout(1200);
 
     if (page.url().includes("/auth")) {
-      if (forcedEmail) {
-        await signIn(page, email, password);
-      } else {
-        const signUpTab = page.getByRole("button", { name: /^Sign up$/i }).first();
-        if (await signUpTab.isVisible().catch(() => false)) {
-          await signUpTab.click();
-        }
-        await page.locator("#email").fill(email);
-        await page.locator("#password").fill(password);
-        await page.getByRole("button", { name: /Create free account/i }).click();
-      }
+      await signIn(page, email, password);
 
       const reached = await waitForNonAuthRoute(page, 12000);
       if (!reached) {
@@ -142,23 +146,10 @@ async function main() {
           return;
         }
 
-        if (!forcedEmail) {
-          await signIn(page, email, password);
-          const signInReached = await waitForNonAuthRoute(page, 10000);
-          if (!signInReached) {
-            const signInError = await maybeText(page.locator(".auth-error"));
-            if (signInError) out.notes.push(`signin_error=${signInError}`);
-            out.finalUrl = page.url();
-            out.ok = false;
-            console.log(JSON.stringify(out, null, 2));
-            return;
-          }
-        } else {
-          out.finalUrl = page.url();
-          out.ok = false;
-          console.log(JSON.stringify(out, null, 2));
-          return;
-        }
+        out.finalUrl = page.url();
+        out.ok = false;
+        console.log(JSON.stringify(out, null, 2));
+        return;
       }
     }
 

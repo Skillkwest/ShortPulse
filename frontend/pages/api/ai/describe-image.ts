@@ -6,28 +6,58 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
 import { AgentPromptId } from "../../../lib/agentPromptsConfig";
 import { requireApiUser } from "../../../lib/server/api/auth";
+import { logGenerationFailure } from "../../../lib/server/api/appErrorLogs";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_DESCRIBER_ID: AgentPromptId = "OPENAI_PROMPT_IMAGE_DESCRIBE";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const routeLabel = "ai/describe-image";
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (!(await requireApiUser(req, res))) return;
+  const user = await requireApiUser(req, res);
+  if (!user) return;
 
   const apiKey = process.env.OPENAI_API_KEY;
   const systemPrompt = loadAgentPrompt(IMAGE_DESCRIBER_ID, process.env[IMAGE_DESCRIBER_ID]);
   if (!apiKey) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.image_describe.config_missing",
+      message: "OPENAI_API_KEY is not set",
+      statusCode: 500,
+      userId: user.id,
+      userEmail: user.email ?? null,
+    });
     return res.status(500).json({ error: "OPENAI_API_KEY is not set" });
   }
   if (!systemPrompt) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.image_describe.config_missing",
+      message: `${IMAGE_DESCRIBER_ID} is not set`,
+      statusCode: 500,
+      userId: user.id,
+      userEmail: user.email ?? null,
+    });
     return res.status(500).json({ error: `${IMAGE_DESCRIBER_ID} is not set` });
   }
 
   const { imageUrl } = req.body as { imageUrl?: string };
   if (!imageUrl || typeof imageUrl !== "string" || !imageUrl.trim()) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.image_describe.validation_failed",
+      message: "imageUrl is required",
+      statusCode: 400,
+      userId: user.id,
+      userEmail: user.email ?? null,
+    });
     return res.status(400).json({ error: "imageUrl is required" });
   }
 
@@ -56,6 +86,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!response.ok) {
       const detail = await response.text();
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.image_describe.upstream_error",
+        message: "Upstream error",
+        statusCode: response.status,
+        userId: user.id,
+        userEmail: user.email ?? null,
+        metadata: {
+          detail,
+          model: visionModel,
+        },
+      });
       return res
         .status(response.status)
         .json({ error: "Upstream error", detail, model: visionModel });
@@ -66,6 +109,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const promptTokens = data?.usage?.prompt_tokens;
     const completionTokens = data?.usage?.completion_tokens;
     if (!description) {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.image_describe.empty_response",
+        message: "No description returned",
+        statusCode: 502,
+        userId: user.id,
+        userEmail: user.email ?? null,
+      });
       return res.status(502).json({ error: "No description returned" });
     }
 
@@ -77,6 +129,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (error) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.image_describe.transport_error",
+      message: "Image description failed",
+      statusCode: 500,
+      stack: error instanceof Error ? (error.stack ?? null) : null,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        detail: String(error),
+      },
+    });
     return res.status(500).json({ error: "Image description failed", detail: String(error) });
   }
 }

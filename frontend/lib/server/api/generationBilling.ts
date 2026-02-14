@@ -14,6 +14,7 @@ import {
   isRecoverableReservationFailure,
   readErrorCode,
 } from "./generationBilling/errorGuards";
+import { logGenerationFailure } from "./appErrorLogs";
 import { buildPricingParams, summarizePayload } from "./generationBilling/pricingParams";
 import {
   markGenerationReservationSubmitted,
@@ -56,21 +57,57 @@ export const chargeGenerationRequest = async ({
 }: ChargeOptions): Promise<ChargeResult | null> => {
   const user = await requireApiUser(req, res);
   if (!user) return null;
+  const sourceRef = resolveSourceRef(req);
+  const routeLabel = req.url ?? "/api/generation";
 
   const pricingParams = buildPricingParams(modelId, payload);
   const breakdown = computeCostForModel(modelId, pricingParams);
   if (!breakdown?.credits || breakdown.credits <= 0) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.generation_billing_failure",
+      message: `No pricing strategy is configured for '${modelId}'.`,
+      statusCode: 500,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        model_id: modelId,
+        source_ref: sourceRef,
+      },
+    });
     res.status(500).json({ error: `No pricing strategy is configured for '${modelId}'.` });
     return null;
   }
 
-  const sourceRef = resolveSourceRef(req);
   const chargeMetadata = {
     model_id: modelId,
     route: req.url ?? null,
     params: summarizePayload(payload),
     pricing_params: pricingParams,
     debited_credits: breakdown.credits,
+  };
+  const respondChargeFailure = async (
+    statusCode: number,
+    message: string,
+    metadata: JsonObject = {}
+  ): Promise<null> => {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.generation_billing_failure",
+      message,
+      statusCode,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        model_id: modelId,
+        source_ref: sourceRef,
+        ...metadata,
+      },
+    });
+    res.status(statusCode).json({ error: message });
+    return null;
   };
 
   const useReservationMode = isFalModel(modelId);
@@ -85,8 +122,12 @@ export const chargeGenerationRequest = async ({
     });
     if (reserveResult.status === "failed") {
       if (reserveResult.message === "insufficient_credits") {
-        res.status(402).json({ error: "Insufficient credits for this generation." });
-        return null;
+        return respondChargeFailure(402, "Insufficient credits for this generation.", {
+          reservation_mode: true,
+          reservation_status: reserveResult.status,
+          reservation_message: reserveResult.message ?? null,
+          reservation_code: reserveResult.code ?? null,
+        });
       }
       if (!isRecoverableReservationFailure(reserveResult)) {
         console.error("[generationBilling] reserve_generation_credits failed", {
@@ -96,10 +137,12 @@ export const chargeGenerationRequest = async ({
           code: reserveResult.code ?? null,
           message: reserveResult.message ?? null,
         });
-        res.status(500).json({
-          error: GENERATION_BILLING_FAILURE_MESSAGE,
+        return respondChargeFailure(500, GENERATION_BILLING_FAILURE_MESSAGE, {
+          reservation_mode: true,
+          reservation_status: reserveResult.status,
+          reservation_message: reserveResult.message ?? null,
+          reservation_code: reserveResult.code ?? null,
         });
-        return null;
       }
       console.warn(
         "[generationBilling] reservation RPC unavailable; falling back to direct debit",
@@ -115,8 +158,14 @@ export const chargeGenerationRequest = async ({
       reserveResult.status === "already_captured" ||
       reserveResult.status === "already_released"
     ) {
-      res.status(409).json({ error: "Duplicate submit request id. Retry with a new request id." });
-      return null;
+      return respondChargeFailure(
+        409,
+        "Duplicate submit request id. Retry with a new request id.",
+        {
+          reservation_mode: true,
+          reservation_status: reserveResult.status,
+        }
+      );
     } else if (reserveResult.status === "reserved" || reserveResult.status === "already_reserved") {
       const markSubmitted = async (providerRequestId: string, extra: JsonObject = {}) => {
         if (!providerRequestId) return;
@@ -185,12 +234,22 @@ export const chargeGenerationRequest = async ({
 
   if (debitError) {
     if (isInsufficientCreditError(debitError.message)) {
-      res.status(402).json({ error: "Insufficient credits for this generation." });
-      return null;
+      return respondChargeFailure(402, "Insufficient credits for this generation.", {
+        reservation_mode: false,
+        debit_error_code: readErrorCode(debitError),
+        debit_error_message: debitError.message ?? null,
+      });
     }
     if (isDuplicateError(readErrorCode(debitError), debitError.message)) {
-      res.status(409).json({ error: "Duplicate submit request id. Retry with a new request id." });
-      return null;
+      return respondChargeFailure(
+        409,
+        "Duplicate submit request id. Retry with a new request id.",
+        {
+          reservation_mode: false,
+          debit_error_code: readErrorCode(debitError),
+          debit_error_message: debitError.message ?? null,
+        }
+      );
     }
     console.error("[generationBilling] direct debit failed", {
       modelId,
@@ -199,8 +258,11 @@ export const chargeGenerationRequest = async ({
       code: readErrorCode(debitError),
       message: debitError.message ?? null,
     });
-    res.status(500).json({ error: GENERATION_BILLING_FAILURE_MESSAGE });
-    return null;
+    return respondChargeFailure(500, GENERATION_BILLING_FAILURE_MESSAGE, {
+      reservation_mode: false,
+      debit_error_code: readErrorCode(debitError),
+      debit_error_message: debitError.message ?? null,
+    });
   }
 
   const refund = async (

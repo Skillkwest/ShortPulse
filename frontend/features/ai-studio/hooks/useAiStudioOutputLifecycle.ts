@@ -11,12 +11,18 @@ import {
   type SetStateAction,
 } from "react";
 import { normalizeErrorText } from "../../../lib/errorText";
+import { reportAppError } from "../../../lib/appErrorReporter";
 import { evaluateStaleOutputCleanup, type OutputLifecycleMap } from "../logic/staleOutputCleanup";
 import type { StudioOutput } from "../types";
 
 const STALE_LOADING_TIMEOUT_MS = 3 * 60 * 1000;
 const AUTO_FAILED_OUTPUT_REMOVAL_MS = 2 * 60 * 1000;
 const STALE_OUTPUT_SWEEP_INTERVAL_MS = 15_000;
+
+const currentRoute = (): string | null => {
+  if (typeof window === "undefined") return null;
+  return `${window.location.pathname}${window.location.search}`.slice(0, 300);
+};
 
 type UseAiStudioOutputLifecycleParams = {
   outputs: StudioOutput[];
@@ -75,6 +81,24 @@ export const useAiStudioOutputLifecycle = ({
     staleOutputLifecycleRef.current = cleanup.nextLifecycle;
 
     if (!staleLoadingSet.size && !removableSet.size) return;
+
+    for (const staleOutput of outputsSnapshot) {
+      if (!staleLoadingSet.has(staleOutput.id)) continue;
+      void reportAppError({
+        source: "generation.stale_timeout",
+        scope: "generation",
+        severity: "high",
+        message: "Generation timed out before preview was ready.",
+        route: currentRoute(),
+        metadata: {
+          output_id: staleOutput.id,
+          model: staleOutput.model,
+          model_id: staleOutput.modelId ?? null,
+          provider: staleOutput.provider ?? null,
+          task_id: staleOutput.taskId ?? null,
+        },
+      });
+    }
 
     setOutputs((prev) => {
       let changed = false;
@@ -143,6 +167,7 @@ export const useAiStudioOutputLifecycle = ({
   const notifyGenerationFailure = useCallback(
     (outputId: string, message: string, detail?: string) => {
       delete pendingAutoSavesRef.current[outputId];
+      const outputContext = findOutputById(outputId);
       const safeMessage = normalizeErrorText(message, {
         fallback: "Generation failed",
         maxLength: 140,
@@ -151,11 +176,9 @@ export const useAiStudioOutputLifecycle = ({
         fallback: safeMessage,
         maxLength: 320,
       });
-      let contextLabel: string | null = null;
       setOutputs((prev) =>
         prev.map((item) => {
           if (item.id !== outputId) return item;
-          contextLabel = item.model ?? item.modelId ?? "Generation";
           return {
             ...item,
             taskState: "fail",
@@ -167,13 +190,30 @@ export const useAiStudioOutputLifecycle = ({
           };
         })
       );
-      const label = contextLabel ?? "Generation";
+      const label = outputContext?.model ?? outputContext?.modelId ?? "Generation";
       const detailMessage = safeDetail;
       setUiError(
         detailMessage ? `${label} failed: ${detailMessage}` : `${label} failed to complete.`
       );
+      void reportAppError({
+        source: "generation.workflow_failure",
+        scope: "generation",
+        severity: "high",
+        message: safeMessage,
+        route: currentRoute(),
+        metadata: {
+          output_id: outputId,
+          detail: safeDetail,
+          model: outputContext?.model ?? null,
+          model_id: outputContext?.modelId ?? null,
+          provider: outputContext?.provider ?? null,
+          task_id: outputContext?.taskId ?? null,
+          task_state: outputContext?.taskState ?? null,
+          generation_id: outputContext?.generationId ?? null,
+        },
+      });
     },
-    [pendingAutoSavesRef, setOutputs, setUiError]
+    [findOutputById, pendingAutoSavesRef, setOutputs, setUiError]
   );
 
   const updateOutputPrompt = useCallback(

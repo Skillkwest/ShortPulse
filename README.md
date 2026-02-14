@@ -35,7 +35,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - Private tab support: run `sql/migrations/003_add_private_media_source.sql` and `sql/migrations/004_add_private_media_integrity_checks.sql` to enforce `media_files.source` values and private path/file-type integrity.
 - Billing + credits: run `sql/create_billing_credit_tables.sql` to provision plans, credit packages, billing profiles, ledger, and signup allocation triggers.
 - Legacy billing environments: run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` to add `source/source_ref/metadata/created_by` columns and compatibility triggers before using `/admin` credit adjustments.
-- App error logs: run `sql/create_app_error_logs_table.sql` to provision persistent admin-visible incident logging.
+- App error telemetry: run `sql/create_app_error_logs_table.sql` and `sql/migrations/015_add_app_error_events.sql` to provision grouped incidents plus immutable per-occurrence events.
 
 ## Manual data actions
 

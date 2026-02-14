@@ -93,8 +93,11 @@ export default function AdminDashboardPage() {
     openCount: 0,
     highSeverityOpenCount: 0,
     last24hCount: 0,
+    appOpenCount: 0,
+    generationOpenCount: 0,
   });
   const [errorStatusFilter, setErrorStatusFilter] = useState<"open" | "all">("open");
+  const [errorScopeFilter, setErrorScopeFilter] = useState<"all" | "app" | "generation">("all");
   const [errorSeverityFilter, setErrorSeverityFilter] = useState<"all" | "high" | "medium" | "low">(
     "all"
   );
@@ -187,6 +190,7 @@ export default function AdminDashboardPage() {
       params.set("page", String(errorsPage));
       params.set("limit", String(ERRORS_PER_PAGE));
       params.set("status", errorStatusFilter);
+      if (errorScopeFilter !== "all") params.set("scope", errorScopeFilter);
       if (errorSeverityFilter !== "all") params.set("severity", errorSeverityFilter);
       if (errorSourceFilter !== "all") params.set("source", errorSourceFilter);
       if (debouncedErrorSearch.trim()) params.set("search", debouncedErrorSearch.trim());
@@ -254,6 +258,8 @@ export default function AdminDashboardPage() {
         openCount: Number(data.summary?.openCount ?? 0),
         highSeverityOpenCount: Number(data.summary?.highSeverityOpenCount ?? 0),
         last24hCount: Number(data.summary?.last24hCount ?? 0),
+        appOpenCount: Number(data.summary?.appOpenCount ?? 0),
+        generationOpenCount: Number(data.summary?.generationOpenCount ?? 0),
       });
       setErrorsPagination({
         page: resolvedPage,
@@ -271,7 +277,14 @@ export default function AdminDashboardPage() {
     } finally {
       setErrorsLoading(false);
     }
-  }, [debouncedErrorSearch, errorSeverityFilter, errorSourceFilter, errorStatusFilter, errorsPage]);
+  }, [
+    debouncedErrorSearch,
+    errorScopeFilter,
+    errorSeverityFilter,
+    errorSourceFilter,
+    errorStatusFilter,
+    errorsPage,
+  ]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedUserSearch(userSearch), SEARCH_DEBOUNCE_MS);
@@ -697,6 +710,7 @@ export default function AdminDashboardPage() {
             errorsError={errorsError}
             errorSummary={errorSummary}
             errorStatusFilter={errorStatusFilter}
+            errorScopeFilter={errorScopeFilter}
             errorSeverityFilter={errorSeverityFilter}
             errorSourceFilter={errorSourceFilter}
             errorSearch={errorSearch}
@@ -704,6 +718,10 @@ export default function AdminDashboardPage() {
             statusUpdatingErrorId={errorStatusUpdatingId}
             onErrorStatusFilterChange={(value) => {
               setErrorStatusFilter(value);
+              setErrorsPage(1);
+            }}
+            onErrorScopeFilterChange={(value) => {
+              setErrorScopeFilter(value);
               setErrorsPage(1);
             }}
             onErrorSeverityFilterChange={(value) => {

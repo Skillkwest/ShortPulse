@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
 import { getModelConfig } from "../../../features/ai-studio/logic/pricing";
+import { logGenerationFailure } from "../../../lib/server/api/appErrorLogs";
 
 const KEI_BASE_URL = "https://api.kie.ai/api/v1";
 
@@ -32,12 +33,20 @@ const readTaskId = (payload: Record<string, unknown>): string | null => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const routeLabel = "kei/create-task";
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   const apiKey = getKey();
   if (!apiKey) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.kei_create_task.config_missing",
+      message: "KEI_API_KEY is not set on the server",
+      statusCode: 500,
+    });
     return res.status(500).json({ error: "KEI_API_KEY is not set on the server" });
   }
 
@@ -45,9 +54,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
   const modelId = typeof payload.model === "string" ? payload.model.trim() : "";
   if (!modelId) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.kei_create_task.validation_failed",
+      message: "model is required",
+      statusCode: 400,
+    });
     return res.status(400).json({ error: "model is required" });
   }
   if (!getModelConfig(modelId)) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.kei_create_task.validation_failed",
+      message: `Unsupported model '${modelId}' for billed generation.`,
+      statusCode: 400,
+      metadata: { model_id: modelId },
+    });
     return res.status(400).json({ error: `Unsupported model '${modelId}' for billed generation.` });
   }
   const pricingPayload =
@@ -85,6 +109,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         upstream_status: upstream.status,
         upstream_error: data,
       });
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.kei_create_task.upstream_error",
+        message:
+          (typeof data.error === "string" && data.error) ||
+          (typeof data.message === "string" && data.message) ||
+          "Kie.ai createTask rejected",
+        statusCode: upstream.status,
+        userId: charge.userId,
+        metadata: {
+          model_id: modelId,
+          upstream_payload: data,
+        },
+      });
     } else {
       const taskId = readTaskId(data);
       if (taskId) {
@@ -99,6 +138,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error) {
     await charge.refund("Auto-refund: Kie.ai createTask transport failure.", {
       error: String(error),
+    });
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.kei_create_task.transport_error",
+      message: "Kie.ai createTask failed",
+      statusCode: 500,
+      stack: error instanceof Error ? (error.stack ?? null) : null,
+      userId: charge.userId,
+      metadata: {
+        model_id: modelId,
+        detail: String(error),
+      },
     });
     return res.status(500).json({ error: "Kie.ai createTask failed", detail: String(error) });
   } finally {

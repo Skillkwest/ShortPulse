@@ -18,12 +18,14 @@ type ErrorIncidentsPanelProps = {
   errorsError: string | null;
   errorSummary: AdminErrorSummary;
   errorStatusFilter: "open" | "all";
+  errorScopeFilter: "all" | "app" | "generation";
   errorSeverityFilter: "all" | "high" | "medium" | "low";
   errorSourceFilter: string;
   errorSearch: string;
   errorPagination: AdminPagination;
   statusUpdatingErrorId: string | null;
   onErrorStatusFilterChange: (value: "open" | "all") => void;
+  onErrorScopeFilterChange: (value: "all" | "app" | "generation") => void;
   onErrorSeverityFilterChange: (value: "all" | "high" | "medium" | "low") => void;
   onErrorSourceFilterChange: (value: string) => void;
   onErrorSearchChange: (value: string) => void;
@@ -154,12 +156,14 @@ export function ErrorIncidentsPanel({
   errorsError,
   errorSummary,
   errorStatusFilter,
+  errorScopeFilter,
   errorSeverityFilter,
   errorSourceFilter,
   errorSearch,
   errorPagination,
   statusUpdatingErrorId,
   onErrorStatusFilterChange,
+  onErrorScopeFilterChange,
   onErrorSeverityFilterChange,
   onErrorSourceFilterChange,
   onErrorSearchChange,
@@ -216,7 +220,9 @@ export function ErrorIncidentsPanel({
             <WarningCircle size={18} />
           </div>
           <p className={styles.adminMetric}>{errorSummary.openCount}</p>
-          <p className={styles.adminSubtext}>Grouped unresolved fingerprints</p>
+          <p className={styles.adminSubtext}>
+            {`App ${errorSummary.appOpenCount} · Generation ${errorSummary.generationOpenCount}`}
+          </p>
         </div>
         <div className={styles.adminCard}>
           <div className={styles.adminCardTop}>
@@ -242,6 +248,18 @@ export function ErrorIncidentsPanel({
         >
           <option value="open">Status: Open</option>
           <option value="all">Status: All</option>
+        </select>
+
+        <select
+          className={styles.searchInput}
+          value={errorScopeFilter}
+          onChange={(event) =>
+            onErrorScopeFilterChange(event.target.value as "all" | "app" | "generation")
+          }
+        >
+          <option value="all">Scope: All</option>
+          <option value="app">Scope: App</option>
+          <option value="generation">Scope: Generation</option>
         </select>
 
         <select
@@ -355,7 +373,10 @@ export function ErrorIncidentsPanel({
               >
                 {row.severity}
               </span>
-              <span>{sourceLabel(row.source)}</span>
+              <div className={styles.errorCell}>
+                <span>{sourceLabel(row.source)}</span>
+                <span className="tiny subdued">{`Scope ${row.scope}`}</span>
+              </div>
               <div className={styles.errorCell}>
                 <span>{row.userEmail ?? "Unknown user"}</span>
                 <span className="tiny subdued">{row.userId ?? "No user id"}</span>

@@ -1,8 +1,14 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useRef, useState } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioOutputLifecycle } from "../useAiStudioOutputLifecycle";
+
+const reportAppErrorMock = vi.fn();
+
+vi.mock("../../../../lib/appErrorReporter", () => ({
+  reportAppError: (...args: unknown[]) => reportAppErrorMock(...args),
+}));
 
 const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id,
@@ -43,6 +49,10 @@ const useHarness = (initialOutputs: StudioOutput[], initialActiveOutputId: strin
 };
 
 describe("useAiStudioOutputLifecycle", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("normalizes failure output state and emits a UI error", () => {
     const { result } = renderHook(() =>
       useHarness([makeOutput("out-1", { taskState: "running" })], "out-1")
@@ -58,6 +68,13 @@ describe("useAiStudioOutputLifecycle", () => {
     expect(result.current.outputs[0]?.errorDetail).toBe("Detailed reason");
     expect(result.current.uiError).toContain("failed");
     expect(result.current.pendingAutoSavesRef.current["out-1"]).toBeUndefined();
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "generation.workflow_failure",
+        scope: "generation",
+        message: "Provider failure",
+      })
+    );
   });
 
   it("updates prompts with trimmed text and ignores empty updates", () => {

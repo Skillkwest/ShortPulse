@@ -3,9 +3,9 @@
 Purpose: define how runtime incidents are captured, triaged, and resolved.
 
 ## Signals in place
-- Client runtime and network failures are captured and sent to `/api/log/client-error`.
+- Client runtime, API/network, and generation workflow failures are captured and sent to `/api/log/client-error`.
 - API/server-side incidents can be written through `frontend/lib/server/api/appErrorLogs.ts`.
-- Operator review surface: `/admin` incident panels backed by `app_error_logs`.
+- Operator review surface: `/admin` incident panels backed by `app_error_logs` (grouped) and `app_error_events` (per occurrence).
 
 ## Severity model
 - `low`: recoverable UI issues with clear user fallback.

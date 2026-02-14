@@ -25,8 +25,6 @@ export type ClientAppErrorEvent = {
 };
 
 const MAX_MESSAGE_LENGTH = 600;
-const THROTTLE_WINDOW_MS = 30_000;
-const recentFingerprints = new Map<string, number>();
 let listenersInstalled = false;
 
 const normalizeText = (value: unknown, maxLength = MAX_MESSAGE_LENGTH): string | null => {
@@ -126,52 +124,31 @@ const isFastRefreshNoise = (event: ClientAppErrorEvent): boolean => {
 
 const shouldSkip = (event: ClientAppErrorEvent): boolean => {
   const scope = event.scope ?? "app";
-  if (scope !== "app") return true;
-
   if (isFastRefreshNoise(event)) return true;
 
   const message = normalizeText(event.message) ?? "Unknown runtime error";
   const endpoint = endpointPath(event.endpoint);
   if (endpoint?.includes("/api/log/client-error")) return true;
 
+  if (typeof event.statusCode === "number" && Number.isFinite(event.statusCode)) {
+    const statusCode = event.statusCode;
+    if (scope === "app" && statusCode < 400) {
+      return true;
+    }
+    if (scope === "generation" && statusCode < 400) {
+      return true;
+    }
+  }
+
   if (
-    typeof event.statusCode === "number" &&
-    Number.isFinite(event.statusCode) &&
-    event.statusCode < 500
+    scope === "app" &&
+    event.source === "client.api_network" &&
+    /aborterror|aborted/i.test(message)
   ) {
     return true;
   }
 
-  if (event.source === "client.api_network" && /aborterror|aborted/i.test(message)) {
-    return true;
-  }
-
   return false;
-};
-
-const buildFingerprint = (event: ClientAppErrorEvent): string => {
-  const scope = event.scope ?? "app";
-  const endpoint = endpointPath(event.endpoint) ?? "";
-  const route = normalizeText(event.route) ?? currentRoute() ?? "";
-  const message = normalizeText(event.message) ?? "unknown";
-  const stackLine = normalizeText(event.stack ?? "", 300)?.split("\n")[0] ?? "";
-  return [
-    event.source,
-    scope,
-    endpoint,
-    route,
-    message,
-    stackLine,
-    String(event.statusCode ?? ""),
-  ].join("|");
-};
-
-const throttleDuplicate = (fingerprint: string): boolean => {
-  const now = Date.now();
-  const previous = recentFingerprints.get(fingerprint);
-  recentFingerprints.set(fingerprint, now);
-  if (!previous) return false;
-  return now - previous < THROTTLE_WINDOW_MS;
 };
 
 const resolveClientReleaseMetadata = (): JsonObject => ({
@@ -257,13 +234,11 @@ const reportToApi = async (event: ClientAppErrorEvent): Promise<void> => {
 };
 
 /**
- * Reports one client-side app error if it is actionable and not recently duplicated.
+ * Reports one client-side app error event when it is actionable.
  */
 export const reportAppError = async (event: ClientAppErrorEvent): Promise<void> => {
   try {
     if (shouldSkip(event)) return;
-    const fingerprint = buildFingerprint(event);
-    if (throttleDuplicate(fingerprint)) return;
     await reportToApi(event);
   } catch {
     // Best-effort telemetry only.

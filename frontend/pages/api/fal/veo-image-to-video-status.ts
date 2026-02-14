@@ -4,6 +4,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
+import { logGenerationFailure } from "../../../lib/server/api/appErrorLogs";
 import {
   captureSucceededGenerationByProviderRequest,
   resolveProviderRequestOwnership,
@@ -82,6 +83,7 @@ const respondError = (res: NextApiResponse, requestId: string, error: string, de
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const routeLabel = "fal-veo-image-to-video-status";
   const method = (req.method || "GET").toUpperCase();
   res.setHeader("X-ShortPulse-Route", "fal-veo-image-to-video-status");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -92,6 +94,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const apiKey = process.env.FAL_KEY;
   if (!apiKey) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.fal_status.config_missing",
+      message: "FAL_KEY is not set on the server",
+      statusCode: 500,
+    });
     return res.status(500).json({ error: "FAL_KEY is not set on the server" });
   }
 
@@ -102,6 +111,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     (Array.isArray(req.query.requestId) ? req.query.requestId[0] : req.query.requestId) ??
     req.body?.requestId;
   if (!requestId || typeof requestId !== "string") {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.fal_status.validation_failed",
+      message: "Missing requestId",
+      statusCode: 400,
+      userId: user.id,
+      userEmail: user.email ?? null,
+    });
     return res.status(400).json({ error: "Missing requestId" });
   }
   const ownership = await resolveProviderRequestOwnership({
@@ -109,8 +127,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     providerRequestId: requestId,
   });
   if (ownership !== "owned") {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.fal_status.ownership_forbidden",
+      message: "Forbidden",
+      statusCode: 403,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        provider_request_id: requestId,
+        ownership,
+      },
+    });
     return res.status(403).json({ error: "Forbidden" });
   }
+
+  const respondAndLogError = async (
+    requestIdValue: string,
+    errorMessage: string,
+    detail: unknown,
+    statusCode: number,
+    source: string,
+    stage: "status" | "result"
+  ) => {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source,
+      message: errorMessage,
+      statusCode,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        provider_request_id: requestIdValue,
+        stage,
+        detail,
+      },
+    });
+    return respondError(res, requestIdValue, errorMessage, detail);
+  };
 
   const controller = new AbortController();
   // Veo status calls can take time to materialize; give them breathing room.
@@ -138,11 +194,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           malformed: true,
         },
       });
-      return respondError(
-        res,
+      return respondAndLogError(
         requestId,
         "Fal Veo image-to-video returned non-JSON response",
-        text.substring(0, 500)
+        text.substring(0, 500),
+        500,
+        "api.fal_status.status_non_json",
+        "status"
       );
     }
 
@@ -174,11 +232,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               payload: statusJson,
             },
           });
-          return respondError(
-            res,
+          return respondAndLogError(
             requestId,
             policyMessage || "Content policy violation",
-            policyMessage
+            policyMessage,
+            422,
+            "api.fal_status.content_policy",
+            "status"
           );
         }
       }
@@ -195,11 +255,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           payload: statusJson,
         },
       });
-      return respondError(
-        res,
+      return respondAndLogError(
         requestId,
         String(statusJson?.error || statusJson?.message || "Generation failed"),
-        statusJson
+        statusJson,
+        statusResp.status,
+        "api.fal_status.status_upstream_non_ok",
+        "status"
       );
     }
 
@@ -222,8 +284,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           payload: statusJson,
         },
       });
-      return respondError(
-        res,
+      return respondAndLogError(
         requestId,
         String(
           statusJson?.error ||
@@ -231,7 +292,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             statusJson?.statusMessage ||
             "Generation failed"
         ),
-        statusJson
+        statusJson,
+        422,
+        "api.fal_status.status_failed",
+        "status"
       );
     }
 
@@ -290,15 +354,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           payload: resultResp.json,
         },
       });
-      return respondError(
-        res,
+      return respondAndLogError(
         requestId,
         String(
           toRecord(resultResp.json).error ||
             toRecord(resultResp.json).message ||
             "Generation failed"
         ),
-        resultResp.json
+        resultResp.json,
+        502,
+        "api.fal_status.result_missing_media",
+        "result"
       );
     }
 
@@ -334,7 +400,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         transport_error: String(error),
       },
     });
-    return respondError(res, requestId, "Fal Veo image-to-video status failed", String(error));
+    return respondAndLogError(
+      requestId,
+      "Fal Veo image-to-video status failed",
+      String(error),
+      500,
+      "api.fal_status.transport_error",
+      "status"
+    );
   } finally {
     clearTimeout(timeoutId);
   }

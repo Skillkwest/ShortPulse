@@ -180,6 +180,8 @@ export default function AiStudioPage() {
     onReferenceOutputMediaLoaded,
     retryOutputStatus,
     addAgentPromptReference,
+    addPastedPromptReference,
+    addPastedMediaReference,
   } = useAiStudioState();
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -635,6 +637,8 @@ export default function AiStudioPage() {
     handleSaveReference,
     handleDownloadReference,
     handleGenerateFromPromptReference,
+    handlePasteTextReference: addPastedPromptReference,
+    handlePasteMediaReference: addPastedMediaReference,
     retryOutputStatus,
     deleteOutput,
     currentCostCredits,

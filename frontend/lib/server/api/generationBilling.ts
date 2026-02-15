@@ -85,6 +85,12 @@ export const chargeGenerationRequest = async ({
     route: req.url ?? null,
     params: summarizePayload(payload),
     pricing_params: pricingParams,
+    pricing_breakdown: {
+      usd_raw: breakdown.usdRaw,
+      raw_credits: breakdown.rawCredits,
+      billed_credits: breakdown.credits,
+      billed_usd: breakdown.usd,
+    },
     debited_credits: breakdown.credits,
   };
   const respondChargeFailure = async (

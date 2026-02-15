@@ -88,3 +88,21 @@ export type AdminPagination = {
   hasNextPage: boolean;
   hasPrevPage: boolean;
 };
+
+export type AdminCreditPricingBreakdown = {
+  usdRaw: number | null;
+  rawCredits: number | null;
+  billedCredits: number | null;
+  billedUsd: number | null;
+};
+
+export type AdminCreditLedgerRow = {
+  id: string;
+  userId: string;
+  changeCents: number;
+  reason: string;
+  source: string;
+  sourceRef: string | null;
+  pricingBreakdown: AdminCreditPricingBreakdown | null;
+  createdAt: string | null;
+};

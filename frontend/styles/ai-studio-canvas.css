@@ -4,9 +4,10 @@
  */
 .reference-canvas-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--reference-grid-columns, 5), minmax(0, 1fr));
   gap: 3px;
   width: 100%;
+  min-height: 100%;
   align-content: start;
   padding-left: 8px;
 }
@@ -51,7 +52,7 @@
 }
 
 .reference-canvas-grid--wide {
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  --reference-grid-columns: 8;
 }
 
 .reference-canvas-scroll {
@@ -62,10 +63,13 @@
   min-height: 0;
   max-height: none;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 205, 214, 0.2) transparent;
 }
 
 .reference-canvas-scroll::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 .reference-canvas-scroll::-webkit-scrollbar-track {
@@ -73,12 +77,12 @@
 }
 
 .reference-canvas-scroll::-webkit-scrollbar-thumb {
-  background: rgba(201, 205, 214, 0.25);
+  background: rgba(201, 205, 214, 0.2);
   border-radius: 999px;
 }
 
 .reference-canvas-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(201, 205, 214, 0.4);
+  background: rgba(201, 205, 214, 0.32);
 }
 
 .reference-empty {
@@ -86,6 +90,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-height: 100%;
   padding: 20px 12px;
   text-align: center;
   align-items: center;
@@ -223,6 +228,7 @@
 }
 
 .reference-canvas-panel .reference-card .reference-prompt-generate-pill.agent-generate-prefab {
+  bottom: 24px;
   border: 1px solid var(--reference-generate-border);
   background: linear-gradient(
     135deg,
@@ -256,6 +262,21 @@
   .generate-pill
   .model-chip-credits-label {
   color: var(--reference-generate-text);
+}
+
+.reference-card .reference-prompt-generate-note {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  color: var(--ai-card-text-muted);
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .reference-card .reference-generate-pill.agent-generate-prefab .agent-generate-label {
@@ -292,6 +313,10 @@
 .reference-card.is-active .reference-generate-pill {
   opacity: 1;
   pointer-events: auto;
+}
+
+.reference-card.is-active .reference-prompt-generate-note {
+  opacity: 1;
 }
 
 .reference-card .reference-generate-pill:focus-visible {
@@ -665,7 +690,8 @@
 
 .reference-column {
   display: flex;
-  justify-content: center;
+  justify-content: stretch;
+  width: 100%;
 }
 
 .preview-copy {

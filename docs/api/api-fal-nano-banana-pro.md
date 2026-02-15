@@ -66,9 +66,9 @@ Sample response:
 ```
 
 ## Pricing (ShortPulse)
-- Provider rate: **$0.15 per image** → `credits = ceil(0.15 / 0.01) = 15`.
-- 4K renders double to $0.30 (30 credits), and `enable_web_search` adds $0.015 (1.5 credits) when the flag is enabled.
-- We charge the same as before, so all existing pricing calculations remain unchanged.
+- Provider rate: **$0.15 per image**.
+- Conversion: `rawCredits = ceil(usd / 0.01)`, billed credits `= ceil(rawCredits / 5) * 5`.
+- Current outcomes: 1K/2K = 15 credits, 4K = 30 credits, and enabling `enable_web_search` adds $0.015 then rounds to the next 5-credit step.
 
 ## Defaults we ship
 - `num_images`: 1.

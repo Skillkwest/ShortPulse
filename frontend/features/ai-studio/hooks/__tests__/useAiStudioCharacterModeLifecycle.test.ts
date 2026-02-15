@@ -134,7 +134,7 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     );
   });
 
-  it("enforces and restores create model while character mode toggles", async () => {
+  it("enforces create model and clears selection when character mode toggles off", async () => {
     const setModel = vi.fn();
     listCharacterManagerCharactersMock.mockResolvedValue([]);
     const base = createParams({
@@ -168,6 +168,25 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     });
 
     expect(setModel).toHaveBeenNthCalledWith(1, "fal-ai/bytedance/seedream/v4.5/edit");
-    expect(setModel).toHaveBeenNthCalledWith(2, "fal-ai/other-model");
+    expect(setModel).toHaveBeenNthCalledWith(2, null);
+  });
+
+  it("does not clear model when character mode is off and a non-forced model is selected", async () => {
+    const setModel = vi.fn();
+    listCharacterManagerCharactersMock.mockResolvedValue([]);
+    const params = createParams({
+      setModel: asDispatch<string | null>(setModel),
+      selectedTool: "create",
+      isCharacterModeEnabled: false,
+      model: "fal-ai/other-model",
+    });
+
+    renderHook(() => useAiStudioCharacterModeLifecycle(params));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(setModel).not.toHaveBeenCalled();
   });
 });

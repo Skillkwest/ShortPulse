@@ -37,6 +37,8 @@ const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const DRAG_GHOST_SCALE = 0.74;
+const CHARACTER_SHEET_FULL_NOTICE = "Click and drag a reference from your drop references.";
+const CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY = "shortpulse.character_manager.beginner_mode";
 
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: PROFILE_ZOOM_MIN,
@@ -125,6 +127,10 @@ export function CharacterManagerShell() {
     index: number;
     aspectRatio: number;
   } | null>(null);
+  const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
+    useState<CharacterSheetDropZoneKey | null>(null);
+  const [characterSheetUploadNotice, setCharacterSheetUploadNotice] = useState<string | null>(null);
+  const [beginnerMode, setBeginnerMode] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
     null
@@ -132,6 +138,7 @@ export function CharacterManagerShell() {
   const characterNameInputRef = useRef<HTMLInputElement | null>(null);
   const profileFileInputRef = useRef<HTMLInputElement | null>(null);
   const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
+  const characterSheetFileInputRef = useRef<HTMLInputElement | null>(null);
   const dragGhostMapRef = useRef(new Map<HTMLElement, HTMLElement>());
   const pageBusy =
     loading ||
@@ -205,6 +212,8 @@ export function CharacterManagerShell() {
         ),
     [simpleReferenceSlotKeys, slots]
   );
+  const totalReferenceSlotCount = simpleReferenceSlotKeys.length;
+  const usedReferenceSlotCount = uploadedReferenceEntries.length;
   const remainingReferenceSlotCount = Math.max(
     0,
     SIMPLE_REFERENCE_IMAGE_LIMIT - uploadedReferenceEntries.length
@@ -229,6 +238,18 @@ export function CharacterManagerShell() {
     }
     return next;
   }, [characterSheetAssignmentsUi, uploadedReferenceBySlotKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY);
+    if (stored == null) return;
+    setBeginnerMode(stored === "true");
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY, String(beginnerMode));
+  }, [beginnerMode]);
 
   useEffect(() => {
     let active = true;
@@ -363,6 +384,21 @@ export function CharacterManagerShell() {
     [uploadSimpleFiles]
   );
 
+  const openCharacterSheetPicker = useCallback(
+    (dropZoneKey: CharacterSheetDropZoneKey) => {
+      if (pageBusy) return;
+      clearMessages();
+      if (!availableReferenceSlotKeys.length) {
+        setCharacterSheetUploadNotice(CHARACTER_SHEET_FULL_NOTICE);
+        return;
+      }
+      setCharacterSheetUploadNotice(null);
+      setPendingCharacterSheetUploadZoneKey(dropZoneKey);
+      characterSheetFileInputRef.current?.click();
+    },
+    [availableReferenceSlotKeys.length, clearMessages, pageBusy]
+  );
+
   const openProfilePicker = useCallback(() => {
     if (pageBusy) return;
     if (profileImageUrl && !isProfileAdjusterVisible) {
@@ -495,6 +531,36 @@ export function CharacterManagerShell() {
       persistCharacterSheetAssignments(nextAssignments);
     },
     [effectiveCharacterSheetAssignments, persistCharacterSheetAssignments, selectedCharacterId]
+  );
+
+  const handleCharacterSheetFileSelection = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0] ?? null;
+      event.target.value = "";
+      const targetDropZone = pendingCharacterSheetUploadZoneKey;
+      setPendingCharacterSheetUploadZoneKey(null);
+
+      if (!file || !targetDropZone || pageBusy) return;
+      const targetSlotKey = availableReferenceSlotKeys[0];
+      if (!targetSlotKey) {
+        setCharacterSheetUploadNotice(CHARACTER_SHEET_FULL_NOTICE);
+        return;
+      }
+
+      setCharacterSheetUploadNotice(null);
+      void (async () => {
+        const didSave = await setSlotFile(targetSlotKey, file);
+        if (!didSave) return;
+        assignReferenceToCharacterSheetSlot(targetDropZone, targetSlotKey);
+      })();
+    },
+    [
+      assignReferenceToCharacterSheetSlot,
+      availableReferenceSlotKeys,
+      pageBusy,
+      pendingCharacterSheetUploadZoneKey,
+      setSlotFile,
+    ]
   );
 
   const clearReferenceAssignmentsFromCharacterSheet = useCallback(
@@ -664,6 +730,26 @@ export function CharacterManagerShell() {
     ]
   );
 
+  const handleCharacterSheetCardClick = useCallback(
+    (dropZoneKey: CharacterSheetDropZoneKey) => () => {
+      if (pageBusy) return;
+      const assignedSlotKey = effectiveCharacterSheetAssignments[dropZoneKey];
+      if (assignedSlotKey) return;
+      openCharacterSheetPicker(dropZoneKey);
+    },
+    [effectiveCharacterSheetAssignments, openCharacterSheetPicker, pageBusy]
+  );
+
+  useEffect(() => {
+    if (!characterSheetUploadNotice) return;
+    const timeoutId = window.setTimeout(() => {
+      setCharacterSheetUploadNotice(null);
+    }, 4200);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [characterSheetUploadNotice]);
+
   useEffect(() => {
     if (!referencePreview) return;
     const handleModalKeyboardShortcuts = (event: KeyboardEvent) => {
@@ -689,7 +775,11 @@ export function CharacterManagerShell() {
   }, [closeReferencePreview, navigateReferencePreview, referencePreview]);
 
   return (
-    <main id="main-content" className="page page-wide character-manager-page">
+    <main
+      id="main-content"
+      className="page page-wide character-manager-page"
+      data-beginner-mode={beginnerMode ? "on" : "off"}
+    >
       <section className="panel saved-header-bar saved-hero hero-image-card character-manager-hero">
         <div className="saved-header-left">
           <div className="saved-title-stack">
@@ -753,26 +843,51 @@ export function CharacterManagerShell() {
               Manage Characters
             </button>
           </div>
-          <button
-            type="button"
-            className="character-mode-create-btn"
-            onClick={handleCreateNewCharacter}
-            disabled={isCreatingCharacter || loading}
-          >
-            {isCreatingCharacter ? (
-              "Creating..."
-            ) : (
-              <>
-                <Plus
-                  size={14}
-                  weight="bold"
-                  className="character-mode-create-btn-icon"
-                  aria-hidden
-                />
-                <span>Create New Character</span>
-              </>
-            )}
-          </button>
+          <div className="toolbar-beginner-toggle character-mode-beginner-toggle">
+            <div className="toolbar-beginner-copy">
+              <span className="toolbar-label">Beginner mode</span>
+            </div>
+            <button
+              type="button"
+              className={`reference-toggle beginner-toggle ${beginnerMode ? "is-active" : ""}`}
+              aria-pressed={beginnerMode}
+              aria-label={beginnerMode ? "Disable beginner mode" : "Enable beginner mode"}
+              onClick={() => setBeginnerMode((current) => !current)}
+            >
+              <span className="reference-toggle-track" aria-hidden="true">
+                <span className="reference-toggle-dot" />
+              </span>
+            </button>
+          </div>
+          {activeTab === "create" && beginnerMode ? (
+            <p className="character-mode-guidance" role="note">
+              <span className="character-mode-guidance-label">Tip:</span>
+              Swap out your character&apos;s style on the fly by dragging and dropping references
+              from the reference panel.
+            </p>
+          ) : null}
+          {activeTab === "manage" ? (
+            <button
+              type="button"
+              className="character-mode-create-btn"
+              onClick={handleCreateNewCharacter}
+              disabled={isCreatingCharacter || loading}
+            >
+              {isCreatingCharacter ? (
+                "Creating..."
+              ) : (
+                <>
+                  <Plus
+                    size={14}
+                    weight="bold"
+                    className="character-mode-create-btn-icon"
+                    aria-hidden
+                  />
+                  <span>Create New Character</span>
+                </>
+              )}
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -780,6 +895,12 @@ export function CharacterManagerShell() {
         <div className="character-feedback error" role="status">
           <XCircle size={16} weight="fill" />
           <span>{error}</span>
+        </div>
+      ) : null}
+      {characterSheetUploadNotice ? (
+        <div className="character-feedback notice" role="status">
+          <UploadSimple size={16} weight="bold" />
+          <span>{characterSheetUploadNotice}</span>
         </div>
       ) : null}
       {isSavingName ? (
@@ -794,11 +915,20 @@ export function CharacterManagerShell() {
             <div className="character-create-primary-column">
               <section className="character-section character-section--profile">
                 <div className="character-section-head">
-                  <div>
-                    <h3 className="character-section-title">Identity</h3>
-                    <p className="character-section-helper tiny subdued">
-                      Define the profile photo and core traits for this character.
-                    </p>
+                  <div className="character-section-title-row">
+                    {beginnerMode ? (
+                      <span className="character-step-badge" aria-hidden="true">
+                        1
+                      </span>
+                    ) : null}
+                    <div className="character-section-title-copy">
+                      <h3 className="character-section-title">Identity</h3>
+                      {beginnerMode ? (
+                        <p className="character-section-helper tiny subdued">
+                          Set the photo, name, and description that define this character.
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
 
@@ -986,9 +1116,11 @@ export function CharacterManagerShell() {
                         disabled={loading}
                       />
                       <div className="character-description-footer-row">
-                        <p className="character-description-helper tiny subdued">
-                          This will be used as part of character consistency generation.
-                        </p>
+                        {beginnerMode ? (
+                          <p className="character-description-helper tiny subdued">
+                            Tip: This will be used as part of character consistency generation.
+                          </p>
+                        ) : null}
                         <p className="character-description-count tiny subdued">
                           {characterDescription.length}/{CHARACTER_DESCRIPTION_MAX_LENGTH}
                         </p>
@@ -1000,12 +1132,27 @@ export function CharacterManagerShell() {
 
               <section className="character-section character-section--reference-drop">
                 <div className="character-section-head">
-                  <div>
-                    <h3 className="character-section-title">Drop References</h3>
-                    <p className="character-section-helper tiny subdued">
-                      Upload shot references here to fill your active working set.
-                    </p>
+                  <div className="character-section-title-row">
+                    {beginnerMode ? (
+                      <span className="character-step-badge" aria-hidden="true">
+                        2
+                      </span>
+                    ) : null}
+                    <div className="character-section-title-copy">
+                      <h3 className="character-section-title">Drop References</h3>
+                      {beginnerMode ? (
+                        <p className="character-section-helper tiny subdued">
+                          Upload clear reference shots to build this character&apos;s source set.
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
+                  <p
+                    className="character-reference-slot-counter tiny subdued"
+                    aria-label={`Reference slots used: ${usedReferenceSlotCount} of ${totalReferenceSlotCount}`}
+                  >
+                    {usedReferenceSlotCount}/{totalReferenceSlotCount} slots used
+                  </p>
                 </div>
 
                 {availableReferenceSlotKeys.length ? (
@@ -1101,11 +1248,21 @@ export function CharacterManagerShell() {
 
             <section className="character-section character-section--references">
               <div className="character-section-head">
-                <div>
-                  <h3 className="character-section-title">Character Sheet</h3>
-                  <p className="character-section-helper tiny subdued">
-                    Follow this shot guide to keep your reference angles consistent.
-                  </p>
+                <div className="character-section-title-row">
+                  {beginnerMode ? (
+                    <span className="character-step-badge" aria-hidden="true">
+                      3
+                    </span>
+                  ) : null}
+                  <div className="character-section-title-copy">
+                    <h3 className="character-section-title">Character Sheet</h3>
+                    {beginnerMode ? (
+                      <p className="character-section-helper tiny subdued">
+                        Drag uploaded references into each slot to map your character&apos;s look
+                        and style.
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               </div>
 
@@ -1120,11 +1277,12 @@ export function CharacterManagerShell() {
                     <article
                       key={dropZone.key}
                       className={`character-character-sheet-card ${
-                        assignedReference ? "is-filled" : ""
+                        assignedReference ? "is-filled" : "is-empty"
                       } ${isDropActive ? "is-drop-active" : ""} ${
                         draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
                       }`}
                       draggable={!pageBusy && Boolean(assignedReference)}
+                      onClick={handleCharacterSheetCardClick(dropZone.key)}
                       onDragStart={handleCharacterSheetDragStart(dropZone.key)}
                       onDragEnd={handleReferenceDragEnd}
                       onDragOver={handleCharacterSheetDragOver(dropZone.key)}
@@ -1353,6 +1511,15 @@ export function CharacterManagerShell() {
         accept="image/*"
         multiple
         onChange={handleSimpleFileSelection}
+        hidden
+      />
+
+      <input
+        ref={characterSheetFileInputRef}
+        data-testid="character-sheet-upload-input"
+        type="file"
+        accept="image/*"
+        onChange={handleCharacterSheetFileSelection}
         hidden
       />
     </main>

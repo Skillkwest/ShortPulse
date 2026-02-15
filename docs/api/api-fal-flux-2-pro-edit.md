@@ -54,7 +54,7 @@ Reference for integrating the FLUX 2 PRO image-to-image/edit queue (`fal-ai/flux
 
 ## Pricing (ShortPulse)
 - Same as FLUX 2 PRO text-to-image: **$0.03 for the first megapixel**, **$0.015 for each additional (rounded up) megapixel**.
-- Credits are valued at $0.01 each; `credits = ceil(usd / 0.01)` (minimum 1).
+- Credits are valued at $0.01 each with a 5-credit step: `rawCredits = ceil(usd / 0.01)`, `credits = ceil(rawCredits / 5) * 5`.
 - Aspect → size map matches text-to-image; default aspect `4:3` (1024x768 class), see `falSizeForAspect`.
 
 ## Defaults we use in AI Studio

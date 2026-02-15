@@ -51,7 +51,7 @@ curl --request GET \
 ## Pricing (ShortPulse)
 - Provider rate: **$0.03 for the first megapixel**, **$0.015 for each additional (rounded up) megapixel**.
 - Credits are valued at $0.01 each.
-- Calculation: `megapixels = (width * height) / 1_000_000`; `mpUnits = max(1, ceil(megapixels))`; `usd_raw = 0.03 + max(0, mpUnits - 1) * 0.015`; `credits = ceil(usd_raw / 0.01)` (minimum 1). Aspect → size mapping: 1:1=1024x1024, 4:3=1200x900, 3:4=900x1200, 16:9=1344x756, 9:16=756x1344.
+- Calculation: `megapixels = (width * height) / 1_000_000`; `mpUnits = max(1, ceil(megapixels))`; `usd_raw = 0.03 + max(0, mpUnits - 1) * 0.015`; `rawCredits = ceil(usd_raw / 0.01)`; `credits = ceil(rawCredits / 5) * 5`. Aspect → size mapping: 1:1=1024x1024, 4:3=1200x900, 3:4=900x1200, 16:9=1344x756, 9:16=756x1344.
 
 ## Defaults we use in AI Studio
 - Safety: `enable_safety_checker: false`, `safety_tolerance: "5"` (least restrictive available).

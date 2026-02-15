@@ -48,7 +48,9 @@
   border-radius: 12px;
   background: rgba(14, 18, 26, 0.85);
   cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
 }
 
 .reference-dropzone:hover {
@@ -276,7 +278,7 @@
   display: block;
 }
 
-@media (max-width: 1200px) and (max-device-width: 1200px) {
+@media (max-width: 1200px) {
   .character-page .studio-grid {
     grid-template-columns: 1fr;
   }

@@ -141,10 +141,10 @@ export const useAiStudioCharacterModeLifecycle = ({
       return;
     }
 
-    const previousModel = previousCreateModelBeforeCharacterModeRef.current;
+    const wasForcedByCharacterMode = previousCreateModelBeforeCharacterModeRef.current != null;
     previousCreateModelBeforeCharacterModeRef.current = null;
-    if (model === backgroundModelId && previousModel && previousModel !== backgroundModelId) {
-      setModel(previousModel);
+    if (!isCharacterModeEnabled && model === backgroundModelId && wasForcedByCharacterMode) {
+      setModel(null);
     }
   }, [backgroundModelId, isCharacterModeEnabled, model, selectedTool, setModel]);
 

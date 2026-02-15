@@ -396,6 +396,66 @@ export const useAiStudioState = () => {
     [aspect, model, setSharedPrompt]
   );
 
+  const addPastedPromptReference = useCallback(
+    (promptText: string) => {
+      const cleanedPrompt = promptText?.trim();
+      if (!cleanedPrompt) return;
+      const id = `prompt-paste-${randomId()}`;
+      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
+      const promptReference: StudioOutput = {
+        id,
+        prompt: cleanedPrompt,
+        mode: "text",
+        aspect,
+        model: placeholderModelLabel,
+        modelId: model ?? undefined,
+        status: "ready",
+        timestamp: "Clipboard",
+        previewText: cleanedPrompt,
+        saveState: "idle",
+        saveError: null,
+      };
+      setOutputs((prev) => [promptReference, ...prev]);
+    },
+    [aspect, model]
+  );
+
+  const addPastedMediaReference = useCallback(
+    (payload: { url: string; mimeType?: string | null }) => {
+      const cleanedUrl = payload.url?.trim();
+      if (!cleanedUrl) return;
+      const isVideo =
+        payload.mimeType?.startsWith("video/") || (!payload.mimeType && isVideoUrl(cleanedUrl));
+      const id = `media-paste-${randomId()}`;
+      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
+      const parsedFilename = (() => {
+        if (/^data:/i.test(cleanedUrl)) return null;
+        try {
+          const path = new URL(cleanedUrl).pathname;
+          const segment = path.split("/").pop();
+          return segment ? decodeURIComponent(segment) : null;
+        } catch {
+          return null;
+        }
+      })();
+      const nextOutput: StudioOutput = {
+        id,
+        prompt: parsedFilename ?? (isVideo ? "Pasted video" : "Pasted image"),
+        mode: isVideo ? "video" : "image",
+        aspect,
+        model: placeholderModelLabel,
+        modelId: model ?? undefined,
+        status: "ready",
+        timestamp: "Clipboard",
+        previewUrl: cleanedUrl,
+        saveState: "idle",
+        saveError: null,
+      };
+      setOutputs((prev) => [nextOutput, ...prev]);
+    },
+    [aspect, model]
+  );
+
   const addLibraryMediaReference = useCallback(
     (payload: {
       id: string;
@@ -619,6 +679,8 @@ export const useAiStudioState = () => {
     saveReferenceToLibrary,
     savePromptReference,
     addAgentPromptReference,
+    addPastedPromptReference,
+    addPastedMediaReference,
     addLibraryMediaReference,
     addLibraryPromptReference,
     addOutputsFromFiles,

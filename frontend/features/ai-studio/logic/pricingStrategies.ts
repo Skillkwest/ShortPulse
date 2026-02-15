@@ -44,6 +44,39 @@ const SEEDANCE_RESOLUTION_MAP = {
 
 type StrategyFn = (params: PricingParams) => CostBreakdown | null;
 
+const quantizeCreditsFromUsd = (usdRaw: number) => {
+  const rawCredits = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
+  const credits = roundCreditsToNearest5(rawCredits);
+  return {
+    rawCredits,
+    credits,
+    billedUsd: credits * CREDIT_VALUE_USD,
+  };
+};
+
+const toCostBreakdown = ({
+  usdRaw,
+  megapixels,
+  width,
+  height,
+}: {
+  usdRaw: number;
+  megapixels: number;
+  width: number;
+  height: number;
+}): CostBreakdown => {
+  const quantized = quantizeCreditsFromUsd(usdRaw);
+  return {
+    credits: quantized.credits,
+    usd: quantized.billedUsd,
+    rawCredits: quantized.rawCredits,
+    usdRaw,
+    megapixels,
+    width,
+    height,
+  };
+};
+
 const resolveDefaultDuration = (params: PricingParams, fallback: number) => {
   const config = params.modelId ? getModelConfig(params.modelId) : null;
   const configDefault = config?.defaultDurationSeconds;
@@ -64,88 +97,95 @@ const resolveDefaultAudio = (params: PricingParams, fallback: boolean) => {
   return params.audio ?? config?.defaultAudio ?? fallback;
 };
 
-const computeFalPerMpCost: StrategyFn = ({ modelId, aspect }) => {
-  const config = getModelConfig(modelId);
-  if (!config?.sizeMap) return null;
+const resolveImageSizeForMp = (params: PricingParams) => {
+  const width = Number(params.imageWidth ?? 0);
+  const height = Number(params.imageHeight ?? 0);
+  if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+    return {
+      width: Math.round(width),
+      height: Math.round(height),
+    };
+  }
 
-  const size = resolveAspectSize(aspect, config.sizeMap, config.defaultAspect);
+  const config = getModelConfig(params.modelId);
+  if (!config?.sizeMap) return null;
+  return resolveAspectSize(params.aspect, config.sizeMap, config.defaultAspect);
+};
+
+const computeFalPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
   const roundedMp = Math.ceil(megapixels);
-  const creditsRaw = Math.ceil((FAL_COST_PER_MP_USD / CREDIT_VALUE_USD) * roundedMp);
-  const credits = roundCreditsToNearest5(creditsRaw);
-  const usd = credits * CREDIT_VALUE_USD;
-
-  return { credits, usd, megapixels, width: size.width, height: size.height };
+  const usdRaw = roundedMp * FAL_COST_PER_MP_USD;
+  return toCostBreakdown({
+    usdRaw,
+    megapixels,
+    width: size.width,
+    height: size.height,
+  });
 };
 
-const computeFlux2PerMpCost: StrategyFn = ({ modelId, aspect }) => {
-  const config = getModelConfig(modelId);
-  if (!config?.sizeMap) return null;
-
-  const size = resolveAspectSize(aspect, config.sizeMap, config.defaultAspect);
+const computeFlux2PerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
   const usdRaw = megapixels * FLUX2_COST_PER_MP_USD;
-  const creditsRaw = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  const usd = credits * CREDIT_VALUE_USD;
-
-  return { credits, usd, megapixels, width: size.width, height: size.height };
+  return toCostBreakdown({
+    usdRaw,
+    megapixels,
+    width: size.width,
+    height: size.height,
+  });
 };
 
-const computeFlux2KleinPerMpCost: StrategyFn = ({ modelId, aspect }) => {
-  const config = getModelConfig(modelId);
-  if (!config?.sizeMap) return null;
-
-  const size = resolveAspectSize(aspect, config.sizeMap, config.defaultAspect);
+const computeFlux2KleinPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
   const usdRaw = megapixels * FLUX2_KLEIN_COST_PER_MP_USD;
-  const creditsRaw = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  const usd = credits * CREDIT_VALUE_USD;
-
-  return { credits, usd, megapixels, width: size.width, height: size.height };
+  return toCostBreakdown({
+    usdRaw,
+    megapixels,
+    width: size.width,
+    height: size.height,
+  });
 };
 
-const computeFlux2ProPerMpCost: StrategyFn = ({ modelId, aspect }) => {
-  const config = getModelConfig(modelId);
-  if (!config?.sizeMap) return null;
-
-  const size = resolveAspectSize(aspect, config.sizeMap, config.defaultAspect);
+const computeFlux2ProPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
   const roundedMp = Math.max(1, Math.ceil(megapixels));
   const usdRaw = FLUX2_PRO_FIRST_MP_USD + Math.max(0, roundedMp - 1) * FLUX2_PRO_ADDITIONAL_MP_USD;
-  const creditsRaw = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  const usd = credits * CREDIT_VALUE_USD;
-
-  return { credits, usd, megapixels, width: size.width, height: size.height };
+  return toCostBreakdown({
+    usdRaw,
+    megapixels,
+    width: size.width,
+    height: size.height,
+  });
 };
 
 const computeGoogleNanoBananaPerImageCost: StrategyFn = () => {
-  const usd = GOOGLE_NANO_BANANA_PER_IMAGE_USD;
-  const creditsRaw = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  return { credits, usd: credits * CREDIT_VALUE_USD, megapixels: 0, width: 0, height: 0 };
-};
-
-const computeGptImagePerImageCost: StrategyFn = () => {
-  const creditsRaw = Math.max(1, Math.ceil(GPT_IMAGE_PER_IMAGE_USD / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
+  return toCostBreakdown({
+    usdRaw: GOOGLE_NANO_BANANA_PER_IMAGE_USD,
     megapixels: 0,
     width: 0,
     height: 0,
-  };
+  });
+};
+
+const computeGptImagePerImageCost: StrategyFn = () => {
+  return toCostBreakdown({
+    usdRaw: GPT_IMAGE_PER_IMAGE_USD,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+  });
 };
 
 const computeGpt41NanoPerTokenCost: StrategyFn = ({ inputTokens = 0, outputTokens = 0 }) => {
@@ -155,46 +195,35 @@ const computeGpt41NanoPerTokenCost: StrategyFn = ({ inputTokens = 0, outputToken
   const totalUsd =
     (Math.max(0, inputTokens) / 1_000_000) * INPUT_USD_PER_M +
     (Math.max(0, outputTokens) / 1_000_000) * OUTPUT_USD_PER_M;
-  const creditsRaw = Math.max(1, Math.ceil(totalUsd / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
+  return toCostBreakdown({
+    usdRaw: totalUsd,
     megapixels: 0,
     width: 0,
     height: 0,
-  };
+  });
 };
 
 const computeSeedreamPerImageCost: StrategyFn = ({ resolution }) => {
   const baseUsd = 0.04;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;
-  const totalUsd = baseUsd * resolutionMultiplier;
-  const creditsRaw = Math.max(1, Math.ceil(totalUsd / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
+  return toCostBreakdown({
+    usdRaw: baseUsd * resolutionMultiplier,
     megapixels: 0,
     width: 0,
     height: 0,
-  };
+  });
 };
 
 const computeNanoBananaPerImageCost: StrategyFn = ({ resolution, webSearch }) => {
   const baseUsd = 0.15;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;
   const webSearchUsd = webSearch ? 0.015 : 0;
-  const totalUsd = baseUsd * resolutionMultiplier + webSearchUsd;
-  const creditsRaw = Math.max(1, Math.ceil(totalUsd / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
+  return toCostBreakdown({
+    usdRaw: baseUsd * resolutionMultiplier + webSearchUsd,
     megapixels: 0,
     width: 0,
     height: 0,
-  };
+  });
 };
 
 const computeKling3PerSecondCost: StrategyFn = (params) => {
@@ -207,15 +236,12 @@ const computeKling3PerSecondCost: StrategyFn = (params) => {
       : KLING_3_RATE_AUDIO_ON_USD_PER_SECOND
     : KLING_3_RATE_AUDIO_OFF_USD_PER_SECOND;
   const usd = usdPerSecond * duration;
-  const creditsRaw = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
+  return toCostBreakdown({
+    usdRaw: usd,
     megapixels: 0,
     width: 0,
     height: 0,
-  };
+  });
 };
 
 const computeVeoPerSecondCost: StrategyFn = (params) => {
@@ -231,15 +257,12 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
       ? VEO_AUDIO_RATE_1080P_USD_PER_SECOND
       : VEO_NO_AUDIO_RATE_1080P_USD_PER_SECOND;
   const usd = usdPerSecond * duration;
-  const creditsRaw = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
+  return toCostBreakdown({
+    usdRaw: usd,
     megapixels: 0,
     width: 0,
     height: 0,
-  };
+  });
 };
 
 const computeSora2ProPerSecondCost: StrategyFn = (params) => {
@@ -256,15 +279,12 @@ const computeSora2ProPerSecondCost: StrategyFn = (params) => {
       ? SORA2_PRO_HIGH_10S_USD_PER_SECOND
       : SORA2_PRO_HIGH_15S_USD_PER_SECOND;
   const usd = usdPerSecond * tierDuration;
-  const creditsRaw = Math.max(1, Math.ceil(usd / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
+  return toCostBreakdown({
+    usdRaw: usd,
     megapixels: 0,
     width: 0,
     height: 0,
-  };
+  });
 };
 
 const resolveSeedanceDuration = (value?: number) => {
@@ -297,16 +317,12 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
     : SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN;
   const tokens = (resolution.width * resolution.height * SEEDANCE_DEFAULT_FPS * duration) / 1024;
   const usdRaw = (tokens / 1_000_000) * ratePerMillionTokens;
-  const creditsRaw = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
-  const credits = roundCreditsToNearest5(creditsRaw);
-
-  return {
-    credits,
-    usd: credits * CREDIT_VALUE_USD,
+  return toCostBreakdown({
+    usdRaw,
     megapixels: 0,
     width: resolution.width,
     height: resolution.height,
-  };
+  });
 };
 
 export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {

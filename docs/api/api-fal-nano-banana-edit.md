@@ -44,7 +44,8 @@ Reference for integrating the Nano Banana image-to-image/edit queue (`fal-ai/nan
 - `description`: optional string summary.
 
 ## Pricing (ShortPulse)
-- Same as Nano Banana text-to-image: **$0.039 per image** → `credits = ceil(0.039 / 0.01) = 4`.
+- Same as Nano Banana text-to-image: **$0.039 per image**.
+- Conversion: `rawCredits = ceil(0.039 / 0.01) = 4`, billed credits `= ceil(4 / 5) * 5 = 5`.
 - Aspect choice does not affect cost; reference images are required for this edit model.
 
 ## Notes

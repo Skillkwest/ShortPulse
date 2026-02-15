@@ -57,7 +57,7 @@ curl --request POST \
 - Image size enum is derived from aspect (shared mapping with text-to-image).
 - Safety checker off by default (`enable_safety_checker: false`) to honor the “minimum safety” request.
 - `num_images = 1`; references are passed from the reference grid (up to 4 today, API allows 10).
-- Pricing: unchanged (`seedream-per-image` → 4 credits; 4K doubles to 8 credits).
+- Pricing: `seedream-per-image` base is $0.04; billed credits use 5-credit steps (`rawCredits = ceil(usd/0.01)`, `credits = ceil(rawCredits/5)*5`). Current outcomes: base 5 credits, 4K 10 credits.
 - Proxy routes: `/api/fal/seedream-edit-submit` (submit) and `/api/fal/seedream-status` (status/result).
 
 ## Notes

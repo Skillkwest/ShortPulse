@@ -61,8 +61,9 @@ Sample output:
 ```
 
 ## Pricing (ShortPulse)
-- Provider rate: **$0.039 per image** → `credits = ceil(0.039 / 0.01) = 4`.
-- We debit 4 credits per render regardless of aspect, matching the prior Nano Banana pricing.
+- Provider rate: **$0.039 per image**.
+- Conversion: `rawCredits = ceil(0.039 / 0.01) = 4`, billed credits `= ceil(4 / 5) * 5 = 5`.
+- We debit 5 credits per render regardless of aspect.
 
 ## Defaults we use
 - `num_images`: 1.

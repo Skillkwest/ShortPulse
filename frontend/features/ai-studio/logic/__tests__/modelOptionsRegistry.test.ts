@@ -14,4 +14,13 @@ describe("model options vs registry", () => {
       throw new Error(`Model options missing in registry: ${missing.join(", ")}`);
     }
   });
+
+  it("model options exclude KEI-backed models for MVP", () => {
+    const configById = new Map(listModelConfigs().map((cfg) => [cfg.id, cfg]));
+    const keiOptions = modelOptions.filter((option) => {
+      const config = configById.get(option.value);
+      return config?.provider === "kei" || option.value.toLowerCase().startsWith("kei/");
+    });
+    expect(keiOptions).toEqual([]);
+  });
 });

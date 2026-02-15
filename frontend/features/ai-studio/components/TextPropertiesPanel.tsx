@@ -623,6 +623,9 @@ export function ComposeSendCard({
           <span className="step-subtitle tiny helper-text">
             Run generation with the current prompt and selections.
           </span>
+          <span className="step-subtitle tiny generate-rounding-note">
+            Estimated charges are billed in 5-credit increments.
+          </span>
         </div>
       </div>
       <div className="create-controls single-control">

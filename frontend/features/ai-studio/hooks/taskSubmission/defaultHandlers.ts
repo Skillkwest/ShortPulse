@@ -1,39 +1,35 @@
 /**
- * Default submission handlers (Seedream, Nano Banana, Kei fallback) for AI Studio.
+ * Default submission handlers (Seedream + Nano Banana) for AI Studio.
  */
-import { createKeiTask } from "../../../../lib/keiClient";
 import {
   submitFalNanoBanana,
   submitFalNanoBananaPro,
   submitFalSeedream,
 } from "../../../../lib/falClient";
 import {
-  isModelDefaultImageResolution,
   isSeedreamAutoImageSize,
   normalizeNanoBananaProResolution,
 } from "../../logic/imageResolution";
 import {
   normalizeAspectForFalNanoBanana,
   normalizeAspectForFalNanoBananaPro,
-  normalizeAspectForKei,
   resolveSeedreamImageSize,
 } from "../../logic/stateParsers";
 import type { ImageSubmissionArgs } from "./types";
 
 /**
- * Handles default/fallback submissions (Seedream, Nano Banana, and Kei).
+ * Handles default/fallback Fal submissions (Seedream + Nano Banana variants).
  */
 export const handleDefaultModelSubmission = async ({
   finalModel,
   cleanedPrompt,
   aspect,
   requestedResolution,
-  preparedImageInputs,
   falReferencePayload,
   startPollingWithGeneration,
 }: ImageSubmissionArgs): Promise<void> => {
   let taskId: string;
-  let pollingProvider: "kei" | "fal-seedream" | "fal-nano-banana" | "fal-nano-banana-pro" = "kei";
+  let pollingProvider: "fal-seedream" | "fal-nano-banana" | "fal-nano-banana-pro";
 
   if (finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image") {
     const image_size = isSeedreamAutoImageSize(requestedResolution)
@@ -70,17 +66,7 @@ export const handleDefaultModelSubmission = async ({
     taskId = response.request_id;
     pollingProvider = "fal-nano-banana-pro";
   } else {
-    const result = await createKeiTask({
-      model: finalModel,
-      input: {
-        prompt: cleanedPrompt,
-        image_input: preparedImageInputs,
-        aspect_ratio: normalizeAspectForKei(aspect),
-        resolution: isModelDefaultImageResolution(requestedResolution) ? "1K" : requestedResolution,
-        output_format: "png",
-      },
-    });
-    taskId = result.taskId;
+    throw new Error(`Unsupported model '${finalModel}' for default Fal submission handler.`);
   }
 
   startPollingWithGeneration(taskId, pollingProvider);

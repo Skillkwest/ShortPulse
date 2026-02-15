@@ -288,7 +288,7 @@ export const useAiStudioPersistenceActions = ({
         setUiError("No media available to save.");
         return;
       }
-      const provider = (output.provider ?? "kei") as Provider;
+      const provider = (output.provider ?? "fal") as Provider;
       const source = output.generationId || output.taskId ? "ai_studio" : "upload";
       const generationId =
         source === "ai_studio"

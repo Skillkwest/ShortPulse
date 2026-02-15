@@ -215,7 +215,7 @@ export function useAiStudioTasks({
       taskId: string,
       outputId: string,
       attempt = 0,
-      provider: Provider = "kei",
+      provider: Provider = "fal",
       startedAt = Date.now(),
       noMediaAttempt = 0
     ) {

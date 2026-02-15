@@ -54,7 +54,7 @@ type UseCharacterManagerDraftResult = {
   saveProfileImageTransform: (transform: CharacterProfileImageTransform) => Promise<boolean>;
   clearProfileImage: () => Promise<void>;
   saveCharacterSheetAssignments: (assignments: CharacterSheetAssignments) => Promise<boolean>;
-  setSlotFile: (slotKey: CharacterReferenceSlotKey, file: File) => Promise<void>;
+  setSlotFile: (slotKey: CharacterReferenceSlotKey, file: File) => Promise<boolean>;
   clearSlot: (slotKey: CharacterReferenceSlotKey) => Promise<void>;
   createCharacter: () => Promise<void>;
   selectCharacter: (characterId: string) => Promise<void>;
@@ -478,15 +478,15 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       clearMessages();
       if (!characterId || !characterSheetId) {
         setError("Character draft is still loading. Try again in a moment.");
-        return;
+        return false;
       }
       if (!file.type.toLowerCase().startsWith("image/")) {
         setError("Only image files are supported in Character Manager.");
-        return;
+        return false;
       }
       if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
         setError(`Image is too large. Maximum file size is ${CHARACTER_MANAGER_MAX_IMAGE_MB}MB.`);
-        return;
+        return false;
       }
 
       markSlotBusy(slotKey, true);
@@ -513,8 +513,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           return next;
         });
         await refreshCharacterListSilently(characterId);
+        return true;
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to save this shot."));
+        return false;
       } finally {
         markSlotBusy(slotKey, false);
       }

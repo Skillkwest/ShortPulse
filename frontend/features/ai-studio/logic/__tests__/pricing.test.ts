@@ -27,6 +27,14 @@ describe("computeCostForModel (FLUX.2)", () => {
     const expectedCredits = Math.ceil(Math.ceil(usdRaw / 0.01) / 5) * 5;
     expect(cost?.credits).toBe(expectedCredits);
   });
+
+  it("uses explicit image dimensions when provided", () => {
+    const cost = computeCostForModel(modelId, { imageWidth: 4096, imageHeight: 4096 });
+    expect(cost).not.toBeNull();
+    expect(cost?.width).toBe(4096);
+    expect(cost?.height).toBe(4096);
+    expect(cost?.credits).toBe(25);
+  });
 });
 
 describe("computeCostForModel (GPT-4.1 Nano)", () => {

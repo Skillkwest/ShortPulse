@@ -20,6 +20,7 @@ import {
 } from "../../../lib/mediaPreviewPath";
 import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { resolveMediaCardAspectRatio } from "../logic/mediaLibraryAspectRatio";
 
 type MediaFileRow = {
   id: string;
@@ -1241,6 +1242,10 @@ export function MediaLibraryModal({
                 ) : (
                   activeMedia.map((file) => {
                     const isSelected = selectedIds.has(file.id);
+                    const previewAspectRatio = resolveMediaCardAspectRatio({
+                      fileType: file.file_type,
+                      metadata: file.metadata,
+                    });
                     return (
                       <button
                         key={file.id}
@@ -1280,8 +1285,11 @@ export function MediaLibraryModal({
                               loop
                               autoPlay
                               preload="metadata"
-                              onLoadedData={() => {
+                              style={{ aspectRatio: previewAspectRatio }}
+                              onLoadedMetadata={() => {
                                 signedUrlRetryRef.current[file.id] = 0;
+                              }}
+                              onLoadedData={() => {
                                 markFirstMediaPaint("video");
                               }}
                               onError={() => handleMediaPreviewError(file)}
@@ -1294,6 +1302,9 @@ export function MediaLibraryModal({
                                 className="media-thumb"
                                 src={file.signedUrl}
                                 alt={file.filename}
+                                loading="lazy"
+                                decoding="async"
+                                style={{ aspectRatio: previewAspectRatio }}
                                 onLoad={() => {
                                   signedUrlRetryRef.current[file.id] = 0;
                                   markFirstMediaPaint("image");
@@ -1303,7 +1314,11 @@ export function MediaLibraryModal({
                             </>
                           )
                         ) : (
-                          <div className="media-thumb placeholder" aria-hidden />
+                          <div
+                            className="media-thumb placeholder"
+                            style={{ aspectRatio: previewAspectRatio }}
+                            aria-hidden
+                          />
                         )}
                       </button>
                     );

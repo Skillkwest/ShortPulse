@@ -64,11 +64,23 @@ const resolveDefaultAudio = (params: PricingParams, fallback: boolean) => {
   return params.audio ?? config?.defaultAudio ?? fallback;
 };
 
-const computeFalPerMpCost: StrategyFn = ({ modelId, aspect }) => {
-  const config = getModelConfig(modelId);
-  if (!config?.sizeMap) return null;
+const resolveImageSizeForMp = (params: PricingParams) => {
+  const width = Number(params.imageWidth ?? 0);
+  const height = Number(params.imageHeight ?? 0);
+  if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+    return {
+      width: Math.round(width),
+      height: Math.round(height),
+    };
+  }
 
-  const size = resolveAspectSize(aspect, config.sizeMap, config.defaultAspect);
+  const config = getModelConfig(params.modelId);
+  if (!config?.sizeMap) return null;
+  return resolveAspectSize(params.aspect, config.sizeMap, config.defaultAspect);
+};
+
+const computeFalPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
@@ -80,11 +92,8 @@ const computeFalPerMpCost: StrategyFn = ({ modelId, aspect }) => {
   return { credits, usd, megapixels, width: size.width, height: size.height };
 };
 
-const computeFlux2PerMpCost: StrategyFn = ({ modelId, aspect }) => {
-  const config = getModelConfig(modelId);
-  if (!config?.sizeMap) return null;
-
-  const size = resolveAspectSize(aspect, config.sizeMap, config.defaultAspect);
+const computeFlux2PerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
@@ -96,11 +105,8 @@ const computeFlux2PerMpCost: StrategyFn = ({ modelId, aspect }) => {
   return { credits, usd, megapixels, width: size.width, height: size.height };
 };
 
-const computeFlux2KleinPerMpCost: StrategyFn = ({ modelId, aspect }) => {
-  const config = getModelConfig(modelId);
-  if (!config?.sizeMap) return null;
-
-  const size = resolveAspectSize(aspect, config.sizeMap, config.defaultAspect);
+const computeFlux2KleinPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
@@ -112,11 +118,8 @@ const computeFlux2KleinPerMpCost: StrategyFn = ({ modelId, aspect }) => {
   return { credits, usd, megapixels, width: size.width, height: size.height };
 };
 
-const computeFlux2ProPerMpCost: StrategyFn = ({ modelId, aspect }) => {
-  const config = getModelConfig(modelId);
-  if (!config?.sizeMap) return null;
-
-  const size = resolveAspectSize(aspect, config.sizeMap, config.defaultAspect);
+const computeFlux2ProPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;

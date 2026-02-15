@@ -157,6 +157,7 @@ export type FalSeedanceSubmitRequest = {
   prompt: string;
   duration?: string | number;
   aspect_ratio?: "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9";
+  resolution?: "480p" | "720p" | "1080p";
   negative_prompt?: string;
   cfg_scale?: number;
   enable_safety_checker?: boolean;

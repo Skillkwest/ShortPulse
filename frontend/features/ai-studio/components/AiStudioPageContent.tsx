@@ -26,6 +26,7 @@ import { CharacterPropertiesPanel } from "../../character/components/CharacterPr
 import { CharacterPanel } from "./CharacterPanel";
 import { KlingComingSoonCard } from "./KlingComingSoonCard";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
+import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { AgentChatPanel } from "../../../prefabs/agent";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
 import type { StudioOutput, ToolId } from "../types";
@@ -199,6 +200,18 @@ export function AiStudioPageContent({
   const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
   const ComingSoonIcon = comingSoon ? comingSoon.icon : null;
   const referenceCanvasFileAccept = selectedTool === "character" ? "image/*" : "image/*,video/*";
+  const { shellRef, leftColumnRef, showDivider, isResizing, shellStyle, dividerProps } =
+    useAiStudioShellResize({
+      enabled: Boolean(selectedTool),
+    });
+  const shellClassName = [
+    "ai-shell",
+    selectedTool ? "" : "ai-shell-wide",
+    showDivider ? "ai-shell-resizable" : "",
+    isResizing ? "ai-shell-resizing" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const renderProperties = () => {
     switch (resolvePropertiesPanelKind(selectedTool)) {
@@ -391,124 +404,130 @@ export function AiStudioPageContent({
           />
 
           <div className="ai-content">
-            <section className={`ai-shell ${selectedTool ? "" : "ai-shell-wide"}`}>
+            <section ref={shellRef} className={shellClassName} style={shellStyle}>
               {selectedTool ? (
-                <aside className="panel ai-panel ai-properties">{renderProperties()}</aside>
+                <aside ref={leftColumnRef} className="panel ai-panel ai-properties">
+                  {renderProperties()}
+                </aside>
               ) : null}
-
-              {agentChat.isOpen ? (
-                <div className="ai-preview-column reference-column">
-                  <div className="reference-column-sticky">
-                    <div className="preview-column-header">
-                      <div>
-                        <p className="eyebrow">Agent Chat</p>
-                        <p className="tiny subdued helper-text">
-                          Click a chat bubble to add that text to the reference grid as a new
-                          prompt.
-                        </p>
-                      </div>
-                      <div className="preview-header-actions">
-                        <button
-                          type="button"
-                          className="ghost-btn mini"
-                          onClick={agentChat.onAddToGrid}
-                          disabled={!agentChat.latestAgentPrompt}
-                        >
-                          Add to grid
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost-btn mini agent-chat-close-btn"
-                          onClick={agentChat.onClose}
-                          aria-label="Close agent chat"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                    <AgentChatPanel
-                      messages={agentChat.agentMessages}
-                      introMessage={{
-                        id: "agent-intro",
-                        role: "system",
-                        content:
-                          "Hey, I'm your studio agent. Tell me what you want to create (subject, style, mood, framing) and I'll turn it into a generation-ready prompt.",
-                      }}
-                      input={agentChat.agentInput}
-                      sendLabel="Send"
-                      isSending={agentChat.agentIsSending}
-                      showPromptActions
-                      showPrimaryPromptStatus={false}
-                      agentActions={agentChat.agentActions}
-                      primaryPrompt={agentChat.latestAgentPrompt}
-                      primarySource={agentChat.agentPrimarySource}
-                      stagedAttachments={agentChat.stagedAttachments}
-                      isDropActive={agentChat.agentDropActive}
-                      onDrop={agentChat.onAttachmentDrop}
-                      onDragOver={agentChat.onAttachmentDragOver}
-                      onDragEnter={agentChat.onAttachmentDragEnter}
-                      onDragLeave={agentChat.onAttachmentDragLeave}
-                      onRemoveAttachment={agentChat.onRemoveAttachment}
-                      onClearAttachments={agentChat.onClearAttachments}
-                      onInputChange={agentChat.onInputChange}
-                      onSend={agentChat.onSend}
-                      onMessageClick={agentChat.onMessageClick}
-                      onAgentApplyPrompt={agentChat.onAgentApplyPrompt}
-                      onAgentSelectVariation={agentChat.onAgentSelectVariation}
-                      onAgentUseQuestion={agentChat.onAgentUseQuestion}
-                      onAgentDescribeTargets={agentChat.onAgentDescribeTargets}
-                      beginnerMode={beginnerMode}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <>
+              {showDivider ? (
+                <button type="button" className="ai-shell-divider" {...dividerProps} />
+              ) : null}
+              <div className="ai-shell-right">
+                {agentChat.isOpen ? (
                   <div className="ai-preview-column reference-column">
                     <div className="reference-column-sticky">
                       <div className="preview-column-header">
                         <div>
-                          <p className="eyebrow">Reference Grid</p>
+                          <p className="eyebrow">Agent Chat</p>
                           <p className="tiny subdued helper-text">
-                            Double-click a reference to expand.
+                            Click a chat bubble to add that text to the reference grid as a new
+                            prompt.
                           </p>
                         </div>
                         <div className="preview-header-actions">
                           <button
                             type="button"
-                            className="ghost-btn mini preview-media-btn"
-                            onClick={triggerFilePicker}
+                            className="ghost-btn mini"
+                            onClick={agentChat.onAddToGrid}
+                            disabled={!agentChat.latestAgentPrompt}
                           >
-                            <UploadSimple size={14} weight="regular" />
-                            Add files
+                            Add to grid
                           </button>
                           <button
                             type="button"
-                            className="ghost-btn mini preview-media-btn"
-                            onClick={onOpenMediaLibrary}
+                            className="ghost-btn mini agent-chat-close-btn"
+                            onClick={agentChat.onClose}
+                            aria-label="Close agent chat"
                           >
-                            <CloudArrowUp size={14} weight="regular" />
-                            Media library
+                            ×
                           </button>
                         </div>
                       </div>
-                      <ReferenceCanvas
-                        {...referenceCanvasProps}
-                        onDropFiles={handleReferenceCanvasFiles}
-                        onTriggerFileSelect={triggerFilePicker}
-                        selectedTool={selectedTool}
-                        onOpenMediaLibrary={onOpenMediaLibrary}
+                      <AgentChatPanel
+                        messages={agentChat.agentMessages}
+                        introMessage={{
+                          id: "agent-intro",
+                          role: "system",
+                          content:
+                            "Hey, I'm your studio agent. Tell me what you want to create (subject, style, mood, framing) and I'll turn it into a generation-ready prompt.",
+                        }}
+                        input={agentChat.agentInput}
+                        sendLabel="Send"
+                        isSending={agentChat.agentIsSending}
+                        showPromptActions
+                        showPrimaryPromptStatus={false}
+                        agentActions={agentChat.agentActions}
+                        primaryPrompt={agentChat.latestAgentPrompt}
+                        primarySource={agentChat.agentPrimarySource}
+                        stagedAttachments={agentChat.stagedAttachments}
+                        isDropActive={agentChat.agentDropActive}
+                        onDrop={agentChat.onAttachmentDrop}
+                        onDragOver={agentChat.onAttachmentDragOver}
+                        onDragEnter={agentChat.onAttachmentDragEnter}
+                        onDragLeave={agentChat.onAttachmentDragLeave}
+                        onRemoveAttachment={agentChat.onRemoveAttachment}
+                        onClearAttachments={agentChat.onClearAttachments}
+                        onInputChange={agentChat.onInputChange}
+                        onSend={agentChat.onSend}
+                        onMessageClick={agentChat.onMessageClick}
+                        onAgentApplyPrompt={agentChat.onAgentApplyPrompt}
+                        onAgentSelectVariation={agentChat.onAgentSelectVariation}
+                        onAgentUseQuestion={agentChat.onAgentUseQuestion}
+                        onAgentDescribeTargets={agentChat.onAgentDescribeTargets}
+                        beginnerMode={beginnerMode}
                       />
                     </div>
                   </div>
+                ) : (
+                  <>
+                    <div className="ai-preview-column reference-column">
+                      <div className="reference-column-sticky">
+                        <div className="preview-column-header">
+                          <div>
+                            <p className="eyebrow">Reference Grid</p>
+                            <p className="tiny subdued helper-text">
+                              Double-click a reference to expand.
+                            </p>
+                          </div>
+                          <div className="preview-header-actions">
+                            <button
+                              type="button"
+                              className="ghost-btn mini preview-media-btn"
+                              onClick={triggerFilePicker}
+                            >
+                              <UploadSimple size={14} weight="regular" />
+                              Add files
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost-btn mini preview-media-btn"
+                              onClick={onOpenMediaLibrary}
+                            >
+                              <CloudArrowUp size={14} weight="regular" />
+                              Media library
+                            </button>
+                          </div>
+                        </div>
+                        <ReferenceCanvas
+                          {...referenceCanvasProps}
+                          onDropFiles={handleReferenceCanvasFiles}
+                          onTriggerFileSelect={triggerFilePicker}
+                          selectedTool={selectedTool}
+                          onOpenMediaLibrary={onOpenMediaLibrary}
+                        />
+                      </div>
+                    </div>
 
-                  <StudioPreview
-                    {...studioPreviewProps}
-                    onDropFiles={handleReferenceCanvasFiles}
-                    onTriggerFileSelect={triggerFilePicker}
-                    onOpenMediaLibrary={onOpenMediaLibrary}
-                  />
-                </>
-              )}
+                    <StudioPreview
+                      {...studioPreviewProps}
+                      onDropFiles={handleReferenceCanvasFiles}
+                      onTriggerFileSelect={triggerFilePicker}
+                      onOpenMediaLibrary={onOpenMediaLibrary}
+                    />
+                  </>
+                )}
+              </div>
             </section>
             {comingSoon ? (
               <section className="ai-coming-soon" aria-live="polite">

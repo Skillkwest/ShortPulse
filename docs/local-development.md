@@ -16,7 +16,6 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `FAL_KEY` (required for Fal API routes)
-   - `KEI_API_KEY` (required for KEI/OpenAI proxy routes)
 3. Set optional production/ops values when needed:
    - `APP_BASE_URL`
    - `SHORTPULSE_STAGING_BASE_URL` (optional helper for protected-route latency capture script)

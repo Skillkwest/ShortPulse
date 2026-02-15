@@ -365,4 +365,24 @@ describe("CharacterManagerShell behavior", () => {
       expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(8);
     });
   });
+
+  it("shows Create New Character only in Manage Characters tab", async () => {
+    render(<CharacterManagerShell />);
+
+    expect(
+      screen.queryByRole("button", {
+        name: /Create New Character/i,
+      })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Manage Characters/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: /Create New Character/i,
+        })
+      ).toBeInTheDocument();
+    });
+  });
 });

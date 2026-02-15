@@ -501,6 +501,7 @@ body.ai-studio-body {
 
 /* AI Studio main shell layout */
 .ai-shell {
+  --ai-shell-divider-track-width: 16px;
   display: grid;
   /* Adjust the relative widths of the two main columns. */
   grid-template-columns: minmax(400px, 1.2fr) minmax(0, 2fr);
@@ -512,6 +513,14 @@ body.ai-studio-body {
   flex: 1;
   min-height: 0;
   height: 100%;
+}
+
+.ai-shell.ai-shell-resizable {
+  grid-template-columns:
+    var(--ai-shell-left-width, minmax(400px, 1.2fr))
+    var(--ai-shell-divider-track-width)
+    minmax(520px, 1fr);
+  gap: 0;
 }
 
 .ai-shell.ai-shell-wide {
@@ -533,6 +542,59 @@ body.ai-studio-body {
 .ai-shell .panel .panel-header {
   margin-bottom: 12px;
   padding: 0;
+}
+
+.ai-shell-right {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ai-shell-divider {
+  width: var(--ai-shell-divider-track-width);
+  align-self: stretch;
+  justify-self: stretch;
+  position: relative;
+  border: 0;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.ai-shell-divider::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  border-radius: 999px;
+  background: rgba(156, 165, 178, 0.22);
+  transform: translateX(-50%);
+  transition:
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.ai-shell-divider:hover::before,
+.ai-shell-divider:focus-visible::before,
+.ai-shell.ai-shell-resizing .ai-shell-divider::before {
+  background: rgba(52, 200, 255, 0.7);
+  box-shadow: 0 0 0 1px rgba(52, 200, 255, 0.25);
+}
+
+.ai-shell-divider:focus-visible {
+  outline: 2px solid rgba(52, 200, 255, 0.85);
+  outline-offset: -2px;
+}
+
+body.ai-shell-resizing,
+body.ai-shell-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 .panel-header.preview-header {
   display: flex;

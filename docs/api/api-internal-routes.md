@@ -4,6 +4,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 
 ## Auth boundary model
 - Global API auth gate: `frontend/proxy.ts` protects `/api/fal/*`, `/api/kei/*`, `/api/ai/*`, `/api/media/*`, uploads, admin APIs, and billing checkout/portal routes by requiring a Supabase bearer token.
+- KEI routes are currently hard-disabled for MVP and return `410` from route handlers.
 - Route-level auth: several handlers still call `requireApiUser`/`requireAdminUser` in `frontend/lib/server/api/auth.ts` for direct enforcement and user context.
 - Webhook exception: `/api/billing/stripe/webhook` is intentionally unauthenticated and protected by Stripe signature verification.
 
@@ -20,9 +21,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/media/move-batch` | `POST` | Bearer (proxy + route) | Move multiple media files in one request with per-file success/failure summary. | `frontend/pages/api/media/move-batch.ts` |
 | `/api/media/resolve-previews` | `POST` | Bearer (proxy + route) | Resolve media preview URLs in bulk (signed-url hydration + fallback normalization for mixed/legacy media records). | `frontend/pages/api/media/resolve-previews.ts`, `frontend/lib/mediaPreviewPath.ts` |
 | `/api/fal/*` | `POST` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic. | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, model docs in `docs/api/api-fal-*.md` |
-| `/api/kei/create-task` | `POST` | Bearer (proxy) | Submit Kie task-based generations with billing charge+refund support. | `frontend/pages/api/kei/create-task.ts` |
-| `/api/kei/task-status` and `/api/kei/status` | `POST` | Bearer (proxy) | Poll Kie task status (status route is compatibility alias). | `frontend/pages/api/kei/task-status.ts`, `frontend/pages/api/kei/status.ts` |
-| `/api/kei/gpt4o-generate` | `POST` | Bearer (proxy) | Kie GPT-4o image generation proxy with billing handling. | `frontend/pages/api/kei/gpt4o-generate.ts` |
+| `/api/kei/create-task`, `/api/kei/task-status`, `/api/kei/status`, `/api/kei/gpt4o-generate` | `POST` | Bearer (proxy) | KEI routes are disabled for MVP and return `410` (`KEI_DISABLED_FOR_MVP`). | `frontend/pages/api/kei/*.ts` |
 | `/api/billing/credit-packages` | `GET` | Bearer (proxy + route) | List active top-up packages for billing UI. | `frontend/pages/api/billing/credit-packages.ts` |
 | `/api/billing/stripe/checkout` | `POST` | Bearer (proxy + route) | Create Stripe checkout sessions for credit packages. | `frontend/pages/api/billing/stripe/checkout.ts` |
 | `/api/billing/stripe/portal` | `POST` | Bearer (proxy + route) | Create Stripe billing portal sessions. | `frontend/pages/api/billing/stripe/portal.ts` |
@@ -50,7 +49,6 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 ## Required server environment
 - Supabase: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 - Fal: `FAL_KEY`.
-- Kie: `KEI_API_KEY`.
 - OpenAI: `OPENAI_API_KEY`, optional `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_API_BASE`.
 - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
 - Admin allowlist (optional): `SHORTPULSE_ADMIN_EMAILS`.

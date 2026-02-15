@@ -19,6 +19,8 @@ export type PricingStrategyId =
 export type PricingParams = {
   modelId: string;
   aspect?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   inputTokens?: number;
   outputTokens?: number;
   durationSeconds?: number;

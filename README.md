@@ -20,7 +20,6 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `FAL_KEY`
-   - `KEI_API_KEY`
 2. Install and run the frontend:
    ```bash
    cd frontend

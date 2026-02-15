@@ -62,13 +62,15 @@ Example response:
 
 ## Pricing (USD → credits)
 
-Credits are derived as `credits = ceil(usd / 0.01)`.
+Credits are derived with 5-credit step rounding:
+- `rawCredits = ceil(usd / 0.01)`
+- `credits = ceil(rawCredits / 5) * 5`
 
 - Audio off: `$0.224` per second.
 - Audio on: `$0.336` per second.
 - Audio + voice control: `$0.392` per second (only when `voice_ids` are used).
 
-Example: a 5s clip with audio on and voice control costs `$1.96` → `196` credits.
+Example: a 5s clip with audio on and voice control costs `$1.96` → `rawCredits = 196` → `200` credits billed.
 
 ## Example request (proxy)
 

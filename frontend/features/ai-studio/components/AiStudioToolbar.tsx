@@ -59,7 +59,6 @@ export function AiStudioToolbar({
   onToggleCreateTools,
   onToggleBeginnerMode,
 }: AiStudioToolbarProps) {
-  const visibleEditTools = editToolList.filter((tool) => tool.id !== "canvas");
   const isCreateSelected = selectedTool === "create" || selectedTool === "text";
   const activePrimary: "create" | "video" | "edit" | "canvas" | null = isCreateSelected
     ? "create"
@@ -117,7 +116,7 @@ export function AiStudioToolbar({
             </React.Fragment>
           );
         })}
-        {visibleEditTools.map((tool) => {
+        {editToolList.map((tool) => {
           const IconComponent = toolIcons[tool.id];
           const isActive = selectedTool === tool.id;
           return (

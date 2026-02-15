@@ -26,6 +26,7 @@ import {
   resolveSeedanceI2VDuration,
   resolveSeedanceI2VResolution,
   resolveSeedanceTextAspect,
+  resolveSeedanceTextResolution,
   resolveSoraAspect,
   resolveSoraResolution,
   resolveVeoAspect,
@@ -194,10 +195,12 @@ export const handleVideoModelSubmission = async ({
 
   if (finalModel === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video") {
     const normalizedAspect = resolveSeedanceTextAspect(aspect, modelConfig);
+    const resolution = resolveSeedanceTextResolution(requestedResolution);
     const { request_id } = await submitFalSeedance({
       prompt: cleanedPrompt,
       duration: requestedDurationSeconds.toString(),
       aspect_ratio: normalizedAspect,
+      resolution,
       negative_prompt: "blur, distort, and low quality",
       cfg_scale: 0.5,
       generate_audio: requestedAudio,

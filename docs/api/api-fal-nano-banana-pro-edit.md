@@ -45,7 +45,9 @@ Reference for integrating the Nano Banana Pro image-to-image/edit queue (`fal-ai
 - `description`: optional string summary.
 
 ## Pricing (ShortPulse)
-- Same as Nano Banana Pro text-to-image: **$0.15 per image** → `credits = ceil(0.15 / 0.01) = 15` (4K doubles; web_search adds 1.5 credits).
+- Same as Nano Banana Pro text-to-image: base **$0.15 per image**.
+- Conversion: `rawCredits = ceil(usd / 0.01)`, billed credits `= ceil(rawCredits / 5) * 5`.
+- Current outcomes: 1K/2K = 15 credits, 4K = 30 credits, and enabling `web_search` adds $0.015 then rounds to the next 5-credit step.
 - Aspect/resolution choice does not change the flat per-image price in our UI; references are required.
 
 ## Notes

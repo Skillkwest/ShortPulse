@@ -242,7 +242,7 @@ export const useAiStudioTaskOrchestration = ({
         setUiNotice("Unable to retry status because this generation has no task id.");
         return;
       }
-      const provider = (output.provider as Provider | undefined) ?? "kei";
+      const provider = (output.provider as Provider | undefined) ?? "fal";
       updateOutputById(outputId, (item) => ({
         ...item,
         taskState: "running",

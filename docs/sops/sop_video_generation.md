@@ -18,12 +18,12 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 | `frontend/features/ai-studio/components/ReferencePropertiesPanel.tsx` | UI for Video (reference drops, prompt textarea, aspect/model picker, Generate CTA). |
 | `frontend/features/ai-studio/components/StudioPreview.tsx` | Shows latest output/reference preview and allows drag/drop to seed regeneration; accepts dropped image files for image-to-video. |
 | `frontend/features/ai-studio/components/ReferenceCanvas.tsx` | Reference grid (draggable cards) and file drop surface for seeding references; renders inline video previews when outputs are mp4s. |
-| `frontend/features/ai-studio/logic/*` | Pricing (`pricing.ts`), token estimates, drag/drop utilities, and provider clients (Fal/Kie). |
+| `frontend/features/ai-studio/logic/*` | Pricing (`pricing.ts`), token estimates, drag/drop utilities, and provider clients (Fal). |
 | `frontend/pages/ai-studio.tsx` | Orchestrates panels, wires cost display, renders the error banner, and disables Generate when credits are insufficient. |
 
 ## Environment prerequisites
 
-1. Video models rely on Fal/Kie provider keys; no agent prompts are used in this flow.  
+1. Video models rely on Fal provider keys; no agent prompts are used in this flow.  
 2. `OPENAI_API_KEY` is still required for separate text/describe workflows documented in `docs/sops/sop_text_generation.md`; video generation does not depend on those prompts.  
 3. Credits: generation charging is server-authoritative in submit APIs; `useCredits` reads `ai_credit_balance` and does not write ledger rows.
 
@@ -33,7 +33,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 2. User enters a prompt (and optionally prepares an image reference if the model requires/accepts it).  
 3. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect })`; disabled until a model is selected or the user lacks sufficient credits.  
 4. On click:  
-   - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal/Kie video) with aspect-mapped sizing and any reference inputs required by the model.  
+   - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal video) with aspect-mapped sizing and any reference inputs required by the model.  
    - Fal submit routes reserve credits before provider submission (no immediate debit posted).
    - Fal success captures reservation into a debit; failed submit/status outcomes release reservation.
    - Task polling updates status; success stores `resultUrls`, sets `previewUrl` (video URL), and clears errors. Failures set `errorMessage` and stop polling.  
@@ -74,9 +74,9 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 ## Model usage
 
-- Video models are selected from the picker (e.g., Fal/Kie video entries).  
-- Aspect normalization per provider (see `pricing.ts` and submit logic in `useAiStudioState`): Fal uses width/height; Kie video models may enforce specific aspects (e.g., 16:9).  
-- Cost computation: `computeCostForModel` uses aspect for estimate display; charging occurs in server submit APIs. Prompt-refine/describe flows currently report usage but are not debited. No agent prompts are sent in video flows.
+- Video models are selected from the picker (Fal video entries).  
+- Aspect normalization is provider/model-specific (see `pricing.ts` and submit logic in `useAiStudioState`).
+- Cost computation: `computeCostForModel` uses aspect plus duration/resolution/audio defaults for estimate display; charging occurs in server submit APIs. Prompt-refine/describe flows currently report usage but are not debited. No agent prompts are sent in video flows.
 
 ## Supported video models (current)
 
@@ -87,7 +87,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 | Fal | `fal-ai/veo3.1/first-last-frame-to-video` | 16:9 default (allowed: 16:9, 9:16) | First/Last Frame queue; requires `first_frame_url` + `last_frame_url`; per-second pricing ($0.20/s audio-off, $0.40/s audio-on at 720p/1080p); defaults to 8s @ 720p with audio (320 credits). |
 | Fal | `fal-ai/veo3.1/image-to-video` | 16:9 default (allowed: 16:9, 9:16) | Image-to-video queue; requires `image_url`; per-second pricing ($0.20/s audio-off, $0.40/s audio-on at 720p/1080p; 4K $0.40/$0.60). Defaults to 8s @ 720p with audio on. |
 | Fal | `fal-ai/veo3.1` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Per-second pricing (unchanged); defaults to 8s @ 1080p with audio on (still billed via `veo-3-per-second`); 4K/audio-on is higher. |
-| Fal | `fal-ai/sora-2/text-to-video/pro` | 16:9 default (allowed: 16:9, 9:16) | Tiered pricing (credits = `ceil(usd / 0.01)`): Standard tier uses 10s pricing (150 cr) for <=10s requests; High tier 10s = 330 cr (default). Queue accepts 4/8/12s; ShortPulse requests 8s by default (audio on) and polls Fal queue. |
+| Fal | `fal-ai/sora-2/text-to-video/pro` | 16:9 default (allowed: 16:9, 9:16) | Tiered pricing: `rawCredits = ceil(usd / 0.01)`, final `credits = ceil(rawCredits / 5) * 5`. Standard tier uses 10s pricing (150 cr) for <=10s requests; High tier 10s = 330 cr (default). Queue accepts 4/8/12s; ShortPulse requests 8s by default (audio on) and polls Fal queue. |
 | Fal | `fal-ai/bytedance/seedance/v1.5/pro/text-to-video` | 16:9 default (allowed: 16:9, 9:16, 1:1, 4:3, 3:4, 21:9) | Token-based pricing (`tokens = width*height*24*duration/1024`): audio $2.4 per 1M tokens, no-audio $1.2 per 1M. Defaults: 10s, 1080p (fall back 720p→480p), audio on. |
 
 ## Maintenance rules

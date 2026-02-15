@@ -102,10 +102,22 @@ export const useReferencePropertiesDerivedState = ({
   const modelOrder = 3;
   const imageSettingsOrder = isVideoVariant ? 0 : 4;
   const referenceOrder = 1;
-  const videoSettingsOrder = isVideoVariant ? 4 : 0;
+  const referenceBadge = "1";
+  const promptBadge = "2";
+  const modelBadge = "3";
+  const imageSettingsBadge = "4";
+  const videoSettingsOrder = isVideoVariant && !isMotionMode ? 4 : 0;
+  const videoSettingsBadge = "4";
+  const motionAudioOrder = isVideoVariant && isMotionMode ? 3 : 0;
+  const motionAudioBadge = "3";
   const klingAdvancedOrder = isKling3Mode ? 5 : undefined;
-  const generateOrder = isVideoVariant ? (isKling3Mode ? 7 : 6) : 5;
-  const generateBadge = isVideoVariant ? (isKling3Mode ? "7" : "6") : "4";
+  const klingAdvancedBadge = "5";
+  const klingAssetsOrder = isKling3Mode ? 6 : undefined;
+  const klingAssetsBadge = "6";
+  const klingGuidanceOrder = isKling3Mode ? 7 : undefined;
+  const klingGuidanceBadge = "7";
+  const generateOrder = isVideoVariant ? (isMotionMode ? 4 : isKling3Mode ? 8 : 5) : 5;
+  const generateBadge = isVideoVariant ? (isMotionMode ? "4" : isKling3Mode ? "8" : "5") : "4";
 
   const klingShotSummary = klingMultiPrompts.length
     ? `${klingMultiPrompts.length} shot${klingMultiPrompts.length > 1 ? "s" : ""}`
@@ -177,8 +189,20 @@ export const useReferencePropertiesDerivedState = ({
     modelOrder,
     imageSettingsOrder,
     referenceOrder,
+    referenceBadge,
+    promptBadge,
+    modelBadge,
+    imageSettingsBadge,
     videoSettingsOrder,
+    videoSettingsBadge,
+    motionAudioOrder,
+    motionAudioBadge,
     klingAdvancedOrder,
+    klingAdvancedBadge,
+    klingAssetsOrder,
+    klingAssetsBadge,
+    klingGuidanceOrder,
+    klingGuidanceBadge,
     generateOrder,
     generateBadge,
     klingShotSummary,

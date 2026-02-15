@@ -14,6 +14,7 @@ type ReferenceModelStepProps = {
   isVideoVariant: boolean;
   isKeyframesMode: boolean;
   beginnerMode: boolean;
+  modelBadge: string;
   collapsed: boolean;
   modelOrder: number;
   modelId: string | null;
@@ -40,6 +41,7 @@ export const ReferenceModelStep: React.FC<ReferenceModelStepProps> = ({
   variant,
   isKeyframesMode,
   beginnerMode,
+  modelBadge,
   collapsed,
   modelOrder,
   modelId,
@@ -61,7 +63,7 @@ export const ReferenceModelStep: React.FC<ReferenceModelStepProps> = ({
       style={{ order: modelOrder }}
     >
       <div className="step-card-header">
-        {beginnerMode && <span className="step-badge">3</span>}
+        {beginnerMode && <span className="step-badge">{modelBadge}</span>}
         <div className="step-header-copy">
           <p className="step-title">Choose Frame & Model</p>
           <span className="step-subtitle tiny helper-text">

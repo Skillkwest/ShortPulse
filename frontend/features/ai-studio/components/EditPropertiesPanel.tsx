@@ -126,6 +126,9 @@ export function EditPropertiesPanel({
     modelOrder,
     imageSettingsOrder,
     referenceOrder,
+    referenceBadge,
+    promptBadge,
+    modelBadge,
     generateOrder,
     generateBadge,
     referenceStepTitle,
@@ -160,6 +163,7 @@ export function EditPropertiesPanel({
       </div>
       <div className="reference-drop-layout-inner">
         <ReferencePromptStep
+          promptBadge={promptBadge}
           promptOrder={promptOrder}
           isVideoVariant={false}
           referenceText={referenceText}
@@ -183,6 +187,7 @@ export function EditPropertiesPanel({
           isVideoVariant={false}
           isKeyframesMode={false}
           beginnerMode={beginnerMode}
+          modelBadge={modelBadge}
           collapsed={collapsedSteps.model}
           modelOrder={modelOrder}
           modelId={modelId}
@@ -207,6 +212,7 @@ export function EditPropertiesPanel({
         ) : null}
         <ReferenceMediaStep
           referenceOrder={referenceOrder}
+          referenceBadge={referenceBadge}
           collapsedReference={collapsedSteps.reference}
           onExpandReference={() => expandIfCollapsed("reference")}
           onToggleReference={() => toggleStep("reference")}

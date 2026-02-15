@@ -29,6 +29,17 @@ alter table media_files
     check (storage_path like user_id::text || '/%');
 
 alter table media_files
+    drop constraint if exists media_files_storage_path_shape_check;
+alter table media_files
+    add constraint media_files_storage_path_shape_check
+    check (
+        storage_path <> ''
+        and storage_path not like '/%'
+        and position(chr(92) in storage_path) = 0
+        and storage_path !~ '(^|/)\.\.(/|$)'
+    );
+
+alter table media_files
     drop constraint if exists media_files_private_source_shape_check;
 alter table media_files
     add constraint media_files_private_source_shape_check

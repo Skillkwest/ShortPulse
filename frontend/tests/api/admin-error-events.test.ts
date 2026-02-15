@@ -124,6 +124,10 @@ describe("GET /api/admin/error-events", () => {
           { count: 300, error: null },
           { count: 200, error: null },
           { count: 40, error: null },
+          { count: 3, error: null },
+          { count: 9, error: null },
+          { count: 2, error: null },
+          { count: 7, error: null },
         ],
         app_error_logs: [{ data: [{ id: "inc-1", status: "open" }], error: null }],
       })
@@ -147,9 +151,18 @@ describe("GET /api/admin/error-events", () => {
         total15mThreshold: number;
         high15mThreshold: number;
         generation15mThreshold: number;
+        characterModeReferenceRefreshEmptyLastHourCount: number;
+        characterModeReferenceRefreshEmptyLast24hCount: number;
+        characterModeBundleUnavailableFallbackLastHourCount: number;
+        characterModeBundleUnavailableFallbackLast24hCount: number;
         total15mBreached: boolean;
         high15mBreached: boolean;
         generation15mBreached: boolean;
+      };
+      health: {
+        eventsTableAvailable: boolean;
+        degraded: boolean;
+        reason: string | null;
       };
     };
 
@@ -164,10 +177,111 @@ describe("GET /api/admin/error-events", () => {
       total15mThreshold: 40,
       high15mThreshold: 8,
       generation15mThreshold: 20,
+      characterModeReferenceRefreshEmptyLastHourCount: 3,
+      characterModeReferenceRefreshEmptyLast24hCount: 9,
+      characterModeBundleUnavailableFallbackLastHourCount: 2,
+      characterModeBundleUnavailableFallbackLast24hCount: 7,
       total15mBreached: true,
       high15mBreached: true,
       generation15mBreached: true,
     });
+    expect(payload.health).toMatchObject({
+      eventsTableAvailable: true,
+      degraded: false,
+      reason: null,
+    });
+  });
+
+  it("returns degraded mode when app_error_events is unavailable", async () => {
+    const missingTableMessage =
+      "Could not find the table 'public.app_error_events' in the schema cache";
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        app_error_events: [
+          { data: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+          { count: null, error: { message: missingTableMessage } },
+        ],
+        app_error_logs: [],
+      })
+    );
+
+    const req = { method: "GET", query: { page: "1", limit: "20" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      events: unknown[];
+      summary: {
+        last15mCount: number;
+        high15mCount: number;
+        generation15mCount: number;
+        total15mThreshold: number;
+      };
+      health: {
+        eventsTableAvailable: boolean;
+        degraded: boolean;
+        reason: string | null;
+      };
+      pagination: {
+        totalCount: number;
+      };
+    };
+    expect(payload.events).toEqual([]);
+    expect(payload.pagination.totalCount).toBe(0);
+    expect(payload.summary).toMatchObject({
+      last15mCount: 0,
+      high15mCount: 0,
+      generation15mCount: 0,
+      total15mThreshold: 40,
+    });
+    expect(payload.health).toMatchObject({
+      eventsTableAvailable: false,
+      degraded: true,
+    });
+    expect(payload.health.reason).toContain("app_error_events");
+  });
+
+  it("returns degraded mode when app_error_events throws in catch path", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: () => {
+        throw new Error('relation "app_error_events" does not exist');
+      },
+    });
+
+    const req = { method: "GET", query: { page: "1", limit: "20" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      events: unknown[];
+      health: {
+        eventsTableAvailable: boolean;
+        degraded: boolean;
+        reason: string | null;
+      };
+    };
+    expect(payload.events).toEqual([]);
+    expect(payload.health).toMatchObject({
+      eventsTableAvailable: false,
+      degraded: true,
+    });
+    expect(payload.health.reason).toContain("app_error_events");
   });
 
   it("returns 500 when query execution fails", async () => {
@@ -176,6 +290,10 @@ describe("GET /api/admin/error-events", () => {
         app_error_events: [
           { data: [], error: null },
           { count: null, error: { message: "db failure" } },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
           { count: 0, error: null },
           { count: 0, error: null },
           { count: 0, error: null },

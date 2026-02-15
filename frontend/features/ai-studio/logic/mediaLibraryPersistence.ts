@@ -3,6 +3,7 @@
  * Handles Supabase inserts/updates for generations, prompts, and audit events.
  */
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import type { StudioMode } from "../types";
 
 const BUCKET = "media_library";
@@ -239,7 +240,11 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   const typeFolder = fileType === "video" ? "videos" : "images";
   const rootFolder = input.source === "ai_studio" ? "generations" : "uploads";
   const storageName = `${crypto.randomUUID()}-${input.index}.${extension}`;
-  const storagePath = `${userId}/${rootFolder}/${typeFolder}/${storageName}`;
+  const storagePath = assertUserScopedMediaStoragePath({
+    path: `${userId}/${rootFolder}/${typeFolder}/${storageName}`,
+    userId,
+    label: "AI Studio media storage path",
+  });
   const friendlyName = buildFilename(input.promptText, extension, input.index);
 
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, blob, {

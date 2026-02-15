@@ -304,6 +304,7 @@ export const useMediaTabDataController = <
       const promptResponse = await supabase
         .from("media_prompts")
         .select("id, title, prompt_text, mode, source, created_at, updated_at")
+        .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .order("id", { ascending: false });
       if (promptResponse.error) throw promptResponse.error;

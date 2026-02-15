@@ -36,6 +36,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - Billing + credits: run `sql/create_billing_credit_tables.sql` to provision plans, credit packages, billing profiles, ledger, and signup allocation triggers.
 - Legacy billing environments: run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` to add `source/source_ref/metadata/created_by` columns and compatibility triggers before using `/admin` credit adjustments.
 - App error telemetry: run `sql/create_app_error_logs_table.sql` and `sql/migrations/015_add_app_error_events.sql` to provision grouped incidents plus immutable per-occurrence events.
+- SQL migration operations SOP: `docs/sops/sop_sql_migration_operations.md` (canonical run order, drift/repair loop, and common SQL error fixes).
 
 ## Manual data actions
 
@@ -84,6 +85,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 
 - Start at `docs/README.md`.
 - Character Manager operations runbook: `docs/sops/sop_character_manager_operations.md`.
+- SQL migration operations runbook: `docs/sops/sop_sql_migration_operations.md`.
 
 ## Repo layout
 

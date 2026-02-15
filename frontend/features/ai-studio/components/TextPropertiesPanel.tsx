@@ -458,7 +458,7 @@ export function TextPropertiesPanel({
         stepNumber={promptStepNumber}
         title="Build Your Prompt"
         subtitle="Describe what you want to make. Enter to send, Shift+Enter for a new line."
-        beginnerSubtitle="Set the scene: subject, style, lighting, mood, and any must-have details."
+        beginnerSubtitle="Send simple prompts to the agent to be refined into a high quality text prompt."
         prompt={prompt}
         onPromptChange={onPromptChange}
         agentEnabled={agentEnabled}

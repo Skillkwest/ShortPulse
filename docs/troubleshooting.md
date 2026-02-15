@@ -73,9 +73,11 @@ Checklist:
 Symptoms:
 - Media preview signing returns unexpected `null` URLs for rows that should be accessible.
 - Security audits identify `media_files.storage_path` values outside `<user_id>/...`.
+- Canonical run order/remediation loop: `docs/sops/sop_sql_migration_operations.md`.
 
 Checklist:
 - Ensure `sql/migrations/016_harden_media_storage_path_scope.sql` has been applied.
+- Ensure `sql/migrations/017_harden_media_storage_path_shape.sql` has been applied.
 - Run diagnostics by executing `sql/check_media_storage_scope_drift.sql`.
 - All `mismatch_count` values should be `0`.
 
@@ -86,8 +88,10 @@ Mitigation:
   ```sql
   select id, user_id, source, storage_path, created_at
   from media_files
-  where coalesce(storage_path, '') <> ''
-    and (
+  where (
+      coalesce(storage_path, '') = ''
+      or storage_path like '/%'
+      or
       storage_path not like user_id::text || '/%'
       or storage_path ~ '(^|/)\.\.(/|$)'
       or position(chr(92) in storage_path) > 0
@@ -178,6 +182,20 @@ Fix:
 - Run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` in the Supabase SQL editor.
 - Refresh Supabase table metadata (or reload the dashboard) and retry `/admin` credit adjustments.
 
+## Admin Event Stream fails with `app_error_events` missing in schema cache
+Symptoms:
+- `/admin` Errors tab Event Stream shows messages like `Could not find the table 'public.app_error_events' in the schema cache`.
+- `/api/admin/error-events` returns empty degraded health state or errors in legacy environments.
+
+Fix:
+- Run `sql/migrations/015_add_app_error_events.sql` in the Supabase SQL editor.
+- Confirm relation availability:
+  ```sql
+  select to_regclass('public.app_error_logs') as app_error_logs_table,
+         to_regclass('public.app_error_events') as app_error_events_table;
+  ```
+- Refresh Supabase schema cache/dashboard metadata and retry `/admin`.
+
 ## AI Studio generation fails with `Unable to process generation credits. Please retry.`
 Symptoms:
 - Fal submit routes fail before provider submit with the generic billing error above.
@@ -205,12 +223,12 @@ Cause:
 - It can also happen when the signed URL points to a moved/deleted object or a non-user-scoped legacy path.
 
 Current behavior:
-- AI Studio now applies a pre-submit signed URL freshness gate for both image references and motion-control video references.
+- AI Studio now applies a pre-submit signed URL freshness gate for image references and video reference URLs (including motion-control and Kling element video references).
 - URLs nearing expiry are force-refreshed before submit; if refresh fails, submission stops early with a user-facing reselect message.
 
 Checklist:
 - Re-select failed image/video references and retry generation.
-- Verify `media_files.storage_path` is user-scoped and valid via `sql/check_media_storage_scope_drift.sql`.
+- Verify storage paths are user-scoped and valid (primary + variant paths) via `sql/check_media_storage_scope_drift.sql`.
 - Confirm the target object still exists in `storage.objects` under `media_library`.
 - If failures persist, capture request IDs plus provider `detail[]` payload and escalate via provider incident SOP.
 

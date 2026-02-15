@@ -2,6 +2,9 @@
 
 Use this folder for ordered, forward-only schema migrations.
 
+For canonical run order, diagnostics loops, and common SQL error handling:
+- `docs/sops/sop_sql_migration_operations.md`
+
 ## Naming
 
 - `NNN_description.sql` (e.g., `001_initial_schema.sql`)

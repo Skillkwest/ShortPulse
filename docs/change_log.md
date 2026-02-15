@@ -534,3 +534,26 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added regression coverage in `frontend/features/ai-studio/components/__tests__/MediaLibraryModal.test.tsx` to assert unresolved signing retries stop after the cap.
 - Expanded regression coverage to verify the same signing retry cap behavior across all media tabs (`Uploaded Images`, `Uploaded Videos`, `AI Studio Generations`, `Private`).
 - Added regression coverage for `Saved Prompts` to ensure prompt-only tab navigation does not trigger media signing work.
+
+## 2026-02-15 (character-mode telemetry promotion + video URL freshness hardening)
+- Promoted Character Mode refresh/fallback signals to first-class event telemetry by emitting `telemetry.character_mode` occurrences through `reportAppError` from `useAiStudioCharacterModeController`; to keep volume lean, fallback events are emitted for `bundle_unavailable` only.
+- Updated server error logging to store `telemetry.*` occurrences in `app_error_events` without creating grouped `app_error_logs` incidents, preventing admin open-incident noise while keeping per-occurrence visibility.
+- Extended `/api/admin/error-events` with signal filtering (`signal` query param), Character Mode frequency counters (1h/24h for refresh-empty and bundle-unavailable fallback), and operational-summary hygiene to exclude telemetry sources from threshold breach metrics.
+- Added an Admin Event Stream Character Mode telemetry panel with one-click stream filters for `character_mode_reference_refresh_empty` and `bundle_unavailable` fallback frequency.
+- Hardened video reference submit prep by refreshing Kling element video URLs pre-submit (not only motion-control video URLs), with expanded `videoHandlers` coverage for refresh success/failure.
+- Character Mode submission now degrades to description-only injection when reference URL refresh returns empty, instead of forcing `bundle_unavailable` for that path.
+
+## 2026-02-15
+- Completed a focused media-library isolation security audit (RLS, storage policies, media API routes, and client preview/signing paths) with hardening changes for fail-closed behavior.
+- Added migration `sql/migrations/017_harden_media_storage_path_shape.sql` (+ rollback) to enforce shape-safe user-scoped media paths (`no ../`, no backslashes, no leading slash) for `media_files` and derivative path hints/rows where present.
+- Tightened preview fallback behavior to only allow direct URLs that resolve to the authenticated user namespace by threading user-scoped filtering through `resolveMediaDirectPreviewUrls` and `/api/media/resolve-previews`.
+- Added explicit user filter on Media Library prompt reads (`media_prompts`) and refreshed security/ops docs (`docs/security-checklist.md`, `docs/database-migrations.md`, `docs/monitoring.md`, `docs/troubleshooting.md`, `docs/api/api-internal-routes.md`).
+
+## 2026-02-15
+- Added `docs/sops/sop_sql_migration_operations.md` as the canonical SQL operations runbook (SQL file taxonomy, migration intent, safe re-run/idempotency guidance, media-isolation hardening loop, verification queries, common error handling for `42501` and `23514`, and staging->production promotion checklist).
+- Updated SOP/doc indexes to include the new runbook: `docs/sops/README.md` and `docs/README.md`.
+
+## 2026-02-15
+- Audited SQL docs/SOP linkage and tightened cross-references to the canonical SQL runbook (`docs/sops/sop_sql_migration_operations.md`) from `docs/database-migrations.md`, `docs/security-checklist.md`, `docs/monitoring.md`, and `README.md`.
+- Fixed `docs/troubleshooting.md` media scope triage SQL snippet to match current drift criteria and valid SQL syntax (`empty`, `leading slash`, non-user-scoped, traversal, backslash).
+- Added SQL-folder entry pointers to the canonical runbook from `sql/migrations/README.md`, `sql/check_media_storage_scope_drift.sql`, and `sql/storage_policies.sql` to reduce operator drift when starting from SQL files.

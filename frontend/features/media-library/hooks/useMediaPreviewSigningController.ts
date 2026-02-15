@@ -146,7 +146,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
         id: row.id,
         primaryPath: candidates[0] ?? null,
         candidates,
-        directUrls: resolveMediaDirectPreviewUrls(row),
+        directUrls: resolveMediaDirectPreviewUrls(row, currentUserIdRef.current),
       };
     });
     const signPaths = Array.from(new Set(signCandidatesByRow.flatMap((entry) => entry.candidates)));

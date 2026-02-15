@@ -330,6 +330,23 @@ body:has(.ai-studio-page) {
   z-index: 2;
 }
 
+.ai-hero .hero-text {
+  display: flex;
+  align-items: center;
+  min-height: 100%;
+}
+
+.ai-hero-title {
+  margin: 0;
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  line-height: 1;
+  letter-spacing: var(--tracking-wide);
+  color: #c9cdd6;
+  text-transform: none;
+}
+
 .ai-hero .hero-text h1 {
   color: var(--ai-card-text);
   font-size: 14px;

@@ -374,7 +374,7 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
           applySignedUrlsToTab(getMediaDataTabForRow(row), new Map([[row.id, nextSignedUrl]]));
           return nextSignedUrl;
         }
-        const directUrl = resolveMediaDirectPreviewUrls(row)[0] ?? null;
+        const directUrl = resolveMediaDirectPreviewUrls(row, currentUserIdRef.current)[0] ?? null;
         if (directUrl) {
           const previousObjectUrl = objectUrlByMediaIdRef.current[row.id];
           if (previousObjectUrl) {

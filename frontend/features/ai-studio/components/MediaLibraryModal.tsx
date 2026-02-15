@@ -587,7 +587,7 @@ export function MediaLibraryModal({
           applySignedUrlsToTab(getMediaDataTabForRow(file), new Map([[file.id, nextSignedUrl]]));
           return nextSignedUrl;
         }
-        const directUrl = resolveMediaDirectPreviewUrls(file)[0] ?? null;
+        const directUrl = resolveMediaDirectPreviewUrls(file, currentUserIdRef.current)[0] ?? null;
         if (directUrl) {
           const previousObjectUrl = objectUrlByMediaIdRef.current[file.id];
           if (previousObjectUrl) {
@@ -957,7 +957,7 @@ export function MediaLibraryModal({
         id: row.id,
         primaryPath: candidates[0] ?? null,
         candidates,
-        directUrls: resolveMediaDirectPreviewUrls(row),
+        directUrls: resolveMediaDirectPreviewUrls(row, currentUserIdRef.current),
       };
     });
     const signPaths = Array.from(new Set(signCandidatesByRow.flatMap((entry) => entry.candidates)));

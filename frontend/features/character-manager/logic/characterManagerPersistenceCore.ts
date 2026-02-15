@@ -6,6 +6,7 @@ import {
   getSignedMediaUrlsBatch,
   invalidateSignedMediaUrl,
 } from "../../../lib/mediaSignedUrlCache";
+import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import {
   CHARACTER_MANAGER_SLOT_KEYS,
@@ -280,7 +281,11 @@ export const createStoragePath = ({
 }) => {
   const extension = inferFileExtension(filename, mimeType);
   const stem = sanitizeFileStem(filename);
-  return `${userId}/characters/${characterId}/${characterSheetId}/${slotKey}/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`;
+  return assertUserScopedMediaStoragePath({
+    path: `${userId}/characters/${characterId}/${characterSheetId}/${slotKey}/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`,
+    userId,
+    label: "Character slot storage path",
+  });
 };
 
 /**
@@ -299,7 +304,11 @@ export const createCharacterProfileStoragePath = ({
 }) => {
   const extension = inferFileExtension(filename, mimeType);
   const stem = sanitizeFileStem(filename);
-  return `${userId}/characters/${characterId}/profile/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`;
+  return assertUserScopedMediaStoragePath({
+    path: `${userId}/characters/${characterId}/profile/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`,
+    userId,
+    label: "Character profile storage path",
+  });
 };
 
 /**

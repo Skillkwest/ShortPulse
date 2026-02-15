@@ -11,6 +11,9 @@ type ReferenceVideoSettingsStepProps = {
   isMotionMode: boolean;
   beginnerMode: boolean;
   videoSettingsOrder: number;
+  videoSettingsBadge: string;
+  motionAudioOrder: number;
+  motionAudioBadge: string;
   collapsedVideoSettings: boolean;
   collapsedMotionAudio: boolean;
   videoDurationValue: number;
@@ -46,6 +49,9 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
   isMotionMode,
   beginnerMode,
   videoSettingsOrder,
+  videoSettingsBadge,
+  motionAudioOrder,
+  motionAudioBadge,
   collapsedVideoSettings,
   collapsedMotionAudio,
   videoDurationValue,
@@ -81,7 +87,7 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
           style={{ order: videoSettingsOrder }}
         >
           <div className="step-card-header">
-            {beginnerMode && <span className="step-badge">4</span>}
+            {beginnerMode && <span className="step-badge">{videoSettingsBadge}</span>}
             <div className="step-header-copy">
               <p className="step-title">Choose Video Settings</p>
               <span className="step-subtitle tiny helper-text">
@@ -218,10 +224,10 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
         <div
           className={`step-card motion-audio-card ${collapsedMotionAudio ? "is-collapsed" : ""}`}
           onClick={onExpandMotionAudio}
-          style={{ order: 2 }}
+          style={{ order: motionAudioOrder }}
         >
           <div className="step-card-header">
-            {beginnerMode && <span className="step-badge">2</span>}
+            {beginnerMode && <span className="step-badge">{motionAudioBadge}</span>}
             <div className="step-header-copy">
               <p className="step-title">Audio Settings</p>
               <span className="step-subtitle tiny helper-text">

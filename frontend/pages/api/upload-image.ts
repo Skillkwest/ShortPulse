@@ -9,6 +9,7 @@ import { requireApiUser } from "../../lib/server/api/auth";
 import { logApiRouteException } from "../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../lib/server/api/supabaseAdmin";
 import { areCompatibleMimeTypes, detectImageMimeType } from "../../lib/server/uploadSignature";
+import { assertUserScopedMediaStoragePath } from "../../lib/mediaStoragePath";
 
 type UploadImageResponse = {
   url: string;
@@ -195,7 +196,11 @@ export default async function handler(
     const fileBuffer = parsedUpload.buffer;
     const mimeType = detectedMimeType;
     const extension = EXTENSION_BY_MIME[mimeType] ?? "jpg";
-    const storagePath = `${user.id}/images/reference/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+    const storagePath = assertUserScopedMediaStoragePath({
+      path: `${user.id}/images/reference/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`,
+      userId: user.id,
+      label: "Image upload storage path",
+    });
 
     const supabaseAdmin = getSupabaseAdmin();
     const { error: uploadError } = await supabaseAdmin.storage

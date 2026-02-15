@@ -909,11 +909,9 @@ export function CharacterManagerShell() {
           <span>{characterSheetUploadNotice}</span>
         </div>
       ) : null}
-      {isSavingName ? (
-        <p className="tiny subdued" aria-live="polite">
-          Saving character name...
-        </p>
-      ) : null}
+      <p className="sr-only" role="status" aria-live="polite">
+        {isSavingName ? "Saving character name..." : ""}
+      </p>
 
       {activeTab === "create" ? (
         <section className="character-simple-panel">
@@ -1413,11 +1411,9 @@ export function CharacterManagerShell() {
               );
             })}
           </div>
-          {isSwitchingCharacter ? (
-            <p className="tiny subdued" aria-live="polite">
-              Loading selected character...
-            </p>
-          ) : null}
+          <p className="sr-only" role="status" aria-live="polite">
+            {isSwitchingCharacter ? "Loading selected character..." : ""}
+          </p>
         </section>
       )}
 

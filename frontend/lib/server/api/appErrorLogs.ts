@@ -239,6 +239,8 @@ const shouldSkipLog = (params: {
   return false;
 };
 
+const isTelemetryOnlySource = (source: string): boolean => source.startsWith("telemetry.");
+
 const requestHeaderValue = (value: string | string[] | undefined): string | null => {
   if (typeof value === "string") return toTrimmedString(value);
   if (Array.isArray(value) && value[0]) return toTrimmedString(value[0]);
@@ -450,6 +452,10 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
     metadata,
     occurredAt,
   });
+
+  if (isTelemetryOnlySource(source)) {
+    return { ok: true, skipped: false, id: null };
+  }
 
   const appErrorLogsTable = getTable<AppErrorLogsTable>("app_error_logs");
   if (!appErrorLogsTable) {

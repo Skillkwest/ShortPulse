@@ -72,12 +72,27 @@ export type AdminErrorEventSummary = {
   app24hCount: number;
   generation24hCount: number;
   high24hCount: number;
+  characterModeReferenceRefreshEmptyLastHourCount: number;
+  characterModeReferenceRefreshEmptyLast24hCount: number;
+  characterModeBundleUnavailableFallbackLastHourCount: number;
+  characterModeBundleUnavailableFallbackLast24hCount: number;
   total15mThreshold: number;
   high15mThreshold: number;
   generation15mThreshold: number;
   total15mBreached: boolean;
   high15mBreached: boolean;
   generation15mBreached: boolean;
+};
+
+export type AdminErrorEventSignalFilter =
+  | "all"
+  | "character_mode_reference_refresh_empty"
+  | "character_mode_bundle_unavailable_fallback";
+
+export type AdminErrorEventsHealth = {
+  eventsTableAvailable: boolean;
+  degraded: boolean;
+  reason: string | null;
 };
 
 export type AdminPagination = {

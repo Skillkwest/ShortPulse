@@ -7,7 +7,7 @@ import { useRouter } from "next/router";
 import { useEffect } from "react";
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { PROTECTED_ROUTES, useProtectedRoute } from "../lib/authGuard";
-import { installGlobalAppErrorHandlers } from "../lib/appErrorReporter";
+import { installGlobalAppErrorHandlers, reportAppError } from "../lib/appErrorReporter";
 import { addBreadcrumb, redactUrlForTelemetry } from "../lib/clientBreadcrumbs";
 import { installMediaPerfDebugHandle } from "../lib/mediaPerfTelemetry";
 import "../styles/globals.css";
@@ -48,13 +48,29 @@ export default function App({ Component, pageProps }: AppProps) {
         },
       });
     };
-    const onError = (_error: Error, url: string) => {
+    const onError = (routeError: Error & { cancelled?: boolean }, url: string) => {
       addBreadcrumb({
         type: "route",
         level: "warn",
         message: "route_change_error",
         data: {
           to: redactUrlForTelemetry(url),
+        },
+      });
+      if (routeError?.cancelled) return;
+
+      void reportAppError({
+        source: "client.route_change",
+        scope: "app",
+        severity: "medium",
+        message: routeError?.message
+          ? `Route change failed: ${routeError.message}`
+          : "Route change failed",
+        stack: routeError?.stack ?? null,
+        route: typeof window !== "undefined" ? window.location.pathname : null,
+        endpoint: redactUrlForTelemetry(url),
+        metadata: {
+          route_change_target: redactUrlForTelemetry(url),
         },
       });
     };

@@ -82,8 +82,10 @@ const createMediaClient = (rows: Row[]) => {
       if (table === "media_prompts") {
         return {
           select: vi.fn(() => ({
-            order: vi.fn().mockReturnValue({
-              order: vi.fn(async () => ({ data: [], error: null })),
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                order: vi.fn(async () => ({ data: [], error: null })),
+              }),
             }),
           })),
         };

@@ -17,6 +17,11 @@ type ReferenceKlingAdvancedStepsProps = {
   isKling3Mode: boolean;
   beginnerMode: boolean;
   klingAdvancedOrder?: number;
+  klingAdvancedBadge: string;
+  klingAssetsOrder?: number;
+  klingAssetsBadge: string;
+  klingGuidanceOrder?: number;
+  klingGuidanceBadge: string;
   collapsedKlingAdvanced: boolean;
   collapsedKlingAssets: boolean;
   collapsedKlingGuidance: boolean;
@@ -60,6 +65,11 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
   isKling3Mode,
   beginnerMode,
   klingAdvancedOrder,
+  klingAdvancedBadge,
+  klingAssetsOrder,
+  klingAssetsBadge,
+  klingGuidanceOrder,
+  klingGuidanceBadge,
   collapsedKlingAdvanced,
   collapsedKlingAssets,
   collapsedKlingGuidance,
@@ -90,6 +100,8 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
   updateKlingElement,
 }) => {
   if (!isKling3Mode) return null;
+  const klingAssetsCardOrder = klingAssetsOrder ?? (klingAdvancedOrder ?? 5) + 1;
+  const klingGuidanceCardOrder = klingGuidanceOrder ?? klingAssetsCardOrder + 1;
 
   return (
     <>
@@ -99,7 +111,7 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
         style={{ order: klingAdvancedOrder }}
       >
         <div className="step-card-header">
-          {beginnerMode && <span className="step-badge">6</span>}
+          {beginnerMode && <span className="step-badge">{klingAdvancedBadge}</span>}
           <div className="step-header-copy">
             <p className="step-title">Shots & Timing</p>
             <span className="step-subtitle tiny helper-text">{klingShotSummary}</span>
@@ -197,10 +209,10 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
       <div
         className={`step-card kling-advanced-card ${collapsedKlingAssets ? "is-collapsed" : ""}`}
         onClick={onExpandKlingAssets}
-        style={{ order: (klingAdvancedOrder ?? 5) + 0.1 }}
+        style={{ order: klingAssetsCardOrder }}
       >
         <div className="step-card-header">
-          {beginnerMode && <span className="step-badge">6b</span>}
+          {beginnerMode && <span className="step-badge">{klingAssetsBadge}</span>}
           <div className="step-header-copy">
             <p className="step-title">Assets & Voices</p>
             <span className="step-subtitle tiny helper-text">{klingAssetsSummary}</span>
@@ -292,10 +304,10 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
       <div
         className={`step-card kling-advanced-card ${collapsedKlingGuidance ? "is-collapsed" : ""}`}
         onClick={onExpandKlingGuidance}
-        style={{ order: (klingAdvancedOrder ?? 5) + 0.2 }}
+        style={{ order: klingGuidanceCardOrder }}
       >
         <div className="step-card-header">
-          {beginnerMode && <span className="step-badge">6c</span>}
+          {beginnerMode && <span className="step-badge">{klingGuidanceBadge}</span>}
           <div className="step-header-copy">
             <p className="step-title">Guidance & Safety</p>
             <span className="step-subtitle tiny helper-text">{klingGuidanceSummary}</span>

@@ -236,7 +236,7 @@ export default async function handler(
         urls[mediaId] = signedUrl;
         continue;
       }
-      urls[mediaId] = resolveMediaDirectPreviewUrls(row)[0] ?? null;
+      urls[mediaId] = resolveMediaDirectPreviewUrls(row, user.id)[0] ?? null;
     }
 
     return res.status(200).json({ urls });

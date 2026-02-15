@@ -9,6 +9,7 @@ type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
 
 type ReferenceMediaStepProps = {
   referenceOrder: number;
+  referenceBadge: string;
   collapsedReference: boolean;
   onExpandReference: () => void;
   onToggleReference: () => void;
@@ -60,6 +61,7 @@ type ReferenceMediaStepProps = {
  */
 export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   referenceOrder,
+  referenceBadge,
   collapsedReference,
   onExpandReference,
   onToggleReference,
@@ -111,7 +113,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
           onClick={onExpandReference}
         >
           <div className="reference-step-header">
-            {beginnerMode && <span className="step-badge mini">{isVideoVariant ? "1" : "1"}</span>}
+            {beginnerMode && <span className="step-badge mini">{referenceBadge}</span>}
             <div className="reference-step-copy">
               <p className="step-title">{referenceStepTitle}</p>
               <span className="step-subtitle tiny helper-text">{referenceStepSubtitle}</span>

@@ -10,6 +10,7 @@ import {
   type MediaMoveDestination,
   validateMoveDestination,
 } from "../../features/media-library/logic/mediaMoveRouting";
+import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 
 export type MediaFileRow = {
@@ -54,18 +55,9 @@ export type MoveMediaServiceResult =
     };
 
 const MEDIA_BUCKET = "media_library";
-const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 
 const MEDIA_FILE_SELECT =
   "id, user_id, filename, storage_path, file_type, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
-
-const isUserScopedStoragePath = (path: string, userId: string): boolean => {
-  const normalized = path.trim();
-  if (!normalized) return false;
-  if (normalized.startsWith("/") || normalized.includes("\\")) return false;
-  if (TRAVERSAL_SEGMENT_REGEX.test(normalized)) return false;
-  return normalized.startsWith(`${userId}/`);
-};
 
 /**
  * Returns true when the provided tab value is a valid media data tab.
@@ -144,7 +136,7 @@ export const moveMediaFileForUser = async ({
   const nextStoragePath = buildMovedStoragePath(userId, fileRow, destinationTab);
   const previousStoragePath = fileRow.storage_path;
 
-  if (!isUserScopedStoragePath(previousStoragePath, userId)) {
+  if (!isUserScopedMediaStoragePath(previousStoragePath, userId)) {
     return {
       ok: false,
       value: {
@@ -154,7 +146,7 @@ export const moveMediaFileForUser = async ({
       },
     };
   }
-  if (!isUserScopedStoragePath(nextStoragePath, userId)) {
+  if (!isUserScopedMediaStoragePath(nextStoragePath, userId)) {
     return {
       ok: false,
       value: {

@@ -197,6 +197,8 @@ export function PromptStep({
   const canExpandInlineChat = agentMessages.length > 0;
   const canUsePromptSurface = agentEnabled || enhanceOnly;
   const isChatMode = !promptOnly && !enhanceOnly && (chatOnly || promptMode === "chat");
+  // Chat-only mode should not depend on "expanded chat" state now that the expand control is removed.
+  const showInlineChat = isChatMode && (!agentChatOpen || chatOnly);
   const promptThinking = Boolean(agentIsSending || isGenerating);
   const visibleSubtitle = beginnerMode ? beginnerSubtitle : subtitle;
   const canPinAgentInput = agentInput.trim().length > 0;
@@ -268,20 +270,6 @@ export function PromptStep({
         <div className="step-header-actions">
           {chatOnly ? (
             <div className="prompt-chat-header-actions">
-              {onExpandChat ? (
-                <button
-                  type="button"
-                  className={`ghost-btn mini prompt-chat-header-btn ${agentChatOpen ? "is-chat-open" : ""}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onExpandChat();
-                  }}
-                  aria-label="Expand chat"
-                >
-                  <ArrowsOutSimple size={14} weight="bold" aria-hidden />
-                  <span>Expand</span>
-                </button>
-              ) : null}
               {onClearAgentChat ? (
                 <button
                   type="button"
@@ -374,65 +362,48 @@ export function PromptStep({
                 </div>
               </div>
             ) : null}
-            {isChatMode ? (
-              agentChatOpen ? null : (
-                <>
-                  <div className="agent-chat-wrapper agent-chat-wrapper--inline">
-                    <AgentChatPanel
-                      messages={agentMessages}
-                      introMessage={introMessage}
-                      input={agentInput}
-                      sendLabel="Send"
-                      isSending={agentIsSending}
-                      stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
-                      stagedAttachments={stagedAttachments}
-                      isDropActive={agentDropActive}
-                      showInput={false}
-                      onDrop={onAgentAttachmentDrop}
-                      onDragOver={onAgentAttachmentDragOver}
-                      onDragEnter={onAgentAttachmentDragEnter}
-                      onDragLeave={onAgentAttachmentDragLeave}
-                      onRemoveAttachment={onRemoveAgentAttachment}
-                      onClearAttachments={onClearAgentAttachments}
-                      onInputChange={(value) => onAgentInputChange?.(value)}
-                      onSend={onAgentSend ?? (() => {})}
-                      onMessageClick={onAgentMessageClick}
+            {showInlineChat ? (
+              <>
+                <div className="agent-chat-wrapper agent-chat-wrapper--inline">
+                  <AgentChatPanel
+                    messages={agentMessages}
+                    introMessage={introMessage}
+                    input={agentInput}
+                    sendLabel="Send"
+                    isSending={agentIsSending}
+                    stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
+                    stagedAttachments={stagedAttachments}
+                    isDropActive={agentDropActive}
+                    showInput={false}
+                    onDrop={onAgentAttachmentDrop}
+                    onDragOver={onAgentAttachmentDragOver}
+                    onDragEnter={onAgentAttachmentDragEnter}
+                    onDragLeave={onAgentAttachmentDragLeave}
+                    onRemoveAttachment={onRemoveAgentAttachment}
+                    onClearAttachments={onClearAgentAttachments}
+                    onInputChange={(value) => onAgentInputChange?.(value)}
+                    onSend={onAgentSend ?? (() => {})}
+                    onMessageClick={onAgentMessageClick}
+                  />
+                </div>
+                <div className="step2-input-row prompt-actions-compact agent-composer-row">
+                  <AgentInputBar
+                    ref={agentInputRef}
+                    value={agentInput}
+                    onChange={(value) => onAgentInputChange?.(value)}
+                    placeholder="Message the agent..."
+                    onKeyDown={handleAgentInputKeyDown}
+                    className="agent-input-prefab-inline"
+                  />
+                  <div className="agent-inline-actions">
+                    <AgentSendButton
+                      onClick={handleAgentSendClick}
+                      disabled={agentIsSending}
+                      ariaLabel="Send to agent"
+                      label="Send"
+                      className="agent-send-prefab--labeled"
                     />
-                  </div>
-                  <div className="step2-input-row prompt-actions-compact agent-composer-row">
-                    <AgentInputBar
-                      ref={agentInputRef}
-                      value={agentInput}
-                      onChange={(value) => onAgentInputChange?.(value)}
-                      placeholder="Message the agent..."
-                      onKeyDown={handleAgentInputKeyDown}
-                      className="agent-input-prefab-inline"
-                    />
-                    <div className="agent-inline-actions">
-                      <AgentSendButton
-                        onClick={handleAgentSendClick}
-                        disabled={agentIsSending}
-                        ariaLabel="Send to agent"
-                        label="Send"
-                        className="agent-send-prefab--labeled"
-                      />
-                      {!showBeginnerChatPinTip ? (
-                        <AgentSaveButton
-                          onClick={() => onSavePrompt(agentInput)}
-                          disabled={shouldDisableChatPin}
-                          ariaLabel="Pin prompt"
-                          className={chatPromptSaveButtonClassName}
-                          unstyled={chatPromptSaveButtonUnstyled}
-                        />
-                      ) : null}
-                    </div>
-                  </div>
-                  {showBeginnerChatPinTip ? (
-                    <div className="agent-composer-tip-row">
-                      <p className="tiny helper-text beginner-pin-helper create-beginner-pin-helper">
-                        <span className="beginner-pin-helper-prefix">Tip:</span>
-                        <span>{beginnerPinHelperText}</span>
-                      </p>
+                    {!showBeginnerChatPinTip ? (
                       <AgentSaveButton
                         onClick={() => onSavePrompt(agentInput)}
                         disabled={shouldDisableChatPin}
@@ -440,38 +411,52 @@ export function PromptStep({
                         className={chatPromptSaveButtonClassName}
                         unstyled={chatPromptSaveButtonUnstyled}
                       />
-                    </div>
-                  ) : null}
-                  {!beginnerMode ? (
-                    <p className="tiny helper-text agent-composer-hint">
-                      Enter to send. Shift+Enter for a new line.
+                    ) : null}
+                  </div>
+                </div>
+                {showBeginnerChatPinTip ? (
+                  <div className="agent-composer-tip-row">
+                    <p className="tiny helper-text beginner-pin-helper create-beginner-pin-helper">
+                      <span className="beginner-pin-helper-prefix">Tip:</span>
+                      <span>{beginnerPinHelperText}</span>
                     </p>
-                  ) : null}
-                  {imageAttachmentCounts.total > 0 ? (
-                    <p className="tiny helper-text agent-composer-hint agent-composer-hint--media">
-                      Vision images: {imageAttachmentCounts.ready}/{imageAttachmentCounts.total}{" "}
-                      ready
-                      {imageAttachmentCounts.preparing > 0
-                        ? `, ${imageAttachmentCounts.preparing} preparing`
-                        : ""}
-                      {imageAttachmentCounts.failed > 0
-                        ? `, ${imageAttachmentCounts.failed} failed`
-                        : ""}
-                      . Max 3 sent per message.
-                    </p>
-                  ) : null}
-                  <AgentPromptActions
-                    showPrimaryPromptStatus={false}
-                    primaryPrompt={agentPrimaryPrompt ?? prompt}
-                    primarySource={agentPrimarySource}
-                    actions={agentActions}
-                    onApplyPrompt={onAgentApplyPrompt}
-                    onSelectVariation={onAgentSelectVariation}
-                    onUseQuestion={onAgentUseQuestion}
-                    onDescribeTargets={onAgentDescribeTargets}
-                  />
-                </>
-              )
+                    <AgentSaveButton
+                      onClick={() => onSavePrompt(agentInput)}
+                      disabled={shouldDisableChatPin}
+                      ariaLabel="Pin prompt"
+                      className={chatPromptSaveButtonClassName}
+                      unstyled={chatPromptSaveButtonUnstyled}
+                    />
+                  </div>
+                ) : null}
+                {!beginnerMode ? (
+                  <p className="tiny helper-text agent-composer-hint">
+                    Enter to send. Shift+Enter for a new line.
+                  </p>
+                ) : null}
+                {imageAttachmentCounts.total > 0 ? (
+                  <p className="tiny helper-text agent-composer-hint agent-composer-hint--media">
+                    Vision images: {imageAttachmentCounts.ready}/{imageAttachmentCounts.total} ready
+                    {imageAttachmentCounts.preparing > 0
+                      ? `, ${imageAttachmentCounts.preparing} preparing`
+                      : ""}
+                    {imageAttachmentCounts.failed > 0
+                      ? `, ${imageAttachmentCounts.failed} failed`
+                      : ""}
+                    . Max 3 sent per message.
+                  </p>
+                ) : null}
+                <AgentPromptActions
+                  showPrimaryPromptStatus={false}
+                  primaryPrompt={agentPrimaryPrompt ?? prompt}
+                  primarySource={agentPrimarySource}
+                  actions={agentActions}
+                  onApplyPrompt={onAgentApplyPrompt}
+                  onSelectVariation={onAgentSelectVariation}
+                  onUseQuestion={onAgentUseQuestion}
+                  onDescribeTargets={onAgentDescribeTargets}
+                />
+              </>
             ) : (
               <>
                 <div className="step2-input-row enhanced-mode">

@@ -204,3 +204,96 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     expect(submitFalKlingV3ImageToVideo).not.toHaveBeenCalled();
   });
 });
+
+describe("handleVideoModelSubmission (Kling 3 non-motion element videos)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitFalKlingV3ImageToVideo).mockResolvedValue({ request_id: "req-456" });
+    vi.mocked(getSignedMediaUrl).mockResolvedValue(
+      "https://example.com/signed/element-video-refreshed.mp4"
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("refreshes expiring Kling element video URLs before submit", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const expSoon = Math.floor(Date.now() / 1000) + 60;
+    const payload = Buffer.from(
+      JSON.stringify({
+        url: "media_library/user-1/videos/element.mp4",
+        exp: expSoon,
+      })
+    ).toString("base64url");
+    const token = `header.${payload}.sig`;
+    const signedElementVideoUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/element.mp4" +
+      `?token=${token}`;
+    const args = makeArgs({
+      videoReferenceMode: "kling3",
+      motionReferenceVideoUrl: null,
+      klingElements: [
+        {
+          id: "element-1",
+          frontalImageUrl: "",
+          referenceImageUrls: "",
+          videoUrl: signedElementVideoUrl,
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(getSignedMediaUrl).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/videos/element.mp4",
+      forceRefresh: true,
+    });
+    expect(submitFalKlingV3ImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        elements: [{ video_url: "https://example.com/signed/element-video-refreshed.mp4" }],
+      })
+    );
+  });
+
+  it("fails gracefully when Kling element video URL refresh fails", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const expSoon = Math.floor(Date.now() / 1000) + 60;
+    const payload = Buffer.from(
+      JSON.stringify({
+        url: "media_library/user-1/videos/element.mp4",
+        exp: expSoon,
+      })
+    ).toString("base64url");
+    const token = `header.${payload}.sig`;
+    const signedElementVideoUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/element.mp4" +
+      `?token=${token}`;
+    vi.mocked(getSignedMediaUrl).mockResolvedValueOnce(null);
+    const args = makeArgs({
+      videoReferenceMode: "kling3",
+      motionReferenceVideoUrl: null,
+      klingElements: [
+        {
+          id: "element-1",
+          frontalImageUrl: "",
+          referenceImageUrls: "",
+          videoUrl: signedElementVideoUrl,
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      expect.stringContaining("Kling element reference preparation failed")
+    );
+    expect(submitFalKlingV3ImageToVideo).not.toHaveBeenCalled();
+  });
+});

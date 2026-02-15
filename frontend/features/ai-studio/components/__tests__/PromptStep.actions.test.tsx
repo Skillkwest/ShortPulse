@@ -54,6 +54,12 @@ describe("PromptStep agent actions", () => {
     expect(screen.getByRole("button", { name: "Should this be 16:9?" })).toBeInTheDocument();
   });
 
+  it("keeps inline chat visible in chat-only mode when expanded chat state is true", () => {
+    render(<PromptStep {...baseProps} agentChatOpen />);
+
+    expect(screen.getByPlaceholderText("Message the agent...")).toBeInTheDocument();
+  });
+
   it("fires action callbacks with sanitized payloads", () => {
     const onAgentSelectVariation = vi.fn();
     const onAgentUseQuestion = vi.fn();

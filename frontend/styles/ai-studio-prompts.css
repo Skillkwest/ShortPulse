@@ -79,16 +79,6 @@
   cursor: not-allowed;
 }
 
-.prompt-chat-header-btn.is-chat-open {
-  background: linear-gradient(135deg, #f5b754, #f4921f);
-  border-color: #f4921f;
-  color: #0f1d23;
-}
-
-.prompt-chat-header-btn.is-chat-open svg {
-  color: #0f1d23;
-}
-
 .prompt-expand-btn {
   width: 42px;
   height: 36px;

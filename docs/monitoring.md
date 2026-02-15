@@ -4,6 +4,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 
 ## Signals in place
 - Client runtime, API/network, and generation workflow failures are captured and sent to `/api/log/client-error`.
+- Client route-transition failures (`client.route_change`, excluding cancelled navigations) are captured for incident triage.
 - API/server-side incidents can be written through `frontend/lib/server/api/appErrorLogs.ts`.
 - Operator review surface: `/admin` incident panels backed by `app_error_logs` (grouped) plus raw event stream from `app_error_events` (per occurrence) via `/api/admin/error-events`.
 
@@ -29,7 +30,8 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - total event volume,
   - high-severity event volume,
   - generation-scope event volume.
-- Alert metrics are computed against real traffic only (synthetic admin test events excluded) and are not altered by UI filter state.
+- If `app_error_events` is missing (schema drift), `/api/admin/error-events` now returns a degraded payload (`health.degraded = true`) instead of failing hard. The Admin Event Stream shows a drift warning so operators can apply migration `015` and restore per-occurrence visibility.
+- Alert metrics are computed against real failure traffic only (synthetic admin test events and `telemetry.*` sources excluded) and are not altered by UI filter state.
 - Threshold env vars (server-side): `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, `SHORTPULSE_ADMIN_ALERT_GENERATION_15M`.
 - Defaults if unset: `40`, `8`, `20`.
 
@@ -42,9 +44,11 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 - Escalate using the troubleshooting runbook section `Character Manager alias drift (Character Sheet vs legacy Reference Pack fields)`.
 
 ## Media storage scope drift monitor
-- After any deploy that changes media upload/sign/move behavior or `media_files` constraints, run `sql/check_media_storage_scope_drift.sql`.
+- After any deploy that changes media upload/sign/move behavior or storage-path constraints, run `sql/check_media_storage_scope_drift.sql`.
 - Expected result: every `mismatch_count` is `0`.
 - If any non-zero count appears, treat as `high` severity because cross-user object reference risk can reappear.
+- Keep `sql/migrations/016_harden_media_storage_path_scope.sql` and `sql/migrations/017_harden_media_storage_path_shape.sql` applied in every environment before declaring this monitor healthy.
+- Use `docs/sops/sop_sql_migration_operations.md` for the canonical remediation loop.
 - Escalate using troubleshooting runbook section `Media storage path scope drift`.
 
 ## Release checklist tie-in

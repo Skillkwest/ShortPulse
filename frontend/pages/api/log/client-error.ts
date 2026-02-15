@@ -47,10 +47,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       userId: user.id,
       userEmail: user.email ?? null,
       metadata: {
+        ...((payload.metadata ?? {}) as Record<string, unknown>),
         user_agent: req.headers["user-agent"] ?? null,
         host: req.headers.host ?? null,
         vercel_id: req.headers["x-vercel-id"] ?? null,
-        ...((payload.metadata ?? {}) as Record<string, unknown>),
       },
       occurredAt: payload.occurredAt ?? null,
     });

@@ -5,6 +5,7 @@ import React from "react";
 import { PromptStep } from "./PromptStep";
 
 type ReferencePromptStepProps = {
+  promptBadge: string;
   promptOrder: number;
   isVideoVariant: boolean;
   referenceText: string | null;
@@ -28,6 +29,7 @@ type ReferencePromptStepProps = {
  * Renders prompt editing and agent interactions for reference workflows.
  */
 export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
+  promptBadge,
   promptOrder,
   isVideoVariant,
   referenceText,
@@ -49,7 +51,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   return (
     <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
       <PromptStep
-        stepNumber={isVideoVariant ? "2" : "2"}
+        stepNumber={promptBadge}
         title="Write Your Prompt"
         subtitle="Start typing your prompt or drag & drop a prompt from the reference grid."
         prompt={referenceText ?? ""}

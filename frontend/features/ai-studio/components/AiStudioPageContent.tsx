@@ -5,7 +5,7 @@
 import React from "react";
 import Link from "next/link";
 import {
-  CloudArrowUp,
+  FolderSimple,
   FlowArrow,
   Globe,
   type IconProps,
@@ -261,7 +261,7 @@ export function AiStudioPageContent({
 
         <section className="ai-hero panel hero-banner ai-amber-hero">
           <div className="hero-text">
-            <p className="eyebrow">AI Studio</p>
+            <h1 className="ai-hero-title">AI Studio</h1>
           </div>
           <div className="hero-right">
             <div className="ai-credit-inline header-embedded">
@@ -501,7 +501,7 @@ export function AiStudioPageContent({
                           <div className="preview-header-actions">
                             <button
                               type="button"
-                              className="ghost-btn mini preview-media-btn"
+                              className="ghost-btn mini preview-media-btn reference-grid-add-files-btn"
                               onClick={triggerFilePicker}
                             >
                               <UploadSimple size={14} weight="regular" />
@@ -509,11 +509,11 @@ export function AiStudioPageContent({
                             </button>
                             <button
                               type="button"
-                              className="ghost-btn mini preview-media-btn"
+                              className="ghost-btn mini preview-media-btn reference-grid-media-library-btn"
                               onClick={onOpenMediaLibrary}
                             >
-                              <CloudArrowUp size={14} weight="regular" />
-                              Media library
+                              <FolderSimple size={14} weight="regular" />
+                              <span>Media library</span>
                             </button>
                           </div>
                         </div>

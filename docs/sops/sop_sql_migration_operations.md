@@ -1,0 +1,187 @@
+# SOP: SQL Migration And Operations
+
+## Purpose
+Provide a single operational guide for SQL work in this repo: what each SQL area is for, how to run scripts safely, and how to validate user-isolation/security outcomes.
+
+## Scope
+- Supabase schema/bootstrap scripts under `sql/`.
+- Ordered migrations under `sql/migrations/`.
+- Rollback scripts under `sql/migrations/rollback/`.
+- Diagnostics and repair loops for Media Library isolation.
+
+## SQL Layout And Intent
+
+### 1) Bootstrap and utility scripts (`sql/`)
+Use these for foundational setup or targeted one-off operations.
+
+- `sql/storage_policies.sql`: creates private `media_library` bucket + user-scoped storage policies.
+- `sql/create_media_library_tables.sql`: creates Media Library tables, RLS policies, and constraints.
+- `sql/create_saved_creators_table.sql`: saved creators table + isolation controls.
+- `sql/create_user_preferences_table.sql`: user preference table bootstrap.
+- `sql/create_billing_credit_tables.sql`: billing/credits schema and policies.
+- `sql/create_app_error_logs_table.sql`: app incident log tables baseline.
+- `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`: ledger compatibility upgrade for legacy billing schemas.
+- `sql/migrate_new_user_plan_default_to_free.sql`: targeted plan-default migration.
+- `sql/update_billing_pricing_catalog_20260210.sql`: catalog price update script.
+- `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
+- `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
+- `sql/check_character_sheet_alias_drift.sql`: character alias drift diagnostics (read-only).
+
+### 2) Ordered migrations (`sql/migrations/`)
+Use these for durable schema evolution across environments.
+
+Current set:
+- `001_add_studio_10000_credit_package.sql`
+- `002_add_generation_credit_reservations.sql`
+- `003_add_private_media_source.sql`
+- `004_add_private_media_integrity_checks.sql`
+- `005_add_media_processing_and_variants.sql`
+- `006_backfill_media_variant_hints.sql`
+- `007_harden_media_source_and_usage_rpc.sql`
+- `008_add_character_manager_foundation.sql`
+- `009_repair_legacy_media_storage_paths.sql`
+- `010_harden_character_reference_media_integrity.sql`
+- `011_add_character_description_to_characters.sql`
+- `012_add_character_sheet_aliases_and_compat.sql`
+- `013_fix_generation_reservation_rpc_ambiguity.sql`
+- `014_harden_generation_reservation_rpc_security.sql`
+- `015_add_app_error_events.sql`
+- `016_harden_media_storage_path_scope.sql`
+- `017_harden_media_storage_path_shape.sql`
+
+### 3) Rollbacks (`sql/migrations/rollback/`)
+Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.
+
+## Operating Principles
+
+1. Treat migrations as forward-first.
+- Production/staging should move forward through ordered migrations.
+
+2. Idempotent scripts can be safely re-run.
+- Many scripts here intentionally use patterns like `drop ... if exists`, `create ... if not exists`, and corrective updates.
+
+3. Diagnostics are read-only and can be run repeatedly.
+- `sql/check_media_storage_scope_drift.sql` and `sql/check_character_sheet_alias_drift.sql` should be part of release validation.
+
+4. Re-run hardening after repairs.
+- Expected loop: harden -> diagnose -> repair -> harden -> diagnose.
+
+## Standard Runbooks
+
+### A) New environment bootstrap (minimum secure media stack)
+Run in order:
+
+1. `sql/storage_policies.sql`
+2. `sql/create_media_library_tables.sql`
+3. `sql/migrations/003_add_private_media_source.sql`
+4. `sql/migrations/004_add_private_media_integrity_checks.sql`
+5. `sql/migrations/016_harden_media_storage_path_scope.sql`
+6. `sql/migrations/017_harden_media_storage_path_shape.sql`
+7. `sql/check_media_storage_scope_drift.sql`
+
+Expected outcome:
+- All drift checks return `mismatch_count = 0`.
+
+### B) Existing environment hardening (recommended for active dev/staging)
+Run in order:
+
+1. `sql/migrations/003_add_private_media_source.sql`
+2. `sql/migrations/004_add_private_media_integrity_checks.sql`
+3. `sql/migrations/016_harden_media_storage_path_scope.sql`
+4. `sql/migrations/017_harden_media_storage_path_shape.sql`
+5. `sql/check_media_storage_scope_drift.sql`
+6. If drift is non-zero, run `sql/migrations/009_repair_legacy_media_storage_paths.sql`
+7. Re-run `sql/check_media_storage_scope_drift.sql`
+8. Re-run `sql/migrations/016_harden_media_storage_path_scope.sql`
+9. Re-run `sql/migrations/017_harden_media_storage_path_shape.sql`
+10. Final `sql/check_media_storage_scope_drift.sql`
+
+### C) Development loop (safe repeated runs)
+Use this loop while iterating:
+
+1. Apply target migration(s).
+2. Run drift diagnostics.
+3. If mismatch exists, run repair migration(s).
+4. Re-apply hardening migrations.
+5. Re-run diagnostics until clean.
+
+This is expected and not a broken loop; it is convergence to a strict, validated state.
+
+## Verification Queries
+
+### Media drift checks
+Run:
+- `sql/check_media_storage_scope_drift.sql`
+
+Expected:
+- `media_files.storage_path_backslash = 0`
+- `media_files.storage_path_empty = 0`
+- `media_files.storage_path_leading_slash = 0`
+- `media_files.storage_path_not_user_scoped = 0`
+- `media_files.storage_path_traversal_segment = 0`
+- `media_files.variant_hint_invalid_shape = 0` (when variant hint columns exist)
+- `media_asset_variants.storage_path_invalid_shape = 0` (when `media_asset_variants` exists)
+
+### Constraint validation status
+```sql
+select conname, convalidated
+from pg_constraint
+where conname in (
+  'media_files_storage_scope_check',
+  'media_files_storage_path_shape_check',
+  'media_files_variant_hint_shape_check',
+  'media_asset_variants_storage_path_shape_check'
+)
+order by conname;
+```
+
+### Storage policy presence
+```sql
+select policyname, cmd
+from pg_policies
+where schemaname = 'storage'
+  and tablename = 'objects'
+  and policyname like 'media_access_%'
+order by policyname;
+```
+
+## Common Errors And Fixes
+
+### Error: `42501 must be owner of table objects`
+Cause:
+- Role lacks ownership for `storage.objects`.
+
+Action:
+- Do not run owner-only `ALTER TABLE storage.objects ...` with restricted roles.
+- Apply `sql/storage_policies.sql` policy statements using the project owner role in Supabase Dashboard SQL Editor if needed.
+
+### Error: `23514 check constraint "media_files_source_check" ... violated`
+Cause:
+- Existing rows contain unsupported `source` values for that migration state.
+
+Action:
+1. Inspect values:
+```sql
+select source, count(*)
+from media_files
+group by source
+order by count(*) desc;
+```
+2. Apply updated `sql/migrations/003_add_private_media_source.sql` (forward-compatible allowlist + null normalization).
+3. Continue with `004`, `016`, `017`, then drift checks.
+
+## Promotion Checklist (Staging -> Production)
+
+1. Run migration sequence in staging.
+2. Capture drift output + constraint validation output.
+3. Run app smoke tests with two users (list/preview/move/delete isolation).
+4. Promote same SQL sequence to production.
+5. Run post-deploy drift and policy verification.
+6. Record outcome in `docs/change_log.md`.
+
+## Related Docs
+- `docs/database-migrations.md`
+- `docs/security-checklist.md`
+- `docs/troubleshooting.md`
+- `docs/monitoring.md`
+- `docs/supabase_full_schema.sql`

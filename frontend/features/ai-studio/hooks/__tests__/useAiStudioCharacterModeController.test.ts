@@ -7,6 +7,7 @@ import {
 } from "../useAiStudioCharacterModeController";
 import { loadCharacterManagerDraftByCharacterId } from "../../../character-manager/logic/characterManagerPersistence";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
+import { reportAppError } from "../../../../lib/appErrorReporter";
 
 vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
   loadCharacterManagerDraftByCharacterId: vi.fn(),
@@ -14,11 +15,15 @@ vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrlsBatch: vi.fn(),
 }));
+vi.mock("../../../../lib/appErrorReporter", () => ({
+  reportAppError: vi.fn(),
+}));
 
 const loadCharacterManagerDraftByCharacterIdMock = vi.mocked(
   loadCharacterManagerDraftByCharacterId
 );
 const getSignedMediaUrlsBatchMock = vi.mocked(getSignedMediaUrlsBatch);
+const reportAppErrorMock = vi.mocked(reportAppError);
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
@@ -72,6 +77,7 @@ describe("useAiStudioCharacterModeController", () => {
         tool: "create",
       })
     );
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
   });
 
   it("re-signs an existing fresh bundle without reloading snapshot", async () => {
@@ -187,7 +193,7 @@ describe("useAiStudioCharacterModeController", () => {
     );
   });
 
-  it("fails safe to null injection when forced signing returns no usable URLs", async () => {
+  it("falls back to description-only injection when forced signing returns no usable URLs", async () => {
     const trackCharacterModeEvent = vi.fn();
     const setCharacterModeInjectionBundle = vi.fn();
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
@@ -210,13 +216,35 @@ describe("useAiStudioCharacterModeController", () => {
     const refreshed =
       await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
 
-    expect(refreshed).toBeNull();
-    expect(setCharacterModeInjectionBundle).not.toHaveBeenCalled();
+    expect(refreshed).toEqual(
+      expect.objectContaining({
+        characterId: "char-1",
+        characterDescription: "Base description",
+        sheetReferenceUrls: [],
+      })
+    );
+    expect(setCharacterModeInjectionBundle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characterId: "char-1",
+        sheetReferenceUrls: [],
+      })
+    );
     expect(trackCharacterModeEvent).toHaveBeenCalledWith(
       "character_mode_reference_refresh_empty",
       expect.objectContaining({
         selected_character_id: "char-1",
         storage_path_count: 1,
+      })
+    );
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.character_mode",
+        message: "character_mode_reference_refresh_empty",
+        metadata: expect.objectContaining({
+          telemetry_family: "character_mode",
+          selected_character_id: "char-1",
+          storage_path_count: 1,
+        }),
       })
     );
   });
@@ -243,5 +271,49 @@ describe("useAiStudioCharacterModeController", () => {
     expect(overrides?.fallbackCode).toBe("bundle_unavailable");
     expect(overrides?.referenceInputsOverride).toEqual([]);
     expect(overrides?.submissionPromptOverride).toBe("User visible prompt");
+  });
+
+  it("emits first-class telemetry for bundle-unavailable fallback", () => {
+    const trackCharacterModeEvent = vi.fn();
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      characterModeInjectionBundle: {
+        characterId: "char-1",
+        characterDescription: "Cached description",
+        sheetReferenceStoragePaths: ["user/chars/ref.png"],
+        sheetReferenceUrls: ["https://example.com/cached.png"],
+        loadedAtMs: Date.now(),
+      },
+      trackCharacterModeEvent,
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const overrides = result.current.resolveCharacterModeSubmissionOverrides(
+      "User visible prompt",
+      "create",
+      null
+    );
+
+    act(() => {
+      result.current.trackCharacterModeFallback(overrides, "create");
+    });
+
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+      "character_mode_injection_fallback",
+      expect.objectContaining({
+        fallback_code: "bundle_unavailable",
+        selected_character_id: "char-1",
+      })
+    );
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.character_mode",
+        message: "character_mode_injection_fallback.bundle_unavailable",
+        metadata: expect.objectContaining({
+          telemetry_family: "character_mode",
+          fallback_code: "bundle_unavailable",
+        }),
+      })
+    );
   });
 });

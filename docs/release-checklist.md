@@ -22,6 +22,7 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 
 ## Supabase safety (when schema/policies change)
 
+- GitHub Actions `Media Storage Deploy Gate` run against target environment and returns `PASS`
 - RLS enabled and policies enforce `user_id = auth.uid()` for user-owned tables
 - Storage bucket private; policies require `auth.uid()` path prefixes
 - Verify with two test users (cross-user isolation)

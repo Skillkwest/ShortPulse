@@ -9,6 +9,7 @@ import { requireApiUser } from "../../lib/server/api/auth";
 import { logApiRouteException } from "../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../lib/server/api/supabaseAdmin";
 import { areCompatibleMimeTypes, detectVideoMimeType } from "../../lib/server/uploadSignature";
+import { assertUserScopedMediaStoragePath } from "../../lib/mediaStoragePath";
 
 type UploadResponse = {
   url: string;
@@ -96,7 +97,11 @@ export default async function handler(
 
     const mimeType = detectedMimeType;
     const extension = EXTENSION_BY_MIME[mimeType] ?? "mp4";
-    const storagePath = `${user.id}/videos/motion-control/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+    const storagePath = assertUserScopedMediaStoragePath({
+      path: `${user.id}/videos/motion-control/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`,
+      userId: user.id,
+      label: "Motion control upload storage path",
+    });
 
     const supabaseAdmin = getSupabaseAdmin();
     const { error: uploadError } = await supabaseAdmin.storage

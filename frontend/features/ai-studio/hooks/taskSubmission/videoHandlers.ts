@@ -151,7 +151,29 @@ export const handleVideoModelSubmission = async ({
         : undefined;
     const voiceIds = buildKlingVoiceIds(klingVoiceIds);
     const multiPromptPayload = buildKlingMultiPromptPayload(klingMultiPrompts);
-    const elementsPayload = buildKlingElementsPayload(klingElements);
+    let elementsPayload: ReturnType<typeof buildKlingElementsPayload>;
+    try {
+      const preparedKlingElements = await Promise.all(
+        klingElements.map(async (element) => {
+          const videoUrl = element.videoUrl.trim();
+          if (!videoUrl) return element;
+          const preparedVideoUrl = await prepareVideoUrlForSubmission(videoUrl);
+          if (!preparedVideoUrl) {
+            throw new Error("Kling element video URL is missing.");
+          }
+          return {
+            ...element,
+            videoUrl: preparedVideoUrl,
+          };
+        })
+      );
+      elementsPayload = buildKlingElementsPayload(preparedKlingElements);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Kling element reference preparation failed";
+      notifyGenerationFailure(id, `Kling element reference preparation failed: ${message}`);
+      return true;
+    }
     const { request_id } = await submitFalKlingV3ImageToVideo({
       prompt: cleanedPrompt,
       start_image_url: preparedImageInputs[0],

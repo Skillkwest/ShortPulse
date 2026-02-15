@@ -15,8 +15,9 @@ Purpose: provide a repeatable production deployment process for the Next.js + Su
    npm run build
    ```
 2. Confirm no secrets are committed (`frontend/.env.local` must stay untracked).
-3. Confirm Supabase schema/policies are up to date for production.
-4. Confirm Stripe webhook secret and admin allow-list values are prepared for production.
+3. Run GitHub Actions workflow `Media Storage Deploy Gate` for the target environment (`staging`/`production`) and require `PASS` before deploy.
+4. Confirm Supabase schema/policies are up to date for production.
+5. Confirm Stripe webhook secret and admin allow-list values are prepared for production.
 
 ## Environment variables
 
@@ -34,6 +35,8 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `STRIPE_SECRET_KEY`
   - `STRIPE_WEBHOOK_SECRET`
   - `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (optional override; default `300`)
+- CI/CD deploy gate:
+  - `SUPABASE_DB_URL` (GitHub Environment secret for `staging` and `production`, used by `.github/workflows/media-storage-deploy-gate.yml`)
 - Optional agent/runtime toggles:
   - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
   - `NEXT_PUBLIC_AGENT_V2`

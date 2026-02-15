@@ -21,6 +21,7 @@ import {
   sanitizeFileName,
   type MediaDataTab,
 } from "../logic/mediaLibraryPageHelpers";
+import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 
 const PRIVATE_MEDIA_FOLDER = "private";
 
@@ -131,9 +132,13 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
           const typeFolder = fileTypeFromMime(mimeType) === "video" ? "videos" : "images";
           const extension = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
           const storedName = `${crypto.randomUUID()}-${sanitizeFileName(file.name.replace(extension, ""))}${extension}`;
-          const path = isPrivateUpload
-            ? `${userId}/${PRIVATE_MEDIA_FOLDER}/images/${storedName}`
-            : `${userId}/${typeFolder}/${storedName}`;
+          const path = assertUserScopedMediaStoragePath({
+            path: isPrivateUpload
+              ? `${userId}/${PRIVATE_MEDIA_FOLDER}/images/${storedName}`
+              : `${userId}/${typeFolder}/${storedName}`,
+            userId,
+            label: "Upload storage path",
+          });
 
           const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
             upsert: false,

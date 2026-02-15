@@ -42,6 +42,13 @@ const isLikelyStoragePath = (value: string): boolean => {
   return true;
 };
 
+const isUserScopedStoragePath = (value: string, userId: string): boolean => {
+  const normalized = value.trim();
+  if (!normalized) return false;
+  if (!isLikelyStoragePath(normalized)) return false;
+  return normalized.startsWith(`${userId}/`);
+};
+
 const decodePathPart = (value: string): string => {
   try {
     return decodeURIComponent(value);
@@ -212,7 +219,10 @@ export const resolveMediaSigningStoragePaths = (
 /**
  * Returns URL-shaped preview candidates that can be used directly when signing fails.
  */
-export const resolveMediaDirectPreviewUrls = (row: MediaRowLike): string[] => {
+export const resolveMediaDirectPreviewUrls = (
+  row: MediaRowLike,
+  userId?: string | null
+): string[] => {
   const metadataPaths = resolveFromMetadata(row.metadata ?? null);
   const type = (row.file_type ?? "").toLowerCase();
   const isVideo = type.startsWith("video");
@@ -237,5 +247,16 @@ export const resolveMediaDirectPreviewUrls = (row: MediaRowLike): string[] => {
     seen.add(candidate);
     deduped.push(candidate);
   }
-  return deduped;
+  if (!userId) return deduped;
+
+  return deduped.filter((candidate) => {
+    const extractedPath = extractPathFromUrl(candidate);
+    if (!extractedPath) return false;
+    const normalizedPath = extractedPath
+      .replace(/^\/+/, "")
+      .replace(/^media_library\//, "")
+      .split("?")[0]
+      .trim();
+    return isUserScopedStoragePath(normalizedPath, userId);
+  });
 };

@@ -1,0 +1,80 @@
+/**
+ * API telemetry coverage guardrail.
+ * Ensures API catch blocks either write structured error telemetry or are explicitly allowlisted.
+ */
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+type CatchLocation = {
+  file: string;
+  line: number;
+};
+
+const API_ROOT = path.join(process.cwd(), "pages", "api");
+const LOOKAHEAD_LINES = 40;
+
+const ALLOWLIST = new Set<string>([
+  // This ingest route is the terminal error-logging path itself; catch failures here
+  // return 500 and avoid recursive logging attempts.
+  "log/client-error.ts",
+]);
+
+const LOG_CALL_PATTERNS = [
+  "logApiRouteException(",
+  "logGenerationFailure(",
+  "writeAppErrorLog(",
+  "respondAndLogError(",
+];
+
+const collectApiFiles = (dir: string): string[] => {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const absolute = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectApiFiles(absolute));
+      continue;
+    }
+    if (!entry.isFile()) continue;
+    if (!absolute.endsWith(".ts")) continue;
+    files.push(absolute);
+  }
+
+  return files;
+};
+
+const findUninstrumentedCatches = (absoluteFile: string): CatchLocation[] => {
+  const relative = path.relative(API_ROOT, absoluteFile).replaceAll(path.sep, "/");
+  if (ALLOWLIST.has(relative)) return [];
+
+  const content = fs.readFileSync(absoluteFile, "utf8");
+  const lines = content.split(/\r?\n/);
+  const misses: CatchLocation[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (!/\bcatch\s*\(\s*error\s*\)\s*\{/.test(line)) continue;
+
+    const blockPreview = lines.slice(index, index + LOOKAHEAD_LINES).join("\n");
+    const hasLoggingCall = LOG_CALL_PATTERNS.some((pattern) => blockPreview.includes(pattern));
+    if (!hasLoggingCall) {
+      misses.push({
+        file: relative,
+        line: index + 1,
+      });
+    }
+  }
+
+  return misses;
+};
+
+describe("API error logging coverage", () => {
+  it("keeps catch blocks instrumented for telemetry", () => {
+    const files = collectApiFiles(API_ROOT);
+    const uncovered = files.flatMap((file) => findUninstrumentedCatches(file));
+
+    expect(uncovered).toEqual([]);
+  });
+});

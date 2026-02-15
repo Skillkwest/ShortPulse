@@ -11,6 +11,13 @@ const MAX_LIMIT = 200;
 const DEFAULT_TOTAL_15M_THRESHOLD = 40;
 const DEFAULT_HIGH_15M_THRESHOLD = 8;
 const DEFAULT_GENERATION_15M_THRESHOLD = 20;
+const APP_ERROR_EVENTS_MISSING_REASON =
+  "app_error_events is unavailable; apply sql/migrations/015_add_app_error_events.sql.";
+const TELEMETRY_SOURCE_PREFIX = "telemetry.";
+const CHARACTER_MODE_TELEMETRY_SOURCE = "telemetry.character_mode";
+const CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT = "character_mode_reference_refresh_empty";
+const CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT =
+  "character_mode_injection_fallback.bundle_unavailable";
 
 type EventQuery = {
   eq: (column: string, value: string) => EventQuery;
@@ -42,6 +49,15 @@ type IncidentStatusRow = {
 };
 
 type SyntheticFilterValue = "all" | "only" | "exclude";
+type SignalFilterValue =
+  | "all"
+  | "character_mode_reference_refresh_empty"
+  | "character_mode_bundle_unavailable_fallback";
+type ErrorEventsHealth = {
+  eventsTableAvailable: boolean;
+  degraded: boolean;
+  reason: string | null;
+};
 
 const asPositiveInt = (value: unknown, fallback: number): number => {
   const parsed = Number(value);
@@ -57,6 +73,13 @@ const asFilterValue = (value: unknown): string => {
 const asSyntheticFilter = (value: unknown): SyntheticFilterValue => {
   const normalized = asFilterValue(value);
   if (normalized === "only" || normalized === "exclude") return normalized;
+  return "all";
+};
+
+const asSignalFilter = (value: unknown): SignalFilterValue => {
+  const normalized = asFilterValue(value);
+  if (normalized === "character_mode_reference_refresh_empty") return normalized;
+  if (normalized === "character_mode_bundle_unavailable_fallback") return normalized;
   return "all";
 };
 
@@ -76,6 +99,67 @@ const asThreshold = (value: string | undefined, fallback: number): number => {
   return Math.max(1, Math.trunc(parsed));
 };
 
+const isMissingEventsTableError = (message: string): boolean => {
+  const normalized = message.toLowerCase();
+  if (!normalized.includes("app_error_events")) return false;
+  return (
+    normalized.includes("schema cache") ||
+    normalized.includes("could not find the table") ||
+    (normalized.includes("relation") && normalized.includes("does not exist"))
+  );
+};
+
+const degradedHealth = (reason: string): ErrorEventsHealth => ({
+  eventsTableAvailable: false,
+  degraded: true,
+  reason,
+});
+
+const healthyState = (): ErrorEventsHealth => ({
+  eventsTableAvailable: true,
+  degraded: false,
+  reason: null,
+});
+
+const buildDegradedEventsPayload = (params: {
+  perPage: number;
+  total15mThreshold: number;
+  high15mThreshold: number;
+  generation15mThreshold: number;
+  reason: string;
+}) => ({
+  events: [],
+  summary: {
+    last15mCount: 0,
+    high15mCount: 0,
+    generation15mCount: 0,
+    lastHourCount: 0,
+    last24hCount: 0,
+    app24hCount: 0,
+    generation24hCount: 0,
+    high24hCount: 0,
+    characterModeReferenceRefreshEmptyLastHourCount: 0,
+    characterModeReferenceRefreshEmptyLast24hCount: 0,
+    characterModeBundleUnavailableFallbackLastHourCount: 0,
+    characterModeBundleUnavailableFallbackLast24hCount: 0,
+    total15mThreshold: params.total15mThreshold,
+    high15mThreshold: params.high15mThreshold,
+    generation15mThreshold: params.generation15mThreshold,
+    total15mBreached: false,
+    high15mBreached: false,
+    generation15mBreached: false,
+  },
+  health: degradedHealth(params.reason),
+  pagination: {
+    page: 1,
+    perPage: params.perPage,
+    totalCount: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  },
+});
+
 const applyEventFilters = (
   query: EventQuery,
   filters: {
@@ -84,6 +168,8 @@ const applyEventFilters = (
     source: string;
     search: string;
     synthetic: SyntheticFilterValue;
+    signal: SignalFilterValue;
+    excludeTelemetrySources: boolean;
   }
 ): EventQuery => {
   let next = query;
@@ -100,6 +186,18 @@ const applyEventFilters = (
     next = next.like("source", "admin.synthetic_test.%");
   } else if (filters.synthetic === "exclude") {
     next = next.not("source", "like", "admin.synthetic_test.%");
+  }
+  if (filters.excludeTelemetrySources) {
+    next = next.not("source", "like", `${TELEMETRY_SOURCE_PREFIX}%`);
+  }
+  if (filters.signal === "character_mode_reference_refresh_empty") {
+    next = next
+      .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
+      .eq("message", CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT);
+  } else if (filters.signal === "character_mode_bundle_unavailable_fallback") {
+    next = next
+      .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
+      .eq("message", CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT);
   }
   if (filters.search) {
     const pattern = `%${filters.search.replace(/\s+/g, "%")}%`;
@@ -181,6 +279,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       source: asFilterValue(req.query.source),
       search: normalizeSearchTerm(req.query.search),
       synthetic: asSyntheticFilter(req.query.synthetic),
+      signal: asSignalFilter(req.query.signal),
+      excludeTelemetrySources: false,
     };
     const summaryFilters: {
       scope: string;
@@ -188,6 +288,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       source: string;
       search: string;
       synthetic: SyntheticFilterValue;
+      signal: SignalFilterValue;
+      excludeTelemetrySources: boolean;
     } = {
       scope: "all",
       severity: "all",
@@ -195,6 +297,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       search: "",
       // Operational summaries should reflect real traffic, not operator test events.
       synthetic: "exclude",
+      signal: "all",
+      excludeTelemetrySources: true,
     };
     const nowMs = Date.now();
     const since15mIso = new Date(nowMs - 15 * 60 * 1000).toISOString();
@@ -243,6 +347,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       app24hCountResult,
       generation24hCountResult,
       high24hCountResult,
+      characterModeReferenceRefreshEmptyLastHourCountResult,
+      characterModeReferenceRefreshEmptyLast24hCountResult,
+      characterModeBundleUnavailableFallbackLastHourCountResult,
+      characterModeBundleUnavailableFallbackLast24hCountResult,
     ] = await Promise.all([
       eventsQuery,
       filteredCountQuery,
@@ -307,7 +415,72 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .eq("severity", "high") as unknown as EventQuery,
         summaryFilters
       ) as unknown as Promise<CountQueryResult>,
+      supabaseAdmin
+        .from("app_error_events")
+        .select("id", { count: "exact", head: true })
+        .gte("occurred_at", sinceHourIso)
+        .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
+        .eq(
+          "message",
+          CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT
+        ) as unknown as Promise<CountQueryResult>,
+      supabaseAdmin
+        .from("app_error_events")
+        .select("id", { count: "exact", head: true })
+        .gte("occurred_at", since24hIso)
+        .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
+        .eq(
+          "message",
+          CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT
+        ) as unknown as Promise<CountQueryResult>,
+      supabaseAdmin
+        .from("app_error_events")
+        .select("id", { count: "exact", head: true })
+        .gte("occurred_at", sinceHourIso)
+        .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
+        .eq(
+          "message",
+          CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT
+        ) as unknown as Promise<CountQueryResult>,
+      supabaseAdmin
+        .from("app_error_events")
+        .select("id", { count: "exact", head: true })
+        .gte("occurred_at", since24hIso)
+        .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
+        .eq(
+          "message",
+          CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT
+        ) as unknown as Promise<CountQueryResult>,
     ]);
+
+    const queryErrors = [
+      eventsResult.error?.message,
+      filteredCountResult.error?.message,
+      last15mCountResult.error?.message,
+      high15mCountResult.error?.message,
+      generation15mCountResult.error?.message,
+      lastHourCountResult.error?.message,
+      last24hCountResult.error?.message,
+      app24hCountResult.error?.message,
+      generation24hCountResult.error?.message,
+      high24hCountResult.error?.message,
+      characterModeReferenceRefreshEmptyLastHourCountResult.error?.message,
+      characterModeReferenceRefreshEmptyLast24hCountResult.error?.message,
+      characterModeBundleUnavailableFallbackLastHourCountResult.error?.message,
+      characterModeBundleUnavailableFallbackLast24hCountResult.error?.message,
+    ].filter((value): value is string => Boolean(value));
+
+    if (queryErrors.length && queryErrors.every((message) => isMissingEventsTableError(message))) {
+      return res.status(200).json(
+        buildDegradedEventsPayload({
+          perPage: limit,
+          total15mThreshold,
+          high15mThreshold,
+          generation15mThreshold,
+          reason: APP_ERROR_EVENTS_MISSING_REASON,
+        })
+      );
+    }
 
     if (
       eventsResult.error ||
@@ -319,22 +492,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       last24hCountResult.error ||
       app24hCountResult.error ||
       generation24hCountResult.error ||
-      high24hCountResult.error
+      high24hCountResult.error ||
+      characterModeReferenceRefreshEmptyLastHourCountResult.error ||
+      characterModeReferenceRefreshEmptyLast24hCountResult.error ||
+      characterModeBundleUnavailableFallbackLastHourCountResult.error ||
+      characterModeBundleUnavailableFallbackLast24hCountResult.error
     ) {
-      const detail = [
-        eventsResult.error?.message,
-        filteredCountResult.error?.message,
-        last15mCountResult.error?.message,
-        high15mCountResult.error?.message,
-        generation15mCountResult.error?.message,
-        lastHourCountResult.error?.message,
-        last24hCountResult.error?.message,
-        app24hCountResult.error?.message,
-        generation24hCountResult.error?.message,
-        high24hCountResult.error?.message,
-      ]
-        .filter(Boolean)
-        .join(" | ");
+      const detail = [...queryErrors].filter(Boolean).join(" | ");
       return res.status(500).json({ error: detail || "Unable to load error events." });
     }
 
@@ -374,6 +538,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         app24hCount: Number(app24hCountResult.count ?? 0),
         generation24hCount: Number(generation24hCountResult.count ?? 0),
         high24hCount: Number(high24hCountResult.count ?? 0),
+        characterModeReferenceRefreshEmptyLastHourCount: Number(
+          characterModeReferenceRefreshEmptyLastHourCountResult.count ?? 0
+        ),
+        characterModeReferenceRefreshEmptyLast24hCount: Number(
+          characterModeReferenceRefreshEmptyLast24hCountResult.count ?? 0
+        ),
+        characterModeBundleUnavailableFallbackLastHourCount: Number(
+          characterModeBundleUnavailableFallbackLastHourCountResult.count ?? 0
+        ),
+        characterModeBundleUnavailableFallbackLast24hCount: Number(
+          characterModeBundleUnavailableFallbackLast24hCountResult.count ?? 0
+        ),
         total15mThreshold,
         high15mThreshold,
         generation15mThreshold,
@@ -382,6 +558,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         generation15mBreached:
           Number(generation15mCountResult.count ?? 0) >= generation15mThreshold,
       },
+      health: healthyState(),
       pagination: {
         page: resolvedPage,
         perPage: limit,
@@ -392,6 +569,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (isMissingEventsTableError(message)) {
+      const total15mThreshold = asThreshold(
+        process.env.SHORTPULSE_ADMIN_ALERT_TOTAL_15M,
+        DEFAULT_TOTAL_15M_THRESHOLD
+      );
+      const high15mThreshold = asThreshold(
+        process.env.SHORTPULSE_ADMIN_ALERT_HIGH_15M,
+        DEFAULT_HIGH_15M_THRESHOLD
+      );
+      const generation15mThreshold = asThreshold(
+        process.env.SHORTPULSE_ADMIN_ALERT_GENERATION_15M,
+        DEFAULT_GENERATION_15M_THRESHOLD
+      );
+      const perPage = Math.min(MAX_LIMIT, asPositiveInt(req.query.limit, DEFAULT_LIMIT));
+      return res.status(200).json(
+        buildDegradedEventsPayload({
+          perPage,
+          total15mThreshold,
+          high15mThreshold,
+          generation15mThreshold,
+          reason: APP_ERROR_EVENTS_MISSING_REASON,
+        })
+      );
+    }
     await logApiRouteException({
       req,
       error,
@@ -403,6 +605,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         source_filter: typeof req.query.source === "string" ? req.query.source : null,
         search_filter: typeof req.query.search === "string" ? req.query.search : null,
         synthetic_filter: typeof req.query.synthetic === "string" ? req.query.synthetic : null,
+        signal_filter: typeof req.query.signal === "string" ? req.query.signal : null,
       },
     });
     return res.status(500).json({

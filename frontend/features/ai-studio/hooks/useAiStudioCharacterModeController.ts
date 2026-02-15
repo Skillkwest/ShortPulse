@@ -5,6 +5,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { loadCharacterManagerDraftByCharacterId } from "../../character-manager/logic/characterManagerPersistence";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
+import { reportAppError } from "../../../lib/appErrorReporter";
 import {
   composeCharacterModePrompt,
   mergeCharacterAndUserReferences,
@@ -14,6 +15,8 @@ import {
 import type { StudioOutput, ToolId } from "../types";
 
 const MEDIA_BUCKET = "media_library";
+const CHARACTER_MODE_TELEMETRY_SOURCE = "telemetry.character_mode";
+const TELEMETRY_FALLBACK_CODES: CharacterModeFallbackCode[] = ["bundle_unavailable"];
 
 export type CharacterModeInjectionBundle = {
   characterId: string;
@@ -74,6 +77,22 @@ export const useAiStudioCharacterModeController = ({
   trackCharacterModeEvent,
   bundleStaleAfterMs,
 }: UseAiStudioCharacterModeControllerParams) => {
+  const logCharacterModeTelemetry = useCallback(
+    (message: string, data?: Record<string, unknown>) => {
+      void reportAppError({
+        source: CHARACTER_MODE_TELEMETRY_SOURCE,
+        scope: "app",
+        severity: "low",
+        message,
+        metadata: {
+          telemetry_family: "character_mode",
+          ...(data ?? {}),
+        },
+      });
+    },
+    []
+  );
+
   const toCharacterModeInjectionBundle = useCallback(
     (
       snapshot: Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>
@@ -110,11 +129,17 @@ export const useAiStudioCharacterModeController = ({
         .map((path) => signedByPath.get(path) ?? null)
         .filter((value): value is string => Boolean(value));
       if (refreshedUrls.length === 0) {
-        trackCharacterModeEvent("character_mode_reference_refresh_empty", {
+        const refreshEmptyData = {
           selected_character_id: bundle.characterId,
           storage_path_count: bundle.sheetReferenceStoragePaths.length,
-        });
-        return null;
+        };
+        trackCharacterModeEvent("character_mode_reference_refresh_empty", refreshEmptyData);
+        logCharacterModeTelemetry("character_mode_reference_refresh_empty", refreshEmptyData);
+        return {
+          ...bundle,
+          sheetReferenceUrls: [],
+          loadedAtMs: Date.now(),
+        };
       }
       return {
         ...bundle,
@@ -122,7 +147,7 @@ export const useAiStudioCharacterModeController = ({
         loadedAtMs: Date.now(),
       };
     },
-    [trackCharacterModeEvent]
+    [logCharacterModeTelemetry, trackCharacterModeEvent]
   );
 
   const refreshCharacterModeInjectionBundleForSubmission = useCallback(
@@ -281,8 +306,17 @@ export const useAiStudioCharacterModeController = ({
         has_character_description: overrides.hasCharacterDescription,
         character_reference_count: overrides.characterReferenceCount,
       });
+      if (TELEMETRY_FALLBACK_CODES.includes(overrides.fallbackCode)) {
+        logCharacterModeTelemetry(`character_mode_injection_fallback.${overrides.fallbackCode}`, {
+          fallback_code: overrides.fallbackCode,
+          selected_character_id: selectedCharacterId || null,
+          tool: tool ?? null,
+          has_character_description: overrides.hasCharacterDescription,
+          character_reference_count: overrides.characterReferenceCount,
+        });
+      }
     },
-    [selectedCharacterId, trackCharacterModeEvent]
+    [logCharacterModeTelemetry, selectedCharacterId, trackCharacterModeEvent]
   );
 
   return {

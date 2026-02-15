@@ -1,5 +1,5 @@
 /**
- * Video upload utility for Motion Control
+ * Video upload utility for AI Studio video references.
  * Uploads blob URLs to Supabase storage and refreshes expiring Supabase signed URLs.
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
@@ -99,7 +99,7 @@ const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> =>
   });
   if (refreshedUrl?.trim()) return refreshedUrl;
   throw new Error(
-    "Motion reference video URL expired and could not be refreshed. Please reselect the video."
+    "Reference video URL expired and could not be refreshed. Please reselect the video."
   );
 };
 

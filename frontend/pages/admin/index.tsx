@@ -11,6 +11,8 @@ import type {
   AdminCreditLedgerRow,
   AdminErrorLogRow,
   AdminErrorEventRow,
+  AdminErrorEventSignalFilter,
+  AdminErrorEventsHealth,
   AdminErrorEventSummary,
   AdminErrorStatus,
   AdminErrorSummary,
@@ -50,6 +52,31 @@ const CREDIT_LEDGER_LIMIT = 20;
 const SEARCH_DEBOUNCE_MS = 250;
 const ERROR_REFRESH_INTERVAL_MS = 30000;
 const ADJUSTMENT_PRESETS = [100, 500, -100, -500] as const;
+const DEFAULT_ERROR_EVENTS_SUMMARY: AdminErrorEventSummary = {
+  last15mCount: 0,
+  high15mCount: 0,
+  generation15mCount: 0,
+  lastHourCount: 0,
+  last24hCount: 0,
+  app24hCount: 0,
+  generation24hCount: 0,
+  high24hCount: 0,
+  characterModeReferenceRefreshEmptyLastHourCount: 0,
+  characterModeReferenceRefreshEmptyLast24hCount: 0,
+  characterModeBundleUnavailableFallbackLastHourCount: 0,
+  characterModeBundleUnavailableFallbackLast24hCount: 0,
+  total15mThreshold: 40,
+  high15mThreshold: 8,
+  generation15mThreshold: 20,
+  total15mBreached: false,
+  high15mBreached: false,
+  generation15mBreached: false,
+};
+const DEFAULT_ERROR_EVENTS_HEALTH: AdminErrorEventsHealth = {
+  eventsTableAvailable: true,
+  degraded: false,
+  reason: null,
+};
 type ErrorLoadOverrides = {
   page?: number;
   status?: "open" | "all";
@@ -64,6 +91,7 @@ type ErrorEventsLoadOverrides = {
   severity?: "all" | "high" | "medium" | "low";
   source?: string;
   synthetic?: "all" | "exclude" | "only";
+  signal?: AdminErrorEventSignalFilter;
   search?: string;
 };
 
@@ -121,22 +149,12 @@ export default function AdminDashboardPage() {
   const [errorEvents, setErrorEvents] = useState<AdminErrorEventRow[]>([]);
   const [errorEventsLoading, setErrorEventsLoading] = useState(false);
   const [errorEventsError, setErrorEventsError] = useState<string | null>(null);
-  const [errorEventsSummary, setErrorEventsSummary] = useState<AdminErrorEventSummary>({
-    last15mCount: 0,
-    high15mCount: 0,
-    generation15mCount: 0,
-    lastHourCount: 0,
-    last24hCount: 0,
-    app24hCount: 0,
-    generation24hCount: 0,
-    high24hCount: 0,
-    total15mThreshold: 40,
-    high15mThreshold: 8,
-    generation15mThreshold: 20,
-    total15mBreached: false,
-    high15mBreached: false,
-    generation15mBreached: false,
-  });
+  const [errorEventsSummary, setErrorEventsSummary] = useState<AdminErrorEventSummary>(
+    DEFAULT_ERROR_EVENTS_SUMMARY
+  );
+  const [errorEventsHealth, setErrorEventsHealth] = useState<AdminErrorEventsHealth>(
+    DEFAULT_ERROR_EVENTS_HEALTH
+  );
   const [errorEventsPage, setErrorEventsPage] = useState(1);
   const [errorEventsPagination, setErrorEventsPagination] = useState<AdminPagination>({
     page: 1,
@@ -167,6 +185,8 @@ export default function AdminDashboardPage() {
   const [errorEventSyntheticFilter, setErrorEventSyntheticFilter] = useState<
     "all" | "exclude" | "only"
   >("all");
+  const [errorEventSignalFilter, setErrorEventSignalFilter] =
+    useState<AdminErrorEventSignalFilter>("all");
   const [errorSearch, setErrorSearch] = useState("");
   const [debouncedErrorSearch, setDebouncedErrorSearch] = useState("");
   const [errorsPage, setErrorsPage] = useState(1);
@@ -444,6 +464,7 @@ export default function AdminDashboardPage() {
         const activeSeverity = overrides?.severity ?? errorSeverityFilter;
         const activeSource = overrides?.source ?? errorSourceFilter;
         const activeSynthetic = overrides?.synthetic ?? errorEventSyntheticFilter;
+        const activeSignal = overrides?.signal ?? errorEventSignalFilter;
         const activeSearch = overrides?.search ?? debouncedErrorSearch;
 
         const params = new URLSearchParams();
@@ -453,6 +474,7 @@ export default function AdminDashboardPage() {
         if (activeSeverity !== "all") params.set("severity", activeSeverity);
         if (activeSource !== "all") params.set("source", activeSource);
         if (activeSynthetic !== "all") params.set("synthetic", activeSynthetic);
+        if (activeSignal !== "all") params.set("signal", activeSignal);
         if (activeSearch.trim()) params.set("search", activeSearch.trim());
 
         const response = await fetchWithAuth(`/api/admin/error-events?${params.toString()}`, {
@@ -463,22 +485,7 @@ export default function AdminDashboardPage() {
             setServerDenied(true);
             setServerValidated(false);
             setErrorEvents([]);
-            setErrorEventsSummary({
-              last15mCount: 0,
-              high15mCount: 0,
-              generation15mCount: 0,
-              lastHourCount: 0,
-              last24hCount: 0,
-              app24hCount: 0,
-              generation24hCount: 0,
-              high24hCount: 0,
-              total15mThreshold: 40,
-              high15mThreshold: 8,
-              generation15mThreshold: 20,
-              total15mBreached: false,
-              high15mBreached: false,
-              generation15mBreached: false,
-            });
+            setErrorEventsSummary(DEFAULT_ERROR_EVENTS_SUMMARY);
             setErrorEventsPagination({
               page: 1,
               perPage: ERROR_EVENTS_PER_PAGE,
@@ -487,6 +494,7 @@ export default function AdminDashboardPage() {
               hasNextPage: false,
               hasPrevPage: false,
             });
+            setErrorEventsHealth(DEFAULT_ERROR_EVENTS_HEALTH);
             return;
           }
           const details = await response.json().catch(() => ({}));
@@ -496,6 +504,7 @@ export default function AdminDashboardPage() {
         const data = (await response.json()) as {
           events?: unknown[];
           summary?: AdminErrorEventSummary;
+          health?: Partial<AdminErrorEventsHealth>;
           pagination?: Partial<AdminPagination>;
         };
         const resolvedPage = Number(data.pagination?.page ?? activePage);
@@ -544,12 +553,29 @@ export default function AdminDashboardPage() {
           app24hCount: Number(data.summary?.app24hCount ?? 0),
           generation24hCount: Number(data.summary?.generation24hCount ?? 0),
           high24hCount: Number(data.summary?.high24hCount ?? 0),
+          characterModeReferenceRefreshEmptyLastHourCount: Number(
+            data.summary?.characterModeReferenceRefreshEmptyLastHourCount ?? 0
+          ),
+          characterModeReferenceRefreshEmptyLast24hCount: Number(
+            data.summary?.characterModeReferenceRefreshEmptyLast24hCount ?? 0
+          ),
+          characterModeBundleUnavailableFallbackLastHourCount: Number(
+            data.summary?.characterModeBundleUnavailableFallbackLastHourCount ?? 0
+          ),
+          characterModeBundleUnavailableFallbackLast24hCount: Number(
+            data.summary?.characterModeBundleUnavailableFallbackLast24hCount ?? 0
+          ),
           total15mThreshold: Number(data.summary?.total15mThreshold ?? 40),
           high15mThreshold: Number(data.summary?.high15mThreshold ?? 8),
           generation15mThreshold: Number(data.summary?.generation15mThreshold ?? 20),
           total15mBreached: Boolean(data.summary?.total15mBreached),
           high15mBreached: Boolean(data.summary?.high15mBreached),
           generation15mBreached: Boolean(data.summary?.generation15mBreached),
+        });
+        setErrorEventsHealth({
+          eventsTableAvailable: Boolean(data.health?.eventsTableAvailable ?? true),
+          degraded: Boolean(data.health?.degraded ?? false),
+          reason: typeof data.health?.reason === "string" ? data.health.reason : null,
         });
         setErrorEventsPagination({
           page: resolvedPage,
@@ -566,6 +592,7 @@ export default function AdminDashboardPage() {
         setErrorEventsError(
           error instanceof Error ? error.message : "Failed to load error events."
         );
+        setErrorEventsHealth(DEFAULT_ERROR_EVENTS_HEALTH);
       } finally {
         setErrorEventsLoading(false);
       }
@@ -573,6 +600,7 @@ export default function AdminDashboardPage() {
     [
       debouncedErrorSearch,
       errorEventSyntheticFilter,
+      errorEventSignalFilter,
       errorEventsPage,
       errorScopeFilter,
       errorSeverityFilter,
@@ -756,6 +784,7 @@ export default function AdminDashboardPage() {
         setErrorSeverityFilter("all");
         setErrorSourceFilter("all");
         setErrorEventSyntheticFilter("all");
+        setErrorEventSignalFilter("all");
         setErrorSearch("");
         setDebouncedErrorSearch("");
         setErrorsPage(1);
@@ -775,6 +804,7 @@ export default function AdminDashboardPage() {
             severity: "all",
             source: "all",
             synthetic: "all",
+            signal: "all",
             search: "",
           }),
         ]);
@@ -1196,12 +1226,14 @@ export default function AdminDashboardPage() {
             errorEventsLoading={errorEventsLoading}
             errorEventsError={errorEventsError}
             errorEventsSummary={errorEventsSummary}
+            errorEventsHealth={errorEventsHealth}
             errorEventsPagination={errorEventsPagination}
             errorStatusFilter={errorStatusFilter}
             errorScopeFilter={errorScopeFilter}
             errorSeverityFilter={errorSeverityFilter}
             errorSourceFilter={errorSourceFilter}
             errorEventSyntheticFilter={errorEventSyntheticFilter}
+            errorEventSignalFilter={errorEventSignalFilter}
             errorSearch={errorSearch}
             errorPagination={errorsPagination}
             statusUpdatingErrorId={errorStatusUpdatingId}
@@ -1223,11 +1255,17 @@ export default function AdminDashboardPage() {
             }}
             onErrorSourceFilterChange={(value) => {
               setErrorSourceFilter(value);
+              setErrorEventSignalFilter("all");
               setErrorsPage(1);
               setErrorEventsPage(1);
             }}
             onErrorEventSyntheticFilterChange={(value) => {
               setErrorEventSyntheticFilter(value);
+              setErrorEventsPage(1);
+            }}
+            onErrorEventSignalFilterChange={(value) => {
+              setErrorEventSignalFilter(value);
+              setErrorSourceFilter("all");
               setErrorEventsPage(1);
             }}
             onErrorSearchChange={(value) => {

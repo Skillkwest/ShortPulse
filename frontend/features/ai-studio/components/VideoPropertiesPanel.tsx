@@ -198,8 +198,19 @@ export function VideoPropertiesPanel({
     promptOrder,
     modelOrder,
     referenceOrder,
+    referenceBadge,
+    promptBadge,
+    modelBadge,
     videoSettingsOrder,
+    videoSettingsBadge,
+    motionAudioOrder,
+    motionAudioBadge,
     klingAdvancedOrder,
+    klingAdvancedBadge,
+    klingAssetsOrder,
+    klingAssetsBadge,
+    klingGuidanceOrder,
+    klingGuidanceBadge,
     generateOrder,
     generateBadge,
     klingShotSummary,
@@ -249,6 +260,7 @@ export function VideoPropertiesPanel({
       </div>
       <div className="reference-drop-layout-inner">
         <ReferencePromptStep
+          promptBadge={promptBadge}
           promptOrder={promptOrder}
           isVideoVariant={true}
           referenceText={referenceText}
@@ -273,6 +285,7 @@ export function VideoPropertiesPanel({
             isVideoVariant={true}
             isKeyframesMode={isKeyframesMode}
             beginnerMode={beginnerMode}
+            modelBadge={modelBadge}
             collapsed={collapsedSteps.model}
             modelOrder={modelOrder}
             modelId={modelId}
@@ -290,6 +303,7 @@ export function VideoPropertiesPanel({
         ) : null}
         <ReferenceMediaStep
           referenceOrder={referenceOrder}
+          referenceBadge={referenceBadge}
           collapsedReference={collapsedSteps.reference}
           onExpandReference={() => expandIfCollapsed("reference")}
           onToggleReference={() => toggleStep("reference")}
@@ -338,6 +352,9 @@ export function VideoPropertiesPanel({
           isMotionMode={isMotionMode}
           beginnerMode={beginnerMode}
           videoSettingsOrder={videoSettingsOrder}
+          videoSettingsBadge={videoSettingsBadge}
+          motionAudioOrder={motionAudioOrder}
+          motionAudioBadge={motionAudioBadge}
           collapsedVideoSettings={collapsedSteps.videoSettings}
           collapsedMotionAudio={collapsedSteps.motionAudio}
           videoDurationValue={videoDurationValue}
@@ -368,6 +385,11 @@ export function VideoPropertiesPanel({
           isKling3Mode={isKling3Mode}
           beginnerMode={beginnerMode}
           klingAdvancedOrder={klingAdvancedOrder}
+          klingAdvancedBadge={klingAdvancedBadge}
+          klingAssetsOrder={klingAssetsOrder}
+          klingAssetsBadge={klingAssetsBadge}
+          klingGuidanceOrder={klingGuidanceOrder}
+          klingGuidanceBadge={klingGuidanceBadge}
           collapsedKlingAdvanced={collapsedSteps.klingAdvanced}
           collapsedKlingAssets={collapsedSteps.klingAssets}
           collapsedKlingGuidance={collapsedSteps.klingGuidance}

@@ -196,4 +196,66 @@ describe("POST /api/media/resolve-previews", () => {
       },
     });
   });
+
+  it("rejects direct URL fallback when it resolves outside the caller namespace", async () => {
+    const row = createRow({
+      id: "media-3",
+      storage_path: "user-1/images/local.jpg",
+      thumb_variant_path: "https://cdn.example.test/media_library/user-2/private/images/pwned.jpg",
+    });
+    const { createSignedUrlsMock } = setupSupabaseAdmin({
+      rows: [row],
+      existingObjectNames: [],
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [row.id],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      urls: {
+        [row.id]: null,
+      },
+    });
+  });
+
+  it("allows direct URL fallback when it resolves to the caller namespace", async () => {
+    const directUrl = "https://cdn.example.test/media_library/user-1/private/images/legacy.jpg";
+    const row = createRow({
+      id: "media-4",
+      storage_path: "user-1/images/local.jpg",
+      thumb_variant_path: directUrl,
+    });
+
+    const { createSignedUrlsMock } = setupSupabaseAdmin({
+      rows: [row],
+      existingObjectNames: [],
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [row.id],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      urls: {
+        [row.id]: directUrl,
+      },
+    });
+  });
 });

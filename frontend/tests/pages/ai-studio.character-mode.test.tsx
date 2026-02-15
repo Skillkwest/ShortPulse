@@ -16,6 +16,7 @@ const {
   loadCharacterManagerDraftByCharacterIdMock,
   getSignedMediaUrlsBatchMock,
   addBreadcrumbMock,
+  reportAppErrorMock,
   aiStudioStateMock,
   creditsStateMock,
   aiStudioPageContentCapture,
@@ -53,6 +54,7 @@ const {
     const loadCharacterManagerDraftByCharacterIdMock = vi.fn();
     const getSignedMediaUrlsBatchMock = vi.fn();
     const addBreadcrumbMock = vi.fn();
+    const reportAppErrorMock = vi.fn();
     const aiStudioPageContentCapture = {
       lastProps: null as {
         balanceCredits?: number | null;
@@ -66,6 +68,7 @@ const {
       loadCharacterManagerDraftByCharacterIdMock,
       getSignedMediaUrlsBatchMock,
       addBreadcrumbMock,
+      reportAppErrorMock,
       creditsStateMock,
       aiStudioPageContentCapture,
       aiStudioStateMock: {
@@ -303,6 +306,9 @@ vi.mock("../../lib/supabaseClient", () => ({
 vi.mock("../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: addBreadcrumbMock,
 }));
+vi.mock("../../lib/appErrorReporter", () => ({
+  reportAppError: (...args: unknown[]) => reportAppErrorMock(...args),
+}));
 
 vi.mock("../../features/ai-studio/hooks/useAiStudioState", () => ({
   useAiStudioState: () => aiStudioStateMock,
@@ -475,17 +481,29 @@ describe("ai-studio page character mode submission", () => {
     expect(generateOutputMock).toHaveBeenCalledWith("User visible prompt", {
       modeOverride: "image",
       selectedToolOverride: "create",
-      submissionPromptOverride: "User visible prompt",
+      submissionPromptOverride: "Character description from manager\n\nUser visible prompt",
       displayPromptOverride: "User visible prompt",
       referenceInputsOverride: [],
+      characterContextOverride: {
+        applied: true,
+        characterId: "char-1",
+        characterName: "Taylor",
+        characterProfileImageUrl: null,
+      },
     });
     expect(addBreadcrumbMock).toHaveBeenCalledWith(
       expect.objectContaining({
         message: "character_mode_injection_fallback",
         data: expect.objectContaining({
-          fallback_code: "bundle_unavailable",
+          fallback_code: "no_references",
           selected_character_id: "char-1",
         }),
+      })
+    );
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.character_mode",
+        message: "character_mode_reference_refresh_empty",
       })
     );
   });

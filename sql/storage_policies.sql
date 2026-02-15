@@ -1,11 +1,19 @@
 -- Secure, per-user media storage bucket with RLS.
 -- Creates a private "media_library" bucket and ensures every object path starts with the user's auth.uid().
+-- Canonical SQL operations runbook: docs/sops/sop_sql_migration_operations.md
 
 insert into storage.buckets (id, name, public)
 values ('media_library', 'media_library', false)
 on conflict (id) do nothing;
 
-alter table storage.objects enable row level security;
+-- Note: Supabase manages `storage.objects` ownership. In many environments this role
+-- cannot run `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` on that table.
+-- RLS is expected to already be enabled for storage.objects.
+-- Verification query (run separately if needed):
+-- select c.relrowsecurity
+-- from pg_class c
+-- join pg_namespace n on n.oid = c.relnamespace
+-- where n.nspname = 'storage' and c.relname = 'objects';
 
 drop policy if exists media_access_select on storage.objects;
 create policy media_access_select on storage.objects

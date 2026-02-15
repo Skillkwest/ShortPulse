@@ -7,6 +7,8 @@ import { WarningCircle } from "phosphor-react";
 import type {
   AdminErrorLogRow,
   AdminErrorEventRow,
+  AdminErrorEventSignalFilter,
+  AdminErrorEventsHealth,
   AdminErrorEventSummary,
   AdminErrorSummary,
   AdminPagination,
@@ -23,12 +25,14 @@ type ErrorIncidentsPanelProps = {
   errorEventsLoading: boolean;
   errorEventsError: string | null;
   errorEventsSummary: AdminErrorEventSummary;
+  errorEventsHealth: AdminErrorEventsHealth;
   errorEventsPagination: AdminPagination;
   errorStatusFilter: "open" | "all";
   errorScopeFilter: "all" | "app" | "generation";
   errorSeverityFilter: "all" | "high" | "medium" | "low";
   errorSourceFilter: string;
   errorEventSyntheticFilter: "all" | "exclude" | "only";
+  errorEventSignalFilter: AdminErrorEventSignalFilter;
   errorSearch: string;
   errorPagination: AdminPagination;
   statusUpdatingErrorId: string | null;
@@ -39,6 +43,7 @@ type ErrorIncidentsPanelProps = {
   onErrorSeverityFilterChange: (value: "all" | "high" | "medium" | "low") => void;
   onErrorSourceFilterChange: (value: string) => void;
   onErrorEventSyntheticFilterChange: (value: "all" | "exclude" | "only") => void;
+  onErrorEventSignalFilterChange: (value: AdminErrorEventSignalFilter) => void;
   onErrorSearchChange: (value: string) => void;
   onUpdateErrorStatus: (errorId: string, status: AdminErrorStatus) => void;
   onTriggerTestIncident: (scope: "app" | "generation") => void;
@@ -61,6 +66,16 @@ const sourceLabel = (value: string): string =>
     .split(".")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" · ");
+
+const eventSignalFilterLabel = (value: AdminErrorEventSignalFilter): string => {
+  if (value === "character_mode_reference_refresh_empty") {
+    return "Character Mode: reference refresh empty";
+  }
+  if (value === "character_mode_bundle_unavailable_fallback") {
+    return "Character Mode: bundle unavailable fallback";
+  }
+  return "All event signals";
+};
 
 const incidentStatusLabel = (status: AdminErrorStatus | null): string => {
   if (status === "resolved") return "Resolved";
@@ -209,12 +224,14 @@ export function ErrorIncidentsPanel({
   errorEventsLoading,
   errorEventsError,
   errorEventsSummary,
+  errorEventsHealth,
   errorEventsPagination,
   errorStatusFilter,
   errorScopeFilter,
   errorSeverityFilter,
   errorSourceFilter,
   errorEventSyntheticFilter,
+  errorEventSignalFilter,
   errorSearch,
   errorPagination,
   statusUpdatingErrorId,
@@ -225,6 +242,7 @@ export function ErrorIncidentsPanel({
   onErrorSeverityFilterChange,
   onErrorSourceFilterChange,
   onErrorEventSyntheticFilterChange,
+  onErrorEventSignalFilterChange,
   onErrorSearchChange,
   onUpdateErrorStatus,
   onTriggerTestIncident,
@@ -263,6 +281,10 @@ export function ErrorIncidentsPanel({
     errorEventsPagination.page * errorEventsPagination.perPage,
     errorEventsPagination.totalCount
   );
+  const telemetryHealthLabel = errorEventsHealth.degraded ? "Degraded" : "Healthy";
+  const telemetryHealthSubtext = errorEventsHealth.degraded
+    ? "Event stream fallback active"
+    : "Event stream available";
 
   const handleCopyIncident = useCallback(async (row: AdminErrorLogRow) => {
     const success = await copyToClipboard(buildIncidentPacket(row));
@@ -362,6 +384,13 @@ export function ErrorIncidentsPanel({
           </div>
           <p className={styles.adminMetric}>{errorSummary.last24hCount}</p>
           <p className={styles.adminSubtext}>Recent activity volume</p>
+        </div>
+        <div className={`${styles.adminCard} ${errorEventsHealth.degraded ? styles.warning : ""}`}>
+          <div className={styles.adminCardTop}>
+            <span className={styles.adminLabel}>Telemetry health</span>
+          </div>
+          <p className={styles.adminMetric}>{telemetryHealthLabel}</p>
+          <p className={styles.adminSubtext}>{telemetryHealthSubtext}</p>
         </div>
       </section>
 
@@ -588,7 +617,9 @@ export function ErrorIncidentsPanel({
         <div className={styles.adminSectionHead}>
           <div>
             <p className="eyebrow">Event Stream</p>
-            <p className="tiny subdued">Raw per-occurrence events (every logged failure).</p>
+            <p className="tiny subdued">
+              Raw per-occurrence events (failures plus selected telemetry signals).
+            </p>
           </div>
           <div className={styles.tabRow}>
             <span className="tiny subdued">{`15m ${errorEventsSummary.last15mCount} · 1h ${errorEventsSummary.lastHourCount} · 24h ${errorEventsSummary.last24hCount}`}</span>
@@ -597,6 +628,12 @@ export function ErrorIncidentsPanel({
             </span>
           </div>
         </div>
+        {errorEventsHealth.degraded ? (
+          <p className="tiny subdued">
+            Event stream is currently in degraded mode.{" "}
+            {errorEventsHealth.reason ?? "Telemetry occurrence storage is unavailable."}
+          </p>
+        ) : null}
 
         <section className={styles.adminGrid}>
           <div
@@ -643,6 +680,74 @@ export function ErrorIncidentsPanel({
                 errorEventsSummary.generation15mBreached ? "Elevated" : "Normal"
               }`}
             </p>
+          </div>
+        </section>
+
+        <div className={styles.searchRow}>
+          <p className="tiny subdued">
+            Character Mode telemetry frequency: refresh-empty and bundle-unavailable fallback.
+          </p>
+          <div className={styles.tabRow}>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={() => onErrorEventSignalFilterChange("all")}
+              disabled={errorEventsLoading || errorEventSignalFilter === "all"}
+            >
+              Clear signal filter
+            </button>
+            <span className="tiny subdued">{eventSignalFilterLabel(errorEventSignalFilter)}</span>
+          </div>
+        </div>
+
+        <section className={styles.adminGrid}>
+          <div className={styles.adminCard}>
+            <div className={styles.adminCardTop}>
+              <span className={styles.adminLabel}>Reference refresh empty</span>
+            </div>
+            <p className={styles.adminMetric}>
+              {errorEventsSummary.characterModeReferenceRefreshEmptyLast24hCount}
+            </p>
+            <p className={styles.adminSubtext}>
+              {`1h ${errorEventsSummary.characterModeReferenceRefreshEmptyLastHourCount} · 24h ${errorEventsSummary.characterModeReferenceRefreshEmptyLast24hCount}`}
+            </p>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={() =>
+                onErrorEventSignalFilterChange("character_mode_reference_refresh_empty")
+              }
+              disabled={
+                errorEventsLoading ||
+                errorEventSignalFilter === "character_mode_reference_refresh_empty"
+              }
+            >
+              Filter stream
+            </button>
+          </div>
+          <div className={styles.adminCard}>
+            <div className={styles.adminCardTop}>
+              <span className={styles.adminLabel}>Bundle unavailable fallback</span>
+            </div>
+            <p className={styles.adminMetric}>
+              {errorEventsSummary.characterModeBundleUnavailableFallbackLast24hCount}
+            </p>
+            <p className={styles.adminSubtext}>
+              {`1h ${errorEventsSummary.characterModeBundleUnavailableFallbackLastHourCount} · 24h ${errorEventsSummary.characterModeBundleUnavailableFallbackLast24hCount}`}
+            </p>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={() =>
+                onErrorEventSignalFilterChange("character_mode_bundle_unavailable_fallback")
+              }
+              disabled={
+                errorEventsLoading ||
+                errorEventSignalFilter === "character_mode_bundle_unavailable_fallback"
+              }
+            >
+              Filter stream
+            </button>
           </div>
         </section>
 

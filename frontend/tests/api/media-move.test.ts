@@ -220,6 +220,33 @@ describe("POST /api/media/move", () => {
     expect(moveMock).not.toHaveBeenCalled();
   });
 
+  it("returns 403 when source storage path is malformed", async () => {
+    const fileRow = createBaseFile({
+      storage_path: "/user-1/images/sample.jpg",
+    });
+    const { moveMock } = setupSupabaseAdminMock({ fileRow });
+
+    const req = {
+      method: "POST",
+      body: {
+        fileId: "file-1",
+        destinationTab: "private",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Forbidden",
+        details: "Media storage path is outside user scope",
+      })
+    );
+    expect(moveMock).not.toHaveBeenCalled();
+  });
+
   it("returns early when requireApiUser rejects the request", async () => {
     requireApiUserMock.mockImplementation(
       async (_req: unknown, res: { status: (s: number) => { json: (p: unknown) => unknown } }) => {

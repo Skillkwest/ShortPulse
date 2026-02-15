@@ -5,9 +5,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchWithAuthMock = vi.fn();
+const getSignedMediaUrlMock = vi.fn();
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+}));
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: (...args: unknown[]) => getSignedMediaUrlMock(...args),
 }));
 
 import {
@@ -27,10 +31,12 @@ const jsonResponse = (payload: unknown, status = 200): Response =>
 describe("imageUpload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getSignedMediaUrlMock.mockResolvedValue("https://example.com/signed/refreshed.png");
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
+    vi.restoreAllMocks();
   });
 
   it("uploads local blob URLs as raw image bytes", async () => {
@@ -114,5 +120,68 @@ describe("imageUpload", () => {
     await expect(
       prepareImageUrlForSubmission("https://example.com/already-public.png")
     ).resolves.toBe("https://example.com/already-public.png");
+    expect(getSignedMediaUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("refreshes expiring Supabase signed URLs before submission", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const expSoon = Math.floor(Date.now() / 1000) + 120;
+    const payload = Buffer.from(
+      JSON.stringify({
+        url: "media_library/user-1/images/ref.png",
+        exp: expSoon,
+      })
+    ).toString("base64url");
+    const token = `header.${payload}.sig`;
+    const signedUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/images/ref.png" +
+      `?token=${token}`;
+
+    await expect(prepareImageUrlForSubmission(signedUrl)).resolves.toBe(
+      "https://example.com/signed/refreshed.png"
+    );
+    expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/images/ref.png",
+      forceRefresh: true,
+    });
+  });
+
+  it("passes through non-expiring Supabase signed URLs without refresh", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const expFuture = Math.floor(Date.now() / 1000) + 3600;
+    const payload = Buffer.from(
+      JSON.stringify({
+        url: "media_library/user-1/images/ref.png",
+        exp: expFuture,
+      })
+    ).toString("base64url");
+    const token = `header.${payload}.sig`;
+    const signedUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/images/ref.png" +
+      `?token=${token}`;
+
+    await expect(prepareImageUrlForSubmission(signedUrl)).resolves.toBe(signedUrl);
+    expect(getSignedMediaUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("fails fast when an expiring Supabase signed URL cannot be refreshed", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const expSoon = Math.floor(Date.now() / 1000) + 60;
+    const payload = Buffer.from(
+      JSON.stringify({
+        url: "media_library/user-1/images/ref.png",
+        exp: expSoon,
+      })
+    ).toString("base64url");
+    const token = `header.${payload}.sig`;
+    const signedUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/images/ref.png" +
+      `?token=${token}`;
+    getSignedMediaUrlMock.mockResolvedValueOnce(null);
+
+    await expect(prepareImageUrlForSubmission(signedUrl)).rejects.toThrow(
+      "Reference URL expired and could not be refreshed"
+    );
   });
 });

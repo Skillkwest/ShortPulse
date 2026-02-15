@@ -26,7 +26,11 @@ const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // curren
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
  */
-export const useAiStudioState = () => {
+export const useAiStudioState = ({
+  isCharacterModeEnabled = false,
+}: {
+  isCharacterModeEnabled?: boolean;
+} = {}) => {
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Creation inputs
@@ -305,6 +309,7 @@ export const useAiStudioState = () => {
     saveActiveOutput,
     saveReferenceToLibrary,
     savePromptReference,
+    savePromptToLibrary,
   } = useAiStudioPersistenceActions({
     findOutputById,
     updateOutputById,
@@ -324,6 +329,7 @@ export const useAiStudioState = () => {
         mode,
         model,
         prompt,
+        isCharacterModeEnabled,
         selectedTool,
         imageResolution,
         videoDurationSeconds,
@@ -678,6 +684,7 @@ export const useAiStudioState = () => {
     saveActiveOutput,
     saveReferenceToLibrary,
     savePromptReference,
+    savePromptToLibrary,
     addAgentPromptReference,
     addPastedPromptReference,
     addPastedMediaReference,

@@ -7,6 +7,7 @@ import type {
 import {
   composeCharacterModePrompt,
   mergeCharacterAndUserReferences,
+  resolveCharacterSheetReferenceStoragePaths,
   resolveCharacterSheetReferenceUrls,
 } from "../characterModePayload";
 
@@ -62,6 +63,28 @@ describe("characterModePayload", () => {
       "https://cdn.test/portrait.png",
       "https://cdn.test/front.png",
       "https://cdn.test/back.png",
+    ]);
+  });
+
+  it("resolves Character Sheet storage paths in canonical zone order and deduplicates", () => {
+    const assignments: CharacterSheetAssignments = {
+      portrait: "portrait_close",
+      close_up: "portrait_close",
+      front_shot: "front_full",
+      back_shot: "back_full",
+    };
+    const slots = createEmptySlots();
+    slots.portrait_close = createSlotFile("https://cdn.test/portrait.png");
+    slots.portrait_close.storagePath = "user/characters/portrait.png";
+    slots.front_full = createSlotFile("https://cdn.test/front.png");
+    slots.front_full.storagePath = "user/characters/front.png";
+    slots.back_full = createSlotFile("https://cdn.test/back.png");
+    slots.back_full.storagePath = "user/characters/back.png";
+
+    expect(resolveCharacterSheetReferenceStoragePaths(assignments, slots)).toEqual([
+      "user/characters/portrait.png",
+      "user/characters/front.png",
+      "user/characters/back.png",
     ]);
   });
 

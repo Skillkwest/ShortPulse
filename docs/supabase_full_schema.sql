@@ -46,6 +46,12 @@ alter table media_files
     check (source in ('upload', 'private_upload', 'ai_studio', 'character_reference', 'character_generation'));
 
 alter table media_files
+    drop constraint if exists media_files_storage_scope_check;
+alter table media_files
+    add constraint media_files_storage_scope_check
+    check (storage_path like user_id::text || '/%');
+
+alter table media_files
     drop constraint if exists media_files_private_source_shape_check;
 alter table media_files
     add constraint media_files_private_source_shape_check

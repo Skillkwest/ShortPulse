@@ -102,9 +102,11 @@ describe("useAiStudioCharacterModeLifecycle", () => {
       },
       slots: {
         "slot-1": {
+          storagePath: "user/chars/portrait.png",
           previewUrl: "https://example.com/portrait.png",
         },
         "slot-2": {
+          storagePath: "user/chars/closeup.png",
           previewUrl: "https://example.com/closeup.png",
         },
       },
@@ -129,6 +131,7 @@ describe("useAiStudioCharacterModeLifecycle", () => {
       expect.objectContaining({
         characterId: "char-1",
         characterDescription: "Hero description",
+        sheetReferenceStoragePaths: ["user/chars/portrait.png", "user/chars/closeup.png"],
         sheetReferenceUrls: ["https://example.com/portrait.png", "https://example.com/closeup.png"],
       })
     );

@@ -2,7 +2,7 @@
  * DetailModal behavior tests.
  * Verifies character attribution rendering for character-mode generated outputs.
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DetailModal } from "../DetailModal";
 import type { StudioOutput } from "../../types";
@@ -49,5 +49,30 @@ describe("DetailModal", () => {
     expect(characterName.compareDocumentPosition(promptLabel)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
+  });
+
+  it("shows Save Prompt action in prompt-only mode and saves the edited prompt", () => {
+    const onSavePrompt = vi.fn();
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "text",
+          previewUrl: undefined,
+          prompt: "Original prompt",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onSavePrompt={onSavePrompt}
+      />
+    );
+
+    const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
+    fireEvent.change(promptTextarea, { target: { value: "Updated prompt for library" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save Prompt" }));
+    expect(onSavePrompt).toHaveBeenCalledWith("Updated prompt for library");
+    expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
   });
 });

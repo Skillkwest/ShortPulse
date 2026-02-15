@@ -121,6 +121,7 @@ export type AiStudioPageContentProps = {
   beginnerMode: boolean;
   onBeginnerModeChange: (value: boolean) => void;
   balanceCredits: number | null;
+  pendingHoldCredits: number | null;
   balanceLoading: boolean;
   visibleFailures: FailureCard[];
   onDismissFailure: (id: string) => void;
@@ -169,6 +170,7 @@ export function AiStudioPageContent({
   beginnerMode,
   onBeginnerModeChange,
   balanceCredits,
+  pendingHoldCredits,
   balanceLoading,
   visibleFailures,
   onDismissFailure,
@@ -246,6 +248,7 @@ export function AiStudioPageContent({
       <main
         className="page page-wide ai-studio-page"
         data-beginner-mode={beginnerMode ? "on" : "off"}
+        data-selected-tool={selectedTool ?? undefined}
       >
         <input
           ref={referenceCanvasFileInputRef}
@@ -270,6 +273,11 @@ export function AiStudioPageContent({
                     ? balanceCredits.toLocaleString()
                     : "—"}
               </span>
+              {pendingHoldCredits != null ? (
+                <span className="credit-hold-value tiny helper-text">
+                  Pending holds: {pendingHoldCredits.toLocaleString()}
+                </span>
+              ) : null}
               <Link
                 href="/profile?section=account"
                 className="header-profile-link"

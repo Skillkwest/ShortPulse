@@ -21,6 +21,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Ledger compatibility insert helper: `frontend/lib/server/api/creditLedger.ts`.
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
 - Admin ledger API: `frontend/pages/api/admin/credits/ledger.ts`.
+- User credit snapshot API: `frontend/pages/api/credits/snapshot.ts`.
 
 ## Ledger schema contract
 Expected v2 columns on `ai_credit_ledger`:
@@ -89,6 +90,13 @@ Safety checks:
   - Success with usable media: capture reservation into `generation_charge` ledger debit.
   - Failed/error/content-policy/malformed output: release reservation (no debit posted).
 - Prompt-refine and describe-image calls currently return usage but are not yet debited.
+
+## User-facing balance snapshot
+- `/api/credits/snapshot` returns authenticated, server-authoritative credit state for UI reassurance:
+  - `availableCents`: current balance from `ai_credit_balance` (or ledger fallback).
+  - `reservedCents`: sum of active `ai_credit_reservations` holds (`status='reserved'`).
+  - `spendableCents`: `max(0, availableCents - reservedCents)`.
+- Use this endpoint for customer-facing credit displays when generation reservations are in flight.
 
 ## Failure-settlement lifecycle (Fal)
 1. Submit route reserves credits keyed by `source_ref` (`x-shortpulse-request-id`).

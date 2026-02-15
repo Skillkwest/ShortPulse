@@ -69,6 +69,34 @@ Checklist:
   limit 100;
   ```
 
+## Media storage path scope drift
+Symptoms:
+- Media preview signing returns unexpected `null` URLs for rows that should be accessible.
+- Security audits identify `media_files.storage_path` values outside `<user_id>/...`.
+
+Checklist:
+- Ensure `sql/migrations/016_harden_media_storage_path_scope.sql` has been applied.
+- Run diagnostics by executing `sql/check_media_storage_scope_drift.sql`.
+- All `mismatch_count` values should be `0`.
+
+Mitigation:
+- Run `sql/migrations/009_repair_legacy_media_storage_paths.sql` (safe to re-run).
+- Re-run `sql/check_media_storage_scope_drift.sql`.
+- If mismatches remain, inspect unresolved rows directly:
+  ```sql
+  select id, user_id, source, storage_path, created_at
+  from media_files
+  where coalesce(storage_path, '') <> ''
+    and (
+      storage_path not like user_id::text || '/%'
+      or storage_path ~ '(^|/)\.\.(/|$)'
+      or position(chr(92) in storage_path) > 0
+    )
+  order by created_at desc
+  limit 200;
+  ```
+- Record persistent mismatches in `docs/change_log.md` and escalate before release.
+
 ## Variant hints or derivative rows are missing
 Checklist:
 - Run `sql/migrations/005_add_media_processing_and_variants.sql`.
@@ -166,6 +194,25 @@ Fix:
 Notes:
 - The API now falls back to legacy direct-debit billing when reservation RPCs are stale/missing so generation can proceed.
 - Applying `013` + `014` is still the durable fix to restore full reservation/capture/release behavior.
+
+## Fal validation fails with `file_download_error` / `Failed to download the file`
+Symptoms:
+- Provider response includes validation detail on `image_urls` or motion video URL download failure.
+- Local logs can include follow-on parser failures like `Fal Seedream result returned non-JSON response` with `405 Method Not Allowed`.
+
+Cause:
+- Most often, a Supabase signed reference URL expired between selection time and provider fetch time.
+- It can also happen when the signed URL points to a moved/deleted object or a non-user-scoped legacy path.
+
+Current behavior:
+- AI Studio now applies a pre-submit signed URL freshness gate for both image references and motion-control video references.
+- URLs nearing expiry are force-refreshed before submit; if refresh fails, submission stops early with a user-facing reselect message.
+
+Checklist:
+- Re-select failed image/video references and retry generation.
+- Verify `media_files.storage_path` is user-scoped and valid via `sql/check_media_storage_scope_drift.sql`.
+- Confirm the target object still exists in `storage.objects` under `media_library`.
+- If failures persist, capture request IDs plus provider `detail[]` payload and escalate via provider incident SOP.
 
 ## SQL role update fails with `column "app_metadata" does not exist`
 Symptom:

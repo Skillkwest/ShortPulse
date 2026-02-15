@@ -134,6 +134,27 @@
 .prompt-save-modal-btn {
   font-size: 12px;
   padding: 0 12px;
+  border-color: rgba(52, 200, 255, 0.46);
+  background: rgba(37, 169, 191, 0.18);
+  color: rgba(224, 247, 255, 0.96);
+}
+
+.prompt-save-modal-btn:hover:not(:disabled) {
+  background: rgba(37, 169, 191, 0.28);
+  border-color: rgba(52, 200, 255, 0.66);
+}
+
+.prompt-save-modal-btn.is-saved {
+  border-color: rgba(72, 255, 176, 0.56);
+  background: rgba(49, 184, 129, 0.22);
+  color: rgba(214, 255, 237, 0.96);
+  box-shadow: inset 0 0 0 1px rgba(72, 255, 176, 0.18);
+}
+
+.prompt-save-modal-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .art-action-btn,
@@ -652,8 +673,8 @@
 }
 
 .art-prompt-only-header .reference-filename {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 400;
   color: rgba(255, 255, 255, 0.5);
   letter-spacing: 0.02em;
 }
@@ -664,15 +685,28 @@
   border-radius: 20px;
   padding: 32px;
   font-size: 18px;
-  line-height: 1.82;
-  letter-spacing: 0.02em;
-  font-family: var(--font-primary);
-  color: #fff;
+  line-height: 1.74;
+  letter-spacing: 0.008em;
+  font-family:
+    "Arial",
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+  font-weight: 100;
+  color: rgba(185, 197, 203, 0.95);
   resize: none;
   min-height: 480px;
   outline: none;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
   transition: all 0.3s ease;
+}
+
+.art-prompt-textarea.large::placeholder {
+  color: rgba(255, 255, 255, 0.42);
+  font-weight: 350;
 }
 
 .art-modal-footer {

@@ -52,7 +52,9 @@
 
 .ai-studio-body,
 html.ai-studio-body,
-body.ai-studio-body {
+body.ai-studio-body,
+html:has(.ai-studio-page),
+body:has(.ai-studio-page) {
   background: var(--color-bg) !important;
   overflow-x: hidden;
   overflow-y: auto;
@@ -235,6 +237,11 @@ body.ai-studio-body {
   font-size: 18px;
   font-weight: 800;
   color: #f8fcff;
+}
+
+.ai-credit-inline .credit-hold-value {
+  font-size: 11px;
+  color: rgba(223, 232, 245, 0.72);
 }
 
 .ai-credit-inline.header-embedded {

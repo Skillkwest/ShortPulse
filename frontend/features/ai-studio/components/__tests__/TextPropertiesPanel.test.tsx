@@ -51,7 +51,7 @@ describe("TextPropertiesPanel", () => {
     expect(screen.getByRole("combobox", { name: "Image resolution" })).toBeInTheDocument();
   });
 
-  it("shows 5-credit rounding guidance in the generate card", () => {
+  it("does not show credit estimation copy in the generate card", () => {
     render(
       <ComposeSendCard
         onGenerate={vi.fn()}
@@ -62,7 +62,10 @@ describe("TextPropertiesPanel", () => {
     );
 
     expect(
-      screen.getByText("Estimated charges are billed in 5-credit increments.")
+      screen.queryByText("Estimated charges are billed in 5-credit increments.")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Run generation with the current prompt and selections.")
     ).toBeInTheDocument();
   });
 });

@@ -38,9 +38,11 @@ export function DetailModal({
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyCloseTimerRef = useRef<number | null>(null);
+  const promptLibrarySavedTimerRef = useRef<number | null>(null);
   const [deleteConfirmOutputId, setDeleteConfirmOutputId] = useState<string | null>(null);
   const [draftPromptsById, setDraftPromptsById] = useState<Record<string, string>>({});
   const [promptOnlySavedOutputId, setPromptOnlySavedOutputId] = useState<string | null>(null);
+  const [promptLibrarySavedOutputId, setPromptLibrarySavedOutputId] = useState<string | null>(null);
   const [loadedPreviewAspect, setLoadedPreviewAspect] = useState<{
     outputId: string;
     ratio: number;
@@ -130,6 +132,7 @@ export function DetailModal({
       : (output?.prompt ?? "");
   const isDeleteConfirmOpen = Boolean(outputId && deleteConfirmOutputId === outputId);
   const isPromptOnlySaved = Boolean(outputId && promptOnlySavedOutputId === outputId);
+  const isPromptLibrarySaved = Boolean(outputId && promptLibrarySavedOutputId === outputId);
 
   const isPromptEditable = Boolean(isPromptOnly);
   const trimmedPrompt = draftPrompt.trim();
@@ -225,6 +228,13 @@ export function DetailModal({
     promptOnlyCloseTimerRef.current = null;
   }, []);
 
+  const clearPromptLibrarySavedTimer = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (promptLibrarySavedTimerRef.current == null) return;
+    window.clearTimeout(promptLibrarySavedTimerRef.current);
+    promptLibrarySavedTimerRef.current = null;
+  }, []);
+
   useEffect(() => {
     syncTextareaHeight(promptTextareaRef.current);
     syncTextareaHeight(promptOnlyTextareaRef.current);
@@ -248,15 +258,18 @@ export function DetailModal({
   useEffect(() => {
     return () => {
       clearPromptOnlyCloseTimer();
+      clearPromptLibrarySavedTimer();
     };
-  }, [clearPromptOnlyCloseTimer]);
+  }, [clearPromptLibrarySavedTimer, clearPromptOnlyCloseTimer]);
 
   const handleCloseModal = useCallback(() => {
     clearPromptOnlyCloseTimer();
+    clearPromptLibrarySavedTimer();
     setPromptOnlySavedOutputId(null);
+    setPromptLibrarySavedOutputId(null);
     setDeleteConfirmOutputId(null);
     onClose();
-  }, [clearPromptOnlyCloseTimer, onClose]);
+  }, [clearPromptLibrarySavedTimer, clearPromptOnlyCloseTimer, onClose]);
 
   const looksLikeFilename = (value?: string | null) => {
     const candidate = value?.trim();
@@ -311,6 +324,19 @@ export function DetailModal({
     }
   };
 
+  const handleSavePromptToLibrary = () => {
+    if (!trimmedPrompt || !onSavePrompt) return;
+    onSavePrompt(draftPrompt);
+    if (!outputId) return;
+    setPromptLibrarySavedOutputId(outputId);
+    if (typeof window === "undefined") return;
+    clearPromptLibrarySavedTimer();
+    promptLibrarySavedTimerRef.current = window.setTimeout(() => {
+      setPromptLibrarySavedOutputId((current) => (current === outputId ? null : current));
+      promptLibrarySavedTimerRef.current = null;
+    }, 1400);
+  };
+
   const handlePromptOnlySaveAndClose = () => {
     if (!canSave || !isPromptEditable || isPromptOnlySaved) return;
 
@@ -334,6 +360,8 @@ export function DetailModal({
     if (!isPromptEditable || !outputId) return;
     const nextValue = event.target.value;
     setPromptOnlySavedOutputId(null);
+    setPromptLibrarySavedOutputId(null);
+    clearPromptLibrarySavedTimer();
     setDraftPromptsById((prev) => ({
       ...prev,
       [outputId]: nextValue,
@@ -598,6 +626,16 @@ export function DetailModal({
           <div className="art-prompt-only-header">
             <span className="reference-filename">Prompt</span>
             <div className="art-modal-action-row">
+              {onSavePrompt ? (
+                <button
+                  type="button"
+                  className={`art-action-btn prompt-save-modal-btn ${isPromptLibrarySaved ? "is-saved" : ""}`}
+                  onClick={handleSavePromptToLibrary}
+                  disabled={!trimmedPrompt || isPromptLibrarySaved}
+                >
+                  {isPromptLibrarySaved ? "Saved" : "Save Prompt"}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="art-action-btn art-action-btn-danger"

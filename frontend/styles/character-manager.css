@@ -258,10 +258,7 @@ body.character-manager-body {
 
 .character-manager-page[data-beginner-mode="off"] .character-step-badge,
 .character-manager-page[data-beginner-mode="off"] .character-section-helper,
-.character-manager-page[data-beginner-mode="off"] .character-mode-guidance,
-.character-manager-page[data-beginner-mode="off"]
-  .character-description-footer-row
-  .character-description-helper {
+.character-manager-page[data-beginner-mode="off"] .character-mode-guidance {
   display: none;
 }
 
@@ -359,12 +356,16 @@ body.character-manager-body {
 
 .character-section-title {
   margin: 0;
-  font-size: 20px;
-  line-height: 1.04;
-  font-weight: 800;
+  font-family: var(--font-primary);
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 .character-section-title-row {
+  --character-section-title-size: 16px;
+  --character-section-title-line-height: 1.2;
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -399,13 +400,16 @@ body.character-manager-body {
   box-shadow:
     0 6px 18px rgba(7, 143, 64, 0.34),
     inset 0 1px 0 rgba(131, 255, 182, 0.6);
-  margin-top: 9px;
+  margin-top: calc(
+    (var(--character-section-title-size) * var(--character-section-title-line-height)) / 2
+  );
 }
 
 .character-section-helper {
   display: block;
   margin: 0;
   max-width: 52ch;
+  color: var(--color-ash-50);
 }
 
 .character-reference-slot-counter {
@@ -692,8 +696,19 @@ body.character-manager-body {
   padding: 2px 10px;
 }
 
+.character-manager-page[data-beginner-mode="off"]
+  .character-description-footer-row
+  .character-description-helper.tiny.subdued {
+  color: rgba(142, 154, 167, 0.38);
+  font-weight: 500;
+  text-shadow: none;
+  background: transparent;
+  border-color: transparent;
+  padding: 0;
+}
+
 .character-description-count {
-  margin: 0;
+  margin: 0 0 0 auto;
   text-align: right;
   flex-shrink: 0;
 }
@@ -1693,12 +1708,16 @@ body.character-manager-body {
 }
 
 @media (max-width: 860px) {
+  .character-section-title-row {
+    --character-section-title-size: 16px;
+  }
+
   .character-manage-list {
     grid-template-columns: 1fr;
   }
 
   .character-section-title {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .character-simple-drop-title {

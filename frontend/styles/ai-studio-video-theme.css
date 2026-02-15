@@ -31,6 +31,17 @@
   opacity: 0.95;
 }
 
+.ai-studio-page[data-selected-tool="video"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="video"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="video"] .ai-shell.ai-shell-resizing .ai-shell-divider::before {
+  background: rgba(170, 101, 239, 0.78);
+  box-shadow: 0 0 0 1px rgba(170, 101, 239, 0.3);
+}
+
+.ai-studio-page[data-selected-tool="video"] .ai-shell-divider:focus-visible {
+  outline: 2px solid rgba(170, 101, 239, 0.9);
+}
+
 .video-properties-panel .step-utility-btn:hover {
   border-color: var(--video-accent-medium);
   background: rgba(48, 35, 72, 0.72);

@@ -430,7 +430,8 @@
   background: #071a18;
 }
 
-/* Audio Toggle - Always uses yellow gradient, independent of beginner mode */
+/* Warm/yellow toggle prefab (audio uses this by default). */
+.warm-toggle,
 .audio-toggle {
   display: inline-flex;
   align-items: center;
@@ -451,10 +452,12 @@
     box-shadow 0.16s ease;
 }
 
+.warm-toggle:hover:not(:disabled),
 .audio-toggle:hover:not(:disabled) {
   border-color: var(--ai-warm-border, rgba(245, 185, 66, 0.6));
 }
 
+.warm-toggle.is-active,
 .audio-toggle.is-active {
   background: linear-gradient(
     135deg,
@@ -465,11 +468,13 @@
   box-shadow: 0 6px 18px rgba(245, 185, 66, 0.25);
 }
 
+.warm-toggle:disabled,
 .audio-toggle:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
+.warm-toggle-track,
 .audio-toggle-track {
   position: relative;
   width: 100%;
@@ -477,6 +482,7 @@
   overflow: hidden;
 }
 
+.warm-toggle-dot,
 .audio-toggle-dot {
   position: absolute;
   top: 50%;
@@ -491,6 +497,7 @@
     background 0.16s ease;
 }
 
+.warm-toggle.is-active .warm-toggle-dot,
 .audio-toggle.is-active .audio-toggle-dot {
   transform: translate(22px, -50%);
   background: #1a140c;
@@ -542,6 +549,11 @@
   box-shadow:
     0 6px 18px rgba(7, 143, 64, 0.34),
     inset 0 1px 0 rgba(5, 175, 84, 0.813);
+}
+
+.ai-studio-page[data-beginner-mode="on"] .step-card-header > .step-badge {
+  align-self: flex-start;
+  margin-top: 9px;
 }
 
 .step-header-copy {

@@ -149,6 +149,23 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesText.isGenerateDisabled).toBe(true);
   });
 
+  it("locks image/video generate actions while a submit is in flight", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          isPromptGenerating: true,
+          isReferencePromptEnhancing: false,
+          agentBusy: false,
+        })
+      )
+    );
+
+    expect(result.current.propertiesImage.isGenerateDisabled).toBe(true);
+    expect(result.current.propertiesImage.agentIsSending).toBe(true);
+    expect(result.current.propertiesVideo.isGenerateDisabled).toBe(true);
+    expect(result.current.propertiesVideo.agentIsSending).toBe(true);
+  });
+
   it("accepts nullable output ids when resolving image/video preview links", () => {
     const resolvePreviewUrlById = vi.fn((_: StudioOutput[], id: string | null | undefined) =>
       id === "out-1" ? "https://example.com/out-1.png" : null

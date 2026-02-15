@@ -21,7 +21,7 @@ const createParams = (
   generationGuardrail: null,
   effectiveBalanceCredits: 100,
   balanceCredits: 100,
-  optimisticDebitTotal: 0,
+  optimisticUncoveredDebitTotal: 0,
   setUiError: asDispatch<string | null>(vi.fn()),
   setUiNotice: asDispatch<string | null>(vi.fn()),
   setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(vi.fn()),
@@ -75,6 +75,23 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).not.toHaveBeenCalled();
   });
 
+  it("prevents rapid double-generate submissions via click lock", async () => {
+    const generateOutput = vi.fn();
+    const params = createParams({
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await Promise.all([
+        result.current.handleGenerate("prompt"),
+        result.current.handleGenerate("prompt"),
+      ]);
+    });
+
+    expect(generateOutput).toHaveBeenCalledTimes(1);
+  });
+
   it("fails generate when override cost cannot be covered after refresh", async () => {
     const setUiError = vi.fn();
     const refreshBalance = vi.fn(async () => 1);
@@ -92,7 +109,118 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
     });
 
-    expect(refreshBalance).toHaveBeenCalledWith({ silent: true });
+    expect(refreshBalance).toHaveBeenCalledWith(
+      expect.objectContaining({ silent: true, beforeCommit: expect.any(Function) })
+    );
+    expect(setUiError).toHaveBeenCalledWith("You do not have enough credits for this run.");
+    expect(generateOutput).not.toHaveBeenCalled();
+  });
+
+  it("accounts for uncovered optimistic debits after refresh", async () => {
+    const setUiError = vi.fn();
+    const refreshBalance = vi.fn(async () => 6);
+    const generateOutput = vi.fn();
+    const params = createParams({
+      effectiveBalanceCredits: 4,
+      balanceCredits: 6,
+      optimisticUncoveredDebitTotal: 2,
+      refreshBalance,
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
+    });
+
+    expect(refreshBalance).toHaveBeenCalledWith(
+      expect.objectContaining({ silent: true, beforeCommit: expect.any(Function) })
+    );
+    expect(setUiError).toHaveBeenCalledWith("You do not have enough credits for this run.");
+    expect(generateOutput).not.toHaveBeenCalled();
+  });
+
+  it("uses authoritative snapshot refresh without re-subtracting optimistic holds", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const refreshBalance = vi.fn(
+      async (options?: {
+        beforeCommit?: (snapshot: {
+          cents: number;
+          updatedAt: string | null;
+          reservedCents?: number | null;
+          source?: "snapshot" | "fallback";
+        }) => void;
+      }) => {
+        options?.beforeCommit?.({
+          cents: 6,
+          updatedAt: "2026-02-15T21:00:00.000Z",
+          reservedCents: 2,
+          source: "snapshot",
+        });
+        return 6;
+      }
+    );
+    const params = createParams({
+      effectiveBalanceCredits: 4,
+      balanceCredits: 6,
+      optimisticUncoveredDebitTotal: 2,
+      refreshBalance,
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
+    });
+
+    expect(refreshBalance).toHaveBeenCalledWith(
+      expect.objectContaining({ silent: true, beforeCommit: expect.any(Function) })
+    );
+    expect(setUiError).not.toHaveBeenCalledWith("You do not have enough credits for this run.");
+    expect(generateOutput).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies optimistic subtraction when refresh reports fallback source", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const refreshBalance = vi.fn(
+      async (options?: {
+        beforeCommit?: (snapshot: {
+          cents: number;
+          updatedAt: string | null;
+          reservedCents?: number | null;
+          source?: "snapshot" | "fallback";
+        }) => void;
+      }) => {
+        options?.beforeCommit?.({
+          cents: 6,
+          updatedAt: "2026-02-15T21:05:00.000Z",
+          reservedCents: null,
+          source: "fallback",
+        });
+        return 6;
+      }
+    );
+    const params = createParams({
+      effectiveBalanceCredits: 4,
+      balanceCredits: 6,
+      optimisticUncoveredDebitTotal: 2,
+      refreshBalance,
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
+    });
+
+    expect(refreshBalance).toHaveBeenCalledWith(
+      expect.objectContaining({ silent: true, beforeCommit: expect.any(Function) })
+    );
     expect(setUiError).toHaveBeenCalledWith("You do not have enough credits for this run.");
     expect(generateOutput).not.toHaveBeenCalled();
   });

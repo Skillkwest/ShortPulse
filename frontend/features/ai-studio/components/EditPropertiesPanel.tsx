@@ -174,6 +174,7 @@ export function EditPropertiesPanel({
           onAgentEnhanceSend={onAgentEnhanceSend}
           showEnhanceButton={false}
           beginnerHelperText="Think like an art director: describe the subject, setting, style, lighting, and camera angle."
+          beginnerPinHelperText="Click this button to pin your prompt to the reference grid."
           promptSaveButtonClassName="edit-reference-pin-btn"
           promptSaveButtonUnstyled
         />
@@ -211,7 +212,7 @@ export function EditPropertiesPanel({
           onToggleReference={() => toggleStep("reference")}
           beginnerMode={beginnerMode}
           isVideoVariant={false}
-          referenceStepTitle={referenceStepTitle}
+          referenceStepTitle={beginnerMode ? "Add Reference Image" : referenceStepTitle}
           referenceStepSubtitle={referenceStepSubtitle}
           activeVideoMode="standard"
           isMotionMode={false}

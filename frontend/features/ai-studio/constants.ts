@@ -63,12 +63,12 @@ export const modelOptions: ModelOption[] = [
   },
   {
     value: "fal-ai/veo3.1/image-to-video",
-    label: "Veo 3.1 (Image to Video)",
+    label: "Veo 3.1",
     mediaType: "image-to-video",
   },
   {
     value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-    label: "Seedance 1.5 Pro (Image to Video)",
+    label: "Seedance 1.5 Pro",
     mediaType: "image-to-video",
   },
   {

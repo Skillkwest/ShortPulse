@@ -203,6 +203,7 @@ export function PromptStep({
   const shouldDisableChatPin = chatPromptSaveButtonUnstyled
     ? false
     : shouldDisableSave || !canPinAgentInput;
+  const showBeginnerChatPinTip = Boolean(beginnerMode && chatOnly && beginnerPinHelperText);
   const imageAttachmentCounts = React.useMemo(() => {
     const images = stagedAttachments.filter((attachment) => attachment.kind === "image");
     const total = images.length;
@@ -415,6 +416,23 @@ export function PromptStep({
                         label="Send"
                         className="agent-send-prefab--labeled"
                       />
+                      {!showBeginnerChatPinTip ? (
+                        <AgentSaveButton
+                          onClick={() => onSavePrompt(agentInput)}
+                          disabled={shouldDisableChatPin}
+                          ariaLabel="Pin prompt"
+                          className={chatPromptSaveButtonClassName}
+                          unstyled={chatPromptSaveButtonUnstyled}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                  {showBeginnerChatPinTip ? (
+                    <div className="agent-composer-tip-row">
+                      <p className="tiny helper-text beginner-pin-helper create-beginner-pin-helper">
+                        <span className="beginner-pin-helper-prefix">Tip:</span>
+                        <span>{beginnerPinHelperText}</span>
+                      </p>
                       <AgentSaveButton
                         onClick={() => onSavePrompt(agentInput)}
                         disabled={shouldDisableChatPin}
@@ -423,10 +441,12 @@ export function PromptStep({
                         unstyled={chatPromptSaveButtonUnstyled}
                       />
                     </div>
-                  </div>
-                  <p className="tiny helper-text agent-composer-hint">
-                    Enter to send. Shift+Enter for a new line.
-                  </p>
+                  ) : null}
+                  {!beginnerMode ? (
+                    <p className="tiny helper-text agent-composer-hint">
+                      Enter to send. Shift+Enter for a new line.
+                    </p>
+                  ) : null}
                   {imageAttachmentCounts.total > 0 ? (
                     <p className="tiny helper-text agent-composer-hint agent-composer-hint--media">
                       Vision images: {imageAttachmentCounts.ready}/{imageAttachmentCounts.total}{" "}
@@ -474,7 +494,10 @@ export function PromptStep({
                 </div>
                 <div className="enhanced-actions-row prompt-actions-compact">
                   {beginnerMode && beginnerPinHelperText ? (
-                    <p className="tiny helper-text beginner-pin-helper">{beginnerPinHelperText}</p>
+                    <p className="tiny helper-text beginner-pin-helper">
+                      <span className="beginner-pin-helper-prefix">Tip:</span>
+                      <span>{beginnerPinHelperText}</span>
+                    </p>
                   ) : null}
                   <div className="enhanced-action-buttons agent-inline-actions">
                     {!hideEnhanceButton ? (

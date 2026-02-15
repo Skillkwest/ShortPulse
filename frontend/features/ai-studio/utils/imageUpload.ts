@@ -3,6 +3,7 @@
  * Converts blob/data URLs into short-lived signed HTTPS URLs.
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 
 type ImageUploadResponse = {
   url: string;
@@ -16,6 +17,7 @@ type ImageUrlCacheEntry = {
 };
 
 const SIGNED_URL_BUFFER_MS = 55 * 60 * 1000;
+const SUPABASE_SIGNED_URL_REFRESH_BUFFER_SECONDS = 5 * 60;
 const localImageUrlCache = new Map<string, ImageUrlCacheEntry>();
 
 const isBlobUrl = (url: string): boolean => url.startsWith("blob:");
@@ -53,6 +55,89 @@ const inferExtension = (mimeType: string): string => {
 const normalizeUploadBlob = (blob: Blob): Blob => {
   if (blob.type && blob.type.startsWith("image/")) return blob;
   return new Blob([blob], { type: "image/jpeg" });
+};
+
+const decodeBase64Url = (value: string): string => {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  if (typeof globalThis.atob === "function") {
+    return globalThis.atob(padded);
+  }
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(padded, "base64").toString("utf8");
+  }
+  throw new Error("No base64 decoder available");
+};
+
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  const segments = token.split(".");
+  if (segments.length < 2) return null;
+  try {
+    const rawPayload = decodeBase64Url(segments[1] ?? "");
+    const parsed = JSON.parse(rawPayload);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+};
+
+type SupabaseSignedObjectRef = {
+  bucket: string;
+  storagePath: string;
+  expiresAtSeconds: number | null;
+};
+
+const parseSupabaseSignedObjectRef = (url: string): SupabaseSignedObjectRef | null => {
+  try {
+    const parsedUrl = new URL(url);
+    const match = parsedUrl.pathname.match(/^\/storage\/v1\/object\/sign\/([^/]+)\/(.+)$/i);
+    if (!match) return null;
+    const bucket = decodeURIComponent(match[1] ?? "").trim();
+    const pathFromPathname = decodeURIComponent(match[2] ?? "").trim();
+    if (!bucket || !pathFromPathname) return null;
+
+    const token = parsedUrl.searchParams.get("token");
+    const payload = token ? decodeJwtPayload(token) : null;
+    const payloadUrl = typeof payload?.url === "string" ? payload.url.trim() : "";
+    const payloadExp = typeof payload?.exp === "number" ? payload.exp : null;
+
+    let storagePath = pathFromPathname;
+    if (payloadUrl) {
+      const normalized = payloadUrl.replace(/^\/+/, "");
+      if (normalized.startsWith(`${bucket}/`)) {
+        storagePath = normalized.slice(bucket.length + 1);
+      }
+    }
+    if (!storagePath) return null;
+    return {
+      bucket,
+      storagePath,
+      expiresAtSeconds: payloadExp,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const shouldRefreshSupabaseSignedUrl = (expiresAtSeconds: number | null): boolean => {
+  if (expiresAtSeconds == null) return true;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  return expiresAtSeconds - nowSeconds <= SUPABASE_SIGNED_URL_REFRESH_BUFFER_SECONDS;
+};
+
+const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> => {
+  const objectRef = parseSupabaseSignedObjectRef(url);
+  if (!objectRef) return url;
+  if (!shouldRefreshSupabaseSignedUrl(objectRef.expiresAtSeconds)) return url;
+
+  const refreshedUrl = await getSignedMediaUrl({
+    bucket: objectRef.bucket,
+    storagePath: objectRef.storagePath,
+    forceRefresh: true,
+  });
+  if (refreshedUrl?.trim()) return refreshedUrl;
+  throw new Error("Reference URL expired and could not be refreshed. Please reselect the image.");
 };
 
 /**
@@ -113,10 +198,13 @@ export const uploadImageToStorage = async (localUrl: string): Promise<string> =>
 
 /**
  * Prepares an image URL for provider submission.
- * Uploads local blob/data URLs; passes through remote HTTPS URLs.
+ * Uploads local blob/data URLs and refreshes expiring Supabase signed URLs.
  */
 export const prepareImageUrlForSubmission = async (url: string | null): Promise<string | null> => {
-  if (!url?.trim()) return null;
-  if (!needsImageUpload(url)) return url;
-  return uploadImageToStorage(url);
+  const normalizedUrl = url?.trim();
+  if (!normalizedUrl) return null;
+  if (needsImageUpload(normalizedUrl)) {
+    return uploadImageToStorage(normalizedUrl);
+  }
+  return refreshSupabaseSignedUrlIfNeeded(normalizedUrl);
 };

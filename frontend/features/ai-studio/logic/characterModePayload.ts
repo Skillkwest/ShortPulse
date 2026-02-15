@@ -39,6 +39,24 @@ export const resolveCharacterSheetReferenceUrls = (
 };
 
 /**
+ * Resolves Character Sheet storage paths in canonical zone order.
+ */
+export const resolveCharacterSheetReferenceStoragePaths = (
+  assignments: CharacterSheetAssignments,
+  slots: CharacterSlotFileMap
+): string[] => {
+  const orderedStoragePaths: string[] = [];
+  for (const zoneKey of CHARACTER_SHEET_ZONE_ORDER) {
+    const slotKey = assignments[zoneKey];
+    if (!slotKey) continue;
+    const storagePath = slots[slotKey]?.storagePath;
+    if (!storagePath) continue;
+    orderedStoragePaths.push(storagePath);
+  }
+  return Array.from(new Set(orderedStoragePaths));
+};
+
+/**
  * Builds the provider-facing prompt with hidden character context first.
  */
 export const composeCharacterModePrompt = ({

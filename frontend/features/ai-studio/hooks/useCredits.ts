@@ -1,12 +1,14 @@
 /**
  * Client-side credit tracking backed by Supabase.
- * Reads from `ai_credit_balance`.
+ * Reads from `/api/credits/snapshot` when available, then falls back to direct table/ledger reads.
  */
 import { useCallback, useEffect, useState } from "react";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 
 type BalanceState = {
   cents: number | null;
+  reservedCents: number | null;
   updatedAt: string | null;
   loading: boolean;
   error: string | null;
@@ -17,8 +19,27 @@ type BalanceSnapshot = {
   updatedAt: string | null;
 };
 
+type BalanceCommitSnapshot = {
+  cents: number;
+  updatedAt: string | null;
+  reservedCents: number | null;
+  source: "snapshot" | "fallback";
+};
+
 type BalanceQueryAttempt = {
   select: string;
+};
+
+type RefreshBalanceOptions = {
+  silent?: boolean;
+  preferLedger?: boolean;
+  beforeCommit?: (snapshot: BalanceCommitSnapshot) => void;
+};
+
+type CreditSnapshotApiResponse = {
+  spendableCents: number;
+  reservedCents: number;
+  updatedAt: string | null;
 };
 
 let preferredBalanceQueryAttempt: BalanceQueryAttempt | null = null;
@@ -175,9 +196,47 @@ const fetchBalanceCents = async (
   };
 };
 
+const asNumber = (value: unknown): number | null => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const parseCreditSnapshot = (payload: unknown): CreditSnapshotApiResponse | null => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const row = payload as Record<string, unknown>;
+  const spendableCents = asNumber(row.spendableCents);
+  const reservedCents = asNumber(row.reservedCents);
+  if (spendableCents == null || reservedCents == null) {
+    return null;
+  }
+  return {
+    spendableCents: Math.trunc(spendableCents),
+    reservedCents: Math.max(0, Math.trunc(reservedCents)),
+    updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : null,
+  };
+};
+
+const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> => {
+  try {
+    const response = await fetchWithAuth("/api/credits/snapshot", {
+      method: "GET",
+      shortpulseLogScope: "generation",
+      shortpulseSkipErrorLogging: true,
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    return parseCreditSnapshot(payload);
+  } catch {
+    return null;
+  }
+};
+
 export const useCredits = () => {
   const [balance, setBalance] = useState<BalanceState>({
     cents: null,
+    reservedCents: null,
     updatedAt: null,
     loading: true,
     error: null,
@@ -185,7 +244,7 @@ export const useCredits = () => {
   const [userId, setUserId] = useState<string | null>(null);
 
   const refresh = useCallback(
-    async (options?: { silent?: boolean; preferLedger?: boolean }): Promise<number | null> => {
+    async (options?: RefreshBalanceOptions): Promise<number | null> => {
       const silent = options?.silent ?? false;
       try {
         if (!silent) {
@@ -194,10 +253,32 @@ export const useCredits = () => {
         const id = userId ?? (await fetchUserId());
         if (!userId) setUserId(id);
 
-        const next = await fetchBalanceCents(id, {
-          preferLedger: options?.preferLedger ?? false,
+        const preferLedger = options?.preferLedger ?? false;
+        const snapshot = preferLedger ? null : await fetchCreditSnapshot();
+        const next: BalanceCommitSnapshot = snapshot
+          ? {
+              cents: snapshot.spendableCents,
+              reservedCents: snapshot.reservedCents,
+              updatedAt: snapshot.updatedAt,
+              source: "snapshot",
+            }
+          : {
+              ...(await fetchBalanceCents(id, {
+                preferLedger,
+              })),
+              reservedCents: null,
+              source: "fallback",
+            };
+        if (typeof options?.beforeCommit === "function") {
+          options.beforeCommit(next);
+        }
+        setBalance({
+          cents: next.cents,
+          reservedCents: next.reservedCents,
+          updatedAt: next.updatedAt,
+          loading: false,
+          error: null,
         });
-        setBalance({ cents: next.cents, updatedAt: next.updatedAt, loading: false, error: null });
         return next.cents;
       } catch (error) {
         setBalance((prev) => ({
@@ -242,6 +323,7 @@ export const useCredits = () => {
 
   return {
     balanceCents: balance.cents,
+    balanceReservedCents: balance.reservedCents,
     balanceUpdatedAt: balance.updatedAt,
     balanceLoading: balance.loading,
     balanceError: balance.error,

@@ -16,6 +16,7 @@ import {
   resolveKlingV3Duration,
   resolveSoraDuration,
 } from "../../logic/stateParsers";
+import { needsVideoUpload, prepareVideoUrlForSubmission } from "../../utils/videoUpload";
 import type { VideoSubmissionArgs } from "./types";
 import {
   buildKlingElementsPayload,
@@ -81,26 +82,35 @@ export const handleVideoModelSubmission = async ({
       }
 
       let motionVideoUrlFinal = motionReferenceVideoUrl;
-      if (motionReferenceVideoUrl.startsWith("blob:")) {
-        try {
-          const { uploadVideoToStorage } = await import("../../utils/videoUpload");
-
+      const requiresUpload = needsVideoUpload(motionReferenceVideoUrl);
+      try {
+        if (requiresUpload) {
           updateOutputById(id, (item) => ({
             ...item,
             timestamp: "Uploading video...",
           }));
+        }
 
-          motionVideoUrlFinal = await uploadVideoToStorage(motionReferenceVideoUrl);
+        const preparedMotionVideoUrl = await prepareVideoUrlForSubmission(motionReferenceVideoUrl);
+        if (!preparedMotionVideoUrl) {
+          throw new Error("Motion reference video is missing.");
+        }
+        motionVideoUrlFinal = preparedMotionVideoUrl;
 
+        if (requiresUpload) {
           updateOutputById(id, (item) => ({
             ...item,
             timestamp: "Video uploaded",
           }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Video upload failed";
-          notifyGenerationFailure(id, `Video upload failed: ${message}`);
-          return true;
         }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Motion reference preparation failed";
+        const prefix = requiresUpload
+          ? "Video upload failed"
+          : "Motion reference preparation failed";
+        notifyGenerationFailure(id, `${prefix}: ${message}`);
+        return true;
       }
 
       const motionElementsPayload = [

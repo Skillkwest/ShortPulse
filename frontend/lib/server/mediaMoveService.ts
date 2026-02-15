@@ -54,9 +54,18 @@ export type MoveMediaServiceResult =
     };
 
 const MEDIA_BUCKET = "media_library";
+const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 
 const MEDIA_FILE_SELECT =
   "id, user_id, filename, storage_path, file_type, source, source_ref, prompt_id, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at, updated_at";
+
+const isUserScopedStoragePath = (path: string, userId: string): boolean => {
+  const normalized = path.trim();
+  if (!normalized) return false;
+  if (normalized.startsWith("/") || normalized.includes("\\")) return false;
+  if (TRAVERSAL_SEGMENT_REGEX.test(normalized)) return false;
+  return normalized.startsWith(`${userId}/`);
+};
 
 /**
  * Returns true when the provided tab value is a valid media data tab.
@@ -108,6 +117,15 @@ export const moveMediaFileForUser = async ({
       },
     };
   }
+  if (fileRow.user_id !== userId) {
+    return {
+      ok: false,
+      value: {
+        status: 403,
+        error: "Forbidden",
+      },
+    };
+  }
 
   const currentTab = getMediaDataTabForRow(fileRow);
   const moveValidation = validateMoveDestination(fileRow, destination);
@@ -125,6 +143,27 @@ export const moveMediaFileForUser = async ({
   const destinationSource = resolveSourceForDataTab(destinationTab);
   const nextStoragePath = buildMovedStoragePath(userId, fileRow, destinationTab);
   const previousStoragePath = fileRow.storage_path;
+
+  if (!isUserScopedStoragePath(previousStoragePath, userId)) {
+    return {
+      ok: false,
+      value: {
+        status: 403,
+        error: "Forbidden",
+        details: "Media storage path is outside user scope",
+      },
+    };
+  }
+  if (!isUserScopedStoragePath(nextStoragePath, userId)) {
+    return {
+      ok: false,
+      value: {
+        status: 500,
+        error: "Failed to move storage object",
+        details: "Destination path is outside user scope",
+      },
+    };
+  }
 
   const { error: moveStorageError } = await supabaseAdmin.storage
     .from(MEDIA_BUCKET)

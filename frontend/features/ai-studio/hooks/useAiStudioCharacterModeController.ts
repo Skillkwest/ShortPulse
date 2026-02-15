@@ -4,16 +4,21 @@
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { loadCharacterManagerDraftByCharacterId } from "../../character-manager/logic/characterManagerPersistence";
+import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import {
   composeCharacterModePrompt,
   mergeCharacterAndUserReferences,
+  resolveCharacterSheetReferenceStoragePaths,
   resolveCharacterSheetReferenceUrls,
 } from "../logic/characterModePayload";
 import type { StudioOutput, ToolId } from "../types";
 
+const MEDIA_BUCKET = "media_library";
+
 export type CharacterModeInjectionBundle = {
   characterId: string;
   characterDescription: string;
+  sheetReferenceStoragePaths: string[];
   sheetReferenceUrls: string[];
   loadedAtMs: number;
 };
@@ -75,6 +80,10 @@ export const useAiStudioCharacterModeController = ({
     ): CharacterModeInjectionBundle => ({
       characterId: snapshot.characterId,
       characterDescription: snapshot.characterDescription,
+      sheetReferenceStoragePaths: resolveCharacterSheetReferenceStoragePaths(
+        snapshot.characterSheetAssignments,
+        snapshot.slots
+      ),
       sheetReferenceUrls: resolveCharacterSheetReferenceUrls(
         snapshot.characterSheetAssignments,
         snapshot.slots
@@ -82,6 +91,38 @@ export const useAiStudioCharacterModeController = ({
       loadedAtMs: Date.now(),
     }),
     []
+  );
+
+  const refreshBundleReferenceUrlsForSubmission = useCallback(
+    async (bundle: CharacterModeInjectionBundle): Promise<CharacterModeInjectionBundle | null> => {
+      if (!bundle.sheetReferenceStoragePaths.length) {
+        return {
+          ...bundle,
+          loadedAtMs: Date.now(),
+        };
+      }
+      const signedByPath = await getSignedMediaUrlsBatch({
+        bucket: MEDIA_BUCKET,
+        storagePaths: bundle.sheetReferenceStoragePaths,
+        forceRefresh: true,
+      });
+      const refreshedUrls = bundle.sheetReferenceStoragePaths
+        .map((path) => signedByPath.get(path) ?? null)
+        .filter((value): value is string => Boolean(value));
+      if (refreshedUrls.length === 0) {
+        trackCharacterModeEvent("character_mode_reference_refresh_empty", {
+          selected_character_id: bundle.characterId,
+          storage_path_count: bundle.sheetReferenceStoragePaths.length,
+        });
+        return null;
+      }
+      return {
+        ...bundle,
+        sheetReferenceUrls: Array.from(new Set(refreshedUrls)),
+        loadedAtMs: Date.now(),
+      };
+    },
+    [trackCharacterModeEvent]
   );
 
   const refreshCharacterModeInjectionBundleForSubmission = useCallback(
@@ -95,19 +136,31 @@ export const useAiStudioCharacterModeController = ({
         !currentBundle || currentBundle.characterId !== selectedCharacterId;
       const bundleAgeMs = currentBundle ? Date.now() - currentBundle.loadedAtMs : 0;
       const isBundleStale = currentBundle ? bundleAgeMs >= bundleStaleAfterMs : true;
-      if (!isMissingBundleForSelectedCharacter && !isBundleStale) {
-        return currentBundle;
-      }
+      const needsSnapshotReload = isMissingBundleForSelectedCharacter || isBundleStale;
 
       setIsCharacterBundleLoading(true);
       trackCharacterModeEvent("character_mode_bundle_refresh_before_submit", {
-        reason: isMissingBundleForSelectedCharacter ? "missing_bundle" : "stale_signed_urls",
+        reason: isMissingBundleForSelectedCharacter
+          ? "missing_bundle"
+          : isBundleStale
+            ? "stale_signed_urls"
+            : "submit_refresh",
         selected_character_id: selectedCharacterId,
         bundle_age_ms: currentBundle ? bundleAgeMs : null,
       });
       try {
-        const snapshot = await loadCharacterManagerDraftByCharacterId(selectedCharacterId);
-        const refreshedBundle = toCharacterModeInjectionBundle(snapshot);
+        const baseBundle = needsSnapshotReload
+          ? toCharacterModeInjectionBundle(
+              await loadCharacterManagerDraftByCharacterId(selectedCharacterId)
+            )
+          : currentBundle;
+        if (!baseBundle || baseBundle.characterId !== selectedCharacterId) {
+          return null;
+        }
+        const refreshedBundle = await refreshBundleReferenceUrlsForSubmission(baseBundle);
+        if (!refreshedBundle) {
+          return null;
+        }
         setCharacterModeInjectionBundle(refreshedBundle);
         return refreshedBundle;
       } catch (error) {
@@ -116,7 +169,7 @@ export const useAiStudioCharacterModeController = ({
           error:
             error instanceof Error && error.message.trim().length ? error.message : "unknown_error",
         });
-        return currentBundle?.characterId === selectedCharacterId ? currentBundle : null;
+        return null;
       } finally {
         setIsCharacterBundleLoading(false);
       }
@@ -125,6 +178,7 @@ export const useAiStudioCharacterModeController = ({
       bundleStaleAfterMs,
       characterModeInjectionBundle,
       isCharacterModeEnabled,
+      refreshBundleReferenceUrlsForSubmission,
       selectedCharacterId,
       setCharacterModeInjectionBundle,
       setIsCharacterBundleLoading,
@@ -142,7 +196,7 @@ export const useAiStudioCharacterModeController = ({
       const isCreateWorkflowTool = tool === "create" || tool === "text";
       if (!isCharacterModeEnabled || !isCreateWorkflowTool) return null;
 
-      const bundle = bundleOverride ?? characterModeInjectionBundle;
+      const bundle = bundleOverride === undefined ? characterModeInjectionBundle : bundleOverride;
       const characterDescription = bundle?.characterDescription ?? "";
       const characterReferences = bundle?.sheetReferenceUrls ?? [];
       const submissionPrompt = composeCharacterModePrompt({

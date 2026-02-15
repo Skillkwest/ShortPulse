@@ -37,6 +37,15 @@ const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
 const MIN_SIGNED_URL_TTL_SECONDS = 60;
 const MAX_SIGNED_URL_TTL_SECONDS = 3600;
 const MAX_MEDIA_IDS = 40;
+const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
+
+const isUserScopedStoragePath = (path: string, userId: string): boolean => {
+  const normalized = path.trim();
+  if (!normalized) return false;
+  if (normalized.startsWith("/") || normalized.includes("\\")) return false;
+  if (TRAVERSAL_SEGMENT_REGEX.test(normalized)) return false;
+  return normalized.startsWith(`${userId}/`);
+};
 
 const toSafeMediaIdList = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
@@ -73,6 +82,15 @@ const resolveObjectByBasename = async (
   userId: string,
   basename: string
 ): Promise<string | null> => {
+  if (
+    !basename ||
+    basename.includes("/") ||
+    basename.includes("\\") ||
+    basename.includes("%") ||
+    basename.includes("_")
+  ) {
+    return null;
+  }
   const supabaseAdmin = getSupabaseAdmin();
   const pattern = `${userId}/%/${basename}`;
   const { data, error } = await supabaseAdmin
@@ -131,7 +149,9 @@ export default async function handler(
     const candidatesById = new Map<string, string[]>();
     const allCandidates: string[] = [];
     for (const row of rows) {
-      const candidates = resolveMediaSigningStoragePaths(row, user.id);
+      const candidates = resolveMediaSigningStoragePaths(row, user.id).filter((candidate) =>
+        isUserScopedStoragePath(candidate, user.id)
+      );
       candidatesById.set(row.id, candidates);
       allCandidates.push(...candidates);
     }
@@ -169,13 +189,15 @@ export default async function handler(
       );
       for (const basename of basenameCandidates) {
         const matchedObject = await resolveObjectByBasename(user.id, basename);
-        if (!matchedObject) continue;
+        if (!matchedObject || !isUserScopedStoragePath(matchedObject, user.id)) continue;
         resolvedPathById.set(row.id, matchedObject);
         break;
       }
     }
 
-    const pathsToSign = Array.from(new Set(Array.from(resolvedPathById.values())));
+    const pathsToSign = Array.from(new Set(Array.from(resolvedPathById.values()))).filter((path) =>
+      isUserScopedStoragePath(path, user.id)
+    );
     const signedUrlByPath = new Map<string, string | null>();
     if (pathsToSign.length) {
       const { data: signedRows, error: signedError } = await supabaseAdmin.storage

@@ -57,6 +57,26 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     ]);
   });
 
+  it("assigns newly seen running output ids to optimistic debit placeholders", async () => {
+    const setOptimisticDebitEntries = vi.fn();
+    renderHook(() =>
+      useAiStudioOptimisticDebitReconciliation({
+        outputs: [makeOutput("out-7", "running")],
+        setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
+        refreshBalance: vi.fn(async () => 10),
+        setDetailOutputId: asDispatch<string | null>(vi.fn()),
+      })
+    );
+
+    await waitFor(() => expect(setOptimisticDebitEntries).toHaveBeenCalled());
+
+    const assigner = updaterFns(setOptimisticDebitEntries)[0];
+    expect(assigner).toBeTypeOf("function");
+    expect(assigner?.([{ credits: 6, outputId: null }])).toEqual([
+      { credits: 6, outputId: "out-7" },
+    ]);
+  });
+
   it("removes failed output ids from optimistic debit entries", async () => {
     const setOptimisticDebitEntries = vi.fn();
     const refreshBalance = vi.fn(async () => 20);
@@ -98,7 +118,13 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     );
 
     await waitFor(() =>
-      expect(refreshBalance).toHaveBeenCalledWith({ silent: true, preferLedger: true })
+      expect(refreshBalance).toHaveBeenCalledWith(
+        expect.objectContaining({
+          silent: true,
+          preferLedger: true,
+          beforeCommit: expect.any(Function),
+        })
+      )
     );
     await waitFor(() => expect(setOptimisticDebitEntries).toHaveBeenCalled());
 

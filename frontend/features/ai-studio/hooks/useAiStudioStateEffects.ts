@@ -96,13 +96,7 @@ export const useAiStudioStateEffects = ({
   hasPendingWorkflowRestore,
 }: UseAiStudioStateEffectsArgs) => {
   useEffect(() => {
-    document.body.classList.add("ai-studio-body");
-    document.documentElement.classList.add("ai-studio-body");
     promptRef.current?.focus();
-    return () => {
-      document.body.classList.remove("ai-studio-body");
-      document.documentElement.classList.remove("ai-studio-body");
-    };
   }, [promptRef]);
 
   useEffect(() => {

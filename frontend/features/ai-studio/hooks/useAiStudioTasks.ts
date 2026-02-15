@@ -91,6 +91,9 @@ const nonTerminalStates = new Set([
   "created",
 ]);
 
+const BACKGROUND_RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
+const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
+
 const condenseError = (message: string) => {
   if (!message) return "";
   const trimmed = message.trim();
@@ -134,6 +137,29 @@ const looksLikeFailureMessage = (value: unknown): boolean => {
   return /error|fail|denied|invalid|timed out|timeout|insufficient|reject|policy|unsafe|nsfw/i.test(
     value
   );
+};
+
+const extractFailureMessageFromDetail = (value: unknown, depth = 0): string | null => {
+  if (depth > 3 || value == null) return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = extractFailureMessageFromDetail(item, depth + 1);
+      if (nested) return nested;
+    }
+    return null;
+  }
+  if (typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const direct =
+    extractFailureMessageFromDetail(record.msg, depth + 1) ??
+    extractFailureMessageFromDetail(record.message, depth + 1) ??
+    extractFailureMessageFromDetail(record.error, depth + 1);
+  if (direct) return direct;
+  return extractFailureMessageFromDetail(record.detail, depth + 1);
 };
 
 const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
@@ -201,6 +227,8 @@ export function useAiStudioTasks({
   onGenerationFailure,
 }: TaskCallbacks) {
   const pollTimersRef = useRef<Record<string, number>>({});
+  const recoveryTimersRef = useRef<Record<string, number>>({});
+  const recoveryAttemptsRef = useRef<Record<string, number>>({});
 
   const clearPollTimer = useCallback((outputId: string) => {
     const timeoutId = pollTimersRef.current[outputId];
@@ -209,6 +237,110 @@ export function useAiStudioTasks({
       delete pollTimersRef.current[outputId];
     }
   }, []);
+
+  const clearRecoveryTimer = useCallback((outputId: string) => {
+    const timeoutId = recoveryTimersRef.current[outputId];
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+      delete recoveryTimersRef.current[outputId];
+    }
+    delete recoveryAttemptsRef.current[outputId];
+  }, []);
+
+  const scheduleBackgroundRecovery = useCallback(
+    (
+      taskId: string,
+      outputId: string,
+      provider: Provider,
+      reasonCode: "no_media_after_terminal_success" | "poll_timeout" | "status_poll_error"
+    ) => {
+      if (recoveryTimersRef.current[outputId]) return;
+
+      addBreadcrumb({
+        type: "ui",
+        level: "warn",
+        message: "generation_background_recovery_scheduled",
+        data: {
+          provider,
+          task_id: taskId,
+          output_id: outputId,
+          reason_code: reasonCode,
+          interval_ms: BACKGROUND_RECOVERY_INTERVAL_MS,
+        },
+      });
+
+      const queueNext = () => {
+        recoveryTimersRef.current[outputId] = window.setTimeout(async () => {
+          const attempt = (recoveryAttemptsRef.current[outputId] ?? 0) + 1;
+          recoveryAttemptsRef.current[outputId] = attempt;
+
+          try {
+            const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
+            const recoveredUrls = extractMediaByProvider(provider, status).filter(Boolean);
+
+            if (recoveredUrls.length > 0) {
+              addBreadcrumb({
+                type: "ui",
+                level: "info",
+                message: "generation_background_recovery_success",
+                data: {
+                  provider,
+                  task_id: taskId,
+                  output_id: outputId,
+                  attempt,
+                  recovered_count: recoveredUrls.length,
+                },
+              });
+
+              updateOutputById(outputId, (item) => ({
+                ...item,
+                taskState: "success",
+                status: "ready",
+                timestamp: "Recovered media URL.",
+                resultUrls: recoveredUrls,
+                previewUrl: recoveredUrls[0] ?? item.previewUrl,
+                errorMessage: null,
+                errorMessageShort: null,
+                errorDetail: null,
+              }));
+              onGenerationSuccess?.({
+                outputId,
+                taskId,
+                provider,
+                resultUrls: recoveredUrls,
+              });
+              clearPollTimer(outputId);
+              clearRecoveryTimer(outputId);
+              return;
+            }
+          } catch {
+            // best-effort fallback polling; keep trying until budget is exhausted
+          }
+
+          if (attempt >= BACKGROUND_RECOVERY_MAX_ATTEMPTS) {
+            addBreadcrumb({
+              type: "ui",
+              level: "warn",
+              message: "generation_background_recovery_exhausted",
+              data: {
+                provider,
+                task_id: taskId,
+                output_id: outputId,
+                attempts: attempt,
+              },
+            });
+            clearRecoveryTimer(outputId);
+            return;
+          }
+
+          queueNext();
+        }, BACKGROUND_RECOVERY_INTERVAL_MS);
+      };
+
+      queueNext();
+    },
+    [clearPollTimer, clearRecoveryTimer, onGenerationSuccess, updateOutputById]
+  );
 
   const startPollingTask = useCallback(
     function pollTask(
@@ -219,6 +351,10 @@ export function useAiStudioTasks({
       startedAt = Date.now(),
       noMediaAttempt = 0
     ) {
+      if (attempt === 0 && noMediaAttempt === 0) {
+        clearRecoveryTimer(outputId);
+      }
+
       const elapsedMs = Date.now() - startedAt;
       const maxWaitMs = longRunningVideoProviders.has(provider) ? 20 * 60 * 1000 : 8 * 60 * 1000;
       if (elapsedMs > maxWaitMs) {
@@ -233,6 +369,7 @@ export function useAiStudioTasks({
             reasonCode: "poll_timeout",
           });
         }
+        scheduleBackgroundRecovery(taskId, outputId, provider, "poll_timeout");
         clearPollTimer(outputId);
         return;
       }
@@ -334,6 +471,12 @@ export function useAiStudioTasks({
                   reasonCode: "no_media_after_terminal_success",
                 });
               }
+              scheduleBackgroundRecovery(
+                taskId,
+                outputId,
+                provider,
+                "no_media_after_terminal_success"
+              );
               clearPollTimer(outputId);
               return;
             }
@@ -357,6 +500,7 @@ export function useAiStudioTasks({
                 resultUrls: allUrls,
               });
             }
+            clearRecoveryTimer(outputId);
             clearPollTimer(outputId);
             return;
           }
@@ -371,20 +515,29 @@ export function useAiStudioTasks({
             String(status?.status ?? "").toLowerCase() === "error" ||
             String(status?.state ?? "").toLowerCase() === "error";
 
+          const detailMessage = extractFailureMessageFromDetail(status?.detail);
+          const messageField = typeof status?.message === "string" ? status.message : null;
+          const statusMessageField =
+            typeof status?.statusMessage === "string" ? status.statusMessage : null;
+          const errorField = extractFailureMessageFromDetail(status?.error);
+          const failMessageField = extractFailureMessageFromDetail(status?.failMsg);
+          const failCodeField = extractFailureMessageFromDetail(status?.failCode);
+
           const hasFailureMessage =
-            looksLikeFailureMessage(status?.message) ||
-            looksLikeFailureMessage(status?.statusMessage) ||
-            looksLikeFailureMessage(status?.detail);
+            looksLikeFailureMessage(messageField) ||
+            looksLikeFailureMessage(statusMessageField) ||
+            looksLikeFailureMessage(detailMessage) ||
+            looksLikeFailureMessage(errorField);
 
           // If ANY condition is true, treat as error
           if (isErrorState || hasErrorField || isExplicitErrorStatus || hasFailureMessage) {
             const rawFailureDetail =
-              status?.failMsg ||
-              status?.failCode ||
-              status?.error ||
-              (hasFailureMessage ? status?.message : null) ||
-              status?.statusMessage ||
-              status?.detail ||
+              failMessageField ||
+              failCodeField ||
+              errorField ||
+              (hasFailureMessage ? messageField : null) ||
+              statusMessageField ||
+              detailMessage ||
               "Generation failed";
             const failureDetail =
               typeof rawFailureDetail === "string"
@@ -393,9 +546,7 @@ export function useAiStudioTasks({
                   ? String(rawFailureDetail)
                   : "Generation failed";
 
-            const failureMessage = condenseError(
-              typeof status?.detail === "string" ? status?.detail : failureDetail
-            );
+            const failureMessage = condenseError(detailMessage ?? failureDetail);
 
             const shortMessage = createShortErrorMessage(failureMessage);
 
@@ -448,6 +599,7 @@ export function useAiStudioTasks({
                 reasonCode: "status_poll_error",
               });
             }
+            scheduleBackgroundRecovery(taskId, outputId, provider, "status_poll_error");
             clearPollTimer(outputId);
             return;
           }
@@ -467,9 +619,11 @@ export function useAiStudioTasks({
     },
     [
       clearPollTimer,
+      clearRecoveryTimer,
       notifyGenerationFailure,
       onGenerationFailure,
       onGenerationSuccess,
+      scheduleBackgroundRecovery,
       updateOutputById,
     ]
   );
@@ -477,7 +631,12 @@ export function useAiStudioTasks({
   useEffect(
     () => () => {
       Object.values(pollTimersRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
+      Object.values(recoveryTimersRef.current).forEach((timeoutId) =>
+        window.clearTimeout(timeoutId)
+      );
       pollTimersRef.current = {};
+      recoveryTimersRef.current = {};
+      recoveryAttemptsRef.current = {};
     },
     []
   );

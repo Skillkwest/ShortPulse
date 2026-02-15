@@ -279,4 +279,31 @@ describe("POST /api/media/move", () => {
     expect(secondFrom).toBe(firstTo);
     expect(secondTo).toBe(firstFrom);
   });
+
+  it("rejects moves when the stored path is outside the caller scope", async () => {
+    const fileRow = createBaseFile({
+      storage_path: "user-2/images/other-user-file.jpg",
+    });
+    const { moveMock } = setupSupabaseAdminMock({ fileRow });
+
+    const req = {
+      method: "POST",
+      body: {
+        fileId: "file-1",
+        destinationTab: "private",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Forbidden",
+        details: "Media storage path is outside user scope",
+      })
+    );
+    expect(moveMock).not.toHaveBeenCalled();
+  });
 });

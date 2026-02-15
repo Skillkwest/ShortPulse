@@ -1,0 +1,199 @@
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { StudioOutput } from "../../types";
+import { useAiStudioTasks } from "../useAiStudioTasks";
+import { fetchFalStatus } from "../../../../lib/falClient";
+
+vi.mock("../../../../lib/clientBreadcrumbs", () => ({
+  addBreadcrumb: vi.fn(),
+}));
+
+vi.mock("../../../../lib/keiClient", () => ({
+  fetchKeiTaskStatus: vi.fn(),
+}));
+
+vi.mock("../../../../lib/falClient", () => ({
+  fetchFalStatus: vi.fn(),
+  fetchFalFlux2Status: vi.fn(),
+  fetchFalFlux2KleinStatus: vi.fn(),
+  fetchFalFlux2EditStatus: vi.fn(),
+  fetchFalFlux2ProStatus: vi.fn(),
+  fetchFalFlux2ProEditStatus: vi.fn(),
+  fetchFalKlingStatus: vi.fn(),
+  fetchFalKlingV3ImageToVideoStatus: vi.fn(),
+  fetchFalNanoBananaStatus: vi.fn(),
+  fetchFalNanoBananaEditStatus: vi.fn(),
+  fetchFalNanoBananaProStatus: vi.fn(),
+  fetchFalNanoBananaProEditStatus: vi.fn(),
+  fetchFalSoraStatus: vi.fn(),
+  fetchFalSeedanceStatus: vi.fn(),
+  fetchFalSeedanceI2VStatus: vi.fn(),
+  fetchFalSeedreamStatus: vi.fn(),
+  fetchFalVeoStatus: vi.fn(),
+  fetchFalVeoImageToVideoStatus: vi.fn(),
+}));
+
+const makeOutput = (): StudioOutput => ({
+  id: "out-1",
+  prompt: "Prompt",
+  mode: "image",
+  aspect: "9:16",
+  model: "Model",
+  modelId: "model-id",
+  status: "ready",
+  timestamp: "Now",
+  taskState: "running",
+});
+
+const asFalStatusResponse = (value: unknown): Awaited<ReturnType<typeof fetchFalStatus>> =>
+  value as Awaited<ReturnType<typeof fetchFalStatus>>;
+
+describe("useAiStudioTasks", () => {
+  const fetchFalStatusMock = vi.mocked(fetchFalStatus);
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("runs a 2-minute background recovery check and restores preview URL when it appears later", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce({ status: "completed" }).mockResolvedValueOnce({
+      status: "completed",
+      data: { images: [{ url: "https://cdn.test/recovered.png" }] },
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-1", "out-1", 0, "fal", Date.now(), 20);
+    });
+
+    await vi.advanceTimersByTimeAsync(1200);
+
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Generation finished, but no media URL was returned. Please retry.",
+      "Generation finished, but no media URL was returned. Please retry."
+    );
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "task-1",
+        provider: "fal",
+        reasonCode: "no_media_after_terminal_success",
+      })
+    );
+
+    await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
+
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "task-1",
+        provider: "fal",
+        resultUrls: ["https://cdn.test/recovered.png"],
+      })
+    );
+    expect(output.previewUrl).toBe("https://cdn.test/recovered.png");
+    expect(output.taskState).toBe("success");
+  });
+
+  it("clears background recovery timers on unmount", async () => {
+    fetchFalStatusMock.mockResolvedValue({ status: "completed" });
+
+    const updateOutputById = vi.fn();
+    const { result, unmount } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-1", "out-1", 0, "fal", Date.now(), 20);
+    });
+
+    await vi.advanceTimersByTimeAsync(1200);
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+
+    unmount();
+    await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces provider detail array messages (file_download_error) as primary failure text", async () => {
+    fetchFalStatusMock.mockImplementationOnce(async () =>
+      asFalStatusResponse({
+        status: "error",
+        detail: [
+          {
+            type: "file_download_error",
+            msg: "Failed to download the file. Please check if the URL is accessible and try again.",
+          },
+        ],
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-1", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(1200);
+
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Failed to download the file.",
+      "Failed to download the file. Please check if the URL is accessible and try again."
+    );
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        provider: "fal",
+        reasonCode: "provider_error",
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(output.errorMessage).toContain("Failed to download the file.");
+  });
+});

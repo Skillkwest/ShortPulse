@@ -284,6 +284,11 @@
     inset 0 1px 0 rgba(5, 175, 84, 0.813);
 }
 
+.ai-studio-page[data-beginner-mode="on"] .reference-step-header > .step-badge.mini {
+  align-self: flex-start;
+  margin-top: 9px;
+}
+
 .reference-step-copy {
   display: flex;
   flex-direction: column;

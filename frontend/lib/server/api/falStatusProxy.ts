@@ -560,6 +560,7 @@ export const createFalStatusHandler = ({
 
       let resultResp: Response | null = null;
       let resultData: JsonReadResult | null = null;
+      let allResultProbesRetryable = true;
       const responseUrl = extractResponseUrl(statusData.json);
       if (responseUrl) {
         const responseProbe = await fetch(responseUrl, {
@@ -600,6 +601,7 @@ export const createFalStatusHandler = ({
           resultData = data;
           continue;
         }
+        allResultProbesRetryable = false;
 
         const candidateStatus =
           normalizeStatus(data.json.status) ?? normalizeStatus(toRecord(data.json).state);
@@ -630,6 +632,12 @@ export const createFalStatusHandler = ({
           source: "api.fal_status.result_request_failed",
           stage: "result",
         });
+      }
+
+      // Treat a full sweep of retryable responses (404/405/non-JSON across aliases)
+      // as transient so polling can continue instead of settling terminal failure.
+      if (allResultProbesRetryable) {
+        return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
       }
 
       if (!resultData.isJson) {

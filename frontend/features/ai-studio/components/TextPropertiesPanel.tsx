@@ -496,6 +496,7 @@ export function TextPropertiesPanel({
         shouldDisableSave={shouldDisableSave}
         beginnerMode={beginnerMode}
         chatOnly
+        beginnerPinHelperText="Click this button to pin your prompt to the reference grid."
         chatPromptSaveButtonClassName="create-chat-pin-btn"
         chatPromptSaveButtonUnstyled
       />
@@ -622,9 +623,6 @@ export function ComposeSendCard({
           {beginnerMode ? <p className="step-title">Generate</p> : null}
           <span className="step-subtitle tiny helper-text">
             Run generation with the current prompt and selections.
-          </span>
-          <span className="step-subtitle tiny generate-rounding-note">
-            Estimated charges are billed in 5-credit increments.
           </span>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import { submitFalKlingV3ImageToVideo } from "../../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
+import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
 
 vi.mock("../../../../../lib/falClient", () => ({
   submitFalKlingV3ImageToVideo: vi.fn(),
@@ -18,6 +19,9 @@ vi.mock("../../../../../lib/falClient", () => ({
 
 vi.mock("../../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
+}));
+vi.mock("../../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: vi.fn(),
 }));
 
 const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmissionArgs => ({
@@ -56,6 +60,9 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.mocked(submitFalKlingV3ImageToVideo).mockResolvedValue({ request_id: "req-123" });
+    vi.mocked(getSignedMediaUrl).mockResolvedValue(
+      "https://example.com/signed/motion-refreshed.mp4"
+    );
   });
 
   it("builds and submits a motion payload with normalized prompt/duration/aspect", async () => {
@@ -132,6 +139,67 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
       "Video upload failed: network failure"
+    );
+    expect(submitFalKlingV3ImageToVideo).not.toHaveBeenCalled();
+  });
+
+  it("refreshes expiring Supabase signed motion videos before submit", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const expSoon = Math.floor(Date.now() / 1000) + 60;
+    const payload = Buffer.from(
+      JSON.stringify({
+        url: "media_library/user-1/videos/motion.mp4",
+        exp: expSoon,
+      })
+    ).toString("base64url");
+    const token = `header.${payload}.sig`;
+    const signedUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion.mp4" +
+      `?token=${token}`;
+    const args = makeArgs({ motionReferenceVideoUrl: signedUrl });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(getSignedMediaUrl).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/videos/motion.mp4",
+      forceRefresh: true,
+    });
+    expect(submitFalKlingV3ImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        elements: [
+          {
+            video_url: "https://example.com/signed/motion-refreshed.mp4",
+            frontal_image_url: "https://example.com/character.png",
+          },
+        ],
+      })
+    );
+  });
+
+  it("fails gracefully when signed motion video cannot be refreshed", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const expSoon = Math.floor(Date.now() / 1000) + 60;
+    const payload = Buffer.from(
+      JSON.stringify({
+        url: "media_library/user-1/videos/motion.mp4",
+        exp: expSoon,
+      })
+    ).toString("base64url");
+    const token = `header.${payload}.sig`;
+    const signedUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion.mp4" +
+      `?token=${token}`;
+    vi.mocked(getSignedMediaUrl).mockResolvedValueOnce(null);
+    const args = makeArgs({ motionReferenceVideoUrl: signedUrl });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      expect.stringContaining("Motion reference preparation failed")
     );
     expect(submitFalKlingV3ImageToVideo).not.toHaveBeenCalled();
   });

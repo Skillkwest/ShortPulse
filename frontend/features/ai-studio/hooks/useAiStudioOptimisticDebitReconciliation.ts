@@ -16,6 +16,12 @@ type UseAiStudioOptimisticDebitReconciliationParams = {
   refreshBalance: (options?: {
     silent?: boolean;
     preferLedger?: boolean;
+    beforeCommit?: (snapshot: {
+      cents: number;
+      updatedAt: string | null;
+      reservedCents?: number | null;
+      source?: "snapshot" | "fallback";
+    }) => void;
   }) => Promise<number | null>;
   setDetailOutputId: Dispatch<SetStateAction<string | null>>;
 };
@@ -73,7 +79,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
         return Boolean(
           item &&
           item.id.startsWith("out-") &&
-          item.taskState === "pending" &&
+          (item.taskState === "pending" || item.taskState === "running") &&
           !assignedOutputIds.has(item.id)
         );
       });
@@ -81,7 +87,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
         .filter(
           (item) =>
             item.id.startsWith("out-") &&
-            item.taskState === "pending" &&
+            (item.taskState === "pending" || item.taskState === "running") &&
             !assignedOutputIds.has(item.id) &&
             !newlyPendingOutputIds.includes(item.id)
         )
@@ -138,14 +144,32 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       newlySettledOutputs.filter((item) => item.taskState === "success").map((item) => item.id)
     );
     void (async () => {
-      const refreshedBalance = await refreshBalance({ silent: true, preferLedger: true });
-      if (refreshedBalance == null || !successfulOutputIds.size) return;
-      setOptimisticDebitEntries((prev) => {
-        const next = prev.filter(
-          (entry) => !(entry.outputId && successfulOutputIds.has(entry.outputId))
-        );
-        return next.length === prev.length ? prev : next;
+      const removeSuccessfulOptimisticEntries = () => {
+        setOptimisticDebitEntries((prev) => {
+          const next = prev.filter(
+            (entry) => !(entry.outputId && successfulOutputIds.has(entry.outputId))
+          );
+          return next.length === prev.length ? prev : next;
+        });
+      };
+
+      let removedBeforeBalanceCommit = false;
+      const refreshedBalance = await refreshBalance({
+        silent: true,
+        preferLedger: true,
+        ...(successfulOutputIds.size
+          ? {
+              beforeCommit: () => {
+                removedBeforeBalanceCommit = true;
+                removeSuccessfulOptimisticEntries();
+              },
+            }
+          : {}),
       });
+      if (refreshedBalance == null || !successfulOutputIds.size || removedBeforeBalanceCommit) {
+        return;
+      }
+      removeSuccessfulOptimisticEntries();
     })();
   }, [outputs, refreshBalance, setOptimisticDebitEntries]);
 

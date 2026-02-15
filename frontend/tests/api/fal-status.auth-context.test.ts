@@ -121,4 +121,42 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
     expect(res.json).toHaveBeenCalledWith({ status: "processing" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("treats retryable 405/non-JSON result probes as transient and keeps polling payload", async () => {
+    resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
+    const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      mockFetchResponse({
+        status: 200,
+        body: { status: "completed" },
+      })
+    );
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 405,
+      text: async () => "<html>Method Not Allowed</html>",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      url: "/api/fal/status",
+      headers: {
+        "x-shortpulse-authenticated": "1",
+        "x-shortpulse-user-id": "user-ctx",
+        "x-shortpulse-user-app-metadata": encodeURIComponent("{}"),
+        "x-shortpulse-user-user-metadata": encodeURIComponent("{}"),
+      },
+      body: { requestId: "owned-request-id" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ status: "completed" });
+    expect(settleFailedGenerationByProviderRequestMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

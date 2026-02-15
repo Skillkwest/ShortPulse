@@ -31,7 +31,7 @@ const createParams = (
   updateOutputPrompt: vi.fn(),
   deleteOutput: vi.fn(),
   handleDownloadReference: vi.fn(),
-  savePromptReference: vi.fn(),
+  savePromptToLibrary: vi.fn(),
   handleOpenMediaLibrary: vi.fn(),
   ...overrides,
 });
@@ -59,7 +59,7 @@ describe("useAiStudioPreviewDetailProps", () => {
     const updateOutputPrompt = vi.fn();
     const deleteOutput = vi.fn();
     const handleDownloadReference = vi.fn();
-    const savePromptReference = vi.fn();
+    const savePromptToLibrary = vi.fn();
 
     const { result } = renderHook(() =>
       useAiStudioPreviewDetailProps(
@@ -68,7 +68,7 @@ describe("useAiStudioPreviewDetailProps", () => {
           updateOutputPrompt,
           deleteOutput,
           handleDownloadReference,
-          savePromptReference,
+          savePromptToLibrary,
         })
       )
     );
@@ -83,6 +83,6 @@ describe("useAiStudioPreviewDetailProps", () => {
     expect(updateOutputPrompt).toHaveBeenCalledWith("out-1", "Updated prompt");
     expect(deleteOutput).toHaveBeenCalledWith("out-1");
     expect(handleDownloadReference).toHaveBeenCalledWith("out-1");
-    expect(savePromptReference).toHaveBeenCalledWith("Saved prompt");
+    expect(savePromptToLibrary).toHaveBeenCalledWith("Saved prompt");
   });
 });

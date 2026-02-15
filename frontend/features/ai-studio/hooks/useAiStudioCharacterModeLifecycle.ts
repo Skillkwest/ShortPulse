@@ -7,7 +7,10 @@ import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
 } from "../../character-manager/logic/characterManagerPersistence";
-import { resolveCharacterSheetReferenceUrls } from "../logic/characterModePayload";
+import {
+  resolveCharacterSheetReferenceStoragePaths,
+  resolveCharacterSheetReferenceUrls,
+} from "../logic/characterModePayload";
 import type { ToolId } from "../types";
 import type { CharacterModeInjectionBundle } from "./useAiStudioCharacterModeController";
 
@@ -102,6 +105,10 @@ export const useAiStudioCharacterModeLifecycle = ({
         setCharacterModeInjectionBundle({
           characterId: snapshot.characterId,
           characterDescription: snapshot.characterDescription,
+          sheetReferenceStoragePaths: resolveCharacterSheetReferenceStoragePaths(
+            snapshot.characterSheetAssignments,
+            snapshot.slots
+          ),
           sheetReferenceUrls: resolveCharacterSheetReferenceUrls(
             snapshot.characterSheetAssignments,
             snapshot.slots

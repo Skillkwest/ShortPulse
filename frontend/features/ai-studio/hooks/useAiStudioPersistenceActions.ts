@@ -132,13 +132,21 @@ export const useAiStudioPersistenceActions = ({
   );
 
   const persistPromptSave = useCallback(
-    async ({ promptText, modelId }: { promptText: string; modelId?: string | null }) => {
+    async ({
+      promptText,
+      modelId,
+      source,
+    }: {
+      promptText: string;
+      modelId?: string | null;
+      source?: "manual" | "ai_studio" | "agent";
+    }) => {
       try {
         const promptId = await savePromptRecord({
           promptText,
           mode: "text",
           modelId: modelId ?? null,
-          source: "manual",
+          source: source ?? "manual",
         });
         if (promptId) {
           try {
@@ -370,6 +378,19 @@ export const useAiStudioPersistenceActions = ({
     [aspect, model, prompt, setOutputs]
   );
 
+  const savePromptToLibrary = useCallback(
+    (customPrompt?: string) => {
+      const cleanedPrompt = (typeof customPrompt === "string" ? customPrompt : prompt).trim();
+      if (!cleanedPrompt) return;
+      void persistPromptSave({
+        promptText: cleanedPrompt,
+        modelId: model ?? null,
+        source: "ai_studio",
+      });
+    },
+    [model, persistPromptSave, prompt]
+  );
+
   return {
     markOutputSaved,
     markOutputSaveFailed,
@@ -379,5 +400,6 @@ export const useAiStudioPersistenceActions = ({
     saveActiveOutput,
     saveReferenceToLibrary,
     savePromptReference,
+    savePromptToLibrary,
   };
 };

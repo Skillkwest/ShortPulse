@@ -41,6 +41,12 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 - If any non-zero count appears, treat as `medium` severity because cross-surface assignment behavior may diverge.
 - Escalate using the troubleshooting runbook section `Character Manager alias drift (Character Sheet vs legacy Reference Pack fields)`.
 
+## Media storage scope drift monitor
+- After any deploy that changes media upload/sign/move behavior or `media_files` constraints, run `sql/check_media_storage_scope_drift.sql`.
+- Expected result: every `mismatch_count` is `0`.
+- If any non-zero count appears, treat as `high` severity because cross-user object reference risk can reappear.
+- Escalate using troubleshooting runbook section `Media storage path scope drift`.
+
 ## Release checklist tie-in
 - Before release, verify incident ingestion is functioning.
 - After release, spot-check new incidents and confirm no high-severity regressions.

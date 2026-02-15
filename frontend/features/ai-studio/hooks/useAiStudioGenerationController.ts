@@ -47,7 +47,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   generationGuardrail: string | null;
   effectiveBalanceCredits: number | null;
   balanceCredits: number | null;
-  optimisticDebitTotal: number;
+  optimisticUncoveredDebitTotal: number;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   setPromptOrigin: Dispatch<SetStateAction<"manual" | "agent" | "reference">>;
@@ -57,6 +57,12 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   refreshBalance: (options?: {
     silent?: boolean;
     preferLedger?: boolean;
+    beforeCommit?: (snapshot: {
+      cents: number;
+      updatedAt: string | null;
+      reservedCents?: number | null;
+      source?: "snapshot" | "fallback";
+    }) => void;
   }) => Promise<number | null>;
   handleAgentSend: (
     textOverride?: string,
@@ -116,7 +122,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   generationGuardrail,
   effectiveBalanceCredits,
   balanceCredits,
-  optimisticDebitTotal,
+  optimisticUncoveredDebitTotal,
   setUiError,
   setUiNotice,
   setPromptOrigin,
@@ -175,13 +181,22 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   const ensureFreshCreditsForRun = useCallback(
     async (requiredCredits: number | null | undefined): Promise<boolean> => {
       if (requiredCredits == null) return true;
-      const latestBalance = await refreshBalance({ silent: true });
+      let refreshSource: "snapshot" | "fallback" | null = null;
+      const latestBalance = await refreshBalance({
+        silent: true,
+        beforeCommit: (snapshot) => {
+          refreshSource = snapshot.source ?? null;
+        },
+      });
       const resolvedBalance = latestBalance ?? balanceCredits;
       if (resolvedBalance == null) return true;
-      const adjustedBalance = Math.max(0, resolvedBalance - optimisticDebitTotal);
+      const shouldApplyOptimisticAdjustment = refreshSource !== "snapshot";
+      const adjustedBalance = shouldApplyOptimisticAdjustment
+        ? Math.max(0, resolvedBalance - optimisticUncoveredDebitTotal)
+        : Math.max(0, resolvedBalance);
       return adjustedBalance >= requiredCredits;
     },
-    [balanceCredits, optimisticDebitTotal, refreshBalance]
+    [balanceCredits, optimisticUncoveredDebitTotal, refreshBalance]
   );
 
   const enqueueOptimisticDebit = useCallback(

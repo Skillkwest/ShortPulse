@@ -73,6 +73,17 @@ function buildProfileImageTransformStyle(
   };
 }
 
+const resolveInitialBeginnerMode = (): boolean => {
+  if (typeof window === "undefined") return true;
+  try {
+    const stored = window.localStorage.getItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY);
+    if (stored == null) return true;
+    return stored === "true";
+  } catch {
+    return true;
+  }
+};
+
 /**
  * Orchestrates simple character creation flow while advanced uploader remains hidden.
  */
@@ -130,7 +141,7 @@ export function CharacterManagerShell() {
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
   const [characterSheetUploadNotice, setCharacterSheetUploadNotice] = useState<string | null>(null);
-  const [beginnerMode, setBeginnerMode] = useState(true);
+  const [beginnerMode, setBeginnerMode] = useState(resolveInitialBeginnerMode);
   const [user, setUser] = useState<User | null>(null);
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
     null
@@ -238,13 +249,6 @@ export function CharacterManagerShell() {
     }
     return next;
   }, [characterSheetAssignmentsUi, uploadedReferenceBySlotKey]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY);
-    if (stored == null) return;
-    setBeginnerMode(stored === "true");
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -843,22 +847,24 @@ export function CharacterManagerShell() {
               Manage Characters
             </button>
           </div>
-          <div className="toolbar-beginner-toggle character-mode-beginner-toggle">
-            <div className="toolbar-beginner-copy">
-              <span className="toolbar-label">Beginner mode</span>
+          {activeTab === "create" ? (
+            <div className="toolbar-beginner-toggle character-mode-beginner-toggle">
+              <div className="toolbar-beginner-copy">
+                <span className="toolbar-label">Beginner mode</span>
+              </div>
+              <button
+                type="button"
+                className={`reference-toggle beginner-toggle ${beginnerMode ? "is-active" : ""}`}
+                aria-pressed={beginnerMode}
+                aria-label={beginnerMode ? "Disable beginner mode" : "Enable beginner mode"}
+                onClick={() => setBeginnerMode((current) => !current)}
+              >
+                <span className="reference-toggle-track" aria-hidden="true">
+                  <span className="reference-toggle-dot" />
+                </span>
+              </button>
             </div>
-            <button
-              type="button"
-              className={`reference-toggle beginner-toggle ${beginnerMode ? "is-active" : ""}`}
-              aria-pressed={beginnerMode}
-              aria-label={beginnerMode ? "Disable beginner mode" : "Enable beginner mode"}
-              onClick={() => setBeginnerMode((current) => !current)}
-            >
-              <span className="reference-toggle-track" aria-hidden="true">
-                <span className="reference-toggle-dot" />
-              </span>
-            </button>
-          </div>
+          ) : null}
           {activeTab === "create" && beginnerMode ? (
             <p className="character-mode-guidance" role="note">
               <span className="character-mode-guidance-label">Tip:</span>
@@ -1116,11 +1122,10 @@ export function CharacterManagerShell() {
                         disabled={loading}
                       />
                       <div className="character-description-footer-row">
-                        {beginnerMode ? (
-                          <p className="character-description-helper tiny subdued">
-                            Tip: This will be used as part of character consistency generation.
-                          </p>
-                        ) : null}
+                        <p className="character-description-helper tiny subdued">
+                          Tip: Character description will be used as part of character consistency
+                          generation.
+                        </p>
                         <p className="character-description-count tiny subdued">
                           {characterDescription.length}/{CHARACTER_DESCRIPTION_MAX_LENGTH}
                         </p>
@@ -1139,7 +1144,7 @@ export function CharacterManagerShell() {
                       </span>
                     ) : null}
                     <div className="character-section-title-copy">
-                      <h3 className="character-section-title">Drop References</h3>
+                      <h3 className="character-section-title">Reference Panel</h3>
                       {beginnerMode ? (
                         <p className="character-section-helper tiny subdued">
                           Upload clear reference shots to build this character&apos;s source set.

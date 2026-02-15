@@ -6,14 +6,19 @@ import {
   type CharacterModeInjectionBundle,
 } from "../useAiStudioCharacterModeController";
 import { loadCharacterManagerDraftByCharacterId } from "../../../character-manager/logic/characterManagerPersistence";
+import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 
 vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
   loadCharacterManagerDraftByCharacterId: vi.fn(),
+}));
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrlsBatch: vi.fn(),
 }));
 
 const loadCharacterManagerDraftByCharacterIdMock = vi.mocked(
   loadCharacterManagerDraftByCharacterId
 );
+const getSignedMediaUrlsBatchMock = vi.mocked(getSignedMediaUrlsBatch);
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
@@ -36,6 +41,9 @@ const createParams = (
 describe("useAiStudioCharacterModeController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user/chars/ref.png", "https://example.com/ref-fresh.png"]])
+    );
   });
 
   it("resolves no-character-selected fallback and tracks fallback telemetry", () => {
@@ -66,25 +74,43 @@ describe("useAiStudioCharacterModeController", () => {
     );
   });
 
-  it("returns existing fresh bundle without triggering a refresh call", async () => {
+  it("re-signs an existing fresh bundle without reloading snapshot", async () => {
+    const setCharacterModeInjectionBundle = vi.fn();
     const currentBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
       characterDescription: "Base description",
-      sheetReferenceUrls: ["https://example.com/ref.png"],
+      sheetReferenceStoragePaths: ["user/chars/ref.png"],
+      sheetReferenceUrls: ["https://example.com/ref-stale.png"],
       loadedAtMs: Date.now(),
     };
     const params = createParams({
       selectedCharacterId: "char-1",
       characterModeInjectionBundle: currentBundle,
       bundleStaleAfterMs: 60 * 60 * 1000,
+      setCharacterModeInjectionBundle: asDispatch<CharacterModeInjectionBundle | null>(
+        setCharacterModeInjectionBundle
+      ),
     });
     const { result } = renderHook(() => useAiStudioCharacterModeController(params));
 
     const refreshed =
       await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
 
-    expect(refreshed).toEqual(currentBundle);
+    expect(refreshed).toEqual(
+      expect.objectContaining({
+        characterId: "char-1",
+        characterDescription: "Base description",
+        sheetReferenceStoragePaths: ["user/chars/ref.png"],
+        sheetReferenceUrls: ["https://example.com/ref-fresh.png"],
+      })
+    );
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePaths: ["user/chars/ref.png"],
+      forceRefresh: true,
+    });
     expect(loadCharacterManagerDraftByCharacterIdMock).not.toHaveBeenCalled();
+    expect(setCharacterModeInjectionBundle).toHaveBeenCalledTimes(1);
   });
 
   it("refreshes a stale bundle and updates injection state", async () => {
@@ -109,15 +135,20 @@ describe("useAiStudioCharacterModeController", () => {
       },
       slots: {
         "slot-1": {
+          storagePath: "user/chars/portrait.png",
           previewUrl: "https://example.com/portrait.png",
         },
       },
     } as unknown as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>);
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user/chars/portrait.png", "https://example.com/fresh-portrait.png"]])
+    );
     const params = createParams({
       selectedCharacterId: "char-1",
       characterModeInjectionBundle: {
         characterId: "char-1",
         characterDescription: "Old description",
+        sheetReferenceStoragePaths: ["user/chars/old.png"],
         sheetReferenceUrls: ["https://example.com/old.png"],
         loadedAtMs: Date.now() - 1000 * 60 * 60,
       },
@@ -139,14 +170,78 @@ describe("useAiStudioCharacterModeController", () => {
       expect.objectContaining({
         characterId: "char-1",
         characterDescription: "Hero description",
-        sheetReferenceUrls: ["https://example.com/portrait.png"],
+        sheetReferenceStoragePaths: ["user/chars/portrait.png"],
+        sheetReferenceUrls: ["https://example.com/fresh-portrait.png"],
       })
     );
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePaths: ["user/chars/portrait.png"],
+      forceRefresh: true,
+    });
     expect(refreshed).toEqual(
       expect.objectContaining({
         characterId: "char-1",
         characterDescription: "Hero description",
       })
     );
+  });
+
+  it("fails safe to null injection when forced signing returns no usable URLs", async () => {
+    const trackCharacterModeEvent = vi.fn();
+    const setCharacterModeInjectionBundle = vi.fn();
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      characterModeInjectionBundle: {
+        characterId: "char-1",
+        characterDescription: "Base description",
+        sheetReferenceStoragePaths: ["user/chars/ref.png"],
+        sheetReferenceUrls: ["https://example.com/ref-stale.png"],
+        loadedAtMs: Date.now(),
+      },
+      trackCharacterModeEvent,
+      setCharacterModeInjectionBundle: asDispatch<CharacterModeInjectionBundle | null>(
+        setCharacterModeInjectionBundle
+      ),
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const refreshed =
+      await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
+
+    expect(refreshed).toBeNull();
+    expect(setCharacterModeInjectionBundle).not.toHaveBeenCalled();
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+      "character_mode_reference_refresh_empty",
+      expect.objectContaining({
+        selected_character_id: "char-1",
+        storage_path_count: 1,
+      })
+    );
+  });
+
+  it("treats explicit null bundle override as unavailable (does not reuse cached bundle)", () => {
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      characterModeInjectionBundle: {
+        characterId: "char-1",
+        characterDescription: "Cached description",
+        sheetReferenceStoragePaths: ["user/chars/ref.png"],
+        sheetReferenceUrls: ["https://example.com/cached.png"],
+        loadedAtMs: Date.now(),
+      },
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const overrides = result.current.resolveCharacterModeSubmissionOverrides(
+      "User visible prompt",
+      "create",
+      null
+    );
+
+    expect(overrides?.fallbackCode).toBe("bundle_unavailable");
+    expect(overrides?.referenceInputsOverride).toEqual([]);
+    expect(overrides?.submissionPromptOverride).toBe("User visible prompt");
   });
 });

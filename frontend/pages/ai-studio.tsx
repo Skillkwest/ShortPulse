@@ -48,24 +48,16 @@ type OptimisticDebitEntry = {
 };
 
 export default function AiStudioPage() {
-  const { balanceCents, balanceLoading, refreshBalance } = useCredits();
+  const { balanceCents, balanceReservedCents, balanceLoading, refreshBalance } = useCredits();
   const balanceCredits = useMemo(() => {
     if (balanceCents == null) return null;
     return Math.max(0, Math.floor(balanceCents)); // cents == credits
   }, [balanceCents]);
   const [optimisticDebitEntries, setOptimisticDebitEntries] = useState<OptimisticDebitEntry[]>([]);
   const [isCharacterBundleLoading, setIsCharacterBundleLoading] = useState(false);
-  const [isCharacterModeEnabled, setIsCharacterModeEnabled] = useState(true);
+  const [isCharacterModeEnabled, setIsCharacterModeEnabled] = useState(false);
   const [characterModeInjectionBundle, setCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
-  const optimisticDebitTotal = useMemo(
-    () => optimisticDebitEntries.reduce((sum, entry) => sum + entry.credits, 0),
-    [optimisticDebitEntries]
-  );
-  const effectiveBalanceCredits = useMemo(() => {
-    if (balanceCredits == null) return null;
-    return Math.max(0, balanceCredits - optimisticDebitTotal);
-  }, [balanceCredits, optimisticDebitTotal]);
   const [agentConversationId] = useState<string>(() => randomId());
 
   // Character workflow state (used when Character tool is active)
@@ -162,6 +154,7 @@ export default function AiStudioPage() {
     regenerateOutput,
     saveReferenceToLibrary,
     savePromptReference,
+    savePromptToLibrary,
     addOutputsFromFiles,
     addLibraryMediaReference,
     addLibraryPromptReference,
@@ -182,7 +175,42 @@ export default function AiStudioPage() {
     addAgentPromptReference,
     addPastedPromptReference,
     addPastedMediaReference,
-  } = useAiStudioState();
+  } = useAiStudioState({
+    isCharacterModeEnabled,
+  });
+  const inFlightOutputIds = useMemo(
+    () =>
+      new Set(
+        outputs
+          .filter((output) => output.taskState === "pending" || output.taskState === "running")
+          .map((output) => output.id)
+      ),
+    [outputs]
+  );
+  const optimisticInFlightDebitCredits = useMemo(
+    () =>
+      optimisticDebitEntries.reduce((sum, entry) => {
+        if (entry.outputId == null) return sum + entry.credits;
+        if (inFlightOutputIds.has(entry.outputId)) return sum + entry.credits;
+        return sum;
+      }, 0),
+    [optimisticDebitEntries, inFlightOutputIds]
+  );
+  const reservedCredits = useMemo(
+    () => Math.max(0, Math.floor(balanceReservedCents ?? 0)),
+    [balanceReservedCents]
+  );
+  const optimisticUncoveredDebitCredits = useMemo(
+    () => Math.max(0, optimisticInFlightDebitCredits - reservedCredits),
+    [optimisticInFlightDebitCredits, reservedCredits]
+  );
+  const pendingHoldCredits = useMemo(() => {
+    return reservedCredits + optimisticUncoveredDebitCredits;
+  }, [reservedCredits, optimisticUncoveredDebitCredits]);
+  const effectiveBalanceCredits = useMemo(() => {
+    if (balanceCredits == null) return null;
+    return Math.max(0, balanceCredits - optimisticUncoveredDebitCredits);
+  }, [balanceCredits, optimisticUncoveredDebitCredits]);
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
   const { beginnerMode, setBeginnerMode } = useBeginnerModePreference();
@@ -467,7 +495,7 @@ export default function AiStudioPage() {
     generationGuardrail,
     effectiveBalanceCredits,
     balanceCredits,
-    optimisticDebitTotal,
+    optimisticUncoveredDebitTotal: optimisticUncoveredDebitCredits,
     setUiError,
     setUiNotice,
     setPromptOrigin,
@@ -667,7 +695,7 @@ export default function AiStudioPage() {
     updateOutputPrompt,
     deleteOutput,
     handleDownloadReference,
-    savePromptReference,
+    savePromptToLibrary,
     handleOpenMediaLibrary,
   });
 
@@ -689,6 +717,7 @@ export default function AiStudioPage() {
         beginnerMode={beginnerMode}
         onBeginnerModeChange={setBeginnerMode}
         balanceCredits={effectiveBalanceCredits}
+        pendingHoldCredits={pendingHoldCredits > 0 ? pendingHoldCredits : null}
         balanceLoading={balanceLoading}
         visibleFailures={visibleFailures}
         onDismissFailure={dismissFailure}

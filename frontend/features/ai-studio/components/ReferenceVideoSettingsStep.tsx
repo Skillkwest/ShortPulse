@@ -162,13 +162,13 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
                   </div>
                   <button
                     type="button"
-                    className={`reference-toggle ${videoCameraFixed ? "is-active" : ""}`}
+                    className={`warm-toggle ${videoCameraFixed ? "is-active" : ""}`}
                     aria-pressed={videoCameraFixed}
                     aria-label={videoCameraFixed ? "Unlock camera" : "Lock camera"}
                     onClick={() => onVideoCameraFixedChange?.(!videoCameraFixed)}
                   >
-                    <span className="reference-toggle-track" aria-hidden="true">
-                      <span className="reference-toggle-dot" />
+                    <span className="warm-toggle-track" aria-hidden="true">
+                      <span className="warm-toggle-dot" />
                     </span>
                   </button>
                 </div>

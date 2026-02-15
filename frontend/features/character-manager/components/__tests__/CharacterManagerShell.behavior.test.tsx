@@ -374,6 +374,7 @@ describe("CharacterManagerShell behavior", () => {
         name: /Create New Character/i,
       })
     ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Disable beginner mode/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: /Manage Characters/i }));
 
@@ -383,6 +384,11 @@ describe("CharacterManagerShell behavior", () => {
           name: /Create New Character/i,
         })
       ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", {
+          name: /Disable beginner mode|Enable beginner mode/i,
+        })
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -406,7 +412,9 @@ describe("CharacterManagerShell behavior", () => {
       /Swap out your character's style on the fly by dragging and dropping references from the reference panel\./i
     );
     expect(
-      screen.getByText("Tip: This will be used as part of character consistency generation.")
+      screen.getByText(
+        "Tip: Character description will be used as part of character consistency generation."
+      )
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Disable beginner mode/i }));
@@ -426,8 +434,10 @@ describe("CharacterManagerShell behavior", () => {
       ).not.toBeInTheDocument();
       expect(document.querySelector(".character-mode-guidance")).not.toBeInTheDocument();
       expect(
-        screen.queryByText("Tip: This will be used as part of character consistency generation.")
-      ).not.toBeInTheDocument();
+        screen.getByText(
+          "Tip: Character description will be used as part of character consistency generation."
+        )
+      ).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /Enable beginner mode/i }));
@@ -450,7 +460,9 @@ describe("CharacterManagerShell behavior", () => {
         /Swap out your character's style on the fly by dragging and dropping references from the reference panel\./i
       );
       expect(
-        screen.getByText("Tip: This will be used as part of character consistency generation.")
+        screen.getByText(
+          "Tip: Character description will be used as part of character consistency generation."
+        )
       ).toBeInTheDocument();
     });
   });

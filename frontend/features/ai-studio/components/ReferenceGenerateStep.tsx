@@ -48,9 +48,6 @@ export const ReferenceGenerateStep: React.FC<ReferenceGenerateStepProps> = ({
             <span className="step-subtitle tiny helper-text">
               Run generation with the current prompt and selections.
             </span>
-            <span className="step-subtitle tiny generate-rounding-note">
-              Estimated charges are billed in 5-credit increments.
-            </span>
           </div>
         </div>
       ) : null}
@@ -62,11 +59,6 @@ export const ReferenceGenerateStep: React.FC<ReferenceGenerateStepProps> = ({
             isBusy={isBusy}
             cost={costCredits != null ? costCredits : "—"}
           />
-          {!beginnerMode ? (
-            <p className="tiny generate-rounding-note">
-              Estimated charges are billed in 5-credit increments.
-            </p>
-          ) : null}
           {promptRequiredMessage ? (
             <div
               className="reference-image-warning"

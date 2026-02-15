@@ -14,23 +14,60 @@ const {
   refreshBalanceMock,
   listCharacterManagerCharactersMock,
   loadCharacterManagerDraftByCharacterIdMock,
+  getSignedMediaUrlsBatchMock,
   addBreadcrumbMock,
   aiStudioStateMock,
+  creditsStateMock,
+  aiStudioPageContentCapture,
 } = vi.hoisted(() => ({
   ...(() => {
     const generateOutputMock = vi.fn();
     const regenerateOutputMock = vi.fn();
     const setUiNoticeMock = vi.fn();
-    const refreshBalanceMock = vi.fn(async () => 10_000);
+    const creditsStateMock = {
+      balanceCents: 10_000,
+      balanceReservedCents: null as number | null,
+      balanceLoading: false,
+      refreshSource: "fallback" as "snapshot" | "fallback",
+    };
+    const refreshBalanceMock = vi.fn(
+      async (options?: {
+        beforeCommit?: (snapshot: {
+          cents: number;
+          updatedAt: string | null;
+          reservedCents?: number | null;
+          source?: "snapshot" | "fallback";
+        }) => void;
+      }) => {
+        const cents = creditsStateMock.balanceCents;
+        options?.beforeCommit?.({
+          cents: cents ?? 0,
+          updatedAt: null,
+          reservedCents: creditsStateMock.balanceReservedCents,
+          source: creditsStateMock.refreshSource,
+        });
+        return cents;
+      }
+    );
     const listCharacterManagerCharactersMock = vi.fn();
     const loadCharacterManagerDraftByCharacterIdMock = vi.fn();
+    const getSignedMediaUrlsBatchMock = vi.fn();
     const addBreadcrumbMock = vi.fn();
+    const aiStudioPageContentCapture = {
+      lastProps: null as {
+        balanceCredits?: number | null;
+        pendingHoldCredits?: number | null;
+      } | null,
+    };
     return {
       generateOutputMock,
       refreshBalanceMock,
       listCharacterManagerCharactersMock,
       loadCharacterManagerDraftByCharacterIdMock,
+      getSignedMediaUrlsBatchMock,
       addBreadcrumbMock,
+      creditsStateMock,
+      aiStudioPageContentCapture,
       aiStudioStateMock: {
         promptRef: { current: null },
         mode: "image",
@@ -99,6 +136,7 @@ const {
         regenerateOutput: regenerateOutputMock,
         saveReferenceToLibrary: vi.fn(),
         savePromptReference: vi.fn(),
+        savePromptToLibrary: vi.fn(),
         addOutputsFromFiles: vi.fn(),
         addLibraryMediaReference: vi.fn(),
         addLibraryPromptReference: vi.fn(),
@@ -121,6 +159,8 @@ const {
         onReferenceOutputMediaLoaded: vi.fn(),
         retryOutputStatus: vi.fn(),
         addAgentPromptReference: vi.fn(),
+        addPastedPromptReference: vi.fn(),
+        addPastedMediaReference: vi.fn(),
       },
     };
   })(),
@@ -133,28 +173,41 @@ vi.mock("next/head", () => ({
 }));
 
 vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
-  AiStudioPageContent: ({
-    propertiesText,
-  }: {
+  AiStudioPageContent: (props: {
     propertiesText: {
       onGenerate: () => void;
       onSelectedCharacterIdChange?: (value: string) => void;
+      onCharacterModeEnabledChange?: (value: boolean) => void;
     };
-  }) => (
-    <div>
-      <button
-        type="button"
-        onClick={() => {
-          propertiesText.onSelectedCharacterIdChange?.("char-1");
-        }}
-      >
-        select-character
-      </button>
-      <button type="button" onClick={() => propertiesText.onGenerate()}>
-        generate
-      </button>
-    </div>
-  ),
+    balanceCredits?: number | null;
+    pendingHoldCredits?: number | null;
+  }) => {
+    aiStudioPageContentCapture.lastProps = props;
+    const { propertiesText } = props;
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => {
+            propertiesText.onCharacterModeEnabledChange?.(true);
+          }}
+        >
+          enable-character-mode
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            propertiesText.onSelectedCharacterIdChange?.("char-1");
+          }}
+        >
+          select-character
+        </button>
+        <button type="button" onClick={() => propertiesText.onGenerate()}>
+          generate
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock("../../features/ai-studio/components/MediaLibraryModal", () => ({
@@ -163,8 +216,9 @@ vi.mock("../../features/ai-studio/components/MediaLibraryModal", () => ({
 
 vi.mock("../../features/ai-studio/hooks/useCredits", () => ({
   useCredits: () => ({
-    balanceCents: 10_000,
-    balanceLoading: false,
+    balanceCents: creditsStateMock.balanceCents,
+    balanceReservedCents: creditsStateMock.balanceReservedCents,
+    balanceLoading: creditsStateMock.balanceLoading,
     refreshBalance: refreshBalanceMock,
   }),
 }));
@@ -229,6 +283,9 @@ vi.mock("../../features/character-manager/logic/characterManagerPersistence", ()
   listCharacterManagerCharacters: listCharacterManagerCharactersMock,
   loadCharacterManagerDraftByCharacterId: loadCharacterManagerDraftByCharacterIdMock,
 }));
+vi.mock("../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrlsBatch: (...args: unknown[]) => getSignedMediaUrlsBatchMock(...args),
+}));
 
 vi.mock("../../features/ai-studio/logic/promptGeneration", () => ({
   postGeneratePrompt: vi.fn(async (text: string) => ({ prompt: text })),
@@ -251,7 +308,11 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioState", () => ({
   useAiStudioState: () => aiStudioStateMock,
 }));
 
-const createCharacterSnapshot = (description: string, url: string): CharacterManagerDraftSnapshot =>
+const createCharacterSnapshot = (
+  description: string,
+  url: string,
+  storagePath: string
+): CharacterManagerDraftSnapshot =>
   ({
     characterId: "char-1",
     characterSheetId: "sheet-1",
@@ -274,16 +335,39 @@ const createCharacterSnapshot = (description: string, url: string): CharacterMan
       front_right_34: null,
       back_left_34: null,
       back_right_34: null,
-      portrait_close: { previewUrl: url },
+      portrait_close: { storagePath, previewUrl: url },
       fullbody_wide: null,
     },
   }) as CharacterManagerDraftSnapshot;
+
+const createOutput = (id: string, taskState: StudioOutput["taskState"]): StudioOutput => ({
+  id,
+  prompt: "Prompt",
+  mode: "image",
+  aspect: "9:16",
+  model: "Model",
+  status: "ready",
+  timestamp: "Now",
+  taskState,
+});
 
 describe("ai-studio page character mode submission", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     nowMs = 1_000_000;
     vi.spyOn(Date, "now").mockImplementation(() => nowMs);
+    creditsStateMock.balanceCents = 10_000;
+    creditsStateMock.balanceReservedCents = null;
+    creditsStateMock.balanceLoading = false;
+    creditsStateMock.refreshSource = "fallback";
+    aiStudioPageContentCapture.lastProps = null;
+    aiStudioStateMock.outputs = [];
+    getSignedMediaUrlsBatchMock.mockImplementation(
+      async ({ storagePaths }: { storagePaths: string[] }) =>
+        new Map(
+          storagePaths.map((path) => [path, `https://signed.test/${encodeURIComponent(path)}`])
+        )
+    );
     listCharacterManagerCharactersMock.mockResolvedValue([
       {
         characterId: "char-1",
@@ -296,14 +380,23 @@ describe("ai-studio page character mode submission", () => {
   it("refreshes stale character bundle before Create generate and submits refreshed hidden context", async () => {
     loadCharacterManagerDraftByCharacterIdMock
       .mockResolvedValueOnce(
-        createCharacterSnapshot("Older character description", "https://cdn.test/old.png")
+        createCharacterSnapshot(
+          "Older character description",
+          "https://cdn.test/old.png",
+          "user/chars/old.png"
+        )
       )
       .mockResolvedValueOnce(
-        createCharacterSnapshot("Fresh character description", "https://cdn.test/fresh.png")
+        createCharacterSnapshot(
+          "Fresh character description",
+          "https://cdn.test/fresh.png",
+          "user/chars/fresh.png"
+        )
       );
 
     render(<AiStudioPage />);
 
+    fireEvent.click(screen.getByRole("button", { name: "enable-character-mode" }));
     fireEvent.click(screen.getByRole("button", { name: "select-character" }));
     await waitFor(() =>
       expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-1")
@@ -320,7 +413,7 @@ describe("ai-studio page character mode submission", () => {
       selectedToolOverride: "create",
       submissionPromptOverride: "Fresh character description\n\nUser visible prompt",
       displayPromptOverride: "User visible prompt",
-      referenceInputsOverride: ["https://cdn.test/fresh.png"],
+      referenceInputsOverride: ["https://signed.test/user%2Fchars%2Ffresh.png"],
       characterContextOverride: {
         applied: true,
         characterId: "char-1",
@@ -337,6 +430,7 @@ describe("ai-studio page character mode submission", () => {
 
   it("emits fallback telemetry when Character Mode is enabled without a selected character", async () => {
     render(<AiStudioPage />);
+    fireEvent.click(screen.getByRole("button", { name: "enable-character-mode" }));
 
     fireEvent.click(screen.getByRole("button", { name: "generate" }));
 
@@ -358,10 +452,79 @@ describe("ai-studio page character mode submission", () => {
     );
   });
 
+  it("falls back safely when signed URL refresh returns no references at submit time", async () => {
+    getSignedMediaUrlsBatchMock.mockImplementation(async () => new Map());
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValueOnce(
+      createCharacterSnapshot(
+        "Character description from manager",
+        "https://cdn.test/original.png",
+        "user/chars/original.png"
+      )
+    );
+
+    render(<AiStudioPage />);
+    fireEvent.click(screen.getByRole("button", { name: "enable-character-mode" }));
+    fireEvent.click(screen.getByRole("button", { name: "select-character" }));
+    await waitFor(() =>
+      expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-1")
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "generate" }));
+
+    await waitFor(() => expect(generateOutputMock).toHaveBeenCalledTimes(1));
+    expect(generateOutputMock).toHaveBeenCalledWith("User visible prompt", {
+      modeOverride: "image",
+      selectedToolOverride: "create",
+      submissionPromptOverride: "User visible prompt",
+      displayPromptOverride: "User visible prompt",
+      referenceInputsOverride: [],
+    });
+    expect(addBreadcrumbMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "character_mode_injection_fallback",
+        data: expect.objectContaining({
+          fallback_code: "bundle_unavailable",
+          selected_character_id: "char-1",
+        }),
+      })
+    );
+  });
+
   it("does not force image resolution while character mode is enabled", async () => {
     render(<AiStudioPage />);
 
     await waitFor(() => expect(listCharacterManagerCharactersMock).toHaveBeenCalledTimes(1));
     expect(aiStudioStateMock.setImageResolution).not.toHaveBeenCalled();
+  });
+
+  it("keeps pending holds visible across pending to running and clears after success", async () => {
+    creditsStateMock.balanceCents = 100;
+    aiStudioStateMock.outputs = [];
+
+    const { rerender } = render(<AiStudioPage />);
+
+    await waitFor(() => expect(aiStudioPageContentCapture.lastProps?.balanceCredits).toBe(100));
+    expect(aiStudioPageContentCapture.lastProps?.pendingHoldCredits).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "generate" }));
+    await waitFor(() => expect(aiStudioPageContentCapture.lastProps?.pendingHoldCredits).toBe(10));
+    expect(aiStudioPageContentCapture.lastProps?.balanceCredits).toBe(90);
+
+    aiStudioStateMock.outputs = [createOutput("out-1", "pending")];
+    rerender(<AiStudioPage />);
+    await waitFor(() => expect(aiStudioPageContentCapture.lastProps?.pendingHoldCredits).toBe(10));
+    expect(aiStudioPageContentCapture.lastProps?.balanceCredits).toBe(90);
+
+    aiStudioStateMock.outputs = [createOutput("out-1", "running")];
+    rerender(<AiStudioPage />);
+    await waitFor(() => expect(aiStudioPageContentCapture.lastProps?.pendingHoldCredits).toBe(10));
+    expect(aiStudioPageContentCapture.lastProps?.balanceCredits).toBe(90);
+
+    aiStudioStateMock.outputs = [createOutput("out-1", "success")];
+    rerender(<AiStudioPage />);
+    await waitFor(() =>
+      expect(aiStudioPageContentCapture.lastProps?.pendingHoldCredits).toBeNull()
+    );
+    expect(aiStudioPageContentCapture.lastProps?.balanceCredits).toBe(100);
   });
 });

@@ -65,41 +65,53 @@ For environments bootstrapped from `docs/supabase_full_schema.sql`, apply these 
 3. `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`
 4. `sql/migrations/014_harden_generation_reservation_rpc_security.sql`
 5. `sql/migrations/015_add_app_error_events.sql`
+6. `sql/migrations/016_harden_media_storage_path_scope.sql`
 
 If upgrading from a legacy ledger schema, also apply:
 
-6. `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`
+7. `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`
 
 If enabling the Media Library Private tab, also apply:
 
-7. `sql/migrations/003_add_private_media_source.sql`
-8. `sql/migrations/004_add_private_media_integrity_checks.sql`
+8. `sql/migrations/003_add_private_media_source.sql`
+9. `sql/migrations/004_add_private_media_integrity_checks.sql`
 
 If enabling the derivative-first media optimization architecture (virtualized grid + variant hints), also apply:
 
-9. `sql/migrations/005_add_media_processing_and_variants.sql`
-10. `sql/migrations/006_backfill_media_variant_hints.sql`
-11. `sql/migrations/007_harden_media_source_and_usage_rpc.sql`
+10. `sql/migrations/005_add_media_processing_and_variants.sql`
+11. `sql/migrations/006_backfill_media_variant_hints.sql`
+12. `sql/migrations/007_harden_media_source_and_usage_rpc.sql`
 
 If enabling Character Manager (character sheets + generation history), also apply:
 
-12. `sql/migrations/008_add_character_manager_foundation.sql`
+13. `sql/migrations/008_add_character_manager_foundation.sql`
 
 If Media Library cards still show blank placeholders in legacy environments, also apply:
 
-13. `sql/migrations/009_repair_legacy_media_storage_paths.sql`
+14. `sql/migrations/009_repair_legacy_media_storage_paths.sql`
 
 If enabling stricter Character Manager media integrity (source/path/metadata + cross-table trigger), also apply:
 
-14. `sql/migrations/010_harden_character_reference_media_integrity.sql`
-15. `sql/migrations/011_add_character_description_to_characters.sql`
-16. `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`
+15. `sql/migrations/010_harden_character_reference_media_integrity.sql`
+16. `sql/migrations/011_add_character_description_to_characters.sql`
+17. `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
   `column reference "source_ref" is ambiguous` failures in reservation-mode Fal submit paths.
 - Migration `014_harden_generation_reservation_rpc_security.sql` is required to enforce
   reservation RPC caller binding + execute grant hardening.
+
+## Media storage scope verification (post-016)
+
+After applying migration `016_harden_media_storage_path_scope.sql`:
+
+1. Run drift diagnostics:
+   - Execute `sql/check_media_storage_scope_drift.sql`.
+2. Confirm every row reports `mismatch_count = 0`.
+3. If any mismatch remains:
+   - Run `sql/migrations/009_repair_legacy_media_storage_paths.sql` (safe to re-run).
+   - Re-run `sql/check_media_storage_scope_drift.sql`.
 
 ## Character Sheet compatibility verification (post-012)
 

@@ -19,6 +19,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.
 - `media-library-move-tabs-plan.md`: implementation plan for modal Move action and durable tab-to-tab media transfers.
 - `ai-studio-character-mode-injection-plan.md`: implementation plan for injecting Character Sheet references + hidden character description into AI Studio Create generation payloads.
+- `ai-studio-primary-character-panel-build-plan.md`: execution plan for embedding the Character Manager workflow body into AI Studio's primary Character toolbar panel.
 
 ## Maintenance
 - Keep plans actionable and current.

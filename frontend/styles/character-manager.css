@@ -24,6 +24,100 @@ body.character-manager-body {
   padding-bottom: 64px;
 }
 
+.character-manager-page--embedded {
+  padding-bottom: 0;
+}
+
+.character-manager-page--embedded .character-mode-panel {
+  margin-top: 0;
+  margin-bottom: 10px;
+  padding: 0;
+}
+
+.character-manager-page--embedded .character-mode-row {
+  flex-wrap: wrap;
+}
+
+.character-manager-page--embedded .character-mode-tab-row {
+  width: 100%;
+  max-width: none;
+  margin-right: 0;
+}
+
+.character-manager-page--embedded .character-create-flow {
+  grid-template-columns: minmax(0, 1fr) fit-content(332px);
+  align-items: start;
+}
+
+.character-manager-page--embedded .character-section--references {
+  justify-self: start;
+  width: 100%;
+  max-width: 332px;
+}
+
+.character-manager-page--embedded .character-section--references .character-reference-empty-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-content: stretch;
+  justify-items: stretch;
+}
+
+.character-manager-page--embedded .character-section-title {
+  color: rgba(220, 229, 238, 0.86);
+}
+
+.character-manager-page--embedded .character-profile-card {
+  min-height: 460px;
+  align-items: stretch;
+}
+
+.character-manager-page--embedded .character-profile-photo-stack {
+  align-content: start;
+}
+
+.character-manager-page--embedded .character-profile-fields {
+  align-content: start;
+}
+
+.character-manager-page--embedded .character-character-sheet-card {
+  width: 100%;
+  max-width: 156px;
+}
+
+@media (min-width: 1101px) {
+  .character-manager-page--embedded .character-create-primary-column {
+    display: contents;
+  }
+
+  .character-manager-page--embedded .character-section--profile {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .character-manager-page--embedded .character-section--references {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+  }
+
+  .character-manager-page--embedded .character-section--reference-drop {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+}
+
+.character-manager-page--embedded .character-name-input,
+.character-manager-page--embedded .character-description-input,
+.character-manager-page--embedded .character-simple-dropzone,
+.character-manager-page--embedded .character-reference-upload-placeholder,
+.character-manager-page--embedded .character-reference-empty-hint,
+.character-manager-page--embedded .character-reference-upload-card,
+.character-manager-page--embedded .character-reference-upload-image-wrap,
+.character-manager-page--embedded .character-character-sheet-card,
+.character-manager-page--embedded .character-character-sheet-media {
+  background: var(--color-bg);
+}
+
 .character-manager-hero {
   background: var(--character-card-bg);
   border: 1px solid var(--character-card-border);
@@ -291,6 +385,20 @@ body.character-manager-body {
     0 0 8px rgba(18, 180, 249, 0.16);
 }
 
+.character-manager-page--embedded .character-mode-tab--profile.is-active {
+  border: none;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #106d50 0%, #4cc768 100%);
+  color: #f3fbff;
+  transform: scale(1);
+  padding: 10px 14px;
+  box-shadow:
+    0 0 0 3px #4ae074,
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
 .character-mode-tab:focus-visible {
   outline: 2px solid rgba(18, 210, 249, 0.72);
   outline-offset: 2px;
@@ -309,6 +417,13 @@ body.character-manager-body {
 
 .character-manage-panel {
   padding: 14px;
+}
+
+.character-manage-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .character-create-flow {
@@ -430,6 +545,12 @@ body.character-manager-body {
 .character-manage-panel h2 {
   margin: 4px 0 0;
   color: #f3fbff;
+}
+
+.character-mode-create-btn--inline {
+  margin: 0;
+  width: auto;
+  flex-shrink: 0;
 }
 
 .character-simple-draft-meta {
@@ -1638,6 +1759,15 @@ body.character-manager-body {
     width: 100%;
   }
 
+  .character-manage-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .character-mode-create-btn--inline {
+    width: 100%;
+  }
+
   .character-profile-card {
     grid-template-columns: 1fr;
   }
@@ -1682,6 +1812,16 @@ body.character-manager-body {
   .character-section--references .character-reference-upload-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .character-manager-page--embedded .character-section--references {
+    justify-self: stretch;
+    width: 100%;
+    max-width: none;
+  }
+
+  .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 1100px) {
@@ -1698,11 +1838,29 @@ body.character-manager-body {
   .character-section--references .character-reference-upload-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .character-manager-page--embedded .character-section--references {
+    justify-self: stretch;
+    width: 100%;
+    max-width: none;
+  }
+
+  .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .character-manager-page--embedded .character-profile-card {
+    min-height: auto;
+  }
 }
 
 @media (max-width: 860px) {
   .character-section--references .character-reference-empty-grid,
   .character-section--references .character-reference-upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
     grid-template-columns: 1fr;
   }
 }

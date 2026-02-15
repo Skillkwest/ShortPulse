@@ -3,7 +3,7 @@
  * Verifies Create workflow controls that should stay visible in Character Mode.
  */
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ComposeSendCard, TextPropertiesPanel } from "../TextPropertiesPanel";
 
@@ -67,5 +67,83 @@ describe("TextPropertiesPanel", () => {
     expect(
       screen.getByText("Run generation with the current prompt and selections.")
     ).toBeInTheDocument();
+  });
+
+  it("shows character mode as step one in beginner mode", () => {
+    const { container } = render(
+      <TextPropertiesPanel
+        mode="image"
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        prompt="Create a portrait"
+        promptRef={{ current: null }}
+        useReferenceImageIndicator={false}
+        hasReferencePreview={false}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPromptChange={vi.fn()}
+        onToggleReferenceIndicator={vi.fn()}
+        onGenerate={vi.fn()}
+        onSavePrompt={vi.fn()}
+        beginnerMode
+        characterModeEnabled
+      />
+    );
+
+    expect(screen.getByRole("group", { name: "Character mode section" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Disable character mode" })).toBeInTheDocument();
+    const stepBadges = Array.from(container.querySelectorAll(".step-badge")).map(
+      (badge) => badge.textContent
+    );
+    expect(stepBadges).toEqual(["1", "2", "3"]);
+  });
+
+  it("allows opening the character picker in beginner mode", () => {
+    render(
+      <TextPropertiesPanel
+        mode="image"
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        prompt="Create a portrait"
+        promptRef={{ current: null }}
+        useReferenceImageIndicator={false}
+        hasReferencePreview={false}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPromptChange={vi.fn()}
+        onToggleReferenceIndicator={vi.fn()}
+        onGenerate={vi.fn()}
+        onSavePrompt={vi.fn()}
+        beginnerMode
+        characterModeEnabled
+        characterOptions={[{ id: "char-1", name: "Avery Pulse" }]}
+        selectedCharacterId="char-1"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    expect(screen.getByRole("dialog", { name: "Choose character" })).toBeInTheDocument();
+  });
+
+  it("shows generate as step four in beginner mode", () => {
+    const { container } = render(
+      <ComposeSendCard
+        onGenerate={vi.fn()}
+        isGenerateDisabled={false}
+        isPromptGenerating={false}
+        beginnerMode
+      />
+    );
+
+    const stepBadges = Array.from(container.querySelectorAll(".step-badge")).map(
+      (badge) => badge.textContent
+    );
+    expect(stepBadges).toEqual(["4"]);
   });
 });

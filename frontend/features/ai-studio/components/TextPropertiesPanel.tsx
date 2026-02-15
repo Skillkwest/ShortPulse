@@ -190,7 +190,7 @@ export function TextPropertiesPanel({
   characterModeEnabled = true,
   onCharacterModeEnabledChange,
 }: TextPropertiesPanelProps) {
-  const promptStepNumber = beginnerMode ? "1" : "2";
+  const promptStepNumber = beginnerMode ? "2" : "1";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const effectiveModelLabel = characterModeEnabled ? CHARACTER_MODE_UI_MODEL_LABEL : modelLabel;
   const effectiveModelLogoSrc = characterModeEnabled ? CHARACTER_MODE_UI_MODEL_LOGO : modelLogoSrc;
@@ -283,90 +283,89 @@ export function TextPropertiesPanel({
       <div className="tool-header">
         <p className="eyebrow">Create</p>
       </div>
-      {!beginnerMode ? (
-        <div
-          className="step-card character-step-card"
-          role="group"
-          aria-label="Character mode section"
-        >
-          <div className="step-card-header">
-            <div className="step-header-copy">
-              <p className="step-title">
-                Character Mode
-                {!characterModeEnabled ? (
-                  <span className="step-title-optional">(Optional)</span>
-                ) : null}
-              </p>
-              <span className="step-subtitle tiny helper-text">
-                Select one of your Character Manager profiles.
-              </span>
+      <div
+        className="step-card character-step-card"
+        role="group"
+        aria-label="Character mode section"
+      >
+        <div className="step-card-header">
+          {beginnerMode ? <span className="step-badge">1</span> : null}
+          <div className="step-header-copy">
+            <p className="step-title">
+              Character Mode
+              {!characterModeEnabled ? (
+                <span className="step-title-optional">(Optional)</span>
+              ) : null}
+            </p>
+            <span className="step-subtitle tiny helper-text">
+              Select one of your Character Manager profiles.
+            </span>
+          </div>
+          <div
+            className={`step-header-actions character-header-actions ${
+              !characterModeEnabled ? "character-header-actions--mode-off" : ""
+            }`}
+          >
+            <div className="character-mode-row">
+              <button
+                type="button"
+                className={`audio-toggle character-mode-toggle ${characterModeEnabled ? "is-active" : ""}`}
+                aria-pressed={characterModeEnabled}
+                aria-label={
+                  characterModeEnabled ? "Disable character mode" : "Enable character mode"
+                }
+                onClick={() => {
+                  onCharacterModeEnabledChange?.(!characterModeEnabled);
+                  onStepActionClick?.("character");
+                }}
+              >
+                <span className="audio-toggle-track" aria-hidden="true">
+                  <span className="audio-toggle-dot" />
+                </span>
+              </button>
             </div>
             <div
-              className={`step-header-actions character-header-actions ${
-                !characterModeEnabled ? "character-header-actions--mode-off" : ""
-              }`}
+              className={`character-picker-row ${characterModeEnabled ? "is-visible" : "is-hidden"}`}
+              aria-hidden={!characterModeEnabled}
             >
-              <div className="character-mode-row">
-                <button
-                  type="button"
-                  className={`audio-toggle character-mode-toggle ${characterModeEnabled ? "is-active" : ""}`}
-                  aria-pressed={characterModeEnabled}
-                  aria-label={
-                    characterModeEnabled ? "Disable character mode" : "Enable character mode"
-                  }
-                  onClick={() => {
-                    onCharacterModeEnabledChange?.(!characterModeEnabled);
-                    onStepActionClick?.("character");
-                  }}
-                >
-                  <span className="audio-toggle-track" aria-hidden="true">
-                    <span className="audio-toggle-dot" />
-                  </span>
-                </button>
-              </div>
-              <div
-                className={`character-picker-row ${characterModeEnabled ? "is-visible" : "is-hidden"}`}
-                aria-hidden={!characterModeEnabled}
+              <button
+                type="button"
+                className={`model-picker-btn character-picker-trigger ${
+                  !selectedCharacterOption ? "is-empty" : ""
+                } ${isCharacterPickerOpen ? "is-open" : ""}`}
+                aria-haspopup="dialog"
+                aria-expanded={isCharacterPickerOpen}
+                aria-label="Open character picker"
+                disabled={characterSelectDisabled}
+                onClick={() => setIsCharacterPickerOpen(true)}
               >
-                <button
-                  type="button"
-                  className={`model-picker-btn character-picker-trigger ${
-                    !selectedCharacterOption ? "is-empty" : ""
-                  } ${isCharacterPickerOpen ? "is-open" : ""}`}
-                  aria-haspopup="dialog"
-                  aria-expanded={isCharacterPickerOpen}
-                  aria-label="Open character picker"
-                  disabled={characterSelectDisabled}
-                  onClick={() => setIsCharacterPickerOpen(true)}
-                >
-                  <div className="model-picker-row">
-                    <span className="character-picker-trigger-value">
-                      {selectedCharacterOption?.profileImageUrl ? (
-                        <Image
-                          src={selectedCharacterOption.profileImageUrl}
-                          alt={`${selectedCharacterOption.name} profile`}
-                          className="character-picker-trigger-avatar"
-                          width={24}
-                          height={24}
-                          unoptimized
-                        />
-                      ) : selectedCharacterOption ? (
-                        <span className="character-picker-trigger-avatar character-picker-trigger-avatar--fallback">
-                          {getCharacterInitials(selectedCharacterOption.name)}
-                        </span>
-                      ) : null}
-                      <span className="model-picker-name">
-                        {selectedCharacterOption?.name ?? characterSelectPlaceholder}
+                <div className="model-picker-row">
+                  <span className="character-picker-trigger-value">
+                    {selectedCharacterOption?.profileImageUrl ? (
+                      <Image
+                        src={selectedCharacterOption.profileImageUrl}
+                        alt={`${selectedCharacterOption.name} profile`}
+                        className="character-picker-trigger-avatar"
+                        width={24}
+                        height={24}
+                        unoptimized
+                      />
+                    ) : selectedCharacterOption ? (
+                      <span className="character-picker-trigger-avatar character-picker-trigger-avatar--fallback">
+                        {getCharacterInitials(selectedCharacterOption.name)}
                       </span>
+                    ) : null}
+                    <span className="model-picker-name">
+                      {selectedCharacterOption?.name ?? characterSelectPlaceholder}
                     </span>
-                  </div>
-                </button>
-              </div>
+                  </span>
+                </div>
+              </button>
             </div>
           </div>
         </div>
-      ) : null}
-      {isCharacterPickerOpen && characterModeEnabled && !beginnerMode ? (
+      </div>
+      {isCharacterPickerOpen && characterModeEnabled ? (
         <>
           <div
             className="model-modal-backdrop character-picker-backdrop"
@@ -507,7 +506,7 @@ export function TextPropertiesPanel({
         aria-label="Choose frame and model section"
       >
         <div className="step-card-header">
-          {beginnerMode && <span className="step-badge">2</span>}
+          {beginnerMode && <span className="step-badge">3</span>}
           <div className="step-header-copy">
             <p className="step-title">Choose Frame & Model</p>
             <span className="step-subtitle tiny helper-text">
@@ -618,7 +617,7 @@ export function ComposeSendCard({
   return (
     <div className="step-card prompt-step generate-step-card">
       <div className="step-card-header">
-        {beginnerMode && <span className="step-badge">3</span>}
+        {beginnerMode && <span className="step-badge">4</span>}
         <div className="step-header-copy">
           {beginnerMode ? <p className="step-title">Generate</p> : null}
           <span className="step-subtitle tiny helper-text">

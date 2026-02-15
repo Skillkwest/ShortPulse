@@ -24,6 +24,11 @@ import type {
 } from "../types";
 
 type CharacterWorkflowTab = "create" | "manage";
+type CharacterManagerShellSurface = "page" | "panel";
+type CharacterManagerShellProps = {
+  surface?: CharacterManagerShellSurface;
+  beginnerModeOverride?: boolean;
+};
 const SIMPLE_REFERENCE_IMAGE_LIMIT = 8;
 const PROFILE_ZOOM_MIN = 1;
 const PROFILE_ZOOM_MAX = 2.4;
@@ -87,7 +92,10 @@ const resolveInitialBeginnerMode = (): boolean => {
 /**
  * Orchestrates simple character creation flow while advanced uploader remains hidden.
  */
-export function CharacterManagerShell() {
+export function CharacterManagerShell({
+  surface = "page",
+  beginnerModeOverride,
+}: CharacterManagerShellProps) {
   const {
     characters,
     selectedCharacterId,
@@ -238,6 +246,13 @@ export function CharacterManagerShell() {
     [uploadedReferenceEntries]
   );
   const characterSheetAssignmentsUi = characterSheetAssignments;
+  const isEmbeddedSurface = surface === "panel";
+  const RootContainer: "div" | "main" = isEmbeddedSurface ? "div" : "main";
+  const isBeginnerModeControlled = typeof beginnerModeOverride === "boolean";
+  const effectiveBeginnerMode = isBeginnerModeControlled ? beginnerModeOverride : beginnerMode;
+  const rootClassName = isEmbeddedSurface
+    ? "character-manager-page character-manager-page--embedded"
+    : "page page-wide character-manager-page";
 
   const effectiveCharacterSheetAssignments = useMemo(() => {
     const next = { ...characterSheetAssignmentsUi };
@@ -251,11 +266,13 @@ export function CharacterManagerShell() {
   }, [characterSheetAssignmentsUi, uploadedReferenceBySlotKey]);
 
   useEffect(() => {
+    if (isBeginnerModeControlled) return;
     if (typeof window === "undefined") return;
     window.localStorage.setItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY, String(beginnerMode));
-  }, [beginnerMode]);
+  }, [beginnerMode, isBeginnerModeControlled]);
 
   useEffect(() => {
+    if (isEmbeddedSurface) return;
     let active = true;
     let unsubscribe: (() => void) | null = null;
 
@@ -287,9 +304,10 @@ export function CharacterManagerShell() {
       active = false;
       unsubscribe?.();
     };
-  }, []);
+  }, [isEmbeddedSurface]);
 
   useEffect(() => {
+    if (isEmbeddedSurface) return;
     let active = true;
 
     const loadPlan = async () => {
@@ -342,7 +360,7 @@ export function CharacterManagerShell() {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [isEmbeddedSurface, user]);
 
   useEffect(
     () => () => {
@@ -779,50 +797,57 @@ export function CharacterManagerShell() {
   }, [closeReferencePreview, navigateReferencePreview, referencePreview]);
 
   return (
-    <main
-      id="main-content"
-      className="page page-wide character-manager-page"
-      data-beginner-mode={beginnerMode ? "on" : "off"}
+    <RootContainer
+      id={isEmbeddedSurface ? undefined : "main-content"}
+      className={rootClassName}
+      data-beginner-mode={effectiveBeginnerMode ? "on" : "off"}
+      data-surface={surface}
     >
-      <section className="panel saved-header-bar saved-hero hero-image-card character-manager-hero">
-        <div className="saved-header-left">
-          <div className="saved-title-stack">
-            <div className="saved-title-row">
-              <h1 className="title">Character Manager</h1>
-            </div>
-            <p className="subdued">
-              Start with a simple uploader to define your character and add reference images.
-            </p>
-          </div>
-        </div>
-        <div className="character-manager-header-right">
-          <div className="header-cards character-manager-header-cards">
-            <div className="header-stat-card" aria-label="Plan status">
-              <div className="status-icon compact" aria-hidden="true">
-                <ShieldCheck size={16} weight="bold" />
+      {!isEmbeddedSurface ? (
+        <section className="panel saved-header-bar saved-hero hero-image-card character-manager-hero">
+          <div className="saved-header-left">
+            <div className="saved-title-stack">
+              <div className="saved-title-row">
+                <h1 className="title">Character Manager</h1>
               </div>
-              <div className="header-card-body">
-                <p className="metric-label tiny">Plan</p>
-                <p className={`status-value small ${planMeta.className ?? ""}`}>{planMeta.label}</p>
-              </div>
+              <p className="subdued">
+                Start with a simple uploader to define your character and add reference images.
+              </p>
             </div>
           </div>
-          <Link
-            href="/profile?section=account"
-            className="avatar-card character-manager-profile-link"
-            aria-label="Account and profile settings"
-          >
-            <div className="avatar">{accountInitials}</div>
-          </Link>
-        </div>
-      </section>
+          <div className="character-manager-header-right">
+            <div className="header-cards character-manager-header-cards">
+              <div className="header-stat-card" aria-label="Plan status">
+                <div className="status-icon compact" aria-hidden="true">
+                  <ShieldCheck size={16} weight="bold" />
+                </div>
+                <div className="header-card-body">
+                  <p className="metric-label tiny">Plan</p>
+                  <p className={`status-value small ${planMeta.className ?? ""}`}>
+                    {planMeta.label}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Link
+              href="/profile?section=account"
+              className="avatar-card character-manager-profile-link"
+              aria-label="Account and profile settings"
+            >
+              <div className="avatar">{accountInitials}</div>
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       <section
         className="panel media-panel character-mode-panel"
         aria-label="Character workflow tabs"
       >
         <div className="character-mode-row">
-          <DashboardNavPrefab variant="inline" className="character-mode-dashboard-link" />
+          {!isEmbeddedSurface ? (
+            <DashboardNavPrefab variant="inline" className="character-mode-dashboard-link" />
+          ) : null}
           <div
             className="character-mode-tab-row"
             role="tablist"
@@ -832,7 +857,9 @@ export function CharacterManagerShell() {
               type="button"
               role="tab"
               aria-selected={activeTab === "create"}
-              className={`character-mode-tab ${activeTab === "create" ? "is-active" : ""}`}
+              className={`character-mode-tab character-mode-tab--profile ${
+                activeTab === "create" ? "is-active" : ""
+              }`}
               onClick={() => setActiveTab("create")}
             >
               Character Profile
@@ -841,22 +868,26 @@ export function CharacterManagerShell() {
               type="button"
               role="tab"
               aria-selected={activeTab === "manage"}
-              className={`character-mode-tab ${activeTab === "manage" ? "is-active" : ""}`}
+              className={`character-mode-tab character-mode-tab--manage ${
+                activeTab === "manage" ? "is-active" : ""
+              }`}
               onClick={() => setActiveTab("manage")}
             >
               Manage Characters
             </button>
           </div>
-          {activeTab === "create" ? (
+          {activeTab === "create" && !isEmbeddedSurface ? (
             <div className="toolbar-beginner-toggle character-mode-beginner-toggle">
               <div className="toolbar-beginner-copy">
                 <span className="toolbar-label">Beginner mode</span>
               </div>
               <button
                 type="button"
-                className={`reference-toggle beginner-toggle ${beginnerMode ? "is-active" : ""}`}
-                aria-pressed={beginnerMode}
-                aria-label={beginnerMode ? "Disable beginner mode" : "Enable beginner mode"}
+                className={`reference-toggle beginner-toggle ${effectiveBeginnerMode ? "is-active" : ""}`}
+                aria-pressed={effectiveBeginnerMode}
+                aria-label={
+                  effectiveBeginnerMode ? "Disable beginner mode" : "Enable beginner mode"
+                }
                 onClick={() => setBeginnerMode((current) => !current)}
               >
                 <span className="reference-toggle-track" aria-hidden="true">
@@ -865,14 +896,14 @@ export function CharacterManagerShell() {
               </button>
             </div>
           ) : null}
-          {activeTab === "create" && beginnerMode ? (
+          {activeTab === "create" && effectiveBeginnerMode ? (
             <p className="character-mode-guidance" role="note">
               <span className="character-mode-guidance-label">Tip:</span>
               Swap out your character&apos;s style on the fly by dragging and dropping references
               from the reference panel.
             </p>
           ) : null}
-          {activeTab === "manage" ? (
+          {activeTab === "manage" && !isEmbeddedSurface ? (
             <button
               type="button"
               className="character-mode-create-btn"
@@ -920,14 +951,14 @@ export function CharacterManagerShell() {
               <section className="character-section character-section--profile">
                 <div className="character-section-head">
                   <div className="character-section-title-row">
-                    {beginnerMode ? (
+                    {effectiveBeginnerMode ? (
                       <span className="character-step-badge" aria-hidden="true">
                         1
                       </span>
                     ) : null}
                     <div className="character-section-title-copy">
                       <h3 className="character-section-title">Identity</h3>
-                      {beginnerMode ? (
+                      {effectiveBeginnerMode ? (
                         <p className="character-section-helper tiny subdued">
                           Set the photo, name, and description that define this character.
                         </p>
@@ -1136,14 +1167,14 @@ export function CharacterManagerShell() {
               <section className="character-section character-section--reference-drop">
                 <div className="character-section-head">
                   <div className="character-section-title-row">
-                    {beginnerMode ? (
+                    {effectiveBeginnerMode ? (
                       <span className="character-step-badge" aria-hidden="true">
                         2
                       </span>
                     ) : null}
                     <div className="character-section-title-copy">
                       <h3 className="character-section-title">Reference Panel</h3>
-                      {beginnerMode ? (
+                      {effectiveBeginnerMode ? (
                         <p className="character-section-helper tiny subdued">
                           Upload clear reference shots to build this character&apos;s source set.
                         </p>
@@ -1252,14 +1283,14 @@ export function CharacterManagerShell() {
             <section className="character-section character-section--references">
               <div className="character-section-head">
                 <div className="character-section-title-row">
-                  {beginnerMode ? (
+                  {effectiveBeginnerMode ? (
                     <span className="character-step-badge" aria-hidden="true">
                       3
                     </span>
                   ) : null}
                   <div className="character-section-title-copy">
                     <h3 className="character-section-title">Character Sheet</h3>
-                    {beginnerMode ? (
+                    {effectiveBeginnerMode ? (
                       <p className="character-section-helper tiny subdued">
                         Drag uploaded references into each slot to map your character&apos;s look
                         and style.
@@ -1336,10 +1367,34 @@ export function CharacterManagerShell() {
         </section>
       ) : (
         <section className="panel media-panel character-manage-panel">
-          <div>
-            <p className="eyebrow">Manage Existing</p>
-            <h2>Character Library</h2>
-            <p className="tiny subdued">Select a character to edit their character profile.</p>
+          <div className={isEmbeddedSurface ? "character-manage-panel-header" : undefined}>
+            <div>
+              <p className="eyebrow">Manage Existing</p>
+              <h2>Character Library</h2>
+              <p className="tiny subdued">Select a character to edit their character profile.</p>
+            </div>
+            {isEmbeddedSurface ? (
+              <button
+                type="button"
+                className="character-mode-create-btn character-mode-create-btn--inline"
+                onClick={handleCreateNewCharacter}
+                disabled={isCreatingCharacter || loading}
+              >
+                {isCreatingCharacter ? (
+                  "Creating..."
+                ) : (
+                  <>
+                    <Plus
+                      size={14}
+                      weight="bold"
+                      className="character-mode-create-btn-icon"
+                      aria-hidden
+                    />
+                    <span>Create New Character</span>
+                  </>
+                )}
+              </button>
+            ) : null}
           </div>
 
           <div className="character-manage-list" role="list" aria-label="Character list">
@@ -1523,6 +1578,6 @@ export function CharacterManagerShell() {
         onChange={handleCharacterSheetFileSelection}
         hidden
       />
-    </main>
+    </RootContainer>
   );
 }

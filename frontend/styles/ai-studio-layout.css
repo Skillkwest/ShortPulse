@@ -625,6 +625,12 @@ body:has(.ai-studio-page) {
   box-shadow: 0 0 0 1px rgba(52, 200, 255, 0.25);
 }
 
+.ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="character"] .ai-shell-divider:hover::before {
+  background: #4ae074;
+  box-shadow: 0 0 0 1px rgba(74, 224, 116, 0.28);
+}
+
 .ai-shell-divider:focus-visible {
   outline: 2px solid rgba(52, 200, 255, 0.85);
   outline-offset: -2px;
@@ -991,7 +997,7 @@ body.ai-shell-resizing * {
 
 /* Canvas button - purple/indigo gradient */
 .toolbar-item[data-tool-id="canvas"] {
-  background: linear-gradient(135deg, #0f766e 0%, #059669 50%, #34d399 100%);
+  background: linear-gradient(135deg, #155d46 0%, #4dba67 100%);
   margin: 4px 0;
   padding: 10px 14px;
   border: none;
@@ -1004,7 +1010,7 @@ body.ai-shell-resizing * {
 
 /* Canvas button hover */
 .toolbar-item[data-tool-id="canvas"]:hover {
-  background: linear-gradient(135deg, #128177 0%, #07ab76 50%, #50e6b0 100%);
+  background: linear-gradient(135deg, #155d46 0%, #3dcc5f 100%);
   transform: translateY(-2px);
   box-shadow:
     0 8px 20px rgba(6, 95, 70, 0.32),
@@ -1014,10 +1020,10 @@ body.ai-shell-resizing * {
 
 /* Canvas button active - dual borders (dark + purple) */
 .toolbar-item[data-tool-id="canvas"].is-active {
-  background: linear-gradient(135deg, #0f766e 0%, #059669 50%, #34d399 100%);
+  background: linear-gradient(135deg, #106d50 0%, #4cc768 100%);
   transform: scale(1);
   box-shadow:
-    0 0 0 3px #6ee7b7,
+    0 0 0 3px #4ae074,
     0 4px 12px rgba(0, 0, 0, 0.35),
     inset 0 0 0 2px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);

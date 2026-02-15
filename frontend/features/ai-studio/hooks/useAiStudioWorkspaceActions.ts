@@ -13,6 +13,7 @@ import {
 import type { ModelModalContext } from "../components/ModelModal";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import { isReferencePromptTool } from "../logic/promptTargeting";
+import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 import type { StudioMode, ToolId } from "../types";
 
 type UseAiStudioWorkspaceActionsParams = {
@@ -145,7 +146,7 @@ export const useAiStudioWorkspaceActions = ({
     (event: ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
       if (files && files.length > 0) {
-        if (selectedTool === "character") {
+        if (isPrimaryCharacterTool(selectedTool)) {
           addCharacterReferences(files);
         } else {
           addOutputsFromFiles(files);
@@ -158,7 +159,7 @@ export const useAiStudioWorkspaceActions = ({
 
   const handleReferenceCanvasFiles = useCallback(
     (files: FileList) => {
-      if (selectedTool === "character") {
+      if (isPrimaryCharacterTool(selectedTool)) {
         addCharacterReferences(files);
       } else {
         addOutputsFromFiles(files);

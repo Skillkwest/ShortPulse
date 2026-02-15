@@ -32,6 +32,7 @@ import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent
 import type { StudioOutput, ToolId } from "../types";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
+import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 
 type FailureCard = Pick<
   StudioOutput,
@@ -201,7 +202,9 @@ export function AiStudioPageContent({
   const selectedComingSoonTool = isComingSoonTool(selectedTool) ? selectedTool : null;
   const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
   const ComingSoonIcon = comingSoon ? comingSoon.icon : null;
-  const referenceCanvasFileAccept = selectedTool === "character" ? "image/*" : "image/*,video/*";
+  const referenceCanvasFileAccept = isPrimaryCharacterTool(selectedTool)
+    ? "image/*"
+    : "image/*,video/*";
   const { shellRef, leftColumnRef, showDivider, isResizing, shellStyle, dividerProps } =
     useAiStudioShellResize({
       enabled: Boolean(selectedTool),
@@ -229,7 +232,7 @@ export function AiStudioPageContent({
           </>
         );
       case "character":
-        return <CharacterPanel />;
+        return <CharacterPanel beginnerMode={beginnerMode} />;
       case "edit":
         return <EditPropertiesPanel {...propertiesImage} />;
       case "video":
@@ -237,7 +240,7 @@ export function AiStudioPageContent({
       case "kling":
         return <KlingComingSoonCard />;
       case "canvas":
-        return <CharacterPanel />;
+        return <CharacterPanel beginnerMode={beginnerMode} />;
       default:
         return null;
     }

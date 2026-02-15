@@ -95,7 +95,7 @@ describe("useAiStudioWorkspaceActions", () => {
     expect(setShowCreateTools).toHaveBeenCalledWith(false);
   });
 
-  it("routes file browser selection by tool and clears input value", () => {
+  it("routes file browser selection by primary Character tool and clears input value", () => {
     const addCharacterReferences = vi.fn();
     const addOutputsFromFiles = vi.fn();
     const { result, rerender } = renderHook(
@@ -107,7 +107,7 @@ describe("useAiStudioWorkspaceActions", () => {
             addOutputsFromFiles,
           })
         ),
-      { initialProps: { selectedTool: "character" as ToolId } }
+      { initialProps: { selectedTool: "canvas" as ToolId } }
     );
 
     const targetA = { files: createFileList(), value: "filled" } as unknown as HTMLInputElement;
@@ -129,6 +129,12 @@ describe("useAiStudioWorkspaceActions", () => {
     });
     expect(addOutputsFromFiles).toHaveBeenCalledTimes(1);
     expect(targetB.value).toBe("");
+
+    rerender({ selectedTool: "character" });
+    act(() => {
+      result.current.handleReferenceCanvasFiles(createFileList());
+    });
+    expect(addCharacterReferences).toHaveBeenCalledTimes(2);
   });
 
   it("shows prompt-reference generate only when workflow requirements are met", () => {

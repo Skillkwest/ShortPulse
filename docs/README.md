@@ -108,6 +108,7 @@ Start here for all repository documentation.
 - `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
 - `docs/planning/mvp-pre-tester-anchor-plan.md`
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
+- `docs/planning/ai-studio-primary-character-panel-build-plan.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
 - `docs/planning/media-optimization-phase0-measurement-spec.md`
 - `docs/planning/media-optimization-schema-and-migration-spec.md`

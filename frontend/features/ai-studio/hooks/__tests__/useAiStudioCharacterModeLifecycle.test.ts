@@ -189,4 +189,23 @@ describe("useAiStudioCharacterModeLifecycle", () => {
 
     expect(setModel).not.toHaveBeenCalled();
   });
+
+  it("clears create model when character mode is already off after restore", async () => {
+    const setModel = vi.fn();
+    listCharacterManagerCharactersMock.mockResolvedValue([]);
+    const params = createParams({
+      setModel: asDispatch<string | null>(setModel),
+      selectedTool: "create",
+      isCharacterModeEnabled: false,
+      model: "fal-ai/bytedance/seedream/v4.5/edit",
+    });
+
+    renderHook(() => useAiStudioCharacterModeLifecycle(params));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(setModel).toHaveBeenCalledWith(null);
+  });
 });

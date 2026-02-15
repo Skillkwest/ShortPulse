@@ -124,8 +124,8 @@ export const useAiStudioCharacterModeLifecycle = ({
   }, [selectedCharacterId, setCharacterModeInjectionBundle, setIsCharacterBundleLoading]);
 
   useEffect(() => {
-    const characterModeAppliesToCreate =
-      isCharacterModeEnabled && (selectedTool === "create" || selectedTool === "text");
+    const isCreateWorkflowTool = selectedTool === "create" || selectedTool === "text";
+    const characterModeAppliesToCreate = isCharacterModeEnabled && isCreateWorkflowTool;
 
     if (characterModeAppliesToCreate) {
       if (
@@ -138,6 +138,12 @@ export const useAiStudioCharacterModeLifecycle = ({
       if (model !== backgroundModelId) {
         setModel(backgroundModelId);
       }
+      return;
+    }
+
+    if (!isCharacterModeEnabled && isCreateWorkflowTool && model === backgroundModelId) {
+      previousCreateModelBeforeCharacterModeRef.current = null;
+      setModel(null);
       return;
     }
 

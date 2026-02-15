@@ -5,6 +5,7 @@
 import type {
   CharacterSheetAssignments,
   CharacterSheetDropZoneKey,
+  CharacterSheetPresetAssignments,
   CharacterSlotFileMap,
 } from "../../character-manager/types";
 
@@ -50,6 +51,37 @@ export const resolveCharacterSheetReferenceStoragePaths = (
     const slotKey = assignments[zoneKey];
     if (!slotKey) continue;
     const storagePath = slots[slotKey]?.storagePath;
+    if (!storagePath) continue;
+    orderedStoragePaths.push(storagePath);
+  }
+  return Array.from(new Set(orderedStoragePaths));
+};
+
+/**
+ * Resolves active character-sheet preset image URLs in canonical zone order.
+ */
+export const resolveCharacterSheetPresetReferenceUrls = (
+  assignments: CharacterSheetPresetAssignments
+): string[] => {
+  const orderedUrls: string[] = [];
+  for (const zoneKey of CHARACTER_SHEET_ZONE_ORDER) {
+    const reference = assignments[zoneKey];
+    const url = reference?.previewUrl?.trim() ?? "";
+    if (!url) continue;
+    orderedUrls.push(url);
+  }
+  return Array.from(new Set(orderedUrls));
+};
+
+/**
+ * Resolves active character-sheet preset storage paths in canonical zone order.
+ */
+export const resolveCharacterSheetPresetReferenceStoragePaths = (
+  assignments: CharacterSheetPresetAssignments
+): string[] => {
+  const orderedStoragePaths: string[] = [];
+  for (const zoneKey of CHARACTER_SHEET_ZONE_ORDER) {
+    const storagePath = assignments[zoneKey]?.storagePath?.trim() ?? "";
     if (!storagePath) continue;
     orderedStoragePaths.push(storagePath);
   }

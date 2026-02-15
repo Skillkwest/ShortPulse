@@ -559,10 +559,28 @@ body:has(.ai-studio-page) {
     var(--ai-shell-divider-track-width)
     minmax(320px, 1fr);
   gap: 0;
+  transition: grid-template-columns 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.ai-shell.ai-shell-resizable.ai-shell-character-open {
+  grid-template-columns:
+    var(--ai-shell-left-width, minmax(1080px, 1.28fr))
+    var(--ai-shell-divider-track-width)
+    minmax(320px, 1fr);
+}
+
+.ai-shell.ai-shell-resizable.ai-shell-resizing {
+  transition: none;
 }
 
 .ai-shell.ai-shell-wide {
   grid-template-columns: 1fr;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-shell.ai-shell-resizable {
+    transition: none;
+  }
 }
 
 .ai-shell > * {

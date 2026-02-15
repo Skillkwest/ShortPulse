@@ -33,6 +33,7 @@ import type { StudioOutput, ToolId } from "../types";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
+import { AI_SHELL_LEFT_CHARACTER_MIN_PX } from "../logic/shellResize";
 
 type FailureCard = Pick<
   StudioOutput,
@@ -205,14 +206,17 @@ export function AiStudioPageContent({
   const referenceCanvasFileAccept = isPrimaryCharacterTool(selectedTool)
     ? "image/*"
     : "image/*,video/*";
+  const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const { shellRef, leftColumnRef, showDivider, isResizing, shellStyle, dividerProps } =
     useAiStudioShellResize({
       enabled: Boolean(selectedTool),
+      minLeftWidthPx: isPrimaryCharacterPanelOpen ? AI_SHELL_LEFT_CHARACTER_MIN_PX : undefined,
     });
   const shellClassName = [
     "ai-shell",
     selectedTool ? "" : "ai-shell-wide",
     showDivider ? "ai-shell-resizable" : "",
+    isPrimaryCharacterPanelOpen ? "ai-shell-character-open" : "",
     isResizing ? "ai-shell-resizing" : "",
   ]
     .filter(Boolean)

@@ -9,6 +9,8 @@ import { reportAppError } from "../../../lib/appErrorReporter";
 import {
   composeCharacterModePrompt,
   mergeCharacterAndUserReferences,
+  resolveCharacterSheetPresetReferenceStoragePaths,
+  resolveCharacterSheetPresetReferenceUrls,
   resolveCharacterSheetReferenceStoragePaths,
   resolveCharacterSheetReferenceUrls,
 } from "../logic/characterModePayload";
@@ -77,6 +79,7 @@ export const useAiStudioCharacterModeController = ({
   trackCharacterModeEvent,
   bundleStaleAfterMs,
 }: UseAiStudioCharacterModeControllerParams) => {
+  void bundleStaleAfterMs;
   const logCharacterModeTelemetry = useCallback(
     (message: string, data?: Record<string, unknown>) => {
       void reportAppError({
@@ -96,19 +99,32 @@ export const useAiStudioCharacterModeController = ({
   const toCharacterModeInjectionBundle = useCallback(
     (
       snapshot: Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>
-    ): CharacterModeInjectionBundle => ({
-      characterId: snapshot.characterId,
-      characterDescription: snapshot.characterDescription,
-      sheetReferenceStoragePaths: resolveCharacterSheetReferenceStoragePaths(
+    ): CharacterModeInjectionBundle => {
+      const presetReferenceStoragePaths = resolveCharacterSheetPresetReferenceStoragePaths(
+        snapshot.characterSheetPresetAssignments
+      );
+      const presetReferenceUrls = resolveCharacterSheetPresetReferenceUrls(
+        snapshot.characterSheetPresetAssignments
+      );
+      const fallbackStoragePaths = resolveCharacterSheetReferenceStoragePaths(
         snapshot.characterSheetAssignments,
         snapshot.slots
-      ),
-      sheetReferenceUrls: resolveCharacterSheetReferenceUrls(
+      );
+      const fallbackUrls = resolveCharacterSheetReferenceUrls(
         snapshot.characterSheetAssignments,
         snapshot.slots
-      ),
-      loadedAtMs: Date.now(),
-    }),
+      );
+      return {
+        characterId: snapshot.characterId,
+        characterDescription: snapshot.characterDescription,
+        sheetReferenceStoragePaths:
+          presetReferenceStoragePaths.length > 0
+            ? presetReferenceStoragePaths
+            : fallbackStoragePaths,
+        sheetReferenceUrls: presetReferenceUrls.length > 0 ? presetReferenceUrls : fallbackUrls,
+        loadedAtMs: Date.now(),
+      };
+    },
     []
   );
 
@@ -157,28 +173,18 @@ export const useAiStudioCharacterModeController = ({
       if (!selectedCharacterId) return null;
 
       const currentBundle = characterModeInjectionBundle;
-      const isMissingBundleForSelectedCharacter =
-        !currentBundle || currentBundle.characterId !== selectedCharacterId;
       const bundleAgeMs = currentBundle ? Date.now() - currentBundle.loadedAtMs : 0;
-      const isBundleStale = currentBundle ? bundleAgeMs >= bundleStaleAfterMs : true;
-      const needsSnapshotReload = isMissingBundleForSelectedCharacter || isBundleStale;
 
       setIsCharacterBundleLoading(true);
       trackCharacterModeEvent("character_mode_bundle_refresh_before_submit", {
-        reason: isMissingBundleForSelectedCharacter
-          ? "missing_bundle"
-          : isBundleStale
-            ? "stale_signed_urls"
-            : "submit_refresh",
+        reason: "submit_refresh",
         selected_character_id: selectedCharacterId,
         bundle_age_ms: currentBundle ? bundleAgeMs : null,
       });
       try {
-        const baseBundle = needsSnapshotReload
-          ? toCharacterModeInjectionBundle(
-              await loadCharacterManagerDraftByCharacterId(selectedCharacterId)
-            )
-          : currentBundle;
+        const baseBundle = toCharacterModeInjectionBundle(
+          await loadCharacterManagerDraftByCharacterId(selectedCharacterId)
+        );
         if (!baseBundle || baseBundle.characterId !== selectedCharacterId) {
           return null;
         }
@@ -200,7 +206,6 @@ export const useAiStudioCharacterModeController = ({
       }
     },
     [
-      bundleStaleAfterMs,
       characterModeInjectionBundle,
       isCharacterModeEnabled,
       refreshBundleReferenceUrlsForSubmission,

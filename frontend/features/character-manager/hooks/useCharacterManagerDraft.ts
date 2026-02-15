@@ -5,7 +5,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CHARACTER_MANAGER_MAX_IMAGE_BYTES,
+  createDefaultCharacterSheetPresetState,
   createEmptyCharacterSheetAssignments,
+  createEmptyCharacterSheetPresetAssignments,
   createEmptyCharacterSlotMap,
 } from "../constants";
 import {
@@ -16,6 +18,9 @@ import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
   loadOrCreateCharacterManagerDraft,
+  saveCharacterManagerActiveCharacterSheetPreset,
+  saveCharacterManagerCharacterSheetPresetAsset,
+  saveCharacterManagerCharacterSheetPresetAssignments,
   saveCharacterManagerCharacterSheetAssignments,
   saveCharacterManagerProfileImageAdjustments,
   saveCharacterManagerProfileImage,
@@ -28,6 +33,10 @@ import type {
   CharacterProfileImageTransform,
   CharacterReferenceSlotKey,
   CharacterSheetAssignments,
+  CharacterSheetDropZoneKey,
+  CharacterSheetPresetAssignments,
+  CharacterSheetPresetId,
+  CharacterSheetPresetState,
   CharacterSlotFileMap,
 } from "../types";
 import type { CharacterManagerListItem } from "../logic/characterManagerPersistence";
@@ -38,6 +47,9 @@ type UseCharacterManagerDraftResult = {
   characterName: string;
   characterDescription: string;
   characterSheetAssignments: CharacterSheetAssignments;
+  activeCharacterSheetPresetId: CharacterSheetPresetId;
+  characterSheetPresets: CharacterSheetPresetState["presets"];
+  characterSheetPresetAssignments: CharacterSheetPresetAssignments;
   profileImageUrl: string | null;
   profileImageTransform: CharacterProfileImageTransform;
   slots: CharacterSlotFileMap;
@@ -48,12 +60,18 @@ type UseCharacterManagerDraftResult = {
   isDeletingCharacter: boolean;
   isSwitchingCharacter: boolean;
   isSavingProfileImage: boolean;
+  isSavingCharacterSheetPreset: boolean;
   setCharacterName: (value: string) => void;
   setCharacterDescription: (value: string) => void;
   setProfileImageFile: (file: File) => Promise<void>;
   saveProfileImageTransform: (transform: CharacterProfileImageTransform) => Promise<boolean>;
   clearProfileImage: () => Promise<void>;
   saveCharacterSheetAssignments: (assignments: CharacterSheetAssignments) => Promise<boolean>;
+  setActiveCharacterSheetPreset: (presetId: CharacterSheetPresetId) => Promise<boolean>;
+  saveCharacterSheetPresetAssignments: (
+    assignments: CharacterSheetPresetAssignments
+  ) => Promise<boolean>;
+  setCharacterSheetPresetFile: (zoneKey: CharacterSheetDropZoneKey, file: File) => Promise<boolean>;
   setSlotFile: (slotKey: CharacterReferenceSlotKey, file: File) => Promise<boolean>;
   clearSlot: (slotKey: CharacterReferenceSlotKey) => Promise<void>;
   createCharacter: () => Promise<void>;
@@ -85,6 +103,15 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const [characterDescription, setCharacterDescriptionState] = useState("");
   const [characterSheetAssignments, setCharacterSheetAssignments] =
     useState<CharacterSheetAssignments>(() => createEmptyCharacterSheetAssignments());
+  const [activeCharacterSheetPresetId, setActiveCharacterSheetPresetIdState] =
+    useState<CharacterSheetPresetId>("1");
+  const [characterSheetPresets, setCharacterSheetPresets] = useState<
+    CharacterSheetPresetState["presets"]
+  >(() => createDefaultCharacterSheetPresetState().presets);
+  const [characterSheetPresetAssignments, setCharacterSheetPresetAssignments] =
+    useState<CharacterSheetPresetAssignments>(
+      () => createDefaultCharacterSheetPresetState().presets["1"]
+    );
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [profileImageTransform, setProfileImageTransform] =
     useState<CharacterProfileImageTransform>(DEFAULT_PROFILE_IMAGE_TRANSFORM);
@@ -96,6 +123,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const [isDeletingCharacter, setIsDeletingCharacter] = useState(false);
   const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
   const [isSavingProfileImage, setIsSavingProfileImage] = useState(false);
+  const [isSavingCharacterSheetPreset, setIsSavingCharacterSheetPreset] = useState(false);
   const [slotBusyKeys, setSlotBusyKeys] = useState<Set<CharacterReferenceSlotKey>>(() => new Set());
 
   const suppressNextNamePersistRef = useRef(false);
@@ -111,6 +139,11 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     createEmptyCharacterSheetAssignments()
   );
   const characterSheetAssignmentsRequestRef = useRef(0);
+  const activeCharacterSheetPresetIdRef = useRef<CharacterSheetPresetId>("1");
+  const characterSheetPresetsRef = useRef<CharacterSheetPresetState["presets"]>(
+    createDefaultCharacterSheetPresetState().presets
+  );
+  const characterSheetPresetAssignmentsRequestRef = useRef(0);
 
   const clearMessages = useCallback(() => {
     setError(null);
@@ -123,6 +156,14 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   useEffect(() => {
     characterSheetAssignmentsRef.current = characterSheetAssignments;
   }, [characterSheetAssignments]);
+
+  useEffect(() => {
+    activeCharacterSheetPresetIdRef.current = activeCharacterSheetPresetId;
+  }, [activeCharacterSheetPresetId]);
+
+  useEffect(() => {
+    characterSheetPresetsRef.current = characterSheetPresets;
+  }, [characterSheetPresets]);
 
   const markSlotBusy = useCallback((slotKey: CharacterReferenceSlotKey, busy: boolean) => {
     setSlotBusyKeys((prev) => {
@@ -166,6 +207,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       nextCharacterName,
       nextCharacterDescription,
       nextCharacterSheetAssignments,
+      nextActiveCharacterSheetPresetId,
+      nextCharacterSheetPresets,
+      nextCharacterSheetPresetAssignments,
       nextProfileImageUrl,
       nextProfileImageTransform,
       nextSlots,
@@ -175,6 +219,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       nextCharacterName: string;
       nextCharacterDescription: string;
       nextCharacterSheetAssignments: CharacterSheetAssignments;
+      nextActiveCharacterSheetPresetId: CharacterSheetPresetId;
+      nextCharacterSheetPresets: CharacterSheetPresetState["presets"];
+      nextCharacterSheetPresetAssignments: CharacterSheetPresetAssignments;
       nextProfileImageUrl: string | null;
       nextProfileImageTransform: CharacterProfileImageTransform;
       nextSlots: CharacterSlotFileMap;
@@ -188,6 +235,12 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       setCharacterSheetAssignments(nextCharacterSheetAssignments);
       characterSheetAssignmentsRef.current = nextCharacterSheetAssignments;
       characterSheetAssignmentsRequestRef.current = 0;
+      setActiveCharacterSheetPresetIdState(nextActiveCharacterSheetPresetId);
+      activeCharacterSheetPresetIdRef.current = nextActiveCharacterSheetPresetId;
+      setCharacterSheetPresets(nextCharacterSheetPresets);
+      characterSheetPresetsRef.current = nextCharacterSheetPresets;
+      setCharacterSheetPresetAssignments(nextCharacterSheetPresetAssignments);
+      characterSheetPresetAssignmentsRequestRef.current = 0;
       setProfileImageUrl(nextProfileImageUrl);
       setProfileImageTransform(nextProfileImageTransform);
       setSlots(nextSlots);
@@ -213,6 +266,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           nextCharacterName: snapshot.characterName,
           nextCharacterDescription: snapshot.characterDescription,
           nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
+          nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
+          nextCharacterSheetPresets: snapshot.characterSheetPresets,
+          nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
           nextProfileImageUrl: snapshot.profileImageUrl,
           nextProfileImageTransform: snapshot.profileImageTransform,
           nextSlots: snapshot.slots,
@@ -473,6 +529,159 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     [characterId, clearMessages]
   );
 
+  const setActiveCharacterSheetPreset = useCallback(
+    async (presetId: CharacterSheetPresetId) => {
+      clearMessages();
+      if (!characterId) {
+        setError("Character draft is still loading. Try again in a moment.");
+        return false;
+      }
+      const previousPresetId = activeCharacterSheetPresetIdRef.current;
+      const previousAssignments =
+        characterSheetPresetsRef.current[previousPresetId] ??
+        createEmptyCharacterSheetPresetAssignments();
+      setActiveCharacterSheetPresetIdState(presetId);
+      activeCharacterSheetPresetIdRef.current = presetId;
+      setCharacterSheetPresetAssignments(
+        characterSheetPresetsRef.current[presetId] ?? createEmptyCharacterSheetPresetAssignments()
+      );
+      setIsSavingCharacterSheetPreset(true);
+      try {
+        const persistedState = await saveCharacterManagerActiveCharacterSheetPreset({
+          characterId,
+          presetId,
+        });
+        setActiveCharacterSheetPresetIdState(persistedState.activePresetId);
+        activeCharacterSheetPresetIdRef.current = persistedState.activePresetId;
+        setCharacterSheetPresets(persistedState.presets);
+        characterSheetPresetsRef.current = persistedState.presets;
+        setCharacterSheetPresetAssignments(
+          persistedState.presets[persistedState.activePresetId] ??
+            createEmptyCharacterSheetPresetAssignments()
+        );
+        return true;
+      } catch (nextError) {
+        setActiveCharacterSheetPresetIdState(previousPresetId);
+        activeCharacterSheetPresetIdRef.current = previousPresetId;
+        setCharacterSheetPresetAssignments(previousAssignments);
+        setError(toErrorMessage(nextError, "Failed to switch character sheet preset."));
+        return false;
+      } finally {
+        setIsSavingCharacterSheetPreset(false);
+      }
+    },
+    [characterId, clearMessages]
+  );
+
+  const saveCharacterSheetPresetAssignments = useCallback(
+    async (assignments: CharacterSheetPresetAssignments) => {
+      clearMessages();
+      if (!characterId) {
+        setError("Character draft is still loading. Try again in a moment.");
+        return false;
+      }
+
+      const activePresetId = activeCharacterSheetPresetIdRef.current;
+      const previousPresets = characterSheetPresetsRef.current;
+      const previousAssignments =
+        previousPresets[activePresetId] ?? createEmptyCharacterSheetPresetAssignments();
+      const normalizedAssignments = { ...assignments };
+      const optimisticPresets = {
+        ...previousPresets,
+        [activePresetId]: normalizedAssignments,
+      };
+      setCharacterSheetPresets(optimisticPresets);
+      characterSheetPresetsRef.current = optimisticPresets;
+      setCharacterSheetPresetAssignments(normalizedAssignments);
+
+      const requestId = characterSheetPresetAssignmentsRequestRef.current + 1;
+      characterSheetPresetAssignmentsRequestRef.current = requestId;
+      setIsSavingCharacterSheetPreset(true);
+      try {
+        const persistedState = await saveCharacterManagerCharacterSheetPresetAssignments({
+          characterId,
+          presetId: activePresetId,
+          assignments: normalizedAssignments,
+        });
+        if (characterSheetPresetAssignmentsRequestRef.current !== requestId) {
+          return true;
+        }
+        setActiveCharacterSheetPresetIdState(persistedState.activePresetId);
+        activeCharacterSheetPresetIdRef.current = persistedState.activePresetId;
+        setCharacterSheetPresets(persistedState.presets);
+        characterSheetPresetsRef.current = persistedState.presets;
+        setCharacterSheetPresetAssignments(
+          persistedState.presets[persistedState.activePresetId] ??
+            createEmptyCharacterSheetPresetAssignments()
+        );
+        return true;
+      } catch (nextError) {
+        if (characterSheetPresetAssignmentsRequestRef.current !== requestId) {
+          return false;
+        }
+        const revertedPresets = {
+          ...previousPresets,
+          [activePresetId]: previousAssignments,
+        };
+        setCharacterSheetPresets(revertedPresets);
+        characterSheetPresetsRef.current = revertedPresets;
+        setCharacterSheetPresetAssignments(previousAssignments);
+        setError(toErrorMessage(nextError, "Failed to save character sheet preset."));
+        return false;
+      } finally {
+        if (characterSheetPresetAssignmentsRequestRef.current === requestId) {
+          setIsSavingCharacterSheetPreset(false);
+        }
+      }
+    },
+    [characterId, clearMessages]
+  );
+
+  const setCharacterSheetPresetFile = useCallback(
+    async (zoneKey: CharacterSheetDropZoneKey, file: File) => {
+      clearMessages();
+      if (!characterId) {
+        setError("Character draft is still loading. Try again in a moment.");
+        return false;
+      }
+      if (!file.type.toLowerCase().startsWith("image/")) {
+        setError("Only image files are supported in Character Manager.");
+        return false;
+      }
+      if (file.size > CHARACTER_MANAGER_MAX_IMAGE_BYTES) {
+        setError(`Image is too large. Maximum file size is ${CHARACTER_MANAGER_MAX_IMAGE_MB}MB.`);
+        return false;
+      }
+
+      setIsSavingCharacterSheetPreset(true);
+      try {
+        const uploadedAsset = await saveCharacterManagerCharacterSheetPresetAsset({
+          characterId,
+          file,
+        });
+        const activePresetId = activeCharacterSheetPresetIdRef.current;
+        const currentAssignments =
+          characterSheetPresetsRef.current[activePresetId] ??
+          createEmptyCharacterSheetPresetAssignments();
+        const nextAssignments = {
+          ...currentAssignments,
+          [zoneKey]: uploadedAsset,
+        };
+        const didPersist = await saveCharacterSheetPresetAssignments(nextAssignments);
+        if (!didPersist) {
+          return false;
+        }
+        return true;
+      } catch (nextError) {
+        setError(toErrorMessage(nextError, "Failed to upload character preset image."));
+        return false;
+      } finally {
+        setIsSavingCharacterSheetPreset(false);
+      }
+    },
+    [characterId, clearMessages, saveCharacterSheetPresetAssignments]
+  );
+
   const setSlotFile = useCallback(
     async (slotKey: CharacterReferenceSlotKey, file: File) => {
       clearMessages();
@@ -567,6 +776,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         nextCharacterName: snapshot.characterName,
         nextCharacterDescription: snapshot.characterDescription,
         nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
+        nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
+        nextCharacterSheetPresets: snapshot.characterSheetPresets,
+        nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
         nextProfileImageUrl: snapshot.profileImageUrl,
         nextProfileImageTransform: snapshot.profileImageTransform,
         nextSlots: snapshot.slots,
@@ -603,6 +815,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
             nextCharacterName: snapshot.characterName,
             nextCharacterDescription: snapshot.characterDescription,
             nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
+            nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
+            nextCharacterSheetPresets: snapshot.characterSheetPresets,
+            nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
             nextProfileImageUrl: snapshot.profileImageUrl,
             nextProfileImageTransform: snapshot.profileImageTransform,
             nextSlots: snapshot.slots,
@@ -616,6 +831,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
             nextCharacterName: snapshot.characterName,
             nextCharacterDescription: snapshot.characterDescription,
             nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
+            nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
+            nextCharacterSheetPresets: snapshot.characterSheetPresets,
+            nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
             nextProfileImageUrl: snapshot.profileImageUrl,
             nextProfileImageTransform: snapshot.profileImageTransform,
             nextSlots: snapshot.slots,
@@ -647,6 +865,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           nextCharacterName: snapshot.characterName,
           nextCharacterDescription: snapshot.characterDescription,
           nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
+          nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
+          nextCharacterSheetPresets: snapshot.characterSheetPresets,
+          nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
           nextProfileImageUrl: snapshot.profileImageUrl,
           nextProfileImageTransform: snapshot.profileImageTransform,
           nextSlots: snapshot.slots,
@@ -677,6 +898,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     characterName,
     characterDescription,
     characterSheetAssignments,
+    activeCharacterSheetPresetId,
+    characterSheetPresets,
+    characterSheetPresetAssignments,
     profileImageUrl,
     profileImageTransform,
     slots,
@@ -687,12 +911,16 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     isDeletingCharacter,
     isSwitchingCharacter,
     isSavingProfileImage,
+    isSavingCharacterSheetPreset,
     setCharacterName,
     setCharacterDescription,
     setProfileImageFile,
     saveProfileImageTransform,
     clearProfileImage,
     saveCharacterSheetAssignments,
+    setActiveCharacterSheetPreset,
+    saveCharacterSheetPresetAssignments,
+    setCharacterSheetPresetFile,
     setSlotFile,
     clearSlot,
     createCharacter,

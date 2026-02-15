@@ -9,8 +9,10 @@ import {
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import {
+  CHARACTER_SHEET_PRESET_IDS,
   CHARACTER_MANAGER_SLOT_KEYS,
   CHARACTER_SHEET_DROP_ZONES,
+  createDefaultCharacterSheetPresetState,
   createEmptyCharacterSheetAssignments,
   createEmptyCharacterSlotMap,
 } from "../constants";
@@ -18,6 +20,10 @@ import { createDefaultCharacterValidationNotes } from "./referenceValidation";
 import type {
   CharacterSheetAssignments,
   CharacterSheetDropZoneKey,
+  CharacterSheetPresetAssignments,
+  CharacterSheetPresetId,
+  CharacterSheetPresetMediaReference,
+  CharacterSheetPresetState,
   CharacterProfileImageTransform,
   CharacterReferenceSlotKey,
   CharacterSlotFile,
@@ -36,6 +42,7 @@ export const CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY = "profile_image_offset_x";
 export const CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY = "profile_image_offset_y";
 export const CHARACTER_SHEET_ASSIGNMENTS_KEY = "character_sheet_assignments";
 export const LEGACY_CHARACTER_SHEET_ASSIGNMENTS_KEY = "reference_pack_assignments";
+export const CHARACTER_SHEET_PRESETS_KEY = "character_sheet_presets_v1";
 export const DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: 1,
   offsetX: 0,
@@ -124,6 +131,9 @@ export const isCharacterReferenceSlotKey = (value: string): value is CharacterRe
 const isCharacterSheetDropZoneKey = (value: string): value is CharacterSheetDropZoneKey =>
   CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === value);
 
+const isCharacterSheetPresetId = (value: string): value is CharacterSheetPresetId =>
+  CHARACTER_SHEET_PRESET_IDS.includes(value as CharacterSheetPresetId);
+
 const toObjectRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -152,6 +162,26 @@ const asTextArray = (value: unknown): string[] => {
     .filter((item) => item.length > 0);
 };
 
+const toCharacterSheetPresetMediaReference = (
+  value: unknown
+): CharacterSheetPresetMediaReference | null => {
+  const record = toObjectRecord(value);
+  const mediaFileId =
+    asText(record.media_file_id) ??
+    asText(record.mediaFileId) ??
+    asText(record.media_fileId) ??
+    null;
+  const storagePath = asText(record.storage_path) ?? asText(record.storagePath) ?? null;
+  if (!mediaFileId || !storagePath) {
+    return null;
+  }
+  return {
+    mediaFileId,
+    storagePath,
+    previewUrl: asText(record.preview_url) ?? asText(record.previewUrl),
+  };
+};
+
 /**
  * Normalize persisted character-sheet card assignments to a shape-stable record.
  */
@@ -166,6 +196,43 @@ export const normalizeCharacterSheetAssignments = (
       continue;
     }
     normalized[rawZoneKey] = rawSlotKey;
+  }
+  return normalized;
+};
+
+/**
+ * Normalize persisted character-sheet preset assignments for a single preset tab.
+ */
+export const normalizeCharacterSheetPresetAssignments = (
+  assignments: Partial<Record<CharacterSheetDropZoneKey, CharacterSheetPresetMediaReference | null>>
+): CharacterSheetPresetAssignments => {
+  const normalized = createDefaultCharacterSheetPresetState().presets["1"];
+  for (const [rawZoneKey, rawValue] of Object.entries(assignments)) {
+    if (!isCharacterSheetDropZoneKey(rawZoneKey)) continue;
+    const normalizedReference = toCharacterSheetPresetMediaReference(rawValue);
+    normalized[rawZoneKey] = normalizedReference;
+  }
+  return normalized;
+};
+
+/**
+ * Normalize persisted character-sheet preset state to a shape-stable record.
+ */
+export const normalizeCharacterSheetPresetState = (
+  state: Partial<{
+    activePresetId: CharacterSheetPresetId | null;
+    presets: Partial<Record<CharacterSheetPresetId, CharacterSheetPresetAssignments | null>>;
+  }>
+): CharacterSheetPresetState => {
+  const normalized = createDefaultCharacterSheetPresetState();
+  if (state.activePresetId && isCharacterSheetPresetId(state.activePresetId)) {
+    normalized.activePresetId = state.activePresetId;
+  }
+  for (const presetId of CHARACTER_SHEET_PRESET_IDS) {
+    const presetAssignments = state.presets?.[presetId];
+    normalized.presets[presetId] = normalizeCharacterSheetPresetAssignments(
+      presetAssignments ?? {}
+    );
   }
   return normalized;
 };
@@ -262,6 +329,94 @@ export const getCharacterSheetAssignments = (metadata: unknown): CharacterSheetA
 };
 
 /**
+ * Parse persisted character-sheet preset state from character metadata.
+ */
+export const getCharacterSheetPresetState = (
+  metadata: unknown
+): CharacterSheetPresetState | null => {
+  const record = toObjectRecord(metadata);
+  const rawPresetState = toObjectRecord(record[CHARACTER_SHEET_PRESETS_KEY]);
+  if (!Object.keys(rawPresetState).length) {
+    return null;
+  }
+  const rawActivePresetId =
+    asText(rawPresetState.active_preset_id) ?? asText(rawPresetState.activePresetId);
+  const rawPresets = toObjectRecord(rawPresetState.presets);
+  const parsedPresets: Partial<
+    Record<CharacterSheetPresetId, CharacterSheetPresetAssignments | null>
+  > = {};
+  for (const [rawPresetId, rawAssignments] of Object.entries(rawPresets)) {
+    if (!isCharacterSheetPresetId(rawPresetId)) continue;
+    const parsedAssignments = normalizeCharacterSheetPresetAssignments(
+      toObjectRecord(rawAssignments) as Partial<
+        Record<CharacterSheetDropZoneKey, CharacterSheetPresetMediaReference | null>
+      >
+    );
+    parsedPresets[rawPresetId] = parsedAssignments;
+  }
+  return normalizeCharacterSheetPresetState({
+    activePresetId:
+      rawActivePresetId && isCharacterSheetPresetId(rawActivePresetId) ? rawActivePresetId : null,
+    presets: parsedPresets,
+  });
+};
+
+/**
+ * Convert preset state to the persisted metadata shape.
+ */
+export const serializeCharacterSheetPresetState = (
+  state: CharacterSheetPresetState
+): Record<string, unknown> => ({
+  active_preset_id: state.activePresetId,
+  presets: Object.fromEntries(
+    CHARACTER_SHEET_PRESET_IDS.map((presetId) => [
+      presetId,
+      Object.fromEntries(
+        CHARACTER_SHEET_DROP_ZONES.map((zone) => {
+          const reference = state.presets[presetId][zone.key];
+          if (!reference) {
+            return [zone.key, null];
+          }
+          return [
+            zone.key,
+            {
+              media_file_id: reference.mediaFileId,
+              storage_path: reference.storagePath,
+            },
+          ];
+        })
+      ),
+    ])
+  ),
+});
+
+/**
+ * Collect all character-sheet preset media references from metadata.
+ */
+export const listCharacterSheetPresetMediaReferences = (
+  metadata: unknown
+): Array<{ mediaFileId: string; storagePath: string }> => {
+  const presetState = getCharacterSheetPresetState(metadata);
+  if (!presetState) {
+    return [];
+  }
+  return Array.from(
+    new Map(
+      Object.values(presetState.presets)
+        .flatMap((assignments) => Object.values(assignments))
+        .filter((reference): reference is CharacterSheetPresetMediaReference => Boolean(reference))
+        .map((reference) => [
+          reference.mediaFileId,
+          {
+            mediaFileId: reference.mediaFileId,
+            storagePath: reference.storagePath,
+          },
+        ])
+    ).values()
+  );
+};
+
+/**
  * Build a user-scoped storage path for a slot image.
  */
 export const createStoragePath = ({
@@ -308,6 +463,29 @@ export const createCharacterProfileStoragePath = ({
     path: `${userId}/characters/${characterId}/profile/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`,
     userId,
     label: "Character profile storage path",
+  });
+};
+
+/**
+ * Build a user-scoped storage path for a persisted character-sheet preset asset.
+ */
+export const createCharacterSheetPresetStoragePath = ({
+  userId,
+  characterId,
+  filename,
+  mimeType,
+}: {
+  userId: string;
+  characterId: string;
+  filename: string;
+  mimeType: string;
+}) => {
+  const extension = inferFileExtension(filename, mimeType);
+  const stem = sanitizeFileStem(filename);
+  return assertUserScopedMediaStoragePath({
+    path: `${userId}/characters/${characterId}/presets/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`,
+    userId,
+    label: "Character preset storage path",
   });
 };
 
@@ -432,6 +610,25 @@ export const cleanupOrphanedMedia = async ({
     throw new Error(asErrorMessage(refCheckError, "Failed to validate image references."));
   }
   if ((count ?? 0) > 0) {
+    return;
+  }
+
+  const { data: characterRows, error: characterRowsError } = await supabase
+    .from("characters")
+    .select("metadata")
+    .eq("user_id", userId)
+    .neq("status", "archived");
+  if (characterRowsError) {
+    throw new Error(
+      asErrorMessage(characterRowsError, "Failed to validate character preset references.")
+    );
+  }
+  const presetReferenced = (characterRows ?? []).some((row) =>
+    listCharacterSheetPresetMediaReferences((row as { metadata: unknown }).metadata).some(
+      (reference) => reference.mediaFileId === mediaFileId
+    )
+  );
+  if (presetReferenced) {
     return;
   }
 

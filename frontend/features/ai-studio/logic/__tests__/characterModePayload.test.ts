@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type {
   CharacterSheetAssignments,
+  CharacterSheetPresetAssignments,
   CharacterSlotFile,
   CharacterSlotFileMap,
 } from "../../../character-manager/types";
 import {
   composeCharacterModePrompt,
   mergeCharacterAndUserReferences,
+  resolveCharacterSheetPresetReferenceStoragePaths,
+  resolveCharacterSheetPresetReferenceUrls,
   resolveCharacterSheetReferenceStoragePaths,
   resolveCharacterSheetReferenceUrls,
 } from "../characterModePayload";
@@ -85,6 +88,36 @@ describe("characterModePayload", () => {
       "user/characters/portrait.png",
       "user/characters/front.png",
       "user/characters/back.png",
+    ]);
+  });
+
+  it("resolves preset references in canonical zone order and deduplicates", () => {
+    const presetAssignments: CharacterSheetPresetAssignments = {
+      portrait: {
+        mediaFileId: "media-portrait",
+        storagePath: "user/characters/presets/portrait.png",
+        previewUrl: "https://cdn.test/portrait.png",
+      },
+      close_up: {
+        mediaFileId: "media-portrait",
+        storagePath: "user/characters/presets/portrait.png",
+        previewUrl: "https://cdn.test/portrait.png",
+      },
+      front_shot: {
+        mediaFileId: "media-front",
+        storagePath: "user/characters/presets/front.png",
+        previewUrl: "https://cdn.test/front.png",
+      },
+      back_shot: null,
+    };
+
+    expect(resolveCharacterSheetPresetReferenceUrls(presetAssignments)).toEqual([
+      "https://cdn.test/portrait.png",
+      "https://cdn.test/front.png",
+    ]);
+    expect(resolveCharacterSheetPresetReferenceStoragePaths(presetAssignments)).toEqual([
+      "user/characters/presets/portrait.png",
+      "user/characters/presets/front.png",
     ]);
   });
 

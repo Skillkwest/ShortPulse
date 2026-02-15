@@ -8,6 +8,8 @@ import {
   loadCharacterManagerDraftByCharacterId,
 } from "../../character-manager/logic/characterManagerPersistence";
 import {
+  resolveCharacterSheetPresetReferenceStoragePaths,
+  resolveCharacterSheetPresetReferenceUrls,
   resolveCharacterSheetReferenceStoragePaths,
   resolveCharacterSheetReferenceUrls,
 } from "../logic/characterModePayload";
@@ -102,17 +104,28 @@ export const useAiStudioCharacterModeLifecycle = ({
     void loadCharacterManagerDraftByCharacterId(selectedCharacterId)
       .then((snapshot) => {
         if (!active) return;
+        const presetReferenceStoragePaths = resolveCharacterSheetPresetReferenceStoragePaths(
+          snapshot.characterSheetPresetAssignments
+        );
+        const presetReferenceUrls = resolveCharacterSheetPresetReferenceUrls(
+          snapshot.characterSheetPresetAssignments
+        );
+        const fallbackStoragePaths = resolveCharacterSheetReferenceStoragePaths(
+          snapshot.characterSheetAssignments,
+          snapshot.slots
+        );
+        const fallbackUrls = resolveCharacterSheetReferenceUrls(
+          snapshot.characterSheetAssignments,
+          snapshot.slots
+        );
         setCharacterModeInjectionBundle({
           characterId: snapshot.characterId,
           characterDescription: snapshot.characterDescription,
-          sheetReferenceStoragePaths: resolveCharacterSheetReferenceStoragePaths(
-            snapshot.characterSheetAssignments,
-            snapshot.slots
-          ),
-          sheetReferenceUrls: resolveCharacterSheetReferenceUrls(
-            snapshot.characterSheetAssignments,
-            snapshot.slots
-          ),
+          sheetReferenceStoragePaths:
+            presetReferenceStoragePaths.length > 0
+              ? presetReferenceStoragePaths
+              : fallbackStoragePaths,
+          sheetReferenceUrls: presetReferenceUrls.length > 0 ? presetReferenceUrls : fallbackUrls,
           loadedAtMs: Date.now(),
         });
       })

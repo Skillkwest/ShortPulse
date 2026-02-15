@@ -1,12 +1,22 @@
 /**
  * Character Manager interaction tests.
- * Verifies Character Sheet drag/drop behavior and 8-reference intake constraints.
+ * Verifies Character Sheet drag/drop behavior and 10-reference intake constraints.
  */
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CharacterManagerShell } from "../CharacterManagerShell";
-import { createEmptyCharacterSheetAssignments } from "../../constants";
+import {
+  createDefaultCharacterSheetPresetState,
+  createEmptyCharacterSheetAssignments,
+  createEmptyCharacterSheetPresetAssignments,
+} from "../../constants";
+import type {
+  CharacterSheetDropZoneKey,
+  CharacterSheetPresetAssignments,
+  CharacterSheetPresetId,
+  CharacterSheetPresetMap,
+} from "../../types";
 
 type MockCharacterReferenceSlotKey =
   | "front_full"
@@ -93,6 +103,9 @@ const createInitialSlots = (): MockCharacterSlotFileMap => ({
   front_full: createMockSlotFile("front_full", "https://example.com/front-full-initial.png"),
   side_profile: createMockSlotFile("side_profile", "https://example.com/side-profile-initial.png"),
 });
+
+const createInitialPresetMap = (): CharacterSheetPresetMap =>
+  createDefaultCharacterSheetPresetState().presets;
 
 const createDataTransfer = (files: File[] = []) => {
   const dataStore = new Map<string, string>();
@@ -188,7 +201,26 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
       const [characterSheetAssignments, setCharacterSheetAssignments] = React.useState(() =>
         createEmptyCharacterSheetAssignments()
       );
+      const [activeCharacterSheetPresetId, setActiveCharacterSheetPresetId] =
+        React.useState<CharacterSheetPresetId>("1");
+      const [characterSheetPresets, setCharacterSheetPresets] =
+        React.useState<CharacterSheetPresetMap>(() => createInitialPresetMap());
+      const [characterSheetPresetAssignments, setCharacterSheetPresetAssignments] =
+        React.useState<CharacterSheetPresetAssignments>(() =>
+          createEmptyCharacterSheetPresetAssignments()
+        );
       const uploadCounterRef = React.useRef(0);
+      const presetUploadCounterRef = React.useRef(0);
+      const activePresetRef = React.useRef<CharacterSheetPresetId>("1");
+      const presetMapRef = React.useRef<CharacterSheetPresetMap>(createInitialPresetMap());
+
+      React.useEffect(() => {
+        activePresetRef.current = activeCharacterSheetPresetId;
+      }, [activeCharacterSheetPresetId]);
+
+      React.useEffect(() => {
+        presetMapRef.current = characterSheetPresets;
+      }, [characterSheetPresets]);
 
       return {
         characters: [],
@@ -196,6 +228,9 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         characterName: "Taylor",
         characterDescription: "",
         characterSheetAssignments,
+        activeCharacterSheetPresetId,
+        characterSheetPresets,
+        characterSheetPresetAssignments,
         profileImageUrl: null,
         profileImageTransform: {
           zoom: 1,
@@ -221,6 +256,43 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
           setCharacterSheetAssignments(assignments);
           return true;
         },
+        setActiveCharacterSheetPreset: async (presetId: CharacterSheetPresetId) => {
+          setActiveCharacterSheetPresetId(presetId);
+          setCharacterSheetPresetAssignments(
+            presetMapRef.current[presetId] ?? createEmptyCharacterSheetPresetAssignments()
+          );
+          return true;
+        },
+        saveCharacterSheetPresetAssignments: async (
+          assignments: CharacterSheetPresetAssignments
+        ) => {
+          const activePreset = activePresetRef.current;
+          setCharacterSheetPresets((previous) => ({
+            ...previous,
+            [activePreset]: assignments,
+          }));
+          setCharacterSheetPresetAssignments(assignments);
+          return true;
+        },
+        setCharacterSheetPresetFile: async (zoneKey: CharacterSheetDropZoneKey) => {
+          presetUploadCounterRef.current += 1;
+          const uploadIndex = presetUploadCounterRef.current;
+          const activePreset = activePresetRef.current;
+          const nextAssignments = {
+            ...(presetMapRef.current[activePreset] ?? createEmptyCharacterSheetPresetAssignments()),
+            [zoneKey]: {
+              mediaFileId: `preset-media-${activePreset}-${zoneKey}-${uploadIndex}`,
+              storagePath: `user/chars/presets/${activePreset}/${zoneKey}-${uploadIndex}.png`,
+              previewUrl: `https://example.com/preset-${activePreset}-${zoneKey}-${uploadIndex}.png`,
+            },
+          };
+          setCharacterSheetPresets((previous) => ({
+            ...previous,
+            [activePreset]: nextAssignments,
+          }));
+          setCharacterSheetPresetAssignments(nextAssignments);
+          return true;
+        },
         setSlotFile: async (slotKey: MockCharacterReferenceSlotKey) => {
           uploadCounterRef.current += 1;
           setSlots((previous) => ({
@@ -230,12 +302,14 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
               `https://example.com/${slotKey}-upload-${uploadCounterRef.current}.png`
             ),
           }));
+          return true;
         },
         clearSlot: async (slotKey: MockCharacterReferenceSlotKey) => {
           setSlots((previous) => ({
             ...previous,
             [slotKey]: null,
           }));
+          return undefined;
         },
         createCharacter: async () => undefined,
         selectCharacter: async () => undefined,
@@ -313,7 +387,56 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
-  it("does not auto-restore a cleared assignment when the same slot key is re-uploaded", async () => {
+  it("renders preset tabs 1 through 4", () => {
+    render(<CharacterManagerShell />);
+
+    expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "2" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "3" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "4" })).toBeInTheDocument();
+  });
+
+  it("isolates character sheet assignments per active preset tab", async () => {
+    render(<CharacterManagerShell />);
+
+    const portraitZone = getCharacterSheetZone("Portrait");
+    const firstReferenceCard = getReferenceCard(1);
+    const secondReferenceCard = getReferenceCard(2);
+
+    const presetOneDrag = createDataTransfer();
+    fireEvent.dragStart(firstReferenceCard, { dataTransfer: presetOneDrag });
+    fireEvent.dragOver(portraitZone, { dataTransfer: presetOneDrag });
+    fireEvent.drop(portraitZone, { dataTransfer: presetOneDrag });
+    fireEvent.dragEnd(firstReferenceCard, { dataTransfer: presetOneDrag });
+
+    await waitFor(() => {
+      expect(getZoneImageSrc("Portrait")).toBe("https://example.com/front-full-initial.png");
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "2" }));
+
+    await waitFor(() => {
+      expect(getZoneImageSrc("Portrait")).toBeNull();
+    });
+
+    const presetTwoDrag = createDataTransfer();
+    fireEvent.dragStart(secondReferenceCard, { dataTransfer: presetTwoDrag });
+    fireEvent.dragOver(portraitZone, { dataTransfer: presetTwoDrag });
+    fireEvent.drop(portraitZone, { dataTransfer: presetTwoDrag });
+    fireEvent.dragEnd(secondReferenceCard, { dataTransfer: presetTwoDrag });
+
+    await waitFor(() => {
+      expect(getZoneImageSrc("Portrait")).toBe("https://example.com/side-profile-initial.png");
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "1" }));
+
+    await waitFor(() => {
+      expect(getZoneImageSrc("Portrait")).toBe("https://example.com/front-full-initial.png");
+    });
+  });
+
+  it("keeps preset assignments after removing the original quickswap reference", async () => {
     render(<CharacterManagerShell />);
 
     const portraitZone = getCharacterSheetZone("Portrait");
@@ -331,38 +454,108 @@ describe("CharacterManagerShell behavior", () => {
 
     clickRemoveReference(1);
     await waitFor(() => {
-      expect(getZoneImageSrc("Portrait")).toBeNull();
+      expect(getZoneImageSrc("Portrait")).toBe("https://example.com/front-full-initial.png");
     });
 
     const file = new File(["front-full"], "front-full.png", { type: "image/png" });
-    const dropReferencesButton = screen.getByRole("button", {
-      name: /Drop reference images here/i,
+    const referenceUploadGrid = screen.getByRole("list", {
+      name: /Uploaded references/i,
     });
-    fireEvent.drop(dropReferencesButton, {
+    fireEvent.drop(referenceUploadGrid, {
       dataTransfer: createDataTransfer([file]),
     });
 
     await waitFor(() => {
-      expect(getZoneImageSrc("Portrait")).toBeNull();
+      expect(getZoneImageSrc("Portrait")).toBe("https://example.com/front-full-initial.png");
     });
   });
 
-  it("limits persisted uploaded references to eight cards", async () => {
+  it("limits persisted uploaded references to ten cards", async () => {
     render(<CharacterManagerShell />);
 
-    const dropReferencesButton = screen.getByRole("button", {
-      name: /Drop reference images here/i,
+    const referenceUploadGrid = screen.getByRole("list", {
+      name: /Uploaded references/i,
     });
     const files = Array.from(
       { length: 10 },
       (_, index) => new File([`file-${index + 1}`], `file-${index + 1}.png`, { type: "image/png" })
     );
-    fireEvent.drop(dropReferencesButton, {
+    fireEvent.drop(referenceUploadGrid, {
       dataTransfer: createDataTransfer(files),
     });
 
     await waitFor(() => {
-      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(8);
+      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(10);
+    });
+  });
+
+  it("uploads into the clicked empty reference slot from file picker", async () => {
+    render(<CharacterManagerShell />);
+
+    const topDownSlotButtonName = /Upload Top-Down View reference image/i;
+    const backFullSlotButtonName = /Upload Back Full Body reference image/i;
+    const topDownSlotButton = screen.getByRole("button", {
+      name: topDownSlotButtonName,
+    });
+    fireEvent.click(topDownSlotButton);
+
+    const simpleUploadInput = document.querySelector(
+      'input[type="file"][accept="image/*"][multiple]'
+    ) as HTMLInputElement | null;
+    if (!simpleUploadInput) {
+      throw new Error("Unable to locate simple reference upload input.");
+    }
+
+    const uploadFile = new File(["top-down"], "top-down.png", { type: "image/png" });
+    fireEvent.change(simpleUploadInput, { target: { files: [uploadFile] } });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", {
+          name: topDownSlotButtonName,
+        })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", {
+          name: backFullSlotButtonName,
+        })
+      ).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+    });
+  });
+
+  it("uploads a preset-zone file without consuming quickswap deck capacity", async () => {
+    render(<CharacterManagerShell />);
+
+    const referenceUploadGrid = screen.getByRole("list", {
+      name: /Uploaded references/i,
+    });
+    const files = Array.from(
+      { length: 8 },
+      (_, index) => new File([`file-${index + 1}`], `file-${index + 1}.png`, { type: "image/png" })
+    );
+    fireEvent.drop(referenceUploadGrid, {
+      dataTransfer: createDataTransfer(files),
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(10);
+    });
+
+    fireEvent.click(getCharacterSheetZone("Full-body Back Shot"));
+
+    const characterSheetUploadInput = screen.getByTestId(
+      "character-sheet-upload-input"
+    ) as HTMLInputElement;
+    fireEvent.change(characterSheetUploadInput, {
+      target: { files: [new File(["preset"], "preset.png", { type: "image/png" })] },
+    });
+
+    await waitFor(() => {
+      expect(getZoneImageSrc("Full-body Back Shot")).toBe(
+        "https://example.com/preset-1-back_shot-1.png"
+      );
+      expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(10);
     });
   });
 
@@ -400,7 +593,7 @@ describe("CharacterManagerShell behavior", () => {
       screen.getByText("Set the photo, name, and description that define this character.")
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Upload clear reference shots to build this character's source set.")
+      screen.getByText("Drag and drop reference images here or click an empty slot to upload.")
     ).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -409,7 +602,7 @@ describe("CharacterManagerShell behavior", () => {
     ).toBeInTheDocument();
     expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
     expect(document.querySelector(".character-mode-guidance")).toHaveTextContent(
-      /Swap out your character's style on the fly by dragging and dropping references from the reference panel\./i
+      /Swap out your character's style on the fly by dragging and dropping references from the QuickSwap Deck\./i
     );
     expect(
       screen.getByText(
@@ -425,7 +618,7 @@ describe("CharacterManagerShell behavior", () => {
         screen.queryByText("Set the photo, name, and description that define this character.")
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByText("Upload clear reference shots to build this character's source set.")
+        screen.queryByText("Drag and drop reference images here or click an empty slot to upload.")
       ).not.toBeInTheDocument();
       expect(
         screen.queryByText(
@@ -448,7 +641,7 @@ describe("CharacterManagerShell behavior", () => {
         screen.getByText("Set the photo, name, and description that define this character.")
       ).toBeInTheDocument();
       expect(
-        screen.getByText("Upload clear reference shots to build this character's source set.")
+        screen.getByText("Drag and drop reference images here or click an empty slot to upload.")
       ).toBeInTheDocument();
       expect(
         screen.getByText(
@@ -457,7 +650,7 @@ describe("CharacterManagerShell behavior", () => {
       ).toBeInTheDocument();
       expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
       expect(document.querySelector(".character-mode-guidance")).toHaveTextContent(
-        /Swap out your character's style on the fly by dragging and dropping references from the reference panel\./i
+        /Swap out your character's style on the fly by dragging and dropping references from the QuickSwap Deck\./i
       );
       expect(
         screen.getByText(

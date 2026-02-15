@@ -330,6 +330,32 @@ const createCharacterSnapshot = (
       front_shot: null,
       back_shot: null,
     },
+    activeCharacterSheetPresetId: "1",
+    characterSheetPresets: {
+      "1": {
+        portrait: {
+          mediaFileId: "media-portrait",
+          storagePath,
+          previewUrl: url,
+        },
+        close_up: null,
+        front_shot: null,
+        back_shot: null,
+      },
+      "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+      "3": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+      "4": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+    },
+    characterSheetPresetAssignments: {
+      portrait: {
+        mediaFileId: "media-portrait",
+        storagePath,
+        previewUrl: url,
+      },
+      close_up: null,
+      front_shot: null,
+      back_shot: null,
+    },
     profileImageUrl: null,
     profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
     slots: {
@@ -460,7 +486,7 @@ describe("ai-studio page character mode submission", () => {
 
   it("falls back safely when signed URL refresh returns no references at submit time", async () => {
     getSignedMediaUrlsBatchMock.mockImplementation(async () => new Map());
-    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValueOnce(
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
       createCharacterSnapshot(
         "Character description from manager",
         "https://cdn.test/original.png",

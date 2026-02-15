@@ -5,6 +5,10 @@
 import type {
   CharacterSheetAssignments,
   CharacterSheetDropZoneKey,
+  CharacterSheetPresetAssignments,
+  CharacterSheetPresetId,
+  CharacterSheetPresetMap,
+  CharacterSheetPresetState,
   CharacterReferenceSlotDefinition,
   CharacterReferenceSlotKey,
   CharacterSlotFileMap,
@@ -100,8 +104,33 @@ export const CHARACTER_SHEET_DROP_ZONES = [
   { key: "back_shot", label: "Full-body Back Shot" },
 ] as const satisfies ReadonlyArray<{ key: CharacterSheetDropZoneKey; label: string }>;
 
+export const CHARACTER_SHEET_PRESET_IDS = [
+  "1",
+  "2",
+  "3",
+  "4",
+] as const satisfies ReadonlyArray<CharacterSheetPresetId>;
+export const DEFAULT_CHARACTER_SHEET_PRESET_ID: CharacterSheetPresetId = "1";
+
 export const createEmptyCharacterSheetAssignments = (): CharacterSheetAssignments =>
   CHARACTER_SHEET_DROP_ZONES.reduce((acc, slot) => {
     acc[slot.key] = null;
     return acc;
   }, {} as CharacterSheetAssignments);
+
+export const createEmptyCharacterSheetPresetAssignments = (): CharacterSheetPresetAssignments =>
+  CHARACTER_SHEET_DROP_ZONES.reduce((acc, slot) => {
+    acc[slot.key] = null;
+    return acc;
+  }, {} as CharacterSheetPresetAssignments);
+
+export const createEmptyCharacterSheetPresetMap = (): CharacterSheetPresetMap =>
+  CHARACTER_SHEET_PRESET_IDS.reduce((acc, presetId) => {
+    acc[presetId] = createEmptyCharacterSheetPresetAssignments();
+    return acc;
+  }, {} as CharacterSheetPresetMap);
+
+export const createDefaultCharacterSheetPresetState = (): CharacterSheetPresetState => ({
+  activePresetId: DEFAULT_CHARACTER_SHEET_PRESET_ID,
+  presets: createEmptyCharacterSheetPresetMap(),
+});

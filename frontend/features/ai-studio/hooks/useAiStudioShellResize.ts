@@ -26,6 +26,7 @@ import {
 
 type UseAiStudioShellResizeArgs = {
   enabled: boolean;
+  minLeftWidthPx?: number;
 };
 
 type DragSession = {
@@ -44,7 +45,7 @@ const AI_SHELL_RESIZE_BODY_CLASS = "ai-shell-resizing";
  * Inputs: feature-enable flag (only active when the properties panel exists).
  * Output: refs, style/class hooks, and divider interaction props.
  */
-export const useAiStudioShellResize = ({ enabled }: UseAiStudioShellResizeArgs) => {
+export const useAiStudioShellResize = ({ enabled, minLeftWidthPx }: UseAiStudioShellResizeArgs) => {
   const shellRef = useRef<HTMLElement | null>(null);
   const leftColumnRef = useRef<HTMLElement | null>(null);
   const dragSessionRef = useRef<DragSession | null>(null);
@@ -100,10 +101,10 @@ export const useAiStudioShellResize = ({ enabled }: UseAiStudioShellResizeArgs) 
     setLeftWidthPx((prev) => {
       const candidate =
         prev ?? storedWidthRef.current ?? getDefaultAiShellLeftWidth(containerWidth);
-      const next = clampAiShellLeftWidth(candidate, containerWidth);
+      const next = clampAiShellLeftWidth(candidate, containerWidth, { minLeftWidthPx });
       return prev === next ? prev : next;
     });
-  }, [resolveContainerWidth]);
+  }, [minLeftWidthPx, resolveContainerWidth]);
 
   useEffect(() => {
     if (!enabled || !isResizableViewport) return stopResizing;
@@ -145,16 +146,20 @@ export const useAiStudioShellResize = ({ enabled }: UseAiStudioShellResizeArgs) 
     window.localStorage.setItem(AI_SHELL_LEFT_WIDTH_STORAGE_KEY, String(leftWidthPx));
   }, [leftWidthPx]);
 
-  const handleWindowPointerMove = useCallback((event: PointerEvent) => {
-    const session = dragSessionRef.current;
-    if (!session || session.pointerId !== event.pointerId) return;
-    const deltaX = event.clientX - session.startClientX;
-    const nextWidth = clampAiShellLeftWidth(
-      session.startLeftWidth + deltaX,
-      session.containerWidth
-    );
-    setLeftWidthPx((prev) => (prev === nextWidth ? prev : nextWidth));
-  }, []);
+  const handleWindowPointerMove = useCallback(
+    (event: PointerEvent) => {
+      const session = dragSessionRef.current;
+      if (!session || session.pointerId !== event.pointerId) return;
+      const deltaX = event.clientX - session.startClientX;
+      const nextWidth = clampAiShellLeftWidth(
+        session.startLeftWidth + deltaX,
+        session.containerWidth,
+        { minLeftWidthPx }
+      );
+      setLeftWidthPx((prev) => (prev === nextWidth ? prev : nextWidth));
+    },
+    [minLeftWidthPx]
+  );
 
   const beginPointerResize = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -167,7 +172,10 @@ export const useAiStudioShellResize = ({ enabled }: UseAiStudioShellResizeArgs) 
         leftWidthPx ??
         getDefaultAiShellLeftWidth(containerWidth);
       const clampedStartWidth = clampAiShellLeftWidth(activeLeftWidth, containerWidth);
-      setLeftWidthPx((prev) => (prev === clampedStartWidth ? prev : clampedStartWidth));
+      const clampedWidthWithMin = clampAiShellLeftWidth(clampedStartWidth, containerWidth, {
+        minLeftWidthPx,
+      });
+      setLeftWidthPx((prev) => (prev === clampedWidthWithMin ? prev : clampedWidthWithMin));
       setContainerWidthPx(Math.round(containerWidth));
       setIsResizing(true);
       if (typeof document !== "undefined") {
@@ -176,7 +184,7 @@ export const useAiStudioShellResize = ({ enabled }: UseAiStudioShellResizeArgs) 
       dragSessionRef.current = {
         pointerId: event.pointerId,
         startClientX: event.clientX,
-        startLeftWidth: clampedStartWidth,
+        startLeftWidth: clampedWidthWithMin,
         containerWidth,
       };
 
@@ -202,6 +210,7 @@ export const useAiStudioShellResize = ({ enabled }: UseAiStudioShellResizeArgs) 
       handleWindowPointerMove,
       isResizableViewport,
       leftWidthPx,
+      minLeftWidthPx,
       resolveContainerWidth,
       stopResizing,
     ]
@@ -213,11 +222,11 @@ export const useAiStudioShellResize = ({ enabled }: UseAiStudioShellResizeArgs) 
       const containerWidth = resolveContainerWidth();
       if (!containerWidth) return;
       const step = event.shiftKey ? AI_SHELL_RESIZE_FAST_STEP_PX : AI_SHELL_RESIZE_STEP_PX;
-      const bounds = getAiShellLeftWidthBounds(containerWidth);
+      const bounds = getAiShellLeftWidthBounds(containerWidth, { minLeftWidthPx });
       const activeLeftWidth =
         leftWidthPx ??
         leftColumnRef.current?.getBoundingClientRect().width ??
-        getDefaultAiShellLeftWidth(containerWidth);
+        getDefaultAiShellLeftWidth(containerWidth, { minLeftWidthPx });
 
       if (event.key === "Home") {
         event.preventDefault();
@@ -235,29 +244,32 @@ export const useAiStudioShellResize = ({ enabled }: UseAiStudioShellResizeArgs) 
 
       event.preventDefault();
       const direction = event.key === "ArrowLeft" ? -1 : 1;
-      const nextWidth = clampAiShellLeftWidth(activeLeftWidth + direction * step, containerWidth);
+      const nextWidth = clampAiShellLeftWidth(activeLeftWidth + direction * step, containerWidth, {
+        minLeftWidthPx,
+      });
       setLeftWidthPx((prev) => (prev === nextWidth ? prev : nextWidth));
       setContainerWidthPx(Math.round(containerWidth));
     },
-    [enabled, isResizableViewport, leftWidthPx, resolveContainerWidth]
+    [enabled, isResizableViewport, leftWidthPx, minLeftWidthPx, resolveContainerWidth]
   );
 
   const handleDividerDoubleClick = useCallback(() => {
     if (!enabled || !isResizableViewport) return;
     const containerWidth = resolveContainerWidth();
     if (!containerWidth) return;
-    const defaultWidth = getDefaultAiShellLeftWidth(containerWidth);
+    const defaultWidth = getDefaultAiShellLeftWidth(containerWidth, { minLeftWidthPx });
     setLeftWidthPx(defaultWidth);
     setContainerWidthPx(Math.round(containerWidth));
-  }, [enabled, isResizableViewport, resolveContainerWidth]);
+  }, [enabled, isResizableViewport, minLeftWidthPx, resolveContainerWidth]);
 
   const hasContainerRoom =
     containerWidthPx >= AI_SHELL_LEFT_MIN_PX + AI_SHELL_RIGHT_MIN_PX + AI_SHELL_DIVIDER_TRACK_PX;
   const showDivider = enabled && isResizableViewport && hasContainerRoom;
-  const bounds = getAiShellLeftWidthBounds(Math.max(containerWidthPx, 1));
+  const bounds = getAiShellLeftWidthBounds(Math.max(containerWidthPx, 1), { minLeftWidthPx });
   const ariaNow = clampAiShellLeftWidth(
     leftWidthPx ?? getDefaultAiShellLeftWidth(Math.max(containerWidthPx, 1)),
-    Math.max(containerWidthPx, 1)
+    Math.max(containerWidthPx, 1),
+    { minLeftWidthPx }
   );
 
   const shellStyle = useMemo<CSSProperties | undefined>(() => {

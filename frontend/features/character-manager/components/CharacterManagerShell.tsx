@@ -14,12 +14,14 @@ import {
   CHARACTER_MANAGER_SLOT_DEFINITIONS,
   CHARACTER_MANAGER_SLOT_LABEL_BY_KEY,
   CHARACTER_SHEET_DROP_ZONES,
+  CHARACTER_SHEET_PRESET_IDS,
 } from "../constants";
 import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
 import type {
   CharacterProfileImageTransform,
   CharacterSheetDropZoneKey,
-  CharacterSheetAssignments,
+  CharacterSheetPresetAssignments,
+  CharacterSheetPresetId,
   CharacterReferenceSlotKey,
 } from "../types";
 
@@ -29,20 +31,22 @@ type CharacterManagerShellProps = {
   surface?: CharacterManagerShellSurface;
   beginnerModeOverride?: boolean;
 };
-const SIMPLE_REFERENCE_IMAGE_LIMIT = 8;
+const SIMPLE_REFERENCE_IMAGE_LIMIT = 10;
 const PROFILE_ZOOM_MIN = 1;
 const PROFILE_ZOOM_MAX = 2.4;
 const PROFILE_OFFSET_MIN = -40;
 const PROFILE_OFFSET_MAX = 40;
 const PROFILE_PREVIEW_IMAGE_SIZE = 172;
+const PROFILE_PREVIEW_IMAGE_EMBEDDED_SIZE = 84;
 const CHARACTER_CHIP_AVATAR_SIZE = 44;
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
+const CHARACTER_DESCRIPTION_HELPER_TEXT =
+  "Tip: Character description will be used as part of character consistency generation.";
 const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const DRAG_GHOST_SCALE = 0.74;
-const CHARACTER_SHEET_FULL_NOTICE = "Click and drag a reference from your drop references.";
 const CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY = "shortpulse.character_manager.beginner_mode";
 
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
@@ -101,7 +105,8 @@ export function CharacterManagerShell({
     selectedCharacterId,
     characterName,
     characterDescription,
-    characterSheetAssignments,
+    activeCharacterSheetPresetId,
+    characterSheetPresetAssignments,
     profileImageUrl,
     profileImageTransform,
     slots,
@@ -112,12 +117,15 @@ export function CharacterManagerShell({
     isDeletingCharacter,
     isSwitchingCharacter,
     isSavingProfileImage,
+    isSavingCharacterSheetPreset,
     setCharacterName,
     setCharacterDescription,
     setProfileImageFile,
     saveProfileImageTransform,
     clearProfileImage,
-    saveCharacterSheetAssignments,
+    setActiveCharacterSheetPreset,
+    saveCharacterSheetPresetAssignments,
+    setCharacterSheetPresetFile,
     setSlotFile,
     clearSlot,
     createCharacter,
@@ -148,7 +156,8 @@ export function CharacterManagerShell({
   } | null>(null);
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
-  const [characterSheetUploadNotice, setCharacterSheetUploadNotice] = useState<string | null>(null);
+  const [pendingReferenceUploadSlotKey, setPendingReferenceUploadSlotKey] =
+    useState<CharacterReferenceSlotKey | null>(null);
   const [beginnerMode, setBeginnerMode] = useState(resolveInitialBeginnerMode);
   const [user, setUser] = useState<User | null>(null);
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
@@ -159,12 +168,14 @@ export function CharacterManagerShell({
   const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
   const characterSheetFileInputRef = useRef<HTMLInputElement | null>(null);
   const dragGhostMapRef = useRef(new Map<HTMLElement, HTMLElement>());
+  const fileDragDepthRef = useRef(0);
   const pageBusy =
     loading ||
     isSwitchingCharacter ||
     isCreatingCharacter ||
     isDeletingCharacter ||
-    isSavingProfileImage;
+    isSavingProfileImage ||
+    isSavingCharacterSheetPreset;
   const profileInitials = useMemo(() => {
     const words = characterName.trim().split(/\s+/).filter(Boolean).slice(0, 2);
     if (!words.length) return "NC";
@@ -231,12 +242,6 @@ export function CharacterManagerShell({
         ),
     [simpleReferenceSlotKeys, slots]
   );
-  const totalReferenceSlotCount = simpleReferenceSlotKeys.length;
-  const usedReferenceSlotCount = uploadedReferenceEntries.length;
-  const remainingReferenceSlotCount = Math.max(
-    0,
-    SIMPLE_REFERENCE_IMAGE_LIMIT - uploadedReferenceEntries.length
-  );
   const referencePreviewEntry =
     referencePreview && uploadedReferenceEntries[referencePreview.index]
       ? uploadedReferenceEntries[referencePreview.index]
@@ -245,25 +250,16 @@ export function CharacterManagerShell({
     () => new Map(uploadedReferenceEntries.map((entry) => [entry.slotKey, entry])),
     [uploadedReferenceEntries]
   );
-  const characterSheetAssignmentsUi = characterSheetAssignments;
   const isEmbeddedSurface = surface === "panel";
   const RootContainer: "div" | "main" = isEmbeddedSurface ? "div" : "main";
+  const profileImageRenderSize = isEmbeddedSurface
+    ? PROFILE_PREVIEW_IMAGE_EMBEDDED_SIZE
+    : PROFILE_PREVIEW_IMAGE_SIZE;
   const isBeginnerModeControlled = typeof beginnerModeOverride === "boolean";
   const effectiveBeginnerMode = isBeginnerModeControlled ? beginnerModeOverride : beginnerMode;
   const rootClassName = isEmbeddedSurface
     ? "character-manager-page character-manager-page--embedded"
     : "page page-wide character-manager-page";
-
-  const effectiveCharacterSheetAssignments = useMemo(() => {
-    const next = { ...characterSheetAssignmentsUi };
-    for (const dropZone of CHARACTER_SHEET_DROP_ZONES) {
-      const assignedSlotKey = next[dropZone.key];
-      if (assignedSlotKey && !uploadedReferenceBySlotKey.has(assignedSlotKey)) {
-        next[dropZone.key] = null;
-      }
-    }
-    return next;
-  }, [characterSheetAssignmentsUi, uploadedReferenceBySlotKey]);
 
   useEffect(() => {
     if (isBeginnerModeControlled) return;
@@ -372,15 +368,38 @@ export function CharacterManagerShell({
     []
   );
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const clearDropActiveState = () => {
+      fileDragDepthRef.current = 0;
+      setIsDropActive(false);
+    };
+    window.addEventListener("drop", clearDropActiveState);
+    window.addEventListener("dragend", clearDropActiveState);
+    return () => {
+      window.removeEventListener("drop", clearDropActiveState);
+      window.removeEventListener("dragend", clearDropActiveState);
+    };
+  }, []);
+
   const uploadSimpleFiles = useCallback(
-    async (incomingFiles: FileList | File[]) => {
+    async (
+      incomingFiles: FileList | File[],
+      preferredSlotKey: CharacterReferenceSlotKey | null = null
+    ) => {
       const files = Array.from(incomingFiles);
       if (!files.length || pageBusy || !availableReferenceSlotKeys.length) return;
 
       clearMessages();
-      const assignableFiles = files.slice(0, availableReferenceSlotKeys.length);
+      const targetSlotKeys = [...availableReferenceSlotKeys];
+      if (preferredSlotKey && targetSlotKeys.includes(preferredSlotKey)) {
+        targetSlotKeys.splice(targetSlotKeys.indexOf(preferredSlotKey), 1);
+        targetSlotKeys.unshift(preferredSlotKey);
+      }
+
+      const assignableFiles = files.slice(0, targetSlotKeys.length);
       for (let index = 0; index < assignableFiles.length; index += 1) {
-        const slotKey = availableReferenceSlotKeys[index];
+        const slotKey = targetSlotKeys[index];
         const file = assignableFiles[index];
         if (!slotKey || !file) continue;
         // Keep mapping deterministic: first dropped files fill first open reference slots.
@@ -390,35 +409,36 @@ export function CharacterManagerShell({
     [availableReferenceSlotKeys, clearMessages, pageBusy, setSlotFile]
   );
 
-  const openSimplePicker = useCallback(() => {
-    if (pageBusy) return;
-    clearMessages();
-    simpleFileInputRef.current?.click();
-  }, [clearMessages, pageBusy]);
+  const isFileDragEvent = useCallback((event: React.DragEvent<HTMLElement>) => {
+    const transfer = event.dataTransfer;
+    if (!transfer) return false;
+    if (Array.from(transfer.types ?? []).includes("Files")) return true;
+    if (transfer.items?.length) {
+      return Array.from(transfer.items).some((item) => item.kind === "file");
+    }
+    return Boolean(transfer.files?.length);
+  }, []);
 
   const handleSimpleFileSelection = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files ? Array.from(event.target.files) : [];
       event.target.value = "";
+      const targetSlotKey = pendingReferenceUploadSlotKey;
+      setPendingReferenceUploadSlotKey(null);
       if (!files.length) return;
-      void uploadSimpleFiles(files);
+      void uploadSimpleFiles(files, targetSlotKey);
     },
-    [uploadSimpleFiles]
+    [pendingReferenceUploadSlotKey, uploadSimpleFiles]
   );
 
   const openCharacterSheetPicker = useCallback(
     (dropZoneKey: CharacterSheetDropZoneKey) => {
       if (pageBusy) return;
       clearMessages();
-      if (!availableReferenceSlotKeys.length) {
-        setCharacterSheetUploadNotice(CHARACTER_SHEET_FULL_NOTICE);
-        return;
-      }
-      setCharacterSheetUploadNotice(null);
       setPendingCharacterSheetUploadZoneKey(dropZoneKey);
       characterSheetFileInputRef.current?.click();
     },
-    [availableReferenceSlotKeys.length, clearMessages, pageBusy]
+    [clearMessages, pageBusy]
   );
 
   const openProfilePicker = useCallback(() => {
@@ -431,6 +451,16 @@ export function CharacterManagerShell({
     clearMessages();
     profileFileInputRef.current?.click();
   }, [clearMessages, isProfileAdjusterVisible, pageBusy, profileImageTransform, profileImageUrl]);
+
+  const openSimpleReferenceSlotPicker = useCallback(
+    (slotKey: CharacterReferenceSlotKey) => {
+      if (pageBusy || isSlotBusy(slotKey)) return;
+      clearMessages();
+      setPendingReferenceUploadSlotKey(slotKey);
+      simpleFileInputRef.current?.click();
+    },
+    [clearMessages, isSlotBusy, pageBusy]
+  );
 
   const handleProfileSelection = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -532,12 +562,12 @@ export function CharacterManagerShell({
     dragNode.classList.add("is-dragging");
   }, []);
 
-  const persistCharacterSheetAssignments = useCallback(
-    (nextAssignments: CharacterSheetAssignments) => {
+  const persistCharacterSheetPresetAssignments = useCallback(
+    (nextAssignments: CharacterSheetPresetAssignments) => {
       if (!selectedCharacterId) return;
-      void saveCharacterSheetAssignments(nextAssignments);
+      void saveCharacterSheetPresetAssignments(nextAssignments);
     },
-    [saveCharacterSheetAssignments, selectedCharacterId]
+    [saveCharacterSheetPresetAssignments, selectedCharacterId]
   );
 
   const assignReferenceToCharacterSheetSlot = useCallback(
@@ -546,13 +576,24 @@ export function CharacterManagerShell({
       referenceSlotKey: CharacterReferenceSlotKey
     ) => {
       if (!selectedCharacterId) return;
+      const referenceEntry = uploadedReferenceBySlotKey.get(referenceSlotKey);
+      if (!referenceEntry) return;
       const nextAssignments = {
-        ...effectiveCharacterSheetAssignments,
-        [characterSheetSlotKey]: referenceSlotKey,
+        ...characterSheetPresetAssignments,
+        [characterSheetSlotKey]: {
+          mediaFileId: referenceEntry.slotFile.mediaFileId,
+          storagePath: referenceEntry.slotFile.storagePath,
+          previewUrl: referenceEntry.slotFile.previewUrl,
+        },
       };
-      persistCharacterSheetAssignments(nextAssignments);
+      persistCharacterSheetPresetAssignments(nextAssignments);
     },
-    [effectiveCharacterSheetAssignments, persistCharacterSheetAssignments, selectedCharacterId]
+    [
+      characterSheetPresetAssignments,
+      persistCharacterSheetPresetAssignments,
+      selectedCharacterId,
+      uploadedReferenceBySlotKey,
+    ]
   );
 
   const handleCharacterSheetFileSelection = useCallback(
@@ -563,44 +604,9 @@ export function CharacterManagerShell({
       setPendingCharacterSheetUploadZoneKey(null);
 
       if (!file || !targetDropZone || pageBusy) return;
-      const targetSlotKey = availableReferenceSlotKeys[0];
-      if (!targetSlotKey) {
-        setCharacterSheetUploadNotice(CHARACTER_SHEET_FULL_NOTICE);
-        return;
-      }
-
-      setCharacterSheetUploadNotice(null);
-      void (async () => {
-        const didSave = await setSlotFile(targetSlotKey, file);
-        if (!didSave) return;
-        assignReferenceToCharacterSheetSlot(targetDropZone, targetSlotKey);
-      })();
+      void setCharacterSheetPresetFile(targetDropZone, file);
     },
-    [
-      assignReferenceToCharacterSheetSlot,
-      availableReferenceSlotKeys,
-      pageBusy,
-      pendingCharacterSheetUploadZoneKey,
-      setSlotFile,
-    ]
-  );
-
-  const clearReferenceAssignmentsFromCharacterSheet = useCallback(
-    (referenceSlotKey: CharacterReferenceSlotKey) => {
-      if (!selectedCharacterId) return;
-      let changed = false;
-      const nextAssignments = { ...effectiveCharacterSheetAssignments };
-      for (const dropZone of CHARACTER_SHEET_DROP_ZONES) {
-        if (nextAssignments[dropZone.key] !== referenceSlotKey) {
-          continue;
-        }
-        nextAssignments[dropZone.key] = null;
-        changed = true;
-      }
-      if (!changed) return;
-      persistCharacterSheetAssignments(nextAssignments);
-    },
-    [effectiveCharacterSheetAssignments, persistCharacterSheetAssignments, selectedCharacterId]
+    [pageBusy, pendingCharacterSheetUploadZoneKey, setCharacterSheetPresetFile]
   );
 
   const openReferencePreview = useCallback((index: number, aspectRatio: number | null) => {
@@ -654,20 +660,20 @@ export function CharacterManagerShell({
         event.preventDefault();
         return;
       }
-      const assignedSlotKey = effectiveCharacterSheetAssignments[characterSheetSlotKey];
-      if (!assignedSlotKey) {
+      const assignedReference = characterSheetPresetAssignments[characterSheetSlotKey];
+      if (!assignedReference) {
         event.preventDefault();
         return;
       }
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData(DND_CHARACTER_SHEET_ZONE_KEY, characterSheetSlotKey);
-      event.dataTransfer.setData(DND_REFERENCE_SLOT_KEY, assignedSlotKey);
-      event.dataTransfer.setData("text/plain", assignedSlotKey);
+      event.dataTransfer.setData(DND_REFERENCE_SLOT_KEY, assignedReference.mediaFileId);
+      event.dataTransfer.setData("text/plain", assignedReference.mediaFileId);
       setDraggedCharacterSheetZoneKey(characterSheetSlotKey);
-      setDraggedReferenceSlotKey(assignedSlotKey);
+      setDraggedReferenceSlotKey(null);
       applyDragGhost(event);
     },
-    [applyDragGhost, effectiveCharacterSheetAssignments, pageBusy]
+    [applyDragGhost, characterSheetPresetAssignments, pageBusy]
   );
 
   const handleReferenceDragEnd = useCallback((event: React.DragEvent<HTMLElement>) => {
@@ -696,15 +702,15 @@ export function CharacterManagerShell({
   const clearCharacterSheetAssignment = useCallback(
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => {
       if (!selectedCharacterId) return;
-      const assignedSlotKey = effectiveCharacterSheetAssignments[characterSheetSlotKey];
-      if (!assignedSlotKey) return;
+      const assignedReference = characterSheetPresetAssignments[characterSheetSlotKey];
+      if (!assignedReference) return;
       const nextAssignments = {
-        ...effectiveCharacterSheetAssignments,
+        ...characterSheetPresetAssignments,
         [characterSheetSlotKey]: null,
       };
-      persistCharacterSheetAssignments(nextAssignments);
+      persistCharacterSheetPresetAssignments(nextAssignments);
     },
-    [effectiveCharacterSheetAssignments, persistCharacterSheetAssignments, selectedCharacterId]
+    [characterSheetPresetAssignments, persistCharacterSheetPresetAssignments, selectedCharacterId]
   );
 
   const handleCharacterSheetDrop = useCallback(
@@ -720,16 +726,16 @@ export function CharacterManagerShell({
         sourceCharacterSheetZoneKey &&
         CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === sourceCharacterSheetZoneKey)
       ) {
-        const sourceSlotKey = effectiveCharacterSheetAssignments[sourceCharacterSheetZoneKey];
-        if (!sourceSlotKey) return;
+        const sourceReference = characterSheetPresetAssignments[sourceCharacterSheetZoneKey];
+        if (!sourceReference) return;
         if (sourceCharacterSheetZoneKey === characterSheetSlotKey) return;
-        const targetSlotKey = effectiveCharacterSheetAssignments[characterSheetSlotKey];
+        const targetReference = characterSheetPresetAssignments[characterSheetSlotKey];
         const nextAssignments = {
-          ...effectiveCharacterSheetAssignments,
-          [sourceCharacterSheetZoneKey]: targetSlotKey ?? null,
-          [characterSheetSlotKey]: sourceSlotKey,
+          ...characterSheetPresetAssignments,
+          [sourceCharacterSheetZoneKey]: targetReference ?? null,
+          [characterSheetSlotKey]: sourceReference,
         };
-        persistCharacterSheetAssignments(nextAssignments);
+        persistCharacterSheetPresetAssignments(nextAssignments);
         return;
       }
 
@@ -743,11 +749,11 @@ export function CharacterManagerShell({
     },
     [
       assignReferenceToCharacterSheetSlot,
+      characterSheetPresetAssignments,
       draggedCharacterSheetZoneKey,
       draggedReferenceSlotKey,
-      effectiveCharacterSheetAssignments,
       pageBusy,
-      persistCharacterSheetAssignments,
+      persistCharacterSheetPresetAssignments,
       uploadedReferenceBySlotKey,
     ]
   );
@@ -755,22 +761,12 @@ export function CharacterManagerShell({
   const handleCharacterSheetCardClick = useCallback(
     (dropZoneKey: CharacterSheetDropZoneKey) => () => {
       if (pageBusy) return;
-      const assignedSlotKey = effectiveCharacterSheetAssignments[dropZoneKey];
-      if (assignedSlotKey) return;
+      const assignedReference = characterSheetPresetAssignments[dropZoneKey];
+      if (assignedReference) return;
       openCharacterSheetPicker(dropZoneKey);
     },
-    [effectiveCharacterSheetAssignments, openCharacterSheetPicker, pageBusy]
+    [characterSheetPresetAssignments, openCharacterSheetPicker, pageBusy]
   );
-
-  useEffect(() => {
-    if (!characterSheetUploadNotice) return;
-    const timeoutId = window.setTimeout(() => {
-      setCharacterSheetUploadNotice(null);
-    }, 4200);
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [characterSheetUploadNotice]);
 
   useEffect(() => {
     if (!referencePreview) return;
@@ -896,11 +892,11 @@ export function CharacterManagerShell({
               </button>
             </div>
           ) : null}
-          {activeTab === "create" && effectiveBeginnerMode ? (
+          {activeTab === "create" && effectiveBeginnerMode && !isEmbeddedSurface ? (
             <p className="character-mode-guidance" role="note">
               <span className="character-mode-guidance-label">Tip:</span>
               Swap out your character&apos;s style on the fly by dragging and dropping references
-              from the reference panel.
+              from the QuickSwap Deck.
             </p>
           ) : null}
           {activeTab === "manage" && !isEmbeddedSurface ? (
@@ -934,12 +930,6 @@ export function CharacterManagerShell({
           <span>{error}</span>
         </div>
       ) : null}
-      {characterSheetUploadNotice ? (
-        <div className="character-feedback notice" role="status">
-          <UploadSimple size={16} weight="bold" />
-          <span>{characterSheetUploadNotice}</span>
-        </div>
-      ) : null}
       <p className="sr-only" role="status" aria-live="polite">
         {isSavingName ? "Saving character name..." : ""}
       </p>
@@ -968,182 +958,193 @@ export function CharacterManagerShell({
                 </div>
 
                 <div className="character-profile-card">
-                  <div className="character-profile-photo-stack">
-                    <button
-                      type="button"
-                      className={`character-profile-photo-btn ${profileImageUrl ? "has-image" : ""}`}
-                      onClick={openProfilePicker}
-                      disabled={pageBusy}
-                      aria-label={
-                        profileImageUrl && !isProfileAdjusterVisible
-                          ? "Edit profile photo adjustments"
-                          : "Upload profile photo"
-                      }
-                    >
-                      {profileImageUrl ? (
-                        <>
+                  <div className="character-profile-card-top-row">
+                    <div className="character-profile-photo-stack">
+                      <button
+                        type="button"
+                        className={`character-profile-photo-btn ${profileImageUrl ? "has-image" : ""}`}
+                        onClick={openProfilePicker}
+                        disabled={pageBusy}
+                        aria-label={
+                          profileImageUrl && !isProfileAdjusterVisible
+                            ? "Edit profile photo adjustments"
+                            : "Upload profile photo"
+                        }
+                      >
+                        {profileImageUrl ? (
                           <Image
                             src={profileImageUrl}
                             alt="Character profile"
                             className="character-profile-photo"
                             style={buildProfileImageTransformStyle(
                               activeProfileImageTransform,
-                              PROFILE_PREVIEW_IMAGE_SIZE
+                              profileImageRenderSize
                             )}
-                            width={PROFILE_PREVIEW_IMAGE_SIZE}
-                            height={PROFILE_PREVIEW_IMAGE_SIZE}
+                            width={profileImageRenderSize}
+                            height={profileImageRenderSize}
                             unoptimized
                           />
-                          <span className="character-profile-edit-indicator" aria-hidden="true">
-                            <PencilSimpleLine size={14} weight="bold" />
-                            <span>Edit photo</span>
+                        ) : (
+                          <span className="character-profile-initials" aria-hidden>
+                            {profileInitials}
                           </span>
-                        </>
-                      ) : (
-                        <span className="character-profile-initials" aria-hidden>
-                          {profileInitials}
+                        )}
+                      </button>
+                      {profileImageUrl ? (
+                        <span className="character-profile-edit-indicator" aria-hidden="true">
+                          <PencilSimpleLine size={14} weight="bold" />
+                          <span>Edit photo</span>
                         </span>
-                      )}
-                    </button>
-                    {profileImageUrl && isProfileAdjusterVisible ? (
-                      <div
-                        className="character-profile-adjuster"
-                        role="group"
-                        aria-label="Profile crop controls"
+                      ) : null}
+                      {profileImageUrl && isProfileAdjusterVisible ? (
+                        <div
+                          className="character-profile-adjuster"
+                          role="group"
+                          aria-label="Profile crop controls"
+                        >
+                          <div className="character-profile-adjuster-row">
+                            <label
+                              className="character-profile-adjuster-label"
+                              htmlFor="profile-adjust-zoom"
+                            >
+                              <span>Zoom</span>
+                              <span>{Math.round(activeProfileImageTransform.zoom * 100)}%</span>
+                            </label>
+                            <input
+                              id="profile-adjust-zoom"
+                              className="character-profile-adjuster-range"
+                              type="range"
+                              min={PROFILE_ZOOM_MIN}
+                              max={PROFILE_ZOOM_MAX}
+                              step={0.01}
+                              value={activeProfileImageTransform.zoom}
+                              onChange={(event) => {
+                                const nextZoom = Number(event.target.value);
+                                setProfileAdjustDraft((previous) => ({
+                                  ...(previous ?? profileImageTransform),
+                                  zoom: nextZoom,
+                                }));
+                              }}
+                            />
+                          </div>
+                          <div className="character-profile-adjuster-row">
+                            <label
+                              className="character-profile-adjuster-label"
+                              htmlFor="profile-adjust-x"
+                            >
+                              <span>Horizontal</span>
+                              <span>
+                                {activeProfileImageTransform.offsetX > 0
+                                  ? `+${activeProfileImageTransform.offsetX}`
+                                  : activeProfileImageTransform.offsetX}
+                              </span>
+                            </label>
+                            <input
+                              id="profile-adjust-x"
+                              className="character-profile-adjuster-range"
+                              type="range"
+                              min={PROFILE_OFFSET_MIN}
+                              max={PROFILE_OFFSET_MAX}
+                              step={1}
+                              value={activeProfileImageTransform.offsetX}
+                              onChange={(event) => {
+                                const nextOffsetX = Number(event.target.value);
+                                setProfileAdjustDraft((previous) => ({
+                                  ...(previous ?? profileImageTransform),
+                                  offsetX: nextOffsetX,
+                                }));
+                              }}
+                            />
+                          </div>
+                          <div className="character-profile-adjuster-row">
+                            <label
+                              className="character-profile-adjuster-label"
+                              htmlFor="profile-adjust-y"
+                            >
+                              <span>Vertical</span>
+                              <span>
+                                {activeProfileImageTransform.offsetY > 0
+                                  ? `+${activeProfileImageTransform.offsetY}`
+                                  : activeProfileImageTransform.offsetY}
+                              </span>
+                            </label>
+                            <input
+                              id="profile-adjust-y"
+                              className="character-profile-adjuster-range"
+                              type="range"
+                              min={PROFILE_OFFSET_MIN}
+                              max={PROFILE_OFFSET_MAX}
+                              step={1}
+                              value={activeProfileImageTransform.offsetY}
+                              onChange={(event) => {
+                                const nextOffsetY = Number(event.target.value);
+                                setProfileAdjustDraft((previous) => ({
+                                  ...(previous ?? profileImageTransform),
+                                  offsetY: nextOffsetY,
+                                }));
+                              }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="ghost-btn small character-profile-adjuster-reset"
+                            onClick={() => {
+                              void saveProfileAdjustments();
+                            }}
+                            disabled={pageBusy}
+                          >
+                            {isSavingProfileImage ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            className="ghost-btn small character-profile-adjuster-remove character-remove-btn"
+                            onClick={clearProfilePreview}
+                            disabled={pageBusy}
+                          >
+                            Remove photo
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="character-profile-fields character-profile-fields--label-serif">
+                      <label
+                        className="control-row character-simple-field"
+                        htmlFor="character-manager-name"
                       >
-                        <div className="character-profile-adjuster-row">
-                          <label
-                            className="character-profile-adjuster-label"
-                            htmlFor="profile-adjust-zoom"
-                          >
-                            <span>Zoom</span>
-                            <span>{Math.round(activeProfileImageTransform.zoom * 100)}%</span>
-                          </label>
-                          <input
-                            id="profile-adjust-zoom"
-                            className="character-profile-adjuster-range"
-                            type="range"
-                            min={PROFILE_ZOOM_MIN}
-                            max={PROFILE_ZOOM_MAX}
-                            step={0.01}
-                            value={activeProfileImageTransform.zoom}
-                            onChange={(event) => {
-                              const nextZoom = Number(event.target.value);
-                              setProfileAdjustDraft((previous) => ({
-                                ...(previous ?? profileImageTransform),
-                                zoom: nextZoom,
-                              }));
-                            }}
-                          />
-                        </div>
-                        <div className="character-profile-adjuster-row">
-                          <label
-                            className="character-profile-adjuster-label"
-                            htmlFor="profile-adjust-x"
-                          >
-                            <span>Horizontal</span>
-                            <span>
-                              {activeProfileImageTransform.offsetX > 0
-                                ? `+${activeProfileImageTransform.offsetX}`
-                                : activeProfileImageTransform.offsetX}
-                            </span>
-                          </label>
-                          <input
-                            id="profile-adjust-x"
-                            className="character-profile-adjuster-range"
-                            type="range"
-                            min={PROFILE_OFFSET_MIN}
-                            max={PROFILE_OFFSET_MAX}
-                            step={1}
-                            value={activeProfileImageTransform.offsetX}
-                            onChange={(event) => {
-                              const nextOffsetX = Number(event.target.value);
-                              setProfileAdjustDraft((previous) => ({
-                                ...(previous ?? profileImageTransform),
-                                offsetX: nextOffsetX,
-                              }));
-                            }}
-                          />
-                        </div>
-                        <div className="character-profile-adjuster-row">
-                          <label
-                            className="character-profile-adjuster-label"
-                            htmlFor="profile-adjust-y"
-                          >
-                            <span>Vertical</span>
-                            <span>
-                              {activeProfileImageTransform.offsetY > 0
-                                ? `+${activeProfileImageTransform.offsetY}`
-                                : activeProfileImageTransform.offsetY}
-                            </span>
-                          </label>
-                          <input
-                            id="profile-adjust-y"
-                            className="character-profile-adjuster-range"
-                            type="range"
-                            min={PROFILE_OFFSET_MIN}
-                            max={PROFILE_OFFSET_MAX}
-                            step={1}
-                            value={activeProfileImageTransform.offsetY}
-                            onChange={(event) => {
-                              const nextOffsetY = Number(event.target.value);
-                              setProfileAdjustDraft((previous) => ({
-                                ...(previous ?? profileImageTransform),
-                                offsetY: nextOffsetY,
-                              }));
-                            }}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          className="ghost-btn small character-profile-adjuster-reset"
-                          onClick={() => {
-                            void saveProfileAdjustments();
-                          }}
-                          disabled={pageBusy}
-                        >
-                          {isSavingProfileImage ? "Saving..." : "Save"}
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost-btn small character-profile-adjuster-remove character-remove-btn"
-                          onClick={clearProfilePreview}
-                          disabled={pageBusy}
-                        >
-                          Remove photo
-                        </button>
-                      </div>
-                    ) : null}
+                        <span className="input-label">Name:</span>
+                        <input
+                          ref={characterNameInputRef}
+                          id="character-manager-name"
+                          className="character-name-input"
+                          type="text"
+                          value={characterName}
+                          maxLength={80}
+                          onChange={(event) => setCharacterName(event.target.value)}
+                          placeholder="Enter character name"
+                          disabled={loading}
+                        />
+                      </label>
+                    </div>
                   </div>
 
-                  <div className="character-profile-fields character-profile-fields--label-serif">
-                    <label
-                      className="control-row character-simple-field"
-                      htmlFor="character-manager-name"
-                    >
-                      <span className="input-label">Name:</span>
-                      <input
-                        ref={characterNameInputRef}
-                        id="character-manager-name"
-                        className="character-name-input"
-                        type="text"
-                        value={characterName}
-                        maxLength={80}
-                        onChange={(event) => setCharacterName(event.target.value)}
-                        placeholder="Enter character name"
-                        disabled={loading}
-                      />
-                    </label>
-
+                  <div className="character-profile-description-block character-profile-fields character-profile-fields--label-serif">
                     <label
                       className="control-row character-simple-field"
                       htmlFor="character-manager-description"
                     >
-                      <span className="input-label">Description:</span>
+                      <div className="character-description-label-row">
+                        <span className="input-label">Description:</span>
+                        {effectiveBeginnerMode ? (
+                          <p className="character-description-helper character-description-helper--inline tiny subdued">
+                            {CHARACTER_DESCRIPTION_HELPER_TEXT}
+                          </p>
+                        ) : null}
+                      </div>
                       <textarea
                         id="character-manager-description"
                         className="character-description-input"
-                        rows={3}
+                        rows={isEmbeddedSurface ? 4 : 5}
                         value={characterDescription}
                         maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
                         onChange={(event) => setCharacterDescription(event.target.value)}
@@ -1151,10 +1152,11 @@ export function CharacterManagerShell({
                         disabled={loading}
                       />
                       <div className="character-description-footer-row">
-                        <p className="character-description-helper tiny subdued">
-                          Tip: Character description will be used as part of character consistency
-                          generation.
-                        </p>
+                        {!effectiveBeginnerMode ? (
+                          <p className="character-description-helper tiny subdued">
+                            {CHARACTER_DESCRIPTION_HELPER_TEXT}
+                          </p>
+                        ) : null}
                         <p className="character-description-count tiny subdued">
                           {characterDescription.length}/{CHARACTER_DESCRIPTION_MAX_LENGTH}
                         </p>
@@ -1164,7 +1166,44 @@ export function CharacterManagerShell({
                 </div>
               </section>
 
-              <section className="character-section character-section--reference-drop">
+              <section
+                className="character-section character-section--reference-drop"
+                onDragEnter={(event) => {
+                  if (!isFileDragEvent(event)) return;
+                  event.preventDefault();
+                  if (pageBusy || !availableReferenceSlotKeys.length) return;
+                  fileDragDepthRef.current += 1;
+                  setIsDropActive(true);
+                }}
+                onDragOver={(event) => {
+                  if (!isFileDragEvent(event)) return;
+                  event.preventDefault();
+                  if (pageBusy || !availableReferenceSlotKeys.length) {
+                    event.dataTransfer.dropEffect = "none";
+                    return;
+                  }
+                  event.dataTransfer.dropEffect = "copy";
+                  if (!isDropActive) setIsDropActive(true);
+                }}
+                onDragLeave={(event) => {
+                  if (!isFileDragEvent(event)) return;
+                  if (pageBusy || !availableReferenceSlotKeys.length) return;
+                  fileDragDepthRef.current = Math.max(0, fileDragDepthRef.current - 1);
+                  if (fileDragDepthRef.current === 0) {
+                    setIsDropActive(false);
+                  }
+                }}
+                onDrop={(event) => {
+                  if (!isFileDragEvent(event)) return;
+                  event.preventDefault();
+                  fileDragDepthRef.current = 0;
+                  setIsDropActive(false);
+                  if (pageBusy || !availableReferenceSlotKeys.length) return;
+                  const files = event.dataTransfer?.files;
+                  if (!files?.length) return;
+                  void uploadSimpleFiles(files);
+                }}
+              >
                 <div className="character-section-head">
                   <div className="character-section-title-row">
                     {effectiveBeginnerMode ? (
@@ -1173,54 +1212,31 @@ export function CharacterManagerShell({
                       </span>
                     ) : null}
                     <div className="character-section-title-copy">
-                      <h3 className="character-section-title">Reference Panel</h3>
+                      <h3 className="character-section-title">QuickSwap Deck</h3>
                       {effectiveBeginnerMode ? (
                         <p className="character-section-helper tiny subdued">
-                          Upload clear reference shots to build this character&apos;s source set.
+                          Drag and drop reference images here or click an empty slot to upload.
                         </p>
                       ) : null}
                     </div>
                   </div>
-                  <p
-                    className="character-reference-slot-counter tiny subdued"
-                    aria-label={`Reference slots used: ${usedReferenceSlotCount} of ${totalReferenceSlotCount}`}
-                  >
-                    {usedReferenceSlotCount}/{totalReferenceSlotCount} slots used
-                  </p>
                 </div>
-
-                {availableReferenceSlotKeys.length ? (
-                  <button
-                    type="button"
-                    className={`character-simple-dropzone character-simple-dropzone--compact ${isDropActive ? "is-active" : ""}`}
-                    onClick={openSimplePicker}
-                    disabled={pageBusy}
-                    onDragOver={(event) => {
-                      if (pageBusy) return;
-                      event.preventDefault();
-                      setIsDropActive(true);
-                    }}
-                    onDragLeave={() => setIsDropActive(false)}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      setIsDropActive(false);
-                      if (pageBusy) return;
-                      const files = event.dataTransfer?.files;
-                      if (!files?.length) return;
-                      void uploadSimpleFiles(files);
-                    }}
-                  >
-                    <div className="character-dropzone-content">
-                      <UploadSimple size={32} weight="bold" className="character-dropzone-icon" />
-                      <p className="character-simple-drop-title">Drop reference images here</p>
-                      <p className="tiny subdued">
-                        Or click to browse files. Add multiple images at once for faster setup.
+                {availableReferenceSlotKeys.length && isDropActive ? (
+                  <div className="character-reference-drop-overlay" aria-hidden="true">
+                    <div className="character-reference-drop-overlay-content">
+                      <UploadSimple
+                        size={34}
+                        weight="bold"
+                        className="character-reference-drop-overlay-icon"
+                      />
+                      <p className="character-reference-drop-overlay-title">
+                        Drop reference images here
                       </p>
                       <p className="tiny subdued">
                         {`Up to ${availableReferenceSlotKeys.length} more image(s) can be added (max ${SIMPLE_REFERENCE_IMAGE_LIMIT})`}
                       </p>
                     </div>
-                  </button>
+                  </div>
                 ) : null}
 
                 <div
@@ -1244,7 +1260,6 @@ export function CharacterManagerShell({
                         className="character-list-delete-btn character-reference-delete-btn"
                         aria-label={`Remove reference ${index + 1}`}
                         onClick={() => {
-                          clearReferenceAssignmentsFromCharacterSheet(entry.slotKey);
                           void clearSlot(entry.slotKey);
                         }}
                         disabled={pageBusy || isSlotBusy(entry.slotKey)}
@@ -1269,100 +1284,147 @@ export function CharacterManagerShell({
                       </div>
                     </article>
                   ))}
-                  {Array.from({ length: remainingReferenceSlotCount }).map((_, index) => (
-                    <span
-                      key={`reference-upload-placeholder-${index}`}
+                  {availableReferenceSlotKeys.map((slotKey, index) => (
+                    <button
+                      key={`reference-upload-placeholder-${slotKey}`}
+                      type="button"
                       className="character-reference-upload-placeholder"
-                      aria-hidden="true"
-                    />
+                      onClick={() => openSimpleReferenceSlotPicker(slotKey)}
+                      disabled={pageBusy || isSlotBusy(slotKey)}
+                      aria-label={`Upload ${CHARACTER_MANAGER_SLOT_LABEL_BY_KEY[slotKey]} reference image`}
+                    >
+                      <UploadSimple
+                        size={16}
+                        weight="bold"
+                        className="character-reference-upload-placeholder-icon"
+                        aria-hidden="true"
+                      />
+                      <span className="character-reference-upload-placeholder-label">
+                        Click to upload
+                      </span>
+                      <span className="character-reference-upload-placeholder-slot tiny subdued">
+                        Empty slot {uploadedReferenceEntries.length + index + 1}
+                      </span>
+                    </button>
                   ))}
                 </div>
               </section>
             </div>
 
-            <section className="character-section character-section--references">
-              <div className="character-section-head">
-                <div className="character-section-title-row">
-                  {effectiveBeginnerMode ? (
-                    <span className="character-step-badge" aria-hidden="true">
-                      3
-                    </span>
-                  ) : null}
-                  <div className="character-section-title-copy">
-                    <h3 className="character-section-title">Character Sheet</h3>
+            <div className="character-create-secondary-column">
+              <section className="character-section character-section--references">
+                <div className="character-section-head">
+                  <div className="character-section-title-row">
                     {effectiveBeginnerMode ? (
-                      <p className="character-section-helper tiny subdued">
-                        Drag uploaded references into each slot to map your character&apos;s look
-                        and style.
-                      </p>
+                      <span className="character-step-badge" aria-hidden="true">
+                        3
+                      </span>
                     ) : null}
+                    <div className="character-section-title-copy">
+                      <h3 className="character-section-title">Character Sheet</h3>
+                      {effectiveBeginnerMode ? (
+                        <p className="character-section-helper tiny subdued">
+                          Drag uploaded references into each slot to map your character&apos;s look
+                          and style.
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="character-reference-empty-grid">
-                {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
-                  const assignedSlotKey = effectiveCharacterSheetAssignments[dropZone.key];
-                  const assignedReference = assignedSlotKey
-                    ? uploadedReferenceBySlotKey.get(assignedSlotKey)
-                    : null;
-                  const isDropActive = activeCharacterSheetDropZone === dropZone.key;
-                  return (
-                    <article
-                      key={dropZone.key}
-                      className={`character-character-sheet-card ${
-                        assignedReference ? "is-filled" : "is-empty"
-                      } ${isDropActive ? "is-drop-active" : ""} ${
-                        draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
+                <div
+                  className="character-sheet-preset-tab-row"
+                  role="tablist"
+                  aria-label="Character sheet style presets"
+                >
+                  {CHARACTER_SHEET_PRESET_IDS.map((presetId) => (
+                    <button
+                      key={presetId}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeCharacterSheetPresetId === presetId}
+                      className={`character-sheet-preset-tab ${
+                        activeCharacterSheetPresetId === presetId ? "is-active" : ""
                       }`}
-                      draggable={!pageBusy && Boolean(assignedReference)}
-                      onClick={handleCharacterSheetCardClick(dropZone.key)}
-                      onDragStart={handleCharacterSheetDragStart(dropZone.key)}
-                      onDragEnd={handleReferenceDragEnd}
-                      onDragOver={handleCharacterSheetDragOver(dropZone.key)}
-                      onDragLeave={() => {
-                        setActiveCharacterSheetDropZone((current) =>
-                          current === dropZone.key ? null : current
-                        );
+                      onClick={() => {
+                        void setActiveCharacterSheetPreset(presetId as CharacterSheetPresetId);
                       }}
-                      onDrop={handleCharacterSheetDrop(dropZone.key)}
+                      disabled={pageBusy}
                     >
-                      {assignedReference ? (
-                        <button
-                          type="button"
-                          className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
-                          aria-label={`Clear ${dropZone.label} reference`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            clearCharacterSheetAssignment(dropZone.key);
-                          }}
-                          disabled={pageBusy}
-                        >
-                          <Trash size={12} weight="bold" />
-                        </button>
-                      ) : null}
-                      <div className="character-character-sheet-media">
+                      {presetId}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="character-reference-empty-grid">
+                  {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
+                    const assignedReference = characterSheetPresetAssignments[dropZone.key];
+                    const isDropActive = activeCharacterSheetDropZone === dropZone.key;
+                    return (
+                      <article
+                        key={dropZone.key}
+                        className={`character-character-sheet-card ${
+                          assignedReference ? "is-filled" : "is-empty"
+                        } ${isDropActive ? "is-drop-active" : ""} ${
+                          draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
+                        }`}
+                        draggable={!pageBusy && Boolean(assignedReference)}
+                        onClick={handleCharacterSheetCardClick(dropZone.key)}
+                        onDragStart={handleCharacterSheetDragStart(dropZone.key)}
+                        onDragEnd={handleReferenceDragEnd}
+                        onDragOver={handleCharacterSheetDragOver(dropZone.key)}
+                        onDragLeave={() => {
+                          setActiveCharacterSheetDropZone((current) =>
+                            current === dropZone.key ? null : current
+                          );
+                        }}
+                        onDrop={handleCharacterSheetDrop(dropZone.key)}
+                      >
                         {assignedReference ? (
-                          <Image
-                            src={assignedReference.slotFile.previewUrl}
-                            alt={`${dropZone.label} reference`}
-                            className="character-character-sheet-image"
-                            width={240}
-                            height={300}
-                            unoptimized
-                          />
-                        ) : (
-                          <span className="character-character-sheet-drop-copy tiny">
-                            Drop reference
-                          </span>
-                        )}
-                      </div>
-                      <span className="character-reference-empty-hint">{dropZone.label}</span>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
+                          <button
+                            type="button"
+                            className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
+                            aria-label={`Clear ${dropZone.label} reference`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              clearCharacterSheetAssignment(dropZone.key);
+                            }}
+                            disabled={pageBusy}
+                          >
+                            <Trash size={12} weight="bold" />
+                          </button>
+                        ) : null}
+                        <div className="character-character-sheet-media">
+                          {assignedReference?.previewUrl ? (
+                            <Image
+                              src={assignedReference.previewUrl}
+                              alt={`${dropZone.label} reference`}
+                              className="character-character-sheet-image"
+                              width={240}
+                              height={300}
+                              unoptimized
+                            />
+                          ) : (
+                            <span className="character-character-sheet-drop-copy tiny">
+                              Drop reference or click to upload
+                            </span>
+                          )}
+                        </div>
+                        <span className="character-reference-empty-hint">{dropZone.label}</span>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {isEmbeddedSurface && effectiveBeginnerMode ? (
+                <p className="character-mode-guidance character-mode-guidance--sheet" role="note">
+                  <span className="character-mode-guidance-label">Tip:</span>
+                  Swap out your character&apos;s style on the fly by dragging and dropping
+                  references from the QuickSwap Deck.
+                </p>
+              ) : null}
+            </div>
           </div>
         </section>
       ) : (

@@ -2,9 +2,18 @@
  * Character Manager persistence orchestrator.
  * Exposes high-level operations used by the Character Manager draft hook.
  */
-import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
+import {
+  createDefaultCharacterSheetPresetState,
+  createEmptyCharacterSheetPresetAssignments,
+} from "../constants";
 import type {
   CharacterSheetAssignments,
+  CharacterSheetDropZoneKey,
+  CharacterSheetPresetAssignments,
+  CharacterSheetPresetId,
+  CharacterSheetPresetMediaReference,
+  CharacterSheetPresetState,
   CharacterProfileImageTransform,
   CharacterReferenceSlotKey,
   CharacterSlotFile,
@@ -20,20 +29,27 @@ import {
   CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY,
   CHARACTER_PROFILE_IMAGE_ZOOM_KEY,
   CHARACTER_REFERENCE_SOURCE,
+  CHARACTER_SHEET_PRESETS_KEY,
   CHARACTER_SHEET_ASSIGNMENTS_KEY,
   LEGACY_CHARACTER_SHEET_ASSIGNMENTS_KEY,
   cleanupOrphanedMedia,
+  createCharacterSheetPresetStoragePath,
   createCharacterProfileStoragePath,
   createDraftCharacter,
   createStoragePath,
   DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM,
   DEFAULT_CHARACTER_NAME,
   fetchCharacterManagerList,
+  getCharacterSheetPresetState,
   getCharacterSheetAssignments,
+  listCharacterSheetPresetMediaReferences,
+  normalizeCharacterSheetPresetAssignments,
+  normalizeCharacterSheetPresetState,
   getCharacterProfileImageMetadata,
   getCharacterProfileImageTransform,
   loadSlotFilesForCharacterSheet,
   normalizeCharacterSheetAssignments,
+  serializeCharacterSheetPresetState,
   resolveCharacterSheet,
   resolveSupabaseContext,
 } from "./characterManagerPersistenceCore";
@@ -48,6 +64,9 @@ export type CharacterManagerDraftSnapshot = {
   characterName: string;
   characterDescription: string;
   characterSheetAssignments: CharacterSheetAssignments;
+  activeCharacterSheetPresetId: CharacterSheetPresetId;
+  characterSheetPresets: CharacterSheetPresetState["presets"];
+  characterSheetPresetAssignments: CharacterSheetPresetAssignments;
   profileImageUrl: string | null;
   profileImageTransform: CharacterProfileImageTransform;
   slots: CharacterSlotFileMap;
@@ -74,6 +93,11 @@ type SaveCharacterProfileImageAdjustmentsInput = {
   offsetY: number;
 };
 
+type SaveCharacterSheetPresetAssetInput = {
+  characterId: string;
+  file: File;
+};
+
 const PROFILE_ZOOM_MIN = 1;
 const PROFILE_ZOOM_MAX = 2.4;
 const PROFILE_OFFSET_MIN = -40;
@@ -95,6 +119,81 @@ const toMetadataRecord = (value: unknown): Record<string, unknown> =>
     ? { ...(value as Record<string, unknown>) }
     : {};
 
+const toPresetReferenceFromSlot = (
+  slotFile: CharacterSlotFile | null
+): CharacterSheetPresetMediaReference | null => {
+  if (!slotFile) return null;
+  return {
+    mediaFileId: slotFile.mediaFileId,
+    storagePath: slotFile.storagePath,
+    previewUrl: slotFile.previewUrl,
+  };
+};
+
+const buildPresetStateFromLegacyAssignments = (
+  assignments: CharacterSheetAssignments,
+  slots: CharacterSlotFileMap
+): CharacterSheetPresetState => {
+  const presetState = createDefaultCharacterSheetPresetState();
+  const presetOne = createEmptyCharacterSheetPresetAssignments();
+  for (const [zoneKey, slotKey] of Object.entries(assignments)) {
+    if (!slotKey) continue;
+    const zone = zoneKey as CharacterSheetDropZoneKey;
+    presetOne[zone] = toPresetReferenceFromSlot(slots[slotKey]) ?? null;
+  }
+  presetState.presets["1"] = presetOne;
+  return presetState;
+};
+
+const hydratePresetStatePreviewUrls = async (
+  state: CharacterSheetPresetState,
+  slots: CharacterSlotFileMap
+): Promise<CharacterSheetPresetState> => {
+  const storagePaths = Array.from(
+    new Set(
+      Object.values(state.presets)
+        .flatMap((assignments) => Object.values(assignments))
+        .filter((reference): reference is CharacterSheetPresetMediaReference => Boolean(reference))
+        .map((reference) => reference.storagePath)
+    )
+  );
+  if (!storagePaths.length) {
+    return state;
+  }
+  const signedByPath = await getSignedMediaUrlsBatch({
+    bucket: MEDIA_BUCKET,
+    storagePaths,
+  });
+  return normalizeCharacterSheetPresetState({
+    activePresetId: state.activePresetId,
+    presets: Object.fromEntries(
+      Object.entries(state.presets).map(([presetId, assignments]) => [
+        presetId,
+        Object.fromEntries(
+          Object.entries(assignments).map(([zoneKey, reference]) => {
+            if (!reference) return [zoneKey, null];
+            const slotPreviewMatch = Object.values(slots).find(
+              (slot) =>
+                slot?.mediaFileId === reference.mediaFileId ||
+                slot?.storagePath === reference.storagePath
+            );
+            return [
+              zoneKey,
+              {
+                ...reference,
+                previewUrl:
+                  signedByPath.get(reference.storagePath) ??
+                  slotPreviewMatch?.previewUrl ??
+                  reference.previewUrl,
+              },
+            ];
+          })
+        ),
+      ])
+    ) as Partial<Record<CharacterSheetPresetId, CharacterSheetPresetAssignments>>,
+  });
+};
+
 const toCharacterSnapshot = async (input: {
   characterId: string;
   characterName: string;
@@ -108,6 +207,18 @@ const toCharacterSnapshot = async (input: {
     getCharacterProfileImageTransform(input.characterMetadata)
   );
   const characterSheetAssignments = getCharacterSheetAssignments(input.characterMetadata);
+  const persistedPresetState = getCharacterSheetPresetState(input.characterMetadata);
+  const resolvedPresetState = persistedPresetState
+    ? await hydratePresetStatePreviewUrls(persistedPresetState, slots)
+    : await hydratePresetStatePreviewUrls(
+        buildPresetStateFromLegacyAssignments(characterSheetAssignments, slots),
+        slots
+      );
+  const activeCharacterSheetPresetId = resolvedPresetState.activePresetId;
+  const characterSheetPresets = resolvedPresetState.presets;
+  const characterSheetPresetAssignments =
+    characterSheetPresets[activeCharacterSheetPresetId] ??
+    createEmptyCharacterSheetPresetAssignments();
   const profileImageUrl = profileMetadata.storagePath
     ? await getSignedMediaUrl({
         bucket: MEDIA_BUCKET,
@@ -120,6 +231,9 @@ const toCharacterSnapshot = async (input: {
     characterName: input.characterName.trim() || DEFAULT_CHARACTER_NAME,
     characterDescription: (input.characterDescription ?? "").slice(0, 150),
     characterSheetAssignments,
+    activeCharacterSheetPresetId,
+    characterSheetPresets,
+    characterSheetPresetAssignments,
     profileImageUrl,
     profileImageTransform,
     slots,
@@ -177,12 +291,16 @@ export const createCharacterManagerDraft = async (
   name = DEFAULT_CHARACTER_NAME
 ): Promise<CharacterManagerDraftSnapshot> => {
   const { character, characterSheet } = await createDraftCharacter(name);
+  const presetState = createDefaultCharacterSheetPresetState();
   return {
     characterId: character.id,
     characterSheetId: characterSheet.id,
     characterName: character.name?.trim() || DEFAULT_CHARACTER_NAME,
     characterDescription: character.description?.slice(0, 150) ?? "",
     characterSheetAssignments: getCharacterSheetAssignments(character.metadata),
+    activeCharacterSheetPresetId: presetState.activePresetId,
+    characterSheetPresets: presetState.presets,
+    characterSheetPresetAssignments: presetState.presets[presetState.activePresetId],
     profileImageUrl: null,
     profileImageTransform: { ...DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM },
     slots: await loadSlotFilesForCharacterSheet(characterSheet.id),
@@ -523,6 +641,251 @@ export const saveCharacterManagerCharacterSheetAssignments = async ({
   return normalizedAssignments;
 };
 
+const listPresetReferencesFromState = (
+  state: CharacterSheetPresetState
+): Array<{ mediaFileId: string; storagePath: string }> =>
+  Array.from(
+    new Map(
+      Object.values(state.presets)
+        .flatMap((assignments) => Object.values(assignments))
+        .filter((reference): reference is CharacterSheetPresetMediaReference => Boolean(reference))
+        .map((reference) => [
+          reference.mediaFileId,
+          {
+            mediaFileId: reference.mediaFileId,
+            storagePath: reference.storagePath,
+          },
+        ])
+    ).values()
+  );
+
+const hydratePresetStateWithPreviewUrls = async (
+  state: CharacterSheetPresetState
+): Promise<CharacterSheetPresetState> => {
+  const storagePaths = Array.from(
+    new Set(
+      Object.values(state.presets)
+        .flatMap((assignments) => Object.values(assignments))
+        .filter((reference): reference is CharacterSheetPresetMediaReference => Boolean(reference))
+        .map((reference) => reference.storagePath)
+    )
+  );
+  if (!storagePaths.length) {
+    return state;
+  }
+
+  const signedByPath = await getSignedMediaUrlsBatch({
+    bucket: MEDIA_BUCKET,
+    storagePaths,
+  });
+  return normalizeCharacterSheetPresetState({
+    activePresetId: state.activePresetId,
+    presets: Object.fromEntries(
+      Object.entries(state.presets).map(([presetId, assignments]) => [
+        presetId,
+        Object.fromEntries(
+          Object.entries(assignments).map(([zoneKey, reference]) => {
+            if (!reference) {
+              return [zoneKey, null];
+            }
+            return [
+              zoneKey,
+              {
+                ...reference,
+                previewUrl: signedByPath.get(reference.storagePath) ?? reference.previewUrl,
+              },
+            ];
+          })
+        ),
+      ])
+    ) as Partial<Record<CharacterSheetPresetId, CharacterSheetPresetAssignments>>,
+  });
+};
+
+/**
+ * Persist active character-sheet preset tab selection.
+ */
+export const saveCharacterManagerActiveCharacterSheetPreset = async ({
+  characterId,
+  presetId,
+}: {
+  characterId: string;
+  presetId: CharacterSheetPresetId;
+}): Promise<CharacterSheetPresetState> => {
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { data: characterRow, error: characterError } = await supabase
+    .from("characters")
+    .select("metadata")
+    .eq("user_id", userId)
+    .eq("id", characterId)
+    .maybeSingle();
+  if (characterError) {
+    throw new Error(asErrorMessage(characterError, "Failed to load character metadata."));
+  }
+  if (!characterRow) {
+    throw new Error("Character is no longer available.");
+  }
+
+  const existingState =
+    getCharacterSheetPresetState(characterRow.metadata) ?? createDefaultCharacterSheetPresetState();
+  const nextState = normalizeCharacterSheetPresetState({
+    activePresetId: presetId,
+    presets: existingState.presets,
+  });
+  const nextMetadata = toMetadataRecord(characterRow.metadata);
+  nextMetadata[CHARACTER_SHEET_PRESETS_KEY] = serializeCharacterSheetPresetState(nextState);
+
+  const { error: updateError } = await supabase
+    .from("characters")
+    .update({
+      metadata: nextMetadata,
+    })
+    .eq("user_id", userId)
+    .eq("id", characterId);
+  if (updateError) {
+    throw new Error(asErrorMessage(updateError, "Failed to save active character preset tab."));
+  }
+
+  try {
+    return await hydratePresetStateWithPreviewUrls(nextState);
+  } catch {
+    return nextState;
+  }
+};
+
+/**
+ * Persist a single preset tab's character-sheet assignments.
+ */
+export const saveCharacterManagerCharacterSheetPresetAssignments = async ({
+  characterId,
+  presetId,
+  assignments,
+}: {
+  characterId: string;
+  presetId: CharacterSheetPresetId;
+  assignments: CharacterSheetPresetAssignments;
+}): Promise<CharacterSheetPresetState> => {
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { data: characterRow, error: characterError } = await supabase
+    .from("characters")
+    .select("metadata")
+    .eq("user_id", userId)
+    .eq("id", characterId)
+    .maybeSingle();
+  if (characterError) {
+    throw new Error(asErrorMessage(characterError, "Failed to load character metadata."));
+  }
+  if (!characterRow) {
+    throw new Error("Character is no longer available.");
+  }
+
+  const existingState =
+    getCharacterSheetPresetState(characterRow.metadata) ?? createDefaultCharacterSheetPresetState();
+  const previousState = normalizeCharacterSheetPresetState(existingState);
+  const normalizedAssignments = normalizeCharacterSheetPresetAssignments(assignments);
+  const nextState = normalizeCharacterSheetPresetState({
+    activePresetId: previousState.activePresetId,
+    presets: {
+      ...previousState.presets,
+      [presetId]: normalizedAssignments,
+    },
+  });
+  const nextMetadata = toMetadataRecord(characterRow.metadata);
+  nextMetadata[CHARACTER_SHEET_PRESETS_KEY] = serializeCharacterSheetPresetState(nextState);
+
+  const { error: updateError } = await supabase
+    .from("characters")
+    .update({
+      metadata: nextMetadata,
+    })
+    .eq("user_id", userId)
+    .eq("id", characterId);
+  if (updateError) {
+    throw new Error(asErrorMessage(updateError, "Failed to save character sheet preset."));
+  }
+
+  const previousReferences = listPresetReferencesFromState(previousState);
+  const nextReferences = listPresetReferencesFromState(nextState);
+  const nextById = new Set(nextReferences.map((reference) => reference.mediaFileId));
+  await Promise.allSettled(
+    previousReferences
+      .filter((reference) => !nextById.has(reference.mediaFileId))
+      .map((reference) =>
+        cleanupOrphanedMedia({
+          mediaFileId: reference.mediaFileId,
+          storagePath: reference.storagePath,
+        })
+      )
+  );
+
+  try {
+    return await hydratePresetStateWithPreviewUrls(nextState);
+  } catch {
+    return nextState;
+  }
+};
+
+/**
+ * Upload and persist a character-sheet preset image asset.
+ */
+export const saveCharacterManagerCharacterSheetPresetAsset = async (
+  input: SaveCharacterSheetPresetAssetInput
+): Promise<CharacterSheetPresetMediaReference> => {
+  const { supabase, userId } = await resolveSupabaseContext();
+  const mimeType = input.file.type || "image/jpeg";
+  const storagePath = createCharacterSheetPresetStoragePath({
+    userId,
+    characterId: input.characterId,
+    filename: input.file.name,
+    mimeType,
+  });
+  const { error: uploadError } = await supabase.storage
+    .from(MEDIA_BUCKET)
+    .upload(storagePath, input.file, {
+      upsert: false,
+      contentType: mimeType,
+    });
+  if (uploadError) {
+    throw new Error(asErrorMessage(uploadError, "Failed to upload character preset image."));
+  }
+
+  const { data: mediaRow, error: mediaInsertError } = await supabase
+    .from("media_files")
+    .insert({
+      user_id: userId,
+      filename: input.file.name,
+      storage_path: storagePath,
+      file_type: "image",
+      file_size: input.file.size,
+      source: "upload",
+      metadata: {
+        character_id: input.characterId,
+        role: "character_sheet_preset",
+      },
+    })
+    .select("id")
+    .single();
+  if (mediaInsertError || !mediaRow?.id) {
+    await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
+    throw new Error(asErrorMessage(mediaInsertError, "Failed to save character preset metadata."));
+  }
+
+  const signedUrl = await getSignedMediaUrl({
+    bucket: MEDIA_BUCKET,
+    storagePath,
+    forceRefresh: true,
+  });
+  if (!signedUrl) {
+    throw new Error("Preset image saved, but preview URL could not be created.");
+  }
+
+  return {
+    mediaFileId: mediaRow.id,
+    storagePath,
+    previewUrl: signedUrl,
+  };
+};
+
 /**
  * Permanently deletes a character draft and best-effort cleans orphaned reference media rows/files.
  */
@@ -548,6 +911,7 @@ export const deleteCharacterManagerDraft = async ({ characterId }: { characterId
   }
 
   const profileMedia = getCharacterProfileImageMetadata(characterRow?.metadata);
+  const presetCleanupCandidates = listCharacterSheetPresetMediaReferences(characterRow?.metadata);
   const referenceCleanupCandidates = Array.from(
     new Map(
       ((mediaRows ?? []) as Array<{ media_file_id: string; storage_path: string | null }>).map(
@@ -564,12 +928,13 @@ export const deleteCharacterManagerDraft = async ({ characterId }: { characterId
   const cleanupCandidates = profileMedia.mediaFileId
     ? [
         ...referenceCleanupCandidates,
+        ...presetCleanupCandidates,
         {
           mediaFileId: profileMedia.mediaFileId,
           storagePath: profileMedia.storagePath,
         },
       ]
-    : referenceCleanupCandidates;
+    : [...referenceCleanupCandidates, ...presetCleanupCandidates];
 
   const { error: deleteCharacterError } = await supabase
     .from("characters")

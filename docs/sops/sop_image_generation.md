@@ -51,7 +51,9 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
   - Provider-facing prompt prepends character description (when present), then appends user prompt.
   - UI-visible prompt (output cards, modals, saved prompt text) remains the user prompt only.
 - Character Sheet references:
-  - References are resolved from Character Manager `character_sheet_assignments` in canonical zone order (`portrait`, `close_up`, `front_shot`, `back_shot`).
+  - References are resolved from Character Manager active preset metadata (`character_sheet_presets_v1`) in canonical zone order (`portrait`, `close_up`, `front_shot`, `back_shot`).
+  - If active preset zones are empty, the client falls back to legacy `character_sheet_assignments` slot mapping.
+  - Character draft is refreshed before each Create/Text submit so preset switches and zone updates are applied immediately.
   - Resolved URLs are deduped and capped by provider limits.
 - Fallback behavior (non-blocking):
   - Missing character description does not block generation (runs with references only when available).

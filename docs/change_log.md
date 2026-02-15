@@ -557,3 +557,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Audited SQL docs/SOP linkage and tightened cross-references to the canonical SQL runbook (`docs/sops/sop_sql_migration_operations.md`) from `docs/database-migrations.md`, `docs/security-checklist.md`, `docs/monitoring.md`, and `README.md`.
 - Fixed `docs/troubleshooting.md` media scope triage SQL snippet to match current drift criteria and valid SQL syntax (`empty`, `leading slash`, non-user-scoped, traversal, backslash).
 - Added SQL-folder entry pointers to the canonical runbook from `sql/migrations/README.md`, `sql/check_media_storage_scope_drift.sql`, and `sql/storage_policies.sql` to reduce operator drift when starting from SQL files.
+
+## 2026-02-15 (Character Sheet preset tabs in Character Manager + AI Studio)
+- Added persistent Character Sheet preset tabs (`1..4`) to the shared Character Manager workflow used by both `/character` and AI Studio Character panel.
+- Introduced `characters.metadata.character_sheet_presets_v1` contract with active preset tracking plus per-zone media references (`portrait`, `close_up`, `front_shot`, `back_shot`), including legacy initialization from `character_sheet_assignments`.
+- Updated Character Manager persistence/hook/UI to support preset switching, per-preset zone assignment, direct zone uploads, and media cleanup safeguards so QuickSwap Deck removals do not orphan preset references.
+- Updated AI Studio Character Mode injection to prefer active preset references, keep legacy fallback behavior, and always reload the selected character snapshot before Create/Text generate.
+- Added/updated tests for preset metadata normalization, Character Manager preset tab behavior, Character Mode payload resolution, lifecycle/controller refresh behavior, and AI Studio page integration.
+- Updated SOP/data docs (`docs/sops/sop_character_manager_operations.md`, `docs/sops/sop_image_generation.md`, `docs/data-dictionary.md`) for the new preset contract and generation path.

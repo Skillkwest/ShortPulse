@@ -43,6 +43,70 @@ const createParams = (
   ...overrides,
 });
 
+const createSnapshotWithPresetReference = (
+  input: {
+    description?: string;
+    storagePath?: string;
+    previewUrl?: string;
+  } = {}
+) =>
+  ({
+    characterId: "char-1",
+    characterSheetId: "sheet-1",
+    characterName: "Hero",
+    characterDescription: input.description ?? "Hero description",
+    characterSheetAssignments: {
+      portrait: null,
+      close_up: null,
+      front_shot: null,
+      back_shot: null,
+    },
+    activeCharacterSheetPresetId: "1",
+    characterSheetPresets: {
+      "1": {
+        portrait: {
+          mediaFileId: "media-portrait",
+          storagePath: input.storagePath ?? "user/chars/ref.png",
+          previewUrl: input.previewUrl ?? "https://example.com/ref-stale.png",
+        },
+        close_up: null,
+        front_shot: null,
+        back_shot: null,
+      },
+      "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+      "3": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+      "4": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+    },
+    characterSheetPresetAssignments: {
+      portrait: {
+        mediaFileId: "media-portrait",
+        storagePath: input.storagePath ?? "user/chars/ref.png",
+        previewUrl: input.previewUrl ?? "https://example.com/ref-stale.png",
+      },
+      close_up: null,
+      front_shot: null,
+      back_shot: null,
+    },
+    profileImageUrl: null,
+    profileImageTransform: {
+      zoom: 1,
+      offsetX: 0,
+      offsetY: 0,
+    },
+    slots: {
+      front_full: null,
+      side_profile: null,
+      back_full: null,
+      top_down: null,
+      front_left_34: null,
+      front_right_34: null,
+      back_left_34: null,
+      back_right_34: null,
+      portrait_close: null,
+      fullbody_wide: null,
+    },
+  }) as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>;
+
 describe("useAiStudioCharacterModeController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -80,8 +144,15 @@ describe("useAiStudioCharacterModeController", () => {
     expect(reportAppErrorMock).not.toHaveBeenCalled();
   });
 
-  it("re-signs an existing fresh bundle without reloading snapshot", async () => {
+  it("reloads snapshot before submit and refreshes signed urls", async () => {
     const setCharacterModeInjectionBundle = vi.fn();
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
+      createSnapshotWithPresetReference({
+        description: "Base description",
+        storagePath: "user/chars/ref.png",
+        previewUrl: "https://example.com/ref-stale-db.png",
+      })
+    );
     const currentBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
       characterDescription: "Base description",
@@ -115,37 +186,20 @@ describe("useAiStudioCharacterModeController", () => {
       storagePaths: ["user/chars/ref.png"],
       forceRefresh: true,
     });
-    expect(loadCharacterManagerDraftByCharacterIdMock).not.toHaveBeenCalled();
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-1");
     expect(setCharacterModeInjectionBundle).toHaveBeenCalledTimes(1);
   });
 
   it("refreshes a stale bundle and updates injection state", async () => {
     const setCharacterModeInjectionBundle = vi.fn();
     const setIsCharacterBundleLoading = vi.fn();
-    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue({
-      characterId: "char-1",
-      characterSheetId: "sheet-1",
-      characterName: "Hero",
-      characterDescription: "Hero description",
-      characterSheetAssignments: {
-        portrait: "slot-1",
-        close_up: null,
-        front_shot: null,
-        back_shot: null,
-      },
-      profileImageUrl: null,
-      profileImageTransform: {
-        zoom: 1,
-        offsetX: 0,
-        offsetY: 0,
-      },
-      slots: {
-        "slot-1": {
-          storagePath: "user/chars/portrait.png",
-          previewUrl: "https://example.com/portrait.png",
-        },
-      },
-    } as unknown as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
+      createSnapshotWithPresetReference({
+        description: "Hero description",
+        storagePath: "user/chars/portrait.png",
+        previewUrl: "https://example.com/portrait.png",
+      })
+    );
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([["user/chars/portrait.png", "https://example.com/fresh-portrait.png"]])
     );
@@ -197,6 +251,13 @@ describe("useAiStudioCharacterModeController", () => {
     const trackCharacterModeEvent = vi.fn();
     const setCharacterModeInjectionBundle = vi.fn();
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
+      createSnapshotWithPresetReference({
+        description: "Base description",
+        storagePath: "user/chars/ref.png",
+        previewUrl: "https://example.com/ref-stale-db.png",
+      })
+    );
     const params = createParams({
       selectedCharacterId: "char-1",
       characterModeInjectionBundle: {

@@ -29,6 +29,29 @@ export type CharacterSheetAssignments = Record<
   CharacterReferenceSlotKey | null
 >;
 
+export type CharacterSheetPresetId = "1" | "2" | "3" | "4";
+
+export type CharacterSheetPresetMediaReference = {
+  mediaFileId: string;
+  storagePath: string;
+  previewUrl: string | null;
+};
+
+export type CharacterSheetPresetAssignments = Record<
+  CharacterSheetDropZoneKey,
+  CharacterSheetPresetMediaReference | null
+>;
+
+export type CharacterSheetPresetMap = Record<
+  CharacterSheetPresetId,
+  CharacterSheetPresetAssignments
+>;
+
+export type CharacterSheetPresetState = {
+  activePresetId: CharacterSheetPresetId;
+  presets: CharacterSheetPresetMap;
+};
+
 export type CharacterSlotValidationStatus = "pending" | "pass" | "warn" | "fail";
 
 export type CharacterSlotValidationNotes = {

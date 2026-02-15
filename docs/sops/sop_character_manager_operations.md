@@ -1,7 +1,7 @@
 # SOP: Character Manager Operations
 
 ## Purpose
-Define the operational contract for the `/character` Character Manager surface, including current upload behavior, persisted character-sheet drag/drop assignments, and support runbooks for alias-compatibility drift.
+Define the operational contract for the `/character` Character Manager surface, including current upload behavior, persisted character-sheet preset assignments, and support runbooks for alias-compatibility drift.
 
 ## Scope
 - Applies to `frontend/features/character-manager/*` and `frontend/pages/character.tsx`.
@@ -10,17 +10,22 @@ Define the operational contract for the `/character` Character Manager surface, 
 
 ## Current Product Contract
 1. Users can upload reference images by drag/drop or file picker in the Drop References card.
-2. The persisted reference intake limit is 8 images per character (`SIMPLE_REFERENCE_IMAGE_LIMIT`).
+2. The persisted QuickSwap Deck intake limit is 10 images per character (`SIMPLE_REFERENCE_IMAGE_LIMIT`).
 3. Uploaded references persist to Supabase per character.
-4. Character Sheet drop zones are persisted per character:
+4. Character Sheet drop zones are persisted per character with four preset tabs (`1`..`4`):
+   - Active tab id persists to character metadata (`character_sheet_presets_v1.active_preset_id`).
+   - Each tab stores independent zone media references for `portrait`, `close_up`, `front_shot`, and `back_shot`.
    - Dragging a reference onto a drop zone assigns that reference to the zone.
    - Dropping onto an occupied zone replaces the previous assignment.
    - Dragging from one drop zone to another swaps assignments.
-   - Assignments are saved to character metadata (`character_sheet_assignments` + compatibility alias).
+   - Assignments are saved to character metadata (`character_sheet_presets_v1`).
+   - Preset zone uploads are independent of QuickSwap Deck slot usage.
+   - Removing a QuickSwap Deck slot does not clear preset zone assignments.
    - No activation gate or completion requirement is enforced in the current UI.
 5. AI Studio Create Character Mode consumes Character Manager data at generation time:
    - Selected character description is injected as hidden prompt context when available.
-   - Character Sheet assignments resolve to ordered references (`portrait`, `close_up`, `front_shot`, `back_shot`) sent to Seedream edit when available.
+   - Character Mode resolves ordered references from the active preset first (`portrait`, `close_up`, `front_shot`, `back_shot`), then falls back to legacy slot-based assignments when preset zones are empty.
+   - Character draft is reloaded before each Create/Text generation submit so newest preset changes are used.
    - Missing description/references are non-blocking; AI Studio falls back to best-effort injection.
 
 ## Architecture Map
@@ -43,10 +48,11 @@ Define the operational contract for the `/character` Character Manager surface, 
 - Run deterministic validation via `validateCharacterReferenceFile(...)`.
 - Persist slot metadata through `saveCharacterManagerSlot(...)`.
 
-3. Character Sheet drag/drop (persisted)
-- Keep per-character assignment state in Character Manager draft state.
-- Persist drop-zone assignments to Supabase character metadata.
+3. Character Sheet presets and drag/drop (persisted)
+- Keep per-character preset state in Character Manager draft state.
+- Persist active tab id and active-tab drop-zone assignments to Supabase character metadata.
 - Keep DnD behavior stable (assign/replace/swap) without activation gating.
+- Keep preset media lifecycle independent from QuickSwap Deck slots.
 
 4. Character lifecycle
 - Create character: create draft + refresh rail.
@@ -88,7 +94,9 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Dragging a reference into a Character Sheet zone assigns it.
 - Dropping another reference into that same zone replaces it.
 - Dragging zone-to-zone swaps assignments.
-- Character Sheet assignments persist after refresh and character switching.
+- Preset tabs `1..4` render and switch without cross-tab assignment bleed.
+- Character Sheet preset assignments persist after refresh and character switching.
+- Preset uploads do not consume QuickSwap Deck capacity.
 - Creating/switching/deleting characters preserves expected per-character state.
 
 ## Change Management Rules
@@ -96,7 +104,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
   - `docs/routes.md` (if route behavior changes),
   - this SOP,
   - relevant ADR(s) for durable architecture changes.
-- Character Sheet assignments are now generation-driving for AI Studio Create Character Mode; keep integration contracts in this SOP and `docs/sops/sop_image_generation.md` in sync when changing assignment semantics.
+- Character Sheet active preset assignments are generation-driving for AI Studio Create Character Mode; keep integration contracts in this SOP and `docs/sops/sop_image_generation.md` in sync when changing preset semantics.
 
 ## Legacy SOP Status
 - `docs/archive/sops/sop_character_generation.md` and `docs/archive/sops/sop_character_identity.md` are legacy references for the old character pipeline and are not authoritative for current `/character` behavior.

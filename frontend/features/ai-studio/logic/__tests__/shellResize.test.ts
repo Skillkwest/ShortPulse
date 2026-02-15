@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AI_SHELL_DIVIDER_TRACK_PX,
+  AI_SHELL_LEFT_CHARACTER_MIN_PX,
   AI_SHELL_LEFT_MIN_FALLBACK_PX,
   AI_SHELL_LEFT_MIN_PX,
   AI_SHELL_RIGHT_MIN_PX,
@@ -27,6 +28,14 @@ describe("getAiShellLeftWidthBounds", () => {
     expect(bounds.min).toBe(AI_SHELL_LEFT_MIN_FALLBACK_PX);
     expect(bounds.max).toBe(AI_SHELL_LEFT_MIN_FALLBACK_PX);
   });
+
+  it("supports a larger caller-provided minimum width", () => {
+    const bounds = getAiShellLeftWidthBounds(1700, {
+      minLeftWidthPx: AI_SHELL_LEFT_CHARACTER_MIN_PX,
+    });
+    expect(bounds.min).toBe(AI_SHELL_LEFT_CHARACTER_MIN_PX);
+    expect(bounds.max).toBe(1700 - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX);
+  });
 });
 
 describe("clampAiShellLeftWidth", () => {
@@ -36,12 +45,24 @@ describe("clampAiShellLeftWidth", () => {
       1500 - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX
     );
   });
+
+  it("respects caller-provided minimum width", () => {
+    expect(
+      clampAiShellLeftWidth(540, 1600, { minLeftWidthPx: AI_SHELL_LEFT_CHARACTER_MIN_PX })
+    ).toBe(AI_SHELL_LEFT_CHARACTER_MIN_PX);
+  });
 });
 
 describe("getDefaultAiShellLeftWidth", () => {
   it("computes a clamped ratio-based default", () => {
     expect(getDefaultAiShellLeftWidth(1500)).toBe(600);
     expect(getDefaultAiShellLeftWidth(900)).toBe(clampAiShellLeftWidth(900 * 0.4, 900));
+  });
+
+  it("clamps defaults to a larger caller-provided minimum when needed", () => {
+    expect(
+      getDefaultAiShellLeftWidth(1500, { minLeftWidthPx: AI_SHELL_LEFT_CHARACTER_MIN_PX })
+    ).toBe(AI_SHELL_LEFT_CHARACTER_MIN_PX);
   });
 });
 

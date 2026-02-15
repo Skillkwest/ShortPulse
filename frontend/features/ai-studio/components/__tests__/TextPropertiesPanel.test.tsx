@@ -95,6 +95,9 @@ describe("TextPropertiesPanel", () => {
 
     expect(screen.getByRole("group", { name: "Character mode section" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Disable character mode" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Toggle on character mode then select your character.")
+    ).toBeInTheDocument();
     const stepBadges = Array.from(container.querySelectorAll(".step-badge")).map(
       (badge) => badge.textContent
     );

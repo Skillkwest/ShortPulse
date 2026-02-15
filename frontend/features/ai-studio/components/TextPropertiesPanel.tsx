@@ -244,6 +244,9 @@ export function TextPropertiesPanel({
     return imageResolutionOptions[0]?.value !== MODEL_DEFAULT_IMAGE_RESOLUTION;
   }, [imageResolutionOptions]);
   const hasCharacterOptions = characterOptions.length > 0;
+  const characterStepSubtitle = beginnerMode
+    ? "Toggle on character mode then select your character."
+    : "Select one of your Character Manager profiles.";
   const characterSelectDisabled =
     isCharacterOptionsLoading || !hasCharacterOptions || !characterModeEnabled;
   const characterSelectPlaceholder = !characterModeEnabled
@@ -284,7 +287,7 @@ export function TextPropertiesPanel({
         <p className="eyebrow">Create</p>
       </div>
       <div
-        className="step-card character-step-card"
+        className={`step-card character-step-card ${beginnerMode ? "character-step-card--beginner" : ""}`}
         role="group"
         aria-label="Character mode section"
       >
@@ -297,9 +300,7 @@ export function TextPropertiesPanel({
                 <span className="step-title-optional">(Optional)</span>
               ) : null}
             </p>
-            <span className="step-subtitle tiny helper-text">
-              Select one of your Character Manager profiles.
-            </span>
+            <span className="step-subtitle tiny helper-text">{characterStepSubtitle}</span>
           </div>
           <div
             className={`step-header-actions character-header-actions ${

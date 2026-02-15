@@ -4,6 +4,7 @@
  */
 
 export const AI_SHELL_LEFT_MIN_PX = 540;
+export const AI_SHELL_LEFT_CHARACTER_MIN_PX = 1080;
 export const AI_SHELL_RIGHT_MIN_PX = 320;
 export const AI_SHELL_DIVIDER_TRACK_PX = 16;
 export const AI_SHELL_RESIZE_BREAKPOINT_PX = 960;
@@ -11,12 +12,19 @@ export const AI_SHELL_LEFT_DEFAULT_RATIO = 0.4;
 export const AI_SHELL_LEFT_MIN_FALLBACK_PX = 420;
 export const AI_SHELL_LEFT_WIDTH_STORAGE_KEY = "shortpulse.aiStudio.shellLeftWidthPx";
 
+type ShellResizeBoundsOptions = {
+  minLeftWidthPx?: number;
+};
+
 /**
  * Returns left-column min/max bounds for a container width.
  * Inputs: container width in pixels.
  * Output: clamped bounds used by drag and keyboard resizing.
  */
-export const getAiShellLeftWidthBounds = (containerWidth: number): { min: number; max: number } => {
+export const getAiShellLeftWidthBounds = (
+  containerWidth: number,
+  options?: ShellResizeBoundsOptions
+): { min: number; max: number } => {
   if (!Number.isFinite(containerWidth) || containerWidth <= 0) {
     return {
       min: AI_SHELL_LEFT_MIN_FALLBACK_PX,
@@ -24,8 +32,12 @@ export const getAiShellLeftWidthBounds = (containerWidth: number): { min: number
     };
   }
   const safeContainerWidth = Math.floor(containerWidth);
+  const requestedMin = Math.max(
+    AI_SHELL_LEFT_MIN_FALLBACK_PX,
+    options?.minLeftWidthPx ?? AI_SHELL_LEFT_MIN_PX
+  );
   const min = Math.min(
-    AI_SHELL_LEFT_MIN_PX,
+    requestedMin,
     Math.max(
       AI_SHELL_LEFT_MIN_FALLBACK_PX,
       safeContainerWidth - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX
@@ -40,8 +52,12 @@ export const getAiShellLeftWidthBounds = (containerWidth: number): { min: number
  * Inputs: requested width and container width.
  * Output: safe width that preserves minimum space for both columns.
  */
-export const clampAiShellLeftWidth = (requestedWidth: number, containerWidth: number): number => {
-  const { min, max } = getAiShellLeftWidthBounds(containerWidth);
+export const clampAiShellLeftWidth = (
+  requestedWidth: number,
+  containerWidth: number,
+  options?: ShellResizeBoundsOptions
+): number => {
+  const { min, max } = getAiShellLeftWidthBounds(containerWidth, options);
   if (!Number.isFinite(requestedWidth)) {
     return min;
   }
@@ -53,9 +69,12 @@ export const clampAiShellLeftWidth = (requestedWidth: number, containerWidth: nu
  * Inputs: container width.
  * Output: clamped default used for first-load and reset.
  */
-export const getDefaultAiShellLeftWidth = (containerWidth: number): number => {
+export const getDefaultAiShellLeftWidth = (
+  containerWidth: number,
+  options?: ShellResizeBoundsOptions
+): number => {
   const preferredWidth = containerWidth * AI_SHELL_LEFT_DEFAULT_RATIO;
-  return clampAiShellLeftWidth(preferredWidth, containerWidth);
+  return clampAiShellLeftWidth(preferredWidth, containerWidth, options);
 };
 
 /**

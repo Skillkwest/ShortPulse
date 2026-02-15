@@ -24,6 +24,11 @@ const isVideoUrl = (url: string) =>
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 80;
 const FALLBACK_REFERENCE_ROW_HEIGHT = 220;
+const REFERENCE_GRID_MIN_CARD_PX = 160;
+const REFERENCE_GRID_MIN_CARD_PX_WIDE = 160;
+const REFERENCE_GRID_MIN_COLUMNS = 2;
+const REFERENCE_GRID_MAX_COLUMNS = 5;
+const REFERENCE_GRID_MAX_COLUMNS_WIDE = 8;
 const REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD = 0.6;
 const REFERENCE_AUTOPLAY_MAX_DESKTOP = 4;
 const REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN = 2;
@@ -37,6 +42,39 @@ type NavigatorWithConnection = Navigator & {
     saveData?: boolean;
     effectiveType?: string;
   };
+};
+
+type PastedMediaReference = {
+  url: string;
+  mimeType?: string | null;
+};
+
+type ClipboardMediaUrlReference = {
+  url: string;
+  mimeType?: string | null;
+};
+
+const IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
+const VIDEO_URL_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:[?#].*)?$/i;
+const IMAGE_EXTENSION_TO_MIME: Record<string, string> = {
+  avif: "image/avif",
+  bmp: "image/bmp",
+  gif: "image/gif",
+  heic: "image/heic",
+  heif: "image/heif",
+  jpeg: "image/jpeg",
+  jpg: "image/jpeg",
+  png: "image/png",
+  svg: "image/svg+xml",
+  webp: "image/webp",
+};
+const VIDEO_EXTENSION_TO_MIME: Record<string, string> = {
+  m4v: "video/mp4",
+  mov: "video/quicktime",
+  mp4: "video/mp4",
+  ogg: "video/ogg",
+  ogv: "video/ogg",
+  webm: "video/webm",
 };
 
 // Temporary UI experiment: set false to revert selection outline theming to default create-blue.
@@ -54,6 +92,183 @@ const resolveReferenceSelectionTheme = (selectedTool: ToolId | null): ReferenceS
 const areIdListsEqual = (left: string[], right: string[]) =>
   left.length === right.length && left.every((value, index) => value === right[index]);
 
+const normalizeClipboardText = (value: string): string => value.trim();
+
+const parseUrlCandidate = (value: string): string | null => {
+  const candidate = normalizeClipboardText(value);
+  if (!candidate || (typeof window !== "undefined" && candidate === window.location.href))
+    return null;
+  if (/^data:(image|video)\//i.test(candidate)) return candidate;
+  if (/^blob:/i.test(candidate)) return candidate;
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+};
+
+const isMediaUrl = (url: string): boolean =>
+  /^data:(image|video)\//i.test(url) || IMAGE_URL_PATTERN.test(url) || VIDEO_URL_PATTERN.test(url);
+
+const inferMimeTypeFromFilename = (filename: string): string | null => {
+  const normalized = filename.trim().toLowerCase();
+  const extension = normalized.includes(".") ? (normalized.split(".").pop() ?? "") : "";
+  if (!extension) return null;
+  return IMAGE_EXTENSION_TO_MIME[extension] ?? VIDEO_EXTENSION_TO_MIME[extension] ?? null;
+};
+
+const normalizeMediaMimeType = (mimeType: string | null | undefined): string | null => {
+  if (!mimeType) return null;
+  const normalized = mimeType.trim().toLowerCase();
+  if (!normalized) return null;
+  return normalized.startsWith("image/") || normalized.startsWith("video/") ? normalized : null;
+};
+
+const normalizeMediaFile = (
+  file: File | null,
+  fallbackMimeType?: string | null,
+  index: number = 0
+): File | null => {
+  if (!file) return null;
+  const resolvedMimeType =
+    normalizeMediaMimeType(file.type) ??
+    normalizeMediaMimeType(fallbackMimeType) ??
+    inferMimeTypeFromFilename(file.name);
+  if (!resolvedMimeType) return null;
+  if (file.type === resolvedMimeType && file.type.length > 0) {
+    return file;
+  }
+  const extension =
+    Object.entries({ ...IMAGE_EXTENSION_TO_MIME, ...VIDEO_EXTENSION_TO_MIME }).find(
+      ([, mimeType]) => mimeType === resolvedMimeType
+    )?.[0] ?? (resolvedMimeType.startsWith("image/") ? "png" : "mp4");
+  const normalizedName = file.name?.trim() || `pasted-media-${index + 1}.${extension}`;
+  return new File([file], normalizedName, {
+    type: resolvedMimeType,
+    lastModified: file.lastModified,
+  });
+};
+
+const dedupeMediaFiles = (files: File[]): File[] => {
+  const seen = new Set<string>();
+  const deduped: File[] = [];
+  files.forEach((file) => {
+    const signature = `${file.name}|${file.size}|${file.type}|${file.lastModified}`;
+    if (seen.has(signature)) return;
+    seen.add(signature);
+    deduped.push(file);
+  });
+  return deduped;
+};
+
+const collectClipboardMediaFiles = (clipboardData: DataTransfer): File[] => {
+  const clipboardItems = Array.from(clipboardData.items || []);
+  const directFiles = Array.from(clipboardData.files || [])
+    .map((file, index) => normalizeMediaFile(file, clipboardItems[index]?.type, index))
+    .filter((file): file is File => Boolean(file));
+  if (directFiles.length > 0) {
+    return dedupeMediaFiles(directFiles);
+  }
+  const itemFiles = clipboardItems
+    .filter((item) => item.kind === "file")
+    .map((item, index) => normalizeMediaFile(item.getAsFile(), item.type, index))
+    .filter((file): file is File => Boolean(file));
+  return dedupeMediaFiles(itemFiles);
+};
+
+const getMediaReferenceFromUriList = (uriList: string): ClipboardMediaUrlReference | null => {
+  const entries = uriList
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"));
+  for (const entry of entries) {
+    const parsed = parseUrlCandidate(entry);
+    if (parsed && isMediaUrl(parsed)) {
+      return {
+        url: parsed,
+        mimeType: inferClipboardMimeTypeFromUrl(parsed),
+      };
+    }
+  }
+  return null;
+};
+
+const getMediaReferenceFromHtml = (html: string): ClipboardMediaUrlReference | null => {
+  const trimmed = html.trim();
+  if (!trimmed) return null;
+  if (typeof DOMParser === "undefined") return null;
+  const documentFragment = new DOMParser().parseFromString(trimmed, "text/html");
+  const candidateNodes = Array.from(
+    documentFragment.querySelectorAll("img[src],video[src],source[src],a[href]")
+  );
+  for (const node of candidateNodes) {
+    const tagName = node.tagName.toLowerCase();
+    const raw =
+      node.getAttribute("src") ??
+      node.getAttribute("href") ??
+      (node instanceof HTMLAnchorElement ? node.href : "");
+    if (!raw) continue;
+    const parsed = parseUrlCandidate(raw);
+    if (!parsed) continue;
+    const declaredMimeType = normalizeMediaMimeType(node.getAttribute("type"));
+    if (tagName === "img") {
+      return { url: parsed, mimeType: declaredMimeType ?? "image/*" };
+    }
+    if (tagName === "video" || tagName === "source") {
+      return { url: parsed, mimeType: declaredMimeType ?? "video/*" };
+    }
+    if (isMediaUrl(parsed)) {
+      return {
+        url: parsed,
+        mimeType: declaredMimeType ?? inferClipboardMimeTypeFromUrl(parsed),
+      };
+    }
+  }
+  return null;
+};
+
+const inferClipboardMimeTypeFromUrl = (url: string): string | null => {
+  if (/^data:image\//i.test(url)) {
+    const mime = url.slice(5, url.indexOf(";"));
+    return mime || "image/*";
+  }
+  if (/^data:video\//i.test(url)) {
+    const mime = url.slice(5, url.indexOf(";"));
+    return mime || "video/*";
+  }
+  if (VIDEO_URL_PATTERN.test(url)) return "video/*";
+  if (IMAGE_URL_PATTERN.test(url)) return "image/*";
+  return null;
+};
+
+const isEditableElement = (element: HTMLElement | null): boolean => {
+  if (!element) return false;
+  if (element.isContentEditable) return true;
+  return (
+    element.tagName === "INPUT" ||
+    element.tagName === "TEXTAREA" ||
+    element.getAttribute("role") === "textbox"
+  );
+};
+
+const getReferencePasteSurfaces = (panelNode: HTMLDivElement): HTMLElement[] => {
+  const surfaces: HTMLElement[] = [panelNode];
+  const referenceColumnNode = panelNode.closest(".reference-column");
+  if (referenceColumnNode instanceof HTMLElement) {
+    surfaces.push(referenceColumnNode);
+  }
+  const shellRightNode = panelNode.closest(".ai-shell-right");
+  if (shellRightNode instanceof HTMLElement) {
+    surfaces.push(shellRightNode);
+  }
+  return surfaces;
+};
+
+const isNodeInsideAnySurface = (targetNode: Node | null, surfaces: HTMLElement[]): boolean =>
+  Boolean(targetNode && surfaces.some((surface) => surface.contains(targetNode)));
+
 export type ReferenceCanvasProps = {
   outputs: StudioOutput[];
   activeOutputId: string | null;
@@ -66,6 +281,8 @@ export type ReferenceCanvasProps = {
   showPromptGenerate?: boolean;
   disablePromptGenerate?: boolean;
   onDropFiles?: (files: FileList) => void;
+  onPasteTextReference?: (text: string) => void;
+  onPasteMediaReference?: (reference: PastedMediaReference) => void;
   onTriggerFileSelect?: () => void;
   onOpenMediaLibrary?: () => void;
   onDescribeImage?: (output: StudioOutput) => void;
@@ -92,6 +309,8 @@ export function ReferenceCanvas({
   showPromptGenerate = true,
   disablePromptGenerate = false,
   onDropFiles,
+  onPasteTextReference,
+  onPasteMediaReference,
   onTriggerFileSelect,
   onOpenMediaLibrary,
   onDescribeImage,
@@ -109,10 +328,14 @@ export function ReferenceCanvas({
   const lastScrollSampleAtRef = React.useRef(0);
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
   const gridRef = React.useRef<HTMLDivElement | null>(null);
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
   const videoVisibilityIdSetRef = React.useRef<Set<string>>(new Set());
   const videoNodeByIdRef = React.useRef<Map<string, HTMLVideoElement>>(new Map());
   const videoDetachTimeoutByIdRef = React.useRef<Map<string, number>>(new Map());
   const videoIntersectionObserverRef = React.useRef<IntersectionObserver | null>(null);
+  const isPointerOverPanelRef = React.useRef(false);
+  const isPastePrimedRef = React.useRef(false);
+  const lastPasteFingerprintRef = React.useRef<{ value: string; at: number } | null>(null);
   const autoplayBudgetRef = React.useRef<number>(REFERENCE_AUTOPLAY_MAX_DESKTOP);
   const [autoplayEnabledIds, setAutoplayEnabledIds] = useState<string[]>([]);
   const [virtualMetrics, setVirtualMetrics] = useState({
@@ -129,22 +352,52 @@ export function ReferenceCanvas({
     () => new Set(linkedPromptReferenceIds),
     [linkedPromptReferenceIds]
   );
+  const normalizeMediaFiles = useCallback((files: File[]): File[] => {
+    return dedupeMediaFiles(
+      files
+        .map((file, index) => normalizeMediaFile(file, null, index))
+        .filter((file): file is File => Boolean(file))
+    );
+  }, []);
+
+  const buildFileList = useCallback((files: File[]): FileList | null => {
+    if (files.length === 0) return null;
+    if (typeof DataTransfer !== "undefined") {
+      const transfer = new DataTransfer();
+      files.forEach((file) => transfer.items.add(file));
+      return transfer.files;
+    }
+    const fallback = files.reduce<Record<number, File>>((acc, file, index) => {
+      acc[index] = file;
+      return acc;
+    }, {});
+    return {
+      ...fallback,
+      length: files.length,
+      item: (index: number) => files[index] ?? null,
+    } as unknown as FileList;
+  }, []);
 
   const syncVirtualMetrics = useCallback(() => {
     const scrollNode = scrollContainerRef.current;
     const gridNode = gridRef.current;
     if (!scrollNode || !gridNode) return;
-    const fallbackColumns = selectedTool ? 5 : 8;
+    const maxColumns = selectedTool ? REFERENCE_GRID_MAX_COLUMNS : REFERENCE_GRID_MAX_COLUMNS_WIDE;
+    const minCardWidth = selectedTool
+      ? REFERENCE_GRID_MIN_CARD_PX
+      : REFERENCE_GRID_MIN_CARD_PX_WIDE;
     const style = window.getComputedStyle(gridNode);
-    const template = style.gridTemplateColumns;
-    const measuredColumns =
-      template && template !== "none" ? template.split(" ").filter(Boolean).length : 0;
-    const columnCount = Math.max(1, measuredColumns || fallbackColumns);
     const rowGap = Number.parseFloat(style.rowGap || style.gap || "0");
     const gap = Number.isFinite(rowGap) ? rowGap : 3;
     const paddingLeft = Number.parseFloat(style.paddingLeft || "0") || 0;
     const paddingRight = Number.parseFloat(style.paddingRight || "0") || 0;
     const gridWidth = Math.max(0, gridNode.clientWidth - paddingLeft - paddingRight);
+    const estimatedColumnCount =
+      gridWidth > 0 ? Math.floor((gridWidth + gap) / (minCardWidth + gap)) : 1;
+    const columnCount = Math.max(
+      REFERENCE_GRID_MIN_COLUMNS,
+      Math.min(maxColumns, estimatedColumnCount || REFERENCE_GRID_MIN_COLUMNS)
+    );
     const cardWidth =
       columnCount > 0 ? Math.max(0, (gridWidth - gap * (columnCount - 1)) / columnCount) : 0;
     const cardHeight = cardWidth > 0 ? (cardWidth * 5) / 4 : FALLBACK_REFERENCE_ROW_HEIGHT;
@@ -164,6 +417,16 @@ export function ReferenceCanvas({
       return stable ? prev : next;
     });
   }, [selectedTool]);
+
+  const gridStyle = React.useMemo(
+    () =>
+      ({
+        "--reference-grid-columns": String(
+          Math.max(REFERENCE_GRID_MIN_COLUMNS, virtualMetrics.columnCount)
+        ),
+      }) as React.CSSProperties,
+    [virtualMetrics.columnCount]
+  );
 
   const shouldVirtualize = outputs.length >= REFERENCE_VIRTUALIZE_MIN_ITEMS;
   const effectiveViewportHeight =
@@ -422,20 +685,150 @@ export function ReferenceCanvas({
     if (internalRefId) return;
     const files = event.dataTransfer.files;
     if (!files || files.length === 0) return;
-    const mediaFiles = Array.from(files).filter(
-      (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
-    );
+    const mediaFiles = normalizeMediaFiles(Array.from(files));
     if (mediaFiles.length === 0) return;
+    const fileList = buildFileList(mediaFiles);
+    if (!fileList) return;
     event.preventDefault();
-    const dt = new DataTransfer();
-    mediaFiles.forEach((file) => dt.items.add(file));
-    onDropFiles(dt.files);
+    onDropFiles(fileList);
   };
 
   const handleCanvasDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     if (event.dataTransfer.types.includes("Files")) {
       event.preventDefault();
     }
+  };
+
+  const consumeClipboardData = useCallback(
+    (clipboardData: DataTransfer | null): boolean => {
+      if (!clipboardData) return false;
+      const fingerprint = [
+        Array.from(clipboardData.types || []).join(","),
+        Array.from(clipboardData.files || [])
+          .map((file) => `${file.name}|${file.size}|${file.type}`)
+          .join(";"),
+        normalizeClipboardText(clipboardData.getData("text/uri-list")).slice(0, 220),
+        normalizeClipboardText(clipboardData.getData("text/plain")).slice(0, 220),
+      ].join("::");
+      const now = Date.now();
+      const lastPaste = lastPasteFingerprintRef.current;
+      if (lastPaste && lastPaste.value === fingerprint && now - lastPaste.at < 250) {
+        return true;
+      }
+      const markHandled = () => {
+        lastPasteFingerprintRef.current = { value: fingerprint, at: now };
+      };
+
+      // Priority 1: actual binary media in clipboard. Never fan this out to multiple cards.
+      if (onDropFiles) {
+        const mediaFiles = collectClipboardMediaFiles(clipboardData);
+        const fileList = buildFileList(mediaFiles);
+        if (fileList) {
+          onDropFiles(fileList);
+          markHandled();
+          return true;
+        }
+      }
+
+      // Priority 2: media URL payload from URI list / HTML / plain text URL.
+      const uriListReference = getMediaReferenceFromUriList(clipboardData.getData("text/uri-list"));
+      const htmlReference = getMediaReferenceFromHtml(clipboardData.getData("text/html"));
+      const plainText = normalizeClipboardText(clipboardData.getData("text/plain"));
+      const plainTextUrl = parseUrlCandidate(plainText);
+      const plainTextReference =
+        plainTextUrl && isMediaUrl(plainTextUrl)
+          ? { url: plainTextUrl, mimeType: inferClipboardMimeTypeFromUrl(plainTextUrl) }
+          : null;
+      const pastedMediaReference = htmlReference || uriListReference || plainTextReference;
+      if (pastedMediaReference && onPasteMediaReference) {
+        onPasteMediaReference(pastedMediaReference);
+        markHandled();
+        return true;
+      }
+
+      // Priority 3: plain text.
+      if (plainText && onPasteTextReference) {
+        onPasteTextReference(plainText);
+        markHandled();
+        return true;
+      }
+
+      return false;
+    },
+    [buildFileList, onDropFiles, onPasteMediaReference, onPasteTextReference]
+  );
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const handleDocumentPaste = (event: ClipboardEvent) => {
+      if (event.defaultPrevented) return;
+      const panelNode = panelRef.current;
+      if (!panelNode) return;
+      const pasteSurfaces = getReferencePasteSurfaces(panelNode);
+
+      const targetElement = event.target instanceof HTMLElement ? event.target : null;
+      const activeElement =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const targetInsideSurface = isNodeInsideAnySurface(targetElement, pasteSurfaces);
+      const activeInsideSurface = isNodeInsideAnySurface(activeElement, pasteSurfaces);
+      const targetIsEditable = isEditableElement(targetElement);
+      const activeIsEditable = isEditableElement(activeElement);
+      const pastePrimed = isPastePrimedRef.current;
+      const preserveEditablePaste =
+        (targetIsEditable || activeIsEditable) &&
+        !targetInsideSurface &&
+        !activeInsideSurface &&
+        !isPointerOverPanelRef.current &&
+        !pastePrimed;
+      if (preserveEditablePaste) return;
+
+      if (consumeClipboardData(event.clipboardData)) {
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener("paste", handleDocumentPaste);
+    return () => {
+      document.removeEventListener("paste", handleDocumentPaste);
+    };
+  }, [consumeClipboardData]);
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const handleDocumentPointerDown = (event: PointerEvent) => {
+      const panelNode = panelRef.current;
+      if (!panelNode) return;
+      const pasteSurfaces = getReferencePasteSurfaces(panelNode);
+      const targetNode = event.target instanceof Node ? event.target : null;
+      const insidePasteSurface = isNodeInsideAnySurface(targetNode, pasteSurfaces);
+      isPastePrimedRef.current = insidePasteSurface;
+      if (
+        insidePasteSurface &&
+        event.button === 0 &&
+        !isNodeInsideAnySurface(targetNode, [panelNode])
+      ) {
+        panelNode.focus({ preventScroll: true });
+      }
+    };
+    document.addEventListener("pointerdown", handleDocumentPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handleDocumentPointerDown, true);
+    };
+  }, []);
+
+  const handlePanelPointerEnter = () => {
+    isPointerOverPanelRef.current = true;
+  };
+
+  const handlePanelPointerLeave = () => {
+    isPointerOverPanelRef.current = false;
+  };
+
+  const handlePanelPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    isPastePrimedRef.current = true;
+    if (event.button !== 0) return;
+    event.currentTarget.focus({ preventScroll: true });
   };
 
   const handleCardDragStart = (event: React.DragEvent<HTMLElement>, item: StudioOutput) => {
@@ -524,10 +917,15 @@ export function ReferenceCanvas({
 
   return (
     <div
+      ref={panelRef}
       className="panel ai-panel ai-preview-panel reference-canvas-panel"
       data-selection-theme={selectionTheme}
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}
+      onPointerEnter={handlePanelPointerEnter}
+      onPointerLeave={handlePanelPointerLeave}
+      onPointerDown={handlePanelPointerDown}
+      tabIndex={0}
     >
       {showHeader ? (
         <div className="panel-header preview-header">
@@ -561,6 +959,7 @@ export function ReferenceCanvas({
         <div
           className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
           ref={gridRef}
+          style={gridStyle}
         >
           {outputs.length === 0 ? (
             <div className="reference-empty">
@@ -785,29 +1184,34 @@ export function ReferenceCanvas({
                     onGeneratePrompt &&
                     activeOutputId === item.id &&
                     showPromptGenerate ? (
-                      <button
-                        type="button"
-                        className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill"
-                        disabled={disablePromptGenerate}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onSelectOutput(item.id);
-                          onGeneratePrompt(item);
-                        }}
-                        onDoubleClick={(event) => {
-                          event.stopPropagation();
-                        }}
-                      >
-                        <span className="agent-generate-label">Generate</span>
-                        <span className="model-chip-pill generate-pill">
-                          <span aria-hidden="true" className="model-chip-icon">
-                            ✦
+                      <>
+                        <button
+                          type="button"
+                          className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill"
+                          disabled={disablePromptGenerate}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onSelectOutput(item.id);
+                            onGeneratePrompt(item);
+                          }}
+                          onDoubleClick={(event) => {
+                            event.stopPropagation();
+                          }}
+                        >
+                          <span className="agent-generate-label">Generate</span>
+                          <span className="model-chip-pill generate-pill">
+                            <span aria-hidden="true" className="model-chip-icon">
+                              ✦
+                            </span>
+                            <span className="model-chip-credits">
+                              {generateCostCredits != null ? generateCostCredits : "—"}
+                            </span>
                           </span>
-                          <span className="model-chip-credits">
-                            {generateCostCredits != null ? generateCostCredits : "—"}
-                          </span>
+                        </button>
+                        <span className="reference-prompt-generate-note">
+                          Billed in 5-credit increments.
                         </span>
-                      </button>
+                      </>
                     ) : null}
                   </div>
                 );

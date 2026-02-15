@@ -5,7 +5,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { TextPropertiesPanel } from "../TextPropertiesPanel";
+import { ComposeSendCard, TextPropertiesPanel } from "../TextPropertiesPanel";
 
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => {
@@ -49,5 +49,20 @@ describe("TextPropertiesPanel", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Image resolution" })).toBeInTheDocument();
+  });
+
+  it("shows 5-credit rounding guidance in the generate card", () => {
+    render(
+      <ComposeSendCard
+        onGenerate={vi.fn()}
+        costCredits={15}
+        isGenerateDisabled={false}
+        isPromptGenerating={false}
+      />
+    );
+
+    expect(
+      screen.getByText("Estimated charges are billed in 5-credit increments.")
+    ).toBeInTheDocument();
   });
 });

@@ -20,6 +20,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Fal status settlement helper: `frontend/lib/server/api/falStatusProxy.ts`.
 - Ledger compatibility insert helper: `frontend/lib/server/api/creditLedger.ts`.
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
+- Admin ledger API: `frontend/pages/api/admin/credits/ledger.ts`.
 
 ## Ledger schema contract
 Expected v2 columns on `ai_credit_ledger`:
@@ -28,7 +29,7 @@ Expected v2 columns on `ai_credit_ledger`:
 Legacy deployments may still expose:
 - `id`, `user_id`, `change_cents`, `reason`, `ref_id`, `created_at`.
 
-The API currently supports both shapes during rollout by falling back to `ref_id` writes if v2 columns are missing.
+The API currently supports both shapes during rollout by falling back to `ref_id` writes (adjustments) and `ref_id` reads (admin ledger audit) if v2 columns are missing.
 
 ## Migration runbook (required)
 1. Run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` in Supabase SQL editor.
@@ -67,6 +68,7 @@ If role metadata is updated directly in Supabase, sign out/sign in to refresh JW
 ## Manual credit adjustments
 Primary path:
 - `/admin` UI -> `/api/admin/credits/adjust`.
+- `/admin` transaction audit -> `/api/admin/credits/ledger?userId=<uuid>&limit=<n>&source=<source>`.
 
 Request contract:
 - `userId` (uuid), `changeCents` (non-zero int), `reason` (non-empty string).

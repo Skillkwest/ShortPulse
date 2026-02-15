@@ -4,7 +4,7 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
 
 ## Inputs to collect
 - API docs: submit/status endpoints, auth header, required/optional fields, defaults (aspect, format, guidance/steps, safety).
-- Pricing rule: per-image, per-MP (tiered), per-duration, or per-token; $→credits conversion (`credits = ceil(usd / 0.01)`, min 1).
+- Pricing rule: per-image, per-MP (tiered), per-duration, or per-token; $→credits conversion (`rawCredits = ceil(usd / 0.01)`, `credits = ceil(rawCredits / 5) * 5`).
 - Allowed aspects/sizes: enum list and width/height map if MP-based.
 - Output schema: result URLs/fields needed for preview/result parsing.
 
@@ -19,7 +19,7 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
    - `frontend/features/ai-studio/components/ModelModal.tsx`: ensure grouping/order if a new section is needed (cost chips use `computeCostForModel` automatically).
 3) **Client + API proxy**
    - Fal models: add Next proxies `frontend/pages/api/fal/<model>-submit.ts` and `<model>-status.ts`; add client helpers in `frontend/lib/falClient.ts` (submit/status).
-   - Kie/OpenAI/other: reuse `createKeiTask` or add provider-specific helper; proxy server-side to keep keys hidden.
+   - OpenAI/other providers: add provider-specific helper and server-side proxy routes to keep keys hidden.
 4) **Generation flow**
    - `frontend/features/ai-studio/hooks/useAiStudioState.ts`:
      - Aspect clamp in the effect for the new model.
@@ -45,7 +45,8 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
   ```ts
   const MY_MODEL_USD = 0.02;
   const computeMyModelCost: StrategyFn = () => {
-    const credits = Math.max(1, Math.ceil(MY_MODEL_USD / CREDIT_VALUE_USD));
+    const rawCredits = Math.max(1, Math.ceil(MY_MODEL_USD / CREDIT_VALUE_USD));
+    const credits = Math.ceil(rawCredits / 5) * 5;
     return { credits, usd: credits * CREDIT_VALUE_USD, megapixels: 0, width: 0, height: 0 };
   };
   ```
@@ -61,7 +62,8 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
     const mp = (size.width * size.height) / 1_000_000;
     const units = Math.max(1, Math.ceil(mp));
     const usdRaw = FIRST_MP_USD + Math.max(0, units - 1) * ADDITIONAL_MP_USD;
-    const credits = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
+    const rawCredits = Math.max(1, Math.ceil(usdRaw / CREDIT_VALUE_USD));
+    const credits = Math.ceil(rawCredits / 5) * 5;
     return { credits, usd: credits * CREDIT_VALUE_USD, megapixels: mp, width: size.width, height: size.height };
   };
   ```
@@ -100,7 +102,7 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
   Status: ...
   Input: prompt, aspect/size, format, safety, defaults
   Output: result URLs, fields
-  Pricing: <formula>, credits = ceil(usd/0.01)
+  Pricing: <formula>, rawCredits = ceil(usd/0.01), credits = ceil(rawCredits/5)*5
   Defaults we use: aspect fallback, format, safety, steps/guidance (if any)
   ```
 

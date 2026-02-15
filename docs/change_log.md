@@ -519,3 +519,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `Status: Legacy` markers exist only under `docs/archive/`.
 - Added `npm run docs:check` to CI in `.github/workflows/ci.yml` so docs integrity and archive-governance checks run on PRs/pushes.
 - Updated `docs/documentation_overview.md` with explicit lifecycle states (`Active`, `Working`, `Archived`) and concrete archive requirements.
+
+## 2026-02-15 (Credit-pricing guardrails + reservation metadata audit follow-up)
+- Preserved reservation metadata on capture across all generation reservation migrations (`002`, `013`, `014`) and added SQL regression coverage in `frontend/tests/sql/generation-reservation-metadata.test.ts`.
+- Expanded generation billing tests to assert debit/reservation metadata includes a full pricing breakdown (`usd_raw`, `raw_credits`, `billed_credits`, `billed_usd`) and remains in parity with `computeCostForModel`.
+- Added UI guidance in AI Studio generation surfaces that estimates are billed in 5-credit increments (model modal, text/reference generate controls, prompt-reference card).
+- Added pricing guardrail tests to enforce MVP model-option policy (no KEI-backed model options) and 5-credit rounding invariants across registered model defaults; updated `docs/product/ai-studio-pricing.md` to document `rawCredits`/`usdRaw` contract and KEI MVP exclusion.
+- Added admin ledger audit support: new route `GET /api/admin/credits/ledger` with optional `source` filtering (for example, `source=generation_charge`), `/admin` UI table for selected-user recent credit transactions, visibility for generation `pricing_breakdown` metadata (raw vs billed credits/USD), and legacy-schema fallback reads for pre-v2 `ai_credit_ledger` deployments.

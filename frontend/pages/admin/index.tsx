@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { CloudSlash, ShieldCheck, UserCircle } from "phosphor-react";
 import { ErrorIncidentsPanel } from "../../features/admin/components/ErrorIncidentsPanel";
 import type {
+  AdminCreditLedgerRow,
   AdminErrorLogRow,
   AdminErrorEventRow,
   AdminErrorEventSummary,
@@ -45,6 +46,7 @@ const planLabel = (planId: string | null): string => {
 const USERS_PER_PAGE = 50;
 const ERRORS_PER_PAGE = 50;
 const ERROR_EVENTS_PER_PAGE = 50;
+const CREDIT_LEDGER_LIMIT = 20;
 const SEARCH_DEBOUNCE_MS = 250;
 const ERROR_REFRESH_INTERVAL_MS = 30000;
 const ADJUSTMENT_PRESETS = [100, 500, -100, -500] as const;
@@ -83,6 +85,11 @@ const parseAdjustmentInput = (rawValue: string): number | null => {
   return whole;
 };
 
+const formatCreditDelta = (changeCents: number): string =>
+  `${changeCents > 0 ? "+" : ""}${Math.trunc(changeCents).toLocaleString()}`;
+
+const formatUsd = (value: number | null): string => (value == null ? "—" : `$${value.toFixed(2)}`);
+
 export default function AdminDashboardPage() {
   const { loading, user } = useProtectedRoute(true);
   const [activeTab, setActiveTab] = useState<"overview" | "errors">("overview");
@@ -105,6 +112,9 @@ export default function AdminDashboardPage() {
   const [adjustment, setAdjustment] = useState<string>("");
   const [adjustSubmitting, setAdjustSubmitting] = useState(false);
   const [adjustResult, setAdjustResult] = useState<string | null>(null);
+  const [creditLedgerRows, setCreditLedgerRows] = useState<AdminCreditLedgerRow[]>([]);
+  const [creditLedgerLoading, setCreditLedgerLoading] = useState(false);
+  const [creditLedgerError, setCreditLedgerError] = useState<string | null>(null);
   const [errors, setErrors] = useState<AdminErrorLogRow[]>([]);
   const [errorsLoading, setErrorsLoading] = useState(false);
   const [errorsError, setErrorsError] = useState<string | null>(null);
@@ -236,6 +246,76 @@ export default function AdminDashboardPage() {
       setUsersLoading(false);
     }
   }, [debouncedUserSearch, usersPage]);
+
+  const loadCreditLedger = useCallback(async () => {
+    if (!selectedUserId) {
+      setCreditLedgerRows([]);
+      setCreditLedgerError(null);
+      return;
+    }
+
+    setCreditLedgerLoading(true);
+    setCreditLedgerError(null);
+    try {
+      const params = new URLSearchParams();
+      params.set("userId", selectedUserId);
+      params.set("limit", String(CREDIT_LEDGER_LIMIT));
+
+      const response = await fetchWithAuth(`/api/admin/credits/ledger?${params.toString()}`, {
+        method: "GET",
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        transactions?: unknown[];
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to load credit transactions.");
+      }
+
+      const rows = Array.isArray(payload.transactions)
+        ? payload.transactions.map((item) => {
+            const value = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+            const breakdownValue =
+              value.pricingBreakdown && typeof value.pricingBreakdown === "object"
+                ? (value.pricingBreakdown as Record<string, unknown>)
+                : null;
+            return {
+              id: String(value.id ?? ""),
+              userId: String(value.userId ?? selectedUserId),
+              changeCents: Number(value.changeCents ?? 0),
+              reason: typeof value.reason === "string" ? value.reason : "",
+              source: typeof value.source === "string" ? value.source : "system",
+              sourceRef: typeof value.sourceRef === "string" ? value.sourceRef : null,
+              pricingBreakdown: breakdownValue
+                ? {
+                    usdRaw: Number.isFinite(Number(breakdownValue.usdRaw))
+                      ? Number(breakdownValue.usdRaw)
+                      : null,
+                    rawCredits: Number.isFinite(Number(breakdownValue.rawCredits))
+                      ? Number(breakdownValue.rawCredits)
+                      : null,
+                    billedCredits: Number.isFinite(Number(breakdownValue.billedCredits))
+                      ? Number(breakdownValue.billedCredits)
+                      : null,
+                    billedUsd: Number.isFinite(Number(breakdownValue.billedUsd))
+                      ? Number(breakdownValue.billedUsd)
+                      : null,
+                  }
+                : null,
+              createdAt: typeof value.createdAt === "string" ? value.createdAt : null,
+            };
+          })
+        : [];
+      setCreditLedgerRows(rows);
+    } catch (error) {
+      setCreditLedgerError(
+        error instanceof Error ? error.message : "Failed to load credit transactions."
+      );
+      setCreditLedgerRows([]);
+    } finally {
+      setCreditLedgerLoading(false);
+    }
+  }, [selectedUserId]);
 
   const loadErrors = useCallback(
     async (overrides?: ErrorLoadOverrides) => {
@@ -528,6 +608,11 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (!user || !adminEnabled) return;
+    void loadCreditLedger();
+  }, [adminEnabled, loadCreditLedger, user]);
+
+  useEffect(() => {
+    if (!user || !adminEnabled) return;
     loadErrors();
   }, [adminEnabled, loadErrors, user]);
 
@@ -577,7 +662,7 @@ export default function AdminDashboardPage() {
 
       setAdjustment("");
       setAdjustResult("Credit adjustment applied.");
-      await loadUsers();
+      await Promise.all([loadUsers(), loadCreditLedger()]);
     } catch (error) {
       setAdjustResult(error instanceof Error ? error.message : "Credit adjustment failed.");
     } finally {
@@ -1008,6 +1093,97 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
               {adjustResult ? <p className="tiny subdued">{adjustResult}</p> : null}
+
+              <div className={styles.adminSectionHead}>
+                <div>
+                  <p className="eyebrow">Credit transaction log</p>
+                  <p className="tiny subdued">
+                    Latest {CREDIT_LEDGER_LIMIT} ledger rows for the selected user, including billed
+                    vs raw pricing metadata when available.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={loadCreditLedger}
+                  disabled={creditLedgerLoading || !selectedUserId}
+                >
+                  {creditLedgerLoading ? "Refreshing…" : "Refresh log"}
+                </button>
+              </div>
+
+              <div className={styles.adminTable}>
+                <div className={styles.adminLedgerHead}>
+                  <span>Time</span>
+                  <span>Source</span>
+                  <span>Change</span>
+                  <span>Pricing</span>
+                  <span>Reason / Ref</span>
+                </div>
+                {creditLedgerError ? (
+                  <div className={styles.adminLedgerRow}>
+                    <span className="subdued">{creditLedgerError}</span>
+                    <span className="subdued">—</span>
+                    <span className="subdued">—</span>
+                    <span className="subdued">—</span>
+                    <span className="subdued">—</span>
+                  </div>
+                ) : !selectedUserId ? (
+                  <div className={styles.adminLedgerRow}>
+                    <span className="subdued">Pick a user to inspect transactions.</span>
+                    <span className="subdued">—</span>
+                    <span className="subdued">—</span>
+                    <span className="subdued">—</span>
+                    <span className="subdued">—</span>
+                  </div>
+                ) : creditLedgerRows.length === 0 ? (
+                  <div className={styles.adminLedgerRow}>
+                    <span className="subdued">No recent credit transactions.</span>
+                    <span className="subdued">—</span>
+                    <span className="subdued">—</span>
+                    <span className="subdued">—</span>
+                    <span className="subdued">—</span>
+                  </div>
+                ) : (
+                  creditLedgerRows.map((row) => (
+                    <div key={row.id} className={styles.adminLedgerRow}>
+                      <span className="subdued">
+                        {row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}
+                      </span>
+                      <span className="mono">{row.source}</span>
+                      <span
+                        className={
+                          row.changeCents < 0 ? styles.ledgerChangeDebit : styles.ledgerChangeCredit
+                        }
+                      >
+                        {formatCreditDelta(row.changeCents)}
+                      </span>
+                      <span className={styles.ledgerPricing}>
+                        {row.pricingBreakdown ? (
+                          <>
+                            <span className={styles.ledgerPricingLine}>
+                              billed {row.pricingBreakdown.billedCredits ?? "—"} cr (
+                              {formatUsd(row.pricingBreakdown.billedUsd)})
+                            </span>
+                            <span className={styles.ledgerPricingLine}>
+                              raw {row.pricingBreakdown.rawCredits ?? "—"} cr (
+                              {formatUsd(row.pricingBreakdown.usdRaw)})
+                            </span>
+                          </>
+                        ) : (
+                          <span className="subdued">—</span>
+                        )}
+                      </span>
+                      <span className={styles.ledgerReason}>
+                        <span>{row.reason || "—"}</span>
+                        {row.sourceRef ? (
+                          <span className={styles.ledgerRef}>ref: {row.sourceRef}</span>
+                        ) : null}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
             </section>
           </>
         ) : (

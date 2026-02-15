@@ -55,7 +55,7 @@ curl --request GET \
 ## Pricing (ShortPulse)
 - Provider rate: **$0.012 per megapixel**.
 - Credits are valued at $0.01 each.
-- Calculation: `megapixels = (width * height) / 1_000_000`, `usd_raw = megapixels * 0.012`, `credits = ceil(usd_raw / 0.01)` (minimum 1 credit). We use aspect → size mapping (1:1=1024x1024, 4:3=1200x900, 3:4=900x1200, 16:9=1344x756, 9:16=756x1344).
+- Calculation: `megapixels = (width * height) / 1_000_000`, `usd_raw = megapixels * 0.012`, `rawCredits = ceil(usd_raw / 0.01)`, `credits = ceil(rawCredits / 5) * 5`. We use aspect → size mapping (1:1=1024x1024, 4:3=1200x900, 3:4=900x1200, 16:9=1344x756, 9:16=756x1344).
 
 ## Defaults we use in AI Studio
 - Guidance scale: **15**

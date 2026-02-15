@@ -26,7 +26,6 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   - `FAL_KEY`
-  - `KEI_API_KEY`
 - Admin / security:
   - `SUPABASE_SERVICE_ROLE_KEY`
   - `SHORTPULSE_ADMIN_EMAILS`

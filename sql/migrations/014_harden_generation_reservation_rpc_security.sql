@@ -335,7 +335,8 @@ begin
             'reservation_id', reservation_row.id,
             'provider_request_id', p_provider_request_id,
             'captured_from_reservation', true
-        ) || coalesce(p_metadata, '{}'::jsonb)
+        ) || coalesce(reservation_row.metadata, '{}'::jsonb)
+          || coalesce(p_metadata, '{}'::jsonb)
     )
     on conflict (user_id, source, source_ref) do nothing;
 

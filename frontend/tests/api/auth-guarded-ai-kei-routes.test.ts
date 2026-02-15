@@ -8,6 +8,7 @@ const requireApiUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
+  getOptionalApiUser: vi.fn(async () => null),
 }));
 
 const createMockResponse = () => {
@@ -71,7 +72,7 @@ describe("API auth guards: AI and KEI routes", () => {
     expect(requireApiUserMock).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects unauthenticated kei task-status requests", async () => {
+  it("returns disabled response for kei task-status requests", async () => {
     const req = {
       method: "POST",
       body: { taskId: "task_123" },
@@ -80,7 +81,7 @@ describe("API auth guards: AI and KEI routes", () => {
 
     await keiTaskStatusHandler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(requireApiUserMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(410);
+    expect(requireApiUserMock).toHaveBeenCalledTimes(0);
   });
 });

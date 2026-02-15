@@ -88,6 +88,19 @@ export const resolveSeedanceI2VResolution = (
 };
 
 /**
+ * Normalizes Seedance text-to-video resolution.
+ */
+export const resolveSeedanceTextResolution = (
+  requestedResolution?: string
+): "480p" | "720p" | "1080p" => {
+  const normalized = requestedResolution?.toLowerCase() ?? "";
+  if (normalized.includes("1080")) return "1080p";
+  if (normalized.includes("480")) return "480p";
+  if (normalized.includes("720") || normalized.includes("high")) return "720p";
+  return "1080p";
+};
+
+/**
  * Clamps Seedance image-to-video duration to API-supported range.
  */
 export const resolveSeedanceI2VDuration = (requestedDurationSeconds: number): string =>

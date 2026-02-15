@@ -229,12 +229,12 @@
 .media-library-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(6, 10, 16, 0.85);
-  backdrop-filter: blur(10px);
+  background: rgba(6, 10, 16, 0.92);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 950;
+  isolation: isolate;
 }
 
 .media-library-modal {
@@ -247,6 +247,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  contain: layout paint;
 }
 
 .media-library-modal.media-library-modal-packed {
@@ -315,6 +316,7 @@
 .media-library-modal-body {
   padding: 10px 18px 22px;
   overflow: auto;
+  scrollbar-gutter: stable both-edges;
 }
 
 .media-library-modal.media-library-modal-packed .media-library-modal-body {
@@ -345,6 +347,8 @@
   display: inline-block;
   margin: 0 0 1px;
   break-inside: avoid;
+  content-visibility: auto;
+  contain-intrinsic-size: 280px;
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -959,7 +963,7 @@
 }
 
 /* Responsive adjustments */
-@media (max-width: 1000px) and (max-device-width: 1000px) {
+@media (max-width: 1000px) {
   .art-modal-main-content {
     flex-direction: column;
   }
@@ -976,7 +980,7 @@
   }
 }
 
-@media (max-width: 720px) and (max-device-width: 720px) {
+@media (max-width: 720px) {
   .art-modal-meta-pill {
     display: none;
   }

@@ -526,3 +526,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added UI guidance in AI Studio generation surfaces that estimates are billed in 5-credit increments (model modal, text/reference generate controls, prompt-reference card).
 - Added pricing guardrail tests to enforce MVP model-option policy (no KEI-backed model options) and 5-credit rounding invariants across registered model defaults; updated `docs/product/ai-studio-pricing.md` to document `rawCredits`/`usdRaw` contract and KEI MVP exclusion.
 - Added admin ledger audit support: new route `GET /api/admin/credits/ledger` with optional `source` filtering (for example, `source=generation_charge`), `/admin` UI table for selected-user recent credit transactions, visibility for generation `pricing_breakdown` metadata (raw vs billed credits/USD), and legacy-schema fallback reads for pre-v2 `ai_credit_ledger` deployments.
+
+## 2026-02-15 (AI Studio media-library modal flicker/stutter fix)
+- Removed a state feedback loop in `MediaLibraryModal` where `files` updates wrote back into tab cache on every render, causing repeated rerenders and visible modal instability under uploaded-image hydration.
+- Added a hard retry cap for unresolved signed-preview batches (max 3 attempts per media item) to stop continuous re-sign churn on broken/unresolvable rows.
+- Stabilized packed media-grid rendering by removing `content-visibility` intrinsic-size collapsing on modal cards, reducing column collapse/reflow flicker while previews load.
+- Added regression coverage in `frontend/features/ai-studio/components/__tests__/MediaLibraryModal.test.tsx` to assert unresolved signing retries stop after the cap.
+- Expanded regression coverage to verify the same signing retry cap behavior across all media tabs (`Uploaded Images`, `Uploaded Videos`, `AI Studio Generations`, `Private`).
+- Added regression coverage for `Saved Prompts` to ensure prompt-only tab navigation does not trigger media signing work.

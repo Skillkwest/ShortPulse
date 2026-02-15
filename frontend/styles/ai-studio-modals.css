@@ -368,8 +368,6 @@
   display: inline-block;
   margin: 0 0 1px;
   break-inside: avoid;
-  content-visibility: auto;
-  contain-intrinsic-size: 280px;
   background: transparent;
   border: 0;
   border-radius: 0;

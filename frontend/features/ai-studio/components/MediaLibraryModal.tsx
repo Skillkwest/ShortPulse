@@ -125,6 +125,7 @@ const MEDIA_MODAL_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
   prefetchWindow: 8,
   signBatchSize: 3,
 };
+const MEDIA_MODAL_MAX_SIGN_ATTEMPTS_PER_ITEM = 3;
 
 const resolveModalSignBudget = (): MediaSignBudget => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -861,18 +862,6 @@ export function MediaLibraryModal({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen || !activeMediaTab) return;
-    if (!activeMediaCache?.loaded) return;
-    setMediaTabCache((prev) => ({
-      ...prev,
-      [activeMediaTab]: {
-        ...prev[activeMediaTab],
-        rows: files.filter((row) => getMediaDataTabForRow(row) === activeMediaTab),
-      },
-    }));
-  }, [activeMediaCache?.loaded, activeMediaTab, files, isOpen]);
-
   const mediaSearchTerm = useMemo(() => activeMediaQuery.toLowerCase(), [activeMediaQuery]);
   const promptSearchTerm = useMemo(() => search.trim().toLowerCase(), [search]);
   const sortedPrompts = useMemo(() => {
@@ -905,6 +894,9 @@ export function MediaLibraryModal({
     const seen = new Set<string>();
     const enqueue = (row?: MediaFileRow) => {
       if (!row) return;
+      if ((signAttemptRef.current[row.id] ?? 0) >= MEDIA_MODAL_MAX_SIGN_ATTEMPTS_PER_ITEM) {
+        return;
+      }
       if (
         !resolveMediaSigningStoragePaths(row, currentUserIdRef.current).length ||
         row.signedUrl ||

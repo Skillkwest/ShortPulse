@@ -219,7 +219,7 @@ a:focus-visible {
   }
 }
 
-@media (max-width: 768px) and (max-device-width: 768px) {
+@media (max-width: 768px) {
   .chart-shell {
     height: 420px;
   }

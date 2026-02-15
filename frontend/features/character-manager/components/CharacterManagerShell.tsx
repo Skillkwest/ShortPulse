@@ -38,6 +38,7 @@ const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const DRAG_GHOST_SCALE = 0.74;
 const CHARACTER_SHEET_FULL_NOTICE = "Click and drag a reference from your drop references.";
+const CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY = "shortpulse.character_manager.beginner_mode";
 
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: PROFILE_ZOOM_MIN,
@@ -129,6 +130,7 @@ export function CharacterManagerShell() {
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
   const [characterSheetUploadNotice, setCharacterSheetUploadNotice] = useState<string | null>(null);
+  const [beginnerMode, setBeginnerMode] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
     null
@@ -236,6 +238,18 @@ export function CharacterManagerShell() {
     }
     return next;
   }, [characterSheetAssignmentsUi, uploadedReferenceBySlotKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY);
+    if (stored == null) return;
+    setBeginnerMode(stored === "true");
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY, String(beginnerMode));
+  }, [beginnerMode]);
 
   useEffect(() => {
     let active = true;
@@ -761,7 +775,11 @@ export function CharacterManagerShell() {
   }, [closeReferencePreview, navigateReferencePreview, referencePreview]);
 
   return (
-    <main id="main-content" className="page page-wide character-manager-page">
+    <main
+      id="main-content"
+      className="page page-wide character-manager-page"
+      data-beginner-mode={beginnerMode ? "on" : "off"}
+    >
       <section className="panel saved-header-bar saved-hero hero-image-card character-manager-hero">
         <div className="saved-header-left">
           <div className="saved-title-stack">
@@ -825,7 +843,23 @@ export function CharacterManagerShell() {
               Manage Characters
             </button>
           </div>
-          {activeTab === "create" ? (
+          <div className="toolbar-beginner-toggle character-mode-beginner-toggle">
+            <div className="toolbar-beginner-copy">
+              <span className="toolbar-label">Beginner mode</span>
+            </div>
+            <button
+              type="button"
+              className={`reference-toggle beginner-toggle ${beginnerMode ? "is-active" : ""}`}
+              aria-pressed={beginnerMode}
+              aria-label={beginnerMode ? "Disable beginner mode" : "Enable beginner mode"}
+              onClick={() => setBeginnerMode((current) => !current)}
+            >
+              <span className="reference-toggle-track" aria-hidden="true">
+                <span className="reference-toggle-dot" />
+              </span>
+            </button>
+          </div>
+          {activeTab === "create" && beginnerMode ? (
             <p className="character-mode-guidance" role="note">
               <span className="character-mode-guidance-label">Tip:</span>
               Swap out your character&apos;s style on the fly by dragging and dropping references
@@ -882,14 +916,18 @@ export function CharacterManagerShell() {
               <section className="character-section character-section--profile">
                 <div className="character-section-head">
                   <div className="character-section-title-row">
-                    <span className="character-step-badge" aria-hidden="true">
-                      1
-                    </span>
+                    {beginnerMode ? (
+                      <span className="character-step-badge" aria-hidden="true">
+                        1
+                      </span>
+                    ) : null}
                     <div className="character-section-title-copy">
                       <h3 className="character-section-title">Identity</h3>
-                      <p className="character-section-helper tiny subdued">
-                        Set the photo, name, and description that define this character.
-                      </p>
+                      {beginnerMode ? (
+                        <p className="character-section-helper tiny subdued">
+                          Set the photo, name, and description that define this character.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -1078,9 +1116,11 @@ export function CharacterManagerShell() {
                         disabled={loading}
                       />
                       <div className="character-description-footer-row">
-                        <p className="character-description-helper tiny subdued">
-                          This will be used as part of character consistency generation.
-                        </p>
+                        {beginnerMode ? (
+                          <p className="character-description-helper tiny subdued">
+                            Tip: This will be used as part of character consistency generation.
+                          </p>
+                        ) : null}
                         <p className="character-description-count tiny subdued">
                           {characterDescription.length}/{CHARACTER_DESCRIPTION_MAX_LENGTH}
                         </p>
@@ -1093,14 +1133,18 @@ export function CharacterManagerShell() {
               <section className="character-section character-section--reference-drop">
                 <div className="character-section-head">
                   <div className="character-section-title-row">
-                    <span className="character-step-badge" aria-hidden="true">
-                      2
-                    </span>
+                    {beginnerMode ? (
+                      <span className="character-step-badge" aria-hidden="true">
+                        2
+                      </span>
+                    ) : null}
                     <div className="character-section-title-copy">
                       <h3 className="character-section-title">Drop References</h3>
-                      <p className="character-section-helper tiny subdued">
-                        Upload clear reference shots to build this character&apos;s source set.
-                      </p>
+                      {beginnerMode ? (
+                        <p className="character-section-helper tiny subdued">
+                          Upload clear reference shots to build this character&apos;s source set.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   <p
@@ -1205,15 +1249,19 @@ export function CharacterManagerShell() {
             <section className="character-section character-section--references">
               <div className="character-section-head">
                 <div className="character-section-title-row">
-                  <span className="character-step-badge" aria-hidden="true">
-                    3
-                  </span>
+                  {beginnerMode ? (
+                    <span className="character-step-badge" aria-hidden="true">
+                      3
+                    </span>
+                  ) : null}
                   <div className="character-section-title-copy">
                     <h3 className="character-section-title">Character Sheet</h3>
-                    <p className="character-section-helper tiny subdued">
-                      Drag uploaded references into each slot to map your character&apos;s look and
-                      style.
-                    </p>
+                    {beginnerMode ? (
+                      <p className="character-section-helper tiny subdued">
+                        Drag uploaded references into each slot to map your character&apos;s look
+                        and style.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               </div>

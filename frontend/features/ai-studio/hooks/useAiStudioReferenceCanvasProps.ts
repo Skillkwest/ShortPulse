@@ -18,6 +18,8 @@ type UseAiStudioReferenceCanvasPropsParams = {
   handleSaveReference: (id: string) => void;
   handleDownloadReference: (id: string) => void;
   handleGenerateFromPromptReference: (id: string) => void;
+  handlePasteTextReference: (text: string) => void;
+  handlePasteMediaReference: (reference: { url: string; mimeType?: string | null }) => void;
   retryOutputStatus: (id: string) => void;
   deleteOutput: (id: string) => void;
   currentCostCredits: number | null;
@@ -40,6 +42,8 @@ export const useAiStudioReferenceCanvasProps = ({
   handleSaveReference,
   handleDownloadReference,
   handleGenerateFromPromptReference,
+  handlePasteTextReference,
+  handlePasteMediaReference,
   retryOutputStatus,
   deleteOutput,
   currentCostCredits,
@@ -58,6 +62,8 @@ export const useAiStudioReferenceCanvasProps = ({
   onSaveToLibrary: (output) => handleSaveReference(output.id),
   onDownload: (output) => handleDownloadReference(output.id),
   onGeneratePrompt: (output) => handleGenerateFromPromptReference(output.id),
+  onPasteTextReference: handlePasteTextReference,
+  onPasteMediaReference: handlePasteMediaReference,
   onRetryStatus: (output) => retryOutputStatus(output.id),
   onDeleteOutput: deleteOutput,
   generateCostCredits: currentCostCredits,

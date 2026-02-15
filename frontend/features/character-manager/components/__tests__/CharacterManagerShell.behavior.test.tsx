@@ -385,4 +385,73 @@ describe("CharacterManagerShell behavior", () => {
       ).toBeInTheDocument();
     });
   });
+
+  it("toggles beginner mode guidance visibility", async () => {
+    render(<CharacterManagerShell />);
+
+    expect(document.querySelectorAll(".character-step-badge")).toHaveLength(3);
+    expect(
+      screen.getByText("Set the photo, name, and description that define this character.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Upload clear reference shots to build this character's source set.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Drag uploaded references into each slot to map your character's look and style."
+      )
+    ).toBeInTheDocument();
+    expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
+    expect(document.querySelector(".character-mode-guidance")).toHaveTextContent(
+      /Swap out your character's style on the fly by dragging and dropping references from the reference panel\./i
+    );
+    expect(
+      screen.getByText("Tip: This will be used as part of character consistency generation.")
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Disable beginner mode/i }));
+
+    await waitFor(() => {
+      expect(document.querySelectorAll(".character-step-badge")).toHaveLength(0);
+      expect(
+        screen.queryByText("Set the photo, name, and description that define this character.")
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Upload clear reference shots to build this character's source set.")
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(
+          "Drag uploaded references into each slot to map your character's look and style."
+        )
+      ).not.toBeInTheDocument();
+      expect(document.querySelector(".character-mode-guidance")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Tip: This will be used as part of character consistency generation.")
+      ).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Enable beginner mode/i }));
+
+    await waitFor(() => {
+      expect(document.querySelectorAll(".character-step-badge")).toHaveLength(3);
+      expect(
+        screen.getByText("Set the photo, name, and description that define this character.")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Upload clear reference shots to build this character's source set.")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Drag uploaded references into each slot to map your character's look and style."
+        )
+      ).toBeInTheDocument();
+      expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
+      expect(document.querySelector(".character-mode-guidance")).toHaveTextContent(
+        /Swap out your character's style on the fly by dragging and dropping references from the reference panel\./i
+      );
+      expect(
+        screen.getByText("Tip: This will be used as part of character consistency generation.")
+      ).toBeInTheDocument();
+    });
+  });
 });

@@ -22,8 +22,8 @@ describe("getAiShellLeftWidthBounds", () => {
     expect(bounds.max).toBe(1600 - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX);
   });
 
-  it("uses fallback-safe minimum when container is constrained", () => {
-    const bounds = getAiShellLeftWidthBounds(820);
+  it("uses fallback-safe minimum when container is tightly constrained", () => {
+    const bounds = getAiShellLeftWidthBounds(720);
     expect(bounds.min).toBe(AI_SHELL_LEFT_MIN_FALLBACK_PX);
     expect(bounds.max).toBe(AI_SHELL_LEFT_MIN_FALLBACK_PX);
   });

@@ -526,6 +526,7 @@ export function ModelModal({
         <div className="model-modal-header">
           <div className="model-modal-title-group">
             <p className="model-modal-title">{modalTitle}</p>
+            <p className="model-modal-subtitle">Estimates are billed in 5-credit increments.</p>
           </div>
           <div className="model-modal-header-actions">
             <div className="model-modal-search">

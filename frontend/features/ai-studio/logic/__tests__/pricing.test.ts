@@ -25,6 +25,9 @@ describe("computeCostForModel (FLUX.2)", () => {
     const usdRaw = mp * 0.012;
     // Pricing rounds up to credits and then to the nearest 5-credit increment.
     const expectedCredits = Math.ceil(Math.ceil(usdRaw / 0.01) / 5) * 5;
+    const expectedRawCredits = Math.ceil(usdRaw / 0.01);
+    expect(cost?.usdRaw).toBeCloseTo(usdRaw, 6);
+    expect(cost?.rawCredits).toBe(expectedRawCredits);
     expect(cost?.credits).toBe(expectedCredits);
   });
 
@@ -132,6 +135,7 @@ describe("computeCostForModel (Nano Banana Pro)", () => {
 
   it("adds a web search surcharge", () => {
     const cost = computeCostForModel(modelId, { resolution: "1K", webSearch: true });
+    expect(cost?.rawCredits).toBe(17);
     expect(cost?.credits).toBe(20);
   });
 });
@@ -142,6 +146,7 @@ describe("computeCostForModel (Seedream 4.5)", () => {
   it("charges a rounded 5-credit minimum per standard run", () => {
     const cost = computeCostForModel(modelId, { resolution: "1K" });
     expect(cost).not.toBeNull();
+    expect(cost?.rawCredits).toBe(4);
     expect(cost?.credits).toBe(5);
     expect(cost?.usd).toBeCloseTo(0.05, 2);
   });

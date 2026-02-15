@@ -1,27 +1,104 @@
 /**
  * AI Studio responsive rules.
- * Media queries for layout adjustments.
+ * Media queries for current AI Studio shell + toolbar markup.
  */
-@media (max-width: 1200px) and (max-device-width: 1200px) {
+@media (max-width: 1320px) {
+  .ai-studio-page {
+    padding-left: calc(var(--ai-rail-width) + 16px);
+    padding-right: 16px;
+  }
+
   .ai-shell {
-    grid-template-columns: 220px 1fr;
-    grid-template-areas:
-      "toolbar center"
-      "properties properties";
+    grid-template-columns: minmax(340px, 1fr) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1100px) {
+  .ai-studio-page {
+    padding: 16px 14px 24px;
+  }
+
+  .ai-layout {
+    display: grid;
+    gap: 12px;
+  }
+
+  .ai-toolbar-floating {
+    position: static;
+    width: 100%;
+    max-height: none;
+    border-right: none;
+    border: 1px solid rgba(201, 205, 214, 0.08);
+    border-radius: 12px;
+    padding: 10px;
+    overflow: visible;
+  }
+
+  .ai-hero.panel.ai-amber-hero {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    padding-left: 8px;
+    padding-right: 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(201, 205, 214, 0.08) !important;
+  }
+
+  .ai-shell,
+  .ai-shell.ai-shell-resizable {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    height: auto;
+    min-height: 0;
+  }
+
+  .ai-shell-divider {
+    display: none;
   }
 
   .ai-properties {
-    grid-area: properties;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .ai-preview-column.reference-column,
+  .reference-column-sticky {
+    position: static;
+    top: auto;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .reference-column .preview-column-header {
+    position: static;
+    top: auto;
+    backdrop-filter: none;
   }
 }
 
-@media (max-width: 960px) and (max-device-width: 960px) {
-  .ai-shell {
+@media (max-width: 768px) {
+  .ai-amber-hero {
     grid-template-columns: 1fr;
+    align-items: flex-start;
+    gap: 8px;
   }
-}
 
-@media (max-width: 768px) and (max-device-width: 768px) {
+  .ai-hero .hero-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .toolbar-logo {
+    margin: 6px auto;
+  }
+
+  .toolbar-back-link {
+    margin: 8px auto 4px;
+  }
+
   .preview-surface {
     height: 300px;
   }

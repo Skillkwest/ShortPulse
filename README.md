@@ -53,7 +53,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 - **AI Studio (`/ai-studio`)**: Creative canvas for prompt systems, model/aspect selection, previewing, and saving image/video outputs.
 - **Character Manager (`/character`)**: Beginner-first character creation and management workspace with persisted reference intake and persisted character-sheet assignments.
 - **Character Placeholder (`/character-soon`)**: Legacy fallback landing page retained during Character Manager rollout.
-- **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls and a live app-error incident feed.
+- **Admin (`/admin`)**: Internal operator dashboard (operator-role access) with manual credit adjustment controls, per-user recent credit transaction audit (including billed-vs-raw pricing metadata), and a live app-error incident feed.
 
 ## Security
 

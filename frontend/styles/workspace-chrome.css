@@ -191,7 +191,7 @@
   font-size: 18px;
 }
 
-@media (max-width: 1080px) and (max-device-width: 1080px) {
+@media (max-width: 1080px) {
   .app-bar {
     flex-direction: column;
     align-items: flex-start;

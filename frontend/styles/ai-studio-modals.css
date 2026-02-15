@@ -963,7 +963,7 @@
 }
 
 /* Responsive adjustments */
-@media (max-width: 1000px) and (max-device-width: 1000px) {
+@media (max-width: 1000px) {
   .art-modal-main-content {
     flex-direction: column;
   }
@@ -980,7 +980,7 @@
   }
 }
 
-@media (max-width: 720px) and (max-device-width: 720px) {
+@media (max-width: 720px) {
   .art-modal-meta-pill {
     display: none;
   }

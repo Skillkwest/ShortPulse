@@ -33,6 +33,8 @@ export type PricingParams = {
 export type CostBreakdown = {
   credits: number;
   usd: number;
+  rawCredits: number;
+  usdRaw: number;
   megapixels: number;
   width: number;
   height: number;

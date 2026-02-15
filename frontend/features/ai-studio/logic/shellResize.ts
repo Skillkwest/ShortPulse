@@ -4,7 +4,7 @@
  */
 
 export const AI_SHELL_LEFT_MIN_PX = 540;
-export const AI_SHELL_RIGHT_MIN_PX = 540;
+export const AI_SHELL_RIGHT_MIN_PX = 320;
 export const AI_SHELL_DIVIDER_TRACK_PX = 16;
 export const AI_SHELL_RESIZE_BREAKPOINT_PX = 960;
 export const AI_SHELL_LEFT_DEFAULT_RATIO = 0.4;

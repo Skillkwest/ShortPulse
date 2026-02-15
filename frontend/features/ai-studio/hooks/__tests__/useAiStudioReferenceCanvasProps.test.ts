@@ -30,6 +30,8 @@ const createParams = (
   handleSaveReference: vi.fn(),
   handleDownloadReference: vi.fn(),
   handleGenerateFromPromptReference: vi.fn(),
+  handlePasteTextReference: vi.fn(),
+  handlePasteMediaReference: vi.fn(),
   retryOutputStatus: vi.fn(),
   deleteOutput: vi.fn(),
   currentCostCredits: 2,
@@ -43,6 +45,8 @@ describe("useAiStudioReferenceCanvasProps", () => {
     const handleSaveReference = vi.fn();
     const handleDownloadReference = vi.fn();
     const handleGenerateFromPromptReference = vi.fn();
+    const handlePasteTextReference = vi.fn();
+    const handlePasteMediaReference = vi.fn();
     const retryOutputStatus = vi.fn();
 
     const { result } = renderHook(() =>
@@ -52,6 +56,8 @@ describe("useAiStudioReferenceCanvasProps", () => {
           handleSaveReference,
           handleDownloadReference,
           handleGenerateFromPromptReference,
+          handlePasteTextReference,
+          handlePasteMediaReference,
           retryOutputStatus,
         })
       )
@@ -61,12 +67,22 @@ describe("useAiStudioReferenceCanvasProps", () => {
     result.current.onSaveToLibrary?.(output);
     result.current.onDownload?.(output);
     result.current.onGeneratePrompt?.(output);
+    result.current.onPasteTextReference?.("new prompt");
+    result.current.onPasteMediaReference?.({
+      url: "https://example.com/cat.png",
+      mimeType: "image/*",
+    });
     result.current.onRetryStatus?.(output);
 
     expect(handleDescribeReference).toHaveBeenCalledWith("out-1");
     expect(handleSaveReference).toHaveBeenCalledWith("out-1");
     expect(handleDownloadReference).toHaveBeenCalledWith("out-1");
     expect(handleGenerateFromPromptReference).toHaveBeenCalledWith("out-1");
+    expect(handlePasteTextReference).toHaveBeenCalledWith("new prompt");
+    expect(handlePasteMediaReference).toHaveBeenCalledWith({
+      url: "https://example.com/cat.png",
+      mimeType: "image/*",
+    });
     expect(retryOutputStatus).toHaveBeenCalledWith("out-1");
   });
 

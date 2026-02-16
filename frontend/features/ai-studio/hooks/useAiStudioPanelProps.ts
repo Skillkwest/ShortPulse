@@ -39,6 +39,7 @@ type UseAiStudioPanelPropsParams = {
   handleAgentSelectVariation: (promptText: string) => void;
   handleAgentUseQuestion: (question: string) => void;
   handleAgentDescribeTargets: (targets: string[]) => void;
+  handleGenerateFromAgentOutputPrompt: (promptText: string) => void;
   useReferenceImageIndicator: boolean;
   activeOutput: StudioOutput | null;
   isModelModalOpen: boolean;
@@ -61,6 +62,7 @@ type UseAiStudioPanelPropsParams = {
   isPromptRefining: boolean;
   describeInFlightCount: number;
   currentCostCredits: number | null;
+  promptReferenceGenerateCostCredits: number | null;
   isGenerateDisabled: boolean;
   isGenerateClickLocked: boolean;
   generationGuardrail: string | null;
@@ -167,6 +169,7 @@ export const useAiStudioPanelProps = ({
   handleAgentSelectVariation,
   handleAgentUseQuestion,
   handleAgentDescribeTargets,
+  handleGenerateFromAgentOutputPrompt,
   useReferenceImageIndicator,
   activeOutput,
   isModelModalOpen,
@@ -179,6 +182,7 @@ export const useAiStudioPanelProps = ({
   isPromptRefining,
   describeInFlightCount,
   currentCostCredits,
+  promptReferenceGenerateCostCredits,
   isGenerateDisabled,
   isGenerateClickLocked,
   generationGuardrail,
@@ -273,6 +277,7 @@ export const useAiStudioPanelProps = ({
     onAgentSelectVariation: handleAgentSelectVariation,
     onAgentUseQuestion: handleAgentUseQuestion,
     onAgentDescribeTargets: handleAgentDescribeTargets,
+    onGenerateFromAgentOutputPrompt: handleGenerateFromAgentOutputPrompt,
     useReferenceImageIndicator,
     hasReferencePreview: Boolean(activeOutput?.previewUrl),
     isModelModalOpen,
@@ -284,6 +289,7 @@ export const useAiStudioPanelProps = ({
     onToggleReferenceIndicator: toggleReferenceIndicator,
     isPromptGenerating: isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: currentCostCredits,
+    outputGenerateCostCredits: promptReferenceGenerateCostCredits,
     isGenerateDisabled: isGenerateDisabled || agentBusy || isGenerateClickLocked,
     guardrailReason: generationGuardrail,
     onExpandChat: handleExpandChat,

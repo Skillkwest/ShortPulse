@@ -217,11 +217,67 @@
 
 .agent-message.is-draggable {
   cursor: grab;
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    opacity 0.14s ease;
+  will-change: transform;
+}
+
+.agent-message.is-draggable:hover {
+  transform: translateY(-1px);
 }
 
 .agent-message.is-draggable:active,
 .agent-message.is-draggable.is-dragging {
   cursor: grabbing;
+  transform: scale(0.988);
+  border-color: rgba(52, 214, 255, 0.56);
+  box-shadow:
+    0 14px 30px rgba(3, 9, 16, 0.42),
+    0 0 0 1px rgba(52, 214, 255, 0.38),
+    0 0 18px rgba(52, 214, 255, 0.2);
+}
+
+.agent-message.is-draggable.is-dragging {
+  opacity: 0.74;
+}
+
+.agent-message-drag-ghost {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(52, 214, 255, 0.88);
+  background: linear-gradient(180deg, rgba(14, 20, 29, 0.96), rgba(9, 13, 19, 0.98));
+  box-shadow:
+    0 20px 44px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(52, 214, 255, 0.32),
+    0 0 20px rgba(52, 214, 255, 0.24);
+  color: #bfeeff;
+  overflow: hidden;
+  opacity: 0.98;
+  z-index: 2147483647;
+  backdrop-filter: blur(5px) saturate(1.05);
+  -webkit-backdrop-filter: blur(5px) saturate(1.05);
+}
+
+.agent-message-drag-ghost p,
+.agent-message-drag-ghost .tiny {
+  margin: 0;
+  color: #bfeeff !important;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 7;
+  line-clamp: 7;
+  white-space: pre-wrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-message-drag-ghost .agent-output-generate-pill,
+.agent-message-drag-ghost .agent-generate-prefab {
+  display: none !important;
 }
 
 .agent-message.is-clickable:hover,

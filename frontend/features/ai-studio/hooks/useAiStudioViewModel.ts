@@ -171,7 +171,7 @@ export const useAiStudioViewModel = ({
   ]);
 
   const promptGenerateCostCredits = useMemo(() => {
-    if (!model) return null;
+    if (!model || !isImageTool) return null;
     const breakdown = computeCostForModel(
       model,
       costParamsForModel({
@@ -180,9 +180,11 @@ export const useAiStudioViewModel = ({
       })
     );
     return breakdown?.credits ?? null;
-  }, [aspect, costParamsForModel, model, pricingImageResolution]);
+  }, [aspect, costParamsForModel, isImageTool, model, pricingImageResolution]);
   const promptReferenceGenerateCostCredits =
-    promptGenerateCostCredits ?? modelPickerCostCredits ?? currentCostCredits;
+    (isImageTool ? promptGenerateCostCredits : null) ??
+    modelPickerCostCredits ??
+    currentCostCredits;
   const hasSufficientCreditsForPromptReferenceGenerate =
     balanceCredits == null || promptReferenceGenerateCostCredits == null
       ? true

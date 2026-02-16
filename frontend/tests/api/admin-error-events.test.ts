@@ -95,7 +95,7 @@ describe("GET /api/admin/error-events", () => {
             data: [
               {
                 id: "evt-1",
-                incident_id: "inc-1",
+                incident_id: "11111111-1111-4111-8111-111111111111",
                 fingerprint: "fp-1",
                 source: "api.example",
                 scope: "app",
@@ -129,7 +129,9 @@ describe("GET /api/admin/error-events", () => {
           { count: 2, error: null },
           { count: 7, error: null },
         ],
-        app_error_logs: [{ data: [{ id: "inc-1", status: "open" }], error: null }],
+        app_error_logs: [
+          { data: [{ id: "11111111-1111-4111-8111-111111111111", status: "open" }], error: null },
+        ],
       })
     );
 
@@ -284,7 +286,7 @@ describe("GET /api/admin/error-events", () => {
     expect(payload.health.reason).toContain("app_error_events");
   });
 
-  it("returns 500 when query execution fails", async () => {
+  it("returns degraded health when non-core summary queries fail", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
         app_error_events: [
@@ -312,8 +314,59 @@ describe("GET /api/admin/error-events", () => {
 
     await handler(req as never, res as never);
 
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      health: {
+        eventsTableAvailable: boolean;
+        degraded: boolean;
+        reason: string | null;
+      };
+      pagination: {
+        page: number;
+        totalPages: number;
+      };
+    };
+    expect(payload.health).toMatchObject({
+      eventsTableAvailable: true,
+      degraded: true,
+    });
+    expect(payload.health.reason).toContain("pagination totals are estimated");
+    expect(payload.pagination).toMatchObject({
+      page: 1,
+      totalPages: 1,
+    });
+  });
+
+  it("returns 500 when core events query fails", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        app_error_events: [
+          { data: null, error: { message: "core events failure" } },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+        ],
+        app_error_logs: [],
+      })
+    );
+
+    const req = { method: "GET", query: { page: "1", limit: "20" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
     expect(res.status).toHaveBeenCalledWith(500);
     const payload = res.json.mock.calls[0]?.[0] as { error: string };
-    expect(payload.error).toContain("db failure");
+    expect(payload.error).toContain("core events failure");
   });
 });

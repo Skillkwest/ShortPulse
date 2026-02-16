@@ -3,6 +3,14 @@
 ## Provider or webhook outages
 For Fal/OpenAI/Stripe incident triage, use `docs/sops/sop_provider_incident_response.md`.
 
+## Admin runtime/API error handoff workflow
+Use the `/admin` Errors panel `Copy triage` buttons as the default handoff format.
+
+Checklist:
+- Prefer triage packets over manually copying full JSON rows.
+- Include fresh events first (match `occurredAt` to current test run to avoid historical duplicates).
+- If triage packet fields are insufficient for root cause, then include the raw `metadata` block from Event Detail as a second step.
+
 ## `next build` / `next lint` prompts to “configure ESLint”
 This happens when the repo has `eslint-config-next` installed but no ESLint config file exists.
 

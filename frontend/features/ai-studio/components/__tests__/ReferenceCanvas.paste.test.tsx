@@ -200,6 +200,24 @@ describe("ReferenceCanvas paste handling", () => {
     expect(onPasteMediaReference).not.toHaveBeenCalled();
   });
 
+  it("shows and clears drop-active styling while prompt text is dragged over the panel", () => {
+    const dataTransfer = {
+      files: makeFileList([]),
+      types: ["text/prompt", "text/plain"],
+      getData: vi.fn(() => ""),
+    } as unknown as DataTransfer;
+
+    const { container } = render(<ReferenceCanvas {...baseProps} />);
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    expect(panel).toBeTruthy();
+
+    fireEvent.dragEnter(panel, { dataTransfer });
+    expect(panel.classList.contains("is-drop-active")).toBe(true);
+
+    fireEvent.dragLeave(panel, { dataTransfer });
+    expect(panel.classList.contains("is-drop-active")).toBe(false);
+  });
+
   it("routes pasted media URLs through onPasteMediaReference", () => {
     const onDropFiles = vi.fn();
     const onPasteTextReference = vi.fn();

@@ -571,7 +571,7 @@ body:has(.ai-studio-page) {
 
 .ai-shell.ai-shell-resizable.ai-shell-expert-create {
   grid-template-columns:
-    var(--ai-shell-left-width, minmax(690px, 1.2fr))
+    var(--ai-shell-left-width, minmax(690px, 1000px))
     var(--ai-shell-divider-track-width)
     minmax(320px, 1fr);
 }

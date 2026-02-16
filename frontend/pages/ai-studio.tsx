@@ -411,6 +411,7 @@ export default function AiStudioPage() {
 
   const {
     currentCostCredits,
+    promptReferenceGenerateCostCredits,
     hasSufficientCreditsForCost,
     isCreditGuardrail,
     generationGuardrail,
@@ -509,6 +510,17 @@ export default function AiStudioPage() {
     generateOutput,
     regenerateOutput,
   });
+  const handleGenerateFromAgentOutputPrompt = useCallback(
+    (promptText: string) => {
+      const normalizedPrompt = promptText.trim();
+      if (!normalizedPrompt) return;
+      setPromptOrigin("agent");
+      void handleGenerate(normalizedPrompt, {
+        costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+      });
+    },
+    [currentCostCredits, handleGenerate, promptReferenceGenerateCostCredits, setPromptOrigin]
+  );
   const { handleDownloadReference, handleSaveReference, handleGenerateFromPromptReference } =
     useAiStudioReferenceAssetActions({
       outputs,
@@ -556,6 +568,7 @@ export default function AiStudioPage() {
     handleAgentSelectVariation,
     handleAgentUseQuestion,
     handleAgentDescribeTargets,
+    handleGenerateFromAgentOutputPrompt,
     useReferenceImageIndicator,
     activeOutput,
     isModelModalOpen,
@@ -568,6 +581,7 @@ export default function AiStudioPage() {
     isPromptRefining,
     describeInFlightCount,
     currentCostCredits,
+    promptReferenceGenerateCostCredits,
     isGenerateDisabled,
     isGenerateClickLocked,
     generationGuardrail,
@@ -772,6 +786,8 @@ export default function AiStudioPage() {
           onAgentSelectVariation: handleAgentSelectVariation,
           onAgentUseQuestion: handleAgentUseQuestion,
           onAgentDescribeTargets: handleAgentDescribeTargets,
+          onGenerateFromOutputPrompt: handleGenerateFromAgentOutputPrompt,
+          outputGenerateCostCredits: promptReferenceGenerateCostCredits,
         }}
         handleReferenceCanvasFiles={handleReferenceCanvasFiles}
         triggerFilePicker={triggerFilePicker}

@@ -15,6 +15,7 @@ import {
   CHARACTER_MANAGER_SLOT_LABEL_BY_KEY,
   CHARACTER_SHEET_DROP_ZONES,
   CHARACTER_SHEET_PRESET_IDS,
+  createEmptyCharacterSheetPresetAssignments,
 } from "../constants";
 import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
 import type {
@@ -204,6 +205,10 @@ export function CharacterManagerShell({
   const planMeta = resolvedPlan ?? fallbackPlanMeta;
   const activeProfileImageTransform =
     isProfileAdjusterVisible && profileAdjustDraft ? profileAdjustDraft : profileImageTransform;
+  const resolvedCharacterSheetPresetAssignments = useMemo(
+    () => characterSheetPresetAssignments ?? createEmptyCharacterSheetPresetAssignments(),
+    [characterSheetPresetAssignments]
+  );
 
   const simpleReferenceSlotKeys = useMemo(
     () =>
@@ -579,7 +584,7 @@ export function CharacterManagerShell({
       const referenceEntry = uploadedReferenceBySlotKey.get(referenceSlotKey);
       if (!referenceEntry) return;
       const nextAssignments = {
-        ...characterSheetPresetAssignments,
+        ...resolvedCharacterSheetPresetAssignments,
         [characterSheetSlotKey]: {
           mediaFileId: referenceEntry.slotFile.mediaFileId,
           storagePath: referenceEntry.slotFile.storagePath,
@@ -589,8 +594,8 @@ export function CharacterManagerShell({
       persistCharacterSheetPresetAssignments(nextAssignments);
     },
     [
-      characterSheetPresetAssignments,
       persistCharacterSheetPresetAssignments,
+      resolvedCharacterSheetPresetAssignments,
       selectedCharacterId,
       uploadedReferenceBySlotKey,
     ]
@@ -660,7 +665,7 @@ export function CharacterManagerShell({
         event.preventDefault();
         return;
       }
-      const assignedReference = characterSheetPresetAssignments[characterSheetSlotKey];
+      const assignedReference = resolvedCharacterSheetPresetAssignments[characterSheetSlotKey];
       if (!assignedReference) {
         event.preventDefault();
         return;
@@ -673,7 +678,7 @@ export function CharacterManagerShell({
       setDraggedReferenceSlotKey(null);
       applyDragGhost(event);
     },
-    [applyDragGhost, characterSheetPresetAssignments, pageBusy]
+    [applyDragGhost, pageBusy, resolvedCharacterSheetPresetAssignments]
   );
 
   const handleReferenceDragEnd = useCallback((event: React.DragEvent<HTMLElement>) => {
@@ -702,15 +707,19 @@ export function CharacterManagerShell({
   const clearCharacterSheetAssignment = useCallback(
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => {
       if (!selectedCharacterId) return;
-      const assignedReference = characterSheetPresetAssignments[characterSheetSlotKey];
+      const assignedReference = resolvedCharacterSheetPresetAssignments[characterSheetSlotKey];
       if (!assignedReference) return;
       const nextAssignments = {
-        ...characterSheetPresetAssignments,
+        ...resolvedCharacterSheetPresetAssignments,
         [characterSheetSlotKey]: null,
       };
       persistCharacterSheetPresetAssignments(nextAssignments);
     },
-    [characterSheetPresetAssignments, persistCharacterSheetPresetAssignments, selectedCharacterId]
+    [
+      persistCharacterSheetPresetAssignments,
+      resolvedCharacterSheetPresetAssignments,
+      selectedCharacterId,
+    ]
   );
 
   const handleCharacterSheetDrop = useCallback(
@@ -726,12 +735,13 @@ export function CharacterManagerShell({
         sourceCharacterSheetZoneKey &&
         CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === sourceCharacterSheetZoneKey)
       ) {
-        const sourceReference = characterSheetPresetAssignments[sourceCharacterSheetZoneKey];
+        const sourceReference =
+          resolvedCharacterSheetPresetAssignments[sourceCharacterSheetZoneKey];
         if (!sourceReference) return;
         if (sourceCharacterSheetZoneKey === characterSheetSlotKey) return;
-        const targetReference = characterSheetPresetAssignments[characterSheetSlotKey];
+        const targetReference = resolvedCharacterSheetPresetAssignments[characterSheetSlotKey];
         const nextAssignments = {
-          ...characterSheetPresetAssignments,
+          ...resolvedCharacterSheetPresetAssignments,
           [sourceCharacterSheetZoneKey]: targetReference ?? null,
           [characterSheetSlotKey]: sourceReference,
         };
@@ -749,11 +759,11 @@ export function CharacterManagerShell({
     },
     [
       assignReferenceToCharacterSheetSlot,
-      characterSheetPresetAssignments,
       draggedCharacterSheetZoneKey,
       draggedReferenceSlotKey,
       pageBusy,
       persistCharacterSheetPresetAssignments,
+      resolvedCharacterSheetPresetAssignments,
       uploadedReferenceBySlotKey,
     ]
   );
@@ -761,11 +771,11 @@ export function CharacterManagerShell({
   const handleCharacterSheetCardClick = useCallback(
     (dropZoneKey: CharacterSheetDropZoneKey) => () => {
       if (pageBusy) return;
-      const assignedReference = characterSheetPresetAssignments[dropZoneKey];
+      const assignedReference = resolvedCharacterSheetPresetAssignments[dropZoneKey];
       if (assignedReference) return;
       openCharacterSheetPicker(dropZoneKey);
     },
-    [characterSheetPresetAssignments, openCharacterSheetPicker, pageBusy]
+    [openCharacterSheetPicker, pageBusy, resolvedCharacterSheetPresetAssignments]
   );
 
   useEffect(() => {
@@ -1358,7 +1368,7 @@ export function CharacterManagerShell({
 
                 <div className="character-reference-empty-grid">
                   {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
-                    const assignedReference = characterSheetPresetAssignments[dropZone.key];
+                    const assignedReference = resolvedCharacterSheetPresetAssignments[dropZone.key];
                     const isDropActive = activeCharacterSheetDropZone === dropZone.key;
                     return (
                       <article

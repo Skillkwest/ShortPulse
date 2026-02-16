@@ -303,6 +303,87 @@ describe("TextPropertiesPanel", () => {
     expect(onImageResolutionChange).toHaveBeenCalledWith("auto_2K");
   });
 
+  it("disables expert output-generate pills when character mode is on without a selected character", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      characterModeEnabled: true,
+      selectedCharacterId: "",
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
+  });
+
+  it("disables expert output-generate pills when character mode is off without a selected model", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      characterModeEnabled: false,
+      modelId: null,
+      modelLabel: "Choose Model",
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
+  });
+
+  it("shows estimated output-generate cost on expert agent responses", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      characterModeEnabled: false,
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      outputGenerateCostCredits: 1234,
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+    });
+
+    expect(screen.getByText("1,234")).toBeInTheDocument();
+  });
+
+  it("routes inline output generate to the provided prompt callback", () => {
+    const onGenerateFromAgentOutputPrompt = vi.fn();
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      characterModeEnabled: false,
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      onGenerateFromAgentOutputPrompt,
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate from this agent output" }));
+    expect(onGenerateFromAgentOutputPrompt).toHaveBeenCalledWith("Here is a revised prompt.");
+  });
+
   it("shows generate as step four in beginner mode", () => {
     const { container } = render(
       <ComposeSendCard

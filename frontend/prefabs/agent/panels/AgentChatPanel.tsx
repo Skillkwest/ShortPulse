@@ -8,6 +8,46 @@ import { AgentInputBar } from "../inputs/AgentInputBar";
 import { AgentPromptActions } from "../components/AgentPromptActions";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../types";
 
+const PROMPT_DRAG_GHOST_MIN_WIDTH_PX = 220;
+const PROMPT_DRAG_GHOST_MAX_WIDTH_PX = 360;
+const PROMPT_DRAG_GHOST_MAX_HEIGHT_PX = 220;
+const promptDragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
+
+const clearPromptDragGhost = (source: HTMLElement) => {
+  const ghost = promptDragGhostMap.get(source);
+  if (ghost?.parentNode) {
+    ghost.parentNode.removeChild(ghost);
+  }
+  promptDragGhostMap.delete(source);
+};
+
+const createPromptDragGhost = (source: HTMLElement) => {
+  clearPromptDragGhost(source);
+  const rect = source.getBoundingClientRect();
+  const preferredWidth = rect.width * 0.84;
+  const width = Math.min(
+    PROMPT_DRAG_GHOST_MAX_WIDTH_PX,
+    Math.max(PROMPT_DRAG_GHOST_MIN_WIDTH_PX, preferredWidth)
+  );
+  const height = Math.min(PROMPT_DRAG_GHOST_MAX_HEIGHT_PX, rect.height);
+  const ghost = source.cloneNode(true) as HTMLElement;
+  ghost.classList.add("agent-message-drag-ghost");
+  ghost.classList.remove("is-clickable", "is-draggable", "is-dragging");
+  ghost.style.width = `${width}px`;
+  ghost.style.maxHeight = `${PROMPT_DRAG_GHOST_MAX_HEIGHT_PX}px`;
+  ghost.style.position = "fixed";
+  ghost.style.top = "-9999px";
+  ghost.style.left = "-9999px";
+  ghost.style.pointerEvents = "none";
+  document.body.appendChild(ghost);
+  promptDragGhostMap.set(source, ghost);
+  return {
+    ghost,
+    offsetX: Math.round(width * 0.5),
+    offsetY: Math.round(height * 0.5),
+  };
+};
+
 type AgentChatPanelProps = {
   messages: AgentMessage[];
   input: string;
@@ -35,6 +75,7 @@ type AgentChatPanelProps = {
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentUseQuestion?: (question: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
+  onGenerateOutputPrompt?: (prompt: string) => void;
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -43,6 +84,8 @@ type AgentChatPanelProps = {
   onClearAttachments?: () => void;
   beginnerMode?: boolean;
   highlightLatestAssistantOnly?: boolean;
+  disableOutputGenerate?: boolean;
+  outputGenerateCostCredits?: number | null;
 };
 
 export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
@@ -72,6 +115,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   onAgentSelectVariation,
   onAgentUseQuestion,
   onAgentDescribeTargets,
+  onGenerateOutputPrompt,
   onDrop,
   onDragOver,
   onDragEnter,
@@ -79,6 +123,8 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   onRemoveAttachment,
   onClearAttachments,
   highlightLatestAssistantOnly = false,
+  disableOutputGenerate = false,
+  outputGenerateCostCredits = null,
 }) => {
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -90,6 +136,8 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     }
     return -1;
   })();
+  const outputGenerateCostLabel =
+    outputGenerateCostCredits != null ? outputGenerateCostCredits.toLocaleString() : "—";
 
   useEffect(() => {
     const messagesEl = messagesRef.current;
@@ -97,6 +145,16 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
   }, [messages, stagedPrompt, stagedAttachments.length]);
+
+  useEffect(
+    () => () => {
+      if (typeof document === "undefined") return;
+      document.querySelectorAll(".agent-message-drag-ghost").forEach((node) => {
+        node.parentNode?.removeChild(node);
+      });
+    },
+    []
+  );
 
   const handleMessageClick = useCallback(
     (message: AgentMessage) => {
@@ -144,19 +202,36 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       event.dataTransfer.effectAllowed = "copy";
       event.dataTransfer.setData("text/plain", normalizedPrompt);
       event.dataTransfer.setData("text/prompt", normalizedPrompt);
-      event.currentTarget.classList.add("is-dragging");
+      const source = event.currentTarget;
+      if (typeof event.dataTransfer.setDragImage === "function") {
+        try {
+          const { ghost, offsetX, offsetY } = createPromptDragGhost(source);
+          event.dataTransfer.setDragImage(ghost, offsetX, offsetY);
+        } catch {
+          event.dataTransfer.setDragImage(source, source.offsetWidth / 2, source.offsetHeight / 2);
+        }
+      }
+      source.classList.add("is-dragging");
     },
     []
   );
 
   const handlePromptDragEnd = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.currentTarget.classList.remove("is-dragging");
+    const source = event.currentTarget;
+    source.classList.remove("is-dragging");
+    clearPromptDragGhost(source);
   }, []);
 
-  const handleOutputGenerateClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-    // UI placeholder only; behavior wiring comes next.
-    event.stopPropagation();
-  }, []);
+  const handleOutputGenerateClick = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, promptText: string) => {
+      event.stopPropagation();
+      if (disableOutputGenerate) return;
+      const normalizedPrompt = promptText.trim();
+      if (!normalizedPrompt) return;
+      onGenerateOutputPrompt?.(normalizedPrompt);
+    },
+    [disableOutputGenerate, onGenerateOutputPrompt]
+  );
 
   return (
     <div
@@ -207,18 +282,19 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   <button
                     type="button"
                     className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill"
-                    onClick={handleOutputGenerateClick}
+                    onClick={(event) => handleOutputGenerateClick(event, stagedPrompt)}
                     onDoubleClick={(event) => {
                       event.stopPropagation();
                     }}
                     aria-label="Generate from this agent output"
+                    disabled={disableOutputGenerate}
                   >
                     <span className="agent-generate-label">Generate</span>
                     <span className="model-chip-pill generate-pill">
                       <span aria-hidden="true" className="model-chip-icon">
                         ✦
                       </span>
-                      <span className="model-chip-credits">5</span>
+                      <span className="model-chip-credits">{outputGenerateCostLabel}</span>
                     </span>
                   </button>
                 </div>
@@ -262,18 +338,19 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                       <button
                         type="button"
                         className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill"
-                        onClick={handleOutputGenerateClick}
+                        onClick={(event) => handleOutputGenerateClick(event, message.content)}
                         onDoubleClick={(event) => {
                           event.stopPropagation();
                         }}
                         aria-label="Generate from this agent output"
+                        disabled={disableOutputGenerate}
                       >
                         <span className="agent-generate-label">Generate</span>
                         <span className="model-chip-pill generate-pill">
                           <span aria-hidden="true" className="model-chip-icon">
                             ✦
                           </span>
-                          <span className="model-chip-credits">5</span>
+                          <span className="model-chip-credits">{outputGenerateCostLabel}</span>
                         </span>
                       </button>
                     ) : null}

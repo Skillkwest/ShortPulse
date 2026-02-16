@@ -9,6 +9,7 @@ import { CloudSlash, ShieldCheck, UserCircle } from "phosphor-react";
 import { ErrorIncidentsPanel } from "../../features/admin/components/ErrorIncidentsPanel";
 import type {
   AdminCreditLedgerRow,
+  AdminErrorEventIncidentFilter,
   AdminErrorLogRow,
   AdminErrorEventRow,
   AdminErrorEventSignalFilter,
@@ -187,6 +188,8 @@ export default function AdminDashboardPage() {
   >("all");
   const [errorEventSignalFilter, setErrorEventSignalFilter] =
     useState<AdminErrorEventSignalFilter>("all");
+  const [errorEventIncidentFilter, setErrorEventIncidentFilter] =
+    useState<AdminErrorEventIncidentFilter>("actionable");
   const [errorSearch, setErrorSearch] = useState("");
   const [debouncedErrorSearch, setDebouncedErrorSearch] = useState("");
   const [errorsPage, setErrorsPage] = useState(1);
@@ -741,14 +744,30 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (!user || !adminEnabled || activeTab !== "errors") return;
 
-    const intervalId = window.setInterval(() => {
+    const refreshIfEligible = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
       if (errorsLoading || errorEventsLoading || testIncidentSubmittingScope !== null) {
         return;
       }
       void refreshErrorData();
+    };
+
+    const intervalId = window.setInterval(() => {
+      refreshIfEligible();
     }, ERROR_REFRESH_INTERVAL_MS);
 
-    return () => window.clearInterval(intervalId);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      refreshIfEligible();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [
     activeTab,
     adminEnabled,
@@ -785,6 +804,7 @@ export default function AdminDashboardPage() {
         setErrorSourceFilter("all");
         setErrorEventSyntheticFilter("all");
         setErrorEventSignalFilter("all");
+        setErrorEventIncidentFilter("actionable");
         setErrorSearch("");
         setDebouncedErrorSearch("");
         setErrorsPage(1);
@@ -1234,6 +1254,7 @@ export default function AdminDashboardPage() {
             errorSourceFilter={errorSourceFilter}
             errorEventSyntheticFilter={errorEventSyntheticFilter}
             errorEventSignalFilter={errorEventSignalFilter}
+            errorEventIncidentFilter={errorEventIncidentFilter}
             errorSearch={errorSearch}
             errorPagination={errorsPagination}
             statusUpdatingErrorId={errorStatusUpdatingId}
@@ -1267,6 +1288,9 @@ export default function AdminDashboardPage() {
               setErrorEventSignalFilter(value);
               setErrorSourceFilter("all");
               setErrorEventsPage(1);
+            }}
+            onErrorEventIncidentFilterChange={(value) => {
+              setErrorEventIncidentFilter(value);
             }}
             onErrorSearchChange={(value) => {
               setErrorSearch(value);

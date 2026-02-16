@@ -5,6 +5,7 @@
 
 export const AI_SHELL_LEFT_MIN_PX = 540;
 export const AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX = 690;
+export const AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX = 1000;
 export const AI_SHELL_LEFT_CHARACTER_MIN_PX = 1080;
 export const AI_SHELL_RIGHT_MIN_PX = 320;
 export const AI_SHELL_DIVIDER_TRACK_PX = 16;
@@ -15,6 +16,7 @@ export const AI_SHELL_LEFT_WIDTH_STORAGE_KEY = "shortpulse.aiStudio.shellLeftWid
 
 type ShellResizeBoundsOptions = {
   minLeftWidthPx?: number;
+  maxLeftWidthPx?: number;
 };
 
 /**
@@ -44,7 +46,13 @@ export const getAiShellLeftWidthBounds = (
       safeContainerWidth - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX
     )
   );
-  const max = Math.max(min, safeContainerWidth - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX);
+  const containerMax = safeContainerWidth - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX;
+  const requestedMaxCandidate = options?.maxLeftWidthPx;
+  const requestedMax =
+    typeof requestedMaxCandidate === "number" && Number.isFinite(requestedMaxCandidate)
+      ? Math.max(AI_SHELL_LEFT_MIN_FALLBACK_PX, Math.floor(requestedMaxCandidate))
+      : containerMax;
+  const max = Math.max(min, Math.min(containerMax, requestedMax));
   return { min, max };
 };
 

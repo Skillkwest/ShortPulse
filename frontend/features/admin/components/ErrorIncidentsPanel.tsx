@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { WarningCircle } from "phosphor-react";
 import type {
+  AdminErrorEventIncidentFilter,
   AdminErrorLogRow,
   AdminErrorEventRow,
   AdminErrorEventSignalFilter,
@@ -14,6 +15,7 @@ import type {
   AdminPagination,
   AdminErrorStatus,
 } from "../types";
+import { buildEventTriagePacket, buildIncidentTriagePacket } from "../logic/triagePackets";
 import styles from "../../../styles/admin.module.css";
 
 type ErrorIncidentsPanelProps = {
@@ -33,6 +35,7 @@ type ErrorIncidentsPanelProps = {
   errorSourceFilter: string;
   errorEventSyntheticFilter: "all" | "exclude" | "only";
   errorEventSignalFilter: AdminErrorEventSignalFilter;
+  errorEventIncidentFilter: AdminErrorEventIncidentFilter;
   errorSearch: string;
   errorPagination: AdminPagination;
   statusUpdatingErrorId: string | null;
@@ -44,8 +47,9 @@ type ErrorIncidentsPanelProps = {
   onErrorSourceFilterChange: (value: string) => void;
   onErrorEventSyntheticFilterChange: (value: "all" | "exclude" | "only") => void;
   onErrorEventSignalFilterChange: (value: AdminErrorEventSignalFilter) => void;
+  onErrorEventIncidentFilterChange: (value: AdminErrorEventIncidentFilter) => void;
   onErrorSearchChange: (value: string) => void;
-  onUpdateErrorStatus: (errorId: string, status: AdminErrorStatus) => void;
+  onUpdateErrorStatus: (errorId: string, status: AdminErrorStatus) => Promise<void>;
   onTriggerTestIncident: (scope: "app" | "generation") => void;
   onPrevPage: () => void;
   onNextPage: () => void;
@@ -77,99 +81,35 @@ const eventSignalFilterLabel = (value: AdminErrorEventSignalFilter): string => {
   return "All event signals";
 };
 
+const eventIncidentFilterLabel = (value: AdminErrorEventIncidentFilter): string => {
+  if (value === "actionable") return "Actionable (open + unlinked)";
+  if (value === "open") return "Open incidents only";
+  if (value === "resolved") return "Resolved incidents only";
+  if (value === "ignored") return "Ignored incidents only";
+  if (value === "unlinked") return "Unlinked events only";
+  return "All incident states";
+};
+
+const eventMatchesIncidentFilter = (
+  row: AdminErrorEventRow,
+  filter: AdminErrorEventIncidentFilter
+): boolean => {
+  if (filter === "all") return true;
+  if (filter === "actionable") {
+    return row.incidentStatus === "open" || row.incidentId === null;
+  }
+  if (filter === "unlinked") {
+    return row.incidentId === null;
+  }
+  return row.incidentStatus === filter;
+};
+
 const incidentStatusLabel = (status: AdminErrorStatus | null): string => {
   if (status === "resolved") return "Resolved";
   if (status === "ignored") return "Ignored";
   if (status === "open") return "Open";
   return "Unlinked";
 };
-
-const buildIncidentPacket = (row: AdminErrorLogRow): string =>
-  JSON.stringify(
-    {
-      // Versioned so we can evolve this format without breaking ad-hoc tooling.
-      shortpulseIncidentVersion: 2,
-      copiedAt: new Date().toISOString(),
-      incident: {
-        id: row.id,
-        fingerprint: row.fingerprint,
-        status: row.status,
-        severity: row.severity,
-        source: row.source,
-        scope: row.scope,
-        message: row.message,
-        stack: row.stack,
-        route: row.route,
-        endpoint: row.endpoint,
-        requestId: row.requestId,
-        httpStatus: row.httpStatus,
-        userId: row.userId,
-        userEmail: row.userEmail,
-        firstSeenAt: row.firstSeenAt,
-        lastSeenAt: row.lastSeenAt,
-        occurrencesCount: row.occurrencesCount,
-        triage: (() => {
-          const metadata = (row.metadata ?? {}) as Record<string, unknown>;
-          const breadcrumbs = Array.isArray(metadata.breadcrumbs) ? metadata.breadcrumbs : null;
-          const buildId = typeof metadata.build_id === "string" ? metadata.build_id : null;
-          const sessionId = typeof metadata.session_id === "string" ? metadata.session_id : null;
-          const clientRelease =
-            typeof metadata.client_release === "string" ? metadata.client_release : null;
-          const clientEnvironment =
-            typeof metadata.client_environment === "string" ? metadata.client_environment : null;
-          const visibilityState =
-            typeof metadata.visibility_state === "string" ? metadata.visibility_state : null;
-          const reactComponentStack =
-            typeof metadata.react_component_stack === "string"
-              ? metadata.react_component_stack
-              : null;
-
-          return {
-            buildId,
-            sessionId,
-            clientRelease,
-            clientEnvironment,
-            visibilityState,
-            reactComponentStack,
-            breadcrumbs,
-          };
-        })(),
-        // Keep the full raw metadata (sanitized at ingest) for deep debugging.
-        metadata: row.metadata ?? {},
-      },
-    },
-    null,
-    2
-  );
-
-const buildEventPacket = (row: AdminErrorEventRow): string =>
-  JSON.stringify(
-    {
-      shortpulseEventVersion: 1,
-      copiedAt: new Date().toISOString(),
-      event: {
-        id: row.id,
-        incidentId: row.incidentId,
-        fingerprint: row.fingerprint,
-        source: row.source,
-        scope: row.scope,
-        severity: row.severity,
-        message: row.message,
-        stack: row.stack,
-        route: row.route,
-        endpoint: row.endpoint,
-        requestId: row.requestId,
-        httpStatus: row.httpStatus,
-        userId: row.userId,
-        userEmail: row.userEmail,
-        occurredAt: row.occurredAt,
-        createdAt: row.createdAt,
-        metadata: row.metadata ?? {},
-      },
-    },
-    null,
-    2
-  );
 
 const copyToClipboard = async (text: string): Promise<boolean> => {
   if (typeof window === "undefined") return false;
@@ -232,6 +172,7 @@ export function ErrorIncidentsPanel({
   errorSourceFilter,
   errorEventSyntheticFilter,
   errorEventSignalFilter,
+  errorEventIncidentFilter,
   errorSearch,
   errorPagination,
   statusUpdatingErrorId,
@@ -243,6 +184,7 @@ export function ErrorIncidentsPanel({
   onErrorSourceFilterChange,
   onErrorEventSyntheticFilterChange,
   onErrorEventSignalFilterChange,
+  onErrorEventIncidentFilterChange,
   onErrorSearchChange,
   onUpdateErrorStatus,
   onTriggerTestIncident,
@@ -255,6 +197,9 @@ export function ErrorIncidentsPanel({
   const [copiedIncidentId, setCopiedIncidentId] = useState<string | null>(null);
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [hiddenEventIds, setHiddenEventIds] = useState<string[]>([]);
+  const [bulkResolveSubmitting, setBulkResolveSubmitting] = useState(false);
+  const [bulkResolveResult, setBulkResolveResult] = useState<string | null>(null);
   const errorSourceOptions = useMemo(() => {
     const values = new Set([
       ...errors.map((row) => row.source),
@@ -262,10 +207,41 @@ export function ErrorIncidentsPanel({
     ]);
     return ["all", ...Array.from(values).sort()];
   }, [errorEvents, errors]);
+  const hiddenEventIdSet = useMemo(() => new Set(hiddenEventIds), [hiddenEventIds]);
+  const visibleEvents = useMemo(
+    () =>
+      errorEvents.filter(
+        (row) =>
+          eventMatchesIncidentFilter(row, errorEventIncidentFilter) && !hiddenEventIdSet.has(row.id)
+      ),
+    [errorEventIncidentFilter, errorEvents, hiddenEventIdSet]
+  );
   const selectedEvent = useMemo(
     () => errorEvents.find((row) => row.id === selectedEventId) ?? null,
     [errorEvents, selectedEventId]
   );
+  const hiddenEventCount = hiddenEventIds.length;
+  const selectedIncidentId = selectedEvent?.incidentId ?? null;
+  const resolvableVisibleIncidentIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          visibleEvents
+            .map((row) => (row.incidentStatus === "open" ? row.incidentId : null))
+            .filter((incidentId): incidentId is string => Boolean(incidentId))
+        )
+      ),
+    [visibleEvents]
+  );
+  const locallyResolvableVisibleEventIds = useMemo(
+    () =>
+      visibleEvents
+        .filter((row) => !(row.incidentId && row.incidentStatus === "open"))
+        .map((row) => row.id),
+    [visibleEvents]
+  );
+  const resolveVisibleTargetCount =
+    resolvableVisibleIncidentIds.length + locallyResolvableVisibleEventIds.length;
 
   const resultStart =
     errorPagination.totalCount === 0 ? 0 : (errorPagination.page - 1) * errorPagination.perPage + 1;
@@ -287,7 +263,7 @@ export function ErrorIncidentsPanel({
     : "Event stream available";
 
   const handleCopyIncident = useCallback(async (row: AdminErrorLogRow) => {
-    const success = await copyToClipboard(buildIncidentPacket(row));
+    const success = await copyToClipboard(buildIncidentTriagePacket(row));
     if (!success) return;
     setCopiedIncidentId(row.id);
     window.setTimeout(() => {
@@ -296,7 +272,7 @@ export function ErrorIncidentsPanel({
   }, []);
 
   const handleCopyEvent = useCallback(async (row: AdminErrorEventRow) => {
-    const success = await copyToClipboard(buildEventPacket(row));
+    const success = await copyToClipboard(buildEventTriagePacket(row));
     if (!success) return;
     setCopiedEventId(row.id);
     window.setTimeout(() => {
@@ -304,11 +280,75 @@ export function ErrorIncidentsPanel({
     }, 1200);
   }, []);
 
+  const hideEventLocally = useCallback((eventId: string) => {
+    setHiddenEventIds((current) => {
+      if (current.includes(eventId)) return current;
+      return [...current, eventId];
+    });
+  }, []);
+
+  const clearVisibleEvents = useCallback(() => {
+    setHiddenEventIds([]);
+  }, []);
+
+  const handleEventStatusUpdate = useCallback(
+    async (incidentId: string | null, status: AdminErrorStatus) => {
+      if (!incidentId) return;
+      await onUpdateErrorStatus(incidentId, status);
+    },
+    [onUpdateErrorStatus]
+  );
+
+  const handleResolveEventRow = useCallback(
+    async (row: AdminErrorEventRow) => {
+      if (row.incidentId && row.incidentStatus === "open") {
+        await handleEventStatusUpdate(row.incidentId, "resolved");
+        return;
+      }
+      hideEventLocally(row.id);
+    },
+    [handleEventStatusUpdate, hideEventLocally]
+  );
+
+  const resolveVisibleEvents = useCallback(async () => {
+    if (resolveVisibleTargetCount === 0 || bulkResolveSubmitting) return;
+
+    setBulkResolveSubmitting(true);
+    setBulkResolveResult(null);
+    try {
+      for (const incidentId of resolvableVisibleIncidentIds) {
+        await handleEventStatusUpdate(incidentId, "resolved");
+      }
+      if (locallyResolvableVisibleEventIds.length) {
+        setHiddenEventIds((current) => {
+          const next = new Set(current);
+          for (const eventId of locallyResolvableVisibleEventIds) {
+            next.add(eventId);
+          }
+          return Array.from(next);
+        });
+      }
+
+      const linkedResolvedCount = resolvableVisibleIncidentIds.length;
+      const localResolvedCount = locallyResolvableVisibleEventIds.length;
+      setBulkResolveResult(
+        `Resolved ${linkedResolvedCount} linked incident${linkedResolvedCount === 1 ? "" : "s"} and cleared ${localResolvedCount} unlinked event${localResolvedCount === 1 ? "" : "s"} from the current view.`
+      );
+    } finally {
+      setBulkResolveSubmitting(false);
+    }
+  }, [
+    bulkResolveSubmitting,
+    handleEventStatusUpdate,
+    locallyResolvableVisibleEventIds,
+    resolvableVisibleIncidentIds,
+    resolveVisibleTargetCount,
+  ]);
+
   const eventMetadataText = useMemo(() => {
     if (!selectedEvent) return "";
     return JSON.stringify(selectedEvent.metadata ?? {}, null, 2);
   }, [selectedEvent]);
-  const selectedIncidentId = selectedEvent?.incidentId ?? null;
 
   useEffect(() => {
     if (!selectedEventId) return;
@@ -453,6 +493,21 @@ export function ErrorIncidentsPanel({
           <option value="only">Events: Synthetic only</option>
         </select>
 
+        <select
+          className={styles.searchInput}
+          value={errorEventIncidentFilter}
+          onChange={(event) =>
+            onErrorEventIncidentFilterChange(event.target.value as AdminErrorEventIncidentFilter)
+          }
+        >
+          <option value="actionable">Events: Actionable</option>
+          <option value="all">Events: All incident states</option>
+          <option value="open">Events: Open incidents</option>
+          <option value="resolved">Events: Resolved incidents</option>
+          <option value="ignored">Events: Ignored incidents</option>
+          <option value="unlinked">Events: Unlinked only</option>
+        </select>
+
         <input
           className={styles.searchInput}
           type="search"
@@ -576,7 +631,7 @@ export function ErrorIncidentsPanel({
                   }}
                   disabled={statusUpdatingErrorId === row.id}
                 >
-                  {copiedIncidentId === row.id ? "Copied" : "Copy"}
+                  {copiedIncidentId === row.id ? "Copied" : "Copy triage"}
                 </button>
                 {row.status === "open" ? (
                   <>
@@ -777,6 +832,31 @@ export function ErrorIncidentsPanel({
             </button>
           </div>
         </div>
+        <div className={styles.searchRow}>
+          <p className="tiny subdued">
+            {`Display filter: ${eventIncidentFilterLabel(errorEventIncidentFilter)} · visible ${visibleEvents.length} of ${errorEvents.length} loaded`}
+          </p>
+          <div className={styles.tabRow}>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={() => {
+                void resolveVisibleEvents();
+              }}
+              disabled={resolveVisibleTargetCount === 0 || bulkResolveSubmitting}
+            >
+              {bulkResolveSubmitting
+                ? "Resolving…"
+                : `Resolve visible (${resolveVisibleTargetCount})`}
+            </button>
+            {hiddenEventCount > 0 ? (
+              <button type="button" className="ghost-btn mini" onClick={clearVisibleEvents}>
+                {`Show hidden (${hiddenEventCount})`}
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {bulkResolveResult ? <p className="tiny subdued">{bulkResolveResult}</p> : null}
 
         <div className={styles.adminTable}>
           <div className={styles.adminEventsHead}>
@@ -808,8 +888,21 @@ export function ErrorIncidentsPanel({
               <span className="subdued">—</span>
               <span className="subdued">—</span>
             </div>
+          ) : visibleEvents.length === 0 ? (
+            <div className={`${styles.adminEventsRow} ${styles.severityLow}`}>
+              <span className="subdued">Filtered</span>
+              <span className="subdued">—</span>
+              <span className="subdued">—</span>
+              <span className="subdued">
+                No loaded events matched the display filter. Try `Events: All incident states` or
+                `Show hidden`.
+              </span>
+              <span className="subdued">—</span>
+              <span className="subdued">—</span>
+              <span className="subdued">—</span>
+            </div>
           ) : (
-            errorEvents.map((row) => (
+            visibleEvents.map((row) => (
               <div
                 key={row.id}
                 className={`${styles.adminEventsRow} ${
@@ -862,7 +955,7 @@ export function ErrorIncidentsPanel({
                     }}
                     disabled={errorEventsLoading}
                   >
-                    {copiedEventId === row.id ? "Copied" : "Copy"}
+                    {copiedEventId === row.id ? "Copied" : "Copy triage"}
                   </button>
                   <button
                     type="button"
@@ -871,6 +964,23 @@ export function ErrorIncidentsPanel({
                     disabled={errorEventsLoading}
                   >
                     View
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => {
+                      void handleResolveEventRow(row);
+                    }}
+                    disabled={
+                      errorEventsLoading ||
+                      (row.incidentId != null && statusUpdatingErrorId === row.incidentId)
+                    }
+                  >
+                    {row.incidentId && row.incidentStatus === "open"
+                      ? statusUpdatingErrorId === row.incidentId
+                        ? "Updating…"
+                        : "Resolve"
+                      : "Resolve"}
                   </button>
                 </div>
               </div>
@@ -955,7 +1065,7 @@ export function ErrorIncidentsPanel({
                   void handleCopyEvent(selectedEvent);
                 }}
               >
-                {copiedEventId === selectedEvent.id ? "Copied" : "Copy event JSON"}
+                {copiedEventId === selectedEvent.id ? "Copied" : "Copy triage packet"}
               </button>
               {selectedEvent.incidentId ? (
                 <>

@@ -75,6 +75,7 @@ export type PromptStepProps = {
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentUseQuestion?: (question: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
+  onGenerateOutputPrompt?: (prompt: string) => void;
   // Actions
   onSavePrompt: (customPrompt?: string) => void;
   // State / UI
@@ -108,6 +109,8 @@ export type PromptStepProps = {
   composerLeadingContent?: React.ReactNode;
   showAgentQuestionActions?: boolean;
   agentInputMaxHeightPx?: number;
+  disableOutputGenerate?: boolean;
+  outputGenerateCostCredits?: number | null;
 };
 
 export function PromptStep({
@@ -143,6 +146,7 @@ export function PromptStep({
   onAgentSelectVariation,
   onAgentUseQuestion,
   onAgentDescribeTargets,
+  onGenerateOutputPrompt,
   onSavePrompt,
   isCollapsed,
   onToggleCollapse,
@@ -173,6 +177,8 @@ export function PromptStep({
   composerLeadingContent = null,
   showAgentQuestionActions = true,
   agentInputMaxHeightPx,
+  disableOutputGenerate = false,
+  outputGenerateCostCredits = null,
 }: PromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
@@ -440,7 +446,10 @@ export function PromptStep({
                       onClearAttachments={onClearAgentAttachments}
                       onInputChange={(value) => onAgentInputChange?.(value)}
                       onSend={onAgentSend ?? (() => {})}
+                      onGenerateOutputPrompt={onGenerateOutputPrompt}
                       highlightLatestAssistantOnly={highlightLatestAssistantOnly}
+                      disableOutputGenerate={disableOutputGenerate}
+                      outputGenerateCostCredits={outputGenerateCostCredits}
                     />
                   </div>
                 ) : null}

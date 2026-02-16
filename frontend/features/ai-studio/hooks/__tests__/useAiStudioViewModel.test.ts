@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
 import { useAiStudioViewModel } from "../useAiStudioViewModel";
 
@@ -34,6 +35,48 @@ const baseInput = {
 };
 
 describe("useAiStudioViewModel motion guardrails", () => {
+  it("uses active video settings for prompt-reference generate cost", () => {
+    const modelId = "fal-ai/kling-video/v3/pro/image-to-video";
+    const costParamsForModel = (overrides?: Omit<PricingParams, "modelId">): PricingParams => ({
+      modelId,
+      aspect: "16:9",
+      durationSeconds: 10,
+      resolution: "1080p",
+      audio: true,
+      ...overrides,
+    });
+    const activeDurationSeconds = 5;
+    const activeAudio = false;
+    const expectedCost = computeCostForModel(
+      modelId,
+      costParamsForModel({
+        durationSeconds: activeDurationSeconds,
+        resolution: "1080p",
+        audio: activeAudio,
+      })
+    )?.credits;
+    const defaultCost = computeCostForModel(modelId, costParamsForModel())?.credits;
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: modelId,
+        mode: "video",
+        selectedTool: "video",
+        referenceImageUrl: "https://example.com/character.png",
+        motionReferenceVideoUrl: "https://example.com/motion.mp4",
+        videoReferenceMode: "standard",
+        costParamsForModel,
+        videoDurationSeconds: activeDurationSeconds,
+        videoResolution: "1080p",
+        videoGenerateAudio: activeAudio,
+      })
+    );
+
+    expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
+    expect(result.current.promptReferenceGenerateCostCredits).not.toBe(defaultCost);
+  });
+
   it("blocks generation when both motion inputs are missing", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

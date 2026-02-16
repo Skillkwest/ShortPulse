@@ -346,8 +346,10 @@ export function ReferenceCanvas({
   const isPointerOverPanelRef = React.useRef(false);
   const isPastePrimedRef = React.useRef(false);
   const lastPasteFingerprintRef = React.useRef<{ value: string; at: number } | null>(null);
+  const canvasDragDepthRef = React.useRef(0);
   const autoplayBudgetRef = React.useRef<number>(REFERENCE_AUTOPLAY_MAX_DESKTOP);
   const [autoplayEnabledIds, setAutoplayEnabledIds] = useState<string[]>([]);
+  const [isCanvasDropActive, setIsCanvasDropActive] = useState(false);
   const [virtualMetrics, setVirtualMetrics] = useState({
     scrollTop: 0,
     viewportHeight: 0,
@@ -367,6 +369,16 @@ export function ReferenceCanvas({
       files
         .map((file, index) => normalizeMediaFile(file, null, index))
         .filter((file): file is File => Boolean(file))
+    );
+  }, []);
+
+  const canAcceptCanvasDrag = useCallback((transfer: DataTransfer | null | undefined) => {
+    if (!transfer) return false;
+    if (transfer.types.includes("text/reference-id")) return false;
+    return (
+      transfer.types.includes("Files") ||
+      transfer.types.includes("text/prompt") ||
+      transfer.types.includes("text/plain")
     );
   }, []);
 
@@ -689,6 +701,8 @@ export function ReferenceCanvas({
   );
 
   const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    canvasDragDepthRef.current = 0;
+    setIsCanvasDropActive(false);
     // Ignore drops that originate from existing reference cards to avoid creating duplicates/empties.
     const internalRefId = event.dataTransfer.getData("text/reference-id");
     if (internalRefId) {
@@ -713,13 +727,29 @@ export function ReferenceCanvas({
   };
 
   const handleCanvasDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    if (
-      event.dataTransfer.types.includes("Files") ||
-      event.dataTransfer.types.includes("text/prompt") ||
-      event.dataTransfer.types.includes("text/plain")
-    ) {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "copy";
+    if (!canAcceptCanvasDrag(event.dataTransfer)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    if (!isCanvasDropActive) {
+      setIsCanvasDropActive(true);
+    }
+  };
+
+  const handleCanvasDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!canAcceptCanvasDrag(event.dataTransfer)) return;
+    event.preventDefault();
+    canvasDragDepthRef.current += 1;
+    if (!isCanvasDropActive) {
+      setIsCanvasDropActive(true);
+    }
+  };
+
+  const handleCanvasDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!canAcceptCanvasDrag(event.dataTransfer)) return;
+    event.preventDefault();
+    canvasDragDepthRef.current = Math.max(0, canvasDragDepthRef.current - 1);
+    if (canvasDragDepthRef.current === 0 && isCanvasDropActive) {
+      setIsCanvasDropActive(false);
     }
   };
 
@@ -841,6 +871,20 @@ export function ReferenceCanvas({
     };
   }, []);
 
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const clearDropState = () => {
+      canvasDragDepthRef.current = 0;
+      setIsCanvasDropActive(false);
+    };
+    document.addEventListener("dragend", clearDropState);
+    document.addEventListener("drop", clearDropState);
+    return () => {
+      document.removeEventListener("dragend", clearDropState);
+      document.removeEventListener("drop", clearDropState);
+    };
+  }, []);
+
   const handlePanelPointerEnter = () => {
     isPointerOverPanelRef.current = true;
   };
@@ -942,10 +986,12 @@ export function ReferenceCanvas({
   return (
     <div
       ref={panelRef}
-      className="panel ai-panel ai-preview-panel reference-canvas-panel"
+      className={`panel ai-panel ai-preview-panel reference-canvas-panel${isCanvasDropActive ? " is-drop-active" : ""}`}
       data-selection-theme={selectionTheme}
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}
+      onDragEnter={handleCanvasDragEnter}
+      onDragLeave={handleCanvasDragLeave}
       onPointerEnter={handlePanelPointerEnter}
       onPointerLeave={handlePanelPointerLeave}
       onPointerDown={handlePanelPointerDown}

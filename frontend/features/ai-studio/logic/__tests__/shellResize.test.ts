@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   AI_SHELL_DIVIDER_TRACK_PX,
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
+  AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_MIN_FALLBACK_PX,
   AI_SHELL_LEFT_MIN_PX,
   AI_SHELL_RIGHT_MIN_PX,
@@ -36,6 +37,13 @@ describe("getAiShellLeftWidthBounds", () => {
     expect(bounds.min).toBe(AI_SHELL_LEFT_CHARACTER_MIN_PX);
     expect(bounds.max).toBe(1700 - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX);
   });
+
+  it("supports a caller-provided maximum width cap", () => {
+    const bounds = getAiShellLeftWidthBounds(1700, {
+      maxLeftWidthPx: AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
+    });
+    expect(bounds.max).toBe(AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX);
+  });
 });
 
 describe("clampAiShellLeftWidth", () => {
@@ -51,6 +59,14 @@ describe("clampAiShellLeftWidth", () => {
       clampAiShellLeftWidth(540, 1600, { minLeftWidthPx: AI_SHELL_LEFT_CHARACTER_MIN_PX })
     ).toBe(AI_SHELL_LEFT_CHARACTER_MIN_PX);
   });
+
+  it("respects caller-provided maximum width", () => {
+    expect(
+      clampAiShellLeftWidth(1400, 1600, {
+        maxLeftWidthPx: AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
+      })
+    ).toBe(AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX);
+  });
 });
 
 describe("getDefaultAiShellLeftWidth", () => {
@@ -63,6 +79,12 @@ describe("getDefaultAiShellLeftWidth", () => {
     expect(
       getDefaultAiShellLeftWidth(1500, { minLeftWidthPx: AI_SHELL_LEFT_CHARACTER_MIN_PX })
     ).toBe(AI_SHELL_LEFT_CHARACTER_MIN_PX);
+  });
+
+  it("clamps defaults to a caller-provided maximum width", () => {
+    expect(
+      getDefaultAiShellLeftWidth(3000, { maxLeftWidthPx: AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX })
+    ).toBe(AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX);
   });
 });
 

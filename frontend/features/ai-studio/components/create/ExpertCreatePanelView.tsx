@@ -66,9 +66,17 @@ export function ExpertCreatePanelView({
   imageResolutionOptions,
   onImageResolutionChange,
 }: ExpertCreatePanelViewProps) {
+  type SelectorMotionState = "hidden" | "pre-enter" | "shown" | "exiting";
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
+  const [characterPickerMotionState, setCharacterPickerMotionState] =
+    React.useState<SelectorMotionState>(characterModeEnabled ? "shown" : "hidden");
+  const [modelControlMotionState, setModelControlMotionState] = React.useState<SelectorMotionState>(
+    characterModeEnabled ? "hidden" : "shown"
+  );
+  const previousCharacterModeEnabledRef = React.useRef(characterModeEnabled);
+  const enterFrameRef = React.useRef<number | null>(null);
   const hasChatHistory =
     (promptStepProps.agentMessages?.length ?? 0) > 0 ||
     (promptStepProps.stagedAttachments?.length ?? 0) > 0 ||
@@ -78,6 +86,71 @@ export function ExpertCreatePanelView({
     hideEmptyAgentChatState: true,
     emptyAgentChatSpacerClassName: hasChatHistory ? "" : "create-expert-chat-spacer",
   };
+  const clearSelectorMotionTimers = React.useCallback(() => {
+    if (enterFrameRef.current != null && typeof window !== "undefined") {
+      window.cancelAnimationFrame(enterFrameRef.current);
+      enterFrameRef.current = null;
+    }
+  }, []);
+
+  React.useEffect(() => clearSelectorMotionTimers, [clearSelectorMotionTimers]);
+
+  React.useEffect(() => {
+    const wasCharacterModeEnabled = previousCharacterModeEnabledRef.current;
+    previousCharacterModeEnabledRef.current = characterModeEnabled;
+    if (wasCharacterModeEnabled === characterModeEnabled) return;
+
+    clearSelectorMotionTimers();
+
+    const beginModelEnter = () => {
+      setModelControlMotionState("pre-enter");
+      if (typeof window !== "undefined") {
+        enterFrameRef.current = window.requestAnimationFrame(() => {
+          setModelControlMotionState("shown");
+          enterFrameRef.current = null;
+        });
+      } else {
+        setModelControlMotionState("shown");
+      }
+    };
+
+    const beginCharacterEnter = () => {
+      setCharacterPickerMotionState("pre-enter");
+      if (typeof window !== "undefined") {
+        enterFrameRef.current = window.requestAnimationFrame(() => {
+          setCharacterPickerMotionState("shown");
+          enterFrameRef.current = null;
+        });
+      } else {
+        setCharacterPickerMotionState("shown");
+      }
+    };
+
+    if (!characterModeEnabled) {
+      // Character mode OFF should hide character selector immediately (no exit transition).
+      if (characterPickerMotionState !== "hidden") {
+        setCharacterPickerMotionState("hidden");
+      }
+      beginModelEnter();
+      return;
+    }
+
+    if (modelControlMotionState !== "hidden") {
+      // Character mode ON should hide the model selector immediately (no exit transition).
+      setModelControlMotionState("hidden");
+    }
+    beginCharacterEnter();
+  }, [
+    characterModeEnabled,
+    characterPickerMotionState,
+    clearSelectorMotionTimers,
+    modelControlMotionState,
+  ]);
+
+  const showModelControl = modelControlMotionState !== "hidden";
+  const isModelControlInteractable = modelControlMotionState === "shown";
+  const isCharacterPickerInteractable = characterPickerMotionState === "shown";
+  const isCharacterPickerLayoutOn = characterPickerMotionState !== "hidden";
 
   return (
     <div
@@ -99,7 +172,7 @@ export function ExpertCreatePanelView({
         <div className="create-expert-controls">
           <div
             className={`create-expert-control create-expert-character-mode-control ${
-              characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
+              isCharacterPickerLayoutOn ? "is-character-mode-on" : "is-character-mode-off"
             }`}
           >
             <div className="create-expert-character-mode-meta">
@@ -122,11 +195,13 @@ export function ExpertCreatePanelView({
               type="button"
               className={`model-picker-btn create-expert-picker-control create-expert-character-picker-trigger ${
                 !selectedCharacterInitials && !selectedCharacterProfileImageUrl ? "is-empty" : ""
-              } ${isCharacterPickerOpen ? "is-open" : ""}`}
+              } ${isCharacterPickerOpen ? "is-open" : ""} create-expert-character-picker-trigger--${characterPickerMotionState}`}
               aria-haspopup="dialog"
               aria-expanded={isCharacterPickerOpen}
               aria-label="Open character picker"
-              disabled={characterSelectDisabled}
+              disabled={characterSelectDisabled || !isCharacterPickerInteractable}
+              tabIndex={isCharacterPickerInteractable ? undefined : -1}
+              aria-hidden={isCharacterPickerInteractable ? undefined : true}
               onClick={onCharacterPickerOpen}
             >
               {selectedCharacterProfileImageUrl ? (
@@ -146,8 +221,10 @@ export function ExpertCreatePanelView({
               <span className="model-picker-name">{selectedCharacterName}</span>
             </button>
           </div>
-          {!characterModeEnabled ? (
-            <div className="create-expert-control create-expert-model-control">
+          {showModelControl ? (
+            <div
+              className={`create-expert-control create-expert-model-control create-expert-model-control--${modelControlMotionState}`}
+            >
               <span className="create-expert-control-label">Model</span>
               <button
                 type="button"
@@ -155,7 +232,9 @@ export function ExpertCreatePanelView({
                   isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""
                 } ${isModelPickerLockedByCharacterMode ? "is-locked" : ""}`}
                 data-model-anchor="create-model"
-                disabled={isModelPickerLockedByCharacterMode}
+                disabled={isModelPickerLockedByCharacterMode || !isModelControlInteractable}
+                tabIndex={isModelControlInteractable ? undefined : -1}
+                aria-hidden={isModelControlInteractable ? undefined : true}
                 aria-label={
                   isModelPickerLockedByCharacterMode
                     ? "Model locked while character mode is enabled"

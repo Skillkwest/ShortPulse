@@ -58,6 +58,7 @@ type TextPropertiesPanelProps = {
   balanceLoading?: boolean;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
+  outputGenerateCostCredits?: number | null;
   guardrailReason?: string | null;
   onExpandChat?: () => void;
   onStepActionClick?: (step: "character" | "model" | "prompt" | "imageSettings") => void;
@@ -75,6 +76,7 @@ type TextPropertiesPanelProps = {
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentUseQuestion?: (question: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
+  onGenerateFromAgentOutputPrompt?: (prompt: string) => void;
   onGenerate: () => void;
   onSavePrompt: (customPrompt?: string) => void;
   shouldDisableSave?: boolean;
@@ -253,11 +255,13 @@ export function TextPropertiesPanel({
   onAgentSelectVariation,
   onAgentUseQuestion,
   onAgentDescribeTargets,
+  onGenerateFromAgentOutputPrompt,
   agentChatOpen = false,
   onSavePrompt,
   shouldDisableSave = false,
   isPromptGenerating = false,
   isGenerateDisabled = false,
+  outputGenerateCostCredits = null,
   onClearAgentChat,
   beginnerMode = false,
   expertCreateUiEligible = false,
@@ -357,6 +361,7 @@ export function TextPropertiesPanel({
   const selectedCharacterInitials = selectedCharacterOption
     ? getCharacterInitials(selectedCharacterOption.name)
     : null;
+  const disableOutputGenerate = characterModeEnabled ? !selectedCharacterId : !modelId;
 
   // Auto-clamp invalid image resolution values when switching image models.
   useEffect(() => {
@@ -408,9 +413,12 @@ export function TextPropertiesPanel({
     onAgentSelectVariation,
     onAgentUseQuestion,
     onAgentDescribeTargets,
+    onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,
     onSavePrompt,
     isGenerating: isPromptGenerating,
     shouldDisableSave,
+    disableOutputGenerate,
+    outputGenerateCostCredits,
     chatOnly: true,
     chatPromptSaveButtonClassName: "create-chat-pin-btn",
     chatPromptSaveButtonUnstyled: true,

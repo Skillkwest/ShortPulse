@@ -98,8 +98,9 @@ describe("AgentChatPanel prompt actions", () => {
     expect(onDescribeTargets).toHaveBeenCalledWith(["ref-a", "ref-b"]);
   });
 
-  it("shows small generate pills on assistant outputs and does not trigger bubble click", () => {
+  it("forwards inline generate prompts and does not trigger bubble click", () => {
     const onMessageClick = vi.fn();
+    const onGenerateOutputPrompt = vi.fn();
     render(
       <AgentChatPanel
         messages={[
@@ -108,9 +109,11 @@ describe("AgentChatPanel prompt actions", () => {
         ]}
         input=""
         stagedPrompt="Assistant staged prompt."
+        outputGenerateCostCredits={35}
         onInputChange={vi.fn()}
         onSend={vi.fn()}
         onMessageClick={onMessageClick}
+        onGenerateOutputPrompt={onGenerateOutputPrompt}
       />
     );
 
@@ -118,8 +121,31 @@ describe("AgentChatPanel prompt actions", () => {
       name: "Generate from this agent output",
     });
     expect(generateButtons).toHaveLength(2);
+    expect(screen.getAllByText("35")).toHaveLength(2);
     fireEvent.click(generateButtons[0]);
+    fireEvent.click(generateButtons[1]);
+    expect(onGenerateOutputPrompt).toHaveBeenNthCalledWith(1, "Assistant staged prompt.");
+    expect(onGenerateOutputPrompt).toHaveBeenNthCalledWith(2, "Assistant output one.");
     expect(onMessageClick).not.toHaveBeenCalled();
+  });
+
+  it("disables small generate pills when output generate is disabled", () => {
+    render(
+      <AgentChatPanel
+        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        input=""
+        stagedPrompt="Assistant staged prompt."
+        disableOutputGenerate
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const generateButtons = screen.getAllByRole("button", {
+      name: "Generate from this agent output",
+    });
+    expect(generateButtons).toHaveLength(2);
+    expect(generateButtons.every((button) => button.hasAttribute("disabled"))).toBe(true);
   });
 
   it("exposes prompt text on drag start for assistant and user bubbles", () => {
@@ -141,17 +167,22 @@ describe("AgentChatPanel prompt actions", () => {
     expect(draggableMessage).toBeTruthy();
 
     const setData = vi.fn();
+    const setDragImage = vi.fn();
     const dataTransfer = {
       setData,
+      setDragImage,
       effectAllowed: "none",
     } as unknown as DataTransfer;
 
     fireEvent.dragStart(draggableMessage, { dataTransfer });
     expect(setData).toHaveBeenCalledWith("text/plain", "Assistant output one.");
     expect(setData).toHaveBeenCalledWith("text/prompt", "Assistant output one.");
+    expect(setDragImage).toHaveBeenCalledTimes(1);
+    expect(document.querySelectorAll(".agent-message-drag-ghost")).toHaveLength(1);
     expect(draggableMessage.classList.contains("is-dragging")).toBe(true);
 
     fireEvent.dragEnd(draggableMessage);
+    expect(document.querySelectorAll(".agent-message-drag-ghost")).toHaveLength(0);
     expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
   });
 

@@ -24,6 +24,11 @@ type CountQueryResult = {
   error: { message: string } | null;
 };
 
+type AdminErrorsHealth = {
+  degraded: boolean;
+  reason: string | null;
+};
+
 const asPositiveInt = (value: unknown, fallback: number): number => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
@@ -44,6 +49,10 @@ const normalizeSearchTerm = (value: unknown): string => {
     .trim()
     .slice(0, 80);
 };
+
+const countOrZero = (result: CountQueryResult): number => Number(result.count ?? 0);
+
+const hasQueryError = (result: CountQueryResult): boolean => Boolean(result.error);
 
 const applyIncidentFilters = (
   query: IncidentQuery,
@@ -160,35 +169,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .gte("last_seen_at", sinceIso),
     ]);
 
-    if (
-      logsResult.error ||
-      filteredCountResult.error ||
-      openCountResult.error ||
-      highSeverityOpenResult.error ||
-      appOpenCountResult.error ||
-      generationOpenCountResult.error ||
-      last24hResult.error
-    ) {
-      const detail = [
-        logsResult.error?.message,
-        filteredCountResult.error?.message,
-        openCountResult.error?.message,
-        highSeverityOpenResult.error?.message,
-        appOpenCountResult.error?.message,
-        generationOpenCountResult.error?.message,
-        last24hResult.error?.message,
-      ]
-        .filter(Boolean)
-        .join(" | ");
-      return res.status(500).json({ error: detail || "Unable to load admin errors." });
+    if (logsResult.error) {
+      return res
+        .status(500)
+        .json({ error: logsResult.error.message || "Unable to load admin errors." });
     }
 
-    const totalCount = Number(filteredCountResult.count ?? 0);
-    const totalPages = Math.max(1, Math.ceil(totalCount / limit));
-    const resolvedPage = totalCount > 0 ? Math.min(page, totalPages) : 1;
     let logs = logsResult.data ?? [];
+    const logRowsCount = Array.isArray(logs) ? logs.length : 0;
+    const fallbackLikelyHasNextPage = logRowsCount === limit;
+    const hasFilteredCountError = hasQueryError(filteredCountResult);
+    const totalCount = hasFilteredCountError
+      ? offset + logRowsCount + (fallbackLikelyHasNextPage ? 1 : 0)
+      : Number(filteredCountResult.count ?? 0);
+    const totalPages = hasFilteredCountError
+      ? Math.max(1, page + (fallbackLikelyHasNextPage ? 1 : 0))
+      : Math.max(1, Math.ceil(totalCount / limit));
+    const resolvedPage = hasFilteredCountError
+      ? page
+      : totalCount > 0
+        ? Math.min(page, totalPages)
+        : 1;
 
-    if (resolvedPage !== page) {
+    if (!hasFilteredCountError && resolvedPage !== page) {
       const fallbackOffset = (resolvedPage - 1) * limit;
       const fallbackLogsResult = (await applyIncidentFilters(
         supabaseAdmin
@@ -206,21 +209,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       logs = fallbackLogsResult.data ?? [];
     }
 
+    const health: AdminErrorsHealth = {
+      degraded:
+        hasFilteredCountError ||
+        hasQueryError(openCountResult) ||
+        hasQueryError(highSeverityOpenResult) ||
+        hasQueryError(appOpenCountResult) ||
+        hasQueryError(generationOpenCountResult) ||
+        hasQueryError(last24hResult),
+      reason:
+        hasFilteredCountError ||
+        hasQueryError(openCountResult) ||
+        hasQueryError(highSeverityOpenResult) ||
+        hasQueryError(appOpenCountResult) ||
+        hasQueryError(generationOpenCountResult) ||
+        hasQueryError(last24hResult)
+          ? "Some admin error summary metrics are temporarily unavailable."
+          : null,
+    };
+
     return res.status(200).json({
       errors: logs,
       summary: {
-        openCount: Number(openCountResult.count ?? 0),
-        highSeverityOpenCount: Number(highSeverityOpenResult.count ?? 0),
-        last24hCount: Number(last24hResult.count ?? 0),
-        appOpenCount: Number(appOpenCountResult.count ?? 0),
-        generationOpenCount: Number(generationOpenCountResult.count ?? 0),
+        openCount: countOrZero(openCountResult),
+        highSeverityOpenCount: countOrZero(highSeverityOpenResult),
+        last24hCount: countOrZero(last24hResult),
+        appOpenCount: countOrZero(appOpenCountResult),
+        generationOpenCount: countOrZero(generationOpenCountResult),
       },
+      health,
       pagination: {
         page: resolvedPage,
         perPage: limit,
         totalCount,
         totalPages,
-        hasNextPage: resolvedPage < totalPages,
+        hasNextPage: hasFilteredCountError ? fallbackLikelyHasNextPage : resolvedPage < totalPages,
         hasPrevPage: resolvedPage > 1,
       },
     });

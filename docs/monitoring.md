@@ -20,6 +20,26 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 4. Mitigate (rollback, hotfix, or config toggle).
 5. Record outcome in `docs/change_log.md` and, if unresolved, `docs/known-issues.md`.
 
+## Admin triage controls
+- `app_error_events` is append-only telemetry. Do not delete rows during troubleshooting; preserve forensic history.
+- Use incident status transitions (`open` -> `resolved`/`ignored`, with `reopen` when needed) to represent triage state.
+- Use `Copy triage` in the Incidents/Event Stream tables for handoff packets. These payloads are versioned and intentionally compact (key identifiers + normalized triage metadata) to keep troubleshooting reproducible without pasting full raw metadata blobs.
+- Event Stream display controls are operator-local:
+  - Incident-state display filter (`Actionable`, `Open`, `Resolved`, `Ignored`, `Unlinked`) trims visible rows for active work.
+  - `Hide` removes a row from the current session view only; `Show hidden` restores hidden rows.
+
+### Triage packet contract
+- Incident packets use `shortpulseIncidentVersion` (current: `3`) plus `packetType: "triage"` and an `incident` object.
+- Event packets use `shortpulseEventVersion` (current: `2`) plus `packetType: "triage"` and an `event` object.
+- Compatibility rule for tooling/scripts:
+  - branch on packet version,
+  - ignore unknown fields,
+  - treat missing optional fields as `null`/absent (not parse failures).
+- Payloads are intentionally compact:
+  - full raw `metadata` is not copied into triage packets,
+  - very large text fields (for example stacks or breadcrumb data) can be truncated.
+- When deep forensics requires unsummarized metadata, copy it from Event Detail in `/admin` as a second step.
+
 ## Smoke-test trigger
 - Operators can create a synthetic incident via `/api/admin/errors-test` (Admin auth required).
 - Admin UI shortcut: Errors tab buttons `Trigger app test` / `Trigger generation test`.
@@ -31,6 +51,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - high-severity event volume,
   - generation-scope event volume.
 - If `app_error_events` is missing (schema drift), `/api/admin/error-events` now returns a degraded payload (`health.degraded = true`) instead of failing hard. The Admin Event Stream shows a drift warning so operators can apply migration `015` and restore per-occurrence visibility.
+- If non-core summary or enrichment queries fail (for example, transient count-query failures), `/api/admin/error-events` and `/api/admin/errors` now fail soft with `health.degraded = true` and keep the primary list payload available.
 - Alert metrics are computed against real failure traffic only (synthetic admin test events and `telemetry.*` sources excluded) and are not altered by UI filter state.
 - Threshold env vars (server-side): `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, `SHORTPULSE_ADMIN_ALERT_GENERATION_15M`.
 - Defaults if unset: `40`, `8`, `20`.

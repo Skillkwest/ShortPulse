@@ -89,6 +89,14 @@ export type AdminErrorEventSignalFilter =
   | "character_mode_reference_refresh_empty"
   | "character_mode_bundle_unavailable_fallback";
 
+export type AdminErrorEventIncidentFilter =
+  | "all"
+  | "actionable"
+  | "open"
+  | "resolved"
+  | "ignored"
+  | "unlinked";
+
 export type AdminErrorEventsHealth = {
   eventsTableAvailable: boolean;
   degraded: boolean;

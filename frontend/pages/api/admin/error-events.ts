@@ -59,6 +59,14 @@ type ErrorEventsHealth = {
   reason: string | null;
 };
 
+type EnrichedEventsResult = {
+  events: unknown[];
+  degraded: boolean;
+  reason: string | null;
+};
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const asPositiveInt = (value: unknown, fallback: number): number => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
@@ -98,6 +106,11 @@ const asThreshold = (value: string | undefined, fallback: number): number => {
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.trunc(parsed));
 };
+
+const countOrZero = (result: CountQueryResult): number => Number(result.count ?? 0);
+
+const countErrorMessage = (result: CountQueryResult): string | null =>
+  result.error?.message ?? null;
 
 const isMissingEventsTableError = (message: string): boolean => {
   const normalized = message.toLowerCase();
@@ -221,42 +234,62 @@ const applyEventFilters = (
 const enrichEventsWithIncidentStatus = async (
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
   rows: unknown[] | null
-): Promise<unknown[]> => {
+): Promise<EnrichedEventsResult> => {
   const events = Array.isArray(rows) ? (rows as EventRow[]) : [];
   const incidentIds = Array.from(
     new Set(
       events
         .map((row) => (typeof row.incident_id === "string" ? row.incident_id : null))
-        .filter((value): value is string => Boolean(value))
+        .filter((value): value is string => Boolean(value && UUID_PATTERN.test(value)))
     )
   );
   if (!incidentIds.length) {
-    return events.map((row) => ({ ...row, incident_status: null }));
-  }
-
-  const { data: incidentRowsRaw, error } = await supabaseAdmin
-    .from("app_error_logs")
-    .select("id, status")
-    .in("id", incidentIds);
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const incidentRows = (incidentRowsRaw as IncidentStatusRow[] | null) ?? [];
-  const statusByIncidentId = new Map<string, "open" | "resolved" | "ignored">();
-  for (const row of incidentRows) {
-    if (!row?.id) continue;
-    statusByIncidentId.set(row.id, row.status);
-  }
-
-  return events.map((row) => {
-    const incidentId = typeof row.incident_id === "string" ? row.incident_id : null;
-    const incidentStatus = incidentId ? (statusByIncidentId.get(incidentId) ?? null) : null;
     return {
-      ...row,
-      incident_status: incidentStatus,
+      events: events.map((row) => ({ ...row, incident_status: null })),
+      degraded: false,
+      reason: null,
     };
-  });
+  }
+
+  try {
+    const { data: incidentRowsRaw, error } = await supabaseAdmin
+      .from("app_error_logs")
+      .select("id, status")
+      .in("id", incidentIds);
+    if (error) {
+      return {
+        events: events.map((row) => ({ ...row, incident_status: null })),
+        degraded: true,
+        reason: "Unable to enrich event rows with incident status.",
+      };
+    }
+
+    const incidentRows = (incidentRowsRaw as IncidentStatusRow[] | null) ?? [];
+    const statusByIncidentId = new Map<string, "open" | "resolved" | "ignored">();
+    for (const row of incidentRows) {
+      if (!row?.id) continue;
+      statusByIncidentId.set(row.id, row.status);
+    }
+
+    return {
+      events: events.map((row) => {
+        const incidentId = typeof row.incident_id === "string" ? row.incident_id : null;
+        const incidentStatus = incidentId ? (statusByIncidentId.get(incidentId) ?? null) : null;
+        return {
+          ...row,
+          incident_status: incidentStatus,
+        };
+      }),
+      degraded: false,
+      reason: null,
+    };
+  } catch {
+    return {
+      events: events.map((row) => ({ ...row, incident_status: null })),
+      degraded: true,
+      reason: "Unable to enrich event rows with incident status.",
+    };
+  }
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -453,61 +486,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ) as unknown as Promise<CountQueryResult>,
     ]);
 
-    const queryErrors = [
-      eventsResult.error?.message,
-      filteredCountResult.error?.message,
-      last15mCountResult.error?.message,
-      high15mCountResult.error?.message,
-      generation15mCountResult.error?.message,
-      lastHourCountResult.error?.message,
-      last24hCountResult.error?.message,
-      app24hCountResult.error?.message,
-      generation24hCountResult.error?.message,
-      high24hCountResult.error?.message,
-      characterModeReferenceRefreshEmptyLastHourCountResult.error?.message,
-      characterModeReferenceRefreshEmptyLast24hCountResult.error?.message,
-      characterModeBundleUnavailableFallbackLastHourCountResult.error?.message,
-      characterModeBundleUnavailableFallbackLast24hCountResult.error?.message,
-    ].filter((value): value is string => Boolean(value));
-
-    if (queryErrors.length && queryErrors.every((message) => isMissingEventsTableError(message))) {
-      return res.status(200).json(
-        buildDegradedEventsPayload({
-          perPage: limit,
-          total15mThreshold,
-          high15mThreshold,
-          generation15mThreshold,
-          reason: APP_ERROR_EVENTS_MISSING_REASON,
-        })
-      );
+    if (eventsResult.error) {
+      if (isMissingEventsTableError(eventsResult.error.message)) {
+        return res.status(200).json(
+          buildDegradedEventsPayload({
+            perPage: limit,
+            total15mThreshold,
+            high15mThreshold,
+            generation15mThreshold,
+            reason: APP_ERROR_EVENTS_MISSING_REASON,
+          })
+        );
+      }
+      return res.status(500).json({
+        error: eventsResult.error.message || "Unable to load error events.",
+      });
     }
 
-    if (
-      eventsResult.error ||
-      filteredCountResult.error ||
-      last15mCountResult.error ||
-      high15mCountResult.error ||
-      generation15mCountResult.error ||
-      lastHourCountResult.error ||
-      last24hCountResult.error ||
-      app24hCountResult.error ||
-      generation24hCountResult.error ||
-      high24hCountResult.error ||
-      characterModeReferenceRefreshEmptyLastHourCountResult.error ||
-      characterModeReferenceRefreshEmptyLast24hCountResult.error ||
-      characterModeBundleUnavailableFallbackLastHourCountResult.error ||
-      characterModeBundleUnavailableFallbackLast24hCountResult.error
-    ) {
-      const detail = [...queryErrors].filter(Boolean).join(" | ");
-      return res.status(500).json({ error: detail || "Unable to load error events." });
-    }
-
-    const totalCount = Number(filteredCountResult.count ?? 0);
-    const totalPages = Math.max(1, Math.ceil(totalCount / limit));
-    const resolvedPage = totalCount > 0 ? Math.min(page, totalPages) : 1;
     let events = eventsResult.data ?? [];
+    const eventRowsCount = Array.isArray(events) ? events.length : 0;
+    const fallbackLikelyHasNextPage = eventRowsCount === limit;
+    const hasFilteredCountError = Boolean(filteredCountResult.error);
+    const totalCount = hasFilteredCountError
+      ? offset + eventRowsCount + (fallbackLikelyHasNextPage ? 1 : 0)
+      : Number(filteredCountResult.count ?? 0);
+    const totalPages = hasFilteredCountError
+      ? Math.max(1, page + (fallbackLikelyHasNextPage ? 1 : 0))
+      : Math.max(1, Math.ceil(totalCount / limit));
+    const resolvedPage = hasFilteredCountError
+      ? page
+      : totalCount > 0
+        ? Math.min(page, totalPages)
+        : 1;
 
-    if (resolvedPage !== page) {
+    if (!hasFilteredCountError && resolvedPage !== page) {
       const fallbackOffset = (resolvedPage - 1) * limit;
       const fallbackResult = (await applyEventFilters(
         supabaseAdmin
@@ -525,46 +537,77 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       events = fallbackResult.data ?? [];
     }
 
-    const enrichedEvents = await enrichEventsWithIncidentStatus(supabaseAdmin, events);
+    const enrichedEventsResult = await enrichEventsWithIncidentStatus(supabaseAdmin, events);
+    const summaryErrorMessages = [
+      countErrorMessage(last15mCountResult),
+      countErrorMessage(high15mCountResult),
+      countErrorMessage(generation15mCountResult),
+      countErrorMessage(lastHourCountResult),
+      countErrorMessage(last24hCountResult),
+      countErrorMessage(app24hCountResult),
+      countErrorMessage(generation24hCountResult),
+      countErrorMessage(high24hCountResult),
+      countErrorMessage(characterModeReferenceRefreshEmptyLastHourCountResult),
+      countErrorMessage(characterModeReferenceRefreshEmptyLast24hCountResult),
+      countErrorMessage(characterModeBundleUnavailableFallbackLastHourCountResult),
+      countErrorMessage(characterModeBundleUnavailableFallbackLast24hCountResult),
+    ].filter((value): value is string => Boolean(value));
+
+    const healthReasons: string[] = [];
+    if (hasFilteredCountError) {
+      healthReasons.push("Event pagination totals are estimated.");
+    }
+    if (summaryErrorMessages.length > 0) {
+      healthReasons.push("Some event summary metrics are temporarily unavailable.");
+    }
+    if (enrichedEventsResult.degraded && enrichedEventsResult.reason) {
+      healthReasons.push(enrichedEventsResult.reason);
+    }
+    const health = healthReasons.length
+      ? {
+          eventsTableAvailable: true,
+          degraded: true,
+          reason: healthReasons.join(" "),
+        }
+      : healthyState();
 
     return res.status(200).json({
-      events: enrichedEvents,
+      events: enrichedEventsResult.events,
       summary: {
-        last15mCount: Number(last15mCountResult.count ?? 0),
-        high15mCount: Number(high15mCountResult.count ?? 0),
-        generation15mCount: Number(generation15mCountResult.count ?? 0),
-        lastHourCount: Number(lastHourCountResult.count ?? 0),
-        last24hCount: Number(last24hCountResult.count ?? 0),
-        app24hCount: Number(app24hCountResult.count ?? 0),
-        generation24hCount: Number(generation24hCountResult.count ?? 0),
-        high24hCount: Number(high24hCountResult.count ?? 0),
-        characterModeReferenceRefreshEmptyLastHourCount: Number(
-          characterModeReferenceRefreshEmptyLastHourCountResult.count ?? 0
+        last15mCount: countOrZero(last15mCountResult),
+        high15mCount: countOrZero(high15mCountResult),
+        generation15mCount: countOrZero(generation15mCountResult),
+        lastHourCount: countOrZero(lastHourCountResult),
+        last24hCount: countOrZero(last24hCountResult),
+        app24hCount: countOrZero(app24hCountResult),
+        generation24hCount: countOrZero(generation24hCountResult),
+        high24hCount: countOrZero(high24hCountResult),
+        characterModeReferenceRefreshEmptyLastHourCount: countOrZero(
+          characterModeReferenceRefreshEmptyLastHourCountResult
         ),
-        characterModeReferenceRefreshEmptyLast24hCount: Number(
-          characterModeReferenceRefreshEmptyLast24hCountResult.count ?? 0
+        characterModeReferenceRefreshEmptyLast24hCount: countOrZero(
+          characterModeReferenceRefreshEmptyLast24hCountResult
         ),
-        characterModeBundleUnavailableFallbackLastHourCount: Number(
-          characterModeBundleUnavailableFallbackLastHourCountResult.count ?? 0
+        characterModeBundleUnavailableFallbackLastHourCount: countOrZero(
+          characterModeBundleUnavailableFallbackLastHourCountResult
         ),
-        characterModeBundleUnavailableFallbackLast24hCount: Number(
-          characterModeBundleUnavailableFallbackLast24hCountResult.count ?? 0
+        characterModeBundleUnavailableFallbackLast24hCount: countOrZero(
+          characterModeBundleUnavailableFallbackLast24hCountResult
         ),
         total15mThreshold,
         high15mThreshold,
         generation15mThreshold,
-        total15mBreached: Number(last15mCountResult.count ?? 0) >= total15mThreshold,
-        high15mBreached: Number(high15mCountResult.count ?? 0) >= high15mThreshold,
-        generation15mBreached:
-          Number(generation15mCountResult.count ?? 0) >= generation15mThreshold,
+        total15mBreached: countOrZero(last15mCountResult) >= total15mThreshold,
+        high15mBreached: countOrZero(high15mCountResult) >= high15mThreshold,
+        generation15mBreached: countOrZero(generation15mCountResult) >= generation15mThreshold,
       },
-      health: healthyState(),
+      health,
       pagination: {
         page: resolvedPage,
         perPage: limit,
         totalCount,
         totalPages,
-        hasNextPage: resolvedPage < totalPages,
+        hasNextPage: hasFilteredCountError ? fallbackLikelyHasNextPage : resolvedPage < totalPages,
         hasPrevPage: resolvedPage > 1,
       },
     });

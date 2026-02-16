@@ -54,6 +54,7 @@ const createParams = (
     handleAgentSelectVariation: vi.fn(),
     handleAgentUseQuestion: vi.fn(),
     handleAgentDescribeTargets: vi.fn(),
+    handleGenerateFromAgentOutputPrompt: vi.fn(),
     useReferenceImageIndicator: false,
     activeOutput: outputs[0] ?? null,
     isModelModalOpen: false,
@@ -66,6 +67,7 @@ const createParams = (
     isPromptRefining: false,
     describeInFlightCount: 0,
     currentCostCredits: 2,
+    promptReferenceGenerateCostCredits: 25,
     isGenerateDisabled: false,
     isGenerateClickLocked: false,
     generationGuardrail: null,
@@ -151,6 +153,8 @@ describe("useAiStudioPanelProps", () => {
 
     expect(result.current.propertiesText.isPromptGenerating).toBe(true);
     expect(result.current.propertiesText.isGenerateDisabled).toBe(true);
+    expect(result.current.propertiesText.outputGenerateCostCredits).toBe(25);
+    expect(typeof result.current.propertiesText.onGenerateFromAgentOutputPrompt).toBe("function");
   });
 
   it("locks image/video generate actions while a submit is in flight", () => {

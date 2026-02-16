@@ -172,6 +172,34 @@ describe("ReferenceCanvas paste handling", () => {
     expect(onPasteMediaReference).not.toHaveBeenCalled();
   });
 
+  it("routes dropped prompt text through onPasteTextReference", () => {
+    const onDropFiles = vi.fn();
+    const onPasteTextReference = vi.fn();
+    const onPasteMediaReference = vi.fn();
+    const dataTransfer = {
+      files: makeFileList([]),
+      types: ["text/prompt", "text/plain"],
+      getData: vi.fn((type: string) => (type === "text/prompt" ? "  dropped prompt text  " : "")),
+    } as unknown as DataTransfer;
+
+    const { container } = render(
+      <ReferenceCanvas
+        {...baseProps}
+        onDropFiles={onDropFiles}
+        onPasteTextReference={onPasteTextReference}
+        onPasteMediaReference={onPasteMediaReference}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel");
+    expect(panel).toBeTruthy();
+
+    fireEvent.drop(panel as HTMLElement, { dataTransfer });
+
+    expect(onPasteTextReference).toHaveBeenCalledWith("dropped prompt text");
+    expect(onDropFiles).not.toHaveBeenCalled();
+    expect(onPasteMediaReference).not.toHaveBeenCalled();
+  });
+
   it("routes pasted media URLs through onPasteMediaReference", () => {
     const onDropFiles = vi.fn();
     const onPasteTextReference = vi.fn();
@@ -490,8 +518,8 @@ describe("ReferenceCanvas paste handling", () => {
     expect(onPasteMediaReference).not.toHaveBeenCalled();
   });
 
-  it("shows 5-credit rounding guidance for prompt-reference generation", () => {
-    render(
+  it("does not render a billing guidance note for prompt-reference generation", () => {
+    const { container } = render(
       <ReferenceCanvas
         {...baseProps}
         activeOutputId="prompt-ref-1"
@@ -511,6 +539,6 @@ describe("ReferenceCanvas paste handling", () => {
       />
     );
 
-    expect(screen.getByText("Billed in 5-credit increments.")).toBeInTheDocument();
+    expect(container.querySelector(".reference-prompt-generate-note")).toBeNull();
   });
 });

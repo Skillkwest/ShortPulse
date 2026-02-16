@@ -4,9 +4,8 @@
  */
 import Image from "next/image";
 import React, { useEffect, useMemo } from "react";
-import { CaretDown, X } from "phosphor-react";
-import { AspectDropdown } from "./AspectDropdown";
-import { AspectOption, StudioMode } from "../types";
+import { X } from "phosphor-react";
+import type { AspectOption, StudioMode } from "../types";
 import { aspectOptions, modelLogos } from "../constants";
 import type { ModelModalContext } from "./ModelModal";
 import { AgentGenerateButton } from "../../../prefabs/agent";
@@ -18,6 +17,8 @@ import {
   getImageResolutionOptions,
 } from "../logic/imageResolution";
 import { getModelConfig } from "../logic/modelRegistry";
+import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
+import { ExpertCreatePanelView } from "./create/ExpertCreatePanelView";
 
 const CHARACTER_MODE_UI_MODEL_LABEL = "Pulse Character";
 const CHARACTER_MODE_UI_MODEL_LOGO = "/tiny%20logo.png";
@@ -49,6 +50,7 @@ type TextPropertiesPanelProps = {
     target: HTMLElement,
     context?: ModelModalContext | null
   ) => void;
+  onModelIdChange?: (value: string | null) => void;
   onPromptChange: (value: string) => void;
   onToggleReferenceIndicator: () => void;
   costCredits?: number | null;
@@ -63,7 +65,6 @@ type TextPropertiesPanelProps = {
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
-  onAgentMessageClick?: (message: AgentMessage) => void;
   onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -79,6 +80,7 @@ type TextPropertiesPanelProps = {
   shouldDisableSave?: boolean;
   onClearAgentChat?: () => void;
   beginnerMode?: boolean;
+  expertCreateUiEligible?: boolean;
   imageResolution?: string;
   onImageResolutionChange?: (value: string) => void;
   characterOptions?: Array<{ id: string; name: string; profileImageUrl?: string | null }>;
@@ -99,33 +101,6 @@ type ComposeSendCardProps = {
   beginnerMode?: boolean;
 };
 
-type StepHeaderActionButtonProps = {
-  label: string;
-  isCollapsed?: boolean;
-  onClick: () => void;
-};
-
-const StepHeaderActionButton: React.FC<StepHeaderActionButtonProps> = ({
-  label,
-  isCollapsed = false,
-  onClick,
-}) => {
-  return (
-    <button
-      type="button"
-      className="ghost-btn mini step-utility-btn"
-      aria-label={label}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick();
-      }}
-      aria-expanded={!isCollapsed}
-    >
-      <CaretDown size={16} weight="bold" aria-hidden />
-    </button>
-  );
-};
-
 const getCharacterInitials = (name: string): string => {
   const trimmed = name.trim();
   if (!trimmed) return "?";
@@ -134,6 +109,108 @@ const getCharacterInitials = (name: string): string => {
     return parts[0].slice(0, 2).toUpperCase();
   }
   return `${parts[0]?.[0] ?? ""}${parts[parts.length - 1]?.[0] ?? ""}`.toUpperCase();
+};
+
+type CharacterPickerModalProps = {
+  isOpen: boolean;
+  characterModeEnabled: boolean;
+  onClose: () => void;
+  characterOptions: Array<{ id: string; name: string; profileImageUrl?: string | null }>;
+  selectedCharacterId: string;
+  onSelectedCharacterIdChange?: (value: string) => void;
+};
+
+const CharacterPickerModal = ({
+  isOpen,
+  characterModeEnabled,
+  onClose,
+  characterOptions,
+  selectedCharacterId,
+  onSelectedCharacterIdChange,
+}: CharacterPickerModalProps) => {
+  if (!isOpen || !characterModeEnabled) {
+    return null;
+  }
+
+  return (
+    <>
+      <div className="model-modal-backdrop character-picker-backdrop" onClick={onClose} />
+      <div
+        className="model-modal character-picker-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Choose character"
+      >
+        <div className="model-modal-header">
+          <div className="model-modal-title-group">
+            <h3 className="model-modal-title">Character Picker</h3>
+            <p className="model-modal-subtitle">
+              Select a character profile from Character Manager.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="ghost-btn mini model-modal-close"
+            aria-label="Close character picker"
+            onClick={onClose}
+          >
+            <X size={16} weight="bold" />
+          </button>
+        </div>
+        <div className="model-modal-scroll">
+          {characterOptions.length > 0 ? (
+            <div className="character-picker-grid" role="list" aria-label="Character options">
+              {characterOptions.map((option) => {
+                const isActive = option.id === selectedCharacterId;
+                return (
+                  <article
+                    key={option.id}
+                    role="listitem"
+                    className={`character-list-card character-picker-card ${isActive ? "is-active" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      className="character-list-select-btn"
+                      aria-pressed={isActive}
+                      onClick={() => {
+                        onSelectedCharacterIdChange?.(option.id);
+                        onClose();
+                      }}
+                    >
+                      <div className="character-list-main">
+                        <span className="character-list-avatar" aria-hidden="true">
+                          {option.profileImageUrl ? (
+                            <Image
+                              src={option.profileImageUrl}
+                              alt=""
+                              className="character-list-avatar-image"
+                              width={44}
+                              height={44}
+                              unoptimized
+                            />
+                          ) : (
+                            <span className="character-list-avatar-initials">
+                              {getCharacterInitials(option.name)}
+                            </span>
+                          )}
+                        </span>
+                        <div className="character-list-copy">
+                          <p className="metric-label tiny">{isActive ? "Selected" : "Character"}</p>
+                          <p className="character-list-name">{option.name}</p>
+                        </div>
+                      </div>
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="tiny subdued character-picker-empty">No character profiles available.</p>
+          )}
+        </div>
+      </div>
+    </>
+  );
 };
 
 /**
@@ -148,7 +225,9 @@ export function TextPropertiesPanel({
   modelModalAnchor,
   onAspectChange,
   onModelPickerOpen,
+  onModelIdChange,
   onPromptChange,
+  costCredits = null,
   agentEnabled = false,
   agentMessages = [],
   agentActions,
@@ -164,7 +243,6 @@ export function TextPropertiesPanel({
   onAgentInputChange,
   onAgentSend,
   onAgentEnhanceSend,
-  onAgentMessageClick,
   onAgentAttachmentDrop,
   onAgentAttachmentDragOver,
   onAgentAttachmentDragEnter,
@@ -179,8 +257,10 @@ export function TextPropertiesPanel({
   onSavePrompt,
   shouldDisableSave = false,
   isPromptGenerating = false,
+  isGenerateDisabled = false,
   onClearAgentChat,
   beginnerMode = false,
+  expertCreateUiEligible = false,
   imageResolution,
   onImageResolutionChange,
   characterOptions = [],
@@ -189,7 +269,9 @@ export function TextPropertiesPanel({
   isCharacterOptionsLoading = false,
   characterModeEnabled = true,
   onCharacterModeEnabledChange,
+  onGenerate,
 }: TextPropertiesPanelProps) {
+  const showExpertView = Boolean(expertCreateUiEligible && !beginnerMode);
   const promptStepNumber = beginnerMode ? "2" : "1";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const effectiveModelLabel = characterModeEnabled ? CHARACTER_MODE_UI_MODEL_LABEL : modelLabel;
@@ -221,6 +303,7 @@ export function TextPropertiesPanel({
   const handleCreateModelOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
     const context: ModelModalContext | null = "text-image";
     onModelPickerOpen("create-model", event.currentTarget, context);
+    onStepActionClick?.("model");
   };
 
   const expandIfCollapsed = (step: "model" | "prompt") => {
@@ -232,6 +315,15 @@ export function TextPropertiesPanel({
       onStepActionClick?.(step);
       return next;
     });
+  };
+
+  const handleCharacterModeEnabledToggle = () => {
+    const nextCharacterModeEnabled = !characterModeEnabled;
+    if (showExpertView && characterModeEnabled && !nextCharacterModeEnabled) {
+      onModelIdChange?.(null);
+    }
+    onCharacterModeEnabledChange?.(nextCharacterModeEnabled);
+    onStepActionClick?.("character");
   };
 
   const imageResolutionOptions = useMemo(() => getImageResolutionOptions(modelId), [modelId]);
@@ -260,6 +352,11 @@ export function TextPropertiesPanel({
     () => characterOptions.find((option) => option.id === selectedCharacterId) ?? null,
     [characterOptions, selectedCharacterId]
   );
+  const selectedCharacterName = selectedCharacterOption?.name ?? characterSelectPlaceholder;
+  const selectedCharacterProfileImageUrl = selectedCharacterOption?.profileImageUrl ?? null;
+  const selectedCharacterInitials = selectedCharacterOption
+    ? getCharacterInitials(selectedCharacterOption.name)
+    : null;
 
   // Auto-clamp invalid image resolution values when switching image models.
   useEffect(() => {
@@ -281,326 +378,163 @@ export function TextPropertiesPanel({
     };
   }, [isCharacterPickerOpen]);
 
+  const sharedPromptStepProps = {
+    prompt,
+    onPromptChange,
+    agentEnabled,
+    agentMessages,
+    agentActions,
+    agentInput,
+    agentIsSending,
+    agentError,
+    agentPrimaryPrompt: prompt,
+    agentPrimarySource,
+    stagedPrompt,
+    stagedAttachments,
+    agentDropActive,
+    agentChatOpen,
+    onAgentInputChange,
+    onAgentSend,
+    onAgentEnhanceSend,
+    onAgentAttachmentDrop,
+    onAgentAttachmentDragOver,
+    onAgentAttachmentDragEnter,
+    onAgentAttachmentDragLeave,
+    onRemoveAgentAttachment,
+    onClearAgentAttachments,
+    onExpandChat,
+    onClearAgentChat,
+    onAgentApplyPrompt,
+    onAgentSelectVariation,
+    onAgentUseQuestion,
+    onAgentDescribeTargets,
+    onSavePrompt,
+    isGenerating: isPromptGenerating,
+    shouldDisableSave,
+    chatOnly: true,
+    chatPromptSaveButtonClassName: "create-chat-pin-btn",
+    chatPromptSaveButtonUnstyled: true,
+  } satisfies Omit<
+    React.ComponentProps<typeof PromptStep>,
+    "stepNumber" | "isCollapsed" | "onToggleCollapse"
+  >;
+
+  const beginnerPromptStepProps: React.ComponentProps<typeof PromptStep> = {
+    ...sharedPromptStepProps,
+    stepNumber: promptStepNumber,
+    title: "Build Your Prompt",
+    subtitle: "Describe what you want to make. Enter to send, Shift+Enter for a new line.",
+    beginnerSubtitle:
+      "Send simple prompts to the agent to be refined into a high quality text prompt.",
+    beginnerPinHelperText: "Click this button to pin your prompt to the reference grid.",
+    isCollapsed: collapsedSteps.prompt,
+    onToggleCollapse: () => toggleStep("prompt"),
+    beginnerMode,
+  };
+
+  const expertPromptStepProps: React.ComponentProps<typeof PromptStep> = {
+    ...sharedPromptStepProps,
+    stepNumber: "1",
+    title: "Ask anything",
+    subtitle: "",
+    beginnerPinHelperText: "",
+    isCollapsed: false,
+    onToggleCollapse: () => {
+      // Expert mode keeps chat composer always open.
+    },
+    beginnerMode: false,
+    className: `create-expert-prompt-step ${
+      characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
+    }`,
+    embedSendButtonInInput: true,
+    hideAgentIntroMessage: true,
+    agentAttachmentDropTarget: "input",
+    highlightLatestAssistantOnly: true,
+    showAgentQuestionActions: false,
+    agentInputMaxHeightPx: 132,
+  };
+
   return (
-    <div className="tool-properties text-properties-panel">
-      <div className="tool-header">
-        <p className="eyebrow">Create</p>
-      </div>
-      <div
-        className={`step-card character-step-card ${beginnerMode ? "character-step-card--beginner" : ""}`}
-        role="group"
-        aria-label="Character mode section"
-      >
-        <div className="step-card-header">
-          {beginnerMode ? <span className="step-badge">1</span> : null}
-          <div className="step-header-copy">
-            <p className="step-title">
-              Character Mode
-              {!characterModeEnabled ? (
-                <span className="step-title-optional">(Optional)</span>
-              ) : null}
-            </p>
-            <span className="step-subtitle tiny helper-text">{characterStepSubtitle}</span>
-          </div>
-          <div
-            className={`step-header-actions character-header-actions ${
-              !characterModeEnabled ? "character-header-actions--mode-off" : ""
-            }`}
-          >
-            <div className="character-mode-row">
-              <button
-                type="button"
-                className={`audio-toggle character-mode-toggle ${characterModeEnabled ? "is-active" : ""}`}
-                aria-pressed={characterModeEnabled}
-                aria-label={
-                  characterModeEnabled ? "Disable character mode" : "Enable character mode"
-                }
-                onClick={() => {
-                  onCharacterModeEnabledChange?.(!characterModeEnabled);
-                  onStepActionClick?.("character");
-                }}
-              >
-                <span className="audio-toggle-track" aria-hidden="true">
-                  <span className="audio-toggle-dot" />
-                </span>
-              </button>
-            </div>
-            <div
-              className={`character-picker-row ${characterModeEnabled ? "is-visible" : "is-hidden"}`}
-              aria-hidden={!characterModeEnabled}
-            >
-              <button
-                type="button"
-                className={`model-picker-btn character-picker-trigger ${
-                  !selectedCharacterOption ? "is-empty" : ""
-                } ${isCharacterPickerOpen ? "is-open" : ""}`}
-                aria-haspopup="dialog"
-                aria-expanded={isCharacterPickerOpen}
-                aria-label="Open character picker"
-                disabled={characterSelectDisabled}
-                onClick={() => setIsCharacterPickerOpen(true)}
-              >
-                <div className="model-picker-row">
-                  <span className="character-picker-trigger-value">
-                    {selectedCharacterOption?.profileImageUrl ? (
-                      <Image
-                        src={selectedCharacterOption.profileImageUrl}
-                        alt={`${selectedCharacterOption.name} profile`}
-                        className="character-picker-trigger-avatar"
-                        width={24}
-                        height={24}
-                        unoptimized
-                      />
-                    ) : selectedCharacterOption ? (
-                      <span className="character-picker-trigger-avatar character-picker-trigger-avatar--fallback">
-                        {getCharacterInitials(selectedCharacterOption.name)}
-                      </span>
-                    ) : null}
-                    <span className="model-picker-name">
-                      {selectedCharacterOption?.name ?? characterSelectPlaceholder}
-                    </span>
-                  </span>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      {isCharacterPickerOpen && characterModeEnabled ? (
-        <>
-          <div
-            className="model-modal-backdrop character-picker-backdrop"
-            onClick={() => setIsCharacterPickerOpen(false)}
-          />
-          <div
-            className="model-modal character-picker-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Choose character"
-          >
-            <div className="model-modal-header">
-              <div className="model-modal-title-group">
-                <h3 className="model-modal-title">Character Picker</h3>
-                <p className="model-modal-subtitle">
-                  Select a character profile from Character Manager.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="ghost-btn mini model-modal-close"
-                aria-label="Close character picker"
-                onClick={() => setIsCharacterPickerOpen(false)}
-              >
-                <X size={16} weight="bold" />
-              </button>
-            </div>
-            <div className="model-modal-scroll">
-              {characterOptions.length > 0 ? (
-                <div className="character-picker-grid" role="list" aria-label="Character options">
-                  {characterOptions.map((option) => {
-                    const isActive = option.id === selectedCharacterId;
-                    return (
-                      <article
-                        key={option.id}
-                        role="listitem"
-                        className={`character-list-card character-picker-card ${
-                          isActive ? "is-active" : ""
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          className="character-list-select-btn"
-                          aria-pressed={isActive}
-                          onClick={() => {
-                            onSelectedCharacterIdChange?.(option.id);
-                            setIsCharacterPickerOpen(false);
-                          }}
-                        >
-                          <div className="character-list-main">
-                            <span className="character-list-avatar" aria-hidden="true">
-                              {option.profileImageUrl ? (
-                                <Image
-                                  src={option.profileImageUrl}
-                                  alt=""
-                                  className="character-list-avatar-image"
-                                  width={44}
-                                  height={44}
-                                  unoptimized
-                                />
-                              ) : (
-                                <span className="character-list-avatar-initials">
-                                  {getCharacterInitials(option.name)}
-                                </span>
-                              )}
-                            </span>
-                            <div className="character-list-copy">
-                              <p className="metric-label tiny">
-                                {isActive ? "Selected" : "Character"}
-                              </p>
-                              <p className="character-list-name">{option.name}</p>
-                            </div>
-                          </div>
-                        </button>
-                      </article>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="tiny subdued character-picker-empty">
-                  No character profiles available.
-                </p>
-              )}
-            </div>
-          </div>
-        </>
-      ) : null}
-      <PromptStep
-        stepNumber={promptStepNumber}
-        title="Build Your Prompt"
-        subtitle="Describe what you want to make. Enter to send, Shift+Enter for a new line."
-        beginnerSubtitle="Send simple prompts to the agent to be refined into a high quality text prompt."
-        prompt={prompt}
-        onPromptChange={onPromptChange}
-        agentEnabled={agentEnabled}
-        agentMessages={agentMessages}
-        agentActions={agentActions}
-        agentInput={agentInput}
-        agentIsSending={agentIsSending}
-        agentError={agentError}
-        agentPrimaryPrompt={prompt}
-        agentPrimarySource={agentPrimarySource}
-        stagedPrompt={stagedPrompt}
-        stagedAttachments={stagedAttachments}
-        agentDropActive={agentDropActive}
-        agentChatOpen={agentChatOpen}
-        onAgentInputChange={onAgentInputChange}
-        onAgentSend={onAgentSend}
-        onAgentEnhanceSend={onAgentEnhanceSend}
-        onAgentMessageClick={onAgentMessageClick}
-        onAgentAttachmentDrop={onAgentAttachmentDrop}
-        onAgentAttachmentDragOver={onAgentAttachmentDragOver}
-        onAgentAttachmentDragEnter={onAgentAttachmentDragEnter}
-        onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
-        onRemoveAgentAttachment={onRemoveAgentAttachment}
-        onClearAgentAttachments={onClearAgentAttachments}
-        onExpandChat={onExpandChat}
-        onClearAgentChat={onClearAgentChat}
-        onAgentApplyPrompt={onAgentApplyPrompt}
-        onAgentSelectVariation={onAgentSelectVariation}
-        onAgentUseQuestion={onAgentUseQuestion}
-        onAgentDescribeTargets={onAgentDescribeTargets}
-        onSavePrompt={onSavePrompt}
-        isCollapsed={collapsedSteps.prompt}
-        onToggleCollapse={() => toggleStep("prompt")}
-        isGenerating={isPromptGenerating}
-        shouldDisableSave={shouldDisableSave}
-        beginnerMode={beginnerMode}
-        chatOnly
-        beginnerPinHelperText="Click this button to pin your prompt to the reference grid."
-        chatPromptSaveButtonClassName="create-chat-pin-btn"
-        chatPromptSaveButtonUnstyled
+    <>
+      {showExpertView ? (
+        <ExpertCreatePanelView
+          promptStepProps={expertPromptStepProps}
+          onGenerate={onGenerate}
+          costCredits={costCredits}
+          isPromptGenerating={isPromptGenerating}
+          isGenerateDisabled={isGenerateDisabled}
+          characterModeEnabled={characterModeEnabled}
+          onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
+          onCharacterPickerOpen={() => setIsCharacterPickerOpen(true)}
+          characterSelectDisabled={characterSelectDisabled}
+          selectedCharacterName={selectedCharacterName}
+          selectedCharacterProfileImageUrl={selectedCharacterProfileImageUrl}
+          selectedCharacterInitials={selectedCharacterInitials}
+          isCharacterPickerOpen={isCharacterPickerOpen}
+          modelId={modelId}
+          isModelModalOpen={isModelModalOpen}
+          modelModalAnchor={modelModalAnchor}
+          isModelPickerLockedByCharacterMode={isModelPickerLockedByCharacterMode}
+          onCreateModelOpen={handleCreateModelOpen}
+          effectiveModelLogoSrc={effectiveModelLogoSrc}
+          useUnoptimizedModelLogo={useUnoptimizedModelLogo}
+          effectiveModelLabel={effectiveModelLabel}
+          aspect={aspect}
+          aspectOptionsForModel={aspectOptionsForModel}
+          onAspectChange={onAspectChange}
+          shouldShowImageResolutionCard={shouldShowImageResolutionCard}
+          imageResolutionValue={imageResolutionValue}
+          imageResolutionOptions={imageResolutionOptions}
+          onImageResolutionChange={(value) => {
+            onImageResolutionChange?.(value);
+            onStepActionClick?.("imageSettings");
+          }}
+        />
+      ) : (
+        <BeginnerCreatePanelView
+          beginnerMode={beginnerMode}
+          promptStepProps={beginnerPromptStepProps}
+          characterStepSubtitle={characterStepSubtitle}
+          characterModeEnabled={characterModeEnabled}
+          onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
+          onCharacterPickerOpen={() => setIsCharacterPickerOpen(true)}
+          characterSelectDisabled={characterSelectDisabled}
+          selectedCharacterName={selectedCharacterName}
+          selectedCharacterProfileImageUrl={selectedCharacterProfileImageUrl}
+          selectedCharacterInitials={selectedCharacterInitials}
+          isCharacterPickerOpen={isCharacterPickerOpen}
+          collapsedModel={collapsedSteps.model}
+          onToggleModel={() => toggleStep("model")}
+          onExpandModel={() => expandIfCollapsed("model")}
+          modelId={modelId}
+          isModelModalOpen={isModelModalOpen}
+          modelModalAnchor={modelModalAnchor}
+          isModelPickerLockedByCharacterMode={isModelPickerLockedByCharacterMode}
+          onCreateModelOpen={handleCreateModelOpen}
+          effectiveModelLogoSrc={effectiveModelLogoSrc}
+          useUnoptimizedModelLogo={useUnoptimizedModelLogo}
+          effectiveModelLabel={effectiveModelLabel}
+          aspect={aspect}
+          aspectOptionsForModel={aspectOptionsForModel}
+          onAspectChange={onAspectChange}
+          shouldShowImageResolutionCard={shouldShowImageResolutionCard}
+          imageResolutionValue={imageResolutionValue}
+          imageResolutionOptions={imageResolutionOptions}
+          onImageResolutionChange={(value) => {
+            onImageResolutionChange?.(value);
+            onStepActionClick?.("imageSettings");
+          }}
+        />
+      )}
+      <CharacterPickerModal
+        isOpen={isCharacterPickerOpen}
+        characterModeEnabled={characterModeEnabled}
+        onClose={() => setIsCharacterPickerOpen(false)}
+        characterOptions={characterOptions}
+        selectedCharacterId={selectedCharacterId}
+        onSelectedCharacterIdChange={onSelectedCharacterIdChange}
       />
-      <div
-        className={`step-card ${collapsedSteps.model ? "is-collapsed" : ""}`}
-        onClick={() => expandIfCollapsed("model")}
-        role="group"
-        aria-label="Choose frame and model section"
-      >
-        <div className="step-card-header">
-          {beginnerMode && <span className="step-badge">3</span>}
-          <div className="step-header-copy">
-            <p className="step-title">Choose Frame & Model</p>
-            <span className="step-subtitle tiny helper-text">
-              Select the model, then choose the aspect ratio.
-            </span>
-          </div>
-          {!beginnerMode ? (
-            <div className="step-header-actions">
-              <StepHeaderActionButton
-                label="Open aspect ratio and model options"
-                isCollapsed={collapsedSteps.model}
-                onClick={() => toggleStep("model")}
-              />
-            </div>
-          ) : null}
-        </div>
-        {!collapsedSteps.model ? (
-          <div className="create-controls frame-model-controls">
-            <div className="control-row compact">
-              <label className="input-label">Model</label>
-              <button
-                type="button"
-                className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""} ${
-                  isModelPickerLockedByCharacterMode ? "is-locked" : ""
-                }`}
-                data-model-anchor="create-model"
-                disabled={isModelPickerLockedByCharacterMode}
-                aria-label={
-                  isModelPickerLockedByCharacterMode
-                    ? "Model locked while character mode is enabled"
-                    : "Open model picker"
-                }
-                onClick={handleCreateModelOpen}
-              >
-                <div className="model-picker-row">
-                  <span className="model-picker-value">
-                    {effectiveModelLogoSrc ? (
-                      <Image
-                        className="model-chip-logo-img"
-                        src={effectiveModelLogoSrc}
-                        alt=""
-                        aria-hidden
-                        width={80}
-                        height={20}
-                        unoptimized={useUnoptimizedModelLogo}
-                      />
-                    ) : null}
-                    <span className="model-picker-name">{effectiveModelLabel}</span>
-                  </span>
-                </div>
-              </button>
-            </div>
-            <div className="control-row compact">
-              <label className="input-label">Aspect ratio</label>
-              <AspectDropdown
-                aspect={aspect}
-                onSelect={onAspectChange}
-                options={aspectOptionsForModel}
-              />
-            </div>
-          </div>
-        ) : null}
-      </div>
-      {!beginnerMode && shouldShowImageResolutionCard ? (
-        <div
-          className="step-card image-settings-card image-settings-card--inline"
-          role="group"
-          aria-label="Choose image resolution section"
-        >
-          <div className="step-card-header">
-            <div className="step-header-copy">
-              <p className="step-title">Choose Image Resolution</p>
-            </div>
-            <div className="step-header-actions">
-              <div className="fixed-select image-settings-header-select">
-                <select
-                  className="model-select"
-                  aria-label="Image resolution"
-                  value={imageResolutionValue}
-                  onChange={(event) => onImageResolutionChange?.(event.target.value)}
-                >
-                  {imageResolutionOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </div>
+    </>
   );
 }
 

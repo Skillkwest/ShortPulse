@@ -88,4 +88,44 @@ describe("PromptStep agent actions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Describe refs (2)" }));
     expect(onAgentDescribeTargets).toHaveBeenCalledWith(["ref-1", "ref-2"]);
   });
+
+  it("routes attachment drop handlers to the input shell when configured", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentAttachmentDragOver = vi.fn();
+    const onAgentAttachmentDragEnter = vi.fn();
+    const onAgentAttachmentDragLeave = vi.fn();
+    const { container } = render(
+      <PromptStep
+        {...baseProps}
+        agentAttachmentDropTarget="input"
+        onAgentAttachmentDrop={onAgentAttachmentDrop}
+        onAgentAttachmentDragOver={onAgentAttachmentDragOver}
+        onAgentAttachmentDragEnter={onAgentAttachmentDragEnter}
+        onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
+      />
+    );
+
+    const chatSurface = container.querySelector(".agent-chat-surface");
+    const inputShell = container.querySelector(".agent-composer-input-shell");
+    expect(chatSurface).toBeTruthy();
+    expect(inputShell).toBeTruthy();
+
+    fireEvent.dragEnter(chatSurface as Element);
+    fireEvent.dragOver(chatSurface as Element);
+    fireEvent.dragLeave(chatSurface as Element);
+    fireEvent.drop(chatSurface as Element);
+    expect(onAgentAttachmentDragEnter).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragOver).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragLeave).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+
+    fireEvent.dragEnter(inputShell as Element);
+    fireEvent.dragOver(inputShell as Element);
+    fireEvent.dragLeave(inputShell as Element);
+    fireEvent.drop(inputShell as Element);
+    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+  });
 });

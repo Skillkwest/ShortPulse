@@ -29,7 +29,6 @@ type UseAiStudioPanelPropsParams = {
   handleAgentInputChange: (value: string) => void;
   handleAgentSend: () => void;
   handleAgentEnhanceSend: () => void;
-  handleAgentMessageClick: (message: AgentMessage) => void;
   handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;
@@ -55,6 +54,7 @@ type UseAiStudioPanelPropsParams = {
       | "text-video"
       | null
   ) => void;
+  setModel: (value: string | null) => void;
   handleManualPromptChange: (value: string) => void;
   toggleReferenceIndicator: () => void;
   isPromptGenerating: boolean;
@@ -157,7 +157,6 @@ export const useAiStudioPanelProps = ({
   handleAgentInputChange,
   handleAgentSend,
   handleAgentEnhanceSend,
-  handleAgentMessageClick,
   handleAgentAttachmentDrop,
   handleAgentAttachmentDragOver,
   handleAgentAttachmentDragEnter,
@@ -173,6 +172,7 @@ export const useAiStudioPanelProps = ({
   isModelModalOpen,
   modelModalAnchor,
   handleOpenModelModal,
+  setModel,
   handleManualPromptChange,
   toggleReferenceIndicator,
   isPromptGenerating,
@@ -242,6 +242,7 @@ export const useAiStudioPanelProps = ({
   AiStudioPageContentProps,
   "propertiesText" | "propertiesImage" | "propertiesVideo"
 > => {
+  const isDevBuild = process.env.NODE_ENV === "development";
   const propertiesText: AiStudioPageContentProps["propertiesText"] = {
     mode,
     aspect,
@@ -262,7 +263,6 @@ export const useAiStudioPanelProps = ({
     onAgentInputChange: handleAgentInputChange,
     onAgentSend: handleAgentSend,
     onAgentEnhanceSend: handleAgentEnhanceSend,
-    onAgentMessageClick: handleAgentMessageClick,
     onAgentAttachmentDrop: handleAgentAttachmentDrop,
     onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
     onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
@@ -279,6 +279,7 @@ export const useAiStudioPanelProps = ({
     modelModalAnchor,
     onAspectChange: setAspect,
     onModelPickerOpen: handleOpenModelModal,
+    onModelIdChange: setModel,
     onPromptChange: handleManualPromptChange,
     onToggleReferenceIndicator: toggleReferenceIndicator,
     isPromptGenerating: isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
@@ -300,6 +301,7 @@ export const useAiStudioPanelProps = ({
     imageResolution,
     onImageResolutionChange: setImageResolution,
     beginnerMode,
+    expertCreateUiEligible: !beginnerMode && isDevBuild,
   };
 
   const propertiesImage: AiStudioPageContentProps["propertiesImage"] = {

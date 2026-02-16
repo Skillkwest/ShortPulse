@@ -9,6 +9,7 @@ type AgentPromptActionsProps = {
   primaryPrompt?: string | null;
   primarySource?: "agent" | "manual" | "reference";
   showPrimaryPromptStatus?: boolean;
+  showQuestions?: boolean;
   actions?: AgentActions;
   onApplyPrompt?: (prompt: string) => void;
   onSelectVariation?: (prompt: string) => void;
@@ -23,6 +24,7 @@ export const AgentPromptActions: React.FC<AgentPromptActionsProps> = ({
   primaryPrompt,
   primarySource = "manual",
   showPrimaryPromptStatus = true,
+  showQuestions = true,
   actions,
   onSelectVariation,
   onUseQuestion,
@@ -32,7 +34,9 @@ export const AgentPromptActions: React.FC<AgentPromptActionsProps> = ({
   const hasPrimaryPrompt = resolvedPrimaryPrompt.length > 0;
   const variations =
     actions?.variations?.map((variation) => variation.trim()).filter(Boolean) ?? [];
-  const questions = actions?.questions?.map((question) => question.trim()).filter(Boolean) ?? [];
+  const questions = showQuestions
+    ? (actions?.questions?.map((question) => question.trim()).filter(Boolean) ?? [])
+    : [];
   const describeTargets = actions?.describeTargets?.filter(Boolean) ?? [];
   const hasAgentActions =
     variations.length > 0 || questions.length > 0 || describeTargets.length > 0;

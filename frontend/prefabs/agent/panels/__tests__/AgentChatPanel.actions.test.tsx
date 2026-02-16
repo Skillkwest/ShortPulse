@@ -97,4 +97,84 @@ describe("AgentChatPanel prompt actions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Describe refs (2)" }));
     expect(onDescribeTargets).toHaveBeenCalledWith(["ref-a", "ref-b"]);
   });
+
+  it("shows small generate pills on assistant outputs and does not trigger bubble click", () => {
+    const onMessageClick = vi.fn();
+    render(
+      <AgentChatPanel
+        messages={[
+          { id: "a-1", role: "assistant", content: "Assistant output one." },
+          { id: "u-1", role: "user", content: "User input one." },
+        ]}
+        input=""
+        stagedPrompt="Assistant staged prompt."
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+        onMessageClick={onMessageClick}
+      />
+    );
+
+    const generateButtons = screen.getAllByRole("button", {
+      name: "Generate from this agent output",
+    });
+    expect(generateButtons).toHaveLength(2);
+    fireEvent.click(generateButtons[0]);
+    expect(onMessageClick).not.toHaveBeenCalled();
+  });
+
+  it("exposes prompt text on drag start for assistant and user bubbles", () => {
+    render(
+      <AgentChatPanel
+        messages={[
+          { id: "a-1", role: "assistant", content: "Assistant output one." },
+          { id: "u-1", role: "user", content: "User input one." },
+        ]}
+        input=""
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const draggableMessage = screen
+      .getByText("Assistant output one.")
+      .closest(".agent-message") as HTMLElement;
+    expect(draggableMessage).toBeTruthy();
+
+    const setData = vi.fn();
+    const dataTransfer = {
+      setData,
+      effectAllowed: "none",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(draggableMessage, { dataTransfer });
+    expect(setData).toHaveBeenCalledWith("text/plain", "Assistant output one.");
+    expect(setData).toHaveBeenCalledWith("text/prompt", "Assistant output one.");
+    expect(draggableMessage.classList.contains("is-dragging")).toBe(true);
+
+    fireEvent.dragEnd(draggableMessage);
+    expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
+  });
+
+  it("marks only the newest assistant message when latest-only highlighting is enabled", () => {
+    const { container } = render(
+      <AgentChatPanel
+        messages={[
+          { id: "a-1", role: "assistant", content: "First assistant output." },
+          { id: "u-1", role: "user", content: "User reply." },
+          { id: "a-2", role: "assistant", content: "Second assistant output." },
+        ]}
+        input=""
+        highlightLatestAssistantOnly
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(
+      container.querySelectorAll(".agent-message.agent-assistant.is-latest-assistant")
+    ).toHaveLength(1);
+    expect(
+      container.querySelectorAll(".agent-message.agent-assistant.is-stale-assistant")
+    ).toHaveLength(1);
+  });
 });

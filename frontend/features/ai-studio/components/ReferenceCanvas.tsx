@@ -112,6 +112,16 @@ const parseUrlCandidate = (value: string): string | null => {
 const isMediaUrl = (url: string): boolean =>
   /^data:(image|video)\//i.test(url) || IMAGE_URL_PATTERN.test(url) || VIDEO_URL_PATTERN.test(url);
 
+const extractDroppedPromptText = (transfer: DataTransfer): string | null => {
+  const promptText = normalizeClipboardText(
+    transfer.getData("text/prompt") || transfer.getData("text/plain")
+  );
+  if (!promptText) return null;
+  const parsedUrl = parseUrlCandidate(promptText);
+  if (parsedUrl && isMediaUrl(parsedUrl)) return null;
+  return promptText;
+};
+
 const inferMimeTypeFromFilename = (filename: string): string | null => {
   const normalized = filename.trim().toLowerCase();
   const extension = normalized.includes(".") ? (normalized.split(".").pop() ?? "") : "";
@@ -679,23 +689,37 @@ export function ReferenceCanvas({
   );
 
   const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    if (!onDropFiles) return;
     // Ignore drops that originate from existing reference cards to avoid creating duplicates/empties.
     const internalRefId = event.dataTransfer.getData("text/reference-id");
-    if (internalRefId) return;
+    if (internalRefId) {
+      event.preventDefault();
+      return;
+    }
     const files = event.dataTransfer.files;
-    if (!files || files.length === 0) return;
-    const mediaFiles = normalizeMediaFiles(Array.from(files));
-    if (mediaFiles.length === 0) return;
-    const fileList = buildFileList(mediaFiles);
-    if (!fileList) return;
+    if (files && files.length > 0 && onDropFiles) {
+      const mediaFiles = normalizeMediaFiles(Array.from(files));
+      if (mediaFiles.length === 0) return;
+      const fileList = buildFileList(mediaFiles);
+      if (!fileList) return;
+      event.preventDefault();
+      onDropFiles(fileList);
+      return;
+    }
+
+    const droppedPromptText = extractDroppedPromptText(event.dataTransfer);
+    if (!droppedPromptText || !onPasteTextReference) return;
     event.preventDefault();
-    onDropFiles(fileList);
+    onPasteTextReference(droppedPromptText);
   };
 
   const handleCanvasDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    if (event.dataTransfer.types.includes("Files")) {
+    if (
+      event.dataTransfer.types.includes("Files") ||
+      event.dataTransfer.types.includes("text/prompt") ||
+      event.dataTransfer.types.includes("text/plain")
+    ) {
       event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
     }
   };
 
@@ -1208,9 +1232,6 @@ export function ReferenceCanvas({
                             </span>
                           </span>
                         </button>
-                        <span className="reference-prompt-generate-note">
-                          Billed in 5-credit increments.
-                        </span>
                       </>
                     ) : null}
                   </div>

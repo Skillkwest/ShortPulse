@@ -1084,7 +1084,7 @@ export default function AdminDashboardPage() {
                   </select>
                 </label>
                 <label className={styles.manualAdjustField}>
-                  <span className="tiny subdued">Credit increment</span>
+                  <span className="tiny subdued">Credit adjustment</span>
                   <input
                     className={styles.searchInput}
                     type="text"

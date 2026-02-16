@@ -1,5 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import type { AgentActions, AgentMessage } from "../../../prefabs/agent";
+import type { AgentActions } from "../../../prefabs/agent";
 import { normalizePromptText, type PromptOrigin } from "../logic/agentPromptOwnership";
 
 type UseAiStudioAgentInteractionsParams = {
@@ -77,22 +77,6 @@ export const useAiStudioAgentInteractions = ({
     [setAgentInput, trackAgentUiEvent]
   );
 
-  const handleAgentMessageClick = useCallback(
-    (message: AgentMessage) => {
-      const normalizedMessagePrompt = normalizePromptText(message.content);
-      if (!normalizedMessagePrompt) return;
-      if (message.role === "assistant") {
-        setLatestAgentPrompt(normalizedMessagePrompt);
-        setPromptOrigin("agent");
-      } else {
-        setPromptOrigin("manual");
-      }
-      addAgentPromptReference(message.content);
-      setIsAgentChatOpen(false);
-    },
-    [addAgentPromptReference, setIsAgentChatOpen, setLatestAgentPrompt, setPromptOrigin]
-  );
-
   const handleExpandChat = useCallback(() => {
     if (!agentSessionEnabled) setAgentSessionEnabled(true);
     setIsAgentChatOpen((prev) => !prev);
@@ -140,7 +124,6 @@ export const useAiStudioAgentInteractions = ({
     handleAgentApplyPrompt,
     handleAgentSelectVariation,
     handleAgentUseQuestion,
-    handleAgentMessageClick,
     handleExpandChat,
     handleAgentAddToGrid,
     handleClearAgentChat,

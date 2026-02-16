@@ -4,6 +4,7 @@
  */
 
 export const AI_SHELL_LEFT_MIN_PX = 540;
+export const AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX = 690;
 export const AI_SHELL_LEFT_CHARACTER_MIN_PX = 1080;
 export const AI_SHELL_RIGHT_MIN_PX = 320;
 export const AI_SHELL_DIVIDER_TRACK_PX = 16;

@@ -63,7 +63,6 @@ export type PromptStepProps = {
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
-  onAgentMessageClick?: (message: AgentMessage) => void;
   onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -100,6 +99,15 @@ export type PromptStepProps = {
   beginnerPinHelperText?: string;
   chatPromptSaveButtonClassName?: string;
   chatPromptSaveButtonUnstyled?: boolean;
+  embedSendButtonInInput?: boolean;
+  hideAgentIntroMessage?: boolean;
+  agentAttachmentDropTarget?: "history" | "input";
+  hideEmptyAgentChatState?: boolean;
+  emptyAgentChatSpacerClassName?: string;
+  highlightLatestAssistantOnly?: boolean;
+  composerLeadingContent?: React.ReactNode;
+  showAgentQuestionActions?: boolean;
+  agentInputMaxHeightPx?: number;
 };
 
 export function PromptStep({
@@ -123,7 +131,6 @@ export function PromptStep({
   onAgentInputChange,
   onAgentSend,
   onAgentEnhanceSend,
-  onAgentMessageClick,
   onAgentAttachmentDrop,
   onAgentAttachmentDragOver,
   onAgentAttachmentDragEnter,
@@ -157,6 +164,15 @@ export function PromptStep({
   beginnerPinHelperText,
   chatPromptSaveButtonClassName = "",
   chatPromptSaveButtonUnstyled = false,
+  embedSendButtonInInput = false,
+  hideAgentIntroMessage = false,
+  agentAttachmentDropTarget = "history",
+  hideEmptyAgentChatState = false,
+  emptyAgentChatSpacerClassName = "",
+  highlightLatestAssistantOnly = false,
+  composerLeadingContent = null,
+  showAgentQuestionActions = true,
+  agentInputMaxHeightPx,
 }: PromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
@@ -206,6 +222,13 @@ export function PromptStep({
     ? false
     : shouldDisableSave || !canPinAgentInput;
   const showBeginnerChatPinTip = Boolean(beginnerMode && chatOnly && beginnerPinHelperText);
+  const hasAgentChatContent =
+    !hideAgentIntroMessage ||
+    agentMessages.length > 0 ||
+    stagedAttachments.length > 0 ||
+    Boolean(stagedPrompt?.trim());
+  const shouldRenderAgentChatPanel = hasAgentChatContent || !hideEmptyAgentChatState;
+  const shouldRenderAgentChatSpacer = !shouldRenderAgentChatPanel;
   const imageAttachmentCounts = React.useMemo(() => {
     const images = stagedAttachments.filter((attachment) => attachment.kind === "image");
     const total = images.length;
@@ -229,6 +252,36 @@ export function PromptStep({
     onAgentSend?.();
     requestAnimationFrame(() => agentInputRef.current?.focus());
   };
+  const blockHistoryDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+  const dropToInputComposer = agentAttachmentDropTarget === "input";
+  const historyDropHandlers = dropToInputComposer
+    ? {
+        onDrop: blockHistoryDrop,
+        onDragOver: blockHistoryDrop,
+        onDragEnter: undefined,
+        onDragLeave: undefined,
+      }
+    : {
+        onDrop: onAgentAttachmentDrop,
+        onDragOver: onAgentAttachmentDragOver,
+        onDragEnter: onAgentAttachmentDragEnter,
+        onDragLeave: onAgentAttachmentDragLeave,
+      };
+  const inputDropHandlers = dropToInputComposer
+    ? {
+        onDrop: onAgentAttachmentDrop,
+        onDragOver: onAgentAttachmentDragOver,
+        onDragEnter: onAgentAttachmentDragEnter,
+        onDragLeave: onAgentAttachmentDragLeave,
+      }
+    : {
+        onDrop: undefined,
+        onDragOver: undefined,
+        onDragEnter: undefined,
+        onDragLeave: undefined,
+      };
 
   const introMessage = React.useMemo<AgentMessage>(
     () => ({
@@ -364,45 +417,76 @@ export function PromptStep({
             ) : null}
             {showInlineChat ? (
               <>
-                <div className="agent-chat-wrapper agent-chat-wrapper--inline">
-                  <AgentChatPanel
-                    messages={agentMessages}
-                    introMessage={introMessage}
-                    input={agentInput}
-                    sendLabel="Send"
-                    isSending={agentIsSending}
-                    stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
-                    stagedAttachments={stagedAttachments}
-                    isDropActive={agentDropActive}
-                    showInput={false}
-                    onDrop={onAgentAttachmentDrop}
-                    onDragOver={onAgentAttachmentDragOver}
-                    onDragEnter={onAgentAttachmentDragEnter}
-                    onDragLeave={onAgentAttachmentDragLeave}
-                    onRemoveAttachment={onRemoveAgentAttachment}
-                    onClearAttachments={onClearAgentAttachments}
-                    onInputChange={(value) => onAgentInputChange?.(value)}
-                    onSend={onAgentSend ?? (() => {})}
-                    onMessageClick={onAgentMessageClick}
-                  />
-                </div>
-                <div className="step2-input-row prompt-actions-compact agent-composer-row">
-                  <AgentInputBar
-                    ref={agentInputRef}
-                    value={agentInput}
-                    onChange={(value) => onAgentInputChange?.(value)}
-                    placeholder="Message the agent..."
-                    onKeyDown={handleAgentInputKeyDown}
-                    className="agent-input-prefab-inline"
-                  />
-                  <div className="agent-inline-actions">
-                    <AgentSendButton
-                      onClick={handleAgentSendClick}
-                      disabled={agentIsSending}
-                      ariaLabel="Send to agent"
-                      label="Send"
-                      className="agent-send-prefab--labeled"
+                {shouldRenderAgentChatPanel ? (
+                  <div className="agent-chat-wrapper agent-chat-wrapper--inline">
+                    <AgentChatPanel
+                      messages={agentMessages}
+                      introMessage={hideAgentIntroMessage ? null : introMessage}
+                      input={agentInput}
+                      sendLabel="Send"
+                      isSending={agentIsSending}
+                      stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
+                      stagedAttachments={stagedAttachments}
+                      isDropActive={!dropToInputComposer && agentDropActive}
+                      showInput={false}
+                      dropHintText={
+                        dropToInputComposer ? "References attach from the message bar." : undefined
+                      }
+                      emptyStateText={
+                        dropToInputComposer ? "Send your next instruction." : undefined
+                      }
+                      {...historyDropHandlers}
+                      onRemoveAttachment={onRemoveAgentAttachment}
+                      onClearAttachments={onClearAgentAttachments}
+                      onInputChange={(value) => onAgentInputChange?.(value)}
+                      onSend={onAgentSend ?? (() => {})}
+                      highlightLatestAssistantOnly={highlightLatestAssistantOnly}
                     />
+                  </div>
+                ) : null}
+                {shouldRenderAgentChatSpacer ? (
+                  <div
+                    className={`agent-chat-inline-spacer ${emptyAgentChatSpacerClassName}`.trim()}
+                    aria-hidden="true"
+                  />
+                ) : null}
+                <div className="step2-input-row prompt-actions-compact agent-composer-row">
+                  {composerLeadingContent ? (
+                    <div className="agent-composer-leading">{composerLeadingContent}</div>
+                  ) : null}
+                  <div
+                    className={`agent-composer-input-shell ${dropToInputComposer && agentDropActive ? "is-drop-active" : ""}`.trim()}
+                    {...inputDropHandlers}
+                  >
+                    <AgentInputBar
+                      ref={agentInputRef}
+                      value={agentInput}
+                      onChange={(value) => onAgentInputChange?.(value)}
+                      placeholder="Message the agent..."
+                      onKeyDown={handleAgentInputKeyDown}
+                      className="agent-input-prefab-inline"
+                      maxHeightPx={agentInputMaxHeightPx}
+                    />
+                    {embedSendButtonInInput ? (
+                      <AgentSendButton
+                        onClick={handleAgentSendClick}
+                        disabled={agentIsSending}
+                        ariaLabel="Send to agent"
+                        icon="arrow-up"
+                        className="agent-send-prefab--inside-input"
+                      />
+                    ) : null}
+                  </div>
+                  <div className="agent-inline-actions">
+                    {!embedSendButtonInInput ? (
+                      <AgentSendButton
+                        onClick={handleAgentSendClick}
+                        disabled={agentIsSending}
+                        ariaLabel="Send to agent"
+                        label="Send"
+                        className="agent-send-prefab--labeled"
+                      />
+                    ) : null}
                     {!showBeginnerChatPinTip ? (
                       <AgentSaveButton
                         onClick={() => onSavePrompt(agentInput)}
@@ -448,6 +532,7 @@ export function PromptStep({
                 ) : null}
                 <AgentPromptActions
                   showPrimaryPromptStatus={false}
+                  showQuestions={showAgentQuestionActions}
                   primaryPrompt={agentPrimaryPrompt ?? prompt}
                   primarySource={agentPrimarySource}
                   actions={agentActions}

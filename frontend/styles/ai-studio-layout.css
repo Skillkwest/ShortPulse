@@ -569,6 +569,13 @@ body:has(.ai-studio-page) {
     minmax(320px, 1fr);
 }
 
+.ai-shell.ai-shell-resizable.ai-shell-expert-create {
+  grid-template-columns:
+    var(--ai-shell-left-width, minmax(690px, 1.2fr))
+    var(--ai-shell-divider-track-width)
+    minmax(320px, 1fr);
+}
+
 .ai-shell.ai-shell-resizable.ai-shell-resizing {
   transition: none;
 }
@@ -682,6 +689,20 @@ body.ai-shell-resizing * {
 
 .ai-panel.ai-preview-panel {
   border-color: rgba(201, 205, 214, 0.08);
+}
+
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="create"]
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="text"] .panel.ai-panel.ai-properties {
+  background: #94a0a108;
+  border: 0;
+  box-shadow: none;
+  padding: 12px;
+  gap: 0;
+  border-radius: 0;
+  align-self: stretch;
+  min-height: var(--ai-shell-column-max-height);
+  height: 100%;
 }
 
 .ai-toolbar {

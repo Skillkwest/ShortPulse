@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import type { Dispatch, SetStateAction } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { useAiStudioPanelProps } from "../useAiStudioPanelProps";
 
@@ -44,7 +44,6 @@ const createParams = (
     handleAgentInputChange: vi.fn(),
     handleAgentSend: vi.fn(),
     handleAgentEnhanceSend: vi.fn(),
-    handleAgentMessageClick: vi.fn(),
     handleAgentAttachmentDrop: vi.fn(),
     handleAgentAttachmentDragOver: vi.fn(),
     handleAgentAttachmentDragEnter: vi.fn(),
@@ -60,6 +59,7 @@ const createParams = (
     isModelModalOpen: false,
     modelModalAnchor: null,
     handleOpenModelModal: vi.fn(),
+    setModel: vi.fn(),
     handleManualPromptChange: vi.fn(),
     toggleReferenceIndicator: vi.fn(),
     isPromptGenerating: false,
@@ -135,6 +135,10 @@ const createParams = (
 };
 
 describe("useAiStudioPanelProps", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("builds text props with generation flags derived from orchestration state", () => {
     const { result } = renderHook(() =>
       useAiStudioPanelProps(
@@ -203,5 +207,40 @@ describe("useAiStudioPanelProps", () => {
 
     expect(typeof updater).toBe("function");
     expect(updater?.(["voice-a", "voice-b"])).toEqual(["voice-a", "voice-z"]);
+  });
+
+  it("enables expert create UI only in development when beginner mode is off", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          beginnerMode: false,
+        })
+      )
+    );
+
+    expect(result.current.propertiesText.expertCreateUiEligible).toBe(true);
+  });
+
+  it("disables expert create UI in production builds and while beginner mode is on", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const { result: productionResult } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          beginnerMode: false,
+        })
+      )
+    );
+    expect(productionResult.current.propertiesText.expertCreateUiEligible).toBe(false);
+
+    vi.stubEnv("NODE_ENV", "development");
+    const { result: beginnerResult } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          beginnerMode: true,
+        })
+      )
+    );
+    expect(beginnerResult.current.propertiesText.expertCreateUiEligible).toBe(false);
   });
 });

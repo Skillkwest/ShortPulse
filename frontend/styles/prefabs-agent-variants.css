@@ -214,6 +214,16 @@
     box-shadow 0.2s ease,
     border-color 0.2s ease;
 }
+
+.agent-message.is-draggable {
+  cursor: grab;
+}
+
+.agent-message.is-draggable:active,
+.agent-message.is-draggable.is-dragging {
+  cursor: grabbing;
+}
+
 .agent-message.is-clickable:hover,
 .agent-message.is-clickable:focus-visible {
   outline: none;
@@ -244,6 +254,57 @@
 .agent-message.agent-assistant {
   margin-right: auto;
   text-align: left;
+  position: relative;
+  padding-bottom: 44px;
+}
+
+.agent-message.agent-assistant.agent-intro {
+  padding-bottom: 12px;
+}
+
+.agent-message .agent-output-generate-pill.agent-generate-prefab {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  width: auto;
+  max-width: calc(100% - 20px);
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  gap: 6px;
+  border: 1px solid rgba(37, 169, 191, 0.62);
+  background: linear-gradient(135deg, rgba(52, 200, 255, 0.92), rgba(37, 169, 191, 0.95));
+  box-shadow: 0 4px 1px rgba(37, 169, 191, 0.35);
+  color: #0b1820;
+  transform: none;
+}
+
+.agent-message .agent-output-generate-pill.agent-generate-prefab:hover:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 6px 14px rgba(4, 234, 255, 0.1);
+}
+
+.agent-message .agent-output-generate-pill.agent-generate-prefab .agent-generate-label {
+  font-size: 12px;
+  line-height: 1;
+  flex: 0 1 auto;
+}
+
+.agent-message .agent-output-generate-pill.agent-generate-prefab .generate-pill {
+  margin-left: 0;
+  gap: 4px;
+}
+
+.agent-message .agent-output-generate-pill.agent-generate-prefab .generate-pill .model-chip-icon {
+  font-size: 13px;
+}
+
+.agent-message
+  .agent-output-generate-pill.agent-generate-prefab
+  .generate-pill
+  .model-chip-credits {
+  font-size: 11px;
+  letter-spacing: 0.06em;
 }
 
 .agent-message.agent-intro {

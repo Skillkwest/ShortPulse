@@ -11,6 +11,7 @@ type AgentInputBarProps = {
   disabled?: boolean;
   className?: string;
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  maxHeightPx?: number;
 };
 
 export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBarProps>(
@@ -22,6 +23,7 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
       disabled = false,
       className = "",
       onKeyDown,
+      maxHeightPx = 240,
     }: AgentInputBarProps,
     forwardedRef
   ) {
@@ -33,9 +35,8 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
       const textarea = localRef.current;
       if (!textarea) return;
       textarea.style.height = "auto";
-      const maxHeight = 120;
-      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
-    }, [value]);
+      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeightPx)}px`;
+    }, [maxHeightPx, value]);
 
     return (
       <div className={`agent-input-prefab ${className}`.trim()}>

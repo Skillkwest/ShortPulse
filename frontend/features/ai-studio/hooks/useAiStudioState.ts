@@ -539,7 +539,10 @@ export const useAiStudioState = ({
       selectedOverride?: StudioOutput | null;
       modeHint?: "chat" | "text" | "describe" | "reference";
     }): AgentContext => {
-      const selected = options?.selectedOverride ?? activeOutput ?? null;
+      // Do not implicitly include the currently selected reference card.
+      // Agent context should only include references explicitly provided by the caller
+      // (for example, drag/drop attachments passed as selectedOverride/attachments).
+      const selected = options?.selectedOverride ?? null;
       const selectedReferenceIds = selected ? [selected.id] : [];
 
       // Default fallback: rely on the latest assistant output.
@@ -607,7 +610,7 @@ export const useAiStudioState = ({
         modeHint: options?.modeHint ?? undefined,
       };
     },
-    [activeOutput, model, mode]
+    [model, mode]
   );
 
   return {

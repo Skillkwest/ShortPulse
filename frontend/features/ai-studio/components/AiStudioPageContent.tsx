@@ -33,7 +33,10 @@ import type { StudioOutput, ToolId } from "../types";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
-import { AI_SHELL_LEFT_CHARACTER_MIN_PX } from "../logic/shellResize";
+import {
+  AI_SHELL_LEFT_CHARACTER_MIN_PX,
+  AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
+} from "../logic/shellResize";
 
 type FailureCard = Pick<
   StudioOutput,
@@ -104,7 +107,6 @@ type AgentChatProps = {
   onAttachmentDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
   onRemoveAttachment: (id: string) => void;
   onClearAttachments: () => void;
-  onMessageClick?: (message: AgentMessage) => void;
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentUseQuestion?: (question: string) => void;
@@ -206,16 +208,28 @@ export function AiStudioPageContent({
   const referenceCanvasFileAccept = isPrimaryCharacterTool(selectedTool)
     ? "image/*"
     : "image/*,video/*";
+  const propertiesPanelKind = resolvePropertiesPanelKind(selectedTool);
+  const showExpertCreatePanel = Boolean(
+    propertiesPanelKind === "text" &&
+    propertiesText.expertCreateUiEligible &&
+    !propertiesText.beginnerMode
+  );
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
+  const minLeftWidthPx = isPrimaryCharacterPanelOpen
+    ? AI_SHELL_LEFT_CHARACTER_MIN_PX
+    : showExpertCreatePanel
+      ? AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX
+      : undefined;
   const { shellRef, leftColumnRef, showDivider, isResizing, shellStyle, dividerProps } =
     useAiStudioShellResize({
       enabled: Boolean(selectedTool),
-      minLeftWidthPx: isPrimaryCharacterPanelOpen ? AI_SHELL_LEFT_CHARACTER_MIN_PX : undefined,
+      minLeftWidthPx,
     });
   const shellClassName = [
     "ai-shell",
     selectedTool ? "" : "ai-shell-wide",
     showDivider ? "ai-shell-resizable" : "",
+    showExpertCreatePanel ? "ai-shell-expert-create" : "",
     isPrimaryCharacterPanelOpen ? "ai-shell-character-open" : "",
     isResizing ? "ai-shell-resizing" : "",
   ]
@@ -223,7 +237,7 @@ export function AiStudioPageContent({
     .join(" ");
 
   const renderProperties = () => {
-    switch (resolvePropertiesPanelKind(selectedTool)) {
+    switch (propertiesPanelKind) {
       case "text":
         return (
           <>
@@ -232,7 +246,9 @@ export function AiStudioPageContent({
               agentChatOpen={agentChat.isOpen}
               onAgentEnhanceSend={propertiesText.onAgentEnhanceSend}
             />
-            <ComposeSendCard {...propertiesText} onGenerate={propertiesText.onGenerate} />
+            {!showExpertCreatePanel ? (
+              <ComposeSendCard {...propertiesText} onGenerate={propertiesText.onGenerate} />
+            ) : null}
           </>
         );
       case "character":
@@ -436,8 +452,8 @@ export function AiStudioPageContent({
                         <div>
                           <p className="eyebrow">Agent Chat</p>
                           <p className="tiny subdued helper-text">
-                            Click a chat bubble to add that text to the reference grid as a new
-                            prompt.
+                            Drag a chat bubble into the reference grid to add that text as a new
+                            prompt card.
                           </p>
                         </div>
                         <div className="preview-header-actions">
@@ -485,7 +501,6 @@ export function AiStudioPageContent({
                         onClearAttachments={agentChat.onClearAttachments}
                         onInputChange={agentChat.onInputChange}
                         onSend={agentChat.onSend}
-                        onMessageClick={agentChat.onMessageClick}
                         onAgentApplyPrompt={agentChat.onAgentApplyPrompt}
                         onAgentSelectVariation={agentChat.onAgentSelectVariation}
                         onAgentUseQuestion={agentChat.onAgentUseQuestion}

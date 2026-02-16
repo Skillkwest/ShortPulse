@@ -3,7 +3,7 @@
  * Keeps visual parity between chat input and prompt actions.
  */
 import React from "react";
-import { PaperPlaneTilt } from "phosphor-react";
+import { ArrowUp, PaperPlaneTilt } from "phosphor-react";
 
 type AgentSendButtonProps = {
   onClick: () => void;
@@ -11,6 +11,7 @@ type AgentSendButtonProps = {
   ariaLabel?: string;
   label?: string;
   className?: string;
+  icon?: "paper-plane" | "arrow-up";
 };
 
 export function AgentSendButton({
@@ -19,6 +20,7 @@ export function AgentSendButton({
   ariaLabel = "Send to agent",
   label,
   className = "",
+  icon = "paper-plane",
 }: AgentSendButtonProps) {
   return (
     <button
@@ -28,7 +30,11 @@ export function AgentSendButton({
       disabled={disabled}
       aria-label={ariaLabel}
     >
-      <PaperPlaneTilt size={18} weight="bold" aria-hidden />
+      {icon === "arrow-up" ? (
+        <ArrowUp size={18} weight="bold" aria-hidden />
+      ) : (
+        <PaperPlaneTilt size={18} weight="bold" aria-hidden />
+      )}
       {label ? <span className="agent-send-prefab-label">{label}</span> : null}
     </button>
   );

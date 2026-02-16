@@ -1,0 +1,926 @@
+/**
+ * AI Studio expert create panel styles.
+ * Scoped under `.create-expert-panel` so beginner flow remains unchanged.
+ */
+
+.ai-studio-page[data-beginner-mode="off"] {
+  /* Expert Create properties container surface controls */
+  --ai-expert-create-properties-bg: transparent;
+  --ai-expert-create-properties-border: 0;
+  --ai-expert-create-properties-shadow: none;
+  --ai-expert-create-properties-radius: 0;
+  --ai-expert-create-properties-padding: 0;
+  --ai-expert-create-properties-gap: 0;
+}
+
+.create-expert-panel {
+  position: relative;
+  gap: 8px;
+  min-height: 420px;
+  --create-expert-selector-width: 184px;
+  --create-expert-resolution-width: 120px;
+  --create-expert-selector-gap: 6px;
+}
+
+.create-expert-panel .tool-header {
+  margin-bottom: 0;
+}
+
+.create-expert-panel--no-history .create-expert-empty-top-spacer {
+  min-height: clamp(180px, 24vh, 300px);
+}
+
+.create-expert-ready-text {
+  margin: 0;
+  text-align: center;
+  color: #f5f9ff;
+  font-size: clamp(22px, 2.6vw, 30px);
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+
+.create-expert-panel--no-history .create-expert-ready-text {
+  margin-top: -10px;
+  margin-bottom: 14px;
+}
+
+.create-expert-panel .create-expert-prompt-step {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  gap: 6px;
+}
+
+.create-expert-panel .create-expert-prompt-step .step-card-header {
+  border: none;
+  background: transparent;
+  padding: 0;
+  min-height: 0;
+}
+
+.create-expert-panel .create-expert-prompt-step .step-card-header::before {
+  display: none;
+}
+
+.create-expert-panel .create-expert-prompt-step .step-header-copy {
+  display: none;
+}
+
+.create-expert-panel .create-expert-prompt-step .step-utility-btn {
+  display: none;
+}
+
+.create-expert-panel .create-expert-prompt-step .prompt-chat-header-actions {
+  gap: 0;
+  position: absolute;
+  top: 2px;
+  right: 0;
+  z-index: 8;
+}
+
+.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: #141b24;
+  color: rgba(225, 233, 242, 0.88);
+  box-shadow: none;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease,
+    opacity 0.12s ease;
+}
+
+.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn svg {
+  color: currentColor;
+}
+
+.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn:hover:not(:disabled) {
+  transform: none;
+  border-color: rgba(255, 136, 136, 0.4);
+  background: #1b242f;
+  color: #ffd2d2;
+}
+
+.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn:disabled,
+.create-expert-panel .create-expert-prompt-step .prompt-chat-header-btn[aria-disabled="true"] {
+  opacity: 0.46;
+  border-color: rgba(201, 205, 214, 0.16);
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-chat-wrapper--inline {
+  margin-top: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  min-height: 0;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-chat-inline-spacer.create-expert-chat-spacer {
+  min-height: 24px;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-messages {
+  max-height: min(62vh, 760px);
+  padding: 0 8px 8px 0;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-chat-panel {
+  gap: 8px;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-chat-surface {
+  gap: 6px;
+  padding: 4px;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-message {
+  margin-bottom: 4px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-user:not(.agent-user-attachments) {
+  background: rgba(49, 54, 60, 0.26);
+  border-color: rgba(201, 205, 214, 0);
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-message.agent-user,
+.create-expert-panel .create-expert-prompt-step .agent-message.agent-user p,
+.create-expert-panel .create-expert-prompt-step .agent-message.agent-user .tiny {
+  color: rgba(192, 202, 217, 0.82) !important;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-chat-panel--latest-assistant-only
+  .agent-message.agent-assistant.is-stale-assistant,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-chat-panel--latest-assistant-only
+  .agent-message.agent-assistant.is-stale-assistant
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-chat-panel--latest-assistant-only
+  .agent-message.agent-assistant.is-stale-assistant
+  .tiny {
+  color: rgba(176, 186, 200, 0.9) !important;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-chat-panel--latest-assistant-only
+  .agent-message.agent-assistant.is-latest-assistant,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-chat-panel--latest-assistant-only
+  .agent-message.agent-assistant.is-latest-assistant
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-chat-panel--latest-assistant-only
+  .agent-message.agent-assistant.is-latest-assistant
+  .tiny {
+  color: #25a9bf !important;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px;
+  align-items: stretch;
+  column-gap: 12px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .tiny {
+  margin: 0;
+  min-width: 0;
+  grid-column: 1;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  transition: border-color 140ms ease;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate:hover
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate:focus-within
+  p {
+  border-color: rgba(52, 214, 255, 0.43);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab {
+  position: static;
+  right: auto;
+  bottom: auto;
+  grid-column: 2;
+  grid-row: 1;
+  width: 84px;
+  min-width: 84px;
+  max-width: 84px;
+  min-height: 100%;
+  height: auto;
+  align-self: stretch;
+  justify-content: center;
+  padding: 10px 8px;
+  border-radius: 10px;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 1px rgba(37, 169, 191, 0.35);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab
+  .agent-generate-label {
+  font-size: 15px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab
+  .generate-pill {
+  gap: 6px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab
+  .generate-pill
+  .model-chip-icon {
+  font-size: 20px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab
+  .generate-pill
+  .model-chip-credits {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-composer-input-shell {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-input-shell.is-drop-active
+  .agent-input-prefab {
+  border-color: rgba(52, 200, 255, 0.62);
+  background: rgba(24, 34, 45, 0.96);
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-composer-input-shell .agent-input-prefab {
+  min-height: 56px;
+  height: auto;
+  padding: 6px 72px 6px 16px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-input-shell
+  .agent-input-prefab-field {
+  padding: 6px 4px 6px 0;
+  min-height: 28px;
+  font-size: 16px;
+  line-height: 1.55;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-input-shell
+  .agent-input-prefab-field::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-input-shell
+  .agent-input-prefab-field::placeholder {
+  font-size: 16px;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-send-prefab--inside-input {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  z-index: 2;
+  margin: 0;
+  border-radius: 999px;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-input-prefab {
+  border-color: rgba(201, 205, 214, 0.2);
+  background: rgba(37, 42, 49, 0.64);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step.is-character-mode-on
+  .agent-composer-input-shell
+  .agent-input-prefab {
+  border-color: rgba(43, 232, 121, 0.56);
+}
+
+.create-expert-panel .create-expert-prompt-step .step2-input-row.agent-composer-row {
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  gap: 8px;
+  padding-inline: clamp(12px, 5vw, 56px);
+  box-sizing: border-box;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-composer-row {
+  margin-top: 4px;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-composer-input-shell {
+  flex: 1 1 auto;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  align-self: flex-start;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-composer-row .agent-inline-actions {
+  width: auto;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  align-self: center;
+}
+
+/* Temporarily hide the blue Pin/Save button in Expert mode. */
+.create-expert-panel .create-expert-prompt-step .agent-composer-row .agent-save-prefab,
+.create-expert-panel .create-expert-prompt-step .agent-composer-row .create-chat-pin-btn {
+  display: none;
+}
+
+.create-expert-secondary-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.create-expert-controls-row {
+  margin-top: 6px;
+}
+
+.create-expert-generate-row {
+  margin-top: 10px;
+  display: none;
+}
+
+.create-expert-controls {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--create-expert-selector-gap);
+  row-gap: var(--create-expert-selector-gap);
+  justify-content: center;
+  align-items: center;
+  overflow: visible;
+}
+
+.create-expert-controls > * {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.create-expert-control,
+.create-expert-toggle-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(201, 205, 214, 0.2);
+  border-radius: 10px;
+  background: #141920;
+  padding: 6px 10px;
+  min-height: 38px;
+  box-sizing: border-box;
+}
+
+.create-expert-controls .create-expert-control {
+  min-height: 50px;
+  height: 50px;
+}
+
+.create-expert-picker-control {
+  width: auto;
+  cursor: pointer;
+}
+
+.create-expert-panel .create-expert-picker-control .model-picker-name {
+  max-width: 150px;
+}
+
+.create-expert-control-label {
+  color: rgba(201, 205, 214, 0.72);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.create-expert-panel .create-expert-toggle-control {
+  width: 52px;
+  min-width: 52px;
+  height: 28px;
+  min-height: 28px;
+  border-radius: 999px;
+  border-color: rgba(201, 205, 214, 0.26);
+  background: var(--ai-surface-control-muted, rgba(12, 15, 22, 0.82));
+  padding: 0;
+  justify-content: center;
+  box-shadow: none;
+}
+
+.create-expert-panel .create-expert-toggle-control:hover:not(:disabled) {
+  border-color: var(--ai-warm-border, rgba(245, 185, 66, 0.6));
+}
+
+.create-expert-panel .create-expert-toggle-control .audio-toggle-dot {
+  left: 2px;
+  width: 22px;
+  height: 22px;
+}
+
+.create-expert-panel .create-expert-toggle-control.is-active {
+  background: linear-gradient(
+    135deg,
+    var(--ai-warm-start, rgba(245, 185, 66, 0.9)),
+    var(--ai-warm-end, rgba(255, 140, 66, 0.8))
+  );
+  border-color: var(--ai-warm-border-strong, rgba(245, 185, 66, 0.9));
+  box-shadow: none;
+}
+
+.create-expert-panel .create-expert-controls .model-picker-btn,
+.create-expert-panel .create-expert-controls .model-picker-btn:hover,
+.create-expert-panel .create-expert-controls .model-picker-btn.is-open,
+.create-expert-panel .create-expert-controls .model-picker-btn.is-empty,
+.create-expert-panel .create-expert-controls .model-picker-btn:disabled,
+.create-expert-panel .create-expert-controls .model-picker-btn:disabled:hover,
+.create-expert-panel .create-expert-controls .model-picker-btn.is-locked,
+.create-expert-panel .create-expert-controls .model-picker-btn.is-locked:hover {
+  box-shadow: none;
+}
+
+.create-expert-panel .create-expert-controls .model-picker-btn:hover,
+.create-expert-panel .create-expert-controls .model-picker-btn.is-empty {
+  transform: none;
+}
+
+.create-expert-model-control {
+  gap: 6px;
+}
+
+.create-expert-model-control,
+.create-expert-aspect-control,
+.create-expert-resolution-control {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.create-expert-controls .create-expert-model-control,
+.create-expert-controls .create-expert-aspect-control,
+.create-expert-controls .create-expert-resolution-control {
+  min-height: 0;
+  height: auto;
+}
+
+.create-expert-controls .create-expert-character-mode-control {
+  min-height: 0;
+  height: auto;
+}
+
+.create-expert-model-control .create-expert-control-label,
+.create-expert-aspect-control .create-expert-control-label,
+.create-expert-resolution-control .create-expert-control-label {
+  display: none;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.15;
+}
+
+.create-expert-character-mode-control {
+  gap: var(--create-expert-selector-gap);
+  min-width: 304px;
+  min-height: 0;
+  height: auto;
+  padding: 0 4px 0 8px;
+  overflow: hidden;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  transition:
+    min-width 260ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    gap 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    padding 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.create-expert-character-mode-control.is-character-mode-on {
+  border-color: transparent;
+}
+
+.create-expert-character-mode-control.is-character-mode-off {
+  min-width: 122px;
+  gap: 0;
+  padding: 0 8px;
+}
+
+.create-expert-character-mode-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 2px 0;
+  flex: 0 0 auto;
+}
+
+.create-expert-character-mode-title {
+  margin: 0;
+  color: rgba(201, 205, 214, 0.82);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.15;
+}
+
+.create-expert-character-mode-control .create-expert-toggle-control {
+  width: 50px;
+  min-width: 50px;
+  height: 26px;
+  min-height: 26px;
+  margin: 2px 0;
+  padding: 0;
+}
+
+.create-expert-panel .create-expert-character-picker-trigger {
+  flex: 0 0 auto;
+  width: 170px;
+  max-width: 170px;
+  min-height: 34px;
+  height: 34px;
+  padding: 5px 10px;
+  justify-content: flex-start;
+  gap: 8px;
+  border-color: rgba(201, 205, 214, 0.22);
+  background: #0f141b;
+  box-shadow: none;
+  overflow: hidden;
+  transform-origin: left center;
+  transition:
+    max-width 260ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    width 260ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 180ms ease,
+    transform 260ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    padding 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.create-expert-panel .create-expert-character-picker-trigger:hover,
+.create-expert-panel .create-expert-character-picker-trigger.is-open,
+.create-expert-panel .create-expert-character-picker-trigger.is-empty,
+.create-expert-panel .create-expert-character-picker-trigger:disabled,
+.create-expert-panel .create-expert-character-picker-trigger:disabled:hover {
+  border-color: rgba(201, 205, 214, 0.3);
+  background: #0f141b;
+  box-shadow: none;
+}
+
+.create-expert-character-mode-control.is-character-mode-on
+  .create-expert-character-picker-trigger.is-empty,
+.create-expert-character-mode-control.is-character-mode-on
+  .create-expert-character-picker-trigger.is-empty:hover,
+.create-expert-character-mode-control.is-character-mode-on
+  .create-expert-character-picker-trigger.is-empty.is-open {
+  border-color: var(--ai-accent, #25a9bf);
+  box-shadow:
+    0 0 0 1px var(--ai-accent-soft, rgba(37, 169, 191, 0.4)),
+    0 0 14px var(--ai-accent-shadow, rgba(52, 201, 255, 0.176));
+}
+
+.create-expert-character-mode-control.is-character-mode-off .create-expert-character-picker-trigger,
+.create-expert-character-mode-control.is-character-mode-off
+  .create-expert-character-picker-trigger:hover,
+.create-expert-character-mode-control.is-character-mode-off
+  .create-expert-character-picker-trigger.is-open,
+.create-expert-character-mode-control.is-character-mode-off
+  .create-expert-character-picker-trigger.is-empty {
+  width: 0;
+  max-width: 0;
+  min-width: 0;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0;
+  transform: translateX(-14px) scaleX(0.94);
+  pointer-events: none;
+}
+
+.create-expert-panel .create-expert-character-picker-trigger .model-picker-name {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .create-expert-character-mode-control,
+  .create-expert-panel .create-expert-character-picker-trigger {
+    transition: none;
+  }
+}
+
+.create-expert-panel .create-expert-model-picker-trigger {
+  width: var(--create-expert-selector-width);
+  min-width: var(--create-expert-selector-width);
+  max-width: var(--create-expert-selector-width);
+  min-height: 34px;
+  height: 34px;
+  padding: 5px 28px 5px 8px;
+  justify-content: flex-start;
+  border-color: rgba(201, 205, 214, 0.22);
+  background: #0f141b;
+  background-size:
+    5px 5px,
+    5px 5px;
+  box-shadow: none;
+  gap: 8px;
+}
+
+.create-expert-panel .create-expert-model-picker-trigger:hover,
+.create-expert-panel .create-expert-model-picker-trigger.is-open,
+.create-expert-panel .create-expert-model-picker-trigger:disabled,
+.create-expert-panel .create-expert-model-picker-trigger:disabled:hover,
+.create-expert-panel .create-expert-model-picker-trigger.is-locked,
+.create-expert-panel .create-expert-model-picker-trigger.is-locked:hover {
+  border-color: rgba(201, 205, 214, 0.3);
+  background: #0f141b;
+  box-shadow: none;
+}
+
+.create-expert-panel .create-expert-model-picker-trigger.is-empty,
+.create-expert-panel .create-expert-model-picker-trigger.is-empty:hover,
+.create-expert-panel .create-expert-model-picker-trigger.is-empty.is-open {
+  border-color: var(--ai-accent, #25a9bf);
+}
+
+.create-expert-panel .create-expert-controls .model-chip-logo-img {
+  height: 14px;
+  width: auto;
+}
+
+.create-expert-panel .create-expert-toggle-control.is-active .audio-toggle-dot {
+  transform: translate(24px, -50%);
+  background: #1a140c;
+}
+
+.create-expert-aspect-control .aspect-dropdown {
+  width: var(--create-expert-selector-width);
+  min-width: var(--create-expert-selector-width);
+  max-width: var(--create-expert-selector-width);
+}
+
+.create-expert-aspect-control {
+  position: relative;
+  z-index: 4;
+  overflow: visible;
+}
+
+.create-expert-aspect-control .aspect-menu {
+  z-index: 40;
+}
+
+.ai-studio-page .create-expert-panel .aspect-trigger {
+  width: var(--create-expert-selector-width);
+  min-width: var(--create-expert-selector-width);
+  max-width: var(--create-expert-selector-width);
+  min-height: 34px;
+  height: 34px;
+  padding: 5px 28px 5px 8px;
+  border-color: rgba(201, 205, 214, 0.22);
+  background: #0f141b;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(248, 248, 248, 0.9) 50%),
+    linear-gradient(135deg, rgba(248, 248, 248, 0.9) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% + 1px),
+    calc(100% - 14px) calc(50% + 1px);
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  box-shadow: none;
+}
+
+.ai-studio-page .create-expert-panel .aspect-trigger:hover,
+.create-expert-panel .aspect-trigger[aria-expanded="true"] {
+  transform: none;
+  border-color: rgba(201, 205, 214, 0.3);
+  box-shadow: none;
+}
+
+.create-expert-panel .aspect-caret {
+  display: none;
+}
+
+.create-expert-resolution-control {
+  gap: 6px;
+}
+
+.create-expert-resolution-select {
+  width: var(--create-expert-resolution-width);
+  min-width: var(--create-expert-resolution-width);
+  max-width: var(--create-expert-resolution-width);
+  min-height: 34px;
+  height: 34px;
+  padding: 4px 28px 4px 8px;
+  font-size: 12px;
+  border: 1px solid rgba(201, 205, 214, 0.22);
+  border-radius: 8px;
+  background: #0f141b;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(248, 248, 248, 0.9) 50%),
+    linear-gradient(135deg, rgba(248, 248, 248, 0.9) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% + 1px),
+    calc(100% - 14px) calc(50% + 1px);
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  color: #e9edf2;
+  box-shadow: none;
+}
+
+.create-expert-panel .step2-input-row .agent-send-btn,
+.create-expert-panel .step2-input-row .step2-send-btn {
+  border: 1px solid rgba(201, 205, 214, 0.22);
+  background: #1b232c;
+  box-shadow: none;
+}
+
+.create-expert-panel .step2-input-row .agent-send-btn:hover,
+.create-expert-panel .step2-input-row .step2-send-btn:hover {
+  box-shadow: none;
+}
+
+.create-expert-inline-generate {
+  margin-top: 0;
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: flex-start;
+}
+
+.create-expert-inline-generate .agent-generate-prefab {
+  width: 100%;
+  min-width: 0;
+  border-color: rgba(201, 205, 214, 0.24);
+  background: #1d252e;
+  color: #f0f4f8;
+  box-shadow: none;
+}
+
+.create-expert-inline-generate .agent-generate-prefab:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(201, 205, 214, 0.34);
+  background: #202934;
+}
+
+.create-expert-inline-generate .agent-generate-prefab:disabled {
+  border-color: rgba(201, 205, 214, 0.16);
+  background: #171b22;
+  color: rgba(201, 205, 214, 0.56);
+}
+
+.create-expert-inline-generate .agent-generate-prefab .generate-pill,
+.create-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-icon,
+.create-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-credits,
+.create-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-credits-label {
+  color: rgba(226, 236, 246, 0.9);
+}
+
+@media (max-width: 900px) {
+  .create-expert-panel {
+    min-height: 360px;
+  }
+
+  .create-expert-panel--no-history .create-expert-empty-top-spacer {
+    min-height: clamp(80px, 15vh, 150px);
+  }
+
+  .create-expert-ready-text {
+    font-size: clamp(19px, 7vw, 26px);
+  }
+
+  .create-expert-inline-generate .agent-generate-prefab {
+    min-width: 180px;
+  }
+
+  .create-expert-panel .create-expert-picker-control .model-picker-name {
+    max-width: 112px;
+  }
+
+  .create-expert-panel .create-expert-prompt-step .step2-input-row.agent-composer-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .create-expert-panel .create-expert-prompt-step .agent-composer-input-shell {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .create-expert-panel .create-expert-prompt-step .agent-composer-input-shell .agent-input-prefab {
+    height: auto;
+    min-height: 76px;
+  }
+
+  .create-expert-panel .create-expert-prompt-step .agent-composer-row .agent-inline-actions {
+    width: auto;
+    justify-content: flex-start;
+  }
+
+  .create-expert-character-mode-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .create-expert-secondary-row {
+    flex-wrap: wrap;
+  }
+}

@@ -29,7 +29,6 @@ const createParams = (
   setAgentAttachments: asDispatch<AgentAttachment[]>(vi.fn()),
   setAgentAttachmentError: asDispatch<string | null>(vi.fn()),
   markAttachmentDelivery: vi.fn(),
-  describedAgentImageCacheRef: { current: new Map<string, string>() },
   prompt: "",
   latestAgentPrompt: null,
   setLatestAgentPrompt: asDispatch<string | null>(vi.fn()),

@@ -37,7 +37,6 @@ type UseAiStudioPanelPropsParams = {
   handleClearAgentAttachments: () => void;
   handleAgentApplyPrompt: (promptText: string) => void;
   handleAgentSelectVariation: (promptText: string) => void;
-  handleAgentUseQuestion: (question: string) => void;
   handleAgentDescribeTargets: (targets: string[]) => void;
   handleGenerateFromAgentOutputPrompt: (promptText: string) => void;
   useReferenceImageIndicator: boolean;
@@ -167,7 +166,6 @@ export const useAiStudioPanelProps = ({
   handleClearAgentAttachments,
   handleAgentApplyPrompt,
   handleAgentSelectVariation,
-  handleAgentUseQuestion,
   handleAgentDescribeTargets,
   handleGenerateFromAgentOutputPrompt,
   useReferenceImageIndicator,
@@ -275,7 +273,6 @@ export const useAiStudioPanelProps = ({
     onClearAgentAttachments: handleClearAgentAttachments,
     onAgentApplyPrompt: handleAgentApplyPrompt,
     onAgentSelectVariation: handleAgentSelectVariation,
-    onAgentUseQuestion: handleAgentUseQuestion,
     onAgentDescribeTargets: handleAgentDescribeTargets,
     onGenerateFromAgentOutputPrompt: handleGenerateFromAgentOutputPrompt,
     useReferenceImageIndicator,

@@ -15,6 +15,7 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 ## Scope
 - Text refinement inside `/api/ai/generate-prompt` (Agent 1)
 - Image description/reverse prompt inside `/api/ai/describe-image` (Agent 2)
+- AI Studio chat orchestration inside `/api/ai/studio-agent` (single enhanced prompt output contract)
 - Canonical prompt definitions in `frontend/lib/agentPromptsConfig.ts` (any external agent prompt docs should be retired so the TS file remains the single source of truth)
 - Runtime configuration via environment variables (OpenAI keys, model names, emergency overrides)
 
@@ -26,6 +27,14 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 | `frontend/lib/agentPromptLoader.ts` | Loads a prompt by ID, preferring the config but falling back to an env var emergency override to avoid app breakage. |
 | `frontend/pages/api/ai/generate-prompt.ts` | HTTP POST handler that sends `prompt` + system message to OpenAI chat completions and returns the refined prompt. |
 | `frontend/pages/api/ai/describe-image.ts` | HTTP POST handler that sends an image + system instructions to OpenAI vision (`gpt-4.1-nano` by default) and returns the reverse prompt. |
+| `frontend/pages/api/ai/studio-agent.ts` | AI Studio prompt-agent route with flow routing (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`), no-question action contract, and canonical prompt continuity. |
+
+## Studio agent hardening alignment
+
+1. Chat turns return one enhanced prompt (`actions.applyPrompt`) on success and never emit question actions.
+2. Clarifying-question behavior is disabled in prompt contracts and UI action surfaces.
+3. Canonical prompt continuity is durable via Supabase (`ai_agent_conversation_state`) with TTL/cap retention.
+4. Chat image attachments are prepared client-side and summarized server-side inside `/api/ai/studio-agent`.
 
 ## Environment prerequisites
 

@@ -6,12 +6,18 @@ import {
   getStagedAgentPrompt,
   removeAspectRatioLanguage,
   normalizePromptText,
+  sanitizeGenerationPromptText,
   resolvePromptSourceBadge,
 } from "../agentPromptOwnership";
 
 describe("agentPromptOwnership", () => {
   it("normalizes prompt text and rejects blank values", () => {
     expect(normalizePromptText("  cinematic portrait  ")).toBe("cinematic portrait");
+    expect(
+      normalizePromptText(
+        "Ancient temple in jungle. The prompt now includes additional atmospheric detail."
+      )
+    ).toBe("Ancient temple in jungle.");
     expect(normalizePromptText("   ")).toBeNull();
     expect(normalizePromptText(null)).toBeNull();
   });
@@ -41,5 +47,33 @@ describe("agentPromptOwnership", () => {
     expect(normalizePromptText("cinematic portrait, aspect ratio 16:9")).toBe(
       "cinematic portrait,"
     );
+  });
+
+  it("removes metadata recap lines from generated prompts", () => {
+    expect(
+      sanitizeGenerationPromptText(
+        "Ancient temple in jungle. The prompt now includes a woman in traditional attire."
+      )
+    ).toBe("Ancient temple in jungle.");
+    expect(
+      sanitizeGenerationPromptText(
+        "Ancient temple in jungle.\n\nSummary: Transformed the prompt to depict an exterior scene."
+      )
+    ).toBe("Ancient temple in jungle.");
+    expect(
+      sanitizeGenerationPromptText(
+        "Vivid embroidered clothing with jade jewelry. The Mayan garments have been described in detail, including patterns and colors."
+      )
+    ).toBe("Vivid embroidered clothing with jade jewelry.");
+    expect(
+      sanitizeGenerationPromptText(
+        "Summary: Transformed the prompt to depict an exterior scene with richer detail."
+      )
+    ).toBeNull();
+    expect(
+      sanitizeGenerationPromptText(
+        "Ancient temple in jungle, warm daylight and mossy stone. This version now includes stronger atmosphere and foliage depth."
+      )
+    ).toBe("Ancient temple in jungle, warm daylight and mossy stone.");
   });
 });

@@ -7,6 +7,7 @@ import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
 import { AgentPromptId } from "../../../lib/agentPromptsConfig";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logGenerationFailure } from "../../../lib/server/api/appErrorLogs";
+import { sanitizeGenerationPromptText } from "../../../features/ai-studio/logic/agentPromptOwnership";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const TEXT_ENHANCER_ID: AgentPromptId = "OPENAI_PROMPT_SYSTEM";
@@ -93,7 +94,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const data = await response.json();
-    const nextPrompt = data?.choices?.[0]?.message?.content?.trim?.() ?? null;
+    const nextPrompt = sanitizeGenerationPromptText(data?.choices?.[0]?.message?.content) ?? null;
     const promptTokens = data?.usage?.prompt_tokens;
     const completionTokens = data?.usage?.completion_tokens;
     if (!nextPrompt) {

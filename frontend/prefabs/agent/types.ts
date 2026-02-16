@@ -57,7 +57,6 @@ export type AgentActions = {
   applyPrompt?: string | null;
   variations?: string[];
   describeTargets?: string[];
-  questions?: string[];
   referenceCard?: {
     title?: string;
     prompt: string;

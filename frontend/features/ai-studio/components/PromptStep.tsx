@@ -73,7 +73,6 @@ export type PromptStepProps = {
   onClearAgentChat?: () => void;
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
-  onAgentUseQuestion?: (question: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
   onGenerateOutputPrompt?: (prompt: string) => void;
   // Actions
@@ -107,7 +106,6 @@ export type PromptStepProps = {
   emptyAgentChatSpacerClassName?: string;
   highlightLatestAssistantOnly?: boolean;
   composerLeadingContent?: React.ReactNode;
-  showAgentQuestionActions?: boolean;
   agentInputMaxHeightPx?: number;
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;
@@ -144,7 +142,6 @@ export function PromptStep({
   onClearAgentChat,
   onAgentApplyPrompt,
   onAgentSelectVariation,
-  onAgentUseQuestion,
   onAgentDescribeTargets,
   onGenerateOutputPrompt,
   onSavePrompt,
@@ -175,7 +172,6 @@ export function PromptStep({
   emptyAgentChatSpacerClassName = "",
   highlightLatestAssistantOnly = false,
   composerLeadingContent = null,
-  showAgentQuestionActions = true,
   agentInputMaxHeightPx,
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
@@ -541,13 +537,11 @@ export function PromptStep({
                 ) : null}
                 <AgentPromptActions
                   showPrimaryPromptStatus={false}
-                  showQuestions={showAgentQuestionActions}
                   primaryPrompt={agentPrimaryPrompt ?? prompt}
                   primarySource={agentPrimarySource}
                   actions={agentActions}
                   onApplyPrompt={onAgentApplyPrompt}
                   onSelectVariation={onAgentSelectVariation}
-                  onUseQuestion={onAgentUseQuestion}
                   onDescribeTargets={onAgentDescribeTargets}
                 />
               </>

@@ -9,11 +9,9 @@ type AgentPromptActionsProps = {
   primaryPrompt?: string | null;
   primarySource?: "agent" | "manual" | "reference";
   showPrimaryPromptStatus?: boolean;
-  showQuestions?: boolean;
   actions?: AgentActions;
   onApplyPrompt?: (prompt: string) => void;
   onSelectVariation?: (prompt: string) => void;
-  onUseQuestion?: (question: string) => void;
   onDescribeTargets?: (targets: string[]) => void;
 };
 
@@ -24,22 +22,16 @@ export const AgentPromptActions: React.FC<AgentPromptActionsProps> = ({
   primaryPrompt,
   primarySource = "manual",
   showPrimaryPromptStatus = true,
-  showQuestions = true,
   actions,
   onSelectVariation,
-  onUseQuestion,
   onDescribeTargets,
 }) => {
   const resolvedPrimaryPrompt = (primaryPrompt ?? "").trim();
   const hasPrimaryPrompt = resolvedPrimaryPrompt.length > 0;
   const variations =
     actions?.variations?.map((variation) => variation.trim()).filter(Boolean) ?? [];
-  const questions = showQuestions
-    ? (actions?.questions?.map((question) => question.trim()).filter(Boolean) ?? [])
-    : [];
   const describeTargets = actions?.describeTargets?.filter(Boolean) ?? [];
-  const hasAgentActions =
-    variations.length > 0 || questions.length > 0 || describeTargets.length > 0;
+  const hasAgentActions = variations.length > 0 || describeTargets.length > 0;
 
   if (!showPrimaryPromptStatus && !hasAgentActions) {
     return null;
@@ -93,17 +85,6 @@ export const AgentPromptActions: React.FC<AgentPromptActionsProps> = ({
               title={variation}
             >
               {variation}
-            </button>
-          ))}
-          {questions.slice(0, 2).map((question) => (
-            <button
-              key={question}
-              type="button"
-              className="ghost-btn mini agent-action-chip agent-action-chip--question"
-              onClick={() => onUseQuestion?.(question)}
-              title={question}
-            >
-              {question}
             </button>
           ))}
         </div>

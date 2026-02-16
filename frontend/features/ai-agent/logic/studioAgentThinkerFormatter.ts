@@ -7,6 +7,7 @@ import type { AgentResponse } from "../../../prefabs/agent";
 export type ThinkerFormatterResult = {
   parsed: AgentResponse;
   nextCanonical: string | null;
+  semanticStatus: string | null;
   usage: {
     inputTokens?: number;
     outputTokens?: number;
@@ -37,6 +38,7 @@ export const runThinkerFormatterTurn = async ({
   thinkerMessages,
   buildFormatterMessages,
   parseAgentJson,
+  timeoutMs = 20000,
 }: {
   apiKey: string;
   openAiUrl: string;
@@ -44,19 +46,41 @@ export const runThinkerFormatterTurn = async ({
   thinkerMessages: unknown[];
   buildFormatterMessages: (semantic: unknown) => unknown[];
   parseAgentJson: (raw: string) => AgentResponse | null;
+  timeoutMs?: number;
 }): Promise<ThinkerFormatterTurnResult> => {
-  const thinkerResp = await fetch(openAiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: thinkerMessages,
-    }),
-  });
+  const fetchStage = async (messages: unknown[]) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(openAiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+        }),
+        signal: controller.signal,
+      });
+      return response;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
 
+  let thinkerResp: Response;
+  try {
+    thinkerResp = await fetchStage(thinkerMessages);
+  } catch (error) {
+    return {
+      ok: false,
+      stage: "thinker",
+      status: 504,
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
   if (!thinkerResp.ok) {
     return {
       ok: false,
@@ -69,24 +93,32 @@ export const runThinkerFormatterTurn = async ({
   const thinkerData = await thinkerResp.json();
   const thinkerRaw = thinkerData?.choices?.[0]?.message?.content ?? "";
   let semantic: unknown = null;
+  let semanticStatus: string | null = null;
   try {
     semantic = JSON.parse(thinkerRaw);
+    if (
+      semantic &&
+      typeof semantic === "object" &&
+      typeof (semantic as Record<string, unknown>).status === "string"
+    ) {
+      semanticStatus = (semantic as Record<string, unknown>).status as string;
+    }
   } catch {
-    semantic = { status: "ready", prompt_text: thinkerRaw, change_summary: "", question: null };
+    semantic = { status: "ready", prompt_text: thinkerRaw };
+    semanticStatus = "ready";
   }
 
-  const formatterResp = await fetch(openAiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: buildFormatterMessages(semantic),
-    }),
-  });
-
+  let formatterResp: Response;
+  try {
+    formatterResp = await fetchStage(buildFormatterMessages(semantic));
+  } catch (error) {
+    return {
+      ok: false,
+      stage: "formatter",
+      status: 504,
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
   if (!formatterResp.ok) {
     return {
       ok: false,
@@ -109,6 +141,7 @@ export const runThinkerFormatterTurn = async ({
     result: {
       parsed,
       nextCanonical,
+      semanticStatus,
       usage: {
         inputTokens: formatterData?.usage?.prompt_tokens,
         outputTokens: formatterData?.usage?.completion_tokens,

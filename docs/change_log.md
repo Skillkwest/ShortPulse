@@ -218,6 +218,15 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Documented Kling 3.0 Pro API usage and updated AI Studio pricing + SOP tables to include the new model.
 
 ## 2026-02-07
+
+## 2026-02-16
+- Hardened `/api/ai/studio-agent` runtime: added flow-aware routing (text fast path + orchestration path), refusal-safe behavior (no synthetic `applyPrompt` on refusal), request timeouts, and structured stage telemetry.
+- Follow-up hardening pass: removed non-text routing dependence on `NEXT_PUBLIC_AGENT_V2`, added bounded timeout parsing for `STUDIO_AGENT_TIMEOUT_MS`, and added runtime API tests for mixed-flow orchestration, timeout fallback, refusal canonical preservation, and text fast-path behavior.
+- Replaced in-memory canonical prompt continuity with Supabase-backed persistence via migration `018_add_ai_agent_conversation_state.sql` and server adapter `frontend/lib/server/api/agentConversationState.ts` (TTL + per-user cap pruning).
+- Consolidated chat image handling to one client request + server-owned vision summary stage; removed client-side chat attachment describe fan-out.
+- Removed question-action surfaces end to end (`AgentActions.questions`, UI question chips/handlers, related tests and wiring).
+- Updated agent prompt contracts (`STUDIO_AGENT_SYSTEM`/`THINKER`/`FORMATTER`) to enforce no-question behavior and aligned formatter message/apply-prompt contract.
+- Added planning and architecture records for the hardening work (`docs/planning/ai-studio-agent-pipeline-hardening-plan.md`, `docs/adr/0012-ai-studio-agent-runtime-hardening.md`) and refreshed SOP/API docs to match runtime behavior.
 - Added Kling 3.0 Pro text-to-video (Fal) with per-second pricing, new Fal proxy submit route, and AI Studio wiring for defaults and submissions.
 - Documented the Kling 3.0 Pro text-to-video API and updated AI Studio SOP tables + pricing notes.
 

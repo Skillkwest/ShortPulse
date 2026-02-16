@@ -43,7 +43,6 @@ describe("PromptStep agent actions", () => {
         {...baseProps}
         agentActions={{
           variations: ["variation one"],
-          questions: ["Should this be 16:9?"],
           describeTargets: ["ref-1"],
         }}
       />
@@ -51,7 +50,6 @@ describe("PromptStep agent actions", () => {
 
     expect(screen.getByRole("button", { name: "Describe refs (1)" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "variation one" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Should this be 16:9?" })).toBeInTheDocument();
   });
 
   it("keeps inline chat visible in chat-only mode when expanded chat state is true", () => {
@@ -62,7 +60,6 @@ describe("PromptStep agent actions", () => {
 
   it("fires action callbacks with sanitized payloads", () => {
     const onAgentSelectVariation = vi.fn();
-    const onAgentUseQuestion = vi.fn();
     const onAgentDescribeTargets = vi.fn();
 
     render(
@@ -70,20 +67,15 @@ describe("PromptStep agent actions", () => {
         {...baseProps}
         agentActions={{
           variations: ["variation one"],
-          questions: ["Should this be 16:9?"],
           describeTargets: ["ref-1", "ref-2"],
         }}
         onAgentSelectVariation={onAgentSelectVariation}
-        onAgentUseQuestion={onAgentUseQuestion}
         onAgentDescribeTargets={onAgentDescribeTargets}
       />
     );
 
     fireEvent.click(screen.getByRole("button", { name: "variation one" }));
     expect(onAgentSelectVariation).toHaveBeenCalledWith("variation one");
-
-    fireEvent.click(screen.getByRole("button", { name: "Should this be 16:9?" }));
-    expect(onAgentUseQuestion).toHaveBeenCalledWith("Should this be 16:9?");
 
     fireEvent.click(screen.getByRole("button", { name: "Describe refs (2)" }));
     expect(onAgentDescribeTargets).toHaveBeenCalledWith(["ref-1", "ref-2"]);

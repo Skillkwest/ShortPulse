@@ -73,7 +73,6 @@ type AgentChatPanelProps = {
   onMessageClick?: (message: AgentMessage) => void;
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
-  onAgentUseQuestion?: (question: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
   onGenerateOutputPrompt?: (prompt: string) => void;
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -113,7 +112,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   onMessageClick,
   onAgentApplyPrompt,
   onAgentSelectVariation,
-  onAgentUseQuestion,
   onAgentDescribeTargets,
   onGenerateOutputPrompt,
   onDrop,
@@ -420,7 +418,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           actions={agentActions}
           onApplyPrompt={onAgentApplyPrompt}
           onSelectVariation={onAgentSelectVariation}
-          onUseQuestion={onAgentUseQuestion}
           onDescribeTargets={onAgentDescribeTargets}
         />
       ) : null}

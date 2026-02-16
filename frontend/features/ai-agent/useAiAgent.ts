@@ -14,7 +14,10 @@ import { buildAgentContext } from "./logic/contextBuilder";
 import { randomId } from "../ai-studio/logic/ids";
 import { fetchWithAuth } from "../../lib/authenticatedFetch";
 import { normalizeErrorText } from "../../lib/errorText";
-import { removeAspectRatioLanguage } from "../ai-studio/logic/agentPromptOwnership";
+import {
+  removeAspectRatioLanguage,
+  sanitizeGenerationPromptText,
+} from "../ai-studio/logic/agentPromptOwnership";
 
 type UseAiAgentOptions = {
   initialMessages?: AgentMessage[];
@@ -53,38 +56,35 @@ const normalizeActions = (
   const referenceCard = record.referenceCard ?? record.reference_card ?? undefined;
   const variations = record.variations ?? undefined;
   const describeTargets = record.describeTargets ?? record.describe_targets ?? undefined;
-  const questions = record.questions ?? undefined;
 
-  const cleanedApplyPrompt = removeAspectRatioLanguage(
+  const cleanedApplyPrompt = sanitizeGenerationPromptText(
     typeof applyPrompt === "string" ? applyPrompt : null
   );
-  const cleanedReferenceCard =
+  const cleanedReferenceCardPrompt =
     referenceCard && typeof referenceCard === "object"
+      ? sanitizeGenerationPromptText(
+          (referenceCard as AgentActions["referenceCard"])?.prompt ?? null
+        )
+      : null;
+  const cleanedReferenceCard =
+    referenceCard &&
+    typeof referenceCard === "object" &&
+    (cleanedReferenceCardPrompt || cleanedApplyPrompt)
       ? {
           ...(referenceCard as AgentActions["referenceCard"]),
-          prompt:
-            removeAspectRatioLanguage(
-              (referenceCard as AgentActions["referenceCard"])?.prompt ?? null
-            ) ?? "",
+          prompt: cleanedReferenceCardPrompt ?? cleanedApplyPrompt ?? "",
         }
       : undefined;
   const cleanedVariations = Array.isArray(variations)
     ? (variations as string[])
-        .map((entry) => removeAspectRatioLanguage(entry))
+        .map((entry) => sanitizeGenerationPromptText(entry))
         .filter((entry): entry is string => Boolean(entry))
     : undefined;
-  const cleanedQuestions = Array.isArray(questions)
-    ? (questions as string[])
-        .map((entry) => removeAspectRatioLanguage(entry))
-        .filter((entry): entry is string => Boolean(entry))
-    : undefined;
-
   return {
     applyPrompt: cleanedApplyPrompt,
     referenceCard: cleanedReferenceCard,
     variations: cleanedVariations?.length ? cleanedVariations : undefined,
     describeTargets: Array.isArray(describeTargets) ? (describeTargets as string[]) : undefined,
-    questions: cleanedQuestions?.length ? cleanedQuestions : undefined,
   };
 };
 
@@ -196,14 +196,14 @@ export const useAiAgent = ({
         const actions = normalizeActions(data?.actions);
 
         if (data?.canonicalPrompt) {
-          canonicalPromptRef.current = removeAspectRatioLanguage(data.canonicalPrompt);
+          canonicalPromptRef.current = sanitizeGenerationPromptText(data.canonicalPrompt);
         } else if (actions?.applyPrompt) {
-          canonicalPromptRef.current = removeAspectRatioLanguage(actions.applyPrompt ?? null);
+          canonicalPromptRef.current = sanitizeGenerationPromptText(actions.applyPrompt ?? null);
         }
 
         // The agent’s role here is to refine/iterate prompts. Always surface the refined prompt in the chat thread.
-        const applyPromptText = removeAspectRatioLanguage(actions?.applyPrompt ?? null) ?? "";
-        const messageText = removeAspectRatioLanguage(data?.message ?? null) ?? "";
+        const applyPromptText = sanitizeGenerationPromptText(actions?.applyPrompt ?? null) ?? "";
+        const messageText = sanitizeGenerationPromptText(data?.message ?? null) ?? "";
         const assistantContent = applyPromptText || messageText;
 
         if (assistantContent) {

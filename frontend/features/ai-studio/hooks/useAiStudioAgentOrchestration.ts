@@ -45,7 +45,6 @@ type UseAiStudioAgentOrchestrationParams = {
     status: "pending" | "preparing" | "ready" | "failed",
     deliveryError?: string | null | ((attachment: AgentAttachment) => string | null)
   ) => void;
-  describedAgentImageCacheRef: MutableRefObject<Map<string, string>>;
   prompt: string;
   latestAgentPrompt: string | null;
   setLatestAgentPrompt: Dispatch<SetStateAction<string | null>>;
@@ -82,17 +81,6 @@ type UseAiStudioAgentOrchestrationParams = {
   setUiNotice: Dispatch<SetStateAction<string | null>>;
 };
 
-const shouldRunPromptRefinerFirst = (text: string, context: AgentContext) => {
-  const trimmed = text.trim();
-  const wordCount = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
-  const hasReferenceContext =
-    (context.references?.length ?? 0) > 0 || (context.media?.length ?? 0) > 0;
-  const hasExistingPrompt = Boolean(context.activePrompt?.trim());
-  const hasRecentAssistant = Boolean(context.lastAssistantMessage?.trim());
-  const isVeryShort = wordCount < 6 || trimmed.length < 30;
-  return !hasReferenceContext && !hasExistingPrompt && !hasRecentAssistant && isVeryShort;
-};
-
 export const useAiStudioAgentOrchestration = ({
   agentIsSending,
   agentUiBusyRef,
@@ -105,7 +93,6 @@ export const useAiStudioAgentOrchestration = ({
   setAgentAttachments,
   setAgentAttachmentError,
   markAttachmentDelivery,
-  describedAgentImageCacheRef,
   prompt,
   latestAgentPrompt,
   setLatestAgentPrompt,
@@ -172,7 +159,6 @@ export const useAiStudioAgentOrchestration = ({
       }
       try {
         const preparedImageUrls = new Map<string, string>();
-        const preparedImageDescriptions = new Map<string, string>();
         const imageAttachmentsMissingUrl = agentAttachments.filter(
           (attachment) => attachment.kind === "image" && !attachment.imageUrl?.trim()
         );
@@ -237,65 +223,6 @@ export const useAiStudioAgentOrchestration = ({
             return;
           }
 
-          const describedResults = await Promise.allSettled(
-            imageAttachments.map(async (attachment) => {
-              const safeUrl = preparedImageUrls.get(attachment.id);
-              if (!safeUrl) {
-                throw new Error("Missing prepared image URL.");
-              }
-              const cachedDescription = describedAgentImageCacheRef.current.get(safeUrl)?.trim();
-              if (cachedDescription) {
-                return {
-                  attachmentId: attachment.id,
-                  description: cachedDescription,
-                };
-              }
-              const described = await postDescribeImage(safeUrl);
-              const description = described.description?.trim();
-              if (!description) {
-                throw new Error("Describe endpoint returned an empty description.");
-              }
-              describedAgentImageCacheRef.current.set(safeUrl, description);
-              if (describedAgentImageCacheRef.current.size > 64) {
-                const oldestCacheKey = describedAgentImageCacheRef.current.keys().next().value;
-                if (oldestCacheKey) {
-                  describedAgentImageCacheRef.current.delete(oldestCacheKey);
-                }
-              }
-              return {
-                attachmentId: attachment.id,
-                description,
-              };
-            })
-          );
-
-          const failedDescriptionIds: string[] = [];
-          describedResults.forEach((result, index) => {
-            const attachmentId = imageAttachments[index]?.id;
-            if (!attachmentId) return;
-            if (result.status === "fulfilled" && result.value.description?.trim()) {
-              preparedImageDescriptions.set(attachmentId, result.value.description.trim());
-              return;
-            }
-            failedDescriptionIds.push(attachmentId);
-          });
-
-          if (failedDescriptionIds.length) {
-            markAttachmentDelivery(
-              failedDescriptionIds,
-              "failed",
-              "Image description failed. Remove this image and attach it again."
-            );
-            setAgentAttachmentError(
-              "One or more attached images could not be described. Remove failed images and try again."
-            );
-            trackAgentUiEvent("studio_agent_attachment_describe_failed", {
-              failed_image_attachments: failedDescriptionIds.length,
-              attempted_image_attachments: imageAttachmentIds.length,
-            });
-            return;
-          }
-
           markAttachmentDelivery(imageAttachmentIds, "ready", null);
         }
 
@@ -309,7 +236,6 @@ export const useAiStudioAgentOrchestration = ({
           baseContext.lastAssistantMessage = latestAgentPrompt;
         }
         let mediaPatchedContext = baseContext;
-        let refinedPrompt: string | null = null;
 
         if (agentAttachments.length) {
           const attachmentRefs: AgentReferenceSummary[] = [];
@@ -323,19 +249,12 @@ export const useAiStudioAgentOrchestration = ({
               selectedAttachmentIds.push(attachment.referenceId);
             }
             if (attachment.kind === "image") {
-              const describedImageText = preparedImageDescriptions.get(attachment.id) ?? null;
-              const userNote =
-                attachmentText && attachmentText !== describedImageText
-                  ? `User note: ${attachmentText}`
-                  : null;
-              const imageContextSummary =
-                [describedImageText, userNote].filter(Boolean).join("\n\n") || attachmentText;
               attachmentRefs.push({
                 id: referenceId,
                 kind: "image",
-                promptSnippet: describedImageText ?? attachmentText,
+                promptSnippet: attachmentText,
                 aspect: attachment.aspect ?? null,
-                caption: imageContextSummary,
+                caption: attachmentText,
               });
               const safeImageUrl = preparedImageUrls.get(attachment.id);
               if (safeImageUrl) {
@@ -343,7 +262,7 @@ export const useAiStudioAgentOrchestration = ({
                   id: referenceId,
                   kind: "image",
                   url: safeImageUrl,
-                  thumbnailAlt: describedImageText ?? attachmentText,
+                  thumbnailAlt: attachmentText,
                 });
               }
               return;
@@ -385,26 +304,10 @@ export const useAiStudioAgentOrchestration = ({
           };
         }
 
-        if (shouldRunPromptRefinerFirst(outboundText, mediaPatchedContext)) {
-          try {
-            const refined = await postGeneratePrompt(outboundText);
-            if (refined?.prompt) {
-              refinedPrompt = refined.prompt.trim();
-              mediaPatchedContext = {
-                ...mediaPatchedContext,
-                activePrompt: refinedPrompt,
-                lastAssistantMessage: refinedPrompt,
-              };
-            }
-          } catch {
-            // continue with original input
-          }
-        }
-
         const { response, actions } = await sendToAgent({
           text: outboundText,
-          payloadText: refinedPrompt ?? outboundText,
-          previousPrompt: latestAgentPrompt ?? refinedPrompt ?? null,
+          payloadText: outboundText,
+          previousPrompt: latestAgentPrompt ?? null,
           context: mediaPatchedContext,
           skipUserEcho: true,
           optimisticUserMessageId,
@@ -423,7 +326,6 @@ export const useAiStudioAgentOrchestration = ({
           mode_hint: options?.modeHint ?? "chat",
           has_apply_prompt: Boolean(appliedPrompt),
           variation_count: actions?.variations?.length ?? 0,
-          question_count: actions?.questions?.length ?? 0,
           describe_target_count: actions?.describeTargets?.length ?? 0,
         });
 
@@ -455,7 +357,6 @@ export const useAiStudioAgentOrchestration = ({
       agentSessionEnabled,
       agentUiBusyRef,
       appendUserMessage,
-      describedAgentImageCacheRef,
       getAgentContext,
       lastAssistantMessage,
       latestAgentPrompt,
@@ -481,10 +382,11 @@ export const useAiStudioAgentOrchestration = ({
     setIsPromptRefining(true);
     try {
       const refined = await postGeneratePrompt(prompt);
-      if (refined?.prompt) {
-        setSharedPrompt(refined.prompt);
-        setLatestAgentPrompt(refined.prompt);
-        addAgentPromptReference(refined.prompt, refined.prompt ? "Refined prompt" : undefined);
+      const normalizedRefinedPrompt = normalizePromptText(refined?.prompt);
+      if (normalizedRefinedPrompt) {
+        setSharedPrompt(normalizedRefinedPrompt);
+        setLatestAgentPrompt(normalizedRefinedPrompt);
+        addAgentPromptReference(normalizedRefinedPrompt, "Refined prompt");
         setPromptOrigin("agent");
         return;
       }

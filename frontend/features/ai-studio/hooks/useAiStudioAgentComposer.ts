@@ -53,7 +53,6 @@ export const useAiStudioAgentComposer = ({
   const [agentAttachments, setAgentAttachments] = useState<AgentAttachment[]>([]);
   const [isAgentDropActive, setIsAgentDropActive] = useState(false);
   const agentDropDepthRef = useRef(0);
-  const describedAgentImageCacheRef = useRef<Map<string, string>>(new Map());
 
   const linkedPromptReferenceIds = useMemo(
     () =>
@@ -257,7 +256,6 @@ export const useAiStudioAgentComposer = ({
     setAgentAttachments,
     linkedPromptReferenceIds,
     isAgentDropActive,
-    describedAgentImageCacheRef,
     markAttachmentDelivery,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,

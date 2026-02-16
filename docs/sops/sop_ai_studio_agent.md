@@ -18,7 +18,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 | `frontend/features/ai-studio/components/ReferenceCanvas.tsx` | Supplies lightweight reference metadata (id, type, prompt, preview URL) to the agent context. |
 
 ## Prerequisites
-- Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-4.1-mini` with vision), optional `OPENAI_API_BASE`.
+- Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-4.1`), optional `OPENAI_VISION_MODEL`, optional `OPENAI_API_BASE`.
 - Feature flag: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT=true` (client gate); API gate returns 503 when disabled.
 - Size guardrails (API constants): `AGENT_MAX_IMAGE_BYTES` (default 350 KB), `AGENT_MAX_FRAMES=1` for videos.
 - Frontend uploads local blob/data previews to `/api/upload-image` and sends signed/public `https://` URLs to the agent route.
@@ -40,22 +40,25 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
     `modeHint`?: "chat" | "text" | "describe" | "reference";
     `creditBalance`: number | null;
   }
-  - `actionsRequested`: boolean (ask model to emit structured actions).
 - Response payload:
-  - `message`: assistant text (concise plan or next step).
-  - `actions` (optional): `{ applyPrompt?: string; variations?: string[]; describeTargets?: string[]; questions?: string[] }`.
+  - `message`: on success, mirrors the final generation-ready prompt (`actions.applyPrompt`); on refusal, contains refusal text.
+  - `actions` (optional): `{ applyPrompt?: string; variations?: string[]; describeTargets?: string[]; referenceCard?: { title?: string; prompt: string } }`.
   - `usage`: token accounting when available.
+  - `canonicalPrompt`: resolved canonical prompt for continuity.
 
 ## Workflow (happy path)
 1. User types or pastes in the chat UI (embedded where prompt textarea used to be). Messages persist per session/tool.
 2. `useAiAgent` gathers context: active prompt/model/mode, reference grid summaries, and downscaled previews for up to the 3 most recent images (or 1 video frame snapshot). Object URLs are revoked after use.
 3. If the user drags references into the chat surface, staged attachments are merged into context before send (prompt refs + image refs/media), then cleared on success.
 4. Client calls `/api/ai/studio-agent`; the route verifies feature flag, key, payload size, and model support.
-5. Route classifies turn type (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`) and builds explicit orchestration metadata for thinker/formatter prompts.
-6. Provider call runs with `messages + context + orchestration`.
-7. Response returns normalized actions (`applyPrompt`, `variations`, `describeTargets`, `questions`) and canonical prompt continuity.
-8. On Apply: prompt state in `useAiStudioState` updates; the textarea mirrors the applied text (for manual editing), and the next Generate uses it.
-9. On “Describe references”: if `actions.describeTargets` is present, the client triggers an image-describe call for those IDs before the next agent turn.
+5. Route classifies turn type (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`) and builds orchestration metadata.
+6. For image/mixed turns, route can run server-owned vision summaries and inject them into orchestration context.
+7. Provider execution path:
+   - `TEXT_ONLY`: single-call fast path.
+   - `IMAGE_ONLY`/`MIXED`: thinker/formatter orchestration path (with safe fallback fast path when unavailable).
+8. Response returns normalized actions (`applyPrompt`, `variations`, `describeTargets`, `referenceCard`) and canonical prompt continuity.
+9. On Apply: prompt state in `useAiStudioState` updates; the textarea mirrors the applied text (for manual editing), and the next Generate uses it.
+10. On “Describe references”: if `actions.describeTargets` is present, the client triggers image describe actions for those IDs.
 
 ## Error handling & fallbacks
 - If the feature flag or key is missing, show a single-line banner and render the legacy textarea with no chat.
@@ -66,6 +69,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 ## Data handling & safety
 - Never send raw file blobs to the LLM route; convert local previews to signed/public `https://` URLs first.
 - No transcript storage in Supabase; chats live in memory with optional `sessionStorage` backup; clear on sign-out.
+- Canonical prompt continuity is persisted in Supabase (`ai_agent_conversation_state`) with TTL + per-user cap pruning.
 - Strip EXIF when downscaling; videos send only a single poster frame.
 - Agent must refuse PII extraction and harmful requests (covered in `STUDIO_AGENT_SYSTEM` prompt).
 

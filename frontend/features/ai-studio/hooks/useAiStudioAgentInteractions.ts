@@ -67,16 +67,6 @@ export const useAiStudioAgentInteractions = ({
     [handleAgentApplyPrompt, setAgentInput, trackAgentUiEvent]
   );
 
-  const handleAgentUseQuestion = useCallback(
-    (question: string) => {
-      const normalized = normalizePromptText(question);
-      if (!normalized) return;
-      setAgentInput(normalized);
-      trackAgentUiEvent("studio_agent_use_question");
-    },
-    [setAgentInput, trackAgentUiEvent]
-  );
-
   const handleExpandChat = useCallback(() => {
     if (!agentSessionEnabled) setAgentSessionEnabled(true);
     setIsAgentChatOpen((prev) => !prev);
@@ -123,7 +113,6 @@ export const useAiStudioAgentInteractions = ({
   return {
     handleAgentApplyPrompt,
     handleAgentSelectVariation,
-    handleAgentUseQuestion,
     handleExpandChat,
     handleAgentAddToGrid,
     handleClearAgentChat,

@@ -74,7 +74,6 @@ type TextPropertiesPanelProps = {
   onClearAgentAttachments?: () => void;
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
-  onAgentUseQuestion?: (question: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
   onGenerateFromAgentOutputPrompt?: (prompt: string) => void;
   onGenerate: () => void;
@@ -253,7 +252,6 @@ export function TextPropertiesPanel({
   onClearAgentAttachments,
   onAgentApplyPrompt,
   onAgentSelectVariation,
-  onAgentUseQuestion,
   onAgentDescribeTargets,
   onGenerateFromAgentOutputPrompt,
   agentChatOpen = false,
@@ -411,7 +409,6 @@ export function TextPropertiesPanel({
     onClearAgentChat,
     onAgentApplyPrompt,
     onAgentSelectVariation,
-    onAgentUseQuestion,
     onAgentDescribeTargets,
     onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,
     onSavePrompt,
@@ -458,7 +455,6 @@ export function TextPropertiesPanel({
     hideAgentIntroMessage: true,
     agentAttachmentDropTarget: "input",
     highlightLatestAssistantOnly: true,
-    showAgentQuestionActions: false,
     agentInputMaxHeightPx: 132,
   };
 

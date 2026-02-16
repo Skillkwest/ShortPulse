@@ -48,7 +48,6 @@ describe("AgentChatPanel prompt actions", () => {
         primarySource="agent"
         agentActions={{
           variations: ["close-up framing"],
-          questions: ["Should this be rainy?"],
           describeTargets: ["ref-a"],
         }}
         onInputChange={vi.fn()}
@@ -60,12 +59,10 @@ describe("AgentChatPanel prompt actions", () => {
     expect(screen.getByText("Agent output")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Describe refs (1)" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "close-up framing" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Should this be rainy?" })).toBeInTheDocument();
   });
 
   it("routes action clicks to callbacks", () => {
     const onSelectVariation = vi.fn();
-    const onUseQuestion = vi.fn();
     const onDescribeTargets = vi.fn();
 
     render(
@@ -77,22 +74,17 @@ describe("AgentChatPanel prompt actions", () => {
         primarySource="agent"
         agentActions={{
           variations: ["close-up framing"],
-          questions: ["Should this be rainy?"],
           describeTargets: ["ref-a", "ref-b"],
         }}
         onInputChange={vi.fn()}
         onSend={vi.fn()}
         onAgentSelectVariation={onSelectVariation}
-        onAgentUseQuestion={onUseQuestion}
         onAgentDescribeTargets={onDescribeTargets}
       />
     );
 
     fireEvent.click(screen.getByRole("button", { name: "close-up framing" }));
     expect(onSelectVariation).toHaveBeenCalledWith("close-up framing");
-
-    fireEvent.click(screen.getByRole("button", { name: "Should this be rainy?" }));
-    expect(onUseQuestion).toHaveBeenCalledWith("Should this be rainy?");
 
     fireEvent.click(screen.getByRole("button", { name: "Describe refs (2)" }));
     expect(onDescribeTargets).toHaveBeenCalledWith(["ref-a", "ref-b"]);

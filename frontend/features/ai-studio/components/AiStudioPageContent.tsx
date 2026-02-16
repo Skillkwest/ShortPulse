@@ -110,7 +110,6 @@ type AgentChatProps = {
   onClearAttachments: () => void;
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
-  onAgentUseQuestion?: (question: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
   onGenerateFromOutputPrompt?: (prompt: string) => void;
   outputGenerateCostCredits?: number | null;
@@ -508,7 +507,6 @@ export function AiStudioPageContent({
                         onSend={agentChat.onSend}
                         onAgentApplyPrompt={agentChat.onAgentApplyPrompt}
                         onAgentSelectVariation={agentChat.onAgentSelectVariation}
-                        onAgentUseQuestion={agentChat.onAgentUseQuestion}
                         onAgentDescribeTargets={agentChat.onAgentDescribeTargets}
                         onGenerateOutputPrompt={agentChat.onGenerateFromOutputPrompt}
                         outputGenerateCostCredits={agentChat.outputGenerateCostCredits}

@@ -16,34 +16,31 @@ import {
   resolveCanonicalPrompt,
   shouldRetryExplicitNoOp,
 } from "../../../features/ai-agent/logic/studioAgentCanonical";
-import { removeAspectRatioLanguage } from "../../../features/ai-studio/logic/agentPromptOwnership";
+import {
+  removeAspectRatioLanguage,
+  sanitizeGenerationPromptText,
+} from "../../../features/ai-studio/logic/agentPromptOwnership";
 import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/logic/studioAgentReferenceSelection";
 import { buildStudioAgentOrchestration } from "../../../features/ai-agent/logic/studioAgentOrchestration";
 import { runThinkerFormatterTurn } from "../../../features/ai-agent/logic/studioAgentThinkerFormatter";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
+import {
+  clampCanonicalPrompt,
+  readAgentConversationCanonicalPrompt,
+  upsertAgentConversationCanonicalPrompt,
+} from "../../../lib/server/api/agentConversationState";
 
 const OPENAI_URL =
   (process.env.OPENAI_API_BASE || "https://api.openai.com/v1") + "/chat/completions";
-// More capable default; can be overridden via OPENAI_MODEL env.
 const DEFAULT_MODEL = "gpt-4.1";
+const DEFAULT_VISION_MODEL = "gpt-4.1";
+const DEFAULT_TIMEOUT_MS = 20000;
+const MIN_TIMEOUT_MS = 1000;
+const MAX_TIMEOUT_MS = 120000;
 const MAX_MESSAGES = 24;
 const MAX_IMAGE_BYTES = 350 * 1024;
 const MAX_MEDIA = 3;
-const MAX_CANONICAL_PROMPT_CACHE = 2000;
-const canonicalPromptStore = new Map<string, string>();
-
-const buildCanonicalPromptCacheKey = (userId: string, conversationId: string): string =>
-  `${userId}:${conversationId}`;
-
-const setCanonicalPromptCache = (key: string, value: string) => {
-  canonicalPromptStore.set(key, value);
-  if (canonicalPromptStore.size <= MAX_CANONICAL_PROMPT_CACHE) return;
-  const oldestKey = canonicalPromptStore.keys().next().value;
-  if (typeof oldestKey === "string") {
-    canonicalPromptStore.delete(oldestKey);
-  }
-};
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
@@ -54,6 +51,11 @@ type OpenAIChatMessage =
         | { type: "image_url"; image_url: { url: string; detail?: "low" | "high" } }
       >;
     };
+
+type ParsedAgentJson = {
+  response: AgentResponse;
+  status: string | null;
+};
 
 const estimateBase64Bytes = (dataUrl: string) => {
   const commaIndex = dataUrl.indexOf(",");
@@ -83,7 +85,6 @@ const safeContext = (context?: AgentContext): AgentContext => {
   const media =
     context.media
       ?.filter((item) => {
-        // Only allow images for vision payloads; videos are excluded.
         if (item?.kind && item.kind !== "image") return false;
         const isDataUrl = typeof item?.dataUrl === "string" && item.dataUrl.startsWith("data:");
         const isHttpsUrl = typeof item?.url === "string" && item.url.startsWith("https://");
@@ -95,7 +96,7 @@ const safeContext = (context?: AgentContext): AgentContext => {
       .slice(0, MAX_MEDIA) ?? [];
 
   return {
-    activePrompt: removeAspectRatioLanguage(context.activePrompt ?? null),
+    activePrompt: sanitizeGenerationPromptText(context.activePrompt ?? null),
     modelId: context.modelId ?? null,
     mode: context.mode,
     creditBalance: context.creditBalance ?? null,
@@ -112,7 +113,7 @@ const safeContext = (context?: AgentContext): AgentContext => {
       : [],
     focusedSource: context.focusedSource ?? undefined,
     focusedReferenceId: context.focusedReferenceId ?? null,
-    lastAssistantMessage: removeAspectRatioLanguage(context.lastAssistantMessage ?? null),
+    lastAssistantMessage: sanitizeGenerationPromptText(context.lastAssistantMessage ?? null),
     modeHint: context.modeHint ?? undefined,
   };
 };
@@ -159,6 +160,7 @@ const buildOpenAiMessages = (
   });
   return chat;
 };
+
 const buildThinkerMessages = (payload: unknown, prompt: string): OpenAIChatMessage[] => [
   { role: "system", content: prompt },
   { role: "user", content: JSON.stringify(payload) },
@@ -197,23 +199,19 @@ const normalizeAgentActions = (value: unknown): AgentResponse["actions"] => {
         ? record.apply_prompt
         : undefined;
 
-  const cleanedApplyPrompt = removeAspectRatioLanguage(applyPrompt ?? null) ?? undefined;
+  const cleanedApplyPrompt = sanitizeGenerationPromptText(applyPrompt ?? null) ?? undefined;
 
   const normalized = {
     applyPrompt: cleanedApplyPrompt,
     variations:
       asStringArray(record.variations)
-        ?.map((variation) => removeAspectRatioLanguage(variation))
+        ?.map((variation) => sanitizeGenerationPromptText(variation))
         .filter((variation): variation is string => Boolean(variation)) ?? undefined,
     describeTargets: asStringArray(record.describeTargets ?? record.describe_targets),
-    questions:
-      asStringArray(record.questions)
-        ?.map((question) => removeAspectRatioLanguage(question))
-        .filter((question): question is string => Boolean(question)) ?? undefined,
     referenceCard: (() => {
       const card = asReferenceCard(record.referenceCard);
       if (!card) return undefined;
-      const prompt = removeAspectRatioLanguage(card.prompt ?? null);
+      const prompt = sanitizeGenerationPromptText(card.prompt ?? null);
       if (!prompt) return undefined;
       return { ...card, prompt };
     })(),
@@ -223,7 +221,6 @@ const normalizeAgentActions = (value: unknown): AgentResponse["actions"] => {
     !normalized.applyPrompt &&
     !normalized.variations &&
     !normalized.describeTargets &&
-    !normalized.questions &&
     !normalized.referenceCard
   ) {
     return undefined;
@@ -232,7 +229,7 @@ const normalizeAgentActions = (value: unknown): AgentResponse["actions"] => {
   return normalized;
 };
 
-const parseAgentJson = (raw: string): AgentResponse | null => {
+const parseAgentJsonWithStatus = (raw: string): ParsedAgentJson | null => {
   const candidates: string[] = [];
   const trimmed = raw.trim();
   if (trimmed) candidates.push(trimmed);
@@ -243,11 +240,37 @@ const parseAgentJson = (raw: string): AgentResponse | null => {
     try {
       const parsed = JSON.parse(candidate);
       if (!parsed || typeof parsed !== "object") continue;
+      const parsedRecord = parsed as Record<string, unknown>;
       const message =
-        typeof parsed.message === "string" ? (removeAspectRatioLanguage(parsed.message) ?? "") : "";
-      const actions = normalizeAgentActions((parsed as Record<string, unknown>).actions);
-      const usage = typeof parsed.usage === "object" ? parsed.usage : undefined;
-      return { message, actions, usage };
+        typeof parsedRecord.message === "string"
+          ? (sanitizeGenerationPromptText(parsedRecord.message) ?? "")
+          : "";
+      const actions = normalizeAgentActions(parsedRecord.actions);
+      const usageRecord =
+        parsedRecord.usage && typeof parsedRecord.usage === "object"
+          ? (parsedRecord.usage as Record<string, unknown>)
+          : null;
+      const usage = usageRecord
+        ? {
+            inputTokens:
+              typeof usageRecord.inputTokens === "number"
+                ? usageRecord.inputTokens
+                : typeof usageRecord.input_tokens === "number"
+                  ? usageRecord.input_tokens
+                  : undefined,
+            outputTokens:
+              typeof usageRecord.outputTokens === "number"
+                ? usageRecord.outputTokens
+                : typeof usageRecord.output_tokens === "number"
+                  ? usageRecord.output_tokens
+                  : undefined,
+          }
+        : undefined;
+      const status = typeof parsedRecord.status === "string" ? parsedRecord.status : null;
+      return {
+        response: { message, actions, usage },
+        status,
+      };
     } catch {
       continue;
     }
@@ -255,7 +278,242 @@ const parseAgentJson = (raw: string): AgentResponse | null => {
   return null;
 };
 
+const parseAgentJson = (raw: string): AgentResponse | null =>
+  parseAgentJsonWithStatus(raw)?.response ?? null;
+
+const extractCompletionText = (rawContent: unknown): string => {
+  if (typeof rawContent === "string") return rawContent;
+  if (!Array.isArray(rawContent)) return "";
+  return rawContent
+    .map((part) => {
+      const record = part && typeof part === "object" ? (part as Record<string, unknown>) : {};
+      return typeof record.text === "string" ? record.text : "";
+    })
+    .join("\n")
+    .trim();
+};
+
+const fetchOpenAiChatCompletion = async ({
+  apiKey,
+  model,
+  messages,
+  timeoutMs,
+}: {
+  apiKey: string;
+  model: string;
+  messages: unknown[];
+  timeoutMs: number;
+}) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ model, messages }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+const withTimeoutMessage = (error: unknown): string => {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return "OpenAI request timed out";
+  }
+  return error instanceof Error ? error.message : String(error);
+};
+
+const parseRequestTimeoutMs = (value: string | undefined): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_TIMEOUT_MS;
+  const rounded = Math.trunc(parsed);
+  if (rounded < MIN_TIMEOUT_MS) return MIN_TIMEOUT_MS;
+  if (rounded > MAX_TIMEOUT_MS) return MAX_TIMEOUT_MS;
+  return rounded;
+};
+
+const buildImageSummaryMap = async ({
+  context,
+  imageDescribePrompt,
+  apiKey,
+  visionModel,
+  timeoutMs,
+}: {
+  context: AgentContext;
+  imageDescribePrompt: string;
+  apiKey: string;
+  visionModel: string;
+  timeoutMs: number;
+}): Promise<Map<string, string>> => {
+  const mediaItems = (context.media ?? [])
+    .filter((item) => item.kind === "image")
+    .slice(0, MAX_MEDIA);
+  if (!mediaItems.length) return new Map();
+
+  const summaries = await Promise.allSettled(
+    mediaItems.map(async (item) => {
+      const imageUrl = item.url ?? item.dataUrl ?? "";
+      if (!imageUrl) return null;
+      const response = await fetchOpenAiChatCompletion({
+        apiKey,
+        model: visionModel,
+        timeoutMs,
+        messages: [
+          { role: "system", content: imageDescribePrompt },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Describe the image exactly as you see it." },
+              { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+            ],
+          },
+        ],
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const data = await response.json();
+      const rawText = extractCompletionText(data?.choices?.[0]?.message?.content);
+      const cleaned = sanitizeGenerationPromptText(rawText) ?? "";
+      const summary = cleaned.trim();
+      if (!summary.length) return null;
+      return { id: item.id, summary };
+    })
+  );
+
+  const summaryMap = new Map<string, string>();
+  summaries.forEach((result) => {
+    if (result.status !== "fulfilled" || !result.value?.id || !result.value.summary) return;
+    summaryMap.set(result.value.id, result.value.summary);
+  });
+  return summaryMap;
+};
+
+const applyVisionSummariesToContext = (
+  context: AgentContext,
+  summaryByReferenceId: Map<string, string>
+): AgentContext => {
+  if (!summaryByReferenceId.size) return context;
+  const references = (context.references ?? []).map((reference) => {
+    if (reference.kind !== "image") return reference;
+    const summary = summaryByReferenceId.get(reference.id);
+    if (!summary) return reference;
+    const mergedCaption = [summary, reference.caption ?? null]
+      .filter(
+        (value, index, all): value is string => Boolean(value) && all.indexOf(value) === index
+      )
+      .join("\n\n");
+    return {
+      ...reference,
+      promptSnippet: summary,
+      caption: mergedCaption || summary,
+    };
+  });
+
+  const media = (context.media ?? []).map((item) => {
+    if (item.kind !== "image") return item;
+    const summary = summaryByReferenceId.get(item.id);
+    if (!summary) return item;
+    return {
+      ...item,
+      thumbnailAlt: summary,
+    };
+  });
+
+  return {
+    ...context,
+    references,
+    media,
+  };
+};
+
+const isRefusalResponse = ({
+  status,
+  response,
+}: {
+  status: string | null;
+  response: AgentResponse;
+}): boolean => {
+  if (status?.toLowerCase() === "refuse") return true;
+  const hasApplyPrompt = Boolean(response.actions?.applyPrompt?.trim());
+  if (hasApplyPrompt) return false;
+  const message = response.message?.trim() ?? "";
+  if (!message.length) return false;
+  return /(^|\s)(cannot|can't|unable|refuse|won't|not able)\b/i.test(message);
+};
+
+const ensureApplyPromptContract = ({
+  parsed,
+  fallbackPrompt,
+}: {
+  parsed: AgentResponse;
+  fallbackPrompt: string;
+}): AgentResponse => {
+  const resolvedFallback = sanitizeGenerationPromptText(fallbackPrompt) ?? "";
+  const cleanedApplyPrompt = sanitizeGenerationPromptText(parsed.actions?.applyPrompt ?? null);
+  if (!cleanedApplyPrompt) {
+    parsed.actions = parsed.actions ?? {};
+    parsed.actions.applyPrompt = resolvedFallback;
+  } else {
+    parsed.actions = parsed.actions ?? {};
+    parsed.actions.applyPrompt = cleanedApplyPrompt;
+  }
+  if (parsed.actions?.applyPrompt && !parsed.actions.referenceCard?.prompt) {
+    parsed.actions.referenceCard = {
+      title: "Prompt",
+      prompt: parsed.actions.applyPrompt,
+    };
+  }
+  parsed.message =
+    parsed.actions?.applyPrompt ??
+    sanitizeGenerationPromptText(parsed.message ?? null) ??
+    resolvedFallback;
+  return parsed;
+};
+
+const emitTurnTelemetry = ({
+  flow,
+  path,
+  status,
+  model,
+  retryUsed,
+  totalLatencyMs,
+  stageLatencyMs,
+}: {
+  flow: string;
+  path: string;
+  status: "success" | "refuse" | "error";
+  model: string;
+  retryUsed: boolean;
+  totalLatencyMs: number;
+  stageLatencyMs: Record<string, number>;
+}) => {
+  console.info(
+    "[studio-agent][telemetry]",
+    JSON.stringify({
+      flow,
+      path,
+      status,
+      model,
+      retry_used: retryUsed,
+      latency_ms_total: totalLatencyMs,
+      latency_ms_stage: stageLatencyMs,
+    })
+  );
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const requestStartedAt = Date.now();
+  const stageLatencyMs: Record<string, number> = {};
+  const markStage = (stage: string, startedAt: number) => {
+    stageLatencyMs[stage] = Date.now() - startedAt;
+  };
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -263,7 +521,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await requireApiUser(req, res);
   if (!user) return;
 
-  // Feature gate: defaults to enabled; can be disabled explicitly server-side.
   const featureEnabled =
     process.env.STUDIO_AGENT_ENABLED === "true" ||
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true" ||
@@ -276,34 +533,97 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!apiKey) {
     return res.status(500).json({ error: "OPENAI_API_KEY is not set" });
   }
+
   const systemPrompt = loadAgentPrompt("STUDIO_AGENT_SYSTEM", process.env.STUDIO_AGENT_SYSTEM);
   const thinkerPrompt = loadAgentPrompt("STUDIO_AGENT_THINKER", process.env.STUDIO_AGENT_THINKER);
   const formatterPrompt = loadAgentPrompt(
     "STUDIO_AGENT_FORMATTER",
     process.env.STUDIO_AGENT_FORMATTER
   );
+  const imageDescribePrompt = loadAgentPrompt(
+    "OPENAI_PROMPT_IMAGE_DESCRIBE",
+    process.env.OPENAI_PROMPT_IMAGE_DESCRIBE
+  );
   if (!systemPrompt) {
     return res.status(500).json({ error: "STUDIO_AGENT_SYSTEM prompt missing" });
   }
 
   const messages = parseMessages(req.body?.messages);
-  // conversationId is currently informational (could be logged/audited later)
+  if (!messages.length) {
+    return res.status(400).json({ error: "messages are required" });
+  }
+
   const conversationId =
-    typeof req.body?.conversationId === "string" ? req.body.conversationId : null;
-  const conversationCacheKey =
-    conversationId && conversationId.trim()
-      ? buildCanonicalPromptCacheKey(user.id, conversationId.trim())
-      : null;
-  const context = safeContext(req.body?.context);
+    typeof req.body?.conversationId === "string" ? req.body.conversationId.trim() : "";
+  const normalizedConversationId = conversationId.length ? conversationId : null;
+  let context = safeContext(req.body?.context);
+
   const incomingCanonical =
     typeof req.body?.canonicalPrompt === "string" && req.body.canonicalPrompt.trim().length
-      ? (removeAspectRatioLanguage(req.body.canonicalPrompt.trim()) ?? null)
+      ? (sanitizeGenerationPromptText(req.body.canonicalPrompt.trim()) ?? null)
       : null;
-  const storedCanonical = conversationCacheKey
-    ? (removeAspectRatioLanguage(canonicalPromptStore.get(conversationCacheKey) ?? null) ?? null)
-    : null;
-  const canonicalPrompt = incomingCanonical ?? storedCanonical ?? null;
-  const effectiveCanonical = canonicalPrompt ?? context.lastAssistantMessage ?? null;
+
+  const canonicalDbEnabled = process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED !== "false";
+  const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
+  const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
+  const openAiModel = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+  const openAiVisionModel = process.env.OPENAI_VISION_MODEL || DEFAULT_VISION_MODEL;
+  const requestTimeoutMs = parseRequestTimeoutMs(process.env.STUDIO_AGENT_TIMEOUT_MS);
+
+  let storedCanonical: string | null = null;
+  if (canonicalDbEnabled && normalizedConversationId) {
+    const canonicalReadStartedAt = Date.now();
+    try {
+      storedCanonical = await readAgentConversationCanonicalPrompt({
+        userId: user.id,
+        conversationId: normalizedConversationId,
+      });
+    } catch (error) {
+      console.warn("[studio-agent] canonical db read failed", withTimeoutMessage(error));
+    } finally {
+      markStage("canonical_read", canonicalReadStartedAt);
+    }
+  }
+
+  const canonicalPrompt =
+    sanitizeGenerationPromptText(storedCanonical) ??
+    incomingCanonical ??
+    sanitizeGenerationPromptText(context.lastAssistantMessage) ??
+    null;
+  const effectiveCanonical = clampCanonicalPrompt(canonicalPrompt);
+
+  const selectedReferencesBeforeVision = pickSelectedReferencesForThinker(context);
+  const orchestrationBeforeVision = buildStudioAgentOrchestration({
+    context,
+    messages,
+    selectedReferences: selectedReferencesBeforeVision,
+    effectiveCanonical,
+  });
+
+  let visionSummaryMap = new Map<string, string>();
+  if (
+    serverVisionEnabled &&
+    imageDescribePrompt &&
+    orchestrationBeforeVision.shouldRunVisionDescription &&
+    (context.media?.length ?? 0) > 0
+  ) {
+    const visionStartedAt = Date.now();
+    try {
+      visionSummaryMap = await buildImageSummaryMap({
+        context,
+        imageDescribePrompt,
+        apiKey,
+        visionModel: openAiVisionModel,
+        timeoutMs: requestTimeoutMs,
+      });
+      context = applyVisionSummariesToContext(context, visionSummaryMap);
+    } catch (error) {
+      console.warn("[studio-agent] server vision summary failed", withTimeoutMessage(error));
+    } finally {
+      markStage("vision_summary", visionStartedAt);
+    }
+  }
+
   const selectedReferences = pickSelectedReferencesForThinker(context);
   const orchestration = buildStudioAgentOrchestration({
     context,
@@ -312,27 +632,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     effectiveCanonical,
   });
 
-  if (!messages.length) {
-    return res.status(400).json({ error: "messages are required" });
-  }
-
   const openAiMessages = buildOpenAiMessages(messages, context, systemPrompt, orchestration);
+  const hasV2Prompts = Boolean(thinkerPrompt && formatterPrompt);
+  const useV2Path = hasV2Prompts && !(orchestration.flow === "TEXT_ONLY" && textFastPathEnabled);
+  const path = useV2Path
+    ? "v2_orchestration"
+    : orchestration.flow === "TEXT_ONLY"
+      ? "text_fast_path"
+      : "fallback_fast_path";
 
   try {
-    const useV2 = process.env.NEXT_PUBLIC_AGENT_V2 !== "false";
+    let retryUsed = false;
 
-    if (useV2 && thinkerPrompt && formatterPrompt) {
-      const selectedPromptSeed =
-        selectedReferences.find((reference) => reference.kind === "prompt")?.promptSnippet ??
-        selectedReferences[0]?.promptSnippet ??
-        null;
-      const contextType = orchestration.contextType;
+    if (useV2Path && thinkerPrompt && formatterPrompt) {
       const userInput = messages[messages.length - 1]?.content ?? "";
+      const imageSummaries = selectedReferences
+        .filter((reference) => reference.kind === "image")
+        .map((reference) => ({
+          id: reference.id,
+          summary:
+            visionSummaryMap.get(reference.id) ??
+            reference.caption ??
+            reference.promptSnippet ??
+            undefined,
+        }))
+        .filter((entry) => typeof entry.summary === "string" && entry.summary.trim().length > 0);
 
       const thinkerPayload = {
         input_flow: orchestration.flow,
         orchestration,
-        context_type: contextType,
+        context_type: orchestration.contextType,
         canonical_prompt: effectiveCanonical,
         user_input: userInput,
         text_agent_input: orchestration.textInput,
@@ -343,16 +672,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         context_payload:
           orchestration.flow === "TEXT_ONLY"
             ? orchestration.textInput ||
-              selectedPromptSeed ||
               context.activePrompt ||
               context.references?.[0]?.promptSnippet ||
               ""
             : orchestration.flow === "IMAGE_ONLY"
-              ? selectedReferences.length
-                ? "selected image references provided"
-                : "image provided"
+              ? {
+                  image_summaries: imageSummaries,
+                }
               : {
                   text_seed: orchestration.textInput,
+                  image_summaries: imageSummaries,
                   image_refs: orchestration.imageReferenceIds,
                 },
         selected_reference_ids: context.selectedReferenceIds ?? [],
@@ -362,15 +691,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         mode_hint: context.modeHint ?? null,
       };
 
+      const v2StartedAt = Date.now();
       const firstPass = await runThinkerFormatterTurn({
         apiKey,
         openAiUrl: OPENAI_URL,
-        model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+        model: openAiModel,
         thinkerMessages: buildThinkerMessages(thinkerPayload, thinkerPrompt),
         buildFormatterMessages: (semantic) => buildFormatterMessages(semantic, formatterPrompt),
         parseAgentJson,
+        timeoutMs: requestTimeoutMs,
       });
+      markStage("v2_turn", v2StartedAt);
+
       if (!firstPass.ok) {
+        emitTurnTelemetry({
+          flow: orchestration.flow,
+          path,
+          status: "error",
+          model: openAiModel,
+          retryUsed: false,
+          totalLatencyMs: Date.now() - requestStartedAt,
+          stageLatencyMs,
+        });
         return res
           .status(firstPass.status)
           .json({ error: `Upstream error (${firstPass.stage})`, detail: firstPass.detail });
@@ -379,16 +721,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let parsed = firstPass.result.parsed;
       let nextCanonical = firstPass.result.nextCanonical ?? effectiveCanonical ?? null;
       let usage = firstPass.result.usage;
+      let semanticStatus = firstPass.result.semanticStatus;
       const explicitEditRequest = isExplicitEditRequest(userInput);
       const bypassDriftGuard = explicitEditRequest;
 
-      // If the user requested an explicit edit but the model returned an unchanged prompt,
-      // do a single stronger retry to avoid "no-op" turn failures.
-      if (shouldRetryExplicitNoOp({ userInput, effectiveCanonical, nextCanonical })) {
+      if (
+        shouldRetryExplicitNoOp({
+          userInput,
+          effectiveCanonical,
+          nextCanonical,
+        })
+      ) {
+        retryUsed = true;
+        const retryStartedAt = Date.now();
         const retryPass = await runThinkerFormatterTurn({
           apiKey,
           openAiUrl: OPENAI_URL,
-          model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+          model: openAiModel,
           thinkerMessages: buildThinkerMessages(
             {
               ...thinkerPayload,
@@ -399,56 +748,77 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ),
           buildFormatterMessages: (semantic) => buildFormatterMessages(semantic, formatterPrompt),
           parseAgentJson,
+          timeoutMs: requestTimeoutMs,
         });
+        markStage("v2_retry_turn", retryStartedAt);
         if (retryPass.ok) {
           parsed = retryPass.result.parsed;
           nextCanonical = retryPass.result.nextCanonical ?? nextCanonical;
           usage = retryPass.result.usage;
+          semanticStatus = retryPass.result.semanticStatus;
         }
       }
 
-      // Validate context preservation; if drift detected, fall back to prior canonical.
-      if (
-        !bypassDriftGuard &&
-        effectiveCanonical &&
-        nextCanonical &&
-        !preservesContext(effectiveCanonical, nextCanonical)
-      ) {
-        console.warn("[studio-agent] drift detected; restoring canonical prompt");
-        parsed.message = parsed.message || "Preserved prior prompt to avoid drift.";
-        parsed.actions = parsed.actions ?? {};
-        parsed.actions.applyPrompt = effectiveCanonical;
-        parsed.actions.referenceCard = parsed.actions.referenceCard ?? {
-          title: "Prompt",
-          prompt: effectiveCanonical,
+      const refusal = isRefusalResponse({
+        status: semanticStatus,
+        response: parsed,
+      });
+
+      if (!refusal && effectiveCanonical && nextCanonical && !bypassDriftGuard) {
+        if (!preservesContext(effectiveCanonical, nextCanonical)) {
+          console.warn("[studio-agent] drift detected; restoring canonical prompt");
+          parsed.actions = parsed.actions ?? {};
+          parsed.actions.applyPrompt = effectiveCanonical;
+          nextCanonical = effectiveCanonical;
+        }
+      }
+
+      const fallbackPrompt =
+        sanitizeGenerationPromptText(
+          nextCanonical ??
+            effectiveCanonical ??
+            context.activePrompt ??
+            messages[messages.length - 1]?.content ??
+            ""
+        ) ?? "";
+
+      if (refusal) {
+        parsed = {
+          message: parsed.message?.trim() || "I cannot help with that request.",
+          actions: undefined,
         };
-        nextCanonical = effectiveCanonical;
+      } else {
+        parsed = ensureApplyPromptContract({ parsed, fallbackPrompt });
       }
 
-      // Guarantee an apply_prompt so the client always receives a refined prompt.
-      if (!parsed.actions?.applyPrompt || !parsed.actions.applyPrompt.trim()) {
-        const fallbackPrompt =
-          removeAspectRatioLanguage(
-            nextCanonical ??
-              effectiveCanonical ??
-              context.activePrompt ??
-              messages[messages.length - 1]?.content ??
-              ""
-          ) ?? "";
-        parsed.actions = parsed.actions ?? {};
-        parsed.actions.applyPrompt = fallbackPrompt;
-        parsed.message = parsed.message || fallbackPrompt;
+      const resolvedCanonical = refusal
+        ? effectiveCanonical
+        : resolveCanonicalPrompt(parsed.actions?.applyPrompt, nextCanonical, effectiveCanonical);
+
+      if (!refusal && canonicalDbEnabled && normalizedConversationId && resolvedCanonical) {
+        const canonicalWriteStartedAt = Date.now();
+        try {
+          await upsertAgentConversationCanonicalPrompt({
+            userId: user.id,
+            conversationId: normalizedConversationId,
+            canonicalPrompt: resolvedCanonical,
+          });
+        } catch (error) {
+          console.warn("[studio-agent] canonical db upsert failed", withTimeoutMessage(error));
+        } finally {
+          markStage("canonical_write", canonicalWriteStartedAt);
+        }
       }
 
-      const resolvedCanonical = resolveCanonicalPrompt(
-        parsed.actions?.applyPrompt,
-        nextCanonical,
-        effectiveCanonical
-      );
-
-      if (conversationCacheKey && resolvedCanonical) {
-        setCanonicalPromptCache(conversationCacheKey, resolvedCanonical);
-      }
+      emitTurnTelemetry({
+        flow: orchestration.flow,
+        path,
+        status: refusal ? "refuse" : "success",
+        model: openAiModel,
+        retryUsed,
+        totalLatencyMs: Date.now() - requestStartedAt,
+        stageLatencyMs,
+      });
 
       return res.status(200).json({
         ...parsed,
@@ -457,71 +827,91 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
-        messages: openAiMessages,
-      }),
+    const fastPathStartedAt = Date.now();
+    const response = await fetchOpenAiChatCompletion({
+      apiKey,
+      model: openAiModel,
+      messages: openAiMessages,
+      timeoutMs: requestTimeoutMs,
     });
+    markStage("fast_path_turn", fastPathStartedAt);
 
     if (!response.ok) {
       const detail = await response.text();
+      emitTurnTelemetry({
+        flow: orchestration.flow,
+        path,
+        status: "error",
+        model: openAiModel,
+        retryUsed: false,
+        totalLatencyMs: Date.now() - requestStartedAt,
+        stageLatencyMs,
+      });
       return res.status(response.status).json({ error: "Upstream error", detail });
     }
 
     const data = await response.json();
-    const rawContent = data?.choices?.[0]?.message?.content;
-    const contentText =
-      typeof rawContent === "string"
-        ? rawContent
-        : Array.isArray(rawContent)
-          ? rawContent
-              .map((part) => {
-                const record =
-                  part && typeof part === "object" ? (part as Record<string, unknown>) : {};
-                return typeof record.text === "string" ? record.text : "";
-              })
-              .join("\n")
-              .trim()
-          : "";
-
-    const parsed = parseAgentJson(contentText) ?? {
-      message: removeAspectRatioLanguage(contentText || "No response") ?? "No response",
+    const contentText = extractCompletionText(data?.choices?.[0]?.message?.content);
+    const parsedWithStatus = parseAgentJsonWithStatus(contentText);
+    let parsed = parsedWithStatus?.response ?? {
+      message: sanitizeGenerationPromptText(contentText || "No response") ?? "No response",
       actions: undefined,
     };
-    const nextCanonical = removeAspectRatioLanguage(
-      parsed?.actions?.applyPrompt ?? parsed?.message ?? canonicalPrompt ?? null
+
+    const refusal = isRefusalResponse({
+      status: parsedWithStatus?.status ?? null,
+      response: parsed,
+    });
+
+    const nextCanonical = sanitizeGenerationPromptText(
+      parsed?.actions?.applyPrompt ?? parsed?.message ?? effectiveCanonical ?? null
     );
 
-    // Guarantee an apply_prompt for the single-agent path too.
-    if (!parsed.actions?.applyPrompt || !parsed.actions.applyPrompt.trim()) {
+    if (refusal) {
+      parsed = {
+        message: parsed.message?.trim() || "I cannot help with that request.",
+        actions: undefined,
+      };
+    } else {
       const fallbackPrompt =
-        removeAspectRatioLanguage(
+        sanitizeGenerationPromptText(
           nextCanonical ??
-            canonicalPrompt ??
+            effectiveCanonical ??
             context.activePrompt ??
             messages[messages.length - 1]?.content ??
             ""
         ) ?? "";
-      parsed.actions = parsed.actions ?? {};
-      parsed.actions.applyPrompt = fallbackPrompt;
-      parsed.message = parsed.message || fallbackPrompt;
+      parsed = ensureApplyPromptContract({ parsed, fallbackPrompt });
     }
 
-    const resolvedCanonical = resolveCanonicalPrompt(
-      parsed.actions?.applyPrompt,
-      nextCanonical,
-      canonicalPrompt
-    );
+    const resolvedCanonical = refusal
+      ? effectiveCanonical
+      : resolveCanonicalPrompt(parsed.actions?.applyPrompt, nextCanonical, effectiveCanonical);
 
-    if (conversationCacheKey && resolvedCanonical) {
-      setCanonicalPromptCache(conversationCacheKey, resolvedCanonical);
+    if (!refusal && canonicalDbEnabled && normalizedConversationId && resolvedCanonical) {
+      const canonicalWriteStartedAt = Date.now();
+      try {
+        await upsertAgentConversationCanonicalPrompt({
+          userId: user.id,
+          conversationId: normalizedConversationId,
+          canonicalPrompt: resolvedCanonical,
+        });
+      } catch (error) {
+        console.warn("[studio-agent] canonical db upsert failed", withTimeoutMessage(error));
+      } finally {
+        markStage("canonical_write", canonicalWriteStartedAt);
+      }
     }
+
+    emitTurnTelemetry({
+      flow: orchestration.flow,
+      path,
+      status: refusal ? "refuse" : "success",
+      model: openAiModel,
+      retryUsed: false,
+      totalLatencyMs: Date.now() - requestStartedAt,
+      stageLatencyMs,
+    });
 
     return res.status(200).json({
       ...parsed,
@@ -532,15 +922,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       canonicalPrompt: resolvedCanonical,
     });
   } catch (error) {
+    emitTurnTelemetry({
+      flow: "unknown",
+      path,
+      status: "error",
+      model: openAiModel,
+      retryUsed: false,
+      totalLatencyMs: Date.now() - requestStartedAt,
+      stageLatencyMs,
+    });
     await logApiRouteException({
       req,
       error,
       routeLabel: "ai/studio-agent",
       metadata: {
         user_id: user.id,
-        conversation_id: conversationId,
+        conversation_id: normalizedConversationId,
       },
     });
-    return res.status(500).json({ error: "Agent call failed", detail: String(error) });
+    return res.status(500).json({ error: "Agent call failed", detail: withTimeoutMessage(error) });
   }
 }

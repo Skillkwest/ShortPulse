@@ -40,6 +40,28 @@ describe("computeCostForModel (FLUX.2)", () => {
   });
 });
 
+describe("computeCostForModel (FLUX.2 Lite)", () => {
+  const modelId = "fal-ai/flux-2/klein/9b";
+
+  it("always bills 1 credit at default sizing", () => {
+    const cost = computeCostForModel(modelId, { aspect: "4:3" });
+    expect(cost).not.toBeNull();
+    expect(cost?.credits).toBe(1);
+    expect(cost?.rawCredits).toBe(1);
+    expect(cost?.usd).toBeCloseTo(0.01, 6);
+    expect(cost?.usdRaw).toBeCloseTo(0.01, 6);
+  });
+
+  it("keeps billing fixed at 1 credit even with explicit larger dimensions", () => {
+    const cost = computeCostForModel(modelId, { imageWidth: 4096, imageHeight: 4096 });
+    expect(cost).not.toBeNull();
+    expect(cost?.width).toBe(4096);
+    expect(cost?.height).toBe(4096);
+    expect(cost?.credits).toBe(1);
+    expect(cost?.rawCredits).toBe(1);
+  });
+});
+
 describe("computeCostForModel (GPT-4.1 Nano)", () => {
   const modelId = "gpt-4.1-nano";
 

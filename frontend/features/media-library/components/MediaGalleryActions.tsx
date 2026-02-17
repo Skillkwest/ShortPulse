@@ -4,6 +4,7 @@
  */
 import { CaretDown } from "phosphor-react";
 import { isMoveDestinationDataTab, type MediaMoveDestination } from "../logic/mediaMoveRouting";
+import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 
 type MediaGalleryTab =
   | "uploaded_images"
@@ -86,6 +87,18 @@ export function MediaGalleryActions({
   selectableIdsCount,
 }: MediaGalleryActionsProps) {
   const heading = resolveHeading(activeTab);
+
+  useVisibleErrorTelemetry({
+    source: "client.media_library.bulk_move_error",
+    scope: "app",
+    severity: "medium",
+    message: bulkMoveError,
+    metadata: {
+      active_tab: activeTab,
+      selected_ids_count: selectedIdsCount,
+      selected_media_count: selectedMediaRowsCount,
+    },
+  });
 
   return (
     <>

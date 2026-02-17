@@ -100,6 +100,28 @@ describe("useAiStudioGenerationPromptComposer", () => {
     });
   });
 
+  it("forwards output id overrides to submission for optimistic placeholder reuse", () => {
+    const submitTask = vi.fn();
+    const params = createParams({ submitTask });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput("prompt override", {
+        outputIdOverride: "out-optimistic",
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "prompt override",
+      [
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+      ],
+      expect.objectContaining({ outputIdOverride: "out-optimistic" })
+    );
+  });
+
   it("sets a user-facing error when regenerate prompt is empty", () => {
     const submitTask = vi.fn();
     const setUiError = vi.fn();

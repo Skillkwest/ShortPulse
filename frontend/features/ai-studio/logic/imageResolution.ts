@@ -15,8 +15,8 @@ export type ImageResolutionOption = {
 
 const IMAGE_RESOLUTION_LABELS: Record<string, string> = {
   [MODEL_DEFAULT_IMAGE_RESOLUTION]: "Model default",
-  [SEEDREAM_AUTO_2K_IMAGE_SIZE]: "auto_2K",
-  [SEEDREAM_AUTO_4K_IMAGE_SIZE]: "auto_4K",
+  [SEEDREAM_AUTO_2K_IMAGE_SIZE]: "2K",
+  [SEEDREAM_AUTO_4K_IMAGE_SIZE]: "4K",
   "1K": "1K",
   "2K": "2K",
   "4K": "4K",

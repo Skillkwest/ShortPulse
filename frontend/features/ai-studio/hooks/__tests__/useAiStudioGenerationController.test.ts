@@ -92,6 +92,72 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
+  it("inserts an optimistic placeholder before async submission prep and forwards its output id", async () => {
+    const callOrder: string[] = [];
+    const generateOutput = vi.fn(() => {
+      callOrder.push("submit");
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => {
+      callOrder.push("placeholder");
+      return "out-optimistic";
+    });
+    const refreshCharacterModeInjectionBundleForSubmission = vi.fn(async () => {
+      callOrder.push("refresh");
+      return null;
+    });
+    const params = createParams({
+      generateOutput,
+      insertOptimisticGenerationPlaceholder,
+      refreshCharacterModeInjectionBundleForSubmission,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt");
+    });
+
+    expect(callOrder).toEqual(["placeholder", "refresh", "submit"]);
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledWith({
+      prompt: "prompt",
+      modeOverride: "image",
+      selectedToolOverride: "create",
+    });
+    expect(generateOutput).toHaveBeenCalledWith(
+      "prompt",
+      expect.objectContaining({ outputIdOverride: "out-optimistic" })
+    );
+  });
+
+  it("cleans up optimistic placeholder when pre-submit character prep fails", async () => {
+    const setUiError = vi.fn();
+    const setOptimisticDebitEntries = vi.fn();
+    const generateOutput = vi.fn();
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-optimistic");
+    const removeOptimisticGenerationPlaceholder = vi.fn();
+    const refreshCharacterModeInjectionBundleForSubmission = vi.fn(async () => {
+      throw new Error("Character context unavailable");
+    });
+    const params = createParams({
+      setUiError: asDispatch<string | null>(setUiError),
+      setOptimisticDebitEntries:
+        asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
+      generateOutput,
+      insertOptimisticGenerationPlaceholder,
+      removeOptimisticGenerationPlaceholder,
+      refreshCharacterModeInjectionBundleForSubmission,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt");
+    });
+
+    expect(removeOptimisticGenerationPlaceholder).toHaveBeenCalledWith("out-optimistic");
+    expect(setUiError).toHaveBeenCalledWith("Character context unavailable");
+    expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
+    expect(generateOutput).not.toHaveBeenCalled();
+  });
+
   it("fails generate when override cost cannot be covered after refresh", async () => {
     const setUiError = vi.fn();
     const refreshBalance = vi.fn(async () => 1);

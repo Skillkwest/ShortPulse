@@ -22,7 +22,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 | Model | Defaults | Notes |
 | --- | --- | --- |
 | fal/flux-2 / -pro | Aspect: 4:3 (allowed: 1:1, 4:3, 3:4, 16:9, 9:16) | Uses Fal size map for per-MP pricing. |
-| fal-ai/flux-2/klein/9b | Aspect: 4:3 (allowed: 1:1, 4:3, 3:4, 16:9, 9:16) | FLUX.2 Lite per‑MP pricing. |
+| fal-ai/flux-2/klein/9b | Aspect: 4:3 (allowed: 1:1, 4:3, 3:4, 16:9, 9:16) | FLUX.2 Lite fixed pricing: always 1 credit (explicit exception to 5-credit rounding). |
 | fal/flux-2/edit | Aspect: 4:3 default (allowed: 1:1, 4:3, 3:4, 16:9, 9:16) | Fal image-to-image/edit queue; requires references; per-MP pricing (same as FLUX.2); safety checker off by default. |
 | fal-ai/nano-banana | Aspect: 1:1 default (allowed: 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Fal text-to-image queue; flat per-image pricing ($0.039 -> 5 credits after 5-credit rounding). |
 | fal-ai/nano-banana/edit | Aspect: auto default (allowed: auto, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Fal image-to-image/edit queue; requires reference `image_urls`; flat per-image pricing (5 credits). |

@@ -362,7 +362,7 @@ describe("TextPropertiesPanel", () => {
     expect(onAspectChange).toHaveBeenCalledWith("1:1");
 
     fireEvent.click(screen.getByRole("button", { name: "Image resolution" }));
-    fireEvent.click(screen.getByRole("option", { name: "auto_2K" }));
+    fireEvent.click(screen.getByRole("option", { name: "2K" }));
     expect(onImageResolutionChange).toHaveBeenCalledWith("auto_2K");
   });
 

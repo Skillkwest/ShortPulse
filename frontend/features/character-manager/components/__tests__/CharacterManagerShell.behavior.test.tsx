@@ -4,7 +4,7 @@
  */
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CharacterManagerShell } from "../CharacterManagerShell";
 import {
   createDefaultCharacterSheetPresetState,
@@ -53,6 +53,16 @@ type MockCharacterSlotFile = {
 };
 
 type MockCharacterSlotFileMap = Record<MockCharacterReferenceSlotKey, MockCharacterSlotFile | null>;
+
+type MockSupabaseMediaLookupResponse = {
+  data: { storage_path: string } | null;
+  error: { message: string } | null;
+};
+
+type MockSupabaseStorageDownloadResponse = {
+  data: Blob | null;
+  error: { message: string } | null;
+};
 
 const MOCK_SLOT_KEYS: MockCharacterReferenceSlotKey[] = [
   "front_full",
@@ -111,6 +121,13 @@ const createDataTransfer = (files: File[] = []) => {
   const dataStore = new Map<string, string>();
   return {
     files,
+    get types() {
+      const keys = Array.from(dataStore.keys());
+      if (files.length > 0 && !keys.includes("Files")) {
+        keys.unshift("Files");
+      }
+      return keys;
+    },
     effectAllowed: "all",
     dropEffect: "move",
     setDragImage: () => undefined,
@@ -120,6 +137,18 @@ const createDataTransfer = (files: File[] = []) => {
     getData: (type: string) => dataStore.get(type) ?? "",
   };
 };
+
+const supabaseClientMockState = vi.hoisted(() => ({
+  mediaLookupMaybeSingle: vi.fn(
+    async (): Promise<MockSupabaseMediaLookupResponse> => ({ data: null, error: null })
+  ),
+  storageDownload: vi.fn(
+    async (): Promise<MockSupabaseStorageDownloadResponse> => ({
+      data: null,
+      error: { message: "not found" },
+    })
+  ),
+}));
 
 const getReferenceCard = (index: number): HTMLElement => {
   const removeButtons = screen.getAllByRole("button", { name: /Remove reference/i });
@@ -186,6 +215,18 @@ vi.mock("../../../../lib/supabaseClient", () => ({
     auth: {
       getUser: async () => ({ data: { user: null } }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: supabaseClientMockState.mediaLookupMaybeSingle,
+        }),
+      }),
+    }),
+    storage: {
+      from: () => ({
+        download: supabaseClientMockState.storageDownload,
+      }),
     },
   }),
 }));
@@ -322,6 +363,16 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
 });
 
 describe("CharacterManagerShell behavior", () => {
+  beforeEach(() => {
+    supabaseClientMockState.mediaLookupMaybeSingle.mockReset();
+    supabaseClientMockState.mediaLookupMaybeSingle.mockResolvedValue({ data: null, error: null });
+    supabaseClientMockState.storageDownload.mockReset();
+    supabaseClientMockState.storageDownload.mockResolvedValue({
+      data: null,
+      error: { message: "not found" },
+    });
+  });
+
   it("replaces an assigned Character Sheet zone when a new reference is dropped", async () => {
     render(<CharacterManagerShell />);
 
@@ -542,7 +593,7 @@ describe("CharacterManagerShell behavior", () => {
       expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(10);
     });
 
-    fireEvent.click(getCharacterSheetZone("Full-body Back Shot"));
+    fireEvent.click(getCharacterSheetZone("Action or Expression"));
 
     const characterSheetUploadInput = screen.getByTestId(
       "character-sheet-upload-input"
@@ -552,10 +603,171 @@ describe("CharacterManagerShell behavior", () => {
     });
 
     await waitFor(() => {
-      expect(getZoneImageSrc("Full-body Back Shot")).toBe(
+      expect(getZoneImageSrc("Action or Expression")).toBe(
         "https://example.com/preset-1-back_shot-1.png"
       );
       expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(10);
+    });
+  });
+
+  it("accepts a dragged reference-grid image into a Character Sheet zone", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["portrait"], { type: "image/png" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      render(<CharacterManagerShell />);
+
+      const portraitZone = getCharacterSheetZone("Portrait");
+      const externalDrag = createDataTransfer();
+      externalDrag.setData("text/reference-url", "https://example.com/reference-grid-image.png");
+
+      fireEvent.dragOver(portraitZone, { dataTransfer: externalDrag });
+      fireEvent.drop(portraitZone, { dataTransfer: externalDrag });
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith("https://example.com/reference-grid-image.png");
+        expect(getZoneImageSrc("Portrait")).toBe("https://example.com/preset-1-portrait-1.png");
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("accepts a dragged reference-grid image into the QuickSwap deck", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["top-down"], { type: "image/png" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      render(<CharacterManagerShell />);
+
+      const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
+      if (!quickSwapSection) {
+        throw new Error("Unable to resolve QuickSwap deck section.");
+      }
+      const externalDrag = createDataTransfer();
+      externalDrag.setData(
+        "text/reference-url",
+        "https://example.com/reference-grid-quickswap.png"
+      );
+
+      fireEvent.dragEnter(quickSwapSection, { dataTransfer: externalDrag });
+      fireEvent.dragOver(quickSwapSection, { dataTransfer: externalDrag });
+      fireEvent.drop(quickSwapSection, { dataTransfer: externalDrag });
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith("https://example.com/reference-grid-quickswap.png");
+        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("falls back to media storage download when dropped reference URL fetch fails", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    supabaseClientMockState.mediaLookupMaybeSingle.mockResolvedValueOnce({
+      data: {
+        storage_path: "private/user-1/references/reference-grid-quickswap.png",
+      },
+      error: null,
+    });
+    supabaseClientMockState.storageDownload.mockResolvedValueOnce({
+      data: new Blob(["fallback-image"], { type: "image/png" }),
+      error: null,
+    });
+
+    try {
+      render(<CharacterManagerShell />);
+
+      const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
+      if (!quickSwapSection) {
+        throw new Error("Unable to resolve QuickSwap deck section.");
+      }
+      const externalDrag = createDataTransfer();
+      externalDrag.setData("text/reference-url", "https://example.com/expired-signed-url.png");
+      externalDrag.setData("text/reference-media-id", "media-file-id-1");
+
+      fireEvent.dragEnter(quickSwapSection, { dataTransfer: externalDrag });
+      fireEvent.dragOver(quickSwapSection, { dataTransfer: externalDrag });
+      fireEvent.drop(quickSwapSection, { dataTransfer: externalDrag });
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith("https://example.com/expired-signed-url.png");
+        expect(supabaseClientMockState.mediaLookupMaybeSingle).toHaveBeenCalled();
+        expect(supabaseClientMockState.storageDownload).toHaveBeenCalledWith(
+          "private/user-1/references/reference-grid-quickswap.png"
+        );
+        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("collapses and expands the QuickSwap deck content", async () => {
+    render(<CharacterManagerShell />);
+    const quickSwapHelperCopy =
+      "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly.";
+
+    expect(
+      screen.getByRole("button", {
+        name: /Collapse QuickSwap Deck/i,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText(quickSwapHelperCopy)).toBeInTheDocument();
+    expect(
+      screen.getByRole("list", {
+        name: /Uploaded references/i,
+      })
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Collapse QuickSwap Deck/i,
+      })
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: /Expand QuickSwap Deck/i,
+        })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("list", {
+          name: /Uploaded references/i,
+        })
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText(quickSwapHelperCopy)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Expand QuickSwap Deck/i,
+      })
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: /Collapse QuickSwap Deck/i,
+        })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("list", {
+          name: /Uploaded references/i,
+        })
+      ).toBeInTheDocument();
+      expect(screen.getByText(quickSwapHelperCopy)).toBeInTheDocument();
     });
   });
 
@@ -593,11 +805,13 @@ describe("CharacterManagerShell behavior", () => {
       screen.getByText("Set the photo, name, and description that define this character.")
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Drag and drop reference images here or click an empty slot to upload.")
+      screen.getByText(
+        "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly."
+      )
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Drag uploaded references into each slot to map your character's look and style."
+        "Drag or upload references into each slot. These images are used to train your character generations."
       )
     ).toBeInTheDocument();
     expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
@@ -618,11 +832,13 @@ describe("CharacterManagerShell behavior", () => {
         screen.queryByText("Set the photo, name, and description that define this character.")
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByText("Drag and drop reference images here or click an empty slot to upload.")
+        screen.queryByText(
+          "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly."
+        )
       ).not.toBeInTheDocument();
       expect(
         screen.queryByText(
-          "Drag uploaded references into each slot to map your character's look and style."
+          "Drag or upload references into each slot. These images are used to train your character generations."
         )
       ).not.toBeInTheDocument();
       expect(document.querySelector(".character-mode-guidance")).not.toBeInTheDocument();
@@ -641,11 +857,13 @@ describe("CharacterManagerShell behavior", () => {
         screen.getByText("Set the photo, name, and description that define this character.")
       ).toBeInTheDocument();
       expect(
-        screen.getByText("Drag and drop reference images here or click an empty slot to upload.")
+        screen.getByText(
+          "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly."
+        )
       ).toBeInTheDocument();
       expect(
         screen.getByText(
-          "Drag uploaded references into each slot to map your character's look and style."
+          "Drag or upload references into each slot. These images are used to train your character generations."
         )
       ).toBeInTheDocument();
       expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();

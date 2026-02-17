@@ -5,7 +5,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { modelOptions } from "../constants";
 import { randomId } from "../logic/ids";
-import { StudioMode, StudioOutput } from "../types";
+import { StudioMode, StudioOutput, ToolId } from "../types";
 import { DEFAULT_KLING_DURATION_SECONDS, getModelConfig } from "../logic/pricing";
 import type { AgentContext, AgentMediaPreview, AgentReferenceSummary } from "../../ai-agent/types";
 import {
@@ -23,6 +23,7 @@ import { useAiStudioWorkflowSettings } from "./useAiStudioWorkflowSettings";
 import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
+const CHARACTER_MODE_PENDING_MODEL_LABEL = "Pulse Character Model";
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
  */
@@ -375,6 +376,57 @@ export const useAiStudioState = ({
     submitTask,
     setUiError,
   });
+  const insertOptimisticGenerationPlaceholder = useCallback(
+    ({
+      prompt: promptText,
+      modeOverride,
+      selectedToolOverride,
+    }: {
+      prompt: string;
+      modeOverride?: StudioMode;
+      selectedToolOverride?: ToolId | null;
+    }) => {
+      const cleanedPrompt = promptText.trim();
+      if (!cleanedPrompt) return null;
+      const effectiveMode = modeOverride ?? mode;
+      const effectiveTool = selectedToolOverride ?? selectedTool;
+      const outputMode: StudioMode =
+        effectiveTool === "video" || effectiveTool === "kling"
+          ? "video"
+          : effectiveTool === "image" || effectiveTool === "edit"
+            ? "image"
+            : effectiveMode;
+      const isCharacterModeCreateRun =
+        isCharacterModeEnabled && (effectiveTool === "create" || effectiveTool === "text");
+      const id = `out-${randomId()}`;
+      const nextOutput: StudioOutput = {
+        id,
+        prompt: cleanedPrompt,
+        mode: outputMode,
+        aspect,
+        model: isCharacterModeCreateRun
+          ? CHARACTER_MODE_PENDING_MODEL_LABEL
+          : resolveModelLabel(model ?? undefined),
+        modelId: model ?? undefined,
+        status: "ready",
+        taskState: "pending",
+        timestamp: "Submitting...",
+        errorMessage: null,
+        errorMessageShort: null,
+        errorDetail: null,
+        saveState: "idle",
+        saveError: null,
+      };
+      setOutputs((prev) => [nextOutput, ...prev]);
+      setSaved(false);
+      return id;
+    },
+    [aspect, isCharacterModeEnabled, mode, model, selectedTool]
+  );
+  const removeOptimisticGenerationPlaceholder = useCallback((outputId: string) => {
+    if (!outputId) return;
+    setOutputs((prev) => prev.filter((item) => item.id !== outputId));
+  }, []);
 
   const addAgentPromptReference = useCallback(
     (promptText: string, title?: string | null) => {
@@ -685,6 +737,8 @@ export const useAiStudioState = ({
     modelModalPosition,
     generateOutput,
     regenerateOutput,
+    insertOptimisticGenerationPlaceholder,
+    removeOptimisticGenerationPlaceholder,
     saveActiveOutput,
     saveReferenceToLibrary,
     savePromptReference,

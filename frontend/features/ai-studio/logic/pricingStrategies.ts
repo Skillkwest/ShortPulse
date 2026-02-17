@@ -15,7 +15,6 @@ const roundCreditsToNearest5 = (credits: number): number => {
 
 const FAL_COST_PER_MP_USD = 0.025;
 const FLUX2_COST_PER_MP_USD = 0.012;
-const FLUX2_KLEIN_COST_PER_MP_USD = 0.006;
 const FLUX2_PRO_FIRST_MP_USD = 0.03;
 const FLUX2_PRO_ADDITIONAL_MP_USD = 0.015;
 const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
@@ -71,6 +70,30 @@ const toCostBreakdown = ({
     usd: quantized.billedUsd,
     rawCredits: quantized.rawCredits,
     usdRaw,
+    megapixels,
+    width,
+    height,
+  };
+};
+
+const toFixedCreditBreakdown = ({
+  credits,
+  megapixels,
+  width,
+  height,
+}: {
+  credits: number;
+  megapixels: number;
+  width: number;
+  height: number;
+}): CostBreakdown => {
+  const normalizedCredits = Math.max(1, Math.trunc(credits));
+  const billedUsd = normalizedCredits * CREDIT_VALUE_USD;
+  return {
+    credits: normalizedCredits,
+    usd: billedUsd,
+    rawCredits: normalizedCredits,
+    usdRaw: billedUsd,
     megapixels,
     width,
     height,
@@ -146,9 +169,8 @@ const computeFlux2KleinPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, i
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const usdRaw = megapixels * FLUX2_KLEIN_COST_PER_MP_USD;
-  return toCostBreakdown({
-    usdRaw,
+  return toFixedCreditBreakdown({
+    credits: 1,
     megapixels,
     width: size.width,
     height: size.height,

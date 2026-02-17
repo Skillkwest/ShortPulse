@@ -65,6 +65,10 @@ export function DetailModal({
     outputId: string;
     value: boolean;
   } | null>(null);
+  const [previewCandidateByOutput, setPreviewCandidateByOutput] = useState<{
+    outputId: string;
+    index: number;
+  } | null>(null);
 
   const parseAspectRatio = useCallback((value?: string | null): number | null => {
     if (!value || !value.includes(":")) return null;
@@ -77,10 +81,27 @@ export function DetailModal({
     return width / height;
   }, []);
 
-  const isVideoOutput = Boolean(output?.previewUrl && looksLikeVideoUrl(output.previewUrl));
-  const isImageOutput = Boolean(output?.previewUrl) && !isVideoOutput;
-  const mediaType = output?.previewUrl ? (isVideoOutput ? "Video" : "Image") : "Prompt";
-  const isPromptOnly = output?.mode === "text" && !output.previewUrl;
+  const outputId = output?.id ?? null;
+  const previewCandidates = useMemo(() => {
+    const uniqueUrls = new Set<string>();
+    const maybeUrls = [output?.previewUrl, ...(output?.resultUrls ?? [])];
+    maybeUrls.forEach((url) => {
+      const trimmed = url?.trim();
+      if (!trimmed) return;
+      uniqueUrls.add(trimmed);
+    });
+    return Array.from(uniqueUrls);
+  }, [output?.previewUrl, output?.resultUrls]);
+  const activePreviewCandidateIndex =
+    previewCandidateByOutput && outputId && previewCandidateByOutput.outputId === outputId
+      ? Math.min(previewCandidateByOutput.index, Math.max(0, previewCandidates.length - 1))
+      : 0;
+  const displayPreviewUrl =
+    previewCandidates.length > 0 ? (previewCandidates[activePreviewCandidateIndex] ?? null) : null;
+  const isVideoOutput = Boolean(displayPreviewUrl && looksLikeVideoUrl(displayPreviewUrl));
+  const isImageOutput = Boolean(displayPreviewUrl) && !isVideoOutput;
+  const mediaType = displayPreviewUrl ? (isVideoOutput ? "Video" : "Image") : "Prompt";
+  const isPromptOnly = output?.mode === "text" && !displayPreviewUrl;
   const characterContext = output?.characterContext;
   const hasCharacterContext = Boolean(characterContext?.applied);
   const characterName =
@@ -95,16 +116,15 @@ export function DetailModal({
     return `${parts[0]?.[0] ?? ""}${parts[parts.length - 1]?.[0] ?? ""}`.toUpperCase();
   }, [characterName]);
   const isUploadedReference = useMemo(() => {
-    if (!output?.previewUrl) return false;
+    if (!displayPreviewUrl) return false;
     if (output?.id?.startsWith("upload-")) return true;
     if (output?.timestamp === "Dropped") return true;
     return false;
-  }, [output?.id, output?.previewUrl, output?.timestamp]);
+  }, [displayPreviewUrl, output?.id, output?.timestamp]);
   const aspectStyle =
     output?.aspect && output.aspect.includes(":")
       ? { aspectRatio: output.aspect.replace(":", " / ") }
       : undefined;
-  const outputId = output?.id ?? null;
   const imageNaturalSize =
     loadedImageNaturalSize && outputId && loadedImageNaturalSize.outputId === outputId
       ? loadedImageNaturalSize
@@ -149,6 +169,14 @@ export function DetailModal({
     } as React.CSSProperties;
   }, [isPromptOnly, previewAspectRatio]);
   const isImageZoomed = imageZoomScale > 1.001;
+
+  const tryAdvancePreviewCandidate = useCallback(() => {
+    if (!outputId) return false;
+    const nextIndex = activePreviewCandidateIndex + 1;
+    if (nextIndex >= previewCandidates.length) return false;
+    setPreviewCandidateByOutput({ outputId, index: nextIndex });
+    return true;
+  }, [activePreviewCandidateIndex, outputId, previewCandidates.length]);
 
   const clampImagePan = useCallback(
     (nextX: number, nextY: number, scale: number) => {
@@ -268,6 +296,12 @@ export function DetailModal({
     setPromptOnlySavedOutputId(null);
     setPromptLibrarySavedOutputId(null);
     setDeleteConfirmOutputId(null);
+    setImageZoomScaleByOutput(null);
+    setImagePanByOutput(null);
+    setImagePanningByOutput(null);
+    setLoadedImageNaturalSize(null);
+    setPreviewCandidateByOutput(null);
+    imagePanDragRef.current = null;
     onClose();
   }, [clearPromptLibrarySavedTimer, clearPromptOnlyCloseTimer, onClose]);
 
@@ -283,9 +317,9 @@ export function DetailModal({
   };
 
   const filenameFromUrl = (() => {
-    if (!output?.previewUrl) return null;
+    if (!displayPreviewUrl) return null;
     try {
-      const parsed = new URL(output.previewUrl);
+      const parsed = new URL(displayPreviewUrl);
       if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
       const trailing = decodeURIComponent(
         parsed.pathname.split("/").filter(Boolean).pop() ?? ""
@@ -373,9 +407,9 @@ export function DetailModal({
       onDownloadReference(output.id);
       return;
     }
-    if (!output?.previewUrl || typeof window === "undefined") return;
+    if (!displayPreviewUrl || typeof window === "undefined") return;
     const link = document.createElement("a");
-    link.href = output.previewUrl;
+    link.href = displayPreviewUrl;
     link.target = "_blank";
     link.rel = "noreferrer";
     link.download = downloadFilename;
@@ -395,6 +429,14 @@ export function DetailModal({
     (event: React.SyntheticEvent<HTMLImageElement>) => {
       if (!outputId) return;
       const { naturalWidth, naturalHeight } = event.currentTarget;
+      if (
+        outputAspectRatio &&
+        previewCandidates.length > 1 &&
+        Math.abs(naturalWidth / naturalHeight - outputAspectRatio) > 0.1 &&
+        tryAdvancePreviewCandidate()
+      ) {
+        return;
+      }
       handlePreviewAspectLoad(naturalWidth, naturalHeight);
       setLoadedImageNaturalSize({
         outputId,
@@ -409,9 +451,12 @@ export function DetailModal({
     [
       handlePreviewAspectLoad,
       outputId,
+      outputAspectRatio,
+      previewCandidates.length,
       setImagePanForOutput,
       setImageZoomScaleForOutput,
       setIsImagePanningForOutput,
+      tryAdvancePreviewCandidate,
     ]
   );
 
@@ -466,14 +511,9 @@ export function DetailModal({
   const handleImageDoubleClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (!isImageOutput) return;
+      if (imageZoomScale <= 1) return;
       const rect = event.currentTarget.getBoundingClientRect();
-      const targetScale = imageZoomScale > 1 ? 1 : 2;
-      applyZoomAtPoint(
-        event.currentTarget,
-        event.clientX - rect.left,
-        event.clientY - rect.top,
-        targetScale
-      );
+      applyZoomAtPoint(event.currentTarget, event.clientX - rect.left, event.clientY - rect.top, 1);
     },
     [applyZoomAtPoint, imageZoomScale, isImageOutput]
   );
@@ -560,10 +600,10 @@ export function DetailModal({
   return (
     <div className="reference-modal-backdrop" onClick={handleCloseModal}>
       {/* Background blurred reflect */}
-      {output.previewUrl && (
+      {displayPreviewUrl && (
         <div
           className="reference-modal-bg-reflect"
-          style={{ backgroundImage: `url(${output.previewUrl})` }}
+          style={{ backgroundImage: `url(${displayPreviewUrl})` }}
         />
       )}
 
@@ -597,7 +637,7 @@ export function DetailModal({
             </div>
 
             <div className="art-modal-action-row">
-              {output.previewUrl && (
+              {displayPreviewUrl && (
                 <button
                   type="button"
                   className="art-action-btn"
@@ -691,11 +731,11 @@ export function DetailModal({
                 onPointerUp={isImageOutput ? handleImagePointerUp : undefined}
                 onPointerCancel={isImageOutput ? handleImagePointerUp : undefined}
               >
-                {output.previewUrl ? (
+                {displayPreviewUrl ? (
                   isVideoOutput ? (
                     <video
                       className="art-hero-image"
-                      src={output.previewUrl}
+                      src={displayPreviewUrl}
                       controls
                       autoPlay
                       loop
@@ -715,12 +755,15 @@ export function DetailModal({
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         className="art-hero-image"
-                        src={output.previewUrl}
+                        src={displayPreviewUrl}
                         alt={output.prompt}
                         style={imageStyle}
                         draggable={false}
                         onDragStart={(event) => event.preventDefault()}
                         onLoad={handleImageLoad}
+                        onError={() => {
+                          void tryAdvancePreviewCandidate();
+                        }}
                       />
                     </>
                   )

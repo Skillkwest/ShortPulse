@@ -292,6 +292,7 @@ export const prepareReferenceDrag = (
   transfer.effectAllowed = "copy";
   const promptText = dedupeText(output.prompt ?? output.previewText);
   const previewUrl = output.previewUrl?.trim();
+  const referenceMediaId = output.savedMediaIds?.[0]?.trim();
   if (previewUrl) {
     transfer.setData("text/uri-list", previewUrl);
     transfer.setData("text/reference-url", previewUrl);
@@ -301,6 +302,9 @@ export const prepareReferenceDrag = (
   }
   if (output.id) {
     transfer.setData("text/reference-id", output.id);
+  }
+  if (referenceMediaId) {
+    transfer.setData("text/reference-media-id", referenceMediaId);
   }
   if (promptText) {
     transfer.setData("text/plain", promptText);

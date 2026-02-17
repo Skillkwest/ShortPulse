@@ -33,6 +33,7 @@ import type { StudioOutput, ToolId } from "../types";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
+import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
@@ -399,6 +400,47 @@ export function AiStudioPageContent({
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const rightColumnDragDepthRef = React.useRef(0);
   const [rightColumnDropMode, setRightColumnDropMode] = React.useState<RightColumnDropMode>("none");
+
+  useVisibleErrorTelemetry({
+    source: "client.ai_studio.ui_error_banner",
+    scope: "app",
+    severity: "medium",
+    message: uiError,
+    metadata: {
+      selected_tool: selectedTool,
+    },
+  });
+
+  useVisibleErrorTelemetry({
+    source: "client.ai_studio.character_error_banner",
+    scope: "app",
+    severity: "medium",
+    message: characterError,
+    metadata: {
+      selected_tool: selectedTool,
+    },
+  });
+
+  const visibleFailureIds = React.useMemo(
+    () => visibleFailures.map((item) => item.id).slice(0, 20),
+    [visibleFailures]
+  );
+
+  useVisibleErrorTelemetry({
+    source: "client.ai_studio.failure_stack",
+    scope: "generation",
+    severity: "medium",
+    message:
+      visibleFailures.length > 0
+        ? `${visibleFailures.length} generation failure card(s) visible in UI.`
+        : null,
+    metadata: {
+      selected_tool: selectedTool,
+      failure_count: visibleFailures.length,
+      failure_ids: visibleFailureIds,
+    },
+  });
+
   const clearRightColumnDropState = React.useCallback(() => {
     rightColumnDragDepthRef.current = 0;
     setRightColumnDropMode("none");

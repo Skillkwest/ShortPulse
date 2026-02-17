@@ -185,7 +185,7 @@ export default function AdminDashboardPage() {
   const [errorSourceFilter, setErrorSourceFilter] = useState<string>("all");
   const [errorEventSyntheticFilter, setErrorEventSyntheticFilter] = useState<
     "all" | "exclude" | "only"
-  >("all");
+  >("exclude");
   const [errorEventSignalFilter, setErrorEventSignalFilter] =
     useState<AdminErrorEventSignalFilter>("all");
   const [errorEventIncidentFilter, setErrorEventIncidentFilter] =
@@ -737,6 +737,33 @@ export default function AdminDashboardPage() {
     [loadErrorEvents, loadErrors]
   );
 
+  const handleUpdateErrorEventStatus = useCallback(
+    async (eventId: string, status: AdminErrorStatus) => {
+      setErrorStatusUpdatingId(eventId);
+      setErrorsError(null);
+      setErrorEventsError(null);
+      try {
+        const response = await fetchWithAuth("/api/admin/errors-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ eventId, status }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to update event status.");
+        }
+        await Promise.all([loadErrors(), loadErrorEvents()]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to update event status.";
+        setErrorsError(message);
+        setErrorEventsError(message);
+      } finally {
+        setErrorStatusUpdatingId((current) => (current === eventId ? null : current));
+      }
+    },
+    [loadErrorEvents, loadErrors]
+  );
+
   const refreshErrorData = useCallback(async () => {
     await Promise.all([loadErrors(), loadErrorEvents()]);
   }, [loadErrorEvents, loadErrors]);
@@ -802,7 +829,7 @@ export default function AdminDashboardPage() {
         setErrorScopeFilter("all");
         setErrorSeverityFilter("all");
         setErrorSourceFilter("all");
-        setErrorEventSyntheticFilter("all");
+        setErrorEventSyntheticFilter("exclude");
         setErrorEventSignalFilter("all");
         setErrorEventIncidentFilter("actionable");
         setErrorSearch("");
@@ -823,7 +850,7 @@ export default function AdminDashboardPage() {
             scope: "all",
             severity: "all",
             source: "all",
-            synthetic: "all",
+            synthetic: "exclude",
             signal: "all",
             search: "",
           }),
@@ -1298,6 +1325,7 @@ export default function AdminDashboardPage() {
               setErrorEventsPage(1);
             }}
             onUpdateErrorStatus={handleUpdateErrorStatus}
+            onUpdateErrorEventStatus={handleUpdateErrorEventStatus}
             onTriggerTestIncident={handleTriggerTestIncident}
             onPrevPage={() => setErrorsPage((value) => Math.max(1, value - 1))}
             onNextPage={() => setErrorsPage((value) => value + 1)}

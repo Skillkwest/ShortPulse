@@ -653,4 +653,155 @@ describe("useAiStudioTaskSubmission", () => {
       })
     );
   });
+
+  it("reuses optimistic placeholder output ids instead of creating duplicate cards", async () => {
+    let outputs: StudioOutput[] = [
+      {
+        id: "out-optimistic",
+        prompt: "Pending prompt",
+        mode: "image",
+        aspect: "9:16",
+        model: "Model pending selection",
+        status: "ready",
+        taskState: "pending",
+        timestamp: "Submitting...",
+      },
+    ];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/edit",
+        prompt: "",
+        selectedTool: "edit",
+        imageResolution: "auto_4K",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Updated prompt", ["https://cdn.test/ref.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+        displayPromptOverride: "Updated prompt",
+        outputIdOverride: "out-optimistic",
+      });
+    });
+
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]?.id).toBe("out-optimistic");
+    expect(outputs[0]?.prompt).toBe("Updated prompt");
+    expect(outputs[0]?.taskState).toBe("pending");
+  });
+
+  it("removes optimistic placeholder cards when submission is blocked before start", async () => {
+    let outputs: StudioOutput[] = [
+      {
+        id: "out-optimistic",
+        prompt: "Pending prompt",
+        mode: "image",
+        aspect: "9:16",
+        model: "Model pending selection",
+        status: "ready",
+        taskState: "pending",
+        timestamp: "Submitting...",
+      },
+    ];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: null,
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "auto_4K",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Prompt text", [], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+        outputIdOverride: "out-optimistic",
+      });
+    });
+
+    expect(setUiError).toHaveBeenCalledWith("Pick a model to generate.");
+    expect(outputs).toHaveLength(0);
+  });
 });

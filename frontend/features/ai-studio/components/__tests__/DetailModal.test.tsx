@@ -2,7 +2,7 @@
  * DetailModal behavior tests.
  * Verifies character attribution rendering for character-mode generated outputs.
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DetailModal } from "../DetailModal";
 import type { StudioOutput } from "../../types";
@@ -74,5 +74,54 @@ describe("DetailModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save Prompt" }));
     expect(onSavePrompt).toHaveBeenCalledWith("Updated prompt for library");
     expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
+  });
+
+  it("keeps image previews fit-to-screen on open and does not zoom in on double-click", () => {
+    const { container } = render(
+      <DetailModal
+        output={baseOutput}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const vessel = container.querySelector(".art-image-vessel");
+    expect(vessel).not.toBeNull();
+    if (!vessel) return;
+
+    expect(vessel.classList.contains("is-zoomed")).toBe(false);
+    fireEvent.doubleClick(vessel);
+    expect(vessel.classList.contains("is-zoomed")).toBe(false);
+  });
+
+  it("falls back to an alternative result URL when the first image does not match the output aspect", async () => {
+    const { container } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          aspect: "5:4",
+          previewUrl: "https://cdn.test/wrong-portrait.png",
+          resultUrls: ["https://cdn.test/wrong-portrait.png", "https://cdn.test/correct-5x4.png"],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const firstImage = container.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(firstImage).not.toBeNull();
+    if (!firstImage) return;
+
+    Object.defineProperty(firstImage, "naturalWidth", { configurable: true, value: 800 });
+    Object.defineProperty(firstImage, "naturalHeight", { configurable: true, value: 1000 });
+    fireEvent.load(firstImage);
+
+    await waitFor(() => {
+      const nextImage = container.querySelector(".art-hero-image") as HTMLImageElement | null;
+      expect(nextImage).not.toBeNull();
+      expect(nextImage?.getAttribute("src")).toBe("https://cdn.test/correct-5x4.png");
+    });
   });
 });

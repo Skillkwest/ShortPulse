@@ -1,6 +1,8 @@
 import { computeCostForModel } from "../pricing";
 import { listModelConfigs } from "../modelRegistry";
 
+const NON_FIVE_CREDIT_ROUNDING_MODELS = new Set(["fal-ai/flux-2/klein/9b"]);
+
 describe("model pricing coverage", () => {
   it("returns a cost for every registered model with a pricing strategy", () => {
     const configs = listModelConfigs();
@@ -23,7 +25,7 @@ describe("model pricing coverage", () => {
     }
   });
 
-  it("applies the 5-credit rounding contract for every registered model default", () => {
+  it("applies model default rounding contracts (with explicit model exceptions)", () => {
     const configs = listModelConfigs().filter((config) => Boolean(config.pricingStrategy));
 
     configs.forEach((config) => {
@@ -36,7 +38,11 @@ describe("model pricing coverage", () => {
 
       expect(estimate).not.toBeNull();
       expect(estimate?.credits).toBeGreaterThan(0);
-      expect((estimate?.credits ?? 0) % 5).toBe(0);
+      if (NON_FIVE_CREDIT_ROUNDING_MODELS.has(config.id)) {
+        expect(estimate?.credits).toBe(1);
+      } else {
+        expect((estimate?.credits ?? 0) % 5).toBe(0);
+      }
       expect(estimate?.rawCredits).toBeLessThanOrEqual(estimate?.credits ?? 0);
       expect(estimate?.usd).toBeCloseTo((estimate?.credits ?? 0) * 0.01, 6);
       expect(estimate?.usdRaw).toBeLessThanOrEqual((estimate?.usd ?? 0) + Number.EPSILON);

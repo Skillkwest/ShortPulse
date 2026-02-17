@@ -5,6 +5,7 @@
 import React, { useState } from "react";
 import { StudioOutput } from "../types";
 import { looksLikeVideoUrl } from "../utils/dragDrop";
+import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 
 type MediaPreviewModalProps = {
   isOpen: boolean;
@@ -61,6 +62,20 @@ function MediaPreviewModalContent({
 
   const isVideo = output.mode === "video" || looksLikeVideoUrl(output.previewUrl);
   const hasMedia = Boolean(output.previewUrl);
+  const previewErrorMessage = imageError ? "Failed to load media preview." : null;
+
+  useVisibleErrorTelemetry({
+    source: "client.ai_studio.media_preview_error",
+    scope: "app",
+    severity: "low",
+    message: previewErrorMessage,
+    metadata: {
+      output_id: output.id,
+      output_mode: output.mode,
+      has_media: hasMedia,
+      is_video: isVideo,
+    },
+  });
 
   const handlePromptBlur = () => {
     if (editedPrompt !== output.prompt) {

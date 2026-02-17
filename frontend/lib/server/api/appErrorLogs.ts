@@ -223,7 +223,51 @@ const shouldSkipLog = (params: {
   statusCode: number | null;
   endpoint: string | null;
   message: string;
+  stack: string | null;
+  metadata: JsonObject;
 }): boolean => {
+  const metadata = sanitizeMetadata(params.metadata);
+  const getMetadataText = (value: unknown): string[] => {
+    if (typeof value === "string") return [value.toLowerCase()];
+    if (Array.isArray(value)) {
+      return value
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => entry.toLowerCase());
+    }
+    return [];
+  };
+  const hostValues = getMetadataText(metadata.host);
+  const appEnvironmentValues = getMetadataText(metadata.app_environment);
+  const clientEnvironmentValues = getMetadataText(metadata.client_environment);
+  const isLocalHost = hostValues.some(
+    (host) => host.includes("localhost") || host.includes("127.0.0.1") || host.includes("0.0.0.0")
+  );
+  const isDevelopmentClientEnvironment =
+    appEnvironmentValues.includes("development") || clientEnvironmentValues.includes("development");
+
+  // Local development client telemetry is useful in browser/devtools, but it should not pollute
+  // operator-facing incident queues.
+  if (params.source.startsWith("client.") && isLocalHost && isDevelopmentClientEnvironment) {
+    return true;
+  }
+
+  const stackText = (params.stack ?? "").toLowerCase();
+  const messageText = params.message.toLowerCase();
+  const hasReactRefreshFrames =
+    stackText.includes("performreactrefresh") ||
+    stackText.includes("schedulerefresh") ||
+    stackText.includes("react-refresh");
+  const isReferenceNameError = /is not defined/.test(messageText);
+
+  if (
+    params.source.startsWith("client.") &&
+    isReferenceNameError &&
+    hasReactRefreshFrames &&
+    (isDevelopmentClientEnvironment || process.env.NODE_ENV === "development")
+  ) {
+    return true;
+  }
+
   if (params.endpoint?.includes("/api/log/client-error")) return true;
   if (params.statusCode !== null) {
     if (params.scope === "app" && params.statusCode < 400) return true;
@@ -422,7 +466,7 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
   const userEmail = toTrimmedString(input.userEmail, 320);
   const occurredAt = normalizeOccurredAt(input.occurredAt) ?? new Date().toISOString();
 
-  if (shouldSkipLog({ scope, source, statusCode, endpoint, message })) {
+  if (shouldSkipLog({ scope, source, statusCode, endpoint, message, stack, metadata })) {
     return { ok: true, skipped: true, id: null };
   }
 

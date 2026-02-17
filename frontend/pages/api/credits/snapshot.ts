@@ -132,7 +132,13 @@ const fetchReservationSnapshot = async (userId: string): Promise<ReservationSnap
   }
 
   if (!isSchemaCompatibilityError(error.message ?? "")) {
-    throw new Error(error.message ?? "Unable to read pending reservations.");
+    // Degrade gracefully when reservation reads fail unexpectedly so
+    // balance snapshots remain available instead of hard-failing.
+    return {
+      reservedCents: 0,
+      updatedAt: null,
+      reservationsSupported: false,
+    };
   }
 
   return {

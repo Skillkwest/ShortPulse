@@ -50,6 +50,7 @@ type ErrorIncidentsPanelProps = {
   onErrorEventIncidentFilterChange: (value: AdminErrorEventIncidentFilter) => void;
   onErrorSearchChange: (value: string) => void;
   onUpdateErrorStatus: (errorId: string, status: AdminErrorStatus) => Promise<void>;
+  onUpdateErrorEventStatus: (eventId: string, status: AdminErrorStatus) => Promise<void>;
   onTriggerTestIncident: (scope: "app" | "generation") => void;
   onPrevPage: () => void;
   onNextPage: () => void;
@@ -187,6 +188,7 @@ export function ErrorIncidentsPanel({
   onErrorEventIncidentFilterChange,
   onErrorSearchChange,
   onUpdateErrorStatus,
+  onUpdateErrorEventStatus,
   onTriggerTestIncident,
   onPrevPage,
   onNextPage,
@@ -197,7 +199,6 @@ export function ErrorIncidentsPanel({
   const [copiedIncidentId, setCopiedIncidentId] = useState<string | null>(null);
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [hiddenEventIds, setHiddenEventIds] = useState<string[]>([]);
   const [bulkResolveSubmitting, setBulkResolveSubmitting] = useState(false);
   const [bulkResolveResult, setBulkResolveResult] = useState<string | null>(null);
   const errorSourceOptions = useMemo(() => {
@@ -207,20 +208,14 @@ export function ErrorIncidentsPanel({
     ]);
     return ["all", ...Array.from(values).sort()];
   }, [errorEvents, errors]);
-  const hiddenEventIdSet = useMemo(() => new Set(hiddenEventIds), [hiddenEventIds]);
   const visibleEvents = useMemo(
-    () =>
-      errorEvents.filter(
-        (row) =>
-          eventMatchesIncidentFilter(row, errorEventIncidentFilter) && !hiddenEventIdSet.has(row.id)
-      ),
-    [errorEventIncidentFilter, errorEvents, hiddenEventIdSet]
+    () => errorEvents.filter((row) => eventMatchesIncidentFilter(row, errorEventIncidentFilter)),
+    [errorEventIncidentFilter, errorEvents]
   );
   const selectedEvent = useMemo(
     () => errorEvents.find((row) => row.id === selectedEventId) ?? null,
     [errorEvents, selectedEventId]
   );
-  const hiddenEventCount = hiddenEventIds.length;
   const selectedIncidentId = selectedEvent?.incidentId ?? null;
   const resolvableVisibleIncidentIds = useMemo(
     () =>
@@ -233,15 +228,12 @@ export function ErrorIncidentsPanel({
       ),
     [visibleEvents]
   );
-  const locallyResolvableVisibleEventIds = useMemo(
-    () =>
-      visibleEvents
-        .filter((row) => !(row.incidentId && row.incidentStatus === "open"))
-        .map((row) => row.id),
+  const resolvableVisibleUnlinkedEventIds = useMemo(
+    () => visibleEvents.filter((row) => row.incidentId === null).map((row) => row.id),
     [visibleEvents]
   );
   const resolveVisibleTargetCount =
-    resolvableVisibleIncidentIds.length + locallyResolvableVisibleEventIds.length;
+    resolvableVisibleIncidentIds.length + resolvableVisibleUnlinkedEventIds.length;
 
   const resultStart =
     errorPagination.totalCount === 0 ? 0 : (errorPagination.page - 1) * errorPagination.perPage + 1;
@@ -280,17 +272,6 @@ export function ErrorIncidentsPanel({
     }, 1200);
   }, []);
 
-  const hideEventLocally = useCallback((eventId: string) => {
-    setHiddenEventIds((current) => {
-      if (current.includes(eventId)) return current;
-      return [...current, eventId];
-    });
-  }, []);
-
-  const clearVisibleEvents = useCallback(() => {
-    setHiddenEventIds([]);
-  }, []);
-
   const handleEventStatusUpdate = useCallback(
     async (incidentId: string | null, status: AdminErrorStatus) => {
       if (!incidentId) return;
@@ -305,9 +286,24 @@ export function ErrorIncidentsPanel({
         await handleEventStatusUpdate(row.incidentId, "resolved");
         return;
       }
-      hideEventLocally(row.id);
+      if (row.incidentId === null) {
+        await onUpdateErrorEventStatus(row.id, "resolved");
+      }
     },
-    [handleEventStatusUpdate, hideEventLocally]
+    [handleEventStatusUpdate, onUpdateErrorEventStatus]
+  );
+
+  const handleIgnoreEventRow = useCallback(
+    async (row: AdminErrorEventRow) => {
+      if (row.incidentId && row.incidentStatus === "open") {
+        await handleEventStatusUpdate(row.incidentId, "ignored");
+        return;
+      }
+      if (row.incidentId === null) {
+        await onUpdateErrorEventStatus(row.id, "ignored");
+      }
+    },
+    [handleEventStatusUpdate, onUpdateErrorEventStatus]
   );
 
   const resolveVisibleEvents = useCallback(async () => {
@@ -319,20 +315,14 @@ export function ErrorIncidentsPanel({
       for (const incidentId of resolvableVisibleIncidentIds) {
         await handleEventStatusUpdate(incidentId, "resolved");
       }
-      if (locallyResolvableVisibleEventIds.length) {
-        setHiddenEventIds((current) => {
-          const next = new Set(current);
-          for (const eventId of locallyResolvableVisibleEventIds) {
-            next.add(eventId);
-          }
-          return Array.from(next);
-        });
+      for (const eventId of resolvableVisibleUnlinkedEventIds) {
+        await onUpdateErrorEventStatus(eventId, "resolved");
       }
 
       const linkedResolvedCount = resolvableVisibleIncidentIds.length;
-      const localResolvedCount = locallyResolvableVisibleEventIds.length;
+      const promotedResolvedCount = resolvableVisibleUnlinkedEventIds.length;
       setBulkResolveResult(
-        `Resolved ${linkedResolvedCount} linked incident${linkedResolvedCount === 1 ? "" : "s"} and cleared ${localResolvedCount} unlinked event${localResolvedCount === 1 ? "" : "s"} from the current view.`
+        `Resolved ${linkedResolvedCount} linked incident${linkedResolvedCount === 1 ? "" : "s"} and resolved ${promotedResolvedCount} unlinked event${promotedResolvedCount === 1 ? "" : "s"}.`
       );
     } finally {
       setBulkResolveSubmitting(false);
@@ -340,8 +330,9 @@ export function ErrorIncidentsPanel({
   }, [
     bulkResolveSubmitting,
     handleEventStatusUpdate,
-    locallyResolvableVisibleEventIds,
+    onUpdateErrorEventStatus,
     resolvableVisibleIncidentIds,
+    resolvableVisibleUnlinkedEventIds,
     resolveVisibleTargetCount,
   ]);
 
@@ -849,11 +840,6 @@ export function ErrorIncidentsPanel({
                 ? "Resolving…"
                 : `Resolve visible (${resolveVisibleTargetCount})`}
             </button>
-            {hiddenEventCount > 0 ? (
-              <button type="button" className="ghost-btn mini" onClick={clearVisibleEvents}>
-                {`Show hidden (${hiddenEventCount})`}
-              </button>
-            ) : null}
           </div>
         </div>
         {bulkResolveResult ? <p className="tiny subdued">{bulkResolveResult}</p> : null}
@@ -894,8 +880,7 @@ export function ErrorIncidentsPanel({
               <span className="subdued">—</span>
               <span className="subdued">—</span>
               <span className="subdued">
-                No loaded events matched the display filter. Try `Events: All incident states` or
-                `Show hidden`.
+                No loaded events matched the display filter. Try `Events: All incident states`.
               </span>
               <span className="subdued">—</span>
               <span className="subdued">—</span>
@@ -965,23 +950,66 @@ export function ErrorIncidentsPanel({
                   >
                     View
                   </button>
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={() => {
-                      void handleResolveEventRow(row);
-                    }}
-                    disabled={
-                      errorEventsLoading ||
-                      (row.incidentId != null && statusUpdatingErrorId === row.incidentId)
-                    }
-                  >
-                    {row.incidentId && row.incidentStatus === "open"
-                      ? statusUpdatingErrorId === row.incidentId
-                        ? "Updating…"
-                        : "Resolve"
-                      : "Resolve"}
-                  </button>
+                  {row.incidentId ? (
+                    row.incidentStatus === "open" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => {
+                            void handleResolveEventRow(row);
+                          }}
+                          disabled={errorEventsLoading || statusUpdatingErrorId === row.incidentId}
+                        >
+                          {statusUpdatingErrorId === row.incidentId ? "Updating…" : "Resolve"}
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => {
+                            void handleIgnoreEventRow(row);
+                          }}
+                          disabled={errorEventsLoading || statusUpdatingErrorId === row.incidentId}
+                        >
+                          Ignore
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() =>
+                          row.incidentId && onUpdateErrorStatus(row.incidentId, "open")
+                        }
+                        disabled={errorEventsLoading || statusUpdatingErrorId === row.incidentId}
+                      >
+                        {statusUpdatingErrorId === row.incidentId ? "Updating…" : "Reopen"}
+                      </button>
+                    )
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() => {
+                          void handleResolveEventRow(row);
+                        }}
+                        disabled={errorEventsLoading || statusUpdatingErrorId === row.id}
+                      >
+                        {statusUpdatingErrorId === row.id ? "Updating…" : "Resolve"}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() => {
+                          void handleIgnoreEventRow(row);
+                        }}
+                        disabled={errorEventsLoading || statusUpdatingErrorId === row.id}
+                      >
+                        Ignore
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))
@@ -1109,7 +1137,26 @@ export function ErrorIncidentsPanel({
                     </button>
                   )}
                 </>
-              ) : null}
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => onUpdateErrorEventStatus(selectedEvent.id, "resolved")}
+                    disabled={statusUpdatingErrorId === selectedEvent.id}
+                  >
+                    {statusUpdatingErrorId === selectedEvent.id ? "Updating…" : "Resolve event"}
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => onUpdateErrorEventStatus(selectedEvent.id, "ignored")}
+                    disabled={statusUpdatingErrorId === selectedEvent.id}
+                  >
+                    Ignore event
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </section>

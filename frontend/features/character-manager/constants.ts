@@ -100,8 +100,8 @@ export const CHARACTER_MANAGER_SLOT_LABEL_BY_KEY = CHARACTER_MANAGER_SLOT_DEFINI
 export const CHARACTER_SHEET_DROP_ZONES = [
   { key: "portrait", label: "Portrait" },
   { key: "close_up", label: "Close-up" },
-  { key: "front_shot", label: "Full-body Front Shot" },
-  { key: "back_shot", label: "Full-body Back Shot" },
+  { key: "front_shot", label: "Full-body" },
+  { key: "back_shot", label: "Action or Expression" },
 ] as const satisfies ReadonlyArray<{ key: CharacterSheetDropZoneKey; label: string }>;
 
 export const CHARACTER_SHEET_PRESET_IDS = [

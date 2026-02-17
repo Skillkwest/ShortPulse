@@ -86,6 +86,12 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     overrides: CharacterModeFallbackSummary<TFallbackCode>,
     tool: ToolId | null
   ) => void;
+  insertOptimisticGenerationPlaceholder?: (input: {
+    prompt: string;
+    modeOverride?: StudioMode;
+    selectedToolOverride?: ToolId | null;
+  }) => string | null;
+  removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
   generateOutput: (
     promptOverride?: string | null,
     options?: {
@@ -95,6 +101,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
       displayPromptOverride?: string | null;
       referenceInputsOverride?: string[];
       characterContextOverride?: StudioOutput["characterContext"];
+      outputIdOverride?: string;
     }
   ) => void;
   regenerateOutput: (options?: {
@@ -102,6 +109,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     displayPromptOverride?: string | null;
     referenceInputsOverride?: string[];
     characterContextOverride?: StudioOutput["characterContext"];
+    outputIdOverride?: string;
   }) => void;
 };
 
@@ -134,6 +142,8 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   refreshCharacterModeInjectionBundleForSubmission,
   resolveCharacterModeSubmissionOverrides,
   trackCharacterModeFallback,
+  insertOptimisticGenerationPlaceholder,
+  removeOptimisticGenerationPlaceholder,
   generateOutput,
   regenerateOutput,
 }: UseAiStudioGenerationControllerParams<TBundle, TFallbackCode>) => {
@@ -200,13 +210,13 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   );
 
   const enqueueOptimisticDebit = useCallback(
-    (credits: number | null | undefined) => {
+    (credits: number | null | undefined, outputId: string | null = null) => {
       if (credits == null || credits <= 0) return;
       setOptimisticDebitEntries((prev) => [
         ...prev,
         {
           credits,
-          outputId: null,
+          outputId,
           createdAtMs: Date.now(),
         },
       ]);
@@ -263,21 +273,36 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       const defaultPromptForTool = resolveDefaultPromptForTool(effectiveTool);
       const promptToUse =
         typeof promptOverride === "string" ? promptOverride : defaultPromptForTool;
-      const characterModeBundleForSubmit =
-        await refreshCharacterModeInjectionBundleForSubmission(effectiveTool);
-      const characterModeOverrides = resolveCharacterModeSubmissionOverrides(
-        promptToUse,
-        effectiveTool,
-        characterModeBundleForSubmit
-      );
+      const optimisticOutputId = insertOptimisticGenerationPlaceholder?.({
+        prompt: promptToUse,
+        modeOverride: effectiveMode,
+        selectedToolOverride: effectiveTool,
+      });
+      let characterModeOverrides: CharacterModeSubmissionOverrides<TFallbackCode>;
+      try {
+        const characterModeBundleForSubmit =
+          await refreshCharacterModeInjectionBundleForSubmission(effectiveTool);
+        characterModeOverrides = resolveCharacterModeSubmissionOverrides(
+          promptToUse,
+          effectiveTool,
+          characterModeBundleForSubmit
+        );
+      } catch (error) {
+        if (optimisticOutputId) {
+          removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
+        }
+        setUiError(error instanceof Error ? error.message : "Unable to start generation.");
+        return;
+      }
       trackCharacterModeFallback(characterModeOverrides, effectiveTool);
-      enqueueOptimisticDebit(requiredCredits);
+      enqueueOptimisticDebit(requiredCredits, optimisticOutputId ?? null);
       generateOutput(promptToUse, {
         modeOverride: effectiveMode,
         selectedToolOverride: effectiveTool,
         submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
         displayPromptOverride: characterModeOverrides?.displayPromptOverride,
         referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
+        ...(optimisticOutputId ? { outputIdOverride: optimisticOutputId } : {}),
         ...(characterModeOverrides?.characterContextOverride
           ? { characterContextOverride: characterModeOverrides.characterContextOverride }
           : {}),
@@ -296,7 +321,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       agentBusy,
       isCreditGuardrail,
       isGenerateDisabled,
+      insertOptimisticGenerationPlaceholder,
       mode,
+      removeOptimisticGenerationPlaceholder,
       refreshCharacterModeInjectionBundleForSubmission,
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,

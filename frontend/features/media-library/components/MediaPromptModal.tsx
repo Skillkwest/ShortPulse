@@ -3,6 +3,7 @@
  * Renders prompt edit/delete UI while delegating persistence behavior to injected handlers.
  */
 import { CheckCircle } from "phosphor-react";
+import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 
 export type MediaPromptModalRow = {
   id: string;
@@ -37,6 +38,16 @@ export function MediaPromptModal<TRow extends MediaPromptModalRow>({
   savePromptEdits,
   savingPromptEdit,
 }: MediaPromptModalProps<TRow>) {
+  useVisibleErrorTelemetry({
+    source: "client.media_library.prompt_modal_error",
+    scope: "app",
+    severity: "medium",
+    message: promptModalError,
+    metadata: {
+      prompt_id: focusedPrompt.id,
+    },
+  });
+
   return (
     <div
       className="media-modal prompt-modal"

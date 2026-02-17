@@ -154,6 +154,8 @@ export default function AiStudioPage() {
     isPromptGenerating,
     generateOutput,
     regenerateOutput,
+    insertOptimisticGenerationPlaceholder,
+    removeOptimisticGenerationPlaceholder,
     saveReferenceToLibrary,
     savePromptReference,
     savePromptToLibrary,
@@ -507,6 +509,8 @@ export default function AiStudioPage() {
     refreshCharacterModeInjectionBundleForSubmission,
     resolveCharacterModeSubmissionOverrides,
     trackCharacterModeFallback,
+    insertOptimisticGenerationPlaceholder,
+    removeOptimisticGenerationPlaceholder,
     generateOutput,
     regenerateOutput,
   });

@@ -121,10 +121,16 @@ export const useAiStudioTaskSubmission = ({
         selectedToolOverride?: ToolId | null;
         displayPromptOverride?: string | null;
         characterContextOverride?: StudioOutput["characterContext"];
+        outputIdOverride?: string;
       }
     ) => {
       setUiError(null);
       setUiNotice(null);
+      const optimisticOutputId = options?.outputIdOverride;
+      const removeOptimisticPlaceholder = () => {
+        if (!optimisticOutputId) return;
+        setOutputs((prev) => prev.filter((item) => item.id !== optimisticOutputId));
+      };
       const effectiveMode = options?.modeOverride ?? mode;
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
       const normalizedTool =
@@ -133,10 +139,12 @@ export const useAiStudioTaskSubmission = ({
       const cleanedDisplayPrompt = (options?.displayPromptOverride ?? promptArg ?? prompt).trim();
 
       if ((effectiveTool === "create" || effectiveTool === "text") && effectiveMode === "text") {
+        removeOptimisticPlaceholder();
         setIsPromptGenerating(false);
         return;
       }
       if (!cleanedSubmissionPrompt) {
+        removeOptimisticPlaceholder();
         setUiError("Add a prompt to start a generation.");
         return;
       }
@@ -146,18 +154,20 @@ export const useAiStudioTaskSubmission = ({
       const finalTool: ToolId | "text" | null = effectiveTool === "edit" ? "image" : effectiveTool;
       const finalModel = model;
       if (isEditWorkflow && !hasReferenceImages) {
+        removeOptimisticPlaceholder();
         setUiError("Add a reference image before generating.");
         return;
       }
 
       if (!finalModel) {
+        removeOptimisticPlaceholder();
         setUiError("Pick a model to generate.");
         return;
       }
 
       setIsPromptGenerating(true);
       try {
-        const id = `out-${randomId()}`;
+        const id = optimisticOutputId ?? `out-${randomId()}`;
         const isCharacterModeCreateRun =
           isCharacterModeEnabled && (effectiveTool === "create" || effectiveTool === "text");
         const modelLabel = isCharacterModeCreateRun
@@ -212,9 +222,12 @@ export const useAiStudioTaskSubmission = ({
           characterContext: options?.characterContextOverride,
         };
 
-        // Render the spinner placeholder immediately on generate click,
-        // before any expensive URL prep/submission work begins.
-        setOutputs((prev) => [nextOutput, ...prev]);
+        // Render or reconcile the spinner placeholder before URL prep/submission work begins.
+        setOutputs((prev) => {
+          const existingIndex = prev.findIndex((item) => item.id === id);
+          if (existingIndex === -1) return [nextOutput, ...prev];
+          return prev.map((item) => (item.id === id ? { ...item, ...nextOutput } : item));
+        });
         setSaved(false);
 
         let preparedImageInputs: string[] = [];

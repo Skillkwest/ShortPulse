@@ -20,6 +20,7 @@ import {
 } from "../../../lib/mediaPreviewPath";
 import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { resolveMediaCardAspectRatio } from "../logic/mediaLibraryAspectRatio";
 
 type MediaFileRow = {
@@ -327,6 +328,17 @@ export function MediaLibraryModal({
     () => normalizeMediaSearchTerm(debouncedSearch),
     [debouncedSearch]
   );
+
+  useVisibleErrorTelemetry({
+    source: "client.ai_studio.media_library_modal_error",
+    scope: "app",
+    severity: "medium",
+    message: error,
+    metadata: {
+      active_tab: activeTab,
+      modal_open: isOpen,
+    },
+  });
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {

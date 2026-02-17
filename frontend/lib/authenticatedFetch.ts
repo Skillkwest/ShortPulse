@@ -53,8 +53,17 @@ const normalizeEndpoint = (input: RequestInfo | URL): string => {
   }
 };
 
-const shouldLogHttpFailure = (scope: "app" | "generation", status: number): boolean => {
+const shouldLogHttpFailure = (
+  scope: "app" | "generation",
+  endpoint: string,
+  status: number
+): boolean => {
   if (!Number.isFinite(status)) return false;
+  // Admin routes can return 401/403 during expected auth/session transitions.
+  // Keep these in UI/network breadcrumbs, but avoid escalating as incidents.
+  if (endpoint.startsWith("/api/admin") && (status === 401 || status === 403)) {
+    return false;
+  }
   if (scope === "generation") return status >= 400;
   return status >= 400;
 };
@@ -112,7 +121,7 @@ export const fetchWithAuth = async (
 
     if (
       !skipErrorLogging &&
-      shouldLogHttpFailure(scope, response.status) &&
+      shouldLogHttpFailure(scope, endpoint, response.status) &&
       !endpoint.includes("/api/log/client-error")
     ) {
       void reportAppError({

@@ -169,4 +169,59 @@ describe("GET /api/credits/snapshot", () => {
       source: "ledger_fallback",
     });
   });
+
+  it("degrades reservation support when reservation query returns an unexpected backend error", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        if (table === "ai_credit_balance") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({
+                  data: { balance_cents: 900, updated_at: "2026-02-16T20:41:20.000Z" },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === "ai_credit_reservations") {
+          const chain = {
+            eq: vi.fn(),
+            order: vi.fn(
+              async () =>
+                ({
+                  data: null,
+                  error: { message: "Internal server error." },
+                }) as SelectResult
+            ),
+          };
+          chain.eq.mockReturnValue(chain);
+          return { select: () => chain };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      userId: "user-1",
+      availableCents: 900,
+      reservedCents: 0,
+      spendableCents: 900,
+      balanceUpdatedAt: "2026-02-16T20:41:20.000Z",
+      reservationsUpdatedAt: null,
+      updatedAt: "2026-02-16T20:41:20.000Z",
+      reservationsSupported: false,
+      source: "balance_table",
+    });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
 });

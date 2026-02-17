@@ -4,6 +4,7 @@
  */
 import { DownloadSimple } from "phosphor-react";
 import type { ChangeEventHandler, DragEventHandler, MutableRefObject } from "react";
+import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 
 type MediaUploadTab =
   | "uploaded_images"
@@ -52,6 +53,16 @@ export function MediaUploadStage({
   onTriggerFilePicker,
 }: MediaUploadStageProps) {
   const accept = activeTab === "private" ? "image/*" : "image/*,video/*";
+
+  useVisibleErrorTelemetry({
+    source: "client.media_library.upload_stage_error",
+    scope: "app",
+    severity: "medium",
+    message: error,
+    metadata: {
+      active_tab: activeTab,
+    },
+  });
 
   return (
     <section

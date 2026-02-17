@@ -663,7 +663,13 @@ body:has(.ai-studio-page) {
 }
 
 .ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="character"] .ai-shell-divider:hover::before {
+.ai-studio-page[data-selected-tool="character"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="character"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="canvas"] .ai-shell.ai-shell-resizing .ai-shell-divider::before,
+.ai-studio-page[data-selected-tool="character"]
+  .ai-shell.ai-shell-resizing
+  .ai-shell-divider::before {
   background: #4ae074;
   box-shadow: 0 0 0 1px rgba(74, 224, 116, 0.28);
 }
@@ -671,6 +677,11 @@ body:has(.ai-studio-page) {
 .ai-shell-divider:focus-visible {
   outline: 2px solid rgba(52, 200, 255, 0.85);
   outline-offset: -2px;
+}
+
+.ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:focus-visible,
+.ai-studio-page[data-selected-tool="character"] .ai-shell-divider:focus-visible {
+  outline-color: rgba(74, 224, 116, 0.82);
 }
 
 body.ai-shell-resizing,

@@ -13,7 +13,7 @@ Short version: Models declare their own metadata (provider, aspects, size maps, 
 - `computeCostForModel(modelId, { aspect })` returns `{ credits, usd, rawCredits, usdRaw, megapixels, width, height } | null`.
 - UIs and hooks stay dumb: pick a model, pass parameters, render the returned cost.
 - Defaults for duration/resolution/audio are read from `modelRegistry` (e.g., Veo 3.1 → 8s @ 1080p with audio) and reused by cost chips and debit logic. Use `buildDefaultPricingParams(modelId)` when you need a consistent baseline.
-- Credit conversion is two-step and shared across estimations/debits: `rawCredits = ceil(usd / 0.01)`, then `credits = ceil(rawCredits / 5) * 5`.
+- Credit conversion is two-step and shared across estimations/debits for all models except explicit fixed-price exceptions: `rawCredits = ceil(usd / 0.01)`, then `credits = ceil(rawCredits / 5) * 5`.
 - `usdRaw` is provider-estimated pre-rounding USD; `usd` is the billed USD equivalent (`credits * 0.01`).
 - MVP scope: KEI pricing is intentionally excluded from active model options; KEI API routes remain hard-disabled with `410`.
 
@@ -25,6 +25,7 @@ Short version: Models declare their own metadata (provider, aspects, size maps, 
 
 ## Current strategies
 - `fal-flux2-per-mp`: $0.012 per MP, then converted with 5-credit step rounding. Uses the model’s `sizeMap`.
+- `fal-flux2-klein-per-mp`: FLUX.2 Lite (`fal-ai/flux-2/klein/9b`) is intentionally fixed at 1 credit per run (does not apply 5-credit step rounding), while still using the model size map for dimensional metadata.
 - `fal-flux2-pro-per-mp`: $0.03 for the first MP + $0.015 each additional MP, then converted with 5-credit step rounding.
 - `google-nano-banana-per-image`: $0.039 flat per image, rounded to the nearest 5-credit step (currently bills 5 credits); used by the `fal-ai/nano-banana` queue.
 - `nano-banana-per-image`: $0.15 per image (15 credits). 4K renders double to $0.30 (30 credits) and enabling web search adds $0.015 (1.5 credits); resolution/web search flags are passed via the pricing parameters (default resolution 1K). Currently used by the `fal-ai/nano-banana-pro` queue.

@@ -5,11 +5,20 @@
 import type { User } from "@supabase/supabase-js";
 import Image from "next/image";
 import Link from "next/link";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, PencilSimpleLine, ShieldCheck, Trash, UploadSimple, XCircle } from "phosphor-react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  CaretDown,
+  Plus,
+  PencilSimpleLine,
+  ShieldCheck,
+  Trash,
+  UploadSimple,
+  XCircle,
+} from "phosphor-react";
 import { DashboardNavPrefab } from "../../../components/DashboardNavPrefab";
 import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "../../billing/catalog";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
   CHARACTER_MANAGER_SLOT_DEFINITIONS,
   CHARACTER_MANAGER_SLOT_LABEL_BY_KEY,
@@ -47,8 +56,12 @@ const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
+const DROPPED_IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
+const SUPABASE_STORAGE_OBJECT_URL_PATTERN =
+  /\/storage\/v1\/object\/(?:sign|public|authenticated)\/([^/]+)\/(.+)$/i;
 const DRAG_GHOST_SCALE = 0.74;
 const CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY = "shortpulse.character_manager.beginner_mode";
+const MEDIA_BUCKET = "media_library";
 
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: PROFILE_ZOOM_MIN,
@@ -92,6 +105,315 @@ const resolveInitialBeginnerMode = (): boolean => {
   } catch {
     return true;
   }
+};
+
+type DroppedImageReference = {
+  url: string;
+  mimeType: string | null;
+  mediaFileId: string | null;
+};
+
+type DroppedStorageCandidate = {
+  bucket: string;
+  storagePath: string;
+};
+
+const sanitizeFilenameSegment = (value: string): string =>
+  value
+    .trim()
+    .replace(/[^\w.-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const parseDropUrlCandidate = (value: string | null | undefined): string | null => {
+  const candidate = (value ?? "").trim();
+  if (!candidate || /^data:video\//i.test(candidate)) return null;
+  if (/^data:image\//i.test(candidate)) return candidate;
+  if (/^blob:/i.test(candidate)) return candidate;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+};
+
+const parseDropMediaFileId = (value: string | null | undefined): string | null => {
+  const candidate = (value ?? "").trim();
+  return candidate.length ? candidate : null;
+};
+
+const extractFirstUriListEntry = (value: string | null | undefined): string | null =>
+  (value ?? "")
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .find((entry) => entry.length > 0 && !entry.startsWith("#")) ?? null;
+
+const inferMimeTypeFromUrl = (url: string): string | null => {
+  if (/^data:image\//i.test(url)) {
+    const match = url.match(/^data:(image\/[^;,]+)[;,]/i);
+    return match?.[1]?.toLowerCase() ?? "image/png";
+  }
+  if (!DROPPED_IMAGE_URL_PATTERN.test(url)) return null;
+  const extension = url.split("?")[0]?.split("#")[0]?.split(".").pop()?.toLowerCase();
+  switch (extension) {
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "png":
+      return "image/png";
+    case "webp":
+      return "image/webp";
+    case "gif":
+      return "image/gif";
+    case "svg":
+      return "image/svg+xml";
+    case "avif":
+      return "image/avif";
+    case "bmp":
+      return "image/bmp";
+    case "heic":
+      return "image/heic";
+    case "heif":
+      return "image/heif";
+    default:
+      return null;
+  }
+};
+
+const parseDroppedStorageCandidateFromUrl = (url: string): DroppedStorageCandidate | null => {
+  try {
+    const parsedUrl = new URL(url);
+    const pathMatch = parsedUrl.pathname.match(SUPABASE_STORAGE_OBJECT_URL_PATTERN);
+    if (!pathMatch) return null;
+    const bucket = (pathMatch[1] ?? "").trim();
+    const storagePath = decodeURIComponent(pathMatch[2] ?? "")
+      .replace(/^\/+/, "")
+      .trim();
+    if (!bucket || !storagePath) return null;
+    return {
+      bucket,
+      storagePath,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const dedupeDroppedStorageCandidates = (
+  candidates: DroppedStorageCandidate[]
+): DroppedStorageCandidate[] => {
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => {
+    const key = `${candidate.bucket}:${candidate.storagePath}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const resolveDroppedStorageCandidates = async (
+  reference: DroppedImageReference
+): Promise<DroppedStorageCandidate[]> => {
+  const candidates: DroppedStorageCandidate[] = [];
+  const urlCandidate = parseDroppedStorageCandidateFromUrl(reference.url);
+  if (urlCandidate) {
+    candidates.push(urlCandidate);
+  }
+
+  if (reference.mediaFileId) {
+    try {
+      const supabase = ensureSupabaseClient();
+      const { data, error } = await supabase
+        .from("media_files")
+        .select("storage_path")
+        .eq("id", reference.mediaFileId)
+        .maybeSingle();
+      if (!error) {
+        const mediaRow = data as { storage_path: string | null } | null;
+        const storagePath = (mediaRow?.storage_path ?? "").trim();
+        if (storagePath) {
+          candidates.unshift({
+            bucket: MEDIA_BUCKET,
+            storagePath,
+          });
+        }
+      }
+    } catch {
+      // Fallback-only lookup: ignore metadata-query failures and rely on URL-based download.
+    }
+  }
+
+  return dedupeDroppedStorageCandidates(candidates);
+};
+
+const downloadDroppedReferenceBlob = async (
+  reference: DroppedImageReference
+): Promise<{ blob: Blob; resolvedStoragePath: string | null }> => {
+  let directFetchError: Error | null = null;
+  try {
+    const response = await fetch(reference.url);
+    if (response.ok) {
+      return {
+        blob: await response.blob(),
+        resolvedStoragePath: null,
+      };
+    }
+    directFetchError = new Error(`Failed to read dropped image (${response.status}).`);
+  } catch (nextError) {
+    directFetchError =
+      nextError instanceof Error ? nextError : new Error("Failed to read dropped image.");
+  }
+
+  const storageCandidates = await resolveDroppedStorageCandidates(reference);
+  if (storageCandidates.length) {
+    let downloadError: Error | null = null;
+    const supabase = ensureSupabaseClient();
+    for (const candidate of storageCandidates) {
+      const { data, error } = await supabase.storage
+        .from(candidate.bucket)
+        .download(candidate.storagePath);
+      if (error || !data) {
+        downloadError = new Error(
+          `Failed to read dropped image from storage (${candidate.bucket}/${candidate.storagePath}).`
+        );
+        continue;
+      }
+      return {
+        blob: data,
+        resolvedStoragePath: candidate.storagePath,
+      };
+    }
+    if (downloadError) {
+      throw downloadError;
+    }
+  }
+
+  if (directFetchError) {
+    throw directFetchError;
+  }
+  throw new Error("Failed to read dropped image.");
+};
+
+const resolveDroppedImageReference = (transfer: DataTransfer | null | undefined) => {
+  if (!transfer) return null;
+  const mediaFileId =
+    parseDropMediaFileId(transfer.getData("text/reference-media-id")) ??
+    parseDropMediaFileId(transfer.getData("text/reference-id"));
+
+  const explicitReferenceUrl = parseDropUrlCandidate(transfer.getData("text/reference-url"));
+  if (explicitReferenceUrl) {
+    return {
+      url: explicitReferenceUrl,
+      mimeType: inferMimeTypeFromUrl(explicitReferenceUrl),
+      mediaFileId,
+    } satisfies DroppedImageReference;
+  }
+
+  const uriListEntry = extractFirstUriListEntry(transfer.getData("text/uri-list"));
+  const uriListUrl = parseDropUrlCandidate(uriListEntry);
+  if (
+    uriListUrl &&
+    (DROPPED_IMAGE_URL_PATTERN.test(uriListUrl) || /^data:image\//i.test(uriListUrl))
+  ) {
+    return {
+      url: uriListUrl,
+      mimeType: inferMimeTypeFromUrl(uriListUrl),
+      mediaFileId,
+    } satisfies DroppedImageReference;
+  }
+
+  const imageUrl = parseDropUrlCandidate(transfer.getData("image/url"));
+  if (imageUrl) {
+    return {
+      url: imageUrl,
+      mimeType: inferMimeTypeFromUrl(imageUrl),
+      mediaFileId,
+    } satisfies DroppedImageReference;
+  }
+
+  const plainTextUrl = parseDropUrlCandidate(transfer.getData("text/plain"));
+  if (
+    plainTextUrl &&
+    (DROPPED_IMAGE_URL_PATTERN.test(plainTextUrl) || /^data:image\//i.test(plainTextUrl))
+  ) {
+    return {
+      url: plainTextUrl,
+      mimeType: inferMimeTypeFromUrl(plainTextUrl),
+      mediaFileId,
+    } satisfies DroppedImageReference;
+  }
+
+  return null;
+};
+
+const hasDroppedImageReferenceTransfer = (transfer: DataTransfer | null | undefined): boolean => {
+  if (!transfer) return false;
+  const transferTypes = Array.from(transfer.types ?? []).map((value) => value.toLowerCase());
+  if (
+    transferTypes.includes("text/reference-url") ||
+    transferTypes.includes("text/uri-list") ||
+    transferTypes.includes("image/url")
+  ) {
+    return true;
+  }
+  return Boolean(resolveDroppedImageReference(transfer));
+};
+
+const toDroppedReferenceFile = async (reference: DroppedImageReference): Promise<File> => {
+  const { blob, resolvedStoragePath } = await downloadDroppedReferenceBlob(reference);
+  const resolvedMimeType = (blob.type || reference.mimeType || "").toLowerCase() || "image/jpeg";
+  if (!resolvedMimeType.startsWith("image/")) {
+    throw new Error("Dropped media is not an image.");
+  }
+  const extension = (() => {
+    switch (resolvedMimeType) {
+      case "image/jpeg":
+        return "jpg";
+      case "image/png":
+        return "png";
+      case "image/webp":
+        return "webp";
+      case "image/gif":
+        return "gif";
+      case "image/svg+xml":
+        return "svg";
+      case "image/avif":
+        return "avif";
+      case "image/bmp":
+        return "bmp";
+      case "image/heic":
+        return "heic";
+      case "image/heif":
+        return "heif";
+      default:
+        return "jpg";
+    }
+  })();
+
+  const parsedName = (() => {
+    const storagePathSegment = resolvedStoragePath?.split("/").pop() ?? "";
+    const cleanedStoragePathSegment = sanitizeFilenameSegment(storagePathSegment);
+    if (cleanedStoragePathSegment) {
+      const hasExtension = /\.[a-z0-9]{2,5}$/i.test(cleanedStoragePathSegment);
+      return hasExtension ? cleanedStoragePathSegment : `${cleanedStoragePathSegment}.${extension}`;
+    }
+    try {
+      const pathSegment = new URL(reference.url).pathname.split("/").pop() ?? "";
+      const cleaned = sanitizeFilenameSegment(pathSegment);
+      if (!cleaned) return null;
+      const hasExtension = /\.[a-z0-9]{2,5}$/i.test(cleaned);
+      return hasExtension ? cleaned : `${cleaned}.${extension}`;
+    } catch {
+      return null;
+    }
+  })();
+  const fallbackName = `reference-drop-${Date.now()}.${extension}`;
+
+  return new File([blob], parsedName ?? fallbackName, {
+    type: resolvedMimeType,
+  });
 };
 
 /**
@@ -138,6 +460,7 @@ export function CharacterManagerShell({
 
   const [activeTab, setActiveTab] = useState<CharacterWorkflowTab>("create");
   const [isDropActive, setIsDropActive] = useState(false);
+  const [isQuickSwapCollapsed, setIsQuickSwapCollapsed] = useState(false);
   const [draggedReferenceSlotKey, setDraggedReferenceSlotKey] =
     useState<CharacterReferenceSlotKey | null>(null);
   const [draggedCharacterSheetZoneKey, setDraggedCharacterSheetZoneKey] =
@@ -262,9 +585,23 @@ export function CharacterManagerShell({
     : PROFILE_PREVIEW_IMAGE_SIZE;
   const isBeginnerModeControlled = typeof beginnerModeOverride === "boolean";
   const effectiveBeginnerMode = isBeginnerModeControlled ? beginnerModeOverride : beginnerMode;
+  const quickSwapContentId = useId();
   const rootClassName = isEmbeddedSurface
     ? "character-manager-page character-manager-page--embedded"
     : "page page-wide character-manager-page";
+
+  useVisibleErrorTelemetry({
+    source: "client.character_manager.error_banner",
+    scope: "app",
+    severity: "medium",
+    message: error,
+    metadata: {
+      surface,
+      active_tab: activeTab,
+      beginner_mode: effectiveBeginnerMode,
+      selected_character_id: selectedCharacterId,
+    },
+  });
 
   useEffect(() => {
     if (isBeginnerModeControlled) return;
@@ -422,6 +759,10 @@ export function CharacterManagerShell({
       return Array.from(transfer.items).some((item) => item.kind === "file");
     }
     return Boolean(transfer.files?.length);
+  }, []);
+
+  const isDroppedImageReferenceEvent = useCallback((event: React.DragEvent<HTMLElement>) => {
+    return hasDroppedImageReferenceTransfer(event.dataTransfer);
   }, []);
 
   const handleSimpleFileSelection = useCallback(
@@ -614,6 +955,30 @@ export function CharacterManagerShell({
     [pageBusy, pendingCharacterSheetUploadZoneKey, setCharacterSheetPresetFile]
   );
 
+  const setCharacterSheetFileFromDroppedReference = useCallback(
+    async (zoneKey: CharacterSheetDropZoneKey, reference: DroppedImageReference) => {
+      try {
+        const file = await toDroppedReferenceFile(reference);
+        await setCharacterSheetPresetFile(zoneKey, file);
+      } catch {
+        // If the dragged reference cannot be fetched/decoded, silently ignore.
+      }
+    },
+    [setCharacterSheetPresetFile]
+  );
+
+  const addDroppedReferenceToQuickSwap = useCallback(
+    async (reference: DroppedImageReference) => {
+      try {
+        const file = await toDroppedReferenceFile(reference);
+        await uploadSimpleFiles([file]);
+      } catch {
+        // If the dragged reference cannot be fetched/decoded, silently ignore.
+      }
+    },
+    [uploadSimpleFiles]
+  );
+
   const openReferencePreview = useCallback((index: number, aspectRatio: number | null) => {
     setReferencePreview({
       index,
@@ -697,11 +1062,32 @@ export function CharacterManagerShell({
   const handleCharacterSheetDragOver = useCallback(
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: React.DragEvent<HTMLElement>) => {
       if (pageBusy) return;
+      const sourceCharacterSheetZoneKey =
+        (event.dataTransfer.getData(DND_CHARACTER_SHEET_ZONE_KEY) as
+          | CharacterSheetDropZoneKey
+          | "") || draggedCharacterSheetZoneKey;
+      const droppedSlotKey =
+        (event.dataTransfer.getData(DND_REFERENCE_SLOT_KEY) as CharacterReferenceSlotKey | "") ||
+        (event.dataTransfer.getData("text/plain") as CharacterReferenceSlotKey | "") ||
+        draggedReferenceSlotKey;
+      const normalizedDroppedSlotKey =
+        typeof droppedSlotKey === "string" && droppedSlotKey.length > 0
+          ? (droppedSlotKey as CharacterReferenceSlotKey)
+          : null;
+      const hasExternalImageReference = hasDroppedImageReferenceTransfer(event.dataTransfer);
+      const isInternalSheetDrag =
+        Boolean(sourceCharacterSheetZoneKey) &&
+        CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === sourceCharacterSheetZoneKey);
+      const isInternalReferenceDrag =
+        normalizedDroppedSlotKey !== null &&
+        uploadedReferenceBySlotKey.has(normalizedDroppedSlotKey);
+      if (!isInternalSheetDrag && !isInternalReferenceDrag && !hasExternalImageReference) return;
       event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
+      event.dataTransfer.dropEffect =
+        isInternalSheetDrag || isInternalReferenceDrag ? "move" : "copy";
       setActiveCharacterSheetDropZone(characterSheetSlotKey);
     },
-    [pageBusy]
+    [draggedCharacterSheetZoneKey, draggedReferenceSlotKey, pageBusy, uploadedReferenceBySlotKey]
   );
 
   const clearCharacterSheetAssignment = useCallback(
@@ -753,9 +1139,14 @@ export function CharacterManagerShell({
         (event.dataTransfer.getData(DND_REFERENCE_SLOT_KEY) as CharacterReferenceSlotKey | "") ||
         (event.dataTransfer.getData("text/plain") as CharacterReferenceSlotKey | "") ||
         draggedReferenceSlotKey;
-      if (!droppedSlotKey) return;
-      if (!uploadedReferenceBySlotKey.has(droppedSlotKey)) return;
-      assignReferenceToCharacterSheetSlot(characterSheetSlotKey, droppedSlotKey);
+      if (droppedSlotKey && uploadedReferenceBySlotKey.has(droppedSlotKey)) {
+        assignReferenceToCharacterSheetSlot(characterSheetSlotKey, droppedSlotKey);
+        return;
+      }
+
+      const droppedReference = resolveDroppedImageReference(event.dataTransfer);
+      if (!droppedReference) return;
+      void setCharacterSheetFileFromDroppedReference(characterSheetSlotKey, droppedReference);
     },
     [
       assignReferenceToCharacterSheetSlot,
@@ -764,6 +1155,7 @@ export function CharacterManagerShell({
       pageBusy,
       persistCharacterSheetPresetAssignments,
       resolvedCharacterSheetPresetAssignments,
+      setCharacterSheetFileFromDroppedReference,
       uploadedReferenceBySlotKey,
     ]
   );
@@ -1154,7 +1546,7 @@ export function CharacterManagerShell({
                       <textarea
                         id="character-manager-description"
                         className="character-description-input"
-                        rows={isEmbeddedSurface ? 4 : 5}
+                        rows={isEmbeddedSurface ? 3 : 4}
                         value={characterDescription}
                         maxLength={CHARACTER_DESCRIPTION_MAX_LENGTH}
                         onChange={(event) => setCharacterDescription(event.target.value)}
@@ -1177,16 +1569,20 @@ export function CharacterManagerShell({
               </section>
 
               <section
-                className="character-section character-section--reference-drop"
+                className={`character-section character-section--reference-drop ${
+                  isQuickSwapCollapsed ? "is-collapsed" : ""
+                }`}
                 onDragEnter={(event) => {
-                  if (!isFileDragEvent(event)) return;
+                  if (isQuickSwapCollapsed) return;
+                  if (!isFileDragEvent(event) && !isDroppedImageReferenceEvent(event)) return;
                   event.preventDefault();
                   if (pageBusy || !availableReferenceSlotKeys.length) return;
                   fileDragDepthRef.current += 1;
                   setIsDropActive(true);
                 }}
                 onDragOver={(event) => {
-                  if (!isFileDragEvent(event)) return;
+                  if (isQuickSwapCollapsed) return;
+                  if (!isFileDragEvent(event) && !isDroppedImageReferenceEvent(event)) return;
                   event.preventDefault();
                   if (pageBusy || !availableReferenceSlotKeys.length) {
                     event.dataTransfer.dropEffect = "none";
@@ -1196,7 +1592,8 @@ export function CharacterManagerShell({
                   if (!isDropActive) setIsDropActive(true);
                 }}
                 onDragLeave={(event) => {
-                  if (!isFileDragEvent(event)) return;
+                  if (isQuickSwapCollapsed) return;
+                  if (!isFileDragEvent(event) && !isDroppedImageReferenceEvent(event)) return;
                   if (pageBusy || !availableReferenceSlotKeys.length) return;
                   fileDragDepthRef.current = Math.max(0, fileDragDepthRef.current - 1);
                   if (fileDragDepthRef.current === 0) {
@@ -1204,14 +1601,20 @@ export function CharacterManagerShell({
                   }
                 }}
                 onDrop={(event) => {
-                  if (!isFileDragEvent(event)) return;
+                  if (isQuickSwapCollapsed) return;
+                  if (!isFileDragEvent(event) && !isDroppedImageReferenceEvent(event)) return;
                   event.preventDefault();
                   fileDragDepthRef.current = 0;
                   setIsDropActive(false);
                   if (pageBusy || !availableReferenceSlotKeys.length) return;
                   const files = event.dataTransfer?.files;
-                  if (!files?.length) return;
-                  void uploadSimpleFiles(files);
+                  if (files?.length) {
+                    void uploadSimpleFiles(files);
+                    return;
+                  }
+                  const droppedReference = resolveDroppedImageReference(event.dataTransfer);
+                  if (!droppedReference) return;
+                  void addDroppedReferenceToQuickSwap(droppedReference);
                 }}
               >
                 <div className="character-section-head">
@@ -1223,100 +1626,126 @@ export function CharacterManagerShell({
                     ) : null}
                     <div className="character-section-title-copy">
                       <h3 className="character-section-title">QuickSwap Deck</h3>
-                      {effectiveBeginnerMode ? (
+                      {effectiveBeginnerMode && !isQuickSwapCollapsed ? (
                         <p className="character-section-helper tiny subdued">
-                          Drag and drop reference images here or click an empty slot to upload.
+                          The quick swap deck is a small library of images you can quickly access to
+                          swap out your character&apos;s style on the fly.
                         </p>
                       ) : null}
                     </div>
                   </div>
-                </div>
-                {availableReferenceSlotKeys.length && isDropActive ? (
-                  <div className="character-reference-drop-overlay" aria-hidden="true">
-                    <div className="character-reference-drop-overlay-content">
-                      <UploadSimple
-                        size={34}
-                        weight="bold"
-                        className="character-reference-drop-overlay-icon"
-                      />
-                      <p className="character-reference-drop-overlay-title">
-                        Drop reference images here
-                      </p>
-                      <p className="tiny subdued">
-                        {`Up to ${availableReferenceSlotKeys.length} more image(s) can be added (max ${SIMPLE_REFERENCE_IMAGE_LIMIT})`}
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
-
-                <div
-                  className="character-reference-upload-grid character-reference-upload-grid--drop-card"
-                  role="list"
-                  aria-label="Uploaded references"
-                >
-                  {uploadedReferenceEntries.map((entry, index) => (
-                    <article
-                      key={entry.slotKey}
-                      role="listitem"
-                      className={`character-reference-upload-card ${
-                        draggedReferenceSlotKey === entry.slotKey ? "is-dragging" : ""
-                      }`}
-                      draggable={!pageBusy && !isSlotBusy(entry.slotKey)}
-                      onDragStart={handleReferenceDragStart(entry.slotKey)}
-                      onDragEnd={handleReferenceDragEnd}
-                    >
-                      <button
-                        type="button"
-                        className="character-list-delete-btn character-reference-delete-btn"
-                        aria-label={`Remove reference ${index + 1}`}
-                        onClick={() => {
-                          void clearSlot(entry.slotKey);
-                        }}
-                        disabled={pageBusy || isSlotBusy(entry.slotKey)}
-                      >
-                        <Trash size={12} weight="bold" />
-                      </button>
-                      <div
-                        className="character-reference-upload-image-wrap"
-                        onDoubleClick={() => {
-                          openReferencePreview(index, entry.slotFile.validationNotes.aspectRatio);
-                        }}
-                        title="Double-click to preview this reference image"
-                      >
-                        <Image
-                          src={entry.slotFile.previewUrl}
-                          alt={`Reference ${index + 1}: ${entry.slotLabel}`}
-                          className="character-reference-upload-image"
-                          width={320}
-                          height={240}
-                          unoptimized
-                        />
-                      </div>
-                    </article>
-                  ))}
-                  {availableReferenceSlotKeys.map((slotKey, index) => (
+                  <div className="character-section-head-actions">
                     <button
-                      key={`reference-upload-placeholder-${slotKey}`}
                       type="button"
-                      className="character-reference-upload-placeholder"
-                      onClick={() => openSimpleReferenceSlotPicker(slotKey)}
-                      disabled={pageBusy || isSlotBusy(slotKey)}
-                      aria-label={`Upload ${CHARACTER_MANAGER_SLOT_LABEL_BY_KEY[slotKey]} reference image`}
+                      className="ghost-btn mini character-section-collapse-btn"
+                      aria-label={`${isQuickSwapCollapsed ? "Expand" : "Collapse"} QuickSwap Deck`}
+                      aria-expanded={!isQuickSwapCollapsed}
+                      aria-controls={quickSwapContentId}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        fileDragDepthRef.current = 0;
+                        setIsDropActive(false);
+                        setIsQuickSwapCollapsed((current) => !current);
+                      }}
                     >
-                      <UploadSimple
+                      <CaretDown
                         size={16}
                         weight="bold"
-                        className="character-reference-upload-placeholder-icon"
+                        className="character-section-collapse-icon"
                         aria-hidden="true"
                       />
-                      <span className="character-reference-upload-placeholder-label">
-                        Click to upload
-                      </span>
-                      <span className="character-reference-upload-placeholder-slot tiny subdued">
-                        Empty slot {uploadedReferenceEntries.length + index + 1}
-                      </span>
                     </button>
-                  ))}
+                  </div>
+                </div>
+                <div
+                  id={quickSwapContentId}
+                  className="character-reference-drop-content"
+                  hidden={isQuickSwapCollapsed}
+                >
+                  {availableReferenceSlotKeys.length && isDropActive ? (
+                    <div className="character-reference-drop-overlay" aria-hidden="true">
+                      <div className="character-reference-drop-overlay-content">
+                        <UploadSimple
+                          size={34}
+                          weight="bold"
+                          className="character-reference-drop-overlay-icon"
+                        />
+                        <p className="character-reference-drop-overlay-title">
+                          Drop reference images here
+                        </p>
+                        <p className="tiny subdued">
+                          {`Up to ${availableReferenceSlotKeys.length} more image(s) can be added (max ${SIMPLE_REFERENCE_IMAGE_LIMIT})`}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div
+                    className="character-reference-upload-grid character-reference-upload-grid--drop-card"
+                    role="list"
+                    aria-label="Uploaded references"
+                  >
+                    {uploadedReferenceEntries.map((entry, index) => (
+                      <article
+                        key={entry.slotKey}
+                        role="listitem"
+                        className={`character-reference-upload-card ${
+                          draggedReferenceSlotKey === entry.slotKey ? "is-dragging" : ""
+                        }`}
+                        draggable={!pageBusy && !isSlotBusy(entry.slotKey)}
+                        onDragStart={handleReferenceDragStart(entry.slotKey)}
+                        onDragEnd={handleReferenceDragEnd}
+                      >
+                        <button
+                          type="button"
+                          className="character-list-delete-btn character-reference-delete-btn"
+                          aria-label={`Remove reference ${index + 1}`}
+                          onClick={() => {
+                            void clearSlot(entry.slotKey);
+                          }}
+                          disabled={pageBusy || isSlotBusy(entry.slotKey)}
+                        >
+                          <Trash size={12} weight="bold" />
+                        </button>
+                        <div
+                          className="character-reference-upload-image-wrap"
+                          onDoubleClick={() => {
+                            openReferencePreview(index, entry.slotFile.validationNotes.aspectRatio);
+                          }}
+                          title="Double-click to preview this reference image"
+                        >
+                          <Image
+                            src={entry.slotFile.previewUrl}
+                            alt={`Reference ${index + 1}: ${entry.slotLabel}`}
+                            className="character-reference-upload-image"
+                            width={320}
+                            height={240}
+                            unoptimized
+                          />
+                        </div>
+                      </article>
+                    ))}
+                    {availableReferenceSlotKeys.map((slotKey) => (
+                      <button
+                        key={`reference-upload-placeholder-${slotKey}`}
+                        type="button"
+                        className="character-reference-upload-placeholder"
+                        onClick={() => openSimpleReferenceSlotPicker(slotKey)}
+                        disabled={pageBusy || isSlotBusy(slotKey)}
+                        aria-label={`Upload ${CHARACTER_MANAGER_SLOT_LABEL_BY_KEY[slotKey]} reference image`}
+                      >
+                        <UploadSimple
+                          size={16}
+                          weight="bold"
+                          className="character-reference-upload-placeholder-icon"
+                          aria-hidden="true"
+                        />
+                        <span className="character-reference-upload-placeholder-label">
+                          Click to upload
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </section>
             </div>
@@ -1334,8 +1763,8 @@ export function CharacterManagerShell({
                       <h3 className="character-section-title">Character Sheet</h3>
                       {effectiveBeginnerMode ? (
                         <p className="character-section-helper tiny subdued">
-                          Drag uploaded references into each slot to map your character&apos;s look
-                          and style.
+                          Drag or upload references into each slot. These images are used to train
+                          your character generations.
                         </p>
                       ) : null}
                     </div>
@@ -1370,6 +1799,8 @@ export function CharacterManagerShell({
                   {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
                     const assignedReference = resolvedCharacterSheetPresetAssignments[dropZone.key];
                     const isDropActive = activeCharacterSheetDropZone === dropZone.key;
+                    const isRequiredSlot = dropZone.key === "portrait";
+                    const slotRequirementCopy = isRequiredSlot ? "(Required)" : "(Optional)";
                     return (
                       <article
                         key={dropZone.key}
@@ -1416,7 +1847,20 @@ export function CharacterManagerShell({
                             />
                           ) : (
                             <span className="character-character-sheet-drop-copy tiny">
-                              Drop reference or click to upload
+                              <UploadSimple
+                                size={14}
+                                weight="bold"
+                                className="character-character-sheet-drop-icon"
+                                aria-hidden="true"
+                              />
+                              <span>Drop reference or click to upload</span>
+                              <span
+                                className={`character-character-sheet-drop-requirement ${
+                                  isRequiredSlot ? "is-required" : "is-optional"
+                                }`}
+                              >
+                                {slotRequirementCopy}
+                              </span>
                             </span>
                           )}
                         </div>
@@ -1441,7 +1885,6 @@ export function CharacterManagerShell({
         <section className="panel media-panel character-manage-panel">
           <div className={isEmbeddedSurface ? "character-manage-panel-header" : undefined}>
             <div>
-              <p className="eyebrow">Manage Existing</p>
               <h2>Character Library</h2>
               <p className="tiny subdued">Select a character to edit their character profile.</p>
             </div>

@@ -3,6 +3,7 @@
  * Renders preview, rename, move, and destructive actions while delegating behavior to injected handlers.
  */
 import { CaretDown, CheckCircle } from "phosphor-react";
+import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import type {
   CSSProperties,
   Dispatch,
@@ -107,6 +108,26 @@ export function MediaFileModal<TRow extends MediaFileModalRow>({
   savingRename,
   setMoveMenuOpen,
 }: MediaFileModalProps<TRow>) {
+  useVisibleErrorTelemetry({
+    source: "client.media_library.file_modal_rename_error",
+    scope: "app",
+    severity: "medium",
+    message: modalError,
+    metadata: {
+      file_id: focusedFile.id,
+    },
+  });
+
+  useVisibleErrorTelemetry({
+    source: "client.media_library.file_modal_move_error",
+    scope: "app",
+    severity: "medium",
+    message: moveError,
+    metadata: {
+      file_id: focusedFile.id,
+    },
+  });
+
   return (
     <div className="media-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div className="media-modal-backdrop" onClick={closeModal} />

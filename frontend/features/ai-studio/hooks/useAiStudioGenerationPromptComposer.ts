@@ -15,6 +15,7 @@ export type AiStudioGenerateSubmissionOverrides = {
   displayPromptOverride?: string | null;
   referenceInputsOverride?: string[];
   characterContextOverride?: StudioOutput["characterContext"];
+  outputIdOverride?: string;
 };
 
 type GenerateOutputOptions = {
@@ -42,6 +43,7 @@ type UseAiStudioGenerationPromptComposerParams = {
       selectedToolOverride?: ToolId | null;
       displayPromptOverride?: string | null;
       characterContextOverride?: StudioOutput["characterContext"];
+      outputIdOverride?: string;
     }
   ) => void;
   setUiError: Dispatch<SetStateAction<string | null>>;
@@ -119,6 +121,9 @@ export const useAiStudioGenerationPromptComposer = ({
         selectedToolOverride: options?.selectedToolOverride,
         displayPromptOverride: displayPromptToSubmit,
         characterContextOverride: options?.characterContextOverride,
+        ...(typeof options?.outputIdOverride === "string"
+          ? { outputIdOverride: options.outputIdOverride }
+          : {}),
       });
     },
     [

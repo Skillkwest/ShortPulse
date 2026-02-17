@@ -149,3 +149,4 @@ Use this section to track progress slice-by-slice.
 3. Completed functional hardening phases 0-5 and validated with type-check + AI Studio test suites.
 4. Split expert create styles into seven focused files and rewired `frontend/styles/globals.css` imports.
 5. Final automated verification gates passed; manual visual-baseline screenshot diff sign-off remains pending.
+6. Visual capture run is currently blocked in this workspace until `PLAYWRIGHT_AUDIT_EMAIL` is provided for `/tmp/ux0_baseline_capture.js`.

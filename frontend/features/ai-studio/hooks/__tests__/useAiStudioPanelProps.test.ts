@@ -227,6 +227,34 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesText.expertCreateUiEligible).toBe(true);
   });
 
+  it("allows explicit env override to disable expert create UI in development", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI", "false");
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          beginnerMode: false,
+        })
+      )
+    );
+
+    expect(result.current.propertiesText.expertCreateUiEligible).toBe(false);
+  });
+
+  it("allows explicit env override to enable expert create UI in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI", "true");
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          beginnerMode: false,
+        })
+      )
+    );
+
+    expect(result.current.propertiesText.expertCreateUiEligible).toBe(true);
+  });
+
   it("disables expert create UI in production builds and while beginner mode is on", () => {
     vi.stubEnv("NODE_ENV", "production");
     const { result: productionResult } = renderHook(() =>

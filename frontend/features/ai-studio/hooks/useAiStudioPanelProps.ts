@@ -247,6 +247,14 @@ export const useAiStudioPanelProps = ({
   "propertiesText" | "propertiesImage" | "propertiesVideo"
 > => {
   const isDevBuild = process.env.NODE_ENV === "development";
+  const explicitExpertCreateUiFlag = process.env.NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI;
+  const normalizedExpertCreateUiFlag = explicitExpertCreateUiFlag?.trim().toLowerCase();
+  const isExpertCreateUiEnabledByEnv =
+    normalizedExpertCreateUiFlag === "true"
+      ? true
+      : normalizedExpertCreateUiFlag === "false"
+        ? false
+        : isDevBuild;
   const propertiesText: AiStudioPageContentProps["propertiesText"] = {
     mode,
     aspect,
@@ -307,7 +315,7 @@ export const useAiStudioPanelProps = ({
     imageResolution,
     onImageResolutionChange: setImageResolution,
     beginnerMode,
-    expertCreateUiEligible: !beginnerMode && isDevBuild,
+    expertCreateUiEligible: !beginnerMode && isExpertCreateUiEnabledByEnv,
   };
 
   const propertiesImage: AiStudioPageContentProps["propertiesImage"] = {

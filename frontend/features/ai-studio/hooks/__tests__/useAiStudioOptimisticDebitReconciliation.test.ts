@@ -162,4 +162,30 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     });
     expect(setDetailOutputId).toHaveBeenCalledWith("out-fail");
   });
+
+  it("drops stale unassigned optimistic debits instead of assigning them to unrelated new outputs", async () => {
+    const setOptimisticDebitEntries = vi.fn();
+    renderHook(() =>
+      useAiStudioOptimisticDebitReconciliation({
+        outputs: [makeOutput("out-new", "pending")],
+        setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
+        refreshBalance: vi.fn(async () => 10),
+        setDetailOutputId: asDispatch<string | null>(vi.fn()),
+      })
+    );
+
+    await waitFor(() => expect(setOptimisticDebitEntries).toHaveBeenCalled());
+
+    const staleEntry = {
+      credits: 4,
+      outputId: null,
+      createdAtMs: Date.now() - 10 * 60 * 1000,
+    } as unknown as OptimisticDebitEntry;
+    const removedStaleOrphans = updaterFns(setOptimisticDebitEntries).some((updater) => {
+      const next = updater([staleEntry]);
+      return next.length === 0;
+    });
+
+    expect(removedStaleOrphans).toBe(true);
+  });
 });

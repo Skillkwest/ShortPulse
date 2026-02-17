@@ -219,6 +219,7 @@ const CharacterPickerModal = ({
  * Renders the Create tool controls.
  */
 export function TextPropertiesPanel({
+  mode,
   aspect,
   modelId,
   modelLabel,
@@ -326,6 +327,9 @@ export function TextPropertiesPanel({
     if (showExpertView && characterModeEnabled && !nextCharacterModeEnabled) {
       onModelIdChange?.(null);
     }
+    if (!nextCharacterModeEnabled) {
+      setIsCharacterPickerOpen(false);
+    }
     onCharacterModeEnabledChange?.(nextCharacterModeEnabled);
     onStepActionClick?.("character");
   };
@@ -361,7 +365,11 @@ export function TextPropertiesPanel({
   const selectedCharacterInitials = selectedCharacterOption
     ? getCharacterInitials(selectedCharacterOption.name)
     : null;
+  const isCreateToolInPromptOnlyMode = mode === "text";
   const disableOutputGenerate =
+    isCreateToolInPromptOnlyMode ||
+    isGenerateDisabled ||
+    isPromptGenerating ||
     (characterModeEnabled ? !selectedCharacterId : !modelId) ||
     !hasSufficientCreditsForOutputGenerate;
 
@@ -372,6 +380,12 @@ export function TextPropertiesPanel({
       onImageResolutionChange(imageResolutionValue);
     }
   }, [imageResolution, imageResolutionValue, onImageResolutionChange]);
+
+  useEffect(() => {
+    if (!characterModeEnabled && isCharacterPickerOpen) {
+      setIsCharacterPickerOpen(false);
+    }
+  }, [characterModeEnabled, isCharacterPickerOpen]);
 
   useEffect(() => {
     if (!isCharacterPickerOpen) return;

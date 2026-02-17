@@ -303,6 +303,43 @@ describe("TextPropertiesPanel", () => {
     expect(onCharacterModeEnabledChange).toHaveBeenCalledWith(false);
   });
 
+  it("resets character picker open state when character mode is toggled off then on", () => {
+    const { rerender } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      characterModeEnabled: true,
+      characterOptions: [{ id: "char-1", name: "Avery Pulse" }],
+      selectedCharacterId: "char-1",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    expect(screen.getByRole("dialog", { name: "Choose character" })).toBeInTheDocument();
+
+    rerender(
+      <TextPropertiesPanel
+        {...baseProps}
+        beginnerMode={false}
+        expertCreateUiEligible
+        characterModeEnabled={false}
+        characterOptions={[{ id: "char-1", name: "Avery Pulse" }]}
+        selectedCharacterId="char-1"
+      />
+    );
+    expect(screen.queryByRole("dialog", { name: "Choose character" })).not.toBeInTheDocument();
+
+    rerender(
+      <TextPropertiesPanel
+        {...baseProps}
+        beginnerMode={false}
+        expertCreateUiEligible
+        characterModeEnabled
+        characterOptions={[{ id: "char-1", name: "Avery Pulse" }]}
+        selectedCharacterId="char-1"
+      />
+    );
+    expect(screen.queryByRole("dialog", { name: "Choose character" })).not.toBeInTheDocument();
+  });
+
   it("keeps expert model, aspect, and resolution callbacks wired to existing handlers", () => {
     const onModelPickerOpen = vi.fn();
     const onAspectChange = vi.fn();
@@ -376,6 +413,66 @@ describe("TextPropertiesPanel", () => {
       characterModeEnabled: false,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
       hasSufficientCreditsForOutputGenerate: false,
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
+  });
+
+  it("disables expert output-generate pills when primary generate is disabled", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      characterModeEnabled: false,
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      isGenerateDisabled: true,
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
+  });
+
+  it("disables expert output-generate pills while a generate is in flight", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      characterModeEnabled: false,
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      isPromptGenerating: true,
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
+  });
+
+  it("disables expert output-generate pills while create is in prompt-only text mode", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      mode: "text",
+      agentEnabled: true,
+      characterModeEnabled: false,
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
       agentMessages: [
         {
           id: "assistant-1",

@@ -8,7 +8,10 @@ import type { StudioOutput } from "../types";
 type OptimisticDebitEntry = {
   credits: number;
   outputId: string | null;
+  createdAtMs?: number;
 };
+
+const STALE_UNASSIGNED_OPTIMISTIC_DEBIT_MS = 2 * 60 * 1000;
 
 type UseAiStudioOptimisticDebitReconciliationParams = {
   outputs: StudioOutput[];
@@ -67,12 +70,31 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       }
       seenOutputIdsRef.current.add(output.id);
     });
-    if (!newlySeenOutputIds.length) return;
 
     setOptimisticDebitEntries((prev) => {
-      if (!prev.some((entry) => entry.outputId == null)) return prev;
+      const now = Date.now();
+      let changed = false;
+      const activeEntries = prev.filter((entry) => {
+        if (entry.outputId != null) return true;
+        const createdAtMs = entry.createdAtMs;
+        const isStale =
+          typeof createdAtMs === "number" &&
+          createdAtMs > 0 &&
+          now - createdAtMs > STALE_UNASSIGNED_OPTIMISTIC_DEBIT_MS;
+        if (isStale) {
+          changed = true;
+          return false;
+        }
+        return true;
+      });
+      if (!activeEntries.some((entry) => entry.outputId == null)) {
+        return changed ? activeEntries : prev;
+      }
+      if (!newlySeenOutputIds.length) {
+        return changed ? activeEntries : prev;
+      }
       const assignedOutputIds = new Set(
-        prev.map((entry) => entry.outputId).filter((id): id is string => Boolean(id))
+        activeEntries.map((entry) => entry.outputId).filter((id): id is string => Boolean(id))
       );
       const newlyPendingOutputIds = newlySeenOutputIds.filter((id) => {
         const item = outputs.find((output) => output.id === id);
@@ -83,21 +105,11 @@ export const useAiStudioOptimisticDebitReconciliation = ({
           !assignedOutputIds.has(item.id)
         );
       });
-      const fallbackPendingOutputIds = outputs
-        .filter(
-          (item) =>
-            item.id.startsWith("out-") &&
-            (item.taskState === "pending" || item.taskState === "running") &&
-            !assignedOutputIds.has(item.id) &&
-            !newlyPendingOutputIds.includes(item.id)
-        )
-        .map((item) => item.id);
-      const availableOutputIds = [...newlyPendingOutputIds, ...fallbackPendingOutputIds];
-      if (!availableOutputIds.length) return prev;
+      const availableOutputIds = [...newlyPendingOutputIds];
+      if (!availableOutputIds.length) return changed ? activeEntries : prev;
 
       let nextIndex = 0;
-      let changed = false;
-      const next = prev.map((entry) => {
+      const next = activeEntries.map((entry) => {
         if (entry.outputId != null || nextIndex >= availableOutputIds.length) {
           return entry;
         }

@@ -143,7 +143,7 @@ describe("useAiStudioAgentOrchestration", () => {
       getAgentContext: vi.fn(() => ({
         activePrompt: "A cinematic portrait in neon light.",
         lastAssistantMessage: "A cinematic portrait in neon light.",
-        focusedSource: "agent-output",
+        focusedSource: "agent-output" as const,
       })),
       sendToAgent,
     });
@@ -180,7 +180,7 @@ describe("useAiStudioAgentOrchestration", () => {
       getAgentContext: vi.fn(() => ({
         activePrompt: null,
         lastAssistantMessage: null,
-        focusedSource: "agent-output",
+        focusedSource: "agent-output" as const,
       })),
       sendToAgent,
     });

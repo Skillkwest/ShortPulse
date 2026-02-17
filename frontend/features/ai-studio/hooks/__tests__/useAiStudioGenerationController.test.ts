@@ -280,9 +280,56 @@ describe("useAiStudioGenerationController", () => {
       | ((prev: { credits: number; outputId: string | null }[]) => {
           credits: number;
           outputId: string | null;
+          createdAtMs?: number;
         }[])
       | undefined;
     expect(typeof updater).toBe("function");
-    expect(updater?.([])).toEqual([{ credits: 7, outputId: null }]);
+    expect(updater?.([])).toEqual([
+      expect.objectContaining({ credits: 7, outputId: null, createdAtMs: expect.any(Number) }),
+    ]);
+  });
+
+  it("blocks option-based generate when generation guardrails disable submissions", async () => {
+    const generateOutput = vi.fn();
+    const setUiError = vi.fn();
+    const setOptimisticDebitEntries = vi.fn();
+    const params = createParams({
+      isGenerateDisabled: true,
+      isCreditGuardrail: false,
+      generationGuardrail: "Guardrail blocked this run.",
+      generateOutput,
+      setUiError: asDispatch<string | null>(setUiError),
+      setOptimisticDebitEntries:
+        asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt override", { costOverrideCredits: 2 });
+    });
+
+    expect(setUiError).toHaveBeenCalledWith("Guardrail blocked this run.");
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue debits or submit when create/text tool remains in text mode", async () => {
+    const generateOutput = vi.fn();
+    const setOptimisticDebitEntries = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      generateOutput,
+      setOptimisticDebitEntries:
+        asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt override", { costOverrideCredits: 2 });
+    });
+
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
   });
 });

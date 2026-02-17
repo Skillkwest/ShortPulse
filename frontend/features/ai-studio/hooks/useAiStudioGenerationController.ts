@@ -52,7 +52,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   setPromptOrigin: Dispatch<SetStateAction<"manual" | "agent" | "reference">>;
   setOptimisticDebitEntries: Dispatch<
-    SetStateAction<{ credits: number; outputId: string | null }[]>
+    SetStateAction<{ credits: number; outputId: string | null; createdAtMs?: number }[]>
   >;
   refreshBalance: (options?: {
     silent?: boolean;
@@ -207,6 +207,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         {
           credits,
           outputId: null,
+          createdAtMs: Date.now(),
         },
       ]);
     },
@@ -220,6 +221,16 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       const effectiveMode = options?.modeOverride ?? mode;
       const effectiveTool = options?.toolOverride ?? selectedTool;
       const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
+      let checkedFreshCredits = false;
+
+      if ((effectiveTool === "create" || effectiveTool === "text") && effectiveMode === "text") {
+        return;
+      }
+
+      if (agentBusy) {
+        handleBlockedGeneration();
+        return;
+      }
 
       if (
         options?.costOverrideCredits != null &&
@@ -227,15 +238,18 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         effectiveBalanceCredits < options.costOverrideCredits
       ) {
         const hasFreshCredits = await ensureFreshCreditsForRun(options.costOverrideCredits);
+        checkedFreshCredits = true;
         if (!hasFreshCredits) {
           setUiError("You do not have enough credits for this run.");
           return;
         }
       }
 
-      if (!options && isGenerateDisabled) {
+      if (isGenerateDisabled) {
         if (isCreditGuardrail) {
-          const hasFreshCredits = await ensureFreshCreditsForRun(requiredCredits);
+          const hasFreshCredits = checkedFreshCredits
+            ? true
+            : await ensureFreshCreditsForRun(requiredCredits);
           if (!hasFreshCredits) {
             handleBlockedGeneration();
             return;
@@ -279,6 +293,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       ensureFreshCreditsForRun,
       generateOutput,
       handleBlockedGeneration,
+      agentBusy,
       isCreditGuardrail,
       isGenerateDisabled,
       mode,

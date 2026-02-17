@@ -16,6 +16,7 @@ import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibrary
 import { useBeginnerModePreference } from "../features/ai-studio/hooks/useBeginnerModePreference";
 import {
   getStagedAgentPrompt,
+  normalizePromptText,
   resolvePromptSourceBadge,
   type PromptOrigin,
 } from "../features/ai-studio/logic/agentPromptOwnership";
@@ -45,6 +46,7 @@ const CHARACTER_MODE_BUNDLE_STALE_AFTER_MS = 45 * 60 * 1000;
 type OptimisticDebitEntry = {
   credits: number;
   outputId: string | null;
+  createdAtMs?: number;
 };
 
 export default function AiStudioPage() {
@@ -435,21 +437,6 @@ export default function AiStudioPage() {
     balanceCredits: effectiveBalanceCredits,
     costParamsForModel,
   });
-  const disableAgentOutputGenerate = useMemo(() => {
-    const isCreatePromptTool = selectedTool === "create" || selectedTool === "text";
-    const missingGenerationTarget = isCreatePromptTool
-      ? isCharacterModeEnabled
-        ? !selectedCharacterId
-        : !model
-      : false;
-    return missingGenerationTarget || !hasSufficientCreditsForPromptReferenceGenerate;
-  }, [
-    hasSufficientCreditsForPromptReferenceGenerate,
-    isCharacterModeEnabled,
-    model,
-    selectedCharacterId,
-    selectedTool,
-  ]);
   const {
     isMediaLibraryOpen,
     handleOpenModelModal,
@@ -525,7 +512,7 @@ export default function AiStudioPage() {
   });
   const handleGenerateFromAgentOutputPrompt = useCallback(
     (promptText: string) => {
-      const normalizedPrompt = promptText.trim();
+      const normalizedPrompt = normalizePromptText(promptText);
       if (!normalizedPrompt) return;
       setPromptOrigin("agent");
       void handleGenerate(normalizedPrompt, {
@@ -534,6 +521,35 @@ export default function AiStudioPage() {
     },
     [currentCostCredits, handleGenerate, promptReferenceGenerateCostCredits, setPromptOrigin]
   );
+  const disableAgentOutputGenerate = useMemo(() => {
+    const isCreatePromptTool = selectedTool === "create" || selectedTool === "text";
+    const missingGenerationTarget = isCreatePromptTool
+      ? isCharacterModeEnabled
+        ? !selectedCharacterId
+        : !model
+      : false;
+    const isCreatePromptTextMode = isCreatePromptTool && mode === "text";
+    return (
+      isCreatePromptTextMode ||
+      isPromptGenerating ||
+      isGenerateDisabled ||
+      agentBusy ||
+      isGenerateClickLocked ||
+      missingGenerationTarget ||
+      !hasSufficientCreditsForPromptReferenceGenerate
+    );
+  }, [
+    agentBusy,
+    hasSufficientCreditsForPromptReferenceGenerate,
+    isCharacterModeEnabled,
+    isGenerateClickLocked,
+    isGenerateDisabled,
+    isPromptGenerating,
+    mode,
+    model,
+    selectedCharacterId,
+    selectedTool,
+  ]);
   const { handleDownloadReference, handleSaveReference, handleGenerateFromPromptReference } =
     useAiStudioReferenceAssetActions({
       outputs,

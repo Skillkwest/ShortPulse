@@ -6,6 +6,76 @@ How to use:
 - Keep this list execution-focused and current.
 - Mark completed items with `[x]` and keep evidence links inline.
 - Move major outcomes into `docs/change_log.md`.
+- Keep section structure locked (no urgency/priority sub-sections).
+
+Structure (locked):
+- `General`
+- `Dashboard`
+- `Media Library`
+- `Character Manager`
+- `AI Studio`
+- `Profile Page`
+- `Stripe and Payment Pipelines`
+- `Performance Analytics`
+- `Research`
+- `Done (verified in repo)`
+
+Tooling audit references:
+- `docs/planning/tooling-audit-2026-02-16.md`
+
+## General
+- [ ] Build a complete, polished collection of small delete buttons.
+- [ ] Build a complete, polished collection of small download buttons.
+- [ ] Build a complete, polished collection of small save buttons.
+- [ ] Define a prefab management system to keep reusable prefabs organized, easy to find, and consistently maintained over time.
+
+## Dashboard
+- [ ] Replace hard-coded usage counters with live client state (searches/storage/credits).
+- [ ] Redesign the Dashboard with a polished UI pass and thoroughly organize its styling structure for long-term maintainability.
+
+## Media Library
+- [ ] Make tooltip/url treatments resilient for long links (truncate/ellipsis where needed).
+- [ ] Media Library: redesign the header bar and refresh small info cards to pull real account-level details.
+- [ ] Media Library: fully optimize image loading and experiment with tooling options for masonry-style display.
+- [ ] Media Library: improve pagination behavior and controls across media tabs as part of optimization.
+- [ ] Media Library: increase spacing in uploaded-images card header rows to fix cramped title/button layout.
+- [ ] Media Library: restyle text prompt cards in the `Saved Prompts` tab.
+
+## Character Manager
+- [ ] Align Character Manager styling with the AI Studio character workflow so the manager page and properties panel feel cohesive.
+- [ ] Redesign Character Manager with a more polished UI, modeled after the AI Studio character workflow experience.
+
+## AI Studio
+- [ ] AI Studio: run staging smoke tests for aspect-ratio contract (verify submit payload and returned dimensions for Seedream `5:4`, `4:5`, `3:2`, `2:3`, `21:9`).
+- [ ] AI Studio: add CI parity check to fail builds when `modelRegistry` drifts from `modelApiContracts` (aspect/resolution/duration/defaults).
+- [ ] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
+- [ ] AI Studio: alter existing e2e coverage for aspect clamping + submit-time `effective_aspect` consistency after the contract overhaul.
+- [ ] AI Studio: update reference grid styling and adjust `Add files` / `Media library` button colors.
+- [ ] AI Studio: test header title color updates and add a sparkle icon next to the `AI Studio` title.
+- [ ] AI Studio: preload character workflow identities and saved references when entering from Dashboard so character assets are cached across workflow switches.
+- [ ] AI Studio: make `CharacterManager` open instantly (no open animation) and tune properties panel sizing.
+- [ ] AI Studio: add a `Canvas` button that opens a free-form canvas for dragging/dropping images and text prompts to visually organize ideas.
+- [ ] AI Studio: clean up beginner-mode copy across all properties panels.
+
+## Profile Page
+- [ ] Add targeted automated tests for saved creators critical flows (auth + media library coverage already exists).
+- [ ] Add account setting: "Show Beginner Mode Toggle" (control visibility of the beginner toggle card, not just mode state).
+- [ ] Add CSV import/export for saved creators.
+
+## Stripe and Payment Pipelines
+- [ ] Create Stripe price IDs for updated tiers/packages and populate `billing_plans.stripe_price_id` + `billing_credit_packages.stripe_price_id` in Supabase.
+- [ ] Run and sign off Subscription tab end-to-end validation (upgrade/downgrade/cancel + webhook sync + renewal credits).
+
+## Performance Analytics
+- [ ] Build out performance analytics.
+
+## Research
+- [ ] Evaluate `react-masonry-css` for media library packed grid to preserve masonry visual density while restoring left-to-right reading order. Scoped spike before implementation.
+  Reference: `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`, `docs/planning/tooling-audit-2026-02-16.md` §1
+- [ ] Evaluate `next/image` with a custom Supabase loader for media gallery thumbnails (WebP/AVIF, responsive srcset, lazy loading). Pairs with ADR-0009 derivative variants.
+  Reference: `docs/planning/tooling-audit-2026-02-16.md` §2
+- [ ] Explore live data sources or edge functions if backend capabilities are reintroduced.
+- [ ] Run ML experiments for early performance prediction once real data is available.
 
 ## Done (verified in repo)
 - [x] Add platform filter tabs (IG/TikTok/YT) on Performance.
@@ -24,51 +94,3 @@ How to use:
   Evidence: `frontend/pages/profile.tsx`, `frontend/pages/api/billing/stripe/portal.ts`, `frontend/tests/api/stripe-portal.test.ts`
 - [x] Add targeted automated tests for auth + media library critical API flows.
   Evidence: `frontend/tests/api/auth-helper.test.ts`, `frontend/tests/api/auth-guarded-ai-kei-routes.test.ts`, `frontend/tests/api/media-sign-batch.test.ts`, `frontend/tests/api/media-move.test.ts`
-
-## Now (highest priority)
-### Open
-- [ ] Add targeted automated tests for saved creators critical flows (auth + media library coverage already exists).
-- [ ] Add account setting: "Show Beginner Mode Toggle" (control visibility of the beginner toggle card, not just mode state).
-
-### Blocked external dependency
-- [ ] Create Stripe price IDs for updated tiers/packages and populate `billing_plans.stripe_price_id` + `billing_credit_packages.stripe_price_id` in Supabase.
-- [ ] Run and sign off Subscription tab end-to-end validation (upgrade/downgrade/cancel + webhook sync + renewal credits).
-- [ ] Run explicit end-to-end RLS verification for `saved_creators` + `media_files` across two user accounts and document results.
-
-## Soon
-### Open
-- [ ] Add CSV import/export for saved creators.
-- [ ] Add additional demo dataset variants and cohort switching on Performance.
-- [ ] Replace hard-coded usage counters with live client state (searches/storage/credits).
-- [ ] Make tooltip/url treatments resilient for long links (truncate/ellipsis where needed).
-- [ ] Complete Performance data-actions follow-up: add status-history trail (filter reset affordance is already shipped).
-- [ ] Add SOP for Performance data actions rail and demo metric recomputation behavior.
-
-### Paused policy scope
-- [ ] Character Manager: monitor `character_sheet_*` vs `reference_pack_*` alias drift for one full release cycle and record evidence.
-- [ ] Character Manager: ship a deprecation migration plan to remove legacy `reference_pack_*` aliases after drift monitoring is stable.
-
-## Research / Spikes
-
-Full audit and evaluation details: `docs/planning/tooling-audit-2026-02-16.md`
-
-- [ ] Evaluate `react-masonry-css` for media library packed grid to preserve masonry visual density while restoring left-to-right reading order. Scoped spike before implementation.
-  Reference: `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`, `docs/planning/tooling-audit-2026-02-16.md` §1
-- [ ] Evaluate `next/image` with a custom Supabase loader for media gallery thumbnails (WebP/AVIF, responsive srcset, lazy loading). Pairs with ADR-0009 derivative variants.
-  Reference: `docs/planning/tooling-audit-2026-02-16.md` §2
-- [ ] Evaluate `@dnd-kit/core` + `@dnd-kit/sortable` for AI Studio reference canvas and agent-to-grid drag-and-drop (accessibility, touch reliability, drop animations).
-  Reference: `docs/planning/tooling-audit-2026-02-16.md` §3
-- [ ] Evaluate `sonner` for unified toast notifications across generation, upload, billing, and bulk action flows.
-  Reference: `docs/planning/tooling-audit-2026-02-16.md` §4
-- [ ] Evaluate `yet-another-react-lightbox` to replace custom MediaFileModal zoom/pan code with a production lightbox (pinch-to-zoom, gallery nav, video support).
-  Reference: `docs/planning/tooling-audit-2026-02-16.md` §5
-- [ ] Evaluate `date-fns` for consistent date formatting across media library, performance analytics, and generation history.
-  Reference: `docs/planning/tooling-audit-2026-02-16.md` §6
-- [ ] Evaluate `zustand` for global state management if AI Studio prop-drilling friction grows or cross-feature state access is needed.
-  Reference: `docs/planning/tooling-audit-2026-02-16.md` §7
-- [ ] Evaluate `zod` for API route input validation, starting with new routes and backfilling incrementally.
-  Reference: `docs/planning/tooling-audit-2026-02-16.md` §8
-
-## Later (post-MVP)
-- [ ] Explore live data sources or edge functions if backend capabilities are reintroduced.
-- [ ] Run ML experiments for early performance prediction once real data is available.

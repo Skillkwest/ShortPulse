@@ -26,7 +26,7 @@ curl --request POST \
 
 ### Parameters
 - `prompt` (string, required): Scene description; include composition, style, and any text overlays if needed.
-- `image_size` (enum/string or object): Use Fal enums (`square`, `square_hd`, `portrait_4_3`, `portrait_16_9`, `landscape_4_3`, `landscape_16_9`, `auto_2K`, `auto_4K`) or provide `{ width, height }`. AI Studio maps aspect to a close enum: `1:1` → `square`; `3:4`/`4:5`/`5:4` → `portrait_4_3`; `4:3`/`3:2`/`16:9`/`21:9` → `landscape_16_9`; `9:16`/`2:3` → `portrait_16_9`.
+- `image_size` (enum/string or object): Use Fal enums (`square`, `square_hd`, `portrait_4_3`, `portrait_16_9`, `landscape_4_3`, `landscape_16_9`, `auto_2K`, `auto_4K`) or provide `{ width, height }`. AI Studio sends exact sizes for non-native ratios: `5:4`→`{2400,1920}`, `4:5`→`{1920,2400}`, `3:2`→`{2880,1920}`, `2:3`→`{1920,2880}`, `21:9`→`{4032,1728}`.
 - `num_images` (integer): Default 1.
 - `max_images` (integer): Optional multi-image batches.
 - `seed` (integer): Optional reproducibility seed.
@@ -51,7 +51,7 @@ curl --request POST \
 
 ## Defaults we apply (AI Studio)
 - Aspect: `1:1` default; allowed: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9`.
-- Image size enum is derived from aspect (mapping above); output format `png`; safety checker on; `num_images = 1`.
+- Image size behavior: native enums for `1:1`, `4:3`, `3:4`, `16:9`, `9:16`; exact custom dimensions for `5:4`, `4:5`, `3:2`, `2:3`, `21:9`; output format `png`; safety checker on; `num_images = 1`.
 - Pricing: `seedream-per-image` base is $0.04; billed credits use 5-credit steps (`rawCredits = ceil(usd/0.01)`, `credits = ceil(rawCredits/5)*5`). Current outcomes: base 5 credits, 4K 10 credits.
 - Proxy routes: `/api/fal/seedream-submit` and `/api/fal/seedream-status`.
 

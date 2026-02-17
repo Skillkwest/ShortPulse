@@ -2,13 +2,8 @@
  * Helper utilities for AI Studio state and provider plumbing.
  * Separated from hooks to keep business logic small and testable.
  */
-import {
-  falNanoBananaAllowedAspects,
-  falNanoBananaProAllowedAspects,
-  keiAllowedAspects,
-  klingAllowedAspects,
-  modelOptions,
-} from "../constants";
+import { keiAllowedAspects, klingAllowedAspects, modelOptions } from "../constants";
+import { resolveEffectiveAspectForModel } from "./modelApiContracts";
 import type { ModelMediaType, ModelOption } from "../constants";
 import type { KeiTaskStatus } from "../../../lib/keiClient";
 import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
@@ -43,13 +38,21 @@ export const resolveModelLabel = (value?: string) =>
 export const normalizeAspectForKei = (value: string) =>
   keiAllowedAspects.has(value) ? value : "auto";
 export const normalizeAspectForFalNanoBanana = (value: string) =>
-  falNanoBananaAllowedAspects.has(value) ? value : "1:1";
+  resolveEffectiveAspectForModel("fal-ai/nano-banana", value, "1:1");
 export const normalizeAspectForFalNanoBananaPro = (value: string) =>
-  falNanoBananaProAllowedAspects.has(value) ? value : "4:5";
+  resolveEffectiveAspectForModel("fal-ai/nano-banana-pro", value, "4:5");
 export const resolveKlingAspectRatio = (
   value: string
-): FalKlingTextSubmitRequest["aspect_ratio"] =>
-  klingAllowedAspects.has(value) ? (value as FalKlingTextSubmitRequest["aspect_ratio"]) : "16:9";
+): FalKlingTextSubmitRequest["aspect_ratio"] => {
+  const resolved = resolveEffectiveAspectForModel(
+    "fal-ai/kling-video/v3/pro/text-to-video",
+    value,
+    "16:9"
+  );
+  return klingAllowedAspects.has(resolved)
+    ? (resolved as FalKlingTextSubmitRequest["aspect_ratio"])
+    : "16:9";
+};
 export const resolveKlingDuration = (seconds: number): FalKlingTextSubmitRequest["duration"] =>
   seconds <= 5 ? 5 : 10;
 export const resolveKlingV3Duration = (seconds: number): number => {
@@ -62,21 +65,6 @@ export const resolveSoraDuration = (seconds: number): 4 | 8 | 12 => {
   if (seconds <= 8) return 8;
   return 12;
 };
-export const resolveSeedreamImageSize = (aspect: string): string => {
-  const normalized = aspect.trim();
-  if (normalized === "1:1") return "square";
-  if (normalized === "3:4" || normalized === "4:5" || normalized === "5:4") return "portrait_4_3";
-  if (
-    normalized === "4:3" ||
-    normalized === "3:2" ||
-    normalized === "21:9" ||
-    normalized === "16:9"
-  )
-    return "landscape_16_9";
-  if (normalized === "9:16" || normalized === "2:3") return "portrait_16_9";
-  return "landscape_16_9";
-};
-
 export const computeModalPosition = (target: HTMLElement): { top: number; left: number } => {
   const rect = target.getBoundingClientRect();
   const scrollY = window.scrollY || 0;

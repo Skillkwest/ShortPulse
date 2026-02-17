@@ -1,12 +1,12 @@
 # ShortPulse v1
 
-Client-only short-form analytics and workspace surfaces. Everything runs in the browser with Supabase for auth/storage and a demo dataset you can refresh and rescore from the UI—no backend services to start or maintain.
+Client-only short-form analytics and workspace surfaces. Everything runs in the browser with Supabase for auth/storage and a demo dataset you can refresh and filter from the UI—no backend services to start or maintain.
 
 ## Tech
 
 - Frontend: Next.js (pages router), Phosphor icons, modular CSS.
 - Auth/storage: Supabase client with persisted sessions, `saved_creators` table, and a private `media_library` bucket.
-- Analytics: In-browser scoring of a demo cohort with user-triggered refresh/rescore controls.
+- Analytics: In-browser scoring of a demo cohort with user-triggered refresh and filtering controls.
 - AI Studio providers: Next.js API routes under `/api/fal/*` proxy Fal queue requests (server-side `FAL_KEY` required), including the Seedream 4.5 edit proxy at `/api/fal/seedream-edit-submit`.
 - Local AI Studio media uploads: `/api/upload-image` and `/api/upload-video` store user-scoped files in private storage and return short-lived signed URLs for provider fetches.
 - Media preview signing: `/api/media/sign-batch` signs user-scoped media preview paths in a single authenticated request to reduce list/grid signing overhead.
@@ -40,13 +40,14 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 
 ## Manual data actions
 
-- Performance Analytics includes a “Data actions” rail for demo dataset refresh/rescore, but the entire Performance surface is post‑MVP (Coming Soon).
+- Performance Analytics (`/performance`) provides a demo refresh + filtering workflow for the sample dataset.
+- Dashboard and landing entry points currently route users to `/performance-soon` while analytics rollout remains staged.
 - Saved Creators and Media Library actions write/read directly through the Supabase client from the frontend (Saved Creators is post‑MVP).
 
 ## Frontend surfaces
 
 - **Dashboard (`/dashboard`)**: Launchpad with plan/status chips and tool cards.
-- **Performance Analytics (`/performance`)**: Post‑MVP (Coming Soon); demo analytics surface with filters and scoring.
+- **Performance Analytics (`/performance`)**: Authenticated demo analytics surface (staged rollout; dashboard currently points to `/performance-soon`).
 - **Performance Placeholder (`/performance-soon`)**: Temporary landing page that explains the analytics workspace is still under construction.
 - **Saved Creators (`/saved-creators`)**: Post‑MVP (Coming Soon); per-user handle list.
 - **Media Library (`/media-library`)**: Upload/download/delete/rename/move files across media tabs in a private Supabase bucket, including a Private image tab (`<auth.uid()>/private/images/...`).

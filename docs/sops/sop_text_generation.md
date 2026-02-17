@@ -6,7 +6,7 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 ## Audit (strengths, gaps, decisions)
 - Strengths: Single canonical prompt source in `frontend/lib/agentPromptsConfig.ts`; strict loader contract (`AgentPromptId`) that the TS compiler can validate; UI state (`useAiStudioState`) auto-wires responses into textareas and Reference Grid without copy/paste; token usage captured for cost visibility.
 - Gaps: Imported images do not yet flow through image-describer drag/drop (logged below as a limitation); UI error surfacing must be explicit (toast/modal/banners) rather than silent HTTP errors.
-- Decisions: Keep prompts in the TS config only (env overrides for emergencies); keep loader as-is but rename keys only in code if needed (outside this SOP); default all text and vision calls to `gpt-4.1-nano` with env overrides; keep SOP + TS config as the only config artifacts to minimize files.
+- Decisions: Keep prompts in the TS config only (env overrides for emergencies); keep loader as-is but rename keys only in code if needed (outside this SOP); default text refinement and vision describe to `gpt-5-nano`; keep SOP + TS config as the only config artifacts to minimize files.
 - Actioned cleanup: Archived redundant prompt docs in `docs/archive/ai-studio-prompts.md` so the TS config remains the only source. Update any links/bookmarks to point to `frontend/lib/agentPromptsConfig.ts`.
 - UX change: Added a prominent error banner in AI Studio to surface prompt/describe failures with a dismiss control.
 - Credits: The Generate button shows the estimated credits from `computeCostForModel` (or “—” if unknown); image/video charging is enforced server-side at submit time, while prompt-refine/describe flows currently report usage but are not yet debited.
@@ -26,7 +26,7 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 | `frontend/lib/agentPromptsConfig.ts` | Source of truth for system prompts; the main place to edit instructions, so all references and docs should defer to it. |
 | `frontend/lib/agentPromptLoader.ts` | Loads a prompt by ID, preferring the config but falling back to an env var emergency override to avoid app breakage. |
 | `frontend/pages/api/ai/generate-prompt.ts` | HTTP POST handler that sends `prompt` + system message to OpenAI chat completions and returns the refined prompt. |
-| `frontend/pages/api/ai/describe-image.ts` | HTTP POST handler that sends an image + system instructions to OpenAI vision (`gpt-4.1-nano` by default) and returns the reverse prompt. |
+| `frontend/pages/api/ai/describe-image.ts` | HTTP POST handler that sends an image + system instructions to OpenAI vision (`gpt-5-nano` by default, optional fallback model) and returns the reverse prompt. |
 | `frontend/pages/api/ai/studio-agent.ts` | AI Studio prompt-agent route with flow routing (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`), no-question action contract, and canonical prompt continuity. |
 
 ## Studio agent hardening alignment
@@ -39,8 +39,9 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 ## Environment prerequisites
 
 1. `OPENAI_API_KEY` must be set at runtime for both endpoints.
-2. `OPENAI_MODEL`/`OPENAI_VISION_MODEL` default to `gpt-4.1-nano` unless overridden in `.env.local` or the deployment pipeline.
-3. Emergency overrides: `OPENAI_PROMPT_SYSTEM` and `OPENAI_PROMPT_IMAGE_DESCRIBE` can be defined in env vars when immediate changes are required without touching source code.
+2. `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, and `OPENAI_VISION_FALLBACK_MODEL` default to `gpt-5-nano`.
+3. Optional hardening envs: `OPENAI_DESCRIBE_ALLOWED_HOSTS` and `OPENAI_DESCRIBE_REQUIRE_ALLOWED_HOSTS`.
+4. Emergency overrides: `OPENAI_PROMPT_SYSTEM` and `OPENAI_PROMPT_IMAGE_DESCRIBE` can be defined in env vars when immediate changes are required without touching source code.
 
 ## Text prompt refinement workflow
 
@@ -48,7 +49,7 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 2. Handler guards against non-POST methods and missing/empty prompt bodies.
 3. System prompt loads via `loadAgentPrompt("OPENAI_PROMPT_SYSTEM")`. If the config entry is empty, the handler still allows env overrides before returning a 500 error.
 4. Request body:
-   - Model: `process.env.OPENAI_MODEL ?? "gpt-4.1-nano"`
+   - Model: `process.env.OPENAI_MODEL ?? "gpt-5-nano"`
    - Messages: system prompt + user prompt
    - `temperature: 0.6`, `max_tokens: 2000`
 5. Upstream response is parsed for `choices[0]?.message?.content`; absence triggers a 502 error.
@@ -61,10 +62,12 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 1. POST `/api/ai/describe-image` expects `{ imageUrl: string }`.
 2. Handler validates HTTP method and ensures non-empty `imageUrl`.
 3. Loads system prompt via `loadAgentPrompt("OPENAI_PROMPT_IMAGE_DESCRIBE")`.
-4. Calls OpenAI chat completion with the `visionModel` (default `gpt-4.1-nano`), `temperature: 0.9`, `max_tokens: 8000`, and a single user message combining text plus image payload (high-detail inference).
-5. Parses `"choices[0].message.content"` into `description` and returns `{ description, usage }`.
-6. The same state update strategy runs here (`useAiStudioState.ts:336-380`), so descriptions appear in the Create textarea, Studio Preview prompt drop zone, and Reference Grid without any manual copy/paste: the handler calls `setPrompt(description)` and inserts a prompt card with `previewText`, then focuses the prompt input so the generated text is already selected for editing or regeneration.
-7. When describe mode runs, the describe-image agent (Agent 2) replaces the active prompt with the returned description. Imported images dropped into the Reference Grid or Studio Preview can populate describe context; if an image is missing, the UI error banner prompts the user to add a reference first.
+4. Preflights the URL server-side (HTTPS required, private-network hosts blocked, DNS private-IP resolution blocked, redirect chain validation, optional host allowlist).
+5. Calls OpenAI chat completion with the `visionModel` (default `gpt-5-nano`) and one user message combining text plus image payload.
+6. On model-capability 400s, retries once with `OPENAI_VISION_FALLBACK_MODEL` when configured/available.
+7. Parses `"choices[0].message.content"` into `description` and returns `{ description, usage }`.
+8. The same state update strategy runs here (`useAiStudioState.ts:336-380`), so descriptions appear in the Create textarea, Studio Preview prompt drop zone, and Reference Grid without any manual copy/paste: the handler calls `setPrompt(description)` and inserts a prompt card with `previewText`, then focuses the prompt input so the generated text is already selected for editing or regeneration.
+9. When describe mode runs, the describe-image agent (Agent 2) replaces the active prompt with the returned description. Imported images dropped into the Reference Grid or Studio Preview can populate describe context; if an image is missing, the UI error banner prompts the user to add a reference first.
 
 ## Studio UX surfaces (Create → Text, Create → Image/Video, Reference Grid)
 
@@ -92,7 +95,7 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 1. Confirm the system prompt is present by checking `frontend/lib/agentPromptsConfig.ts` or, in emergencies, the env override (`OPENAI_PROMPT_SYSTEM`/`OPENAI_PROMPT_IMAGE_DESCRIBE`); avoid relying on duplicate markdown copies.
 2. Validate request payloads via browser DevTools/network or API tests (verify `prompt` or `imageUrl` is present).
 3. Inspect deploy logs for upstream errors and note the `model` field returned in error responses.
-4. For image describe failures, ensure the provided URL is reachable and less than 4MB (Next.js body parser limit).
+4. For image describe failures, ensure the URL is HTTPS, reachable, not private-network scoped, and (if configured) present in the allowlist.
 
 ## Follow-up responsibilities
 

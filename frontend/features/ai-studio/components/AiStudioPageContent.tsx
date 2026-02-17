@@ -392,11 +392,17 @@ export function AiStudioPageContent({
   const previousSelectedToolRef = React.useRef<ToolId | null>(selectedTool);
   React.useEffect(() => {
     const previousSelectedTool = previousSelectedToolRef.current;
-    if (shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool)) {
+    // Expert Create should always open at its minimum left width when Create is selected.
+    const isCreateToolSelected = selectedTool === "create" || selectedTool === "text";
+    const shouldCollapseForExpertCreateSelection = showExpertCreatePanel && isCreateToolSelected;
+    if (
+      shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool) ||
+      shouldCollapseForExpertCreateSelection
+    ) {
       collapseToMin();
     }
     previousSelectedToolRef.current = selectedTool;
-  }, [collapseToMin, selectedTool]);
+  }, [collapseToMin, selectedTool, showExpertCreatePanel]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const rightColumnDragDepthRef = React.useRef(0);
   const [rightColumnDropMode, setRightColumnDropMode] = React.useState<RightColumnDropMode>("none");

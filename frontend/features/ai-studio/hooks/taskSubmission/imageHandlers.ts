@@ -12,12 +12,9 @@ import {
   submitFalSeedreamEdit,
 } from "../../../../lib/falClient";
 import { falNanoBananaAllowedAspects, falNanoBananaProAllowedAspects } from "../../constants";
-import {
-  isSeedreamAutoImageSize,
-  normalizeNanoBananaProResolution,
-} from "../../logic/imageResolution";
+import { normalizeNanoBananaProResolution } from "../../logic/imageResolution";
 import { falSizeForAspect } from "../../logic/pricing";
-import { resolveSeedreamImageSize } from "../../logic/stateParsers";
+import { resolveSeedreamImageSize } from "../../logic/seedreamSizing";
 import type { ImageSubmissionArgs } from "./types";
 
 /**
@@ -72,9 +69,7 @@ export const handleImageModelSubmission = async ({
       notifyGenerationFailure(id, "Seedream 4.5 Edit requires at least one reference image.");
       return true;
     }
-    const image_size = isSeedreamAutoImageSize(requestedResolution)
-      ? requestedResolution
-      : resolveSeedreamImageSize(aspect);
+    const image_size = resolveSeedreamImageSize(aspect, requestedResolution);
     const response = await submitFalSeedreamEdit({
       prompt: cleanedPrompt,
       image_size,

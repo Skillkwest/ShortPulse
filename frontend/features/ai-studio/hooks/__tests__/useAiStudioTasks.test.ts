@@ -96,7 +96,10 @@ describe("useAiStudioTasks", () => {
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
       "Generation finished, but no media URL was returned. Please retry.",
-      "Generation finished, but no media URL was returned. Please retry."
+      "Generation finished, but no media URL was returned. Please retry.",
+      expect.objectContaining({
+        reasonCode: "no_media_after_terminal_success",
+      })
     );
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -185,7 +188,11 @@ describe("useAiStudioTasks", () => {
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
       "Failed to download the file.",
-      "Failed to download the file. Please check if the URL is accessible and try again."
+      "Failed to download the file. Please check if the URL is accessible and try again.",
+      expect.objectContaining({
+        reasonCode: "provider_error",
+        providerState: "error",
+      })
     );
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -239,5 +246,80 @@ describe("useAiStudioTasks", () => {
     );
     expect(output.taskState).toBe("success");
     expect(output.previewUrl).toBe("https://cdn.test/final-seedream.png");
+  });
+
+  it("treats done states as terminal and enters no-media finalization retries", async () => {
+    fetchFalSeedreamStatusMock.mockResolvedValueOnce({
+      status: "done",
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("seedream-task-2", "out-1", 0, "fal-seedream");
+    });
+
+    await vi.advanceTimersByTimeAsync(1200);
+
+    expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(1);
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationSuccess).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Finalizing media...");
+  });
+
+  it("captures timeout context metadata when polling exceeds max wait", () => {
+    const updateOutputById = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+    const startedAt = Date.now() - (9 * 60 * 1000 + 2_000);
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-timeout", "out-1", 4, "fal", startedAt, 2);
+    });
+
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Timed out waiting for provider result.",
+      "Timed out waiting for provider result.",
+      expect.objectContaining({
+        reasonCode: "poll_timeout",
+        pollAttempt: 4,
+        noMediaAttempt: 2,
+        maxWaitMs: 8 * 60 * 1000,
+      })
+    );
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "task-timeout",
+        provider: "fal",
+        reasonCode: "poll_timeout",
+      })
+    );
   });
 });

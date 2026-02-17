@@ -50,6 +50,9 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `OPENAI_API_BASE`
   - `OPENAI_MODEL`
   - `OPENAI_VISION_MODEL`
+  - `OPENAI_VISION_FALLBACK_MODEL`
+  - `OPENAI_DESCRIBE_ALLOWED_HOSTS` (optional hardening)
+  - `OPENAI_DESCRIBE_REQUIRE_ALLOWED_HOSTS` (optional hardening)
   - `OPENAI_PROMPT_SYSTEM`
 
 ## Vercel setup

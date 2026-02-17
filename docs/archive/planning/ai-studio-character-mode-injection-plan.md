@@ -1,5 +1,8 @@
 # AI Studio Character Mode Injection Plan
 
+Archive status: moved from `docs/planning/` on 2026-02-17 after implementation completion.  
+Canonical historical context is retained here; active planning moved back to backlog where needed.
+
 Purpose: implement the Create workflow Character Mode so every generate run injects the selected character sheet references + hidden character description context + user prompt into Seedream 4.5 Edit at highest image resolution.
 
 ## Requirement Lock (Confirmed)

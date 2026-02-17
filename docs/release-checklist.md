@@ -35,4 +35,4 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 ## Post‑MVP checks (run when these surfaces are enabled)
 
 - Saved Creators: add/edit/remove a handle; data is user-scoped
-- Performance: data actions rail works; charts/cards render; no console errors
+- Performance: demo refresh/filter workflow works; charts/cards render; no console errors

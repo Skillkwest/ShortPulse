@@ -102,10 +102,6 @@ export const useAiStudioStateEffects = ({
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;
     if (allowedUiAspects.has(aspect)) return;
-    if (aspect === "21:9") {
-      setAspect("16:9");
-      return;
-    }
     if (aspect === "9:21") {
       setAspect("9:16");
       return;

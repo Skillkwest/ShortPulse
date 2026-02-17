@@ -29,7 +29,7 @@ Purpose: define the documentation information architecture, ownership rules, and
 - `Archived`: superseded or historical docs under `docs/archive/` only.
 
 Archive requirements:
-- Move superseded docs into `docs/archive/` (use subfolders like `docs/archive/sops/` and `docs/archive/product/` when helpful).
+- Move superseded docs into `docs/archive/` (use subfolders like `docs/archive/planning/`, `docs/archive/sops/`, and `docs/archive/product/` when helpful).
 - Add an explicit archive note at the top of archived docs (for example: moved date + superseded-by path).
 - Keep `Status: Legacy` markers only in files under `docs/archive/`.
 - Update `docs/README.md` and relevant section indexes when docs move.

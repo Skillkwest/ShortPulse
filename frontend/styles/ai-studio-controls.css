@@ -200,6 +200,11 @@
   height: 17px;
 }
 
+.aspect-shape.ratio-21-9 {
+  width: 33px;
+  height: 14px;
+}
+
 .aspect-shape.ratio-9-16 {
   width: 17px;
   height: 30px;

@@ -1,12 +1,16 @@
 ---
 title: MVP Pre-Tester Anchor Plan
-status: Active
+status: Archived (Superseded)
 owner: Product + Engineering
 created: 2026-02-09
-last_updated: 2026-02-09
+last_updated: 2026-02-17
+archived_on: 2026-02-17
+superseded_by: docs/planning/mvp-pretester-full-audit-remediation-plan.md
 ---
 
 # MVP Pre-Tester Anchor Plan
+
+Archive status: superseded by `docs/planning/mvp-pretester-full-audit-remediation-plan.md`.
 
 Purpose: keep a strict, reusable stabilization plan before handing the MVP to external testers.
 

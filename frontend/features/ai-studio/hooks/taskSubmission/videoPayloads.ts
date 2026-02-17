@@ -2,12 +2,30 @@
  * Shared payload normalization helpers for video model submission handlers.
  */
 import { resolveKlingV3Duration } from "../../logic/stateParsers";
+import { getModelApiContract, resolveEffectiveAspectForModel } from "../../logic/modelApiContracts";
 import type { SubmissionModelConfig, VideoSubmissionArgs } from "./types";
 
 type KlingMultiPromptPayload = { prompt: string; duration: number };
 type KlingElementPayload =
   | { video_url: string }
   | { frontal_image_url: string | undefined; reference_image_urls: string[] | undefined };
+
+const resolveAspectForModelConfig = (
+  aspect: string,
+  modelConfig: SubmissionModelConfig,
+  fallback: string
+): string => {
+  if (modelConfig?.id && getModelApiContract(modelConfig.id)) {
+    return resolveEffectiveAspectForModel(modelConfig.id, aspect, fallback);
+  }
+  if (modelConfig?.allowedAspects?.includes(aspect)) {
+    return aspect;
+  }
+  if (modelConfig?.defaultAspect) {
+    return modelConfig.defaultAspect;
+  }
+  return fallback;
+};
 
 /**
  * Fal currently guarantees `shot_type=customize` support for Kling 3 image-to-video.
@@ -49,23 +67,20 @@ export const resolveVeoResolution = (
 export const resolveSeedanceTextAspect = (
   aspect: string,
   modelConfig: SubmissionModelConfig
-): "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9" =>
-  modelConfig?.allowedAspects?.includes(aspect) &&
-  (aspect === "16:9" ||
-    aspect === "9:16" ||
-    aspect === "1:1" ||
-    aspect === "4:3" ||
-    aspect === "3:4" ||
-    aspect === "21:9")
-    ? aspect
-    : modelConfig?.defaultAspect === "16:9" ||
-        modelConfig?.defaultAspect === "9:16" ||
-        modelConfig?.defaultAspect === "1:1" ||
-        modelConfig?.defaultAspect === "4:3" ||
-        modelConfig?.defaultAspect === "3:4" ||
-        modelConfig?.defaultAspect === "21:9"
-      ? modelConfig.defaultAspect
-      : "16:9";
+): "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9" => {
+  const resolved = resolveAspectForModelConfig(aspect, modelConfig, "16:9");
+  if (
+    resolved === "16:9" ||
+    resolved === "9:16" ||
+    resolved === "1:1" ||
+    resolved === "4:3" ||
+    resolved === "3:4" ||
+    resolved === "21:9"
+  ) {
+    return resolved;
+  }
+  return "16:9";
+};
 
 /**
  * Resolves Seedance image-to-video aspect ratio with model fallback defaults.
@@ -73,7 +88,7 @@ export const resolveSeedanceTextAspect = (
 export const resolveSeedanceI2VAspect = (
   aspect: string,
   modelConfig: SubmissionModelConfig
-): string => (modelConfig?.allowedAspects?.includes(aspect) ? aspect : "16:9");
+): string => resolveAspectForModelConfig(aspect, modelConfig, "16:9");
 
 /**
  * Normalizes Seedance image-to-video resolution.
@@ -112,10 +127,10 @@ export const resolveSeedanceI2VDuration = (requestedDurationSeconds: number): st
 export const resolveSoraAspect = (
   aspect: string,
   modelConfig: SubmissionModelConfig
-): "16:9" | "9:16" =>
-  modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16")
-    ? aspect
-    : ((modelConfig?.defaultAspect as "16:9" | "9:16" | undefined) ?? "16:9");
+): "16:9" | "9:16" => {
+  const resolved = resolveAspectForModelConfig(aspect, modelConfig, "16:9");
+  return resolved === "9:16" ? "9:16" : "16:9";
+};
 
 /**
  * Normalizes Sora resolution choices.
@@ -129,10 +144,10 @@ export const resolveSoraResolution = (requestedResolution?: string): "720p" | "1
 export const resolveVeoTextAspect = (
   aspect: string,
   modelConfig: SubmissionModelConfig
-): "16:9" | "9:16" =>
-  modelConfig?.allowedAspects?.includes(aspect) && (aspect === "16:9" || aspect === "9:16")
-    ? aspect
-    : ((modelConfig?.defaultAspect as "16:9" | "9:16" | undefined) ?? "16:9");
+): "16:9" | "9:16" => {
+  const resolved = resolveAspectForModelConfig(aspect, modelConfig, "16:9");
+  return resolved === "9:16" ? "9:16" : "16:9";
+};
 
 /**
  * Builds compact list of up to two non-empty Kling voice IDs.

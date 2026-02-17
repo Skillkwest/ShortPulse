@@ -6,15 +6,12 @@ import {
   submitFalNanoBananaPro,
   submitFalSeedream,
 } from "../../../../lib/falClient";
-import {
-  isSeedreamAutoImageSize,
-  normalizeNanoBananaProResolution,
-} from "../../logic/imageResolution";
+import { normalizeNanoBananaProResolution } from "../../logic/imageResolution";
 import {
   normalizeAspectForFalNanoBanana,
   normalizeAspectForFalNanoBananaPro,
-  resolveSeedreamImageSize,
 } from "../../logic/stateParsers";
+import { resolveSeedreamImageSize } from "../../logic/seedreamSizing";
 import type { ImageSubmissionArgs } from "./types";
 
 /**
@@ -32,9 +29,7 @@ export const handleDefaultModelSubmission = async ({
   let pollingProvider: "fal-seedream" | "fal-nano-banana" | "fal-nano-banana-pro";
 
   if (finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image") {
-    const image_size = isSeedreamAutoImageSize(requestedResolution)
-      ? requestedResolution
-      : resolveSeedreamImageSize(aspect);
+    const image_size = resolveSeedreamImageSize(aspect, requestedResolution);
     const response = await submitFalSeedream({
       prompt: cleanedPrompt,
       image_size,

@@ -98,6 +98,7 @@ Start here for all repository documentation.
 ## Planning And History
 - `docs/planning/README.md`
 - `docs/planning/backlog.md`
+- `docs/planning/documentation-audit-2026-02-17.md`
 - `docs/planning/audit-progress.md`
 - `docs/planning/mvp-pretester-full-audit-remediation-plan.md`
 - `docs/planning/mvp-ui-ux-stabilization-remediation-plan.md`
@@ -106,12 +107,14 @@ Start here for all repository documentation.
 - `docs/planning/mvp-ui-ux-phase0-baseline-qa-checklist.md`
 - `docs/planning/mvp-ui-ux-phase0-baseline-capture-template.md`
 - `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
-- `docs/planning/mvp-pre-tester-anchor-plan.md`
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
+- `docs/planning/ai-studio-agent-pipeline-hardening-plan.md`
 - `docs/planning/ai-studio-primary-character-panel-build-plan.md`
+- `docs/planning/expert-workflow-hardening-css-reorg-plan.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
 - `docs/planning/media-optimization-phase0-measurement-spec.md`
 - `docs/planning/media-optimization-schema-and-migration-spec.md`
+- `docs/planning/tooling-audit-2026-02-16.md`
 - `docs/change_log.md`
 
 ## ADRs
@@ -130,6 +133,10 @@ Start here for all repository documentation.
 
 ## Archive
 - `docs/archive/README.md`
+- `docs/archive/planning/README.md`
+- `docs/archive/planning/ai-studio-character-mode-injection-plan.md`
+- `docs/archive/planning/media-library-move-tabs-plan.md`
+- `docs/archive/planning/mvp-pre-tester-anchor-plan.md`
 - `docs/archive/ai-studio-agent-implementation-plan.md`
 - `docs/archive/ai-studio-prompts.md`
 - `docs/archive/character-manager-character-sheet-plan.md`

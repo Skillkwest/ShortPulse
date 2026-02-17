@@ -33,6 +33,15 @@ type UseAiStudioOutputLifecycleParams = {
   setUiError: Dispatch<SetStateAction<string | null>>;
 };
 
+type GenerationFailureContext = {
+  reasonCode?: string | null;
+  providerState?: string | null;
+  pollAttempt?: number | null;
+  noMediaAttempt?: number | null;
+  elapsedMs?: number | null;
+  maxWaitMs?: number | null;
+};
+
 /**
  * Returns output-lifecycle helpers used by AI Studio state orchestration.
  */
@@ -165,7 +174,7 @@ export const useAiStudioOutputLifecycle = ({
   );
 
   const notifyGenerationFailure = useCallback(
-    (outputId: string, message: string, detail?: string) => {
+    (outputId: string, message: string, detail?: string, context?: GenerationFailureContext) => {
       delete pendingAutoSavesRef.current[outputId];
       const outputContext = findOutputById(outputId);
       const safeMessage = normalizeErrorText(message, {
@@ -210,6 +219,12 @@ export const useAiStudioOutputLifecycle = ({
           task_id: outputContext?.taskId ?? null,
           task_state: outputContext?.taskState ?? null,
           generation_id: outputContext?.generationId ?? null,
+          failure_reason_code: context?.reasonCode ?? null,
+          provider_state: context?.providerState ?? null,
+          poll_attempt: context?.pollAttempt ?? null,
+          no_media_attempt: context?.noMediaAttempt ?? null,
+          elapsed_ms: context?.elapsedMs ?? null,
+          max_wait_ms: context?.maxWaitMs ?? null,
         },
       });
     },

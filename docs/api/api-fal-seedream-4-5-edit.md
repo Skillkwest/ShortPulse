@@ -31,7 +31,7 @@ curl --request POST \
 ### Parameters
 - `prompt` (string, required): Edit instructions for the input images.
 - `image_urls` (list<string>, required): Reference images for editing. Up to 10 are supported by the API.
-- `image_size` (enum/string or object): One of `square_hd`, `square`, `portrait_4_3`, `portrait_16_9`, `landscape_4_3`, `landscape_16_9`, `auto_2K`, `auto_4K`, or a `{ width, height }` object. Fal notes width/height must be between 1920 and 4096 (or total pixels between 25601440 and 40964096) when custom sizes are used.
+- `image_size` (enum/string or object): One of `square_hd`, `square`, `portrait_4_3`, `portrait_16_9`, `landscape_4_3`, `landscape_16_9`, `auto_2K`, `auto_4K`, or a `{ width, height }` object. AI Studio sends exact custom dimensions for non-native ratios (`5:4`, `4:5`, `3:2`, `2:3`, `21:9`).
 - `num_images` (integer): Default 1.
 - `max_images` (integer): Optional multi-image batches.
 - `seed` (integer): Optional reproducibility seed.
@@ -54,7 +54,7 @@ curl --request POST \
 
 ## Defaults we apply (AI Studio)
 - Aspect: `1:1` default; allowed: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9`.
-- Image size enum is derived from aspect (shared mapping with text-to-image).
+- Image size behavior matches text-to-image: native enums for `1:1`, `4:3`, `3:4`, `16:9`, `9:16`; exact custom dimensions for `5:4`, `4:5`, `3:2`, `2:3`, `21:9`.
 - Safety checker off by default (`enable_safety_checker: false`) to honor the “minimum safety” request.
 - `num_images = 1`; references are passed from the reference grid (up to 4 today, API allows 10).
 - Pricing: `seedream-per-image` base is $0.04; billed credits use 5-credit steps (`rawCredits = ceil(usd/0.01)`, `credits = ceil(rawCredits/5)*5`). Current outcomes: base 5 credits, 4K 10 credits.

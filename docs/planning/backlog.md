@@ -1,6 +1,6 @@
 # ShortPulse Backlog
 
-Last audited: 2026-02-13
+Last audited: 2026-02-17
 
 How to use:
 - Keep this list execution-focused and current.
@@ -20,22 +20,31 @@ How to use:
   Evidence: `docs/local-development.md`, `docs/supabase_full_schema.sql`
 - [x] Add contributor/testing guidance after adopting a harness.
   Evidence: `docs/testing-guide.md`, `docs/contributor-guide.md`
+- [x] Configure Stripe Billing Portal for subscription update/cancel behavior (`/profile?section=subscription` flow).
+  Evidence: `frontend/pages/profile.tsx`, `frontend/pages/api/billing/stripe/portal.ts`, `frontend/tests/api/stripe-portal.test.ts`
+- [x] Add targeted automated tests for auth + media library critical API flows.
+  Evidence: `frontend/tests/api/auth-helper.test.ts`, `frontend/tests/api/auth-guarded-ai-kei-routes.test.ts`, `frontend/tests/api/media-sign-batch.test.ts`, `frontend/tests/api/media-move.test.ts`
 
 ## Now (highest priority)
-- [ ] Create Stripe price IDs for updated tiers/packages and populate `billing_plans.stripe_price_id` + `billing_credit_packages.stripe_price_id` in Supabase.
-- [ ] Configure Stripe Billing Portal for subscription update/cancel behavior (`/profile?section=subscription` flow).
-- [ ] Run and sign off Subscription tab end-to-end validation (upgrade/downgrade/cancel + webhook sync + renewal credits).
-- [ ] Run explicit end-to-end RLS verification for `saved_creators` + `media_files` across two user accounts and document results.
-- [ ] Add targeted automated tests for auth + saved creators + media library critical flows.
+### Open
+- [ ] Add targeted automated tests for saved creators critical flows (auth + media library coverage already exists).
 - [ ] Add account setting: "Show Beginner Mode Toggle" (control visibility of the beginner toggle card, not just mode state).
 
+### Blocked external dependency
+- [ ] Create Stripe price IDs for updated tiers/packages and populate `billing_plans.stripe_price_id` + `billing_credit_packages.stripe_price_id` in Supabase.
+- [ ] Run and sign off Subscription tab end-to-end validation (upgrade/downgrade/cancel + webhook sync + renewal credits).
+- [ ] Run explicit end-to-end RLS verification for `saved_creators` + `media_files` across two user accounts and document results.
+
 ## Soon
+### Open
 - [ ] Add CSV import/export for saved creators.
 - [ ] Add additional demo dataset variants and cohort switching on Performance.
 - [ ] Replace hard-coded usage counters with live client state (searches/storage/credits).
 - [ ] Make tooltip/url treatments resilient for long links (truncate/ellipsis where needed).
 - [ ] Complete Performance data-actions follow-up: add status-history trail (filter reset affordance is already shipped).
 - [ ] Add SOP for Performance data actions rail and demo metric recomputation behavior.
+
+### Paused policy scope
 - [ ] Character Manager: monitor `character_sheet_*` vs `reference_pack_*` alias drift for one full release cycle and record evidence.
 - [ ] Character Manager: ship a deprecation migration plan to remove legacy `reference_pack_*` aliases after drift monitoring is stable.
 

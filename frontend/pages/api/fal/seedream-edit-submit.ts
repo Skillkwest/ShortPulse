@@ -3,6 +3,7 @@
  * Enforces prompt + 1..10 image references before charging/submitting upstream.
  */
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
+import { validateSeedreamImageSizePayload } from "../../../lib/server/api/seedreamPayloadValidation";
 
 const FAL_SEEDREAM_EDIT_SUBMIT_URL = "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit";
 const VIDEO_FILE_PATTERN = /\.(mp4|webm|mov|m4v)(?:[?#].*)?$/i;
@@ -50,6 +51,11 @@ export const validateSeedreamEditPayload = (payload: Record<string, unknown>) =>
       error: "image_urls must only contain image sources.",
       detail: { field: "image_urls" },
     };
+  }
+
+  const imageSizeValidation = validateSeedreamImageSizePayload(payload);
+  if (imageSizeValidation) {
+    return imageSizeValidation;
   }
 
   return null;

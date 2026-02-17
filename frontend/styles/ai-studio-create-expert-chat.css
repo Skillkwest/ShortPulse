@@ -147,6 +147,13 @@
 
 .create-expert-panel
   .create-expert-prompt-step
+  .agent-message
+  + .agent-message.agent-user:not(.agent-user-attachments) {
+  margin-top: 12px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
   .agent-message.agent-user:not(.agent-user-attachments) {
   background: rgba(49, 54, 60, 0.26);
   border-color: rgba(201, 205, 214, 0);

@@ -14,7 +14,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 - Describe & Text fallbacks: “Describe” on a reference uses `/api/ai/describe-image` first, then falls back to the agent with `modeHint="describe"`; “Refine prompt” uses `/api/ai/generate-prompt` first, then falls back to the agent with `modeHint="text"`.
 
 ## System prerequisites & gates
-- Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-4.1`), optional `OPENAI_API_BASE`.
+- Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-5-nano`), optional `OPENAI_API_BASE`.
 - Flags: server gate `STUDIO_AGENT_ENABLED` (defaults on if unset) and client gate `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` (UI enable switch). API returns 503 when disabled.
 - Payload guardrails: max 3 images, 350 KB each; videos are excluded from vision payload.
 - Media transport rule: client now prefers signed/public `https://` URLs for agent vision calls. Local blob/data previews are uploaded through `/api/upload-image` before send.

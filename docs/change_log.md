@@ -288,7 +288,7 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added explicit display-vs-submission prompt separation in task submission so hidden character context is sent to providers without leaking into UI-visible output prompt text.
 - Added shared Character Mode payload helpers (`resolveCharacterSheetReferenceUrls`, `composeCharacterModePrompt`, `mergeCharacterAndUserReferences`) and regression tests for ordering, prompt composition, dedupe, and submission behavior.
 - Preserved non-blocking fallbacks: missing selected character, missing description, or missing Character Sheet refs no longer block generation and now run prompt-only or partial injection.
-- Updated operational docs for the new generation-driving contract (`docs/sops/sop_image_generation.md`, `docs/sops/sop_character_manager_operations.md`) and added implementation plan artifact (`docs/planning/ai-studio-character-mode-injection-plan.md`).
+- Updated operational docs for the new generation-driving contract (`docs/sops/sop_image_generation.md`, `docs/sops/sop_character_manager_operations.md`) and added implementation plan artifact (`docs/planning/ai-studio-character-mode-injection-plan.md`, now archived at `docs/archive/planning/ai-studio-character-mode-injection-plan.md`).
 
 ## 2026-02-14 (AI Studio Character Mode hardening)
 - Added stale Character Mode bundle refresh before Create submit/regenerate so Character Sheet signed URLs are reloaded when bundle age exceeds threshold, reducing expiry-related submission failures.
@@ -597,3 +597,28 @@ Append new entries at the end of this file; each entry should include date (UTC)
   `cd frontend && npm run type-check`,
   `cd frontend && npm run test -- features/ai-studio`,
   `cd frontend && npm run test -- tests/pages/ai-studio.character-mode.test.tsx`.
+
+## 2026-02-17 (describe-image reliability + security hardening)
+- Hardened `POST /api/ai/describe-image` with URL preflight safeguards: HTTPS-only enforcement, localhost/private-IP blocking, DNS private-address resolution blocking, redirect-chain validation, and image content-type verification prior to OpenAI vision requests.
+- Added configurable trusted host enforcement for describe-image via `OPENAI_DESCRIBE_ALLOWED_HOSTS` and `OPENAI_DESCRIBE_REQUIRE_ALLOWED_HOSTS`, with `NEXT_PUBLIC_SUPABASE_URL` host auto-trusted to support signed media URLs.
+- Improved OpenAI resilience with transient upstream retry (429/5xx/network-style errors), model-capability fallback retry to `OPENAI_VISION_FALLBACK_MODEL`, and clearer upstream source classification (`rate_limited`, `upstream_unavailable`, `upstream_error`).
+- Reduced generation false-failure risk by extending terminal-state detection in polling (`done`, `complete`, `finished`, cancellation variants) in `useAiStudioTasks`.
+- Added regression coverage in:
+  `frontend/tests/api/describe-image.route.test.ts` and
+  `frontend/features/ai-studio/hooks/__tests__/useAiStudioTasks.test.ts`.
+- Updated env/docs references for new describe-image hardening controls in:
+  `frontend/.env.example`,
+  `docs/deployment.md`,
+  `docs/api/api-internal-routes.md`,
+  and `docs/sops/sop_text_generation.md`.
+
+## 2026-02-17 (documentation governance + backlog recovery)
+- Completed a docs-only governance pass and added `docs/planning/documentation-audit-2026-02-17.md` as the audit artifact (planning classification matrix, contradiction-detection method, and strict backlog evidence matrix).
+- Created `docs/archive/planning/` and moved completed/superseded plans out of active planning:
+  `docs/archive/planning/ai-studio-character-mode-injection-plan.md`,
+  `docs/archive/planning/media-library-move-tabs-plan.md`,
+  and `docs/archive/planning/mvp-pre-tester-anchor-plan.md`.
+- Updated planning/archive indexes to reflect active vs archived locations (`docs/planning/README.md`, `docs/README.md`, `docs/archive/README.md`, `docs/archive/planning/README.md`).
+- Reconciled stale route/scope wording in `README.md`, `docs/routes.md`, and `docs/release-checklist.md` (performance staged visibility wording, current performance-demo behavior, and Character Manager reference-limit wording).
+- Audited backlog with strict evidence and checked off verifiable completions:
+  Stripe billing-portal flow and auth/media-library API test coverage updates in `docs/planning/backlog.md`; also classified remaining items as open, blocked external dependency, or paused policy scope.

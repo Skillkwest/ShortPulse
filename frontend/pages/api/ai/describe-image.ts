@@ -7,9 +7,17 @@ import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
 import { AgentPromptId } from "../../../lib/agentPromptsConfig";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logGenerationFailure } from "../../../lib/server/api/appErrorLogs";
+import {
+  extractImageDescriptionText,
+  requestOpenAiImageDescribeWithRetry,
+  resolveImageDescribeUpstreamFailureSource,
+  shouldRetryWithFallbackVisionModel,
+} from "../../../lib/server/api/imageDescribeOpenAi";
+import { probeImageUrlForDescribe } from "../../../lib/server/api/imageDescribeUrlGuard";
 
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_DESCRIBER_ID: AgentPromptId = "OPENAI_PROMPT_IMAGE_DESCRIBE";
+const DEFAULT_VISION_MODEL = "gpt-5-nano";
+const DEFAULT_FALLBACK_VISION_MODEL = "gpt-5-nano";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const routeLabel = "ai/describe-image";
@@ -62,52 +70,87 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const visionModel = process.env.OPENAI_VISION_MODEL || "gpt-4.1";
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: visionModel,
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Describe the image exactly as you see it." },
-              { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-            ],
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const detail = await response.text();
+    const normalizedImageUrl = imageUrl.trim();
+    const imageProbe = await probeImageUrlForDescribe(normalizedImageUrl);
+    if (!imageProbe.ok) {
       await logGenerationFailure({
         req,
         routeLabel,
-        source: "api.image_describe.upstream_error",
+        source: "api.image_describe.validation_failed",
+        message: imageProbe.message,
+        statusCode: imageProbe.statusCode,
+        userId: user.id,
+        userEmail: user.email ?? null,
+        metadata: {
+          detail: imageProbe.detail,
+        },
+      });
+      return res
+        .status(imageProbe.statusCode)
+        .json({ error: imageProbe.message, detail: imageProbe.detail });
+    }
+
+    const primaryVisionModel = (process.env.OPENAI_VISION_MODEL || DEFAULT_VISION_MODEL).trim();
+    const fallbackVisionModel = (
+      process.env.OPENAI_VISION_FALLBACK_MODEL || DEFAULT_FALLBACK_VISION_MODEL
+    ).trim();
+
+    const attemptedModels: string[] = [primaryVisionModel];
+    let describeAttempt = await requestOpenAiImageDescribeWithRetry({
+      apiKey,
+      model: primaryVisionModel,
+      systemPrompt,
+      imageUrl: normalizedImageUrl,
+    });
+
+    if (
+      !describeAttempt.ok &&
+      shouldRetryWithFallbackVisionModel({
+        status: describeAttempt.status,
+        detail: describeAttempt.detail,
+        primaryModel: primaryVisionModel,
+        fallbackModel: fallbackVisionModel,
+      })
+    ) {
+      attemptedModels.push(fallbackVisionModel);
+      describeAttempt = await requestOpenAiImageDescribeWithRetry({
+        apiKey,
+        model: fallbackVisionModel,
+        systemPrompt,
+        imageUrl: normalizedImageUrl,
+      });
+    }
+
+    if (!describeAttempt.ok) {
+      const detail = describeAttempt.detail;
+      const modelUsed = describeAttempt.model;
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: resolveImageDescribeUpstreamFailureSource(describeAttempt.status),
         message: "Upstream error",
-        statusCode: response.status,
+        statusCode: describeAttempt.status,
         userId: user.id,
         userEmail: user.email ?? null,
         metadata: {
           detail,
-          model: visionModel,
+          model: modelUsed,
+          attempted_models: attemptedModels,
         },
       });
       return res
-        .status(response.status)
-        .json({ error: "Upstream error", detail, model: visionModel });
+        .status(describeAttempt.status)
+        .json({ error: "Upstream error", detail, model: modelUsed });
     }
 
-    const data = await response.json();
-    const description = data?.choices?.[0]?.message?.content?.trim?.() ?? null;
-    const promptTokens = data?.usage?.prompt_tokens;
-    const completionTokens = data?.usage?.completion_tokens;
+    const data = describeAttempt.data;
+    const description = extractImageDescriptionText(data);
+    const usage =
+      data.usage && typeof data.usage === "object" && !Array.isArray(data.usage)
+        ? (data.usage as Record<string, unknown>)
+        : {};
+    const promptTokens = usage.prompt_tokens;
+    const completionTokens = usage.completion_tokens;
     if (!description) {
       await logGenerationFailure({
         req,

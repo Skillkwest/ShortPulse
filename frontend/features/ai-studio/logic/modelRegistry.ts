@@ -3,6 +3,14 @@
  */
 import { PricingStrategyId } from "./pricingTypes";
 import { AspectSize, falImageSizeMap } from "./modelSizes";
+import {
+  getModelAllowedAspects,
+  getModelAllowedDurations,
+  getModelAllowedResolutions,
+  getModelDefaultAspect,
+  getModelDefaultDurationSeconds,
+  getModelDefaultResolution,
+} from "./modelApiContracts";
 
 export type ModelConfig = {
   id: string;
@@ -25,18 +33,50 @@ export type ModelConfig = {
   supportsImageToVideo?: boolean;
 };
 
+const contractDefaultAspect = (modelId: string, fallback: string): string =>
+  getModelDefaultAspect(modelId, fallback);
+
+const contractAllowedAspects = (modelId: string, fallback: string[]): string[] =>
+  getModelAllowedAspects(modelId, fallback);
+
+const contractDefaultResolution = (
+  modelId: string,
+  fallback: string | undefined
+): string | undefined => getModelDefaultResolution(modelId, fallback);
+
+const contractAllowedResolutions = (
+  modelId: string,
+  fallback: string[] | undefined
+): string[] | undefined => getModelAllowedResolutions(modelId, fallback);
+
+const contractDefaultDuration = (
+  modelId: string,
+  fallback: number | undefined
+): number | undefined => getModelDefaultDurationSeconds(modelId, fallback);
+
+const contractAllowedDurations = (
+  modelId: string,
+  fallback: number[] | undefined
+): number[] | undefined => getModelAllowedDurations(modelId, fallback);
+
 const registry: Record<string, ModelConfig> = {
   "fal-ai/flux-2/klein/9b": {
     id: "fal-ai/flux-2/klein/9b",
     label: "FLUX.2 Lite",
     provider: "fal",
     mediaType: "image",
-    defaultAspect: "4:3",
-    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    defaultAspect: contractDefaultAspect("fal-ai/flux-2/klein/9b", "4:3"),
+    allowedAspects: contractAllowedAspects("fal-ai/flux-2/klein/9b", [
+      "1:1",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16",
+    ]),
     pricingStrategy: "fal-flux2-klein-per-mp",
     sizeMap: falImageSizeMap,
-    defaultResolution: "model_default",
-    allowedResolutions: ["model_default"],
+    defaultResolution: contractDefaultResolution("fal-ai/flux-2/klein/9b", "model_default"),
+    allowedResolutions: contractAllowedResolutions("fal-ai/flux-2/klein/9b", ["model_default"]),
     supportsTextToImage: true,
   },
   "fal/flux-2": {
@@ -44,12 +84,12 @@ const registry: Record<string, ModelConfig> = {
     label: "FLUX.2",
     provider: "fal",
     mediaType: "image",
-    defaultAspect: "4:3",
-    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    defaultAspect: contractDefaultAspect("fal/flux-2", "4:3"),
+    allowedAspects: contractAllowedAspects("fal/flux-2", ["1:1", "4:3", "3:4", "16:9", "9:16"]),
     pricingStrategy: "fal-flux2-per-mp",
     sizeMap: falImageSizeMap,
-    defaultResolution: "model_default",
-    allowedResolutions: ["model_default"],
+    defaultResolution: contractDefaultResolution("fal/flux-2", "model_default"),
+    allowedResolutions: contractAllowedResolutions("fal/flux-2", ["model_default"]),
     supportsTextToImage: true,
   },
   "fal/flux-2/edit": {
@@ -57,12 +97,18 @@ const registry: Record<string, ModelConfig> = {
     label: "FLUX.2 Edit",
     provider: "fal",
     mediaType: "image",
-    defaultAspect: "4:3",
-    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    defaultAspect: contractDefaultAspect("fal/flux-2/edit", "4:3"),
+    allowedAspects: contractAllowedAspects("fal/flux-2/edit", [
+      "1:1",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16",
+    ]),
     pricingStrategy: "fal-flux2-per-mp",
     sizeMap: falImageSizeMap,
-    defaultResolution: "model_default",
-    allowedResolutions: ["model_default"],
+    defaultResolution: contractDefaultResolution("fal/flux-2/edit", "model_default"),
+    allowedResolutions: contractAllowedResolutions("fal/flux-2/edit", ["model_default"]),
     supportsImageToImage: true,
   },
   "fal/flux-2-pro": {
@@ -70,12 +116,12 @@ const registry: Record<string, ModelConfig> = {
     label: "FLUX.2 Pro",
     provider: "fal",
     mediaType: "image",
-    defaultAspect: "4:3",
-    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    defaultAspect: contractDefaultAspect("fal/flux-2-pro", "4:3"),
+    allowedAspects: contractAllowedAspects("fal/flux-2-pro", ["1:1", "4:3", "3:4", "16:9", "9:16"]),
     pricingStrategy: "fal-flux2-pro-per-mp",
     sizeMap: falImageSizeMap,
-    defaultResolution: "model_default",
-    allowedResolutions: ["model_default"],
+    defaultResolution: contractDefaultResolution("fal/flux-2-pro", "model_default"),
+    allowedResolutions: contractAllowedResolutions("fal/flux-2-pro", ["model_default"]),
     supportsTextToImage: true,
   },
   "fal/flux-2-pro/edit": {
@@ -83,12 +129,18 @@ const registry: Record<string, ModelConfig> = {
     label: "FLUX.2 Pro Edit",
     provider: "fal",
     mediaType: "image",
-    defaultAspect: "4:3",
-    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    defaultAspect: contractDefaultAspect("fal/flux-2-pro/edit", "4:3"),
+    allowedAspects: contractAllowedAspects("fal/flux-2-pro/edit", [
+      "1:1",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16",
+    ]),
     pricingStrategy: "fal-flux2-pro-per-mp",
     sizeMap: falImageSizeMap,
-    defaultResolution: "model_default",
-    allowedResolutions: ["model_default"],
+    defaultResolution: contractDefaultResolution("fal/flux-2-pro/edit", "model_default"),
+    allowedResolutions: contractAllowedResolutions("fal/flux-2-pro/edit", ["model_default"]),
     supportsImageToImage: true,
   },
   "fal-ai/nano-banana": {
@@ -96,11 +148,21 @@ const registry: Record<string, ModelConfig> = {
     label: "Nano Banana",
     provider: "fal",
     mediaType: "image",
-    defaultAspect: "1:1",
-    allowedAspects: ["16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16"],
+    defaultAspect: contractDefaultAspect("fal-ai/nano-banana", "1:1"),
+    allowedAspects: contractAllowedAspects("fal-ai/nano-banana", [
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+    ]),
     pricingStrategy: "google-nano-banana-per-image",
-    defaultResolution: "model_default",
-    allowedResolutions: ["model_default"],
+    defaultResolution: contractDefaultResolution("fal-ai/nano-banana", "model_default"),
+    allowedResolutions: contractAllowedResolutions("fal-ai/nano-banana", ["model_default"]),
     supportsTextToImage: true,
   },
   "fal-ai/nano-banana/edit": {
@@ -108,11 +170,22 @@ const registry: Record<string, ModelConfig> = {
     label: "Nano Banana Edit",
     provider: "fal",
     mediaType: "image",
-    defaultAspect: "auto",
-    allowedAspects: ["auto", "16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16"],
+    defaultAspect: contractDefaultAspect("fal-ai/nano-banana/edit", "auto"),
+    allowedAspects: contractAllowedAspects("fal-ai/nano-banana/edit", [
+      "auto",
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+    ]),
     pricingStrategy: "google-nano-banana-per-image",
-    defaultResolution: "model_default",
-    allowedResolutions: ["model_default"],
+    defaultResolution: contractDefaultResolution("fal-ai/nano-banana/edit", "model_default"),
+    allowedResolutions: contractAllowedResolutions("fal-ai/nano-banana/edit", ["model_default"]),
     supportsImageToImage: true,
   },
   "fal-ai/nano-banana-pro": {
@@ -120,11 +193,21 @@ const registry: Record<string, ModelConfig> = {
     label: "Nano Banana Pro",
     provider: "fal",
     mediaType: "image",
-    defaultAspect: "4:5",
-    allowedAspects: ["16:9", "3:2", "4:3", "5:4", "4:5", "3:4", "2:3", "9:16", "1:1", "auto"],
+    defaultAspect: contractDefaultAspect("fal-ai/nano-banana-pro", "4:5"),
+    allowedAspects: contractAllowedAspects("fal-ai/nano-banana-pro", [
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+      "1:1",
+    ]),
     pricingStrategy: "nano-banana-per-image",
-    defaultResolution: "1K",
-    allowedResolutions: ["1K", "2K", "4K"],
+    defaultResolution: contractDefaultResolution("fal-ai/nano-banana-pro", "1K"),
+    allowedResolutions: contractAllowedResolutions("fal-ai/nano-banana-pro", ["1K", "2K", "4K"]),
     supportsTextToImage: true,
   },
   "fal-ai/nano-banana-pro/edit": {
@@ -132,11 +215,26 @@ const registry: Record<string, ModelConfig> = {
     label: "Nano Banana Pro Edit",
     provider: "fal",
     mediaType: "image",
-    defaultAspect: "auto",
-    allowedAspects: ["auto", "16:9", "3:2", "4:3", "5:4", "1:1", "4:5", "3:4", "2:3", "9:16"],
+    defaultAspect: contractDefaultAspect("fal-ai/nano-banana-pro/edit", "auto"),
+    allowedAspects: contractAllowedAspects("fal-ai/nano-banana-pro/edit", [
+      "auto",
+      "16:9",
+      "3:2",
+      "4:3",
+      "5:4",
+      "1:1",
+      "4:5",
+      "3:4",
+      "2:3",
+      "9:16",
+    ]),
     pricingStrategy: "nano-banana-per-image",
-    defaultResolution: "1K",
-    allowedResolutions: ["1K", "2K", "4K"],
+    defaultResolution: contractDefaultResolution("fal-ai/nano-banana-pro/edit", "1K"),
+    allowedResolutions: contractAllowedResolutions("fal-ai/nano-banana-pro/edit", [
+      "1K",
+      "2K",
+      "4K",
+    ]),
     supportsImageToImage: true,
   },
   "fal-ai/bytedance/seedream/v4.5/text-to-image": {
@@ -144,11 +242,28 @@ const registry: Record<string, ModelConfig> = {
     label: "Seedream 4.5",
     provider: "fal",
     mediaType: "image",
-    defaultAspect: "1:1",
-    allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"],
+    defaultAspect: contractDefaultAspect("fal-ai/bytedance/seedream/v4.5/text-to-image", "1:1"),
+    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedream/v4.5/text-to-image", [
+      "1:1",
+      "2:3",
+      "3:2",
+      "3:4",
+      "4:3",
+      "4:5",
+      "5:4",
+      "9:16",
+      "16:9",
+    ]),
     pricingStrategy: "seedream-per-image",
-    defaultResolution: "model_default",
-    allowedResolutions: ["model_default", "auto_2K", "auto_4K"],
+    defaultResolution: contractDefaultResolution(
+      "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      "model_default"
+    ),
+    allowedResolutions: contractAllowedResolutions("fal-ai/bytedance/seedream/v4.5/text-to-image", [
+      "model_default",
+      "auto_2K",
+      "auto_4K",
+    ]),
     supportsTextToImage: true,
   },
   "fal-ai/bytedance/seedream/v4.5/edit": {
@@ -156,11 +271,28 @@ const registry: Record<string, ModelConfig> = {
     label: "Seedream 4.5 Edit",
     provider: "fal",
     mediaType: "image",
-    defaultAspect: "1:1",
-    allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"],
+    defaultAspect: contractDefaultAspect("fal-ai/bytedance/seedream/v4.5/edit", "1:1"),
+    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedream/v4.5/edit", [
+      "1:1",
+      "2:3",
+      "3:2",
+      "3:4",
+      "4:3",
+      "4:5",
+      "5:4",
+      "9:16",
+      "16:9",
+    ]),
     pricingStrategy: "seedream-per-image",
-    defaultResolution: "model_default",
-    allowedResolutions: ["model_default", "auto_2K", "auto_4K"],
+    defaultResolution: contractDefaultResolution(
+      "fal-ai/bytedance/seedream/v4.5/edit",
+      "model_default"
+    ),
+    allowedResolutions: contractAllowedResolutions("fal-ai/bytedance/seedream/v4.5/edit", [
+      "model_default",
+      "auto_2K",
+      "auto_4K",
+    ]),
     supportsImageToImage: true,
   },
   "fal-ai/kling-video/v3/pro/text-to-video": {
@@ -168,24 +300,38 @@ const registry: Record<string, ModelConfig> = {
     label: "Kling 3.0",
     provider: "fal",
     mediaType: "video",
-    defaultAspect: "16:9",
-    allowedAspects: ["16:9", "9:16", "1:1"],
+    defaultAspect: contractDefaultAspect("fal-ai/kling-video/v3/pro/text-to-video", "16:9"),
+    allowedAspects: contractAllowedAspects("fal-ai/kling-video/v3/pro/text-to-video", [
+      "16:9",
+      "9:16",
+      "1:1",
+    ]),
     pricingStrategy: "kling-3-per-second",
-    defaultDurationSeconds: 10,
+    defaultDurationSeconds: contractDefaultDuration("fal-ai/kling-video/v3/pro/text-to-video", 10),
     defaultAudio: true,
-    allowedDurations: [5, 6, 7, 8, 9, 10],
+    allowedDurations: contractAllowedDurations(
+      "fal-ai/kling-video/v3/pro/text-to-video",
+      [5, 6, 7, 8, 9, 10]
+    ),
   },
   "fal-ai/kling-video/v3/pro/image-to-video": {
     id: "fal-ai/kling-video/v3/pro/image-to-video",
     label: "Kling 3.0",
     provider: "fal",
     mediaType: "image-to-video",
-    defaultAspect: "auto",
-    allowedAspects: ["auto", "16:9", "9:16", "1:1"],
+    defaultAspect: contractDefaultAspect("fal-ai/kling-video/v3/pro/image-to-video", "16:9"),
+    allowedAspects: contractAllowedAspects("fal-ai/kling-video/v3/pro/image-to-video", [
+      "16:9",
+      "9:16",
+      "1:1",
+    ]),
     pricingStrategy: "kling-3-per-second",
-    defaultDurationSeconds: 10,
+    defaultDurationSeconds: contractDefaultDuration("fal-ai/kling-video/v3/pro/image-to-video", 10),
     defaultAudio: true,
-    allowedDurations: [5, 6, 7, 8, 9, 10],
+    allowedDurations: contractAllowedDurations(
+      "fal-ai/kling-video/v3/pro/image-to-video",
+      [5, 6, 7, 8, 9, 10]
+    ),
     supportsImageToVideo: true,
   },
   "fal-ai/veo3.1": {
@@ -193,42 +339,61 @@ const registry: Record<string, ModelConfig> = {
     label: "Google Veo 3.1",
     provider: "fal",
     mediaType: "video",
-    defaultAspect: "auto",
-    allowedAspects: ["auto", "16:9", "9:16"],
+    defaultAspect: contractDefaultAspect("fal-ai/veo3.1", "16:9"),
+    allowedAspects: contractAllowedAspects("fal-ai/veo3.1", ["16:9", "9:16"]),
     pricingStrategy: "veo-3-per-second",
-    defaultDurationSeconds: 8,
-    defaultResolution: "1080p",
+    defaultDurationSeconds: contractDefaultDuration("fal-ai/veo3.1", 8),
+    defaultResolution: contractDefaultResolution("fal-ai/veo3.1", "1080p"),
     defaultAudio: true,
-    allowedResolutions: ["720p", "1080p", "4k"],
-    allowedDurations: [4, 6, 8],
+    allowedResolutions: contractAllowedResolutions("fal-ai/veo3.1", ["720p", "1080p", "4k"]),
+    allowedDurations: contractAllowedDurations("fal-ai/veo3.1", [4, 6, 8]),
   },
   "fal-ai/veo3.1/first-last-frame-to-video": {
     id: "fal-ai/veo3.1/first-last-frame-to-video",
     label: "Google Veo 3.1 (First/Last Frame)",
     provider: "fal",
     mediaType: "image-to-video",
-    defaultAspect: "auto",
-    allowedAspects: ["auto", "16:9", "9:16"],
+    defaultAspect: contractDefaultAspect("fal-ai/veo3.1/first-last-frame-to-video", "auto"),
+    allowedAspects: contractAllowedAspects("fal-ai/veo3.1/first-last-frame-to-video", [
+      "auto",
+      "16:9",
+      "9:16",
+    ]),
     pricingStrategy: "veo-3-per-second",
-    defaultDurationSeconds: 8,
-    defaultResolution: "720p",
+    defaultDurationSeconds: contractDefaultDuration("fal-ai/veo3.1/first-last-frame-to-video", 8),
+    defaultResolution: contractDefaultResolution("fal-ai/veo3.1/first-last-frame-to-video", "720p"),
     defaultAudio: true,
-    allowedResolutions: ["720p", "1080p", "4k"],
-    allowedDurations: [4, 6, 8],
+    allowedResolutions: contractAllowedResolutions("fal-ai/veo3.1/first-last-frame-to-video", [
+      "720p",
+      "1080p",
+      "4k",
+    ]),
+    allowedDurations: contractAllowedDurations(
+      "fal-ai/veo3.1/first-last-frame-to-video",
+      [4, 6, 8]
+    ),
   },
   "fal-ai/veo3.1/image-to-video": {
     id: "fal-ai/veo3.1/image-to-video",
     label: "Google Veo 3.1 (Image to Video)",
     provider: "fal",
     mediaType: "image-to-video",
-    defaultAspect: "auto",
-    allowedAspects: ["auto"],
+    defaultAspect: contractDefaultAspect("fal-ai/veo3.1/image-to-video", "auto"),
+    allowedAspects: contractAllowedAspects("fal-ai/veo3.1/image-to-video", [
+      "auto",
+      "16:9",
+      "9:16",
+    ]),
     pricingStrategy: "veo-3-per-second",
-    defaultDurationSeconds: 8,
-    defaultResolution: "720p",
+    defaultDurationSeconds: contractDefaultDuration("fal-ai/veo3.1/image-to-video", 8),
+    defaultResolution: contractDefaultResolution("fal-ai/veo3.1/image-to-video", "720p"),
     defaultAudio: true,
-    allowedResolutions: ["720p", "1080p", "4k"],
-    allowedDurations: [4, 6, 8],
+    allowedResolutions: contractAllowedResolutions("fal-ai/veo3.1/image-to-video", [
+      "720p",
+      "1080p",
+      "4k",
+    ]),
+    allowedDurations: contractAllowedDurations("fal-ai/veo3.1/image-to-video", [4, 6, 8]),
     supportsImageToVideo: true,
   },
   "fal-ai/sora-2/text-to-video/pro": {
@@ -236,53 +401,100 @@ const registry: Record<string, ModelConfig> = {
     label: "Sora 2 Pro",
     provider: "fal",
     mediaType: "video",
-    defaultAspect: "auto",
-    allowedAspects: ["auto", "16:9", "9:16"],
+    defaultAspect: contractDefaultAspect("fal-ai/sora-2/text-to-video/pro", "16:9"),
+    allowedAspects: contractAllowedAspects("fal-ai/sora-2/text-to-video/pro", ["16:9", "9:16"]),
     pricingStrategy: "sora-2-pro-per-second",
-    defaultDurationSeconds: 8,
-    defaultResolution: "1080p",
+    defaultDurationSeconds: contractDefaultDuration("fal-ai/sora-2/text-to-video/pro", 8),
+    defaultResolution: contractDefaultResolution("fal-ai/sora-2/text-to-video/pro", "1080p"),
     defaultAudio: true,
-    allowedResolutions: ["720p", "1080p"],
-    allowedDurations: [4, 8, 12],
+    allowedResolutions: contractAllowedResolutions("fal-ai/sora-2/text-to-video/pro", [
+      "720p",
+      "1080p",
+    ]),
+    allowedDurations: contractAllowedDurations("fal-ai/sora-2/text-to-video/pro", [4, 8, 12]),
   },
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": {
     id: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
     label: "Seedance 1.5 Pro",
     provider: "fal",
     mediaType: "video",
-    defaultAspect: "16:9",
-    allowedAspects: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"],
+    defaultAspect: contractDefaultAspect(
+      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      "16:9"
+    ),
+    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedance/v1.5/pro/text-to-video", [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "21:9",
+    ]),
     pricingStrategy: "seedance-1.5-per-second",
-    defaultDurationSeconds: 10,
-    defaultResolution: "1080p",
+    defaultDurationSeconds: contractDefaultDuration(
+      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      10
+    ),
+    defaultResolution: contractDefaultResolution(
+      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      "1080p"
+    ),
     defaultAudio: true,
-    allowedResolutions: ["480p", "720p", "1080p"],
-    allowedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12],
+    allowedResolutions: contractAllowedResolutions(
+      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      ["480p", "720p", "1080p"]
+    ),
+    allowedDurations: contractAllowedDurations(
+      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      [4, 5, 6, 7, 8, 9, 10, 11, 12]
+    ),
   },
   "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": {
     id: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
     label: "Seedance 1.5 Pro",
     provider: "fal",
     mediaType: "image-to-video",
-    defaultAspect: "16:9",
-    allowedAspects: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"],
+    defaultAspect: contractDefaultAspect(
+      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+      "16:9"
+    ),
+    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedance/v1.5/pro/image-to-video", [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "21:9",
+    ]),
     pricingStrategy: "seedance-1.5-per-second",
-    defaultDurationSeconds: 5,
+    defaultDurationSeconds: contractDefaultDuration(
+      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+      5
+    ),
     minDurationSeconds: 4,
     maxDurationSeconds: 12,
-    defaultResolution: "1080p",
+    defaultResolution: contractDefaultResolution(
+      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+      "1080p"
+    ),
     defaultAudio: true,
-    allowedResolutions: ["480p", "720p", "1080p"],
-    allowedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12],
+    allowedResolutions: contractAllowedResolutions(
+      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+      ["480p", "720p", "1080p"]
+    ),
+    allowedDurations: contractAllowedDurations(
+      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+      [4, 5, 6, 7, 8, 9, 10, 11, 12]
+    ),
     supportsImageToVideo: true,
   },
-  "gpt-4.1-nano": {
-    id: "gpt-4.1-nano",
-    label: "GPT-4.1 Nano",
+  "gpt-5-nano": {
+    id: "gpt-5-nano",
+    label: "GPT-5 Nano",
     provider: "openai",
     mediaType: "text",
-    defaultAspect: "text",
-    allowedAspects: [],
+    defaultAspect: contractDefaultAspect("gpt-5-nano", "text"),
+    allowedAspects: contractAllowedAspects("gpt-5-nano", []),
     pricingStrategy: "gpt41nano-per-token",
   },
 };

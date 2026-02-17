@@ -34,9 +34,23 @@ type GenerationFailureReason =
   | "provider_error"
   | "status_poll_error";
 
+type GenerationFailureContext = {
+  reasonCode?: GenerationFailureReason;
+  providerState?: string | null;
+  pollAttempt?: number;
+  noMediaAttempt?: number;
+  elapsedMs?: number;
+  maxWaitMs?: number;
+};
+
 type TaskCallbacks = {
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
-  notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
+  notifyGenerationFailure: (
+    outputId: string,
+    message: string,
+    detail?: string,
+    context?: GenerationFailureContext
+  ) => void;
   onGenerationSuccess?: (payload: {
     outputId: string;
     taskId: string;
@@ -104,6 +118,15 @@ const nonTerminalStates = new Set([
   "submitted",
   "created",
 ]);
+const terminalSuccessStates = new Set([
+  "success",
+  "completed",
+  "succeeded",
+  "done",
+  "complete",
+  "finished",
+]);
+const terminalFailureStates = new Set(["fail", "failed", "error", "cancelled", "canceled"]);
 
 const BACKGROUND_RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
 const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
@@ -373,7 +396,26 @@ export function useAiStudioTasks({
       const maxWaitMs = longRunningVideoProviders.has(provider) ? 20 * 60 * 1000 : 8 * 60 * 1000;
       if (elapsedMs > maxWaitMs) {
         const timeoutMessage = "Timed out waiting for provider result.";
-        notifyGenerationFailure(outputId, timeoutMessage, timeoutMessage);
+        addBreadcrumb({
+          type: "ui",
+          level: "warn",
+          message: "generation_poll_timeout",
+          data: {
+            provider,
+            task_id: taskId,
+            output_id: outputId,
+            poll_attempt: attempt,
+            elapsed_ms: elapsedMs,
+            max_wait_ms: maxWaitMs,
+          },
+        });
+        notifyGenerationFailure(outputId, timeoutMessage, timeoutMessage, {
+          reasonCode: "poll_timeout",
+          pollAttempt: attempt,
+          noMediaAttempt,
+          elapsedMs,
+          maxWaitMs,
+        });
         if (onGenerationFailure) {
           onGenerationFailure({
             outputId,
@@ -411,7 +453,7 @@ export function useAiStudioTasks({
 
           const allUrls = extractMediaByProvider(provider, status);
           const hasMedia = allUrls.length > 0;
-          const isTerminalSuccess = state === "success" || state === "completed";
+          const isTerminalSuccess = terminalSuccessStates.has(state);
           // Fal capture/debit happens in status endpoints on terminal states, so avoid
           // short-circuiting early success when provider explicitly reports in-progress.
           const canUseMediaShortcut =
@@ -487,7 +529,14 @@ export function useAiStudioTasks({
                   no_media_attempts: noMediaAttempt,
                 },
               });
-              notifyGenerationFailure(outputId, failureMessage, failureMessage);
+              notifyGenerationFailure(outputId, failureMessage, failureMessage, {
+                reasonCode: "no_media_after_terminal_success",
+                providerState: state,
+                pollAttempt: attempt,
+                noMediaAttempt,
+                elapsedMs: Date.now() - startedAt,
+                maxWaitMs,
+              });
               updateOutputById(outputId, (item) => ({
                 ...item,
                 status: "ready",
@@ -540,7 +589,7 @@ export function useAiStudioTasks({
           }
 
           // MULTIPLE ERROR DETECTION STRATEGIES
-          const isErrorState = state === "fail" || state === "error" || state === "failed";
+          const isErrorState = terminalFailureStates.has(state);
 
           const hasErrorField =
             Boolean(status?.error) || Boolean(status?.failMsg) || Boolean(status?.failCode);
@@ -584,7 +633,13 @@ export function useAiStudioTasks({
 
             const shortMessage = createShortErrorMessage(failureMessage);
 
-            notifyGenerationFailure(outputId, failureMessage, failureDetail);
+            notifyGenerationFailure(outputId, failureMessage, failureDetail, {
+              reasonCode: "provider_error",
+              providerState: state,
+              pollAttempt: attempt,
+              elapsedMs: Date.now() - startedAt,
+              maxWaitMs,
+            });
 
             // Update output state to show error in UI
             updateOutputById(outputId, (item) => ({
@@ -623,7 +678,12 @@ export function useAiStudioTasks({
           const notFoundMaxAttempts = 5;
           const maxAttempts = 30;
           if ((isNotFound && attempt >= notFoundMaxAttempts) || attempt >= maxAttempts) {
-            notifyGenerationFailure(outputId, condenseError(message), message);
+            notifyGenerationFailure(outputId, condenseError(message), message, {
+              reasonCode: "status_poll_error",
+              pollAttempt: attempt,
+              elapsedMs: Date.now() - startedAt,
+              maxWaitMs,
+            });
             if (onGenerationFailure) {
               onGenerationFailure({
                 outputId,

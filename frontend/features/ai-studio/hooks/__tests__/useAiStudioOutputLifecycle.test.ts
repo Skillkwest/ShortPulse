@@ -59,7 +59,12 @@ describe("useAiStudioOutputLifecycle", () => {
     );
 
     act(() => {
-      result.current.notifyGenerationFailure("out-1", "Provider failure", "Detailed reason");
+      result.current.notifyGenerationFailure("out-1", "Provider failure", "Detailed reason", {
+        reasonCode: "provider_error",
+        providerState: "error",
+        pollAttempt: 3,
+        elapsedMs: 12_000,
+      });
     });
 
     expect(result.current.outputs[0]?.taskState).toBe("fail");
@@ -73,6 +78,12 @@ describe("useAiStudioOutputLifecycle", () => {
         source: "generation.workflow_failure",
         scope: "generation",
         message: "Provider failure",
+        metadata: expect.objectContaining({
+          failure_reason_code: "provider_error",
+          provider_state: "error",
+          poll_attempt: 3,
+          elapsed_ms: 12_000,
+        }),
       })
     );
   });

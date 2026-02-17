@@ -12,7 +12,7 @@ export type PromptGenerationResult = {
   };
 };
 
-export const TEXT_PROMPT_MODEL_ID = "gpt-4.1-nano";
+export const TEXT_PROMPT_MODEL_ID = "gpt-5-nano";
 
 export const postGeneratePrompt = async (
   prompt: string

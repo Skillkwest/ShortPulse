@@ -3,6 +3,7 @@
  * Centralizes mode/aspect/model lists so components stay lean and consistent.
  */
 import { AspectOption, PromptTemplate, ToolId } from "./types";
+import { getModelAllowedAspects } from "./logic/modelApiContracts";
 
 export type ModelMediaType = "image" | "video" | "image-to-video" | "edit" | "multi" | "keyframes";
 export type ModelOption = { value: string; label: string; mediaType?: ModelMediaType };
@@ -33,6 +34,7 @@ export const modelLogos: Record<string, string> = {
 
 export const aspectOptions: AspectOption[] = [
   { value: "auto", ratioLabel: "Auto", name: "Auto", orientation: "square" },
+  { value: "21:9", ratioLabel: "21:9", name: "Cinematic", orientation: "widescreen" },
   { value: "9:16", ratioLabel: "9:16", name: "Vertical", orientation: "vertical" },
   { value: "4:5", ratioLabel: "4:5", name: "Social Post", orientation: "vertical" },
   { value: "3:4", ratioLabel: "3:4", name: "Traditional", orientation: "vertical" },
@@ -95,31 +97,34 @@ export const modelOptions: ModelOption[] = [
   },
 ];
 
-export const falNanoBananaAllowedAspects = new Set([
-  "16:9",
-  "3:2",
-  "4:3",
-  "5:4",
-  "1:1",
-  "4:5",
-  "3:4",
-  "2:3",
-  "9:16",
-  "auto",
-]);
+export const falNanoBananaAllowedAspects = new Set(
+  getModelAllowedAspects("fal-ai/nano-banana", [
+    "16:9",
+    "3:2",
+    "4:3",
+    "5:4",
+    "1:1",
+    "4:5",
+    "3:4",
+    "2:3",
+    "9:16",
+  ])
+);
 
-export const falNanoBananaProAllowedAspects = new Set([
-  "16:9",
-  "3:2",
-  "4:3",
-  "5:4",
-  "1:1",
-  "4:5",
-  "3:4",
-  "2:3",
-  "9:16",
-  "auto",
-]);
+export const falNanoBananaProAllowedAspects = new Set(
+  getModelAllowedAspects("fal-ai/nano-banana-pro/edit", [
+    "auto",
+    "16:9",
+    "3:2",
+    "4:3",
+    "5:4",
+    "1:1",
+    "4:5",
+    "3:4",
+    "2:3",
+    "9:16",
+  ])
+);
 
 // Kie.ai expects one of these aspect ratios; anything else falls back to "auto" when sending requests.
 export const keiAllowedAspects = new Set([
@@ -136,7 +141,9 @@ export const keiAllowedAspects = new Set([
 ]);
 
 // Kling image-to-video supports a limited aspect list.
-export const klingAllowedAspects = new Set(["16:9", "9:16", "1:1"]);
+export const klingAllowedAspects = new Set(
+  getModelAllowedAspects("fal-ai/kling-video/v3/pro/text-to-video", ["16:9", "9:16", "1:1"])
+);
 
 // Map our aspect strings to Fal image_size enum values.
 export const falImageSizeMap: Record<string, string> = {

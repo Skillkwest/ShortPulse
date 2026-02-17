@@ -1,5 +1,8 @@
 # Media Library Move Between Tabs Plan
 
+Archive status: moved from `docs/planning/` on 2026-02-17 after implementation completion.  
+Runtime contract is now maintained by active SOP/API docs and tests.
+
 ## Purpose
 Implement a reliable "Move" action in the Media Library modal so users can re-categorize media between tabs while keeping Supabase storage paths and `media_files` metadata in sync.
 

@@ -62,8 +62,8 @@ describe("computeCostForModel (FLUX.2 Lite)", () => {
   });
 });
 
-describe("computeCostForModel (GPT-4.1 Nano)", () => {
-  const modelId = "gpt-4.1-nano";
+describe("computeCostForModel (GPT-5 Nano)", () => {
+  const modelId = "gpt-5-nano";
 
   it("calculates credits from input/output tokens", () => {
     const cost = computeCostForModel(modelId, { inputTokens: 500, outputTokens: 700 });

@@ -8,10 +8,14 @@ Purpose: historical documents that are retained for context but are not authorit
 - Prefer adding a short note at the top of archived docs when superseded.
 
 ## Structure
+- `docs/archive/planning/`: completed/superseded planning artifacts moved out of active planning.
 - `docs/archive/sops/`: legacy runbooks moved out of active SOP operations.
 - `docs/archive/product/`: legacy product/domain guides superseded by current SOPs and route behavior.
 
 ## Notable archived docs
+- `docs/archive/planning/mvp-pre-tester-anchor-plan.md` (superseded by `docs/planning/mvp-pretester-full-audit-remediation-plan.md`).
+- `docs/archive/planning/ai-studio-character-mode-injection-plan.md` (implementation-complete plan retained for historical context).
+- `docs/archive/planning/media-library-move-tabs-plan.md` (implementation-complete plan retained for historical context).
 - `docs/archive/character-manager-character-sheet-plan.md` (superseded by current Character Manager operations and UI-only sheet behavior).
 - `docs/archive/mvp-stabilization-plan.md` (superseded by `docs/planning/mvp-pretester-full-audit-remediation-plan.md`).
 - `docs/archive/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md` (initial partial UX-0 baseline snapshot, superseded by `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`).

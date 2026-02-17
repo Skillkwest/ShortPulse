@@ -10,6 +10,7 @@ import {
   clampImageResolutionForModel,
   isModelDefaultImageResolution,
 } from "../logic/imageResolution";
+import { resolveEffectiveAspectForModel } from "../logic/modelApiContracts";
 import { prepareImageUrlForSubmission } from "../utils/imageUpload";
 import { Provider, resolveModelLabel } from "../logic/stateParsers";
 import {
@@ -178,6 +179,11 @@ export const useAiStudioTaskSubmission = ({
         const isVeoFirstLastFrameModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
         const isVeoImageToVideoModel = finalModel === "fal-ai/veo3.1/image-to-video";
         const modelConfig = getModelConfig(finalModel);
+        const effectiveAspect = resolveEffectiveAspectForModel(
+          finalModel,
+          aspect,
+          modelConfig?.defaultAspect ?? "16:9"
+        );
         const isVideoGeneration =
           effectiveMode === "video" || effectiveTool === "video" || effectiveTool === "kling";
         const isImageGeneration =
@@ -208,7 +214,7 @@ export const useAiStudioTaskSubmission = ({
           id,
           prompt: cleanedDisplayPrompt,
           mode: outputMode,
-          aspect,
+          aspect: effectiveAspect,
           model: modelLabel,
           modelId: finalModel,
           status: "ready",
@@ -391,6 +397,8 @@ export const useAiStudioTaskSubmission = ({
               metadata: {
                 tool: effectiveTool,
                 audio: requestedAudio,
+                requested_aspect: aspect,
+                effective_aspect: effectiveAspect,
                 resolution: requestedResolution ?? null,
                 duration_seconds: requestedDurationSeconds,
               },
@@ -403,7 +411,7 @@ export const useAiStudioTaskSubmission = ({
               id,
               finalModel,
               cleanedPrompt: cleanedSubmissionPrompt,
-              aspect,
+              aspect: effectiveAspect,
               requestedDurationSeconds,
               requestedResolution,
               requestedAudio,
@@ -432,7 +440,7 @@ export const useAiStudioTaskSubmission = ({
               id,
               finalModel,
               cleanedPrompt: cleanedSubmissionPrompt,
-              aspect,
+              aspect: effectiveAspect,
               requestedDurationSeconds,
               requestedResolution,
               requestedAudio,
@@ -450,7 +458,7 @@ export const useAiStudioTaskSubmission = ({
             id,
             finalModel,
             cleanedPrompt: cleanedSubmissionPrompt,
-            aspect,
+            aspect: effectiveAspect,
             requestedDurationSeconds,
             requestedResolution,
             requestedAudio,

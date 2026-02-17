@@ -18,7 +18,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 | `frontend/features/ai-studio/components/ReferenceCanvas.tsx` | Supplies lightweight reference metadata (id, type, prompt, preview URL) to the agent context. |
 
 ## Prerequisites
-- Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-4.1`), optional `OPENAI_VISION_MODEL`, optional `OPENAI_API_BASE`.
+- Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-5-nano`), optional `OPENAI_VISION_MODEL`, optional `OPENAI_API_BASE`.
 - Feature flag: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT=true` (client gate); API gate returns 503 when disabled.
 - Size guardrails (API constants): `AGENT_MAX_IMAGE_BYTES` (default 350 KB), `AGENT_MAX_FRAMES=1` for videos.
 - Frontend uploads local blob/data previews to `/api/upload-image` and sends signed/public `https://` URLs to the agent route.

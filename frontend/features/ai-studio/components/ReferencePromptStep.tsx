@@ -7,7 +7,6 @@ import { PromptStep } from "./PromptStep";
 type ReferencePromptStepProps = {
   promptBadge: string;
   promptOrder: number;
-  isVideoVariant: boolean;
   referenceText: string | null;
   onPromptTextChange: (value: string) => void;
   onSave: () => void;
@@ -31,7 +30,6 @@ type ReferencePromptStepProps = {
 export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   promptBadge,
   promptOrder,
-  isVideoVariant,
   referenceText,
   onPromptTextChange,
   onSave,

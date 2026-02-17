@@ -299,6 +299,12 @@ export function TextPropertiesPanel({
     prompt: false,
   });
   const [isCharacterPickerOpen, setIsCharacterPickerOpen] = React.useState(false);
+  const openCharacterPicker = React.useCallback(() => {
+    setIsCharacterPickerOpen(true);
+  }, []);
+  const closeCharacterPicker = React.useCallback(() => {
+    setIsCharacterPickerOpen(false);
+  }, []);
 
   const toggleStep = (step: "model" | "prompt") => {
     setCollapsedSteps((prev) => ({ ...prev, [step]: !prev[step] }));
@@ -322,17 +328,24 @@ export function TextPropertiesPanel({
     });
   };
 
-  const handleCharacterModeEnabledToggle = () => {
+  const handleCharacterModeEnabledToggle = React.useCallback(() => {
     const nextCharacterModeEnabled = !characterModeEnabled;
     if (showExpertView && characterModeEnabled && !nextCharacterModeEnabled) {
       onModelIdChange?.(null);
     }
     if (!nextCharacterModeEnabled) {
-      setIsCharacterPickerOpen(false);
+      closeCharacterPicker();
     }
     onCharacterModeEnabledChange?.(nextCharacterModeEnabled);
     onStepActionClick?.("character");
-  };
+  }, [
+    characterModeEnabled,
+    closeCharacterPicker,
+    onCharacterModeEnabledChange,
+    onModelIdChange,
+    onStepActionClick,
+    showExpertView,
+  ]);
 
   const imageResolutionOptions = useMemo(() => getImageResolutionOptions(modelId), [modelId]);
   const imageResolutionValue = useMemo(
@@ -383,21 +396,22 @@ export function TextPropertiesPanel({
 
   useEffect(() => {
     if (!characterModeEnabled && isCharacterPickerOpen) {
-      setIsCharacterPickerOpen(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- keep picker state aligned immediately when character mode is externally disabled.
+      closeCharacterPicker();
     }
-  }, [characterModeEnabled, isCharacterPickerOpen]);
+  }, [characterModeEnabled, closeCharacterPicker, isCharacterPickerOpen]);
 
   useEffect(() => {
     if (!isCharacterPickerOpen) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      setIsCharacterPickerOpen(false);
+      closeCharacterPicker();
     };
     window.addEventListener("keydown", handleEscape);
     return () => {
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [isCharacterPickerOpen]);
+  }, [closeCharacterPicker, isCharacterPickerOpen]);
 
   const sharedPromptStepProps = {
     prompt,
@@ -487,7 +501,7 @@ export function TextPropertiesPanel({
           isGenerateDisabled={isGenerateDisabled}
           characterModeEnabled={characterModeEnabled}
           onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
-          onCharacterPickerOpen={() => setIsCharacterPickerOpen(true)}
+          onCharacterPickerOpen={openCharacterPicker}
           characterSelectDisabled={characterSelectDisabled}
           selectedCharacterName={selectedCharacterName}
           selectedCharacterProfileImageUrl={selectedCharacterProfileImageUrl}
@@ -519,7 +533,7 @@ export function TextPropertiesPanel({
           characterStepSubtitle={characterStepSubtitle}
           characterModeEnabled={characterModeEnabled}
           onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
-          onCharacterPickerOpen={() => setIsCharacterPickerOpen(true)}
+          onCharacterPickerOpen={openCharacterPicker}
           characterSelectDisabled={characterSelectDisabled}
           selectedCharacterName={selectedCharacterName}
           selectedCharacterProfileImageUrl={selectedCharacterProfileImageUrl}
@@ -551,7 +565,7 @@ export function TextPropertiesPanel({
       <CharacterPickerModal
         isOpen={isCharacterPickerOpen}
         characterModeEnabled={characterModeEnabled}
-        onClose={() => setIsCharacterPickerOpen(false)}
+        onClose={closeCharacterPicker}
         characterOptions={characterOptions}
         selectedCharacterId={selectedCharacterId}
         onSelectedCharacterIdChange={onSelectedCharacterIdChange}

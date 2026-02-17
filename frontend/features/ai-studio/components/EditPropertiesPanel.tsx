@@ -165,7 +165,6 @@ export function EditPropertiesPanel({
         <ReferencePromptStep
           promptBadge={promptBadge}
           promptOrder={promptOrder}
-          isVideoVariant={false}
           referenceText={referenceText}
           onPromptTextChange={onPromptTextChange}
           onSave={onSave}

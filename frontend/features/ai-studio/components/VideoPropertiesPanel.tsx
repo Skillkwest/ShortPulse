@@ -262,7 +262,6 @@ export function VideoPropertiesPanel({
         <ReferencePromptStep
           promptBadge={promptBadge}
           promptOrder={promptOrder}
-          isVideoVariant={true}
           referenceText={referenceText}
           onPromptTextChange={onPromptTextChange}
           onSave={onSave}

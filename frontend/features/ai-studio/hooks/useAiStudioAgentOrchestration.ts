@@ -130,18 +130,15 @@ export const useAiStudioAgentOrchestration = ({
       const rawInput = typeof textOverride === "string" ? textOverride : agentInput;
       const trimmed = rawInput.trim();
       const hasImageAttachment = agentAttachments.some((attachment) => attachment.kind === "image");
-      const shouldAutoDescribeImages = !trimmed && hasImageAttachment;
+      const allowImageOnlySend = !trimmed && hasImageAttachment;
       const droppedPromptText =
         [...agentAttachments]
           .reverse()
           .find((attachment) => attachment.kind === "prompt" && attachment.text?.trim())
           ?.text?.trim() ?? "";
       const outboundText =
-        trimmed ||
-        (shouldAutoDescribeImages ? "Describe this image" : "") ||
-        droppedPromptText ||
-        prompt.trim();
-      if (!outboundText) return;
+        trimmed || droppedPromptText || (allowImageOnlySend ? "" : prompt.trim());
+      if (!outboundText && !allowImageOnlySend) return;
       trackAgentUiEvent("studio_agent_send_requested", {
         mode_hint: options?.modeHint ?? "chat",
         has_attachments: agentAttachments.length > 0,
@@ -153,7 +150,8 @@ export const useAiStudioAgentOrchestration = ({
       agentUiBusyRef.current = true;
       setAgentUiBusy(true);
       const sentFromComposer = typeof textOverride !== "string";
-      const optimisticUserMessageId = appendUserMessage(trimmed || outboundText);
+      const userMessageText = trimmed || outboundText;
+      const optimisticUserMessageId = userMessageText ? appendUserMessage(userMessageText) : null;
       if (sentFromComposer && trimmed) {
         setAgentInput("");
       }
@@ -292,13 +290,22 @@ export const useAiStudioAgentOrchestration = ({
             new Set([...(mediaPatchedContext.selectedReferenceIds ?? []), ...selectedAttachmentIds])
           ).slice(0, 8);
           const hasImageAttachments = attachmentMedia.length > 0;
+          const hasCanonicalPromptContext = Boolean(
+            mediaPatchedContext.activePrompt?.trim() ||
+            mediaPatchedContext.lastAssistantMessage?.trim()
+          );
+          const nextFocusedSource = hasImageAttachments
+            ? "image"
+            : hasCanonicalPromptContext
+              ? (mediaPatchedContext.focusedSource ?? "agent-output")
+              : "prompt";
 
           mediaPatchedContext = {
             ...mediaPatchedContext,
             references: dedupedRefs.slice(0, 24),
             media: dedupedMedia.slice(0, MAX_AGENT_IMAGE_ATTACHMENTS),
             selectedReferenceIds: mergedSelectedReferenceIds,
-            focusedSource: hasImageAttachments ? "image" : "prompt",
+            focusedSource: nextFocusedSource,
             focusedReferenceId:
               mergedSelectedReferenceIds.length === 1 ? mergedSelectedReferenceIds[0] : null,
           };

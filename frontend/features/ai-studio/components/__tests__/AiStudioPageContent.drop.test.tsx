@@ -1,0 +1,385 @@
+import React from "react";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { AiStudioPageContent, type AiStudioPageContentProps } from "../AiStudioPageContent";
+
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: React.ReactNode;
+    href: string;
+    [key: string]: unknown;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
+vi.mock("../AiStudioToolbar", () => ({
+  AiStudioToolbar: () => <div data-testid="ai-toolbar" />,
+}));
+
+vi.mock("../TextPropertiesPanel", () => ({
+  TextPropertiesPanel: () => <div data-testid="text-properties" />,
+  ComposeSendCard: () => <div data-testid="compose-send-card" />,
+}));
+
+vi.mock("../DetailModal", () => ({
+  DetailModal: () => null,
+}));
+
+vi.mock("../ModelModal", () => ({
+  ModelModal: () => null,
+}));
+
+vi.mock("../ReferenceCanvas", () => ({
+  ReferenceCanvas: () => (
+    <div
+      data-testid="reference-canvas"
+      onDrop={(event: React.DragEvent<HTMLDivElement>) => event.preventDefault()}
+    />
+  ),
+}));
+
+vi.mock("../EditPropertiesPanel", () => ({
+  EditPropertiesPanel: () => <div data-testid="edit-properties" />,
+}));
+
+vi.mock("../StudioPreview", () => ({
+  StudioPreview: () => <div data-testid="studio-preview" />,
+}));
+
+vi.mock("../../character/components/CharacterPropertiesPanel", () => ({
+  CharacterPropertiesPanel: () => <div data-testid="character-properties" />,
+}));
+
+vi.mock("./CharacterPanel", () => ({
+  CharacterPanel: () => <div data-testid="character-panel" />,
+}));
+
+vi.mock("./KlingComingSoonCard", () => ({
+  KlingComingSoonCard: () => <div data-testid="kling-coming-soon" />,
+}));
+
+vi.mock("./VideoPropertiesPanel", () => ({
+  VideoPropertiesPanel: () => <div data-testid="video-properties" />,
+}));
+
+vi.mock("../../../prefabs/agent", () => ({
+  AgentChatPanel: () => <div data-testid="agent-chat-panel" />,
+}));
+
+vi.mock("../hooks/useAiStudioShellResize", () => ({
+  useAiStudioShellResize: () => ({
+    shellRef: { current: null },
+    leftColumnRef: { current: null },
+    showDivider: false,
+    isResizing: false,
+    shellStyle: {},
+    dividerProps: {},
+  }),
+}));
+
+const makeEmptyFileList = (): FileList =>
+  ({
+    length: 0,
+    item: () => null,
+  }) as unknown as FileList;
+
+const createProps = (
+  overrides: Partial<AiStudioPageContentProps> = {}
+): AiStudioPageContentProps => ({
+  referenceCanvasFileInputRef: { current: null },
+  onFileBrowserSelection: vi.fn(),
+  uiError: null,
+  uiNotice: null,
+  characterError: null,
+  onDismissUiError: vi.fn(),
+  onDismissUiNotice: vi.fn(),
+  onDismissCharacterError: vi.fn(),
+  beginnerMode: false,
+  onBeginnerModeChange: vi.fn(),
+  balanceCredits: null,
+  pendingHoldCredits: null,
+  balanceLoading: false,
+  visibleFailures: [],
+  onDismissFailure: vi.fn(),
+  onInspectFailure: vi.fn(),
+  selectedTool: null,
+  showCreateTools: false,
+  onSelectTool: vi.fn(),
+  onToggleCreateTools: vi.fn(),
+  propertiesText: {} as AiStudioPageContentProps["propertiesText"],
+  propertiesCharacter: {} as AiStudioPageContentProps["propertiesCharacter"],
+  propertiesImage: {} as AiStudioPageContentProps["propertiesImage"],
+  propertiesVideo: {} as AiStudioPageContentProps["propertiesVideo"],
+  isTemplateView: false,
+  referenceCanvasProps: {
+    outputs: [],
+    activeOutputId: null,
+    onSelectOutput: vi.fn(),
+    onOpenDetails: vi.fn(),
+    selectedTool: null,
+    onPasteTextReference: vi.fn(),
+    onPasteMediaReference: vi.fn(),
+  },
+  studioPreviewProps: {
+    activeOutput: null,
+    referenceImageUrl: null,
+    referenceText: null,
+    onReferenceImageChange: vi.fn(),
+    onReferenceTextChange: vi.fn(),
+    onRegenerate: vi.fn(),
+  },
+  detailModalOutput: null,
+  onDetailClose: vi.fn(),
+  onUpdateOutputPrompt: vi.fn(),
+  onDeleteOutput: vi.fn(),
+  modelModalState: {
+    isOpen: false,
+    position: null,
+    options: [],
+    onClose: vi.fn(),
+    onSelect: vi.fn(),
+    anchorId: null,
+    context: null,
+  },
+  agentChat: {
+    isOpen: false,
+    agentMessages: [],
+    agentActions: undefined,
+    agentInput: "",
+    agentIsSending: false,
+    latestAgentPrompt: null,
+    agentPrimarySource: "manual",
+    stagedAttachments: [],
+    agentDropActive: false,
+    onInputChange: vi.fn(),
+    onSend: vi.fn(),
+    onAddToGrid: vi.fn(),
+    onClose: vi.fn(),
+    onAttachmentDrop: vi.fn(),
+    onAttachmentDragOver: vi.fn(),
+    onAttachmentDragEnter: vi.fn(),
+    onAttachmentDragLeave: vi.fn(),
+    onRemoveAttachment: vi.fn(),
+    onClearAttachments: vi.fn(),
+    onAgentApplyPrompt: vi.fn(),
+    onAgentSelectVariation: vi.fn(),
+    onAgentDescribeTargets: vi.fn(),
+    onGenerateFromOutputPrompt: vi.fn(),
+    outputGenerateCostCredits: null,
+    disableOutputGenerate: false,
+  },
+  handleReferenceCanvasFiles: vi.fn(),
+  triggerFilePicker: vi.fn(),
+  ...overrides,
+});
+
+describe("AiStudioPageContent right column drop router", () => {
+  it("creates a text card when text is dropped on the right column shell", () => {
+    const onPasteTextReference = vi.fn();
+    const props = createProps({
+      referenceCanvasProps: {
+        ...createProps().referenceCanvasProps,
+        onPasteTextReference,
+      },
+    });
+
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const dataTransfer = {
+      types: ["text/prompt", "text/plain"],
+      files: makeEmptyFileList(),
+      getData: (type: string) => (type === "text/prompt" ? "  dropped prompt text  " : ""),
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(onPasteTextReference).toHaveBeenCalledWith("dropped prompt text");
+  });
+
+  it("routes file drops through the reference-canvas file handler", () => {
+    const onPasteTextReference = vi.fn();
+    const handleReferenceCanvasFiles = vi.fn();
+    const props = createProps({
+      referenceCanvasProps: {
+        ...createProps().referenceCanvasProps,
+        onPasteTextReference,
+      },
+      handleReferenceCanvasFiles,
+    });
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const file = new File(["image"], "image.png", { type: "image/png" });
+    const dataTransfer = {
+      types: ["Files"],
+      files: {
+        0: file,
+        length: 1,
+        item: (index: number) => (index === 0 ? file : null),
+      } as unknown as FileList,
+      getData: () => "",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(onPasteTextReference).not.toHaveBeenCalled();
+    expect(handleReferenceCanvasFiles).toHaveBeenCalledTimes(1);
+    expect(handleReferenceCanvasFiles).toHaveBeenCalledWith(dataTransfer.files);
+  });
+
+  it("accepts text drops when browser uses non-standard text MIME identifiers", () => {
+    const onPasteTextReference = vi.fn();
+    const props = createProps({
+      referenceCanvasProps: {
+        ...createProps().referenceCanvasProps,
+        onPasteTextReference,
+      },
+    });
+
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const dataTransfer = {
+      types: ["public.utf8-plain-text"],
+      files: makeEmptyFileList(),
+      getData: (type: string) => (type === "text/plain" ? "  drop this text  " : ""),
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(onPasteTextReference).toHaveBeenCalledWith("drop this text");
+  });
+
+  it("creates a text card when drop payload includes Files plus text payload", () => {
+    const onPasteTextReference = vi.fn();
+    const props = createProps({
+      referenceCanvasProps: {
+        ...createProps().referenceCanvasProps,
+        onPasteTextReference,
+      },
+    });
+
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const dataTransfer = {
+      types: ["Files", "text/plain"],
+      files: makeEmptyFileList(),
+      getData: (type: string) => (type === "text/plain" ? "mixed payload text" : ""),
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(onPasteTextReference).toHaveBeenCalledWith("mixed payload text");
+  });
+
+  it("creates a text card when dropping on nested right-column children", () => {
+    const onPasteTextReference = vi.fn();
+    const props = createProps({
+      referenceCanvasProps: {
+        ...createProps().referenceCanvasProps,
+        onPasteTextReference,
+      },
+    });
+
+    const { getByTestId } = render(<AiStudioPageContent {...props} />);
+    const nestedCanvasChild = getByTestId("reference-canvas");
+    const dataTransfer = {
+      types: ["text/prompt", "text/plain"],
+      files: makeEmptyFileList(),
+      getData: (type: string) => (type === "text/prompt" ? "nested child drop" : ""),
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(nestedCanvasChild, { dataTransfer });
+
+    expect(onPasteTextReference).toHaveBeenCalledWith("nested child drop");
+  });
+
+  it("routes dropped media URLs through onPasteMediaReference", () => {
+    const onPasteMediaReference = vi.fn();
+    const onPasteTextReference = vi.fn();
+    const props = createProps({
+      referenceCanvasProps: {
+        ...createProps().referenceCanvasProps,
+        onPasteMediaReference,
+        onPasteTextReference,
+      },
+    });
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const dataTransfer = {
+      types: ["text/plain"],
+      files: makeEmptyFileList(),
+      getData: (type: string) =>
+        type === "text/plain" ? "https://cdn.example.com/reference-video.mp4" : "",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(onPasteMediaReference).toHaveBeenCalledWith({
+      url: "https://cdn.example.com/reference-video.mp4",
+      mimeType: "video/*",
+    });
+    expect(onPasteTextReference).not.toHaveBeenCalled();
+  });
+
+  it("pre-warms right-column dragover for text drags when browser omits drag types", () => {
+    const props = createProps();
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const dataTransfer = {
+      types: [],
+      files: makeEmptyFileList(),
+      getData: () => "",
+      dropEffect: "none",
+    } as unknown as DataTransfer;
+
+    const accepted = fireEvent.dragOver(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(accepted).toBe(false);
+  });
+
+  it("pre-warms right-column dragover when browser reports Files without attached files", () => {
+    const props = createProps();
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const dataTransfer = {
+      types: ["Files"],
+      files: makeEmptyFileList(),
+      getData: () => "",
+      dropEffect: "none",
+    } as unknown as DataTransfer;
+
+    const accepted = fireEvent.dragOver(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(accepted).toBe(false);
+  });
+
+  it("pre-warms right-column dragover when types include Files and text", () => {
+    const props = createProps();
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const dataTransfer = {
+      types: ["Files", "text/plain"],
+      files: makeEmptyFileList(),
+      getData: () => "",
+      dropEffect: "none",
+    } as unknown as DataTransfer;
+
+    const accepted = fireEvent.dragOver(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(accepted).toBe(false);
+  });
+});

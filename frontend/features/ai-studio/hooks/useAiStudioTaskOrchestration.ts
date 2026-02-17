@@ -2,7 +2,7 @@
  * AI Studio task orchestration hook.
  * Owns generation polling lifecycle, deferred autosave finalization, status retry handling, and task-submission wiring.
  */
-import { useCallback, type MutableRefObject } from "react";
+import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import { logMediaEvent, updateGenerationRecord } from "../logic/mediaLibraryPersistence";
 import { type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
@@ -28,6 +28,7 @@ type TaskSubmissionConfig = Omit<
 
 type UseAiStudioTaskOrchestrationParams = {
   taskSubmissionConfig: TaskSubmissionConfig;
+  outputs?: StudioOutput[];
   findOutputById: (id: string) => StudioOutput | null;
   pendingAutoSavesRef: MutableRefObject<Record<string, PendingAutoSave>>;
   markOutputSaved: (
@@ -49,11 +50,33 @@ type UseAiStudioTaskOrchestrationParams = {
   }) => Promise<{ mediaFileIds: string[]; errors: string[] }>;
 };
 
+type StuckSpinnerRetryState = {
+  firstSeenAtMs: number;
+  lastRetryAtMs: number;
+  retries: number;
+};
+
+const STUCK_SPINNER_RETRY_INTERVAL_MS = 30_000;
+const STUCK_SPINNER_RETRY_AGE_MS = 90_000;
+const STUCK_SPINNER_MAX_AUTO_RETRIES = 2;
+
+const isAutoRetryEligible = (output: StudioOutput): boolean => {
+  const hasTaskId = typeof output.taskId === "string" && output.taskId.trim().length > 0;
+  if (!hasTaskId) return false;
+  if (output.previewUrl || output.previewText) return false;
+  return (
+    output.taskState === "pending" ||
+    output.taskState === "running" ||
+    output.taskState === "success"
+  );
+};
+
 /**
  * Returns task submission and polling handlers used by AI Studio state orchestration.
  */
 export const useAiStudioTaskOrchestration = ({
   taskSubmissionConfig,
+  outputs = [],
   findOutputById,
   pendingAutoSavesRef,
   markOutputSaved,
@@ -62,6 +85,7 @@ export const useAiStudioTaskOrchestration = ({
 }: UseAiStudioTaskOrchestrationParams) => {
   const { updateOutputById, notifyGenerationFailure, ensureGenerationRecord, setUiNotice } =
     taskSubmissionConfig;
+  const stuckSpinnerRetryStateRef = useRef<Record<string, StuckSpinnerRetryState>>({});
 
   const finalizeDeferredAutoSave = useCallback(
     async (outputId: string) => {
@@ -214,7 +238,7 @@ export const useAiStudioTaskOrchestration = ({
     [ensureGenerationRecord, findOutputById, pendingAutoSavesRef]
   );
 
-  const { startPollingTask, clearPollTimer } = useAiStudioTasks({
+  const { startPollingTask, clearPollTimer, pollTimersRef } = useAiStudioTasks({
     updateOutputById,
     notifyGenerationFailure,
     onGenerationSuccess: handleGenerationSuccess,
@@ -257,6 +281,55 @@ export const useAiStudioTaskOrchestration = ({
     },
     [clearPollTimer, findOutputById, setUiNotice, startPollingTask, updateOutputById]
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const runStuckSpinnerWatchdog = () => {
+      const now = Date.now();
+      const activeEligibleIds = new Set<string>();
+
+      outputs.forEach((output) => {
+        if (!isAutoRetryEligible(output)) return;
+        activeEligibleIds.add(output.id);
+
+        const existing = stuckSpinnerRetryStateRef.current[output.id];
+        if (!existing) {
+          stuckSpinnerRetryStateRef.current[output.id] = {
+            firstSeenAtMs: now,
+            lastRetryAtMs: 0,
+            retries: 0,
+          };
+          return;
+        }
+
+        if (pollTimersRef.current[output.id]) return;
+        if (existing.retries >= STUCK_SPINNER_MAX_AUTO_RETRIES) return;
+
+        const ageMs = now - existing.firstSeenAtMs;
+        if (ageMs < STUCK_SPINNER_RETRY_AGE_MS) return;
+        if (
+          existing.lastRetryAtMs > 0 &&
+          now - existing.lastRetryAtMs < STUCK_SPINNER_RETRY_AGE_MS
+        ) {
+          return;
+        }
+
+        existing.retries += 1;
+        existing.lastRetryAtMs = now;
+        retryOutputStatus(output.id);
+      });
+
+      Object.keys(stuckSpinnerRetryStateRef.current).forEach((outputId) => {
+        if (!activeEligibleIds.has(outputId)) {
+          delete stuckSpinnerRetryStateRef.current[outputId];
+        }
+      });
+    };
+
+    runStuckSpinnerWatchdog();
+    const intervalId = window.setInterval(runStuckSpinnerWatchdog, STUCK_SPINNER_RETRY_INTERVAL_MS);
+    return () => window.clearInterval(intervalId);
+  }, [outputs, pollTimersRef, retryOutputStatus]);
 
   return {
     submitTask,

@@ -410,6 +410,7 @@ export default function AiStudioPage() {
     currentCostCredits,
     promptReferenceGenerateCostCredits,
     hasSufficientCreditsForCost,
+    hasSufficientCreditsForPromptReferenceGenerate,
     isCreditGuardrail,
     generationGuardrail,
     isGenerateDisabled,
@@ -434,6 +435,21 @@ export default function AiStudioPage() {
     balanceCredits: effectiveBalanceCredits,
     costParamsForModel,
   });
+  const disableAgentOutputGenerate = useMemo(() => {
+    const isCreatePromptTool = selectedTool === "create" || selectedTool === "text";
+    const missingGenerationTarget = isCreatePromptTool
+      ? isCharacterModeEnabled
+        ? !selectedCharacterId
+        : !model
+      : false;
+    return missingGenerationTarget || !hasSufficientCreditsForPromptReferenceGenerate;
+  }, [
+    hasSufficientCreditsForPromptReferenceGenerate,
+    isCharacterModeEnabled,
+    model,
+    selectedCharacterId,
+    selectedTool,
+  ]);
   const {
     isMediaLibraryOpen,
     handleOpenModelModal,
@@ -578,6 +594,7 @@ export default function AiStudioPage() {
     describeInFlightCount,
     currentCostCredits,
     promptReferenceGenerateCostCredits,
+    hasSufficientCreditsForPromptReferenceGenerate,
     isGenerateDisabled,
     isGenerateClickLocked,
     generationGuardrail,
@@ -783,6 +800,7 @@ export default function AiStudioPage() {
           onAgentDescribeTargets: handleAgentDescribeTargets,
           onGenerateFromOutputPrompt: handleGenerateFromAgentOutputPrompt,
           outputGenerateCostCredits: promptReferenceGenerateCostCredits,
+          disableOutputGenerate: disableAgentOutputGenerate,
         }}
         handleReferenceCanvasFiles={handleReferenceCanvasFiles}
         triggerFilePicker={triggerFilePicker}

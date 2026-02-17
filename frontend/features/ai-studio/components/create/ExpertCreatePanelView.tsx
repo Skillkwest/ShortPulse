@@ -2,6 +2,7 @@ import Image from "next/image";
 import React from "react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
 import { AspectDropdown } from "../AspectDropdown";
+import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
 import type { AspectOption } from "../../types";
 
@@ -266,21 +267,14 @@ export function ExpertCreatePanelView({
             />
           </div>
           {shouldShowImageResolutionCard ? (
-            <label className="create-expert-control create-expert-resolution-control">
+            <div className="create-expert-control create-expert-resolution-control">
               <span className="create-expert-control-label">Resolution</span>
-              <select
-                className="model-select create-expert-resolution-select"
-                aria-label="Image resolution"
+              <ResolutionDropdown
                 value={imageResolutionValue}
-                onChange={(event) => onImageResolutionChange?.(event.target.value)}
-              >
-                {imageResolutionOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                options={imageResolutionOptions}
+                onSelect={onImageResolutionChange}
+              />
+            </div>
           ) : null}
         </div>
       </div>

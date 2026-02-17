@@ -81,6 +81,146 @@ const comingSoonCopy: Record<
 const isComingSoonTool = (tool: ToolId | null): tool is ComingSoonToolId =>
   tool === "templates" || tool === "workflows" || tool === "my-generations" || tool === "community";
 
+type RightColumnDropMode = "none" | "text" | "media";
+type PastedMediaReference = { url: string; mimeType?: string | null };
+type RightColumnDropPayload =
+  | { kind: "none" }
+  | { kind: "internal" }
+  | { kind: "files"; files: FileList }
+  | { kind: "media"; reference: PastedMediaReference }
+  | { kind: "text"; text: string };
+
+const DROPPED_IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
+const DROPPED_VIDEO_URL_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:[?#].*)?$/i;
+
+const parseDropUrlCandidate = (value: string): string | null => {
+  const candidate = value.trim();
+  if (!candidate || (typeof window !== "undefined" && candidate === window.location.href))
+    return null;
+  if (/^data:(image|video)\//i.test(candidate)) return candidate;
+  if (/^blob:/i.test(candidate)) return candidate;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+};
+
+const inferDropMediaMimeType = (url: string): string | null => {
+  if (/^data:image\//i.test(url) || DROPPED_IMAGE_URL_PATTERN.test(url)) return "image/*";
+  if (/^data:video\//i.test(url) || DROPPED_VIDEO_URL_PATTERN.test(url)) return "video/*";
+  return null;
+};
+
+const isDropMediaUrl = (url: string): boolean => Boolean(inferDropMediaMimeType(url));
+
+const getDropMediaReferenceFromUriList = (uriList: string): PastedMediaReference | null => {
+  const entries = uriList
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"));
+  for (const entry of entries) {
+    const parsed = parseDropUrlCandidate(entry);
+    if (!parsed || !isDropMediaUrl(parsed)) continue;
+    return { url: parsed, mimeType: inferDropMediaMimeType(parsed) };
+  }
+  return null;
+};
+
+const getDropMediaReferenceFromHtml = (html: string): PastedMediaReference | null => {
+  const trimmed = html.trim();
+  if (!trimmed || typeof DOMParser === "undefined") return null;
+  const fragment = new DOMParser().parseFromString(trimmed, "text/html");
+  const nodes = Array.from(fragment.querySelectorAll("img[src],video[src],source[src],a[href]"));
+  for (const node of nodes) {
+    const raw =
+      node.getAttribute("src") ??
+      node.getAttribute("href") ??
+      (node instanceof HTMLAnchorElement ? node.href : "");
+    if (!raw) continue;
+    const parsed = parseDropUrlCandidate(raw);
+    if (!parsed || !isDropMediaUrl(parsed)) continue;
+    return { url: parsed, mimeType: inferDropMediaMimeType(parsed) };
+  }
+  return null;
+};
+
+const getDroppedMediaReference = (transfer: DataTransfer): PastedMediaReference | null => {
+  const explicitRefUrl = transfer.getData("text/reference-url");
+  const parsedReferenceUrl = parseDropUrlCandidate(explicitRefUrl);
+  if (parsedReferenceUrl && isDropMediaUrl(parsedReferenceUrl)) {
+    return { url: parsedReferenceUrl, mimeType: inferDropMediaMimeType(parsedReferenceUrl) };
+  }
+  const uriListReference = getDropMediaReferenceFromUriList(transfer.getData("text/uri-list"));
+  if (uriListReference) return uriListReference;
+  const htmlReference = getDropMediaReferenceFromHtml(transfer.getData("text/html"));
+  if (htmlReference) return htmlReference;
+  const plainTextUrl = parseDropUrlCandidate(transfer.getData("text/plain"));
+  if (plainTextUrl && isDropMediaUrl(plainTextUrl)) {
+    return { url: plainTextUrl, mimeType: inferDropMediaMimeType(plainTextUrl) };
+  }
+  return null;
+};
+
+const normalizeDroppedPromptText = (transfer: DataTransfer): string | null => {
+  const promptText = (
+    transfer.getData("text/prompt") ||
+    transfer.getData("text/plain") ||
+    transfer.getData("text")
+  ).trim();
+  if (!promptText) return null;
+  if (/^data:(image|video)\//i.test(promptText)) return null;
+  if (DROPPED_IMAGE_URL_PATTERN.test(promptText) || DROPPED_VIDEO_URL_PATTERN.test(promptText)) {
+    return null;
+  }
+  return promptText;
+};
+
+const resolveRightColumnDropMode = (
+  transfer: DataTransfer | null | undefined
+): RightColumnDropMode => {
+  if (!transfer) return "none";
+  const types = Array.from(transfer.types || []).map((type) => type.toLowerCase());
+  const fileCount = transfer.files?.length ?? 0;
+  const hasFileType = types.includes("files");
+  const hasTextLikeType = types.some(
+    (type) =>
+      type.includes("text") ||
+      type.includes("plain") ||
+      type.includes("prompt") ||
+      type.includes("utf8")
+  );
+  if (types.includes("text/reference-id")) return "none";
+  if (fileCount > 0) return "media";
+  if (getDroppedMediaReference(transfer)) return "media";
+  if (normalizeDroppedPromptText(transfer)) return "text";
+  if (hasTextLikeType) return "text";
+  if (types.length === 0 && fileCount === 0) return "text";
+  // Some browsers report "Files" for custom text drags while exposing zero files.
+  // Treat that as droppable so the right column stays pre-warmed.
+  if (hasFileType && fileCount === 0) return "text";
+  return "none";
+};
+
+const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColumnDropPayload => {
+  if (transfer.getData("text/reference-id")) return { kind: "internal" };
+  const droppedFiles = transfer.files;
+  if (droppedFiles && droppedFiles.length > 0) {
+    return { kind: "files", files: droppedFiles };
+  }
+  const droppedMedia = getDroppedMediaReference(transfer);
+  if (droppedMedia) {
+    return { kind: "media", reference: droppedMedia };
+  }
+  const droppedPromptText = normalizeDroppedPromptText(transfer);
+  if (droppedPromptText) {
+    return { kind: "text", text: droppedPromptText };
+  }
+  return { kind: "none" };
+};
+
 type TextSectionProps = React.ComponentProps<typeof TextPropertiesPanel>;
 
 type CharacterSectionProps = React.ComponentProps<typeof CharacterPropertiesPanel>;
@@ -113,6 +253,7 @@ type AgentChatProps = {
   onAgentDescribeTargets?: (targets: string[]) => void;
   onGenerateFromOutputPrompt?: (prompt: string) => void;
   outputGenerateCostCredits?: number | null;
+  disableOutputGenerate?: boolean;
 };
 
 export type AiStudioPageContentProps = {
@@ -239,6 +380,13 @@ export function AiStudioPageContent({
   ]
     .filter(Boolean)
     .join(" ");
+  const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
+  const rightColumnDragDepthRef = React.useRef(0);
+  const [rightColumnDropMode, setRightColumnDropMode] = React.useState<RightColumnDropMode>("none");
+  const clearRightColumnDropState = React.useCallback(() => {
+    rightColumnDragDepthRef.current = 0;
+    setRightColumnDropMode("none");
+  }, []);
 
   const renderProperties = () => {
     switch (propertiesPanelKind) {
@@ -269,6 +417,104 @@ export function AiStudioPageContent({
         return null;
     }
   };
+
+  const handleRightColumnDragEnterCapture = (event: React.DragEvent<HTMLElement>) => {
+    const nextMode = resolveRightColumnDropMode(event.dataTransfer);
+    if (nextMode === "none") return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    rightColumnDragDepthRef.current += 1;
+    setRightColumnDropMode((currentMode) => (currentMode === nextMode ? currentMode : nextMode));
+  };
+
+  const handleRightColumnDragOverCapture = (event: React.DragEvent<HTMLElement>) => {
+    const nextMode = resolveRightColumnDropMode(event.dataTransfer);
+    if (nextMode === "none") return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setRightColumnDropMode((currentMode) => (currentMode === nextMode ? currentMode : nextMode));
+  };
+
+  const handleRightColumnDragLeaveCapture = (event: React.DragEvent<HTMLElement>) => {
+    if (rightColumnDropMode === "none") return;
+    event.preventDefault();
+    rightColumnDragDepthRef.current = Math.max(0, rightColumnDragDepthRef.current - 1);
+    if (rightColumnDragDepthRef.current === 0) {
+      setRightColumnDropMode("none");
+    }
+  };
+
+  const handleRightColumnDropCapture = (event: React.DragEvent<HTMLElement>) => {
+    const dropPayload = resolveRightColumnDropPayload(event.dataTransfer);
+    if (dropPayload.kind === "none" || dropPayload.kind === "internal") {
+      clearRightColumnDropState();
+      return;
+    }
+    if (dropPayload.kind === "files") {
+      event.preventDefault();
+      event.stopPropagation();
+      handleReferenceCanvasFiles(dropPayload.files);
+      clearRightColumnDropState();
+      return;
+    }
+    if (dropPayload.kind === "media" && referenceCanvasProps.onPasteMediaReference) {
+      event.preventDefault();
+      event.stopPropagation();
+      referenceCanvasProps.onPasteMediaReference(dropPayload.reference);
+      clearRightColumnDropState();
+      return;
+    }
+    if (dropPayload.kind === "text" && referenceCanvasProps.onPasteTextReference) {
+      event.preventDefault();
+      event.stopPropagation();
+      referenceCanvasProps.onPasteTextReference(dropPayload.text);
+      clearRightColumnDropState();
+      return;
+    }
+    clearRightColumnDropState();
+  };
+
+  const shouldHandleShellRightColumnFallback = React.useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      const rightColumnNode = rightColumnRef.current;
+      const shellNode = shellRef.current;
+      if (!rightColumnNode || !shellNode) return false;
+      if (event.target instanceof Node && rightColumnNode.contains(event.target)) return false;
+      const shellRect = shellNode.getBoundingClientRect();
+      const rightRect = rightColumnNode.getBoundingClientRect();
+      const { clientX, clientY } = event;
+      return (
+        clientX >= rightRect.left &&
+        clientX <= rightRect.right &&
+        clientY >= shellRect.top &&
+        clientY <= shellRect.bottom
+      );
+    },
+    [shellRef]
+  );
+
+  const handleShellDragOverCapture = (event: React.DragEvent<HTMLElement>) => {
+    if (!shouldHandleShellRightColumnFallback(event)) return;
+    handleRightColumnDragOverCapture(event);
+  };
+
+  const handleShellDropCapture = (event: React.DragEvent<HTMLElement>) => {
+    if (!shouldHandleShellRightColumnFallback(event)) return;
+    handleRightColumnDropCapture(event);
+  };
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const handleDocumentDragTermination = () => {
+      clearRightColumnDropState();
+    };
+    document.addEventListener("dragend", handleDocumentDragTermination);
+    document.addEventListener("drop", handleDocumentDragTermination);
+    return () => {
+      document.removeEventListener("dragend", handleDocumentDragTermination);
+      document.removeEventListener("drop", handleDocumentDragTermination);
+    };
+  }, [clearRightColumnDropState]);
 
   return (
     <>
@@ -439,7 +685,13 @@ export function AiStudioPageContent({
           />
 
           <div className="ai-content">
-            <section ref={shellRef} className={shellClassName} style={shellStyle}>
+            <section
+              ref={shellRef}
+              className={shellClassName}
+              style={shellStyle}
+              onDragOverCapture={handleShellDragOverCapture}
+              onDropCapture={handleShellDropCapture}
+            >
               {selectedTool ? (
                 <aside ref={leftColumnRef} className="panel ai-panel ai-properties">
                   {renderProperties()}
@@ -448,7 +700,14 @@ export function AiStudioPageContent({
               {showDivider ? (
                 <button type="button" className="ai-shell-divider" {...dividerProps} />
               ) : null}
-              <div className="ai-shell-right">
+              <div
+                ref={rightColumnRef}
+                className={`ai-shell-right${rightColumnDropMode !== "none" ? " is-drop-overlay-active" : ""}`}
+                onDropCapture={handleRightColumnDropCapture}
+                onDragOverCapture={handleRightColumnDragOverCapture}
+                onDragEnterCapture={handleRightColumnDragEnterCapture}
+                onDragLeaveCapture={handleRightColumnDragLeaveCapture}
+              >
                 {agentChat.isOpen ? (
                   <div className="ai-preview-column reference-column">
                     <div className="reference-column-sticky">
@@ -510,6 +769,7 @@ export function AiStudioPageContent({
                         onAgentDescribeTargets={agentChat.onAgentDescribeTargets}
                         onGenerateOutputPrompt={agentChat.onGenerateFromOutputPrompt}
                         outputGenerateCostCredits={agentChat.outputGenerateCostCredits}
+                        disableOutputGenerate={agentChat.disableOutputGenerate}
                         beginnerMode={beginnerMode}
                       />
                     </div>
@@ -562,6 +822,17 @@ export function AiStudioPageContent({
                     />
                   </>
                 )}
+                {rightColumnDropMode !== "none" ? (
+                  <div
+                    className="ai-right-drop-overlay"
+                    data-drop-mode={rightColumnDropMode}
+                    aria-hidden="true"
+                    onDrop={handleRightColumnDropCapture}
+                    onDragOver={handleRightColumnDragOverCapture}
+                    onDragEnter={handleRightColumnDragEnterCapture}
+                    onDragLeave={handleRightColumnDragLeaveCapture}
+                  />
+                ) : null}
               </div>
             </section>
             {comingSoon ? (

@@ -38,16 +38,16 @@
     0 16px 34px rgba(3, 10, 18, 0.34);
 }
 
-.reference-canvas-panel.is-drop-active .reference-canvas-grid {
+.reference-canvas-panel.is-drop-active-files .reference-canvas-grid {
   filter: saturate(1.04);
 }
 
-.reference-canvas-panel.is-drop-active .reference-empty .preview-title {
+.reference-canvas-panel.is-drop-active-files .reference-empty .preview-title {
   color: #8fe8ff;
 }
 
-.reference-canvas-panel.is-drop-active .reference-empty .subdued,
-.reference-canvas-panel.is-drop-active .reference-empty .tiny {
+.reference-canvas-panel.is-drop-active-files .reference-empty .subdued,
+.reference-canvas-panel.is-drop-active-files .reference-empty .tiny {
   color: #7d8f9e !important;
 }
 

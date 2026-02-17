@@ -213,9 +213,30 @@ describe("ReferenceCanvas paste handling", () => {
 
     fireEvent.dragEnter(panel, { dataTransfer });
     expect(panel.classList.contains("is-drop-active")).toBe(true);
+    expect(panel.classList.contains("is-drop-active-text")).toBe(true);
+    expect(panel.classList.contains("is-drop-active-files")).toBe(false);
 
     fireEvent.dragLeave(panel, { dataTransfer });
     expect(panel.classList.contains("is-drop-active")).toBe(false);
+    expect(panel.classList.contains("is-drop-active-text")).toBe(false);
+  });
+
+  it("marks file drag state separately from text drag state", () => {
+    const file = new File(["image"], "drop-image.png", { type: "image/png" });
+    const dataTransfer = {
+      files: makeFileList([file]),
+      types: ["Files"],
+      getData: vi.fn(() => ""),
+    } as unknown as DataTransfer;
+
+    const { container } = render(<ReferenceCanvas {...baseProps} />);
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    expect(panel).toBeTruthy();
+
+    fireEvent.dragEnter(panel, { dataTransfer });
+    expect(panel.classList.contains("is-drop-active")).toBe(true);
+    expect(panel.classList.contains("is-drop-active-files")).toBe(true);
+    expect(panel.classList.contains("is-drop-active-text")).toBe(false);
   });
 
   it("routes pasted media URLs through onPasteMediaReference", () => {

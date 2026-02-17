@@ -134,12 +134,14 @@ export const useAiAgent = ({
         return { response: null, actions: undefined };
       }
       const trimmed = text.trim();
-      if (!trimmed) {
+      const hasMediaContext = (context?.media?.length ?? 0) > 0;
+      const allowContextOnlyTurn = !trimmed && hasMediaContext;
+      if (!trimmed && !allowContextOnlyTurn) {
         return { response: null, actions: undefined };
       }
 
       const previousMessages = messagesRef.current;
-      if (!skipUserEcho) {
+      if (!skipUserEcho && !allowContextOnlyTurn) {
         // UI-visible history (keep the user's raw text)
         const uiUserMessage: AgentMessage = { role: "user", content: trimmed };
         const nextUiMessages = [...previousMessages, uiUserMessage].slice(-24);
@@ -150,10 +152,11 @@ export const useAiAgent = ({
       setError(null);
 
       try {
-        const userPayload =
-          removeAspectRatioLanguage(payloadText?.trim() || trimmed) ??
-          payloadText?.trim() ??
-          trimmed;
+        const payloadCandidate = payloadText?.trim() || trimmed;
+        const cleanedUserPayload = payloadCandidate
+          ? (removeAspectRatioLanguage(payloadCandidate) ?? payloadCandidate)
+          : "";
+        const userPayloadForApi = cleanedUserPayload || (allowContextOnlyTurn ? " " : trimmed);
         const hasOptimisticUserAtTail =
           skipUserEcho &&
           previousMessages.length > 0 &&
@@ -166,7 +169,7 @@ export const useAiAgent = ({
         void previousPrompt;
         const apiMessages: AgentMessage[] = [
           ...baseHistory,
-          { role: "user", content: userPayload } as AgentMessage,
+          { role: "user", content: userPayloadForApi } as AgentMessage,
         ];
 
         const body: AgentApiRequest = {

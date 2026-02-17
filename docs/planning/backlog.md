@@ -40,8 +40,25 @@ How to use:
 - [ ] Character Manager: ship a deprecation migration plan to remove legacy `reference_pack_*` aliases after drift monitoring is stable.
 
 ## Research / Spikes
-- [ ] Evaluate a JavaScript masonry layout engine to preserve masonry visual density while improving ordering control (target: left-to-right reading expectations). Keep this as a scoped spike before implementation.
-  Reference: `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`
+
+Full audit and evaluation details: `docs/planning/tooling-audit-2026-02-16.md`
+
+- [ ] Evaluate `react-masonry-css` for media library packed grid to preserve masonry visual density while restoring left-to-right reading order. Scoped spike before implementation.
+  Reference: `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`, `docs/planning/tooling-audit-2026-02-16.md` §1
+- [ ] Evaluate `next/image` with a custom Supabase loader for media gallery thumbnails (WebP/AVIF, responsive srcset, lazy loading). Pairs with ADR-0009 derivative variants.
+  Reference: `docs/planning/tooling-audit-2026-02-16.md` §2
+- [ ] Evaluate `@dnd-kit/core` + `@dnd-kit/sortable` for AI Studio reference canvas and agent-to-grid drag-and-drop (accessibility, touch reliability, drop animations).
+  Reference: `docs/planning/tooling-audit-2026-02-16.md` §3
+- [ ] Evaluate `sonner` for unified toast notifications across generation, upload, billing, and bulk action flows.
+  Reference: `docs/planning/tooling-audit-2026-02-16.md` §4
+- [ ] Evaluate `yet-another-react-lightbox` to replace custom MediaFileModal zoom/pan code with a production lightbox (pinch-to-zoom, gallery nav, video support).
+  Reference: `docs/planning/tooling-audit-2026-02-16.md` §5
+- [ ] Evaluate `date-fns` for consistent date formatting across media library, performance analytics, and generation history.
+  Reference: `docs/planning/tooling-audit-2026-02-16.md` §6
+- [ ] Evaluate `zustand` for global state management if AI Studio prop-drilling friction grows or cross-feature state access is needed.
+  Reference: `docs/planning/tooling-audit-2026-02-16.md` §7
+- [ ] Evaluate `zod` for API route input validation, starting with new routes and backfilling incrementally.
+  Reference: `docs/planning/tooling-audit-2026-02-16.md` §8
 
 ## Later (post-MVP)
 - [ ] Explore live data sources or edge functions if backend capabilities are reintroduced.

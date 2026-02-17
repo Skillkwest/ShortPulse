@@ -59,6 +59,7 @@ type TextPropertiesPanelProps = {
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
   outputGenerateCostCredits?: number | null;
+  hasSufficientCreditsForOutputGenerate?: boolean;
   guardrailReason?: string | null;
   onExpandChat?: () => void;
   onStepActionClick?: (step: "character" | "model" | "prompt" | "imageSettings") => void;
@@ -260,6 +261,7 @@ export function TextPropertiesPanel({
   isPromptGenerating = false,
   isGenerateDisabled = false,
   outputGenerateCostCredits = null,
+  hasSufficientCreditsForOutputGenerate = true,
   onClearAgentChat,
   beginnerMode = false,
   expertCreateUiEligible = false,
@@ -359,7 +361,9 @@ export function TextPropertiesPanel({
   const selectedCharacterInitials = selectedCharacterOption
     ? getCharacterInitials(selectedCharacterOption.name)
     : null;
-  const disableOutputGenerate = characterModeEnabled ? !selectedCharacterId : !modelId;
+  const disableOutputGenerate =
+    (characterModeEnabled ? !selectedCharacterId : !modelId) ||
+    !hasSufficientCreditsForOutputGenerate;
 
   // Auto-clamp invalid image resolution values when switching image models.
   useEffect(() => {

@@ -177,6 +177,33 @@ describe("TextPropertiesPanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders attached references in the expert input shell instead of chat history", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      stagedAttachments: [
+        {
+          id: "prompt-ref-1",
+          kind: "prompt",
+          text: "Dropped reference prompt.",
+          referenceId: "ref-1",
+        },
+      ],
+      agentMessages: [],
+      stagedPrompt: null,
+    });
+
+    expect(
+      container.querySelector(
+        ".agent-composer-input-shell .agent-composer-attachment-strip .agent-attachment-card-list--composer"
+      )
+    ).toBeTruthy();
+    expect(container.querySelector(".agent-chat-surface .agent-user-attachments")).toBeNull();
+  });
+
   it("routes both expert generate buttons to the same handler and mirrors disabled state", () => {
     const onGenerate = vi.fn();
     const renderExpertWithComposeCard = (
@@ -297,9 +324,8 @@ describe("TextPropertiesPanel", () => {
     fireEvent.click(screen.getByRole("option", { name: /1:1/i }));
     expect(onAspectChange).toHaveBeenCalledWith("1:1");
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Image resolution" }), {
-      target: { value: "auto_2K" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Image resolution" }));
+    fireEvent.click(screen.getByRole("option", { name: "auto_2K" }));
     expect(onImageResolutionChange).toHaveBeenCalledWith("auto_2K");
   });
 
@@ -330,6 +356,26 @@ describe("TextPropertiesPanel", () => {
       characterModeEnabled: false,
       modelId: null,
       modelLabel: "Choose Model",
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
+  });
+
+  it("disables expert output-generate pills when credits are insufficient", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      characterModeEnabled: false,
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      hasSufficientCreditsForOutputGenerate: false,
       agentMessages: [
         {
           id: "assistant-1",

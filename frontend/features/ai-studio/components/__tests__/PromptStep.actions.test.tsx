@@ -120,4 +120,20 @@ describe("PromptStep agent actions", () => {
     expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
     expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
   });
+
+  it("renders thinking as a history row below the latest chat bubble", () => {
+    const { container } = render(
+      <PromptStep
+        {...baseProps}
+        agentMessages={[{ id: "u-1", role: "user", content: "a woman" }]}
+        agentIsSending
+      />
+    );
+
+    expect(
+      container.querySelector(".agent-messages .agent-message.agent-thinking-message")
+    ).toBeTruthy();
+    expect(container.querySelector(".agent-thinking--composer-row")).toBeNull();
+    expect(screen.getByText("Thinking…")).toBeInTheDocument();
+  });
 });

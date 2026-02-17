@@ -62,6 +62,7 @@ type UseAiStudioPanelPropsParams = {
   describeInFlightCount: number;
   currentCostCredits: number | null;
   promptReferenceGenerateCostCredits: number | null;
+  hasSufficientCreditsForPromptReferenceGenerate: boolean;
   isGenerateDisabled: boolean;
   isGenerateClickLocked: boolean;
   generationGuardrail: string | null;
@@ -181,6 +182,7 @@ export const useAiStudioPanelProps = ({
   describeInFlightCount,
   currentCostCredits,
   promptReferenceGenerateCostCredits,
+  hasSufficientCreditsForPromptReferenceGenerate,
   isGenerateDisabled,
   isGenerateClickLocked,
   generationGuardrail,
@@ -287,6 +289,7 @@ export const useAiStudioPanelProps = ({
     isPromptGenerating: isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: currentCostCredits,
     outputGenerateCostCredits: promptReferenceGenerateCostCredits,
+    hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
     isGenerateDisabled: isGenerateDisabled || agentBusy || isGenerateClickLocked,
     guardrailReason: generationGuardrail,
     onExpandChat: handleExpandChat,

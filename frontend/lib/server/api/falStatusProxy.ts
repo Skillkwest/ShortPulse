@@ -59,6 +59,16 @@ const normalizeStatus = (value: unknown): string | null => {
   return text ? text.toLowerCase() : null;
 };
 
+const resolveSuccessfulPayloadStatus = (...candidates: unknown[]): string => {
+  for (const candidate of candidates) {
+    const normalized = normalizeStatus(candidate);
+    if (normalized && completedStatuses.has(normalized)) {
+      return normalized;
+    }
+  }
+  return "completed";
+};
+
 const readJsonSafe = async (response: Response): Promise<JsonReadResult> => {
   const text = await response.text();
   if (!text) return { json: {}, text: "", isJson: true };
@@ -356,10 +366,10 @@ export const createFalStatusHandler = ({
         }
 
         return res.status(200).json({
+          ...payload,
           status: payloadStatus,
           state: payloadStatus,
           request_id: requestId,
-          ...payload,
         });
       };
 
@@ -574,11 +584,11 @@ export const createFalStatusHandler = ({
           responseProbeData.isJson &&
           hasMediaPayload(responseProbeData.json)
         ) {
-          const probeStatus =
-            normalizeStatus(responseProbeData.json.status) ??
-            normalizeStatus(toRecord(responseProbeData.json).state) ??
-            normalizedStatus ??
-            "completed";
+          const probeStatus = resolveSuccessfulPayloadStatus(
+            responseProbeData.json.status,
+            toRecord(responseProbeData.json).state,
+            normalizedStatus
+          );
           return captureAndRespondSuccess({
             payload: responseProbeData.json,
             payloadStatus: probeStatus,
@@ -740,7 +750,7 @@ export const createFalStatusHandler = ({
 
       return captureAndRespondSuccess({
         payload: resultData.json,
-        payloadStatus: resultStatus ?? normalizedStatus ?? "completed",
+        payloadStatus: resolveSuccessfulPayloadStatus(resultStatus, normalizedStatus),
       });
     } catch (error) {
       await settleFailure({

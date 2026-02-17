@@ -59,6 +59,8 @@ type AgentChatPanelProps = {
   showMessages?: boolean;
   showInput?: boolean;
   showPromptActions?: boolean;
+  showThinkingIndicator?: boolean;
+  thinkingIndicatorPlacement?: "panel" | "history";
   showPrimaryPromptStatus?: boolean;
   dropHintText?: string;
   emptyStateText?: string;
@@ -98,6 +100,8 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   showMessages = true,
   showInput = true,
   showPromptActions = false,
+  showThinkingIndicator = true,
+  thinkingIndicatorPlacement = "panel",
   showPrimaryPromptStatus = true,
   dropHintText = "Drag & drop reference cards here to attach context.",
   emptyStateText = "Drop references and send your next instruction.",
@@ -136,13 +140,16 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   })();
   const outputGenerateCostLabel =
     outputGenerateCostCredits != null ? outputGenerateCostCredits.toLocaleString() : "—";
+  const shouldShowThinkingIndicator = showThinkingIndicator && isSending;
+  const shouldRenderThinkingInHistory =
+    shouldShowThinkingIndicator && thinkingIndicatorPlacement === "history";
 
   useEffect(() => {
     const messagesEl = messagesRef.current;
     if (messagesEl) {
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
-  }, [messages, stagedPrompt, stagedAttachments.length]);
+  }, [messages, stagedPrompt, stagedAttachments.length, shouldRenderThinkingInHistory]);
 
   useEffect(
     () => () => {
@@ -258,7 +265,11 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
               </button>
             ) : null}
           </div>
-          {introMessage || stagedPrompt || messages.length > 0 || stagedAttachments.length > 0 ? (
+          {introMessage ||
+          stagedPrompt ||
+          messages.length > 0 ||
+          stagedAttachments.length > 0 ||
+          shouldRenderThinkingInHistory ? (
             <div className="agent-messages" aria-live="polite" ref={messagesRef}>
               {introMessage ? (
                 <div className="agent-message agent-assistant agent-intro">
@@ -404,6 +415,13 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   </div>
                 </div>
               ) : null}
+              {shouldRenderThinkingInHistory ? (
+                <div className="agent-message agent-assistant agent-thinking-message">
+                  <p className="tiny agent-thinking agent-thinking--history" aria-live="polite">
+                    Thinking…
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="agent-chat-empty tiny">{emptyStateText}</div>
@@ -421,7 +439,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           onDescribeTargets={onAgentDescribeTargets}
         />
       ) : null}
-      {isSending ? (
+      {shouldShowThinkingIndicator && thinkingIndicatorPlacement !== "history" ? (
         <p className="agent-thinking" aria-live="polite">
           Thinking…
         </p>
@@ -441,6 +459,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
             <AgentSendButton
               onClick={handleSendClick}
               disabled={disabled || isSending}
+              loading={isSending}
               ariaLabel={sendLabel}
             />
           </div>

@@ -284,6 +284,7 @@ export function PromptStep({
         onDragEnter: undefined,
         onDragLeave: undefined,
       };
+  const showComposerAttachments = dropToInputComposer && stagedAttachments.length > 0;
 
   const introMessage = React.useMemo<AgentMessage>(
     () => ({
@@ -426,9 +427,11 @@ export function PromptStep({
                       introMessage={hideAgentIntroMessage ? null : introMessage}
                       input={agentInput}
                       sendLabel="Send"
-                      isSending={agentIsSending}
+                      isSending={promptThinking}
+                      showThinkingIndicator
+                      thinkingIndicatorPlacement="history"
                       stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
-                      stagedAttachments={stagedAttachments}
+                      stagedAttachments={dropToInputComposer ? [] : stagedAttachments}
                       isDropActive={!dropToInputComposer && agentDropActive}
                       showInput={false}
                       dropHintText={
@@ -463,19 +466,69 @@ export function PromptStep({
                     className={`agent-composer-input-shell ${dropToInputComposer && agentDropActive ? "is-drop-active" : ""}`.trim()}
                     {...inputDropHandlers}
                   >
+                    {showComposerAttachments ? (
+                      <div
+                        className="agent-composer-attachment-strip"
+                        aria-label="Attached references for next message"
+                      >
+                        <div className="agent-attachment-card-list agent-attachment-card-list--composer">
+                          {stagedAttachments.map((attachment) => {
+                            const isLinkedPromptRef =
+                              attachment.kind === "prompt" && Boolean(attachment.referenceId);
+                            const attachmentStatusClass =
+                              attachment.kind === "image"
+                                ? `is-${attachment.deliveryStatus ?? "pending"}`
+                                : "";
+                            return (
+                              <div
+                                key={attachment.id}
+                                className={`agent-attachment-card agent-attachment-card--composer agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""} ${attachmentStatusClass}`}
+                              >
+                                {attachment.kind === "image" && attachment.imageUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={attachment.imageUrl}
+                                    alt=""
+                                    className="agent-attachment-card-media"
+                                  />
+                                ) : (
+                                  <div className="agent-attachment-card-prompt" aria-hidden="true">
+                                    <span className="agent-attachment-card-prompt-marker">T</span>
+                                  </div>
+                                )}
+                                {isLinkedPromptRef ? (
+                                  <span className="agent-attachment-link-dot" aria-hidden="true" />
+                                ) : null}
+                                {onRemoveAgentAttachment ? (
+                                  <button
+                                    type="button"
+                                    className="agent-attachment-remove agent-attachment-remove--card"
+                                    aria-label="Remove attachment"
+                                    onClick={() => onRemoveAgentAttachment(attachment.id)}
+                                  >
+                                    ×
+                                  </button>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
                     <AgentInputBar
                       ref={agentInputRef}
                       value={agentInput}
                       onChange={(value) => onAgentInputChange?.(value)}
                       placeholder="Message the agent..."
                       onKeyDown={handleAgentInputKeyDown}
-                      className="agent-input-prefab-inline"
+                      className={`agent-input-prefab-inline ${showComposerAttachments ? "has-leading-attachments" : ""}`}
                       maxHeightPx={agentInputMaxHeightPx}
                     />
                     {embedSendButtonInInput ? (
                       <AgentSendButton
                         onClick={handleAgentSendClick}
                         disabled={agentIsSending}
+                        loading={agentIsSending}
                         ariaLabel="Send to agent"
                         icon="arrow-up"
                         className="agent-send-prefab--inside-input"
@@ -487,6 +540,7 @@ export function PromptStep({
                       <AgentSendButton
                         onClick={handleAgentSendClick}
                         disabled={agentIsSending}
+                        loading={agentIsSending}
                         ariaLabel="Send to agent"
                         label="Send"
                         className="agent-send-prefab--labeled"

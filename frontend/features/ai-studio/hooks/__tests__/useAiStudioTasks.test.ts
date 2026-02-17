@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { useAiStudioTasks } from "../useAiStudioTasks";
-import { fetchFalStatus } from "../../../../lib/falClient";
+import { fetchFalSeedreamStatus, fetchFalStatus } from "../../../../lib/falClient";
 
 vi.mock("../../../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: vi.fn(),
@@ -50,6 +50,7 @@ const asFalStatusResponse = (value: unknown): Awaited<ReturnType<typeof fetchFal
 
 describe("useAiStudioTasks", () => {
   const fetchFalStatusMock = vi.mocked(fetchFalStatus);
+  const fetchFalSeedreamStatusMock = vi.mocked(fetchFalSeedreamStatus);
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -195,5 +196,48 @@ describe("useAiStudioTasks", () => {
     );
     expect(output.taskState).toBe("fail");
     expect(output.errorMessage).toContain("Failed to download the file.");
+  });
+
+  it("forces success for image providers when media is present even if state is non-terminal", async () => {
+    fetchFalSeedreamStatusMock.mockResolvedValueOnce({
+      status: "in_progress",
+      data: { images: [{ url: "https://cdn.test/final-seedream.png" }] },
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("seedream-task-1", "out-1", 0, "fal-seedream");
+    });
+
+    await vi.advanceTimersByTimeAsync(1200);
+
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "seedream-task-1",
+        provider: "fal-seedream",
+        resultUrls: ["https://cdn.test/final-seedream.png"],
+      })
+    );
+    expect(output.taskState).toBe("success");
+    expect(output.previewUrl).toBe("https://cdn.test/final-seedream.png");
   });
 });

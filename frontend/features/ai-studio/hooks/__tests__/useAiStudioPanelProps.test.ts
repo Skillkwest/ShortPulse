@@ -67,6 +67,7 @@ const createParams = (
     describeInFlightCount: 0,
     currentCostCredits: 2,
     promptReferenceGenerateCostCredits: 25,
+    hasSufficientCreditsForPromptReferenceGenerate: true,
     isGenerateDisabled: false,
     isGenerateClickLocked: false,
     generationGuardrail: null,
@@ -153,6 +154,7 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesText.isPromptGenerating).toBe(true);
     expect(result.current.propertiesText.isGenerateDisabled).toBe(true);
     expect(result.current.propertiesText.outputGenerateCostCredits).toBe(25);
+    expect(result.current.propertiesText.hasSufficientCreditsForOutputGenerate).toBe(true);
     expect(typeof result.current.propertiesText.onGenerateFromAgentOutputPrompt).toBe("function");
   });
 

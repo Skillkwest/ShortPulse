@@ -608,11 +608,23 @@ body:has(.ai-studio-page) {
 }
 
 .ai-shell-right {
+  position: relative;
   min-width: 0;
   width: 100%;
+  min-height: var(--ai-shell-column-max-height);
+  height: 100%;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.ai-right-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  background: transparent;
+  pointer-events: auto;
 }
 
 .ai-shell-divider {

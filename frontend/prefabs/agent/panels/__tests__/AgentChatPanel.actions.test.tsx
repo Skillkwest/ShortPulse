@@ -178,6 +178,43 @@ describe("AgentChatPanel prompt actions", () => {
     expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
   });
 
+  it("renders thinking inside message history when placement is history", () => {
+    const { container } = render(
+      <AgentChatPanel
+        messages={[{ id: "u-1", role: "user", content: "User input one." }]}
+        input=""
+        isSending
+        showThinkingIndicator
+        thinkingIndicatorPlacement="history"
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(
+      container.querySelector(".agent-messages .agent-message.agent-thinking-message")
+    ).toBeTruthy();
+    expect(container.querySelector(".agent-chat-panel > .agent-thinking")).toBeNull();
+    expect(screen.getByText("Thinking…")).toBeInTheDocument();
+  });
+
+  it("shows a send spinner while the panel is sending", () => {
+    const { container } = render(
+      <AgentChatPanel
+        messages={[]}
+        input="draft"
+        isSending
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const sendButton = screen.getByRole("button", { name: "Send" });
+    expect(sendButton).toBeDisabled();
+    expect(sendButton).toHaveAttribute("aria-busy", "true");
+    expect(container.querySelector(".agent-send-spinner")).toBeTruthy();
+  });
+
   it("marks only the newest assistant message when latest-only highlighting is enabled", () => {
     const { container } = render(
       <AgentChatPanel

@@ -331,6 +331,7 @@ export function ReferenceCanvas({
   onDeleteOutput,
   generateCostCredits,
 }: ReferenceCanvasProps) {
+  type CanvasDropMode = "none" | "text" | "files";
   const selectionTheme = resolveReferenceSelectionTheme(selectedTool);
   const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
   const loadedIdsRef = React.useRef<Set<string>>(new Set());
@@ -349,7 +350,7 @@ export function ReferenceCanvas({
   const canvasDragDepthRef = React.useRef(0);
   const autoplayBudgetRef = React.useRef<number>(REFERENCE_AUTOPLAY_MAX_DESKTOP);
   const [autoplayEnabledIds, setAutoplayEnabledIds] = useState<string[]>([]);
-  const [isCanvasDropActive, setIsCanvasDropActive] = useState(false);
+  const [canvasDropMode, setCanvasDropMode] = useState<CanvasDropMode>("none");
   const [virtualMetrics, setVirtualMetrics] = useState({
     scrollTop: 0,
     viewportHeight: 0,
@@ -372,15 +373,35 @@ export function ReferenceCanvas({
     );
   }, []);
 
-  const canAcceptCanvasDrag = useCallback((transfer: DataTransfer | null | undefined) => {
-    if (!transfer) return false;
-    if (transfer.types.includes("text/reference-id")) return false;
-    return (
-      transfer.types.includes("Files") ||
-      transfer.types.includes("text/prompt") ||
-      transfer.types.includes("text/plain")
-    );
-  }, []);
+  const resolveCanvasDropMode = useCallback(
+    (transfer: DataTransfer | null | undefined): CanvasDropMode => {
+      if (!transfer) return "none";
+      const normalizedTypes = Array.from(transfer.types || []).map((type) => type.toLowerCase());
+      if (normalizedTypes.includes("text/reference-id")) return "none";
+      if (transfer.files && transfer.files.length > 0) return "files";
+      if (normalizedTypes.includes("files")) return "files";
+      if (
+        normalizedTypes.some(
+          (type) =>
+            type.includes("text") ||
+            type.includes("plain") ||
+            type.includes("prompt") ||
+            type.includes("utf8")
+        )
+      ) {
+        return "text";
+      }
+      return "none";
+    },
+    []
+  );
+
+  const canAcceptCanvasDrag = useCallback(
+    (transfer: DataTransfer | null | undefined) => {
+      return resolveCanvasDropMode(transfer) !== "none";
+    },
+    [resolveCanvasDropMode]
+  );
 
   const buildFileList = useCallback((files: File[]): FileList | null => {
     if (files.length === 0) return null;
@@ -702,7 +723,7 @@ export function ReferenceCanvas({
 
   const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
     canvasDragDepthRef.current = 0;
-    setIsCanvasDropActive(false);
+    setCanvasDropMode("none");
     // Ignore drops that originate from existing reference cards to avoid creating duplicates/empties.
     const internalRefId = event.dataTransfer.getData("text/reference-id");
     if (internalRefId) {
@@ -727,20 +748,22 @@ export function ReferenceCanvas({
   };
 
   const handleCanvasDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    if (!canAcceptCanvasDrag(event.dataTransfer)) return;
+    const nextDropMode = resolveCanvasDropMode(event.dataTransfer);
+    if (nextDropMode === "none") return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
-    if (!isCanvasDropActive) {
-      setIsCanvasDropActive(true);
+    if (canvasDropMode !== nextDropMode) {
+      setCanvasDropMode(nextDropMode);
     }
   };
 
   const handleCanvasDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
-    if (!canAcceptCanvasDrag(event.dataTransfer)) return;
+    const nextDropMode = resolveCanvasDropMode(event.dataTransfer);
+    if (nextDropMode === "none") return;
     event.preventDefault();
     canvasDragDepthRef.current += 1;
-    if (!isCanvasDropActive) {
-      setIsCanvasDropActive(true);
+    if (canvasDropMode !== nextDropMode) {
+      setCanvasDropMode(nextDropMode);
     }
   };
 
@@ -748,8 +771,8 @@ export function ReferenceCanvas({
     if (!canAcceptCanvasDrag(event.dataTransfer)) return;
     event.preventDefault();
     canvasDragDepthRef.current = Math.max(0, canvasDragDepthRef.current - 1);
-    if (canvasDragDepthRef.current === 0 && isCanvasDropActive) {
-      setIsCanvasDropActive(false);
+    if (canvasDragDepthRef.current === 0 && canvasDropMode !== "none") {
+      setCanvasDropMode("none");
     }
   };
 
@@ -875,7 +898,7 @@ export function ReferenceCanvas({
     if (typeof document === "undefined") return;
     const clearDropState = () => {
       canvasDragDepthRef.current = 0;
-      setIsCanvasDropActive(false);
+      setCanvasDropMode("none");
     };
     document.addEventListener("dragend", clearDropState);
     document.addEventListener("drop", clearDropState);
@@ -986,7 +1009,7 @@ export function ReferenceCanvas({
   return (
     <div
       ref={panelRef}
-      className={`panel ai-panel ai-preview-panel reference-canvas-panel${isCanvasDropActive ? " is-drop-active" : ""}`}
+      className={`panel ai-panel ai-preview-panel reference-canvas-panel${canvasDropMode !== "none" ? " is-drop-active" : ""}${canvasDropMode === "text" ? " is-drop-active-text" : ""}${canvasDropMode === "files" ? " is-drop-active-files" : ""}`}
       data-selection-theme={selectionTheme}
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}

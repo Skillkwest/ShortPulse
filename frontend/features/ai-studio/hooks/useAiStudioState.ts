@@ -356,6 +356,7 @@ export const useAiStudioState = ({
         updateOutputById,
         ensureGenerationRecord,
       },
+      outputs,
       findOutputById,
       pendingAutoSavesRef,
       markOutputSaved,

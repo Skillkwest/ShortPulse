@@ -78,6 +78,20 @@ const longRunningVideoProviders = new Set<Provider>([
   "fal-veo-i2v",
 ]);
 
+const imageGenerationProviders = new Set<Provider>([
+  "fal",
+  "fal-flux2",
+  "fal-flux2-klein",
+  "fal-flux2-edit",
+  "fal-flux2-pro",
+  "fal-flux2-pro-edit",
+  "fal-seedream",
+  "fal-nano-banana",
+  "fal-nano-banana-edit",
+  "fal-nano-banana-pro",
+  "fal-nano-banana-pro-edit",
+]);
+
 const nonTerminalStates = new Set([
   "pending",
   "queued",
@@ -402,8 +416,28 @@ export function useAiStudioTasks({
           // short-circuiting early success when provider explicitly reports in-progress.
           const canUseMediaShortcut =
             provider === "kei" || !hasExplicitState || !nonTerminalStates.has(state);
+          const shouldForceImageMediaSuccess =
+            hasMedia &&
+            imageGenerationProviders.has(provider) &&
+            hasExplicitState &&
+            nonTerminalStates.has(state);
+          const shouldTreatAsSuccess =
+            isTerminalSuccess || (hasMedia && canUseMediaShortcut) || shouldForceImageMediaSuccess;
 
-          if (isTerminalSuccess || (hasMedia && canUseMediaShortcut)) {
+          if (shouldTreatAsSuccess) {
+            if (shouldForceImageMediaSuccess) {
+              addBreadcrumb({
+                type: "ui",
+                level: "warn",
+                message: "generation_nonterminal_media_forced_success",
+                data: {
+                  provider,
+                  task_id: taskId,
+                  output_id: outputId,
+                  status_state: state,
+                },
+              });
+            }
             // Provider may report terminal success before media URLs are materialized.
             // Track a dedicated "no media yet" retry budget instead of using total poll attempts.
             const maxNoMediaAttempts =

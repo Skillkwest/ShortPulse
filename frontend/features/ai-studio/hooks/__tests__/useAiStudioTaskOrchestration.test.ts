@@ -47,12 +47,14 @@ describe("useAiStudioTaskOrchestration", () => {
   let capturedTaskCallbacks: TasksCallbacks | null;
   let startPollingTask: ReturnType<typeof vi.fn>;
   let clearPollTimer: ReturnType<typeof vi.fn>;
+  let pollTimersRef: { current: Record<string, number> };
 
   beforeEach(() => {
     vi.clearAllMocks();
     capturedTaskCallbacks = null;
     startPollingTask = vi.fn();
     clearPollTimer = vi.fn();
+    pollTimersRef = { current: {} };
 
     useAiStudioTaskSubmissionMock.mockReturnValue(vi.fn());
     useAiStudioTasksMock.mockImplementation(((callbacks: TasksCallbacks) => {
@@ -60,7 +62,7 @@ describe("useAiStudioTaskOrchestration", () => {
       return {
         startPollingTask,
         clearPollTimer,
-        pollTimersRef: { current: {} },
+        pollTimersRef,
       };
     }) as typeof useAiStudioTasks);
   });
@@ -266,5 +268,131 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(outputs[0]?.taskState).toBe("running");
     expect(outputs[0]?.timestamp).toBe("Retrying status...");
     expect(outputs[0]?.errorMessage).toBeNull();
+  });
+
+  it("auto-retries stuck spinner outputs when task exists but no poll timer is active", () => {
+    vi.useFakeTimers();
+    try {
+      let outputs = [
+        createOutput({ id: "out-1", taskId: "task-123", provider: "fal", taskState: "running" }),
+      ];
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+        }
+      );
+
+      renderHook(() =>
+        useAiStudioTaskOrchestration({
+          taskSubmissionConfig: {
+            aspect: "9:16",
+            mode: "image",
+            model: "model-id",
+            prompt: "Prompt",
+            selectedTool: "create",
+            imageResolution: "model_default",
+            videoDurationSeconds: 6,
+            videoResolution: "1080p",
+            videoGenerateAudio: false,
+            videoReferenceMode: "standard",
+            videoReferenceImageUrl: null,
+            motionReferenceVideoUrl: null,
+            videoCameraFixed: false,
+            videoAutoFix: false,
+            klingNegativePrompt: "blur",
+            klingCfgScale: 0.5,
+            klingShotType: "customize",
+            klingVoiceIds: ["", ""],
+            klingMultiPrompts: [],
+            klingElements: [],
+            setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+            setUiError: asDispatch<string | null>(vi.fn()),
+            setUiNotice: asDispatch<string | null>(vi.fn()),
+            setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+            setSaved: asDispatch<boolean>(vi.fn()),
+            getDefaultDurationSeconds: vi.fn(() => 6),
+            notifyGenerationFailure: vi.fn(),
+            updateOutputById,
+            ensureGenerationRecord: vi.fn(async () => null),
+          },
+          outputs,
+          findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+          pendingAutoSavesRef: { current: {} },
+          markOutputSaved: vi.fn(),
+          markOutputSaveFailed: vi.fn(),
+          persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [] })),
+        })
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(90_000);
+      });
+
+      expect(clearPollTimer).toHaveBeenCalledWith("out-1");
+      expect(startPollingTask).toHaveBeenCalledWith("task-123", "out-1", 0, "fal");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not auto-retry while poll timer is already active", () => {
+    vi.useFakeTimers();
+    try {
+      const outputs = [
+        createOutput({ id: "out-1", taskId: "task-123", provider: "fal", taskState: "running" }),
+      ];
+      pollTimersRef.current["out-1"] = 123;
+
+      renderHook(() =>
+        useAiStudioTaskOrchestration({
+          taskSubmissionConfig: {
+            aspect: "9:16",
+            mode: "image",
+            model: "model-id",
+            prompt: "Prompt",
+            selectedTool: "create",
+            imageResolution: "model_default",
+            videoDurationSeconds: 6,
+            videoResolution: "1080p",
+            videoGenerateAudio: false,
+            videoReferenceMode: "standard",
+            videoReferenceImageUrl: null,
+            motionReferenceVideoUrl: null,
+            videoCameraFixed: false,
+            videoAutoFix: false,
+            klingNegativePrompt: "blur",
+            klingCfgScale: 0.5,
+            klingShotType: "customize",
+            klingVoiceIds: ["", ""],
+            klingMultiPrompts: [],
+            klingElements: [],
+            setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+            setUiError: asDispatch<string | null>(vi.fn()),
+            setUiNotice: asDispatch<string | null>(vi.fn()),
+            setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+            setSaved: asDispatch<boolean>(vi.fn()),
+            getDefaultDurationSeconds: vi.fn(() => 6),
+            notifyGenerationFailure: vi.fn(),
+            updateOutputById: vi.fn(),
+            ensureGenerationRecord: vi.fn(async () => null),
+          },
+          outputs,
+          findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+          pendingAutoSavesRef: { current: {} },
+          markOutputSaved: vi.fn(),
+          markOutputSaveFailed: vi.fn(),
+          persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [] })),
+        })
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(4 * 60 * 1000);
+      });
+
+      expect(clearPollTimer).not.toHaveBeenCalled();
+      expect(startPollingTask).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

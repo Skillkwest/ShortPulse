@@ -47,6 +47,7 @@ describe("agentPromptOwnership", () => {
     expect(normalizePromptText("cinematic portrait, aspect ratio 16:9")).toBe(
       "cinematic portrait,"
     );
+    expect(removeAspectRatioLanguage(undefined)).toBeNull();
   });
 
   it("removes metadata recap lines from generated prompts", () => {
@@ -75,5 +76,20 @@ describe("agentPromptOwnership", () => {
         "Ancient temple in jungle, warm daylight and mossy stone. This version now includes stronger atmosphere and foliage depth."
       )
     ).toBe("Ancient temple in jungle, warm daylight and mossy stone.");
+  });
+
+  it("handles CRLF and strips metadata paragraphs after cleanup", () => {
+    expect(
+      sanitizeGenerationPromptText(
+        "Golden hour portrait in jungle canopy.\r\n\r\nSummary: Updated the prompt with stronger atmosphere."
+      )
+    ).toBe("Golden hour portrait in jungle canopy.");
+  });
+
+  it("normalizes staged agent prompt using the same cleaning rules", () => {
+    expect(getStagedAgentPrompt("agent", "  cinematic portrait, aspect ratio 9:16  ")).toBe(
+      "cinematic portrait,"
+    );
+    expect(getStagedAgentPrompt("agent", null)).toBeNull();
   });
 });

@@ -286,6 +286,49 @@
   margin-top: 8px;
 }
 
+.step2-input-row.agent-composer-row .agent-composer-input-shell {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agent-composer-attachment-strip {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  z-index: 3;
+  max-width: calc(100% - 88px);
+}
+
+.agent-attachment-card-list--composer {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.agent-attachment-card--composer {
+  width: 56px;
+  border-radius: 8px;
+}
+
+.agent-attachment-card--composer .agent-attachment-card-prompt-marker {
+  font-size: 20px;
+}
+
+.agent-attachment-card--composer .agent-attachment-link-dot {
+  left: 6px;
+  bottom: 6px;
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 0 3px rgba(65, 225, 255, 0.2);
+}
+
+.agent-attachment-card--composer .agent-attachment-remove--card {
+  top: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+}
+
 .agent-composer-hint {
   margin: 6px 0 0;
   opacity: 0.85;
@@ -566,6 +609,34 @@
   box-shadow: none;
 }
 
+.agent-send-prefab.is-loading {
+  position: relative;
+  transform: none !important;
+}
+
+.agent-send-prefab.is-loading:disabled {
+  opacity: 0.95;
+  cursor: wait;
+  box-shadow: var(--agent-send-shadow, 0 4px 1px rgba(37, 168, 191, 0.18));
+}
+
+.agent-send-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid rgba(37, 169, 191, 0.24);
+  border-top-color: rgba(113, 228, 255, 0.98);
+  border-right-color: rgba(73, 191, 220, 0.74);
+  animation: agent-send-spinner-rotate 0.82s linear infinite;
+  will-change: transform;
+}
+
+@keyframes agent-send-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .agent-save-prefab:disabled {
   opacity: 1;
   border-color: rgba(151, 159, 171, 0.55);
@@ -676,6 +747,10 @@
 }
 .agent-input-prefab-inline {
   margin: 0;
+}
+
+.agent-input-prefab.has-leading-attachments {
+  padding-top: 52px;
 }
 .agent-input-prefab-field {
   flex: 1;

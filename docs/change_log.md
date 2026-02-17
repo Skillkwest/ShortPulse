@@ -574,3 +574,26 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated AI Studio Character Mode injection to prefer active preset references, keep legacy fallback behavior, and always reload the selected character snapshot before Create/Text generate.
 - Added/updated tests for preset metadata normalization, Character Manager preset tab behavior, Character Mode payload resolution, lifecycle/controller refresh behavior, and AI Studio page integration.
 - Updated SOP/data docs (`docs/sops/sop_character_manager_operations.md`, `docs/sops/sop_image_generation.md`, `docs/data-dictionary.md`) for the new preset contract and generation path.
+
+## 2026-02-17 (AI Studio expert workflow hardening + expert CSS reorganization)
+- Hardened expert generation orchestration in `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts` and `frontend/features/ai-studio/hooks/useAiStudioOptimisticDebitReconciliation.ts`: removed output-generate guardrail bypass, aligned busy/lock checks, added optimistic-debit timestamp metadata, and prevented stale orphan debit assignment.
+- Added and updated AI Studio regression coverage for guardrail parity, stale debit cleanup, feature-flag behavior, output-generate eligibility parity, and character-mode picker close/reset paths across:
+  `frontend/features/ai-studio/hooks/__tests__/useAiStudioGenerationController.test.ts`,
+  `frontend/features/ai-studio/hooks/__tests__/useAiStudioOptimisticDebitReconciliation.test.ts`,
+  `frontend/features/ai-studio/hooks/__tests__/useAiStudioPanelProps.test.ts`,
+  `frontend/features/ai-studio/components/__tests__/TextPropertiesPanel.test.tsx`,
+  and `frontend/tests/pages/ai-studio.character-mode.test.tsx`.
+- Replaced dev-only expert gating with `NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI` runtime parsing defaults in `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts` and added the variable to `frontend/.env.example`.
+- Reorganized expert styling into focused modules and rewired global imports:
+  `frontend/styles/ai-studio-create-expert.tokens.css`,
+  `frontend/styles/ai-studio-create-expert-chat.css`,
+  `frontend/styles/ai-studio-create-expert-output-generate.css`,
+  `frontend/styles/ai-studio-create-expert-composer.css`,
+  `frontend/styles/ai-studio-create-expert-controls.css`,
+  `frontend/styles/ai-studio-create-expert-motion.css`,
+  `frontend/styles/ai-studio-create-expert-responsive.css`,
+  and `frontend/styles/globals.css`.
+- Verification gates passed:
+  `cd frontend && npm run type-check`,
+  `cd frontend && npm run test -- features/ai-studio`,
+  `cd frontend && npm run test -- tests/pages/ai-studio.character-mode.test.tsx`.

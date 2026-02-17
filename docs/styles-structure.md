@@ -32,6 +32,13 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - `styles/ai-studio-history.css`: Presets, history cards, status chips, inline error hints.
 - `styles/ai-studio-modals.css`: Reference detail modal styling.
 - `styles/ai-studio-responsive.css`: AI Studio responsive breakpoints.
+- `styles/ai-studio-create-expert.tokens.css`: Expert create tokens, panel shell, and top-level spacing/heading defaults.
+- `styles/ai-studio-create-expert-chat.css`: Expert inline chat shell, message presentation, and assistant/user text treatments.
+- `styles/ai-studio-create-expert-output-generate.css`: Expert output-generate card/pill styling (history + inline generate CTA).
+- `styles/ai-studio-create-expert-composer.css`: Expert composer input shell, attachment strip, and send-row controls.
+- `styles/ai-studio-create-expert-controls.css`: Expert control rows, model/aspect/resolution selectors, character-mode toggle/picker states.
+- `styles/ai-studio-create-expert-motion.css`: Expert-specific keyframes and reduced-motion overrides.
+- `styles/ai-studio-create-expert-responsive.css`: Expert-specific responsive overrides at small breakpoints.
 
 ## Adding styles
 - Prefer extending the feature sheet that matches the surface; avoid reintroducing a monolithic `globals.css`.
@@ -49,7 +56,7 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 3) workspace (shared/chrome/dashboard/tools/media/profile)
 4) ai-studio (layout/coming-soon/canvas/controls/reference-properties)
 5) prefabs (agent core + variants)
-6) ai-studio (properties/text-properties/prompts/prompt-actions/model-picker/history/modals/responsive)
+6) ai-studio (properties/text-properties/prompts/prompt-actions/model-picker/history/modals/responsive + expert-create split sheets)
 7) performance (core/detail/responsive)
 8) landing (core/sections)
 9) auth + viewport lock

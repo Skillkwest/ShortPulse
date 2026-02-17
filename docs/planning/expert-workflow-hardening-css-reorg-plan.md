@@ -55,10 +55,10 @@ Acceptance criteria:
 ## Phase Tracker
 
 ### Phase 0: Baseline + Contract Fixes
-- [ ] Fix current `type-check` failures in `frontend/features/ai-studio/hooks/__tests__/useAiStudioAgentOrchestration.test.ts`.
-- [ ] Add missing tests before logic changes:
-  - [ ] Guardrail parity for output-generate.
-  - [ ] Optimistic debit orphan/null-entry cleanup behavior.
+- [x] Fix current `type-check` failures in `frontend/features/ai-studio/hooks/__tests__/useAiStudioAgentOrchestration.test.ts`.
+- [x] Add missing tests before logic changes:
+  - [x] Guardrail parity for output-generate.
+  - [x] Optimistic debit orphan/null-entry cleanup behavior.
 
 Definition of Done:
 1. `cd frontend && npm run type-check` passes.
@@ -66,7 +66,7 @@ Definition of Done:
 3. `cd frontend && npm run test -- features/ai-studio` passes.
 
 ### Phase 1: Guardrail Consistency
-- [ ] Enforce primary-generate guardrails for output-generate path.
+- [x] Enforce primary-generate guardrails for output-generate path.
 
 Definition of Done:
 1. Output-generate blocks on busy/lock/guardrail conditions.
@@ -74,8 +74,8 @@ Definition of Done:
 3. Targeted tests and full AI Studio tests pass.
 
 ### Phase 2: Optimistic Debit Integrity
-- [ ] Prevent orphan optimistic debit entries for non-submitted runs.
-- [ ] Add stale-null-entry cleanup safeguards.
+- [x] Prevent orphan optimistic debit entries for non-submitted runs.
+- [x] Add stale-null-entry cleanup safeguards.
 
 Definition of Done:
 1. No null debit entries persist beyond policy window.
@@ -83,8 +83,8 @@ Definition of Done:
 3. Reconciliation tests and full AI Studio tests pass.
 
 ### Phase 3: Output-Generate Eligibility + Sanitization
-- [ ] Centralize output-generate disable logic to align with primary generate.
-- [ ] Normalize/sanitize output-generate prompt input (not trim-only).
+- [x] Centralize output-generate disable logic to align with primary generate.
+- [x] Normalize/sanitize output-generate prompt input (not trim-only).
 
 Definition of Done:
 1. Inline expert and right-panel output-generate use identical eligibility rules.
@@ -92,8 +92,8 @@ Definition of Done:
 3. Text panel tests, page tests, and full AI Studio tests pass.
 
 ### Phase 4: Expert UI Rollout Flag
-- [ ] Replace dev-only expert gating with runtime feature flag + env defaults.
-- [ ] Update `.env.example`.
+- [x] Replace dev-only expert gating with runtime feature flag + env defaults.
+- [x] Update `.env.example`.
 
 Definition of Done:
 1. Flag behavior matches matrix in development/preview/production expectations.
@@ -101,8 +101,8 @@ Definition of Done:
 3. Full AI Studio tests and type-check pass.
 
 ### Phase 5: Character Picker State Hardening
-- [ ] Close/reset picker state when character mode toggles OFF.
-- [ ] Eliminate hidden-open modal/listener edge state.
+- [x] Close/reset picker state when character mode toggles OFF.
+- [x] Eliminate hidden-open modal/listener edge state.
 
 Definition of Done:
 1. Picker cannot remain logically open while hidden.
@@ -110,15 +110,15 @@ Definition of Done:
 3. Relevant tests pass.
 
 ### Phase 6: CSS Reorganization (No Visual Change)
-- [ ] Split `frontend/styles/ai-studio-create-expert.css` into:
-  - [ ] `frontend/styles/ai-studio-create-expert.tokens.css`
-  - [ ] `frontend/styles/ai-studio-create-expert-chat.css`
-  - [ ] `frontend/styles/ai-studio-create-expert-output-generate.css`
-  - [ ] `frontend/styles/ai-studio-create-expert-composer.css`
-  - [ ] `frontend/styles/ai-studio-create-expert-controls.css`
-  - [ ] `frontend/styles/ai-studio-create-expert-motion.css`
-  - [ ] `frontend/styles/ai-studio-create-expert-responsive.css`
-- [ ] Update import order in `frontend/styles/globals.css`.
+- [x] Split `frontend/styles/ai-studio-create-expert.css` into:
+  - [x] `frontend/styles/ai-studio-create-expert.tokens.css`
+  - [x] `frontend/styles/ai-studio-create-expert-chat.css`
+  - [x] `frontend/styles/ai-studio-create-expert-output-generate.css`
+  - [x] `frontend/styles/ai-studio-create-expert-composer.css`
+  - [x] `frontend/styles/ai-studio-create-expert-controls.css`
+  - [x] `frontend/styles/ai-studio-create-expert-motion.css`
+  - [x] `frontend/styles/ai-studio-create-expert-responsive.css`
+- [x] Update import order in `frontend/styles/globals.css`.
 
 Definition of Done (per sub-slice and final):
 1. No visual diff outside allowed baseline threshold.
@@ -126,8 +126,8 @@ Definition of Done (per sub-slice and final):
 3. Full AI Studio tests and type-check pass after each sub-slice.
 
 ### Phase 7: Docs + Final Certification
-- [ ] Update docs (`docs/styles-structure.md`, changelog entries as needed).
-- [ ] Run final verification gates.
+- [x] Update docs (`docs/styles-structure.md`, changelog entries as needed).
+- [x] Run final verification gates.
 
 Definition of Done:
 1. `cd frontend && npm run type-check` passes.
@@ -136,9 +136,9 @@ Definition of Done:
 4. Visual baseline comparison is signed off.
 
 ## Gate Command Checklist
-- [ ] `cd frontend && npm run type-check`
-- [ ] `cd frontend && npm run test -- features/ai-studio`
-- [ ] `cd frontend && npm run test -- tests/pages/ai-studio.character-mode.test.tsx`
+- [x] `cd frontend && npm run type-check`
+- [x] `cd frontend && npm run test -- features/ai-studio`
+- [x] `cd frontend && npm run test -- tests/pages/ai-studio.character-mode.test.tsx`
 
 ## Change Log
 Use this section to track progress slice-by-slice.
@@ -146,4 +146,6 @@ Use this section to track progress slice-by-slice.
 ### 2026-02-17
 1. Created execution tracker document.
 2. No functional or styling behavior changes in this step.
-
+3. Completed functional hardening phases 0-5 and validated with type-check + AI Studio test suites.
+4. Split expert create styles into seven focused files and rewired `frontend/styles/globals.css` imports.
+5. Final automated verification gates passed; manual visual-baseline screenshot diff sign-off remains pending.

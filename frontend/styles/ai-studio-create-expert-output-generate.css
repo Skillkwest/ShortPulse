@@ -1,0 +1,226 @@
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px;
+  align-items: stretch;
+  column-gap: 12px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .tiny {
+  margin: 0;
+  min-width: 0;
+  grid-column: 1;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  transition: border-color 140ms ease;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate.is-draggable {
+  transform: none;
+  transition:
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    opacity 0.14s ease;
+  will-change: auto;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate.is-draggable:hover,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate.is-draggable:active,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate.is-draggable.is-dragging {
+  transform: none;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate:hover
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate:hover
+  .tiny,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate:focus-within
+  p {
+  border-color: rgba(94, 216, 252, 0.18);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab {
+  position: static;
+  right: auto;
+  bottom: auto;
+  grid-column: 2;
+  grid-row: 1;
+  width: 84px;
+  min-width: 84px;
+  max-width: 84px;
+  min-height: 118px;
+  height: min(100%, var(--create-expert-output-generate-max-height));
+  max-height: var(--create-expert-output-generate-max-height);
+  align-self: center;
+  justify-self: end;
+  justify-content: center;
+  padding: 10px 8px;
+  border-radius: 10px;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 1px rgba(37, 169, 191, 0.35);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab
+  .agent-generate-label {
+  font-size: 15px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab
+  .generate-pill {
+  gap: 6px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab
+  .generate-pill
+  .model-chip-icon {
+  font-size: 20px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab
+  .generate-pill
+  .model-chip-credits {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab:disabled {
+  border-color: rgba(132, 143, 156, 0.3);
+  background: linear-gradient(135deg, rgba(104, 115, 128, 0.3), rgba(82, 91, 102, 0.3));
+  box-shadow: none;
+  color: rgba(174, 184, 196, 0.8);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .agent-generate-label {
+  color: rgba(174, 184, 196, 0.8);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .generate-pill,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .generate-pill
+  .model-chip-icon,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .generate-pill
+  .model-chip-credits,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--with-output-generate
+  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .generate-pill
+  .model-chip-credits-label {
+  color: rgba(174, 184, 196, 0.8);
+}
+
+.create-expert-inline-generate {
+  margin-top: 0;
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: flex-start;
+}
+
+.create-expert-inline-generate .agent-generate-prefab {
+  width: 100%;
+  min-width: 0;
+  border-color: rgba(201, 205, 214, 0.24);
+  background: #1d252e;
+  color: #f0f4f8;
+  box-shadow: none;
+}
+
+.create-expert-inline-generate .agent-generate-prefab:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(201, 205, 214, 0.34);
+  background: #202934;
+}
+
+.create-expert-inline-generate .agent-generate-prefab:disabled {
+  border-color: rgba(201, 205, 214, 0.16);
+  background: #171b22;
+  color: rgba(201, 205, 214, 0.56);
+}
+
+.create-expert-inline-generate .agent-generate-prefab:disabled .agent-generate-label {
+  color: rgba(201, 205, 214, 0.56);
+}
+
+.create-expert-inline-generate .agent-generate-prefab:disabled .generate-pill,
+.create-expert-inline-generate .agent-generate-prefab:disabled .generate-pill .model-chip-icon,
+.create-expert-inline-generate .agent-generate-prefab:disabled .generate-pill .model-chip-credits,
+.create-expert-inline-generate
+  .agent-generate-prefab:disabled
+  .generate-pill
+  .model-chip-credits-label {
+  color: rgba(201, 205, 214, 0.56);
+}
+
+.create-expert-inline-generate .agent-generate-prefab .generate-pill,
+.create-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-icon,
+.create-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-credits,
+.create-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-credits-label {
+  color: rgba(226, 236, 246, 0.9);
+}

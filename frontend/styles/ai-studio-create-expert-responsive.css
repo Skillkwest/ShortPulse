@@ -1,0 +1,51 @@
+@media (max-width: 900px) {
+  .create-expert-panel {
+    min-height: 360px;
+  }
+
+  .create-expert-panel--no-history .create-expert-empty-top-spacer {
+    min-height: clamp(80px, 15vh, 150px);
+  }
+
+  .create-expert-ready-text {
+    font-size: clamp(19px, 7vw, 26px);
+  }
+
+  .create-expert-inline-generate .agent-generate-prefab {
+    min-width: 180px;
+  }
+
+  .create-expert-panel .create-expert-picker-control .model-picker-name {
+    max-width: 112px;
+  }
+
+  .create-expert-panel .create-expert-prompt-step .step2-input-row.agent-composer-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .create-expert-panel .create-expert-prompt-step .agent-composer-input-shell {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .create-expert-panel .create-expert-prompt-step .agent-composer-input-shell .agent-input-prefab {
+    height: auto;
+    min-height: 76px;
+  }
+
+  .create-expert-panel .create-expert-prompt-step .agent-composer-row .agent-inline-actions {
+    width: auto;
+    justify-content: flex-start;
+  }
+
+  .create-expert-character-mode-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .create-expert-secondary-row {
+    flex-wrap: wrap;
+  }
+}

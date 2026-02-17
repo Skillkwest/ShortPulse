@@ -1,0 +1,16 @@
+@keyframes create-expert-thinking-shine {
+  0% {
+    background-position: 140% 50%;
+  }
+  100% {
+    background-position: -90% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .create-expert-character-mode-control,
+  .create-expert-panel .create-expert-character-picker-trigger,
+  .create-expert-model-control {
+    transition: none;
+  }
+}

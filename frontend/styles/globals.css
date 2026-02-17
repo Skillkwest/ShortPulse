@@ -31,7 +31,13 @@
 @import "./ai-studio-history.css";
 @import "./ai-studio-modals.css";
 @import "./ai-studio-responsive.css";
-@import "./ai-studio-create-expert.css";
+@import "./ai-studio-create-expert.tokens.css";
+@import "./ai-studio-create-expert-chat.css";
+@import "./ai-studio-create-expert-output-generate.css";
+@import "./ai-studio-create-expert-composer.css";
+@import "./ai-studio-create-expert-controls.css";
+@import "./ai-studio-create-expert-motion.css";
+@import "./ai-studio-create-expert-responsive.css";
 @import "./character.css";
 @import "./character-manager.css";
 @import "./workspace-tools.css";

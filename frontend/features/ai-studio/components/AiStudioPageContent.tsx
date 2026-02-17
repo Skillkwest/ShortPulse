@@ -37,6 +37,7 @@ import {
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
+  shouldCollapseAiShellOnToolSelect,
 } from "../logic/shellResize";
 
 type FailureCard = Pick<
@@ -364,12 +365,19 @@ export function AiStudioPageContent({
       ? AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX
       : undefined;
   const maxLeftWidthPx = showExpertCreatePanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
-  const { shellRef, leftColumnRef, showDivider, isResizing, shellStyle, dividerProps } =
-    useAiStudioShellResize({
-      enabled: Boolean(selectedTool),
-      minLeftWidthPx,
-      maxLeftWidthPx,
-    });
+  const {
+    shellRef,
+    leftColumnRef,
+    showDivider,
+    isResizing,
+    shellStyle,
+    collapseToMin,
+    dividerProps,
+  } = useAiStudioShellResize({
+    enabled: Boolean(selectedTool),
+    minLeftWidthPx,
+    maxLeftWidthPx,
+  });
   const shellClassName = [
     "ai-shell",
     selectedTool ? "" : "ai-shell-wide",
@@ -380,6 +388,14 @@ export function AiStudioPageContent({
   ]
     .filter(Boolean)
     .join(" ");
+  const previousSelectedToolRef = React.useRef<ToolId | null>(selectedTool);
+  React.useEffect(() => {
+    const previousSelectedTool = previousSelectedToolRef.current;
+    if (shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool)) {
+      collapseToMin();
+    }
+    previousSelectedToolRef.current = selectedTool;
+  }, [collapseToMin, selectedTool]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const rightColumnDragDepthRef = React.useRef(0);
   const [rightColumnDropMode, setRightColumnDropMode] = React.useState<RightColumnDropMode>("none");

@@ -15,6 +15,7 @@ import {
   getDefaultAiShellLeftWidth,
   isAiShellResizeViewport,
   parseStoredAiShellLeftWidth,
+  shouldCollapseAiShellOnToolSelect,
 } from "../shellResize";
 
 describe("getAiShellLeftWidthBounds", () => {
@@ -101,5 +102,19 @@ describe("isAiShellResizeViewport", () => {
   it("enables resize only above the breakpoint", () => {
     expect(isAiShellResizeViewport(1200)).toBe(true);
     expect(isAiShellResizeViewport(960)).toBe(false);
+  });
+});
+
+describe("shouldCollapseAiShellOnToolSelect", () => {
+  it("collapses when switching to edit or video", () => {
+    expect(shouldCollapseAiShellOnToolSelect(null, "edit")).toBe(true);
+    expect(shouldCollapseAiShellOnToolSelect("text", "video")).toBe(true);
+  });
+
+  it("does not collapse when re-selecting the same tool or choosing other tools", () => {
+    expect(shouldCollapseAiShellOnToolSelect("edit", "edit")).toBe(false);
+    expect(shouldCollapseAiShellOnToolSelect("video", "video")).toBe(false);
+    expect(shouldCollapseAiShellOnToolSelect("text", "create")).toBe(false);
+    expect(shouldCollapseAiShellOnToolSelect("edit", null)).toBe(false);
   });
 });

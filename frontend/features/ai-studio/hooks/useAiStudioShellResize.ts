@@ -291,6 +291,18 @@ export const useAiStudioShellResize = ({
     setContainerWidthPx(Math.round(containerWidth));
   }, [enabled, isResizableViewport, maxLeftWidthPx, minLeftWidthPx, resolveContainerWidth]);
 
+  const collapseToMin = useCallback(() => {
+    if (!enabled || !isResizableViewport) return;
+    const containerWidth = resolveContainerWidth();
+    if (!containerWidth) return;
+    const bounds = getAiShellLeftWidthBounds(containerWidth, {
+      minLeftWidthPx,
+      maxLeftWidthPx,
+    });
+    setLeftWidthPx((prev) => (prev === bounds.min ? prev : bounds.min));
+    setContainerWidthPx(Math.round(containerWidth));
+  }, [enabled, isResizableViewport, maxLeftWidthPx, minLeftWidthPx, resolveContainerWidth]);
+
   const hasContainerRoom =
     containerWidthPx >= AI_SHELL_LEFT_MIN_PX + AI_SHELL_RIGHT_MIN_PX + AI_SHELL_DIVIDER_TRACK_PX;
   const showDivider = enabled && isResizableViewport && hasContainerRoom;
@@ -323,6 +335,7 @@ export const useAiStudioShellResize = ({
     showDivider,
     isResizing,
     shellStyle,
+    collapseToMin,
     dividerProps: {
       role: "separator",
       tabIndex: 0,

@@ -80,6 +80,7 @@ vi.mock("../hooks/useAiStudioShellResize", () => ({
     showDivider: false,
     isResizing: false,
     shellStyle: {},
+    collapseToMin: vi.fn(),
     dividerProps: {},
   }),
 }));

@@ -196,6 +196,8 @@ describe("TextPropertiesPanel", () => {
       stagedPrompt: null,
     });
 
+    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
+    expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
     expect(
       container.querySelector(
         ".agent-composer-input-shell .agent-composer-attachment-strip .agent-attachment-card-list--composer"

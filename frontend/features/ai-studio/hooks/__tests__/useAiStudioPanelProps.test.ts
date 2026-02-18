@@ -101,11 +101,10 @@ const createParams = (
     editReferenceText: "Edit prompt",
     handleImageRegenerateWithDebit: vi.fn(),
     referenceImageWarning: null,
-    resolvePreviewUrlById: vi.fn((list: StudioOutput[], id: string | null | undefined) => {
+    resolveOutputPreviewUrl: vi.fn((id: string | null | undefined) => {
       if (!id) return null;
-      return list.find((item) => item.id === id)?.previewUrl ?? null;
+      return outputs.find((item) => item.id === id)?.previewUrl ?? null;
     }),
-    outputs,
     isReferencePromptEnhancing: false,
     handleReferencePromptEnhance: vi.fn(),
     setReferenceImageUrl: vi.fn(),
@@ -176,13 +175,13 @@ describe("useAiStudioPanelProps", () => {
   });
 
   it("accepts nullable output ids when resolving image/video preview links", () => {
-    const resolvePreviewUrlById = vi.fn((_: StudioOutput[], id: string | null | undefined) =>
+    const resolveOutputPreviewUrl = vi.fn((id: string | null | undefined) =>
       id === "out-1" ? "https://example.com/out-1.png" : null
     );
     const { result } = renderHook(() =>
       useAiStudioPanelProps(
         createParams({
-          resolvePreviewUrlById,
+          resolveOutputPreviewUrl,
         })
       )
     );

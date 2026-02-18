@@ -585,6 +585,16 @@ body:has(.ai-studio-page) {
   grid-template-columns: 1fr;
 }
 
+.ai-shell.ai-shell-performance-dense .ai-panel {
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
+}
+
+.ai-shell.ai-shell-performance-dense .toolbar-item,
+.ai-shell.ai-shell-performance-dense .ghost-btn,
+.ai-shell.ai-shell-performance-dense .reference-card {
+  transition-duration: 0.08s !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ai-shell.ai-shell-resizable {
     transition: none;

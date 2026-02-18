@@ -105,6 +105,11 @@ Key indicators:
   - `NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE`
   - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW`
   - `NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE`
+- AI Studio shell performance flags:
+  - `NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE`
+  - `NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE`
+  - `NEXT_PUBLIC_AI_STUDIO_PANEL_MEMOIZATION`
+  - `NEXT_PUBLIC_AI_STUDIO_HIGH_DENSITY_SHELL_MODE`
 
 Adjust only after telemetry review; keep desktop/mobile/constrained profiles distinct.
 
@@ -131,13 +136,43 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
 1. `npm -C frontend run lint`
 2. `npm -C frontend run type-check`
 3. `npm -C frontend run build`
-4. Manual verification:
+4. Run in-browser gate audit from DevTools on `/ai-studio`:
+   - `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
+   - `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
+5. Manual verification:
    - Media Library route (images/videos/private/AI tabs)
    - AI Studio modal search + paging + selection
    - Reference Grid autoplay behavior on desktop and small-screen widths
 
+## Reference Grid Perf Harness
+- Browser command (DevTools Console on `/ai-studio`):
+  - `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
+- Runtime API (dev/non-production):
+  - `window.__shortpulseAiStudioPerf.seedReferenceGrid(count)`
+  - `window.__shortpulseAiStudioPerf.clearReferenceGrid()`
+  - `window.__shortpulseAiStudioPerf.runReferenceGridAudit(options?)`
+  - `window.__shortpulseAiStudioPerf.runStudioShellAudit(options?)`
+- Scenarios: 100 / 300 / 500 seeded reference cards.
+- Gates:
+  - click p95 at 500 cards: `<= 120ms`
+  - long-task p95 at 500 cards: `<= 120ms`
+  - max input stall at 500 cards during 60s scroll probe: `<= 1000ms`
+  - heap growth ratio (500 vs 100 cards): `<= 3x`
+
+## Studio Shell Perf Harness
+- Browser command (DevTools Console on `/ai-studio`):
+  - `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
+- Scenarios: 50 / 100 / 300 seeded references while exercising toolbar/panel/drop interactions.
+- Gates:
+  - toolbar switch p95 at 50 refs: `<= 120ms`
+  - panel interaction p95 at 50 refs: `<= 140ms`
+  - drop cycle p95 at 50 refs: `<= 140ms`
+  - long-task p95 during shell actions: `<= 120ms`
+  - max input stall during shell actions: `<= 1000ms`
+
 ## Related Docs
 - `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`
+- `docs/adr/0014-ai-studio-shell-decoupling-and-event-backpressure.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
 - `docs/planning/media-optimization-phase0-measurement-spec.md`
 - `docs/troubleshooting.md`

@@ -173,6 +173,15 @@ Checklist:
   - adaptive preview routing is active (`NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW` not set to `false`),
   - active grid count stays near the configured cap (`NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT`, default `500`),
   - archived restore actions are available and returning cards without freezing the main grid.
+- Run the automated gate harness when regressions are suspected:
+  - on `/ai-studio` DevTools Console, run:
+    `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
+    `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
+- If toolbar/panel/drop interactions lag once references accumulate, verify:
+  - shell decoupling is enabled (`NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE` not set to `false`),
+  - DnD backpressure is enabled (`NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE` not set to `false`),
+  - panel memoization is enabled (`NEXT_PUBLIC_AI_STUDIO_PANEL_MEMOIZATION` not set to `false`),
+  - high-density shell mode is enabled (`NEXT_PUBLIC_AI_STUDIO_HIGH_DENSITY_SHELL_MODE` not set to `false`).
 
 ## Character Manager alias drift (Character Sheet vs legacy Reference Pack fields)
 Symptoms:

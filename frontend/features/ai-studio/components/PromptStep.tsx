@@ -224,10 +224,12 @@ export function PromptStep({
     ? false
     : shouldDisableSave || !canPinAgentInput;
   const showBeginnerChatPinTip = Boolean(beginnerMode && chatOnly && beginnerPinHelperText);
+  const dropToInputComposer = agentAttachmentDropTarget === "input";
+  const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
   const hasAgentChatContent =
     !hideAgentIntroMessage ||
     agentMessages.length > 0 ||
-    stagedAttachments.length > 0 ||
+    hasHistoryAttachments ||
     Boolean(stagedPrompt?.trim());
   const shouldRenderAgentChatPanel = hasAgentChatContent || !hideEmptyAgentChatState;
   const shouldRenderAgentChatSpacer = !shouldRenderAgentChatPanel;
@@ -257,7 +259,6 @@ export function PromptStep({
   const blockHistoryDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
   };
-  const dropToInputComposer = agentAttachmentDropTarget === "input";
   const historyDropHandlers = dropToInputComposer
     ? {
         onDrop: blockHistoryDrop,

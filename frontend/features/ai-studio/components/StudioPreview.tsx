@@ -6,7 +6,8 @@ import React from "react";
 import { ArrowClockwise, CloudArrowUp, ImageSquare, UploadSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 
-const isVideoUrl = (url: string) => /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
+const isVideoUrl = (url: string) =>
+  /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
 
 type StudioPreviewProps = {
   activeOutput: StudioOutput | null;
@@ -30,7 +31,7 @@ const preventFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
 /**
  * Renders the preview dropzones and regen CTA.
  */
-export function StudioPreview({
+function StudioPreviewComponent({
   activeOutput,
   referenceImageUrl,
   referenceText,
@@ -82,23 +83,45 @@ export function StudioPreview({
             <p className="eyebrow">Studio Preview</p>
           </div>
           <div className="preview-header-actions">
-            <button type="button" className="ghost-btn mini preview-media-btn" onClick={onTriggerFileSelect}>
+            <button
+              type="button"
+              className="ghost-btn mini preview-media-btn"
+              onClick={onTriggerFileSelect}
+            >
               <UploadSimple size={14} weight="regular" />
               Add files
             </button>
-            <button type="button" className="ghost-btn mini preview-media-btn" onClick={onOpenMediaLibrary}>
+            <button
+              type="button"
+              className="ghost-btn mini preview-media-btn"
+              onClick={onOpenMediaLibrary}
+            >
               <CloudArrowUp size={14} weight="regular" />
               Media library
             </button>
           </div>
         </div>
         <div className="step-card studio-preview-card">
-          <div className="studio-preview-square" onDrop={handleReferenceDrop} onDragOver={(event) => event.preventDefault()}>
+          <div
+            className="studio-preview-square"
+            onDrop={handleReferenceDrop}
+            onDragOver={(event) => event.preventDefault()}
+          >
             {previewMedia ? (
               isVideoPreview ? (
-                <video className="studio-preview-video" src={previewMedia} autoPlay muted loop playsInline />
+                <video
+                  className="studio-preview-video"
+                  src={previewMedia}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
               ) : (
-                <div className="studio-preview-square-image" style={{ backgroundImage: `url(${previewMedia})` }} />
+                <div
+                  className="studio-preview-square-image"
+                  style={{ backgroundImage: `url(${previewMedia})` }}
+                />
               )
             ) : (
               <div className="studio-preview-square-empty">
@@ -137,3 +160,5 @@ export function StudioPreview({
     </div>
   );
 }
+
+export const StudioPreview = React.memo(StudioPreviewComponent);

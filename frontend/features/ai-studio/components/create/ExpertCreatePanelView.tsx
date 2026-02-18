@@ -78,10 +78,7 @@ export function ExpertCreatePanelView({
   );
   const previousCharacterModeEnabledRef = React.useRef(characterModeEnabled);
   const enterFrameRef = React.useRef<number | null>(null);
-  const hasChatHistory =
-    (promptStepProps.agentMessages?.length ?? 0) > 0 ||
-    (promptStepProps.stagedAttachments?.length ?? 0) > 0 ||
-    Boolean(promptStepProps.stagedPrompt?.trim());
+  const hasChatHistory = (promptStepProps.agentMessages?.length ?? 0) > 0;
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,

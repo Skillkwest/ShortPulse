@@ -52,7 +52,7 @@ const toolIcons: Record<ToolId, IconComponent> = {
 /**
  * Renders the AI Studio toolbar with primary and nested create options.
  */
-export function AiStudioToolbar({
+function AiStudioToolbarComponent({
   selectedTool,
   beginnerMode,
   onSelectTool,
@@ -215,3 +215,5 @@ export function AiStudioToolbar({
     </aside>
   );
 }
+
+export const AiStudioToolbar = React.memo(AiStudioToolbarComponent);

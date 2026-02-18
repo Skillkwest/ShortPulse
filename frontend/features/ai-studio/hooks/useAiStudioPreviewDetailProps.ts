@@ -2,6 +2,7 @@
  * AI Studio preview and detail-modal prop composition hook.
  * Centralizes preview text routing and detail action wiring for page orchestration.
  */
+import { useMemo } from "react";
 import type { AiStudioPageContentProps } from "../components/AiStudioPageContent";
 import type { StudioOutput, ToolId } from "../types";
 
@@ -52,21 +53,43 @@ export const useAiStudioPreviewDetailProps = ({
   | "onDetailDownload"
   | "onDetailSavePrompt"
   | "onOpenMediaLibrary"
-> => ({
-  studioPreviewProps: {
-    activeOutput,
-    referenceImageUrl,
-    referenceText:
-      selectedTool === "video" || selectedTool === "kling" ? videoReferenceText : editReferenceText,
-    onReferenceImageChange: setReferenceImageUrl,
-    onReferenceTextChange: handleManualPromptChange,
-    onRegenerate: handleRegenerateWithDebit,
-  },
-  detailModalOutput: detailOutput,
-  onDetailClose: () => setDetailOutputId(null),
-  onUpdateOutputPrompt: updateOutputPrompt,
-  onDeleteOutput: deleteOutput,
-  onDetailDownload: handleDownloadReference,
-  onDetailSavePrompt: savePromptToLibrary,
-  onOpenMediaLibrary: handleOpenMediaLibrary,
-});
+> =>
+  useMemo(
+    () => ({
+      studioPreviewProps: {
+        activeOutput,
+        referenceImageUrl,
+        referenceText:
+          selectedTool === "video" || selectedTool === "kling"
+            ? videoReferenceText
+            : editReferenceText,
+        onReferenceImageChange: setReferenceImageUrl,
+        onReferenceTextChange: handleManualPromptChange,
+        onRegenerate: handleRegenerateWithDebit,
+      },
+      detailModalOutput: detailOutput,
+      onDetailClose: () => setDetailOutputId(null),
+      onUpdateOutputPrompt: updateOutputPrompt,
+      onDeleteOutput: deleteOutput,
+      onDetailDownload: handleDownloadReference,
+      onDetailSavePrompt: savePromptToLibrary,
+      onOpenMediaLibrary: handleOpenMediaLibrary,
+    }),
+    [
+      activeOutput,
+      deleteOutput,
+      detailOutput,
+      editReferenceText,
+      handleDownloadReference,
+      handleManualPromptChange,
+      handleOpenMediaLibrary,
+      handleRegenerateWithDebit,
+      referenceImageUrl,
+      savePromptToLibrary,
+      selectedTool,
+      setDetailOutputId,
+      setReferenceImageUrl,
+      updateOutputPrompt,
+      videoReferenceText,
+    ]
+  );

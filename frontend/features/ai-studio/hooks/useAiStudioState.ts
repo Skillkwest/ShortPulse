@@ -53,6 +53,33 @@ const isBlobObjectUrl = (value?: string | null) =>
 const stripVideoMarkerFromBlobUrl = (value: string): string => value.replace(/#video=1$/, "");
 
 const toIsoNow = () => new Date().toISOString();
+
+type OutputCollectionState = {
+  order: string[];
+  byId: Record<string, StudioOutput>;
+};
+
+const EMPTY_OUTPUT_COLLECTION_STATE: OutputCollectionState = {
+  order: [],
+  byId: {},
+};
+
+const normalizeOutputCollection = (rows: StudioOutput[]): OutputCollectionState => {
+  const byId: Record<string, StudioOutput> = {};
+  const order: string[] = [];
+  rows.forEach((item) => {
+    if (!item?.id || byId[item.id]) return;
+    byId[item.id] = item;
+    order.push(item.id);
+  });
+  return { order, byId };
+};
+
+const denormalizeOutputCollection = (state: OutputCollectionState): StudioOutput[] => {
+  return state.order
+    .map((id) => state.byId[id])
+    .filter((item): item is StudioOutput => Boolean(item));
+};
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
  */
@@ -72,30 +99,42 @@ export const useAiStudioState = ({
   const [videoReferenceText, setVideoReferenceTextState] = useState<string>("");
 
   // Output management
-  const [outputs, setOutputsState] = useState<StudioOutput[]>([]);
-  const [archivedOutputs, setArchivedOutputs] = useState<StudioOutput[]>([]);
+  const [activeOutputState, setActiveOutputState] = useState<OutputCollectionState>(
+    EMPTY_OUTPUT_COLLECTION_STATE
+  );
+  const [archivedOutputState, setArchivedOutputState] = useState<OutputCollectionState>(
+    EMPTY_OUTPUT_COLLECTION_STATE
+  );
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const pendingAutoSavesRef = useRef<Record<string, PendingAutoSave>>({});
   const outputObjectUrlByIdRef = useRef<Record<string, string>>({});
   const lastOutputUrlsByIdRef = useRef<Record<string, string>>({});
   const activeOutputByIdRef = useRef<Record<string, StudioOutput>>({});
-  const activeOutputById = useMemo(
-    () =>
-      outputs.reduce<Record<string, StudioOutput>>((acc, item) => {
-        acc[item.id] = item;
-        return acc;
-      }, {}),
-    [outputs]
+  const outputs = useMemo(
+    () => denormalizeOutputCollection(activeOutputState),
+    [activeOutputState]
   );
-  const archivedOutputById = useMemo(
-    () =>
-      archivedOutputs.reduce<Record<string, StudioOutput>>((acc, item) => {
-        acc[item.id] = item;
-        return acc;
-      }, {}),
-    [archivedOutputs]
+  const archivedOutputs = useMemo(
+    () => denormalizeOutputCollection(archivedOutputState),
+    [archivedOutputState]
   );
+  const setOutputsState = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>((nextValue) => {
+    setActiveOutputState((prevState) => {
+      const prevRows = denormalizeOutputCollection(prevState);
+      const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
+      return normalizeOutputCollection(resolved);
+    });
+  }, []);
+  const setArchivedOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>((nextValue) => {
+    setArchivedOutputState((prevState) => {
+      const prevRows = denormalizeOutputCollection(prevState);
+      const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
+      return normalizeOutputCollection(resolved);
+    });
+  }, []);
+  const activeOutputById = useMemo(() => activeOutputState.byId, [activeOutputState.byId]);
+  const archivedOutputById = useMemo(() => archivedOutputState.byId, [archivedOutputState.byId]);
   const activeOutput = useMemo(
     () => (activeOutputId ? (activeOutputById[activeOutputId] ?? null) : null),
     [activeOutputById, activeOutputId]
@@ -302,7 +341,7 @@ export const useAiStudioState = ({
       });
       return nextActive;
     },
-    [activeOutputId, compactArchivedOutputs]
+    [activeOutputId, compactArchivedOutputs, setArchivedOutputs]
   );
 
   const restoreArchivedOutput = useCallback(
@@ -330,7 +369,7 @@ export const useAiStudioState = ({
         return target ? prev.filter((item) => item.id !== outputId) : prev;
       });
     },
-    [archiveOlderOutputs, outputs.length]
+    [archiveOlderOutputs, outputs.length, setArchivedOutputs, setOutputsState]
   );
 
   const restoreAllArchivedOutputs = useCallback(() => {
@@ -356,7 +395,7 @@ export const useAiStudioState = ({
       active_count_hint: outputs.length + moved.length,
       archived_count_hint: 0,
     });
-  }, [archiveOlderOutputs, outputs.length]);
+  }, [archiveOlderOutputs, outputs.length, setArchivedOutputs, setOutputsState]);
 
   const setOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>(
     (nextValue) => {
@@ -365,8 +404,13 @@ export const useAiStudioState = ({
         return archiveOlderOutputs(resolved);
       });
     },
-    [archiveOlderOutputs]
+    [archiveOlderOutputs, setOutputsState]
   );
+  const resetReferenceGridState = useCallback(() => {
+    setOutputsState([]);
+    setArchivedOutputs([]);
+    setActiveOutputId(null);
+  }, [setArchivedOutputs, setOutputsState]);
 
   const findActiveOutputById = useCallback((id: string) => {
     return activeOutputByIdRef.current[id] ?? null;
@@ -389,19 +433,21 @@ export const useAiStudioState = ({
         return;
       }
 
-      setOutputsState((prev) => {
-        const targetIndex = prev.findIndex((item) => item.id === id);
-        if (targetIndex === -1) return prev;
-        const current = prev[targetIndex];
-        if (!current) return prev;
+      setActiveOutputState((prevState) => {
+        const current = prevState.byId[id];
+        if (!current) return prevState;
         const nextItem = updater(current);
-        if (nextItem === current) return prev;
-        const next = [...prev];
-        next[targetIndex] = nextItem;
-        return archiveOlderOutputs(next);
+        if (nextItem === current) return prevState;
+        return {
+          order: prevState.order,
+          byId: {
+            ...prevState.byId,
+            [id]: nextItem,
+          },
+        };
       });
     },
-    [archiveOlderOutputs, setOutputs]
+    [setOutputs]
   );
 
   const allowedModelOptions = useMemo(() => {
@@ -974,8 +1020,13 @@ export const useAiStudioState = ({
     prompt,
     setPrompt,
     outputs,
+    outputOrder: activeOutputState.order,
+    outputById: activeOutputState.byId,
     setOutputs,
+    resetReferenceGridState,
     archivedOutputs,
+    archivedOutputOrder: archivedOutputState.order,
+    archivedOutputById: archivedOutputState.byId,
     selectActiveOutputs,
     selectArchivedOutputs,
     selectOutputById,

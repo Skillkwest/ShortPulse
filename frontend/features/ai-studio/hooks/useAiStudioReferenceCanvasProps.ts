@@ -2,6 +2,7 @@
  * AI Studio reference-canvas prop composition hook.
  * Keeps reference grid action wiring out of the page orchestrator.
  */
+import { useMemo } from "react";
 import type { AiStudioPageContentProps } from "../components/AiStudioPageContent";
 import type { StudioOutput, ToolId } from "../types";
 
@@ -54,27 +55,53 @@ export const useAiStudioReferenceCanvasProps = ({
   restoreAllArchivedOutputs,
   currentCostCredits,
   selectedTool,
-}: UseAiStudioReferenceCanvasPropsParams): AiStudioPageContentProps["referenceCanvasProps"] => ({
-  outputs,
-  archivedOutputs,
-  activeOutputId,
-  showHeader: false,
-  onOutputMediaLoaded: onReferenceOutputMediaLoaded,
-  linkedPromptReferenceIds,
-  showPromptGenerate: showReferencePromptGenerate,
-  disablePromptGenerate: disableReferencePromptGenerate,
-  onSelectOutput: handleSelectOutput,
-  onOpenDetails: setDetailOutputId,
-  onDescribeImage: (output) => handleDescribeReference(output.id),
-  onSaveToLibrary: (output) => handleSaveReference(output.id),
-  onDownload: (output) => handleDownloadReference(output.id),
-  onGeneratePrompt: (output) => handleGenerateFromPromptReference(output.id),
-  onPasteTextReference: handlePasteTextReference,
-  onPasteMediaReference: handlePasteMediaReference,
-  onRetryStatus: (output) => retryOutputStatus(output.id),
-  onDeleteOutput: deleteOutput,
-  onRestoreArchivedOutput: restoreArchivedOutput,
-  onRestoreAllArchivedOutputs: restoreAllArchivedOutputs,
-  generateCostCredits: currentCostCredits,
-  selectedTool,
-});
+}: UseAiStudioReferenceCanvasPropsParams): AiStudioPageContentProps["referenceCanvasProps"] =>
+  useMemo(
+    () => ({
+      outputs,
+      archivedOutputs,
+      activeOutputId,
+      showHeader: false,
+      onOutputMediaLoaded: onReferenceOutputMediaLoaded,
+      linkedPromptReferenceIds,
+      showPromptGenerate: showReferencePromptGenerate,
+      disablePromptGenerate: disableReferencePromptGenerate,
+      onSelectOutput: handleSelectOutput,
+      onOpenDetails: setDetailOutputId,
+      onDescribeImage: (output) => handleDescribeReference(output.id),
+      onSaveToLibrary: (output) => handleSaveReference(output.id),
+      onDownload: (output) => handleDownloadReference(output.id),
+      onGeneratePrompt: (output) => handleGenerateFromPromptReference(output.id),
+      onPasteTextReference: handlePasteTextReference,
+      onPasteMediaReference: handlePasteMediaReference,
+      onRetryStatus: (output) => retryOutputStatus(output.id),
+      onDeleteOutput: deleteOutput,
+      onRestoreArchivedOutput: restoreArchivedOutput,
+      onRestoreAllArchivedOutputs: restoreAllArchivedOutputs,
+      generateCostCredits: currentCostCredits,
+      selectedTool,
+    }),
+    [
+      activeOutputId,
+      archivedOutputs,
+      currentCostCredits,
+      deleteOutput,
+      disableReferencePromptGenerate,
+      handleDescribeReference,
+      handleDownloadReference,
+      handleGenerateFromPromptReference,
+      handlePasteMediaReference,
+      handlePasteTextReference,
+      handleSaveReference,
+      handleSelectOutput,
+      linkedPromptReferenceIds,
+      onReferenceOutputMediaLoaded,
+      outputs,
+      restoreAllArchivedOutputs,
+      restoreArchivedOutput,
+      retryOutputStatus,
+      selectedTool,
+      setDetailOutputId,
+      showReferencePromptGenerate,
+    ]
+  );

@@ -3,7 +3,7 @@
  * Orchestrates toolbar, properties panels, reference grid, and preview surfaces using the feature module.
  */
 import Head from "next/head";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPageContent";
 import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
 import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWorkflow";
@@ -39,6 +39,8 @@ import { useAiStudioPanelProps } from "../features/ai-studio/hooks/useAiStudioPa
 import { useAiStudioCharacterPanelProps } from "../features/ai-studio/hooks/useAiStudioCharacterPanelProps";
 import { useAiStudioReferenceCanvasProps } from "../features/ai-studio/hooks/useAiStudioReferenceCanvasProps";
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
+import { useAiStudioSelectors } from "../features/ai-studio/hooks/useAiStudioSelectors";
+import type { StudioOutput } from "../features/ai-studio/types";
 
 const CHARACTER_MODE_BACKGROUND_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/edit";
 const CHARACTER_MODE_BUNDLE_STALE_AFTER_MS = 45 * 60 * 1000;
@@ -47,6 +49,63 @@ type OptimisticDebitEntry = {
   credits: number;
   outputId: string | null;
   createdAtMs?: number;
+};
+
+const PERF_REFERENCE_IMAGE_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#2ad1ff"/><stop offset="1" stop-color="#0f6fff"/></linearGradient></defs><rect width="240" height="240" fill="url(#g)"/><circle cx="120" cy="94" r="50" fill="rgba(255,255,255,0.24)"/><rect x="48" y="152" width="144" height="56" rx="18" fill="rgba(0,0,0,0.24)"/></svg>'
+)}`;
+
+type AiStudioPerfWindow = Window & {
+  __shortpulseAiStudioPerf?: {
+    seedReferenceGrid: (count: number) => { requestedCount: number; activeCount: number };
+    clearReferenceGrid: () => { activeCount: number };
+    runReferenceGridAudit: (options?: {
+      counts?: number[];
+      clickSamples?: number;
+      scrollDurationMsByCount?: Record<number, number>;
+    }) => Promise<{
+      ok: boolean;
+      generatedAt: string;
+      scenarios: Array<{
+        count: number;
+        click: { samples: number; p95Ms: number | null };
+        longTask: { samples: number; p95Ms: number | null };
+        interaction: { maxInputStallMs: number };
+        memory: { beforeMb: number | null; afterMb: number | null };
+      }>;
+      gates: Array<{
+        name: string;
+        pass: boolean;
+        actual: number | null;
+        expected: string;
+        note?: string;
+      }>;
+    }>;
+    runStudioShellAudit: (options?: {
+      counts?: number[];
+      toolbarSamples?: number;
+      panelSamples?: number;
+      dropSamples?: number;
+    }) => Promise<{
+      ok: boolean;
+      generatedAt: string;
+      scenarios: Array<{
+        count: number;
+        toolbar: { samples: number; p95Ms: number | null };
+        panel: { samples: number; p95Ms: number | null };
+        drop: { samples: number; p95Ms: number | null };
+        longTask: { samples: number; p95Ms: number | null };
+        interaction: { maxInputStallMs: number };
+      }>;
+      gates: Array<{
+        name: string;
+        pass: boolean;
+        actual: number | null;
+        expected: string;
+        note?: string;
+      }>;
+    }>;
+  };
 };
 
 export default function AiStudioPage() {
@@ -99,8 +158,13 @@ export default function AiStudioPage() {
     currentModelLabel,
     prompt,
     outputs,
+    outputOrder,
+    outputById,
     setOutputs,
+    resetReferenceGridState,
     archivedOutputs,
+    archivedOutputOrder,
+    archivedOutputById,
     activeOutput,
     activeOutputId,
     setActiveOutputId,
@@ -185,6 +249,13 @@ export default function AiStudioPage() {
   } = useAiStudioState({
     isCharacterModeEnabled,
   });
+  const { resolveOutputPreviewUrl } = useAiStudioSelectors({
+    outputOrder,
+    archivedOutputOrder,
+    outputById,
+    archivedOutputById,
+    activeOutputId,
+  });
   const inFlightOutputIds = useMemo(
     () =>
       new Set(
@@ -218,6 +289,532 @@ export default function AiStudioPage() {
     if (balanceCredits == null) return null;
     return Math.max(0, balanceCredits - optimisticUncoveredDebitCredits);
   }, [balanceCredits, optimisticUncoveredDebitCredits]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (process.env.NODE_ENV === "production") return;
+    const perfWindow = window as AiStudioPerfWindow;
+    const CLICK_SAMPLES_DEFAULT = 24;
+    const DEFAULT_COUNTS = [100, 300, 500];
+    const DEFAULT_SCROLL_MS_BY_COUNT: Record<number, number> = {
+      100: 12_000,
+      300: 20_000,
+      500: 60_000,
+    };
+    const PERF_GATES = {
+      clickP95MsAt500: 120,
+      longTaskP95MsAt500: 120,
+      maxInputStallMsAt500: 1000,
+      heapGrowthRatio100To500: 3,
+    };
+    const SHELL_DEFAULT_COUNTS = [50, 100, 300];
+    const SHELL_GATES = {
+      toolbarP95MsAt50: 120,
+      panelP95MsAt50: 140,
+      dropP95MsAt50: 140,
+      longTaskP95Ms: 120,
+      maxInputStallMs: 1000,
+    };
+    const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+    const nextFrame = () =>
+      new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+    const afterTwoFrames = async () => {
+      await nextFrame();
+      await nextFrame();
+    };
+    const p95 = (values: number[]): number | null => {
+      if (!values.length) return null;
+      const sorted = [...values].sort((a, b) => a - b);
+      const index = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
+      return Math.round((sorted[index] ?? 0) * 100) / 100;
+    };
+    const sampleHeapMb = (): number | null => {
+      const runtimePerformance = performance as Performance & {
+        memory?: { usedJSHeapSize?: number };
+      };
+      if (typeof runtimePerformance.memory?.usedJSHeapSize !== "number") return null;
+      return Math.round((runtimePerformance.memory.usedJSHeapSize / (1024 * 1024)) * 100) / 100;
+    };
+    const createPerfOutputs = (count: number): StudioOutput[] => {
+      const safeCount = Math.max(0, Math.floor(count));
+      const runId = Date.now();
+      return Array.from({ length: safeCount }, (_, index) => {
+        const id = `perf-${runId}-${index}`;
+        const isPromptOnly = index % 17 === 0;
+        const prompt = isPromptOnly
+          ? `Perf prompt reference ${index + 1}`
+          : `Perf media reference ${index + 1}`;
+        const previewUrl = isPromptOnly ? undefined : `${PERF_REFERENCE_IMAGE_SVG}#${index + 1}`;
+        return {
+          id,
+          prompt,
+          mode: isPromptOnly ? "text" : "image",
+          aspect,
+          model: currentModelLabel,
+          modelId: model ?? undefined,
+          status: "ready",
+          taskState: "success",
+          timestamp: "Perf seed",
+          previewUrl,
+          previewStoragePath: previewUrl ?? null,
+          fullStoragePath: previewUrl ?? null,
+          previewText: isPromptOnly ? prompt : undefined,
+          mediaSource: isPromptOnly ? "prompt" : "generated",
+          previewTier: isPromptOnly ? "full" : "thumb",
+          archivedAt: null,
+          archiveReason: null,
+          saveState: "idle",
+          saveError: null,
+        } satisfies StudioOutput;
+      });
+    };
+    const resolveDropTransfer = () => {
+      if (typeof DataTransfer === "undefined") return null;
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(["audit"], "audit-reference.png", { type: "image/png" }));
+      return transfer;
+    };
+
+    const runStudioShellScenario = async (
+      count: number,
+      toolbarSamples: number,
+      panelSamples: number,
+      dropSamples: number
+    ) => {
+      perfWindow.__shortpulseAiStudioPerf?.seedReferenceGrid(count);
+      await sleep(220);
+
+      const toolbarLatenciesMs: number[] = [];
+      const panelLatenciesMs: number[] = [];
+      const dropLatenciesMs: number[] = [];
+      const longTaskDurationsMs: number[] = [];
+
+      let observer: PerformanceObserver | null = null;
+      if (typeof PerformanceObserver !== "undefined") {
+        observer = new PerformanceObserver((list) => {
+          list.getEntries().forEach((entry) => {
+            longTaskDurationsMs.push(entry.duration);
+          });
+        });
+        try {
+          observer.observe({ type: "longtask", buffered: true });
+        } catch {
+          observer.disconnect();
+          observer = null;
+        }
+      }
+
+      const expectedTickMs = 100;
+      let maxInputStallMs = 0;
+      let previousTick = performance.now();
+      const sampleInputStall = async () => {
+        await sleep(expectedTickMs);
+        const now = performance.now();
+        const stall = Math.max(0, now - previousTick - expectedTickMs);
+        if (stall > maxInputStallMs) {
+          maxInputStallMs = stall;
+        }
+        previousTick = now;
+      };
+
+      const toolbarTargets = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          ".toolbar-item[data-tool-id='create'], .toolbar-item[data-tool-id='edit'], .toolbar-item[data-tool-id='video'], .toolbar-item[data-tool-id='canvas']"
+        )
+      );
+      for (let index = 0; index < toolbarSamples; index += 1) {
+        const target = toolbarTargets[index % toolbarTargets.length];
+        if (!target) break;
+        const startedAt = performance.now();
+        target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await afterTwoFrames();
+        toolbarLatenciesMs.push(performance.now() - startedAt);
+        await sampleInputStall();
+      }
+
+      const panelTargets = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          ".ai-properties textarea, .ai-properties input, .ai-properties button, .ai-properties select"
+        )
+      );
+      for (let index = 0; index < panelSamples; index += 1) {
+        const target = panelTargets[index % panelTargets.length];
+        if (!target) break;
+        const startedAt = performance.now();
+        if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+          target.focus();
+          target.dispatchEvent(new Event("input", { bubbles: true }));
+        } else {
+          target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        }
+        await afterTwoFrames();
+        panelLatenciesMs.push(performance.now() - startedAt);
+        await sampleInputStall();
+      }
+
+      const dropTarget =
+        document.querySelector<HTMLElement>(".ai-shell-right") ??
+        document.querySelector<HTMLElement>(".reference-canvas-panel");
+      for (let index = 0; index < dropSamples; index += 1) {
+        if (!dropTarget) break;
+        const transfer = resolveDropTransfer();
+        const startedAt = performance.now();
+        const dragOverEvent = new DragEvent("dragover", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: transfer ?? undefined,
+        });
+        dropTarget.dispatchEvent(dragOverEvent);
+        const dropEvent = new DragEvent("drop", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: transfer ?? undefined,
+        });
+        dropTarget.dispatchEvent(dropEvent);
+        await afterTwoFrames();
+        dropLatenciesMs.push(performance.now() - startedAt);
+        await sampleInputStall();
+      }
+
+      if (observer) observer.disconnect();
+      return {
+        count,
+        toolbar: {
+          samples: toolbarLatenciesMs.length,
+          p95Ms: p95(toolbarLatenciesMs),
+        },
+        panel: {
+          samples: panelLatenciesMs.length,
+          p95Ms: p95(panelLatenciesMs),
+        },
+        drop: {
+          samples: dropLatenciesMs.length,
+          p95Ms: p95(dropLatenciesMs),
+        },
+        longTask: {
+          samples: longTaskDurationsMs.length,
+          p95Ms: p95(longTaskDurationsMs),
+        },
+        interaction: {
+          maxInputStallMs: Math.round(maxInputStallMs * 100) / 100,
+        },
+      };
+    };
+    const runPerfScenario = async (
+      count: number,
+      clickSamples: number,
+      scrollDurationMs: number
+    ) => {
+      const seedResult = perfWindow.__shortpulseAiStudioPerf?.seedReferenceGrid(count);
+      await sleep(280);
+
+      const clickLatenciesMs: number[] = [];
+      const scroller = document.querySelector(".reference-canvas-body");
+      for (let index = 0; index < clickSamples; index += 1) {
+        const cards = Array.from(document.querySelectorAll(".reference-card"));
+        if (!cards.length) break;
+        const targetCard = cards[index % cards.length];
+        if (!targetCard) break;
+        const start = performance.now();
+        targetCard.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await afterTwoFrames();
+        clickLatenciesMs.push(performance.now() - start);
+        if (scroller instanceof HTMLElement && scroller.scrollHeight > scroller.clientHeight) {
+          const nextTop = Math.min(
+            scroller.scrollHeight - scroller.clientHeight,
+            scroller.scrollTop + 220
+          );
+          scroller.scrollTop = nextTop;
+        }
+        await sleep(18);
+      }
+
+      const longTaskDurationsMs: number[] = [];
+      let observer: PerformanceObserver | null = null;
+      if (typeof PerformanceObserver !== "undefined") {
+        observer = new PerformanceObserver((list) => {
+          list.getEntries().forEach((entry) => {
+            longTaskDurationsMs.push(entry.duration);
+          });
+        });
+        try {
+          observer.observe({ type: "longtask", buffered: true });
+        } catch {
+          observer.disconnect();
+          observer = null;
+        }
+      }
+
+      const beforeMb = sampleHeapMb();
+      const expectedTickMs = 100;
+      let maxInputStallMs = 0;
+      const startedAt = performance.now();
+      let previousTick = startedAt;
+      while (performance.now() - startedAt < scrollDurationMs) {
+        await sleep(expectedTickMs);
+        const now = performance.now();
+        const stall = Math.max(0, now - previousTick - expectedTickMs);
+        if (stall > maxInputStallMs) maxInputStallMs = stall;
+        previousTick = now;
+        if (scroller instanceof HTMLElement && scroller.scrollHeight > scroller.clientHeight) {
+          const nextTop =
+            scroller.scrollTop + 280 >= scroller.scrollHeight - scroller.clientHeight
+              ? 0
+              : scroller.scrollTop + 280;
+          scroller.scrollTop = nextTop;
+        }
+      }
+      if (observer) observer.disconnect();
+      const afterMb = sampleHeapMb();
+
+      return {
+        count,
+        seeded: seedResult,
+        click: {
+          samples: clickLatenciesMs.length,
+          p95Ms: p95(clickLatenciesMs),
+        },
+        longTask: {
+          samples: longTaskDurationsMs.length,
+          p95Ms: p95(longTaskDurationsMs),
+        },
+        interaction: {
+          maxInputStallMs: Math.round(maxInputStallMs * 100) / 100,
+        },
+        memory: {
+          beforeMb,
+          afterMb,
+        },
+      };
+    };
+
+    perfWindow.__shortpulseAiStudioPerf = {
+      seedReferenceGrid: (count: number) => {
+        const nextOutputs = createPerfOutputs(count);
+        resetReferenceGridState();
+        setOutputs(nextOutputs);
+        setActiveOutputId(nextOutputs[0]?.id ?? null);
+        return {
+          requestedCount: count,
+          activeCount: nextOutputs.length,
+        };
+      },
+      clearReferenceGrid: () => {
+        resetReferenceGridState();
+        return { activeCount: 0 };
+      },
+      runReferenceGridAudit: async (options) => {
+        const counts =
+          options?.counts?.filter((value) => Number.isFinite(value) && value > 0) ?? DEFAULT_COUNTS;
+        const clickSamples = Math.max(
+          1,
+          Math.floor(options?.clickSamples ?? CLICK_SAMPLES_DEFAULT)
+        );
+        const scrollDurationMsByCount = {
+          ...DEFAULT_SCROLL_MS_BY_COUNT,
+          ...(options?.scrollDurationMsByCount ?? {}),
+        };
+
+        const scenarios: Array<{
+          count: number;
+          click: { samples: number; p95Ms: number | null };
+          longTask: { samples: number; p95Ms: number | null };
+          interaction: { maxInputStallMs: number };
+          memory: { beforeMb: number | null; afterMb: number | null };
+        }> = [];
+
+        for (const count of counts) {
+          const safeCount = Math.max(1, Math.floor(count));
+          const scenario = await runPerfScenario(
+            safeCount,
+            clickSamples,
+            scrollDurationMsByCount[safeCount] ?? DEFAULT_SCROLL_MS_BY_COUNT[500]
+          );
+          scenarios.push({
+            count: scenario.count,
+            click: scenario.click,
+            longTask: scenario.longTask,
+            interaction: scenario.interaction,
+            memory: scenario.memory,
+          });
+        }
+
+        const scenarioByCount = new Map(scenarios.map((scenario) => [scenario.count, scenario]));
+        const s100 = scenarioByCount.get(100) ?? null;
+        const s500 = scenarioByCount.get(500) ?? null;
+
+        const gates: Array<{
+          name: string;
+          pass: boolean;
+          actual: number | null;
+          expected: string;
+          note?: string;
+        }> = [];
+        if (s500) {
+          gates.push({
+            name: "click_p95_ms_at_500",
+            pass:
+              typeof s500.click.p95Ms === "number" &&
+              s500.click.p95Ms <= PERF_GATES.clickP95MsAt500,
+            actual: s500.click.p95Ms,
+            expected: `<= ${PERF_GATES.clickP95MsAt500}`,
+          });
+          gates.push({
+            name: "long_task_p95_ms_at_500",
+            pass:
+              typeof s500.longTask.p95Ms === "number" &&
+              s500.longTask.p95Ms <= PERF_GATES.longTaskP95MsAt500,
+            actual: s500.longTask.p95Ms,
+            expected: `<= ${PERF_GATES.longTaskP95MsAt500}`,
+          });
+          gates.push({
+            name: "max_input_stall_ms_at_500",
+            pass: s500.interaction.maxInputStallMs <= PERF_GATES.maxInputStallMsAt500,
+            actual: s500.interaction.maxInputStallMs,
+            expected: `<= ${PERF_GATES.maxInputStallMsAt500}`,
+          });
+        } else {
+          gates.push({
+            name: "scenario_500_exists",
+            pass: false,
+            actual: null,
+            expected: "500-card scenario must run",
+          });
+        }
+
+        if (
+          s100 &&
+          s500 &&
+          typeof s100.memory.afterMb === "number" &&
+          typeof s500.memory.afterMb === "number" &&
+          s100.memory.afterMb > 0
+        ) {
+          const ratio = Math.round((s500.memory.afterMb / s100.memory.afterMb) * 100) / 100;
+          gates.push({
+            name: "heap_growth_ratio_100_to_500",
+            pass: ratio <= PERF_GATES.heapGrowthRatio100To500,
+            actual: ratio,
+            expected: `<= ${PERF_GATES.heapGrowthRatio100To500}`,
+          });
+        } else {
+          gates.push({
+            name: "heap_growth_ratio_100_to_500",
+            pass: false,
+            actual: null,
+            expected: `<= ${PERF_GATES.heapGrowthRatio100To500}`,
+            note: "JS heap sampling unavailable for this browser/runtime.",
+          });
+        }
+
+        const result = {
+          ok: gates.every((gate) => gate.pass),
+          generatedAt: new Date().toISOString(),
+          scenarios,
+          gates,
+        };
+        console.table(gates);
+        console.log("[shortpulse][reference-grid-audit]", result);
+        return result;
+      },
+      runStudioShellAudit: async (options) => {
+        const counts =
+          options?.counts?.filter((value) => Number.isFinite(value) && value > 0) ??
+          SHELL_DEFAULT_COUNTS;
+        const toolbarSamples = Math.max(1, Math.floor(options?.toolbarSamples ?? 24));
+        const panelSamples = Math.max(1, Math.floor(options?.panelSamples ?? 24));
+        const dropSamples = Math.max(1, Math.floor(options?.dropSamples ?? 16));
+        const scenarios: Array<{
+          count: number;
+          toolbar: { samples: number; p95Ms: number | null };
+          panel: { samples: number; p95Ms: number | null };
+          drop: { samples: number; p95Ms: number | null };
+          longTask: { samples: number; p95Ms: number | null };
+          interaction: { maxInputStallMs: number };
+        }> = [];
+
+        for (const count of counts) {
+          const scenario = await runStudioShellScenario(
+            Math.max(1, Math.floor(count)),
+            toolbarSamples,
+            panelSamples,
+            dropSamples
+          );
+          scenarios.push(scenario);
+        }
+
+        const scenarioByCount = new Map(scenarios.map((scenario) => [scenario.count, scenario]));
+        const s50 = scenarioByCount.get(50) ?? scenarios[0] ?? null;
+        const gates: Array<{
+          name: string;
+          pass: boolean;
+          actual: number | null;
+          expected: string;
+          note?: string;
+        }> = [];
+
+        if (s50) {
+          gates.push({
+            name: "toolbar_switch_p95_ms_at_50",
+            pass:
+              typeof s50.toolbar.p95Ms === "number" &&
+              s50.toolbar.p95Ms <= SHELL_GATES.toolbarP95MsAt50,
+            actual: s50.toolbar.p95Ms,
+            expected: `<= ${SHELL_GATES.toolbarP95MsAt50}`,
+          });
+          gates.push({
+            name: "panel_interaction_p95_ms_at_50",
+            pass:
+              typeof s50.panel.p95Ms === "number" && s50.panel.p95Ms <= SHELL_GATES.panelP95MsAt50,
+            actual: s50.panel.p95Ms,
+            expected: `<= ${SHELL_GATES.panelP95MsAt50}`,
+          });
+          gates.push({
+            name: "drop_cycle_p95_ms_at_50",
+            pass: typeof s50.drop.p95Ms === "number" && s50.drop.p95Ms <= SHELL_GATES.dropP95MsAt50,
+            actual: s50.drop.p95Ms,
+            expected: `<= ${SHELL_GATES.dropP95MsAt50}`,
+          });
+          gates.push({
+            name: "long_task_p95_ms_during_shell_actions",
+            pass:
+              typeof s50.longTask.p95Ms === "number" &&
+              s50.longTask.p95Ms <= SHELL_GATES.longTaskP95Ms,
+            actual: s50.longTask.p95Ms,
+            expected: `<= ${SHELL_GATES.longTaskP95Ms}`,
+          });
+          gates.push({
+            name: "max_input_stall_ms_during_shell_actions",
+            pass: s50.interaction.maxInputStallMs <= SHELL_GATES.maxInputStallMs,
+            actual: s50.interaction.maxInputStallMs,
+            expected: `<= ${SHELL_GATES.maxInputStallMs}`,
+          });
+        } else {
+          gates.push({
+            name: "scenario_exists",
+            pass: false,
+            actual: null,
+            expected: "At least one shell scenario must run.",
+          });
+        }
+
+        const result = {
+          ok: gates.every((gate) => gate.pass),
+          generatedAt: new Date().toISOString(),
+          scenarios,
+          gates,
+        };
+        console.table(gates);
+        console.log("[shortpulse][studio-shell-audit]", result);
+        return result;
+      },
+    };
+
+    return () => {
+      if (perfWindow.__shortpulseAiStudioPerf) {
+        delete perfWindow.__shortpulseAiStudioPerf;
+      }
+    };
+  }, [aspect, currentModelLabel, model, resetReferenceGridState, setActiveOutputId, setOutputs]);
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
   const { beginnerMode, setBeginnerMode } = useBeginnerModePreference();
@@ -651,8 +1248,7 @@ export default function AiStudioPage() {
     editReferenceText,
     handleImageRegenerateWithDebit,
     referenceImageWarning,
-    resolvePreviewUrlById,
-    outputs,
+    resolveOutputPreviewUrl,
     isReferencePromptEnhancing,
     handleReferencePromptEnhance,
     setReferenceImageUrl,

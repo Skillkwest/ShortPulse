@@ -27,6 +27,7 @@ import { CharacterPanel } from "./CharacterPanel";
 import { KlingComingSoonCard } from "./KlingComingSoonCard";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
+import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import { AgentChatPanel } from "../../../prefabs/agent";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
 import type { StudioOutput, ToolId } from "../types";
@@ -187,6 +188,10 @@ const resolveRightColumnDropMode = (
   const types = Array.from(transfer.types || []).map((type) => type.toLowerCase());
   const fileCount = transfer.files?.length ?? 0;
   const hasFileType = types.includes("files");
+  const hasMediaUrlHints =
+    types.includes("text/reference-url") ||
+    types.includes("text/uri-list") ||
+    types.includes("application/x-moz-file");
   const hasTextLikeType = types.some(
     (type) =>
       type.includes("text") ||
@@ -196,8 +201,7 @@ const resolveRightColumnDropMode = (
   );
   if (types.includes("text/reference-id")) return "none";
   if (fileCount > 0) return "media";
-  if (getDroppedMediaReference(transfer)) return "media";
-  if (normalizeDroppedPromptText(transfer)) return "text";
+  if (hasMediaUrlHints) return "media";
   if (hasTextLikeType) return "text";
   if (types.length === 0 && fileCount === 0) return "text";
   // Some browsers report "Files" for custom text drags while exposing zero files.
@@ -229,6 +233,12 @@ type CharacterSectionProps = React.ComponentProps<typeof CharacterPropertiesPane
 
 type EditSectionProps = React.ComponentProps<typeof EditPropertiesPanel>;
 type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
+const PERFORMANCE_DENSE_REFERENCE_COUNT = 40;
+const FLAG_SHELL_DECOUPLE = process.env.NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE !== "false";
+const FLAG_DND_BACKPRESSURE = process.env.NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE !== "false";
+const FLAG_PANEL_MEMOIZATION = process.env.NEXT_PUBLIC_AI_STUDIO_PANEL_MEMOIZATION !== "false";
+const FLAG_HIGH_DENSITY_SHELL_MODE =
+  process.env.NEXT_PUBLIC_AI_STUDIO_HIGH_DENSITY_SHELL_MODE !== "false";
 
 type AgentChatProps = {
   isOpen: boolean;
@@ -257,6 +267,140 @@ type AgentChatProps = {
   outputGenerateCostCredits?: number | null;
   disableOutputGenerate?: boolean;
 };
+
+type AiStudioAlertsStackProps = {
+  uiError: string | null;
+  uiNotice: string | null;
+  characterError: string | null;
+  visibleFailures: FailureCard[];
+  onDismissUiError: () => void;
+  onDismissUiNotice: () => void;
+  onDismissCharacterError: () => void;
+  onDismissFailure: (id: string) => void;
+};
+
+const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
+  uiError,
+  uiNotice,
+  characterError,
+  visibleFailures,
+  onDismissUiError,
+  onDismissUiNotice,
+  onDismissCharacterError,
+  onDismissFailure,
+}: AiStudioAlertsStackProps) {
+  return (
+    <>
+      {uiError ? (
+        <div
+          className="panel ai-panel"
+          role="alert"
+          aria-live="assertive"
+          style={{ marginTop: 12, padding: 12 }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "center",
+            }}
+          >
+            <p className="tiny" style={{ margin: 0 }}>
+              {uiError}
+            </p>
+            <button type="button" className="ghost-btn mini" onClick={onDismissUiError}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {uiNotice ? (
+        <div
+          className="panel ai-panel"
+          role="status"
+          aria-live="polite"
+          style={{ marginTop: 12, padding: 12 }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "center",
+            }}
+          >
+            <p className="tiny" style={{ margin: 0 }}>
+              {uiNotice}
+            </p>
+            <button type="button" className="ghost-btn mini" onClick={onDismissUiNotice}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {characterError ? (
+        <div
+          className="panel ai-panel"
+          role="alert"
+          aria-live="assertive"
+          style={{ marginTop: 12, padding: 12 }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "center",
+            }}
+          >
+            <p className="tiny" style={{ margin: 0 }}>
+              {characterError}
+            </p>
+            <button type="button" className="ghost-btn mini" onClick={onDismissCharacterError}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {visibleFailures.length ? (
+        <div className="ai-error-stack" role="alert" aria-live="polite">
+          <div className="ai-error-stack-header">
+            <p className="eyebrow" style={{ margin: 0, fontSize: "11px", opacity: 0.8 }}>
+              Generation issues
+            </p>
+            <span className="error-count-pill">{visibleFailures.length}</span>
+          </div>
+          <div className="ai-error-card-grid">
+            {visibleFailures.map((item) => {
+              const modelLabel = item.model || item.modelId || "Generation";
+              return (
+                <div key={item.id} className="ai-error-card">
+                  <div className="ai-error-card-body">
+                    <p className="ai-error-card-title">{modelLabel}</p>
+                    <p className="ai-error-card-message">{item.errorDetail ?? item.errorMessage}</p>
+                    <p className="ai-error-card-meta">
+                      Prompt: <span className="ai-error-card-prompt">{item.prompt}</span>
+                    </p>
+                  </div>
+                  <div className="ai-error-card-actions">
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => onDismissFailure(item.id)}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+});
 
 export type AiStudioPageContentProps = {
   referenceCanvasFileInputRef: React.RefObject<HTMLInputElement>;
@@ -360,6 +504,9 @@ export function AiStudioPageContent({
     !propertiesText.beginnerMode
   );
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
+  const isPerformanceDenseSession =
+    FLAG_HIGH_DENSITY_SHELL_MODE &&
+    referenceCanvasProps.outputs.length >= PERFORMANCE_DENSE_REFERENCE_COUNT;
   const minLeftWidthPx = isPrimaryCharacterPanelOpen
     ? AI_SHELL_LEFT_CHARACTER_MIN_PX
     : showExpertCreatePanel
@@ -385,6 +532,7 @@ export function AiStudioPageContent({
     showDivider ? "ai-shell-resizable" : "",
     showExpertCreatePanel ? "ai-shell-expert-create" : "",
     isPrimaryCharacterPanelOpen ? "ai-shell-character-open" : "",
+    isPerformanceDenseSession ? "ai-shell-performance-dense" : "",
     isResizing ? "ai-shell-resizing" : "",
   ]
     .filter(Boolean)
@@ -404,8 +552,6 @@ export function AiStudioPageContent({
     previousSelectedToolRef.current = selectedTool;
   }, [collapseToMin, selectedTool, showExpertCreatePanel]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
-  const rightColumnDragDepthRef = React.useRef(0);
-  const [rightColumnDropMode, setRightColumnDropMode] = React.useState<RightColumnDropMode>("none");
 
   useVisibleErrorTelemetry({
     source: "client.ai_studio.ui_error_banner",
@@ -447,12 +593,7 @@ export function AiStudioPageContent({
     },
   });
 
-  const clearRightColumnDropState = React.useCallback(() => {
-    rightColumnDragDepthRef.current = 0;
-    setRightColumnDropMode("none");
-  }, []);
-
-  const renderProperties = () => {
+  const memoizedPropertiesPanelContent = React.useMemo(() => {
     switch (propertiesPanelKind) {
       case "text":
         return (
@@ -480,105 +621,100 @@ export function AiStudioPageContent({
       default:
         return null;
     }
-  };
+  }, [
+    agentChat.isOpen,
+    beginnerMode,
+    propertiesImage,
+    propertiesPanelKind,
+    propertiesText,
+    propertiesVideo,
+    showExpertCreatePanel,
+  ]);
+  const propertiesPanelContent = FLAG_PANEL_MEMOIZATION
+    ? memoizedPropertiesPanelContent
+    : (() => {
+        switch (propertiesPanelKind) {
+          case "text":
+            return (
+              <>
+                <TextPropertiesPanel
+                  {...propertiesText}
+                  agentChatOpen={agentChat.isOpen}
+                  onAgentEnhanceSend={propertiesText.onAgentEnhanceSend}
+                />
+                {!showExpertCreatePanel ? (
+                  <ComposeSendCard {...propertiesText} onGenerate={propertiesText.onGenerate} />
+                ) : null}
+              </>
+            );
+          case "character":
+            return <CharacterPanel beginnerMode={beginnerMode} />;
+          case "edit":
+            return <EditPropertiesPanel {...propertiesImage} />;
+          case "video":
+            return <VideoPropertiesPanel {...propertiesVideo} />;
+          case "kling":
+            return <KlingComingSoonCard />;
+          case "canvas":
+            return <CharacterPanel beginnerMode={beginnerMode} />;
+          default:
+            return null;
+        }
+      })();
 
-  const handleRightColumnDragEnterCapture = (event: React.DragEvent<HTMLElement>) => {
-    const nextMode = resolveRightColumnDropMode(event.dataTransfer);
-    if (nextMode === "none") return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-    rightColumnDragDepthRef.current += 1;
-    setRightColumnDropMode((currentMode) => (currentMode === nextMode ? currentMode : nextMode));
-  };
+  const {
+    dropMode: rightColumnDropMode,
+    handleDragEnterCapture: handleRightColumnDragEnterCapture,
+    handleDragOverCapture: handleRightColumnDragOverCapture,
+    handleDragLeaveCapture: handleRightColumnDragLeaveCapture,
+    handleDropCapture: handleRightColumnDropCapture,
+    handleShellDragOverCapture,
+    handleShellDropCapture,
+  } = useAiStudioShellDndController({
+    shellRef: shellRef as React.RefObject<HTMLElement | null>,
+    rightColumnRef: rightColumnRef as React.RefObject<HTMLElement | null>,
+    resolveDropMode: (transfer) => resolveRightColumnDropMode(transfer) as RightColumnDropMode,
+    resolveDropPayload: (transfer) => resolveRightColumnDropPayload(transfer),
+    onDropFiles: handleReferenceCanvasFiles,
+    onDropMediaReference: referenceCanvasProps.onPasteMediaReference,
+    onDropTextReference: referenceCanvasProps.onPasteTextReference,
+    useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,
+  });
 
-  const handleRightColumnDragOverCapture = (event: React.DragEvent<HTMLElement>) => {
-    const nextMode = resolveRightColumnDropMode(event.dataTransfer);
-    if (nextMode === "none") return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-    setRightColumnDropMode((currentMode) => (currentMode === nextMode ? currentMode : nextMode));
-  };
-
-  const handleRightColumnDragLeaveCapture = (event: React.DragEvent<HTMLElement>) => {
-    if (rightColumnDropMode === "none") return;
-    event.preventDefault();
-    rightColumnDragDepthRef.current = Math.max(0, rightColumnDragDepthRef.current - 1);
-    if (rightColumnDragDepthRef.current === 0) {
-      setRightColumnDropMode("none");
-    }
-  };
-
-  const handleRightColumnDropCapture = (event: React.DragEvent<HTMLElement>) => {
-    const dropPayload = resolveRightColumnDropPayload(event.dataTransfer);
-    if (dropPayload.kind === "none" || dropPayload.kind === "internal") {
-      clearRightColumnDropState();
-      return;
-    }
-    if (dropPayload.kind === "files") {
-      event.preventDefault();
-      event.stopPropagation();
-      handleReferenceCanvasFiles(dropPayload.files);
-      clearRightColumnDropState();
-      return;
-    }
-    if (dropPayload.kind === "media" && referenceCanvasProps.onPasteMediaReference) {
-      event.preventDefault();
-      event.stopPropagation();
-      referenceCanvasProps.onPasteMediaReference(dropPayload.reference);
-      clearRightColumnDropState();
-      return;
-    }
-    if (dropPayload.kind === "text" && referenceCanvasProps.onPasteTextReference) {
-      event.preventDefault();
-      event.stopPropagation();
-      referenceCanvasProps.onPasteTextReference(dropPayload.text);
-      clearRightColumnDropState();
-      return;
-    }
-    clearRightColumnDropState();
-  };
-
-  const shouldHandleShellRightColumnFallback = React.useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
-      const rightColumnNode = rightColumnRef.current;
-      const shellNode = shellRef.current;
-      if (!rightColumnNode || !shellNode) return false;
-      if (event.target instanceof Node && rightColumnNode.contains(event.target)) return false;
-      const shellRect = shellNode.getBoundingClientRect();
-      const rightRect = rightColumnNode.getBoundingClientRect();
-      const { clientX, clientY } = event;
-      return (
-        clientX >= rightRect.left &&
-        clientX <= rightRect.right &&
-        clientY >= shellRect.top &&
-        clientY <= shellRect.bottom
-      );
-    },
-    [shellRef]
+  const memoizedToolbarRail = React.useMemo(
+    () => (
+      <AiStudioToolbar
+        selectedTool={selectedTool}
+        showCreateTools={showCreateTools}
+        beginnerMode={beginnerMode}
+        onSelectTool={onSelectTool}
+        onToggleCreateTools={onToggleCreateTools}
+        onToggleBeginnerMode={onBeginnerModeChange}
+        showOnboardingSteps={beginnerMode}
+      />
+    ),
+    [
+      beginnerMode,
+      onBeginnerModeChange,
+      onSelectTool,
+      onToggleCreateTools,
+      selectedTool,
+      showCreateTools,
+    ]
   );
-
-  const handleShellDragOverCapture = (event: React.DragEvent<HTMLElement>) => {
-    if (!shouldHandleShellRightColumnFallback(event)) return;
-    handleRightColumnDragOverCapture(event);
-  };
-
-  const handleShellDropCapture = (event: React.DragEvent<HTMLElement>) => {
-    if (!shouldHandleShellRightColumnFallback(event)) return;
-    handleRightColumnDropCapture(event);
-  };
-
-  React.useEffect(() => {
-    if (typeof document === "undefined") return;
-    const handleDocumentDragTermination = () => {
-      clearRightColumnDropState();
-    };
-    document.addEventListener("dragend", handleDocumentDragTermination);
-    document.addEventListener("drop", handleDocumentDragTermination);
-    return () => {
-      document.removeEventListener("dragend", handleDocumentDragTermination);
-      document.removeEventListener("drop", handleDocumentDragTermination);
-    };
-  }, [clearRightColumnDropState]);
+  const toolbarRail = FLAG_PANEL_MEMOIZATION ? (
+    memoizedToolbarRail
+  ) : (
+    <AiStudioToolbar
+      selectedTool={selectedTool}
+      showCreateTools={showCreateTools}
+      beginnerMode={beginnerMode}
+      onSelectTool={onSelectTool}
+      onToggleCreateTools={onToggleCreateTools}
+      onToggleBeginnerMode={onBeginnerModeChange}
+      showOnboardingSteps={beginnerMode}
+    />
+  );
 
   return (
     <>
@@ -626,127 +762,19 @@ export function AiStudioPageContent({
           </div>
         </section>
 
-        {uiError ? (
-          <div
-            className="panel ai-panel"
-            role="alert"
-            aria-live="assertive"
-            style={{ marginTop: 12, padding: 12 }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-                alignItems: "center",
-              }}
-            >
-              <p className="tiny" style={{ margin: 0 }}>
-                {uiError}
-              </p>
-              <button type="button" className="ghost-btn mini" onClick={onDismissUiError}>
-                Dismiss
-              </button>
-            </div>
-          </div>
-        ) : null}
-        {uiNotice ? (
-          <div
-            className="panel ai-panel"
-            role="status"
-            aria-live="polite"
-            style={{ marginTop: 12, padding: 12 }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-                alignItems: "center",
-              }}
-            >
-              <p className="tiny" style={{ margin: 0 }}>
-                {uiNotice}
-              </p>
-              <button type="button" className="ghost-btn mini" onClick={onDismissUiNotice}>
-                Dismiss
-              </button>
-            </div>
-          </div>
-        ) : null}
-        {characterError ? (
-          <div
-            className="panel ai-panel"
-            role="alert"
-            aria-live="assertive"
-            style={{ marginTop: 12, padding: 12 }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-                alignItems: "center",
-              }}
-            >
-              <p className="tiny" style={{ margin: 0 }}>
-                {characterError}
-              </p>
-              <button type="button" className="ghost-btn mini" onClick={onDismissCharacterError}>
-                Dismiss
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {visibleFailures.length ? (
-          <div className="ai-error-stack" role="alert" aria-live="polite">
-            <div className="ai-error-stack-header">
-              <p className="eyebrow" style={{ margin: 0, fontSize: "11px", opacity: 0.8 }}>
-                Generation issues
-              </p>
-              <span className="error-count-pill">{visibleFailures.length}</span>
-            </div>
-            <div className="ai-error-card-grid">
-              {visibleFailures.map((item) => {
-                const modelLabel = item.model || item.modelId || "Generation";
-                return (
-                  <div key={item.id} className="ai-error-card">
-                    <div className="ai-error-card-body">
-                      <p className="ai-error-card-title">{modelLabel}</p>
-                      <p className="ai-error-card-message">
-                        {item.errorDetail ?? item.errorMessage}
-                      </p>
-                      <p className="ai-error-card-meta">
-                        Prompt: <span className="ai-error-card-prompt">{item.prompt}</span>
-                      </p>
-                    </div>
-                    <div className="ai-error-card-actions">
-                      <button
-                        type="button"
-                        className="ghost-btn mini"
-                        onClick={() => onDismissFailure(item.id)}
-                      >
-                        Dismiss
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
+        <AiStudioAlertsStack
+          uiError={uiError}
+          uiNotice={uiNotice}
+          characterError={characterError}
+          visibleFailures={visibleFailures}
+          onDismissUiError={onDismissUiError}
+          onDismissUiNotice={onDismissUiNotice}
+          onDismissCharacterError={onDismissCharacterError}
+          onDismissFailure={onDismissFailure}
+        />
 
         <div className={`ai-layout${isTemplateView ? " templates-active" : ""}`}>
-          <AiStudioToolbar
-            selectedTool={selectedTool}
-            showCreateTools={showCreateTools}
-            beginnerMode={beginnerMode}
-            onSelectTool={onSelectTool}
-            onToggleCreateTools={onToggleCreateTools}
-            onToggleBeginnerMode={onBeginnerModeChange}
-            showOnboardingSteps={beginnerMode}
-          />
+          {toolbarRail}
 
           <div className="ai-content">
             <section
@@ -758,7 +786,7 @@ export function AiStudioPageContent({
             >
               {selectedTool ? (
                 <aside ref={leftColumnRef} className="panel ai-panel ai-properties">
-                  {renderProperties()}
+                  {propertiesPanelContent}
                 </aside>
               ) : null}
               {showDivider ? (

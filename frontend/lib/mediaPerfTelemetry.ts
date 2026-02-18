@@ -17,7 +17,11 @@ export type MediaPerfEventName =
   | "media.sign.batch.failed"
   | "media.grid.scroll.sample"
   | "media.grid.autoplay.started"
-  | "media.grid.autoplay.stopped";
+  | "media.grid.autoplay.stopped"
+  | "media.grid.render.commit"
+  | "media.grid.longtask.sample"
+  | "media.grid.memory.sample"
+  | "media.grid.archive.transition";
 
 type Primitive = string | number | boolean | null;
 type MediaPerfData = Record<string, Primitive>;

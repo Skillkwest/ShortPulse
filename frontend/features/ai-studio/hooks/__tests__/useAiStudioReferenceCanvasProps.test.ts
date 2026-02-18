@@ -87,12 +87,24 @@ describe("useAiStudioReferenceCanvasProps", () => {
   });
 
   it("preserves non-action props for canvas rendering state", () => {
+    const archivedOutput: StudioOutput = {
+      ...output,
+      id: "archived-1",
+      prompt: "Archived",
+      archivedAt: "2026-02-17T00:00:00.000Z",
+      archiveReason: "soft_limit",
+    };
+    const restoreArchivedOutput = vi.fn();
+    const restoreAllArchivedOutputs = vi.fn();
     const { result } = renderHook(() =>
       useAiStudioReferenceCanvasProps(
         createParams({
           selectedTool: "video",
           currentCostCredits: null,
           disableReferencePromptGenerate: true,
+          archivedOutputs: [archivedOutput],
+          restoreArchivedOutput,
+          restoreAllArchivedOutputs,
         })
       )
     );
@@ -102,5 +114,10 @@ describe("useAiStudioReferenceCanvasProps", () => {
     expect(result.current.generateCostCredits).toBeNull();
     expect(result.current.disablePromptGenerate).toBe(true);
     expect(result.current.linkedPromptReferenceIds).toEqual(["out-1"]);
+    expect(result.current.archivedOutputs?.map((item) => item.id)).toEqual(["archived-1"]);
+    result.current.onRestoreArchivedOutput?.("archived-1");
+    result.current.onRestoreAllArchivedOutputs?.();
+    expect(restoreArchivedOutput).toHaveBeenCalledWith("archived-1");
+    expect(restoreAllArchivedOutputs).toHaveBeenCalledTimes(1);
   });
 });

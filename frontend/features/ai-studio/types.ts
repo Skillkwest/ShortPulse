@@ -24,6 +24,10 @@ export type StudioOutputCharacterContext = {
   characterProfileImageUrl?: string | null;
 };
 
+export type StudioOutputMediaSource = "upload" | "library" | "generated" | "clipboard" | "prompt";
+
+export type StudioOutputPreviewTier = "thumb" | "poster" | "preview_loop" | "full";
+
 export type StudioOutput = {
   id: string;
   prompt: string;
@@ -46,7 +50,15 @@ export type StudioOutput = {
   errorDetail?: string | null;
   resultUrls?: string[];
   previewUrl?: string;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  previewTier?: StudioOutputPreviewTier;
+  mediaSource?: StudioOutputMediaSource;
+  localObjectUrl?: string | null;
   previewText?: string;
+  pinned?: boolean;
+  archivedAt?: string | null;
+  archiveReason?: "soft_limit" | "manual" | "cleanup" | null;
   characterContext?: StudioOutputCharacterContext;
 };
 

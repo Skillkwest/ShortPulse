@@ -819,9 +819,7 @@ describe("CharacterManagerShell behavior", () => {
       /Swap out your character's style on the fly by dragging and dropping references from the QuickSwap Deck\./i
     );
     expect(
-      screen.getByText(
-        "Tip: Character description will be used as part of character consistency generation."
-      )
+      screen.getByText("Tip: Character description will be used as part of consistency generation.")
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Disable beginner mode/i }));
@@ -844,7 +842,7 @@ describe("CharacterManagerShell behavior", () => {
       expect(document.querySelector(".character-mode-guidance")).not.toBeInTheDocument();
       expect(
         screen.getByText(
-          "Tip: Character description will be used as part of character consistency generation."
+          "Tip: Character description will be used as part of consistency generation."
         )
       ).toBeInTheDocument();
     });
@@ -872,7 +870,7 @@ describe("CharacterManagerShell behavior", () => {
       );
       expect(
         screen.getByText(
-          "Tip: Character description will be used as part of character consistency generation."
+          "Tip: Character description will be used as part of consistency generation."
         )
       ).toBeInTheDocument();
     });

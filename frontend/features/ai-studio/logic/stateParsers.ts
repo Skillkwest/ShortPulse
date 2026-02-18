@@ -144,19 +144,6 @@ export const mapAgentMedia = (outputs: OutputLike[]) =>
       thumbnailAlt: item.prompt ?? item.previewText ?? null,
     }));
 
-/**
- * Converts a File to a data URL (base64) for persistent preview storage.
- * This avoids blob URL lifecycle issues where URLs can expire.
- */
-const readFileAsDataUrl = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
-
 export const mapUploadsFromFiles = async (
   files: FileList,
   mode: StudioMode,
@@ -169,27 +156,37 @@ export const mapUploadsFromFiles = async (
     (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
   );
 
+  const supportsObjectUrl = typeof URL !== "undefined" && typeof URL.createObjectURL === "function";
   const outputs = await Promise.all(
     mediaFiles.map(async (file) => {
-      const dataUrl = await readFileAsDataUrl(file);
       const isVideo = file.type.startsWith("video/");
-      // Add video marker to data URL for type detection
-      const url = isVideo
-        ? dataUrl.includes("?")
-          ? `${dataUrl}&video=1`
-          : `${dataUrl}#video=1`
-        : dataUrl;
-
+      const objectUrl = supportsObjectUrl ? URL.createObjectURL(file) : null;
+      const fallbackDataUrl = await (async () => {
+        if (objectUrl) return null;
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      })();
+      // Keep url-shape compatibility for existing heuristics while retaining the raw object URL
+      // for deterministic cleanup via URL.revokeObjectURL.
+      const previewBase = objectUrl ?? fallbackDataUrl ?? "";
+      const previewUrl = isVideo ? `${previewBase}#video=1` : previewBase;
       return {
         id: `upload-${randomIdFn()}`,
         prompt: file.name,
-        mode,
+        mode: isVideo ? ("video" as const) : ("image" as const),
         aspect,
         model: resolveModelLabelFn(model ?? undefined),
         modelId: model ?? undefined,
         status: "ready" as const,
         timestamp: "Dropped",
-        previewUrl: url,
+        previewUrl,
+        previewTier: "full" as const,
+        mediaSource: "upload" as const,
+        localObjectUrl: objectUrl,
         saveState: "idle" as const,
         saveError: null,
       };

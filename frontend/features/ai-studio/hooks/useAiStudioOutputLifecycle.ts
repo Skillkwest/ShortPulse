@@ -27,6 +27,8 @@ const currentRoute = (): string | null => {
 type UseAiStudioOutputLifecycleParams = {
   outputs: StudioOutput[];
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
+  updateOutputByIdFast?: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
+  findOutputByIdFast?: (id: string) => StudioOutput | null;
   activeOutputId: string | null;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   pendingAutoSavesRef: MutableRefObject<Record<string, unknown>>;
@@ -48,23 +50,49 @@ type GenerationFailureContext = {
 export const useAiStudioOutputLifecycle = ({
   outputs,
   setOutputs,
+  updateOutputByIdFast,
+  findOutputByIdFast,
   activeOutputId,
   setActiveOutputId,
   pendingAutoSavesRef,
   setUiError,
 }: UseAiStudioOutputLifecycleParams) => {
   const outputsRef = useRef<StudioOutput[]>([]);
+  const outputByIdRef = useRef<Record<string, StudioOutput>>({});
+  const outputIndexByIdRef = useRef<Record<string, number>>({});
   const staleOutputLifecycleRef = useRef<OutputLifecycleMap>({});
 
   useEffect(() => {
     outputsRef.current = outputs;
+    const nextById: Record<string, StudioOutput> = {};
+    const nextIndexById: Record<string, number> = {};
+    outputs.forEach((item, index) => {
+      nextById[item.id] = item;
+      nextIndexById[item.id] = index;
+    });
+    outputByIdRef.current = nextById;
+    outputIndexByIdRef.current = nextIndexById;
   }, [outputs]);
 
   const updateOutputById = useCallback(
     (id: string, updater: (item: StudioOutput) => StudioOutput) => {
-      setOutputs((prev) => prev.map((item) => (item.id === id ? updater(item) : item)));
+      if (updateOutputByIdFast) {
+        updateOutputByIdFast(id, updater);
+        return;
+      }
+      setOutputs((prev) => {
+        const targetIndex = outputIndexByIdRef.current[id] ?? -1;
+        if (targetIndex === -1) return prev;
+        const current = prev[targetIndex];
+        if (!current) return prev;
+        const nextItem = updater(current);
+        if (nextItem === current) return prev;
+        const next = [...prev];
+        next[targetIndex] = nextItem;
+        return next;
+      });
     },
-    [setOutputs]
+    [setOutputs, updateOutputByIdFast]
   );
 
   const sweepStaleOutputs = useCallback(() => {
@@ -157,8 +185,11 @@ export const useAiStudioOutputLifecycle = ({
   }, [sweepStaleOutputs]);
 
   const findOutputById = useCallback(
-    (id: string) => outputsRef.current.find((item) => item.id === id) ?? null,
-    []
+    (id: string) => {
+      if (findOutputByIdFast) return findOutputByIdFast(id);
+      return outputByIdRef.current[id] ?? null;
+    },
+    [findOutputByIdFast]
   );
 
   const deleteOutput = useCallback(
@@ -185,20 +216,27 @@ export const useAiStudioOutputLifecycle = ({
         fallback: safeMessage,
         maxLength: 320,
       });
-      setOutputs((prev) =>
-        prev.map((item) => {
-          if (item.id !== outputId) return item;
-          return {
-            ...item,
-            taskState: "fail",
-            status: "ready",
-            timestamp: "Failed",
-            errorMessage: safeMessage,
-            errorMessageShort: safeMessage,
-            errorDetail: safeDetail,
-          };
-        })
-      );
+      updateOutputById(outputId, (item) => {
+        if (
+          item.taskState === "fail" &&
+          item.status === "ready" &&
+          item.timestamp === "Failed" &&
+          item.errorMessage === safeMessage &&
+          item.errorMessageShort === safeMessage &&
+          item.errorDetail === safeDetail
+        ) {
+          return item;
+        }
+        return {
+          ...item,
+          taskState: "fail",
+          status: "ready",
+          timestamp: "Failed",
+          errorMessage: safeMessage,
+          errorMessageShort: safeMessage,
+          errorDetail: safeDetail,
+        };
+      });
       const label = outputContext?.model ?? outputContext?.modelId ?? "Generation";
       const detailMessage = safeDetail;
       setUiError(
@@ -228,7 +266,7 @@ export const useAiStudioOutputLifecycle = ({
         },
       });
     },
-    [findOutputById, pendingAutoSavesRef, setOutputs, setUiError]
+    [findOutputById, pendingAutoSavesRef, setUiError, updateOutputById]
   );
 
   const updateOutputPrompt = useCallback(

@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioOutputLifecycle } from "../useAiStudioOutputLifecycle";
 
@@ -22,17 +22,58 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
   ...overrides,
 });
 
-const useHarness = (initialOutputs: StudioOutput[], initialActiveOutputId: string | null) => {
+const useHarness = (
+  initialOutputs: StudioOutput[],
+  initialActiveOutputId: string | null,
+  options?: {
+    useFastPath?: boolean;
+  }
+) => {
   const [outputs, setOutputs] = useState<StudioOutput[]>(initialOutputs);
   const [activeOutputId, setActiveOutputId] = useState<string | null>(initialActiveOutputId);
   const [uiError, setUiError] = useState<string | null>(null);
   const pendingAutoSavesRef = useRef<Record<string, { taskId: string }>>({
     "out-1": { taskId: "task-1" },
   });
+  const outputById = useMemo(
+    () =>
+      outputs.reduce<Record<string, StudioOutput>>((acc, item) => {
+        acc[item.id] = item;
+        return acc;
+      }, {}),
+    [outputs]
+  );
+
+  const initialOutputById = useMemo(
+    () =>
+      initialOutputs.reduce<Record<string, StudioOutput>>((acc, item) => {
+        acc[item.id] = item;
+        return acc;
+      }, {}),
+    [initialOutputs]
+  );
 
   const lifecycle = useAiStudioOutputLifecycle({
     outputs,
     setOutputs,
+    updateOutputByIdFast: options?.useFastPath
+      ? (id, updater) => {
+          setOutputs((prev) => {
+            const targetIndex = prev.findIndex((item) => item.id === id);
+            if (targetIndex === -1) return prev;
+            const current = prev[targetIndex];
+            if (!current) return prev;
+            const nextItem = updater(current);
+            if (nextItem === current) return prev;
+            const next = [...prev];
+            next[targetIndex] = nextItem;
+            return next;
+          });
+        }
+      : undefined,
+    findOutputByIdFast: options?.useFastPath
+      ? (id) => outputById[id] ?? initialOutputById[id] ?? null
+      : undefined,
     activeOutputId,
     setActiveOutputId,
     pendingAutoSavesRef,
@@ -116,5 +157,19 @@ describe("useAiStudioOutputLifecycle", () => {
     expect(result.current.outputs.map((item) => item.id)).toEqual(["out-2"]);
     expect(result.current.activeOutputId).toBeNull();
     expect(result.current.pendingAutoSavesRef.current["out-1"]).toBeUndefined();
+  });
+
+  it("supports keyed fast-path callbacks for output updates", () => {
+    const { result } = renderHook(() =>
+      useHarness([makeOutput("out-1", { taskState: "running" })], "out-1", { useFastPath: true })
+    );
+
+    act(() => {
+      result.current.notifyGenerationFailure("out-1", "Provider failure", "Detailed reason");
+    });
+
+    expect(result.current.outputs[0]?.taskState).toBe("fail");
+    expect(result.current.outputs[0]?.errorDetail).toBe("Detailed reason");
+    expect(result.current.uiError).toContain("failed");
   });
 });

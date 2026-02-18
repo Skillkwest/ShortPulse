@@ -48,6 +48,11 @@ const makeOutput = (): StudioOutput => ({
 const asFalStatusResponse = (value: unknown): Awaited<ReturnType<typeof fetchFalStatus>> =>
   value as Awaited<ReturnType<typeof fetchFalStatus>>;
 
+const flushQueuedOutputUpdates = async () => {
+  await Promise.resolve();
+  await Promise.resolve();
+};
+
 describe("useAiStudioTasks", () => {
   const fetchFalStatusMock = vi.mocked(fetchFalStatus);
   const fetchFalSeedreamStatusMock = vi.mocked(fetchFalSeedreamStatus);
@@ -92,6 +97,7 @@ describe("useAiStudioTasks", () => {
     });
 
     await vi.advanceTimersByTimeAsync(1200);
+    await flushQueuedOutputUpdates();
 
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
@@ -111,6 +117,7 @@ describe("useAiStudioTasks", () => {
     );
 
     await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
+    await flushQueuedOutputUpdates();
 
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
     expect(onGenerationSuccess).toHaveBeenCalledWith(
@@ -141,6 +148,7 @@ describe("useAiStudioTasks", () => {
     });
 
     await vi.advanceTimersByTimeAsync(1200);
+    await flushQueuedOutputUpdates();
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
 
     unmount();
@@ -184,6 +192,7 @@ describe("useAiStudioTasks", () => {
     });
 
     await vi.advanceTimersByTimeAsync(1200);
+    await flushQueuedOutputUpdates();
 
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",

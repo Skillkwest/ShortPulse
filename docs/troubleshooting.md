@@ -151,11 +151,28 @@ Checklist:
   ```js
   window.__shortpulseMediaPerf?.signStats();
   ```
+- Inspect render/long-task/memory telemetry for the reference grid:
+  ```js
+  window.__shortpulseMediaPerf?.snapshot().filter((entry) =>
+    [
+      "media.grid.render.commit",
+      "media.grid.longtask.sample",
+      "media.grid.memory.sample",
+      "media.grid.archive.transition",
+    ].includes(entry.event)
+  );
+  ```
 - If `failed_ratio` is elevated or `p95_duration_ms` is high, verify:
   - `/api/media/sign-batch` returns `200` with a `urls` map for authenticated users,
   - signed URL requests are only for visible/buffered cards,
   - variant paths (`thumb_variant_path`, `poster_variant_path`, `preview_variant_path`) are populated,
   - device/network constraints are applying reduced sign/autoplay budgets.
+- If Reference Grid interactions degrade in long sessions, verify:
+  - normalized output state fast-path is active (`NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE` not set to `false`),
+  - soft archive is active (`NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE` not set to `false`),
+  - adaptive preview routing is active (`NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW` not set to `false`),
+  - active grid count stays near the configured cap (`NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT`, default `500`),
+  - archived restore actions are available and returning cards without freezing the main grid.
 
 ## Character Manager alias drift (Character Sheet vs legacy Reference Pack fields)
 Symptoms:

@@ -77,6 +77,78 @@
   --reference-generate-text: #efe8ff;
 }
 
+.reference-canvas-panel.is-high-density .reference-card {
+  transition: transform 0.12s ease;
+}
+
+.reference-canvas-panel.is-high-density .reference-card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.26);
+  transform: none;
+}
+
+.reference-canvas-panel.is-high-density .reference-card.is-active::after {
+  inset: 8px;
+  box-shadow: 0 10px 14px 6px var(--reference-selection-active-glow);
+}
+
+.reference-archive-inline {
+  display: flex;
+  gap: 8px;
+  padding: 6px 10px 2px;
+}
+
+.reference-archive-panel {
+  margin: 8px 8px 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  background: rgba(10, 14, 20, 0.7);
+  padding: 8px;
+}
+
+.reference-archive-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reference-archive-header p {
+  margin: 0;
+}
+
+.reference-archive-list {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+  max-height: 170px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.reference-archive-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  background: rgba(13, 17, 24, 0.85);
+}
+
+.reference-archive-item-label {
+  color: #adb3be;
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reference-archive-item-restore {
+  flex-shrink: 0;
+}
+
 .reference-canvas-grid--wide {
   --reference-grid-columns: 8;
 }

@@ -130,6 +130,15 @@ const terminalFailureStates = new Set(["fail", "failed", "error", "cancelled", "
 
 const BACKGROUND_RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
 const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
+const REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE !== "false";
+const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
+
+const areStringArraysEqual = (left: string[] | undefined, right: string[]) => {
+  if (!left) return right.length === 0;
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+};
 
 const condenseError = (message: string) => {
   if (!message) return "";
@@ -266,14 +275,65 @@ export function useAiStudioTasks({
   const pollTimersRef = useRef<Record<string, number>>({});
   const recoveryTimersRef = useRef<Record<string, number>>({});
   const recoveryAttemptsRef = useRef<Record<string, number>>({});
+  const lastProgressUpdateAtRef = useRef<Record<string, number>>({});
+  const queuedOutputUpdatersRef = useRef<
+    Record<string, Array<(item: StudioOutput) => StudioOutput>>
+  >({});
+  const queuedOutputFlushPendingRef = useRef(false);
 
-  const clearPollTimer = useCallback((outputId: string) => {
-    const timeoutId = pollTimersRef.current[outputId];
-    if (timeoutId) {
-      window.clearTimeout(timeoutId);
-      delete pollTimersRef.current[outputId];
-    }
-  }, []);
+  const flushQueuedOutputUpdates = useCallback(() => {
+    const queued = queuedOutputUpdatersRef.current;
+    queuedOutputUpdatersRef.current = {};
+    Object.entries(queued).forEach(([outputId, updaters]) => {
+      if (!updaters.length) return;
+      updateOutputById(outputId, (item) => {
+        return updaters.reduce((current, applyUpdate) => applyUpdate(current), item);
+      });
+    });
+  }, [updateOutputById]);
+
+  const queueOutputUpdate = useCallback(
+    (outputId: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (!REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE) {
+        updateOutputById(outputId, updater);
+        return;
+      }
+      const existing = queuedOutputUpdatersRef.current[outputId] ?? [];
+      existing.push(updater);
+      queuedOutputUpdatersRef.current[outputId] = existing;
+      if (queuedOutputFlushPendingRef.current) return;
+      queuedOutputFlushPendingRef.current = true;
+      const flush = () => {
+        queuedOutputFlushPendingRef.current = false;
+        flushQueuedOutputUpdates();
+      };
+      if (typeof queueMicrotask === "function") {
+        queueMicrotask(flush);
+        return;
+      }
+      Promise.resolve().then(flush);
+    },
+    [flushQueuedOutputUpdates, updateOutputById]
+  );
+
+  const clearPollTimer = useCallback(
+    (outputId: string) => {
+      const timeoutId = pollTimersRef.current[outputId];
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+        delete pollTimersRef.current[outputId];
+      }
+      const pendingUpdaters = queuedOutputUpdatersRef.current[outputId];
+      if (pendingUpdaters?.length) {
+        delete queuedOutputUpdatersRef.current[outputId];
+        updateOutputById(outputId, (item) => {
+          return pendingUpdaters.reduce((current, applyUpdate) => applyUpdate(current), item);
+        });
+      }
+      delete lastProgressUpdateAtRef.current[outputId];
+    },
+    [updateOutputById]
+  );
 
   const clearRecoveryTimer = useCallback((outputId: string) => {
     const timeoutId = recoveryTimersRef.current[outputId];
@@ -329,16 +389,36 @@ export function useAiStudioTasks({
                 },
               });
 
-              updateOutputById(outputId, (item) => ({
+              queueOutputUpdate(outputId, (item) => ({
                 ...item,
-                taskState: "success",
-                status: "ready",
-                timestamp: "Recovered media URL.",
-                resultUrls: recoveredUrls,
-                previewUrl: recoveredUrls[0] ?? item.previewUrl,
-                errorMessage: null,
-                errorMessageShort: null,
-                errorDetail: null,
+                taskState: item.taskState === "success" ? item.taskState : "success",
+                status: item.status === "ready" ? item.status : "ready",
+                timestamp:
+                  item.timestamp === "Recovered media URL."
+                    ? item.timestamp
+                    : "Recovered media URL.",
+                resultUrls: areStringArraysEqual(item.resultUrls, recoveredUrls)
+                  ? item.resultUrls
+                  : recoveredUrls,
+                previewUrl:
+                  item.previewUrl === (recoveredUrls[0] ?? item.previewUrl)
+                    ? item.previewUrl
+                    : (recoveredUrls[0] ?? item.previewUrl),
+                previewStoragePath:
+                  item.previewStoragePath === (recoveredUrls[0] ?? item.previewStoragePath)
+                    ? item.previewStoragePath
+                    : (recoveredUrls[0] ?? item.previewStoragePath),
+                fullStoragePath:
+                  item.fullStoragePath === (recoveredUrls[0] ?? item.fullStoragePath)
+                    ? item.fullStoragePath
+                    : (recoveredUrls[0] ?? item.fullStoragePath),
+                mediaSource: item.mediaSource ?? "generated",
+                previewTier: item.mode === "video" ? "preview_loop" : "full",
+                archivedAt: null,
+                archiveReason: null,
+                errorMessage: item.errorMessage == null ? item.errorMessage : null,
+                errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
+                errorDetail: item.errorDetail == null ? item.errorDetail : null,
               }));
               onGenerationSuccess?.({
                 outputId,
@@ -376,7 +456,7 @@ export function useAiStudioTasks({
 
       queueNext();
     },
-    [clearPollTimer, clearRecoveryTimer, onGenerationSuccess, updateOutputById]
+    [clearPollTimer, clearRecoveryTimer, onGenerationSuccess, queueOutputUpdate]
   );
 
   const startPollingTask = useCallback(
@@ -500,11 +580,12 @@ export function useAiStudioTasks({
                   },
                 });
               }
-              updateOutputById(outputId, (item) => ({
+              queueOutputUpdate(outputId, (item) => ({
                 ...item,
-                taskState: "running",
-                status: "ready",
-                timestamp: "Finalizing media...",
+                taskState: item.taskState === "running" ? item.taskState : "running",
+                status: item.status === "ready" ? item.status : "ready",
+                timestamp:
+                  item.timestamp === "Finalizing media..." ? item.timestamp : "Finalizing media...",
               }));
               pollTimersRef.current[outputId] = window.setTimeout(
                 () =>
@@ -537,13 +618,18 @@ export function useAiStudioTasks({
                 elapsedMs: Date.now() - startedAt,
                 maxWaitMs,
               });
-              updateOutputById(outputId, (item) => ({
+              queueOutputUpdate(outputId, (item) => ({
                 ...item,
-                status: "ready",
-                taskState: "fail",
-                errorMessage: failureMessage,
-                errorMessageShort: "No media returned.",
-                errorDetail: failureMessage,
+                status: item.status === "ready" ? item.status : "ready",
+                taskState: item.taskState === "fail" ? item.taskState : "fail",
+                errorMessage:
+                  item.errorMessage === failureMessage ? item.errorMessage : failureMessage,
+                errorMessageShort:
+                  item.errorMessageShort === "No media returned."
+                    ? item.errorMessageShort
+                    : "No media returned.",
+                errorDetail:
+                  item.errorDetail === failureMessage ? item.errorDetail : failureMessage,
               }));
               if (onGenerationFailure) {
                 onGenerationFailure({
@@ -564,16 +650,33 @@ export function useAiStudioTasks({
               return;
             }
 
-            updateOutputById(outputId, (item) => ({
+            queueOutputUpdate(outputId, (item) => ({
               ...item,
-              taskState: "success",
-              status: "ready",
-              timestamp: "Just now",
-              resultUrls: allUrls,
-              previewUrl: allUrls[0] ?? item.previewUrl,
-              errorMessage: null,
-              errorMessageShort: null,
-              errorDetail: null,
+              taskState: item.taskState === "success" ? item.taskState : "success",
+              status: item.status === "ready" ? item.status : "ready",
+              timestamp: item.timestamp === "Just now" ? item.timestamp : "Just now",
+              resultUrls: areStringArraysEqual(item.resultUrls, allUrls)
+                ? item.resultUrls
+                : allUrls,
+              previewUrl:
+                item.previewUrl === (allUrls[0] ?? item.previewUrl)
+                  ? item.previewUrl
+                  : (allUrls[0] ?? item.previewUrl),
+              previewStoragePath:
+                item.previewStoragePath === (allUrls[0] ?? item.previewStoragePath)
+                  ? item.previewStoragePath
+                  : (allUrls[0] ?? item.previewStoragePath),
+              fullStoragePath:
+                item.fullStoragePath === (allUrls[0] ?? item.fullStoragePath)
+                  ? item.fullStoragePath
+                  : (allUrls[0] ?? item.fullStoragePath),
+              mediaSource: item.mediaSource ?? "generated",
+              previewTier: item.mode === "video" ? "preview_loop" : "full",
+              archivedAt: null,
+              archiveReason: null,
+              errorMessage: item.errorMessage == null ? item.errorMessage : null,
+              errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
+              errorDetail: item.errorDetail == null ? item.errorDetail : null,
             }));
             if (onGenerationSuccess) {
               onGenerationSuccess({
@@ -642,12 +745,14 @@ export function useAiStudioTasks({
             });
 
             // Update output state to show error in UI
-            updateOutputById(outputId, (item) => ({
+            queueOutputUpdate(outputId, (item) => ({
               ...item,
-              status: "ready",
-              taskState: "fail",
-              errorMessage: failureMessage,
-              errorMessageShort: shortMessage,
+              status: item.status === "ready" ? item.status : "ready",
+              taskState: item.taskState === "fail" ? item.taskState : "fail",
+              errorMessage:
+                item.errorMessage === failureMessage ? item.errorMessage : failureMessage,
+              errorMessageShort:
+                item.errorMessageShort === shortMessage ? item.errorMessageShort : shortMessage,
             }));
 
             if (onGenerationFailure) {
@@ -663,11 +768,26 @@ export function useAiStudioTasks({
             return;
           }
 
-          updateOutputById(outputId, (item) => ({
-            ...item,
-            taskState: (state as StudioOutput["taskState"]) ?? "running",
-            timestamp: "Processing...",
-          }));
+          const nextTaskState = (state as StudioOutput["taskState"]) ?? "running";
+          const now = Date.now();
+          const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
+          const shouldSkipProgressUpdate =
+            REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
+            nextTaskState === "running" &&
+            now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
+          if (!shouldSkipProgressUpdate) {
+            queueOutputUpdate(outputId, (item) => {
+              const taskStateChanged = item.taskState !== nextTaskState;
+              const timestampChanged = item.timestamp !== "Processing...";
+              if (!taskStateChanged && !timestampChanged) return item;
+              lastProgressUpdateAtRef.current[outputId] = now;
+              return {
+                ...item,
+                taskState: nextTaskState,
+                timestamp: "Processing...",
+              };
+            });
+          }
           pollTimersRef.current[outputId] = window.setTimeout(
             () => pollTask(taskId, outputId, attempt + 1, provider, startedAt, 0),
             delay
@@ -697,12 +817,26 @@ export function useAiStudioTasks({
             clearPollTimer(outputId);
             return;
           }
-          updateOutputById(outputId, (item) => ({
-            ...item,
-            taskState: "running",
-            status: "ready",
-            timestamp: "Retrying status...",
-          }));
+          const now = Date.now();
+          const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
+          const shouldSkipRetryUpdate =
+            REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
+            now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
+          if (!shouldSkipRetryUpdate) {
+            queueOutputUpdate(outputId, (item) => {
+              const taskStateChanged = item.taskState !== "running";
+              const statusChanged = item.status !== "ready";
+              const timestampChanged = item.timestamp !== "Retrying status...";
+              if (!taskStateChanged && !statusChanged && !timestampChanged) return item;
+              lastProgressUpdateAtRef.current[outputId] = now;
+              return {
+                ...item,
+                taskState: "running",
+                status: "ready",
+                timestamp: "Retrying status...",
+              };
+            });
+          }
           pollTimersRef.current[outputId] = window.setTimeout(
             () => pollTask(taskId, outputId, attempt + 1, provider, startedAt, 0),
             delay
@@ -717,13 +851,14 @@ export function useAiStudioTasks({
       notifyGenerationFailure,
       onGenerationFailure,
       onGenerationSuccess,
+      queueOutputUpdate,
       scheduleBackgroundRecovery,
-      updateOutputById,
     ]
   );
 
   useEffect(
     () => () => {
+      flushQueuedOutputUpdates();
       Object.values(pollTimersRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
       Object.values(recoveryTimersRef.current).forEach((timeoutId) =>
         window.clearTimeout(timeoutId)
@@ -731,8 +866,11 @@ export function useAiStudioTasks({
       pollTimersRef.current = {};
       recoveryTimersRef.current = {};
       recoveryAttemptsRef.current = {};
+      lastProgressUpdateAtRef.current = {};
+      queuedOutputUpdatersRef.current = {};
+      queuedOutputFlushPendingRef.current = false;
     },
-    []
+    [flushQueuedOutputUpdates]
   );
 
   return {

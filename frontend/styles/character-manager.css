@@ -12,8 +12,8 @@ body.character-manager-body {
 .character-manager-page {
   --character-card-bg: rgba(201, 205, 214, 0.03);
   --character-card-border: var(--character-card-bg);
-  --character-embedded-sheet-width: 445px;
-  --character-embedded-sheet-card-max-width: 224px;
+  --character-embedded-sheet-width: 442px;
+  --character-embedded-sheet-card-max-width: 221px;
   --character-shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.2);
   --character-shadow-md: 0 8px 18px rgba(0, 0, 0, 0.24), 0 1px 4px rgba(0, 0, 0, 0.16);
   --character-neon-1: #078c3f;
@@ -31,8 +31,8 @@ body.character-manager-body {
 }
 
 .character-manager-page--embedded[data-beginner-mode="on"] {
-  --character-embedded-sheet-width: 412px;
-  --character-embedded-sheet-card-max-width: 206px;
+  --character-embedded-sheet-width: 409px;
+  --character-embedded-sheet-card-max-width: 204px;
 }
 
 .character-manager-page--embedded .character-mode-panel {
@@ -153,6 +153,18 @@ body.character-manager-body {
 .character-manager-page--embedded .character-character-sheet-card {
   width: min(100%, var(--character-embedded-sheet-card-max-width));
   max-width: var(--character-embedded-sheet-card-max-width);
+}
+
+.character-manager-page--embedded
+  .character-section--reference-drop:not(.is-collapsed)
+  .character-section-head {
+  align-items: center;
+}
+
+.character-manager-page--embedded
+  .character-section--reference-drop:not(.is-collapsed)
+  .character-section-head-actions {
+  align-self: center;
 }
 
 @media (min-width: 1101px) {

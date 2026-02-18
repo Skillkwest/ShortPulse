@@ -51,7 +51,7 @@ const PROFILE_PREVIEW_IMAGE_EMBEDDED_SIZE = 84;
 const CHARACTER_CHIP_AVATAR_SIZE = 44;
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
 const CHARACTER_DESCRIPTION_HELPER_TEXT =
-  "Tip: Character description will be used as part of character consistency generation.";
+  "Tip: Character description will be used as part of consistency generation.";
 const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";

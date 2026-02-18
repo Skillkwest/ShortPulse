@@ -7,6 +7,7 @@ import type { StudioOutput, ToolId } from "../types";
 
 type UseAiStudioReferenceCanvasPropsParams = {
   outputs: StudioOutput[];
+  archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
   onReferenceOutputMediaLoaded: (id: string) => void;
   linkedPromptReferenceIds: string[];
@@ -22,6 +23,8 @@ type UseAiStudioReferenceCanvasPropsParams = {
   handlePasteMediaReference: (reference: { url: string; mimeType?: string | null }) => void;
   retryOutputStatus: (id: string) => void;
   deleteOutput: (id: string) => void;
+  restoreArchivedOutput?: (id: string) => void;
+  restoreAllArchivedOutputs?: () => void;
   currentCostCredits: number | null;
   selectedTool: ToolId | null;
 };
@@ -31,6 +34,7 @@ type UseAiStudioReferenceCanvasPropsParams = {
  */
 export const useAiStudioReferenceCanvasProps = ({
   outputs,
+  archivedOutputs = [],
   activeOutputId,
   onReferenceOutputMediaLoaded,
   linkedPromptReferenceIds,
@@ -46,10 +50,13 @@ export const useAiStudioReferenceCanvasProps = ({
   handlePasteMediaReference,
   retryOutputStatus,
   deleteOutput,
+  restoreArchivedOutput,
+  restoreAllArchivedOutputs,
   currentCostCredits,
   selectedTool,
 }: UseAiStudioReferenceCanvasPropsParams): AiStudioPageContentProps["referenceCanvasProps"] => ({
   outputs,
+  archivedOutputs,
   activeOutputId,
   showHeader: false,
   onOutputMediaLoaded: onReferenceOutputMediaLoaded,
@@ -66,6 +73,8 @@ export const useAiStudioReferenceCanvasProps = ({
   onPasteMediaReference: handlePasteMediaReference,
   onRetryStatus: (output) => retryOutputStatus(output.id),
   onDeleteOutput: deleteOutput,
+  onRestoreArchivedOutput: restoreArchivedOutput,
+  onRestoreAllArchivedOutputs: restoreAllArchivedOutputs,
   generateCostCredits: currentCostCredits,
   selectedTool,
 });

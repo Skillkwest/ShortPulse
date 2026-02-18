@@ -567,6 +567,7 @@ body:has(.ai-studio-page) {
     var(--ai-shell-left-width, minmax(1080px, 1.28fr))
     var(--ai-shell-divider-track-width)
     minmax(320px, 1fr);
+  transition: none;
 }
 
 .ai-shell.ai-shell-resizable.ai-shell-expert-create {

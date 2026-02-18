@@ -100,6 +100,7 @@ export default function AiStudioPage() {
     prompt,
     outputs,
     setOutputs,
+    archivedOutputs,
     activeOutput,
     activeOutputId,
     setActiveOutputId,
@@ -168,6 +169,8 @@ export default function AiStudioPage() {
     resolvePreviewUrlById,
     updateOutputPrompt,
     deleteOutput,
+    restoreArchivedOutput,
+    restoreAllArchivedOutputs,
     uiError,
     setUiError,
     uiNotice,
@@ -700,6 +703,7 @@ export default function AiStudioPage() {
   });
   const referenceCanvasProps = useAiStudioReferenceCanvasProps({
     outputs,
+    archivedOutputs,
     activeOutputId,
     onReferenceOutputMediaLoaded,
     linkedPromptReferenceIds,
@@ -715,6 +719,8 @@ export default function AiStudioPage() {
     handlePasteMediaReference: addPastedMediaReference,
     retryOutputStatus,
     deleteOutput,
+    restoreArchivedOutput,
+    restoreAllArchivedOutputs,
     currentCostCredits,
     selectedTool,
   });

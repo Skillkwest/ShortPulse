@@ -22,7 +22,7 @@ const isVideoUrl = (url: string) =>
   /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
-const REFERENCE_VIRTUALIZE_MIN_ITEMS = 80;
+const REFERENCE_VIRTUALIZE_MIN_ITEMS = 24;
 const FALLBACK_REFERENCE_ROW_HEIGHT = 220;
 const REFERENCE_GRID_MIN_CARD_PX = 160;
 const REFERENCE_GRID_MIN_CARD_PX_WIDE = 160;
@@ -30,11 +30,15 @@ const REFERENCE_GRID_MIN_COLUMNS = 2;
 const REFERENCE_GRID_MAX_COLUMNS = 5;
 const REFERENCE_GRID_MAX_COLUMNS_WIDE = 8;
 const REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD = 0.6;
-const REFERENCE_AUTOPLAY_MAX_DESKTOP = 4;
+const REFERENCE_AUTOPLAY_MAX_DESKTOP = 3;
 const REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN = 2;
 const REFERENCE_AUTOPLAY_MAX_CONSTRAINED = 1;
 const REFERENCE_AUTOPLAY_SMALL_SCREEN_QUERY = "(max-width: 900px)";
 const REFERENCE_AUTOPLAY_DETACH_DELAY_MS = 1400;
+const REFERENCE_HIGH_DENSITY_CARD_COUNT = 180;
+const REFERENCE_PRIORITY_HYDRATION_ROWS = 3;
+const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW !== "false";
 
 type NavigatorWithConnection = Navigator & {
   deviceMemory?: number;
@@ -281,6 +285,7 @@ const isNodeInsideAnySurface = (targetNode: Node | null, surfaces: HTMLElement[]
 
 export type ReferenceCanvasProps = {
   outputs: StudioOutput[];
+  archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
   showHeader?: boolean;
   onOutputMediaLoaded?: (id: string) => void;
@@ -301,6 +306,8 @@ export type ReferenceCanvasProps = {
   onGeneratePrompt?: (output: StudioOutput) => void;
   onRetryStatus?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
+  onRestoreArchivedOutput?: (id: string) => void;
+  onRestoreAllArchivedOutputs?: () => void;
   generateCostCredits?: number | null;
 };
 
@@ -309,6 +316,7 @@ export type ReferenceCanvasProps = {
  */
 export function ReferenceCanvas({
   outputs,
+  archivedOutputs = [],
   activeOutputId,
   showHeader = true,
   onOutputMediaLoaded,
@@ -329,6 +337,8 @@ export function ReferenceCanvas({
   onGeneratePrompt,
   onRetryStatus,
   onDeleteOutput,
+  onRestoreArchivedOutput,
+  onRestoreAllArchivedOutputs,
   generateCostCredits,
 }: ReferenceCanvasProps) {
   type CanvasDropMode = "none" | "text" | "files";
@@ -351,12 +361,14 @@ export function ReferenceCanvas({
   const autoplayBudgetRef = React.useRef<number>(REFERENCE_AUTOPLAY_MAX_DESKTOP);
   const [autoplayEnabledIds, setAutoplayEnabledIds] = useState<string[]>([]);
   const [canvasDropMode, setCanvasDropMode] = useState<CanvasDropMode>("none");
+  const [isArchivePanelOpen, setIsArchivePanelOpen] = useState(false);
   const [virtualMetrics, setVirtualMetrics] = useState({
     scrollTop: 0,
     viewportHeight: 0,
     columnCount: 5,
     rowHeight: FALLBACK_REFERENCE_ROW_HEIGHT,
   });
+  const lastRenderCommitAtRef = React.useRef<number>(0);
   const autoplayEnabledIdSet = React.useMemo(
     () => new Set(autoplayEnabledIds),
     [autoplayEnabledIds]
@@ -472,6 +484,7 @@ export function ReferenceCanvas({
   );
 
   const shouldVirtualize = outputs.length >= REFERENCE_VIRTUALIZE_MIN_ITEMS;
+  const isHighDensity = outputs.length >= REFERENCE_HIGH_DENSITY_CARD_COUNT;
   const effectiveViewportHeight =
     virtualMetrics.viewportHeight > 0
       ? virtualMetrics.viewportHeight
@@ -509,6 +522,7 @@ export function ReferenceCanvas({
     () => new Set(visibleOutputs.map((output) => output.id)),
     [visibleOutputs]
   );
+  const archiveCount = archivedOutputs.length;
   const recomputeAutoplayBudget = useCallback(() => {
     const visibleVideoIds = outputs
       .filter((output) => {
@@ -703,6 +717,44 @@ export function ReferenceCanvas({
       });
       detachTimeoutById.clear();
     };
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof performance === "undefined") return;
+    const now = performance.now();
+    const durationMs =
+      lastRenderCommitAtRef.current > 0
+        ? Math.max(0, Math.round(now - lastRenderCommitAtRef.current))
+        : 0;
+    lastRenderCommitAtRef.current = now;
+    logMediaPerf("media.grid.render.commit", {
+      surface: "reference-grid",
+      rendered_item_count: renderedItemCount,
+      total_item_count: outputs.length,
+      virtualized: shouldVirtualize,
+      high_density: isHighDensity,
+      duration_ms: durationMs,
+    });
+  }, [isHighDensity, outputs.length, renderedItemCount, shouldVirtualize, startIndex, endIndex]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof PerformanceObserver === "undefined") return;
+    const observer = new PerformanceObserver((entryList) => {
+      entryList.getEntries().forEach((entry) => {
+        logMediaPerf("media.grid.longtask.sample", {
+          surface: "reference-grid",
+          duration_ms: Math.round(entry.duration),
+          name: entry.name,
+        });
+      });
+    });
+    try {
+      observer.observe({ type: "longtask", buffered: true });
+    } catch {
+      observer.disconnect();
+      return;
+    }
+    return () => observer.disconnect();
   }, []);
 
   const markLoaded = useCallback(
@@ -949,6 +1001,20 @@ export function ReferenceCanvas({
         visible_item_count: renderedItemCount,
         total_item_count: outputs.length,
       });
+      const memory = (
+        performance as Performance & {
+          memory?: { usedJSHeapSize?: number; totalJSHeapSize?: number };
+        }
+      ).memory;
+      if (memory?.usedJSHeapSize && memory?.totalJSHeapSize) {
+        logMediaPerf("media.grid.memory.sample", {
+          surface: "reference-grid",
+          used_js_heap_mb: Math.round(memory.usedJSHeapSize / (1024 * 1024)),
+          total_js_heap_mb: Math.round(memory.totalJSHeapSize / (1024 * 1024)),
+          visible_item_count: renderedItemCount,
+          total_item_count: outputs.length,
+        });
+      }
     },
     [outputs.length, renderedItemCount]
   );
@@ -1009,7 +1075,7 @@ export function ReferenceCanvas({
   return (
     <div
       ref={panelRef}
-      className={`panel ai-panel ai-preview-panel reference-canvas-panel${canvasDropMode !== "none" ? " is-drop-active" : ""}${canvasDropMode === "text" ? " is-drop-active-text" : ""}${canvasDropMode === "files" ? " is-drop-active-files" : ""}`}
+      className={`panel ai-panel ai-preview-panel reference-canvas-panel${canvasDropMode !== "none" ? " is-drop-active" : ""}${canvasDropMode === "text" ? " is-drop-active-text" : ""}${canvasDropMode === "files" ? " is-drop-active-files" : ""}${isHighDensity ? " is-high-density" : ""}`}
       data-selection-theme={selectionTheme}
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}
@@ -1045,6 +1111,69 @@ export function ReferenceCanvas({
               icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
               tone="library"
             />
+            {archiveCount > 0 ? (
+              <button
+                type="button"
+                className="ghost-btn mini preview-media-btn reference-archive-btn"
+                onClick={() => setIsArchivePanelOpen((prev) => !prev)}
+                aria-expanded={isArchivePanelOpen}
+              >
+                Archived ({archiveCount})
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+      {!showHeader && archiveCount > 0 ? (
+        <div className="reference-archive-inline">
+          <button
+            type="button"
+            className="ghost-btn mini preview-media-btn reference-archive-btn"
+            onClick={() => setIsArchivePanelOpen((prev) => !prev)}
+            aria-expanded={isArchivePanelOpen}
+          >
+            Archived ({archiveCount})
+          </button>
+          {onRestoreAllArchivedOutputs ? (
+            <button
+              type="button"
+              className="ghost-btn mini preview-media-btn reference-archive-restore-all-btn"
+              onClick={() => onRestoreAllArchivedOutputs()}
+            >
+              Restore all
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {isArchivePanelOpen && archiveCount > 0 ? (
+        <div className="reference-archive-panel" aria-label="Archived references">
+          <div className="reference-archive-header">
+            <p className="tiny subdued">
+              Older references are archived to keep the grid responsive.
+            </p>
+            <button
+              type="button"
+              className="ghost-btn mini preview-media-btn reference-archive-restore-all-btn"
+              onClick={() => onRestoreAllArchivedOutputs?.()}
+            >
+              Restore all
+            </button>
+          </div>
+          <div className="reference-archive-list">
+            {archivedOutputs.slice(0, 24).map((item) => (
+              <div key={item.id} className="reference-archive-item">
+                <span className="reference-archive-item-label">
+                  {item.previewText ? item.previewText : item.prompt}
+                </span>
+                <button
+                  type="button"
+                  className="ghost-btn mini reference-archive-item-restore"
+                  onClick={() => onRestoreArchivedOutput?.(item.id)}
+                >
+                  Restore
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       ) : null}
@@ -1066,7 +1195,7 @@ export function ReferenceCanvas({
               {topSpacerHeight > 0 ? (
                 <div className="reference-virtual-spacer" style={{ height: topSpacerHeight }} />
               ) : null}
-              {visibleOutputs.map((item) => {
+              {visibleOutputs.map((item, visibleIndex) => {
                 const isFailing = item.taskState === "fail";
                 const isLoading =
                   !isFailing &&
@@ -1076,14 +1205,27 @@ export function ReferenceCanvas({
                 const isLoaded = loadedMap[item.id];
                 const showSpinner = !isFailing && (isLoading || (!isLoaded && !item.previewText));
 
-                const isVideoPreview = item.previewUrl ? isVideoUrl(item.previewUrl) : false;
-                const isImagePreview = item.previewUrl ? !isVideoPreview : false;
+                const isVideoMode = item.mode === "video";
+                const prefersFullPreview = activeOutputId === item.id;
+                const cardPreviewUrl = REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW
+                  ? prefersFullPreview
+                    ? (item.fullStoragePath ?? item.previewUrl)
+                    : (item.previewStoragePath ?? item.previewUrl)
+                  : item.previewUrl;
+                const isVideoPreview = cardPreviewUrl
+                  ? isVideoMode || isVideoUrl(cardPreviewUrl)
+                  : false;
+                const isImagePreview = cardPreviewUrl ? !isVideoPreview : false;
                 const canAutoplayVideo = isVideoPreview && autoplayEnabledIdSet.has(item.id);
-                const isPromptOnly = !item.previewUrl && !!item.previewText;
+                const isPromptOnly = !cardPreviewUrl && !!item.previewText;
                 const isLinkedPromptReference =
                   isPromptOnly && linkedPromptReferenceIdSet.has(item.id);
                 const canRetryStatus =
                   Boolean(onRetryStatus && item.taskId) && (isFailing || isLoading);
+                const hydrationPriorityCount =
+                  Math.max(REFERENCE_GRID_MIN_COLUMNS, virtualMetrics.columnCount) *
+                  REFERENCE_PRIORITY_HYDRATION_ROWS;
+                const isPriorityHydration = visibleIndex < hydrationPriorityCount;
                 const saveDisabled = item.saveState === "saving";
                 const saveLabel =
                   item.saveState === "failed" ? "Retry save" : "Save to media library";
@@ -1096,7 +1238,7 @@ export function ReferenceCanvas({
                 return (
                   <div
                     key={item.id}
-                    className={`reference-card ${item.previewUrl ? "has-preview" : ""} ${isVideoPreview ? "has-video" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""} ${showSpinner ? "is-loading" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
+                    className={`reference-card ${cardPreviewUrl ? "has-preview" : ""} ${isVideoPreview ? "has-video" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""} ${showSpinner ? "is-loading" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
                     role="button"
                     aria-busy={showSpinner}
                     data-loading={showSpinner ? "true" : "false"}
@@ -1109,17 +1251,17 @@ export function ReferenceCanvas({
                       }
                     }}
                     onDoubleClick={() => onOpenDetails(item.id)}
-                    draggable={!!item.previewUrl || !!item.previewText}
+                    draggable={!!cardPreviewUrl || !!item.previewText}
                     onDragStart={(event) => {
                       handleCardDragStart(event, item);
                     }}
                     onDragEnd={handleCardDragEnd}
                   >
-                    {isVideoPreview && item.previewUrl ? (
+                    {isVideoPreview && cardPreviewUrl ? (
                       <video
                         className="reference-card-video"
                         ref={(node) => registerVideoNode(item.id, node)}
-                        src={canAutoplayVideo ? item.previewUrl : undefined}
+                        src={canAutoplayVideo ? cardPreviewUrl : undefined}
                         autoPlay={canAutoplayVideo}
                         muted
                         loop
@@ -1130,13 +1272,13 @@ export function ReferenceCanvas({
                         onPause={() => handleAutoplayStopped(item.id)}
                       />
                     ) : null}
-                    {isImagePreview && item.previewUrl ? (
+                    {isImagePreview && cardPreviewUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={item.previewUrl}
+                        src={cardPreviewUrl}
                         alt=""
                         className="reference-card-image"
-                        loading="lazy"
+                        loading={isPriorityHydration ? "eager" : "lazy"}
                         decoding="async"
                         onLoad={() => markLoaded(item.id)}
                         onError={() => markLoaded(item.id, { notifyAutoSave: false })}

@@ -622,3 +622,21 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Reconciled stale route/scope wording in `README.md`, `docs/routes.md`, and `docs/release-checklist.md` (performance staged visibility wording, current performance-demo behavior, and Character Manager reference-limit wording).
 - Audited backlog with strict evidence and checked off verifiable completions:
   Stripe billing-portal flow and auth/media-library API test coverage updates in `docs/planning/backlog.md`; also classified remaining items as open, blocked external dependency, or paused policy scope.
+
+## 2026-02-17 (AI Studio character panel open behavior)
+- Updated AI Studio shell collapse policy so selecting Character (`canvas`/`character`) now collapses the left properties panel to its minimum width immediately on tool switch (`frontend/features/ai-studio/logic/shellResize.ts`).
+- Removed shell column easing while Character is open by disabling `grid-template-columns` transition under `.ai-shell-character-open` (`frontend/styles/ai-studio-layout.css`).
+- Expanded shell-resize regression coverage for Character collapse behavior (`frontend/features/ai-studio/logic/__tests__/shellResize.test.ts`), and verified with:
+  `cd frontend && npm run test -- features/ai-studio/logic/__tests__/shellResize.test.ts`.
+
+## 2026-02-17 (AI Studio reference grid performance run)
+- Replaced AI Studio local upload preview ingestion from full base64 payloads to object-URL-first handling in `frontend/features/ai-studio/logic/stateParsers.ts`, with deterministic object URL cleanup in `frontend/features/ai-studio/hooks/useAiStudioState.ts`.
+- Added bounded-session soft archive behavior for Reference Grid outputs (default active cap: 500) with restore controls and archive telemetry (`media.grid.archive.transition`) via `frontend/features/ai-studio/hooks/useAiStudioState.ts` and `frontend/features/ai-studio/components/ReferenceCanvas.tsx`.
+- Tightened Reference Grid rendering/autoplay budgets and adaptive preview routing (preview vs full path fields) in `frontend/features/ai-studio/components/ReferenceCanvas.tsx`, plus high-density CSS cost controls in `frontend/styles/ai-studio-canvas.css`.
+- Added reference-grid telemetry events (`media.grid.render.commit`, `media.grid.longtask.sample`, `media.grid.memory.sample`, `media.grid.archive.transition`) in `frontend/lib/mediaPerfTelemetry.ts` and logging call sites in `ReferenceCanvas`/state archive transitions.
+- Added explicit adaptive-preview rollback control (`NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW`) and wired archive restore transitions into `media.grid.archive.transition` telemetry in `frontend/features/ai-studio/components/ReferenceCanvas.tsx` and `frontend/features/ai-studio/hooks/useAiStudioState.ts`.
+- Added normalized output lookup/update fast-path wiring (`NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE`) and selector helpers in `frontend/features/ai-studio/hooks/useAiStudioState.ts` + `frontend/features/ai-studio/hooks/useAiStudioOutputLifecycle.ts`, and added per-tick batching for poll-driven output patches in `frontend/features/ai-studio/hooks/useAiStudioTasks.ts`.
+- Reduced output update churn by improving `updateOutputById` to targeted index replacement in `frontend/features/ai-studio/hooks/useAiStudioOutputLifecycle.ts` and adding progress-update backpressure/deduplication in `frontend/features/ai-studio/hooks/useAiStudioTasks.ts`.
+- Extended output metadata/types for performance-aware behavior (`mediaSource`, `previewTier`, preview/full storage paths, archive metadata) in `frontend/features/ai-studio/types.ts` and wired through relevant output creation/update flows.
+- Updated operational docs for triage and tuning in `docs/troubleshooting.md` and `docs/sops/sop_media_performance_operations.md`.
+- Added/updated targeted tests: `frontend/features/ai-studio/logic/__tests__/stateParsers.uploads.test.ts`, `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceCanvasProps.test.ts`.

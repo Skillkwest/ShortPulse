@@ -2,7 +2,15 @@
  * Shared state + actions for AI Studio.
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { modelOptions } from "../constants";
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput, ToolId } from "../types";
@@ -21,9 +29,30 @@ import { useAiStudioReferenceSelectionState } from "./useAiStudioReferenceSelect
 import { type PendingAutoSave, useAiStudioTaskOrchestration } from "./useAiStudioTaskOrchestration";
 import { useAiStudioWorkflowSettings } from "./useAiStudioWorkflowSettings";
 import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
+import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
 const CHARACTER_MODE_PENDING_MODEL_LABEL = "Pulse Character Model";
+const DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT = 500;
+const DEFAULT_ARCHIVE_PREVIEW_KEEP_COUNT = 120;
+const REFERENCE_GRID_FLAG_SOFT_ARCHIVE =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE !== "false";
+const REFERENCE_GRID_FLAG_NORMALIZED_STATE =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE !== "false";
+const REFERENCE_GRID_ACTIVE_LIMIT = Number(
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT ?? DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT
+);
+const REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT = Number(
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT ??
+    DEFAULT_ARCHIVE_PREVIEW_KEEP_COUNT
+);
+
+const isBlobObjectUrl = (value?: string | null) =>
+  typeof value === "string" && value.startsWith("blob:");
+
+const stripVideoMarkerFromBlobUrl = (value: string): string => value.replace(/#video=1$/, "");
+
+const toIsoNow = () => new Date().toISOString();
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
  */
@@ -43,13 +72,33 @@ export const useAiStudioState = ({
   const [videoReferenceText, setVideoReferenceTextState] = useState<string>("");
 
   // Output management
-  const [outputs, setOutputs] = useState<StudioOutput[]>([]);
+  const [outputs, setOutputsState] = useState<StudioOutput[]>([]);
+  const [archivedOutputs, setArchivedOutputs] = useState<StudioOutput[]>([]);
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const pendingAutoSavesRef = useRef<Record<string, PendingAutoSave>>({});
+  const outputObjectUrlByIdRef = useRef<Record<string, string>>({});
+  const lastOutputUrlsByIdRef = useRef<Record<string, string>>({});
+  const activeOutputByIdRef = useRef<Record<string, StudioOutput>>({});
+  const activeOutputById = useMemo(
+    () =>
+      outputs.reduce<Record<string, StudioOutput>>((acc, item) => {
+        acc[item.id] = item;
+        return acc;
+      }, {}),
+    [outputs]
+  );
+  const archivedOutputById = useMemo(
+    () =>
+      archivedOutputs.reduce<Record<string, StudioOutput>>((acc, item) => {
+        acc[item.id] = item;
+        return acc;
+      }, {}),
+    [archivedOutputs]
+  );
   const activeOutput = useMemo(
-    () => outputs.find((item) => item.id === activeOutputId) ?? null,
-    [activeOutputId, outputs]
+    () => (activeOutputId ? (activeOutputById[activeOutputId] ?? null) : null),
+    [activeOutputById, activeOutputId]
   );
 
   // UI selections and references (tracked per workflow)
@@ -174,8 +223,8 @@ export const useAiStudioState = ({
   });
 
   const detailOutput = useMemo(
-    () => outputs.find((item) => item.id === detailOutputId) ?? null,
-    [detailOutputId, outputs]
+    () => (detailOutputId ? (activeOutputById[detailOutputId] ?? null) : null),
+    [activeOutputById, detailOutputId]
   );
   const currentModelLabel = useMemo(() => resolveModelLabel(model ?? undefined), [model]);
   const setSharedPrompt = useCallback((value: string) => {
@@ -187,6 +236,173 @@ export const useAiStudioState = ({
   const setVideoReferenceText = useCallback((value: string) => {
     setVideoReferenceTextState((prev) => (prev === value ? prev : value));
   }, []);
+
+  const resolveTrackedObjectUrl = useCallback((output: StudioOutput): string | null => {
+    const explicit = output.localObjectUrl?.trim();
+    if (explicit && isBlobObjectUrl(explicit)) {
+      return stripVideoMarkerFromBlobUrl(explicit);
+    }
+    const preview = output.previewUrl?.trim();
+    if (!preview || !isBlobObjectUrl(preview)) return null;
+    return stripVideoMarkerFromBlobUrl(preview);
+  }, []);
+
+  const compactArchivedOutputs = useCallback((rows: StudioOutput[]): StudioOutput[] => {
+    if (!rows.length) return rows;
+    const keepCount = Math.max(0, REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT);
+    if (rows.length <= keepCount) return rows;
+    let changed = false;
+    const next = rows.map((item, index) => {
+      if (index < keepCount) return item;
+      if (!item.previewUrl && !item.localObjectUrl) return item;
+      changed = true;
+      return {
+        ...item,
+        previewUrl: undefined,
+        localObjectUrl: null,
+        archiveReason: item.archiveReason ?? "cleanup",
+      };
+    });
+    return changed ? next : rows;
+  }, []);
+
+  const archiveOlderOutputs = useCallback(
+    (activeRows: StudioOutput[]): StudioOutput[] => {
+      const activeLimit = Number.isFinite(REFERENCE_GRID_ACTIVE_LIMIT)
+        ? Math.max(20, REFERENCE_GRID_ACTIVE_LIMIT)
+        : DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT;
+      if (!REFERENCE_GRID_FLAG_SOFT_ARCHIVE || activeRows.length <= activeLimit) {
+        return activeRows;
+      }
+      const nextActive: StudioOutput[] = [];
+      const newlyArchived: StudioOutput[] = [];
+      activeRows.forEach((item, index) => {
+        const canArchive =
+          index >= activeLimit &&
+          item.id !== activeOutputId &&
+          !item.pinned &&
+          item.taskState !== "pending" &&
+          item.taskState !== "running";
+        if (!canArchive) {
+          nextActive.push(item);
+          return;
+        }
+        newlyArchived.push({
+          ...item,
+          archivedAt: item.archivedAt ?? toIsoNow(),
+          archiveReason: item.archiveReason ?? "soft_limit",
+        });
+      });
+      if (!newlyArchived.length) return activeRows;
+      setArchivedOutputs((prev) => compactArchivedOutputs([...newlyArchived, ...prev]));
+      logMediaPerf("media.grid.archive.transition", {
+        surface: "reference-grid",
+        archived_count: newlyArchived.length,
+        active_count: nextActive.length,
+      });
+      return nextActive;
+    },
+    [activeOutputId, compactArchivedOutputs]
+  );
+
+  const restoreArchivedOutput = useCallback(
+    (outputId: string) => {
+      setArchivedOutputs((prev) => {
+        const target = prev.find((item) => item.id === outputId) ?? null;
+        if (!target) return prev;
+        setOutputsState((current) =>
+          archiveOlderOutputs([
+            {
+              ...target,
+              archivedAt: null,
+              archiveReason: null,
+            },
+            ...current,
+          ])
+        );
+        setActiveOutputId(target.id);
+        logMediaPerf("media.grid.archive.transition", {
+          surface: "reference-grid",
+          restored_count: 1,
+          active_count_hint: outputs.length + 1,
+          archived_count_hint: Math.max(0, prev.length - 1),
+        });
+        return target ? prev.filter((item) => item.id !== outputId) : prev;
+      });
+    },
+    [archiveOlderOutputs, outputs.length]
+  );
+
+  const restoreAllArchivedOutputs = useCallback(() => {
+    let moved: StudioOutput[] = [];
+    setArchivedOutputs((prev) => {
+      moved = prev;
+      return [];
+    });
+    if (!moved.length) return;
+    setOutputsState((prev) =>
+      archiveOlderOutputs([
+        ...moved.map((item) => ({
+          ...item,
+          archivedAt: null,
+          archiveReason: null,
+        })),
+        ...prev,
+      ])
+    );
+    logMediaPerf("media.grid.archive.transition", {
+      surface: "reference-grid",
+      restored_count: moved.length,
+      active_count_hint: outputs.length + moved.length,
+      archived_count_hint: 0,
+    });
+  }, [archiveOlderOutputs, outputs.length]);
+
+  const setOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>(
+    (nextValue) => {
+      setOutputsState((prev) => {
+        const resolved = typeof nextValue === "function" ? nextValue(prev) : nextValue;
+        return archiveOlderOutputs(resolved);
+      });
+    },
+    [archiveOlderOutputs]
+  );
+
+  const findActiveOutputById = useCallback((id: string) => {
+    return activeOutputByIdRef.current[id] ?? null;
+  }, []);
+
+  const updateActiveOutputById = useCallback(
+    (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (!REFERENCE_GRID_FLAG_NORMALIZED_STATE) {
+        setOutputs((prev) => {
+          const targetIndex = prev.findIndex((item) => item.id === id);
+          if (targetIndex === -1) return prev;
+          const current = prev[targetIndex];
+          if (!current) return prev;
+          const nextItem = updater(current);
+          if (nextItem === current) return prev;
+          const next = [...prev];
+          next[targetIndex] = nextItem;
+          return next;
+        });
+        return;
+      }
+
+      setOutputsState((prev) => {
+        const targetIndex = prev.findIndex((item) => item.id === id);
+        if (targetIndex === -1) return prev;
+        const current = prev[targetIndex];
+        if (!current) return prev;
+        const nextItem = updater(current);
+        if (nextItem === current) return prev;
+        const next = [...prev];
+        next[targetIndex] = nextItem;
+        return archiveOlderOutputs(next);
+      });
+    },
+    [archiveOlderOutputs, setOutputs]
+  );
 
   const allowedModelOptions = useMemo(() => {
     if (selectedTool === "video" || selectedTool === "kling") {
@@ -286,6 +502,45 @@ export const useAiStudioState = ({
     hasPendingWorkflowRestore,
   });
 
+  useEffect(() => {
+    activeOutputByIdRef.current = activeOutputById;
+  }, [activeOutputById]);
+
+  useEffect(() => {
+    const currentUrlMap: Record<string, string> = {};
+    [...outputs, ...archivedOutputs].forEach((item) => {
+      const tracked = resolveTrackedObjectUrl(item);
+      if (!tracked) return;
+      currentUrlMap[item.id] = tracked;
+    });
+    const previousUrlMap = lastOutputUrlsByIdRef.current;
+    Object.entries(previousUrlMap).forEach(([outputId, objectUrl]) => {
+      const stillTracked = currentUrlMap[outputId];
+      if (stillTracked === objectUrl) return;
+      if (typeof URL.revokeObjectURL === "function") {
+        URL.revokeObjectURL(objectUrl);
+      }
+      delete outputObjectUrlByIdRef.current[outputId];
+    });
+    Object.entries(currentUrlMap).forEach(([outputId, objectUrl]) => {
+      outputObjectUrlByIdRef.current[outputId] = objectUrl;
+    });
+    lastOutputUrlsByIdRef.current = currentUrlMap;
+  }, [archivedOutputs, outputs, resolveTrackedObjectUrl]);
+
+  useEffect(
+    () => () => {
+      Object.values(lastOutputUrlsByIdRef.current).forEach((objectUrl) => {
+        if (typeof URL.revokeObjectURL === "function") {
+          URL.revokeObjectURL(objectUrl);
+        }
+      });
+      lastOutputUrlsByIdRef.current = {};
+      outputObjectUrlByIdRef.current = {};
+    },
+    []
+  );
+
   // --- Output + prompt actions -------------------------------------------
   const {
     updateOutputById,
@@ -296,6 +551,8 @@ export const useAiStudioState = ({
   } = useAiStudioOutputLifecycle({
     outputs,
     setOutputs,
+    updateOutputByIdFast: REFERENCE_GRID_FLAG_NORMALIZED_STATE ? updateActiveOutputById : undefined,
+    findOutputByIdFast: REFERENCE_GRID_FLAG_NORMALIZED_STATE ? findActiveOutputById : undefined,
     activeOutputId,
     setActiveOutputId,
     pendingAutoSavesRef,
@@ -414,6 +671,10 @@ export const useAiStudioState = ({
         errorMessage: null,
         errorMessageShort: null,
         errorDetail: null,
+        mediaSource: "generated",
+        previewTier: outputMode === "video" ? "preview_loop" : "full",
+        archivedAt: null,
+        archiveReason: null,
         saveState: "idle",
         saveError: null,
       };
@@ -421,12 +682,15 @@ export const useAiStudioState = ({
       setSaved(false);
       return id;
     },
-    [aspect, isCharacterModeEnabled, mode, model, selectedTool]
+    [aspect, isCharacterModeEnabled, mode, model, selectedTool, setOutputs]
   );
-  const removeOptimisticGenerationPlaceholder = useCallback((outputId: string) => {
-    if (!outputId) return;
-    setOutputs((prev) => prev.filter((item) => item.id !== outputId));
-  }, []);
+  const removeOptimisticGenerationPlaceholder = useCallback(
+    (outputId: string) => {
+      if (!outputId) return;
+      setOutputs((prev) => prev.filter((item) => item.id !== outputId));
+    },
+    [setOutputs]
+  );
 
   const addAgentPromptReference = useCallback(
     (promptText: string, title?: string | null) => {
@@ -446,13 +710,17 @@ export const useAiStudioState = ({
         timestamp: "Agent",
         // Always show the actual prompt text on the reference card.
         previewText: cleanedPrompt,
+        mediaSource: "prompt",
+        previewTier: "full",
+        archivedAt: null,
+        archiveReason: null,
         saveState: "idle",
         saveError: null,
       };
       setOutputs((prev) => [promptReference, ...prev]);
       setSharedPrompt(cleanedPrompt);
     },
-    [aspect, model, setSharedPrompt]
+    [aspect, model, setOutputs, setSharedPrompt]
   );
 
   const addPastedPromptReference = useCallback(
@@ -471,12 +739,16 @@ export const useAiStudioState = ({
         status: "ready",
         timestamp: "Clipboard",
         previewText: cleanedPrompt,
+        mediaSource: "prompt",
+        previewTier: "full",
+        archivedAt: null,
+        archiveReason: null,
         saveState: "idle",
         saveError: null,
       };
       setOutputs((prev) => [promptReference, ...prev]);
     },
-    [aspect, model]
+    [aspect, model, setOutputs]
   );
 
   const addPastedMediaReference = useCallback(
@@ -507,12 +779,18 @@ export const useAiStudioState = ({
         status: "ready",
         timestamp: "Clipboard",
         previewUrl: cleanedUrl,
+        mediaSource: "clipboard",
+        previewTier: isVideo ? "preview_loop" : "full",
+        fullStoragePath: cleanedUrl,
+        previewStoragePath: cleanedUrl,
+        archivedAt: null,
+        archiveReason: null,
         saveState: "idle",
         saveError: null,
       };
       setOutputs((prev) => [nextOutput, ...prev]);
     },
-    [aspect, model]
+    [aspect, model, setOutputs]
   );
 
   const addLibraryMediaReference = useCallback(
@@ -536,13 +814,19 @@ export const useAiStudioState = ({
         status: "ready",
         timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
         previewUrl: payload.url,
+        previewStoragePath: payload.url,
+        fullStoragePath: payload.url,
+        mediaSource: payload.source === "ai_studio" ? "generated" : "library",
+        previewTier: payload.fileType === "video" ? "preview_loop" : "thumb",
+        archivedAt: null,
+        archiveReason: null,
         saveState: "idle",
         saveError: null,
         savedMediaIds: payload.id ? [payload.id] : undefined,
       };
       setOutputs((prev) => [nextOutput, ...prev]);
     },
-    [aspect, model]
+    [aspect, model, setOutputs]
   );
 
   const addLibraryPromptReference = useCallback(
@@ -561,13 +845,17 @@ export const useAiStudioState = ({
         status: "saved",
         timestamp: "Library",
         previewText: cleanedPrompt,
+        mediaSource: "prompt",
+        previewTier: "full",
+        archivedAt: null,
+        archiveReason: null,
         saveState: "idle",
         saveError: null,
         promptId: payload.id,
       };
       setOutputs((prev) => [promptReference, ...prev]);
     },
-    [aspect, model]
+    [aspect, model, setOutputs]
   );
 
   const addOutputsFromFiles = useCallback(
@@ -583,7 +871,7 @@ export const useAiStudioState = ({
       if (!newEntries.length) return;
       setOutputs((prev) => [...newEntries, ...prev]);
     },
-    [aspect, model, mode]
+    [aspect, model, mode, setOutputs]
   );
 
   const getAgentContext = useCallback(
@@ -666,6 +954,13 @@ export const useAiStudioState = ({
     [model, mode]
   );
 
+  const selectActiveOutputs = useCallback(() => outputs, [outputs]);
+  const selectArchivedOutputs = useCallback(() => archivedOutputs, [archivedOutputs]);
+  const selectOutputById = useCallback(
+    (id: string) => activeOutputById[id] ?? archivedOutputById[id] ?? null,
+    [activeOutputById, archivedOutputById]
+  );
+
   return {
     isPromptGenerating,
     promptRef,
@@ -680,6 +975,10 @@ export const useAiStudioState = ({
     setPrompt,
     outputs,
     setOutputs,
+    archivedOutputs,
+    selectActiveOutputs,
+    selectArchivedOutputs,
+    selectOutputById,
     activeOutput,
     activeOutputId,
     setActiveOutputId,
@@ -755,6 +1054,9 @@ export const useAiStudioState = ({
     closeModelModal,
     updateOutputPrompt,
     deleteOutput,
+    restoreArchivedOutput,
+    restoreAllArchivedOutputs,
+    archiveOlderOutputs,
     uiError,
     setUiError,
     uiNotice,

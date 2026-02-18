@@ -24,6 +24,10 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
   - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - Reference Grid autoplay budget:
   - `frontend/features/ai-studio/components/ReferenceCanvas.tsx`
+- Reference Grid archive + output lifecycle controls:
+  - `frontend/features/ai-studio/hooks/useAiStudioState.ts`
+- Upload preview ingestion path:
+  - `frontend/features/ai-studio/logic/stateParsers.ts`
 - Telemetry buffer + debug handle:
   - `frontend/lib/mediaPerfTelemetry.ts`
   - initialized via `frontend/pages/_app.tsx`
@@ -80,6 +84,11 @@ Key indicators:
 - `failed_ratio` grouped by `surface`/`tab`/`query_mode`
 - first-card/first-media-paint timing trends
 - bulk move timings/failures via `media.move.bulk.completed` and `media.move.bulk.failed`
+- reference-grid render and heap trends via:
+  - `media.grid.render.commit`
+  - `media.grid.longtask.sample`
+  - `media.grid.memory.sample`
+  - `media.grid.archive.transition`
 
 ## Tuning Knobs
 - Media Library sign budget constants:
@@ -88,6 +97,14 @@ Key indicators:
   - `MEDIA_MODAL_SIGN_BUDGET_*` in `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - Reference Grid autoplay caps:
   - `REFERENCE_AUTOPLAY_MAX_*` in `frontend/features/ai-studio/components/ReferenceCanvas.tsx`
+- Reference Grid active/archived caps:
+  - `NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT` (default `500`)
+  - `NEXT_PUBLIC_REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT` (default `120`)
+- Reference Grid feature flags:
+  - `NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE`
+  - `NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE`
+  - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW`
+  - `NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE`
 
 Adjust only after telemetry review; keep desktop/mobile/constrained profiles distinct.
 

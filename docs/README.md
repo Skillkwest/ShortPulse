@@ -130,6 +130,8 @@ Start here for all repository documentation.
 - `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`
 - `docs/adr/0010-character-manager-character-sheet-architecture.md`
 - `docs/adr/0011-character-sheet-terminology-policy.md`
+- `docs/adr/0012-ai-studio-agent-runtime-hardening.md`
+- `docs/adr/0013-reference-grid-bounded-work-architecture.md`
 
 ## Archive
 - `docs/archive/README.md`

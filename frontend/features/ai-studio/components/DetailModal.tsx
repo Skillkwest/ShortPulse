@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { TrashSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 import { looksLikeVideoUrl } from "../utils/dragDrop";
+import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
 
 type DetailModalProps = {
   output: StudioOutput | null;
@@ -82,16 +83,32 @@ export function DetailModal({
   }, []);
 
   const outputId = output?.id ?? null;
+  const preferredDetailMediaUrl = useMemo(() => {
+    if (!output) return null;
+    const resolved = resolveReferenceCardUrls(
+      {
+        previewStoragePath: output.previewStoragePath,
+        fullStoragePath: output.fullStoragePath,
+        previewUrl: output.previewUrl,
+        resultUrls: output.resultUrls,
+      },
+      {
+        strictPreviewLadder: true,
+        adaptivePreviewQuality: false,
+      }
+    );
+    return resolved.fullUrl ?? resolved.previewUrl ?? null;
+  }, [output]);
   const previewCandidates = useMemo(() => {
     const uniqueUrls = new Set<string>();
-    const maybeUrls = [output?.previewUrl, ...(output?.resultUrls ?? [])];
+    const maybeUrls = [preferredDetailMediaUrl, output?.previewUrl, ...(output?.resultUrls ?? [])];
     maybeUrls.forEach((url) => {
       const trimmed = url?.trim();
       if (!trimmed) return;
       uniqueUrls.add(trimmed);
     });
     return Array.from(uniqueUrls);
-  }, [output?.previewUrl, output?.resultUrls]);
+  }, [output?.previewUrl, output?.resultUrls, preferredDetailMediaUrl]);
   const activePreviewCandidateIndex =
     previewCandidateByOutput && outputId && previewCandidateByOutput.outputId === outputId
       ? Math.min(previewCandidateByOutput.index, Math.max(0, previewCandidates.length - 1))

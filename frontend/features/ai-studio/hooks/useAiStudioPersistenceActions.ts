@@ -219,7 +219,7 @@ export const useAiStudioPersistenceActions = ({
             previewStoragePathHint: output.previewStoragePath ?? null,
             fullStoragePathHint: output.fullStoragePath ?? null,
             previewUrlHint: output.previewUrl ?? null,
-            fullUrlHint: output.fullStoragePath ?? output.previewUrl ?? null,
+            fullUrlHint: output.previewUrl ?? null,
             metadata: {
               task_id: output.taskId ?? null,
             },

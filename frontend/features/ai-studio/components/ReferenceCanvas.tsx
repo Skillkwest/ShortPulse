@@ -18,7 +18,10 @@ import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
 import type { ToolId } from "../types";
 import { logMediaPerf, setMediaPerfSamplingPolicy } from "../../../lib/mediaPerfTelemetry";
 import { useOutputSelector } from "../hooks/aiStudioOutputStore";
-import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
+import {
+  resolveReferenceCardUrls,
+  type ReferenceGridPreviewQualityBand,
+} from "../logic/referenceGridMedia";
 import {
   calculateReferenceGridWindow,
   resolveReferenceGridOverscanRows,
@@ -48,6 +51,11 @@ const REFERENCE_HIGH_DENSITY_CARD_COUNT = 180;
 const REFERENCE_PRIORITY_HYDRATION_ROWS = 3;
 const REFERENCE_MAX_ANIMATED_SPINNERS = 4;
 const REFERENCE_SPINNER_MAX_VISIBLE_MS = 1200;
+const REFERENCE_LOCAL_ADAPTIVE_WEBP_QUALITY: Record<ReferenceGridPreviewQualityBand, number> = {
+  high: 0.42,
+  balanced: 0.32,
+  compact: 0.24,
+};
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW =
   process.env.NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW !== "false";
 const REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER =
@@ -63,19 +71,21 @@ const REFERENCE_GRID_FLAG_MEMORY_GUARD =
 const REFERENCE_GRID_FLAG_PERF_WATCHDOG =
   process.env.NEXT_PUBLIC_REFERENCE_GRID_PERF_WATCHDOG !== "false";
 const REFERENCE_GRID_FLAG_HARD_VIEWPORT_CAP =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_HARD_VIEWPORT_CAP !== "false";
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_HARD_VIEWPORT_CAP === "true";
 const REFERENCE_GRID_FLAG_CSS_CONTAINMENT =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_CSS_CONTAINMENT !== "false";
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_CSS_CONTAINMENT === "true";
 const REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_LOADING_PLACEHOLDER_TIMEOUT !== "false";
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_LOADING_PLACEHOLDER_TIMEOUT === "true";
 const REFERENCE_GRID_FLAG_GLOBAL_MEDIA_BUDGET =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_GLOBAL_MEDIA_BUDGET !== "false";
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_GLOBAL_MEDIA_BUDGET === "true";
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY !== "false";
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY === "true";
 const REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_TELEMETRY_BACKPRESSURE !== "false";
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_TELEMETRY_BACKPRESSURE === "true";
 const REFERENCE_GRID_FLAG_TRANSITION_NONURGENT =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_TRANSITION_NONURGENT !== "false";
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_TRANSITION_NONURGENT === "true";
+const REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_RENDER_COMMIT_TELEMETRY === "true";
 
 type NavigatorWithConnection = Navigator & {
   deviceMemory?: number;
@@ -132,6 +142,12 @@ const resolveReferenceSelectionTheme = (selectedTool: ToolId | null): ReferenceS
 
 const areIdListsEqual = (left: string[], right: string[]) =>
   left.length === right.length && left.every((value, index) => value === right[index]);
+
+const hasAdaptiveQueryParams = (url: string): boolean =>
+  /[?&]width=\d+/i.test(url) && /[?&]quality=\d+/i.test(url);
+
+const isNextOptimizerUrl = (url: string): boolean =>
+  /^\/_next\/image\?/i.test(url) || /\/_next\/image\?/i.test(url);
 
 const normalizeClipboardText = (value: string): string => value.trim();
 
@@ -499,7 +515,7 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
           className="reference-card-image"
           loading={imageLoading}
           decoding="async"
-          fetchPriority={imageFetchPriority}
+          {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
           onLoad={() => markLoaded(item.id)}
           onError={() => markLoaded(item.id, { notifyAutoSave: false })}
         />
@@ -748,8 +764,16 @@ export function ReferenceCanvas({
   const [isArchivePanelOpen, setIsArchivePanelOpen] = useState(false);
   const [delayedLoadingById, setDelayedLoadingById] = useState<Record<string, true>>({});
   const loadingPendingSinceByIdRef = React.useRef<Record<string, number>>({});
+  const loadingDelayTimeoutRef = React.useRef<number | null>(null);
+  const [loadingDelayTick, setLoadingDelayTick] = useState(0);
   const [imageHydrationState, setImageHydrationState] = useState<{
-    hydratedById: Record<string, string>;
+    hydratedById: Record<
+      string,
+      {
+        sourceUrl: string;
+        renderUrl: string;
+      }
+    >;
     queueSize: number;
     decodeInflight: number;
   }>({
@@ -761,8 +785,27 @@ export function ReferenceCanvas({
   const hydrationQueuedIdSetRef = React.useRef<Set<string>>(new Set());
   const hydrationInflightIdSetRef = React.useRef<Set<string>>(new Set());
   const hydrationUrlByIdRef = React.useRef<Record<string, string>>({});
+  const hydrationFallbackUrlByIdRef = React.useRef<Record<string, string>>({});
+  const hydrationPreviewMetaByIdRef = React.useRef<
+    Record<
+      string,
+      {
+        targetLongEdgePx: number;
+        previewQualityBand: ReferenceGridPreviewQualityBand;
+      }
+    >
+  >({});
+  const hydrationGeneratedObjectUrlByIdRef = React.useRef<Record<string, string>>({});
   const hydrationRafFlushRef = React.useRef<number | null>(null);
-  const hydrationPendingLoadedRef = React.useRef<Record<string, string>>({});
+  const hydrationPendingLoadedRef = React.useRef<
+    Record<
+      string,
+      {
+        sourceUrl: string;
+        renderUrl: string;
+      }
+    >
+  >({});
   const processHydrationQueueRef = React.useRef<() => void>(() => {});
   const [virtualMetrics, setVirtualMetrics] = useState({
     scrollTop: 0,
@@ -793,6 +836,67 @@ export function ReferenceCanvas({
     desiredImageDecodeInflight: hydrationBudget.maxInflightHydrations,
     desiredVideoAttachSlots: desiredVideoAttachBudget,
   });
+
+  const revokeGeneratedHydrationUrl = useCallback((id: string) => {
+    const existing = hydrationGeneratedObjectUrlByIdRef.current[id];
+    if (!existing) return;
+    URL.revokeObjectURL(existing);
+    delete hydrationGeneratedObjectUrlByIdRef.current[id];
+  }, []);
+
+  const maybeCreateLocalAdaptivePreviewUrl = useCallback(
+    async (id: string, sourceUrl: string, image: HTMLImageElement): Promise<string> => {
+      if (!REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY) return sourceUrl;
+      if (hasAdaptiveQueryParams(sourceUrl) || isNextOptimizerUrl(sourceUrl)) return sourceUrl;
+      if (isVideoUrl(sourceUrl)) return sourceUrl;
+      const previewMeta = hydrationPreviewMetaByIdRef.current[id];
+      if (!previewMeta) return sourceUrl;
+      const naturalWidth = image.naturalWidth;
+      const naturalHeight = image.naturalHeight;
+      if (!Number.isFinite(naturalWidth) || !Number.isFinite(naturalHeight)) {
+        return sourceUrl;
+      }
+      if (naturalWidth <= 0 || naturalHeight <= 0) return sourceUrl;
+      const longEdge = Math.max(naturalWidth, naturalHeight);
+      const targetLongEdge = Math.max(240, Math.min(previewMeta.targetLongEdgePx, longEdge));
+      if (longEdge <= targetLongEdge + 8) return sourceUrl;
+      const scale = targetLongEdge / longEdge;
+      const width = Math.max(1, Math.round(naturalWidth * scale));
+      const height = Math.max(1, Math.round(naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) return sourceUrl;
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+      try {
+        context.drawImage(image, 0, 0, width, height);
+      } catch {
+        return sourceUrl;
+      }
+      const encodeToBlob = (mimeType: string, quality: number) =>
+        new Promise<Blob | null>((resolve) => {
+          try {
+            canvas.toBlob((blob) => resolve(blob), mimeType, quality);
+          } catch {
+            resolve(null);
+          }
+        });
+      const quality = REFERENCE_LOCAL_ADAPTIVE_WEBP_QUALITY[previewMeta.previewQualityBand];
+      const blob =
+        (await encodeToBlob("image/webp", quality)) ?? (await encodeToBlob("image/jpeg", quality));
+      if (!blob) return sourceUrl;
+      const objectUrl = URL.createObjectURL(blob);
+      const previousUrl = hydrationGeneratedObjectUrlByIdRef.current[id];
+      if (previousUrl && previousUrl !== objectUrl) {
+        URL.revokeObjectURL(previousUrl);
+      }
+      hydrationGeneratedObjectUrlByIdRef.current[id] = objectUrl;
+      return objectUrl;
+    },
+    []
+  );
 
   const syncImageHydrationState = useCallback(() => {
     runNonUrgentUpdate(() => {
@@ -846,6 +950,7 @@ export function ReferenceCanvas({
       hydrationQueuedIdSetRef.current.delete(nextId);
       const nextUrl = hydrationUrlByIdRef.current[nextId];
       if (!nextUrl) continue;
+      const fallbackUrl = hydrationFallbackUrlByIdRef.current[nextId];
 
       hydrationInflightIdSetRef.current.add(nextId);
       const image = new Image();
@@ -857,29 +962,64 @@ export function ReferenceCanvas({
       } catch {
         // Keep compatibility with runtimes that do not expose fetchPriority.
       }
-      const finalize = () => {
+      const finalize = (renderUrl: string) => {
         hydrationInflightIdSetRef.current.delete(nextId);
-        hydrationPendingLoadedRef.current[nextId] = nextUrl;
+        hydrationPendingLoadedRef.current[nextId] = {
+          sourceUrl: nextUrl,
+          renderUrl,
+        };
         scheduleHydrationFlush();
         processHydrationQueueRef.current();
       };
-      image.onload = finalize;
-      image.onerror = finalize;
+      image.onload = () => {
+        void (async () => {
+          const renderUrl = await maybeCreateLocalAdaptivePreviewUrl(nextId, nextUrl, image).catch(
+            () => nextUrl
+          );
+          finalize(renderUrl);
+        })();
+      };
+      image.onerror = () =>
+        finalize(fallbackUrl && fallbackUrl !== nextUrl ? fallbackUrl : nextUrl);
       image.src = nextUrl;
     }
     syncImageHydrationState();
   }, [
     activeOutputId,
     mediaWorkBudget.imageDecodeBudget,
+    maybeCreateLocalAdaptivePreviewUrl,
     scheduleHydrationFlush,
     syncImageHydrationState,
   ]);
 
   const enqueueImageHydration = useCallback(
-    (id: string, url: string, options?: { priority?: "high" | "normal" | "low" }) => {
+    (
+      id: string,
+      url: string,
+      options?: {
+        priority?: "high" | "normal" | "low";
+        targetLongEdgePx?: number;
+        previewQualityBand?: ReferenceGridPreviewQualityBand;
+        fallbackUrl?: string;
+      }
+    ) => {
       if (!REFERENCE_GRID_FLAG_DECODE_BUDGET) return;
+      const previousUrl = hydrationUrlByIdRef.current[id];
       hydrationUrlByIdRef.current[id] = url;
-      if (imageHydrationState.hydratedById[id] === url) return;
+      if (typeof options?.targetLongEdgePx === "number" && options.previewQualityBand) {
+        hydrationPreviewMetaByIdRef.current[id] = {
+          targetLongEdgePx: options.targetLongEdgePx,
+          previewQualityBand: options.previewQualityBand,
+        };
+      }
+      if (typeof options?.fallbackUrl === "string" && options.fallbackUrl.length > 0) {
+        hydrationFallbackUrlByIdRef.current[id] = options.fallbackUrl;
+      }
+      if (previousUrl && previousUrl !== url) {
+        revokeGeneratedHydrationUrl(id);
+      }
+      const hydratedEntry = imageHydrationState.hydratedById[id];
+      if (hydratedEntry?.sourceUrl === url) return;
       if (hydrationInflightIdSetRef.current.has(id)) return;
       const priority = options?.priority ?? "normal";
       if (hydrationQueuedIdSetRef.current.has(id)) {
@@ -903,7 +1043,12 @@ export function ReferenceCanvas({
       syncImageHydrationState();
       processHydrationQueue();
     },
-    [imageHydrationState.hydratedById, processHydrationQueue, syncImageHydrationState]
+    [
+      imageHydrationState.hydratedById,
+      processHydrationQueue,
+      revokeGeneratedHydrationUrl,
+      syncImageHydrationState,
+    ]
   );
 
   React.useEffect(() => {
@@ -1126,24 +1271,13 @@ export function ReferenceCanvas({
     () =>
       visibleOutputs.map((item, visibleIndex) => {
         const isVideoMode = item.mode === "video";
-        const prefersFullPreview = activeOutputId === item.id;
         const strictPreviewLadderEnabled =
           REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER;
-        const runtimeDpr =
-          typeof window !== "undefined" && Number.isFinite(window.devicePixelRatio)
-            ? window.devicePixelRatio
-            : 1;
-        const cardLongEdgePx = Math.max(
-          REFERENCE_GRID_MIN_CARD_PX,
-          Math.round(virtualMetrics.rowHeight - 3)
-        );
         const resolvedCardUrls = REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW
           ? resolveReferenceCardUrls(item, {
               strictPreviewLadder: strictPreviewLadderEnabled,
               adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
               pressureLevel: perfWatchdog.degradeLevel,
-              cardLongEdgePx,
-              devicePixelRatio: runtimeDpr,
             })
           : {
               previewUrl: item.previewUrl ?? null,
@@ -1151,18 +1285,16 @@ export function ReferenceCanvas({
               previewQualityBand: "high" as const,
               targetLongEdgePx: 960,
             };
-        const cardPreviewUrl = prefersFullPreview
-          ? (resolvedCardUrls.fullUrl ?? resolvedCardUrls.previewUrl)
-          : (resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl);
+        const cardPreviewUrl = resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl;
         const isVideoPreview = cardPreviewUrl ? isVideoMode || isVideoUrl(cardPreviewUrl) : false;
         const isImagePreview = cardPreviewUrl ? !isVideoPreview : false;
         const isPriorityHydration =
           visibleIndex < hydrationPriorityCount || activeOutputId === item.id;
-        const hydratedSrc = imageHydrationState.hydratedById[item.id];
+        const hydratedEntry = imageHydrationState.hydratedById[item.id];
         const imageSrc =
           isImagePreview && REFERENCE_GRID_FLAG_DECODE_BUDGET
-            ? hydratedSrc === cardPreviewUrl
-              ? (cardPreviewUrl ?? undefined)
+            ? hydratedEntry?.sourceUrl === cardPreviewUrl
+              ? (hydratedEntry.renderUrl ?? undefined)
               : undefined
             : (cardPreviewUrl ?? undefined);
         return {
@@ -1181,7 +1313,6 @@ export function ReferenceCanvas({
       hydrationPriorityCount,
       imageHydrationState.hydratedById,
       perfWatchdog.degradeLevel,
-      virtualMetrics.rowHeight,
       visibleOutputs,
     ]
   );
@@ -1219,6 +1350,10 @@ export function ReferenceCanvas({
   }, [delayedLoadingById, pendingCardIds]);
 
   React.useEffect(() => {
+    if (loadingDelayTimeoutRef.current != null && typeof window !== "undefined") {
+      window.clearTimeout(loadingDelayTimeoutRef.current);
+      loadingDelayTimeoutRef.current = null;
+    }
     if (!REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT || typeof window === "undefined") {
       loadingPendingSinceByIdRef.current = {};
       runNonUrgentUpdate(() => {
@@ -1226,51 +1361,81 @@ export function ReferenceCanvas({
       });
       return;
     }
-    const recompute = () => {
-      const pendingSet = new Set(pendingCardIds);
-      const now = performance.now();
-      pendingSet.forEach((id) => {
-        if (loadingPendingSinceByIdRef.current[id] == null) {
-          loadingPendingSinceByIdRef.current[id] = now;
+    const pendingSet = new Set(pendingCardIds);
+    const now = performance.now();
+    pendingSet.forEach((id) => {
+      if (loadingPendingSinceByIdRef.current[id] == null) {
+        loadingPendingSinceByIdRef.current[id] = now;
+      }
+    });
+    Object.keys(loadingPendingSinceByIdRef.current).forEach((id) => {
+      if (!pendingSet.has(id)) {
+        delete loadingPendingSinceByIdRef.current[id];
+      }
+    });
+
+    const nextDelayedLoadingById: Record<string, true> = {};
+    let nextDelayMs: number | null = null;
+    pendingSet.forEach((id) => {
+      const pendingSince = loadingPendingSinceByIdRef.current[id] ?? now;
+      const elapsedMs = now - pendingSince;
+      if (elapsedMs >= REFERENCE_SPINNER_MAX_VISIBLE_MS) {
+        nextDelayedLoadingById[id] = true;
+        return;
+      }
+      const remainingMs = REFERENCE_SPINNER_MAX_VISIBLE_MS - elapsedMs;
+      nextDelayMs = nextDelayMs == null ? remainingMs : Math.min(nextDelayMs, remainingMs);
+    });
+
+    runNonUrgentUpdate(() => {
+      setDelayedLoadingById((prev) => {
+        const previousKeys = Object.keys(prev);
+        const nextKeys = Object.keys(nextDelayedLoadingById);
+        if (
+          previousKeys.length === nextKeys.length &&
+          nextKeys.every((id) => prev[id] === nextDelayedLoadingById[id])
+        ) {
+          return prev;
         }
+        return nextDelayedLoadingById;
       });
-      Object.keys(loadingPendingSinceByIdRef.current).forEach((id) => {
-        if (!pendingSet.has(id)) {
-          delete loadingPendingSinceByIdRef.current[id];
-        }
-      });
-      runNonUrgentUpdate(() => {
-        setDelayedLoadingById((prev) => {
-          const next: Record<string, true> = {};
-          Object.keys(prev).forEach((id) => {
-            if (pendingSet.has(id)) {
-              next[id] = true;
-            }
-          });
-          pendingSet.forEach((id) => {
-            const pendingSince = loadingPendingSinceByIdRef.current[id] ?? now;
-            if (now - pendingSince >= REFERENCE_SPINNER_MAX_VISIBLE_MS) {
-              next[id] = true;
-            }
-          });
-          const previousKeys = Object.keys(prev);
-          const nextKeys = Object.keys(next);
-          if (
-            previousKeys.length === nextKeys.length &&
-            nextKeys.every((id) => prev[id] === next[id])
-          ) {
-            return prev;
-          }
-          return next;
-        });
-      });
-    };
-    recompute();
-    const intervalId = window.setInterval(recompute, 220);
+    });
+
+    if (nextDelayMs != null) {
+      loadingDelayTimeoutRef.current = window.setTimeout(
+        () => {
+          loadingDelayTimeoutRef.current = null;
+          setLoadingDelayTick((value) => value + 1);
+        },
+        Math.max(16, Math.ceil(nextDelayMs))
+      );
+    }
+
     return () => {
-      window.clearInterval(intervalId);
+      if (loadingDelayTimeoutRef.current != null) {
+        window.clearTimeout(loadingDelayTimeoutRef.current);
+        loadingDelayTimeoutRef.current = null;
+      }
     };
-  }, [pendingCardIds, runNonUrgentUpdate]);
+  }, [loadingDelayTick, pendingCardIds, runNonUrgentUpdate]);
+  const transformedAdaptivePreviewCount = React.useMemo(() => {
+    let count = 0;
+    visibleCardItems.forEach((card) => {
+      const url = card.cardPreviewUrl;
+      if (!url) return;
+      if (hasAdaptiveQueryParams(url) || isNextOptimizerUrl(url)) {
+        count += 1;
+        return;
+      }
+      const hydratedEntry = imageHydrationState.hydratedById[card.item.id];
+      if (!hydratedEntry) return;
+      if (hydratedEntry.sourceUrl !== url) return;
+      if (hydratedEntry.renderUrl === hydratedEntry.sourceUrl) return;
+      if (!hydratedEntry.renderUrl.startsWith("blob:")) return;
+      count += 1;
+    });
+    return count;
+  }, [imageHydrationState.hydratedById, visibleCardItems]);
 
   React.useEffect(() => {
     if (!REFERENCE_GRID_FLAG_DECODE_BUDGET) return;
@@ -1281,11 +1446,23 @@ export function ReferenceCanvas({
         const resolved = resolveReferenceCardUrls(activeOutput, {
           strictPreviewLadder:
             REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+          adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
+          pressureLevel: perfWatchdog.degradeLevel,
         });
-        const activeUrl = resolved.fullUrl ?? resolved.previewUrl;
+        const activeUrl = resolved.previewUrl ?? resolved.fullUrl;
         if (activeUrl && !isVideoUrl(activeUrl)) {
           candidateIdSet.add(activeOutputId);
-          enqueueImageHydration(activeOutputId, activeUrl, { priority: "high" });
+          enqueueImageHydration(activeOutputId, activeUrl, {
+            priority: "high",
+            targetLongEdgePx: resolved.targetLongEdgePx,
+            previewQualityBand: resolved.previewQualityBand,
+            fallbackUrl:
+              resolved.fullUrl ??
+              activeOutput.fullStoragePath ??
+              activeOutput.previewStoragePath ??
+              activeOutput.previewUrl ??
+              undefined,
+          });
         }
       }
     }
@@ -1294,6 +1471,13 @@ export function ReferenceCanvas({
       candidateIdSet.add(card.item.id);
       enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
         priority: card.isPriorityHydration ? "high" : "normal",
+        targetLongEdgePx: card.targetLongEdgePx,
+        previewQualityBand: card.previewQualityBand,
+        fallbackUrl:
+          card.item.fullStoragePath ??
+          card.item.previewStoragePath ??
+          card.item.previewUrl ??
+          undefined,
       });
     });
     nearViewportOutputs.forEach((item) => {
@@ -1301,11 +1485,23 @@ export function ReferenceCanvas({
       const resolved = resolveReferenceCardUrls(item, {
         strictPreviewLadder:
           REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+        adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
+        pressureLevel: perfWatchdog.degradeLevel,
       });
       const previewUrl = resolved.previewUrl ?? resolved.fullUrl;
       if (!previewUrl || isVideoUrl(previewUrl)) return;
       candidateIdSet.add(item.id);
-      enqueueImageHydration(item.id, previewUrl, { priority: "low" });
+      enqueueImageHydration(item.id, previewUrl, {
+        priority: "low",
+        targetLongEdgePx: resolved.targetLongEdgePx,
+        previewQualityBand: resolved.previewQualityBand,
+        fallbackUrl:
+          resolved.fullUrl ??
+          item.fullStoragePath ??
+          item.previewStoragePath ??
+          item.previewUrl ??
+          undefined,
+      });
     });
     hydrationQueueRef.current = hydrationQueueRef.current.filter((id) => candidateIdSet.has(id));
     hydrationQueuedIdSetRef.current = new Set(hydrationQueueRef.current);
@@ -1316,6 +1512,7 @@ export function ReferenceCanvas({
     enqueueImageHydration,
     nearViewportOutputs,
     outputs,
+    perfWatchdog.degradeLevel,
     processHydrationQueue,
     syncImageHydrationState,
     visibleCardItems,
@@ -1324,6 +1521,22 @@ export function ReferenceCanvas({
   React.useEffect(() => {
     if (!REFERENCE_GRID_FLAG_DECODE_BUDGET) return;
     const validOutputIds = new Set(outputs.map((output) => output.id));
+    Object.keys(hydrationGeneratedObjectUrlByIdRef.current).forEach((id) => {
+      if (validOutputIds.has(id)) return;
+      revokeGeneratedHydrationUrl(id);
+    });
+    Object.keys(hydrationPreviewMetaByIdRef.current).forEach((id) => {
+      if (validOutputIds.has(id)) return;
+      delete hydrationPreviewMetaByIdRef.current[id];
+    });
+    Object.keys(hydrationUrlByIdRef.current).forEach((id) => {
+      if (validOutputIds.has(id)) return;
+      delete hydrationUrlByIdRef.current[id];
+    });
+    Object.keys(hydrationFallbackUrlByIdRef.current).forEach((id) => {
+      if (validOutputIds.has(id)) return;
+      delete hydrationFallbackUrlByIdRef.current[id];
+    });
     runNonUrgentUpdate(() => {
       setImageHydrationState((prev) => {
         const nextHydratedById = Object.fromEntries(
@@ -1338,7 +1551,7 @@ export function ReferenceCanvas({
         };
       });
     });
-  }, [outputs, runNonUrgentUpdate]);
+  }, [outputs, revokeGeneratedHydrationUrl, runNonUrgentUpdate]);
 
   const registerVideoNode = useCallback(
     (id: string, node: HTMLVideoElement | null) => {
@@ -1544,11 +1757,19 @@ export function ReferenceCanvas({
         window.cancelAnimationFrame(hydrationRafFlushRef.current);
         hydrationRafFlushRef.current = null;
       }
+      if (loadingDelayTimeoutRef.current != null) {
+        window.clearTimeout(loadingDelayTimeoutRef.current);
+        loadingDelayTimeoutRef.current = null;
+      }
+      Object.keys(hydrationGeneratedObjectUrlByIdRef.current).forEach((id) => {
+        revokeGeneratedHydrationUrl(id);
+      });
     },
-    []
+    [revokeGeneratedHydrationUrl]
   );
 
   React.useEffect(() => {
+    if (!REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY) return;
     if (typeof performance === "undefined") return;
     const now = performance.now();
     const durationMs =
@@ -1941,6 +2162,8 @@ export function ReferenceCanvas({
       data-grid-video-attach-budget={mediaWorkBudget.videoAttachBudget}
       data-grid-watchdog-longtask-p95={perfWatchdog.longTaskP95Ms ?? ""}
       data-grid-watchdog-input-stall-ms={perfWatchdog.maxInputStallMs}
+      data-grid-adaptive-preview-enabled={REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY}
+      data-grid-adaptive-preview-transformed-count={transformedAdaptivePreviewCount}
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}
       onDragEnter={handleCanvasDragEnter}

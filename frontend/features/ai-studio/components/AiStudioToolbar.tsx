@@ -82,7 +82,13 @@ function AiStudioToolbarComponent({
       data-primary-active={activePrimary || undefined}
     >
       <div className="toolbar-logo">
-        <Image src={AI_STUDIO_TOOLBAR_LOGO_SRC} alt="AI Studio logo" width={150} height={150} />
+        <Image
+          src={AI_STUDIO_TOOLBAR_LOGO_SRC}
+          alt="AI Studio logo"
+          width={150}
+          height={150}
+          priority
+        />
       </div>
       <DashboardNavPrefab className="toolbar-back-link" />
       <div className="toolbar-divider" aria-hidden="true" />

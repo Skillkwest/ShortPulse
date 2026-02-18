@@ -45,8 +45,121 @@ describe("referenceGridMedia", () => {
     );
 
     expect(level0.previewQualityBand).toBe("high");
-    expect(level0.targetLongEdgePx).toBe(600);
+    expect(level0.targetLongEdgePx).toBe(640);
     expect(level2.previewQualityBand).toBe("compact");
-    expect(level2.targetLongEdgePx).toBe(640);
+    expect(level2.targetLongEdgePx).toBe(384);
+  });
+
+  it("uses next image optimizer for supabase object URLs", () => {
+    const resolved = resolveReferenceCardUrls(
+      {
+        previewStoragePath:
+          "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123",
+        fullStoragePath:
+          "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123",
+        previewUrl: undefined,
+        resultUrls: [],
+      },
+      {
+        adaptivePreviewQuality: true,
+        pressureLevel: 2,
+        cardLongEdgePx: 300,
+        devicePixelRatio: 2,
+      }
+    );
+
+    expect(resolved.previewUrl?.startsWith("/_next/image?url=")).toBe(true);
+    expect(resolved.previewUrl).toContain(
+      `url=${encodeURIComponent(
+        "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123"
+      )}`
+    );
+    expect(resolved.previewUrl).toContain("w=384");
+    expect(resolved.previewUrl).toContain("q=20");
+    expect(resolved.fullUrl).not.toContain("width=");
+  });
+
+  it("applies direct supabase render image transforms when already on render endpoint", () => {
+    const sourceUrl =
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/render/image/sign/media_library/u/a/ref.png?token=abc123";
+    const resolved = resolveReferenceCardUrls(
+      {
+        previewStoragePath: sourceUrl,
+        fullStoragePath: sourceUrl,
+        previewUrl: undefined,
+        resultUrls: [],
+      },
+      {
+        adaptivePreviewQuality: true,
+        pressureLevel: 2,
+        cardLongEdgePx: 300,
+        devicePixelRatio: 2,
+      }
+    );
+
+    expect(resolved.previewUrl).toContain("/storage/v1/render/image/");
+    expect(resolved.previewUrl).toContain("width=384");
+    expect(resolved.previewUrl).toContain("quality=20");
+  });
+
+  it("falls back to next image optimizer for non-supabase remote images", () => {
+    const sourceUrl = "https://cdn.example.com/ref.jpg?token=abc";
+    const resolved = resolveReferenceCardUrls(
+      {
+        previewStoragePath: sourceUrl,
+        fullStoragePath: sourceUrl,
+        previewUrl: undefined,
+        resultUrls: [],
+      },
+      {
+        adaptivePreviewQuality: true,
+        pressureLevel: 2,
+      }
+    );
+
+    expect(resolved.previewUrl?.startsWith("/_next/image?url=")).toBe(true);
+    expect(resolved.previewUrl).toContain(`url=${encodeURIComponent(sourceUrl)}`);
+    expect(resolved.previewUrl).toContain("w=384");
+    expect(resolved.previewUrl).toContain("q=20");
+    expect(resolved.fullUrl).toBe(sourceUrl);
+  });
+
+  it("falls back to next image optimizer for relative image URLs", () => {
+    const sourceUrl = "/api/media/preview/ref-123?token=abc";
+    const resolved = resolveReferenceCardUrls(
+      {
+        previewStoragePath: sourceUrl,
+        fullStoragePath: sourceUrl,
+        previewUrl: undefined,
+        resultUrls: [],
+      },
+      {
+        adaptivePreviewQuality: true,
+        pressureLevel: 1,
+      }
+    );
+
+    expect(resolved.previewUrl?.startsWith("/_next/image?url=")).toBe(true);
+    expect(resolved.previewUrl).toContain(`url=${encodeURIComponent(sourceUrl)}`);
+    expect(resolved.previewUrl).toContain("w=512");
+    expect(resolved.previewUrl).toContain("q=26");
+  });
+
+  it("does not transform relative video URLs", () => {
+    const sourceUrl = "/api/media/video/ref-123.mp4?token=abc";
+    const resolved = resolveReferenceCardUrls(
+      {
+        previewStoragePath: sourceUrl,
+        fullStoragePath: sourceUrl,
+        previewUrl: undefined,
+        resultUrls: [],
+      },
+      {
+        adaptivePreviewQuality: true,
+        pressureLevel: 2,
+      }
+    );
+
+    expect(resolved.previewUrl).toBe(sourceUrl);
   });
 });

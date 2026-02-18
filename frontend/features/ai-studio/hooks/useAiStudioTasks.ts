@@ -132,9 +132,9 @@ const terminalFailureStates = new Set(["fail", "failed", "error", "cancelled", "
 const BACKGROUND_RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
 const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
 const REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE !== "false";
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE === "true";
 const AI_STUDIO_FLAG_RAF_STATUS_FLUSH =
-  process.env.NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH !== "false";
+  process.env.NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH === "true";
 const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
 
 type QueuedOutputUpdate = {

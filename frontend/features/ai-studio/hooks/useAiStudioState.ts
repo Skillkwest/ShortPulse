@@ -5,6 +5,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -60,6 +61,7 @@ const isBlobObjectUrl = (value?: string | null) =>
 const stripVideoMarkerFromBlobUrl = (value: string): string => value.replace(/#video=1$/, "");
 
 const toIsoNow = () => new Date().toISOString();
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 type OutputCollectionState = {
   order: string[];
@@ -139,32 +141,24 @@ export const useAiStudioState = ({
     },
     []
   );
-  const setOutputsState = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>(
-    (nextValue) => {
-      setActiveOutputState((prevState) => {
-        const prevRows = denormalizeOutputCollection(prevState);
-        const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
-        const nextState = normalizeOutputCollection(resolved);
-        activeOutputStateRef.current = nextState;
-        syncOutputStoreSnapshot(nextState, archivedOutputStateRef.current);
-        return nextState;
-      });
-    },
-    [syncOutputStoreSnapshot]
-  );
-  const setArchivedOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>(
-    (nextValue) => {
-      setArchivedOutputState((prevState) => {
-        const prevRows = denormalizeOutputCollection(prevState);
-        const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
-        const nextState = normalizeOutputCollection(resolved);
-        archivedOutputStateRef.current = nextState;
-        syncOutputStoreSnapshot(activeOutputStateRef.current, nextState);
-        return nextState;
-      });
-    },
-    [syncOutputStoreSnapshot]
-  );
+  const setOutputsState = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>((nextValue) => {
+    setActiveOutputState((prevState) => {
+      const prevRows = denormalizeOutputCollection(prevState);
+      const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
+      const nextState = normalizeOutputCollection(resolved);
+      activeOutputStateRef.current = nextState;
+      return nextState;
+    });
+  }, []);
+  const setArchivedOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>((nextValue) => {
+    setArchivedOutputState((prevState) => {
+      const prevRows = denormalizeOutputCollection(prevState);
+      const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
+      const nextState = normalizeOutputCollection(resolved);
+      archivedOutputStateRef.current = nextState;
+      return nextState;
+    });
+  }, []);
   const activeOutputById = useMemo(() => activeOutputState.byId, [activeOutputState.byId]);
   const activeOutput = useMemo(
     () => (activeOutputId ? (activeOutputById[activeOutputId] ?? null) : null),
@@ -583,9 +577,12 @@ export const useAiStudioState = ({
     activeOutputByIdRef.current = activeOutputById;
   }, [activeOutputById]);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     activeOutputStateRef.current = activeOutputState;
     archivedOutputStateRef.current = archivedOutputState;
+    // Keep external selector store in sync after React commits local state.
+    // Avoid notifying subscribers from state updaters (render phase), which causes
+    // "Cannot update a component while rendering a different component" warnings.
     syncOutputStoreSnapshot(activeOutputState, archivedOutputState);
   }, [activeOutputState, archivedOutputState, syncOutputStoreSnapshot]);
 

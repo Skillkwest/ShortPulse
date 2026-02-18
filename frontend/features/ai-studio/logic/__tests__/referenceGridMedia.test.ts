@@ -47,7 +47,7 @@ describe("referenceGridMedia", () => {
     expect(level0.previewQualityBand).toBe("high");
     expect(level0.targetLongEdgePx).toBe(640);
     expect(level2.previewQualityBand).toBe("compact");
-    expect(level2.targetLongEdgePx).toBe(384);
+    expect(level2.targetLongEdgePx).toBe(448);
   });
 
   it("uses next image optimizer for supabase object URLs", () => {
@@ -74,8 +74,8 @@ describe("referenceGridMedia", () => {
         "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/u/a/ref.png?token=abc123"
       )}`
     );
-    expect(resolved.previewUrl).toContain("w=384");
-    expect(resolved.previewUrl).toContain("q=20");
+    expect(resolved.previewUrl).toContain("w=448");
+    expect(resolved.previewUrl).toContain("q=24");
     expect(resolved.fullUrl).not.toContain("width=");
   });
 
@@ -98,8 +98,8 @@ describe("referenceGridMedia", () => {
     );
 
     expect(resolved.previewUrl).toContain("/storage/v1/render/image/");
-    expect(resolved.previewUrl).toContain("width=384");
-    expect(resolved.previewUrl).toContain("quality=20");
+    expect(resolved.previewUrl).toContain("width=448");
+    expect(resolved.previewUrl).toContain("quality=24");
   });
 
   it("falls back to next image optimizer for non-supabase remote images", () => {
@@ -119,8 +119,8 @@ describe("referenceGridMedia", () => {
 
     expect(resolved.previewUrl?.startsWith("/_next/image?url=")).toBe(true);
     expect(resolved.previewUrl).toContain(`url=${encodeURIComponent(sourceUrl)}`);
-    expect(resolved.previewUrl).toContain("w=384");
-    expect(resolved.previewUrl).toContain("q=20");
+    expect(resolved.previewUrl).toContain("w=448");
+    expect(resolved.previewUrl).toContain("q=24");
     expect(resolved.fullUrl).toBe(sourceUrl);
   });
 

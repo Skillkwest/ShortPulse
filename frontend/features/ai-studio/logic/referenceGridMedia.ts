@@ -48,7 +48,7 @@ const getSupabaseOrigin = (): string | null => {
 };
 
 const resolvePreviewQualityParam = (qualityBand: ReferenceGridPreviewQualityBand): number => {
-  if (qualityBand === "compact") return 20;
+  if (qualityBand === "compact") return 24;
   if (qualityBand === "balanced") return 26;
   return 34;
 };
@@ -156,7 +156,7 @@ const resolvePreviewQualityTarget = ({
 }) => {
   const qualityBand: ReferenceGridPreviewQualityBand =
     pressureLevel >= 2 ? "compact" : pressureLevel >= 1 ? "balanced" : "high";
-  const targetLongEdgePx = qualityBand === "compact" ? 384 : qualityBand === "balanced" ? 512 : 640;
+  const targetLongEdgePx = qualityBand === "compact" ? 448 : qualityBand === "balanced" ? 512 : 640;
   return {
     qualityBand,
     targetLongEdgePx,

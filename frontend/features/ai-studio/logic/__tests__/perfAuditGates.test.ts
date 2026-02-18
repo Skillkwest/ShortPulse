@@ -110,6 +110,9 @@ describe("perfAuditGates", () => {
           imageHydrationQueueP95: null,
           imageDecodeInflightP95: null,
           perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
         },
       },
       {
@@ -123,6 +126,9 @@ describe("perfAuditGates", () => {
           imageHydrationQueueP95: null,
           imageDecodeInflightP95: null,
           perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
         },
       },
     ];

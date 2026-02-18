@@ -773,6 +773,25 @@ export function ReferenceCanvas({
   const loadingPendingSinceByIdRef = React.useRef<Record<string, number>>({});
   const loadingDelayTimeoutRef = React.useRef<number | null>(null);
   const [loadingDelayTick, setLoadingDelayTick] = useState(0);
+  const previousVisiblePreviewUrlByIdRef = React.useRef<Record<string, string | null>>({});
+  const previewSwapTelemetryRef = React.useRef<{
+    windowStartedAtMs: number;
+    totalSwapCount: number;
+    repaintSpikeCount: number;
+  }>({
+    windowStartedAtMs: 0,
+    totalSwapCount: 0,
+    repaintSpikeCount: 0,
+  });
+  const [previewSwapMetrics, setPreviewSwapMetrics] = useState<{
+    swapRatePerMinute: number;
+    repaintSpikeCount: number;
+    lastSwapBurstCount: number;
+  }>({
+    swapRatePerMinute: 0,
+    repaintSpikeCount: 0,
+    lastSwapBurstCount: 0,
+  });
   const [imageHydrationState, setImageHydrationState] = useState<{
     hydratedById: Record<
       string,
@@ -1391,6 +1410,75 @@ export function ReferenceCanvas({
       visibleOutputs,
     ]
   );
+  React.useEffect(() => {
+    if (typeof performance === "undefined") return;
+    const nextVisibleUrlById: Record<string, string | null> = {};
+    const previousVisibleUrlById = previousVisiblePreviewUrlByIdRef.current;
+    let swappedCount = 0;
+    visibleCardItems.forEach((card) => {
+      const nextUrl = card.cardPreviewUrl ?? null;
+      nextVisibleUrlById[card.item.id] = nextUrl;
+      const previousUrl = previousVisibleUrlById[card.item.id];
+      if (typeof previousUrl !== "string") return;
+      if (previousUrl === nextUrl) return;
+      swappedCount += 1;
+    });
+    previousVisiblePreviewUrlByIdRef.current = nextVisibleUrlById;
+    if (swappedCount === 0) return;
+
+    const nowMs = performance.now();
+    if (previewSwapTelemetryRef.current.windowStartedAtMs <= 0) {
+      previewSwapTelemetryRef.current.windowStartedAtMs = nowMs;
+    }
+    previewSwapTelemetryRef.current.totalSwapCount += swappedCount;
+    const repaintSpikeThreshold = Math.max(6, Math.floor(renderedItemCount * 0.75));
+    if (swappedCount >= repaintSpikeThreshold) {
+      previewSwapTelemetryRef.current.repaintSpikeCount += 1;
+    }
+
+    const elapsedMs = Math.max(1, nowMs - previewSwapTelemetryRef.current.windowStartedAtMs);
+    const swapRatePerMinute = Math.round(
+      (previewSwapTelemetryRef.current.totalSwapCount * 60_000) / elapsedMs
+    );
+    const repaintSpikeCount = previewSwapTelemetryRef.current.repaintSpikeCount;
+    setPreviewSwapMetrics((prev) => {
+      if (
+        prev.swapRatePerMinute === swapRatePerMinute &&
+        prev.repaintSpikeCount === repaintSpikeCount &&
+        prev.lastSwapBurstCount === swappedCount
+      ) {
+        return prev;
+      }
+      return {
+        swapRatePerMinute,
+        repaintSpikeCount,
+        lastSwapBurstCount: swappedCount,
+      };
+    });
+  }, [renderedItemCount, visibleCardItems]);
+  React.useEffect(() => {
+    if (outputs.length > 0) return;
+    previousVisiblePreviewUrlByIdRef.current = {};
+    previewSwapTelemetryRef.current = {
+      windowStartedAtMs: 0,
+      totalSwapCount: 0,
+      repaintSpikeCount: 0,
+    };
+    setPreviewSwapMetrics((prev) => {
+      if (
+        prev.swapRatePerMinute === 0 &&
+        prev.repaintSpikeCount === 0 &&
+        prev.lastSwapBurstCount === 0
+      ) {
+        return prev;
+      }
+      return {
+        swapRatePerMinute: 0,
+        repaintSpikeCount: 0,
+        lastSwapBurstCount: 0,
+      };
+    });
+  }, [outputs.length]);
   const pendingCardIds = React.useMemo(() => {
     const nextIds: string[] = [];
     visibleCardItems.forEach((card) => {
@@ -1865,6 +1953,9 @@ export function ReferenceCanvas({
       image_hydration_queue: imageHydrationState.queueSize,
       image_decode_inflight: imageHydrationState.decodeInflight,
       perf_degrade_level: perfWatchdog.degradeLevel,
+      preview_src_swap_rate_per_minute: previewSwapMetrics.swapRatePerMinute,
+      preview_repaint_spike_count: previewSwapMetrics.repaintSpikeCount,
+      preview_last_swap_burst_count: previewSwapMetrics.lastSwapBurstCount,
       duration_ms: durationMs,
     });
   }, [
@@ -1874,6 +1965,9 @@ export function ReferenceCanvas({
     isHighDensity,
     outputs.length,
     perfWatchdog.degradeLevel,
+    previewSwapMetrics.lastSwapBurstCount,
+    previewSwapMetrics.repaintSpikeCount,
+    previewSwapMetrics.swapRatePerMinute,
     renderedItemCount,
     shouldVirtualize,
     startIndex,
@@ -2243,6 +2337,9 @@ export function ReferenceCanvas({
       data-grid-watchdog-input-stall-ms={perfWatchdog.maxInputStallMs}
       data-grid-adaptive-preview-enabled={REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY}
       data-grid-adaptive-preview-transformed-count={transformedAdaptivePreviewCount}
+      data-grid-src-swap-rate-per-minute={previewSwapMetrics.swapRatePerMinute}
+      data-grid-repaint-spike-count={previewSwapMetrics.repaintSpikeCount}
+      data-grid-last-swap-burst-count={previewSwapMetrics.lastSwapBurstCount}
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}
       onDragEnter={handleCanvasDragEnter}

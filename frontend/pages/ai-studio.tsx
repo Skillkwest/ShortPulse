@@ -94,6 +94,9 @@ type AiStudioPerfWindow = Window & {
           imageHydrationQueueP95: number | null;
           imageDecodeInflightP95: number | null;
           perfDegradeLevelP95: number | null;
+          previewSrcSwapRatePerMinuteP95: number | null;
+          previewRepaintSpikeCountMax: number | null;
+          previewLastSwapBurstCountP95: number | null;
         };
       }>;
       gates: Array<{
@@ -103,6 +106,33 @@ type AiStudioPerfWindow = Window & {
         expected: string;
         note?: string;
       }>;
+    }>;
+    capturePerfBaseline: () => Promise<{
+      generatedAt: string;
+      referenceGrid: {
+        ok: boolean;
+        generatedAt: string;
+        scenarios: ReferenceGridScenario[];
+        gates: Array<{
+          name: string;
+          pass: boolean;
+          actual: number | null;
+          expected: string;
+          note?: string;
+        }>;
+      };
+      studioShell: {
+        ok: boolean;
+        generatedAt: string;
+        scenarios: StudioShellScenario[];
+        gates: Array<{
+          name: string;
+          pass: boolean;
+          actual: number | null;
+          expected: string;
+          note?: string;
+        }>;
+      };
     }>;
     runStudioShellAudit: (options?: {
       counts?: number[];
@@ -372,6 +402,7 @@ export default function AiStudioPage() {
       100: 12_000,
       300: 20_000,
     };
+    const BASELINE_COUNTS = [40, 60, 100];
     const PERF_GATES = {
       clickP95MsAt40: 90,
       longTaskP95MsAt40: 70,
@@ -698,6 +729,9 @@ export default function AiStudioPage() {
       const hydrationQueueSamples: number[] = [];
       const decodeInflightSamples: number[] = [];
       const perfDegradeSamples: number[] = [];
+      const previewSrcSwapRateSamples: number[] = [];
+      const previewRepaintSpikeSamples: number[] = [];
+      const previewSwapBurstSamples: number[] = [];
       const sampleGridRuntimeMetrics = () => {
         const panel = document.querySelector<HTMLElement>(
           ".reference-canvas-panel[data-grid-surface='reference-grid']"
@@ -707,10 +741,18 @@ export default function AiStudioPage() {
         const hydrationQueue = Number(panel.dataset.imageHydrationQueueSize ?? NaN);
         const decodeInflight = Number(panel.dataset.imageDecodeInflightCount ?? NaN);
         const perfDegradeLevel = Number(panel.dataset.gridPerfDegradeLevel ?? NaN);
+        const previewSrcSwapRate = Number(panel.dataset.gridSrcSwapRatePerMinute ?? NaN);
+        const previewRepaintSpikeCount = Number(panel.dataset.gridRepaintSpikeCount ?? NaN);
+        const previewSwapBurstCount = Number(panel.dataset.gridLastSwapBurstCount ?? NaN);
         if (Number.isFinite(renderedCount)) renderedItemSamples.push(renderedCount);
         if (Number.isFinite(hydrationQueue)) hydrationQueueSamples.push(hydrationQueue);
         if (Number.isFinite(decodeInflight)) decodeInflightSamples.push(decodeInflight);
         if (Number.isFinite(perfDegradeLevel)) perfDegradeSamples.push(perfDegradeLevel);
+        if (Number.isFinite(previewSrcSwapRate)) previewSrcSwapRateSamples.push(previewSrcSwapRate);
+        if (Number.isFinite(previewRepaintSpikeCount))
+          previewRepaintSpikeSamples.push(previewRepaintSpikeCount);
+        if (Number.isFinite(previewSwapBurstCount))
+          previewSwapBurstSamples.push(previewSwapBurstCount);
       };
       const scroller = document.querySelector(".reference-canvas-scroll");
       for (let index = 0; index < clickSamples; index += 1) {
@@ -795,6 +837,11 @@ export default function AiStudioPage() {
           imageHydrationQueueP95: p95(hydrationQueueSamples),
           imageDecodeInflightP95: p95(decodeInflightSamples),
           perfDegradeLevelP95: p95(perfDegradeSamples),
+          previewSrcSwapRatePerMinuteP95: p95(previewSrcSwapRateSamples),
+          previewRepaintSpikeCountMax: previewRepaintSpikeSamples.length
+            ? Math.max(...previewRepaintSpikeSamples)
+            : null,
+          previewLastSwapBurstCountP95: p95(previewSwapBurstSamples),
         },
       };
     };
@@ -856,6 +903,21 @@ export default function AiStudioPage() {
         console.table(gates);
         console.log("[shortpulse][reference-grid-audit]", result);
         return result;
+      },
+      capturePerfBaseline: async () => {
+        const referenceGrid = await perfWindow.__shortpulseAiStudioPerf!.runReferenceGridAudit({
+          counts: BASELINE_COUNTS,
+        });
+        const studioShell = await perfWindow.__shortpulseAiStudioPerf!.runStudioShellAudit({
+          counts: BASELINE_COUNTS,
+        });
+        const baseline = {
+          generatedAt: new Date().toISOString(),
+          referenceGrid,
+          studioShell,
+        };
+        console.log("[shortpulse][perf-baseline]", baseline);
+        return baseline;
       },
       runStudioShellAudit: async (options) => {
         const counts =

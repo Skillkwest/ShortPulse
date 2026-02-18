@@ -17,6 +17,9 @@ export type ReferenceGridScenario = {
     imageHydrationQueueP95: number | null;
     imageDecodeInflightP95: number | null;
     perfDegradeLevelP95: number | null;
+    previewSrcSwapRatePerMinuteP95: number | null;
+    previewRepaintSpikeCountMax: number | null;
+    previewLastSwapBurstCountP95: number | null;
   };
 };
 

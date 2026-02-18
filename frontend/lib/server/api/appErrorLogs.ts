@@ -220,6 +220,8 @@ const buildFingerprint = (params: {
 const shouldSkipLog = (params: {
   scope: AppErrorScope;
   source: string;
+  severity: AppErrorSeverity;
+  route: string | null;
   statusCode: number | null;
   endpoint: string | null;
   message: string;
@@ -244,10 +246,25 @@ const shouldSkipLog = (params: {
   );
   const isDevelopmentClientEnvironment =
     appEnvironmentValues.includes("development") || clientEnvironmentValues.includes("development");
+  const routeText = (params.route ?? "").toLowerCase();
+  const isAiStudioRoute = routeText.includes("/ai-studio");
+  const isAiStudioClientSource = params.source.startsWith("client.ai_studio.");
+  const isServerFailure = params.statusCode !== null && params.statusCode >= 500;
+  const isActionableLocalClientEvent =
+    isAiStudioClientSource ||
+    isAiStudioRoute ||
+    params.scope === "generation" ||
+    params.severity === "high" ||
+    isServerFailure;
 
   // Local development client telemetry is useful in browser/devtools, but it should not pollute
-  // operator-facing incident queues.
-  if (params.source.startsWith("client.") && isLocalHost && isDevelopmentClientEnvironment) {
+  // operator-facing incident queues. Keep actionable AI Studio/runtime failures visible.
+  if (
+    params.source.startsWith("client.") &&
+    isLocalHost &&
+    isDevelopmentClientEnvironment &&
+    !isActionableLocalClientEvent
+  ) {
     return true;
   }
 
@@ -263,7 +280,8 @@ const shouldSkipLog = (params: {
     params.source.startsWith("client.") &&
     isReferenceNameError &&
     hasReactRefreshFrames &&
-    (isDevelopmentClientEnvironment || process.env.NODE_ENV === "development")
+    (isDevelopmentClientEnvironment || process.env.NODE_ENV === "development") &&
+    !isActionableLocalClientEvent
   ) {
     return true;
   }
@@ -466,7 +484,19 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
   const userEmail = toTrimmedString(input.userEmail, 320);
   const occurredAt = normalizeOccurredAt(input.occurredAt) ?? new Date().toISOString();
 
-  if (shouldSkipLog({ scope, source, statusCode, endpoint, message, stack, metadata })) {
+  if (
+    shouldSkipLog({
+      scope,
+      source,
+      severity,
+      route,
+      statusCode,
+      endpoint,
+      message,
+      stack,
+      metadata,
+    })
+  ) {
     return { ok: true, skipped: true, id: null };
   }
 

@@ -12,6 +12,12 @@ export type ReferenceGridScenario = {
   longTask: { samples: number; p95Ms: number | null };
   interaction: { maxInputStallMs: number };
   memory: { beforeMb: number | null; afterMb: number | null };
+  grid: {
+    renderedItemCountP95: number | null;
+    imageHydrationQueueP95: number | null;
+    imageDecodeInflightP95: number | null;
+    perfDegradeLevelP95: number | null;
+  };
 };
 
 export type StudioShellScenario = {
@@ -44,70 +50,81 @@ export type StudioShellScenario = {
 export const evaluateReferenceGridAuditGates = (
   scenarios: ReferenceGridScenario[],
   thresholds: {
-    clickP95MsAt500: number;
-    longTaskP95MsAt500: number;
-    maxInputStallMsAt500: number;
-    heapGrowthRatio100To500: number;
+    clickP95MsAt40: number;
+    longTaskP95MsAt40: number;
+    maxInputStallMsAt40: number;
+    renderedItemCountP95At40: number;
+    clickP95MsAt60: number;
+    longTaskP95MsAt60: number;
+    maxInputStallMsAt60: number;
+    renderedItemCountP95At60: number;
   }
 ): PerfGate[] => {
   const scenarioByCount = new Map(scenarios.map((scenario) => [scenario.count, scenario]));
-  const s100 = scenarioByCount.get(100) ?? null;
-  const s500 = scenarioByCount.get(500) ?? null;
   const gates: PerfGate[] = [];
+  const scenarioTargets = [
+    {
+      count: 40,
+      clickThreshold: thresholds.clickP95MsAt40,
+      longTaskThreshold: thresholds.longTaskP95MsAt40,
+      inputStallThreshold: thresholds.maxInputStallMsAt40,
+      renderedThreshold: thresholds.renderedItemCountP95At40,
+    },
+    {
+      count: 60,
+      clickThreshold: thresholds.clickP95MsAt60,
+      longTaskThreshold: thresholds.longTaskP95MsAt60,
+      inputStallThreshold: thresholds.maxInputStallMsAt60,
+      renderedThreshold: thresholds.renderedItemCountP95At60,
+    },
+  ] as const;
 
-  if (s500) {
+  scenarioTargets.forEach((target) => {
+    const scenario = scenarioByCount.get(target.count);
+    if (!scenario) {
+      gates.push({
+        name: `scenario_${target.count}_exists`,
+        pass: false,
+        actual: null,
+        expected: `${target.count}-card scenario must run`,
+      });
+      return;
+    }
+
     gates.push({
-      name: "click_p95_ms_at_500",
-      pass: typeof s500.click.p95Ms === "number" && s500.click.p95Ms <= thresholds.clickP95MsAt500,
-      actual: s500.click.p95Ms,
-      expected: `<= ${thresholds.clickP95MsAt500}`,
-    });
-    gates.push({
-      name: "long_task_p95_ms_at_500",
+      name: `grid_click_p95_ms_at_${target.count}`,
       pass:
-        typeof s500.longTask.p95Ms === "number" &&
-        s500.longTask.p95Ms <= thresholds.longTaskP95MsAt500,
-      actual: s500.longTask.p95Ms,
-      expected: `<= ${thresholds.longTaskP95MsAt500}`,
+        typeof scenario.click.p95Ms === "number" && scenario.click.p95Ms <= target.clickThreshold,
+      actual: scenario.click.p95Ms,
+      expected: `<= ${target.clickThreshold}`,
     });
     gates.push({
-      name: "max_input_stall_ms_at_500",
-      pass: s500.interaction.maxInputStallMs <= thresholds.maxInputStallMsAt500,
-      actual: s500.interaction.maxInputStallMs,
-      expected: `<= ${thresholds.maxInputStallMsAt500}`,
+      name: `grid_long_task_p95_ms_at_${target.count}`,
+      pass:
+        typeof scenario.longTask.p95Ms === "number" &&
+        scenario.longTask.p95Ms <= target.longTaskThreshold,
+      actual: scenario.longTask.p95Ms,
+      expected: `<= ${target.longTaskThreshold}`,
     });
-  } else {
     gates.push({
-      name: "scenario_500_exists",
-      pass: false,
-      actual: null,
-      expected: "500-card scenario must run",
+      name: `grid_max_input_stall_ms_at_${target.count}`,
+      pass: scenario.interaction.maxInputStallMs <= target.inputStallThreshold,
+      actual: scenario.interaction.maxInputStallMs,
+      expected: `<= ${target.inputStallThreshold}`,
     });
-  }
-
-  if (
-    s100 &&
-    s500 &&
-    typeof s100.memory.afterMb === "number" &&
-    typeof s500.memory.afterMb === "number" &&
-    s100.memory.afterMb > 0
-  ) {
-    const ratio = Math.round((s500.memory.afterMb / s100.memory.afterMb) * 100) / 100;
     gates.push({
-      name: "heap_growth_ratio_100_to_500",
-      pass: ratio <= thresholds.heapGrowthRatio100To500,
-      actual: ratio,
-      expected: `<= ${thresholds.heapGrowthRatio100To500}`,
+      name: `rendered_item_count_p95_at_${target.count}`,
+      pass:
+        typeof scenario.grid.renderedItemCountP95 === "number" &&
+        scenario.grid.renderedItemCountP95 <= target.renderedThreshold,
+      actual: scenario.grid.renderedItemCountP95,
+      expected: `<= ${target.renderedThreshold}`,
+      note:
+        typeof scenario.grid.renderedItemCountP95 === "number"
+          ? undefined
+          : "Rendered-item metric unavailable from grid surface.",
     });
-  } else {
-    gates.push({
-      name: "heap_growth_ratio_100_to_500",
-      pass: false,
-      actual: null,
-      expected: `<= ${thresholds.heapGrowthRatio100To500}`,
-      note: "JS heap sampling unavailable for this browser/runtime.",
-    });
-  }
+  });
 
   return gates;
 };

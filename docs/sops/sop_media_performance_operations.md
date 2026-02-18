@@ -108,7 +108,13 @@ Key indicators:
   - `NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE`
   - `NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE`
   - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW`
+  - `NEXT_PUBLIC_REFERENCE_GRID_STRICT_PREVIEW_LADDER`
   - `NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE`
+  - `NEXT_PUBLIC_REFERENCE_GRID_DECODE_BUDGET`
+  - `NEXT_PUBLIC_REFERENCE_GRID_DYNAMIC_VIRTUALIZATION`
+  - `NEXT_PUBLIC_REFERENCE_GRID_DENSE_VISUAL_SIMPLIFY`
+  - `NEXT_PUBLIC_REFERENCE_GRID_MEMORY_GUARD`
+  - `NEXT_PUBLIC_REFERENCE_GRID_PERF_WATCHDOG`
 - AI Studio shell performance flags:
   - `NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE`
   - `NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE`
@@ -117,6 +123,7 @@ Key indicators:
   - `NEXT_PUBLIC_AI_STUDIO_OUTPUT_SELECTOR_STORE`
   - `NEXT_PUBLIC_AI_STUDIO_SHELL_BOUNDARY_SPLIT`
   - `NEXT_PUBLIC_AI_STUDIO_SELECTOR_CALLBACKS`
+  - `NEXT_PUBLIC_AI_STUDIO_PAGE_OUTPUT_DECOUPLE`
   - `NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH`
 
 Adjust only after telemetry review; keep desktop/mobile/constrained profiles distinct.
@@ -160,12 +167,16 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
   - `window.__shortpulseAiStudioPerf.clearReferenceGrid()`
   - `window.__shortpulseAiStudioPerf.runReferenceGridAudit(options?)`
   - `window.__shortpulseAiStudioPerf.runStudioShellAudit(options?)`
-- Scenarios: 100 / 300 / 500 seeded reference cards.
+- Scenarios: 20 / 50 / 60 / 100 / 300 seeded reference cards.
 - Gates:
-  - click p95 at 500 cards: `<= 120ms`
-  - long-task p95 at 500 cards: `<= 120ms`
-  - max input stall at 500 cards during 60s scroll probe: `<= 1000ms`
-  - heap growth ratio (500 vs 100 cards): `<= 3x`
+  - grid click p95 at 60 cards: `<= 120ms`
+  - grid long-task p95 at 60 cards: `<= 100ms`
+  - grid max input stall at 60 cards: `<= 800ms`
+  - rendered item count p95 at 60 cards: `<= 28`
+  - audit output includes:
+    - `rendered_item_count_p95_at_count`
+    - `image_hydration_queue_p95_at_count`
+    - `image_decode_inflight_p95_at_count`
 
 ## Studio Shell Perf Harness
 - Browser command (DevTools Console on `/ai-studio`):
@@ -183,6 +194,8 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
 - `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`
 - `docs/adr/0014-ai-studio-shell-decoupling-and-event-backpressure.md`
 - `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`
+- `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`
+- `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
 - `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`
 - `docs/planning/media-optimization-phase0-measurement-spec.md`

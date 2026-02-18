@@ -91,6 +91,83 @@
   box-shadow: 0 10px 14px 6px var(--reference-selection-active-glow);
 }
 
+.reference-canvas-panel.is-dense-visual-mode .reference-card {
+  transition: none;
+}
+
+.reference-canvas-panel.is-dense-visual-mode .reference-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.reference-canvas-panel.is-dense-visual-mode .reference-card.is-active {
+  transform: none;
+  box-shadow: 0 0 0 2px var(--reference-selection-active-outline);
+}
+
+.reference-canvas-panel.is-dense-visual-mode .reference-card.is-active::after {
+  display: none;
+}
+
+.reference-canvas-panel.is-dense-visual-mode .reference-card-action-btn {
+  box-shadow: none;
+}
+
+.reference-canvas-panel.is-dense-visual-mode .reference-card-action-btn:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.reference-canvas-panel.is-dense-visual-mode .reference-spinner {
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+  box-shadow: none;
+}
+
+.reference-canvas-panel.is-css-containment-mode .reference-card {
+  content-visibility: auto;
+  contain: layout paint size style;
+  contain-intrinsic-size: 240px 300px;
+}
+
+.reference-canvas-panel.is-css-containment-mode .reference-virtual-spacer {
+  contain: layout size style;
+  contain-intrinsic-size: 1px 300px;
+}
+
+.reference-canvas-panel.is-grid-pressure-mode .reference-card,
+.reference-canvas-panel.is-grid-pressure-mode .reference-card:hover,
+.reference-canvas-panel.is-grid-pressure-mode .reference-card.is-active {
+  transform: none;
+}
+
+.reference-canvas-panel.is-grid-pressure-mode .reference-card:hover,
+.reference-canvas-panel.is-grid-pressure-mode .reference-card.is-active,
+.reference-canvas-panel.is-grid-pressure-mode .reference-card.is-loading {
+  box-shadow: none;
+}
+
+.reference-canvas-panel.is-grid-pressure-mode .reference-card.is-active::after,
+.reference-canvas-panel.is-grid-pressure-mode .reference-card.is-loading.is-active::after {
+  display: none;
+}
+
+.reference-canvas-panel.is-grid-pressure-mode .reference-card.is-dragging {
+  filter: none;
+}
+
+.reference-canvas-panel.is-grid-pressure-mode .reference-spinner {
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+  box-shadow: none;
+}
+
+.reference-canvas-panel.is-grid-pressure-mode .reference-loading-placeholder {
+  animation: none;
+}
+
 .reference-archive-inline {
   display: flex;
   gap: 8px;
@@ -711,6 +788,22 @@
   place-items: center;
   background: linear-gradient(180deg, rgba(12, 15, 22, 0.45), rgba(12, 15, 22, 0.6));
   border-radius: inherit;
+}
+
+.reference-loading.is-static {
+  background: linear-gradient(180deg, rgba(12, 15, 22, 0.52), rgba(12, 15, 22, 0.7));
+}
+
+.reference-loading-placeholder {
+  width: 62%;
+  height: 62%;
+  border-radius: 10px;
+  background: linear-gradient(
+    90deg,
+    rgba(69, 75, 88, 0.35),
+    rgba(122, 130, 148, 0.26),
+    rgba(69, 75, 88, 0.35)
+  );
 }
 
 .reference-spinner {

@@ -259,6 +259,25 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added a temporary `/character-soon` placeholder page and routed the dashboard Character card to it while the full Character workflow remains staged.
 - Updated route documentation in `README.md` and `docs/routes.md` so the temporary Character navigation is explicit.
 
+## 2026-02-18
+- Implemented AI Studio reference-grid stabilization v4 runtime controls:
+  - selector-backed page output decoupling flag path (`NEXT_PUBLIC_AI_STUDIO_PAGE_OUTPUT_DECOUPLE`)
+  - strict preview/full URL ladder resolver with safe legacy fallback
+  - image hydration/decode inflight budgeting and runtime queue metrics
+  - dynamic virtualization windowing with density/pressure-aware overscan and RAF scroll sync
+  - dense visual simplify mode for 40+ references
+  - perf watchdog + memory guard degrade levels with hysteresis and debug data attributes
+- Updated perf harness behavior:
+  - `runReferenceGridAudit` default scenarios now include 20/50/60/100/300
+  - added grid metrics (`rendered_item_count`, hydration queue, decode inflight)
+  - introduced 60-count grid gates and preserved existing shell gates
+  - fixed shell section commit sampling so reference and preview commits are measured independently
+- Extended save/persistence delivery metadata for AI Studio media saves and threaded the new shape through persistence/task orchestration consumers.
+- Added docs for the v4 rollout and architecture decisions:
+  - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
+  - `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`
+  - updated `docs/sops/sop_media_performance_operations.md`
+
 ## 2026-02-13
 - Completed Character Manager terminology migration follow-through: standardized app/UI copy on **Character Sheet** and added regression coverage so `/character` keeps the label stable (`frontend/features/character-manager/components/__tests__/CharacterManagerShell.copy.test.tsx`).
 - Added backward-compatible schema migration `sql/migrations/012_add_character_sheet_aliases_and_compat.sql` plus rollback script to introduce `character_sheet_*` aliases while keeping legacy `reference_pack_*` fields synchronized.

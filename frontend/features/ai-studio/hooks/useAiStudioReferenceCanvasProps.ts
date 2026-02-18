@@ -7,7 +7,7 @@ import type { AiStudioPageContentProps } from "../components/AiStudioPageContent
 import type { StudioOutput, ToolId } from "../types";
 
 type UseAiStudioReferenceCanvasPropsParams = {
-  outputs: StudioOutput[];
+  outputs?: StudioOutput[];
   archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
   onReferenceOutputMediaLoaded: (id: string) => void;

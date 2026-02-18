@@ -109,6 +109,7 @@ Start here for all repository documentation.
 - `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
 - `docs/planning/ai-studio-agent-pipeline-hardening-plan.md`
+- `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
 - `docs/planning/ai-studio-primary-character-panel-build-plan.md`
 - `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`
 - `docs/planning/expert-workflow-hardening-css-reorg-plan.md`
@@ -135,6 +136,7 @@ Start here for all repository documentation.
 - `docs/adr/0013-reference-grid-bounded-work-architecture.md`
 - `docs/adr/0014-ai-studio-shell-decoupling-and-event-backpressure.md`
 - `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`
+- `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`
 
 ## Archive
 - `docs/archive/README.md`

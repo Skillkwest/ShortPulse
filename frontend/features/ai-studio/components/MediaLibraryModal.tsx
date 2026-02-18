@@ -101,6 +101,10 @@ type MediaLibraryModalProps = {
     fileType: "image" | "video";
     filename?: string | null;
     source?: string | null;
+    previewStoragePath?: string | null;
+    fullStoragePath?: string | null;
+    previewUrl?: string | null;
+    fullUrl?: string | null;
   }) => void;
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
 };
@@ -1271,6 +1275,10 @@ export function MediaLibraryModal({
                             fileType: isVideoFile(file.file_type) ? "video" : "image",
                             filename: file.filename,
                             source: file.source ?? "upload",
+                            previewStoragePath: file.preview_storage_path ?? file.storage_path,
+                            fullStoragePath: file.storage_path,
+                            previewUrl: nextUrl,
+                            fullUrl: nextUrl,
                           });
                         }}
                       >

@@ -130,7 +130,24 @@ export type SaveMediaUrlInput = {
   generationId?: string | null;
   promptId?: string | null;
   index: number;
+  previewStoragePathHint?: string | null;
+  fullStoragePathHint?: string | null;
+  previewUrlHint?: string | null;
+  fullUrlHint?: string | null;
   metadata?: Record<string, unknown>;
+};
+
+export type SaveMediaUrlResult = {
+  mediaFileId: string | null;
+  storagePath: string;
+  fileType: "image" | "video";
+  fileSize: number;
+  delivery: {
+    previewStoragePath: string | null;
+    fullStoragePath: string | null;
+    previewUrl: string | null;
+    fullUrl: string | null;
+  };
 };
 
 /**
@@ -281,10 +298,18 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
     throw error;
   }
 
+  const delivery = {
+    previewStoragePath: input.previewStoragePathHint ?? storagePath,
+    fullStoragePath: input.fullStoragePathHint ?? storagePath,
+    previewUrl: input.previewUrlHint ?? null,
+    fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
+  };
+
   return {
     mediaFileId: data?.id ?? null,
     storagePath,
     fileType,
     fileSize: blob.size,
-  };
+    delivery,
+  } satisfies SaveMediaUrlResult;
 };

@@ -16,13 +16,22 @@ import { PromptLibraryButton } from "./PromptLibraryButton";
 import { StudioOutput } from "../types";
 import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
 import type { ToolId } from "../types";
-import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import { logMediaPerf, setMediaPerfSamplingPolicy } from "../../../lib/mediaPerfTelemetry";
+import { useOutputSelector } from "../hooks/aiStudioOutputStore";
+import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
+import {
+  calculateReferenceGridWindow,
+  resolveReferenceGridOverscanRows,
+} from "../logic/referenceGridVirtualization";
+import { useReferenceGridHydrationBudget } from "../hooks/useReferenceGridHydrationBudget";
+import { useReferenceGridPerfWatchdog } from "../hooks/useReferenceGridPerfWatchdog";
+import { useReferenceGridMediaWorkBudget } from "../hooks/useReferenceGridMediaWorkBudget";
 
 const isVideoUrl = (url: string) =>
   /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
-const REFERENCE_VIRTUALIZE_MIN_ITEMS = 24;
+const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
 const FALLBACK_REFERENCE_ROW_HEIGHT = 220;
 const REFERENCE_GRID_MIN_CARD_PX = 160;
 const REFERENCE_GRID_MIN_CARD_PX_WIDE = 160;
@@ -37,8 +46,36 @@ const REFERENCE_AUTOPLAY_SMALL_SCREEN_QUERY = "(max-width: 900px)";
 const REFERENCE_AUTOPLAY_DETACH_DELAY_MS = 1400;
 const REFERENCE_HIGH_DENSITY_CARD_COUNT = 180;
 const REFERENCE_PRIORITY_HYDRATION_ROWS = 3;
+const REFERENCE_MAX_ANIMATED_SPINNERS = 4;
+const REFERENCE_SPINNER_MAX_VISIBLE_MS = 1200;
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW =
   process.env.NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW !== "false";
+const REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_STRICT_PREVIEW_LADDER !== "false";
+const REFERENCE_GRID_FLAG_DECODE_BUDGET =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_DECODE_BUDGET !== "false";
+const REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_DYNAMIC_VIRTUALIZATION !== "false";
+const REFERENCE_GRID_FLAG_DENSE_VISUAL_SIMPLIFY =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_DENSE_VISUAL_SIMPLIFY !== "false";
+const REFERENCE_GRID_FLAG_MEMORY_GUARD =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_MEMORY_GUARD !== "false";
+const REFERENCE_GRID_FLAG_PERF_WATCHDOG =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_PERF_WATCHDOG !== "false";
+const REFERENCE_GRID_FLAG_HARD_VIEWPORT_CAP =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_HARD_VIEWPORT_CAP !== "false";
+const REFERENCE_GRID_FLAG_CSS_CONTAINMENT =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_CSS_CONTAINMENT !== "false";
+const REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_LOADING_PLACEHOLDER_TIMEOUT !== "false";
+const REFERENCE_GRID_FLAG_GLOBAL_MEDIA_BUDGET =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_GLOBAL_MEDIA_BUDGET !== "false";
+const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY !== "false";
+const REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_TELEMETRY_BACKPRESSURE !== "false";
+const REFERENCE_GRID_FLAG_TRANSITION_NONURGENT =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_TRANSITION_NONURGENT !== "false";
 
 type NavigatorWithConnection = Navigator & {
   deviceMemory?: number;
@@ -283,8 +320,14 @@ const getReferencePasteSurfaces = (panelNode: HTMLDivElement): HTMLElement[] => 
 const isNodeInsideAnySurface = (targetNode: Node | null, surfaces: HTMLElement[]): boolean =>
   Boolean(targetNode && surfaces.some((surface) => surface.contains(targetNode)));
 
+const areOutputListsEqual = (left: StudioOutput[], right: StudioOutput[]) => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  return left.every((item, index) => item === right[index]);
+};
+
 export type ReferenceCanvasProps = {
-  outputs: StudioOutput[];
+  outputs?: StudioOutput[];
   archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
   showHeader?: boolean;
@@ -311,12 +354,323 @@ export type ReferenceCanvasProps = {
   generateCostCredits?: number | null;
 };
 
+type ReferenceCanvasCardProps = {
+  item: StudioOutput;
+  activeOutputId: string | null;
+  loadingVisual: "none" | "spinner" | "placeholder";
+  cardPreviewUrl: string | null;
+  isVideoPreview: boolean;
+  isImagePreview: boolean;
+  canAutoplayVideo: boolean;
+  isPromptOnly: boolean;
+  isLinkedPromptReference: boolean;
+  canRetryStatus: boolean;
+  showPromptGenerate: boolean;
+  disablePromptGenerate: boolean;
+  generateCostCredits: number | null | undefined;
+  imageSrc: string | undefined;
+  imageLoading: "eager" | "lazy";
+  imageFetchPriority: "high" | "low";
+  onSelectOutput: (id: string) => void;
+  onOpenDetails: (id: string) => void;
+  onCardDragStart: (event: React.DragEvent<HTMLElement>, item: StudioOutput) => void;
+  onCardDragEnd: (event: React.DragEvent<HTMLElement>) => void;
+  registerVideoNode: (id: string, node: HTMLVideoElement | null) => void;
+  markLoaded: (id: string, options?: { notifyAutoSave?: boolean }) => void;
+  onAutoplayStarted: (id: string) => void;
+  onAutoplayStopped: (id: string) => void;
+  onRetryStatus?: (output: StudioOutput) => void;
+  onDeleteOutput?: (id: string) => void;
+  onSaveToLibrary?: (output: StudioOutput) => void;
+  onDownload?: (output: StudioOutput) => void;
+  onDescribeImage?: (output: StudioOutput) => void;
+  onGeneratePrompt?: (output: StudioOutput) => void;
+};
+
+const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
+  if (!item.saveState || item.saveState === "idle") return null;
+  const label =
+    item.saveState === "saving"
+      ? "Saving..."
+      : item.saveState === "saved"
+        ? "Saved"
+        : "Save failed";
+  if (item.saveState === "saved") {
+    if (!isSelected) return null;
+    return (
+      <div className={`reference-save-chip is-${item.saveState}`} aria-label="Saved">
+        <CheckCircle size={16} weight="fill" aria-hidden />
+      </div>
+    );
+  }
+  return (
+    <div className={`reference-save-chip is-${item.saveState}`}>
+      <span>{label}</span>
+    </div>
+  );
+};
+
+const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
+  item,
+  activeOutputId,
+  loadingVisual,
+  cardPreviewUrl,
+  isVideoPreview,
+  isImagePreview,
+  canAutoplayVideo,
+  isPromptOnly,
+  isLinkedPromptReference,
+  canRetryStatus,
+  showPromptGenerate,
+  disablePromptGenerate,
+  generateCostCredits,
+  imageSrc,
+  imageLoading,
+  imageFetchPriority,
+  onSelectOutput,
+  onOpenDetails,
+  onCardDragStart,
+  onCardDragEnd,
+  registerVideoNode,
+  markLoaded,
+  onAutoplayStarted,
+  onAutoplayStopped,
+  onRetryStatus,
+  onDeleteOutput,
+  onSaveToLibrary,
+  onDownload,
+  onDescribeImage,
+  onGeneratePrompt,
+}: ReferenceCanvasCardProps) {
+  const isFailing = item.taskState === "fail";
+  const isSelected = activeOutputId === item.id;
+  const isLoading = loadingVisual !== "none";
+  const saveDisabled = item.saveState === "saving";
+  const saveLabel = item.saveState === "failed" ? "Retry save" : "Save to media library";
+  const saveIcon =
+    item.saveState === "failed" ? (
+      <ArrowClockwise size={16} weight="bold" aria-hidden />
+    ) : (
+      <FloppyDisk size={16} weight="bold" aria-hidden />
+    );
+
+  return (
+    <div
+      className={`reference-card ${cardPreviewUrl ? "has-preview" : ""} ${isVideoPreview ? "has-video" : ""} ${item.previewText ? "has-text" : ""} ${isSelected ? "is-active" : ""} ${isLoading ? "is-loading" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
+      role="button"
+      aria-busy={isLoading}
+      data-loading={isLoading ? "true" : "false"}
+      tabIndex={0}
+      onClick={() => onSelectOutput(item.id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelectOutput(item.id);
+        }
+      }}
+      onDoubleClick={() => onOpenDetails(item.id)}
+      draggable={!!cardPreviewUrl || !!item.previewText}
+      onDragStart={(event) => {
+        onCardDragStart(event, item);
+      }}
+      onDragEnd={onCardDragEnd}
+    >
+      {isVideoPreview && cardPreviewUrl ? (
+        <video
+          className="reference-card-video"
+          ref={(node) => registerVideoNode(item.id, node)}
+          src={canAutoplayVideo ? cardPreviewUrl : undefined}
+          autoPlay={canAutoplayVideo}
+          muted
+          loop
+          playsInline
+          preload={canAutoplayVideo ? "metadata" : "none"}
+          onLoadedData={() => markLoaded(item.id)}
+          onPlay={() => onAutoplayStarted(item.id)}
+          onPause={() => onAutoplayStopped(item.id)}
+        />
+      ) : null}
+      {isImagePreview && cardPreviewUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageSrc}
+          data-src={cardPreviewUrl}
+          alt=""
+          className="reference-card-image"
+          loading={imageLoading}
+          decoding="async"
+          fetchPriority={imageFetchPriority}
+          onLoad={() => markLoaded(item.id)}
+          onError={() => markLoaded(item.id, { notifyAutoSave: false })}
+        />
+      ) : null}
+      {isFailing ? (
+        <div className="reference-fail-overlay">
+          <div className="fail-icon" aria-hidden="true">
+            !
+          </div>
+          <div className="fail-title">Generation failed</div>
+          {item.errorMessageShort ? (
+            <div className="fail-subtitle">
+              {item.errorMessageShort.replace(/fal(\.ai)?/gi, "the provider")}
+            </div>
+          ) : item.errorMessage ? (
+            <div className="fail-subtitle">
+              {item.errorMessage.replace(/fal(\.ai)?/gi, "the provider")}
+            </div>
+          ) : null}
+          {canRetryStatus && isSelected ? (
+            <button
+              type="button"
+              className="reference-status-retry-btn"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectOutput(item.id);
+                onRetryStatus?.(item);
+              }}
+            >
+              Retry status
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {loadingVisual !== "none" ? (
+        <div className={`reference-loading${loadingVisual === "placeholder" ? " is-static" : ""}`}>
+          {loadingVisual === "spinner" ? (
+            <div className="reference-spinner" />
+          ) : (
+            <div className="reference-loading-placeholder" />
+          )}
+        </div>
+      ) : null}
+      {isLoading && canRetryStatus && isSelected ? (
+        <button
+          type="button"
+          className="reference-status-retry-btn reference-status-retry-btn--loading"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelectOutput(item.id);
+            onRetryStatus?.(item);
+          }}
+        >
+          Retry status
+        </button>
+      ) : null}
+      {isLinkedPromptReference ? (
+        <span className="reference-card-link-dot" aria-hidden="true" />
+      ) : null}
+      {renderSaveChip(item, isSelected)}
+      {isFailing && onDeleteOutput && isSelected ? (
+        <div className="reference-card-actions" aria-label="Reference actions">
+          <button
+            type="button"
+            className="reference-card-action-btn reference-card-action-btn--danger"
+            aria-label="Remove error from grid"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDeleteOutput(item.id);
+            }}
+          >
+            <X size={16} weight="bold" aria-hidden />
+          </button>
+        </div>
+      ) : null}
+      {(onSaveToLibrary && (isImagePreview || isPromptOnly || isVideoPreview)) ||
+      (onDownload && (isImagePreview || isVideoPreview)) ? (
+        <div className="reference-card-actions" aria-label="Reference actions">
+          {onSaveToLibrary ? (
+            <button
+              type="button"
+              className="reference-card-action-btn"
+              aria-label={saveLabel}
+              disabled={saveDisabled}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectOutput(item.id);
+                onSaveToLibrary(item);
+              }}
+            >
+              {saveIcon}
+            </button>
+          ) : null}
+          {onDownload && (isImagePreview || isVideoPreview) ? (
+            <button
+              type="button"
+              className="reference-card-action-btn"
+              aria-label="Download reference"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectOutput(item.id);
+                onDownload(item);
+              }}
+            >
+              <DownloadSimple size={16} weight="bold" aria-hidden />
+            </button>
+          ) : null}
+          {onDeleteOutput ? (
+            <button
+              type="button"
+              className="reference-card-action-btn reference-card-action-btn--danger"
+              aria-label="Remove reference from grid"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDeleteOutput(item.id);
+              }}
+            >
+              <X size={16} weight="bold" aria-hidden />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {item.previewText ? <div className="reference-card-text">{item.previewText}</div> : null}
+      {isImagePreview && onDescribeImage ? (
+        <button
+          type="button"
+          className="reference-describe-pill reference-generate-pill agent-generate-prefab"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelectOutput(item.id);
+            onDescribeImage(item);
+          }}
+        >
+          <span className="agent-generate-label">Describe</span>
+        </button>
+      ) : null}
+      {isPromptOnly && onGeneratePrompt && isSelected && showPromptGenerate ? (
+        <button
+          type="button"
+          className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill"
+          disabled={disablePromptGenerate}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelectOutput(item.id);
+            onGeneratePrompt(item);
+          }}
+          onDoubleClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          <span className="agent-generate-label">Generate</span>
+          <span className="model-chip-pill generate-pill">
+            <span aria-hidden="true" className="model-chip-icon">
+              ✦
+            </span>
+            <span className="model-chip-credits">
+              {generateCostCredits != null ? generateCostCredits : "—"}
+            </span>
+          </span>
+        </button>
+      ) : null}
+    </div>
+  );
+});
+
 /**
  * Displays the reference grid and handles drag/drop + selection behavior.
  */
 export function ReferenceCanvas({
-  outputs,
-  archivedOutputs = [],
+  outputs: outputsProp,
+  archivedOutputs: archivedOutputsProp,
   activeOutputId,
   showHeader = true,
   onOutputMediaLoaded,
@@ -342,11 +696,39 @@ export function ReferenceCanvas({
   generateCostCredits,
 }: ReferenceCanvasProps) {
   type CanvasDropMode = "none" | "text" | "files";
+  const selectorOutputs = useOutputSelector(
+    (snapshot) =>
+      snapshot.outputOrder
+        .map((id) => snapshot.outputById[id])
+        .filter((item): item is StudioOutput => Boolean(item)),
+    areOutputListsEqual
+  );
+  const selectorArchivedOutputs = useOutputSelector(
+    (snapshot) =>
+      snapshot.archivedOutputOrder
+        .map((id) => snapshot.archivedOutputById[id])
+        .filter((item): item is StudioOutput => Boolean(item)),
+    areOutputListsEqual
+  );
+  const outputs = outputsProp ?? selectorOutputs;
+  const archivedOutputs = archivedOutputsProp ?? selectorArchivedOutputs;
+  const perfWatchdog = useReferenceGridPerfWatchdog({
+    enabled: REFERENCE_GRID_FLAG_PERF_WATCHDOG,
+    memoryGuardEnabled: REFERENCE_GRID_FLAG_MEMORY_GUARD,
+  });
+  const hydrationBudget = useReferenceGridHydrationBudget({
+    enabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
+    pressureLevel: perfWatchdog.degradeLevel,
+  });
   const selectionTheme = resolveReferenceSelectionTheme(selectedTool);
   const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
   const loadedIdsRef = React.useRef<Set<string>>(new Set());
   const autoplayingIdsRef = React.useRef<Set<string>>(new Set());
   const lastScrollSampleAtRef = React.useRef(0);
+  const scrollRafIdRef = React.useRef<number | null>(null);
+  const queuedScrollMetricsRef = React.useRef<{ scrollTop: number; viewportHeight: number } | null>(
+    null
+  );
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
   const gridRef = React.useRef<HTMLDivElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
@@ -358,10 +740,30 @@ export function ReferenceCanvas({
   const isPastePrimedRef = React.useRef(false);
   const lastPasteFingerprintRef = React.useRef<{ value: string; at: number } | null>(null);
   const canvasDragDepthRef = React.useRef(0);
-  const autoplayBudgetRef = React.useRef<number>(REFERENCE_AUTOPLAY_MAX_DESKTOP);
+  const [desiredVideoAttachBudget, setDesiredVideoAttachBudget] = useState<number>(
+    REFERENCE_AUTOPLAY_MAX_DESKTOP
+  );
   const [autoplayEnabledIds, setAutoplayEnabledIds] = useState<string[]>([]);
   const [canvasDropMode, setCanvasDropMode] = useState<CanvasDropMode>("none");
   const [isArchivePanelOpen, setIsArchivePanelOpen] = useState(false);
+  const [delayedLoadingById, setDelayedLoadingById] = useState<Record<string, true>>({});
+  const loadingPendingSinceByIdRef = React.useRef<Record<string, number>>({});
+  const [imageHydrationState, setImageHydrationState] = useState<{
+    hydratedById: Record<string, string>;
+    queueSize: number;
+    decodeInflight: number;
+  }>({
+    hydratedById: {},
+    queueSize: 0,
+    decodeInflight: 0,
+  });
+  const hydrationQueueRef = React.useRef<string[]>([]);
+  const hydrationQueuedIdSetRef = React.useRef<Set<string>>(new Set());
+  const hydrationInflightIdSetRef = React.useRef<Set<string>>(new Set());
+  const hydrationUrlByIdRef = React.useRef<Record<string, string>>({});
+  const hydrationRafFlushRef = React.useRef<number | null>(null);
+  const hydrationPendingLoadedRef = React.useRef<Record<string, string>>({});
+  const processHydrationQueueRef = React.useRef<() => void>(() => {});
   const [virtualMetrics, setVirtualMetrics] = useState({
     scrollTop: 0,
     viewportHeight: 0,
@@ -377,6 +779,136 @@ export function ReferenceCanvas({
     () => new Set(linkedPromptReferenceIds),
     [linkedPromptReferenceIds]
   );
+  const runNonUrgentUpdate = useCallback((updater: () => void) => {
+    if (REFERENCE_GRID_FLAG_TRANSITION_NONURGENT && typeof React.startTransition === "function") {
+      React.startTransition(updater);
+      return;
+    }
+    updater();
+  }, []);
+  const mediaWorkBudget = useReferenceGridMediaWorkBudget({
+    enabled: REFERENCE_GRID_FLAG_GLOBAL_MEDIA_BUDGET,
+    pressureLevel: perfWatchdog.degradeLevel,
+    constrainedProfile: hydrationBudget.constrainedProfile,
+    desiredImageDecodeInflight: hydrationBudget.maxInflightHydrations,
+    desiredVideoAttachSlots: desiredVideoAttachBudget,
+  });
+
+  const syncImageHydrationState = useCallback(() => {
+    runNonUrgentUpdate(() => {
+      setImageHydrationState((prev) => {
+        const nextQueueSize = hydrationQueueRef.current.length;
+        const nextInflight = hydrationInflightIdSetRef.current.size;
+        if (prev.queueSize === nextQueueSize && prev.decodeInflight === nextInflight) return prev;
+        return {
+          ...prev,
+          queueSize: nextQueueSize,
+          decodeInflight: nextInflight,
+        };
+      });
+    });
+  }, [runNonUrgentUpdate]);
+
+  const flushHydratedImages = useCallback(() => {
+    hydrationRafFlushRef.current = null;
+    const pending = hydrationPendingLoadedRef.current;
+    hydrationPendingLoadedRef.current = {};
+    if (!Object.keys(pending).length) {
+      syncImageHydrationState();
+      return;
+    }
+    runNonUrgentUpdate(() => {
+      setImageHydrationState((prev) => ({
+        hydratedById: { ...prev.hydratedById, ...pending },
+        queueSize: hydrationQueueRef.current.length,
+        decodeInflight: hydrationInflightIdSetRef.current.size,
+      }));
+    });
+  }, [runNonUrgentUpdate, syncImageHydrationState]);
+
+  const scheduleHydrationFlush = useCallback(() => {
+    if (hydrationRafFlushRef.current != null) return;
+    if (typeof window === "undefined") return;
+    hydrationRafFlushRef.current = window.requestAnimationFrame(() => {
+      flushHydratedImages();
+    });
+  }, [flushHydratedImages]);
+
+  const processHydrationQueue = useCallback(() => {
+    if (!REFERENCE_GRID_FLAG_DECODE_BUDGET || typeof window === "undefined") return;
+    const maxInflight = mediaWorkBudget.imageDecodeBudget;
+    while (
+      hydrationInflightIdSetRef.current.size < maxInflight &&
+      hydrationQueueRef.current.length > 0
+    ) {
+      const nextId = hydrationQueueRef.current.shift();
+      if (!nextId) continue;
+      hydrationQueuedIdSetRef.current.delete(nextId);
+      const nextUrl = hydrationUrlByIdRef.current[nextId];
+      if (!nextUrl) continue;
+
+      hydrationInflightIdSetRef.current.add(nextId);
+      const image = new Image();
+      image.decoding = "async";
+      const shouldPrioritize = nextId === activeOutputId;
+      try {
+        (image as HTMLImageElement & { fetchPriority?: "high" | "low" | "auto" }).fetchPriority =
+          shouldPrioritize ? "high" : "low";
+      } catch {
+        // Keep compatibility with runtimes that do not expose fetchPriority.
+      }
+      const finalize = () => {
+        hydrationInflightIdSetRef.current.delete(nextId);
+        hydrationPendingLoadedRef.current[nextId] = nextUrl;
+        scheduleHydrationFlush();
+        processHydrationQueueRef.current();
+      };
+      image.onload = finalize;
+      image.onerror = finalize;
+      image.src = nextUrl;
+    }
+    syncImageHydrationState();
+  }, [
+    activeOutputId,
+    mediaWorkBudget.imageDecodeBudget,
+    scheduleHydrationFlush,
+    syncImageHydrationState,
+  ]);
+
+  const enqueueImageHydration = useCallback(
+    (id: string, url: string, options?: { priority?: "high" | "normal" | "low" }) => {
+      if (!REFERENCE_GRID_FLAG_DECODE_BUDGET) return;
+      hydrationUrlByIdRef.current[id] = url;
+      if (imageHydrationState.hydratedById[id] === url) return;
+      if (hydrationInflightIdSetRef.current.has(id)) return;
+      const priority = options?.priority ?? "normal";
+      if (hydrationQueuedIdSetRef.current.has(id)) {
+        if (priority === "high") {
+          const currentIndex = hydrationQueueRef.current.indexOf(id);
+          if (currentIndex > 0) {
+            hydrationQueueRef.current.splice(currentIndex, 1);
+            hydrationQueueRef.current.unshift(id);
+          }
+          syncImageHydrationState();
+          processHydrationQueue();
+        }
+        return;
+      }
+      hydrationQueuedIdSetRef.current.add(id);
+      if (priority === "high") {
+        hydrationQueueRef.current.unshift(id);
+      } else {
+        hydrationQueueRef.current.push(id);
+      }
+      syncImageHydrationState();
+      processHydrationQueue();
+    },
+    [imageHydrationState.hydratedById, processHydrationQueue, syncImageHydrationState]
+  );
+
+  React.useEffect(() => {
+    processHydrationQueueRef.current = processHydrationQueue;
+  }, [processHydrationQueue]);
   const normalizeMediaFiles = useCallback((files: File[]): File[] => {
     return dedupeMediaFiles(
       files
@@ -483,56 +1015,330 @@ export function ReferenceCanvas({
     [virtualMetrics.columnCount]
   );
 
-  const shouldVirtualize = outputs.length >= REFERENCE_VIRTUALIZE_MIN_ITEMS;
+  const dynamicOverscanRows = REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION
+    ? resolveReferenceGridOverscanRows(outputs.length, {
+        pressureLevel: perfWatchdog.degradeLevel,
+      })
+    : REFERENCE_VIRTUAL_OVERSCAN_ROWS;
+  const virtualWindow = calculateReferenceGridWindow({
+    itemCount: outputs.length,
+    columnCount: virtualMetrics.columnCount,
+    rowHeight: virtualMetrics.rowHeight,
+    scrollTop: virtualMetrics.scrollTop,
+    viewportHeight:
+      virtualMetrics.viewportHeight > 0
+        ? virtualMetrics.viewportHeight
+        : FALLBACK_REFERENCE_ROW_HEIGHT * 5,
+    overscanRows: dynamicOverscanRows,
+    virtualizeMinItems: REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION
+      ? REFERENCE_VIRTUALIZE_MIN_ITEMS
+      : 24,
+  });
+  const shouldVirtualize = virtualWindow.shouldVirtualize;
   const isHighDensity = outputs.length >= REFERENCE_HIGH_DENSITY_CARD_COUNT;
-  const effectiveViewportHeight =
-    virtualMetrics.viewportHeight > 0
-      ? virtualMetrics.viewportHeight
-      : FALLBACK_REFERENCE_ROW_HEIGHT * 5;
-  const totalRows = Math.max(
+  const denseVisualModeEnabled = REFERENCE_GRID_FLAG_DENSE_VISUAL_SIMPLIFY && outputs.length >= 40;
+  const startIndex = virtualWindow.startIndex;
+  const endIndex = virtualWindow.endIndex;
+  const baseVisibleOutputs = shouldVirtualize ? outputs.slice(startIndex, endIndex) : outputs;
+  const visibleRows = Math.max(
     1,
-    Math.ceil(outputs.length / Math.max(1, virtualMetrics.columnCount))
+    Math.ceil(
+      (virtualMetrics.viewportHeight > 0
+        ? virtualMetrics.viewportHeight
+        : FALLBACK_REFERENCE_ROW_HEIGHT * 5) / Math.max(1, virtualMetrics.rowHeight)
+    )
   );
-  const startRow = shouldVirtualize
-    ? Math.min(
-        totalRows - 1,
-        Math.max(
-          0,
-          Math.floor(virtualMetrics.scrollTop / virtualMetrics.rowHeight) -
-            REFERENCE_VIRTUAL_OVERSCAN_ROWS
-        )
-      )
-    : 0;
-  const endRow = shouldVirtualize
-    ? Math.min(
-        totalRows - 1,
-        Math.ceil((virtualMetrics.scrollTop + effectiveViewportHeight) / virtualMetrics.rowHeight) +
-          REFERENCE_VIRTUAL_OVERSCAN_ROWS
-      )
-    : totalRows - 1;
-  const startIndex = Math.max(0, startRow * virtualMetrics.columnCount);
-  const endIndex = Math.min(outputs.length, (endRow + 1) * virtualMetrics.columnCount);
-  const visibleOutputs = shouldVirtualize ? outputs.slice(startIndex, endIndex) : outputs;
-  const topSpacerHeight = shouldVirtualize ? startRow * virtualMetrics.rowHeight : 0;
-  const bottomSpacerHeight = shouldVirtualize
-    ? Math.max(0, (totalRows - endRow - 1) * virtualMetrics.rowHeight)
-    : 0;
+  const hardViewportVisibleLimit =
+    (visibleRows + Math.max(0, dynamicOverscanRows) * 2) *
+    Math.max(REFERENCE_GRID_MIN_COLUMNS, virtualMetrics.columnCount);
+  const visibleOutputs = React.useMemo(() => {
+    if (!REFERENCE_GRID_FLAG_HARD_VIEWPORT_CAP) {
+      return baseVisibleOutputs;
+    }
+    if (baseVisibleOutputs.length <= hardViewportVisibleLimit) {
+      return baseVisibleOutputs;
+    }
+    const capped = baseVisibleOutputs.slice(0, Math.max(1, hardViewportVisibleLimit));
+    if (!activeOutputId) return capped;
+    if (capped.some((item) => item.id === activeOutputId)) return capped;
+    const activeOutput = outputs.find((item) => item.id === activeOutputId);
+    if (!activeOutput) return capped;
+    if (capped.length === 0) return [activeOutput];
+    return [...capped.slice(0, capped.length - 1), activeOutput];
+  }, [activeOutputId, baseVisibleOutputs, hardViewportVisibleLimit, outputs]);
+  const topSpacerHeight = virtualWindow.topSpacerHeight;
+  const bottomSpacerHeight = virtualWindow.bottomSpacerHeight;
   const renderedItemCount = visibleOutputs.length;
   const renderedOutputIdSet = React.useMemo(
     () => new Set(visibleOutputs.map((output) => output.id)),
     [visibleOutputs]
   );
   const archiveCount = archivedOutputs.length;
+  const nearViewportOutputs = React.useMemo(() => {
+    if (!shouldVirtualize) return [];
+    const nearSpan = Math.max(1, virtualMetrics.columnCount);
+    const start = Math.max(0, startIndex - nearSpan);
+    const end = Math.min(outputs.length, endIndex + nearSpan);
+    return outputs.slice(start, end);
+  }, [endIndex, outputs, shouldVirtualize, startIndex, virtualMetrics.columnCount]);
   const recomputeAutoplayBudget = useCallback(() => {
     const visibleVideoIds = outputs
       .filter((output) => {
-        if (!output.previewUrl || !isVideoUrl(output.previewUrl)) return false;
+        const resolvedPreview = resolveReferenceCardUrls(output, {
+          strictPreviewLadder:
+            REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+        }).previewUrl;
+        if (!resolvedPreview || !isVideoUrl(resolvedPreview)) return false;
         return videoVisibilityIdSetRef.current.has(output.id);
       })
       .map((output) => output.id);
-    const nextEnabled = visibleVideoIds.slice(0, autoplayBudgetRef.current);
-    setAutoplayEnabledIds((prev) => (areIdListsEqual(prev, nextEnabled) ? prev : nextEnabled));
-  }, [outputs]);
+    const prioritizedVideoIds =
+      activeOutputId && visibleVideoIds.includes(activeOutputId)
+        ? [activeOutputId, ...visibleVideoIds.filter((id) => id !== activeOutputId)]
+        : visibleVideoIds;
+    if (perfWatchdog.degradeLevel >= 2) {
+      runNonUrgentUpdate(() => {
+        setAutoplayEnabledIds((prev) => (prev.length === 0 ? prev : []));
+      });
+      return;
+    }
+    const nextEnabled = prioritizedVideoIds.slice(
+      0,
+      Math.max(0, mediaWorkBudget.videoAttachBudget)
+    );
+    runNonUrgentUpdate(() => {
+      setAutoplayEnabledIds((prev) => (areIdListsEqual(prev, nextEnabled) ? prev : nextEnabled));
+    });
+  }, [
+    activeOutputId,
+    mediaWorkBudget.videoAttachBudget,
+    outputs,
+    perfWatchdog.degradeLevel,
+    runNonUrgentUpdate,
+  ]);
+
+  const hydrationPriorityCount =
+    Math.max(REFERENCE_GRID_MIN_COLUMNS, virtualMetrics.columnCount) *
+    (REFERENCE_GRID_FLAG_DECODE_BUDGET
+      ? hydrationBudget.priorityRows
+      : REFERENCE_PRIORITY_HYDRATION_ROWS);
+  const visibleCardItems = React.useMemo(
+    () =>
+      visibleOutputs.map((item, visibleIndex) => {
+        const isVideoMode = item.mode === "video";
+        const prefersFullPreview = activeOutputId === item.id;
+        const strictPreviewLadderEnabled =
+          REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER;
+        const runtimeDpr =
+          typeof window !== "undefined" && Number.isFinite(window.devicePixelRatio)
+            ? window.devicePixelRatio
+            : 1;
+        const cardLongEdgePx = Math.max(
+          REFERENCE_GRID_MIN_CARD_PX,
+          Math.round(virtualMetrics.rowHeight - 3)
+        );
+        const resolvedCardUrls = REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW
+          ? resolveReferenceCardUrls(item, {
+              strictPreviewLadder: strictPreviewLadderEnabled,
+              adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
+              pressureLevel: perfWatchdog.degradeLevel,
+              cardLongEdgePx,
+              devicePixelRatio: runtimeDpr,
+            })
+          : {
+              previewUrl: item.previewUrl ?? null,
+              fullUrl: item.previewUrl ?? null,
+              previewQualityBand: "high" as const,
+              targetLongEdgePx: 960,
+            };
+        const cardPreviewUrl = prefersFullPreview
+          ? (resolvedCardUrls.fullUrl ?? resolvedCardUrls.previewUrl)
+          : (resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl);
+        const isVideoPreview = cardPreviewUrl ? isVideoMode || isVideoUrl(cardPreviewUrl) : false;
+        const isImagePreview = cardPreviewUrl ? !isVideoPreview : false;
+        const isPriorityHydration =
+          visibleIndex < hydrationPriorityCount || activeOutputId === item.id;
+        const hydratedSrc = imageHydrationState.hydratedById[item.id];
+        const imageSrc =
+          isImagePreview && REFERENCE_GRID_FLAG_DECODE_BUDGET
+            ? hydratedSrc === cardPreviewUrl
+              ? (cardPreviewUrl ?? undefined)
+              : undefined
+            : (cardPreviewUrl ?? undefined);
+        return {
+          item,
+          cardPreviewUrl,
+          previewQualityBand: resolvedCardUrls.previewQualityBand ?? "high",
+          targetLongEdgePx: resolvedCardUrls.targetLongEdgePx ?? 960,
+          isVideoPreview,
+          isImagePreview,
+          isPriorityHydration,
+          imageSrc,
+        };
+      }),
+    [
+      activeOutputId,
+      hydrationPriorityCount,
+      imageHydrationState.hydratedById,
+      perfWatchdog.degradeLevel,
+      virtualMetrics.rowHeight,
+      visibleOutputs,
+    ]
+  );
+  const pendingCardIds = React.useMemo(() => {
+    const nextIds: string[] = [];
+    visibleCardItems.forEach((card) => {
+      const isFailing = card.item.taskState === "fail";
+      const isLoading =
+        !isFailing &&
+        (card.item.taskState === "running" ||
+          card.item.taskState === "pending" ||
+          (card.item.taskState === "success" && !card.cardPreviewUrl && !card.item.previewText));
+      const isLoaded = loadedMap[card.item.id];
+      const shouldShowLoading =
+        !isFailing &&
+        (isLoading ||
+          (!isLoaded && !card.item.previewText) ||
+          (card.isImagePreview &&
+            REFERENCE_GRID_FLAG_DECODE_BUDGET &&
+            !card.imageSrc &&
+            card.isPriorityHydration));
+      if (shouldShowLoading) {
+        nextIds.push(card.item.id);
+      }
+    });
+    return nextIds;
+  }, [loadedMap, visibleCardItems]);
+  const pendingCardIdSet = React.useMemo(() => new Set(pendingCardIds), [pendingCardIds]);
+  const animatedSpinnerIdSet = React.useMemo(() => {
+    if (!REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT) {
+      return new Set(pendingCardIds);
+    }
+    const next = pendingCardIds.filter((id) => !delayedLoadingById[id]);
+    return new Set(next.slice(0, REFERENCE_MAX_ANIMATED_SPINNERS));
+  }, [delayedLoadingById, pendingCardIds]);
+
+  React.useEffect(() => {
+    if (!REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT || typeof window === "undefined") {
+      loadingPendingSinceByIdRef.current = {};
+      runNonUrgentUpdate(() => {
+        setDelayedLoadingById((prev) => (Object.keys(prev).length ? {} : prev));
+      });
+      return;
+    }
+    const recompute = () => {
+      const pendingSet = new Set(pendingCardIds);
+      const now = performance.now();
+      pendingSet.forEach((id) => {
+        if (loadingPendingSinceByIdRef.current[id] == null) {
+          loadingPendingSinceByIdRef.current[id] = now;
+        }
+      });
+      Object.keys(loadingPendingSinceByIdRef.current).forEach((id) => {
+        if (!pendingSet.has(id)) {
+          delete loadingPendingSinceByIdRef.current[id];
+        }
+      });
+      runNonUrgentUpdate(() => {
+        setDelayedLoadingById((prev) => {
+          const next: Record<string, true> = {};
+          Object.keys(prev).forEach((id) => {
+            if (pendingSet.has(id)) {
+              next[id] = true;
+            }
+          });
+          pendingSet.forEach((id) => {
+            const pendingSince = loadingPendingSinceByIdRef.current[id] ?? now;
+            if (now - pendingSince >= REFERENCE_SPINNER_MAX_VISIBLE_MS) {
+              next[id] = true;
+            }
+          });
+          const previousKeys = Object.keys(prev);
+          const nextKeys = Object.keys(next);
+          if (
+            previousKeys.length === nextKeys.length &&
+            nextKeys.every((id) => prev[id] === next[id])
+          ) {
+            return prev;
+          }
+          return next;
+        });
+      });
+    };
+    recompute();
+    const intervalId = window.setInterval(recompute, 220);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [pendingCardIds, runNonUrgentUpdate]);
+
+  React.useEffect(() => {
+    if (!REFERENCE_GRID_FLAG_DECODE_BUDGET) return;
+    const candidateIdSet = new Set<string>();
+    if (activeOutputId) {
+      const activeOutput = outputs.find((item) => item.id === activeOutputId);
+      if (activeOutput) {
+        const resolved = resolveReferenceCardUrls(activeOutput, {
+          strictPreviewLadder:
+            REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+        });
+        const activeUrl = resolved.fullUrl ?? resolved.previewUrl;
+        if (activeUrl && !isVideoUrl(activeUrl)) {
+          candidateIdSet.add(activeOutputId);
+          enqueueImageHydration(activeOutputId, activeUrl, { priority: "high" });
+        }
+      }
+    }
+    visibleCardItems.forEach((card) => {
+      if (!card.isImagePreview || !card.cardPreviewUrl) return;
+      candidateIdSet.add(card.item.id);
+      enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
+        priority: card.isPriorityHydration ? "high" : "normal",
+      });
+    });
+    nearViewportOutputs.forEach((item) => {
+      if (candidateIdSet.has(item.id)) return;
+      const resolved = resolveReferenceCardUrls(item, {
+        strictPreviewLadder:
+          REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+      });
+      const previewUrl = resolved.previewUrl ?? resolved.fullUrl;
+      if (!previewUrl || isVideoUrl(previewUrl)) return;
+      candidateIdSet.add(item.id);
+      enqueueImageHydration(item.id, previewUrl, { priority: "low" });
+    });
+    hydrationQueueRef.current = hydrationQueueRef.current.filter((id) => candidateIdSet.has(id));
+    hydrationQueuedIdSetRef.current = new Set(hydrationQueueRef.current);
+    syncImageHydrationState();
+    processHydrationQueue();
+  }, [
+    activeOutputId,
+    enqueueImageHydration,
+    nearViewportOutputs,
+    outputs,
+    processHydrationQueue,
+    syncImageHydrationState,
+    visibleCardItems,
+  ]);
+
+  React.useEffect(() => {
+    if (!REFERENCE_GRID_FLAG_DECODE_BUDGET) return;
+    const validOutputIds = new Set(outputs.map((output) => output.id));
+    runNonUrgentUpdate(() => {
+      setImageHydrationState((prev) => {
+        const nextHydratedById = Object.fromEntries(
+          Object.entries(prev.hydratedById).filter(([id]) => validOutputIds.has(id))
+        );
+        if (Object.keys(nextHydratedById).length === Object.keys(prev.hydratedById).length) {
+          return prev;
+        }
+        return {
+          ...prev,
+          hydratedById: nextHydratedById,
+        };
+      });
+    });
+  }, [outputs, runNonUrgentUpdate]);
 
   const registerVideoNode = useCallback(
     (id: string, node: HTMLVideoElement | null) => {
@@ -577,12 +1383,21 @@ export function ReferenceCanvas({
       const effectiveType = (nav.connection?.effectiveType ?? "").toLowerCase();
       const isSlowNetwork = effectiveType.includes("2g");
       const isLowMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
+      const nextBudget =
+        saveData || isSlowNetwork || isLowMemory
+          ? REFERENCE_AUTOPLAY_MAX_CONSTRAINED
+          : isSmallScreen
+            ? REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN
+            : REFERENCE_AUTOPLAY_MAX_DESKTOP;
+      setDesiredVideoAttachBudget((prev) => (prev === nextBudget ? prev : nextBudget));
       if (saveData || isSlowNetwork || isLowMemory) {
-        autoplayBudgetRef.current = REFERENCE_AUTOPLAY_MAX_CONSTRAINED;
-      } else {
-        autoplayBudgetRef.current = isSmallScreen
-          ? REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN
-          : REFERENCE_AUTOPLAY_MAX_DESKTOP;
+        runNonUrgentUpdate(() => {
+          setAutoplayEnabledIds((prev) =>
+            prev.length <= REFERENCE_AUTOPLAY_MAX_CONSTRAINED
+              ? prev
+              : prev.slice(0, REFERENCE_AUTOPLAY_MAX_CONSTRAINED)
+          );
+        });
       }
       recomputeAutoplayBudget();
     };
@@ -593,7 +1408,7 @@ export function ReferenceCanvas({
       window.removeEventListener("resize", refreshBudget);
       connection?.removeEventListener?.("change", refreshBudget);
     };
-  }, [recomputeAutoplayBudget]);
+  }, [recomputeAutoplayBudget, runNonUrgentUpdate]);
 
   React.useEffect(() => {
     const validOutputIdSet = new Set(outputs.map((output) => output.id));
@@ -719,6 +1534,20 @@ export function ReferenceCanvas({
     };
   }, []);
 
+  React.useEffect(
+    () => () => {
+      if (scrollRafIdRef.current != null) {
+        window.cancelAnimationFrame(scrollRafIdRef.current);
+        scrollRafIdRef.current = null;
+      }
+      if (hydrationRafFlushRef.current != null) {
+        window.cancelAnimationFrame(hydrationRafFlushRef.current);
+        hydrationRafFlushRef.current = null;
+      }
+    },
+    []
+  );
+
   React.useEffect(() => {
     if (typeof performance === "undefined") return;
     const now = performance.now();
@@ -733,9 +1562,22 @@ export function ReferenceCanvas({
       total_item_count: outputs.length,
       virtualized: shouldVirtualize,
       high_density: isHighDensity,
+      image_hydration_queue: imageHydrationState.queueSize,
+      image_decode_inflight: imageHydrationState.decodeInflight,
+      perf_degrade_level: perfWatchdog.degradeLevel,
       duration_ms: durationMs,
     });
-  }, [isHighDensity, outputs.length, renderedItemCount, shouldVirtualize, startIndex, endIndex]);
+  }, [
+    endIndex,
+    imageHydrationState.decodeInflight,
+    imageHydrationState.queueSize,
+    isHighDensity,
+    outputs.length,
+    perfWatchdog.degradeLevel,
+    renderedItemCount,
+    shouldVirtualize,
+    startIndex,
+  ]);
 
   React.useEffect(() => {
     if (typeof window === "undefined" || typeof PerformanceObserver === "undefined") return;
@@ -757,20 +1599,39 @@ export function ReferenceCanvas({
     return () => observer.disconnect();
   }, []);
 
+  React.useEffect(() => {
+    if (!REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE) return;
+    const shouldDefer =
+      perfWatchdog.degradeLevel >= 1 || canvasDropMode !== "none" || pendingCardIds.length > 8;
+    setMediaPerfSamplingPolicy(shouldDefer ? "defer_non_critical" : "normal");
+    return () => {
+      setMediaPerfSamplingPolicy("normal");
+    };
+  }, [canvasDropMode, pendingCardIds.length, perfWatchdog.degradeLevel]);
+
   const markLoaded = useCallback(
     (id: string, options?: { notifyAutoSave?: boolean }) => {
       const shouldNotify = options?.notifyAutoSave ?? true;
       if (loadedIdsRef.current.has(id)) return;
       loadedIdsRef.current.add(id);
-      setLoadedMap((prev) => {
-        if (prev[id]) return prev;
-        return { ...prev, [id]: true };
+      delete loadingPendingSinceByIdRef.current[id];
+      runNonUrgentUpdate(() => {
+        setLoadedMap((prev) => {
+          if (prev[id]) return prev;
+          return { ...prev, [id]: true };
+        });
+        setDelayedLoadingById((prev) => {
+          if (!prev[id]) return prev;
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
       });
       if (shouldNotify) {
         onOutputMediaLoaded?.(id);
       }
     },
-    [onOutputMediaLoaded]
+    [onOutputMediaLoaded, runNonUrgentUpdate]
   );
 
   const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -985,11 +1846,28 @@ export function ReferenceCanvas({
   const handleScroll = useCallback(
     (event: React.UIEvent<HTMLDivElement>) => {
       const node = event.currentTarget;
-      setVirtualMetrics((prev) => ({
-        ...prev,
+      queuedScrollMetricsRef.current = {
         scrollTop: node.scrollTop,
         viewportHeight: node.clientHeight,
-      }));
+      };
+      if (scrollRafIdRef.current == null && typeof window !== "undefined") {
+        scrollRafIdRef.current = window.requestAnimationFrame(() => {
+          scrollRafIdRef.current = null;
+          const queuedMetrics = queuedScrollMetricsRef.current;
+          if (!queuedMetrics) return;
+          setVirtualMetrics((prev) => {
+            const next = {
+              ...prev,
+              scrollTop: queuedMetrics.scrollTop,
+              viewportHeight: queuedMetrics.viewportHeight,
+            };
+            const stable =
+              Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
+              Math.abs(prev.viewportHeight - next.viewportHeight) < 1;
+            return stable ? prev : next;
+          });
+        });
+      }
       const now = typeof performance !== "undefined" ? performance.now() : Date.now();
       if (now - lastScrollSampleAtRef.current < 1200) return;
       lastScrollSampleAtRef.current = now;
@@ -1049,34 +1927,20 @@ export function ReferenceCanvas({
     [outputs.length, renderedItemCount]
   );
 
-  const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
-    if (!item.saveState || item.saveState === "idle") return null;
-    const label =
-      item.saveState === "saving"
-        ? "Saving..."
-        : item.saveState === "saved"
-          ? "Saved"
-          : "Save failed";
-    if (item.saveState === "saved") {
-      if (!isSelected) return null;
-      return (
-        <div className={`reference-save-chip is-${item.saveState}`} aria-label="Saved">
-          <CheckCircle size={16} weight="fill" aria-hidden />
-        </div>
-      );
-    }
-    return (
-      <div className={`reference-save-chip is-${item.saveState}`}>
-        <span>{label}</span>
-      </div>
-    );
-  };
-
   return (
     <div
       ref={panelRef}
-      className={`panel ai-panel ai-preview-panel reference-canvas-panel${canvasDropMode !== "none" ? " is-drop-active" : ""}${canvasDropMode === "text" ? " is-drop-active-text" : ""}${canvasDropMode === "files" ? " is-drop-active-files" : ""}${isHighDensity ? " is-high-density" : ""}`}
+      className={`panel ai-panel ai-preview-panel reference-canvas-panel${canvasDropMode !== "none" ? " is-drop-active" : ""}${canvasDropMode === "text" ? " is-drop-active-text" : ""}${canvasDropMode === "files" ? " is-drop-active-files" : ""}${isHighDensity ? " is-high-density" : ""}${denseVisualModeEnabled ? " is-dense-visual-mode" : ""}${REFERENCE_GRID_FLAG_CSS_CONTAINMENT ? " is-css-containment-mode" : ""}${perfWatchdog.degradeLevel >= 1 ? " is-grid-pressure-mode" : ""}`}
       data-selection-theme={selectionTheme}
+      data-grid-surface="reference-grid"
+      data-rendered-item-count={renderedItemCount}
+      data-image-hydration-queue-size={imageHydrationState.queueSize}
+      data-image-decode-inflight-count={imageHydrationState.decodeInflight}
+      data-grid-perf-degrade-level={perfWatchdog.degradeLevel}
+      data-grid-media-work-tokens={mediaWorkBudget.totalTokens}
+      data-grid-video-attach-budget={mediaWorkBudget.videoAttachBudget}
+      data-grid-watchdog-longtask-p95={perfWatchdog.longTaskP95Ms ?? ""}
+      data-grid-watchdog-input-stall-ms={perfWatchdog.maxInputStallMs}
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}
       onDragEnter={handleCanvasDragEnter}
@@ -1195,257 +2059,65 @@ export function ReferenceCanvas({
               {topSpacerHeight > 0 ? (
                 <div className="reference-virtual-spacer" style={{ height: topSpacerHeight }} />
               ) : null}
-              {visibleOutputs.map((item, visibleIndex) => {
-                const isFailing = item.taskState === "fail";
+              {visibleCardItems.map((card) => {
+                const isFailing = card.item.taskState === "fail";
                 const isLoading =
                   !isFailing &&
-                  (item.taskState === "running" ||
-                    item.taskState === "pending" ||
-                    (item.taskState === "success" && !item.previewUrl && !item.previewText));
-                const isLoaded = loadedMap[item.id];
-                const showSpinner = !isFailing && (isLoading || (!isLoaded && !item.previewText));
-
-                const isVideoMode = item.mode === "video";
-                const prefersFullPreview = activeOutputId === item.id;
-                const cardPreviewUrl = REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW
-                  ? prefersFullPreview
-                    ? (item.fullStoragePath ?? item.previewUrl)
-                    : (item.previewStoragePath ?? item.previewUrl)
-                  : item.previewUrl;
-                const isVideoPreview = cardPreviewUrl
-                  ? isVideoMode || isVideoUrl(cardPreviewUrl)
-                  : false;
-                const isImagePreview = cardPreviewUrl ? !isVideoPreview : false;
-                const canAutoplayVideo = isVideoPreview && autoplayEnabledIdSet.has(item.id);
-                const isPromptOnly = !cardPreviewUrl && !!item.previewText;
+                  (card.item.taskState === "running" ||
+                    card.item.taskState === "pending" ||
+                    (card.item.taskState === "success" &&
+                      !card.cardPreviewUrl &&
+                      !card.item.previewText));
+                const isPending = pendingCardIdSet.has(card.item.id);
+                const loadingVisual: "none" | "spinner" | "placeholder" = isPending
+                  ? delayedLoadingById[card.item.id] || !animatedSpinnerIdSet.has(card.item.id)
+                    ? "placeholder"
+                    : "spinner"
+                  : "none";
+                const canAutoplayVideo =
+                  card.isVideoPreview &&
+                  autoplayEnabledIdSet.has(card.item.id) &&
+                  perfWatchdog.degradeLevel < 2;
+                const isPromptOnly = !card.cardPreviewUrl && !!card.item.previewText;
                 const isLinkedPromptReference =
-                  isPromptOnly && linkedPromptReferenceIdSet.has(item.id);
+                  isPromptOnly && linkedPromptReferenceIdSet.has(card.item.id);
                 const canRetryStatus =
-                  Boolean(onRetryStatus && item.taskId) && (isFailing || isLoading);
-                const hydrationPriorityCount =
-                  Math.max(REFERENCE_GRID_MIN_COLUMNS, virtualMetrics.columnCount) *
-                  REFERENCE_PRIORITY_HYDRATION_ROWS;
-                const isPriorityHydration = visibleIndex < hydrationPriorityCount;
-                const saveDisabled = item.saveState === "saving";
-                const saveLabel =
-                  item.saveState === "failed" ? "Retry save" : "Save to media library";
-                const saveIcon =
-                  item.saveState === "failed" ? (
-                    <ArrowClockwise size={16} weight="bold" aria-hidden />
-                  ) : (
-                    <FloppyDisk size={16} weight="bold" aria-hidden />
-                  );
+                  Boolean(onRetryStatus && card.item.taskId) && (isFailing || isLoading);
+
                 return (
-                  <div
-                    key={item.id}
-                    className={`reference-card ${cardPreviewUrl ? "has-preview" : ""} ${isVideoPreview ? "has-video" : ""} ${item.previewText ? "has-text" : ""} ${activeOutputId === item.id ? "is-active" : ""} ${showSpinner ? "is-loading" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
-                    role="button"
-                    aria-busy={showSpinner}
-                    data-loading={showSpinner ? "true" : "false"}
-                    tabIndex={0}
-                    onClick={() => onSelectOutput(item.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        onSelectOutput(item.id);
-                      }
-                    }}
-                    onDoubleClick={() => onOpenDetails(item.id)}
-                    draggable={!!cardPreviewUrl || !!item.previewText}
-                    onDragStart={(event) => {
-                      handleCardDragStart(event, item);
-                    }}
-                    onDragEnd={handleCardDragEnd}
-                  >
-                    {isVideoPreview && cardPreviewUrl ? (
-                      <video
-                        className="reference-card-video"
-                        ref={(node) => registerVideoNode(item.id, node)}
-                        src={canAutoplayVideo ? cardPreviewUrl : undefined}
-                        autoPlay={canAutoplayVideo}
-                        muted
-                        loop
-                        playsInline
-                        preload={canAutoplayVideo ? "metadata" : "none"}
-                        onLoadedData={() => markLoaded(item.id)}
-                        onPlay={() => handleAutoplayStarted(item.id)}
-                        onPause={() => handleAutoplayStopped(item.id)}
-                      />
-                    ) : null}
-                    {isImagePreview && cardPreviewUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={cardPreviewUrl}
-                        alt=""
-                        className="reference-card-image"
-                        loading={isPriorityHydration ? "eager" : "lazy"}
-                        decoding="async"
-                        onLoad={() => markLoaded(item.id)}
-                        onError={() => markLoaded(item.id, { notifyAutoSave: false })}
-                      />
-                    ) : null}
-                    {isFailing ? (
-                      <div className="reference-fail-overlay">
-                        <div className="fail-icon" aria-hidden="true">
-                          !
-                        </div>
-                        <div className="fail-title">Generation failed</div>
-                        {item.errorMessageShort ? (
-                          <div className="fail-subtitle">
-                            {item.errorMessageShort.replace(/fal(\.ai)?/gi, "the provider")}
-                          </div>
-                        ) : item.errorMessage ? (
-                          <div className="fail-subtitle">
-                            {item.errorMessage.replace(/fal(\.ai)?/gi, "the provider")}
-                          </div>
-                        ) : null}
-                        {canRetryStatus && activeOutputId === item.id ? (
-                          <button
-                            type="button"
-                            className="reference-status-retry-btn"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onSelectOutput(item.id);
-                              onRetryStatus?.(item);
-                            }}
-                          >
-                            Retry status
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {showSpinner ? (
-                      <div className="reference-loading">
-                        <div className="reference-spinner" />
-                      </div>
-                    ) : null}
-                    {showSpinner && canRetryStatus && activeOutputId === item.id ? (
-                      <button
-                        type="button"
-                        className="reference-status-retry-btn reference-status-retry-btn--loading"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onSelectOutput(item.id);
-                          onRetryStatus?.(item);
-                        }}
-                      >
-                        Retry status
-                      </button>
-                    ) : null}
-                    {isLinkedPromptReference ? (
-                      <span className="reference-card-link-dot" aria-hidden="true" />
-                    ) : null}
-                    {renderSaveChip(item, activeOutputId === item.id)}
-                    {/* Show delete button for error cards when selected */}
-                    {isFailing && onDeleteOutput && activeOutputId === item.id ? (
-                      <div className="reference-card-actions" aria-label="Reference actions">
-                        <button
-                          type="button"
-                          className="reference-card-action-btn reference-card-action-btn--danger"
-                          aria-label="Remove error from grid"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onDeleteOutput(item.id);
-                          }}
-                        >
-                          <X size={16} weight="bold" aria-hidden />
-                        </button>
-                      </div>
-                    ) : null}
-                    {(onSaveToLibrary && (isImagePreview || isPromptOnly || isVideoPreview)) ||
-                    (onDownload && (isImagePreview || isVideoPreview)) ? (
-                      <div className="reference-card-actions" aria-label="Reference actions">
-                        {onSaveToLibrary ? (
-                          <button
-                            type="button"
-                            className="reference-card-action-btn"
-                            aria-label={saveLabel}
-                            disabled={saveDisabled}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onSelectOutput(item.id);
-                              onSaveToLibrary(item);
-                            }}
-                          >
-                            {saveIcon}
-                          </button>
-                        ) : null}
-                        {onDownload && (isImagePreview || isVideoPreview) ? (
-                          <button
-                            type="button"
-                            className="reference-card-action-btn"
-                            aria-label="Download reference"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onSelectOutput(item.id);
-                              onDownload(item);
-                            }}
-                          >
-                            <DownloadSimple size={16} weight="bold" aria-hidden />
-                          </button>
-                        ) : null}
-                        {onDeleteOutput ? (
-                          <button
-                            type="button"
-                            className="reference-card-action-btn reference-card-action-btn--danger"
-                            aria-label="Remove reference from grid"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onDeleteOutput(item.id);
-                            }}
-                          >
-                            <X size={16} weight="bold" aria-hidden />
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {item.previewText ? (
-                      <div className="reference-card-text">{item.previewText}</div>
-                    ) : null}
-                    {isImagePreview && onDescribeImage ? (
-                      <button
-                        type="button"
-                        className="reference-describe-pill reference-generate-pill agent-generate-prefab"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onSelectOutput(item.id);
-                          onDescribeImage(item);
-                        }}
-                      >
-                        <span className="agent-generate-label">Describe</span>
-                      </button>
-                    ) : null}
-                    {isPromptOnly &&
-                    onGeneratePrompt &&
-                    activeOutputId === item.id &&
-                    showPromptGenerate ? (
-                      <>
-                        <button
-                          type="button"
-                          className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill"
-                          disabled={disablePromptGenerate}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onSelectOutput(item.id);
-                            onGeneratePrompt(item);
-                          }}
-                          onDoubleClick={(event) => {
-                            event.stopPropagation();
-                          }}
-                        >
-                          <span className="agent-generate-label">Generate</span>
-                          <span className="model-chip-pill generate-pill">
-                            <span aria-hidden="true" className="model-chip-icon">
-                              ✦
-                            </span>
-                            <span className="model-chip-credits">
-                              {generateCostCredits != null ? generateCostCredits : "—"}
-                            </span>
-                          </span>
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
+                  <ReferenceCanvasCard
+                    key={card.item.id}
+                    item={card.item}
+                    activeOutputId={activeOutputId}
+                    loadingVisual={loadingVisual}
+                    cardPreviewUrl={card.cardPreviewUrl}
+                    isVideoPreview={card.isVideoPreview}
+                    isImagePreview={card.isImagePreview}
+                    canAutoplayVideo={canAutoplayVideo}
+                    isPromptOnly={isPromptOnly}
+                    isLinkedPromptReference={isLinkedPromptReference}
+                    canRetryStatus={canRetryStatus}
+                    showPromptGenerate={showPromptGenerate}
+                    disablePromptGenerate={disablePromptGenerate}
+                    generateCostCredits={generateCostCredits}
+                    imageSrc={card.imageSrc}
+                    imageLoading={card.isPriorityHydration ? "eager" : "lazy"}
+                    imageFetchPriority={card.isPriorityHydration ? "high" : "low"}
+                    onSelectOutput={onSelectOutput}
+                    onOpenDetails={onOpenDetails}
+                    onCardDragStart={handleCardDragStart}
+                    onCardDragEnd={handleCardDragEnd}
+                    registerVideoNode={registerVideoNode}
+                    markLoaded={markLoaded}
+                    onAutoplayStarted={handleAutoplayStarted}
+                    onAutoplayStopped={handleAutoplayStopped}
+                    onRetryStatus={onRetryStatus}
+                    onDeleteOutput={onDeleteOutput}
+                    onSaveToLibrary={onSaveToLibrary}
+                    onDownload={onDownload}
+                    onDescribeImage={onDescribeImage}
+                    onGeneratePrompt={onGeneratePrompt}
+                  />
                 );
               })}
               {bottomSpacerHeight > 0 ? (

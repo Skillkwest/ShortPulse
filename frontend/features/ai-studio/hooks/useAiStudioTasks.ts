@@ -25,6 +25,7 @@ import {
 } from "../../../lib/falClient";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { fetchKeiTaskStatus } from "../../../lib/keiClient";
+import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
 import { extractFalMediaUrls, extractResultUrls, Provider } from "../logic/stateParsers";
 import { StudioOutput } from "../types";
 
@@ -428,37 +429,45 @@ export function useAiStudioTasks({
                 },
               });
 
-              queueOutputUpdate(outputId, (item) => ({
-                ...item,
-                taskState: item.taskState === "success" ? item.taskState : "success",
-                status: item.status === "ready" ? item.status : "ready",
-                timestamp:
-                  item.timestamp === "Recovered media URL."
-                    ? item.timestamp
-                    : "Recovered media URL.",
-                resultUrls: areStringArraysEqual(item.resultUrls, recoveredUrls)
-                  ? item.resultUrls
-                  : recoveredUrls,
-                previewUrl:
-                  item.previewUrl === (recoveredUrls[0] ?? item.previewUrl)
-                    ? item.previewUrl
-                    : (recoveredUrls[0] ?? item.previewUrl),
-                previewStoragePath:
-                  item.previewStoragePath === (recoveredUrls[0] ?? item.previewStoragePath)
-                    ? item.previewStoragePath
-                    : (recoveredUrls[0] ?? item.previewStoragePath),
-                fullStoragePath:
-                  item.fullStoragePath === (recoveredUrls[0] ?? item.fullStoragePath)
-                    ? item.fullStoragePath
-                    : (recoveredUrls[0] ?? item.fullStoragePath),
-                mediaSource: item.mediaSource ?? "generated",
-                previewTier: item.mode === "video" ? "preview_loop" : "full",
-                archivedAt: null,
-                archiveReason: null,
-                errorMessage: item.errorMessage == null ? item.errorMessage : null,
-                errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
-                errorDetail: item.errorDetail == null ? item.errorDetail : null,
-              }));
+              queueOutputUpdate(outputId, (item) => {
+                const nextDelivery = resolveNormalizedOutputDelivery({
+                  previewStoragePath: item.previewStoragePath ?? null,
+                  fullStoragePath: item.fullStoragePath ?? null,
+                  previewUrl: recoveredUrls[0] ?? item.previewUrl ?? null,
+                  resultUrls: recoveredUrls,
+                });
+                return {
+                  ...item,
+                  taskState: item.taskState === "success" ? item.taskState : "success",
+                  status: item.status === "ready" ? item.status : "ready",
+                  timestamp:
+                    item.timestamp === "Recovered media URL."
+                      ? item.timestamp
+                      : "Recovered media URL.",
+                  resultUrls: areStringArraysEqual(item.resultUrls, recoveredUrls)
+                    ? item.resultUrls
+                    : recoveredUrls,
+                  previewUrl:
+                    item.previewUrl === (recoveredUrls[0] ?? item.previewUrl)
+                      ? item.previewUrl
+                      : (recoveredUrls[0] ?? item.previewUrl),
+                  previewStoragePath:
+                    item.previewStoragePath === nextDelivery.previewStoragePath
+                      ? item.previewStoragePath
+                      : nextDelivery.previewStoragePath,
+                  fullStoragePath:
+                    item.fullStoragePath === nextDelivery.fullStoragePath
+                      ? item.fullStoragePath
+                      : nextDelivery.fullStoragePath,
+                  mediaSource: item.mediaSource ?? "generated",
+                  previewTier: item.mode === "video" ? "preview_loop" : "full",
+                  archivedAt: null,
+                  archiveReason: null,
+                  errorMessage: item.errorMessage == null ? item.errorMessage : null,
+                  errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
+                  errorDetail: item.errorDetail == null ? item.errorDetail : null,
+                };
+              });
               onGenerationSuccess?.({
                 outputId,
                 taskId,
@@ -695,34 +704,42 @@ export function useAiStudioTasks({
               return;
             }
 
-            queueOutputUpdate(outputId, (item) => ({
-              ...item,
-              taskState: item.taskState === "success" ? item.taskState : "success",
-              status: item.status === "ready" ? item.status : "ready",
-              timestamp: item.timestamp === "Just now" ? item.timestamp : "Just now",
-              resultUrls: areStringArraysEqual(item.resultUrls, allUrls)
-                ? item.resultUrls
-                : allUrls,
-              previewUrl:
-                item.previewUrl === (allUrls[0] ?? item.previewUrl)
-                  ? item.previewUrl
-                  : (allUrls[0] ?? item.previewUrl),
-              previewStoragePath:
-                item.previewStoragePath === (allUrls[0] ?? item.previewStoragePath)
-                  ? item.previewStoragePath
-                  : (allUrls[0] ?? item.previewStoragePath),
-              fullStoragePath:
-                item.fullStoragePath === (allUrls[0] ?? item.fullStoragePath)
-                  ? item.fullStoragePath
-                  : (allUrls[0] ?? item.fullStoragePath),
-              mediaSource: item.mediaSource ?? "generated",
-              previewTier: item.mode === "video" ? "preview_loop" : "full",
-              archivedAt: null,
-              archiveReason: null,
-              errorMessage: item.errorMessage == null ? item.errorMessage : null,
-              errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
-              errorDetail: item.errorDetail == null ? item.errorDetail : null,
-            }));
+            queueOutputUpdate(outputId, (item) => {
+              const nextDelivery = resolveNormalizedOutputDelivery({
+                previewStoragePath: item.previewStoragePath ?? null,
+                fullStoragePath: item.fullStoragePath ?? null,
+                previewUrl: allUrls[0] ?? item.previewUrl ?? null,
+                resultUrls: allUrls,
+              });
+              return {
+                ...item,
+                taskState: item.taskState === "success" ? item.taskState : "success",
+                status: item.status === "ready" ? item.status : "ready",
+                timestamp: item.timestamp === "Just now" ? item.timestamp : "Just now",
+                resultUrls: areStringArraysEqual(item.resultUrls, allUrls)
+                  ? item.resultUrls
+                  : allUrls,
+                previewUrl:
+                  item.previewUrl === (allUrls[0] ?? item.previewUrl)
+                    ? item.previewUrl
+                    : (allUrls[0] ?? item.previewUrl),
+                previewStoragePath:
+                  item.previewStoragePath === nextDelivery.previewStoragePath
+                    ? item.previewStoragePath
+                    : nextDelivery.previewStoragePath,
+                fullStoragePath:
+                  item.fullStoragePath === nextDelivery.fullStoragePath
+                    ? item.fullStoragePath
+                    : nextDelivery.fullStoragePath,
+                mediaSource: item.mediaSource ?? "generated",
+                previewTier: item.mode === "video" ? "preview_loop" : "full",
+                archivedAt: null,
+                archiveReason: null,
+                errorMessage: item.errorMessage == null ? item.errorMessage : null,
+                errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
+                errorDetail: item.errorDetail == null ? item.errorDetail : null,
+              };
+            });
             if (onGenerationSuccess) {
               onGenerationSuccess({
                 outputId,

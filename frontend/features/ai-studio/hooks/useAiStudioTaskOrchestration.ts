@@ -47,7 +47,16 @@ type UseAiStudioTaskOrchestrationParams = {
     provider: Provider;
     source: "upload" | "ai_studio";
     generationId?: string | null;
-  }) => Promise<{ mediaFileIds: string[]; errors: string[] }>;
+  }) => Promise<{
+    mediaFileIds: string[];
+    errors: string[];
+    delivery: {
+      previewStoragePath: string | null;
+      fullStoragePath: string | null;
+      previewUrl: string | null;
+      fullUrl: string | null;
+    } | null;
+  }>;
 };
 
 type StuckSpinnerRetryState = {
@@ -112,13 +121,22 @@ export const useAiStudioTaskOrchestration = ({
         saveState: "saving",
         saveError: null,
       }));
-      const { mediaFileIds, errors } = await persistMediaUrls({
+      const { mediaFileIds, errors, delivery } = await persistMediaUrls({
         outputId,
         urls,
         provider: pending.provider,
         source: "ai_studio",
         generationId: generationId ?? null,
       });
+      if (delivery) {
+        updateOutputById(outputId, (item) => ({
+          ...item,
+          previewStoragePath: delivery.previewStoragePath ?? item.previewStoragePath ?? null,
+          fullStoragePath:
+            delivery.fullStoragePath ?? item.fullStoragePath ?? item.previewStoragePath ?? null,
+          previewUrl: item.previewUrl ?? delivery.previewUrl ?? delivery.fullUrl ?? undefined,
+        }));
+      }
       if (mediaFileIds.length) {
         markOutputSaved(outputId, mediaFileIds, { showPill: true });
       } else if (errors.length) {

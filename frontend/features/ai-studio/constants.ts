@@ -8,6 +8,7 @@ import { getModelAllowedAspects } from "./logic/modelApiContracts";
 export type ModelMediaType = "image" | "video" | "image-to-video" | "edit" | "multi" | "keyframes";
 export type ModelOption = { value: string; label: string; mediaType?: ModelMediaType };
 export type ToolConfig = { id: ToolId; label: string; desc: string };
+export const AI_STUDIO_TOOLBAR_LOGO_SRC = "/ai-studio-toolbar-logo.png";
 
 // Map model ids to their logo assets used in selectors and chips.
 export const modelLogos: Record<string, string> = {
@@ -180,7 +181,7 @@ export const promptTemplates: PromptTemplate[] = [
 export const previewPlaceholders = [
   "/dashboard/ai-studio-hero.png",
   "/dashboard/welcome-art.png",
-  "/brand-logo.png",
+  AI_STUDIO_TOOLBAR_LOGO_SRC,
   "/placeholder-portrait.png",
   "/placeholder-portrait-2.png",
 ];

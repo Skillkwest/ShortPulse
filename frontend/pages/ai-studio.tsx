@@ -57,6 +57,10 @@ const CHARACTER_MODE_BUNDLE_STALE_AFTER_MS = 45 * 60 * 1000;
 const FLAG_OUTPUT_SELECTOR_STORE =
   process.env.NEXT_PUBLIC_AI_STUDIO_OUTPUT_SELECTOR_STORE !== "false";
 const FLAG_SELECTOR_CALLBACKS = process.env.NEXT_PUBLIC_AI_STUDIO_SELECTOR_CALLBACKS !== "false";
+const FLAG_PAGE_OUTPUT_DECOUPLE =
+  process.env.NEXT_PUBLIC_AI_STUDIO_PAGE_OUTPUT_DECOUPLE !== "false";
+const FLAG_REFERENCE_GRID_PRECONNECT_HINTS =
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_PRECONNECT_HINTS !== "false";
 
 type OptimisticDebitEntry = {
   credits: number;
@@ -85,6 +89,12 @@ type AiStudioPerfWindow = Window & {
         longTask: { samples: number; p95Ms: number | null };
         interaction: { maxInputStallMs: number };
         memory: { beforeMb: number | null; afterMb: number | null };
+        grid: {
+          renderedItemCountP95: number | null;
+          imageHydrationQueueP95: number | null;
+          imageDecodeInflightP95: number | null;
+          perfDegradeLevelP95: number | null;
+        };
       }>;
       gates: Array<{
         name: string;
@@ -333,6 +343,16 @@ export default function AiStudioPage() {
   const pendingHoldCredits = useMemo(() => {
     return reservedCredits + optimisticUncoveredDebitCredits;
   }, [reservedCredits, optimisticUncoveredDebitCredits]);
+  const referenceGridPreconnectOrigin = useMemo(() => {
+    if (!FLAG_REFERENCE_GRID_PRECONNECT_HINTS) return null;
+    const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    if (!rawSupabaseUrl) return null;
+    try {
+      return new URL(rawSupabaseUrl).origin;
+    } catch {
+      return null;
+    }
+  }, []);
   const effectiveBalanceCredits = useMemo(() => {
     if (balanceCredits == null) return null;
     return Math.max(0, balanceCredits - optimisticUncoveredDebitCredits);
@@ -343,19 +363,26 @@ export default function AiStudioPage() {
     if (process.env.NODE_ENV === "production") return;
     const perfWindow = window as AiStudioPerfWindow;
     const CLICK_SAMPLES_DEFAULT = 24;
-    const DEFAULT_COUNTS = [100, 300, 500];
+    const DEFAULT_COUNTS = [20, 40, 50, 60, 100, 300];
     const DEFAULT_SCROLL_MS_BY_COUNT: Record<number, number> = {
+      20: 2_500,
+      40: 3_500,
+      50: 4_500,
+      60: 5_000,
       100: 12_000,
       300: 20_000,
-      500: 60_000,
     };
     const PERF_GATES = {
-      clickP95MsAt500: 120,
-      longTaskP95MsAt500: 120,
-      maxInputStallMsAt500: 1000,
-      heapGrowthRatio100To500: 3,
+      clickP95MsAt40: 90,
+      longTaskP95MsAt40: 70,
+      maxInputStallMsAt40: 450,
+      renderedItemCountP95At40: 24,
+      clickP95MsAt60: 120,
+      longTaskP95MsAt60: 100,
+      maxInputStallMsAt60: 800,
+      renderedItemCountP95At60: 28,
     };
-    const SHELL_DEFAULT_COUNTS = [20, 50, 60, 100, 300];
+    const SHELL_DEFAULT_COUNTS = [20, 40, 50, 60, 100, 300];
     const SHELL_GATES = {
       toolbarP95MsAt60: 120,
       panelP95MsAt60: 140,
@@ -463,6 +490,8 @@ export default function AiStudioPage() {
       const toolbarLatenciesMs: number[] = [];
       const panelLatenciesMs: number[] = [];
       const dropLatenciesMs: number[] = [];
+      const referenceCommitLatenciesMs: number[] = [];
+      const previewCommitLatenciesMs: number[] = [];
       const toolSwitchCommitLatenciesMs: number[] = [];
       const longTaskDurationsMs: number[] = [];
       const toolbarStatusTickRerenders: number[] = [];
@@ -549,6 +578,39 @@ export default function AiStudioPage() {
         await sampleInputStall();
       }
 
+      const referenceTargets = Array.from(
+        document.querySelectorAll<HTMLElement>(".reference-column .reference-card")
+      );
+      for (let index = 0; index < Math.max(4, Math.floor(dropSamples / 2)); index += 1) {
+        const target = referenceTargets[index % referenceTargets.length];
+        if (!target) break;
+        const startedAt = performance.now();
+        target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await afterTwoFrames();
+        referenceCommitLatenciesMs.push(performance.now() - startedAt);
+        await sampleInputStall();
+      }
+
+      const previewTargets = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          ".studio-column .studio-preview-square, .studio-column .prompt-preview-input, .studio-column .preview-card-actions .ghost-btn"
+        )
+      );
+      for (let index = 0; index < Math.max(4, Math.floor(dropSamples / 2)); index += 1) {
+        const target = previewTargets[index % previewTargets.length];
+        if (!target) break;
+        const startedAt = performance.now();
+        if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+          target.focus();
+          target.dispatchEvent(new Event("input", { bubbles: true }));
+        } else {
+          target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        }
+        await afterTwoFrames();
+        previewCommitLatenciesMs.push(performance.now() - startedAt);
+        await sampleInputStall();
+      }
+
       const statusTickSamples = 6;
       for (let sampleIndex = 0; sampleIndex < statusTickSamples; sampleIndex += 1) {
         const beforeCounters = getAiStudioShellSectionRenderCounters();
@@ -603,8 +665,8 @@ export default function AiStudioPage() {
         sectionCommit: {
           toolbarP95Ms: p95(toolbarLatenciesMs),
           propertiesP95Ms: p95(panelLatenciesMs),
-          referenceP95Ms: p95(dropLatenciesMs),
-          previewP95Ms: p95(dropLatenciesMs),
+          referenceP95Ms: p95(referenceCommitLatenciesMs),
+          previewP95Ms: p95(previewCommitLatenciesMs),
         },
         nonGridRerendersPerOutputStatusTick: {
           samples: Math.min(
@@ -632,6 +694,24 @@ export default function AiStudioPage() {
       await sleep(280);
 
       const clickLatenciesMs: number[] = [];
+      const renderedItemSamples: number[] = [];
+      const hydrationQueueSamples: number[] = [];
+      const decodeInflightSamples: number[] = [];
+      const perfDegradeSamples: number[] = [];
+      const sampleGridRuntimeMetrics = () => {
+        const panel = document.querySelector<HTMLElement>(
+          ".reference-canvas-panel[data-grid-surface='reference-grid']"
+        );
+        if (!panel) return;
+        const renderedCount = Number(panel.dataset.renderedItemCount ?? NaN);
+        const hydrationQueue = Number(panel.dataset.imageHydrationQueueSize ?? NaN);
+        const decodeInflight = Number(panel.dataset.imageDecodeInflightCount ?? NaN);
+        const perfDegradeLevel = Number(panel.dataset.gridPerfDegradeLevel ?? NaN);
+        if (Number.isFinite(renderedCount)) renderedItemSamples.push(renderedCount);
+        if (Number.isFinite(hydrationQueue)) hydrationQueueSamples.push(hydrationQueue);
+        if (Number.isFinite(decodeInflight)) decodeInflightSamples.push(decodeInflight);
+        if (Number.isFinite(perfDegradeLevel)) perfDegradeSamples.push(perfDegradeLevel);
+      };
       const scroller = document.querySelector(".reference-canvas-scroll");
       for (let index = 0; index < clickSamples; index += 1) {
         const cards = Array.from(document.querySelectorAll(".reference-card"));
@@ -642,6 +722,7 @@ export default function AiStudioPage() {
         targetCard.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
         await afterTwoFrames();
         clickLatenciesMs.push(performance.now() - start);
+        sampleGridRuntimeMetrics();
         if (scroller instanceof HTMLElement && scroller.scrollHeight > scroller.clientHeight) {
           const nextTop = Math.min(
             scroller.scrollHeight - scroller.clientHeight,
@@ -686,6 +767,7 @@ export default function AiStudioPage() {
               : scroller.scrollTop + 280;
           scroller.scrollTop = nextTop;
         }
+        sampleGridRuntimeMetrics();
       }
       if (observer) observer.disconnect();
       const afterMb = sampleHeapMb();
@@ -707,6 +789,12 @@ export default function AiStudioPage() {
         memory: {
           beforeMb,
           afterMb,
+        },
+        grid: {
+          renderedItemCountP95: p95(renderedItemSamples),
+          imageHydrationQueueP95: p95(hydrationQueueSamples),
+          imageDecodeInflightP95: p95(decodeInflightSamples),
+          perfDegradeLevelP95: p95(perfDegradeSamples),
         },
       };
     };
@@ -745,7 +833,7 @@ export default function AiStudioPage() {
           const scenario = await runPerfScenario(
             safeCount,
             clickSamples,
-            scrollDurationMsByCount[safeCount] ?? DEFAULT_SCROLL_MS_BY_COUNT[500]
+            scrollDurationMsByCount[safeCount] ?? DEFAULT_SCROLL_MS_BY_COUNT[300]
           );
           scenarios.push({
             count: scenario.count,
@@ -753,6 +841,7 @@ export default function AiStudioPage() {
             longTask: scenario.longTask,
             interaction: scenario.interaction,
             memory: scenario.memory,
+            grid: scenario.grid,
           });
         }
 
@@ -988,7 +1077,7 @@ export default function AiStudioPage() {
 
   const { visibleFailures, dismissFailure, focusFailure } =
     useAiStudioOptimisticDebitReconciliation({
-      outputs,
+      outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
       setOptimisticDebitEntries,
       refreshBalance,
       setDetailOutputId,
@@ -1298,8 +1387,8 @@ export default function AiStudioPage() {
     triggerFilePicker,
   });
   const referenceCanvasProps = useAiStudioReferenceCanvasProps({
-    outputs,
-    archivedOutputs,
+    outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
+    archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
     activeOutputId,
     onReferenceOutputMediaLoaded,
     linkedPromptReferenceIds,
@@ -1352,6 +1441,12 @@ export default function AiStudioPage() {
       <Head>
         <title>ShortPulse · AI Studio</title>
         <meta name="description" content="AI Studio — prompt, generate, preview, save." />
+        {referenceGridPreconnectOrigin ? (
+          <>
+            <link rel="preconnect" href={referenceGridPreconnectOrigin} crossOrigin="anonymous" />
+            <link rel="dns-prefetch" href={referenceGridPreconnectOrigin} />
+          </>
+        ) : null}
       </Head>
       <AiStudioPageContent
         referenceCanvasFileInputRef={referenceCanvasFileInputRef}

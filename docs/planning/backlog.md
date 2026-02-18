@@ -1,6 +1,6 @@
 # ShortPulse Backlog
 
-Last audited: 2026-02-17
+Last audited: 2026-02-18
 
 How to use:
 - Keep this list execution-focused and current.
@@ -51,6 +51,8 @@ Tooling audit references:
 - [ ] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
 - [ ] AI Studio: alter existing e2e coverage for aspect clamping + submit-time `effective_aspect` consistency after the contract overhaul.
 - [ ] AI Studio: update reference grid styling and adjust `Add files` / `Media library` button colors.
+- [ ] AI Studio: fix expanded media modal labels so images imported from Media Library are consistently labeled as images (never videos).
+- [ ] AI Studio: correct local computer import media typing so uploaded images render and behave as images throughout the expanded media modal.
 - [ ] AI Studio: test header title color updates and add a sparkle icon next to the `AI Studio` title.
 - [ ] AI Studio: preload character workflow identities and saved references when entering from Dashboard so character assets are cached across workflow switches.
 - [ ] AI Studio: make `CharacterManager` open instantly (no open animation) and tune properties panel sizing.

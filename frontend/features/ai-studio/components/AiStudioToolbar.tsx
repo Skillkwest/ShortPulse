@@ -19,7 +19,13 @@ import {
 } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { DashboardNavPrefab } from "../../../components/DashboardNavPrefab";
-import { creationsToolList, editToolList, lowerToolList, primaryToolList } from "../constants";
+import {
+  AI_STUDIO_TOOLBAR_LOGO_SRC,
+  creationsToolList,
+  editToolList,
+  lowerToolList,
+  primaryToolList,
+} from "../constants";
 import { ToolId } from "../types";
 
 type AiStudioToolbarProps = {
@@ -76,7 +82,7 @@ function AiStudioToolbarComponent({
       data-primary-active={activePrimary || undefined}
     >
       <div className="toolbar-logo">
-        <Image src="/brand-logo.png" alt="Brand logo" width={150} height={150} />
+        <Image src={AI_STUDIO_TOOLBAR_LOGO_SRC} alt="AI Studio logo" width={150} height={150} />
       </div>
       <DashboardNavPrefab className="toolbar-back-link" />
       <div className="toolbar-divider" aria-hidden="true" />

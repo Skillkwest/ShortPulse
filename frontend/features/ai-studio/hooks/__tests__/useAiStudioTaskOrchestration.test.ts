@@ -77,7 +77,11 @@ describe("useAiStudioTaskOrchestration", () => {
 
     const markOutputSaved = vi.fn();
     const markOutputSaveFailed = vi.fn();
-    const persistMediaUrls = vi.fn(async () => ({ mediaFileIds: ["media-1"], errors: [] }));
+    const persistMediaUrls = vi.fn(async () => ({
+      mediaFileIds: ["media-1"],
+      errors: [],
+      delivery: null,
+    }));
     const ensureGenerationRecord = vi.fn(async () => "gen-1");
     const setUiNotice = vi.fn();
 
@@ -196,7 +200,7 @@ describe("useAiStudioTaskOrchestration", () => {
         pendingAutoSavesRef: { current: {} },
         markOutputSaved: vi.fn(),
         markOutputSaveFailed: vi.fn(),
-        persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [] })),
+        persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
       })
     );
 
@@ -255,7 +259,7 @@ describe("useAiStudioTaskOrchestration", () => {
         pendingAutoSavesRef: { current: {} },
         markOutputSaved: vi.fn(),
         markOutputSaveFailed: vi.fn(),
-        persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [] })),
+        persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
       })
     );
 
@@ -320,7 +324,7 @@ describe("useAiStudioTaskOrchestration", () => {
           pendingAutoSavesRef: { current: {} },
           markOutputSaved: vi.fn(),
           markOutputSaveFailed: vi.fn(),
-          persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [] })),
+          persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
         })
       );
 
@@ -381,7 +385,7 @@ describe("useAiStudioTaskOrchestration", () => {
           pendingAutoSavesRef: { current: {} },
           markOutputSaved: vi.fn(),
           markOutputSaveFailed: vi.fn(),
-          persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [] })),
+          persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
         })
       );
 

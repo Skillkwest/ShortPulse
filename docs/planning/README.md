@@ -15,6 +15,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`: full UX-0 baseline report for all priority routes plus first-pass keyboard baseline.
 - `ai-studio-agent-tooling-phased-plan.md`: phased rollout for media analysis, prompt optimization, evaluation, and MCP adoption gates.
 - `ai-studio-agent-pipeline-hardening-plan.md`: quality-first hardening plan for deterministic routing, server-owned vision summaries, durable canonical state, and no-question action contracts.
+- `ai-studio-reference-grid-stabilization-v4-plan.md`: decision-complete stabilization plan for 50-60 reference sessions (decoupling, adaptive delivery, hydration/decode budgets, virtualization, watchdog degrade levels).
 - `media-library-reference-grid-optimization-plan.md`: near-instant media loading architecture plan (Media Library + AI Studio Reference Grid).
 - `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
 - `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.

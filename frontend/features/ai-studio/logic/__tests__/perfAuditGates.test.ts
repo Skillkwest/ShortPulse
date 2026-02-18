@@ -7,10 +7,14 @@ import {
 } from "../perfAuditGates";
 
 const REFERENCE_THRESHOLDS = {
-  clickP95MsAt500: 120,
-  longTaskP95MsAt500: 120,
-  maxInputStallMsAt500: 1000,
-  heapGrowthRatio100To500: 3,
+  clickP95MsAt40: 90,
+  longTaskP95MsAt40: 70,
+  maxInputStallMsAt40: 450,
+  renderedItemCountP95At40: 24,
+  clickP95MsAt60: 120,
+  longTaskP95MsAt60: 100,
+  maxInputStallMsAt60: 800,
+  renderedItemCountP95At60: 28,
 };
 
 const SHELL_THRESHOLDS = {
@@ -93,26 +97,38 @@ describe("perfAuditGates", () => {
     expect(gates.every((gate) => gate.pass)).toBe(false);
   });
 
-  it("fails heap-growth gate when memory sampling is unavailable", () => {
+  it("fails rendered-item gate when runtime grid metrics are unavailable", () => {
     const scenarios: ReferenceGridScenario[] = [
       {
-        count: 100,
+        count: 40,
+        click: { samples: 10, p95Ms: 60 },
+        longTask: { samples: 3, p95Ms: 65 },
+        interaction: { maxInputStallMs: 40 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 20,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+        },
+      },
+      {
+        count: 60,
         click: { samples: 10, p95Ms: 60 },
         longTask: { samples: 3, p95Ms: 80 },
         interaction: { maxInputStallMs: 50 },
         memory: { beforeMb: null, afterMb: null },
-      },
-      {
-        count: 500,
-        click: { samples: 10, p95Ms: 90 },
-        longTask: { samples: 3, p95Ms: 90 },
-        interaction: { maxInputStallMs: 70 },
-        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: null,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+        },
       },
     ];
     const gates = evaluateReferenceGridAuditGates(scenarios, REFERENCE_THRESHOLDS);
-    const heapGate = gates.find((gate) => gate.name === "heap_growth_ratio_100_to_500");
-    expect(heapGate?.pass).toBe(false);
-    expect(heapGate?.note).toContain("JS heap sampling unavailable");
+    const renderedGate = gates.find((gate) => gate.name === "rendered_item_count_p95_at_60");
+    expect(renderedGate?.pass).toBe(false);
+    expect(renderedGate?.note).toContain("metric unavailable");
   });
 });

@@ -23,6 +23,8 @@ export type MediaPerfEventName =
   | "media.grid.memory.sample"
   | "media.grid.archive.transition";
 
+export type MediaPerfSamplingPolicy = "normal" | "defer_non_critical";
+
 type Primitive = string | number | boolean | null;
 type MediaPerfData = Record<string, Primitive>;
 
@@ -37,6 +39,7 @@ type MediaPerfDebugHandle = {
   clear: () => void;
   durationStats: () => MediaPerfDurationStat[];
   signStats: () => MediaPerfSignStat[];
+  getSamplingPolicy: () => MediaPerfSamplingPolicy;
 };
 
 export type MediaPerfDurationStat = {
@@ -65,8 +68,22 @@ export type MediaPerfSignStat = {
 const MAX_MEDIA_PERF_EVENTS = 500;
 const MAX_KEY_LENGTH = 48;
 const MAX_STRING_LENGTH = 140;
+const NON_CRITICAL_SAMPLE_INTERVAL_MS = 750;
+const DEFERRED_EVENT_MAX_QUEUE = 240;
+const DEFERRED_EVENT_FLUSH_TIMEOUT_MS = 160;
+
+const DEFERRED_NON_CRITICAL_EVENTS = new Set<MediaPerfEventName>([
+  "media.grid.scroll.sample",
+  "media.grid.autoplay.started",
+  "media.grid.autoplay.stopped",
+  "media.grid.memory.sample",
+]);
 
 const eventBuffer: MediaPerfEvent[] = [];
+const deferredEventBuffer: MediaPerfEvent[] = [];
+const deferredLastLoggedAtByEvent = new Map<MediaPerfEventName, number>();
+let samplingPolicy: MediaPerfSamplingPolicy = "normal";
+let deferredFlushTimeoutId: number | null = null;
 
 const toFiniteNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -124,6 +141,76 @@ const getNow = () => {
   return Date.now();
 };
 
+type IdleDeadline = {
+  didTimeout: boolean;
+  timeRemaining: () => number;
+};
+
+type WindowWithIdleCallback = Window &
+  typeof globalThis & {
+    requestIdleCallback?: (
+      callback: (deadline: IdleDeadline) => void,
+      options?: { timeout?: number }
+    ) => number;
+  };
+
+const commitMediaPerfEvent = (event: MediaPerfEvent) => {
+  eventBuffer.push(event);
+
+  if (eventBuffer.length > MAX_MEDIA_PERF_EVENTS) {
+    eventBuffer.splice(0, eventBuffer.length - MAX_MEDIA_PERF_EVENTS);
+  }
+
+  addBreadcrumb({
+    type: event.event.includes(".sign.") ? "network" : "ui",
+    message: `media_perf.${event.event}`,
+    data: event.data,
+  });
+};
+
+const flushDeferredEvents = () => {
+  if (deferredFlushTimeoutId != null && typeof window !== "undefined") {
+    window.clearTimeout(deferredFlushTimeoutId);
+    deferredFlushTimeoutId = null;
+  }
+  if (!deferredEventBuffer.length) return;
+  const queued = deferredEventBuffer.splice(0, deferredEventBuffer.length);
+  queued.forEach((event) => {
+    commitMediaPerfEvent(event);
+  });
+};
+
+const scheduleDeferredFlush = () => {
+  if (deferredFlushTimeoutId != null) return;
+  if (typeof window === "undefined") {
+    flushDeferredEvents();
+    return;
+  }
+
+  deferredFlushTimeoutId = window.setTimeout(() => {
+    flushDeferredEvents();
+  }, DEFERRED_EVENT_FLUSH_TIMEOUT_MS);
+
+  const runtimeWindow = window as WindowWithIdleCallback;
+  if (typeof runtimeWindow.requestIdleCallback === "function") {
+    runtimeWindow.requestIdleCallback(
+      () => {
+        flushDeferredEvents();
+      },
+      { timeout: DEFERRED_EVENT_FLUSH_TIMEOUT_MS }
+    );
+  }
+};
+
+export const setMediaPerfSamplingPolicy = (policy: MediaPerfSamplingPolicy): void => {
+  samplingPolicy = policy;
+  if (policy === "normal") {
+    flushDeferredEvents();
+  }
+};
+
+export const getMediaPerfSamplingPolicy = (): MediaPerfSamplingPolicy => samplingPolicy;
+
 /**
  * Writes a media performance event into the in-memory buffer and breadcrumb stream.
  */
@@ -132,21 +219,27 @@ export const logMediaPerf = (
   data: Record<string, unknown> = {}
 ): void => {
   const sanitized = sanitizeData(data);
-  eventBuffer.push({
+  const nextEvent: MediaPerfEvent = {
     t: Date.now(),
     event,
     data: sanitized,
-  });
+  };
 
-  if (eventBuffer.length > MAX_MEDIA_PERF_EVENTS) {
-    eventBuffer.splice(0, eventBuffer.length - MAX_MEDIA_PERF_EVENTS);
+  if (samplingPolicy === "defer_non_critical" && DEFERRED_NON_CRITICAL_EVENTS.has(event)) {
+    const now = getNow();
+    const previous = deferredLastLoggedAtByEvent.get(event) ?? 0;
+    if (now - previous < NON_CRITICAL_SAMPLE_INTERVAL_MS) {
+      return;
+    }
+    deferredLastLoggedAtByEvent.set(event, now);
+    deferredEventBuffer.push(nextEvent);
+    if (deferredEventBuffer.length > DEFERRED_EVENT_MAX_QUEUE) {
+      deferredEventBuffer.splice(0, deferredEventBuffer.length - DEFERRED_EVENT_MAX_QUEUE);
+    }
+    scheduleDeferredFlush();
+    return;
   }
-
-  addBreadcrumb({
-    type: event.includes(".sign.") ? "network" : "ui",
-    message: `media_perf.${event}`,
-    data: sanitized,
-  });
+  commitMediaPerfEvent(nextEvent);
 };
 
 /**
@@ -174,6 +267,14 @@ export const getMediaPerfSnapshot = (): MediaPerfEvent[] => eventBuffer.slice();
  */
 export const clearMediaPerfEvents = (): void => {
   eventBuffer.length = 0;
+  deferredEventBuffer.length = 0;
+  deferredLastLoggedAtByEvent.clear();
+  if (deferredFlushTimeoutId != null) {
+    if (typeof window !== "undefined") {
+      window.clearTimeout(deferredFlushTimeoutId);
+    }
+    deferredFlushTimeoutId = null;
+  }
 };
 
 /**
@@ -277,6 +378,7 @@ export const installMediaPerfDebugHandle = (): void => {
     clear: clearMediaPerfEvents,
     durationStats: getMediaPerfDurationStats,
     signStats: getMediaPerfSignStats,
+    getSamplingPolicy: getMediaPerfSamplingPolicy,
   };
 };
 

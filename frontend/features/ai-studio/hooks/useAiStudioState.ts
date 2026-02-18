@@ -883,10 +883,15 @@ export const useAiStudioState = ({
       fileType: "image" | "video";
       filename?: string | null;
       source?: string | null;
+      previewStoragePath?: string | null;
+      fullStoragePath?: string | null;
+      previewUrl?: string | null;
+      fullUrl?: string | null;
     }) => {
       if (!payload.url) return;
       const id = `library-${randomId()}`;
       const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
+      const previewUrl = payload.previewUrl ?? payload.url;
       const nextOutput: StudioOutput = {
         id,
         prompt: payload.filename ?? "Media reference",
@@ -896,9 +901,9 @@ export const useAiStudioState = ({
         modelId: model ?? undefined,
         status: "ready",
         timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
-        previewUrl: payload.url,
-        previewStoragePath: payload.url,
-        fullStoragePath: payload.url,
+        previewUrl,
+        previewStoragePath: payload.previewStoragePath ?? previewUrl,
+        fullStoragePath: payload.fullStoragePath ?? payload.fullUrl ?? previewUrl,
         mediaSource: payload.source === "ai_studio" ? "generated" : "library",
         previewTier: payload.fileType === "video" ? "preview_loop" : "thumb",
         archivedAt: null,

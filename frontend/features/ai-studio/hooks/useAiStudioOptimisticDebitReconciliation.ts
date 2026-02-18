@@ -4,6 +4,7 @@
  */
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { StudioOutput } from "../types";
+import { useOutputSelector } from "./aiStudioOutputStore";
 
 type OptimisticDebitEntry = {
   credits: number;
@@ -14,7 +15,7 @@ type OptimisticDebitEntry = {
 const STALE_UNASSIGNED_OPTIMISTIC_DEBIT_MS = 2 * 60 * 1000;
 
 type UseAiStudioOptimisticDebitReconciliationParams = {
-  outputs: StudioOutput[];
+  outputs?: StudioOutput[];
   setOptimisticDebitEntries: Dispatch<SetStateAction<OptimisticDebitEntry[]>>;
   refreshBalance: (options?: {
     silent?: boolean;
@@ -29,15 +30,64 @@ type UseAiStudioOptimisticDebitReconciliationParams = {
   setDetailOutputId: Dispatch<SetStateAction<string | null>>;
 };
 
+type ReconciliationOutputLite = Pick<StudioOutput, "id" | "taskId" | "taskState" | "errorMessage">;
+
+const areOutputLiteListsEqual = (
+  left: ReconciliationOutputLite[],
+  right: ReconciliationOutputLite[]
+) => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  return left.every((item, index) => {
+    const rhs = right[index];
+    return (
+      item.id === rhs?.id &&
+      item.taskId === rhs?.taskId &&
+      item.taskState === rhs?.taskState &&
+      item.errorMessage === rhs?.errorMessage
+    );
+  });
+};
+
 /**
  * Returns failure UI state and handlers while reconciling optimistic debit entries with output lifecycle.
  */
 export const useAiStudioOptimisticDebitReconciliation = ({
-  outputs,
+  outputs: outputsOverride,
   setOptimisticDebitEntries,
   refreshBalance,
   setDetailOutputId,
 }: UseAiStudioOptimisticDebitReconciliationParams) => {
+  const selectorOutputs = useOutputSelector(
+    (snapshot) =>
+      snapshot.outputOrder
+        .map((id) => snapshot.outputById[id])
+        .filter((item): item is StudioOutput => Boolean(item)),
+    (left, right) =>
+      left.length === right.length && left.every((item, index) => item === right[index])
+  );
+  const outputs = outputsOverride ?? selectorOutputs;
+  const outputLite = useOutputSelector(
+    (snapshot) =>
+      snapshot.outputOrder
+        .map((id) => snapshot.outputById[id])
+        .filter((item): item is StudioOutput => Boolean(item))
+        .map((item) => ({
+          id: item.id,
+          taskId: item.taskId,
+          taskState: item.taskState,
+          errorMessage: item.errorMessage ?? null,
+        })),
+    areOutputLiteListsEqual
+  );
+  const effectiveOutputLite = outputsOverride
+    ? outputs.map((item) => ({
+        id: item.id,
+        taskId: item.taskId,
+        taskState: item.taskState,
+        errorMessage: item.errorMessage ?? null,
+      }))
+    : outputLite;
   const [dismissedFailureIds, setDismissedFailureIds] = useState<Set<string>>(new Set());
   const settledGenerationSignaturesRef = useRef<Set<string>>(new Set());
   const seenOutputIdsRef = useRef<Set<string>>(new Set());
@@ -64,7 +114,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
 
   useEffect(() => {
     const newlySeenOutputIds: string[] = [];
-    outputs.forEach((output) => {
+    effectiveOutputLite.forEach((output) => {
       if (!seenOutputIdsRef.current.has(output.id)) {
         newlySeenOutputIds.push(output.id);
       }
@@ -97,7 +147,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
         activeEntries.map((entry) => entry.outputId).filter((id): id is string => Boolean(id))
       );
       const newlyPendingOutputIds = newlySeenOutputIds.filter((id) => {
-        const item = outputs.find((output) => output.id === id);
+        const item = effectiveOutputLite.find((output) => output.id === id);
         return Boolean(
           item &&
           item.id.startsWith("out-") &&
@@ -121,11 +171,11 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       });
       return changed ? next : prev;
     });
-  }, [outputs, setOptimisticDebitEntries]);
+  }, [effectiveOutputLite, setOptimisticDebitEntries]);
 
   useEffect(() => {
     const failedOutputIds = new Set(
-      outputs.filter((item) => item.taskState === "fail").map((item) => item.id)
+      effectiveOutputLite.filter((item) => item.taskState === "fail").map((item) => item.id)
     );
     if (!failedOutputIds.size) return;
 
@@ -133,10 +183,10 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       const next = prev.filter((entry) => !(entry.outputId && failedOutputIds.has(entry.outputId)));
       return next.length === prev.length ? prev : next;
     });
-  }, [outputs, setOptimisticDebitEntries]);
+  }, [effectiveOutputLite, setOptimisticDebitEntries]);
 
   useEffect(() => {
-    const settledOutputs = outputs.filter(
+    const settledOutputs = effectiveOutputLite.filter(
       (item) => item.taskState === "success" || item.taskState === "fail"
     );
     const settledSignatures = settledOutputs.map(
@@ -183,7 +233,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       }
       removeSuccessfulOptimisticEntries();
     })();
-  }, [outputs, refreshBalance, setOptimisticDebitEntries]);
+  }, [effectiveOutputLite, refreshBalance, setOptimisticDebitEntries]);
 
   const dismissFailure = (id: string) => {
     setDismissedFailureIds((prev) => {

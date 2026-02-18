@@ -182,11 +182,26 @@ export const useAiStudioPersistenceActions = ({
       provider: Provider;
       source: "upload" | "ai_studio";
       generationId?: string | null;
-    }) => {
+    }): Promise<{
+      mediaFileIds: string[];
+      errors: string[];
+      delivery: {
+        previewStoragePath: string | null;
+        fullStoragePath: string | null;
+        previewUrl: string | null;
+        fullUrl: string | null;
+      } | null;
+    }> => {
       const output = findOutputById(outputId);
-      if (!output) return { mediaFileIds: [], errors: ["Output not found"] };
+      if (!output) return { mediaFileIds: [], errors: ["Output not found"], delivery: null };
       const mediaFileIds: string[] = [];
       const errors: string[] = [];
+      let delivery: {
+        previewStoragePath: string | null;
+        fullStoragePath: string | null;
+        previewUrl: string | null;
+        fullUrl: string | null;
+      } | null = null;
 
       for (let index = 0; index < urls.length; index += 1) {
         try {
@@ -201,10 +216,17 @@ export const useAiStudioPersistenceActions = ({
             generationId: generationId ?? null,
             promptId: output.promptId ?? null,
             index,
+            previewStoragePathHint: output.previewStoragePath ?? null,
+            fullStoragePathHint: output.fullStoragePath ?? null,
+            previewUrlHint: output.previewUrl ?? null,
+            fullUrlHint: output.fullStoragePath ?? output.previewUrl ?? null,
             metadata: {
               task_id: output.taskId ?? null,
             },
           });
+          if (!delivery) {
+            delivery = result.delivery;
+          }
           if (result?.mediaFileId) {
             mediaFileIds.push(result.mediaFileId);
             try {
@@ -245,7 +267,7 @@ export const useAiStudioPersistenceActions = ({
         }
       }
 
-      return { mediaFileIds, errors };
+      return { mediaFileIds, errors, delivery };
     },
     [findOutputById]
   );
@@ -307,13 +329,22 @@ export const useAiStudioPersistenceActions = ({
               taskId: output.taskId,
             })))
           : null;
-      const { mediaFileIds, errors } = await persistMediaUrls({
+      const { mediaFileIds, errors, delivery } = await persistMediaUrls({
         outputId,
         urls,
         provider,
         source,
         generationId: generationId ?? null,
       });
+      if (delivery) {
+        updateOutputById(outputId, (item) => ({
+          ...item,
+          previewStoragePath: delivery.previewStoragePath ?? item.previewStoragePath ?? null,
+          fullStoragePath:
+            delivery.fullStoragePath ?? item.fullStoragePath ?? item.previewStoragePath ?? null,
+          previewUrl: item.previewUrl ?? delivery.previewUrl ?? delivery.fullUrl ?? undefined,
+        }));
+      }
       if (mediaFileIds.length) {
         markOutputSaved(outputId, mediaFileIds);
         return;

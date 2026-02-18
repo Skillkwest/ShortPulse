@@ -40,10 +40,17 @@ import { useAiStudioCharacterPanelProps } from "../features/ai-studio/hooks/useA
 import { useAiStudioReferenceCanvasProps } from "../features/ai-studio/hooks/useAiStudioReferenceCanvasProps";
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
 import { useAiStudioSelectors } from "../features/ai-studio/hooks/useAiStudioSelectors";
+import {
+  evaluateReferenceGridAuditGates,
+  evaluateStudioShellAuditGates,
+  type ReferenceGridScenario,
+  type StudioShellScenario,
+} from "../features/ai-studio/logic/perfAuditGates";
 import type { StudioOutput } from "../features/ai-studio/types";
 
 const CHARACTER_MODE_BACKGROUND_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/edit";
 const CHARACTER_MODE_BUNDLE_STALE_AFTER_MS = 45 * 60 * 1000;
+const FLAG_SHELL_DECOUPLE = process.env.NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE !== "false";
 
 type OptimisticDebitEntry = {
   credits: number;
@@ -256,6 +263,13 @@ export default function AiStudioPage() {
     archivedOutputById,
     activeOutputId,
   });
+  const resolveLegacyPanelOutputPreviewUrl = useCallback(
+    (id: string | null | undefined) => resolvePreviewUrlById(outputs, id),
+    [outputs, resolvePreviewUrlById]
+  );
+  const resolvePanelOutputPreviewUrl = FLAG_SHELL_DECOUPLE
+    ? resolveOutputPreviewUrl
+    : resolveLegacyPanelOutputPreviewUrl;
   const inFlightOutputIds = useMemo(
     () =>
       new Set(
@@ -374,6 +388,31 @@ export default function AiStudioPage() {
       transfer.items.add(new File(["audit"], "audit-reference.png", { type: "image/png" }));
       return transfer;
     };
+    const createSyntheticDragEvent = (type: "dragover" | "drop", transfer: DataTransfer | null) => {
+      if (typeof DragEvent !== "undefined") {
+        try {
+          return new DragEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: transfer ?? undefined,
+          });
+        } catch {
+          // Fall back for runtimes that expose DragEvent but reject construction.
+        }
+      }
+      const fallbackEvent = new Event(type, { bubbles: true, cancelable: true });
+      if (transfer) {
+        try {
+          Object.defineProperty(fallbackEvent, "dataTransfer", {
+            value: transfer,
+            configurable: true,
+          });
+        } catch {
+          // Ignore if runtime blocks property definition on Event objects.
+        }
+      }
+      return fallbackEvent;
+    };
 
     const runStudioShellScenario = async (
       count: number,
@@ -459,17 +498,9 @@ export default function AiStudioPage() {
         if (!dropTarget) break;
         const transfer = resolveDropTransfer();
         const startedAt = performance.now();
-        const dragOverEvent = new DragEvent("dragover", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer: transfer ?? undefined,
-        });
+        const dragOverEvent = createSyntheticDragEvent("dragover", transfer);
         dropTarget.dispatchEvent(dragOverEvent);
-        const dropEvent = new DragEvent("drop", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer: transfer ?? undefined,
-        });
+        const dropEvent = createSyntheticDragEvent("drop", transfer);
         dropTarget.dispatchEvent(dropEvent);
         await afterTwoFrames();
         dropLatenciesMs.push(performance.now() - startedAt);
@@ -509,7 +540,7 @@ export default function AiStudioPage() {
       await sleep(280);
 
       const clickLatenciesMs: number[] = [];
-      const scroller = document.querySelector(".reference-canvas-body");
+      const scroller = document.querySelector(".reference-canvas-scroll");
       for (let index = 0; index < clickSamples; index += 1) {
         const cards = Array.from(document.querySelectorAll(".reference-card"));
         if (!cards.length) break;
@@ -615,13 +646,7 @@ export default function AiStudioPage() {
           ...(options?.scrollDurationMsByCount ?? {}),
         };
 
-        const scenarios: Array<{
-          count: number;
-          click: { samples: number; p95Ms: number | null };
-          longTask: { samples: number; p95Ms: number | null };
-          interaction: { maxInputStallMs: number };
-          memory: { beforeMb: number | null; afterMb: number | null };
-        }> = [];
+        const scenarios: ReferenceGridScenario[] = [];
 
         for (const count of counts) {
           const safeCount = Math.max(1, Math.floor(count));
@@ -639,72 +664,7 @@ export default function AiStudioPage() {
           });
         }
 
-        const scenarioByCount = new Map(scenarios.map((scenario) => [scenario.count, scenario]));
-        const s100 = scenarioByCount.get(100) ?? null;
-        const s500 = scenarioByCount.get(500) ?? null;
-
-        const gates: Array<{
-          name: string;
-          pass: boolean;
-          actual: number | null;
-          expected: string;
-          note?: string;
-        }> = [];
-        if (s500) {
-          gates.push({
-            name: "click_p95_ms_at_500",
-            pass:
-              typeof s500.click.p95Ms === "number" &&
-              s500.click.p95Ms <= PERF_GATES.clickP95MsAt500,
-            actual: s500.click.p95Ms,
-            expected: `<= ${PERF_GATES.clickP95MsAt500}`,
-          });
-          gates.push({
-            name: "long_task_p95_ms_at_500",
-            pass:
-              typeof s500.longTask.p95Ms === "number" &&
-              s500.longTask.p95Ms <= PERF_GATES.longTaskP95MsAt500,
-            actual: s500.longTask.p95Ms,
-            expected: `<= ${PERF_GATES.longTaskP95MsAt500}`,
-          });
-          gates.push({
-            name: "max_input_stall_ms_at_500",
-            pass: s500.interaction.maxInputStallMs <= PERF_GATES.maxInputStallMsAt500,
-            actual: s500.interaction.maxInputStallMs,
-            expected: `<= ${PERF_GATES.maxInputStallMsAt500}`,
-          });
-        } else {
-          gates.push({
-            name: "scenario_500_exists",
-            pass: false,
-            actual: null,
-            expected: "500-card scenario must run",
-          });
-        }
-
-        if (
-          s100 &&
-          s500 &&
-          typeof s100.memory.afterMb === "number" &&
-          typeof s500.memory.afterMb === "number" &&
-          s100.memory.afterMb > 0
-        ) {
-          const ratio = Math.round((s500.memory.afterMb / s100.memory.afterMb) * 100) / 100;
-          gates.push({
-            name: "heap_growth_ratio_100_to_500",
-            pass: ratio <= PERF_GATES.heapGrowthRatio100To500,
-            actual: ratio,
-            expected: `<= ${PERF_GATES.heapGrowthRatio100To500}`,
-          });
-        } else {
-          gates.push({
-            name: "heap_growth_ratio_100_to_500",
-            pass: false,
-            actual: null,
-            expected: `<= ${PERF_GATES.heapGrowthRatio100To500}`,
-            note: "JS heap sampling unavailable for this browser/runtime.",
-          });
-        }
+        const gates = evaluateReferenceGridAuditGates(scenarios, PERF_GATES);
 
         const result = {
           ok: gates.every((gate) => gate.pass),
@@ -723,14 +683,7 @@ export default function AiStudioPage() {
         const toolbarSamples = Math.max(1, Math.floor(options?.toolbarSamples ?? 24));
         const panelSamples = Math.max(1, Math.floor(options?.panelSamples ?? 24));
         const dropSamples = Math.max(1, Math.floor(options?.dropSamples ?? 16));
-        const scenarios: Array<{
-          count: number;
-          toolbar: { samples: number; p95Ms: number | null };
-          panel: { samples: number; p95Ms: number | null };
-          drop: { samples: number; p95Ms: number | null };
-          longTask: { samples: number; p95Ms: number | null };
-          interaction: { maxInputStallMs: number };
-        }> = [];
+        const scenarios: StudioShellScenario[] = [];
 
         for (const count of counts) {
           const scenario = await runStudioShellScenario(
@@ -742,60 +695,7 @@ export default function AiStudioPage() {
           scenarios.push(scenario);
         }
 
-        const scenarioByCount = new Map(scenarios.map((scenario) => [scenario.count, scenario]));
-        const s50 = scenarioByCount.get(50) ?? scenarios[0] ?? null;
-        const gates: Array<{
-          name: string;
-          pass: boolean;
-          actual: number | null;
-          expected: string;
-          note?: string;
-        }> = [];
-
-        if (s50) {
-          gates.push({
-            name: "toolbar_switch_p95_ms_at_50",
-            pass:
-              typeof s50.toolbar.p95Ms === "number" &&
-              s50.toolbar.p95Ms <= SHELL_GATES.toolbarP95MsAt50,
-            actual: s50.toolbar.p95Ms,
-            expected: `<= ${SHELL_GATES.toolbarP95MsAt50}`,
-          });
-          gates.push({
-            name: "panel_interaction_p95_ms_at_50",
-            pass:
-              typeof s50.panel.p95Ms === "number" && s50.panel.p95Ms <= SHELL_GATES.panelP95MsAt50,
-            actual: s50.panel.p95Ms,
-            expected: `<= ${SHELL_GATES.panelP95MsAt50}`,
-          });
-          gates.push({
-            name: "drop_cycle_p95_ms_at_50",
-            pass: typeof s50.drop.p95Ms === "number" && s50.drop.p95Ms <= SHELL_GATES.dropP95MsAt50,
-            actual: s50.drop.p95Ms,
-            expected: `<= ${SHELL_GATES.dropP95MsAt50}`,
-          });
-          gates.push({
-            name: "long_task_p95_ms_during_shell_actions",
-            pass:
-              typeof s50.longTask.p95Ms === "number" &&
-              s50.longTask.p95Ms <= SHELL_GATES.longTaskP95Ms,
-            actual: s50.longTask.p95Ms,
-            expected: `<= ${SHELL_GATES.longTaskP95Ms}`,
-          });
-          gates.push({
-            name: "max_input_stall_ms_during_shell_actions",
-            pass: s50.interaction.maxInputStallMs <= SHELL_GATES.maxInputStallMs,
-            actual: s50.interaction.maxInputStallMs,
-            expected: `<= ${SHELL_GATES.maxInputStallMs}`,
-          });
-        } else {
-          gates.push({
-            name: "scenario_exists",
-            pass: false,
-            actual: null,
-            expected: "At least one shell scenario must run.",
-          });
-        }
+        const gates = evaluateStudioShellAuditGates(scenarios, SHELL_GATES);
 
         const result = {
           ok: gates.every((gate) => gate.pass),
@@ -1248,7 +1148,7 @@ export default function AiStudioPage() {
     editReferenceText,
     handleImageRegenerateWithDebit,
     referenceImageWarning,
-    resolveOutputPreviewUrl,
+    resolveOutputPreviewUrl: resolvePanelOutputPreviewUrl,
     isReferencePromptEnhancing,
     handleReferencePromptEnhance,
     setReferenceImageUrl,

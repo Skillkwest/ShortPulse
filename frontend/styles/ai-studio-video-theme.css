@@ -38,6 +38,27 @@
   box-shadow: 0 0 0 1px rgba(170, 101, 239, 0.3);
 }
 
+.ai-studio-page[data-selected-tool="video"]
+  .reference-grid-horizontal-divider-wrap:hover
+  .reference-grid-horizontal-divider::before,
+.ai-studio-page[data-selected-tool="video"]
+  .reference-grid-horizontal-divider-wrap:focus-visible
+  .reference-grid-horizontal-divider::before {
+  background: rgba(170, 101, 239, 0.78);
+  box-shadow: 0 0 0 1px rgba(170, 101, 239, 0.3);
+}
+
+.ai-studio-page[data-selected-tool="video"]
+  .reference-grid-horizontal-divider-wrap:hover
+  .reference-grid-horizontal-divider-pill,
+.ai-studio-page[data-selected-tool="video"]
+  .reference-grid-horizontal-divider-wrap:focus-visible
+  .reference-grid-horizontal-divider-pill {
+  color: rgba(205, 173, 246, 0.9);
+  border-color: rgba(170, 101, 239, 0.38);
+  background: rgba(170, 101, 239, 0.08);
+}
+
 .ai-studio-page[data-selected-tool="video"] .ai-shell-divider:focus-visible {
   outline: 2px solid rgba(170, 101, 239, 0.9);
 }

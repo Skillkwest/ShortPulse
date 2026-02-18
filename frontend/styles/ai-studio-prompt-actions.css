@@ -321,7 +321,9 @@
 /* Reference Grid Media Library CTA: mirror Media Library hot-pink-on-navy theme. */
 .reference-canvas-panel .prompt-library-btn.prompt-media-btn.prompt-library-btn--library,
 .preview-column-header .reference-grid-media-library-btn,
-.preview-column-header .reference-grid-add-files-btn {
+.preview-column-header .reference-grid-add-files-btn,
+.reference-all-refs-header .reference-grid-media-library-btn,
+.reference-all-refs-header .reference-grid-add-files-btn {
   position: relative;
   overflow: hidden;
   min-height: 36px;
@@ -341,7 +343,9 @@
 
 .reference-canvas-panel .prompt-library-btn.prompt-media-btn.prompt-library-btn--library span,
 .preview-column-header .reference-grid-media-library-btn span,
-.preview-column-header .reference-grid-add-files-btn span {
+.preview-column-header .reference-grid-add-files-btn span,
+.reference-all-refs-header .reference-grid-media-library-btn span,
+.reference-all-refs-header .reference-grid-add-files-btn span {
   position: relative;
   z-index: 1;
   font-weight: 700;
@@ -350,7 +354,9 @@
 
 .reference-canvas-panel .prompt-library-btn.prompt-media-btn.prompt-library-btn--library svg,
 .preview-column-header .reference-grid-media-library-btn svg,
-.preview-column-header .reference-grid-add-files-btn svg {
+.preview-column-header .reference-grid-add-files-btn svg,
+.reference-all-refs-header .reference-grid-media-library-btn svg,
+.reference-all-refs-header .reference-grid-add-files-btn svg {
   position: relative;
   z-index: 1;
   width: 17px;
@@ -361,7 +367,8 @@
 
 .reference-canvas-panel
   .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:hover:not(:disabled),
-.preview-column-header .reference-grid-media-library-btn:hover:not(:disabled) {
+.preview-column-header .reference-grid-media-library-btn:hover:not(:disabled),
+.reference-all-refs-header .reference-grid-media-library-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   border: 1px solid rgba(255, 123, 167, 0.56);
   background: linear-gradient(
@@ -378,7 +385,8 @@
     0 8px 18px rgba(0, 0, 0, 0.36);
 }
 
-.preview-column-header .reference-grid-add-files-btn:hover:not(:disabled) {
+.preview-column-header .reference-grid-add-files-btn:hover:not(:disabled),
+.reference-all-refs-header .reference-grid-add-files-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   border: 1px solid rgba(110, 214, 233, 0.9);
   background: linear-gradient(135deg, #2563eb 0%, #06b6d4 50%, #22d3ee 100%);
@@ -392,24 +400,28 @@
 
 .reference-canvas-panel
   .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:active:not(:disabled),
-.preview-column-header .reference-grid-media-library-btn:active:not(:disabled) {
+.preview-column-header .reference-grid-media-library-btn:active:not(:disabled),
+.reference-all-refs-header .reference-grid-media-library-btn:active:not(:disabled) {
   transform: translateY(0);
 }
 
 .reference-canvas-panel
   .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:focus-visible,
-.preview-column-header .reference-grid-media-library-btn:focus-visible {
+.preview-column-header .reference-grid-media-library-btn:focus-visible,
+.reference-all-refs-header .reference-grid-media-library-btn:focus-visible {
   outline: 2px solid rgba(255, 156, 215, 0.92);
   outline-offset: 2px;
 }
 
-.preview-column-header .reference-grid-add-files-btn:focus-visible {
+.preview-column-header .reference-grid-add-files-btn:focus-visible,
+.reference-all-refs-header .reference-grid-add-files-btn:focus-visible {
   outline: 2px solid rgba(84, 214, 255, 0.95);
   outline-offset: 2px;
 }
 
 .reference-canvas-panel .prompt-library-btn.prompt-media-btn.prompt-library-btn--library:disabled,
-.preview-column-header .reference-grid-media-library-btn:disabled {
+.preview-column-header .reference-grid-media-library-btn:disabled,
+.reference-all-refs-header .reference-grid-media-library-btn:disabled {
   opacity: 0.62;
   border-color: rgba(255, 140, 204, 0.34);
   box-shadow: none;

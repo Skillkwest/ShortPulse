@@ -48,7 +48,7 @@ const getSupabaseOrigin = (): string | null => {
 };
 
 const resolvePreviewQualityParam = (qualityBand: ReferenceGridPreviewQualityBand): number => {
-  if (qualityBand === "compact") return 24;
+  if (qualityBand === "compact") return 28;
   if (qualityBand === "balanced") return 26;
   return 34;
 };

@@ -74,7 +74,7 @@ export const useAiStudioReferenceCanvasProps = ({
       archivedOutputs,
       activeOutputId,
       curatedReferenceIds,
-      showHeader: false,
+      showHeader: true,
       onOutputMediaLoaded: onReferenceOutputMediaLoaded,
       linkedPromptReferenceIds,
       showPromptGenerate: showReferencePromptGenerate,

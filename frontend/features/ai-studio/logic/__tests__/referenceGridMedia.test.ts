@@ -75,7 +75,7 @@ describe("referenceGridMedia", () => {
       )}`
     );
     expect(resolved.previewUrl).toContain("w=448");
-    expect(resolved.previewUrl).toContain("q=24");
+    expect(resolved.previewUrl).toContain("q=28");
     expect(resolved.fullUrl).not.toContain("width=");
   });
 
@@ -99,7 +99,7 @@ describe("referenceGridMedia", () => {
 
     expect(resolved.previewUrl).toContain("/storage/v1/render/image/");
     expect(resolved.previewUrl).toContain("width=448");
-    expect(resolved.previewUrl).toContain("quality=24");
+    expect(resolved.previewUrl).toContain("quality=28");
   });
 
   it("falls back to next image optimizer for non-supabase remote images", () => {
@@ -120,7 +120,7 @@ describe("referenceGridMedia", () => {
     expect(resolved.previewUrl?.startsWith("/_next/image?url=")).toBe(true);
     expect(resolved.previewUrl).toContain(`url=${encodeURIComponent(sourceUrl)}`);
     expect(resolved.previewUrl).toContain("w=448");
-    expect(resolved.previewUrl).toContain("q=24");
+    expect(resolved.previewUrl).toContain("q=28");
     expect(resolved.fullUrl).toBe(sourceUrl);
   });
 

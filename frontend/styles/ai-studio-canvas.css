@@ -7,9 +7,10 @@
   grid-template-columns: repeat(var(--reference-grid-columns, 5), minmax(0, 1fr));
   gap: 3px;
   width: 100%;
+  box-sizing: border-box;
   min-height: 100%;
   align-content: start;
-  padding-left: 8px;
+  padding: 0 8px;
 }
 
 .reference-canvas-panel {
@@ -340,22 +341,13 @@
 
 .reference-card.is-active {
   background-color: var(--reference-selection-active-bg);
-
-  box-shadow:
-    0 4px 10px var(--reference-selection-active-shadow),
-    0 0 0 2px var(--reference-selection-active-outline);
+  box-shadow: 0 0 0 2px var(--reference-selection-active-outline);
   transform: translateY(-1px);
   z-index: 1;
 }
 
 .reference-card.is-active::after {
-  content: "";
-  position: absolute;
-  inset: 6px;
-  border-radius: 30px;
-  box-shadow: 0 18px 18px 10px var(--reference-selection-active-glow);
-  pointer-events: none;
-  z-index: 2;
+  display: none;
 }
 
 .reference-card.is-linked-prompt-ref:not(.is-active) {
@@ -418,8 +410,26 @@
 
 .reference-canvas-panel
   .reference-card
+  .reference-describe-pill.reference-generate-pill.agent-generate-prefab {
+  border: 0;
+  background: rgba(52, 200, 255, 0.86);
+  box-shadow: none;
+  color: #07151d;
+  bottom: 16px;
+}
+
+.reference-canvas-panel
+  .reference-card
   .reference-prompt-generate-pill.agent-generate-prefab:hover:not(:disabled) {
   box-shadow: 0 6px 14px var(--reference-generate-hover-shadow);
+}
+
+.reference-canvas-panel
+  .reference-card
+  .reference-describe-pill.reference-generate-pill.agent-generate-prefab:hover:not(:disabled) {
+  box-shadow: none;
+  transform: translateX(-50%);
+  background: rgba(52, 200, 255, 0.92);
 }
 
 .reference-canvas-panel .reference-card .reference-prompt-generate-pill .agent-generate-label,

@@ -232,4 +232,106 @@ describe("ReferenceCanvas curated split", () => {
     expect(onReorderCuratedReference).not.toHaveBeenCalled();
     expect(onPasteTextReference).not.toHaveBeenCalled();
   });
+
+  it("snaps split toward inventory when clicking the divider pill", () => {
+    const { container, getByRole, getByText } = render(<ReferenceCanvas {...createProps()} />);
+    const divider = getByRole("separator", {
+      name: "Resize Quick Slot Inventory and Reference Grid sections",
+    });
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+    expect(allRefsSection).toBeTruthy();
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    expect(panel).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+    expect(divider).toHaveAttribute("aria-valuenow", "35");
+
+    fireEvent.pointerDown(getByText("Inventory ↓"));
+    fireEvent.click(getByText("Inventory ↓"));
+
+    expect(divider).toHaveAttribute("aria-valuenow", "88");
+    expect(curatedSection.classList.contains("is-all-refs-expanded")).toBe(false);
+    expect(allRefsSection.classList.contains("is-inventory-expanded")).toBe(true);
+  });
+
+  it("snaps split toward all refs when clicking the all-refs divider pill", () => {
+    const { container, getByRole, getByText } = render(<ReferenceCanvas {...createProps()} />);
+    const divider = getByRole("separator", {
+      name: "Resize Quick Slot Inventory and Reference Grid sections",
+    });
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+    expect(allRefsSection).toBeTruthy();
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    expect(panel).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+    const curatedHeader = container.querySelector(".reference-curated-header") as HTMLElement;
+    expect(curatedHeader).toBeTruthy();
+    Object.defineProperty(curatedHeader, "offsetHeight", {
+      configurable: true,
+      value: 44,
+    });
+    expect(divider).toHaveAttribute("aria-valuenow", "35");
+
+    fireEvent.pointerDown(getByText("All Refs ↑"));
+    fireEvent.click(getByText("All Refs ↑"));
+
+    expect(divider).toHaveAttribute("aria-valuenow", "7");
+    expect(curatedSection.classList.contains("is-all-refs-expanded")).toBe(true);
+    expect(allRefsSection.classList.contains("is-inventory-expanded")).toBe(false);
+  });
+
+  it("collapses quick slots when resizing to the top bound", () => {
+    const { container, getByRole } = render(<ReferenceCanvas {...createProps()} />);
+    const divider = getByRole("separator", {
+      name: "Resize Quick Slot Inventory and Reference Grid sections",
+    });
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
+    expect(panel).toBeTruthy();
+    Object.defineProperty(panel, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: 600,
+        right: 600,
+        bottom: 600,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.keyDown(divider, { key: "Home" });
+
+    expect(curatedSection.classList.contains("is-all-refs-expanded")).toBe(true);
+  });
 });

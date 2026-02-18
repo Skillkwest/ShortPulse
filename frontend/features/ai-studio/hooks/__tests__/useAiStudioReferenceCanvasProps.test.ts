@@ -113,7 +113,7 @@ describe("useAiStudioReferenceCanvasProps", () => {
       )
     );
 
-    expect(result.current.showHeader).toBe(false);
+    expect(result.current.showHeader).toBe(true);
     expect(result.current.curatedReferenceIds).toEqual(["out-1"]);
     expect(result.current.selectedTool).toBe("video");
     expect(result.current.generateCostCredits).toBeNull();

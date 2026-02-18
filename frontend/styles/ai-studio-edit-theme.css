@@ -36,6 +36,27 @@
   box-shadow: 0 0 0 1px rgba(245, 185, 66, 0.28);
 }
 
+.ai-studio-page[data-selected-tool="edit"]
+  .reference-grid-horizontal-divider-wrap:hover
+  .reference-grid-horizontal-divider::before,
+.ai-studio-page[data-selected-tool="edit"]
+  .reference-grid-horizontal-divider-wrap:focus-visible
+  .reference-grid-horizontal-divider::before {
+  background: rgba(245, 185, 66, 0.76);
+  box-shadow: 0 0 0 1px rgba(245, 185, 66, 0.28);
+}
+
+.ai-studio-page[data-selected-tool="edit"]
+  .reference-grid-horizontal-divider-wrap:hover
+  .reference-grid-horizontal-divider-pill,
+.ai-studio-page[data-selected-tool="edit"]
+  .reference-grid-horizontal-divider-wrap:focus-visible
+  .reference-grid-horizontal-divider-pill {
+  color: rgba(245, 205, 128, 0.9);
+  border-color: rgba(245, 185, 66, 0.38);
+  background: rgba(245, 185, 66, 0.07);
+}
+
 .ai-studio-page[data-selected-tool="edit"] .ai-shell-divider:focus-visible {
   outline: 2px solid rgba(245, 185, 66, 0.88);
 }

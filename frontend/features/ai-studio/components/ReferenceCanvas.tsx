@@ -28,7 +28,6 @@ import {
 } from "../logic/referenceGridMedia";
 import {
   calculateReferenceGridWindow,
-  resolveReferenceGridMaxColumns,
   resolveReferenceGridOverscanRows,
 } from "../logic/referenceGridVirtualization";
 import {
@@ -60,11 +59,13 @@ const isVideoUrl = (url: string) =>
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
 const FALLBACK_REFERENCE_ROW_HEIGHT = 220;
-const REFERENCE_GRID_MIN_CARD_PX = 160;
-const REFERENCE_GRID_MIN_CARD_PX_WIDE = 160;
+const REFERENCE_GRID_MIN_CARD_PX = 124;
+const REFERENCE_GRID_MIN_CARD_PX_WIDE = 124;
 const REFERENCE_GRID_MIN_COLUMNS = 2;
 const REFERENCE_GRID_MAX_COLUMNS = 5;
-const REFERENCE_GRID_MAX_COLUMNS_WIDE = 8;
+const REFERENCE_GRID_MAX_COLUMNS_WIDE = 5;
+const QUICK_SLOT_INVENTORY_MAX_COLUMNS = 5;
+const REFERENCE_GRID_EMERGENCY_MAX_COLUMNS = 5;
 const REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD = 0.6;
 const REFERENCE_AUTOPLAY_MAX_DESKTOP = 3;
 const REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN = 2;
@@ -79,7 +80,7 @@ const REFERENCE_PREVIEW_QUALITY_RECOVERY_DELAY_MS = 45_000;
 const REFERENCE_LOCAL_ADAPTIVE_WEBP_QUALITY: Record<ReferenceGridPreviewQualityBand, number> = {
   high: 0.42,
   balanced: 0.32,
-  compact: 0.24,
+  compact: 0.3,
 };
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW = PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW;
 const REFERENCE_GRID_FLAG_CURATED_SPLIT = PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT;
@@ -845,6 +846,7 @@ export function ReferenceCanvas({
   const curatedGridRef = React.useRef<HTMLDivElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   const curatedSectionRef = React.useRef<HTMLDivElement | null>(null);
+  const curatedHeaderRef = React.useRef<HTMLDivElement | null>(null);
   const videoVisibleKeySetRef = React.useRef<Set<string>>(new Set());
   const videoOutputIdByKeyRef = React.useRef<Map<string, string>>(new Map());
   const videoNodeByKeyRef = React.useRef<Map<string, HTMLVideoElement>>(new Map());
@@ -864,6 +866,7 @@ export function ReferenceCanvas({
   const [canvasDropMode, setCanvasDropMode] = useState<CanvasDropMode>("none");
   const [isCuratedDropActive, setIsCuratedDropActive] = useState(false);
   const [isArchivePanelOpen, setIsArchivePanelOpen] = useState(false);
+  const [curatedHeaderHeightPx, setCuratedHeaderHeightPx] = useState(24);
   const [delayedLoadingById, setDelayedLoadingById] = useState<Record<string, true>>({});
   const loadingPendingSinceByIdRef = React.useRef<Record<string, number>>({});
   const loadingDelayTimeoutRef = React.useRef<number | null>(null);
@@ -945,8 +948,30 @@ export function ReferenceCanvas({
     enabled: isCuratedSplitEnabled,
     containerRef: panelRef,
     defaultTopRatio: 0.35,
-    minSectionHeightPx: 120,
+    minTopSectionHeightPx: curatedHeaderHeightPx,
+    minBottomSectionHeightPx: 72,
+    allRefsSnapTopHeightPx: curatedHeaderHeightPx,
+    collapseTopHeightPx: curatedHeaderHeightPx,
   });
+
+  React.useEffect(() => {
+    if (!isCuratedSplitEnabled) return;
+    const updateHeaderHeight = () => {
+      const node = curatedHeaderRef.current;
+      if (!node) return;
+      const nextHeight = Math.max(24, Math.round(node.offsetHeight));
+      setCuratedHeaderHeightPx((prev) => (prev === nextHeight ? prev : nextHeight));
+    };
+    updateHeaderHeight();
+    if (typeof ResizeObserver === "undefined") return;
+    const node = curatedHeaderRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(() => {
+      updateHeaderHeight();
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isCuratedSplitEnabled]);
   const lastRenderCommitAtRef = React.useRef<number>(0);
   const autoplayEnabledIdSet = React.useMemo(
     () => new Set(autoplayEnabledIds),
@@ -1316,11 +1341,13 @@ export function ReferenceCanvas({
       scrollNode,
       gridNode,
       itemCount,
+      surface,
       setMetrics,
     }: {
       scrollNode: HTMLDivElement | null;
       gridNode: HTMLDivElement | null;
       itemCount: number;
+      surface: "all-refs" | "curated";
       setMetrics: React.Dispatch<
         React.SetStateAction<{
           scrollTop: number;
@@ -1331,14 +1358,21 @@ export function ReferenceCanvas({
       >;
     }) => {
       if (!scrollNode || !gridNode) return;
-      const requestedMaxColumns = selectedTool
+      const defaultRequestedMaxColumns = selectedTool
         ? REFERENCE_GRID_MAX_COLUMNS
         : REFERENCE_GRID_MAX_COLUMNS_WIDE;
-      const maxColumns = resolveReferenceGridMaxColumns({
-        requestedMaxColumns,
-        itemCount,
-        pressureLevel: perfWatchdog.degradeLevel,
-      });
+      const requestedMaxColumns =
+        surface === "curated"
+          ? Math.min(QUICK_SLOT_INVENTORY_MAX_COLUMNS, REFERENCE_GRID_MAX_COLUMNS_WIDE)
+          : defaultRequestedMaxColumns;
+      const emergencyMaxColumns =
+        REFERENCE_GRID_FLAG_PERF_WATCHDOG && perfWatchdog.degradeLevel >= 2
+          ? REFERENCE_GRID_EMERGENCY_MAX_COLUMNS
+          : requestedMaxColumns;
+      const maxColumns = Math.max(
+        REFERENCE_GRID_MIN_COLUMNS,
+        Math.min(Math.floor(requestedMaxColumns), Math.floor(emergencyMaxColumns))
+      );
       const minCardWidth = selectedTool
         ? REFERENCE_GRID_MIN_CARD_PX
         : REFERENCE_GRID_MIN_CARD_PX_WIDE;
@@ -1381,6 +1415,7 @@ export function ReferenceCanvas({
       scrollNode: scrollContainerRef.current,
       gridNode: gridRef.current,
       itemCount: outputs.length,
+      surface: "all-refs",
       setMetrics: setVirtualMetrics,
     });
   }, [outputs.length, syncVirtualMetricsForSurface]);
@@ -1391,6 +1426,7 @@ export function ReferenceCanvas({
       scrollNode: curatedScrollContainerRef.current,
       gridNode: curatedGridRef.current,
       itemCount: curatedOutputs.length,
+      surface: "curated",
       setMetrics: setCuratedVirtualMetrics,
     });
   }, [curatedOutputs.length, isCuratedSplitEnabled, syncVirtualMetricsForSurface]);
@@ -2950,6 +2986,100 @@ export function ReferenceCanvas({
     ]
   );
 
+  const referenceGridHeader = (
+    <div className="panel-header preview-header reference-all-refs-header">
+      <div>
+        <p className="eyebrow">Reference Grid</p>
+      </div>
+      <div className="preview-header-actions">
+        <button
+          type="button"
+          className="ghost-btn mini preview-media-btn reference-grid-add-files-btn"
+          onClick={onTriggerFileSelect}
+        >
+          <UploadSimple size={14} weight="regular" />
+          <span>Add files</span>
+        </button>
+        <PromptLibraryButton
+          onClick={(event) => {
+            event.preventDefault();
+            onOpenMediaLibrary?.();
+          }}
+          className="prompt-media-btn preview-media-btn reference-grid-media-library-btn"
+          aria-label="Open media library"
+          label="Media Library"
+          icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
+          tone="library"
+        />
+        {archiveCount > 0 ? (
+          <button
+            type="button"
+            className="ghost-btn mini preview-media-btn reference-archive-btn"
+            onClick={() => setIsArchivePanelOpen((prev) => !prev)}
+            aria-expanded={isArchivePanelOpen}
+          >
+            Archived ({archiveCount})
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const referenceArchiveInline =
+    !showHeader && archiveCount > 0 ? (
+      <div className="reference-archive-inline">
+        <button
+          type="button"
+          className="ghost-btn mini preview-media-btn reference-archive-btn"
+          onClick={() => setIsArchivePanelOpen((prev) => !prev)}
+          aria-expanded={isArchivePanelOpen}
+        >
+          Archived ({archiveCount})
+        </button>
+        {onRestoreAllArchivedOutputs ? (
+          <button
+            type="button"
+            className="ghost-btn mini preview-media-btn reference-archive-restore-all-btn"
+            onClick={() => onRestoreAllArchivedOutputs()}
+          >
+            Restore all
+          </button>
+        ) : null}
+      </div>
+    ) : null;
+
+  const referenceArchivePanel =
+    isArchivePanelOpen && archiveCount > 0 ? (
+      <div className="reference-archive-panel" aria-label="Archived references">
+        <div className="reference-archive-header">
+          <p className="tiny subdued">Older references are archived to keep the grid responsive.</p>
+          <button
+            type="button"
+            className="ghost-btn mini preview-media-btn reference-archive-restore-all-btn"
+            onClick={() => onRestoreAllArchivedOutputs?.()}
+          >
+            Restore all
+          </button>
+        </div>
+        <div className="reference-archive-list">
+          {archivedOutputs.slice(0, 24).map((item) => (
+            <div key={item.id} className="reference-archive-item">
+              <span className="reference-archive-item-label">
+                {item.previewText ? item.previewText : item.prompt}
+              </span>
+              <button
+                type="button"
+                className="ghost-btn mini reference-archive-item-restore"
+                onClick={() => onRestoreArchivedOutput?.(item.id)}
+              >
+                Restore
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : null;
+
   return (
     <div
       ref={panelRef}
@@ -2978,112 +3108,23 @@ export function ReferenceCanvas({
       onPointerDown={handlePanelPointerDown}
       tabIndex={0}
     >
-      {showHeader ? (
-        <div className="panel-header preview-header">
-          <div>
-            <p className="eyebrow">Reference Grid</p>
-          </div>
-          <div className="preview-header-actions">
-            <button
-              type="button"
-              className="ghost-btn mini preview-media-btn"
-              onClick={onTriggerFileSelect}
-            >
-              <UploadSimple size={14} weight="regular" />
-              Add files
-            </button>
-            <PromptLibraryButton
-              onClick={(event) => {
-                event.preventDefault();
-                onOpenMediaLibrary?.();
-              }}
-              className="prompt-media-btn preview-media-btn"
-              aria-label="Open media library"
-              label="Media Library"
-              icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
-              tone="library"
-            />
-            {archiveCount > 0 ? (
-              <button
-                type="button"
-                className="ghost-btn mini preview-media-btn reference-archive-btn"
-                onClick={() => setIsArchivePanelOpen((prev) => !prev)}
-                aria-expanded={isArchivePanelOpen}
-              >
-                Archived ({archiveCount})
-              </button>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-      {!showHeader && archiveCount > 0 ? (
-        <div className="reference-archive-inline">
-          <button
-            type="button"
-            className="ghost-btn mini preview-media-btn reference-archive-btn"
-            onClick={() => setIsArchivePanelOpen((prev) => !prev)}
-            aria-expanded={isArchivePanelOpen}
-          >
-            Archived ({archiveCount})
-          </button>
-          {onRestoreAllArchivedOutputs ? (
-            <button
-              type="button"
-              className="ghost-btn mini preview-media-btn reference-archive-restore-all-btn"
-              onClick={() => onRestoreAllArchivedOutputs()}
-            >
-              Restore all
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      {isArchivePanelOpen && archiveCount > 0 ? (
-        <div className="reference-archive-panel" aria-label="Archived references">
-          <div className="reference-archive-header">
-            <p className="tiny subdued">
-              Older references are archived to keep the grid responsive.
-            </p>
-            <button
-              type="button"
-              className="ghost-btn mini preview-media-btn reference-archive-restore-all-btn"
-              onClick={() => onRestoreAllArchivedOutputs?.()}
-            >
-              Restore all
-            </button>
-          </div>
-          <div className="reference-archive-list">
-            {archivedOutputs.slice(0, 24).map((item) => (
-              <div key={item.id} className="reference-archive-item">
-                <span className="reference-archive-item-label">
-                  {item.previewText ? item.previewText : item.prompt}
-                </span>
-                <button
-                  type="button"
-                  className="ghost-btn mini reference-archive-item-restore"
-                  onClick={() => onRestoreArchivedOutput?.(item.id)}
-                >
-                  Restore
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {!isCuratedSplitEnabled && showHeader ? referenceGridHeader : null}
+      {!isCuratedSplitEnabled ? referenceArchiveInline : null}
+      {!isCuratedSplitEnabled ? referenceArchivePanel : null}
       <div className={`reference-grid-sections${isCuratedSplitEnabled ? " is-curated-split" : ""}`}>
         {isCuratedSplitEnabled ? (
           <>
             <div
               ref={curatedSectionRef}
-              className={`reference-curated-section${isCuratedDropActive ? " is-drop-active" : ""}`}
+              className={`reference-curated-section${isCuratedDropActive ? " is-drop-active" : ""}${horizontalSplit.isAllRefsExpanded ? " is-all-refs-expanded" : ""}`}
               style={horizontalSplit.topSectionStyle}
               onDrop={handleCuratedSectionDrop}
               onDragOver={handleCuratedSectionDragOver}
               onDragEnter={handleCuratedSectionDragEnter}
               onDragLeave={handleCuratedSectionDragLeave}
             >
-              <div className="reference-curated-header">
-                <p className="tiny subdued">Curated</p>
-                <span className="tiny subdued">{curatedOutputs.length}</span>
+              <div ref={curatedHeaderRef} className="reference-curated-header">
+                <p className="eyebrow">Quick Slot Inventory</p>
               </div>
               <div
                 className="reference-curated-scroll"
@@ -3097,7 +3138,9 @@ export function ReferenceCanvas({
                 >
                   {curatedOutputs.length === 0 ? (
                     <div className="reference-curated-empty">
-                      <p className="preview-title">Drag references here from All refs.</p>
+                      <p className="preview-title">
+                        Drag &amp; drop references here from the Reference Grid.
+                      </p>
                       <p className="subdued tiny helper-text">
                         Curated selections are session-only and stay pinned while curated.
                       </p>
@@ -3127,19 +3170,54 @@ export function ReferenceCanvas({
                 </div>
               </div>
             </div>
-            <div className="reference-grid-horizontal-divider-wrap">
-              <div
-                className="reference-grid-horizontal-divider"
-                {...horizontalSplit.dividerProps}
-              />
-              <span className="reference-grid-horizontal-divider-label">All refs</span>
+            <div
+              className="reference-grid-horizontal-divider-wrap"
+              {...horizontalSplit.dividerProps}
+            >
+              <button
+                type="button"
+                className="reference-grid-horizontal-divider-pill"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  horizontalSplit.snapToInventoryExpanded();
+                }}
+              >
+                Inventory ↓
+              </button>
+              <div className="reference-grid-horizontal-divider" />
+              <button
+                type="button"
+                className="reference-grid-horizontal-divider-pill"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  const curatedHeaderNode = curatedSectionRef.current?.querySelector(
+                    ".reference-curated-header"
+                  );
+                  const targetTopHeightPx =
+                    curatedHeaderNode instanceof HTMLElement
+                      ? curatedHeaderNode.offsetHeight
+                      : undefined;
+                  horizontalSplit.snapToAllRefsExpanded(targetTopHeightPx);
+                }}
+              >
+                All Refs ↑
+              </button>
             </div>
           </>
         ) : null}
         <div
-          className="reference-all-refs-section"
+          className={`reference-all-refs-section${horizontalSplit.isInventoryExpanded ? " is-inventory-expanded" : ""}`}
           style={isCuratedSplitEnabled ? horizontalSplit.bottomSectionStyle : undefined}
         >
+          {isCuratedSplitEnabled && showHeader ? referenceGridHeader : null}
+          {isCuratedSplitEnabled ? referenceArchiveInline : null}
+          {isCuratedSplitEnabled ? referenceArchivePanel : null}
           <div
             className="reference-canvas-scroll"
             onScroll={handleAllRefsScroll}

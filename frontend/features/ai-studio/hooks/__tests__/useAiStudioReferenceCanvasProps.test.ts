@@ -20,6 +20,7 @@ const createParams = (
 ): Parameters<typeof useAiStudioReferenceCanvasProps>[0] => ({
   outputs: [output],
   activeOutputId: "out-1",
+  curatedReferenceIds: ["out-1"],
   onReferenceOutputMediaLoaded: vi.fn(),
   linkedPromptReferenceIds: ["out-1"],
   showReferencePromptGenerate: true,
@@ -34,6 +35,9 @@ const createParams = (
   handlePasteMediaReference: vi.fn(),
   retryOutputStatus: vi.fn(),
   deleteOutput: vi.fn(),
+  addCuratedReference: vi.fn(),
+  removeCuratedReference: vi.fn(),
+  reorderCuratedReference: vi.fn(),
   currentCostCredits: 2,
   selectedTool: "image",
   ...overrides,
@@ -110,6 +114,7 @@ describe("useAiStudioReferenceCanvasProps", () => {
     );
 
     expect(result.current.showHeader).toBe(false);
+    expect(result.current.curatedReferenceIds).toEqual(["out-1"]);
     expect(result.current.selectedTool).toBe("video");
     expect(result.current.generateCostCredits).toBeNull();
     expect(result.current.disablePromptGenerate).toBe(true);
@@ -119,5 +124,28 @@ describe("useAiStudioReferenceCanvasProps", () => {
     result.current.onRestoreAllArchivedOutputs?.();
     expect(restoreArchivedOutput).toHaveBeenCalledWith("archived-1");
     expect(restoreAllArchivedOutputs).toHaveBeenCalledTimes(1);
+  });
+
+  it("maps curated callbacks and reorder payloads", () => {
+    const addCuratedReference = vi.fn();
+    const removeCuratedReference = vi.fn();
+    const reorderCuratedReference = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioReferenceCanvasProps(
+        createParams({
+          addCuratedReference,
+          removeCuratedReference,
+          reorderCuratedReference,
+        })
+      )
+    );
+
+    result.current.onAddCuratedReference?.("out-1");
+    result.current.onRemoveCuratedReference?.("out-1");
+    result.current.onReorderCuratedReference?.("out-1", "out-2", "after");
+
+    expect(addCuratedReference).toHaveBeenCalledWith("out-1");
+    expect(removeCuratedReference).toHaveBeenCalledWith("out-1");
+    expect(reorderCuratedReference).toHaveBeenCalledWith("out-1", "out-2", "after");
   });
 });

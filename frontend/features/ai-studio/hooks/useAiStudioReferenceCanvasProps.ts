@@ -10,6 +10,7 @@ type UseAiStudioReferenceCanvasPropsParams = {
   outputs?: StudioOutput[];
   archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
+  curatedReferenceIds?: string[];
   onReferenceOutputMediaLoaded: (id: string) => void;
   linkedPromptReferenceIds: string[];
   showReferencePromptGenerate: boolean;
@@ -24,6 +25,13 @@ type UseAiStudioReferenceCanvasPropsParams = {
   handlePasteMediaReference: (reference: { url: string; mimeType?: string | null }) => void;
   retryOutputStatus: (id: string) => void;
   deleteOutput: (id: string) => void;
+  addCuratedReference?: (id: string) => void;
+  removeCuratedReference?: (id: string) => void;
+  reorderCuratedReference?: (
+    id: string,
+    targetId: string | null,
+    placement: "before" | "after" | "end"
+  ) => void;
   restoreArchivedOutput?: (id: string) => void;
   restoreAllArchivedOutputs?: () => void;
   currentCostCredits: number | null;
@@ -37,6 +45,7 @@ export const useAiStudioReferenceCanvasProps = ({
   outputs,
   archivedOutputs = [],
   activeOutputId,
+  curatedReferenceIds = [],
   onReferenceOutputMediaLoaded,
   linkedPromptReferenceIds,
   showReferencePromptGenerate,
@@ -51,6 +60,9 @@ export const useAiStudioReferenceCanvasProps = ({
   handlePasteMediaReference,
   retryOutputStatus,
   deleteOutput,
+  addCuratedReference,
+  removeCuratedReference,
+  reorderCuratedReference,
   restoreArchivedOutput,
   restoreAllArchivedOutputs,
   currentCostCredits,
@@ -61,6 +73,7 @@ export const useAiStudioReferenceCanvasProps = ({
       outputs,
       archivedOutputs,
       activeOutputId,
+      curatedReferenceIds,
       showHeader: false,
       onOutputMediaLoaded: onReferenceOutputMediaLoaded,
       linkedPromptReferenceIds,
@@ -76,6 +89,9 @@ export const useAiStudioReferenceCanvasProps = ({
       onPasteMediaReference: handlePasteMediaReference,
       onRetryStatus: (output) => retryOutputStatus(output.id),
       onDeleteOutput: deleteOutput,
+      onAddCuratedReference: addCuratedReference,
+      onRemoveCuratedReference: removeCuratedReference,
+      onReorderCuratedReference: reorderCuratedReference,
       onRestoreArchivedOutput: restoreArchivedOutput,
       onRestoreAllArchivedOutputs: restoreAllArchivedOutputs,
       generateCostCredits: currentCostCredits,
@@ -83,7 +99,9 @@ export const useAiStudioReferenceCanvasProps = ({
     }),
     [
       activeOutputId,
+      addCuratedReference,
       archivedOutputs,
+      curatedReferenceIds,
       currentCostCredits,
       deleteOutput,
       disableReferencePromptGenerate,
@@ -97,6 +115,8 @@ export const useAiStudioReferenceCanvasProps = ({
       linkedPromptReferenceIds,
       onReferenceOutputMediaLoaded,
       outputs,
+      removeCuratedReference,
+      reorderCuratedReference,
       restoreAllArchivedOutputs,
       restoreArchivedOutput,
       retryOutputStatus,

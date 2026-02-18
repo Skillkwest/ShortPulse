@@ -37,6 +37,7 @@ const STABLE_DEFAULTS = {
   shellBoundarySplit: true,
   shellHighDensityMode: true,
   referenceGridAdaptivePreview: true,
+  referenceGridCuratedSplit: true,
   referenceGridStrictPreviewLadder: true,
   referenceGridDecodeBudget: true,
   referenceGridDynamicVirtualization: true,
@@ -67,6 +68,7 @@ const LEGACY_DEFAULTS = {
   shellBoundarySplit: true,
   shellHighDensityMode: true,
   referenceGridAdaptivePreview: true,
+  referenceGridCuratedSplit: true,
   referenceGridStrictPreviewLadder: true,
   referenceGridDecodeBudget: true,
   referenceGridDynamicVirtualization: true,
@@ -130,6 +132,10 @@ export const PERF_FLAG_SHELL_HIGH_DENSITY_MODE = resolveBooleanFlag(
 export const PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW = resolveBooleanFlag(
   process.env.NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW,
   PROFILE_DEFAULTS.referenceGridAdaptivePreview
+);
+export const PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT = resolveBooleanFlag(
+  process.env.NEXT_PUBLIC_REFERENCE_GRID_CURATED_SPLIT,
+  PROFILE_DEFAULTS.referenceGridCuratedSplit
 );
 export const PERF_FLAG_REFERENCE_GRID_STRICT_PREVIEW_LADDER = resolveBooleanFlag(
   process.env.NEXT_PUBLIC_REFERENCE_GRID_STRICT_PREVIEW_LADDER,

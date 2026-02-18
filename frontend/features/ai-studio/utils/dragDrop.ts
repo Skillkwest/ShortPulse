@@ -38,6 +38,8 @@ export type VideoDragDropPayload = {
   fromFile?: boolean;
 };
 
+export type ReferenceDragSourceSurface = "all-refs" | "curated";
+
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
 
 const isCurrentDocumentUrl = (value?: string | null) => {
@@ -286,10 +288,11 @@ export const isVideoDragTransfer = (transfer: DataTransfer) => {
 export const prepareReferenceDrag = (
   event: React.DragEvent<HTMLElement>,
   output: StudioOutput,
-  options?: { dragImage?: HTMLElement }
+  options?: { dragImage?: HTMLElement; sourceSurface?: ReferenceDragSourceSurface }
 ) => {
   const transfer = event.dataTransfer;
   transfer.effectAllowed = "copy";
+  const sourceSurface = options?.sourceSurface ?? "all-refs";
   const promptText = dedupeText(output.prompt ?? output.previewText);
   const previewUrl = output.previewUrl?.trim();
   const referenceMediaId = output.savedMediaIds?.[0]?.trim();
@@ -303,6 +306,7 @@ export const prepareReferenceDrag = (
   if (output.id) {
     transfer.setData("text/reference-id", output.id);
   }
+  transfer.setData("text/reference-source-surface", sourceSurface);
   if (referenceMediaId) {
     transfer.setData("text/reference-media-id", referenceMediaId);
   }

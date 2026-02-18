@@ -137,6 +137,7 @@ Start here for all repository documentation.
 - `docs/adr/0014-ai-studio-shell-decoupling-and-event-backpressure.md`
 - `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`
 - `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`
+- `docs/adr/0017-ai-studio-curated-reference-split-grid.md`
 
 ## Archive
 - `docs/archive/README.md`

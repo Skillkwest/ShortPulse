@@ -14,7 +14,11 @@ import {
 } from "phosphor-react";
 import { PromptLibraryButton } from "./PromptLibraryButton";
 import { StudioOutput } from "../types";
-import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
+import {
+  clearDragState,
+  prepareReferenceDrag,
+  type ReferenceDragSourceSurface,
+} from "../utils/dragDrop";
 import type { ToolId } from "../types";
 import { logMediaPerf, setMediaPerfSamplingPolicy } from "../../../lib/mediaPerfTelemetry";
 import { useOutputSelector } from "../hooks/aiStudioOutputStore";
@@ -29,6 +33,7 @@ import {
 } from "../logic/referenceGridVirtualization";
 import {
   PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW,
+  PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT,
   PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY,
   PERF_FLAG_REFERENCE_GRID_CSS_CONTAINMENT,
   PERF_FLAG_REFERENCE_GRID_DECODE_BUDGET,
@@ -47,6 +52,7 @@ import {
 import { useReferenceGridHydrationBudget } from "../hooks/useReferenceGridHydrationBudget";
 import { useReferenceGridPerfWatchdog } from "../hooks/useReferenceGridPerfWatchdog";
 import { useReferenceGridMediaWorkBudget } from "../hooks/useReferenceGridMediaWorkBudget";
+import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 
 const isVideoUrl = (url: string) =>
   /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
@@ -76,6 +82,7 @@ const REFERENCE_LOCAL_ADAPTIVE_WEBP_QUALITY: Record<ReferenceGridPreviewQualityB
   compact: 0.24,
 };
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW = PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW;
+const REFERENCE_GRID_FLAG_CURATED_SPLIT = PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT;
 const REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER = PERF_FLAG_REFERENCE_GRID_STRICT_PREVIEW_LADDER;
 const REFERENCE_GRID_FLAG_DECODE_BUDGET = PERF_FLAG_REFERENCE_GRID_DECODE_BUDGET;
 const REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION = PERF_FLAG_REFERENCE_GRID_DYNAMIC_VIRTUALIZATION;
@@ -353,6 +360,7 @@ export type ReferenceCanvasProps = {
   outputs?: StudioOutput[];
   archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
+  curatedReferenceIds?: string[];
   showHeader?: boolean;
   onOutputMediaLoaded?: (id: string) => void;
   linkedPromptReferenceIds?: string[];
@@ -372,6 +380,13 @@ export type ReferenceCanvasProps = {
   onGeneratePrompt?: (output: StudioOutput) => void;
   onRetryStatus?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
+  onAddCuratedReference?: (id: string) => void;
+  onRemoveCuratedReference?: (id: string) => void;
+  onReorderCuratedReference?: (
+    id: string,
+    targetId: string | null,
+    placement: "before" | "after" | "end"
+  ) => void;
   onRestoreArchivedOutput?: (id: string) => void;
   onRestoreAllArchivedOutputs?: () => void;
   generateCostCredits?: number | null;
@@ -379,6 +394,8 @@ export type ReferenceCanvasProps = {
 
 type ReferenceCanvasCardProps = {
   item: StudioOutput;
+  dragSourceSurface: ReferenceDragSourceSurface;
+  videoNodeKey: string;
   activeOutputId: string | null;
   loadingVisual: "none" | "spinner" | "placeholder";
   cardPreviewUrl: string | null;
@@ -396,14 +413,24 @@ type ReferenceCanvasCardProps = {
   imageFetchPriority: "high" | "low";
   onSelectOutput: (id: string) => void;
   onOpenDetails: (id: string) => void;
-  onCardDragStart: (event: React.DragEvent<HTMLElement>, item: StudioOutput) => void;
+  onCardDragStart: (
+    event: React.DragEvent<HTMLElement>,
+    item: StudioOutput,
+    sourceSurface: ReferenceDragSourceSurface
+  ) => void;
   onCardDragEnd: (event: React.DragEvent<HTMLElement>) => void;
-  registerVideoNode: (id: string, node: HTMLVideoElement | null) => void;
+  onCardDragOver?: (event: React.DragEvent<HTMLElement>, item: StudioOutput) => void;
+  onCardDrop?: (event: React.DragEvent<HTMLElement>, item: StudioOutput) => void;
+  onCardDragEnter?: (event: React.DragEvent<HTMLElement>, item: StudioOutput) => void;
+  onCardDragLeave?: (event: React.DragEvent<HTMLElement>, item: StudioOutput) => void;
+  registerVideoNode: (nodeKey: string, outputId: string, node: HTMLVideoElement | null) => void;
   markLoaded: (id: string, options?: { notifyAutoSave?: boolean }) => void;
   onAutoplayStarted: (id: string) => void;
   onAutoplayStopped: (id: string) => void;
   onRetryStatus?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
+  onRemoveCuratedReference?: (id: string) => void;
+  showCuratedRemoveAction?: boolean;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
   onDescribeImage?: (output: StudioOutput) => void;
@@ -435,6 +462,8 @@ const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
 
 const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
   item,
+  dragSourceSurface,
+  videoNodeKey,
   activeOutputId,
   loadingVisual,
   cardPreviewUrl,
@@ -454,12 +483,18 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
   onOpenDetails,
   onCardDragStart,
   onCardDragEnd,
+  onCardDragOver,
+  onCardDrop,
+  onCardDragEnter,
+  onCardDragLeave,
   registerVideoNode,
   markLoaded,
   onAutoplayStarted,
   onAutoplayStopped,
   onRetryStatus,
   onDeleteOutput,
+  onRemoveCuratedReference,
+  showCuratedRemoveAction = false,
   onSaveToLibrary,
   onDownload,
   onDescribeImage,
@@ -494,14 +529,18 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
       onDoubleClick={() => onOpenDetails(item.id)}
       draggable={!!cardPreviewUrl || !!item.previewText}
       onDragStart={(event) => {
-        onCardDragStart(event, item);
+        onCardDragStart(event, item, dragSourceSurface);
       }}
       onDragEnd={onCardDragEnd}
+      onDragOver={onCardDragOver ? (event) => onCardDragOver(event, item) : undefined}
+      onDrop={onCardDrop ? (event) => onCardDrop(event, item) : undefined}
+      onDragEnter={onCardDragEnter ? (event) => onCardDragEnter(event, item) : undefined}
+      onDragLeave={onCardDragLeave ? (event) => onCardDragLeave(event, item) : undefined}
     >
       {isVideoPreview && cardPreviewUrl ? (
         <video
           className="reference-card-video"
-          ref={(node) => registerVideoNode(item.id, node)}
+          ref={(node) => registerVideoNode(videoNodeKey, item.id, node)}
           src={canAutoplayVideo ? cardPreviewUrl : undefined}
           autoPlay={canAutoplayVideo}
           muted
@@ -592,6 +631,21 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
             onClick={(event) => {
               event.stopPropagation();
               onDeleteOutput(item.id);
+            }}
+          >
+            <X size={16} weight="bold" aria-hidden />
+          </button>
+        </div>
+      ) : null}
+      {showCuratedRemoveAction && onRemoveCuratedReference && isSelected ? (
+        <div className="reference-card-actions" aria-label="Curated actions">
+          <button
+            type="button"
+            className="reference-card-action-btn reference-card-action-btn--danger"
+            aria-label="Remove from curated"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemoveCuratedReference(item.id);
             }}
           >
             <X size={16} weight="bold" aria-hidden />
@@ -695,6 +749,7 @@ export function ReferenceCanvas({
   outputs: outputsProp,
   archivedOutputs: archivedOutputsProp,
   activeOutputId,
+  curatedReferenceIds = [],
   showHeader = true,
   onOutputMediaLoaded,
   linkedPromptReferenceIds = [],
@@ -714,6 +769,9 @@ export function ReferenceCanvas({
   onGeneratePrompt,
   onRetryStatus,
   onDeleteOutput,
+  onAddCuratedReference,
+  onRemoveCuratedReference,
+  onReorderCuratedReference,
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
   generateCostCredits,
@@ -735,6 +793,23 @@ export function ReferenceCanvas({
   );
   const outputs = outputsProp ?? selectorOutputs;
   const archivedOutputs = archivedOutputsProp ?? selectorArchivedOutputs;
+  const isCuratedSplitEnabled =
+    REFERENCE_GRID_FLAG_CURATED_SPLIT &&
+    Boolean(onAddCuratedReference && onRemoveCuratedReference && onReorderCuratedReference);
+  const outputById = React.useMemo(() => {
+    const map: Record<string, StudioOutput> = {};
+    outputs.forEach((item) => {
+      map[item.id] = item;
+    });
+    return map;
+  }, [outputs]);
+  const curatedOutputs = React.useMemo(
+    () =>
+      curatedReferenceIds
+        .map((id) => outputById[id])
+        .filter((item): item is StudioOutput => Boolean(item)),
+    [curatedReferenceIds, outputById]
+  );
   const perfWatchdog = useReferenceGridPerfWatchdog({
     enabled: REFERENCE_GRID_FLAG_PERF_WATCHDOG,
     memoryGuardEnabled: REFERENCE_GRID_FLAG_MEMORY_GUARD,
@@ -754,26 +829,40 @@ export function ReferenceCanvas({
   const loadedIdsRef = React.useRef<Set<string>>(new Set());
   const autoplayingIdsRef = React.useRef<Set<string>>(new Set());
   const lastScrollSampleAtRef = React.useRef(0);
-  const scrollRafIdRef = React.useRef<number | null>(null);
-  const queuedScrollMetricsRef = React.useRef<{ scrollTop: number; viewportHeight: number } | null>(
-    null
-  );
+  const allRefsScrollRafIdRef = React.useRef<number | null>(null);
+  const curatedScrollRafIdRef = React.useRef<number | null>(null);
+  const queuedAllRefsScrollMetricsRef = React.useRef<{
+    scrollTop: number;
+    viewportHeight: number;
+  } | null>(null);
+  const queuedCuratedScrollMetricsRef = React.useRef<{
+    scrollTop: number;
+    viewportHeight: number;
+  } | null>(null);
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
   const gridRef = React.useRef<HTMLDivElement | null>(null);
+  const curatedScrollContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const curatedGridRef = React.useRef<HTMLDivElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
-  const videoVisibilityIdSetRef = React.useRef<Set<string>>(new Set());
-  const videoNodeByIdRef = React.useRef<Map<string, HTMLVideoElement>>(new Map());
-  const videoDetachTimeoutByIdRef = React.useRef<Map<string, number>>(new Map());
-  const videoIntersectionObserverRef = React.useRef<IntersectionObserver | null>(null);
+  const curatedSectionRef = React.useRef<HTMLDivElement | null>(null);
+  const videoVisibleKeySetRef = React.useRef<Set<string>>(new Set());
+  const videoOutputIdByKeyRef = React.useRef<Map<string, string>>(new Map());
+  const videoNodeByKeyRef = React.useRef<Map<string, HTMLVideoElement>>(new Map());
+  const videoDetachTimeoutByKeyRef = React.useRef<Map<string, number>>(new Map());
+  const videoIntersectionObserverBySurfaceRef = React.useRef<
+    Map<"all-refs" | "curated", IntersectionObserver>
+  >(new Map());
   const isPointerOverPanelRef = React.useRef(false);
   const isPastePrimedRef = React.useRef(false);
   const lastPasteFingerprintRef = React.useRef<{ value: string; at: number } | null>(null);
   const canvasDragDepthRef = React.useRef(0);
+  const curatedDragDepthRef = React.useRef(0);
   const [desiredVideoAttachBudget, setDesiredVideoAttachBudget] = useState<number>(
     REFERENCE_AUTOPLAY_MAX_DESKTOP
   );
   const [autoplayEnabledIds, setAutoplayEnabledIds] = useState<string[]>([]);
   const [canvasDropMode, setCanvasDropMode] = useState<CanvasDropMode>("none");
+  const [isCuratedDropActive, setIsCuratedDropActive] = useState(false);
   const [isArchivePanelOpen, setIsArchivePanelOpen] = useState(false);
   const [delayedLoadingById, setDelayedLoadingById] = useState<Record<string, true>>({});
   const loadingPendingSinceByIdRef = React.useRef<Record<string, number>>({});
@@ -845,6 +934,18 @@ export function ReferenceCanvas({
     viewportHeight: 0,
     columnCount: 5,
     rowHeight: FALLBACK_REFERENCE_ROW_HEIGHT,
+  });
+  const [curatedVirtualMetrics, setCuratedVirtualMetrics] = useState({
+    scrollTop: 0,
+    viewportHeight: 0,
+    columnCount: 5,
+    rowHeight: FALLBACK_REFERENCE_ROW_HEIGHT,
+  });
+  const horizontalSplit = useReferenceGridHorizontalSplit({
+    enabled: isCuratedSplitEnabled,
+    containerRef: panelRef,
+    defaultTopRatio: 0.35,
+    minSectionHeightPx: 120,
   });
   const lastRenderCommitAtRef = React.useRef<number>(0);
   const autoplayEnabledIdSet = React.useMemo(
@@ -1210,52 +1311,89 @@ export function ReferenceCanvas({
     } as unknown as FileList;
   }, []);
 
+  const syncVirtualMetricsForSurface = useCallback(
+    ({
+      scrollNode,
+      gridNode,
+      itemCount,
+      setMetrics,
+    }: {
+      scrollNode: HTMLDivElement | null;
+      gridNode: HTMLDivElement | null;
+      itemCount: number;
+      setMetrics: React.Dispatch<
+        React.SetStateAction<{
+          scrollTop: number;
+          viewportHeight: number;
+          columnCount: number;
+          rowHeight: number;
+        }>
+      >;
+    }) => {
+      if (!scrollNode || !gridNode) return;
+      const requestedMaxColumns = selectedTool
+        ? REFERENCE_GRID_MAX_COLUMNS
+        : REFERENCE_GRID_MAX_COLUMNS_WIDE;
+      const maxColumns = resolveReferenceGridMaxColumns({
+        requestedMaxColumns,
+        itemCount,
+        pressureLevel: perfWatchdog.degradeLevel,
+      });
+      const minCardWidth = selectedTool
+        ? REFERENCE_GRID_MIN_CARD_PX
+        : REFERENCE_GRID_MIN_CARD_PX_WIDE;
+      const style = window.getComputedStyle(gridNode);
+      const rowGap = Number.parseFloat(style.rowGap || style.gap || "0");
+      const gap = Number.isFinite(rowGap) ? rowGap : 3;
+      const paddingLeft = Number.parseFloat(style.paddingLeft || "0") || 0;
+      const paddingRight = Number.parseFloat(style.paddingRight || "0") || 0;
+      const gridWidth = Math.max(0, gridNode.clientWidth - paddingLeft - paddingRight);
+      const estimatedColumnCount =
+        gridWidth > 0 ? Math.floor((gridWidth + gap) / (minCardWidth + gap)) : 1;
+      const columnCount = Math.max(
+        REFERENCE_GRID_MIN_COLUMNS,
+        Math.min(maxColumns, estimatedColumnCount || REFERENCE_GRID_MIN_COLUMNS)
+      );
+      const cardWidth =
+        columnCount > 0 ? Math.max(0, (gridWidth - gap * (columnCount - 1)) / columnCount) : 0;
+      const cardHeight = cardWidth > 0 ? (cardWidth * 5) / 4 : FALLBACK_REFERENCE_ROW_HEIGHT;
+      const rowHeight = Math.max(1, cardHeight + gap);
+      setMetrics((prev) => {
+        const next = {
+          scrollTop: scrollNode.scrollTop,
+          viewportHeight: scrollNode.clientHeight,
+          columnCount,
+          rowHeight,
+        };
+        const stable =
+          Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
+          Math.abs(prev.viewportHeight - next.viewportHeight) < 1 &&
+          prev.columnCount === next.columnCount &&
+          Math.abs(prev.rowHeight - next.rowHeight) < 1;
+        return stable ? prev : next;
+      });
+    },
+    [perfWatchdog.degradeLevel, selectedTool]
+  );
+
   const syncVirtualMetrics = useCallback(() => {
-    const scrollNode = scrollContainerRef.current;
-    const gridNode = gridRef.current;
-    if (!scrollNode || !gridNode) return;
-    const requestedMaxColumns = selectedTool
-      ? REFERENCE_GRID_MAX_COLUMNS
-      : REFERENCE_GRID_MAX_COLUMNS_WIDE;
-    const maxColumns = resolveReferenceGridMaxColumns({
-      requestedMaxColumns,
+    syncVirtualMetricsForSurface({
+      scrollNode: scrollContainerRef.current,
+      gridNode: gridRef.current,
       itemCount: outputs.length,
-      pressureLevel: perfWatchdog.degradeLevel,
+      setMetrics: setVirtualMetrics,
     });
-    const minCardWidth = selectedTool
-      ? REFERENCE_GRID_MIN_CARD_PX
-      : REFERENCE_GRID_MIN_CARD_PX_WIDE;
-    const style = window.getComputedStyle(gridNode);
-    const rowGap = Number.parseFloat(style.rowGap || style.gap || "0");
-    const gap = Number.isFinite(rowGap) ? rowGap : 3;
-    const paddingLeft = Number.parseFloat(style.paddingLeft || "0") || 0;
-    const paddingRight = Number.parseFloat(style.paddingRight || "0") || 0;
-    const gridWidth = Math.max(0, gridNode.clientWidth - paddingLeft - paddingRight);
-    const estimatedColumnCount =
-      gridWidth > 0 ? Math.floor((gridWidth + gap) / (minCardWidth + gap)) : 1;
-    const columnCount = Math.max(
-      REFERENCE_GRID_MIN_COLUMNS,
-      Math.min(maxColumns, estimatedColumnCount || REFERENCE_GRID_MIN_COLUMNS)
-    );
-    const cardWidth =
-      columnCount > 0 ? Math.max(0, (gridWidth - gap * (columnCount - 1)) / columnCount) : 0;
-    const cardHeight = cardWidth > 0 ? (cardWidth * 5) / 4 : FALLBACK_REFERENCE_ROW_HEIGHT;
-    const rowHeight = Math.max(1, cardHeight + gap);
-    setVirtualMetrics((prev) => {
-      const next = {
-        scrollTop: scrollNode.scrollTop,
-        viewportHeight: scrollNode.clientHeight,
-        columnCount,
-        rowHeight,
-      };
-      const stable =
-        Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
-        Math.abs(prev.viewportHeight - next.viewportHeight) < 1 &&
-        prev.columnCount === next.columnCount &&
-        Math.abs(prev.rowHeight - next.rowHeight) < 1;
-      return stable ? prev : next;
+  }, [outputs.length, syncVirtualMetricsForSurface]);
+
+  const syncCuratedVirtualMetrics = useCallback(() => {
+    if (!isCuratedSplitEnabled) return;
+    syncVirtualMetricsForSurface({
+      scrollNode: curatedScrollContainerRef.current,
+      gridNode: curatedGridRef.current,
+      itemCount: curatedOutputs.length,
+      setMetrics: setCuratedVirtualMetrics,
     });
-  }, [outputs.length, perfWatchdog.degradeLevel, selectedTool]);
+  }, [curatedOutputs.length, isCuratedSplitEnabled, syncVirtualMetricsForSurface]);
 
   const gridStyle = React.useMemo(
     () =>
@@ -1266,9 +1404,23 @@ export function ReferenceCanvas({
       }) as React.CSSProperties,
     [virtualMetrics.columnCount]
   );
+  const curatedGridStyle = React.useMemo(
+    () =>
+      ({
+        "--reference-grid-columns": String(
+          Math.max(REFERENCE_GRID_MIN_COLUMNS, curatedVirtualMetrics.columnCount)
+        ),
+      }) as React.CSSProperties,
+    [curatedVirtualMetrics.columnCount]
+  );
 
   const dynamicOverscanRows = REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION
     ? resolveReferenceGridOverscanRows(outputs.length, {
+        pressureLevel: perfWatchdog.degradeLevel,
+      })
+    : REFERENCE_VIRTUAL_OVERSCAN_ROWS;
+  const curatedOverscanRows = REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION
+    ? resolveReferenceGridOverscanRows(curatedOutputs.length, {
         pressureLevel: perfWatchdog.degradeLevel,
       })
     : REFERENCE_VIRTUAL_OVERSCAN_ROWS;
@@ -1286,11 +1438,39 @@ export function ReferenceCanvas({
       ? REFERENCE_VIRTUALIZE_MIN_ITEMS
       : 24,
   });
+  const curatedVirtualWindow = isCuratedSplitEnabled
+    ? calculateReferenceGridWindow({
+        itemCount: curatedOutputs.length,
+        columnCount: curatedVirtualMetrics.columnCount,
+        rowHeight: curatedVirtualMetrics.rowHeight,
+        scrollTop: curatedVirtualMetrics.scrollTop,
+        viewportHeight:
+          curatedVirtualMetrics.viewportHeight > 0
+            ? curatedVirtualMetrics.viewportHeight
+            : FALLBACK_REFERENCE_ROW_HEIGHT * 3,
+        overscanRows: curatedOverscanRows,
+        virtualizeMinItems: REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION
+          ? REFERENCE_VIRTUALIZE_MIN_ITEMS
+          : 24,
+      })
+    : {
+        shouldVirtualize: false,
+        totalRows: 1,
+        startRow: 0,
+        endRow: 0,
+        startIndex: 0,
+        endIndex: curatedOutputs.length,
+        topSpacerHeight: 0,
+        bottomSpacerHeight: 0,
+      };
   const shouldVirtualize = virtualWindow.shouldVirtualize;
+  const curatedShouldVirtualize = curatedVirtualWindow.shouldVirtualize;
   const isHighDensity = outputs.length >= REFERENCE_HIGH_DENSITY_CARD_COUNT;
   const denseVisualModeEnabled = REFERENCE_GRID_FLAG_DENSE_VISUAL_SIMPLIFY && outputs.length >= 40;
   const startIndex = virtualWindow.startIndex;
   const endIndex = virtualWindow.endIndex;
+  const curatedStartIndex = curatedVirtualWindow.startIndex;
+  const curatedEndIndex = curatedVirtualWindow.endIndex;
   const baseVisibleOutputs = shouldVirtualize ? outputs.slice(startIndex, endIndex) : outputs;
   const visibleRows = Math.max(
     1,
@@ -1318,13 +1498,21 @@ export function ReferenceCanvas({
     if (capped.length === 0) return [activeOutput];
     return [...capped.slice(0, capped.length - 1), activeOutput];
   }, [activeOutputId, baseVisibleOutputs, hardViewportVisibleLimit, outputs]);
+  const visibleCuratedOutputs = curatedShouldVirtualize
+    ? curatedOutputs.slice(curatedStartIndex, curatedEndIndex)
+    : curatedOutputs;
   const topSpacerHeight = virtualWindow.topSpacerHeight;
   const bottomSpacerHeight = virtualWindow.bottomSpacerHeight;
+  const curatedTopSpacerHeight = curatedVirtualWindow.topSpacerHeight;
+  const curatedBottomSpacerHeight = curatedVirtualWindow.bottomSpacerHeight;
   const renderedItemCount = visibleOutputs.length;
-  const renderedOutputIdSet = React.useMemo(
-    () => new Set(visibleOutputs.map((output) => output.id)),
-    [visibleOutputs]
-  );
+  const renderedOutputIdSet = React.useMemo(() => {
+    const ids = new Set(visibleOutputs.map((output) => output.id));
+    if (isCuratedSplitEnabled) {
+      visibleCuratedOutputs.forEach((output) => ids.add(output.id));
+    }
+    return ids;
+  }, [isCuratedSplitEnabled, visibleCuratedOutputs, visibleOutputs]);
   const archiveCount = archivedOutputs.length;
   const nearViewportOutputs = React.useMemo(() => {
     if (!shouldVirtualize) return [];
@@ -1333,7 +1521,28 @@ export function ReferenceCanvas({
     const end = Math.min(outputs.length, endIndex + nearSpan);
     return outputs.slice(start, end);
   }, [endIndex, outputs, shouldVirtualize, startIndex, virtualMetrics.columnCount]);
+  const nearViewportCuratedOutputs = React.useMemo(() => {
+    if (!isCuratedSplitEnabled || !curatedShouldVirtualize) return [];
+    const nearSpan = Math.max(1, curatedVirtualMetrics.columnCount);
+    const start = Math.max(0, curatedStartIndex - nearSpan);
+    const end = Math.min(curatedOutputs.length, curatedEndIndex + nearSpan);
+    return curatedOutputs.slice(start, end);
+  }, [
+    curatedEndIndex,
+    curatedOutputs,
+    curatedShouldVirtualize,
+    curatedStartIndex,
+    curatedVirtualMetrics.columnCount,
+    isCuratedSplitEnabled,
+  ]);
   const recomputeAutoplayBudget = useCallback(() => {
+    const visibleOutputIdSet = new Set<string>();
+    videoVisibleKeySetRef.current.forEach((key) => {
+      const outputId = videoOutputIdByKeyRef.current.get(key);
+      if (outputId) {
+        visibleOutputIdSet.add(outputId);
+      }
+    });
     const visibleVideoIds = outputs
       .filter((output) => {
         const resolvedPreview = resolveReferenceCardUrls(output, {
@@ -1341,7 +1550,7 @@ export function ReferenceCanvas({
             REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
         }).previewUrl;
         if (!resolvedPreview || !isVideoUrl(resolvedPreview)) return false;
-        return videoVisibilityIdSetRef.current.has(output.id);
+        return visibleOutputIdSet.has(output.id);
       })
       .map((output) => output.id);
     const prioritizedVideoIds =
@@ -1369,14 +1578,17 @@ export function ReferenceCanvas({
     runNonUrgentUpdate,
   ]);
 
+  const baseHydrationPriorityRows = REFERENCE_GRID_FLAG_DECODE_BUDGET
+    ? hydrationBudget.priorityRows
+    : REFERENCE_PRIORITY_HYDRATION_ROWS;
   const hydrationPriorityCount =
-    Math.max(REFERENCE_GRID_MIN_COLUMNS, virtualMetrics.columnCount) *
-    (REFERENCE_GRID_FLAG_DECODE_BUDGET
-      ? hydrationBudget.priorityRows
-      : REFERENCE_PRIORITY_HYDRATION_ROWS);
-  const visibleCardItems = React.useMemo(
-    () =>
-      visibleOutputs.map((item, visibleIndex) => {
+    Math.max(REFERENCE_GRID_MIN_COLUMNS, virtualMetrics.columnCount) * baseHydrationPriorityRows;
+  const curatedHydrationPriorityCount =
+    Math.max(REFERENCE_GRID_MIN_COLUMNS, curatedVirtualMetrics.columnCount) *
+    baseHydrationPriorityRows;
+  const buildVisibleCardItems = useCallback(
+    (rows: StudioOutput[], priorityCount: number) =>
+      rows.map((item, visibleIndex) => {
         const isVideoMode = item.mode === "video";
         const strictPreviewLadderEnabled =
           REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER;
@@ -1395,8 +1607,7 @@ export function ReferenceCanvas({
         const cardPreviewUrl = resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl;
         const isVideoPreview = cardPreviewUrl ? isVideoMode || isVideoUrl(cardPreviewUrl) : false;
         const isImagePreview = cardPreviewUrl ? !isVideoPreview : false;
-        const isPriorityHydration =
-          visibleIndex < hydrationPriorityCount || activeOutputId === item.id;
+        const isPriorityHydration = visibleIndex < priorityCount || activeOutputId === item.id;
         const hydratedEntry = imageHydrationState.hydratedById[item.id];
         const imageSrc =
           isImagePreview && REFERENCE_GRID_FLAG_DECODE_BUDGET
@@ -1415,13 +1626,19 @@ export function ReferenceCanvas({
           imageSrc,
         };
       }),
-    [
-      activeOutputId,
-      hydrationPriorityCount,
-      imageHydrationState.hydratedById,
-      previewQualityPressureLevel,
-      visibleOutputs,
-    ]
+    [activeOutputId, imageHydrationState.hydratedById, previewQualityPressureLevel]
+  );
+  const visibleCardItems = React.useMemo(
+    () => buildVisibleCardItems(visibleOutputs, hydrationPriorityCount),
+    [buildVisibleCardItems, hydrationPriorityCount, visibleOutputs]
+  );
+  const curatedVisibleCardItems = React.useMemo(
+    () => buildVisibleCardItems(visibleCuratedOutputs, curatedHydrationPriorityCount),
+    [buildVisibleCardItems, curatedHydrationPriorityCount, visibleCuratedOutputs]
+  );
+  const allVisibleCardItems = React.useMemo(
+    () => [...curatedVisibleCardItems, ...visibleCardItems],
+    [curatedVisibleCardItems, visibleCardItems]
   );
   React.useEffect(() => {
     if (typeof performance === "undefined") return;
@@ -1494,7 +1711,7 @@ export function ReferenceCanvas({
   }, [outputs.length]);
   const pendingCardIds = React.useMemo(() => {
     const nextIds: string[] = [];
-    visibleCardItems.forEach((card) => {
+    allVisibleCardItems.forEach((card) => {
       const isFailing = card.item.taskState === "fail";
       const isLoading =
         !isFailing &&
@@ -1515,7 +1732,7 @@ export function ReferenceCanvas({
       }
     });
     return nextIds;
-  }, [loadedMap, visibleCardItems]);
+  }, [allVisibleCardItems, loadedMap]);
   const pendingCardIdSet = React.useMemo(() => new Set(pendingCardIds), [pendingCardIds]);
   const animatedSpinnerIdSet = React.useMemo(() => {
     if (!REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT) {
@@ -1656,7 +1873,45 @@ export function ReferenceCanvas({
           undefined,
       });
     });
+    curatedVisibleCardItems.forEach((card) => {
+      if (!card.isImagePreview || !card.cardPreviewUrl) return;
+      if (candidateIdSet.has(card.item.id)) return;
+      candidateIdSet.add(card.item.id);
+      enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
+        priority: card.isPriorityHydration ? "high" : "normal",
+        targetLongEdgePx: card.targetLongEdgePx,
+        previewQualityBand: card.previewQualityBand,
+        fallbackUrl:
+          card.item.fullStoragePath ??
+          card.item.previewStoragePath ??
+          card.item.previewUrl ??
+          undefined,
+      });
+    });
     nearViewportOutputs.forEach((item) => {
+      if (candidateIdSet.has(item.id)) return;
+      const resolved = resolveReferenceCardUrls(item, {
+        strictPreviewLadder:
+          REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+        adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
+        pressureLevel: previewQualityPressureLevel,
+      });
+      const previewUrl = resolved.previewUrl ?? resolved.fullUrl;
+      if (!previewUrl || isVideoUrl(previewUrl)) return;
+      candidateIdSet.add(item.id);
+      enqueueImageHydration(item.id, previewUrl, {
+        priority: "low",
+        targetLongEdgePx: resolved.targetLongEdgePx,
+        previewQualityBand: resolved.previewQualityBand,
+        fallbackUrl:
+          resolved.fullUrl ??
+          item.fullStoragePath ??
+          item.previewStoragePath ??
+          item.previewUrl ??
+          undefined,
+      });
+    });
+    nearViewportCuratedOutputs.forEach((item) => {
       if (candidateIdSet.has(item.id)) return;
       const resolved = resolveReferenceCardUrls(item, {
         strictPreviewLadder:
@@ -1685,7 +1940,9 @@ export function ReferenceCanvas({
     processHydrationQueue();
   }, [
     activeOutputId,
+    curatedVisibleCardItems,
     enqueueImageHydration,
+    nearViewportCuratedOutputs,
     nearViewportOutputs,
     outputs,
     previewQualityPressureLevel,
@@ -1733,29 +1990,43 @@ export function ReferenceCanvas({
     });
   }, [outputs, revokeGeneratedHydrationUrl, runNonUrgentUpdate]);
 
+  const resolveVideoSurfaceFromNodeKey = useCallback(
+    (nodeKey: string): "all-refs" | "curated" =>
+      nodeKey.startsWith("curated:") ? "curated" : "all-refs",
+    []
+  );
+
   const registerVideoNode = useCallback(
-    (id: string, node: HTMLVideoElement | null) => {
-      const currentNode = videoNodeByIdRef.current.get(id);
+    (nodeKey: string, outputId: string, node: HTMLVideoElement | null) => {
+      const currentNode = videoNodeByKeyRef.current.get(nodeKey);
       if (currentNode && currentNode !== node) {
-        videoIntersectionObserverRef.current?.unobserve(currentNode);
-        videoNodeByIdRef.current.delete(id);
+        videoIntersectionObserverBySurfaceRef.current.forEach((observer) => {
+          observer.unobserve(currentNode);
+        });
+        videoNodeByKeyRef.current.delete(nodeKey);
       }
       if (!node) {
-        const detachTimeout = videoDetachTimeoutByIdRef.current.get(id);
+        const detachTimeout = videoDetachTimeoutByKeyRef.current.get(nodeKey);
         if (detachTimeout) {
           window.clearTimeout(detachTimeout);
-          videoDetachTimeoutByIdRef.current.delete(id);
+          videoDetachTimeoutByKeyRef.current.delete(nodeKey);
         }
-        if (videoVisibilityIdSetRef.current.delete(id)) {
+        videoNodeByKeyRef.current.delete(nodeKey);
+        videoOutputIdByKeyRef.current.delete(nodeKey);
+        if (videoVisibleKeySetRef.current.delete(nodeKey)) {
           recomputeAutoplayBudget();
         }
         return;
       }
-      node.dataset.outputId = id;
-      videoNodeByIdRef.current.set(id, node);
-      videoIntersectionObserverRef.current?.observe(node);
+      const surface = resolveVideoSurfaceFromNodeKey(nodeKey);
+      node.dataset.outputId = outputId;
+      node.dataset.outputKey = nodeKey;
+      node.dataset.referenceSurface = surface;
+      videoNodeByKeyRef.current.set(nodeKey, node);
+      videoOutputIdByKeyRef.current.set(nodeKey, outputId);
+      videoIntersectionObserverBySurfaceRef.current.get(surface)?.observe(node);
     },
-    [recomputeAutoplayBudget]
+    [recomputeAutoplayBudget, resolveVideoSurfaceFromNodeKey]
   );
 
   React.useEffect(() => {
@@ -1806,16 +2077,29 @@ export function ReferenceCanvas({
   React.useEffect(() => {
     const validOutputIdSet = new Set(outputs.map((output) => output.id));
     let removedAny = false;
-    videoVisibilityIdSetRef.current.forEach((id) => {
-      if (!validOutputIdSet.has(id)) {
-        videoVisibilityIdSetRef.current.delete(id);
+    videoOutputIdByKeyRef.current.forEach((outputId, nodeKey) => {
+      if (validOutputIdSet.has(outputId)) return;
+      if (videoVisibleKeySetRef.current.delete(nodeKey)) {
         removedAny = true;
       }
+      const timeoutId = videoDetachTimeoutByKeyRef.current.get(nodeKey);
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId);
+      }
+      videoDetachTimeoutByKeyRef.current.delete(nodeKey);
+      const node = videoNodeByKeyRef.current.get(nodeKey);
+      if (node) {
+        videoIntersectionObserverBySurfaceRef.current.forEach((observer) =>
+          observer.unobserve(node)
+        );
+      }
+      videoNodeByKeyRef.current.delete(nodeKey);
+      videoOutputIdByKeyRef.current.delete(nodeKey);
     });
-    videoDetachTimeoutByIdRef.current.forEach((timeoutId, id) => {
-      if (validOutputIdSet.has(id)) return;
+    videoDetachTimeoutByKeyRef.current.forEach((timeoutId, nodeKey) => {
+      if (videoOutputIdByKeyRef.current.has(nodeKey)) return;
       window.clearTimeout(timeoutId);
-      videoDetachTimeoutByIdRef.current.delete(id);
+      videoDetachTimeoutByKeyRef.current.delete(nodeKey);
     });
     if (removedAny) {
       recomputeAutoplayBudget();
@@ -1825,61 +2109,93 @@ export function ReferenceCanvas({
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     syncVirtualMetrics();
+    syncCuratedVirtualMetrics();
     const scrollNode = scrollContainerRef.current;
     const gridNode = gridRef.current;
+    const curatedScrollNode = curatedScrollContainerRef.current;
+    const curatedGridNode = curatedGridRef.current;
     if (!scrollNode || !gridNode) return;
-    const handleResize = () => syncVirtualMetrics();
+    const handleResize = () => {
+      syncVirtualMetrics();
+      syncCuratedVirtualMetrics();
+    };
     const observer =
-      typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => syncVirtualMetrics()) : null;
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            syncVirtualMetrics();
+            syncCuratedVirtualMetrics();
+          })
+        : null;
     observer?.observe(scrollNode);
     observer?.observe(gridNode);
+    if (isCuratedSplitEnabled && curatedScrollNode && curatedGridNode) {
+      observer?.observe(curatedScrollNode);
+      observer?.observe(curatedGridNode);
+    }
     window.addEventListener("resize", handleResize);
     return () => {
       observer?.disconnect();
       window.removeEventListener("resize", handleResize);
     };
-  }, [outputs.length, selectedTool, syncVirtualMetrics]);
+  }, [
+    isCuratedSplitEnabled,
+    outputs.length,
+    selectedTool,
+    syncCuratedVirtualMetrics,
+    syncVirtualMetrics,
+    curatedOutputs.length,
+  ]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    const root = scrollContainerRef.current;
-    if (!root) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        let changed = false;
-        entries.forEach((entry) => {
-          const id = (entry.target as HTMLElement).dataset.outputId;
-          if (!id) return;
-          const isVisible =
-            entry.isIntersecting &&
-            entry.intersectionRatio >= REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD;
-          if (isVisible) {
-            if (!videoVisibilityIdSetRef.current.has(id)) {
-              videoVisibilityIdSetRef.current.add(id);
+    const allRefsRoot = scrollContainerRef.current;
+    if (!allRefsRoot) return;
+    const observerBySurface = new Map<"all-refs" | "curated", IntersectionObserver>();
+    const createObserver = (root: Element | null) =>
+      new IntersectionObserver(
+        (entries) => {
+          let changed = false;
+          entries.forEach((entry) => {
+            const nodeKey = (entry.target as HTMLElement).dataset.outputKey;
+            if (!nodeKey) return;
+            const isVisible =
+              entry.isIntersecting &&
+              entry.intersectionRatio >= REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD;
+            if (isVisible) {
+              if (!videoVisibleKeySetRef.current.has(nodeKey)) {
+                videoVisibleKeySetRef.current.add(nodeKey);
+                changed = true;
+              }
+              return;
+            }
+            if (videoVisibleKeySetRef.current.delete(nodeKey)) {
               changed = true;
             }
-            return;
+          });
+          if (changed) {
+            recomputeAutoplayBudget();
           }
-          if (videoVisibilityIdSetRef.current.delete(id)) {
-            changed = true;
-          }
-        });
-        if (changed) {
-          recomputeAutoplayBudget();
+        },
+        {
+          root,
+          threshold: [0, REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD, 1],
         }
-      },
-      {
-        root,
-        threshold: [0, REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD, 1],
-      }
-    );
-    videoIntersectionObserverRef.current = observer;
-    videoNodeByIdRef.current.forEach((node) => observer.observe(node));
+      );
+    const allRefsObserver = createObserver(allRefsRoot);
+    observerBySurface.set("all-refs", allRefsObserver);
+    if (isCuratedSplitEnabled && curatedScrollContainerRef.current) {
+      observerBySurface.set("curated", createObserver(curatedScrollContainerRef.current));
+    }
+    videoIntersectionObserverBySurfaceRef.current = observerBySurface;
+    videoNodeByKeyRef.current.forEach((node, nodeKey) => {
+      const surface = resolveVideoSurfaceFromNodeKey(nodeKey);
+      observerBySurface.get(surface)?.observe(node);
+    });
     return () => {
-      observer.disconnect();
-      videoIntersectionObserverRef.current = null;
+      observerBySurface.forEach((observer) => observer.disconnect());
+      videoIntersectionObserverBySurfaceRef.current.clear();
     };
-  }, [recomputeAutoplayBudget]);
+  }, [isCuratedSplitEnabled, recomputeAutoplayBudget, resolveVideoSurfaceFromNodeKey]);
 
   React.useEffect(() => {
     const validOutputIds = shouldVirtualize
@@ -1894,31 +2210,36 @@ export function ReferenceCanvas({
 
   React.useEffect(() => {
     const enabledSet = new Set(autoplayEnabledIds);
-    videoNodeByIdRef.current.forEach((node, id) => {
-      if (enabledSet.has(id)) {
-        const detachTimeout = videoDetachTimeoutByIdRef.current.get(id);
+    videoNodeByKeyRef.current.forEach((node, nodeKey) => {
+      const outputId = videoOutputIdByKeyRef.current.get(nodeKey);
+      if (!outputId) return;
+      if (enabledSet.has(outputId)) {
+        const detachTimeout = videoDetachTimeoutByKeyRef.current.get(nodeKey);
         if (detachTimeout) {
           window.clearTimeout(detachTimeout);
-          videoDetachTimeoutByIdRef.current.delete(id);
+          videoDetachTimeoutByKeyRef.current.delete(nodeKey);
         }
         return;
       }
       node.pause();
-      if (videoDetachTimeoutByIdRef.current.has(id)) return;
+      if (videoDetachTimeoutByKeyRef.current.has(nodeKey)) return;
       const timeoutId = window.setTimeout(() => {
-        if (autoplayEnabledIdSet.has(id)) return;
+        const currentOutputId = videoOutputIdByKeyRef.current.get(nodeKey);
+        if (currentOutputId && autoplayEnabledIdSet.has(currentOutputId)) return;
         node.pause();
         node.removeAttribute("src");
         node.load();
-        autoplayingIdsRef.current.delete(id);
-        videoDetachTimeoutByIdRef.current.delete(id);
+        if (currentOutputId) {
+          autoplayingIdsRef.current.delete(currentOutputId);
+        }
+        videoDetachTimeoutByKeyRef.current.delete(nodeKey);
       }, REFERENCE_AUTOPLAY_DETACH_DELAY_MS);
-      videoDetachTimeoutByIdRef.current.set(id, timeoutId);
+      videoDetachTimeoutByKeyRef.current.set(nodeKey, timeoutId);
     });
   }, [autoplayEnabledIdSet, autoplayEnabledIds]);
 
   React.useEffect(() => {
-    const detachTimeoutById = videoDetachTimeoutByIdRef.current;
+    const detachTimeoutById = videoDetachTimeoutByKeyRef.current;
     return () => {
       detachTimeoutById.forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
@@ -1929,9 +2250,13 @@ export function ReferenceCanvas({
 
   React.useEffect(
     () => () => {
-      if (scrollRafIdRef.current != null) {
-        window.cancelAnimationFrame(scrollRafIdRef.current);
-        scrollRafIdRef.current = null;
+      if (allRefsScrollRafIdRef.current != null) {
+        window.cancelAnimationFrame(allRefsScrollRafIdRef.current);
+        allRefsScrollRafIdRef.current = null;
+      }
+      if (curatedScrollRafIdRef.current != null) {
+        window.cancelAnimationFrame(curatedScrollRafIdRef.current);
+        curatedScrollRafIdRef.current = null;
       }
       if (hydrationRafFlushRef.current != null) {
         window.cancelAnimationFrame(hydrationRafFlushRef.current);
@@ -2009,12 +2334,15 @@ export function ReferenceCanvas({
   React.useEffect(() => {
     if (!REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE) return;
     const shouldDefer =
-      perfWatchdog.degradeLevel >= 1 || canvasDropMode !== "none" || pendingCardIds.length > 8;
+      perfWatchdog.degradeLevel >= 1 ||
+      canvasDropMode !== "none" ||
+      isCuratedDropActive ||
+      pendingCardIds.length > 8;
     setMediaPerfSamplingPolicy(shouldDefer ? "defer_non_critical" : "normal");
     return () => {
       setMediaPerfSamplingPolicy("normal");
     };
-  }, [canvasDropMode, pendingCardIds.length, perfWatchdog.degradeLevel]);
+  }, [canvasDropMode, isCuratedDropActive, pendingCardIds.length, perfWatchdog.degradeLevel]);
 
   const markLoaded = useCallback(
     (id: string, options?: { notifyAutoSave?: boolean }) => {
@@ -2167,6 +2495,11 @@ export function ReferenceCanvas({
       const targetElement = event.target instanceof HTMLElement ? event.target : null;
       const activeElement =
         document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const curatedSectionNode = curatedSectionRef.current;
+      const insideCuratedSection =
+        Boolean(targetElement && curatedSectionNode?.contains(targetElement)) ||
+        Boolean(activeElement && curatedSectionNode?.contains(activeElement));
+      if (insideCuratedSection) return;
       const targetInsideSurface = isNodeInsideAnySurface(targetElement, pasteSurfaces);
       const activeInsideSurface = isNodeInsideAnySurface(activeElement, pasteSurfaces);
       const targetIsEditable = isEditableElement(targetElement);
@@ -2218,7 +2551,9 @@ export function ReferenceCanvas({
     if (typeof document === "undefined") return;
     const clearDropState = () => {
       canvasDragDepthRef.current = 0;
+      curatedDragDepthRef.current = 0;
       setCanvasDropMode("none");
+      setIsCuratedDropActive(false);
     };
     document.addEventListener("dragend", clearDropState);
     document.addEventListener("drop", clearDropState);
@@ -2242,25 +2577,157 @@ export function ReferenceCanvas({
     event.currentTarget.focus({ preventScroll: true });
   };
 
-  const handleCardDragStart = (event: React.DragEvent<HTMLElement>, item: StudioOutput) => {
-    prepareReferenceDrag(event, item, { dragImage: event.currentTarget as HTMLElement });
-  };
+  const handleCardDragStart = useCallback(
+    (
+      event: React.DragEvent<HTMLElement>,
+      item: StudioOutput,
+      sourceSurface: ReferenceDragSourceSurface
+    ) => {
+      prepareReferenceDrag(event, item, {
+        dragImage: event.currentTarget as HTMLElement,
+        sourceSurface,
+      });
+    },
+    []
+  );
 
-  const handleCardDragEnd = (event: React.DragEvent<HTMLElement>) => {
+  const handleCardDragEnd = useCallback((event: React.DragEvent<HTMLElement>) => {
     clearDragState(event);
+  }, []);
+
+  const hasInternalReferenceDrag = (transfer: DataTransfer): boolean => {
+    const types = Array.from(transfer.types || []).map((value) => value.toLowerCase());
+    if (types.includes("text/reference-id")) return true;
+    return Boolean(transfer.getData("text/reference-id"));
   };
 
-  const handleScroll = useCallback(
+  const resolveReferenceDragSourceSurface = useCallback(
+    (transfer: DataTransfer): ReferenceDragSourceSurface => {
+      const sourceSurface = transfer.getData("text/reference-source-surface");
+      return sourceSurface === "curated" ? "curated" : "all-refs";
+    },
+    []
+  );
+
+  const handleCuratedSectionDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (!isCuratedSplitEnabled) return;
+      event.preventDefault();
+      event.stopPropagation();
+      curatedDragDepthRef.current = 0;
+      setIsCuratedDropActive(false);
+      const referenceId = event.dataTransfer.getData("text/reference-id").trim();
+      if (!referenceId) return;
+      const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
+      if (sourceSurface === "all-refs") {
+        if (curatedReferenceIds.includes(referenceId)) {
+          onSelectOutput(referenceId);
+          return;
+        }
+        onAddCuratedReference?.(referenceId);
+        onSelectOutput(referenceId);
+        return;
+      }
+      onReorderCuratedReference?.(referenceId, null, "end");
+      onSelectOutput(referenceId);
+    },
+    [
+      curatedReferenceIds,
+      isCuratedSplitEnabled,
+      onAddCuratedReference,
+      onReorderCuratedReference,
+      onSelectOutput,
+      resolveReferenceDragSourceSurface,
+    ]
+  );
+
+  const handleCuratedSectionDragOver = useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      if (!isCuratedSplitEnabled) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!hasInternalReferenceDrag(event.dataTransfer)) {
+        event.dataTransfer.dropEffect = "none";
+        setIsCuratedDropActive(false);
+        return;
+      }
+      const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
+      event.dataTransfer.dropEffect = sourceSurface === "curated" ? "move" : "copy";
+      setIsCuratedDropActive(true);
+    },
+    [isCuratedSplitEnabled, resolveReferenceDragSourceSurface]
+  );
+
+  const handleCuratedSectionDragEnter = useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      if (!isCuratedSplitEnabled) return;
+      event.preventDefault();
+      event.stopPropagation();
+      curatedDragDepthRef.current += 1;
+      setIsCuratedDropActive(hasInternalReferenceDrag(event.dataTransfer));
+    },
+    [isCuratedSplitEnabled]
+  );
+
+  const handleCuratedSectionDragLeave = useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      if (!isCuratedSplitEnabled) return;
+      event.preventDefault();
+      event.stopPropagation();
+      curatedDragDepthRef.current = Math.max(0, curatedDragDepthRef.current - 1);
+      if (curatedDragDepthRef.current === 0) {
+        setIsCuratedDropActive(false);
+      }
+    },
+    [isCuratedSplitEnabled]
+  );
+
+  const handleCuratedCardDrop = useCallback(
+    (event: React.DragEvent<HTMLElement>, target: StudioOutput): void => {
+      if (!isCuratedSplitEnabled) return;
+      event.preventDefault();
+      event.stopPropagation();
+      curatedDragDepthRef.current = 0;
+      setIsCuratedDropActive(false);
+      const referenceId = event.dataTransfer.getData("text/reference-id").trim();
+      if (!referenceId) return;
+      const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
+      if (sourceSurface === "all-refs") {
+        if (curatedReferenceIds.includes(referenceId)) {
+          onSelectOutput(referenceId);
+          return;
+        }
+        onAddCuratedReference?.(referenceId);
+        onSelectOutput(referenceId);
+        return;
+      }
+      const rect = event.currentTarget.getBoundingClientRect();
+      const placement: "before" | "after" =
+        event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+      onReorderCuratedReference?.(referenceId, target.id, placement);
+      onSelectOutput(referenceId);
+    },
+    [
+      curatedReferenceIds,
+      isCuratedSplitEnabled,
+      onAddCuratedReference,
+      onReorderCuratedReference,
+      onSelectOutput,
+      resolveReferenceDragSourceSurface,
+    ]
+  );
+
+  const handleAllRefsScroll = useCallback(
     (event: React.UIEvent<HTMLDivElement>) => {
       const node = event.currentTarget;
-      queuedScrollMetricsRef.current = {
+      queuedAllRefsScrollMetricsRef.current = {
         scrollTop: node.scrollTop,
         viewportHeight: node.clientHeight,
       };
-      if (scrollRafIdRef.current == null && typeof window !== "undefined") {
-        scrollRafIdRef.current = window.requestAnimationFrame(() => {
-          scrollRafIdRef.current = null;
-          const queuedMetrics = queuedScrollMetricsRef.current;
+      if (allRefsScrollRafIdRef.current == null && typeof window !== "undefined") {
+        allRefsScrollRafIdRef.current = window.requestAnimationFrame(() => {
+          allRefsScrollRafIdRef.current = null;
+          const queuedMetrics = queuedAllRefsScrollMetricsRef.current;
           if (!queuedMetrics) return;
           setVirtualMetrics((prev) => {
             const next = {
@@ -2304,6 +2771,32 @@ export function ReferenceCanvas({
     [outputs.length, renderedItemCount]
   );
 
+  const handleCuratedScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const node = event.currentTarget;
+    queuedCuratedScrollMetricsRef.current = {
+      scrollTop: node.scrollTop,
+      viewportHeight: node.clientHeight,
+    };
+    if (curatedScrollRafIdRef.current == null && typeof window !== "undefined") {
+      curatedScrollRafIdRef.current = window.requestAnimationFrame(() => {
+        curatedScrollRafIdRef.current = null;
+        const queuedMetrics = queuedCuratedScrollMetricsRef.current;
+        if (!queuedMetrics) return;
+        setCuratedVirtualMetrics((prev) => {
+          const next = {
+            ...prev,
+            scrollTop: queuedMetrics.scrollTop,
+            viewportHeight: queuedMetrics.viewportHeight,
+          };
+          const stable =
+            Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
+            Math.abs(prev.viewportHeight - next.viewportHeight) < 1;
+          return stable ? prev : next;
+        });
+      });
+    }
+  }, []);
+
   const handleAutoplayStarted = useCallback(
     (id: string) => {
       if (autoplayingIdsRef.current.has(id)) return;
@@ -2334,10 +2827,133 @@ export function ReferenceCanvas({
     [outputs.length, renderedItemCount]
   );
 
+  const renderReferenceCard = useCallback(
+    (
+      card: (typeof visibleCardItems)[number],
+      options: {
+        surface: ReferenceDragSourceSurface;
+        isCuratedSurface: boolean;
+      }
+    ) => {
+      const isFailing = card.item.taskState === "fail";
+      const isLoading =
+        !isFailing &&
+        (card.item.taskState === "running" ||
+          card.item.taskState === "pending" ||
+          (card.item.taskState === "success" && !card.cardPreviewUrl && !card.item.previewText));
+      const isPending = pendingCardIdSet.has(card.item.id);
+      const loadingVisual: "none" | "spinner" | "placeholder" = isPending
+        ? delayedLoadingById[card.item.id] || !animatedSpinnerIdSet.has(card.item.id)
+          ? "placeholder"
+          : "spinner"
+        : "none";
+      const canAutoplayVideo =
+        card.isVideoPreview &&
+        autoplayEnabledIdSet.has(card.item.id) &&
+        perfWatchdog.degradeLevel < 2;
+      const isPromptOnly = !card.cardPreviewUrl && !!card.item.previewText;
+      const isLinkedPromptReference = isPromptOnly && linkedPromptReferenceIdSet.has(card.item.id);
+      const canRetryStatus = Boolean(onRetryStatus && card.item.taskId) && (isFailing || isLoading);
+      const videoNodeKey = `${options.surface}:${card.item.id}`;
+      return (
+        <ReferenceCanvasCard
+          key={options.isCuratedSurface ? `curated-${card.item.id}` : card.item.id}
+          item={card.item}
+          dragSourceSurface={options.surface}
+          videoNodeKey={videoNodeKey}
+          activeOutputId={activeOutputId}
+          loadingVisual={loadingVisual}
+          cardPreviewUrl={card.cardPreviewUrl}
+          isVideoPreview={card.isVideoPreview}
+          isImagePreview={card.isImagePreview}
+          canAutoplayVideo={canAutoplayVideo}
+          isPromptOnly={isPromptOnly}
+          isLinkedPromptReference={isLinkedPromptReference}
+          canRetryStatus={canRetryStatus}
+          showPromptGenerate={showPromptGenerate}
+          disablePromptGenerate={disablePromptGenerate}
+          generateCostCredits={generateCostCredits}
+          imageSrc={card.imageSrc}
+          imageLoading={card.isPriorityHydration ? "eager" : "lazy"}
+          imageFetchPriority={card.isPriorityHydration ? "high" : "low"}
+          onSelectOutput={onSelectOutput}
+          onOpenDetails={onOpenDetails}
+          onCardDragStart={handleCardDragStart}
+          onCardDragEnd={handleCardDragEnd}
+          onCardDragOver={
+            options.isCuratedSurface
+              ? (event) => {
+                  handleCuratedSectionDragOver(event);
+                }
+              : undefined
+          }
+          onCardDrop={options.isCuratedSurface ? handleCuratedCardDrop : undefined}
+          onCardDragEnter={
+            options.isCuratedSurface
+              ? (event) => {
+                  handleCuratedSectionDragEnter(event);
+                }
+              : undefined
+          }
+          onCardDragLeave={
+            options.isCuratedSurface
+              ? (event) => {
+                  handleCuratedSectionDragLeave(event);
+                }
+              : undefined
+          }
+          registerVideoNode={registerVideoNode}
+          markLoaded={markLoaded}
+          onAutoplayStarted={handleAutoplayStarted}
+          onAutoplayStopped={handleAutoplayStopped}
+          onRetryStatus={onRetryStatus}
+          onDeleteOutput={onDeleteOutput}
+          onRemoveCuratedReference={options.isCuratedSurface ? onRemoveCuratedReference : undefined}
+          showCuratedRemoveAction={options.isCuratedSurface}
+          onSaveToLibrary={onSaveToLibrary}
+          onDownload={onDownload}
+          onDescribeImage={onDescribeImage}
+          onGeneratePrompt={onGeneratePrompt}
+        />
+      );
+    },
+    [
+      activeOutputId,
+      animatedSpinnerIdSet,
+      autoplayEnabledIdSet,
+      delayedLoadingById,
+      disablePromptGenerate,
+      generateCostCredits,
+      handleAutoplayStarted,
+      handleAutoplayStopped,
+      handleCardDragStart,
+      handleCardDragEnd,
+      handleCuratedCardDrop,
+      handleCuratedSectionDragEnter,
+      handleCuratedSectionDragLeave,
+      handleCuratedSectionDragOver,
+      linkedPromptReferenceIdSet,
+      markLoaded,
+      onDeleteOutput,
+      onDescribeImage,
+      onDownload,
+      onGeneratePrompt,
+      onOpenDetails,
+      onRemoveCuratedReference,
+      onRetryStatus,
+      onSaveToLibrary,
+      onSelectOutput,
+      pendingCardIdSet,
+      perfWatchdog.degradeLevel,
+      registerVideoNode,
+      showPromptGenerate,
+    ]
+  );
+
   return (
     <div
       ref={panelRef}
-      className={`panel ai-panel ai-preview-panel reference-canvas-panel${canvasDropMode !== "none" ? " is-drop-active" : ""}${canvasDropMode === "text" ? " is-drop-active-text" : ""}${canvasDropMode === "files" ? " is-drop-active-files" : ""}${isHighDensity ? " is-high-density" : ""}${denseVisualModeEnabled ? " is-dense-visual-mode" : ""}${REFERENCE_GRID_FLAG_CSS_CONTAINMENT ? " is-css-containment-mode" : ""}${perfWatchdog.degradeLevel >= 1 ? " is-grid-pressure-mode" : ""}`}
+      className={`panel ai-panel ai-preview-panel reference-canvas-panel${canvasDropMode !== "none" ? " is-drop-active" : ""}${canvasDropMode === "text" ? " is-drop-active-text" : ""}${canvasDropMode === "files" ? " is-drop-active-files" : ""}${isHighDensity ? " is-high-density" : ""}${denseVisualModeEnabled ? " is-dense-visual-mode" : ""}${REFERENCE_GRID_FLAG_CSS_CONTAINMENT ? " is-css-containment-mode" : ""}${perfWatchdog.degradeLevel >= 1 ? " is-grid-pressure-mode" : ""}${isCuratedSplitEnabled ? " is-curated-split-mode" : ""}`}
       data-selection-theme={selectionTheme}
       data-grid-surface="reference-grid"
       data-rendered-item-count={renderedItemCount}
@@ -2453,90 +3069,115 @@ export function ReferenceCanvas({
           </div>
         </div>
       ) : null}
-      <div className="reference-canvas-scroll" onScroll={handleScroll} ref={scrollContainerRef}>
-        <div
-          className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
-          ref={gridRef}
-          style={gridStyle}
-        >
-          {outputs.length === 0 ? (
-            <div className="reference-empty">
-              <p className="preview-title">Upload or generate to see your references here.</p>
-              <p className="subdued tiny helper-text">
-                New text prompts, images, and videos will appear in this grid.
-              </p>
+      <div className={`reference-grid-sections${isCuratedSplitEnabled ? " is-curated-split" : ""}`}>
+        {isCuratedSplitEnabled ? (
+          <>
+            <div
+              ref={curatedSectionRef}
+              className={`reference-curated-section${isCuratedDropActive ? " is-drop-active" : ""}`}
+              style={horizontalSplit.topSectionStyle}
+              onDrop={handleCuratedSectionDrop}
+              onDragOver={handleCuratedSectionDragOver}
+              onDragEnter={handleCuratedSectionDragEnter}
+              onDragLeave={handleCuratedSectionDragLeave}
+            >
+              <div className="reference-curated-header">
+                <p className="tiny subdued">Curated</p>
+                <span className="tiny subdued">{curatedOutputs.length}</span>
+              </div>
+              <div
+                className="reference-curated-scroll"
+                onScroll={handleCuratedScroll}
+                ref={curatedScrollContainerRef}
+              >
+                <div
+                  className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
+                  ref={curatedGridRef}
+                  style={curatedGridStyle}
+                >
+                  {curatedOutputs.length === 0 ? (
+                    <div className="reference-curated-empty">
+                      <p className="preview-title">Drag references here from All refs.</p>
+                      <p className="subdued tiny helper-text">
+                        Curated selections are session-only and stay pinned while curated.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {curatedTopSpacerHeight > 0 ? (
+                        <div
+                          className="reference-virtual-spacer"
+                          style={{ height: curatedTopSpacerHeight }}
+                        />
+                      ) : null}
+                      {curatedVisibleCardItems.map((card) =>
+                        renderReferenceCard(card, {
+                          surface: "curated",
+                          isCuratedSurface: true,
+                        })
+                      )}
+                      {curatedBottomSpacerHeight > 0 ? (
+                        <div
+                          className="reference-virtual-spacer"
+                          style={{ height: curatedBottomSpacerHeight }}
+                        />
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-          ) : (
-            <>
-              {topSpacerHeight > 0 ? (
-                <div className="reference-virtual-spacer" style={{ height: topSpacerHeight }} />
-              ) : null}
-              {visibleCardItems.map((card) => {
-                const isFailing = card.item.taskState === "fail";
-                const isLoading =
-                  !isFailing &&
-                  (card.item.taskState === "running" ||
-                    card.item.taskState === "pending" ||
-                    (card.item.taskState === "success" &&
-                      !card.cardPreviewUrl &&
-                      !card.item.previewText));
-                const isPending = pendingCardIdSet.has(card.item.id);
-                const loadingVisual: "none" | "spinner" | "placeholder" = isPending
-                  ? delayedLoadingById[card.item.id] || !animatedSpinnerIdSet.has(card.item.id)
-                    ? "placeholder"
-                    : "spinner"
-                  : "none";
-                const canAutoplayVideo =
-                  card.isVideoPreview &&
-                  autoplayEnabledIdSet.has(card.item.id) &&
-                  perfWatchdog.degradeLevel < 2;
-                const isPromptOnly = !card.cardPreviewUrl && !!card.item.previewText;
-                const isLinkedPromptReference =
-                  isPromptOnly && linkedPromptReferenceIdSet.has(card.item.id);
-                const canRetryStatus =
-                  Boolean(onRetryStatus && card.item.taskId) && (isFailing || isLoading);
-
-                return (
-                  <ReferenceCanvasCard
-                    key={card.item.id}
-                    item={card.item}
-                    activeOutputId={activeOutputId}
-                    loadingVisual={loadingVisual}
-                    cardPreviewUrl={card.cardPreviewUrl}
-                    isVideoPreview={card.isVideoPreview}
-                    isImagePreview={card.isImagePreview}
-                    canAutoplayVideo={canAutoplayVideo}
-                    isPromptOnly={isPromptOnly}
-                    isLinkedPromptReference={isLinkedPromptReference}
-                    canRetryStatus={canRetryStatus}
-                    showPromptGenerate={showPromptGenerate}
-                    disablePromptGenerate={disablePromptGenerate}
-                    generateCostCredits={generateCostCredits}
-                    imageSrc={card.imageSrc}
-                    imageLoading={card.isPriorityHydration ? "eager" : "lazy"}
-                    imageFetchPriority={card.isPriorityHydration ? "high" : "low"}
-                    onSelectOutput={onSelectOutput}
-                    onOpenDetails={onOpenDetails}
-                    onCardDragStart={handleCardDragStart}
-                    onCardDragEnd={handleCardDragEnd}
-                    registerVideoNode={registerVideoNode}
-                    markLoaded={markLoaded}
-                    onAutoplayStarted={handleAutoplayStarted}
-                    onAutoplayStopped={handleAutoplayStopped}
-                    onRetryStatus={onRetryStatus}
-                    onDeleteOutput={onDeleteOutput}
-                    onSaveToLibrary={onSaveToLibrary}
-                    onDownload={onDownload}
-                    onDescribeImage={onDescribeImage}
-                    onGeneratePrompt={onGeneratePrompt}
-                  />
-                );
-              })}
-              {bottomSpacerHeight > 0 ? (
-                <div className="reference-virtual-spacer" style={{ height: bottomSpacerHeight }} />
-              ) : null}
-            </>
-          )}
+            <div className="reference-grid-horizontal-divider-wrap">
+              <div
+                className="reference-grid-horizontal-divider"
+                {...horizontalSplit.dividerProps}
+              />
+              <span className="reference-grid-horizontal-divider-label">All refs</span>
+            </div>
+          </>
+        ) : null}
+        <div
+          className="reference-all-refs-section"
+          style={isCuratedSplitEnabled ? horizontalSplit.bottomSectionStyle : undefined}
+        >
+          <div
+            className="reference-canvas-scroll"
+            onScroll={handleAllRefsScroll}
+            ref={scrollContainerRef}
+          >
+            <div
+              className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
+              ref={gridRef}
+              style={gridStyle}
+            >
+              {outputs.length === 0 ? (
+                <div className="reference-empty">
+                  <p className="preview-title">Upload or generate to see your references here.</p>
+                  <p className="subdued tiny helper-text">
+                    New text prompts, images, and videos will appear in this grid.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {topSpacerHeight > 0 ? (
+                    <div className="reference-virtual-spacer" style={{ height: topSpacerHeight }} />
+                  ) : null}
+                  {visibleCardItems.map((card) =>
+                    renderReferenceCard(card, {
+                      surface: "all-refs",
+                      isCuratedSurface: false,
+                    })
+                  )}
+                  {bottomSpacerHeight > 0 ? (
+                    <div
+                      className="reference-virtual-spacer"
+                      style={{ height: bottomSpacerHeight }}
+                    />
+                  ) : null}
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

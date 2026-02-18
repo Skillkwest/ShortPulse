@@ -60,6 +60,13 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 3. Confirm on constrained conditions (`saveData`, low memory, very slow network) autoplay budget reduces.
 4. Confirm offscreen cards pause/detach according to configured delay.
 
+### 3b) Validate Curated Split Behavior
+1. Confirm top `Curated` section is empty by default and only accepts internal drags from `All refs`.
+2. Drag a card from bottom `All refs` into top `Curated`; verify add + dedupe semantics.
+3. Reorder curated cards by dragging within top section; verify before/after/end behavior.
+4. Remove a curated card using the explicit remove control on the active card.
+5. Drag the horizontal divider with pointer and keyboard (`ArrowUp`, `ArrowDown`, `Home`, `End`) and verify section resizing.
+
 ### 4) Validate Usage Accuracy
 1. Confirm Media Library storage usage uses RPC-backed total:
    - `get_media_library_usage_bytes()`
@@ -109,6 +116,7 @@ Key indicators:
   - `NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE`
   - `NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE`
   - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW`
+  - `NEXT_PUBLIC_REFERENCE_GRID_CURATED_SPLIT`
   - `NEXT_PUBLIC_REFERENCE_GRID_STRICT_PREVIEW_LADDER`
   - `NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE`
   - `NEXT_PUBLIC_REFERENCE_GRID_DECODE_BUDGET`
@@ -200,6 +208,7 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
    - Media Library route (images/videos/private/AI tabs)
    - AI Studio modal search + paging + selection
    - Reference Grid autoplay behavior on desktop and small-screen widths
+   - Curated split interactions (drag add/reorder/remove + divider resize)
 7. CI perf gate (internal branches with audit creds):
    - `.github/workflows/ci.yml` job `ai_studio_perf_gate`
    - Uses `PLAYWRIGHT_AUDIT_EMAIL` + `PLAYWRIGHT_AUDIT_PASSWORD` secrets
@@ -264,6 +273,7 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
 - `docs/adr/0014-ai-studio-shell-decoupling-and-event-backpressure.md`
 - `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`
 - `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`
+- `docs/adr/0017-ai-studio-curated-reference-split-grid.md`
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
 - `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`

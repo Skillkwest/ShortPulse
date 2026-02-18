@@ -1,0 +1,137 @@
+/**
+ * AI Studio reference-grid split styles.
+ * Adds curated/all-refs section layout, horizontal divider treatment, and curated drop affordances.
+ */
+.reference-grid-sections {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.reference-curated-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  padding-top: 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(12, 16, 22, 0.48), rgba(10, 14, 20, 0.24));
+}
+
+.reference-curated-section.is-drop-active {
+  box-shadow: inset 0 0 0 1px rgba(82, 213, 255, 0.25);
+  background: linear-gradient(180deg, rgba(21, 31, 41, 0.58), rgba(12, 18, 25, 0.34));
+}
+
+.reference-curated-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 10px 2px;
+}
+
+.reference-curated-header .tiny {
+  margin: 0;
+}
+
+.reference-curated-scroll {
+  width: 100%;
+  padding: 4px 0;
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 205, 214, 0.2) transparent;
+}
+
+.reference-curated-scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.reference-curated-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reference-curated-scroll::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.2);
+  border-radius: 999px;
+}
+
+.reference-curated-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.32);
+}
+
+.reference-curated-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 100%;
+  padding: 14px 12px;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+  color: var(--ai-card-text-faint);
+}
+
+.reference-curated-empty .preview-title {
+  color: #4c5159;
+}
+
+.reference-curated-empty .subdued,
+.reference-curated-empty .tiny {
+  color: #4f596a !important;
+}
+
+.reference-grid-horizontal-divider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.reference-grid-horizontal-divider {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  cursor: row-resize;
+  outline: none;
+}
+
+.reference-grid-horizontal-divider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: rgba(201, 205, 214, 0.22);
+}
+
+.reference-grid-horizontal-divider:hover::before {
+  background: rgba(201, 205, 214, 0.36);
+}
+
+.reference-grid-horizontal-divider:focus-visible::before {
+  background: rgba(82, 213, 255, 0.62);
+  box-shadow: 0 0 0 2px rgba(82, 213, 255, 0.2);
+}
+
+.reference-grid-horizontal-divider-label {
+  color: #9098a5;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.reference-all-refs-section {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}

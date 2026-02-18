@@ -2,11 +2,12 @@
  * Drag/drop payload parsing tests for AI Studio.
  * Verifies internal reference drags prefer explicit reference URLs over ambient URI-list payloads.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   extractDragDropPayload,
   extractVideoDragDropPayload,
   isVideoDragTransfer,
+  prepareReferenceDrag,
 } from "../dragDrop";
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
@@ -83,5 +84,34 @@ describe("dragDrop payload extraction", () => {
     });
 
     expect(isVideoDragTransfer(transfer)).toBe(true);
+  });
+
+  it("writes source-surface metadata for internal reference drags", () => {
+    const dragNode = document.createElement("div");
+    const setData = vi.fn();
+    const event = {
+      dataTransfer: {
+        effectAllowed: "all",
+        setData,
+        setDragImage: vi.fn(),
+      },
+      currentTarget: dragNode,
+    } as unknown as Parameters<typeof prepareReferenceDrag>[0];
+    prepareReferenceDrag(
+      event,
+      {
+        id: "ref-1",
+        prompt: "Prompt",
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        previewUrl: "https://example.com/ref-1.png",
+      },
+      { sourceSurface: "curated" }
+    );
+
+    expect(setData).toHaveBeenCalledWith("text/reference-source-surface", "curated");
   });
 });

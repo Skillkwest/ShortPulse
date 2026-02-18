@@ -38,6 +38,13 @@ import {
   type AiStudioOutputStoreSnapshot,
 } from "./aiStudioOutputStore";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import {
+  addCuratedReferenceId,
+  pruneCuratedReferenceIds,
+  removeCuratedReferenceId,
+  reorderCuratedReferenceId,
+  syncCuratedPinnedOutputsByOrder,
+} from "../logic/curatedReferences";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
 const CHARACTER_MODE_PENDING_MODEL_LABEL = "Pulse Character Model";
@@ -117,6 +124,7 @@ export const useAiStudioState = ({
   const activeOutputStateRef = useRef<OutputCollectionState>(EMPTY_OUTPUT_COLLECTION_STATE);
   const archivedOutputStateRef = useRef<OutputCollectionState>(EMPTY_OUTPUT_COLLECTION_STATE);
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
+  const [curatedReferenceIds, setCuratedReferenceIds] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const pendingAutoSavesRef = useRef<Record<string, PendingAutoSave>>({});
   const outputObjectUrlByIdRef = useRef<Record<string, string>>({});
@@ -431,11 +439,27 @@ export const useAiStudioState = ({
     },
     [archiveOlderOutputs, setOutputsState]
   );
+  const addCuratedReference = useCallback((id: string) => {
+    setCuratedReferenceIds((prev) => addCuratedReferenceId(prev, id));
+  }, []);
+  const removeCuratedReference = useCallback((id: string) => {
+    setCuratedReferenceIds((prev) => removeCuratedReferenceId(prev, id));
+  }, []);
+  const reorderCuratedReference = useCallback(
+    (id: string, targetId: string | null, placement: "before" | "after" | "end") => {
+      setCuratedReferenceIds((prev) => reorderCuratedReferenceId(prev, id, targetId, placement));
+    },
+    []
+  );
+  const clearCuratedReferences = useCallback(() => {
+    setCuratedReferenceIds((prev) => (prev.length > 0 ? [] : prev));
+  }, []);
   const resetReferenceGridState = useCallback(() => {
     setOutputsState([]);
     setArchivedOutputs([]);
     setActiveOutputId(null);
-  }, [setArchivedOutputs, setOutputsState]);
+    clearCuratedReferences();
+  }, [clearCuratedReferences, setArchivedOutputs, setOutputsState]);
 
   const findActiveOutputById = useCallback((id: string) => {
     return activeOutputByIdRef.current[id] ?? null;
@@ -587,6 +611,30 @@ export const useAiStudioState = ({
   }, [activeOutputState, archivedOutputState, syncOutputStoreSnapshot]);
 
   useEffect(() => {
+    const validOutputIds = [...activeOutputState.order, ...archivedOutputState.order];
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCuratedReferenceIds((prev) => pruneCuratedReferenceIds(prev, validOutputIds));
+  }, [activeOutputState.order, archivedOutputState.order]);
+
+  useEffect(() => {
+    const syncPinnedState = (prevState: OutputCollectionState): OutputCollectionState => {
+      const nextById = syncCuratedPinnedOutputsByOrder(
+        prevState.order,
+        prevState.byId,
+        curatedReferenceIds
+      );
+      if (nextById === prevState.byId) return prevState;
+      return {
+        order: prevState.order,
+        byId: nextById,
+      };
+    };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveOutputState(syncPinnedState);
+    setArchivedOutputState(syncPinnedState);
+  }, [curatedReferenceIds]);
+
+  useEffect(() => {
     const currentUrlMap: Record<string, string> = {};
     [...outputs, ...archivedOutputs].forEach((item) => {
       const tracked = resolveTrackedObjectUrl(item);
@@ -625,7 +673,7 @@ export const useAiStudioState = ({
   const {
     updateOutputById,
     findOutputById,
-    deleteOutput,
+    deleteOutput: deleteOutputFromLifecycle,
     notifyGenerationFailure,
     updateOutputPrompt,
   } = useAiStudioOutputLifecycle({
@@ -638,6 +686,13 @@ export const useAiStudioState = ({
     pendingAutoSavesRef,
     setUiError,
   });
+  const deleteOutput = useCallback(
+    (id: string) => {
+      removeCuratedReference(id);
+      deleteOutputFromLifecycle(id);
+    },
+    [deleteOutputFromLifecycle, removeCuratedReference]
+  );
 
   const {
     markOutputSaved,
@@ -1069,6 +1124,11 @@ export const useAiStudioState = ({
     outputById: activeOutputState.byId,
     setOutputs,
     resetReferenceGridState,
+    curatedReferenceIds,
+    addCuratedReference,
+    removeCuratedReference,
+    reorderCuratedReference,
+    clearCuratedReferences,
     archivedOutputs,
     archivedOutputOrder: archivedOutputState.order,
     archivedOutputById: archivedOutputState.byId,

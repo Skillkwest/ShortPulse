@@ -8,9 +8,16 @@ type PerfProfileName = "stable" | "legacy";
 const PERF_PROFILE_RAW = (process.env.NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE ?? "stable")
   .trim()
   .toLowerCase();
+const PERF_PROFILE_VALID = PERF_PROFILE_RAW === "stable" || PERF_PROFILE_RAW === "legacy";
 
 export const AI_STUDIO_PERF_PROFILE: PerfProfileName =
   PERF_PROFILE_RAW === "legacy" ? "legacy" : "stable";
+
+if (!PERF_PROFILE_VALID && process.env.NODE_ENV !== "test") {
+  console.warn(
+    `[ai-studio][perf-profile] Unknown NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE="${PERF_PROFILE_RAW}". Falling back to "stable".`
+  );
+}
 
 const resolveBooleanFlag = (rawValue: string | undefined, fallback: boolean): boolean => {
   if (rawValue === "true") return true;

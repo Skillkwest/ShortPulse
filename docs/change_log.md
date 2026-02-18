@@ -742,3 +742,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
   `frontend/.env.example`,
   `docs/sops/sop_media_performance_operations.md`,
   `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`.
+
+## 2026-02-18 (AI Studio perf governance polish)
+- Added PR template perf-gate checklist items for AI Studio-impacting changes in `.github/pull_request_template.md`.
+- Added invalid profile warning + stable fallback hardening for `NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE` in `frontend/features/ai-studio/logic/perfProfileFlags.ts`.
+- Added fallback behavior test coverage in `frontend/features/ai-studio/logic/__tests__/perfProfileFlags.test.ts`.

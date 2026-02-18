@@ -48,4 +48,14 @@ describe("perfProfileFlags", () => {
     expect(mod.AI_STUDIO_PERF_PROFILE).toBe("stable");
     expect(mod.PERF_FLAG_REFERENCE_GRID_HARD_VIEWPORT_CAP).toBe(false);
   });
+
+  it("falls back to stable when profile value is invalid", async () => {
+    process.env.NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE = "unknown-profile";
+    delete process.env.NEXT_PUBLIC_REFERENCE_GRID_HARD_VIEWPORT_CAP;
+
+    const mod = await import("../perfProfileFlags");
+
+    expect(mod.AI_STUDIO_PERF_PROFILE).toBe("stable");
+    expect(mod.PERF_FLAG_REFERENCE_GRID_HARD_VIEWPORT_CAP).toBe(true);
+  });
 });

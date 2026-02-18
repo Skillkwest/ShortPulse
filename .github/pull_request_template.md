@@ -6,6 +6,11 @@
 - [ ] `npm -C frontend run build`
 - [ ] `npm -C frontend run test` (when logic/API behavior is touched)
 
+## AI Studio Perf Gates (when AI Studio behavior is touched)
+- [ ] `window.__shortpulseAiStudioPerf.runReferenceGridAudit({ counts: [40, 60], clickSamples: 24 })` passes.
+- [ ] `window.__shortpulseAiStudioPerf.runStudioShellAudit({ counts: [40, 60] })` passes.
+- [ ] `NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE` changed in this PR: `yes` / `no`
+
 ## UX / Accessibility (UI-touching changes)
 - [ ] Keyboard-only interactions validated for touched flows (including modal open/close and tab navigation where applicable).
 - [ ] Semantics validated (`h1`, landmarks, dialog labeling, tab roles, and `aria-*` states for changed surfaces).

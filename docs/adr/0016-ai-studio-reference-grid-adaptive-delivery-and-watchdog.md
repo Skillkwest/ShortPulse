@@ -52,6 +52,8 @@ Adopt an adaptive reference-grid runtime that combines:
 ## Operational Note
 - Perf harness runtime remains disabled in production by default and can be enabled only for controlled audits via `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true`.
 - CI includes an authenticated production-mode perf gate job (`ai_studio_perf_gate`) when audit credentials are available.
+- On pull requests, CI scopes that perf gate to AI Studio perf-impacting file changes.
+- CI gate mode is controlled via repository variable `AI_STUDIO_PERF_GATE_MODE` (`warn` during stabilization, `enforce` after sustained pass rate).
 - CI emits a companion notice job (`ai_studio_perf_gate_notice`) when perf-gate secrets are missing.
 
 ## Related

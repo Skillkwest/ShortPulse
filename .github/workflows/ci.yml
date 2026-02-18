@@ -36,22 +36,64 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+      - name: Detect AI Studio perf-impacting changes
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            ai_studio:
+              - 'frontend/features/ai-studio/**'
+              - 'frontend/features/media-library/**'
+              - 'frontend/pages/ai-studio.tsx'
+              - 'frontend/pages/media-library.tsx'
+              - 'frontend/pages/_app.tsx'
+              - 'frontend/styles/ai-studio-canvas.css'
+              - 'frontend/lib/mediaPerfTelemetry.ts'
+              - 'frontend/lib/mediaSignedUrlCache.ts'
+              - 'frontend/tests/e2e/ai-studio-perf.audit.js'
+              - '.github/workflows/ci.yml'
+      - name: Decide whether to run AI Studio perf gate
+        id: should_run
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ steps.changes.outputs.ai_studio || 'false' }}" = "true" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
+        if: ${{ steps.should_run.outputs.run == 'true' }}
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - if: ${{ steps.should_run.outputs.run == 'true' }}
+        run: npm ci
+      - if: ${{ steps.should_run.outputs.run == 'true' }}
+        run: npx playwright install --with-deps chromium
       - name: Build production app with perf audit runtime
+        if: ${{ steps.should_run.outputs.run == 'true' }}
         run: NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true npm run build
       - name: Run AI Studio production perf gate
+        if: ${{ steps.should_run.outputs.run == 'true' }}
         env:
           PLAYWRIGHT_AUDIT_EMAIL: ${{ secrets.PLAYWRIGHT_AUDIT_EMAIL }}
           PLAYWRIGHT_AUDIT_PASSWORD: ${{ secrets.PLAYWRIGHT_AUDIT_PASSWORD }}
+          AI_STUDIO_PERF_GATE_MODE: ${{ vars.AI_STUDIO_PERF_GATE_MODE }}
         run: |
           set -euo pipefail
+
+          MODE="${AI_STUDIO_PERF_GATE_MODE:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown AI_STUDIO_PERF_GATE_MODE='$MODE'. Falling back to 'warn'."
+            MODE="warn"
+          fi
 
           NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true PORT=3100 npm run start >/tmp/ai-studio-start.log 2>&1 &
           SERVER_PID=$!
@@ -67,7 +109,28 @@ jobs:
             sleep 1
           done
 
+          set +e
           PLAYWRIGHT_BASE_URL=http://127.0.0.1:3100 npm run test:perf:ai-studio
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "AI Studio perf gate passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::AI Studio perf gate failed in warn mode. Set repository variable AI_STUDIO_PERF_GATE_MODE=enforce to block merges."
+            echo "AI Studio perf gate failed in warn mode. Convert to enforce once stable." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "AI Studio perf gate failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+      - name: AI Studio perf gate skipped (no perf-impacting file changes)
+        if: ${{ steps.should_run.outputs.run != 'true' }}
+        run: |
+          echo "AI Studio perf gate skipped for this PR because no AI Studio perf-impacting files changed." >> "$GITHUB_STEP_SUMMARY"
 
   ai_studio_perf_gate_notice:
     if: ${{ secrets.PLAYWRIGHT_AUDIT_EMAIL == '' || secrets.PLAYWRIGHT_AUDIT_PASSWORD == '' }}

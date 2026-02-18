@@ -203,17 +203,25 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
    - `.github/workflows/ci.yml` job `ai_studio_perf_gate`
    - Uses `PLAYWRIGHT_AUDIT_EMAIL` + `PLAYWRIGHT_AUDIT_PASSWORD` secrets
    - Runs `npm run test:perf:ai-studio` against production build/start.
+   - On pull requests, runs only when AI Studio perf-impacting files changed.
+   - Gate mode defaults to `warn` and can be switched to `enforce` with repo variable `AI_STUDIO_PERF_GATE_MODE`.
    - If secrets are missing, CI posts a notice from `ai_studio_perf_gate_notice`.
 
-## CI Secret Setup
+## CI Secret And Variable Setup
 - GitHub UI:
   - Repository `Settings -> Secrets and variables -> Actions -> New repository secret`
   - Add:
     - `PLAYWRIGHT_AUDIT_EMAIL`
     - `PLAYWRIGHT_AUDIT_PASSWORD`
+  - Repository `Settings -> Secrets and variables -> Actions -> Variables`
+  - Add:
+    - `AI_STUDIO_PERF_GATE_MODE=warn` during stabilization
+    - switch to `AI_STUDIO_PERF_GATE_MODE=enforce` after one stable week
 - GitHub CLI (maintainer machine):
   - `gh secret set PLAYWRIGHT_AUDIT_EMAIL --body "<audit-email>"`
   - `gh secret set PLAYWRIGHT_AUDIT_PASSWORD --body "<audit-password>"`
+  - `gh variable set AI_STUDIO_PERF_GATE_MODE --body "warn"`
+  - `gh variable set AI_STUDIO_PERF_GATE_MODE --body "enforce"`
 
 ## Reference Grid Perf Harness
 - Browser command (DevTools Console on `/ai-studio`):

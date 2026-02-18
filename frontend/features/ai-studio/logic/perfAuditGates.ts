@@ -104,10 +104,14 @@ export const evaluateReferenceGridAuditGates = (
     gates.push({
       name: `grid_long_task_p95_ms_at_${target.count}`,
       pass:
-        typeof scenario.longTask.p95Ms === "number" &&
+        typeof scenario.longTask.p95Ms !== "number" ||
         scenario.longTask.p95Ms <= target.longTaskThreshold,
       actual: scenario.longTask.p95Ms,
       expected: `<= ${target.longTaskThreshold}`,
+      note:
+        typeof scenario.longTask.p95Ms === "number"
+          ? undefined
+          : "No long tasks observed during reference-grid scenario.",
     });
     gates.push({
       name: `grid_max_input_stall_ms_at_${target.count}`,

@@ -24,6 +24,7 @@ import {
 } from "../logic/referenceGridMedia";
 import {
   calculateReferenceGridWindow,
+  resolveReferenceGridMaxColumns,
   resolveReferenceGridOverscanRows,
 } from "../logic/referenceGridVirtualization";
 import { useReferenceGridHydrationBudget } from "../hooks/useReferenceGridHydrationBudget";
@@ -1208,7 +1209,14 @@ export function ReferenceCanvas({
     const scrollNode = scrollContainerRef.current;
     const gridNode = gridRef.current;
     if (!scrollNode || !gridNode) return;
-    const maxColumns = selectedTool ? REFERENCE_GRID_MAX_COLUMNS : REFERENCE_GRID_MAX_COLUMNS_WIDE;
+    const requestedMaxColumns = selectedTool
+      ? REFERENCE_GRID_MAX_COLUMNS
+      : REFERENCE_GRID_MAX_COLUMNS_WIDE;
+    const maxColumns = resolveReferenceGridMaxColumns({
+      requestedMaxColumns,
+      itemCount: outputs.length,
+      pressureLevel: perfWatchdog.degradeLevel,
+    });
     const minCardWidth = selectedTool
       ? REFERENCE_GRID_MIN_CARD_PX
       : REFERENCE_GRID_MIN_CARD_PX_WIDE;
@@ -1242,7 +1250,7 @@ export function ReferenceCanvas({
         Math.abs(prev.rowHeight - next.rowHeight) < 1;
       return stable ? prev : next;
     });
-  }, [selectedTool]);
+  }, [outputs.length, perfWatchdog.degradeLevel, selectedTool]);
 
   const gridStyle = React.useMemo(
     () =>

@@ -137,4 +137,49 @@ describe("perfAuditGates", () => {
     expect(renderedGate?.pass).toBe(false);
     expect(renderedGate?.note).toContain("metric unavailable");
   });
+
+  it("treats missing long-task samples as pass-with-note for reference grid gates", () => {
+    const scenarios: ReferenceGridScenario[] = [
+      {
+        count: 40,
+        click: { samples: 10, p95Ms: 30 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 20 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 12,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
+        },
+      },
+      {
+        count: 60,
+        click: { samples: 10, p95Ms: 40 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 30 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 20,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
+        },
+      },
+    ];
+
+    const gates = evaluateReferenceGridAuditGates(scenarios, REFERENCE_THRESHOLDS);
+    const longTask40 = gates.find((gate) => gate.name === "grid_long_task_p95_ms_at_40");
+    const longTask60 = gates.find((gate) => gate.name === "grid_long_task_p95_ms_at_60");
+
+    expect(longTask40?.pass).toBe(true);
+    expect(longTask60?.pass).toBe(true);
+    expect(longTask40?.note).toContain("No long tasks observed");
+  });
 });

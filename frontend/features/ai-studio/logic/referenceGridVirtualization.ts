@@ -3,6 +3,7 @@
  * Keeps window-range math deterministic and unit-testable.
  */
 export const REFERENCE_GRID_VIRTUALIZE_MIN_ITEMS = 12;
+const REFERENCE_GRID_MIN_COLUMNS = 2;
 
 type ReferenceGridWindowInput = {
   itemCount: number;
@@ -25,6 +26,12 @@ export type ReferenceGridWindow = {
   bottomSpacerHeight: number;
 };
 
+type ResolveReferenceGridMaxColumnsInput = {
+  requestedMaxColumns: number;
+  itemCount: number;
+  pressureLevel?: number;
+};
+
 /**
  * Resolves adaptive overscan rows for the current reference-grid density.
  */
@@ -34,9 +41,24 @@ export const resolveReferenceGridOverscanRows = (
 ): number => {
   const pressureLevel = options?.pressureLevel ?? 0;
   if (itemCount < 40) return 2;
+  if (itemCount < 60) return 0;
   if (itemCount <= 120) return pressureLevel >= 2 ? 0 : 1;
   if (pressureLevel >= 1) return 0;
   return 1;
+};
+
+/**
+ * Caps max columns under high-density loads to keep render cost stable in wide layouts.
+ */
+export const resolveReferenceGridMaxColumns = ({
+  requestedMaxColumns,
+  itemCount,
+  pressureLevel = 0,
+}: ResolveReferenceGridMaxColumnsInput): number => {
+  const safeRequested = Math.max(REFERENCE_GRID_MIN_COLUMNS, Math.floor(requestedMaxColumns));
+  if (itemCount < 40) return safeRequested;
+  const highDensityCap = pressureLevel >= 2 ? 3 : 4;
+  return Math.max(REFERENCE_GRID_MIN_COLUMNS, Math.min(safeRequested, highDensityCap));
 };
 
 /**

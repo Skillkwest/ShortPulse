@@ -586,13 +586,27 @@ body:has(.ai-studio-page) {
 }
 
 .ai-shell.ai-shell-performance-dense .ai-panel {
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.26);
+}
+
+.ai-shell.ai-shell-performance-dense .ai-properties,
+.ai-shell.ai-shell-performance-dense .ai-preview-column,
+.ai-shell.ai-shell-performance-dense .reference-column {
+  backdrop-filter: none;
+  filter: none;
 }
 
 .ai-shell.ai-shell-performance-dense .toolbar-item,
 .ai-shell.ai-shell-performance-dense .ghost-btn,
 .ai-shell.ai-shell-performance-dense .reference-card {
-  transition-duration: 0.08s !important;
+  transition: none !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+.ai-shell.ai-shell-performance-dense .ai-properties .step-card,
+.ai-shell.ai-shell-performance-dense .ai-properties .tool-properties {
+  box-shadow: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

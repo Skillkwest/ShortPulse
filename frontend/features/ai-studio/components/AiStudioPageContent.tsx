@@ -4,21 +4,14 @@
  */
 import React from "react";
 import Link from "next/link";
-import {
-  FolderSimple,
-  FlowArrow,
-  Globe,
-  type IconProps,
-  SquaresFour,
-  StackSimple,
-  UploadSimple,
-} from "phosphor-react";
+import { FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { AiStudioToolbar } from "./AiStudioToolbar";
+import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
 import { TextPropertiesPanel, ComposeSendCard } from "./TextPropertiesPanel";
 import { DetailModal } from "./DetailModal";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
-import { ReferenceCanvas } from "./ReferenceCanvas";
+import { AiStudioShellFrame } from "./AiStudioShellFrame";
 import { EditPropertiesPanel } from "./EditPropertiesPanel";
 import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
@@ -28,7 +21,6 @@ import { KlingComingSoonCard } from "./KlingComingSoonCard";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
-import { AgentChatPanel } from "../../../prefabs/agent";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
 import type { StudioOutput, ToolId } from "../types";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
@@ -41,6 +33,7 @@ import {
   AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
   shouldCollapseAiShellOnToolSelect,
 } from "../logic/shellResize";
+import { useOutputCounts } from "../hooks/aiStudioOutputStore";
 
 type FailureCard = Pick<
   StudioOutput,
@@ -237,6 +230,8 @@ const PERFORMANCE_DENSE_REFERENCE_COUNT = 40;
 const FLAG_SHELL_DECOUPLE = process.env.NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE !== "false";
 const FLAG_DND_BACKPRESSURE = process.env.NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE !== "false";
 const FLAG_PANEL_MEMOIZATION = process.env.NEXT_PUBLIC_AI_STUDIO_PANEL_MEMOIZATION !== "false";
+const FLAG_SHELL_BOUNDARY_SPLIT =
+  process.env.NEXT_PUBLIC_AI_STUDIO_SHELL_BOUNDARY_SPLIT !== "false";
 const FLAG_HIGH_DENSITY_SHELL_MODE =
   process.env.NEXT_PUBLIC_AI_STUDIO_HIGH_DENSITY_SHELL_MODE !== "false";
 
@@ -503,10 +498,10 @@ export function AiStudioPageContent({
     propertiesText.expertCreateUiEligible &&
     !propertiesText.beginnerMode
   );
+  const { activeCount } = useOutputCounts();
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const isPerformanceDenseSession =
-    FLAG_HIGH_DENSITY_SHELL_MODE &&
-    referenceCanvasProps.outputs.length >= PERFORMANCE_DENSE_REFERENCE_COUNT;
+    FLAG_HIGH_DENSITY_SHELL_MODE && activeCount >= PERFORMANCE_DENSE_REFERENCE_COUNT;
   const minLeftWidthPx = isPrimaryCharacterPanelOpen
     ? AI_SHELL_LEFT_CHARACTER_MIN_PX
     : showExpertCreatePanel
@@ -661,6 +656,26 @@ export function AiStudioPageContent({
             return null;
         }
       })();
+  const toolbarRail = FLAG_SHELL_BOUNDARY_SPLIT ? (
+    <AiStudioToolbarRail
+      selectedTool={selectedTool}
+      showCreateTools={showCreateTools}
+      beginnerMode={beginnerMode}
+      onSelectTool={onSelectTool}
+      onToggleCreateTools={onToggleCreateTools}
+      onBeginnerModeChange={onBeginnerModeChange}
+    />
+  ) : (
+    <AiStudioToolbar
+      selectedTool={selectedTool}
+      showCreateTools={showCreateTools}
+      beginnerMode={beginnerMode}
+      onSelectTool={onSelectTool}
+      onToggleCreateTools={onToggleCreateTools}
+      onToggleBeginnerMode={onBeginnerModeChange}
+      showOnboardingSteps={beginnerMode}
+    />
+  );
 
   const {
     dropMode: rightColumnDropMode,
@@ -681,46 +696,12 @@ export function AiStudioPageContent({
     useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,
   });
 
-  const memoizedToolbarRail = React.useMemo(
-    () => (
-      <AiStudioToolbar
-        selectedTool={selectedTool}
-        showCreateTools={showCreateTools}
-        beginnerMode={beginnerMode}
-        onSelectTool={onSelectTool}
-        onToggleCreateTools={onToggleCreateTools}
-        onToggleBeginnerMode={onBeginnerModeChange}
-        showOnboardingSteps={beginnerMode}
-      />
-    ),
-    [
-      beginnerMode,
-      onBeginnerModeChange,
-      onSelectTool,
-      onToggleCreateTools,
-      selectedTool,
-      showCreateTools,
-    ]
-  );
-  const toolbarRail = FLAG_PANEL_MEMOIZATION ? (
-    memoizedToolbarRail
-  ) : (
-    <AiStudioToolbar
-      selectedTool={selectedTool}
-      showCreateTools={showCreateTools}
-      beginnerMode={beginnerMode}
-      onSelectTool={onSelectTool}
-      onToggleCreateTools={onToggleCreateTools}
-      onToggleBeginnerMode={onBeginnerModeChange}
-      showOnboardingSteps={beginnerMode}
-    />
-  );
-
   return (
     <>
       <main
         className="page page-wide ai-studio-page"
         data-beginner-mode={beginnerMode ? "on" : "off"}
+        data-shell-boundary-split={FLAG_SHELL_BOUNDARY_SPLIT ? "on" : "off"}
         data-selected-tool={selectedTool ?? undefined}
       >
         <input
@@ -777,156 +758,31 @@ export function AiStudioPageContent({
           {toolbarRail}
 
           <div className="ai-content">
-            <section
-              ref={shellRef}
-              className={shellClassName}
-              style={shellStyle}
-              onDragOverCapture={handleShellDragOverCapture}
-              onDropCapture={handleShellDropCapture}
-            >
-              {selectedTool ? (
-                <aside ref={leftColumnRef} className="panel ai-panel ai-properties">
-                  {propertiesPanelContent}
-                </aside>
-              ) : null}
-              {showDivider ? (
-                <button type="button" className="ai-shell-divider" {...dividerProps} />
-              ) : null}
-              <div
-                ref={rightColumnRef}
-                className={`ai-shell-right${rightColumnDropMode !== "none" ? " is-drop-overlay-active" : ""}`}
-                onDropCapture={handleRightColumnDropCapture}
-                onDragOverCapture={handleRightColumnDragOverCapture}
-                onDragEnterCapture={handleRightColumnDragEnterCapture}
-                onDragLeaveCapture={handleRightColumnDragLeaveCapture}
-              >
-                {agentChat.isOpen ? (
-                  <div className="ai-preview-column reference-column">
-                    <div className="reference-column-sticky">
-                      <div className="preview-column-header">
-                        <div>
-                          <p className="eyebrow">Agent Chat</p>
-                          <p className="tiny subdued helper-text">
-                            Drag a chat bubble into the reference grid to add that text as a new
-                            prompt card.
-                          </p>
-                        </div>
-                        <div className="preview-header-actions">
-                          <button
-                            type="button"
-                            className="ghost-btn mini"
-                            onClick={agentChat.onAddToGrid}
-                            disabled={!agentChat.latestAgentPrompt}
-                          >
-                            Add to grid
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost-btn mini agent-chat-close-btn"
-                            onClick={agentChat.onClose}
-                            aria-label="Close agent chat"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      </div>
-                      <AgentChatPanel
-                        messages={agentChat.agentMessages}
-                        introMessage={{
-                          id: "agent-intro",
-                          role: "system",
-                          content:
-                            "Hey, I'm your studio agent. Tell me what you want to create (subject, style, mood, framing) and I'll turn it into a generation-ready prompt.",
-                        }}
-                        input={agentChat.agentInput}
-                        sendLabel="Send"
-                        isSending={agentChat.agentIsSending}
-                        showPromptActions
-                        showPrimaryPromptStatus={false}
-                        agentActions={agentChat.agentActions}
-                        primaryPrompt={agentChat.latestAgentPrompt}
-                        primarySource={agentChat.agentPrimarySource}
-                        stagedAttachments={agentChat.stagedAttachments}
-                        isDropActive={agentChat.agentDropActive}
-                        onDrop={agentChat.onAttachmentDrop}
-                        onDragOver={agentChat.onAttachmentDragOver}
-                        onDragEnter={agentChat.onAttachmentDragEnter}
-                        onDragLeave={agentChat.onAttachmentDragLeave}
-                        onRemoveAttachment={agentChat.onRemoveAttachment}
-                        onClearAttachments={agentChat.onClearAttachments}
-                        onInputChange={agentChat.onInputChange}
-                        onSend={agentChat.onSend}
-                        onAgentApplyPrompt={agentChat.onAgentApplyPrompt}
-                        onAgentSelectVariation={agentChat.onAgentSelectVariation}
-                        onAgentDescribeTargets={agentChat.onAgentDescribeTargets}
-                        onGenerateOutputPrompt={agentChat.onGenerateFromOutputPrompt}
-                        outputGenerateCostCredits={agentChat.outputGenerateCostCredits}
-                        disableOutputGenerate={agentChat.disableOutputGenerate}
-                        beginnerMode={beginnerMode}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="ai-preview-column reference-column">
-                      <div className="reference-column-sticky">
-                        <div className="preview-column-header">
-                          <div>
-                            <p className="eyebrow">Reference Grid</p>
-                            <p className="tiny subdued helper-text">
-                              Double-click a reference to expand.
-                            </p>
-                          </div>
-                          <div className="preview-header-actions">
-                            <button
-                              type="button"
-                              className="ghost-btn mini preview-media-btn reference-grid-add-files-btn"
-                              onClick={triggerFilePicker}
-                            >
-                              <UploadSimple size={14} weight="regular" />
-                              Add files
-                            </button>
-                            <button
-                              type="button"
-                              className="ghost-btn mini preview-media-btn reference-grid-media-library-btn"
-                              onClick={onOpenMediaLibrary}
-                            >
-                              <FolderSimple size={14} weight="regular" />
-                              <span>Media library</span>
-                            </button>
-                          </div>
-                        </div>
-                        <ReferenceCanvas
-                          {...referenceCanvasProps}
-                          onDropFiles={handleReferenceCanvasFiles}
-                          onTriggerFileSelect={triggerFilePicker}
-                          selectedTool={selectedTool}
-                          onOpenMediaLibrary={onOpenMediaLibrary}
-                        />
-                      </div>
-                    </div>
-
-                    <StudioPreview
-                      {...studioPreviewProps}
-                      onDropFiles={handleReferenceCanvasFiles}
-                      onTriggerFileSelect={triggerFilePicker}
-                      onOpenMediaLibrary={onOpenMediaLibrary}
-                    />
-                  </>
-                )}
-                {rightColumnDropMode !== "none" ? (
-                  <div
-                    className="ai-right-drop-overlay"
-                    data-drop-mode={rightColumnDropMode}
-                    aria-hidden="true"
-                    onDrop={handleRightColumnDropCapture}
-                    onDragOver={handleRightColumnDragOverCapture}
-                    onDragEnter={handleRightColumnDragEnterCapture}
-                    onDragLeave={handleRightColumnDragLeaveCapture}
-                  />
-                ) : null}
-              </div>
-            </section>
+            <AiStudioShellFrame
+              shellRef={shellRef as React.RefObject<HTMLElement>}
+              leftColumnRef={leftColumnRef as React.RefObject<HTMLElement>}
+              rightColumnRef={rightColumnRef}
+              shellClassName={shellClassName}
+              shellStyle={shellStyle}
+              selectedTool={selectedTool}
+              showDivider={showDivider}
+              dividerProps={dividerProps}
+              propertiesPanelContent={propertiesPanelContent}
+              rightColumnDropMode={rightColumnDropMode as RightColumnDropMode}
+              onRightColumnDropCapture={handleRightColumnDropCapture}
+              onRightColumnDragOverCapture={handleRightColumnDragOverCapture}
+              onRightColumnDragEnterCapture={handleRightColumnDragEnterCapture}
+              onRightColumnDragLeaveCapture={handleRightColumnDragLeaveCapture}
+              onShellDragOverCapture={handleShellDragOverCapture}
+              onShellDropCapture={handleShellDropCapture}
+              agentChat={agentChat}
+              referenceCanvasProps={referenceCanvasProps}
+              studioPreviewProps={studioPreviewProps}
+              handleReferenceCanvasFiles={handleReferenceCanvasFiles}
+              triggerFilePicker={triggerFilePicker}
+              onOpenMediaLibrary={onOpenMediaLibrary}
+              beginnerMode={beginnerMode}
+            />
             {comingSoon ? (
               <section className="ai-coming-soon" aria-live="polite">
                 <div

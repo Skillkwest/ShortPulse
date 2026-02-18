@@ -51,7 +51,7 @@ const createParams = (
   setEditReferenceText: vi.fn(),
   videoReferenceText: "",
   setVideoReferenceText: vi.fn(),
-  outputs: [],
+  getOutputById: vi.fn(() => null),
   aspect: "1:1",
   model: null,
   setOutputs: asDispatch<StudioOutput[]>(vi.fn()),

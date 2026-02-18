@@ -2,7 +2,7 @@
  * Side-effectful task runner for AI Studio generations.
  * Handles submit + polling orchestration per provider, isolated from UI state.
  */
-import { useCallback, useEffect, useRef } from "react";
+import { startTransition, useCallback, useEffect, useRef } from "react";
 import {
   fetchFalFlux2ProStatus,
   fetchFalFlux2Status,
@@ -132,7 +132,14 @@ const BACKGROUND_RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
 const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
 const REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE =
   process.env.NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE !== "false";
+const AI_STUDIO_FLAG_RAF_STATUS_FLUSH =
+  process.env.NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH !== "false";
 const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
+
+type QueuedOutputUpdate = {
+  updater: (item: StudioOutput) => StudioOutput;
+  nonUrgent: boolean;
+};
 
 const areStringArraysEqual = (left: string[] | undefined, right: string[]) => {
   if (!left) return right.length === 0;
@@ -276,37 +283,69 @@ export function useAiStudioTasks({
   const recoveryTimersRef = useRef<Record<string, number>>({});
   const recoveryAttemptsRef = useRef<Record<string, number>>({});
   const lastProgressUpdateAtRef = useRef<Record<string, number>>({});
-  const queuedOutputUpdatersRef = useRef<
-    Record<string, Array<(item: StudioOutput) => StudioOutput>>
-  >({});
+  const queuedOutputUpdatersRef = useRef<Record<string, QueuedOutputUpdate[]>>({});
   const queuedOutputFlushPendingRef = useRef(false);
+  const queuedOutputFlushRafIdRef = useRef<number | null>(null);
 
   const flushQueuedOutputUpdates = useCallback(() => {
     const queued = queuedOutputUpdatersRef.current;
     queuedOutputUpdatersRef.current = {};
-    Object.entries(queued).forEach(([outputId, updaters]) => {
-      if (!updaters.length) return;
-      updateOutputById(outputId, (item) => {
-        return updaters.reduce((current, applyUpdate) => applyUpdate(current), item);
-      });
+    Object.entries(queued).forEach(([outputId, queuedUpdates]) => {
+      if (!queuedUpdates.length) return;
+      const applyUpdate = () => {
+        updateOutputById(outputId, (item) => {
+          return queuedUpdates.reduce((current, entry) => entry.updater(current), item);
+        });
+      };
+      const isNonUrgentBatch = queuedUpdates.every((entry) => entry.nonUrgent);
+      if (isNonUrgentBatch) {
+        startTransition(applyUpdate);
+        return;
+      }
+      applyUpdate();
     });
   }, [updateOutputById]);
 
   const queueOutputUpdate = useCallback(
-    (outputId: string, updater: (item: StudioOutput) => StudioOutput) => {
+    (
+      outputId: string,
+      updater: (item: StudioOutput) => StudioOutput,
+      options?: { nonUrgent?: boolean }
+    ) => {
+      const nonUrgent = options?.nonUrgent === true;
       if (!REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE) {
-        updateOutputById(outputId, updater);
+        if (nonUrgent) {
+          startTransition(() => {
+            updateOutputById(outputId, updater);
+          });
+        } else {
+          updateOutputById(outputId, updater);
+        }
         return;
       }
       const existing = queuedOutputUpdatersRef.current[outputId] ?? [];
-      existing.push(updater);
+      existing.push({ updater, nonUrgent });
       queuedOutputUpdatersRef.current[outputId] = existing;
       if (queuedOutputFlushPendingRef.current) return;
       queuedOutputFlushPendingRef.current = true;
       const flush = () => {
         queuedOutputFlushPendingRef.current = false;
+        if (queuedOutputFlushRafIdRef.current != null) {
+          window.cancelAnimationFrame(queuedOutputFlushRafIdRef.current);
+          queuedOutputFlushRafIdRef.current = null;
+        }
         flushQueuedOutputUpdates();
       };
+      if (
+        AI_STUDIO_FLAG_RAF_STATUS_FLUSH &&
+        typeof window !== "undefined" &&
+        typeof window.requestAnimationFrame === "function"
+      ) {
+        queuedOutputFlushRafIdRef.current = window.requestAnimationFrame(() => {
+          flush();
+        });
+        return;
+      }
       if (typeof queueMicrotask === "function") {
         queueMicrotask(flush);
         return;
@@ -327,7 +366,7 @@ export function useAiStudioTasks({
       if (pendingUpdaters?.length) {
         delete queuedOutputUpdatersRef.current[outputId];
         updateOutputById(outputId, (item) => {
-          return pendingUpdaters.reduce((current, applyUpdate) => applyUpdate(current), item);
+          return pendingUpdaters.reduce((current, entry) => entry.updater(current), item);
         });
       }
       delete lastProgressUpdateAtRef.current[outputId];
@@ -580,13 +619,19 @@ export function useAiStudioTasks({
                   },
                 });
               }
-              queueOutputUpdate(outputId, (item) => ({
-                ...item,
-                taskState: item.taskState === "running" ? item.taskState : "running",
-                status: item.status === "ready" ? item.status : "ready",
-                timestamp:
-                  item.timestamp === "Finalizing media..." ? item.timestamp : "Finalizing media...",
-              }));
+              queueOutputUpdate(
+                outputId,
+                (item) => ({
+                  ...item,
+                  taskState: item.taskState === "running" ? item.taskState : "running",
+                  status: item.status === "ready" ? item.status : "ready",
+                  timestamp:
+                    item.timestamp === "Finalizing media..."
+                      ? item.timestamp
+                      : "Finalizing media...",
+                }),
+                { nonUrgent: true }
+              );
               pollTimersRef.current[outputId] = window.setTimeout(
                 () =>
                   pollTask(taskId, outputId, attempt + 1, provider, startedAt, noMediaAttempt + 1),
@@ -776,17 +821,21 @@ export function useAiStudioTasks({
             nextTaskState === "running" &&
             now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
           if (!shouldSkipProgressUpdate) {
-            queueOutputUpdate(outputId, (item) => {
-              const taskStateChanged = item.taskState !== nextTaskState;
-              const timestampChanged = item.timestamp !== "Processing...";
-              if (!taskStateChanged && !timestampChanged) return item;
-              lastProgressUpdateAtRef.current[outputId] = now;
-              return {
-                ...item,
-                taskState: nextTaskState,
-                timestamp: "Processing...",
-              };
-            });
+            queueOutputUpdate(
+              outputId,
+              (item) => {
+                const taskStateChanged = item.taskState !== nextTaskState;
+                const timestampChanged = item.timestamp !== "Processing...";
+                if (!taskStateChanged && !timestampChanged) return item;
+                lastProgressUpdateAtRef.current[outputId] = now;
+                return {
+                  ...item,
+                  taskState: nextTaskState,
+                  timestamp: "Processing...",
+                };
+              },
+              { nonUrgent: true }
+            );
           }
           pollTimersRef.current[outputId] = window.setTimeout(
             () => pollTask(taskId, outputId, attempt + 1, provider, startedAt, 0),
@@ -823,19 +872,23 @@ export function useAiStudioTasks({
             REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
             now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
           if (!shouldSkipRetryUpdate) {
-            queueOutputUpdate(outputId, (item) => {
-              const taskStateChanged = item.taskState !== "running";
-              const statusChanged = item.status !== "ready";
-              const timestampChanged = item.timestamp !== "Retrying status...";
-              if (!taskStateChanged && !statusChanged && !timestampChanged) return item;
-              lastProgressUpdateAtRef.current[outputId] = now;
-              return {
-                ...item,
-                taskState: "running",
-                status: "ready",
-                timestamp: "Retrying status...",
-              };
-            });
+            queueOutputUpdate(
+              outputId,
+              (item) => {
+                const taskStateChanged = item.taskState !== "running";
+                const statusChanged = item.status !== "ready";
+                const timestampChanged = item.timestamp !== "Retrying status...";
+                if (!taskStateChanged && !statusChanged && !timestampChanged) return item;
+                lastProgressUpdateAtRef.current[outputId] = now;
+                return {
+                  ...item,
+                  taskState: "running",
+                  status: "ready",
+                  timestamp: "Retrying status...",
+                };
+              },
+              { nonUrgent: true }
+            );
           }
           pollTimersRef.current[outputId] = window.setTimeout(
             () => pollTask(taskId, outputId, attempt + 1, provider, startedAt, 0),
@@ -869,6 +922,10 @@ export function useAiStudioTasks({
       lastProgressUpdateAtRef.current = {};
       queuedOutputUpdatersRef.current = {};
       queuedOutputFlushPendingRef.current = false;
+      if (queuedOutputFlushRafIdRef.current != null) {
+        window.cancelAnimationFrame(queuedOutputFlushRafIdRef.current);
+      }
+      queuedOutputFlushRafIdRef.current = null;
     },
     [flushQueuedOutputUpdates]
   );

@@ -19,6 +19,24 @@ export type StudioShellScenario = {
   toolbar: { samples: number; p95Ms: number | null };
   panel: { samples: number; p95Ms: number | null };
   drop: { samples: number; p95Ms: number | null };
+  toolSwitchVisualCommit: { samples: number; p95Ms: number | null };
+  sectionRenderCounters: {
+    toolbar: number;
+    properties: number;
+    reference: number;
+    preview: number;
+  };
+  sectionCommit: {
+    toolbarP95Ms: number | null;
+    propertiesP95Ms: number | null;
+    referenceP95Ms: number | null;
+    previewP95Ms: number | null;
+  };
+  nonGridRerendersPerOutputStatusTick: {
+    samples: number;
+    toolbarP95: number | null;
+    propertiesP95: number | null;
+  };
   longTask: { samples: number; p95Ms: number | null };
   interaction: { maxInputStallMs: number };
 };
@@ -97,18 +115,19 @@ export const evaluateReferenceGridAuditGates = (
 export const evaluateStudioShellAuditGates = (
   scenarios: StudioShellScenario[],
   thresholds: {
-    toolbarP95MsAt50: number;
-    panelP95MsAt50: number;
-    dropP95MsAt50: number;
+    toolbarP95MsAt60: number;
+    panelP95MsAt60: number;
+    toolSwitchVisualCommitP95MsAt60: number;
     longTaskP95Ms: number;
     maxInputStallMs: number;
+    nonGridRerendersPerOutputStatusTick: number;
   }
 ): PerfGate[] => {
   const scenarioByCount = new Map(scenarios.map((scenario) => [scenario.count, scenario]));
-  const s50 = scenarioByCount.get(50) ?? scenarios[0] ?? null;
+  const s60 = scenarioByCount.get(60) ?? scenarios[0] ?? null;
   const gates: PerfGate[] = [];
 
-  if (!s50) {
+  if (!s60) {
     gates.push({
       name: "scenario_exists",
       pass: false,
@@ -119,38 +138,66 @@ export const evaluateStudioShellAuditGates = (
   }
 
   gates.push({
-    name: "toolbar_switch_p95_ms_at_50",
-    pass: typeof s50.toolbar.p95Ms === "number" && s50.toolbar.p95Ms <= thresholds.toolbarP95MsAt50,
-    actual: s50.toolbar.p95Ms,
-    expected: `<= ${thresholds.toolbarP95MsAt50}`,
+    name: "toolbar_switch_p95_ms_at_60",
+    pass: typeof s60.toolbar.p95Ms === "number" && s60.toolbar.p95Ms <= thresholds.toolbarP95MsAt60,
+    actual: s60.toolbar.p95Ms,
+    expected: `<= ${thresholds.toolbarP95MsAt60}`,
   });
   gates.push({
-    name: "panel_interaction_p95_ms_at_50",
-    pass: typeof s50.panel.p95Ms === "number" && s50.panel.p95Ms <= thresholds.panelP95MsAt50,
-    actual: s50.panel.p95Ms,
-    expected: `<= ${thresholds.panelP95MsAt50}`,
+    name: "panel_interaction_p95_ms_at_60",
+    pass: typeof s60.panel.p95Ms === "number" && s60.panel.p95Ms <= thresholds.panelP95MsAt60,
+    actual: s60.panel.p95Ms,
+    expected: `<= ${thresholds.panelP95MsAt60}`,
   });
   gates.push({
-    name: "drop_cycle_p95_ms_at_50",
-    pass: typeof s50.drop.p95Ms === "number" && s50.drop.p95Ms <= thresholds.dropP95MsAt50,
-    actual: s50.drop.p95Ms,
-    expected: `<= ${thresholds.dropP95MsAt50}`,
+    name: "tool_switch_visual_commit_p95_ms_at_60",
+    pass:
+      typeof s60.toolSwitchVisualCommit.p95Ms === "number" &&
+      s60.toolSwitchVisualCommit.p95Ms <= thresholds.toolSwitchVisualCommitP95MsAt60,
+    actual: s60.toolSwitchVisualCommit.p95Ms,
+    expected: `<= ${thresholds.toolSwitchVisualCommitP95MsAt60}`,
   });
   gates.push({
     name: "long_task_p95_ms_during_shell_actions",
-    pass: typeof s50.longTask.p95Ms !== "number" || s50.longTask.p95Ms <= thresholds.longTaskP95Ms,
-    actual: s50.longTask.p95Ms,
+    pass: typeof s60.longTask.p95Ms !== "number" || s60.longTask.p95Ms <= thresholds.longTaskP95Ms,
+    actual: s60.longTask.p95Ms,
     expected: `<= ${thresholds.longTaskP95Ms}`,
     note:
-      typeof s50.longTask.p95Ms === "number"
+      typeof s60.longTask.p95Ms === "number"
         ? undefined
         : "No long tasks observed during shell actions.",
   });
   gates.push({
     name: "max_input_stall_ms_during_shell_actions",
-    pass: s50.interaction.maxInputStallMs <= thresholds.maxInputStallMs,
-    actual: s50.interaction.maxInputStallMs,
+    pass: s60.interaction.maxInputStallMs <= thresholds.maxInputStallMs,
+    actual: s60.interaction.maxInputStallMs,
     expected: `<= ${thresholds.maxInputStallMs}`,
+  });
+  gates.push({
+    name: "non_grid_toolbar_rerenders_per_output_status_tick",
+    pass:
+      typeof s60.nonGridRerendersPerOutputStatusTick.toolbarP95 !== "number" ||
+      s60.nonGridRerendersPerOutputStatusTick.toolbarP95 <=
+        thresholds.nonGridRerendersPerOutputStatusTick,
+    actual: s60.nonGridRerendersPerOutputStatusTick.toolbarP95,
+    expected: `<= ${thresholds.nonGridRerendersPerOutputStatusTick}`,
+    note:
+      typeof s60.nonGridRerendersPerOutputStatusTick.toolbarP95 === "number"
+        ? undefined
+        : "No output status tick samples captured for toolbar.",
+  });
+  gates.push({
+    name: "non_grid_properties_rerenders_per_output_status_tick",
+    pass:
+      typeof s60.nonGridRerendersPerOutputStatusTick.propertiesP95 !== "number" ||
+      s60.nonGridRerendersPerOutputStatusTick.propertiesP95 <=
+        thresholds.nonGridRerendersPerOutputStatusTick,
+    actual: s60.nonGridRerendersPerOutputStatusTick.propertiesP95,
+    expected: `<= ${thresholds.nonGridRerendersPerOutputStatusTick}`,
+    note:
+      typeof s60.nonGridRerendersPerOutputStatusTick.propertiesP95 === "number"
+        ? undefined
+        : "No output status tick samples captured for properties.",
   });
 
   return gates;

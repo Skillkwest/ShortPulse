@@ -38,15 +38,15 @@ const normalizeAttachmentImageUrl = (value: string | null) => {
 type UseAiStudioAgentComposerParams = {
   agentSessionEnabled: boolean;
   ensureAgentSession: () => void;
-  outputs: StudioOutput[];
-  resolvePreviewUrlById: (rows: StudioOutput[], outputId: string) => string | null;
+  findOutputById: (outputId: string) => StudioOutput | null;
+  resolveOutputPreviewUrlById: (outputId: string) => string | null;
 };
 
 export const useAiStudioAgentComposer = ({
   agentSessionEnabled,
   ensureAgentSession,
-  outputs,
-  resolvePreviewUrlById,
+  findOutputById,
+  resolveOutputPreviewUrlById,
 }: UseAiStudioAgentComposerParams) => {
   const [agentInput, setAgentInput] = useState("");
   const [agentAttachmentError, setAgentAttachmentError] = useState<string | null>(null);
@@ -167,11 +167,9 @@ export const useAiStudioAgentComposer = ({
       setIsAgentDropActive(false);
       const payload = extractDragDropPayload(event.dataTransfer);
       const droppedReferenceId = payload.referenceId ?? null;
-      const matchedOutput = droppedReferenceId
-        ? (outputs.find((item) => item.id === droppedReferenceId) ?? null)
-        : null;
+      const matchedOutput = droppedReferenceId ? findOutputById(droppedReferenceId) : null;
       const resolvedPreviewUrl = droppedReferenceId
-        ? resolvePreviewUrlById(outputs, droppedReferenceId)
+        ? resolveOutputPreviewUrlById(droppedReferenceId)
         : null;
       const transferReferenceUrl = event.dataTransfer.getData("text/reference-url") || null;
       const normalizedPromptText =
@@ -215,7 +213,13 @@ export const useAiStudioAgentComposer = ({
         });
       }
     },
-    [agentSessionEnabled, ensureAgentSession, insertAttachment, outputs, resolvePreviewUrlById]
+    [
+      agentSessionEnabled,
+      ensureAgentSession,
+      findOutputById,
+      insertAttachment,
+      resolveOutputPreviewUrlById,
+    ]
   );
 
   const handleRemoveAgentAttachment = useCallback((id: string) => {

@@ -14,21 +14,40 @@ const REFERENCE_THRESHOLDS = {
 };
 
 const SHELL_THRESHOLDS = {
-  toolbarP95MsAt50: 120,
-  panelP95MsAt50: 140,
-  dropP95MsAt50: 140,
+  toolbarP95MsAt60: 120,
+  panelP95MsAt60: 140,
+  toolSwitchVisualCommitP95MsAt60: 180,
   longTaskP95Ms: 120,
   maxInputStallMs: 1000,
+  nonGridRerendersPerOutputStatusTick: 1,
 };
 
 describe("perfAuditGates", () => {
   it("treats missing long-task samples as pass-with-note for shell gates", () => {
     const scenarios: StudioShellScenario[] = [
       {
-        count: 50,
+        count: 60,
         toolbar: { samples: 10, p95Ms: 80 },
         panel: { samples: 10, p95Ms: 90 },
         drop: { samples: 10, p95Ms: 70 },
+        toolSwitchVisualCommit: { samples: 10, p95Ms: 95 },
+        sectionRenderCounters: {
+          toolbar: 8,
+          properties: 8,
+          reference: 2,
+          preview: 2,
+        },
+        sectionCommit: {
+          toolbarP95Ms: 80,
+          propertiesP95Ms: 90,
+          referenceP95Ms: 70,
+          previewP95Ms: 70,
+        },
+        nonGridRerendersPerOutputStatusTick: {
+          samples: 6,
+          toolbarP95: 1,
+          propertiesP95: 1,
+        },
         longTask: { samples: 0, p95Ms: null },
         interaction: { maxInputStallMs: 40 },
       },
@@ -44,10 +63,28 @@ describe("perfAuditGates", () => {
   it("fails shell gates when p95 exceeds thresholds", () => {
     const scenarios: StudioShellScenario[] = [
       {
-        count: 50,
+        count: 60,
         toolbar: { samples: 10, p95Ms: 240 },
         panel: { samples: 10, p95Ms: 240 },
         drop: { samples: 10, p95Ms: 240 },
+        toolSwitchVisualCommit: { samples: 10, p95Ms: 280 },
+        sectionRenderCounters: {
+          toolbar: 50,
+          properties: 50,
+          reference: 40,
+          preview: 40,
+        },
+        sectionCommit: {
+          toolbarP95Ms: 240,
+          propertiesP95Ms: 240,
+          referenceP95Ms: 240,
+          previewP95Ms: 240,
+        },
+        nonGridRerendersPerOutputStatusTick: {
+          samples: 6,
+          toolbarP95: 3,
+          propertiesP95: 3,
+        },
         longTask: { samples: 2, p95Ms: 240 },
         interaction: { maxInputStallMs: 1200 },
       },

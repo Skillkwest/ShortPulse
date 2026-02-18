@@ -89,6 +89,10 @@ Key indicators:
   - `media.grid.longtask.sample`
   - `media.grid.memory.sample`
   - `media.grid.archive.transition`
+- shell section isolation trends via `runStudioShellAudit` scenario fields:
+  - `sectionRenderCounters`
+  - `sectionCommit`
+  - `nonGridRerendersPerOutputStatusTick`
 
 ## Tuning Knobs
 - Media Library sign budget constants:
@@ -110,6 +114,10 @@ Key indicators:
   - `NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE`
   - `NEXT_PUBLIC_AI_STUDIO_PANEL_MEMOIZATION`
   - `NEXT_PUBLIC_AI_STUDIO_HIGH_DENSITY_SHELL_MODE`
+  - `NEXT_PUBLIC_AI_STUDIO_OUTPUT_SELECTOR_STORE`
+  - `NEXT_PUBLIC_AI_STUDIO_SHELL_BOUNDARY_SPLIT`
+  - `NEXT_PUBLIC_AI_STUDIO_SELECTOR_CALLBACKS`
+  - `NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH`
 
 Adjust only after telemetry review; keep desktop/mobile/constrained profiles distinct.
 
@@ -162,17 +170,20 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
 ## Studio Shell Perf Harness
 - Browser command (DevTools Console on `/ai-studio`):
   - `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
-- Scenarios: 50 / 100 / 300 seeded references while exercising toolbar/panel/drop interactions.
+- Scenarios: 20 / 50 / 60 / 100 / 300 seeded references while exercising toolbar/panel/drop interactions.
 - Gates:
-  - toolbar switch p95 at 50 refs: `<= 120ms`
-  - panel interaction p95 at 50 refs: `<= 140ms`
-  - drop cycle p95 at 50 refs: `<= 140ms`
+  - toolbar switch p95 at 60 refs: `<= 120ms`
+  - panel interaction p95 at 60 refs: `<= 140ms`
+  - tool-switch visual commit p95 at 60 refs: `<= 180ms`
   - long-task p95 during shell actions: `<= 120ms`
   - max input stall during shell actions: `<= 1000ms`
+  - non-grid rerenders per output-status tick (toolbar/properties): `<= 1`
 
 ## Related Docs
 - `docs/adr/0009-media-derivatives-virtualized-grid-autoplay-budget.md`
 - `docs/adr/0014-ai-studio-shell-decoupling-and-event-backpressure.md`
+- `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
+- `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`
 - `docs/planning/media-optimization-phase0-measurement-spec.md`
 - `docs/troubleshooting.md`

@@ -22,6 +22,11 @@ const makeOutput = (id: string): StudioOutput => ({
   taskState: "success",
 });
 
+const createFindOutputById = (outputs: StudioOutput[]) => {
+  const byId = new Map(outputs.map((output) => [output.id, output]));
+  return (id: string) => byId.get(id) ?? null;
+};
+
 const makeDragEvent = (data: Record<string, string> = {}) =>
   ({
     preventDefault: vi.fn(),
@@ -42,8 +47,8 @@ describe("useAiStudioAgentComposer", () => {
       useAiStudioAgentComposer({
         agentSessionEnabled: true,
         ensureAgentSession: vi.fn(),
-        outputs: [],
-        resolvePreviewUrlById: () => null,
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
       })
     );
 
@@ -71,8 +76,8 @@ describe("useAiStudioAgentComposer", () => {
       useAiStudioAgentComposer({
         agentSessionEnabled: false,
         ensureAgentSession,
-        outputs: [makeOutput("out-1")],
-        resolvePreviewUrlById: () => null,
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
       })
     );
 
@@ -102,8 +107,8 @@ describe("useAiStudioAgentComposer", () => {
       useAiStudioAgentComposer({
         agentSessionEnabled: true,
         ensureAgentSession: vi.fn(),
-        outputs: [makeOutput("out-1")],
-        resolvePreviewUrlById: () => null,
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
       })
     );
 
@@ -146,13 +151,13 @@ describe("useAiStudioAgentComposer", () => {
       useAiStudioAgentComposer({
         agentSessionEnabled: true,
         ensureAgentSession: vi.fn(),
-        outputs: [
+        findOutputById: createFindOutputById([
           makeOutput("out-1"),
           makeOutput("out-2"),
           makeOutput("out-3"),
           makeOutput("out-4"),
-        ],
-        resolvePreviewUrlById: () => null,
+        ]),
+        resolveOutputPreviewUrlById: () => null,
       })
     );
 

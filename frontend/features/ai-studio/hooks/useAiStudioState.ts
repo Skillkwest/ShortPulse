@@ -29,6 +29,13 @@ import { useAiStudioReferenceSelectionState } from "./useAiStudioReferenceSelect
 import { type PendingAutoSave, useAiStudioTaskOrchestration } from "./useAiStudioTaskOrchestration";
 import { useAiStudioWorkflowSettings } from "./useAiStudioWorkflowSettings";
 import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
+import {
+  getAiStudioOutputById,
+  getAiStudioOutputSnapshot,
+  setAiStudioOutputStoreSnapshot,
+  subscribeAiStudioOutputs,
+  type AiStudioOutputStoreSnapshot,
+} from "./aiStudioOutputStore";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
@@ -105,6 +112,8 @@ export const useAiStudioState = ({
   const [archivedOutputState, setArchivedOutputState] = useState<OutputCollectionState>(
     EMPTY_OUTPUT_COLLECTION_STATE
   );
+  const activeOutputStateRef = useRef<OutputCollectionState>(EMPTY_OUTPUT_COLLECTION_STATE);
+  const archivedOutputStateRef = useRef<OutputCollectionState>(EMPTY_OUTPUT_COLLECTION_STATE);
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const pendingAutoSavesRef = useRef<Record<string, PendingAutoSave>>({});
@@ -119,22 +128,44 @@ export const useAiStudioState = ({
     () => denormalizeOutputCollection(archivedOutputState),
     [archivedOutputState]
   );
-  const setOutputsState = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>((nextValue) => {
-    setActiveOutputState((prevState) => {
-      const prevRows = denormalizeOutputCollection(prevState);
-      const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
-      return normalizeOutputCollection(resolved);
-    });
-  }, []);
-  const setArchivedOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>((nextValue) => {
-    setArchivedOutputState((prevState) => {
-      const prevRows = denormalizeOutputCollection(prevState);
-      const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
-      return normalizeOutputCollection(resolved);
-    });
-  }, []);
+  const syncOutputStoreSnapshot = useCallback(
+    (nextActiveState: OutputCollectionState, nextArchivedState: OutputCollectionState) => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: nextActiveState.order,
+        outputById: nextActiveState.byId,
+        archivedOutputOrder: nextArchivedState.order,
+        archivedOutputById: nextArchivedState.byId,
+      });
+    },
+    []
+  );
+  const setOutputsState = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>(
+    (nextValue) => {
+      setActiveOutputState((prevState) => {
+        const prevRows = denormalizeOutputCollection(prevState);
+        const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
+        const nextState = normalizeOutputCollection(resolved);
+        activeOutputStateRef.current = nextState;
+        syncOutputStoreSnapshot(nextState, archivedOutputStateRef.current);
+        return nextState;
+      });
+    },
+    [syncOutputStoreSnapshot]
+  );
+  const setArchivedOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>(
+    (nextValue) => {
+      setArchivedOutputState((prevState) => {
+        const prevRows = denormalizeOutputCollection(prevState);
+        const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
+        const nextState = normalizeOutputCollection(resolved);
+        archivedOutputStateRef.current = nextState;
+        syncOutputStoreSnapshot(activeOutputStateRef.current, nextState);
+        return nextState;
+      });
+    },
+    [syncOutputStoreSnapshot]
+  );
   const activeOutputById = useMemo(() => activeOutputState.byId, [activeOutputState.byId]);
-  const archivedOutputById = useMemo(() => archivedOutputState.byId, [archivedOutputState.byId]);
   const activeOutput = useMemo(
     () => (activeOutputId ? (activeOutputById[activeOutputId] ?? null) : null),
     [activeOutputById, activeOutputId]
@@ -551,6 +582,12 @@ export const useAiStudioState = ({
   useEffect(() => {
     activeOutputByIdRef.current = activeOutputById;
   }, [activeOutputById]);
+
+  useEffect(() => {
+    activeOutputStateRef.current = activeOutputState;
+    archivedOutputStateRef.current = archivedOutputState;
+    syncOutputStoreSnapshot(activeOutputState, archivedOutputState);
+  }, [activeOutputState, archivedOutputState, syncOutputStoreSnapshot]);
 
   useEffect(() => {
     const currentUrlMap: Record<string, string> = {};
@@ -1002,10 +1039,16 @@ export const useAiStudioState = ({
 
   const selectActiveOutputs = useCallback(() => outputs, [outputs]);
   const selectArchivedOutputs = useCallback(() => archivedOutputs, [archivedOutputs]);
-  const selectOutputById = useCallback(
-    (id: string) => activeOutputById[id] ?? archivedOutputById[id] ?? null,
-    [activeOutputById, archivedOutputById]
-  );
+  const getOutputById = useCallback((id: string) => {
+    return getAiStudioOutputById(id);
+  }, []);
+  const subscribeOutputs = useCallback((listener: () => void) => {
+    return subscribeAiStudioOutputs(listener);
+  }, []);
+  const getOutputSnapshot = useCallback((): AiStudioOutputStoreSnapshot => {
+    return getAiStudioOutputSnapshot();
+  }, []);
+  const selectOutputById = useCallback((id: string) => getOutputById(id), [getOutputById]);
 
   return {
     isPromptGenerating,
@@ -1030,6 +1073,9 @@ export const useAiStudioState = ({
     selectActiveOutputs,
     selectArchivedOutputs,
     selectOutputById,
+    getOutputById,
+    subscribeOutputs,
+    getOutputSnapshot,
     activeOutput,
     activeOutputId,
     setActiveOutputId,

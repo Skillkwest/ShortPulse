@@ -22,7 +22,7 @@ const makeOutput = (id: string, prompt = "Prompt text"): StudioOutput => ({
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioReferenceAssetActions>[0]> = {}
 ): Parameters<typeof useAiStudioReferenceAssetActions>[0] => ({
-  outputs: [],
+  findOutputById: () => null,
   selectedTool: "create",
   currentCostCredits: 4,
   setVideoReferenceText: vi.fn(),
@@ -64,7 +64,7 @@ describe("useAiStudioReferenceAssetActions", () => {
     const { result } = renderHook(() =>
       useAiStudioReferenceAssetActions(
         createParams({
-          outputs: [makeOutput("out-1", "Video prompt")],
+          findOutputById: (id) => (id === "out-1" ? makeOutput("out-1", "Video prompt") : null),
           selectedTool: "video",
           currentCostCredits: 7,
           setVideoReferenceText,
@@ -95,7 +95,7 @@ describe("useAiStudioReferenceAssetActions", () => {
     const { result } = renderHook(() =>
       useAiStudioReferenceAssetActions(
         createParams({
-          outputs: [makeOutput("out-2", "Create prompt")],
+          findOutputById: (id) => (id === "out-2" ? makeOutput("out-2", "Create prompt") : null),
           selectedTool: "community" as ToolId,
           setSharedPrompt,
           setSelectedTool,

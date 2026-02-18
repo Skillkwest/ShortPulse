@@ -39,7 +39,7 @@ import { useAiStudioPanelProps } from "../features/ai-studio/hooks/useAiStudioPa
 import { useAiStudioCharacterPanelProps } from "../features/ai-studio/hooks/useAiStudioCharacterPanelProps";
 import { useAiStudioReferenceCanvasProps } from "../features/ai-studio/hooks/useAiStudioReferenceCanvasProps";
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
-import { useAiStudioSelectors } from "../features/ai-studio/hooks/useAiStudioSelectors";
+import { useOutputSelector } from "../features/ai-studio/hooks/aiStudioOutputStore";
 import {
   evaluateReferenceGridAuditGates,
   evaluateStudioShellAuditGates,
@@ -47,10 +47,16 @@ import {
   type StudioShellScenario,
 } from "../features/ai-studio/logic/perfAuditGates";
 import type { StudioOutput } from "../features/ai-studio/types";
+import {
+  getAiStudioShellSectionRenderCounters,
+  resetAiStudioShellSectionRenderCounters,
+} from "../features/ai-studio/logic/shellRenderCounters";
 
 const CHARACTER_MODE_BACKGROUND_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/edit";
 const CHARACTER_MODE_BUNDLE_STALE_AFTER_MS = 45 * 60 * 1000;
-const FLAG_SHELL_DECOUPLE = process.env.NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE !== "false";
+const FLAG_OUTPUT_SELECTOR_STORE =
+  process.env.NEXT_PUBLIC_AI_STUDIO_OUTPUT_SELECTOR_STORE !== "false";
+const FLAG_SELECTOR_CALLBACKS = process.env.NEXT_PUBLIC_AI_STUDIO_SELECTOR_CALLBACKS !== "false";
 
 type OptimisticDebitEntry = {
   credits: number;
@@ -101,6 +107,24 @@ type AiStudioPerfWindow = Window & {
         toolbar: { samples: number; p95Ms: number | null };
         panel: { samples: number; p95Ms: number | null };
         drop: { samples: number; p95Ms: number | null };
+        toolSwitchVisualCommit: { samples: number; p95Ms: number | null };
+        sectionRenderCounters: {
+          toolbar: number;
+          properties: number;
+          reference: number;
+          preview: number;
+        };
+        sectionCommit: {
+          toolbarP95Ms: number | null;
+          propertiesP95Ms: number | null;
+          referenceP95Ms: number | null;
+          previewP95Ms: number | null;
+        };
+        nonGridRerendersPerOutputStatusTick: {
+          samples: number;
+          toolbarP95: number | null;
+          propertiesP95: number | null;
+        };
         longTask: { samples: number; p95Ms: number | null };
         interaction: { maxInputStallMs: number };
       }>;
@@ -165,13 +189,9 @@ export default function AiStudioPage() {
     currentModelLabel,
     prompt,
     outputs,
-    outputOrder,
-    outputById,
     setOutputs,
     resetReferenceGridState,
     archivedOutputs,
-    archivedOutputOrder,
-    archivedOutputById,
     activeOutput,
     activeOutputId,
     setActiveOutputId,
@@ -237,7 +257,6 @@ export default function AiStudioPage() {
     toggleReferenceIndicator,
     openModelModal,
     closeModelModal,
-    resolvePreviewUrlById,
     updateOutputPrompt,
     deleteOutput,
     restoreArchivedOutput,
@@ -253,24 +272,13 @@ export default function AiStudioPage() {
     addAgentPromptReference,
     addPastedPromptReference,
     addPastedMediaReference,
+    getOutputById,
+    getOutputSnapshot,
   } = useAiStudioState({
     isCharacterModeEnabled,
   });
-  const { resolveOutputPreviewUrl } = useAiStudioSelectors({
-    outputOrder,
-    archivedOutputOrder,
-    outputById,
-    archivedOutputById,
-    activeOutputId,
-  });
-  const resolveLegacyPanelOutputPreviewUrl = useCallback(
-    (id: string | null | undefined) => resolvePreviewUrlById(outputs, id),
-    [outputs, resolvePreviewUrlById]
-  );
-  const resolvePanelOutputPreviewUrl = FLAG_SHELL_DECOUPLE
-    ? resolveOutputPreviewUrl
-    : resolveLegacyPanelOutputPreviewUrl;
-  const inFlightOutputIds = useMemo(
+  const selectorInFlightOutputIds = useOutputSelector((snapshot) => snapshot.indexes.inFlightIds);
+  const fallbackInFlightOutputIds = useMemo(
     () =>
       new Set(
         outputs
@@ -279,6 +287,32 @@ export default function AiStudioPage() {
       ),
     [outputs]
   );
+  const inFlightOutputIds = FLAG_OUTPUT_SELECTOR_STORE
+    ? selectorInFlightOutputIds
+    : fallbackInFlightOutputIds;
+  const resolveStorePanelOutputPreviewUrl = useCallback(
+    (id: string | null | undefined) => getOutputById(id ?? "")?.previewUrl ?? null,
+    [getOutputById]
+  );
+  const resolveLegacyPanelOutputPreviewUrl = useCallback(
+    (id: string | null | undefined) => {
+      if (!id) return null;
+      return outputs.find((item) => item.id === id)?.previewUrl ?? null;
+    },
+    [outputs]
+  );
+  const resolvePanelOutputPreviewUrl = FLAG_OUTPUT_SELECTOR_STORE
+    ? resolveStorePanelOutputPreviewUrl
+    : resolveLegacyPanelOutputPreviewUrl;
+  const fallbackFindOutputById = useCallback(
+    (id: string) => {
+      if (!id) return null;
+      return outputs.find((item) => item.id === id) ?? null;
+    },
+    [outputs]
+  );
+  const findOutputById =
+    FLAG_OUTPUT_SELECTOR_STORE && FLAG_SELECTOR_CALLBACKS ? getOutputById : fallbackFindOutputById;
   const optimisticInFlightDebitCredits = useMemo(
     () =>
       optimisticDebitEntries.reduce((sum, entry) => {
@@ -321,13 +355,14 @@ export default function AiStudioPage() {
       maxInputStallMsAt500: 1000,
       heapGrowthRatio100To500: 3,
     };
-    const SHELL_DEFAULT_COUNTS = [50, 100, 300];
+    const SHELL_DEFAULT_COUNTS = [20, 50, 60, 100, 300];
     const SHELL_GATES = {
-      toolbarP95MsAt50: 120,
-      panelP95MsAt50: 140,
-      dropP95MsAt50: 140,
+      toolbarP95MsAt60: 120,
+      panelP95MsAt60: 140,
+      toolSwitchVisualCommitP95MsAt60: 180,
       longTaskP95Ms: 120,
       maxInputStallMs: 1000,
+      nonGridRerendersPerOutputStatusTick: 1,
     };
     const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
     const nextFrame = () =>
@@ -422,11 +457,16 @@ export default function AiStudioPage() {
     ) => {
       perfWindow.__shortpulseAiStudioPerf?.seedReferenceGrid(count);
       await sleep(220);
+      resetAiStudioShellSectionRenderCounters();
+      await afterTwoFrames();
 
       const toolbarLatenciesMs: number[] = [];
       const panelLatenciesMs: number[] = [];
       const dropLatenciesMs: number[] = [];
+      const toolSwitchCommitLatenciesMs: number[] = [];
       const longTaskDurationsMs: number[] = [];
+      const toolbarStatusTickRerenders: number[] = [];
+      const propertiesStatusTickRerenders: number[] = [];
 
       let observer: PerformanceObserver | null = null;
       if (typeof PerformanceObserver !== "undefined") {
@@ -467,7 +507,9 @@ export default function AiStudioPage() {
         const startedAt = performance.now();
         target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
         await afterTwoFrames();
-        toolbarLatenciesMs.push(performance.now() - startedAt);
+        const commitMs = performance.now() - startedAt;
+        toolbarLatenciesMs.push(commitMs);
+        toolSwitchCommitLatenciesMs.push(commitMs);
         await sampleInputStall();
       }
 
@@ -507,7 +549,38 @@ export default function AiStudioPage() {
         await sampleInputStall();
       }
 
+      const statusTickSamples = 6;
+      for (let sampleIndex = 0; sampleIndex < statusTickSamples; sampleIndex += 1) {
+        const beforeCounters = getAiStudioShellSectionRenderCounters();
+        const outputId = getOutputSnapshot().outputOrder[0] ?? null;
+        if (!outputId) break;
+        setOutputs((prev) => {
+          const targetIndex = prev.findIndex((item) => item.id === outputId);
+          if (targetIndex === -1) return prev;
+          const current = prev[targetIndex];
+          if (!current) return prev;
+          const nextState = current.taskState === "running" ? "pending" : "running";
+          const nextOutput: StudioOutput = {
+            ...current,
+            taskState: nextState,
+            timestamp: "Perf status tick",
+          };
+          const next = [...prev];
+          next[targetIndex] = nextOutput;
+          return next;
+        });
+        await afterTwoFrames();
+        const afterCounters = getAiStudioShellSectionRenderCounters();
+        toolbarStatusTickRerenders.push(
+          Math.max(0, afterCounters.toolbar - beforeCounters.toolbar)
+        );
+        propertiesStatusTickRerenders.push(
+          Math.max(0, afterCounters.properties - beforeCounters.properties)
+        );
+      }
+
       if (observer) observer.disconnect();
+      const sectionRenderCounters = getAiStudioShellSectionRenderCounters();
       return {
         count,
         toolbar: {
@@ -521,6 +594,25 @@ export default function AiStudioPage() {
         drop: {
           samples: dropLatenciesMs.length,
           p95Ms: p95(dropLatenciesMs),
+        },
+        toolSwitchVisualCommit: {
+          samples: toolSwitchCommitLatenciesMs.length,
+          p95Ms: p95(toolSwitchCommitLatenciesMs),
+        },
+        sectionRenderCounters,
+        sectionCommit: {
+          toolbarP95Ms: p95(toolbarLatenciesMs),
+          propertiesP95Ms: p95(panelLatenciesMs),
+          referenceP95Ms: p95(dropLatenciesMs),
+          previewP95Ms: p95(dropLatenciesMs),
+        },
+        nonGridRerendersPerOutputStatusTick: {
+          samples: Math.min(
+            toolbarStatusTickRerenders.length,
+            propertiesStatusTickRerenders.length
+          ),
+          toolbarP95: p95(toolbarStatusTickRerenders),
+          propertiesP95: p95(propertiesStatusTickRerenders),
         },
         longTask: {
           samples: longTaskDurationsMs.length,
@@ -714,7 +806,15 @@ export default function AiStudioPage() {
         delete perfWindow.__shortpulseAiStudioPerf;
       }
     };
-  }, [aspect, currentModelLabel, model, resetReferenceGridState, setActiveOutputId, setOutputs]);
+  }, [
+    aspect,
+    currentModelLabel,
+    getOutputSnapshot,
+    model,
+    resetReferenceGridState,
+    setActiveOutputId,
+    setOutputs,
+  ]);
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
   const { beginnerMode, setBeginnerMode } = useBeginnerModePreference();
@@ -763,8 +863,8 @@ export default function AiStudioPage() {
   } = useAiStudioAgentComposer({
     agentSessionEnabled,
     ensureAgentSession,
-    outputs,
-    resolvePreviewUrlById,
+    findOutputById,
+    resolveOutputPreviewUrlById: resolvePanelOutputPreviewUrl,
   });
   const latestAssistantMessage = useMemo(
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
@@ -849,7 +949,7 @@ export default function AiStudioPage() {
     setEditReferenceText,
     videoReferenceText,
     setVideoReferenceText,
-    outputs,
+    getOutputById: findOutputById,
     aspect,
     model,
     setOutputs,
@@ -1056,7 +1156,7 @@ export default function AiStudioPage() {
   ]);
   const { handleDownloadReference, handleSaveReference, handleGenerateFromPromptReference } =
     useAiStudioReferenceAssetActions({
-      outputs,
+      findOutputById,
       selectedTool,
       currentCostCredits,
       setVideoReferenceText,

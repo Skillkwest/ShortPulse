@@ -652,3 +652,42 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added ADR `docs/adr/0014-ai-studio-shell-decoupling-and-event-backpressure.md` and regression coverage for new hooks in:
   `frontend/features/ai-studio/hooks/__tests__/useAiStudioShellDndController.test.ts`,
   `frontend/features/ai-studio/hooks/__tests__/useAiStudioSelectors.test.ts`.
+
+## 2026-02-18 (AI Studio selector-subscribed shell isolation v3)
+- Added selector-subscribed output state in `frontend/features/ai-studio/hooks/aiStudioOutputStore.ts` (`useSyncExternalStore`) with output indexes, targeted selectors, and visible-window helpers.
+- Integrated output-store snapshot publishing into `frontend/features/ai-studio/hooks/useAiStudioState.ts`, and added state APIs (`getOutputById`, `subscribeOutputs`, `getOutputSnapshot`) for non-grid consumers.
+- Removed broad output-array coupling from key non-grid hooks by migrating to id lookups:
+  `frontend/features/ai-studio/hooks/useAiStudioReferenceAssetActions.ts`,
+  `frontend/features/ai-studio/hooks/useAiStudioAgentComposer.ts`,
+  `frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts`,
+  and page orchestration updates in `frontend/pages/ai-studio.tsx`.
+- Split shell rendering into isolated boundaries:
+  `frontend/features/ai-studio/components/AiStudioShellFrame.tsx`,
+  `frontend/features/ai-studio/components/AiStudioToolbarRail.tsx`,
+  `frontend/features/ai-studio/components/AiStudioPropertiesRail.tsx`,
+  `frontend/features/ai-studio/components/AiStudioReferenceRail.tsx`,
+  `frontend/features/ai-studio/components/AiStudioPreviewRail.tsx`,
+  and refactored `frontend/features/ai-studio/components/AiStudioPageContent.tsx` to use them.
+- Upgraded shell perf auditing in `frontend/pages/ai-studio.tsx` and `frontend/features/ai-studio/logic/perfAuditGates.ts`:
+  scenarios now include `20/50/60/100/300`,
+  section render/commit fields,
+  non-grid rerender-per-status-tick metrics,
+  and 60-reference shell gates.
+- Added shell section render counter instrumentation in `frontend/features/ai-studio/logic/shellRenderCounters.ts`.
+- Added RAF-based status flush + transition scheduling for non-urgent poll churn in `frontend/features/ai-studio/hooks/useAiStudioTasks.ts` behind `NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH`.
+- Tuned dense-shell CSS cost controls in `frontend/styles/ai-studio-layout.css`.
+- Added rollout flags to `frontend/.env.example`:
+  `NEXT_PUBLIC_AI_STUDIO_OUTPUT_SELECTOR_STORE`,
+  `NEXT_PUBLIC_AI_STUDIO_SHELL_BOUNDARY_SPLIT`,
+  `NEXT_PUBLIC_AI_STUDIO_SELECTOR_CALLBACKS`,
+  `NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH`.
+- Added planning/architecture docs:
+  `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`,
+  `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`,
+  and updated `docs/sops/sop_media_performance_operations.md`.
+- Added and updated regression tests:
+  `frontend/features/ai-studio/hooks/__tests__/aiStudioOutputStore.test.ts`,
+  `frontend/features/ai-studio/hooks/__tests__/useAiStudioAgentComposer.test.ts`,
+  `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceAssetActions.test.ts`,
+  `frontend/features/ai-studio/hooks/__tests__/useAiStudioAgentOrchestration.test.ts`,
+  `frontend/features/ai-studio/logic/__tests__/perfAuditGates.test.ts`.

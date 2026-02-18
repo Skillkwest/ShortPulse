@@ -110,6 +110,7 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
 - `docs/planning/ai-studio-agent-pipeline-hardening-plan.md`
 - `docs/planning/ai-studio-primary-character-panel-build-plan.md`
+- `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`
 - `docs/planning/expert-workflow-hardening-css-reorg-plan.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
 - `docs/planning/media-optimization-phase0-measurement-spec.md`
@@ -132,6 +133,8 @@ Start here for all repository documentation.
 - `docs/adr/0011-character-sheet-terminology-policy.md`
 - `docs/adr/0012-ai-studio-agent-runtime-hardening.md`
 - `docs/adr/0013-reference-grid-bounded-work-architecture.md`
+- `docs/adr/0014-ai-studio-shell-decoupling-and-event-backpressure.md`
+- `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`
 
 ## Archive
 - `docs/archive/README.md`

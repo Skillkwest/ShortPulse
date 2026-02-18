@@ -8,7 +8,7 @@ import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type UseAiStudioReferenceAssetActionsParams = {
-  outputs: StudioOutput[];
+  findOutputById: (id: string) => StudioOutput | null;
   selectedTool: ToolId | null;
   currentCostCredits: number | null;
   setVideoReferenceText: (value: string) => void;
@@ -33,7 +33,7 @@ type UseAiStudioReferenceAssetActionsParams = {
  * Returns reference asset handlers for card/detail interactions.
  */
 export const useAiStudioReferenceAssetActions = ({
-  outputs,
+  findOutputById,
   selectedTool,
   currentCostCredits,
   setVideoReferenceText,
@@ -48,7 +48,7 @@ export const useAiStudioReferenceAssetActions = ({
 }: UseAiStudioReferenceAssetActionsParams) => {
   const handleDownloadReference = useCallback(
     async (outputId: string) => {
-      const target = outputs.find((item) => item.id === outputId);
+      const target = findOutputById(outputId);
       if (!target || typeof window === "undefined") return;
       try {
         const supabase = ensureSupabaseClient();
@@ -100,7 +100,7 @@ export const useAiStudioReferenceAssetActions = ({
         setUiError(message);
       }
     },
-    [outputs, setUiError]
+    [findOutputById, setUiError]
   );
 
   const handleSaveReference = useCallback(
@@ -113,7 +113,7 @@ export const useAiStudioReferenceAssetActions = ({
 
   const handleGenerateFromPromptReference = useCallback(
     async (outputId: string) => {
-      const target = outputs.find((item) => item.id === outputId);
+      const target = findOutputById(outputId);
       const promptText = target?.prompt ?? target?.previewText ?? "";
       if (!promptText.trim()) return;
 
@@ -143,8 +143,8 @@ export const useAiStudioReferenceAssetActions = ({
     },
     [
       currentCostCredits,
+      findOutputById,
       handleGenerate,
-      outputs,
       selectedTool,
       setEditReferenceText,
       setMode,

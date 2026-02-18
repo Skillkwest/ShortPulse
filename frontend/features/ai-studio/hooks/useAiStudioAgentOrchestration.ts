@@ -72,7 +72,7 @@ type UseAiStudioAgentOrchestrationParams = {
   setEditReferenceText: (value: string) => void;
   videoReferenceText: string;
   setVideoReferenceText: (value: string) => void;
-  outputs: StudioOutput[];
+  getOutputById: (id: string) => StudioOutput | null;
   aspect: string;
   model: string | null;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
@@ -109,7 +109,7 @@ export const useAiStudioAgentOrchestration = ({
   setEditReferenceText,
   videoReferenceText,
   setVideoReferenceText,
-  outputs,
+  getOutputById,
   aspect,
   model,
   setOutputs,
@@ -447,7 +447,7 @@ export const useAiStudioAgentOrchestration = ({
   const handleDescribeReference = useCallback(
     async (outputId: string) => {
       if (!outputId) return;
-      const target = outputs.find((item) => item.id === outputId) ?? null;
+      const target = getOutputById(outputId);
       if (!target?.previewUrl) return;
 
       const placeholderId = `describe-${randomId()}`;
@@ -533,8 +533,8 @@ export const useAiStudioAgentOrchestration = ({
     },
     [
       aspect,
+      getOutputById,
       model,
-      outputs,
       setActiveOutputId,
       setLatestAgentPrompt,
       setOutputs,
@@ -545,9 +545,7 @@ export const useAiStudioAgentOrchestration = ({
 
   const handleAgentDescribeTargets = useCallback(
     (targets: string[]) => {
-      const validTargets = targets.filter((targetId) =>
-        outputs.some((output) => output.id === targetId)
-      );
+      const validTargets = targets.filter((targetId) => Boolean(getOutputById(targetId)));
       trackAgentUiEvent("studio_agent_describe_targets", {
         requested_count: targets.length,
         valid_count: validTargets.length,
@@ -558,7 +556,7 @@ export const useAiStudioAgentOrchestration = ({
       }
       void Promise.all(validTargets.map((targetId) => handleDescribeReference(targetId)));
     },
-    [handleDescribeReference, outputs, setUiNotice, trackAgentUiEvent]
+    [getOutputById, handleDescribeReference, setUiNotice, trackAgentUiEvent]
   );
 
   return {

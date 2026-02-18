@@ -32,11 +32,27 @@ Adopt an adaptive reference-grid runtime that combines:
 ## Rollout Flags
 - `NEXT_PUBLIC_AI_STUDIO_PAGE_OUTPUT_DECOUPLE`
 - `NEXT_PUBLIC_REFERENCE_GRID_STRICT_PREVIEW_LADDER`
+- `NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE`
 - `NEXT_PUBLIC_REFERENCE_GRID_DECODE_BUDGET`
 - `NEXT_PUBLIC_REFERENCE_GRID_DYNAMIC_VIRTUALIZATION`
 - `NEXT_PUBLIC_REFERENCE_GRID_DENSE_VISUAL_SIMPLIFY`
 - `NEXT_PUBLIC_REFERENCE_GRID_MEMORY_GUARD`
 - `NEXT_PUBLIC_REFERENCE_GRID_PERF_WATCHDOG`
+- `NEXT_PUBLIC_REFERENCE_GRID_HARD_VIEWPORT_CAP`
+- `NEXT_PUBLIC_REFERENCE_GRID_CSS_CONTAINMENT`
+- `NEXT_PUBLIC_REFERENCE_GRID_LOADING_PLACEHOLDER_TIMEOUT`
+- `NEXT_PUBLIC_REFERENCE_GRID_GLOBAL_MEDIA_BUDGET`
+- `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY`
+- `NEXT_PUBLIC_REFERENCE_GRID_TELEMETRY_BACKPRESSURE`
+- `NEXT_PUBLIC_REFERENCE_GRID_PRECONNECT_HINTS`
+- `NEXT_PUBLIC_REFERENCE_GRID_TRANSITION_NONURGENT`
+- `NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH`
+- `NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE` (`stable` / `legacy` fallback preset)
+
+## Operational Note
+- Perf harness runtime remains disabled in production by default and can be enabled only for controlled audits via `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true`.
+- CI includes an authenticated production-mode perf gate job (`ai_studio_perf_gate`) when audit credentials are available.
+- CI emits a companion notice job (`ai_studio_perf_gate_notice`) when perf-gate secrets are missing.
 
 ## Related
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`

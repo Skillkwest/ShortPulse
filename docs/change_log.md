@@ -710,3 +710,35 @@ Append new entries at the end of this file; each entry should include date (UTC)
   `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceAssetActions.test.ts`,
   `frontend/features/ai-studio/hooks/__tests__/useAiStudioAgentOrchestration.test.ts`,
   `frontend/features/ai-studio/logic/__tests__/perfAuditGates.test.ts`.
+
+## 2026-02-18 (AI Studio reference-grid performance profile freeze)
+- Stabilized virtualization behavior for 40-60 reference sessions by tightening overscan at 40-59 and adding high-density max-column clamping in:
+  `frontend/features/ai-studio/logic/referenceGridVirtualization.ts` and `frontend/features/ai-studio/components/ReferenceCanvas.tsx`.
+- Fixed perf gate handling so missing reference-grid long-task samples (`null`) are treated as pass-with-note instead of false failure in:
+  `frontend/features/ai-studio/logic/perfAuditGates.ts` and `frontend/features/ai-studio/logic/__tests__/perfAuditGates.test.ts`.
+- Reduced audit contamination by switching long-task observers to live-only sampling (removed buffered history) in `frontend/pages/ai-studio.tsx`.
+- Added production-opt-in perf harness runtime control (`NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME`) so release-mode audits can run intentionally while default production exposure remains off (`frontend/pages/ai-studio.tsx`, `frontend/.env.example`).
+- Promoted the current reference-grid/shell stability profile to repo defaults in `frontend/.env.example`.
+- Updated operational docs and ADR references for stable profile, production audit procedure, and rollback-safe runtime toggles:
+  `docs/sops/sop_media_performance_operations.md`,
+  `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`.
+
+## 2026-02-18 (AI Studio perf gate automation + profile centralization)
+- Added centralized AI Studio perf-profile flag resolver (`stable`/`legacy`) with explicit override support in:
+  `frontend/features/ai-studio/logic/perfProfileFlags.ts`.
+- Migrated performance-sensitive flag reads to shared profile constants across:
+  `frontend/features/ai-studio/components/ReferenceCanvas.tsx`,
+  `frontend/features/ai-studio/components/AiStudioPageContent.tsx`,
+  `frontend/features/ai-studio/hooks/useAiStudioTasks.ts`,
+  `frontend/pages/ai-studio.tsx`.
+- Added regression coverage for profile fallback/override behavior in:
+  `frontend/features/ai-studio/logic/__tests__/perfProfileFlags.test.ts`.
+- Added authenticated production-mode AI Studio perf audit runner:
+  `frontend/tests/e2e/ai-studio-perf.audit.js`,
+  npm script `test:perf:ai-studio`,
+  and CI workflow job `ai_studio_perf_gate` in `.github/workflows/ci.yml`.
+- Added CI skip-notice job `ai_studio_perf_gate_notice` so missing audit secrets are explicit in workflow summaries instead of silent skips.
+- Updated env and SOP/ADR docs for profile-driven defaults and CI perf gating:
+  `frontend/.env.example`,
+  `docs/sops/sop_media_performance_operations.md`,
+  `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`.

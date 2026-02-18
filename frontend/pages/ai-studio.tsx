@@ -51,16 +51,21 @@ import {
   getAiStudioShellSectionRenderCounters,
   resetAiStudioShellSectionRenderCounters,
 } from "../features/ai-studio/logic/shellRenderCounters";
+import {
+  PERF_FLAG_AUDIT_RUNTIME,
+  PERF_FLAG_OUTPUT_SELECTOR_STORE,
+  PERF_FLAG_PAGE_OUTPUT_DECOUPLE,
+  PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS,
+  PERF_FLAG_SELECTOR_CALLBACKS,
+} from "../features/ai-studio/logic/perfProfileFlags";
 
 const CHARACTER_MODE_BACKGROUND_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/edit";
 const CHARACTER_MODE_BUNDLE_STALE_AFTER_MS = 45 * 60 * 1000;
-const FLAG_OUTPUT_SELECTOR_STORE =
-  process.env.NEXT_PUBLIC_AI_STUDIO_OUTPUT_SELECTOR_STORE !== "false";
-const FLAG_SELECTOR_CALLBACKS = process.env.NEXT_PUBLIC_AI_STUDIO_SELECTOR_CALLBACKS !== "false";
-const FLAG_PAGE_OUTPUT_DECOUPLE =
-  process.env.NEXT_PUBLIC_AI_STUDIO_PAGE_OUTPUT_DECOUPLE !== "false";
-const FLAG_REFERENCE_GRID_PRECONNECT_HINTS =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_PRECONNECT_HINTS === "true";
+const FLAG_OUTPUT_SELECTOR_STORE = PERF_FLAG_OUTPUT_SELECTOR_STORE;
+const FLAG_SELECTOR_CALLBACKS = PERF_FLAG_SELECTOR_CALLBACKS;
+const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
+const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
+const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
 
 type OptimisticDebitEntry = {
   credits: number;
@@ -390,7 +395,7 @@ export default function AiStudioPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (process.env.NODE_ENV === "production") return;
+    if (process.env.NODE_ENV === "production" && !FLAG_PERF_AUDIT_RUNTIME) return;
     const perfWindow = window as AiStudioPerfWindow;
     const CLICK_SAMPLES_DEFAULT = 24;
     const DEFAULT_COUNTS = [20, 40, 50, 60, 100, 300];

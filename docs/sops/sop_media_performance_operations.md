@@ -105,6 +105,7 @@ Key indicators:
   - `NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT` (default `500`)
   - `NEXT_PUBLIC_REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT` (default `120`)
 - Reference Grid feature flags:
+  - `NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE` (`stable` default, `legacy` rollback profile)
   - `NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE`
   - `NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE`
   - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW`
@@ -115,6 +116,14 @@ Key indicators:
   - `NEXT_PUBLIC_REFERENCE_GRID_DENSE_VISUAL_SIMPLIFY`
   - `NEXT_PUBLIC_REFERENCE_GRID_MEMORY_GUARD`
   - `NEXT_PUBLIC_REFERENCE_GRID_PERF_WATCHDOG`
+  - `NEXT_PUBLIC_REFERENCE_GRID_HARD_VIEWPORT_CAP`
+  - `NEXT_PUBLIC_REFERENCE_GRID_CSS_CONTAINMENT`
+  - `NEXT_PUBLIC_REFERENCE_GRID_LOADING_PLACEHOLDER_TIMEOUT`
+  - `NEXT_PUBLIC_REFERENCE_GRID_GLOBAL_MEDIA_BUDGET`
+  - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY`
+  - `NEXT_PUBLIC_REFERENCE_GRID_TELEMETRY_BACKPRESSURE`
+  - `NEXT_PUBLIC_REFERENCE_GRID_PRECONNECT_HINTS`
+  - `NEXT_PUBLIC_REFERENCE_GRID_TRANSITION_NONURGENT`
 - AI Studio shell performance flags:
   - `NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE`
   - `NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE`
@@ -125,8 +134,34 @@ Key indicators:
   - `NEXT_PUBLIC_AI_STUDIO_SELECTOR_CALLBACKS`
   - `NEXT_PUBLIC_AI_STUDIO_PAGE_OUTPUT_DECOUPLE`
   - `NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH`
+  - `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME` (default `false`; enable only for controlled production audits)
 
 Adjust only after telemetry review; keep desktop/mobile/constrained profiles distinct.
+
+## Stable Performance Profile (Current Default)
+- Profile selector:
+  - `NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE=stable`
+- Reference Grid:
+  - `NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_DECODE_BUDGET=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_DYNAMIC_VIRTUALIZATION=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_DENSE_VISUAL_SIMPLIFY=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_MEMORY_GUARD=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_PERF_WATCHDOG=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_HARD_VIEWPORT_CAP=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_CSS_CONTAINMENT=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_LOADING_PLACEHOLDER_TIMEOUT=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_GLOBAL_MEDIA_BUDGET=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_TELEMETRY_BACKPRESSURE=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_PRECONNECT_HINTS=true`
+  - `NEXT_PUBLIC_REFERENCE_GRID_TRANSITION_NONURGENT=true`
+- Shell:
+  - `NEXT_PUBLIC_AI_STUDIO_PAGE_OUTPUT_DECOUPLE=true`
+  - `NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH=true`
+- Debug-only:
+  - `NEXT_PUBLIC_REFERENCE_GRID_RENDER_COMMIT_TELEMETRY=false`
+  - `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=false`
 
 ## Security Guardrails
 - `/api/media/sign-batch` must enforce:
@@ -154,21 +189,46 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
 4. Run in-browser gate audit from DevTools on `/ai-studio`:
    - `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
    - `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
-5. Manual verification:
+5. Production-mode verification (release signal):
+   - Build/start with explicit perf runtime enable:
+     - `cd frontend && NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true npm run build`
+     - `cd frontend && NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true npm run start`
+   - Run the same two audit commands in browser DevTools.
+   - Revert runtime flag to default `false` after capture.
+6. Manual verification:
    - Media Library route (images/videos/private/AI tabs)
    - AI Studio modal search + paging + selection
    - Reference Grid autoplay behavior on desktop and small-screen widths
+7. CI perf gate (internal branches with audit creds):
+   - `.github/workflows/ci.yml` job `ai_studio_perf_gate`
+   - Uses `PLAYWRIGHT_AUDIT_EMAIL` + `PLAYWRIGHT_AUDIT_PASSWORD` secrets
+   - Runs `npm run test:perf:ai-studio` against production build/start.
+   - If secrets are missing, CI posts a notice from `ai_studio_perf_gate_notice`.
+
+## CI Secret Setup
+- GitHub UI:
+  - Repository `Settings -> Secrets and variables -> Actions -> New repository secret`
+  - Add:
+    - `PLAYWRIGHT_AUDIT_EMAIL`
+    - `PLAYWRIGHT_AUDIT_PASSWORD`
+- GitHub CLI (maintainer machine):
+  - `gh secret set PLAYWRIGHT_AUDIT_EMAIL --body "<audit-email>"`
+  - `gh secret set PLAYWRIGHT_AUDIT_PASSWORD --body "<audit-password>"`
 
 ## Reference Grid Perf Harness
 - Browser command (DevTools Console on `/ai-studio`):
   - `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
-- Runtime API (dev/non-production):
+- Runtime API (development, or production when `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true`):
   - `window.__shortpulseAiStudioPerf.seedReferenceGrid(count)`
   - `window.__shortpulseAiStudioPerf.clearReferenceGrid()`
   - `window.__shortpulseAiStudioPerf.runReferenceGridAudit(options?)`
   - `window.__shortpulseAiStudioPerf.runStudioShellAudit(options?)`
-- Scenarios: 20 / 50 / 60 / 100 / 300 seeded reference cards.
+- Scenarios: 20 / 40 / 50 / 60 / 100 / 300 seeded reference cards.
 - Gates:
+  - grid click p95 at 40 cards: `<= 90ms`
+  - grid long-task p95 at 40 cards: `<= 70ms`
+  - grid max input stall at 40 cards: `<= 450ms`
+  - rendered item count p95 at 40 cards: `<= 24`
   - grid click p95 at 60 cards: `<= 120ms`
   - grid long-task p95 at 60 cards: `<= 100ms`
   - grid max input stall at 60 cards: `<= 800ms`

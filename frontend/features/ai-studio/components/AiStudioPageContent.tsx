@@ -26,6 +26,13 @@ import type { StudioOutput, ToolId } from "../types";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
+import {
+  PERF_FLAG_SHELL_BOUNDARY_SPLIT,
+  PERF_FLAG_SHELL_DECOUPLE,
+  PERF_FLAG_SHELL_DND_BACKPRESSURE,
+  PERF_FLAG_SHELL_HIGH_DENSITY_MODE,
+  PERF_FLAG_SHELL_PANEL_MEMOIZATION,
+} from "../logic/perfProfileFlags";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
@@ -227,13 +234,11 @@ type CharacterSectionProps = React.ComponentProps<typeof CharacterPropertiesPane
 type EditSectionProps = React.ComponentProps<typeof EditPropertiesPanel>;
 type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
 const PERFORMANCE_DENSE_REFERENCE_COUNT = 40;
-const FLAG_SHELL_DECOUPLE = process.env.NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE !== "false";
-const FLAG_DND_BACKPRESSURE = process.env.NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE !== "false";
-const FLAG_PANEL_MEMOIZATION = process.env.NEXT_PUBLIC_AI_STUDIO_PANEL_MEMOIZATION !== "false";
-const FLAG_SHELL_BOUNDARY_SPLIT =
-  process.env.NEXT_PUBLIC_AI_STUDIO_SHELL_BOUNDARY_SPLIT !== "false";
-const FLAG_HIGH_DENSITY_SHELL_MODE =
-  process.env.NEXT_PUBLIC_AI_STUDIO_HIGH_DENSITY_SHELL_MODE !== "false";
+const FLAG_SHELL_DECOUPLE = PERF_FLAG_SHELL_DECOUPLE;
+const FLAG_DND_BACKPRESSURE = PERF_FLAG_SHELL_DND_BACKPRESSURE;
+const FLAG_PANEL_MEMOIZATION = PERF_FLAG_SHELL_PANEL_MEMOIZATION;
+const FLAG_SHELL_BOUNDARY_SPLIT = PERF_FLAG_SHELL_BOUNDARY_SPLIT;
+const FLAG_HIGH_DENSITY_SHELL_MODE = PERF_FLAG_SHELL_HIGH_DENSITY_MODE;
 
 type AgentChatProps = {
   isOpen: boolean;

@@ -25,6 +25,10 @@ import {
 } from "../../../lib/falClient";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { fetchKeiTaskStatus } from "../../../lib/keiClient";
+import {
+  PERF_FLAG_RAF_STATUS_FLUSH,
+  PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE,
+} from "../logic/perfProfileFlags";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
 import { extractFalMediaUrls, extractResultUrls, Provider } from "../logic/stateParsers";
 import { StudioOutput } from "../types";
@@ -131,10 +135,8 @@ const terminalFailureStates = new Set(["fail", "failed", "error", "cancelled", "
 
 const BACKGROUND_RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
 const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
-const REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE === "true";
-const AI_STUDIO_FLAG_RAF_STATUS_FLUSH =
-  process.env.NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH === "true";
+const REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE;
+const AI_STUDIO_FLAG_RAF_STATUS_FLUSH = PERF_FLAG_RAF_STATUS_FLUSH;
 const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
 
 type QueuedOutputUpdate = {

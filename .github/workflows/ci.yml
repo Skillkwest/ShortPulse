@@ -27,6 +27,57 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  ai_studio_perf_gate:
+    if: ${{ secrets.PLAYWRIGHT_AUDIT_EMAIL != '' && secrets.PLAYWRIGHT_AUDIT_PASSWORD != '' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Build production app with perf audit runtime
+        run: NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true npm run build
+      - name: Run AI Studio production perf gate
+        env:
+          PLAYWRIGHT_AUDIT_EMAIL: ${{ secrets.PLAYWRIGHT_AUDIT_EMAIL }}
+          PLAYWRIGHT_AUDIT_PASSWORD: ${{ secrets.PLAYWRIGHT_AUDIT_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true PORT=3100 npm run start >/tmp/ai-studio-start.log 2>&1 &
+          SERVER_PID=$!
+          cleanup() {
+            kill "$SERVER_PID" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          for i in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:3100/auth?next=/ai-studio" >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          PLAYWRIGHT_BASE_URL=http://127.0.0.1:3100 npm run test:perf:ai-studio
+
+  ai_studio_perf_gate_notice:
+    if: ${{ secrets.PLAYWRIGHT_AUDIT_EMAIL == '' || secrets.PLAYWRIGHT_AUDIT_PASSWORD == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: AI Studio perf gate skipped (missing secrets)
+        run: |
+          echo "AI Studio perf gate skipped because PLAYWRIGHT_AUDIT_EMAIL and/or PLAYWRIGHT_AUDIT_PASSWORD are not configured."
+          echo "Set repository secrets to enable the authenticated production perf gate." >> "$GITHUB_STEP_SUMMARY"
+
   security:
     runs-on: ubuntu-latest
     defaults:

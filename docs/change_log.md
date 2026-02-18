@@ -752,3 +752,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Hardened CI perf gating in `.github/workflows/ci.yml` with PR change-scoping for AI Studio perf-impacting files, plus staged gate mode control via repository variable `AI_STUDIO_PERF_GATE_MODE` (`warn` or `enforce`).
 - Updated operations guidance for CI gate scoping and staged enforcement rollout in `docs/sops/sop_media_performance_operations.md`.
 - Updated ADR operational notes to document PR change-scoped perf gating and repository-variable enforcement mode in `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`.
+
+## 2026-02-18 (AI Studio perf release-check command)
+- Added a single-command production perf release check script in `frontend/scripts/ai-studio-perf-release-check.mjs` that runs build/start/audit/teardown with explicit guardrails.
+- Added npm script `perf:ai-studio:release-check` in `frontend/package.json`.
+- Updated runbook docs to standardize usage and optional fast rerun/port overrides:
+  `docs/sops/sop_media_performance_operations.md`,
+  `docs/testing-guide.md`,
+  `docs/local-development.md`.

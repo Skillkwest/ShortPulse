@@ -89,3 +89,10 @@ Optional protected-route latency probe:
 cd frontend
 npm run latency:protected-route -- --path /api/billing/credit-packages --samples 30 --warmup 5 --bootstrap-token-from-supabase
 ```
+
+Optional AI Studio production perf release check:
+
+```bash
+cd frontend
+PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run perf:ai-studio:release-check
+```

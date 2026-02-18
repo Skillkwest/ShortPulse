@@ -12,6 +12,8 @@ Purpose: outline how to test the ShortPulse app (client UI plus internal API rou
   - `cd frontend && npm run test:e2e`
   - Character pipeline audit: `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character`
     - Safety: this audit now refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and will reject `@example.com` addresses to prevent accidental user creation.
+  - AI Studio production perf release check:
+    - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run perf:ai-studio:release-check`
 - Full local validation:
   - `cd frontend && npm run validate`
 

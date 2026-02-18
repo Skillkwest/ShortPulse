@@ -190,11 +190,12 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
    - `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
    - `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
 5. Production-mode verification (release signal):
-   - Build/start with explicit perf runtime enable:
-     - `cd frontend && NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true npm run build`
-     - `cd frontend && NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true npm run start`
-   - Run the same two audit commands in browser DevTools.
-   - Revert runtime flag to default `false` after capture.
+   - Run the one-command release check (build + start + authenticated perf audit + teardown):
+     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
+   - Optional fast rerun without rebuild:
+     - `cd frontend && AI_STUDIO_PERF_SKIP_BUILD=true PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
+   - Optional port override:
+     - `cd frontend && AI_STUDIO_PERF_PORT=3200 PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
 6. Manual verification:
    - Media Library route (images/videos/private/AI tabs)
    - AI Studio modal search + paging + selection

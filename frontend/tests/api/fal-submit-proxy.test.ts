@@ -3,6 +3,7 @@ import { createFalSubmitHandler } from "../../lib/server/api/falSubmitProxy";
 
 const chargeGenerationRequestMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
+const ensureSubmittedGenerationRecordMock = vi.fn();
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
@@ -10,6 +11,11 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationSubmitPersistence", () => ({
+  ensureSubmittedGenerationRecord: (...args: unknown[]) =>
+    ensureSubmittedGenerationRecordMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -23,8 +29,13 @@ describe("createFalSubmitHandler", () => {
     process.env.FAL_KEY = "test-fal-key";
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
+      sourceRef: "source-ref-1",
       markSubmitted: vi.fn().mockResolvedValue(undefined),
       refund: vi.fn().mockResolvedValue(undefined),
+    });
+    ensureSubmittedGenerationRecordMock.mockResolvedValue({
+      ok: true,
+      generationId: "gen-1",
     });
   });
 
@@ -93,6 +104,14 @@ describe("createFalSubmitHandler", () => {
         upstream_status: 200,
       })
     );
+    expect(ensureSubmittedGenerationRecordMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        modelId: "fal-ai/veo3.1/image-to-video",
+        providerRequestId: "req-fallback",
+        sourceRef: "source-ref-1",
+      })
+    );
     expect(charge.refund).not.toHaveBeenCalled();
   });
 
@@ -142,5 +161,6 @@ describe("createFalSubmitHandler", () => {
         upstream_status: 500,
       })
     );
+    expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
   });
 });

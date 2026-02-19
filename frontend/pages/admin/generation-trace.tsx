@@ -29,6 +29,16 @@ type GenerationTraceResponse = {
   warnings: string[];
 };
 
+type GenerationReplayResponse = {
+  ok: boolean;
+  requestId: string | null;
+  generationId: string | null;
+  state: "recovered" | "already_persisted" | "no_media" | "provider_running" | "provider_failed";
+  mediaFileIds: string[];
+  mediaUrls: string[];
+  details?: string;
+};
+
 const isAdminUser = (user: unknown): boolean => {
   const record = user && typeof user === "object" ? (user as Record<string, unknown>) : {};
   const appMetadata =
@@ -53,6 +63,8 @@ export default function AdminGenerationTracePage() {
   const [result, setResult] = useState<GenerationTraceResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingTrace, setLoadingTrace] = useState(false);
+  const [replayLoading, setReplayLoading] = useState(false);
+  const [replayResult, setReplayResult] = useState<GenerationReplayResponse | null>(null);
 
   const hasQuery = useMemo(
     () => Boolean(generationId.trim() || requestId.trim() || traceId.trim()),
@@ -88,11 +100,89 @@ export default function AdminGenerationTracePage() {
         );
       }
       setResult(payload as GenerationTraceResponse);
+      setReplayResult(null);
     } catch (traceError) {
       setError(traceError instanceof Error ? traceError.message : "Failed to load trace.");
       setResult(null);
+      setReplayResult(null);
     } finally {
       setLoadingTrace(false);
+    }
+  };
+
+  const runReplayRecovery = async () => {
+    const firstGeneration =
+      result?.generations[0] &&
+      typeof result.generations[0] === "object" &&
+      !Array.isArray(result.generations[0])
+        ? (result.generations[0] as Record<string, unknown>)
+        : null;
+    const firstGenerationId =
+      typeof firstGeneration?.id === "string" && firstGeneration.id.trim().length
+        ? firstGeneration.id.trim()
+        : null;
+    const firstRequestId =
+      typeof firstGeneration?.request_id === "string" && firstGeneration.request_id.trim().length
+        ? firstGeneration.request_id.trim()
+        : null;
+    const currentGenerationId =
+      (result?.query.generationId && result.query.generationId.trim().length
+        ? result.query.generationId.trim()
+        : null) || firstGenerationId;
+    const currentRequestId =
+      (result?.query.requestId && result.query.requestId.trim().length
+        ? result.query.requestId.trim()
+        : null) || firstRequestId;
+
+    if (!currentGenerationId && !currentRequestId) {
+      setError("Replay requires a generationId or requestId in the loaded trace.");
+      return;
+    }
+
+    setReplayLoading(true);
+    setError(null);
+    try {
+      const response = await fetchWithAuth("/api/admin/generation-recovery/replay", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          generationId: currentGenerationId || undefined,
+          requestId: currentRequestId || undefined,
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as
+        | GenerationReplayResponse
+        | { error?: string };
+      if (!response.ok) {
+        throw new Error(
+          payload && "error" in payload
+            ? payload.error || "Replay recovery failed."
+            : "Replay recovery failed."
+        );
+      }
+      setReplayResult(payload as GenerationReplayResponse);
+      // Refresh timeline immediately so operator sees recovered state/materialized media.
+      const refreshParams = new URLSearchParams();
+      if (currentGenerationId) refreshParams.set("generationId", currentGenerationId);
+      if (currentRequestId) refreshParams.set("requestId", currentRequestId);
+      const refreshResponse = await fetchWithAuth(
+        `/api/admin/generation-trace?${refreshParams.toString()}`,
+        {
+          method: "GET",
+        }
+      );
+      const refreshPayload = (await refreshResponse
+        .json()
+        .catch(() => ({}))) as GenerationTraceResponse;
+      if (refreshResponse.ok) {
+        setResult(refreshPayload);
+      }
+    } catch (replayError) {
+      setError(replayError instanceof Error ? replayError.message : "Replay recovery failed.");
+    } finally {
+      setReplayLoading(false);
     }
   };
 
@@ -187,6 +277,22 @@ export default function AdminGenerationTracePage() {
           <section className={styles.adminSection}>
             <h2 className={styles.adminSectionTitle}>Summary</h2>
             <pre className={styles.adminPreBlock}>{pretty(result.summary)}</pre>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                disabled={replayLoading}
+                onClick={runReplayRecovery}
+              >
+                {replayLoading ? "Replaying..." : "Replay recovery"}
+              </button>
+            </div>
+            {replayResult ? (
+              <>
+                <h2 className={styles.adminSectionTitle}>Replay result</h2>
+                <pre className={styles.adminPreBlock}>{pretty(replayResult)}</pre>
+              </>
+            ) : null}
             <h2 className={styles.adminSectionTitle}>Generations</h2>
             <pre className={styles.adminPreBlock}>{pretty(result.generations)}</pre>
             <h2 className={styles.adminSectionTitle}>Reservations</h2>

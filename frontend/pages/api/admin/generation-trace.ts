@@ -46,6 +46,14 @@ const readErrorMessage = (error: unknown): string => {
   return "unknown";
 };
 
+const isMissingAiGenerationsColumnError = (error: unknown): boolean => {
+  const message = readErrorMessage(error).toLowerCase();
+  return (
+    (message.includes("ai_generations") && message.includes("does not exist")) ||
+    (message.includes("could not find the") && message.includes("ai_generations"))
+  );
+};
+
 const sortRowsDesc = (rows: JsonRow[]): JsonRow[] =>
   rows.slice().sort((a, b) => {
     const aTs =
@@ -81,6 +89,19 @@ const selectGenerationFields = [
   "last_recovery_at",
   "next_recovery_at",
   "last_media_detected_at",
+  "created_at",
+  "completed_at",
+  "metadata",
+].join(", ");
+
+const selectGenerationFieldsLegacy = [
+  "id",
+  "user_id",
+  "provider",
+  "model_id",
+  "request_id",
+  "status",
+  "error_message",
   "created_at",
   "completed_at",
   "metadata",
@@ -143,6 +164,24 @@ const selectMediaFileFields = [
   "created_at",
 ].join(", ");
 
+const runGenerationQueryWithFallback = async ({
+  execute,
+  warnings,
+  label,
+}: {
+  execute: (selectFields: string) => PromiseLike<{ data: unknown; error: unknown }>;
+  warnings: string[];
+  label: string;
+}): Promise<{ data: unknown; error: unknown }> => {
+  const primary = await execute(selectGenerationFields);
+  if (!primary.error) return primary;
+  if (!isMissingAiGenerationsColumnError(primary.error)) return primary;
+
+  warnings.push(`${label} fell back to legacy ai_generations fields (migration 019 missing).`);
+  const fallback = await execute(selectGenerationFieldsLegacy);
+  return fallback;
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -167,11 +206,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const generationRows: JsonRow[] = [];
 
     if (generationId) {
-      const { data, error } = await supabaseAdmin
-        .from("ai_generations")
-        .select(selectGenerationFields)
-        .eq("id", generationId)
-        .limit(5);
+      const { data, error } = await runGenerationQueryWithFallback({
+        warnings,
+        label: "ai_generations.id lookup",
+        execute: (selectFields) =>
+          supabaseAdmin.from("ai_generations").select(selectFields).eq("id", generationId).limit(5),
+      });
       if (error) {
         warnings.push(`ai_generations.id lookup failed: ${readErrorMessage(error)}`);
       } else {
@@ -180,11 +220,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (requestId) {
-      const { data, error } = await supabaseAdmin
-        .from("ai_generations")
-        .select(selectGenerationFields)
-        .eq("request_id", requestId)
-        .limit(25);
+      const { data, error } = await runGenerationQueryWithFallback({
+        warnings,
+        label: "ai_generations.request_id lookup",
+        execute: (selectFields) =>
+          supabaseAdmin
+            .from("ai_generations")
+            .select(selectFields)
+            .eq("request_id", requestId)
+            .limit(25),
+      });
       if (error) {
         warnings.push(`ai_generations.request_id lookup failed: ${readErrorMessage(error)}`);
       } else {
@@ -193,17 +238,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (traceId) {
-      const [tracePrimary, traceFallback] = await Promise.all([
-        supabaseAdmin
-          .from("ai_generations")
-          .select(selectGenerationFields)
-          .contains("metadata", { generation_trace_id: traceId })
-          .limit(25),
-        supabaseAdmin
-          .from("ai_generations")
-          .select(selectGenerationFields)
-          .contains("metadata", { submission_trace_id: traceId })
-          .limit(25),
+      const [tracePrimary, traceFallback, traceSourceRef] = await Promise.all([
+        runGenerationQueryWithFallback({
+          warnings,
+          label: "ai_generations.generation_trace_id lookup",
+          execute: (selectFields) =>
+            supabaseAdmin
+              .from("ai_generations")
+              .select(selectFields)
+              .contains("metadata", { generation_trace_id: traceId })
+              .limit(25),
+        }),
+        runGenerationQueryWithFallback({
+          warnings,
+          label: "ai_generations.submission_trace_id lookup",
+          execute: (selectFields) =>
+            supabaseAdmin
+              .from("ai_generations")
+              .select(selectFields)
+              .contains("metadata", { submission_trace_id: traceId })
+              .limit(25),
+        }),
+        runGenerationQueryWithFallback({
+          warnings,
+          label: "ai_generations.source_ref lookup",
+          execute: (selectFields) =>
+            supabaseAdmin
+              .from("ai_generations")
+              .select(selectFields)
+              .contains("metadata", { source_ref: traceId })
+              .limit(25),
+        }),
       ]);
       if (tracePrimary.error) {
         warnings.push(
@@ -218,6 +283,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         );
       } else {
         appendObjectRows(generationRows, traceFallback.data);
+      }
+      if (traceSourceRef.error) {
+        warnings.push(
+          `ai_generations.source_ref lookup failed: ${readErrorMessage(traceSourceRef.error)}`
+        );
+      } else {
+        appendObjectRows(generationRows, traceSourceRef.data);
       }
     }
 

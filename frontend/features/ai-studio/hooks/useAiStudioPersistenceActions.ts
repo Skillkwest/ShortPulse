@@ -7,6 +7,7 @@ import { isVideoUrl, resolveModelLabel, type Provider } from "../logic/statePars
 import type { StudioOutput } from "../types";
 import {
   createGenerationRecord,
+  findGenerationRecordByRequestId,
   logMediaEvent,
   saveMediaUrlToLibrary,
   savePromptRecord,
@@ -107,6 +108,34 @@ export const useAiStudioPersistenceActions = ({
         return output.generationId;
       }
 
+      const requestId = taskId ?? output.taskId ?? null;
+      if (requestId) {
+        try {
+          const existing = await findGenerationRecordByRequestId(requestId);
+          if (existing?.id) {
+            try {
+              await updateGenerationRecord(existing.id, {
+                provider,
+                modelId: output.modelId ?? output.model,
+                promptText: output.prompt,
+                aspect: output.aspect,
+                durationSeconds,
+                resolution: resolution ?? null,
+                requestId,
+                status: "running",
+                metadata,
+              });
+            } catch {
+              // Best effort: keep existing generation id linked even if patch write fails.
+            }
+            updateOutputById(outputId, (item) => ({ ...item, generationId: existing.id }));
+            return existing.id;
+          }
+        } catch {
+          // Continue to create path when lookup fails.
+        }
+      }
+
       try {
         const generationId = await createGenerationRecord({
           mode: output.mode,
@@ -116,7 +145,7 @@ export const useAiStudioPersistenceActions = ({
           aspect: output.aspect,
           durationSeconds,
           resolution: resolution ?? null,
-          requestId: taskId ?? output.taskId ?? null,
+          requestId,
           status: "running",
           metadata,
         });

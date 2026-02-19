@@ -139,6 +139,8 @@ const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
 const MAX_CONCURRENT_STATUS_REQUESTS = 3;
 const OUTPUT_LOOKUP_MISS_MAX_RETRIES = 6;
 const OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS = 400;
+const OUTPUT_LOOKUP_RECOVERY_RETRY_DELAY_MS = 2_000;
+const OUTPUT_LOOKUP_MISS_HARD_STOP_MS = 5 * 60 * 1000;
 const REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE;
 const AI_STUDIO_FLAG_RAF_STATUS_FLUSH = PERF_FLAG_RAF_STATUS_FLUSH;
 const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
@@ -293,6 +295,7 @@ export function useAiStudioTasks({
   const recoveryTimersRef = useRef<Record<string, number>>({});
   const recoveryAttemptsRef = useRef<Record<string, number>>({});
   const outputLookupMissesRef = useRef<Record<string, number>>({});
+  const outputLookupMissingSinceRef = useRef<Record<string, number>>({});
   const lastProgressUpdateAtRef = useRef<Record<string, number>>({});
   const queuedOutputUpdatersRef = useRef<Record<string, QueuedOutputUpdate[]>>({});
   const queuedOutputFlushPendingRef = useRef(false);
@@ -383,6 +386,7 @@ export function useAiStudioTasks({
       }
       delete lastProgressUpdateAtRef.current[outputId];
       delete outputLookupMissesRef.current[outputId];
+      delete outputLookupMissingSinceRef.current[outputId];
     },
     [updateOutputById]
   );
@@ -542,27 +546,62 @@ export function useAiStudioTasks({
       if (findOutputById && !findOutputById(outputId)) {
         const lookupMisses = (outputLookupMissesRef.current[outputId] ?? 0) + 1;
         outputLookupMissesRef.current[outputId] = lookupMisses;
-        if (lookupMisses <= OUTPUT_LOOKUP_MISS_MAX_RETRIES) {
-          pollTimersRef.current[outputId] = window.setTimeout(
-            () =>
-              pollTask(
-                taskId,
-                outputId,
-                attempt,
-                provider,
-                startedAt,
-                noMediaAttempt,
-                activePollSessionId
-              ),
-            OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS
-          );
+        const missingSince = outputLookupMissingSinceRef.current[outputId] ?? Date.now();
+        outputLookupMissingSinceRef.current[outputId] = missingSince;
+        const missingDurationMs = Date.now() - missingSince;
+        if (missingDurationMs > OUTPUT_LOOKUP_MISS_HARD_STOP_MS) {
+          addBreadcrumb({
+            type: "ui",
+            level: "warn",
+            message: "generation_poll_output_lookup_hard_stop",
+            data: {
+              provider,
+              task_id: taskId,
+              output_id: outputId,
+              lookup_misses: lookupMisses,
+              missing_duration_ms: missingDurationMs,
+            },
+          });
+          clearPollTimer(outputId);
+          clearRecoveryTimer(outputId);
           return;
         }
-        clearPollTimer(outputId);
-        clearRecoveryTimer(outputId);
+        if (lookupMisses === OUTPUT_LOOKUP_MISS_MAX_RETRIES + 1) {
+          addBreadcrumb({
+            type: "ui",
+            level: "warn",
+            message: "generation_poll_output_lookup_retrying",
+            data: {
+              provider,
+              task_id: taskId,
+              output_id: outputId,
+              lookup_misses: lookupMisses,
+              missing_duration_ms: missingDurationMs,
+              hard_stop_after_ms: OUTPUT_LOOKUP_MISS_HARD_STOP_MS,
+            },
+          });
+        }
+        const retryDelayMs =
+          lookupMisses <= OUTPUT_LOOKUP_MISS_MAX_RETRIES
+            ? OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS
+            : OUTPUT_LOOKUP_RECOVERY_RETRY_DELAY_MS;
+        pollTimersRef.current[outputId] = window.setTimeout(
+          () =>
+            pollTask(
+              taskId,
+              outputId,
+              attempt,
+              provider,
+              startedAt,
+              noMediaAttempt,
+              activePollSessionId
+            ),
+          retryDelayMs
+        );
         return;
       }
       delete outputLookupMissesRef.current[outputId];
+      delete outputLookupMissingSinceRef.current[outputId];
 
       if (attempt === 0 && noMediaAttempt === 0) {
         const existingTimeoutId = pollTimersRef.current[outputId];
@@ -638,27 +677,62 @@ export function useAiStudioTasks({
             if (findOutputById && !findOutputById(outputId)) {
               const lookupMisses = (outputLookupMissesRef.current[outputId] ?? 0) + 1;
               outputLookupMissesRef.current[outputId] = lookupMisses;
-              if (lookupMisses <= OUTPUT_LOOKUP_MISS_MAX_RETRIES) {
-                pollTimersRef.current[outputId] = window.setTimeout(
-                  () =>
-                    pollTask(
-                      taskId,
-                      outputId,
-                      attempt,
-                      provider,
-                      startedAt,
-                      noMediaAttempt,
-                      activePollSessionId
-                    ),
-                  OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS
-                );
+              const missingSince = outputLookupMissingSinceRef.current[outputId] ?? Date.now();
+              outputLookupMissingSinceRef.current[outputId] = missingSince;
+              const missingDurationMs = Date.now() - missingSince;
+              if (missingDurationMs > OUTPUT_LOOKUP_MISS_HARD_STOP_MS) {
+                addBreadcrumb({
+                  type: "ui",
+                  level: "warn",
+                  message: "generation_poll_output_lookup_hard_stop",
+                  data: {
+                    provider,
+                    task_id: taskId,
+                    output_id: outputId,
+                    lookup_misses: lookupMisses,
+                    missing_duration_ms: missingDurationMs,
+                  },
+                });
+                clearPollTimer(outputId);
+                clearRecoveryTimer(outputId);
                 return;
               }
-              clearPollTimer(outputId);
-              clearRecoveryTimer(outputId);
+              if (lookupMisses === OUTPUT_LOOKUP_MISS_MAX_RETRIES + 1) {
+                addBreadcrumb({
+                  type: "ui",
+                  level: "warn",
+                  message: "generation_poll_output_lookup_retrying",
+                  data: {
+                    provider,
+                    task_id: taskId,
+                    output_id: outputId,
+                    lookup_misses: lookupMisses,
+                    missing_duration_ms: missingDurationMs,
+                    hard_stop_after_ms: OUTPUT_LOOKUP_MISS_HARD_STOP_MS,
+                  },
+                });
+              }
+              const retryDelayMs =
+                lookupMisses <= OUTPUT_LOOKUP_MISS_MAX_RETRIES
+                  ? OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS
+                  : OUTPUT_LOOKUP_RECOVERY_RETRY_DELAY_MS;
+              pollTimersRef.current[outputId] = window.setTimeout(
+                () =>
+                  pollTask(
+                    taskId,
+                    outputId,
+                    attempt,
+                    provider,
+                    startedAt,
+                    noMediaAttempt,
+                    activePollSessionId
+                  ),
+                retryDelayMs
+              );
               return;
             }
             delete outputLookupMissesRef.current[outputId];
+            delete outputLookupMissingSinceRef.current[outputId];
 
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
             const stateRaw =
@@ -1070,6 +1144,7 @@ export function useAiStudioTasks({
       recoveryTimersRef.current = {};
       recoveryAttemptsRef.current = {};
       outputLookupMissesRef.current = {};
+      outputLookupMissingSinceRef.current = {};
       lastProgressUpdateAtRef.current = {};
       queuedOutputUpdatersRef.current = {};
       queuedOutputFlushPendingRef.current = false;

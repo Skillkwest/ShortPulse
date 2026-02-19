@@ -7,7 +7,8 @@ import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath"
 import type { StudioMode } from "../types";
 
 const BUCKET = "media_library";
-const FETCH_TIMEOUT_MS = 20000;
+const FETCH_TIMEOUT_MS = 60000;
+const FETCH_RETRY_ATTEMPTS = 2;
 
 const CONTENT_TYPE_EXTENSION: Record<string, string> = {
   "image/png": "png",
@@ -75,20 +76,36 @@ const resolveSupabaseContext = async () => {
 };
 
 const fetchBlobWithTimeout = async (url: string) => {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`Fetch failed (${response.status})`);
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= FETCH_RETRY_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) {
+        throw new Error(`Fetch failed (${response.status})`);
+      }
+      const blob = await response.blob();
+      const headerType = response.headers.get("content-type");
+      const contentType = headerType || blob.type || null;
+      return { blob, contentType };
+    } catch (error) {
+      lastError = error;
+      const message =
+        error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+      const isAbortLike =
+        message.includes("aborted") ||
+        message.includes("aborterror") ||
+        message.includes("timed out");
+      if (attempt < FETCH_RETRY_ATTEMPTS && isAbortLike) {
+        continue;
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
     }
-    const blob = await response.blob();
-    const headerType = response.headers.get("content-type");
-    const contentType = headerType || blob.type || null;
-    return { blob, contentType };
-  } finally {
-    window.clearTimeout(timeoutId);
   }
+  throw lastError instanceof Error ? lastError : new Error("Failed to fetch media.");
 };
 
 export type GenerationRecordInput = {
@@ -102,6 +119,12 @@ export type GenerationRecordInput = {
   requestId?: string | null;
   status?: string;
   metadata?: Record<string, unknown>;
+};
+
+export type GenerationRecordLookup = {
+  id: string;
+  status: string | null;
+  metadata: Record<string, unknown>;
 };
 
 export type PromptRecordInput = {
@@ -176,6 +199,42 @@ export const createGenerationRecord = async (input: GenerationRecordInput) => {
     throw error;
   }
   return data?.id ?? null;
+};
+
+/**
+ * Lookup the newest generation row by provider request id for the signed-in user.
+ */
+export const findGenerationRecordByRequestId = async (
+  requestId: string
+): Promise<GenerationRecordLookup | null> => {
+  const normalizedRequestId = requestId.trim();
+  if (!normalizedRequestId) return null;
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { data, error } = await supabase
+    .from("ai_generations")
+    .select("id, status, metadata, created_at")
+    .eq("user_id", userId)
+    .eq("request_id", normalizedRequestId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error) {
+    throw error;
+  }
+  if (!Array.isArray(data) || !data.length) return null;
+  const row = data[0] as {
+    id?: unknown;
+    status?: unknown;
+    metadata?: unknown;
+  };
+  if (typeof row.id !== "string" || !row.id.trim()) return null;
+  return {
+    id: row.id,
+    status: typeof row.status === "string" ? row.status : null,
+    metadata:
+      row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+        ? (row.metadata as Record<string, unknown>)
+        : {},
+  };
 };
 
 /**

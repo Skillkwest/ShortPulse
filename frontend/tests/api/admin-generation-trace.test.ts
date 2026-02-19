@@ -33,6 +33,29 @@ const createQueryBuilder = (rows: unknown[]) => {
   return builder;
 };
 
+const createFallbackGenerationQueryBuilder = (rows: unknown[]) => {
+  const baseError = { message: "column ai_generations.recovery_state does not exist" };
+  const legacyBuilder: Record<string, unknown> = {};
+  legacyBuilder.eq = vi.fn(() => legacyBuilder);
+  legacyBuilder.in = vi.fn(() => legacyBuilder);
+  legacyBuilder.contains = vi.fn(() => legacyBuilder);
+  legacyBuilder.order = vi.fn(() => legacyBuilder);
+  legacyBuilder.limit = vi.fn(async () => ({ data: rows, error: null }));
+
+  const primaryBuilder: Record<string, unknown> = {};
+  primaryBuilder.eq = vi.fn(() => primaryBuilder);
+  primaryBuilder.in = vi.fn(() => primaryBuilder);
+  primaryBuilder.contains = vi.fn(() => primaryBuilder);
+  primaryBuilder.order = vi.fn(() => primaryBuilder);
+  primaryBuilder.limit = vi.fn(async () => ({ data: null, error: baseError }));
+
+  return {
+    select: vi.fn((fields: string) =>
+      fields.includes("recovery_state") ? primaryBuilder : legacyBuilder
+    ),
+  };
+};
+
 describe("GET /api/admin/generation-trace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -132,6 +155,80 @@ describe("GET /api/admin/generation-trace", () => {
           ledgerEntries: 1,
           errorEvents: 1,
         },
+      })
+    );
+  });
+
+  it("resolves generations by source_ref when traceId matches submit source reference", async () => {
+    const generationRow = {
+      id: "gen-trace-1",
+      user_id: "user-1",
+      request_id: "req-trace-1",
+      status: "pending",
+      metadata: {
+        source_ref: "src-trace-1",
+      },
+      created_at: "2026-02-19T13:10:00.000Z",
+    };
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        switch (table) {
+          case "ai_generations":
+            return createQueryBuilder([generationRow]);
+          default:
+            return createQueryBuilder([]);
+        }
+      },
+    });
+
+    const req = { method: "GET", query: { traceId: "src-trace-1" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({ traceId: "src-trace-1" }),
+        summary: expect.objectContaining({
+          generations: 1,
+        }),
+      })
+    );
+  });
+
+  it("falls back when ai_generations recovery columns are missing", async () => {
+    const generationRow = {
+      id: "gen-fallback-1",
+      user_id: "user-1",
+      request_id: "req-fallback-1",
+      status: "success",
+      metadata: {},
+      created_at: "2026-02-19T13:20:00.000Z",
+    };
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        switch (table) {
+          case "ai_generations":
+            return createFallbackGenerationQueryBuilder([generationRow]);
+          default:
+            return createQueryBuilder([]);
+        }
+      },
+    });
+
+    const req = { method: "GET", query: { requestId: "req-fallback-1" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({ generations: 1 }),
+        warnings: expect.arrayContaining([
+          expect.stringContaining("fell back to legacy ai_generations fields"),
+        ]),
       })
     );
   });

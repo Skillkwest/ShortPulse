@@ -4,6 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { chargeGenerationRequest } from "./generationBilling";
 import { logGenerationFailure } from "./appErrorLogs";
+import { ensureSubmittedGenerationRecord } from "./generationSubmitPersistence";
 import type { SubmitTarget } from "../falIntegration/contracts";
 import { submitWithFallbackTargets } from "../falIntegration/submitEngine";
 
@@ -165,6 +166,32 @@ export const createFalSubmitHandler =
           upstream_target_url: upstreamResult.targetUrl,
           upstream_target_index: upstreamResult.targetIndex,
         });
+        const persistenceResult = await ensureSubmittedGenerationRecord({
+          userId: charge.userId,
+          modelId,
+          routeLabel,
+          payload,
+          providerRequestId,
+          sourceRef: charge.sourceRef,
+          submitTargetUrl: upstreamResult.targetUrl,
+          submitTargetIndex: upstreamResult.targetIndex,
+        });
+        if (!persistenceResult.ok) {
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "api.fal_submit.persist_generation_failed",
+            message: "Failed to persist ai_generations row after submit.",
+            statusCode: 500,
+            userId: charge.userId,
+            metadata: {
+              model_id: modelId,
+              provider_request_id: providerRequestId,
+              source_ref: charge.sourceRef,
+              persistence_error: persistenceResult.error,
+            },
+          });
+        }
       }
       return res.status(upstream.status).json(data);
     } catch (error) {

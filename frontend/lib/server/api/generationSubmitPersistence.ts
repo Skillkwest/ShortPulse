@@ -1,0 +1,236 @@
+import { getModelConfig } from "../../../features/ai-studio/logic/pricing";
+import { getSupabaseAdmin } from "./supabaseAdmin";
+
+type JsonObject = Record<string, unknown>;
+
+type GenerationMode = "image" | "video";
+
+type SubmitPersistenceInput = {
+  userId: string;
+  modelId: string;
+  routeLabel: string;
+  payload: JsonObject;
+  providerRequestId: string;
+  sourceRef: string;
+  submitTargetUrl: string;
+  submitTargetIndex: number;
+};
+
+type SubmitPersistenceResult =
+  | {
+      ok: true;
+      generationId: string | null;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+const asString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const asNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/[^\d.-]+/g, ""));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+};
+
+const asObject = (value: unknown): JsonObject | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as JsonObject;
+};
+
+const readDurationSeconds = (payload: JsonObject): number | null => {
+  const durationSeconds = asNumber(payload.duration_seconds);
+  if (durationSeconds !== null) return Math.max(1, Math.round(durationSeconds));
+  const duration = asNumber(payload.duration);
+  if (duration !== null) return Math.max(1, Math.round(duration));
+  return null;
+};
+
+const resolvePromptText = (routeLabel: string, payload: JsonObject): string => {
+  return (
+    asString(payload.prompt) ??
+    asString(payload.input) ??
+    asString(payload.description) ??
+    `${routeLabel} generation`
+  );
+};
+
+const resolveMode = (modelId: string, payload: JsonObject): GenerationMode => {
+  const config = getModelConfig(modelId);
+  if (config?.mediaType === "video" || config?.mediaType === "image-to-video") {
+    return "video";
+  }
+  if (config?.mediaType === "image" || config?.mediaType === "multi") {
+    return "image";
+  }
+
+  if (readDurationSeconds(payload) !== null) return "video";
+  const lowered = modelId.toLowerCase();
+  if (
+    lowered.includes("video") ||
+    lowered.includes("seedance") ||
+    lowered.includes("kling") ||
+    lowered.includes("veo") ||
+    lowered.includes("sora")
+  ) {
+    return "video";
+  }
+  return "image";
+};
+
+const readErrorCode = (error: unknown): string | null => {
+  if (!error || typeof error !== "object" || Array.isArray(error)) return null;
+  const raw = (error as Record<string, unknown>).code;
+  return typeof raw === "string" && raw.trim().length ? raw.trim() : null;
+};
+
+const lookupExistingGeneration = async ({
+  userId,
+  providerRequestId,
+}: {
+  userId: string;
+  providerRequestId: string;
+}) => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("ai_generations")
+    .select("id, status, metadata")
+    .eq("user_id", userId)
+    .eq("request_id", providerRequestId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  if (error) return { row: null, error };
+  const row =
+    Array.isArray(data) && data.length && data[0] && typeof data[0] === "object"
+      ? (data[0] as JsonObject)
+      : null;
+  return { row, error: null };
+};
+
+/**
+ * Ensures a durable ai_generations row exists as soon as submit returns request_id.
+ * This is server-authoritative and intentionally best-effort to avoid user-facing regressions.
+ */
+export const ensureSubmittedGenerationRecord = async (
+  input: SubmitPersistenceInput
+): Promise<SubmitPersistenceResult> => {
+  try {
+    const promptText = resolvePromptText(input.routeLabel, input.payload);
+    const mode = resolveMode(input.modelId, input.payload);
+    const durationSeconds = readDurationSeconds(input.payload);
+    const aspect = asString(input.payload.aspect_ratio) ?? asString(input.payload.aspect);
+    const resolution = asString(input.payload.resolution);
+    const payloadMetadata = asObject(input.payload.metadata) ?? {};
+
+    const metadataPatch: JsonObject = {
+      source_ref: input.sourceRef,
+      provider_request_id: input.providerRequestId,
+      route_label: input.routeLabel,
+      submit_target_url: input.submitTargetUrl,
+      submit_target_index: input.submitTargetIndex,
+      submission_trace_id: asString(payloadMetadata.submission_trace_id),
+      generation_trace_id: asString(payloadMetadata.generation_trace_id),
+      submit_persisted_at: new Date().toISOString(),
+      submit_payload_summary: {
+        aspect_ratio: asString(input.payload.aspect_ratio),
+        resolution,
+        duration: asString(input.payload.duration) ?? asNumber(input.payload.duration),
+        num_images: asNumber(input.payload.num_images),
+        has_image_url: Boolean(asString(input.payload.image_url)),
+        image_urls_count: Array.isArray(input.payload.image_urls)
+          ? input.payload.image_urls.length
+          : null,
+      },
+    };
+
+    const existingLookup = await lookupExistingGeneration({
+      userId: input.userId,
+      providerRequestId: input.providerRequestId,
+    });
+    if (existingLookup.error) {
+      return {
+        ok: false,
+        error: existingLookup.error.message ?? "existing_lookup_failed",
+      };
+    }
+
+    const supabaseAdmin = getSupabaseAdmin();
+    const existingRow = existingLookup.row;
+    if (existingRow) {
+      const existingId = asString(existingRow.id);
+      if (existingId) {
+        const nextMetadata = {
+          ...(asObject(existingRow.metadata) ?? {}),
+          ...metadataPatch,
+        };
+        const { error } = await supabaseAdmin
+          .from("ai_generations")
+          .update({
+            mode,
+            provider: "fal",
+            model_id: input.modelId,
+            request_id: input.providerRequestId,
+            metadata: nextMetadata,
+          })
+          .eq("id", existingId)
+          .eq("user_id", input.userId);
+        if (error) {
+          return {
+            ok: false,
+            error: error.message ?? "update_existing_generation_failed",
+          };
+        }
+        return { ok: true, generationId: existingId };
+      }
+    }
+
+    const insertPayload = {
+      user_id: input.userId,
+      mode,
+      provider: "fal",
+      model_id: input.modelId,
+      prompt_text: promptText,
+      aspect: aspect ?? null,
+      duration_seconds: durationSeconds,
+      resolution: resolution ?? null,
+      request_id: input.providerRequestId,
+      status: "pending",
+      metadata: metadataPatch,
+    };
+    const { data, error } = await supabaseAdmin
+      .from("ai_generations")
+      .insert(insertPayload)
+      .select("id")
+      .single();
+
+    if (error) {
+      if (readErrorCode(error) === "23505") {
+        const postInsertLookup = await lookupExistingGeneration({
+          userId: input.userId,
+          providerRequestId: input.providerRequestId,
+        });
+        const existingId = asString(postInsertLookup.row?.id);
+        if (existingId) return { ok: true, generationId: existingId };
+      }
+      return {
+        ok: false,
+        error: error.message ?? "insert_generation_failed",
+      };
+    }
+
+    return { ok: true, generationId: asString((data as { id?: unknown } | null)?.id) };
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error),
+    };
+  }
+};

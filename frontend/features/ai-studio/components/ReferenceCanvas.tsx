@@ -400,6 +400,7 @@ const getReferencePasteSurfaces = (panelNode: HTMLDivElement): HTMLElement[] => 
 
 const isNodeInsideAnySurface = (targetNode: Node | null, surfaces: HTMLElement[]): boolean =>
   Boolean(targetNode && surfaces.some((surface) => surface.contains(targetNode)));
+const EMPTY_OUTPUTS: StudioOutput[] = [];
 
 const areOutputListsEqual = (left: StudioOutput[], right: StudioOutput[]) => {
   if (left === right) return true;
@@ -846,20 +847,18 @@ export function ReferenceCanvas({
   generateCostCredits,
 }: ReferenceCanvasProps) {
   type CanvasDropMode = "none" | "text" | "files";
-  const selectorOutputs = useOutputSelector(
-    (snapshot) =>
-      snapshot.outputOrder
-        .map((id) => snapshot.outputById[id])
-        .filter((item): item is StudioOutput => Boolean(item)),
-    areOutputListsEqual
-  );
-  const selectorArchivedOutputs = useOutputSelector(
-    (snapshot) =>
-      snapshot.archivedOutputOrder
-        .map((id) => snapshot.archivedOutputById[id])
-        .filter((item): item is StudioOutput => Boolean(item)),
-    areOutputListsEqual
-  );
+  const selectorOutputs = useOutputSelector((snapshot) => {
+    if (outputsProp) return EMPTY_OUTPUTS;
+    return snapshot.outputOrder
+      .map((id) => snapshot.outputById[id])
+      .filter((item): item is StudioOutput => Boolean(item));
+  }, areOutputListsEqual);
+  const selectorArchivedOutputs = useOutputSelector((snapshot) => {
+    if (archivedOutputsProp) return EMPTY_OUTPUTS;
+    return snapshot.archivedOutputOrder
+      .map((id) => snapshot.archivedOutputById[id])
+      .filter((item): item is StudioOutput => Boolean(item));
+  }, areOutputListsEqual);
   const allOutputs = outputsProp ?? selectorOutputs;
   const archivedOutputs = archivedOutputsProp ?? selectorArchivedOutputs;
   const outputs = React.useMemo(

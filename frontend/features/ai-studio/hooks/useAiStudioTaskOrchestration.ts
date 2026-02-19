@@ -258,6 +258,7 @@ export const useAiStudioTaskOrchestration = ({
 
   const { startPollingTask, clearPollTimer, pollTimersRef } = useAiStudioTasks({
     updateOutputById,
+    findOutputById,
     notifyGenerationFailure,
     onGenerationSuccess: handleGenerationSuccess,
     onGenerationFailure: handleGenerationFailure,

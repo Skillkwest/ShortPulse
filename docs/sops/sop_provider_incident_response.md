@@ -16,6 +16,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 - Supabase SQL access for read diagnostics.
 - Access to deployment logs for API routes.
 - Current env verification: `FAL_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`.
+- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`.
 
 ## Triage workflow (first 15 minutes)
 1. Confirm incident scope in `/admin`:
@@ -38,6 +39,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 Primary signals:
 - `source = api.exception` with routes under `/api/fal/*`.
 - User-visible generation errors or stuck pending tasks.
+- Recovery backlog growth (`terminal_success_no_media`, stale running, or failed persist).
 
 Checks:
 ```sql
@@ -60,6 +62,25 @@ Mitigation guidance:
 1. Confirm submit path rejects are auto-refunded by checking reservation state transitions (`reserved` -> `released`).
 2. Confirm completed runs capture (`reserved` -> `captured`) and create a ledger debit.
 3. If one model endpoint is degraded, temporarily remove that model from UI selection until provider recovers.
+
+Fal reliability rollout controls (when enabled):
+1. Confirm mode and model gating:
+   - `SHORTPULSE_FAL_INTEGRATION_MODE=legacy|shadow|on`
+   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST`
+2. If incident severity requires immediate containment, set mode to `legacy` (global kill switch).
+3. If recovery lag is accumulating, run one protected reconciler pass via `/api/internal/generation-recovery/run` and inspect replay outcomes.
+4. For exhausted/edge cases, use admin replay (`/api/admin/generation-recovery/replay`) or card rebuild (`/api/admin/generation-recovery/rebuild-card`).
+
+Failure-code action map (Fal reliability rollout):
+| `failure_reason_code` | Primary action |
+| --- | --- |
+| `status_alias_retryable` / `result_alias_retryable` | Keep polling/retrieval retries active; verify alias sweep behavior for the model profile. |
+| `terminal_success_no_media` | Queue for reconciler retry; replay manually if age exceeds SLA. |
+| `status_poll_error` / `provider_error` | Check provider health and route exceptions; consider temporary model disable. |
+| `persist_upload_error` / `persist_insert_error` | Validate storage + DB availability; replay persistence after correction. |
+| `payload_drift_detected` | Compare payload against fixtures and update adapter/profile parsing safely. |
+| `circuit_breaker_open` | Keep model paused until failure ratio drops below threshold and smoke tests pass. |
+| `recovery_exhausted` | Use admin replay path and escalate to engineering incident review. |
 
 ### OpenAI prompt/agent failures
 Primary signals:
@@ -115,6 +136,25 @@ Mitigation guidance:
 2. Run one prompt refine and one image describe call.
 3. Trigger one billing action (checkout or portal).
 4. Verify no new high-severity incidents are opening for the affected endpoints.
+
+## Reconciler and replay runbook (Fal reliability rollout)
+1. Candidate classes:
+   - `terminal_success_no_media`
+   - stale `running` beyond model wall-time budget
+   - `failed_persist` eligible for retry
+2. Reconciler invocation:
+   - Route: `POST /api/internal/generation-recovery/run`
+   - Auth: `x-shortpulse-cron-secret` (matches `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`)
+3. Replay invocation:
+   - Route: `POST /api/admin/generation-recovery/replay`
+   - Inputs: `generationId` or `requestId`
+4. Rebuild-card invocation:
+   - Route: `POST /api/admin/generation-recovery/rebuild-card`
+   - Use only when media is already persisted and provider calls are unnecessary.
+5. Success criteria:
+   - Recovery success rate for no-media terminal states stays above 99%.
+   - Unresolved `terminal_success_no_media` older than 30 minutes remains below 0.1%.
+   - Billing reservation/capture/refund invariants remain unchanged.
 
 ## Post-incident requirements
 1. Record incident summary and fix in `docs/change_log.md`.

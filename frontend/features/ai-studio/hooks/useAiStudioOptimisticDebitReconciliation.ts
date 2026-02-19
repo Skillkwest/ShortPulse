@@ -31,6 +31,8 @@ type UseAiStudioOptimisticDebitReconciliationParams = {
 };
 
 type ReconciliationOutputLite = Pick<StudioOutput, "id" | "taskId" | "taskState" | "errorMessage">;
+const EMPTY_OUTPUTS: StudioOutput[] = [];
+const EMPTY_OUTPUT_LITE: ReconciliationOutputLite[] = [];
 
 const areOutputLiteListsEqual = (
   left: ReconciliationOutputLite[],
@@ -59,27 +61,28 @@ export const useAiStudioOptimisticDebitReconciliation = ({
   setDetailOutputId,
 }: UseAiStudioOptimisticDebitReconciliationParams) => {
   const selectorOutputs = useOutputSelector(
-    (snapshot) =>
-      snapshot.outputOrder
+    (snapshot) => {
+      if (outputsOverride) return EMPTY_OUTPUTS;
+      return snapshot.outputOrder
         .map((id) => snapshot.outputById[id])
-        .filter((item): item is StudioOutput => Boolean(item)),
+        .filter((item): item is StudioOutput => Boolean(item));
+    },
     (left, right) =>
       left.length === right.length && left.every((item, index) => item === right[index])
   );
   const outputs = outputsOverride ?? selectorOutputs;
-  const outputLite = useOutputSelector(
-    (snapshot) =>
-      snapshot.outputOrder
-        .map((id) => snapshot.outputById[id])
-        .filter((item): item is StudioOutput => Boolean(item))
-        .map((item) => ({
-          id: item.id,
-          taskId: item.taskId,
-          taskState: item.taskState,
-          errorMessage: item.errorMessage ?? null,
-        })),
-    areOutputLiteListsEqual
-  );
+  const outputLite = useOutputSelector((snapshot) => {
+    if (outputsOverride) return EMPTY_OUTPUT_LITE;
+    return snapshot.outputOrder
+      .map((id) => snapshot.outputById[id])
+      .filter((item): item is StudioOutput => Boolean(item))
+      .map((item) => ({
+        id: item.id,
+        taskId: item.taskId,
+        taskState: item.taskState,
+        errorMessage: item.errorMessage ?? null,
+      }));
+  }, areOutputLiteListsEqual);
   const effectiveOutputLite = outputsOverride
     ? outputs.map((item) => ({
         id: item.id,

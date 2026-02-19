@@ -108,6 +108,7 @@ Start here for all repository documentation.
 - `docs/planning/mvp-ui-ux-phase0-baseline-qa-checklist.md`
 - `docs/planning/mvp-ui-ux-phase0-baseline-capture-template.md`
 - `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
+- `docs/planning/ai-studio-fal-reliability-rollout.md`
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
 - `docs/planning/ai-studio-agent-pipeline-hardening-plan.md`
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
@@ -139,6 +140,8 @@ Start here for all repository documentation.
 - `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`
 - `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`
 - `docs/adr/0017-ai-studio-curated-reference-split-grid.md`
+- `docs/adr/0018-adaptive-media-v2-modular-policy-and-surface-adapters.md`
+- `docs/adr/0019-fal-modular-submit-retrieval-reliability.md`
 
 ## Archive
 - `docs/archive/README.md`

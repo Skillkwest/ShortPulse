@@ -10,6 +10,19 @@ import {
   resolveProviderRequestOwnership,
   settleFailedGenerationByProviderRequest,
 } from "./generationBilling";
+import {
+  asString,
+  extractResponseUrl,
+  findContentPolicyMessage,
+  hasMediaPayload,
+  normalizeStatus,
+  toRecord,
+} from "../falIntegration/falAdapter";
+import {
+  selectBestResultCandidate,
+  selectBestStatusCandidate,
+} from "../falIntegration/retrievalEngine";
+import type { ResultProbeCandidate, StatusProbeCandidate } from "../falIntegration/contracts";
 
 type FalStatusConfig = {
   queueBaseUrl: string | string[];
@@ -29,36 +42,6 @@ type JsonReadResult = {
 const completedStatuses = new Set(["completed", "succeeded", "success", "done"]);
 const failedStatuses = new Set(["failed", "error", "cancelled", "canceled"]);
 
-const asString = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : null;
-};
-
-const toRecord = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-
-const hasUrlArray = (value: unknown): boolean =>
-  Array.isArray(value) &&
-  value.some((item) => {
-    if (typeof item === "string") return Boolean(asString(item));
-    const record = toRecord(item);
-    return Boolean(
-      asString(record.url) ||
-      asString(record.download_url) ||
-      asString(record.video_url) ||
-      asString(record.image_url) ||
-      asString(record.file_url)
-    );
-  });
-
-const normalizeStatus = (value: unknown): string | null => {
-  const text = asString(value);
-  return text ? text.toLowerCase() : null;
-};
-
 const resolveSuccessfulPayloadStatus = (...candidates: unknown[]): string => {
   for (const candidate of candidates) {
     const normalized = normalizeStatus(candidate);
@@ -77,91 +60,6 @@ const readJsonSafe = async (response: Response): Promise<JsonReadResult> => {
   } catch {
     return { json: { raw: text.slice(0, 4000) }, text, isJson: false };
   }
-};
-
-const findContentPolicyMessage = (payload: JsonObject): string | null => {
-  const detail = payload.detail;
-  if (!Array.isArray(detail)) return null;
-  const violation = detail.find((item) => {
-    const row = toRecord(item);
-    return row.type === "content_policy_violation";
-  });
-  const message = asString(toRecord(violation).msg);
-  return message ?? null;
-};
-
-const hasMediaPayload = (payload: JsonObject): boolean => {
-  const data = toRecord(payload.data);
-  const output = toRecord(payload.output);
-  const result = toRecord(payload.result);
-  const response = toRecord(payload.response);
-  const candidates = [
-    payload,
-    data,
-    output,
-    result,
-    response,
-    toRecord(data.result),
-    toRecord(result.data),
-    toRecord(response.result),
-  ].filter((item) => Object.keys(item).length > 0);
-
-  for (const candidate of candidates) {
-    if (hasUrlArray(candidate.images)) return true;
-    if (hasUrlArray(candidate.videos)) return true;
-    if (hasUrlArray(candidate.outputs)) return true;
-    if (hasUrlArray(candidate.artifacts)) return true;
-    const urls =
-      candidate.resultUrls ??
-      candidate.result_urls ??
-      candidate.image_urls ??
-      candidate.video_urls ??
-      toRecord(candidate.info).result_urls;
-    if (hasUrlArray(urls)) return true;
-    const mediaUrl =
-      asString(candidate.url) ||
-      asString(candidate.video) ||
-      asString(candidate.image) ||
-      asString(toRecord(candidate.video).url) ||
-      asString(toRecord(candidate.image).url) ||
-      asString(candidate.video_url) ||
-      asString(candidate.image_url) ||
-      asString(toRecord(toRecord(candidate.assets).video).url) ||
-      asString(toRecord(toRecord(candidate.assets).image).url) ||
-      asString(toRecord(toRecord(candidate.assets).video).download_url) ||
-      asString(toRecord(toRecord(candidate.assets).image).download_url) ||
-      asString(candidate.file_url) ||
-      asString(candidate.media_url) ||
-      asString(candidate.download_url);
-    if (mediaUrl) return true;
-  }
-
-  return false;
-};
-
-const extractResponseUrl = (payload: JsonObject): string | null => {
-  const data = toRecord(payload.data);
-  const output = toRecord(payload.output);
-  const result = toRecord(payload.result);
-  const response = toRecord(payload.response);
-  const candidates = [
-    payload,
-    data,
-    output,
-    result,
-    response,
-    toRecord(data.result),
-    toRecord(result.data),
-    toRecord(response.result),
-  ];
-  for (const candidate of candidates) {
-    const responseUrl =
-      asString(candidate.response_url) ||
-      asString(candidate.responseUrl) ||
-      asString(toRecord(candidate.response).url);
-    if (responseUrl) return responseUrl;
-  }
-  return null;
 };
 
 const buildErrorPayload = ({
@@ -338,10 +236,18 @@ export const createFalStatusHandler = ({
     try {
       let statusResp: Response | null = null;
       let statusData: JsonReadResult | null = null;
-      let retryableStatusResp: Response | null = null;
-      let retryableStatusData: JsonReadResult | null = null;
       let resolvedQueueBaseUrl: string | null = null;
-      let sawRetryableAliasAfterPrimaryCandidate = false;
+      const statusResponseUrls = new Set<string>();
+      const statusCandidates: Array<{
+        probe: StatusProbeCandidate;
+        response: Response;
+        data: JsonReadResult;
+      }> = [];
+      const retryableStatusCandidates: Array<{
+        probe: StatusProbeCandidate;
+        response: Response;
+        data: JsonReadResult;
+      }> = [];
 
       const captureAndRespondSuccess = async ({
         payload,
@@ -376,6 +282,40 @@ export const createFalStatusHandler = ({
         });
       };
 
+      const probeResponseUrlsForMedia = async ({
+        responseUrls,
+        statusHint,
+      }: {
+        responseUrls: string[];
+        statusHint: string | null;
+      }): Promise<{ payload: JsonObject; payloadStatus: string } | null> => {
+        for (const responseUrl of responseUrls) {
+          const responseProbe = await fetch(responseUrl, {
+            method: "GET",
+            headers: { Authorization: `Key ${apiKey}` },
+            signal: controller.signal,
+          });
+          const responseProbeData = await readJsonSafe(responseProbe);
+          if (
+            !responseProbe.ok ||
+            !responseProbeData.isJson ||
+            !hasMediaPayload(responseProbeData.json)
+          ) {
+            continue;
+          }
+          const probeStatus = resolveSuccessfulPayloadStatus(
+            responseProbeData.json.status,
+            toRecord(responseProbeData.json).state,
+            statusHint
+          );
+          return {
+            payload: responseProbeData.json,
+            payloadStatus: probeStatus,
+          };
+        }
+        return null;
+      };
+
       for (const [index, baseUrl] of queueBaseUrls.entries()) {
         const response = await fetch(`${baseUrl}/${requestId}/status`, {
           method: "GET",
@@ -383,45 +323,57 @@ export const createFalStatusHandler = ({
           signal: controller.signal,
         });
         const data = await readJsonSafe(response);
-        const canRetryOnAlternateBase =
-          !data.isJson || response.status === 404 || response.status === 405;
-
-        if (canRetryOnAlternateBase) {
-          if (!statusResp) {
-            retryableStatusResp = response;
-            retryableStatusData = data;
-          } else {
-            sawRetryableAliasAfterPrimaryCandidate = true;
-            // Keep the primary candidate and avoid downgrading to retryable alias responses.
-            break;
-          }
-          continue;
-        }
-
-        statusResp = response;
-        statusData = data;
-        resolvedQueueBaseUrl = baseUrl;
-        const hasMoreBaseUrls = index < queueBaseUrls.length - 1;
-        const candidateStatus =
-          normalizeStatus(data.json.status) ?? normalizeStatus(toRecord(data.json).state);
-        const isCandidateTerminal = Boolean(
-          candidateStatus &&
-          (completedStatuses.has(candidateStatus) || failedStatuses.has(candidateStatus))
+        const candidateStatus = data.isJson
+          ? (normalizeStatus(data.json.status) ?? normalizeStatus(toRecord(data.json).state))
+          : null;
+        const isCandidateCompleted = Boolean(
+          candidateStatus && completedStatuses.has(candidateStatus)
         );
-        const hasCandidateResponseUrl = Boolean(extractResponseUrl(data.json));
-
-        // Some Fal aliases lag behind others. When this base is still non-terminal and
-        // has no response URL yet, keep probing alternate bases before settling.
-        if (hasMoreBaseUrls && !isCandidateTerminal && !hasCandidateResponseUrl) {
+        const isCandidateFailed = Boolean(candidateStatus && failedStatuses.has(candidateStatus));
+        const probe: StatusProbeCandidate = {
+          index,
+          baseUrl,
+          isJson: data.isJson,
+          isRetryableAlias: !data.isJson || response.status === 404 || response.status === 405,
+          httpStatus: response.status,
+          isHttpOk: response.ok,
+          status: candidateStatus,
+          isTerminal: isCandidateCompleted || isCandidateFailed,
+          isCompleted: isCandidateCompleted,
+          isFailed: isCandidateFailed,
+          hasResponseUrl: data.isJson ? Boolean(extractResponseUrl(data.json)) : false,
+          hasMedia: data.isJson ? hasMediaPayload(data.json) : false,
+        };
+        const responseUrl = data.isJson ? extractResponseUrl(data.json) : null;
+        if (responseUrl) {
+          statusResponseUrls.add(responseUrl);
+        }
+        if (probe.isRetryableAlias) {
+          retryableStatusCandidates.push({ probe, response, data });
           continue;
         }
-
-        break;
+        statusCandidates.push({ probe, response, data });
       }
 
-      if (!statusResp && retryableStatusResp && retryableStatusData) {
-        statusResp = retryableStatusResp;
-        statusData = retryableStatusData;
+      if (statusCandidates.length) {
+        const bestStatusProbe = selectBestStatusCandidate(
+          statusCandidates.map((candidate) => candidate.probe)
+        );
+        const bestStatusCandidate =
+          bestStatusProbe &&
+          statusCandidates.find((candidate) => candidate.probe.index === bestStatusProbe.index);
+        if (bestStatusCandidate) {
+          statusResp = bestStatusCandidate.response;
+          statusData = bestStatusCandidate.data;
+          resolvedQueueBaseUrl = bestStatusCandidate.probe.baseUrl;
+        }
+      }
+
+      if (!statusResp && retryableStatusCandidates.length) {
+        const fallbackCandidate = retryableStatusCandidates[0];
+        statusResp = fallbackCandidate.response;
+        statusData = fallbackCandidate.data;
+        resolvedQueueBaseUrl = fallbackCandidate.probe.baseUrl;
       }
 
       if (!statusResp || !statusData) {
@@ -436,6 +388,19 @@ export const createFalStatusHandler = ({
 
       if (!resolvedQueueBaseUrl) {
         resolvedQueueBaseUrl = queueBaseUrls[0] ?? null;
+      }
+
+      const bestStatusMediaCandidate = statusCandidates.find(
+        (candidate) => candidate.probe.isHttpOk && candidate.probe.hasMedia && candidate.data.isJson
+      );
+      if (bestStatusMediaCandidate) {
+        return captureAndRespondSuccess({
+          payload: bestStatusMediaCandidate.data.json,
+          payloadStatus: resolveSuccessfulPayloadStatus(
+            bestStatusMediaCandidate.probe.status,
+            toRecord(bestStatusMediaCandidate.data.json).state
+          ),
+        });
       }
 
       const orderedResultBases = [
@@ -489,6 +454,13 @@ export const createFalStatusHandler = ({
 
       const normalizedStatus =
         normalizeStatus(statusData.json.status) ?? normalizeStatus(toRecord(statusData.json).state);
+      const preferredResponseUrl = extractResponseUrl(statusData.json);
+      const orderedResponseUrls = preferredResponseUrl
+        ? [
+            preferredResponseUrl,
+            ...Array.from(statusResponseUrls).filter((url) => url !== preferredResponseUrl),
+          ]
+        : Array.from(statusResponseUrls);
       if (normalizedStatus && failedStatuses.has(normalizedStatus)) {
         await settleFailure({
           userId: user.id,
@@ -542,28 +514,12 @@ export const createFalStatusHandler = ({
 
       const isComplete = Boolean(normalizedStatus && completedStatuses.has(normalizedStatus));
       if (!isComplete) {
-        if (sawRetryableAliasAfterPrimaryCandidate) {
-          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
-        }
-
-        const responseUrl = extractResponseUrl(statusData.json);
-        if (responseUrl) {
-          const responseProbe = await fetch(responseUrl, {
-            method: "GET",
-            headers: { Authorization: `Key ${apiKey}` },
-            signal: controller.signal,
-          });
-          const responseProbeData = await readJsonSafe(responseProbe);
-          if (
-            responseProbe.ok &&
-            responseProbeData.isJson &&
-            hasMediaPayload(responseProbeData.json)
-          ) {
-            return captureAndRespondSuccess({
-              payload: responseProbeData.json,
-              payloadStatus: "completed",
-            });
-          }
+        const responseUrlProbe = await probeResponseUrlsForMedia({
+          responseUrls: orderedResponseUrls,
+          statusHint: normalizedStatus,
+        });
+        if (responseUrlProbe) {
+          return captureAndRespondSuccess(responseUrlProbe);
         }
 
         // Probe direct result endpoints as a fallback when status is lagging.
@@ -597,69 +553,82 @@ export const createFalStatusHandler = ({
 
       let resultResp: Response | null = null;
       let resultData: JsonReadResult | null = null;
-      let allResultProbesRetryable = true;
-      const responseUrl = extractResponseUrl(statusData.json);
-      if (responseUrl) {
-        const responseProbe = await fetch(responseUrl, {
-          method: "GET",
-          headers: { Authorization: `Key ${apiKey}` },
-          signal: controller.signal,
-        });
-        const responseProbeData = await readJsonSafe(responseProbe);
-        if (
-          responseProbe.ok &&
-          responseProbeData.isJson &&
-          hasMediaPayload(responseProbeData.json)
-        ) {
-          const probeStatus = resolveSuccessfulPayloadStatus(
-            responseProbeData.json.status,
-            toRecord(responseProbeData.json).state,
-            normalizedStatus
-          );
-          return captureAndRespondSuccess({
-            payload: responseProbeData.json,
-            payloadStatus: probeStatus,
-          });
-        }
+      const resultCandidates: Array<{
+        probe: ResultProbeCandidate;
+        response: Response;
+        data: JsonReadResult;
+      }> = [];
+      const retryableResultCandidates: Array<{
+        probe: ResultProbeCandidate;
+        response: Response;
+        data: JsonReadResult;
+      }> = [];
+      const responseUrlProbe = await probeResponseUrlsForMedia({
+        responseUrls: orderedResponseUrls,
+        statusHint: normalizedStatus,
+      });
+      if (responseUrlProbe) {
+        return captureAndRespondSuccess(responseUrlProbe);
       }
 
-      for (const baseUrl of orderedResultBases) {
+      for (const [index, baseUrl] of orderedResultBases.entries()) {
         const response = await fetch(`${baseUrl}/${requestId}`, {
           method: "GET",
           headers: { Authorization: `Key ${apiKey}` },
           signal: controller.signal,
         });
         const data = await readJsonSafe(response);
-        const canRetryOnAlternateBase =
-          !data.isJson || response.status === 404 || response.status === 405;
-
-        if (canRetryOnAlternateBase) {
-          resultResp = response;
-          resultData = data;
-          // Retryable probes should not force a terminal error; let polling continue.
-          break;
-        }
-        allResultProbesRetryable = false;
-
-        const candidateStatus =
-          normalizeStatus(data.json.status) ?? normalizeStatus(toRecord(data.json).state);
-        const candidateHasError =
-          candidateStatus === "error" ||
-          candidateStatus === "failed" ||
-          Boolean(asString(data.json.error));
-        const candidateHasMedia = hasMediaPayload(data.json);
-
-        // Probe alternates before declaring no-media failure. Queue aliases can disagree
-        // transiently, and another base often has the completed payload.
-        if (!candidateHasError && !candidateHasMedia) {
-          resultResp = response;
-          resultData = data;
+        const candidateStatus = data.isJson
+          ? (normalizeStatus(data.json.status) ?? normalizeStatus(toRecord(data.json).state))
+          : null;
+        const candidateHasError = data.isJson
+          ? candidateStatus === "error" ||
+            candidateStatus === "failed" ||
+            Boolean(asString(data.json.error))
+          : false;
+        const probe: ResultProbeCandidate = {
+          index,
+          baseUrl,
+          isJson: data.isJson,
+          isRetryableAlias: !data.isJson || response.status === 404 || response.status === 405,
+          httpStatus: response.status,
+          isHttpOk: response.ok,
+          status: candidateStatus,
+          hasError: candidateHasError,
+          hasMedia: data.isJson ? hasMediaPayload(data.json) : false,
+        };
+        if (probe.isRetryableAlias) {
+          retryableResultCandidates.push({ probe, response, data });
           continue;
         }
+        resultCandidates.push({ probe, response, data });
+      }
 
-        resultResp = response;
-        resultData = data;
-        break;
+      if (!resultCandidates.length && !retryableResultCandidates.length) {
+        return respondErrorWithLogging({
+          requestId,
+          error: `${routeLabel} result request failed`,
+          statusCode: 500,
+          source: "api.fal_status.result_request_failed",
+          stage: "result",
+        });
+      }
+
+      // Treat a full sweep of retryable responses (404/405/non-JSON across aliases) as
+      // transient so polling can continue instead of settling terminal failure.
+      if (!resultCandidates.length) {
+        return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
+      }
+
+      const bestResultProbe = selectBestResultCandidate(
+        resultCandidates.map((candidate) => candidate.probe)
+      );
+      const bestResultCandidate =
+        bestResultProbe &&
+        resultCandidates.find((candidate) => candidate.probe.index === bestResultProbe.index);
+      if (bestResultCandidate) {
+        resultResp = bestResultCandidate.response;
+        resultData = bestResultCandidate.data;
       }
 
       if (!resultResp || !resultData) {
@@ -670,12 +639,6 @@ export const createFalStatusHandler = ({
           source: "api.fal_status.result_request_failed",
           stage: "result",
         });
-      }
-
-      // Treat a full sweep of retryable responses (404/405/non-JSON across aliases)
-      // as transient so polling can continue instead of settling terminal failure.
-      if (allResultProbesRetryable) {
-        return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
       }
 
       if (!resultData.isJson) {

@@ -3,16 +3,20 @@ import handler from "../../pages/api/fal/status";
 
 const requireApiUserMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
+const captureSucceededGenerationByProviderRequestMock = vi.fn();
+const settleFailedGenerationByProviderRequestMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
 }));
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
-  captureSucceededGenerationByProviderRequest: vi.fn(),
+  captureSucceededGenerationByProviderRequest: (...args: unknown[]) =>
+    captureSucceededGenerationByProviderRequestMock(...args),
   resolveProviderRequestOwnership: (...args: unknown[]) =>
     resolveProviderRequestOwnershipMock(...args),
-  settleFailedGenerationByProviderRequest: vi.fn(),
+  settleFailedGenerationByProviderRequest: (...args: unknown[]) =>
+    settleFailedGenerationByProviderRequestMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -37,6 +41,14 @@ describe("POST /api/fal/status ownership", () => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
+    captureSucceededGenerationByProviderRequestMock.mockResolvedValue({
+      settled: true,
+      note: "captured",
+    });
+    settleFailedGenerationByProviderRequestMock.mockResolvedValue({
+      settled: true,
+      note: "released",
+    });
   });
 
   it("returns 403 when request ownership cannot be proven", async () => {
@@ -71,6 +83,18 @@ describe("POST /api/fal/status ownership", () => {
         body: { error: "Not found" },
       })
     );
+    fetchMock.mockResolvedValueOnce(
+      mockFetchResponse({
+        status: 404,
+        body: { error: "Not found" },
+      })
+    );
+    fetchMock.mockResolvedValueOnce(
+      mockFetchResponse({
+        status: 404,
+        body: { error: "Not found" },
+      })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const req = {
@@ -83,6 +107,6 @@ describe("POST /api/fal/status ownership", () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ status: "processing" });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

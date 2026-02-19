@@ -100,11 +100,18 @@ If enabling stricter Character Manager media integrity (source/path/metadata + c
 17. `sql/migrations/011_add_character_description_to_characters.sql`
 18. `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`
 
+If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconciler), also apply:
+
+19. `sql/migrations/019_add_generation_recovery_fields.sql`
+20. Rollback file: `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
+
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
   `column reference "source_ref" is ambiguous` failures in reservation-mode Fal submit paths.
 - Migration `014_harden_generation_reservation_rpc_security.sql` is required to enforce
   reservation RPC caller binding + execute grant hardening.
+- Migration `019_add_generation_recovery_fields.sql` adds minimal recovery-state durability
+  (`failure_reason_code`, `recovery_state`, retry timing fields, and reconciler indexes) without a new attempts table in v1.
 
 ## Media storage scope verification (post-017)
 

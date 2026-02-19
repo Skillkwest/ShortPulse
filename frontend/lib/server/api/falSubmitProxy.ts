@@ -4,10 +4,13 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { chargeGenerationRequest } from "./generationBilling";
 import { logGenerationFailure } from "./appErrorLogs";
+import type { SubmitTarget } from "../falIntegration/contracts";
+import { submitWithFallbackTargets } from "../falIntegration/submitEngine";
 
 type FalSubmitConfig = {
   modelId: string;
-  submitUrl: string;
+  submitUrl?: string;
+  submitTargets?: SubmitTarget[];
   routeLabel: string;
   timeoutMs?: number;
   validatePayload?: (payload: Record<string, unknown>) => {
@@ -17,16 +20,6 @@ type FalSubmitConfig = {
 };
 
 type JsonValue = Record<string, unknown>;
-
-const readJsonSafe = async (response: Response): Promise<JsonValue> => {
-  const text = await response.text();
-  if (!text) return {};
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { error: "Non-JSON response from Fal", raw: text.slice(0, 4000) };
-  }
-};
 
 const readProviderRequestId = (payload: JsonValue): string | null => {
   const requestId = payload?.request_id ?? payload?.requestId;
@@ -39,7 +32,14 @@ const readProviderRequestId = (payload: JsonValue): string | null => {
  * Builds a Next.js API handler that debits credits before forwarding to Fal.
  */
 export const createFalSubmitHandler =
-  ({ modelId, submitUrl, routeLabel, timeoutMs = 20000, validatePayload }: FalSubmitConfig) =>
+  ({
+    modelId,
+    submitUrl,
+    submitTargets,
+    routeLabel,
+    timeoutMs = 20000,
+    validatePayload,
+  }: FalSubmitConfig) =>
   async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
@@ -87,24 +87,37 @@ export const createFalSubmitHandler =
     });
     if (!charge) return;
 
+    const resolvedSubmitTargets: SubmitTarget[] =
+      submitTargets && submitTargets.length ? submitTargets : submitUrl ? [{ submitUrl }] : [];
+    if (!resolvedSubmitTargets.length) {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_submit.config_missing_target",
+        message: "No Fal submit target configured for route",
+        statusCode: 500,
+        metadata: { model_id: modelId },
+      });
+      return res.status(500).json({ error: "No Fal submit target configured for route" });
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const upstream = await fetch(submitUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Key ${apiKey}`,
-        },
-        body: JSON.stringify(payload),
+      const upstreamResult = await submitWithFallbackTargets({
+        targets: resolvedSubmitTargets,
+        payload,
+        apiKey,
         signal: controller.signal,
       });
+      const upstream = upstreamResult.response;
+      const data = upstreamResult.data;
 
-      const data = await readJsonSafe(upstream);
       if (!upstream.ok) {
         await charge.refund("Auto-refund: Fal submit rejected.", {
           upstream_status: upstream.status,
           upstream_error: data,
+          upstream_target_url: upstreamResult.targetUrl,
         });
         await logGenerationFailure({
           req,
@@ -119,6 +132,8 @@ export const createFalSubmitHandler =
           metadata: {
             model_id: modelId,
             upstream_payload: data,
+            upstream_target_url: upstreamResult.targetUrl,
+            upstream_target_index: upstreamResult.targetIndex,
           },
         });
       } else {
@@ -147,6 +162,8 @@ export const createFalSubmitHandler =
         await charge.markSubmitted(providerRequestId, {
           route: req.url ?? null,
           upstream_status: upstream.status,
+          upstream_target_url: upstreamResult.targetUrl,
+          upstream_target_index: upstreamResult.targetIndex,
         });
       }
       return res.status(upstream.status).json(data);

@@ -12,3 +12,6 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 2. Fill it out succinctly (1–2 pages is ideal).
 3. Link it from `docs/README.md` if it changes how people work.
 
+## Latest ADRs
+- `docs/adr/0018-adaptive-media-v2-modular-policy-and-surface-adapters.md`
+- `docs/adr/0019-fal-modular-submit-retrieval-reliability.md`

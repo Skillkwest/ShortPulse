@@ -131,10 +131,20 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `request_id` (text, nullable)
 - `status` (text, default `pending`): pending | running | success | fail.
 - `error_message` (text, nullable)
+- `failure_reason_code` (text, nullable): Normalized failure code for retrieval/persist/recovery incidents.
+- `recovery_state` (text, not null, default `none`): none | queued | recovering | recovered | exhausted.
+- `recovery_attempts` (int, not null, default `0`): Number of automated/manual recovery attempts.
+- `last_recovery_at` (timestamptz, nullable): Last recovery attempt timestamp.
+- `next_recovery_at` (timestamptz, nullable): Next reconciler eligibility timestamp.
+- `last_media_detected_at` (timestamptz, nullable): Last timestamp where provider media was observed.
 - `created_at` (timestamptz, default now)
 - `completed_at` (timestamptz, nullable)
-- `metadata` (jsonb, default `{}`): Provider payload summary.
+- `metadata` (jsonb, default `{}`): Provider payload summary plus compact retrieval/recovery probe trace snapshots.
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Constraints and indexes:
+  - `ai_generations_recovery_state_check` enforces `recovery_state` enum values.
+  - Unique partial index on `(user_id, request_id)` where `request_id is not null`.
+  - Reconciler scan index on `(recovery_state, next_recovery_at, created_at)`.
 
 ### media_events
 - `id` (uuid, pk, default `gen_random_uuid()`)

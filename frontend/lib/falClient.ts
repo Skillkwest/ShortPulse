@@ -419,12 +419,13 @@ const fetchFalStatusEndpoint = async <TStatus>(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ requestId }),
+    timeoutMs: 15000,
   });
   const fallbackGetOn405 = "fallbackGetOn405" in config && config.fallbackGetOn405 === true;
   if (response.status === 405 && fallbackGetOn405) {
     const fallback = await fetchWithTimeout(
       `${config.route}?requestId=${encodeURIComponent(requestId)}`,
-      { method: "GET" }
+      { method: "GET", timeoutMs: 15000 }
     );
     return handleJson<TStatus>(fallback);
   }

@@ -50,6 +50,7 @@ type GenerationFailureContext = {
 
 type TaskCallbacks = {
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
+  findOutputById?: (id: string) => StudioOutput | null;
   notifyGenerationFailure: (
     outputId: string,
     message: string,
@@ -135,6 +136,9 @@ const terminalFailureStates = new Set(["fail", "failed", "error", "cancelled", "
 
 const BACKGROUND_RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
 const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
+const MAX_CONCURRENT_STATUS_REQUESTS = 3;
+const OUTPUT_LOOKUP_MISS_MAX_RETRIES = 6;
+const OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS = 400;
 const REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE;
 const AI_STUDIO_FLAG_RAF_STATUS_FLUSH = PERF_FLAG_RAF_STATUS_FLUSH;
 const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
@@ -278,13 +282,17 @@ const extractMediaByProvider = (provider: Provider, status: PollStatus) => {
 
 export function useAiStudioTasks({
   updateOutputById,
+  findOutputById,
   notifyGenerationFailure,
   onGenerationSuccess,
   onGenerationFailure,
 }: TaskCallbacks) {
   const pollTimersRef = useRef<Record<string, number>>({});
+  const pollSessionsRef = useRef<Record<string, number>>({});
+  const statusRequestsInFlightRef = useRef(0);
   const recoveryTimersRef = useRef<Record<string, number>>({});
   const recoveryAttemptsRef = useRef<Record<string, number>>({});
+  const outputLookupMissesRef = useRef<Record<string, number>>({});
   const lastProgressUpdateAtRef = useRef<Record<string, number>>({});
   const queuedOutputUpdatersRef = useRef<Record<string, QueuedOutputUpdate[]>>({});
   const queuedOutputFlushPendingRef = useRef(false);
@@ -360,6 +368,7 @@ export function useAiStudioTasks({
 
   const clearPollTimer = useCallback(
     (outputId: string) => {
+      pollSessionsRef.current[outputId] = (pollSessionsRef.current[outputId] ?? 0) + 1;
       const timeoutId = pollTimersRef.current[outputId];
       if (timeoutId) {
         window.clearTimeout(timeoutId);
@@ -373,6 +382,7 @@ export function useAiStudioTasks({
         });
       }
       delete lastProgressUpdateAtRef.current[outputId];
+      delete outputLookupMissesRef.current[outputId];
     },
     [updateOutputById]
   );
@@ -516,9 +526,50 @@ export function useAiStudioTasks({
       attempt = 0,
       provider: Provider = "fal",
       startedAt = Date.now(),
-      noMediaAttempt = 0
+      noMediaAttempt = 0,
+      pollSessionId?: number
     ) {
+      let activePollSessionId = pollSessionId;
+      if (activePollSessionId == null) {
+        activePollSessionId = (pollSessionsRef.current[outputId] ?? 0) + 1;
+        pollSessionsRef.current[outputId] = activePollSessionId;
+      }
+
+      if ((pollSessionsRef.current[outputId] ?? 0) !== activePollSessionId) {
+        return;
+      }
+
+      if (findOutputById && !findOutputById(outputId)) {
+        const lookupMisses = (outputLookupMissesRef.current[outputId] ?? 0) + 1;
+        outputLookupMissesRef.current[outputId] = lookupMisses;
+        if (lookupMisses <= OUTPUT_LOOKUP_MISS_MAX_RETRIES) {
+          pollTimersRef.current[outputId] = window.setTimeout(
+            () =>
+              pollTask(
+                taskId,
+                outputId,
+                attempt,
+                provider,
+                startedAt,
+                noMediaAttempt,
+                activePollSessionId
+              ),
+            OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS
+          );
+          return;
+        }
+        clearPollTimer(outputId);
+        clearRecoveryTimer(outputId);
+        return;
+      }
+      delete outputLookupMissesRef.current[outputId];
+
       if (attempt === 0 && noMediaAttempt === 0) {
+        const existingTimeoutId = pollTimersRef.current[outputId];
+        if (existingTimeoutId) {
+          window.clearTimeout(existingTimeoutId);
+          delete pollTimersRef.current[outputId];
+        }
         clearRecoveryTimer(outputId);
       }
 
@@ -562,118 +613,309 @@ export function useAiStudioTasks({
 
       const delay = Math.min(8000, 1200 + attempt * 600);
       const timeoutId = window.setTimeout(async () => {
+        if ((pollSessionsRef.current[outputId] ?? 0) !== activePollSessionId) {
+          return;
+        }
+        if (statusRequestsInFlightRef.current >= MAX_CONCURRENT_STATUS_REQUESTS) {
+          pollTimersRef.current[outputId] = window.setTimeout(
+            () =>
+              pollTask(
+                taskId,
+                outputId,
+                attempt,
+                provider,
+                startedAt,
+                noMediaAttempt,
+                activePollSessionId
+              ),
+            Math.min(4000, delay + 600)
+          );
+          return;
+        }
+        statusRequestsInFlightRef.current += 1;
         try {
-          const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
-          const stateRaw =
-            status?.status?.toString().toLowerCase() ??
-            status?.state?.toString().toLowerCase() ??
-            status?.data?.status?.toString().toLowerCase() ??
-            status?.result?.status?.toString().toLowerCase() ??
-            status?.output?.status?.toString().toLowerCase() ??
-            status?.data?.result?.status?.toString().toLowerCase() ??
-            "pending";
-          const state = stateRaw === "succeeded" ? "success" : stateRaw;
-          const hasExplicitState =
-            status?.status != null ||
-            status?.state != null ||
-            status?.data?.status != null ||
-            status?.result?.status != null ||
-            status?.output?.status != null ||
-            status?.data?.result?.status != null;
-
-          const allUrls = extractMediaByProvider(provider, status);
-          const hasMedia = allUrls.length > 0;
-          const isTerminalSuccess = terminalSuccessStates.has(state);
-          // Fal capture/debit happens in status endpoints on terminal states, so avoid
-          // short-circuiting early success when provider explicitly reports in-progress.
-          const canUseMediaShortcut =
-            provider === "kei" || !hasExplicitState || !nonTerminalStates.has(state);
-          const shouldForceImageMediaSuccess =
-            hasMedia &&
-            imageGenerationProviders.has(provider) &&
-            hasExplicitState &&
-            nonTerminalStates.has(state);
-          const shouldTreatAsSuccess =
-            isTerminalSuccess || (hasMedia && canUseMediaShortcut) || shouldForceImageMediaSuccess;
-
-          if (shouldTreatAsSuccess) {
-            if (shouldForceImageMediaSuccess) {
-              addBreadcrumb({
-                type: "ui",
-                level: "warn",
-                message: "generation_nonterminal_media_forced_success",
-                data: {
-                  provider,
-                  task_id: taskId,
-                  output_id: outputId,
-                  status_state: state,
-                },
-              });
+          try {
+            if (findOutputById && !findOutputById(outputId)) {
+              const lookupMisses = (outputLookupMissesRef.current[outputId] ?? 0) + 1;
+              outputLookupMissesRef.current[outputId] = lookupMisses;
+              if (lookupMisses <= OUTPUT_LOOKUP_MISS_MAX_RETRIES) {
+                pollTimersRef.current[outputId] = window.setTimeout(
+                  () =>
+                    pollTask(
+                      taskId,
+                      outputId,
+                      attempt,
+                      provider,
+                      startedAt,
+                      noMediaAttempt,
+                      activePollSessionId
+                    ),
+                  OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS
+                );
+                return;
+              }
+              clearPollTimer(outputId);
+              clearRecoveryTimer(outputId);
+              return;
             }
-            // Provider may report terminal success before media URLs are materialized.
-            // Track a dedicated "no media yet" retry budget instead of using total poll attempts.
-            const maxNoMediaAttempts =
-              provider === "kei" ? 10 : longRunningVideoProviders.has(provider) ? 30 : 20;
-            const shouldRetryForMedia = !hasMedia && noMediaAttempt < maxNoMediaAttempts;
-            if (shouldRetryForMedia) {
-              if (noMediaAttempt === 0) {
+            delete outputLookupMissesRef.current[outputId];
+
+            const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
+            const stateRaw =
+              status?.status?.toString().toLowerCase() ??
+              status?.state?.toString().toLowerCase() ??
+              status?.data?.status?.toString().toLowerCase() ??
+              status?.result?.status?.toString().toLowerCase() ??
+              status?.output?.status?.toString().toLowerCase() ??
+              status?.data?.result?.status?.toString().toLowerCase() ??
+              "pending";
+            const state = stateRaw === "succeeded" ? "success" : stateRaw;
+            const hasExplicitState =
+              status?.status != null ||
+              status?.state != null ||
+              status?.data?.status != null ||
+              status?.result?.status != null ||
+              status?.output?.status != null ||
+              status?.data?.result?.status != null;
+
+            const allUrls = extractMediaByProvider(provider, status);
+            const hasMedia = allUrls.length > 0;
+            const isTerminalSuccess = terminalSuccessStates.has(state);
+            // Fal capture/debit happens in status endpoints on terminal states, so avoid
+            // short-circuiting early success when provider explicitly reports in-progress.
+            const canUseMediaShortcut =
+              provider === "kei" || !hasExplicitState || !nonTerminalStates.has(state);
+            const shouldForceImageMediaSuccess =
+              hasMedia &&
+              imageGenerationProviders.has(provider) &&
+              hasExplicitState &&
+              nonTerminalStates.has(state);
+            const shouldTreatAsSuccess =
+              isTerminalSuccess ||
+              (hasMedia && canUseMediaShortcut) ||
+              shouldForceImageMediaSuccess;
+
+            if (shouldTreatAsSuccess) {
+              if (shouldForceImageMediaSuccess) {
                 addBreadcrumb({
                   type: "ui",
                   level: "warn",
-                  message: "generation_terminal_no_media_retrying",
+                  message: "generation_nonterminal_media_forced_success",
                   data: {
                     provider,
                     task_id: taskId,
                     output_id: outputId,
                     status_state: state,
-                    max_no_media_attempts: maxNoMediaAttempts,
                   },
                 });
               }
-              queueOutputUpdate(
-                outputId,
-                (item) => ({
+              // Provider may report terminal success before media URLs are materialized.
+              // Track a dedicated "no media yet" retry budget instead of using total poll attempts.
+              const maxNoMediaAttempts =
+                provider === "kei" ? 10 : longRunningVideoProviders.has(provider) ? 30 : 20;
+              const shouldRetryForMedia = !hasMedia && noMediaAttempt < maxNoMediaAttempts;
+              if (shouldRetryForMedia) {
+                if (noMediaAttempt === 0) {
+                  addBreadcrumb({
+                    type: "ui",
+                    level: "warn",
+                    message: "generation_terminal_no_media_retrying",
+                    data: {
+                      provider,
+                      task_id: taskId,
+                      output_id: outputId,
+                      status_state: state,
+                      max_no_media_attempts: maxNoMediaAttempts,
+                    },
+                  });
+                }
+                queueOutputUpdate(
+                  outputId,
+                  (item) => ({
+                    ...item,
+                    taskState: item.taskState === "running" ? item.taskState : "running",
+                    status: item.status === "ready" ? item.status : "ready",
+                    timestamp:
+                      item.timestamp === "Finalizing media..."
+                        ? item.timestamp
+                        : "Finalizing media...",
+                  }),
+                  { nonUrgent: true }
+                );
+                pollTimersRef.current[outputId] = window.setTimeout(
+                  () =>
+                    pollTask(
+                      taskId,
+                      outputId,
+                      attempt + 1,
+                      provider,
+                      startedAt,
+                      noMediaAttempt + 1,
+                      activePollSessionId
+                    ),
+                  delay
+                );
+                return;
+              }
+
+              if (!hasMedia) {
+                const failureMessage =
+                  "Generation finished, but no media URL was returned. Please retry.";
+                addBreadcrumb({
+                  type: "ui",
+                  level: "error",
+                  message: "generation_terminal_no_media_exhausted",
+                  data: {
+                    provider,
+                    task_id: taskId,
+                    output_id: outputId,
+                    status_state: state,
+                    no_media_attempts: noMediaAttempt,
+                  },
+                });
+                notifyGenerationFailure(outputId, failureMessage, failureMessage, {
+                  reasonCode: "no_media_after_terminal_success",
+                  providerState: state,
+                  pollAttempt: attempt,
+                  noMediaAttempt,
+                  elapsedMs: Date.now() - startedAt,
+                  maxWaitMs,
+                });
+                queueOutputUpdate(outputId, (item) => ({
                   ...item,
-                  taskState: item.taskState === "running" ? item.taskState : "running",
                   status: item.status === "ready" ? item.status : "ready",
-                  timestamp:
-                    item.timestamp === "Finalizing media..."
-                      ? item.timestamp
-                      : "Finalizing media...",
-                }),
-                { nonUrgent: true }
-              );
-              pollTimersRef.current[outputId] = window.setTimeout(
-                () =>
-                  pollTask(taskId, outputId, attempt + 1, provider, startedAt, noMediaAttempt + 1),
-                delay
-              );
+                  taskState: item.taskState === "fail" ? item.taskState : "fail",
+                  errorMessage:
+                    item.errorMessage === failureMessage ? item.errorMessage : failureMessage,
+                  errorMessageShort:
+                    item.errorMessageShort === "No media returned."
+                      ? item.errorMessageShort
+                      : "No media returned.",
+                  errorDetail:
+                    item.errorDetail === failureMessage ? item.errorDetail : failureMessage,
+                }));
+                if (onGenerationFailure) {
+                  onGenerationFailure({
+                    outputId,
+                    taskId,
+                    provider,
+                    message: failureMessage,
+                    reasonCode: "no_media_after_terminal_success",
+                  });
+                }
+                scheduleBackgroundRecovery(
+                  taskId,
+                  outputId,
+                  provider,
+                  "no_media_after_terminal_success"
+                );
+                clearPollTimer(outputId);
+                return;
+              }
+
+              queueOutputUpdate(outputId, (item) => {
+                const nextDelivery = resolveNormalizedOutputDelivery({
+                  previewStoragePath: item.previewStoragePath ?? null,
+                  fullStoragePath: item.fullStoragePath ?? null,
+                  previewUrl: allUrls[0] ?? item.previewUrl ?? null,
+                  resultUrls: allUrls,
+                });
+                return {
+                  ...item,
+                  taskState: item.taskState === "success" ? item.taskState : "success",
+                  status: item.status === "ready" ? item.status : "ready",
+                  timestamp: item.timestamp === "Just now" ? item.timestamp : "Just now",
+                  resultUrls: areStringArraysEqual(item.resultUrls, allUrls)
+                    ? item.resultUrls
+                    : allUrls,
+                  previewUrl:
+                    item.previewUrl === (allUrls[0] ?? item.previewUrl)
+                      ? item.previewUrl
+                      : (allUrls[0] ?? item.previewUrl),
+                  previewStoragePath:
+                    item.previewStoragePath === nextDelivery.previewStoragePath
+                      ? item.previewStoragePath
+                      : nextDelivery.previewStoragePath,
+                  fullStoragePath:
+                    item.fullStoragePath === nextDelivery.fullStoragePath
+                      ? item.fullStoragePath
+                      : nextDelivery.fullStoragePath,
+                  mediaSource: item.mediaSource ?? "generated",
+                  previewTier: item.mode === "video" ? "preview_loop" : "full",
+                  archivedAt: null,
+                  archiveReason: null,
+                  errorMessage: item.errorMessage == null ? item.errorMessage : null,
+                  errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
+                  errorDetail: item.errorDetail == null ? item.errorDetail : null,
+                };
+              });
+              if (onGenerationSuccess) {
+                onGenerationSuccess({
+                  outputId,
+                  taskId,
+                  provider,
+                  resultUrls: allUrls,
+                });
+              }
+              clearRecoveryTimer(outputId);
+              clearPollTimer(outputId);
               return;
             }
 
-            if (!hasMedia) {
-              const failureMessage =
-                "Generation finished, but no media URL was returned. Please retry.";
-              addBreadcrumb({
-                type: "ui",
-                level: "error",
-                message: "generation_terminal_no_media_exhausted",
-                data: {
-                  provider,
-                  task_id: taskId,
-                  output_id: outputId,
-                  status_state: state,
-                  no_media_attempts: noMediaAttempt,
-                },
-              });
-              notifyGenerationFailure(outputId, failureMessage, failureMessage, {
-                reasonCode: "no_media_after_terminal_success",
+            // MULTIPLE ERROR DETECTION STRATEGIES
+            const isErrorState = terminalFailureStates.has(state);
+
+            const hasErrorField =
+              Boolean(status?.error) || Boolean(status?.failMsg) || Boolean(status?.failCode);
+
+            const isExplicitErrorStatus =
+              String(status?.status ?? "").toLowerCase() === "error" ||
+              String(status?.state ?? "").toLowerCase() === "error";
+
+            const detailMessage = extractFailureMessageFromDetail(status?.detail);
+            const messageField = typeof status?.message === "string" ? status.message : null;
+            const statusMessageField =
+              typeof status?.statusMessage === "string" ? status.statusMessage : null;
+            const errorField = extractFailureMessageFromDetail(status?.error);
+            const failMessageField = extractFailureMessageFromDetail(status?.failMsg);
+            const failCodeField = extractFailureMessageFromDetail(status?.failCode);
+
+            const hasFailureMessage =
+              looksLikeFailureMessage(messageField) ||
+              looksLikeFailureMessage(statusMessageField) ||
+              looksLikeFailureMessage(detailMessage) ||
+              looksLikeFailureMessage(errorField);
+
+            // If ANY condition is true, treat as error
+            if (isErrorState || hasErrorField || isExplicitErrorStatus || hasFailureMessage) {
+              const rawFailureDetail =
+                failMessageField ||
+                failCodeField ||
+                errorField ||
+                (hasFailureMessage ? messageField : null) ||
+                statusMessageField ||
+                detailMessage ||
+                "Generation failed";
+              const failureDetail =
+                typeof rawFailureDetail === "string"
+                  ? rawFailureDetail
+                  : rawFailureDetail != null
+                    ? String(rawFailureDetail)
+                    : "Generation failed";
+
+              const failureMessage = condenseError(detailMessage ?? failureDetail);
+
+              const shortMessage = createShortErrorMessage(failureMessage);
+
+              notifyGenerationFailure(outputId, failureMessage, failureDetail, {
+                reasonCode: "provider_error",
                 providerState: state,
                 pollAttempt: attempt,
-                noMediaAttempt,
                 elapsedMs: Date.now() - startedAt,
                 maxWaitMs,
               });
+
+              // Update output state to show error in UI
               queueOutputUpdate(outputId, (item) => ({
                 ...item,
                 status: item.status === "ready" ? item.status : "ready",
@@ -681,238 +923,124 @@ export function useAiStudioTasks({
                 errorMessage:
                   item.errorMessage === failureMessage ? item.errorMessage : failureMessage,
                 errorMessageShort:
-                  item.errorMessageShort === "No media returned."
-                    ? item.errorMessageShort
-                    : "No media returned.",
-                errorDetail:
-                  item.errorDetail === failureMessage ? item.errorDetail : failureMessage,
+                  item.errorMessageShort === shortMessage ? item.errorMessageShort : shortMessage,
               }));
+
               if (onGenerationFailure) {
                 onGenerationFailure({
                   outputId,
                   taskId,
                   provider,
-                  message: failureMessage,
-                  reasonCode: "no_media_after_terminal_success",
+                  message: failureDetail,
+                  reasonCode: "provider_error",
                 });
               }
-              scheduleBackgroundRecovery(
-                taskId,
-                outputId,
-                provider,
-                "no_media_after_terminal_success"
-              );
               clearPollTimer(outputId);
               return;
             }
 
-            queueOutputUpdate(outputId, (item) => {
-              const nextDelivery = resolveNormalizedOutputDelivery({
-                previewStoragePath: item.previewStoragePath ?? null,
-                fullStoragePath: item.fullStoragePath ?? null,
-                previewUrl: allUrls[0] ?? item.previewUrl ?? null,
-                resultUrls: allUrls,
-              });
-              return {
-                ...item,
-                taskState: item.taskState === "success" ? item.taskState : "success",
-                status: item.status === "ready" ? item.status : "ready",
-                timestamp: item.timestamp === "Just now" ? item.timestamp : "Just now",
-                resultUrls: areStringArraysEqual(item.resultUrls, allUrls)
-                  ? item.resultUrls
-                  : allUrls,
-                previewUrl:
-                  item.previewUrl === (allUrls[0] ?? item.previewUrl)
-                    ? item.previewUrl
-                    : (allUrls[0] ?? item.previewUrl),
-                previewStoragePath:
-                  item.previewStoragePath === nextDelivery.previewStoragePath
-                    ? item.previewStoragePath
-                    : nextDelivery.previewStoragePath,
-                fullStoragePath:
-                  item.fullStoragePath === nextDelivery.fullStoragePath
-                    ? item.fullStoragePath
-                    : nextDelivery.fullStoragePath,
-                mediaSource: item.mediaSource ?? "generated",
-                previewTier: item.mode === "video" ? "preview_loop" : "full",
-                archivedAt: null,
-                archiveReason: null,
-                errorMessage: item.errorMessage == null ? item.errorMessage : null,
-                errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
-                errorDetail: item.errorDetail == null ? item.errorDetail : null,
-              };
-            });
-            if (onGenerationSuccess) {
-              onGenerationSuccess({
+            const nextTaskState = (state as StudioOutput["taskState"]) ?? "running";
+            const now = Date.now();
+            const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
+            const shouldSkipProgressUpdate =
+              REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
+              nextTaskState === "running" &&
+              now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
+            if (!shouldSkipProgressUpdate) {
+              queueOutputUpdate(
                 outputId,
-                taskId,
-                provider,
-                resultUrls: allUrls,
-              });
+                (item) => {
+                  const taskStateChanged = item.taskState !== nextTaskState;
+                  const timestampChanged = item.timestamp !== "Processing...";
+                  if (!taskStateChanged && !timestampChanged) return item;
+                  lastProgressUpdateAtRef.current[outputId] = now;
+                  return {
+                    ...item,
+                    taskState: nextTaskState,
+                    timestamp: "Processing...",
+                  };
+                },
+                { nonUrgent: true }
+              );
             }
-            clearRecoveryTimer(outputId);
-            clearPollTimer(outputId);
-            return;
-          }
-
-          // MULTIPLE ERROR DETECTION STRATEGIES
-          const isErrorState = terminalFailureStates.has(state);
-
-          const hasErrorField =
-            Boolean(status?.error) || Boolean(status?.failMsg) || Boolean(status?.failCode);
-
-          const isExplicitErrorStatus =
-            String(status?.status ?? "").toLowerCase() === "error" ||
-            String(status?.state ?? "").toLowerCase() === "error";
-
-          const detailMessage = extractFailureMessageFromDetail(status?.detail);
-          const messageField = typeof status?.message === "string" ? status.message : null;
-          const statusMessageField =
-            typeof status?.statusMessage === "string" ? status.statusMessage : null;
-          const errorField = extractFailureMessageFromDetail(status?.error);
-          const failMessageField = extractFailureMessageFromDetail(status?.failMsg);
-          const failCodeField = extractFailureMessageFromDetail(status?.failCode);
-
-          const hasFailureMessage =
-            looksLikeFailureMessage(messageField) ||
-            looksLikeFailureMessage(statusMessageField) ||
-            looksLikeFailureMessage(detailMessage) ||
-            looksLikeFailureMessage(errorField);
-
-          // If ANY condition is true, treat as error
-          if (isErrorState || hasErrorField || isExplicitErrorStatus || hasFailureMessage) {
-            const rawFailureDetail =
-              failMessageField ||
-              failCodeField ||
-              errorField ||
-              (hasFailureMessage ? messageField : null) ||
-              statusMessageField ||
-              detailMessage ||
-              "Generation failed";
-            const failureDetail =
-              typeof rawFailureDetail === "string"
-                ? rawFailureDetail
-                : rawFailureDetail != null
-                  ? String(rawFailureDetail)
-                  : "Generation failed";
-
-            const failureMessage = condenseError(detailMessage ?? failureDetail);
-
-            const shortMessage = createShortErrorMessage(failureMessage);
-
-            notifyGenerationFailure(outputId, failureMessage, failureDetail, {
-              reasonCode: "provider_error",
-              providerState: state,
-              pollAttempt: attempt,
-              elapsedMs: Date.now() - startedAt,
-              maxWaitMs,
-            });
-
-            // Update output state to show error in UI
-            queueOutputUpdate(outputId, (item) => ({
-              ...item,
-              status: item.status === "ready" ? item.status : "ready",
-              taskState: item.taskState === "fail" ? item.taskState : "fail",
-              errorMessage:
-                item.errorMessage === failureMessage ? item.errorMessage : failureMessage,
-              errorMessageShort:
-                item.errorMessageShort === shortMessage ? item.errorMessageShort : shortMessage,
-            }));
-
-            if (onGenerationFailure) {
-              onGenerationFailure({
-                outputId,
-                taskId,
-                provider,
-                message: failureDetail,
-                reasonCode: "provider_error",
-              });
-            }
-            clearPollTimer(outputId);
-            return;
-          }
-
-          const nextTaskState = (state as StudioOutput["taskState"]) ?? "running";
-          const now = Date.now();
-          const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
-          const shouldSkipProgressUpdate =
-            REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
-            nextTaskState === "running" &&
-            now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
-          if (!shouldSkipProgressUpdate) {
-            queueOutputUpdate(
-              outputId,
-              (item) => {
-                const taskStateChanged = item.taskState !== nextTaskState;
-                const timestampChanged = item.timestamp !== "Processing...";
-                if (!taskStateChanged && !timestampChanged) return item;
-                lastProgressUpdateAtRef.current[outputId] = now;
-                return {
-                  ...item,
-                  taskState: nextTaskState,
-                  timestamp: "Processing...",
-                };
-              },
-              { nonUrgent: true }
+            pollTimersRef.current[outputId] = window.setTimeout(
+              () =>
+                pollTask(
+                  taskId,
+                  outputId,
+                  attempt + 1,
+                  provider,
+                  startedAt,
+                  0,
+                  activePollSessionId
+                ),
+              delay
             );
-          }
-          pollTimersRef.current[outputId] = window.setTimeout(
-            () => pollTask(taskId, outputId, attempt + 1, provider, startedAt, 0),
-            delay
-          );
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Unable to check status";
-          const isNotFound = /404|not found/i.test(message);
-          const notFoundMaxAttempts = 5;
-          const maxAttempts = 30;
-          if ((isNotFound && attempt >= notFoundMaxAttempts) || attempt >= maxAttempts) {
-            notifyGenerationFailure(outputId, condenseError(message), message, {
-              reasonCode: "status_poll_error",
-              pollAttempt: attempt,
-              elapsedMs: Date.now() - startedAt,
-              maxWaitMs,
-            });
-            if (onGenerationFailure) {
-              onGenerationFailure({
-                outputId,
-                taskId,
-                provider,
-                message,
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Unable to check status";
+            const isNotFound = /404|not found/i.test(message);
+            const notFoundMaxAttempts = 5;
+            const maxAttempts = 30;
+            if ((isNotFound && attempt >= notFoundMaxAttempts) || attempt >= maxAttempts) {
+              notifyGenerationFailure(outputId, condenseError(message), message, {
                 reasonCode: "status_poll_error",
+                pollAttempt: attempt,
+                elapsedMs: Date.now() - startedAt,
+                maxWaitMs,
               });
+              if (onGenerationFailure) {
+                onGenerationFailure({
+                  outputId,
+                  taskId,
+                  provider,
+                  message,
+                  reasonCode: "status_poll_error",
+                });
+              }
+              scheduleBackgroundRecovery(taskId, outputId, provider, "status_poll_error");
+              clearPollTimer(outputId);
+              return;
             }
-            scheduleBackgroundRecovery(taskId, outputId, provider, "status_poll_error");
-            clearPollTimer(outputId);
-            return;
-          }
-          const now = Date.now();
-          const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
-          const shouldSkipRetryUpdate =
-            REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
-            now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
-          if (!shouldSkipRetryUpdate) {
-            queueOutputUpdate(
-              outputId,
-              (item) => {
-                const taskStateChanged = item.taskState !== "running";
-                const statusChanged = item.status !== "ready";
-                const timestampChanged = item.timestamp !== "Retrying status...";
-                if (!taskStateChanged && !statusChanged && !timestampChanged) return item;
-                lastProgressUpdateAtRef.current[outputId] = now;
-                return {
-                  ...item,
-                  taskState: "running",
-                  status: "ready",
-                  timestamp: "Retrying status...",
-                };
-              },
-              { nonUrgent: true }
+            const now = Date.now();
+            const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
+            const shouldSkipRetryUpdate =
+              REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
+              now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
+            if (!shouldSkipRetryUpdate) {
+              queueOutputUpdate(
+                outputId,
+                (item) => {
+                  const taskStateChanged = item.taskState !== "running";
+                  const statusChanged = item.status !== "ready";
+                  const timestampChanged = item.timestamp !== "Retrying status...";
+                  if (!taskStateChanged && !statusChanged && !timestampChanged) return item;
+                  lastProgressUpdateAtRef.current[outputId] = now;
+                  return {
+                    ...item,
+                    taskState: "running",
+                    status: "ready",
+                    timestamp: "Retrying status...",
+                  };
+                },
+                { nonUrgent: true }
+              );
+            }
+            pollTimersRef.current[outputId] = window.setTimeout(
+              () =>
+                pollTask(
+                  taskId,
+                  outputId,
+                  attempt + 1,
+                  provider,
+                  startedAt,
+                  0,
+                  activePollSessionId
+                ),
+              delay
             );
           }
-          pollTimersRef.current[outputId] = window.setTimeout(
-            () => pollTask(taskId, outputId, attempt + 1, provider, startedAt, 0),
-            delay
-          );
+        } finally {
+          statusRequestsInFlightRef.current = Math.max(0, statusRequestsInFlightRef.current - 1);
         }
       }, delay);
       pollTimersRef.current[outputId] = timeoutId;
@@ -920,6 +1048,7 @@ export function useAiStudioTasks({
     [
       clearPollTimer,
       clearRecoveryTimer,
+      findOutputById,
       notifyGenerationFailure,
       onGenerationFailure,
       onGenerationSuccess,
@@ -936,8 +1065,11 @@ export function useAiStudioTasks({
         window.clearTimeout(timeoutId)
       );
       pollTimersRef.current = {};
+      pollSessionsRef.current = {};
+      statusRequestsInFlightRef.current = 0;
       recoveryTimersRef.current = {};
       recoveryAttemptsRef.current = {};
+      outputLookupMissesRef.current = {};
       lastProgressUpdateAtRef.current = {};
       queuedOutputUpdatersRef.current = {};
       queuedOutputFlushPendingRef.current = false;

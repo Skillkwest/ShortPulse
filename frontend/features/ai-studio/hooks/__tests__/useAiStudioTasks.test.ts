@@ -339,4 +339,104 @@ describe("useAiStudioTasks", () => {
       })
     );
   });
+
+  it("skips polling when the output was removed before the poll starts", async () => {
+    const updateOutputById = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const findOutputById = vi.fn(() => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        findOutputById,
+        notifyGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-gone", "out-gone", 0, "fal");
+    });
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(fetchFalStatusMock).not.toHaveBeenCalled();
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(updateOutputById).not.toHaveBeenCalled();
+  });
+
+  it("recovers from transient output lookup misses and resumes polling", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce({
+      status: "completed",
+      data: { images: [{ url: "https://cdn.test/transient-recovery.png" }] },
+    });
+
+    let output = makeOutput();
+    let lookups = 0;
+    const findOutputById = vi.fn((id: string) => {
+      if (id !== output.id) return null;
+      lookups += 1;
+      if (lookups <= 2) return null;
+      return output;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        findOutputById,
+        notifyGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-transient", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_500);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "task-transient",
+        provider: "fal",
+        resultUrls: ["https://cdn.test/transient-recovery.png"],
+      })
+    );
+    expect(output.taskState).toBe("success");
+    expect(output.previewUrl).toBe("https://cdn.test/transient-recovery.png");
+  });
+
+  it("resets an existing timer before restarting polling for the same output", async () => {
+    fetchFalStatusMock.mockResolvedValue({
+      status: "pending",
+    });
+    const output = makeOutput();
+    const updateOutputById = vi.fn();
+    const findOutputById = vi.fn((id: string) => (id === output.id ? output : null));
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        findOutputById,
+        notifyGenerationFailure: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-dup", "out-1", 0, "fal");
+      result.current.startPollingTask("task-dup", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(1_250);
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -18,6 +18,28 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Model picker + cost badges: `frontend/features/ai-studio/components/ModelModal.tsx` (uses registry defaults).
 - Reference Grid performance controls: `frontend/features/ai-studio/components/ReferenceCanvas.tsx` (virtualization + autoplay budget gating).
 
+## Fal reliability rollout notes (v2 architecture, planned)
+- Primary tracker: `docs/planning/ai-studio-fal-reliability-rollout.md`
+- ADR: `docs/adr/0019-fal-modular-submit-retrieval-reliability.md`
+- Route contracts and rollout flags: `docs/api/api-internal-routes.md`
+- Provider/operator runbook: `docs/sops/sop_provider_incident_response.md`
+
+Non-negotiables for this rollout:
+- Preserve current `ReferenceCanvas` user-visible loading and retry UX behavior.
+- Keep `/api/fal/*` response contracts backward-compatible.
+- Keep billing reservation/capture/release semantics unchanged and idempotent.
+
+Planned reliability module boundaries:
+- `frontend/lib/server/falIntegration/contracts.ts`
+- `frontend/lib/server/falIntegration/modelProfiles.ts`
+- `frontend/lib/server/falIntegration/submitEngine.ts`
+- `frontend/lib/server/falIntegration/retrievalEngine.ts`
+- `frontend/lib/server/falIntegration/falAdapter.ts`
+- `frontend/lib/server/falIntegration/stateMachine.ts`
+- `frontend/lib/server/falIntegration/parity.ts`
+- `frontend/lib/server/falIntegration/reconciler.ts`
+- `frontend/lib/server/falIntegration/circuitBreaker.ts`
+
 ## Default model params (source of truth: modelRegistry.ts)
 | Model | Defaults | Notes |
 | --- | --- | --- |

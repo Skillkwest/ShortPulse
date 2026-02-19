@@ -96,6 +96,18 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
         body: { error: "Not found" },
       })
     );
+    fetchMock.mockResolvedValueOnce(
+      mockFetchResponse({
+        status: 404,
+        body: { error: "Not found" },
+      })
+    );
+    fetchMock.mockResolvedValueOnce(
+      mockFetchResponse({
+        status: 404,
+        body: { error: "Not found" },
+      })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const req = {
@@ -119,7 +131,7 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ status: "processing" });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("treats retryable 405/non-JSON result probes as transient and keeps polling payload", async () => {
@@ -131,6 +143,16 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
         body: { status: "completed" },
       })
     );
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 405,
+      text: async () => "<html>Method Not Allowed</html>",
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 405,
+      text: async () => "<html>Method Not Allowed</html>",
+    });
     fetchMock.mockResolvedValueOnce({
       ok: false,
       status: 405,
@@ -157,6 +179,6 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
     expect(res.json).toHaveBeenCalledWith({ status: "completed" });
     expect(settleFailedGenerationByProviderRequestMock).not.toHaveBeenCalled();
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

@@ -790,3 +790,42 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added adaptive merge-gate skill:
   - `skills/adaptive-change-gate/SKILL.md`
   - documented in `docs/README.md` and `docs/agent-playbook.md`.
+
+## 2026-02-19 (AI Studio Fal reliability rollout documentation kickoff)
+- Added execution tracker `docs/planning/ai-studio-fal-reliability-rollout.md` with phase gates, acceptance criteria, rollout controls, kill switch, and test strategy for modular submit/retrieval rollout.
+- Added ADR `docs/adr/0019-fal-modular-submit-retrieval-reliability.md` to lock architecture, alternatives, rollout constraints, and reversal criteria.
+- Added migration artifacts for reliability state hardening:
+  - `sql/migrations/019_add_generation_recovery_fields.sql`
+  - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
+- Updated operational docs for recovery/replay/rebuild route governance and incident runbook coverage:
+  - `docs/api/api-internal-routes.md`
+  - `docs/sops/sop_provider_incident_response.md`
+  - `docs/sops/sop_ai_studio_index.md`
+- Updated planning/schema/index docs for execution tracking and migration governance:
+  - `docs/planning/backlog.md`
+  - `docs/data-dictionary.md`
+  - `docs/database-migrations.md`
+  - `docs/planning/README.md`
+  - `docs/README.md`
+- Rollout phase completion status: no implementation phases are marked completed yet; per-phase gate outcomes and rollback decisions will be appended here as each phase closes.
+
+## 2026-02-19 (AI Studio Fal reliability rollout Phase 1 + Phase 2 implementation)
+- Implemented deterministic alias-sweep selection and retrieval hardening in the shared status proxy:
+  - migrated payload parsing helpers into `frontend/lib/server/falIntegration/falAdapter.ts`
+  - added deterministic status/result candidate ranking in `frontend/lib/server/falIntegration/retrievalEngine.ts`
+  - updated `frontend/lib/server/api/falStatusProxy.ts` to complete alias sweeps before no-media settlement and prefer best media-bearing candidates.
+- Implemented shared submit fallback chain support:
+  - added submit target contracts in `frontend/lib/server/falIntegration/contracts.ts`
+  - added submit fallback engine in `frontend/lib/server/falIntegration/submitEngine.ts`
+  - extended `frontend/lib/server/api/falSubmitProxy.ts` to support ordered `submitTargets` with deterministic fallback semantics.
+- Removed bespoke Veo image-to-video route logic and migrated both routes to shared proxies:
+  - `frontend/pages/api/fal/veo-image-to-video-submit.ts`
+  - `frontend/pages/api/fal/veo-image-to-video-status.ts`
+  - added shared Veo profile/alias registry entry in `frontend/lib/server/falIntegration/modelProfiles.ts`.
+- Added/updated regression tests:
+  - `frontend/tests/api/fal-status-proxy.test.ts` (alias conflict + media precedence case)
+  - `frontend/tests/api/fal-submit-proxy.test.ts` (submit fallback chain behavior).
+- Validation evidence:
+  - `npm -C frontend run test -- tests/api/fal-status-proxy.test.ts tests/api/fal-submit-proxy.test.ts`
+  - `npm -C frontend run lint`
+  - `npm -C frontend run type-check`

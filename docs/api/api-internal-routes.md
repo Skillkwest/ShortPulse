@@ -36,6 +36,15 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/errors-test` | `POST` | Admin bearer | Create a synthetic app or generation incident for operator smoke tests of telemetry ingestion/UI. | `frontend/pages/api/admin/errors-test.ts`, `docs/monitoring.md` |
 | `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
 
+## Planned routes (Fal reliability rollout)
+These routes are tracked as part of the AI Studio Fal reliability rollout and should remain feature-flag gated until implemented and canary-validated.
+
+| Route | Methods | Auth | Purpose | Source of truth |
+| --- | --- | --- | --- | --- |
+| `/api/internal/generation-recovery/run` | `POST` | `x-shortpulse-cron-secret` | Trigger reconciler batch pass for stale/no-media/failed-persist recovery candidates. | `docs/planning/ai-studio-fal-reliability-rollout.md`, `docs/sops/sop_provider_incident_response.md` |
+| `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay retrieval/persistence by `generationId` or `requestId`. | `docs/planning/ai-studio-fal-reliability-rollout.md`, `docs/sops/sop_provider_incident_response.md` |
+| `/api/admin/generation-recovery/rebuild-card` | `POST` | Admin bearer | Rebuild reference-card linkage from already persisted media without provider calls. | `docs/planning/ai-studio-fal-reliability-rollout.md`, `docs/sops/sop_provider_incident_response.md` |
+
 ## Shared runtime contracts
 - Credit lifecycle for generation:
   - Submit path: reserve credits (`reserve_generation_credits`).
@@ -55,6 +64,16 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
 - Admin allowlist (optional): `SHORTPULSE_ADMIN_EMAILS`.
 - Admin event alert thresholds (optional): `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, `SHORTPULSE_ADMIN_ALERT_GENERATION_15M`.
+- Fal reliability rollout flags (feature-gated):
+  - `SHORTPULSE_FAL_INTEGRATION_MODE`
+  - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST`
+  - `SHORTPULSE_FAL_RECONCILER_ENABLED`
+  - `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
+  - `SHORTPULSE_FAL_RECONCILER_BATCH_SIZE`
+  - `SHORTPULSE_FAL_RECONCILER_MAX_ATTEMPTS`
+  - `SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS`
+  - `SHORTPULSE_FAL_CIRCUIT_BREAKER_ENABLED`
+  - `SHORTPULSE_FAL_CIRCUIT_BREAKER_THRESHOLD_15M`
 
 ## Maintenance checklist
 1. When adding or renaming an API route, update this file and any impacted SOP/API docs.

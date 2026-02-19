@@ -110,8 +110,49 @@ describe("DetailModal", () => {
     );
 
     expect(screen.getByText("Image")).toBeInTheDocument();
+    const headerPill = container.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image");
     expect(container.querySelector("video.art-hero-image")).toBeNull();
     expect(container.querySelector("img.art-hero-image")).not.toBeNull();
+  });
+
+  it("shows only media type in the header for non-generated library media", () => {
+    const { container } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mediaSource: "library",
+          model: "my-uploaded-file.png",
+          prompt: "my-uploaded-file.png",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = container.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image");
+  });
+
+  it("shows only media type in the header for media loaded from library modal even when source media was generated", () => {
+    const { container } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "library-123",
+          mediaSource: "generated",
+          model: "my-uploaded-file.png",
+          prompt: "my-uploaded-file.png",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = container.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image");
   });
 
   it("keeps image mode previews as images when URL paths contain video-like segments", () => {

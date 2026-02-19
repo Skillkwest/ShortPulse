@@ -151,6 +151,18 @@ export function DetailModal({
     if (output?.timestamp === "Dropped") return true;
     return false;
   }, [displayPreviewUrl, output?.id, output?.timestamp]);
+  const isNonGeneratedLoadedMedia = useMemo(() => {
+    if (!displayPreviewUrl || !output) return false;
+    if (output.id.startsWith("library-")) return true;
+    if (output.mediaSource) {
+      return output.mediaSource !== "generated";
+    }
+    if (output.id.startsWith("upload-")) return true;
+    if (output.id.startsWith("media-paste-")) return true;
+    if (output.timestamp === "Dropped" || output.timestamp === "Library") return true;
+    if (output.timestamp === "Clipboard") return true;
+    return false;
+  }, [displayPreviewUrl, output]);
   const aspectStyle =
     output?.aspect && output.aspect.includes(":")
       ? { aspectRatio: output.aspect.replace(":", " / ") }
@@ -650,18 +662,24 @@ export function DetailModal({
           <div className="art-modal-top-controls">
             <div className="art-modal-meta-pill">
               <span className="art-meta-item">{mediaType}</span>
-              {output.aspect && <span className="art-meta-divider">/</span>}
-              {output.aspect && <span className="art-meta-item">{output.aspect}</span>}
-              {uploadedHeaderFilename && <span className="art-meta-divider">/</span>}
-              {uploadedHeaderFilename && (
+              {!isNonGeneratedLoadedMedia && output.aspect && (
+                <span className="art-meta-divider">/</span>
+              )}
+              {!isNonGeneratedLoadedMedia && output.aspect && (
+                <span className="art-meta-item">{output.aspect}</span>
+              )}
+              {!isNonGeneratedLoadedMedia && uploadedHeaderFilename && (
+                <span className="art-meta-divider">/</span>
+              )}
+              {!isNonGeneratedLoadedMedia && uploadedHeaderFilename && (
                 <span className="art-meta-item art-meta-filename" title={uploadedHeaderFilename}>
                   {uploadedHeaderFilename}
                 </span>
               )}
-              {!isUploadedReference && displayModelLabel && (
+              {!isNonGeneratedLoadedMedia && !isUploadedReference && displayModelLabel && (
                 <span className="art-meta-divider">/</span>
               )}
-              {!isUploadedReference && (
+              {!isNonGeneratedLoadedMedia && !isUploadedReference && (
                 <span className="art-meta-item truncate-model">{displayModelLabel}</span>
               )}
             </div>

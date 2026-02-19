@@ -52,6 +52,7 @@ Tooling audit references:
 - [ ] AI Studio generation runtime stabilization - S2 (Golden Path Migration). `docs/planning/ai-studio-generation-runtime-stabilization.md#s2-golden-path-migration-flux2-lite`
 - [ ] AI Studio generation runtime stabilization - S3 (Family Rollout). `docs/planning/ai-studio-generation-runtime-stabilization.md#s3-family-rollout-profile-by-profile`
 - [ ] AI Studio generation runtime stabilization - S4 (Billing UI Clarity). `docs/planning/ai-studio-generation-runtime-stabilization.md#s4-billing-ui-clarity-presentation-layer`
+- [ ] AI Studio: add runtime admission control + upstream rate-limit protection before broad canary ramp. `docs/planning/ai-studio-generation-runtime-stabilization.md#capacity-and-rate-limit-protection-in-scope`
 - [ ] AI Studio: Fal reliability rollout (submit + retrieval modular core, shadow -> canary). Tracker: `docs/planning/ai-studio-fal-reliability-rollout.md`.
 - [ ] AI Studio Fal reliability rollout - Phase 0 (Baseline + UX Freeze). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-0-baseline--ux-freeze`
 - [x] AI Studio Fal reliability rollout - Phase 1 (Retrieval Correctness Hotfix). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-1-retrieval-correctness-hotfix`

@@ -35,6 +35,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/errors-status` | `POST` | Admin bearer | Update status (`open`/`resolved`/`ignored`) for an incident (`errorId`) or promote/link an unlinked event (`eventId`) and apply status with metadata history. | `frontend/pages/api/admin/errors-status.ts` |
 | `/api/admin/errors-test` | `POST` | Admin bearer | Create a synthetic app or generation incident for operator smoke tests of telemetry ingestion/UI. | `frontend/pages/api/admin/errors-test.ts`, `docs/monitoring.md` |
 | `/api/admin/generation-trace` | `GET` | Admin bearer | Return stitched generation timeline by `generationId`, `requestId`, or trace id across `ai_generations`, `media_events`, `media_files`, reservations, ledger entries, and app error events. Intended for operator debugging and S0 traceability baselines. | `frontend/pages/api/admin/generation-trace.ts`, `docs/planning/ai-studio-generation-runtime-stabilization.md` |
+| `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay stalled generation retrieval/persistence by `generationId` or `requestId` (Fal only). Re-polls provider aliases, persists recovered media, and updates generation recovery metadata/state. | `frontend/pages/api/admin/generation-recovery/replay.ts`, `docs/planning/ai-studio-fal-reliability-rollout.md` |
 | `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
 
 ## Planned routes (Fal reliability rollout)
@@ -43,7 +44,6 @@ These routes are tracked as part of the AI Studio Fal reliability rollout and sh
 | Route | Methods | Auth | Purpose | Source of truth |
 | --- | --- | --- | --- | --- |
 | `/api/internal/generation-recovery/run` | `POST` | `x-shortpulse-cron-secret` | Trigger reconciler batch pass for stale/no-media/failed-persist recovery candidates. | `docs/planning/ai-studio-fal-reliability-rollout.md`, `docs/sops/sop_provider_incident_response.md` |
-| `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay retrieval/persistence by `generationId` or `requestId`. | `docs/planning/ai-studio-fal-reliability-rollout.md`, `docs/sops/sop_provider_incident_response.md` |
 | `/api/admin/generation-recovery/rebuild-card` | `POST` | Admin bearer | Rebuild reference-card linkage from already persisted media without provider calls. | `docs/planning/ai-studio-fal-reliability-rollout.md`, `docs/sops/sop_provider_incident_response.md` |
 
 ## Shared runtime contracts

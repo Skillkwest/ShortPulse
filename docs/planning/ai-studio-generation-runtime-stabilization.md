@@ -29,6 +29,16 @@ Use a strangler-style migration, not a full rebuild:
 - Migrate and verify model families in controlled order.
 - Keep kill switch and shadow/canary controls available at all times.
 
+## Capacity and Rate-limit Protection (In Scope)
+Queueing/rate-limit resilience is in scope for stabilization, implemented first as runtime admission control:
+- Add per-user and per-model concurrent submit caps at the shared runtime boundary.
+- Add provider-aware retry/backoff for `429`/`5xx` with jitter and `Retry-After` handling.
+- Add lightweight per-model submit circuit-breaker behavior during sustained upstream failure spikes.
+- Keep `/api/fal/*` contracts and current visible UX unchanged while protections are added.
+
+Deferred until after S1/S2 gates:
+- Full durable internal job queue architecture (new queue workers/services).
+
 ## Runtime Contract (Target)
 Single runtime input:
 - generation intent (tool/mode/model/prompt/reference inputs/resolution/duration/aspect/audio/settings)
@@ -81,6 +91,7 @@ Tasks:
 - [ ] Migrate Flux family to runtime path.
 - [ ] Migrate video families (Seedance/Kling/Veo/Sora) to runtime path.
 - [ ] Keep shadow parity checks while each family is onboarding.
+- [ ] Enable runtime admission control and upstream rate-limit protections before broad family canary ramp.
 
 Exit gates:
 - [ ] Each family passes submit->retrieve->persist->billing matrix.

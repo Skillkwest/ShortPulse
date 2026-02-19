@@ -861,3 +861,41 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `npm -C frontend run test -- admin-generation-trace useAiStudioTaskSubmission useAiStudioTaskOrchestration useAiStudioTasks`
   - `npm -C frontend run type-check`
   - `npm -C frontend run lint`
+
+## 2026-02-19 (AI Studio generation runtime stabilization S1 persistence + replay recovery)
+- Added server-authoritative generation persistence at submit time so successful Fal submits always create/attach an `ai_generations` row:
+  - `frontend/lib/server/api/generationSubmitPersistence.ts`
+  - wired via `frontend/lib/server/api/falSubmitProxy.ts`
+  - regression coverage in `frontend/tests/api/fal-submit-proxy.test.ts`.
+- Hardened client generation-linking to avoid duplicate generation rows by reusing existing records by `request_id`:
+  - `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioPersistenceActions.ts`.
+- Improved admin generation trace resilience and discoverability:
+  - fallback when `ai_generations` recovery columns are missing (legacy schema compatibility),
+  - trace lookup by `metadata.source_ref`,
+  - coverage updates in `frontend/tests/api/admin-generation-trace.test.ts`.
+- Added operator replay route for stuck Fal generations:
+  - `POST /api/admin/generation-recovery/replay`
+  - source: `frontend/pages/api/admin/generation-recovery/replay.ts`
+  - behavior: resolve generation by `generationId`/`requestId`, re-poll provider aliases, persist recovered media to storage + `media_files`, and repair `ai_generations` status/recovery metadata.
+  - tests: `frontend/tests/api/admin-generation-recovery-replay.test.ts`.
+- Updated migration 019 for safe rollout on dirty historical data:
+  - `sql/migrations/019_add_generation_recovery_fields.sql`
+  - now deduplicates `(user_id, request_id)` rows deterministically before creating unique index.
+- Updated internal route docs:
+  - `docs/api/api-internal-routes.md` (moved replay route from planned to implemented).
+- Validation evidence:
+  - `npm -C frontend run test -- admin-generation-recovery-replay admin-generation-trace fal-submit-proxy useAiStudioTaskSubmission useAiStudioTaskOrchestration useAiStudioTasks`
+  - `npm -C frontend run type-check`
+  - `npm -C frontend run lint`
+
+## 2026-02-19 (AI Studio stabilization scope note: runtime admission control + rate-limit protection)
+- Updated stabilization addendum to explicitly mark generation capacity/rate-limit resilience as in-scope:
+  - `docs/planning/ai-studio-generation-runtime-stabilization.md`
+  - added `Capacity and Rate-limit Protection (In Scope)` section with:
+    - runtime per-user/per-model submit caps,
+    - provider `429`/`5xx` retry/backoff with jitter and `Retry-After`,
+    - lightweight per-model circuit-breaker behavior,
+    - explicit deferral of full durable internal queue architecture until after S1/S2 gates.
+- Updated backlog tracking so rate-limit protection is a visible pre-canary requirement:
+  - `docs/planning/backlog.md`

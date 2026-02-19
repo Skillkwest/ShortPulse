@@ -3,6 +3,56 @@ import { describe, expect, it, vi } from "vitest";
 import { MediaFileModal } from "../MediaFileModal";
 
 describe("MediaFileModal", () => {
+  it("renders the provided signedUrl in detail preview", () => {
+    const { container } = render(
+      <MediaFileModal
+        canMoveToAnotherTab
+        cacheModalImageNaturalSize={vi.fn()}
+        cacheAspectRatio={vi.fn()}
+        closeModal={vi.fn()}
+        downloadFile={vi.fn(async () => {})}
+        focusedAspectRatio={4 / 5}
+        focusedFile={{
+          id: "file-1",
+          filename: "first.png",
+          file_type: "image/png",
+          signedUrl: "https://signed/full-quality-first.png",
+        }}
+        handleMediaPreviewError={vi.fn()}
+        handleModalImageClick={vi.fn()}
+        handleModalImageKeyDown={vi.fn()}
+        handleModalImagePointerDown={vi.fn()}
+        handleModalImagePointerMove={vi.fn()}
+        handleModalImagePointerUp={vi.fn()}
+        handleModalImageWheel={vi.fn()}
+        handleModalPreviewWheel={vi.fn()}
+        handleRenameInputChange={vi.fn()}
+        isModalImagePanning={false}
+        isVideoFile={(fileType) => fileType.startsWith("video/")}
+        modalError={null}
+        modalImagePan={{ x: 0, y: 0 }}
+        modalImageZoomActive={false}
+        modalImageZoomScale={1}
+        modalMoveTabOptions={[{ tab: "private", label: "Private", disabled: false }]}
+        modalPreviewRef={{ current: null }}
+        moveError={null}
+        moveFocusedFile={vi.fn(async () => {})}
+        moveMenuOpen={false}
+        movingFile={false}
+        renameSuccess={false}
+        renameValue="first.png"
+        requestDeleteFile={vi.fn()}
+        saveRename={vi.fn(async () => {})}
+        savingRename={false}
+        setMoveMenuOpen={vi.fn()}
+      />
+    );
+
+    const image = container.querySelector(".modal-zoomable-image") as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+    expect(image?.getAttribute("src")).toBe("https://signed/full-quality-first.png");
+  });
+
   it("wires move and rename actions to provided handlers", async () => {
     const closeModal = vi.fn();
     const downloadFile = vi.fn(async () => {});

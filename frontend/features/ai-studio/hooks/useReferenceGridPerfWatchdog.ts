@@ -3,6 +3,7 @@
  * Samples long tasks/input-stall/heap pressure and emits a hysteresis-based degrade level.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { resolveAdaptivePressureTransition } from "../../../lib/adaptive-media";
 
 type UseReferenceGridPerfWatchdogParams = {
   enabled?: boolean;
@@ -125,26 +126,15 @@ export const useReferenceGridPerfWatchdog = ({
         const currentLevel = degradeLevelRef.current;
         let nextLevel: 0 | 1 | 2 = currentLevel;
 
-        if (candidateLevel > currentLevel) {
-          recoverStreakRef.current = 0;
-          promoteStreakRef.current += 1;
-          const promoteThreshold = candidateLevel === 2 ? 2 : 2;
-          if (promoteStreakRef.current >= promoteThreshold) {
-            nextLevel = candidateLevel;
-            promoteStreakRef.current = 0;
-          }
-        } else if (candidateLevel < currentLevel) {
-          promoteStreakRef.current = 0;
-          recoverStreakRef.current += 1;
-          const recoverThreshold = currentLevel === 2 ? 4 : 3;
-          if (recoverStreakRef.current >= recoverThreshold) {
-            nextLevel = candidateLevel;
-            recoverStreakRef.current = 0;
-          }
-        } else {
-          promoteStreakRef.current = 0;
-          recoverStreakRef.current = 0;
-        }
+        const transition = resolveAdaptivePressureTransition({
+          currentLevel,
+          candidateLevel,
+          promoteStreak: promoteStreakRef.current,
+          recoverStreak: recoverStreakRef.current,
+        });
+        nextLevel = transition.nextLevel;
+        promoteStreakRef.current = transition.nextPromoteStreak;
+        recoverStreakRef.current = transition.nextRecoverStreak;
 
         degradeLevelRef.current = nextLevel;
         setState((prev) => ({

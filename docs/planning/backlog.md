@@ -1,6 +1,6 @@
 # ShortPulse Backlog
 
-Last audited: 2026-02-18
+Last audited: 2026-02-19
 
 How to use:
 - Keep this list execution-focused and current.
@@ -50,17 +50,22 @@ Tooling audit references:
 - [ ] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
 - [ ] AI Studio: alter existing e2e coverage for aspect clamping + submit-time `effective_aspect` consistency after the contract overhaul.
 - [ ] AI Studio: update reference grid styling and adjust `Add files` / `Media library` button colors.
+- [ ] AI Studio: increase normal-state color saturation for the reference-grid `Add files` and `Media library` buttons (current state appears too gray/desaturated).
+- [ ] AI Studio: remove the blue gradient overlay from the quick-slot inventory background.
 - [ ] AI Studio: fix expanded media modal labels so images imported from Media Library are consistently labeled as images (never videos).
 - [ ] AI Studio: correct local computer import media typing so uploaded images render and behave as images throughout the expanded media modal.
 - [ ] AI Studio: test header title color updates and add a sparkle icon next to the `AI Studio` title.
 - [ ] AI Studio: preload character workflow identities and saved references when entering from Dashboard so character assets are cached across workflow switches.
+- [ ] AI Studio: persist the selected character in the `Character Properties` panel across mode switches, and default back to that selected profile instead of the base default profile.
 - [ ] AI Studio: make `CharacterManager` open instantly (no open animation) and tune properties panel sizing.
+- [ ] AI Studio: in Beginner mode, make the `Create Properties` panel resize to its minimum width when `Create Primary` is clicked.
 - [ ] AI Studio: add a `Canvas` button that opens a free-form canvas for dragging/dropping images and text prompts to visually organize ideas.
 - [ ] AI Studio: clean up beginner-mode copy across all properties panels.
 
 ## Profile Page
 - [ ] Add targeted automated tests for saved creators critical flows (auth + media library coverage already exists).
 - [ ] Add account setting: "Show Beginner Mode Toggle" (control visibility of the beginner toggle card, not just mode state).
+- [ ] Add account setting: "Auto-save generated media to Media Library" toggle so users can disable automatic saves and reduce media-library bloat.
 - [ ] Add CSV import/export for saved creators.
 
 ## Stripe and Payment Pipelines

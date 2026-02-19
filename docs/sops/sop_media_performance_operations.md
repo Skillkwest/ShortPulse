@@ -132,6 +132,12 @@ Key indicators:
   - `NEXT_PUBLIC_REFERENCE_GRID_TELEMETRY_BACKPRESSURE`
   - `NEXT_PUBLIC_REFERENCE_GRID_PRECONNECT_HINTS`
   - `NEXT_PUBLIC_REFERENCE_GRID_TRANSITION_NONURGENT`
+- Adaptive Media V2 rollout flags:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED`
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SHADOW_COMPARE`
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY`
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (csv allowlist)
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY` (global kill switch)
 - AI Studio shell performance flags:
   - `NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE`
   - `NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE`
@@ -145,6 +151,30 @@ Key indicators:
   - `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME` (default `false`; enable only for controlled production audits)
 
 Adjust only after telemetry review; keep desktop/mobile/constrained profiles distinct.
+
+## Adaptive Media V2 Runbook
+1. Shadow compare (no rendering change):
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED=true`
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SHADOW_COMPARE=true`
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY=false`
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES=reference-grid`
+2. Cutover in parity mode:
+  - keep same values above
+  - set `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SHADOW_COMPARE=false`
+3. Tuned policy rollout:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY=true`
+4. Surface expansion example:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES=reference-grid,quick-slot,media-library-grid,media-library-modal-grid,character-grid`
+5. Emergency rollback:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY=true`
+
+Monitor these events during rollout:
+- `media.adaptive.policy.applied`
+- `media.adaptive.resolve.mismatch`
+- `media.adaptive.local_transcode.applied`
+- `media.adaptive.recovery.level_changed`
+- `media.adaptive.detail.full_quality_used`
+- `media.adaptive.error`
 
 ## Stable Performance Profile (Current Default)
 - Profile selector:

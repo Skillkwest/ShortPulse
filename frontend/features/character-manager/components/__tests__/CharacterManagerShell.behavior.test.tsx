@@ -231,6 +231,12 @@ vi.mock("../../../../lib/supabaseClient", () => ({
   }),
 }));
 
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: vi.fn(async ({ storagePath }: { storagePath: string }) =>
+    storagePath ? `https://example.com/full-quality/${storagePath}` : null
+  ),
+}));
+
 vi.mock("../../hooks/useCharacterManagerDraft", async () => {
   const React = await import("react");
 
@@ -768,6 +774,23 @@ describe("CharacterManagerShell behavior", () => {
         })
       ).toBeInTheDocument();
       expect(screen.getByText(quickSwapHelperCopy)).toBeInTheDocument();
+    });
+  });
+
+  it("loads full-quality signed media for the reference preview overlay", async () => {
+    render(<CharacterManagerShell />);
+
+    const previewTargets = document.querySelectorAll(".character-reference-upload-image-wrap");
+    expect(previewTargets.length).toBeGreaterThan(0);
+
+    fireEvent.doubleClick(previewTargets[0]!);
+
+    await waitFor(() => {
+      const previewImage = document.querySelector(".character-reference-preview-image");
+      expect(previewImage).toBeTruthy();
+      expect(previewImage?.getAttribute("src")).toBe(
+        "https://example.com/full-quality/front_full.png"
+      );
     });
   });
 

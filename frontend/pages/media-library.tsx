@@ -573,8 +573,14 @@ export default function MediaLibrary() {
       openFileModal(file);
       clearMoveState();
       resetModalImageZoom();
+      void signStoragePath(file.storage_path, { forceRefresh: false }).then((fullQualityUrl) => {
+        if (!fullQualityUrl) return;
+        setFocusedFile((prev) =>
+          prev && prev.id === file.id ? ({ ...prev, signedUrl: fullQualityUrl } as MediaRow) : prev
+        );
+      });
     },
-    [clearMoveState, openFileModal, resetModalImageZoom]
+    [clearMoveState, openFileModal, resetModalImageZoom, setFocusedFile, signStoragePath]
   );
 
   const closeModal = useCallback(() => {

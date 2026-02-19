@@ -22,6 +22,11 @@ import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../../../lib/mediaSi
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { resolveMediaCardAspectRatio } from "../logic/mediaLibraryAspectRatio";
+import {
+  isAdaptiveSurfaceEnabled,
+  resolveAdaptiveMedia,
+  resolveAdaptiveSourceKind,
+} from "../../../lib/adaptive-media";
 
 type MediaFileRow = {
   id: string;
@@ -1287,6 +1292,27 @@ export function MediaLibraryModal({
                       fileType: file.file_type,
                       metadata: file.metadata,
                     });
+                    const adaptiveCardPreview = file.signedUrl
+                      ? resolveAdaptiveMedia({
+                          surface: "media-library-modal-grid",
+                          mediaKind: isVideoFile(file.file_type) ? "video" : "image",
+                          source: resolveAdaptiveSourceKind(file.signedUrl),
+                          urls: {
+                            previewUrl: file.signedUrl,
+                            fullUrl: file.signedUrl,
+                          },
+                          storage: {},
+                          pressureLevel: 0,
+                          cardLongEdgePx: 320,
+                          devicePixelRatio:
+                            typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+                          strictPreviewLadder: true,
+                          adaptivePreviewQuality: isAdaptiveSurfaceEnabled(
+                            "media-library-modal-grid"
+                          ),
+                        })
+                      : null;
+                    const cardPreviewUrl = adaptiveCardPreview?.previewUrl ?? file.signedUrl;
                     return (
                       <button
                         key={file.id}
@@ -1324,11 +1350,11 @@ export function MediaLibraryModal({
                             <CheckCircle size={16} weight="fill" />
                           </span>
                         ) : null}
-                        {file.signedUrl ? (
+                        {cardPreviewUrl ? (
                           isVideoFile(file.file_type) ? (
                             <video
                               className="media-thumb"
-                              src={file.signedUrl}
+                              src={cardPreviewUrl}
                               muted
                               playsInline
                               loop
@@ -1349,7 +1375,7 @@ export function MediaLibraryModal({
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 className="media-thumb"
-                                src={file.signedUrl}
+                                src={cardPreviewUrl}
                                 alt={file.filename}
                                 loading="lazy"
                                 decoding="async"

@@ -163,4 +163,24 @@ describe("DetailModal", () => {
       expect(nextImage?.getAttribute("src")).toBe("https://cdn.test/correct-5x4.png");
     });
   });
+
+  it("uses full storage media URL for detail rendering when available", () => {
+    const { container } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          previewStoragePath: "https://cdn.test/preview-low.jpg",
+          fullStoragePath: "https://cdn.test/full-quality.jpg",
+          previewUrl: "https://cdn.test/legacy.jpg",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const image = container.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+    expect(image?.getAttribute("src")).toBe("https://cdn.test/full-quality.jpg");
+  });
 });

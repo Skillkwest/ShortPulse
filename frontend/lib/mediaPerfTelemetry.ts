@@ -21,7 +21,13 @@ export type MediaPerfEventName =
   | "media.grid.render.commit"
   | "media.grid.longtask.sample"
   | "media.grid.memory.sample"
-  | "media.grid.archive.transition";
+  | "media.grid.archive.transition"
+  | "media.adaptive.policy.applied"
+  | "media.adaptive.resolve.mismatch"
+  | "media.adaptive.local_transcode.applied"
+  | "media.adaptive.recovery.level_changed"
+  | "media.adaptive.detail.full_quality_used"
+  | "media.adaptive.error";
 
 export type MediaPerfSamplingPolicy = "normal" | "defer_non_critical";
 

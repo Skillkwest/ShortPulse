@@ -5,6 +5,11 @@
 import { CheckCircle, DownloadSimple, Trash } from "phosphor-react";
 import type { Ref, SyntheticEvent } from "react";
 import type { MediaDataTab } from "../logic/mediaLibraryPageHelpers";
+import {
+  isAdaptiveSurfaceEnabled,
+  resolveAdaptiveMedia,
+  resolveAdaptiveSourceKind,
+} from "../../../lib/adaptive-media";
 
 type MediaAssetRow = {
   id: string;
@@ -71,6 +76,24 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
       <div className="media-grid media-grid-fixed media-grid-shell media-grid-packed">
         {files.map((file) => {
           const aspectRatio = aspectMap[file.id] || (isVideoFile(file.file_type) ? 9 / 16 : 4 / 5);
+          const adaptiveCardPreview = file.signedUrl
+            ? resolveAdaptiveMedia({
+                surface: "media-library-grid",
+                mediaKind: isVideoFile(file.file_type) ? "video" : "image",
+                source: resolveAdaptiveSourceKind(file.signedUrl),
+                urls: {
+                  previewUrl: file.signedUrl,
+                  fullUrl: file.signedUrl,
+                },
+                storage: {},
+                pressureLevel: 0,
+                cardLongEdgePx: 320,
+                devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+                strictPreviewLadder: true,
+                adaptivePreviewQuality: isAdaptiveSurfaceEnabled("media-library-grid"),
+              })
+            : null;
+          const cardPreviewUrl = adaptiveCardPreview?.previewUrl ?? file.signedUrl;
           return (
             <div
               className={`media-card ${file.status === "uploading" ? "is-uploading" : ""} ${
@@ -100,7 +123,7 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
                 isVideoFile(file.file_type) ? (
                   <video
                     className="media-thumb"
-                    src={file.signedUrl}
+                    src={cardPreviewUrl}
                     muted
                     playsInline
                     loop
@@ -115,7 +138,7 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
                     {/* Signed URLs are dynamic and may include ephemeral query parameters. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={file.signedUrl}
+                      src={cardPreviewUrl}
                       alt={file.filename}
                       className="media-thumb"
                       onLoad={(event) => handleImageLoad(file.id, event)}

@@ -16,7 +16,14 @@ import {
   XCircle,
 } from "phosphor-react";
 import { DashboardNavPrefab } from "../../../components/DashboardNavPrefab";
+import {
+  isAdaptiveSurfaceEnabled,
+  logAdaptiveDetailFullQualityUsed,
+  resolveAdaptiveMedia,
+  resolveAdaptiveSourceKind,
+} from "../../../lib/adaptive-media";
 import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "../../billing/catalog";
+import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
@@ -478,6 +485,10 @@ export function CharacterManagerShell({
     index: number;
     aspectRatio: number;
   } | null>(null);
+  const [referencePreviewSignedUrl, setReferencePreviewSignedUrl] = useState<{
+    slotKey: CharacterReferenceSlotKey;
+    url: string;
+  } | null>(null);
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
   const [pendingReferenceUploadSlotKey, setPendingReferenceUploadSlotKey] =
@@ -574,6 +585,30 @@ export function CharacterManagerShell({
     referencePreview && uploadedReferenceEntries[referencePreview.index]
       ? uploadedReferenceEntries[referencePreview.index]
       : null;
+  const resolveCharacterGridPreviewUrl = useCallback(
+    (url: string | null | undefined, cardLongEdgePx: number): string | null => {
+      const trimmed = url?.trim();
+      if (!trimmed) return null;
+      if (!isAdaptiveSurfaceEnabled("character-grid")) return trimmed;
+      const resolved = resolveAdaptiveMedia({
+        surface: "character-grid",
+        mediaKind: "image",
+        source: resolveAdaptiveSourceKind(trimmed),
+        urls: {
+          previewUrl: trimmed,
+          fullUrl: trimmed,
+        },
+        storage: {},
+        pressureLevel: 0,
+        cardLongEdgePx,
+        devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+        strictPreviewLadder: true,
+        adaptivePreviewQuality: true,
+      });
+      return resolved.previewUrl ?? trimmed;
+    },
+    []
+  );
   const uploadedReferenceBySlotKey = useMemo(
     () => new Map(uploadedReferenceEntries.map((entry) => [entry.slotKey, entry])),
     [uploadedReferenceEntries]
@@ -608,6 +643,31 @@ export function CharacterManagerShell({
     if (typeof window === "undefined") return;
     window.localStorage.setItem(CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY, String(beginnerMode));
   }, [beginnerMode, isBeginnerModeControlled]);
+
+  useEffect(() => {
+    let active = true;
+    if (!referencePreviewEntry) return () => void (active = false);
+    logAdaptiveDetailFullQualityUsed({
+      surface: "detail-modal",
+      mediaKind: "image",
+    });
+    void getSignedMediaUrl({
+      bucket: MEDIA_BUCKET,
+      storagePath: referencePreviewEntry.slotFile.storagePath,
+      expiresInSeconds: 3600,
+      forceRefresh: false,
+    }).then((signedUrl) => {
+      if (!active || !signedUrl) return;
+      setReferencePreviewSignedUrl({
+        slotKey: referencePreviewEntry.slotKey,
+        url: signedUrl,
+      });
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [referencePreviewEntry]);
 
   useEffect(() => {
     if (isEmbeddedSurface) return;
@@ -988,6 +1048,7 @@ export function CharacterManagerShell({
 
   const closeReferencePreview = useCallback(() => {
     setReferencePreview(null);
+    setReferencePreviewSignedUrl(null);
   }, []);
 
   const navigateReferencePreview = useCallback(
@@ -1715,7 +1776,10 @@ export function CharacterManagerShell({
                           title="Double-click to preview this reference image"
                         >
                           <Image
-                            src={entry.slotFile.previewUrl}
+                            src={
+                              resolveCharacterGridPreviewUrl(entry.slotFile.previewUrl, 320) ??
+                              entry.slotFile.previewUrl
+                            }
                             alt={`Reference ${index + 1}: ${entry.slotLabel}`}
                             className="character-reference-upload-image"
                             width={320}
@@ -1838,7 +1902,10 @@ export function CharacterManagerShell({
                         <div className="character-character-sheet-media">
                           {assignedReference?.previewUrl ? (
                             <Image
-                              src={assignedReference.previewUrl}
+                              src={
+                                resolveCharacterGridPreviewUrl(assignedReference.previewUrl, 300) ??
+                                assignedReference.previewUrl
+                              }
                               alt={`${dropZone.label} reference`}
                               className="character-character-sheet-image"
                               width={240}
@@ -1938,7 +2005,12 @@ export function CharacterManagerShell({
                       <span className="character-list-avatar" aria-hidden="true">
                         {character.profileImageUrl ? (
                           <Image
-                            src={character.profileImageUrl}
+                            src={
+                              resolveCharacterGridPreviewUrl(
+                                character.profileImageUrl,
+                                CHARACTER_CHIP_AVATAR_SIZE
+                              ) ?? character.profileImageUrl
+                            }
                             alt=""
                             className="character-list-avatar-image"
                             style={
@@ -2006,7 +2078,12 @@ export function CharacterManagerShell({
               X
             </button>
             <Image
-              src={referencePreviewEntry.slotFile.previewUrl}
+              src={
+                referencePreviewSignedUrl &&
+                referencePreviewSignedUrl.slotKey === referencePreviewEntry.slotKey
+                  ? referencePreviewSignedUrl.url
+                  : referencePreviewEntry.slotFile.previewUrl
+              }
               alt={`Reference ${referencePreview.index + 1}: ${referencePreviewEntry.slotLabel}`}
               className="character-reference-preview-image"
               width={1600}

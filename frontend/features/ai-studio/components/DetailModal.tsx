@@ -7,6 +7,7 @@ import { TrashSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
 import { isVideoUrl } from "../logic/stateParsers";
 import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
+import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
 
 type DetailModalProps = {
   output: StudioOutput | null;
@@ -95,10 +96,19 @@ export function DetailModal({
       {
         strictPreviewLadder: true,
         adaptivePreviewQuality: false,
+        surface: "detail-modal",
       }
     );
     return resolved.fullUrl ?? resolved.previewUrl ?? null;
   }, [output]);
+
+  useEffect(() => {
+    if (!output || !preferredDetailMediaUrl) return;
+    logAdaptiveDetailFullQualityUsed({
+      surface: "detail-modal",
+      mediaKind: output.mode === "video" ? "video" : "image",
+    });
+  }, [output, preferredDetailMediaUrl]);
   const previewCandidates = useMemo(() => {
     const uniqueUrls = new Set<string>();
     const maybeUrls = [preferredDetailMediaUrl, output?.previewUrl, ...(output?.resultUrls ?? [])];

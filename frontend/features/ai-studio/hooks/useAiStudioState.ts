@@ -22,7 +22,7 @@ import {
   resolveModelLabel,
   mapUploadsFromFiles,
 } from "../logic/stateParsers";
-import { isRenderableReferenceMediaUrl } from "../logic/referenceGridMedia";
+import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
 import { useAiStudioGenerationPromptComposer } from "./useAiStudioGenerationPromptComposer";
@@ -998,8 +998,8 @@ export const useAiStudioState = ({
         previewUrl: cleanedUrl,
         mediaSource: "clipboard",
         previewTier: isVideo ? "preview_loop" : "full",
-        fullStoragePath: cleanedUrl,
-        previewStoragePath: cleanedUrl,
+        fullStoragePath: null,
+        previewStoragePath: null,
         archivedAt: null,
         archiveReason: null,
         saveState: "idle",
@@ -1031,12 +1031,8 @@ export const useAiStudioState = ({
       const resolvedPromptText =
         payload.promptText?.trim() || payload.filename?.trim() || "Media reference";
       const previewUrl = payload.previewUrl ?? payload.url;
-      const previewStoragePath = isRenderableReferenceMediaUrl(payload.previewStoragePath)
-        ? payload.previewStoragePath.trim()
-        : previewUrl;
-      const fullStoragePath = isRenderableReferenceMediaUrl(payload.fullStoragePath)
-        ? payload.fullStoragePath.trim()
-        : (payload.fullUrl ?? previewUrl);
+      const previewStoragePath = asCanonicalStoragePath(payload.previewStoragePath);
+      const fullStoragePath = asCanonicalStoragePath(payload.fullStoragePath) ?? previewStoragePath;
       const nextOutput: StudioOutput = {
         id,
         prompt: resolvedPromptText,

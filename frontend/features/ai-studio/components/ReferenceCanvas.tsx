@@ -52,6 +52,14 @@ import { useReferenceGridHydrationBudget } from "../hooks/useReferenceGridHydrat
 import { useReferenceGridPerfWatchdog } from "../hooks/useReferenceGridPerfWatchdog";
 import { useReferenceGridMediaWorkBudget } from "../hooks/useReferenceGridMediaWorkBudget";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
+import {
+  resolveAdaptivePolicyDecision,
+  resolveAdaptiveSourceKind,
+  shouldTranscodeLocalAdaptiveImage,
+  transcodeLocalImageToObjectUrl,
+  logAdaptiveLocalTranscode,
+  logAdaptiveRecoveryLevelChanged,
+} from "../../../lib/adaptive-media";
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
@@ -74,11 +82,6 @@ const REFERENCE_PRIORITY_HYDRATION_ROWS = 3;
 const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_0 = 6;
 const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_1 = 6;
 const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_2 = 3;
-const REFERENCE_LOCAL_ADAPTIVE_WEBP_QUALITY: Record<ReferenceGridPreviewQualityBand, number> = {
-  high: 0.42,
-  balanced: 0.32,
-  compact: 0.3,
-};
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW = PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW;
 const REFERENCE_GRID_FLAG_CURATED_SPLIT = PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT;
 const REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER = PERF_FLAG_REFERENCE_GRID_STRICT_PREVIEW_LADDER;
@@ -847,7 +850,6 @@ export function ReferenceCanvas({
   );
   const previewQualityPressureLevelRef = React.useRef<0 | 1 | 2>(perfWatchdog.degradeLevel);
   const liveWatchdogDegradeLevelRef = React.useRef<0 | 1 | 2>(perfWatchdog.degradeLevel);
-  const liveOutputCountRef = React.useRef<number>(outputs.length);
   const hydrationBudget = useReferenceGridHydrationBudget({
     enabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
     pressureLevel: perfWatchdog.degradeLevel,
@@ -1039,23 +1041,19 @@ export function ReferenceCanvas({
     liveWatchdogDegradeLevelRef.current = perfWatchdog.degradeLevel;
   }, [perfWatchdog.degradeLevel]);
   React.useEffect(() => {
-    liveOutputCountRef.current = outputs.length;
-  }, [outputs.length]);
-  React.useEffect(() => {
     previewQualityPressureLevelRef.current = previewQualityPressureLevel;
   }, [previewQualityPressureLevel]);
   React.useEffect(() => {
     const currentLevel = previewQualityPressureLevelRef.current;
     const nextLevel = perfWatchdog.degradeLevel;
     if (nextLevel === currentLevel) return;
-
-    // Prevent periodic quality-level oscillation from triggering global image URL churn.
-    // We only ratchet down quality under rising pressure; we do not auto-recover within the
-    // same live session.
-    if (nextLevel > currentLevel) {
-      previewQualityPressureLevelRef.current = nextLevel;
-      setPreviewQualityPressureLevel((prev) => (prev === nextLevel ? prev : nextLevel));
-    }
+    previewQualityPressureLevelRef.current = nextLevel;
+    setPreviewQualityPressureLevel((prev) => (prev === nextLevel ? prev : nextLevel));
+    logAdaptiveRecoveryLevelChanged({
+      surface: "reference-grid",
+      prevLevel: currentLevel,
+      nextLevel,
+    });
   }, [perfWatchdog.degradeLevel]);
   const mediaWorkBudget = useReferenceGridMediaWorkBudget({
     enabled: REFERENCE_GRID_FLAG_GLOBAL_MEDIA_BUDGET,
@@ -1075,12 +1073,6 @@ export function ReferenceCanvas({
   const maybeCreateLocalAdaptivePreviewUrl = useCallback(
     async (id: string, sourceUrl: string, image: HTMLImageElement): Promise<string> => {
       if (!REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY) return sourceUrl;
-      const isLocalImageSource = /^blob:/i.test(sourceUrl) || /^data:image\//i.test(sourceUrl);
-      const shouldUseLocalAdaptiveTranscode =
-        isLocalImageSource ||
-        (liveWatchdogDegradeLevelRef.current >= 2 &&
-          liveOutputCountRef.current >= REFERENCE_HIGH_DENSITY_CARD_COUNT);
-      if (!shouldUseLocalAdaptiveTranscode) return sourceUrl;
       if (hasAdaptiveQueryParams(sourceUrl) || isNextOptimizerUrl(sourceUrl)) return sourceUrl;
       if (isVideoUrl(sourceUrl)) return sourceUrl;
       const previewMeta = hydrationPreviewMetaByIdRef.current[id];
@@ -1091,42 +1083,45 @@ export function ReferenceCanvas({
         return sourceUrl;
       }
       if (naturalWidth <= 0 || naturalHeight <= 0) return sourceUrl;
-      const longEdge = Math.max(naturalWidth, naturalHeight);
-      const targetLongEdge = Math.max(240, Math.min(previewMeta.targetLongEdgePx, longEdge));
-      if (longEdge <= targetLongEdge + 8) return sourceUrl;
-      const scale = targetLongEdge / longEdge;
-      const width = Math.max(1, Math.round(naturalWidth * scale));
-      const height = Math.max(1, Math.round(naturalHeight * scale));
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext("2d");
-      if (!context) return sourceUrl;
-      context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = "high";
-      try {
-        context.drawImage(image, 0, 0, width, height);
-      } catch {
+      const decision = resolveAdaptivePolicyDecision({
+        surface: "reference-grid",
+        mediaKind: "image",
+        source: resolveAdaptiveSourceKind(sourceUrl),
+        urls: {
+          previewUrl: sourceUrl,
+        },
+        storage: {},
+        pressureLevel: liveWatchdogDegradeLevelRef.current,
+        cardLongEdgePx: previewMeta.targetLongEdgePx,
+        devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+        adaptivePreviewQuality: true,
+      });
+      if (
+        !shouldTranscodeLocalAdaptiveImage({
+          sourceUrl,
+          naturalWidth,
+          naturalHeight,
+          decision,
+        })
+      ) {
         return sourceUrl;
       }
-      const encodeToBlob = (mimeType: string, quality: number) =>
-        new Promise<Blob | null>((resolve) => {
-          try {
-            canvas.toBlob((blob) => resolve(blob), mimeType, quality);
-          } catch {
-            resolve(null);
-          }
-        });
-      const quality = REFERENCE_LOCAL_ADAPTIVE_WEBP_QUALITY[previewMeta.previewQualityBand];
-      const blob =
-        (await encodeToBlob("image/webp", quality)) ?? (await encodeToBlob("image/jpeg", quality));
-      if (!blob) return sourceUrl;
-      const objectUrl = URL.createObjectURL(blob);
+      const objectUrl = await transcodeLocalImageToObjectUrl({
+        image,
+        decision,
+      });
+      if (!objectUrl) return sourceUrl;
       const previousUrl = hydrationGeneratedObjectUrlByIdRef.current[id];
       if (previousUrl && previousUrl !== objectUrl) {
         URL.revokeObjectURL(previousUrl);
       }
       hydrationGeneratedObjectUrlByIdRef.current[id] = objectUrl;
+      logAdaptiveLocalTranscode({
+        surface: "reference-grid",
+        pressureLevel: liveWatchdogDegradeLevelRef.current,
+        qualityBand: decision.qualityBand,
+        targetLongEdgePx: decision.targetLongEdgePx,
+      });
       return objectUrl;
     },
     []
@@ -1612,6 +1607,9 @@ export function ReferenceCanvas({
       .filter((output) => {
         const resolvedPreview = resolveReferenceCardUrls(output, {
           strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+          surface: "reference-grid",
+          cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualMetrics.rowHeight - 3))),
+          devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
         }).previewUrl;
         if (!resolvedPreview || !isOutputVideoPreview(output, resolvedPreview)) return false;
         return visibleOutputIdSet.has(output.id);
@@ -1640,6 +1638,7 @@ export function ReferenceCanvas({
     outputs,
     perfWatchdog.degradeLevel,
     runNonUrgentUpdate,
+    virtualMetrics.rowHeight,
   ]);
 
   React.useEffect(() => {
@@ -1663,13 +1662,20 @@ export function ReferenceCanvas({
     Math.max(REFERENCE_GRID_MIN_COLUMNS, curatedVirtualMetrics.columnCount) *
     baseHydrationPriorityRows;
   const buildVisibleCardItems = useCallback(
-    (rows: StudioOutput[], priorityCount: number) =>
+    (
+      rows: StudioOutput[],
+      priorityCount: number,
+      options: { surface: "reference-grid" | "quick-slot"; cardLongEdgePx: number }
+    ) =>
       rows.map((item, visibleIndex) => {
         const resolvedCardUrls = resolveReferenceCardUrls(item, {
           strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
           adaptivePreviewQuality:
             REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY || REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW,
           pressureLevel: previewQualityPressureLevel,
+          surface: options.surface,
+          cardLongEdgePx: options.cardLongEdgePx,
+          devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
         });
         const cardPreviewUrl = resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl;
         const isVideoPreview = isOutputVideoPreview(item, cardPreviewUrl);
@@ -1708,12 +1714,25 @@ export function ReferenceCanvas({
     [activeOutputId, imageHydrationState.hydratedById, previewQualityPressureLevel]
   );
   const visibleCardItems = React.useMemo(
-    () => buildVisibleCardItems(visibleOutputs, hydrationPriorityCount),
-    [buildVisibleCardItems, hydrationPriorityCount, visibleOutputs]
+    () =>
+      buildVisibleCardItems(visibleOutputs, hydrationPriorityCount, {
+        surface: "reference-grid",
+        cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualMetrics.rowHeight - 3))),
+      }),
+    [buildVisibleCardItems, hydrationPriorityCount, virtualMetrics.rowHeight, visibleOutputs]
   );
   const curatedVisibleCardItems = React.useMemo(
-    () => buildVisibleCardItems(visibleCuratedOutputs, curatedHydrationPriorityCount),
-    [buildVisibleCardItems, curatedHydrationPriorityCount, visibleCuratedOutputs]
+    () =>
+      buildVisibleCardItems(visibleCuratedOutputs, curatedHydrationPriorityCount, {
+        surface: "quick-slot",
+        cardLongEdgePx: Math.max(200, Math.round(Math.max(1, curatedVirtualMetrics.rowHeight - 3))),
+      }),
+    [
+      buildVisibleCardItems,
+      curatedHydrationPriorityCount,
+      curatedVirtualMetrics.rowHeight,
+      visibleCuratedOutputs,
+    ]
   );
   const allVisibleCardItems = React.useMemo(
     () => [...curatedVisibleCardItems, ...visibleCardItems],
@@ -1871,6 +1890,9 @@ export function ReferenceCanvas({
           strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
           adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
           pressureLevel: previewQualityPressureLevel,
+          surface: "reference-grid",
+          cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualMetrics.rowHeight - 3))),
+          devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
         });
         const activeUrl = resolved.previewUrl ?? resolved.fullUrl;
         if (activeUrl && !isOutputVideoPreview(activeOutput, activeUrl)) {
@@ -1924,6 +1946,9 @@ export function ReferenceCanvas({
         strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
         adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
         pressureLevel: previewQualityPressureLevel,
+        surface: "reference-grid",
+        cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualMetrics.rowHeight - 3))),
+        devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
       });
       const previewUrl = resolved.previewUrl ?? resolved.fullUrl;
       if (!previewUrl || isOutputVideoPreview(item, previewUrl)) return;
@@ -1946,6 +1971,9 @@ export function ReferenceCanvas({
         strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
         adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
         pressureLevel: previewQualityPressureLevel,
+        surface: "quick-slot",
+        cardLongEdgePx: Math.max(200, Math.round(Math.max(1, curatedVirtualMetrics.rowHeight - 3))),
+        devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
       });
       const previewUrl = resolved.previewUrl ?? resolved.fullUrl;
       if (!previewUrl || isOutputVideoPreview(item, previewUrl)) return;
@@ -1975,6 +2003,7 @@ export function ReferenceCanvas({
     }
   }, [
     activeOutputId,
+    curatedVirtualMetrics.rowHeight,
     curatedVisibleCardItems,
     enqueueImageHydration,
     nearViewportCuratedOutputs,
@@ -1983,6 +2012,7 @@ export function ReferenceCanvas({
     previewQualityPressureLevel,
     processHydrationQueue,
     syncImageHydrationState,
+    virtualMetrics.rowHeight,
     visibleCardItems,
   ]);
 

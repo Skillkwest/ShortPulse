@@ -125,6 +125,33 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it("passes stage-specific thinker/formatter models to orchestration turns", async () => {
+    process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "false";
+    process.env.OPENAI_MODEL = "gpt-default";
+    process.env.STUDIO_AGENT_THINKER_MODEL = "gpt-thinker";
+    process.env.STUDIO_AGENT_FORMATTER_MODEL = "gpt-formatter";
+
+    const req = {
+      method: "POST",
+      body: {
+        messages: [{ role: "user", content: "enhance this cinematic prompt" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(runThinkerFormatterTurnMock).toHaveBeenCalledTimes(1);
+    expect(runThinkerFormatterTurnMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        thinkerModel: "gpt-thinker",
+        formatterModel: "gpt-formatter",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("does not synthesize applyPrompt on refusal and preserves canonical prompt", async () => {
     process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "true";
     process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "false";

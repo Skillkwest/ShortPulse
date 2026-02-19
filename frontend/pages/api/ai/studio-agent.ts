@@ -349,6 +349,11 @@ const parseRequestTimeoutMs = (value: string | undefined): number => {
   return rounded;
 };
 
+const resolveModelEnv = (candidate: string | undefined, fallback: string): string => {
+  const trimmed = candidate?.trim();
+  return trimmed && trimmed.length ? trimmed : fallback;
+};
+
 const buildImageSummaryMap = async ({
   context,
   imageDescribePrompt,
@@ -578,8 +583,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const canonicalDbEnabled = process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED !== "false";
   const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
   const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
-  const openAiModel = process.env.OPENAI_MODEL || DEFAULT_MODEL;
-  const openAiVisionModel = process.env.OPENAI_VISION_MODEL || DEFAULT_VISION_MODEL;
+  const openAiModel = resolveModelEnv(process.env.OPENAI_MODEL, DEFAULT_MODEL);
+  const openAiVisionModel = resolveModelEnv(process.env.OPENAI_VISION_MODEL, DEFAULT_VISION_MODEL);
+  const openAiThinkerModel = resolveModelEnv(process.env.STUDIO_AGENT_THINKER_MODEL, openAiModel);
+  const openAiFormatterModel = resolveModelEnv(
+    process.env.STUDIO_AGENT_FORMATTER_MODEL,
+    openAiThinkerModel
+  );
   const requestTimeoutMs = parseRequestTimeoutMs(process.env.STUDIO_AGENT_TIMEOUT_MS);
 
   let storedCanonical: string | null = null;
@@ -707,7 +717,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const firstPass = await runThinkerFormatterTurn({
         apiKey,
         openAiUrl: OPENAI_URL,
-        model: openAiModel,
+        thinkerModel: openAiThinkerModel,
+        formatterModel: openAiFormatterModel,
         thinkerMessages: buildThinkerMessages(thinkerPayload, thinkerPrompt),
         buildFormatterMessages: (semantic) => buildFormatterMessages(semantic, formatterPrompt),
         parseAgentJson,
@@ -720,7 +731,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           flow: orchestration.flow,
           path,
           status: "error",
-          model: openAiModel,
+          model: openAiThinkerModel,
           retryUsed: false,
           totalLatencyMs: Date.now() - requestStartedAt,
           stageLatencyMs,
@@ -749,7 +760,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const retryPass = await runThinkerFormatterTurn({
           apiKey,
           openAiUrl: OPENAI_URL,
-          model: openAiModel,
+          thinkerModel: openAiThinkerModel,
+          formatterModel: openAiFormatterModel,
           thinkerMessages: buildThinkerMessages(
             {
               ...thinkerPayload,
@@ -826,7 +838,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         flow: orchestration.flow,
         path,
         status: refusal ? "refuse" : "success",
-        model: openAiModel,
+        model: openAiThinkerModel,
         retryUsed,
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,

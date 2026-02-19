@@ -420,6 +420,7 @@
 .reference-canvas-panel
   .reference-card
   .reference-describe-pill.reference-generate-pill.agent-generate-prefab {
+  display: none;
   border: 0;
   background: rgba(52, 200, 255, 0.86);
   box-shadow: none;

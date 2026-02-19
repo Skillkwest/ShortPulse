@@ -94,9 +94,10 @@
 }
 
 .model-picker-value img {
-  width: 18px;
+  width: auto;
   height: 18px;
   display: block;
+  object-fit: contain;
 }
 
 .model-picker-row {

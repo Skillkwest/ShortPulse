@@ -29,6 +29,8 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `OPENAI_API_BASE`
    - `OPENAI_MODEL`
    - `OPENAI_VISION_MODEL`
+   - `STUDIO_AGENT_THINKER_MODEL` (optional override; defaults to `OPENAI_MODEL`)
+   - `STUDIO_AGENT_FORMATTER_MODEL` (optional override; defaults to thinker model)
    - `OPENAI_PROMPT_SYSTEM`
    - `STUDIO_AGENT_ENABLED`
    - `STUDIO_AGENT_SYSTEM`

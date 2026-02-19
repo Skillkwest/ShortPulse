@@ -94,4 +94,104 @@ describe("runThinkerFormatterTurn", () => {
     if (!result.ok) return;
     expect(result.result.parsed.message).toBe("plain formatter text");
   });
+
+  it("retries transient formatter failures and uses stage-specific models", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: '{"status":"ready","prompt_text":"first prompt"}' } }],
+          usage: { prompt_tokens: 4, completion_tokens: 5 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 504,
+        text: async () => "upstream timeout",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  '{"message":"final prompt","actions":{"applyPrompt":"final prompt","referenceCard":{"title":"Prompt","prompt":"final prompt"}}}',
+              },
+            },
+          ],
+          usage: { prompt_tokens: 7, completion_tokens: 8 },
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runThinkerFormatterTurn({
+      apiKey: "test-key",
+      openAiUrl: "https://example.com/v1/chat/completions",
+      thinkerModel: "gpt-thinker",
+      formatterModel: "gpt-formatter",
+      thinkerMessages: [{ role: "system", content: "think" }],
+      buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
+      parseAgentJson: (raw) => JSON.parse(raw),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const firstBody = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
+    const secondBody = JSON.parse((fetchMock.mock.calls[1]?.[1] as RequestInit).body as string);
+    const thirdBody = JSON.parse((fetchMock.mock.calls[2]?.[1] as RequestInit).body as string);
+    expect(firstBody.model).toBe("gpt-thinker");
+    expect(secondBody.model).toBe("gpt-formatter");
+    expect(thirdBody.model).toBe("gpt-formatter");
+    expect(result.result.parsed.actions?.applyPrompt).toBe("final prompt");
+  });
+
+  it("falls back to thinker output when formatter stage keeps failing", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: '{"status":"ready","prompt_text":"cinematic close-up portrait"}',
+              },
+            },
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 14 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        text: async () => "bad gateway",
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: async () => "service unavailable",
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runThinkerFormatterTurn({
+      apiKey: "test-key",
+      openAiUrl: "https://example.com/v1/chat/completions",
+      model: "gpt-5-nano",
+      thinkerMessages: [{ role: "system", content: "think" }],
+      buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
+      parseAgentJson: () => null,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.result.parsed.actions?.applyPrompt).toBe("cinematic close-up portrait");
+    expect(result.result.usage).toEqual({ inputTokens: 10, outputTokens: 14 });
+  });
 });

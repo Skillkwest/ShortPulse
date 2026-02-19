@@ -11,6 +11,11 @@
 - [ ] `window.__shortpulseAiStudioPerf.runStudioShellAudit({ counts: [40, 60] })` passes.
 - [ ] `NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE` changed in this PR: `yes` / `no`
 
+## Adaptive Media V2 Gates (when adaptive paths are touched)
+- [ ] `npm -C frontend run test:adaptive-v2-gate`
+- [ ] Manual smoke confirms: no stuck `loading preview...` cards in Quick Slot/Reference Grid.
+- [ ] Detail modals remain full quality (AI Studio detail + Character overlay).
+
 ## UX / Accessibility (UI-touching changes)
 - [ ] Keyboard-only interactions validated for touched flows (including modal open/close and tab navigation where applicable).
 - [ ] Semantics validated (`h1`, landmarks, dialog labeling, tab roles, and `aria-*` states for changed surfaces).

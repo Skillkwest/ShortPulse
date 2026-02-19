@@ -23,6 +23,7 @@ Purpose: operational runbooks for recurring engineering and product workflows.
 - `docs/sops/sop_ai_studio_index.md`
 - `docs/sops/sop_ai_studio_agent.md`
 - `docs/sops/sop_ai_studio_agent_chat_ops.md`
+- `docs/sops/sop_adaptive_media_change_control.md`
 - `docs/sops/sop_text_generation.md`
 - `docs/sops/sop_image_generation.md`
 - `docs/sops/sop_video_generation.md`

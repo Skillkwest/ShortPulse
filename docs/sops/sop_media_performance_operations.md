@@ -153,6 +153,8 @@ Key indicators:
 Adjust only after telemetry review; keep desktop/mobile/constrained profiles distinct.
 
 ## Adaptive Media V2 Runbook
+Use this runbook together with `docs/sops/sop_adaptive_media_change_control.md` for PR gating and regression-control requirements.
+
 1. Shadow compare (no rendering change):
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED=true`
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SHADOW_COMPARE=true`
@@ -223,18 +225,19 @@ Monitor these events during rollout:
 ## Release Checklist
 1. `npm -C frontend run lint`
 2. `npm -C frontend run type-check`
-3. `npm -C frontend run build`
-4. Run in-browser gate audit from DevTools on `/ai-studio`:
+3. When adaptive paths are touched: `npm -C frontend run test:adaptive-v2-gate`
+4. `npm -C frontend run build`
+5. Run in-browser gate audit from DevTools on `/ai-studio`:
    - `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
    - `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
-5. Production-mode verification (release signal):
+6. Production-mode verification (release signal):
    - Run the one-command release check (build + start + authenticated perf audit + teardown):
      - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
    - Optional fast rerun without rebuild:
      - `cd frontend && AI_STUDIO_PERF_SKIP_BUILD=true PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
    - Optional port override:
      - `cd frontend && AI_STUDIO_PERF_PORT=3200 PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
-6. Manual verification:
+7. Manual verification:
    - Media Library route (images/videos/private/AI tabs)
    - AI Studio modal search + paging + selection
    - Reference Grid autoplay behavior on desktop and small-screen widths

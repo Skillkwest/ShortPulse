@@ -49,7 +49,9 @@ Tooling audit references:
 - [ ] AI Studio: run staging smoke tests for aspect-ratio contract (verify submit payload and returned dimensions for Seedream `5:4`, `4:5`, `3:2`, `2:3`, `21:9`).
 - [ ] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
 - [ ] AI Studio: alter existing e2e coverage for aspect clamping + submit-time `effective_aspect` consistency after the contract overhaul.
+- [ ] AI Studio: trim the aspect-ratio dropdown by removing extraneous ratio options and keeping only supported defaults.
 - [ ] AI Studio: update reference grid styling and adjust `Add files` / `Media library` button colors.
+- [ ] AI Studio: change placeholder `generating` and `loading preview` reference cards to a lighter gray background for better visual contrast.
 - [ ] AI Studio: increase normal-state color saturation for the reference-grid `Add files` and `Media library` buttons (current state appears too gray/desaturated).
 - [ ] AI Studio: remove the blue gradient overlay from the quick-slot inventory background.
 - [ ] AI Studio: fix expanded media modal labels so images imported from Media Library are consistently labeled as images (never videos).

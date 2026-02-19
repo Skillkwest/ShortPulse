@@ -6,3 +6,9 @@
 /sql/ @sleepyseamonster
 /.github/ @sleepyseamonster
 
+# Adaptive Media V2 critical paths
+/frontend/lib/adaptive-media/ @sleepyseamonster
+/frontend/features/ai-studio/components/ReferenceCanvas.tsx @sleepyseamonster
+/frontend/features/ai-studio/logic/referenceGridMedia.ts @sleepyseamonster
+/frontend/features/ai-studio/components/MediaLibraryModal.tsx @sleepyseamonster
+/frontend/features/character-manager/components/CharacterManagerShell.tsx @sleepyseamonster

@@ -774,3 +774,19 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated rollout tracking artifacts:
   - `docs/planning/adaptive-media-v2-migration-checklist.md` (Phase 3 and Phase 5 verification marked complete + current QA status notes)
   - `docs/planning/backlog.md` (added non-blocking follow-up for rare one-off grid flash stabilization pass).
+
+## 2026-02-19 (Adaptive Media V2 regression guardrails)
+- Added dedicated adaptive regression gate script in `frontend/package.json`:
+  - `test:adaptive-v2-gate`
+  - runs lint/type-check plus targeted adaptive suites for Reference Grid, Media Library modal, Character Manager, parity, and policy.
+- Added path-scoped CI job `adaptive_media_gate` in `.github/workflows/ci.yml`:
+  - runs `test:adaptive-v2-gate` for PRs touching adaptive-critical paths
+  - auto-skips with summary note when no adaptive-impacting files changed.
+- Updated ownership/review policy in `.github/CODEOWNERS` with explicit Adaptive Media V2 critical path entries.
+- Updated PR process in `.github/pull_request_template.md` with an Adaptive Media V2 gate checklist section.
+- Added adaptive change-control SOP:
+  - `docs/sops/sop_adaptive_media_change_control.md`
+  - linked from `docs/sops/README.md` and referenced by `docs/sops/sop_media_performance_operations.md`.
+- Added adaptive merge-gate skill:
+  - `skills/adaptive-change-gate/SKILL.md`
+  - documented in `docs/README.md` and `docs/agent-playbook.md`.

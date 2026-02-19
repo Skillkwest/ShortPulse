@@ -48,3 +48,5 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Use `skills/skill-mvp-modularization-pass/SKILL.md` when splitting oversized files and enforcing modularity thresholds.
 - Use `skills/skill-mvp-docs-sop-governance/SKILL.md` when resolving docs/SOP drift and archive/index hygiene.
 - Use `skills/skill-media-storage-deploy-gate/SKILL.md` when the user is preparing to deploy and media storage integrity must be pass/fail gated.
+- Use `skills/adaptive-parity-check/SKILL.md`, `skills/adaptive-surface-smoke/SKILL.md`, and `skills/adaptive-perf-audit/SKILL.md` during Adaptive Media V2 rollout/tuning phases.
+- Use `skills/adaptive-change-gate/SKILL.md` before merging any change that touches adaptive media or reference-grid adaptive delivery paths.

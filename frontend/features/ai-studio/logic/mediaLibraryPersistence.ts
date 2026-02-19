@@ -125,6 +125,7 @@ export type GenerationRecordLookup = {
   id: string;
   status: string | null;
   metadata: Record<string, unknown>;
+  recoveryAttempts: number | null;
 };
 
 export type PromptRecordInput = {
@@ -212,7 +213,7 @@ export const findGenerationRecordByRequestId = async (
   const { supabase, userId } = await resolveSupabaseContext();
   const { data, error } = await supabase
     .from("ai_generations")
-    .select("id, status, metadata, created_at")
+    .select("id, status, metadata, recovery_attempts, created_at")
     .eq("user_id", userId)
     .eq("request_id", normalizedRequestId)
     .order("created_at", { ascending: false })
@@ -225,6 +226,7 @@ export const findGenerationRecordByRequestId = async (
     id?: unknown;
     status?: unknown;
     metadata?: unknown;
+    recovery_attempts?: unknown;
   };
   if (typeof row.id !== "string" || !row.id.trim()) return null;
   return {
@@ -234,34 +236,92 @@ export const findGenerationRecordByRequestId = async (
       row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
         ? (row.metadata as Record<string, unknown>)
         : {},
+    recoveryAttempts: typeof row.recovery_attempts === "number" ? row.recovery_attempts : null,
   };
 };
 
 /**
  * Update a generation record by id.
  */
-export const updateGenerationRecord = async (id: string, patch: Partial<GenerationRecordInput>) => {
+type GenerationRecordUpdateInput = Partial<GenerationRecordInput> & {
+  failureReasonCode?: string | null;
+  recoveryState?: "none" | "queued" | "recovering" | "recovered" | "exhausted" | null;
+  recoveryAttempts?: number | null;
+  lastRecoveryAt?: string | null;
+  nextRecoveryAt?: string | null;
+  lastMediaDetectedAt?: string | null;
+  completedAt?: string | null;
+};
+
+const hasOwn = <T extends object>(value: T, key: keyof T) =>
+  Object.prototype.hasOwnProperty.call(value, key);
+
+export const updateGenerationRecord = async (id: string, patch: GenerationRecordUpdateInput) => {
   const { supabase } = await resolveSupabaseContext();
-  const updates: Record<string, unknown> = {
-    mode: patch.mode,
-    provider: patch.provider,
-    model_id: patch.modelId,
-    prompt_text: patch.promptText,
-    aspect: patch.aspect ?? null,
-    duration_seconds: patch.durationSeconds ?? null,
-    resolution: patch.resolution ?? null,
-    request_id: patch.requestId ?? null,
-    status: patch.status,
-  };
-  if (patch.metadata !== undefined) {
-    updates.metadata = patch.metadata;
+  const updates: Record<string, unknown> = {};
+  if (hasOwn(patch, "mode")) updates.mode = patch.mode;
+  if (hasOwn(patch, "provider")) updates.provider = patch.provider;
+  if (hasOwn(patch, "modelId")) updates.model_id = patch.modelId;
+  if (hasOwn(patch, "promptText")) updates.prompt_text = patch.promptText;
+  if (hasOwn(patch, "aspect")) updates.aspect = patch.aspect ?? null;
+  if (hasOwn(patch, "durationSeconds")) updates.duration_seconds = patch.durationSeconds ?? null;
+  if (hasOwn(patch, "resolution")) updates.resolution = patch.resolution ?? null;
+  if (hasOwn(patch, "requestId")) updates.request_id = patch.requestId ?? null;
+  if (hasOwn(patch, "status")) updates.status = patch.status;
+  if (hasOwn(patch, "metadata")) updates.metadata = patch.metadata ?? {};
+  if (hasOwn(patch, "failureReasonCode")) {
+    updates.failure_reason_code = patch.failureReasonCode ?? null;
   }
-  if (patch.status === "success" || patch.status === "fail") {
+  if (hasOwn(patch, "recoveryState")) {
+    updates.recovery_state = patch.recoveryState ?? null;
+  }
+  if (hasOwn(patch, "recoveryAttempts")) {
+    updates.recovery_attempts = patch.recoveryAttempts ?? null;
+  }
+  if (hasOwn(patch, "lastRecoveryAt")) {
+    updates.last_recovery_at = patch.lastRecoveryAt ?? null;
+  }
+  if (hasOwn(patch, "nextRecoveryAt")) {
+    updates.next_recovery_at = patch.nextRecoveryAt ?? null;
+  }
+  if (hasOwn(patch, "lastMediaDetectedAt")) {
+    updates.last_media_detected_at = patch.lastMediaDetectedAt ?? null;
+  }
+  if (hasOwn(patch, "completedAt")) {
+    updates.completed_at = patch.completedAt ?? null;
+  } else if (patch.status === "success" || patch.status === "fail") {
     updates.completed_at = new Date().toISOString();
   }
-  const { error } = await supabase.from("ai_generations").update(updates).eq("id", id);
-  if (error) {
-    throw error;
+
+  if (!Object.keys(updates).length) {
+    return;
+  }
+
+  const { error: updateError } = await supabase.from("ai_generations").update(updates).eq("id", id);
+  if (!updateError) return;
+
+  const message = String(updateError.message ?? "").toLowerCase();
+  const isMissingColumnError = message.includes("column") && message.includes("does not exist");
+  if (!isMissingColumnError) {
+    throw updateError;
+  }
+
+  const legacySafeUpdates = { ...updates };
+  delete legacySafeUpdates.failure_reason_code;
+  delete legacySafeUpdates.recovery_state;
+  delete legacySafeUpdates.recovery_attempts;
+  delete legacySafeUpdates.last_recovery_at;
+  delete legacySafeUpdates.next_recovery_at;
+  delete legacySafeUpdates.last_media_detected_at;
+  if (!Object.keys(legacySafeUpdates).length) {
+    return;
+  }
+  const { error: fallbackError } = await supabase
+    .from("ai_generations")
+    .update(legacySafeUpdates)
+    .eq("id", id);
+  if (fallbackError) {
+    throw fallbackError;
   }
 };
 

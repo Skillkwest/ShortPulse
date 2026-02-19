@@ -3,7 +3,11 @@
  * Owns generation polling lifecycle, deferred autosave finalization, status retry handling, and task-submission wiring.
  */
 import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
-import { logMediaEvent, updateGenerationRecord } from "../logic/mediaLibraryPersistence";
+import {
+  findGenerationRecordByRequestId,
+  logMediaEvent,
+  updateGenerationRecord,
+} from "../logic/mediaLibraryPersistence";
 import { type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
@@ -262,12 +266,64 @@ export const useAiStudioTaskOrchestration = ({
     [ensureGenerationRecord, findOutputById, pendingAutoSavesRef]
   );
 
+  const handlePollingOutputLookupHardStop = useCallback(
+    async ({
+      outputId,
+      taskId,
+      provider,
+      lookupMisses,
+      missingDurationMs,
+    }: {
+      outputId: string;
+      taskId: string;
+      provider: Provider;
+      lookupMisses: number;
+      missingDurationMs: number;
+    }) => {
+      try {
+        const output = findOutputById(outputId);
+        const existing = await findGenerationRecordByRequestId(taskId);
+        const generationId = output?.generationId ?? existing?.id ?? null;
+        if (!generationId) return;
+        const nowIso = new Date().toISOString();
+        await updateGenerationRecord(generationId, {
+          requestId: taskId,
+          status: "running",
+          failureReasonCode: "output_lookup_missing",
+          recoveryState: "queued",
+          recoveryAttempts: (existing?.recoveryAttempts ?? 0) + 1,
+          lastRecoveryAt: nowIso,
+          nextRecoveryAt: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
+        });
+        await logMediaEvent({
+          eventType: "generation_recovery_queued",
+          entityType: "ai_generation",
+          entityId: generationId,
+          metadata: {
+            reason: "output_lookup_missing",
+            provider,
+            request_id: taskId,
+            output_id: outputId,
+            lookup_misses: lookupMisses,
+            missing_duration_ms: missingDurationMs,
+            generation_trace_id: output?.generationTraceId ?? output?.taskId ?? taskId,
+            submission_trace_id: output?.submissionTraceId ?? null,
+          },
+        });
+      } catch {
+        // best-effort persistence hint only
+      }
+    },
+    [findOutputById]
+  );
+
   const { startPollingTask, clearPollTimer, pollTimersRef } = useAiStudioTasks({
     updateOutputById,
     findOutputById,
     notifyGenerationFailure,
     onGenerationSuccess: handleGenerationSuccess,
     onGenerationFailure: handleGenerationFailure,
+    onPollingOutputLookupHardStop: handlePollingOutputLookupHardStop,
   });
 
   const submitTask = useAiStudioTaskSubmission({

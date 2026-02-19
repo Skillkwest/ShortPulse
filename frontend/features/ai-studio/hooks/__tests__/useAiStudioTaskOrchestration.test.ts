@@ -5,7 +5,10 @@ import type { StudioOutput } from "../../types";
 import { useAiStudioTaskOrchestration } from "../useAiStudioTaskOrchestration";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "../useAiStudioTasks";
-import { updateGenerationRecord } from "../../logic/mediaLibraryPersistence";
+import {
+  findGenerationRecordByRequestId,
+  updateGenerationRecord,
+} from "../../logic/mediaLibraryPersistence";
 
 vi.mock("../useAiStudioTaskSubmission", () => ({
   useAiStudioTaskSubmission: vi.fn(),
@@ -16,6 +19,7 @@ vi.mock("../useAiStudioTasks", () => ({
 }));
 
 vi.mock("../../logic/mediaLibraryPersistence", () => ({
+  findGenerationRecordByRequestId: vi.fn(async () => null),
   logMediaEvent: vi.fn(async () => undefined),
   updateGenerationRecord: vi.fn(async () => undefined),
 }));
@@ -42,6 +46,7 @@ type TasksCallbacks = Parameters<typeof useAiStudioTasks>[0];
 describe("useAiStudioTaskOrchestration", () => {
   const useAiStudioTaskSubmissionMock = vi.mocked(useAiStudioTaskSubmission);
   const useAiStudioTasksMock = vi.mocked(useAiStudioTasks);
+  const findGenerationRecordByRequestIdMock = vi.mocked(findGenerationRecordByRequestId);
   const updateGenerationRecordMock = vi.mocked(updateGenerationRecord);
 
   let capturedTaskCallbacks: TasksCallbacks | null;
@@ -57,6 +62,7 @@ describe("useAiStudioTaskOrchestration", () => {
     pollTimersRef = { current: {} };
 
     useAiStudioTaskSubmissionMock.mockReturnValue(vi.fn());
+    findGenerationRecordByRequestIdMock.mockResolvedValue(null);
     useAiStudioTasksMock.mockImplementation(((callbacks: TasksCallbacks) => {
       capturedTaskCallbacks = callbacks;
       return {
@@ -156,6 +162,77 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(markOutputSaveFailed).not.toHaveBeenCalled();
     expect(updateGenerationRecordMock).toHaveBeenCalled();
     expect(pendingAutoSavesRef.current["out-1"]).toBeUndefined();
+  });
+
+  it("queues generation recovery when polling hard-stops due to prolonged output lookup misses", async () => {
+    const outputs = [
+      createOutput({ id: "out-1", taskId: "task-123", provider: "fal", generationId: "gen-1" }),
+    ];
+    const updateOutputById = vi.fn();
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById,
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+        pendingAutoSavesRef: { current: {} },
+        markOutputSaved: vi.fn(),
+        markOutputSaveFailed: vi.fn(),
+        persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
+      })
+    );
+
+    await act(async () => {
+      await capturedTaskCallbacks?.onPollingOutputLookupHardStop?.({
+        outputId: "out-1",
+        taskId: "task-123",
+        provider: "fal",
+        lookupMisses: 42,
+        missingDurationMs: 301_000,
+      });
+    });
+
+    expect(findGenerationRecordByRequestIdMock).toHaveBeenCalledWith("task-123");
+    expect(updateGenerationRecordMock).toHaveBeenCalledWith(
+      "gen-1",
+      expect.objectContaining({
+        requestId: "task-123",
+        status: "running",
+        failureReasonCode: "output_lookup_missing",
+        recoveryState: "queued",
+        recoveryAttempts: 1,
+      })
+    );
   });
 
   it("shows a notice and skips poll restart when task id is missing", () => {

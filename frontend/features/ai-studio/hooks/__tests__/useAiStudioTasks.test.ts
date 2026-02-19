@@ -363,6 +363,38 @@ describe("useAiStudioTasks", () => {
     expect(updateOutputById).not.toHaveBeenCalled();
   });
 
+  it("emits hard-stop callback and queues recovery when output lookup is missing for too long", async () => {
+    const updateOutputById = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const findOutputById = vi.fn(() => null);
+    const onPollingOutputLookupHardStop = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        findOutputById,
+        notifyGenerationFailure,
+        onPollingOutputLookupHardStop,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-hard-stop", "out-gone", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 5_000);
+
+    expect(fetchFalStatusMock).not.toHaveBeenCalled();
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onPollingOutputLookupHardStop).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-gone",
+        taskId: "task-hard-stop",
+        provider: "fal",
+      })
+    );
+  });
+
   it("recovers from transient output lookup misses and resumes polling", async () => {
     fetchFalStatusMock.mockResolvedValueOnce({
       status: "completed",

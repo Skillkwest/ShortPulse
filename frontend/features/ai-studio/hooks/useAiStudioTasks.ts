@@ -39,6 +39,14 @@ type GenerationFailureReason =
   | "provider_error"
   | "status_poll_error";
 
+type OutputLookupHardStopPayload = {
+  outputId: string;
+  taskId: string;
+  provider: Provider;
+  lookupMisses: number;
+  missingDurationMs: number;
+};
+
 type GenerationFailureContext = {
   reasonCode?: GenerationFailureReason;
   providerState?: string | null;
@@ -70,6 +78,7 @@ type TaskCallbacks = {
     message: string;
     reasonCode?: GenerationFailureReason;
   }) => void;
+  onPollingOutputLookupHardStop?: (payload: OutputLookupHardStopPayload) => void;
 };
 
 type PollStatus = {
@@ -288,6 +297,7 @@ export function useAiStudioTasks({
   notifyGenerationFailure,
   onGenerationSuccess,
   onGenerationFailure,
+  onPollingOutputLookupHardStop,
 }: TaskCallbacks) {
   const pollTimersRef = useRef<Record<string, number>>({});
   const pollSessionsRef = useRef<Record<string, number>>({});
@@ -296,6 +306,7 @@ export function useAiStudioTasks({
   const recoveryAttemptsRef = useRef<Record<string, number>>({});
   const outputLookupMissesRef = useRef<Record<string, number>>({});
   const outputLookupMissingSinceRef = useRef<Record<string, number>>({});
+  const outputLookupHardStopNotifiedRef = useRef<Record<string, boolean>>({});
   const lastProgressUpdateAtRef = useRef<Record<string, number>>({});
   const queuedOutputUpdatersRef = useRef<Record<string, QueuedOutputUpdate[]>>({});
   const queuedOutputFlushPendingRef = useRef(false);
@@ -387,6 +398,7 @@ export function useAiStudioTasks({
       delete lastProgressUpdateAtRef.current[outputId];
       delete outputLookupMissesRef.current[outputId];
       delete outputLookupMissingSinceRef.current[outputId];
+      delete outputLookupHardStopNotifiedRef.current[outputId];
     },
     [updateOutputById]
   );
@@ -405,7 +417,11 @@ export function useAiStudioTasks({
       taskId: string,
       outputId: string,
       provider: Provider,
-      reasonCode: "no_media_after_terminal_success" | "poll_timeout" | "status_poll_error"
+      reasonCode:
+        | "no_media_after_terminal_success"
+        | "poll_timeout"
+        | "status_poll_error"
+        | "output_lookup_missing"
     ) => {
       if (recoveryTimersRef.current[outputId]) return;
 
@@ -523,6 +539,44 @@ export function useAiStudioTasks({
     [clearPollTimer, clearRecoveryTimer, onGenerationSuccess, queueOutputUpdate]
   );
 
+  const handleOutputLookupHardStop = useCallback(
+    ({
+      outputId,
+      taskId,
+      provider,
+      lookupMisses,
+      missingDurationMs,
+    }: OutputLookupHardStopPayload) => {
+      if (outputLookupHardStopNotifiedRef.current[outputId]) {
+        return;
+      }
+      outputLookupHardStopNotifiedRef.current[outputId] = true;
+      addBreadcrumb({
+        type: "ui",
+        level: "warn",
+        message: "generation_poll_output_lookup_hard_stop",
+        data: {
+          provider,
+          task_id: taskId,
+          output_id: outputId,
+          lookup_misses: lookupMisses,
+          missing_duration_ms: missingDurationMs,
+        },
+      });
+      onPollingOutputLookupHardStop?.({
+        outputId,
+        taskId,
+        provider,
+        lookupMisses,
+        missingDurationMs,
+      });
+      scheduleBackgroundRecovery(taskId, outputId, provider, "output_lookup_missing");
+      clearPollTimer(outputId);
+      clearRecoveryTimer(outputId);
+    },
+    [clearPollTimer, clearRecoveryTimer, onPollingOutputLookupHardStop, scheduleBackgroundRecovery]
+  );
+
   const startPollingTask = useCallback(
     function pollTask(
       taskId: string,
@@ -550,20 +604,13 @@ export function useAiStudioTasks({
         outputLookupMissingSinceRef.current[outputId] = missingSince;
         const missingDurationMs = Date.now() - missingSince;
         if (missingDurationMs > OUTPUT_LOOKUP_MISS_HARD_STOP_MS) {
-          addBreadcrumb({
-            type: "ui",
-            level: "warn",
-            message: "generation_poll_output_lookup_hard_stop",
-            data: {
-              provider,
-              task_id: taskId,
-              output_id: outputId,
-              lookup_misses: lookupMisses,
-              missing_duration_ms: missingDurationMs,
-            },
+          handleOutputLookupHardStop({
+            outputId,
+            taskId,
+            provider,
+            lookupMisses,
+            missingDurationMs,
           });
-          clearPollTimer(outputId);
-          clearRecoveryTimer(outputId);
           return;
         }
         if (lookupMisses === OUTPUT_LOOKUP_MISS_MAX_RETRIES + 1) {
@@ -602,6 +649,7 @@ export function useAiStudioTasks({
       }
       delete outputLookupMissesRef.current[outputId];
       delete outputLookupMissingSinceRef.current[outputId];
+      delete outputLookupHardStopNotifiedRef.current[outputId];
 
       if (attempt === 0 && noMediaAttempt === 0) {
         const existingTimeoutId = pollTimersRef.current[outputId];
@@ -681,20 +729,13 @@ export function useAiStudioTasks({
               outputLookupMissingSinceRef.current[outputId] = missingSince;
               const missingDurationMs = Date.now() - missingSince;
               if (missingDurationMs > OUTPUT_LOOKUP_MISS_HARD_STOP_MS) {
-                addBreadcrumb({
-                  type: "ui",
-                  level: "warn",
-                  message: "generation_poll_output_lookup_hard_stop",
-                  data: {
-                    provider,
-                    task_id: taskId,
-                    output_id: outputId,
-                    lookup_misses: lookupMisses,
-                    missing_duration_ms: missingDurationMs,
-                  },
+                handleOutputLookupHardStop({
+                  outputId,
+                  taskId,
+                  provider,
+                  lookupMisses,
+                  missingDurationMs,
                 });
-                clearPollTimer(outputId);
-                clearRecoveryTimer(outputId);
                 return;
               }
               if (lookupMisses === OUTPUT_LOOKUP_MISS_MAX_RETRIES + 1) {
@@ -733,6 +774,7 @@ export function useAiStudioTasks({
             }
             delete outputLookupMissesRef.current[outputId];
             delete outputLookupMissingSinceRef.current[outputId];
+            delete outputLookupHardStopNotifiedRef.current[outputId];
 
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
             const stateRaw =
@@ -1123,6 +1165,7 @@ export function useAiStudioTasks({
       clearPollTimer,
       clearRecoveryTimer,
       findOutputById,
+      handleOutputLookupHardStop,
       notifyGenerationFailure,
       onGenerationFailure,
       onGenerationSuccess,
@@ -1145,6 +1188,7 @@ export function useAiStudioTasks({
       recoveryAttemptsRef.current = {};
       outputLookupMissesRef.current = {};
       outputLookupMissingSinceRef.current = {};
+      outputLookupHardStopNotifiedRef.current = {};
       lastProgressUpdateAtRef.current = {};
       queuedOutputUpdatersRef.current = {};
       queuedOutputFlushPendingRef.current = false;

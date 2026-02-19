@@ -37,6 +37,8 @@ type RatioBounds = {
 };
 
 const DEFAULT_TOP_RATIO = 0.35;
+const FALLBACK_MIN_RATIO = 0.01;
+const FALLBACK_MAX_RATIO = 0.995;
 const DEFAULT_MIN_TOP_SECTION_HEIGHT_PX = 120;
 const DEFAULT_MIN_BOTTOM_SECTION_HEIGHT_PX = 120;
 const DEFAULT_ALL_REFS_SNAP_TOP_HEIGHT_PX = 24;
@@ -45,6 +47,11 @@ const KEYBOARD_FAST_STEP = 0.07;
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
+
+const FALLBACK_RATIO_BOUNDS: RatioBounds = {
+  min: FALLBACK_MIN_RATIO,
+  max: FALLBACK_MAX_RATIO,
+};
 
 const resolveRatioBounds = (
   containerHeight: number,
@@ -71,10 +78,13 @@ export const useReferenceGridHorizontalSplit = ({
 }: UseReferenceGridHorizontalSplitArgs) => {
   const dragSessionRef = useRef<DragSession | null>(null);
   const detachPointerListenersRef = useRef<(() => void) | null>(null);
-  const [topRatio, setTopRatio] = useState(() => clamp(defaultTopRatio, 0.1, 0.9));
+  const [allRefsExpandedThresholdRatio, setAllRefsExpandedThresholdRatio] = useState<number | null>(
+    null
+  );
+  const [topRatio, setTopRatio] = useState(() =>
+    clamp(defaultTopRatio, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO)
+  );
   const [containerHeightPx, setContainerHeightPx] = useState(0);
-  const [isAllRefsExpanded, setIsAllRefsExpanded] = useState(false);
-  const [isInventoryExpanded, setIsInventoryExpanded] = useState(false);
 
   const stopResizing = useCallback(() => {
     if (detachPointerListenersRef.current) {
@@ -85,12 +95,6 @@ export const useReferenceGridHorizontalSplit = ({
   }, []);
 
   useEffect(() => stopResizing, [stopResizing]);
-
-  useEffect(() => {
-    if (enabled) return;
-    setIsAllRefsExpanded(false);
-    setIsInventoryExpanded(false);
-  }, [enabled]);
 
   const resolveContainerHeight = useCallback((): number => {
     const node = containerRef.current;
@@ -124,53 +128,21 @@ export const useReferenceGridHorizontalSplit = ({
     [allRefsSnapTopHeightPx, clampTopRatio, collapseTopHeightPx]
   );
 
-  const syncIsAllRefsExpanded = useCallback(
-    (ratio: number, containerHeight: number) => {
-      const collapsed = ratio <= resolveCollapseRatio(containerHeight) + 0.0005;
-      setIsAllRefsExpanded((prev) => (prev === collapsed ? prev : collapsed));
-    },
-    [resolveCollapseRatio]
-  );
-
-  const syncIsInventoryExpanded = useCallback(
-    (ratio: number, containerHeight: number) => {
-      const bounds = resolveRatioBounds(
-        containerHeight,
-        minTopSectionHeightPx,
-        minBottomSectionHeightPx
-      );
-      const collapsed = ratio >= bounds.max - 0.0005;
-      setIsInventoryExpanded((prev) => (prev === collapsed ? prev : collapsed));
-    },
-    [minBottomSectionHeightPx, minTopSectionHeightPx]
-  );
-
-  const syncSplitCollapseStates = useCallback(
-    (ratio: number, containerHeight: number) => {
-      syncIsAllRefsExpanded(ratio, containerHeight);
-      syncIsInventoryExpanded(ratio, containerHeight);
-    },
-    [syncIsAllRefsExpanded, syncIsInventoryExpanded]
-  );
-
   const setClampedTopRatio = useCallback(
     (nextRatio: number) => {
       const height = resolveContainerHeight();
       setContainerHeightPx((prev) => (prev === height ? prev : height));
       if (height <= 0) {
         setTopRatio((prev) => {
-          const safeNext = clamp(nextRatio, 0.1, 0.9);
+          const safeNext = clamp(nextRatio, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO);
           return Math.abs(prev - safeNext) < 0.001 ? prev : safeNext;
         });
-        setIsAllRefsExpanded(false);
-        setIsInventoryExpanded(false);
         return;
       }
       const clampedRatio = clampTopRatio(nextRatio, height);
       setTopRatio((prev) => (Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio));
-      syncSplitCollapseStates(clampedRatio, height);
     },
-    [clampTopRatio, resolveContainerHeight, syncSplitCollapseStates]
+    [clampTopRatio, resolveContainerHeight]
   );
 
   const handleWindowPointerMove = useCallback(
@@ -183,9 +155,8 @@ export const useReferenceGridHorizontalSplit = ({
       setTopRatio((prev) => {
         return Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio;
       });
-      syncSplitCollapseStates(clampedRatio, session.containerHeight);
     },
-    [clampTopRatio, syncSplitCollapseStates]
+    [clampTopRatio]
   );
 
   const handleDividerPointerDown = useCallback(
@@ -193,6 +164,7 @@ export const useReferenceGridHorizontalSplit = ({
       if (!enabled || event.button !== 0) return;
       const height = resolveContainerHeight();
       if (!height) return;
+      setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
       setContainerHeightPx((prev) => (prev === height ? prev : height));
       const clampedStartRatio = clampTopRatio(topRatio, height);
       dragSessionRef.current = {
@@ -232,35 +204,31 @@ export const useReferenceGridHorizontalSplit = ({
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
       if (!enabled) return;
       const height = resolveContainerHeight();
-      const bounds = resolveRatioBounds(
-        height || 1,
-        minTopSectionHeightPx,
-        minBottomSectionHeightPx
-      );
+      const bounds =
+        height > 0
+          ? resolveRatioBounds(height, minTopSectionHeightPx, minBottomSectionHeightPx)
+          : FALLBACK_RATIO_BOUNDS;
       const step = event.shiftKey ? KEYBOARD_FAST_STEP : KEYBOARD_STEP;
+      setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
 
       if (event.key === "Home") {
         event.preventDefault();
         if (!height) {
-          setIsAllRefsExpanded(false);
-          setIsInventoryExpanded(false);
           setTopRatio((prev) => (Math.abs(prev - bounds.min) < 0.001 ? prev : bounds.min));
           return;
         }
+        setContainerHeightPx((prev) => (prev === height ? prev : height));
         setTopRatio((prev) => (Math.abs(prev - bounds.min) < 0.001 ? prev : bounds.min));
-        syncSplitCollapseStates(bounds.min, height);
         return;
       }
       if (event.key === "End") {
         event.preventDefault();
         if (!height) {
-          setIsAllRefsExpanded(false);
-          setIsInventoryExpanded(false);
           setTopRatio((prev) => (Math.abs(prev - bounds.max) < 0.001 ? prev : bounds.max));
           return;
         }
+        setContainerHeightPx((prev) => (prev === height ? prev : height));
         setTopRatio((prev) => (Math.abs(prev - bounds.max) < 0.001 ? prev : bounds.max));
-        syncSplitCollapseStates(bounds.max, height);
         return;
       }
       if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
@@ -273,10 +241,7 @@ export const useReferenceGridHorizontalSplit = ({
       minBottomSectionHeightPx,
       minTopSectionHeightPx,
       resolveContainerHeight,
-      setIsAllRefsExpanded,
-      setIsInventoryExpanded,
       setClampedTopRatio,
-      syncSplitCollapseStates,
       topRatio,
     ]
   );
@@ -289,10 +254,9 @@ export const useReferenceGridHorizontalSplit = ({
     setContainerHeightPx((prev) => (prev === height ? prev : height));
     setTopRatio((prev) => {
       const clampedRatio = clampTopRatio(prev, height);
-      syncSplitCollapseStates(clampedRatio, height);
       return Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio;
     });
-  }, [clampTopRatio, enabled, resolveContainerHeight, syncSplitCollapseStates]);
+  }, [clampTopRatio, enabled, resolveContainerHeight]);
 
   useEffect(() => {
     if (!enabled || typeof ResizeObserver === "undefined") return;
@@ -304,39 +268,43 @@ export const useReferenceGridHorizontalSplit = ({
       setContainerHeightPx((prev) => (prev === nextHeight ? prev : nextHeight));
       setTopRatio((prev) => {
         const clampedRatio = clampTopRatio(prev, nextHeight);
-        syncSplitCollapseStates(clampedRatio, nextHeight);
         return Math.abs(prev - clampedRatio) < 0.001 ? prev : clampedRatio;
       });
     });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [clampTopRatio, containerRef, enabled, resolveContainerHeight, syncSplitCollapseStates]);
+  }, [clampTopRatio, containerRef, enabled, resolveContainerHeight]);
 
-  const ratioBounds = resolveRatioBounds(
-    containerHeightPx || 1,
-    minTopSectionHeightPx,
-    minBottomSectionHeightPx
-  );
+  const ratioBounds =
+    containerHeightPx > 0
+      ? resolveRatioBounds(containerHeightPx, minTopSectionHeightPx, minBottomSectionHeightPx)
+      : FALLBACK_RATIO_BOUNDS;
   const ariaValueNow = Math.round(topRatio * 100);
   const ariaValueMin = Math.round(ratioBounds.min * 100);
   const ariaValueMax = Math.round(ratioBounds.max * 100);
+  const collapseRatio =
+    containerHeightPx > 0 ? resolveCollapseRatio(containerHeightPx) : FALLBACK_MIN_RATIO;
+  const effectiveAllRefsExpandedThreshold = Math.max(
+    collapseRatio,
+    allRefsExpandedThresholdRatio ?? collapseRatio
+  );
+  const isAllRefsExpanded = topRatio <= effectiveAllRefsExpandedThreshold + 0.0005;
+  const isInventoryExpanded = topRatio >= ratioBounds.max - 0.0005;
 
   const snapToInventoryExpanded = useCallback(() => {
-    setIsAllRefsExpanded(false);
-    setIsInventoryExpanded(true);
+    setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
     const height = resolveContainerHeight();
     if (!height) {
       setTopRatio((prev) => (Math.abs(prev - 0.995) < 0.001 ? prev : 0.995));
       return;
     }
+    setContainerHeightPx((prev) => (prev === height ? prev : height));
     const bounds = resolveRatioBounds(height, minTopSectionHeightPx, minBottomSectionHeightPx);
     setTopRatio((prev) => (Math.abs(prev - bounds.max) < 0.001 ? prev : bounds.max));
   }, [minBottomSectionHeightPx, minTopSectionHeightPx, resolveContainerHeight]);
 
   const snapToAllRefsExpanded = useCallback(
     (topHeightPx?: number) => {
-      setIsAllRefsExpanded(true);
-      setIsInventoryExpanded(false);
       const resolvedTopHeightPx =
         typeof topHeightPx === "number" && Number.isFinite(topHeightPx)
           ? Math.max(0, topHeightPx)
@@ -344,10 +312,13 @@ export const useReferenceGridHorizontalSplit = ({
       const height = resolveContainerHeight();
       if (!height) {
         const fallbackRatio = clamp(resolvedTopHeightPx / 600, 0.01, 0.99);
+        setAllRefsExpandedThresholdRatio((prev) => (prev === fallbackRatio ? prev : fallbackRatio));
         setTopRatio((prev) => (Math.abs(prev - fallbackRatio) < 0.001 ? prev : fallbackRatio));
         return;
       }
+      setContainerHeightPx((prev) => (prev === height ? prev : height));
       const targetRatio = clampTopRatio(resolvedTopHeightPx / Math.max(1, height), height);
+      setAllRefsExpandedThresholdRatio((prev) => (prev === targetRatio ? prev : targetRatio));
       setTopRatio((prev) => (Math.abs(prev - targetRatio) < 0.001 ? prev : targetRatio));
     },
     [allRefsSnapTopHeightPx, clampTopRatio, resolveContainerHeight]

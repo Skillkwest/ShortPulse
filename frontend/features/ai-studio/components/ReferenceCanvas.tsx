@@ -40,7 +40,6 @@ import {
   PERF_FLAG_REFERENCE_GRID_DYNAMIC_VIRTUALIZATION,
   PERF_FLAG_REFERENCE_GRID_GLOBAL_MEDIA_BUDGET,
   PERF_FLAG_REFERENCE_GRID_HARD_VIEWPORT_CAP,
-  PERF_FLAG_REFERENCE_GRID_LOADING_PLACEHOLDER_TIMEOUT,
   PERF_FLAG_REFERENCE_GRID_MEMORY_GUARD,
   PERF_FLAG_REFERENCE_GRID_PERF_WATCHDOG,
   PERF_FLAG_REFERENCE_GRID_RENDER_COMMIT_TELEMETRY,
@@ -74,8 +73,9 @@ const REFERENCE_AUTOPLAY_SMALL_SCREEN_QUERY = "(max-width: 900px)";
 const REFERENCE_AUTOPLAY_DETACH_DELAY_MS = 1400;
 const REFERENCE_HIGH_DENSITY_CARD_COUNT = 180;
 const REFERENCE_PRIORITY_HYDRATION_ROWS = 3;
-const REFERENCE_MAX_ANIMATED_SPINNERS = 4;
-const REFERENCE_SPINNER_MAX_VISIBLE_MS = 1200;
+const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_0 = 6;
+const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_1 = 6;
+const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_2 = 3;
 const REFERENCE_PREVIEW_QUALITY_RECOVERY_DELAY_MS = 45_000;
 const REFERENCE_LOCAL_ADAPTIVE_WEBP_QUALITY: Record<ReferenceGridPreviewQualityBand, number> = {
   high: 0.42,
@@ -92,8 +92,6 @@ const REFERENCE_GRID_FLAG_MEMORY_GUARD = PERF_FLAG_REFERENCE_GRID_MEMORY_GUARD;
 const REFERENCE_GRID_FLAG_PERF_WATCHDOG = PERF_FLAG_REFERENCE_GRID_PERF_WATCHDOG;
 const REFERENCE_GRID_FLAG_HARD_VIEWPORT_CAP = PERF_FLAG_REFERENCE_GRID_HARD_VIEWPORT_CAP;
 const REFERENCE_GRID_FLAG_CSS_CONTAINMENT = PERF_FLAG_REFERENCE_GRID_CSS_CONTAINMENT;
-const REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT =
-  PERF_FLAG_REFERENCE_GRID_LOADING_PLACEHOLDER_TIMEOUT;
 const REFERENCE_GRID_FLAG_GLOBAL_MEDIA_BUDGET = PERF_FLAG_REFERENCE_GRID_GLOBAL_MEDIA_BUDGET;
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY =
   PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY;
@@ -398,7 +396,7 @@ type ReferenceCanvasCardProps = {
   dragSourceSurface: ReferenceDragSourceSurface;
   videoNodeKey: string;
   activeOutputId: string | null;
-  loadingVisual: "none" | "spinner" | "placeholder";
+  loadingVisual: "none" | "spinner" | "placeholder" | "pending";
   cardPreviewUrl: string | null;
   isVideoPreview: boolean;
   isImagePreview: boolean;
@@ -506,6 +504,12 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
   const isLoading = loadingVisual !== "none";
   const saveDisabled = item.saveState === "saving";
   const saveLabel = item.saveState === "failed" ? "Retry save" : "Save to media library";
+  const isGeneratedReference =
+    item.mediaSource === "generated" || Boolean(item.generationId || item.taskId);
+  const shouldShowSaveAction = Boolean(
+    onSaveToLibrary &&
+    (isPromptOnly || ((isImagePreview || isVideoPreview) && !isGeneratedReference))
+  );
   const saveIcon =
     item.saveState === "failed" ? (
       <ArrowClockwise size={16} weight="bold" aria-hidden />
@@ -598,12 +602,19 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
         </div>
       ) : null}
       {loadingVisual !== "none" ? (
-        <div className={`reference-loading${loadingVisual === "placeholder" ? " is-static" : ""}`}>
-          {loadingVisual === "spinner" ? (
-            <div className="reference-spinner" />
-          ) : (
-            <div className="reference-loading-placeholder" />
-          )}
+        <div
+          className={`reference-loading${loadingVisual !== "spinner" ? " is-static" : ""}${loadingVisual === "pending" ? " is-pending" : ""}`}
+        >
+          {loadingVisual === "spinner" ? <div className="reference-spinner" /> : null}
+          {loadingVisual === "placeholder" ? (
+            <span className="reference-loading-placeholder">generating...</span>
+          ) : null}
+          {loadingVisual === "pending" ? (
+            <span className="reference-loading-pending-chip">
+              <span className="reference-loading-pending-spinner" aria-hidden="true" />
+              <span className="reference-loading-pending-label">pending</span>
+            </span>
+          ) : null}
         </div>
       ) : null}
       {isLoading && canRetryStatus && isSelected ? (
@@ -653,10 +664,9 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
           </button>
         </div>
       ) : null}
-      {(onSaveToLibrary && (isImagePreview || isPromptOnly || isVideoPreview)) ||
-      (onDownload && (isImagePreview || isVideoPreview)) ? (
+      {shouldShowSaveAction || (onDownload && (isImagePreview || isVideoPreview)) ? (
         <div className="reference-card-actions" aria-label="Reference actions">
-          {onSaveToLibrary ? (
+          {shouldShowSaveAction ? (
             <button
               type="button"
               className="reference-card-action-btn"
@@ -665,7 +675,7 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectOutput(item.id);
-                onSaveToLibrary(item);
+                onSaveToLibrary?.(item);
               }}
             >
               {saveIcon}
@@ -863,14 +873,15 @@ export function ReferenceCanvas({
     REFERENCE_AUTOPLAY_MAX_DESKTOP
   );
   const [autoplayEnabledIds, setAutoplayEnabledIds] = useState<string[]>([]);
+  const desiredVideoAttachBudgetRef = React.useRef<number>(REFERENCE_AUTOPLAY_MAX_DESKTOP);
+  const autoplayEnabledIdsStateRef = React.useRef<string[]>([]);
+  const recomputeAutoplayBudgetRef = React.useRef<() => void>(() => {});
   const [canvasDropMode, setCanvasDropMode] = useState<CanvasDropMode>("none");
+  const canvasDropModeRef = React.useRef<CanvasDropMode>("none");
   const [isCuratedDropActive, setIsCuratedDropActive] = useState(false);
+  const isCuratedDropActiveRef = React.useRef(false);
   const [isArchivePanelOpen, setIsArchivePanelOpen] = useState(false);
   const [curatedHeaderHeightPx, setCuratedHeaderHeightPx] = useState(24);
-  const [delayedLoadingById, setDelayedLoadingById] = useState<Record<string, true>>({});
-  const loadingPendingSinceByIdRef = React.useRef<Record<string, number>>({});
-  const loadingDelayTimeoutRef = React.useRef<number | null>(null);
-  const [loadingDelayTick, setLoadingDelayTick] = useState(0);
   const previousVisiblePreviewUrlByIdRef = React.useRef<Record<string, string | null>>({});
   const previewSwapTelemetryRef = React.useRef<{
     windowStartedAtMs: number;
@@ -890,6 +901,16 @@ export function ReferenceCanvas({
     repaintSpikeCount: 0,
     lastSwapBurstCount: 0,
   });
+  const setCuratedDropActiveSafe = useCallback((next: boolean) => {
+    if (isCuratedDropActiveRef.current === next) return;
+    isCuratedDropActiveRef.current = next;
+    setIsCuratedDropActive(next);
+  }, []);
+  const setCanvasDropModeSafe = useCallback((next: CanvasDropMode) => {
+    if (canvasDropModeRef.current === next) return;
+    canvasDropModeRef.current = next;
+    setCanvasDropMode(next);
+  }, []);
   const [imageHydrationState, setImageHydrationState] = useState<{
     hydratedById: Record<
       string,
@@ -921,6 +942,15 @@ export function ReferenceCanvas({
     >
   >({});
   const hydrationGeneratedObjectUrlByIdRef = React.useRef<Record<string, string>>({});
+  const hydrationHydratedByIdRef = React.useRef<
+    Record<
+      string,
+      {
+        sourceUrl: string;
+        renderUrl: string;
+      }
+    >
+  >({});
   const hydrationRafFlushRef = React.useRef<number | null>(null);
   const hydrationPendingLoadedRef = React.useRef<
     Record<
@@ -947,7 +977,7 @@ export function ReferenceCanvas({
   const horizontalSplit = useReferenceGridHorizontalSplit({
     enabled: isCuratedSplitEnabled,
     containerRef: panelRef,
-    defaultTopRatio: 0.35,
+    defaultTopRatio: 0,
     minTopSectionHeightPx: curatedHeaderHeightPx,
     minBottomSectionHeightPx: 72,
     allRefsSnapTopHeightPx: curatedHeaderHeightPx,
@@ -1115,6 +1145,10 @@ export function ReferenceCanvas({
     });
   }, [runNonUrgentUpdate]);
 
+  React.useEffect(() => {
+    hydrationHydratedByIdRef.current = imageHydrationState.hydratedById;
+  }, [imageHydrationState.hydratedById]);
+
   const flushHydratedImages = useCallback(() => {
     hydrationRafFlushRef.current = null;
     const pending = hydrationPendingLoadedRef.current;
@@ -1244,7 +1278,9 @@ export function ReferenceCanvas({
       if (previousUrl && previousUrl !== nextHydrationUrl) {
         revokeGeneratedHydrationUrl(id);
       }
-      const hydratedEntry = imageHydrationState.hydratedById[id];
+      const pendingHydratedEntry = hydrationPendingLoadedRef.current[id];
+      if (pendingHydratedEntry?.sourceUrl === nextHydrationUrl) return;
+      const hydratedEntry = hydrationHydratedByIdRef.current[id];
       if (hydratedEntry?.sourceUrl === nextHydrationUrl) return;
       if (hydrationInflightIdSetRef.current.has(id)) return;
       const priority = options?.priority ?? "normal";
@@ -1269,12 +1305,7 @@ export function ReferenceCanvas({
       syncImageHydrationState();
       processHydrationQueue();
     },
-    [
-      imageHydrationState.hydratedById,
-      processHydrationQueue,
-      revokeGeneratedHydrationUrl,
-      syncImageHydrationState,
-    ]
+    [processHydrationQueue, revokeGeneratedHydrationUrl, syncImageHydrationState]
   );
 
   React.useEffect(() => {
@@ -1340,13 +1371,11 @@ export function ReferenceCanvas({
     ({
       scrollNode,
       gridNode,
-      itemCount,
       surface,
       setMetrics,
     }: {
       scrollNode: HTMLDivElement | null;
       gridNode: HTMLDivElement | null;
-      itemCount: number;
       surface: "all-refs" | "curated";
       setMetrics: React.Dispatch<
         React.SetStateAction<{
@@ -1414,22 +1443,20 @@ export function ReferenceCanvas({
     syncVirtualMetricsForSurface({
       scrollNode: scrollContainerRef.current,
       gridNode: gridRef.current,
-      itemCount: outputs.length,
       surface: "all-refs",
       setMetrics: setVirtualMetrics,
     });
-  }, [outputs.length, syncVirtualMetricsForSurface]);
+  }, [syncVirtualMetricsForSurface]);
 
   const syncCuratedVirtualMetrics = useCallback(() => {
     if (!isCuratedSplitEnabled) return;
     syncVirtualMetricsForSurface({
       scrollNode: curatedScrollContainerRef.current,
       gridNode: curatedGridRef.current,
-      itemCount: curatedOutputs.length,
       surface: "curated",
       setMetrics: setCuratedVirtualMetrics,
     });
-  }, [curatedOutputs.length, isCuratedSplitEnabled, syncVirtualMetricsForSurface]);
+  }, [isCuratedSplitEnabled, syncVirtualMetricsForSurface]);
 
   const gridStyle = React.useMemo(
     () =>
@@ -1614,6 +1641,18 @@ export function ReferenceCanvas({
     runNonUrgentUpdate,
   ]);
 
+  React.useEffect(() => {
+    recomputeAutoplayBudgetRef.current = recomputeAutoplayBudget;
+  }, [recomputeAutoplayBudget]);
+
+  React.useEffect(() => {
+    desiredVideoAttachBudgetRef.current = desiredVideoAttachBudget;
+  }, [desiredVideoAttachBudget]);
+
+  React.useEffect(() => {
+    autoplayEnabledIdsStateRef.current = autoplayEnabledIds;
+  }, [autoplayEnabledIds]);
+
   const baseHydrationPriorityRows = REFERENCE_GRID_FLAG_DECODE_BUDGET
     ? hydrationBudget.priorityRows
     : REFERENCE_PRIORITY_HYDRATION_ROWS;
@@ -1645,9 +1684,21 @@ export function ReferenceCanvas({
         const isImagePreview = cardPreviewUrl ? !isVideoPreview : false;
         const isPriorityHydration = visibleIndex < priorityCount || activeOutputId === item.id;
         const hydratedEntry = imageHydrationState.hydratedById[item.id];
+        const fallbackSourceForCard =
+          item.fullStoragePath ??
+          item.previewStoragePath ??
+          item.previewUrl ??
+          resolvedCardUrls.fullUrl ??
+          null;
+        const hasHydratedSourceForCard =
+          hydratedEntry?.sourceUrl === cardPreviewUrl ||
+          (typeof cardPreviewUrl === "string" &&
+            isNextOptimizerUrl(cardPreviewUrl) &&
+            typeof fallbackSourceForCard === "string" &&
+            hydratedEntry?.sourceUrl === fallbackSourceForCard);
         const imageSrc =
           isImagePreview && REFERENCE_GRID_FLAG_DECODE_BUDGET
-            ? hydratedEntry?.sourceUrl === cardPreviewUrl
+            ? hasHydratedSourceForCard
               ? (hydratedEntry.renderUrl ?? undefined)
               : undefined
             : (cardPreviewUrl ?? undefined);
@@ -1745,8 +1796,9 @@ export function ReferenceCanvas({
       };
     });
   }, [outputs.length]);
-  const pendingCardIds = React.useMemo(() => {
-    const nextIds: string[] = [];
+  const loadingCardState = React.useMemo(() => {
+    const nextLoadingIds: string[] = [];
+    const nextSpinnerCandidateIds: string[] = [];
     allVisibleCardItems.forEach((card) => {
       const isFailing = card.item.taskState === "fail";
       const isLoading =
@@ -1754,6 +1806,9 @@ export function ReferenceCanvas({
         (card.item.taskState === "running" ||
           card.item.taskState === "pending" ||
           (card.item.taskState === "success" && !card.cardPreviewUrl && !card.item.previewText));
+      if (isLoading) {
+        nextSpinnerCandidateIds.push(card.item.id);
+      }
       const isLoaded = loadedMap[card.item.id];
       const shouldShowLoading =
         !isFailing &&
@@ -1764,89 +1819,37 @@ export function ReferenceCanvas({
             !card.imageSrc &&
             card.isPriorityHydration));
       if (shouldShowLoading) {
-        nextIds.push(card.item.id);
+        nextLoadingIds.push(card.item.id);
       }
     });
-    return nextIds;
-  }, [allVisibleCardItems, loadedMap]);
-  const pendingCardIdSet = React.useMemo(() => new Set(pendingCardIds), [pendingCardIds]);
-  const animatedSpinnerIdSet = React.useMemo(() => {
-    if (!REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT) {
-      return new Set(pendingCardIds);
-    }
-    const next = pendingCardIds.filter((id) => !delayedLoadingById[id]);
-    return new Set(next.slice(0, REFERENCE_MAX_ANIMATED_SPINNERS));
-  }, [delayedLoadingById, pendingCardIds]);
-
-  React.useEffect(() => {
-    if (loadingDelayTimeoutRef.current != null && typeof window !== "undefined") {
-      window.clearTimeout(loadingDelayTimeoutRef.current);
-      loadingDelayTimeoutRef.current = null;
-    }
-    if (!REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT || typeof window === "undefined") {
-      loadingPendingSinceByIdRef.current = {};
-      runNonUrgentUpdate(() => {
-        setDelayedLoadingById((prev) => (Object.keys(prev).length ? {} : prev));
-      });
-      return;
-    }
-    const pendingSet = new Set(pendingCardIds);
-    const now = performance.now();
-    pendingSet.forEach((id) => {
-      if (loadingPendingSinceByIdRef.current[id] == null) {
-        loadingPendingSinceByIdRef.current[id] = now;
-      }
-    });
-    Object.keys(loadingPendingSinceByIdRef.current).forEach((id) => {
-      if (!pendingSet.has(id)) {
-        delete loadingPendingSinceByIdRef.current[id];
-      }
-    });
-
-    const nextDelayedLoadingById: Record<string, true> = {};
-    let nextDelayMs: number | null = null;
-    pendingSet.forEach((id) => {
-      const pendingSince = loadingPendingSinceByIdRef.current[id] ?? now;
-      const elapsedMs = now - pendingSince;
-      if (elapsedMs >= REFERENCE_SPINNER_MAX_VISIBLE_MS) {
-        nextDelayedLoadingById[id] = true;
-        return;
-      }
-      const remainingMs = REFERENCE_SPINNER_MAX_VISIBLE_MS - elapsedMs;
-      nextDelayMs = nextDelayMs == null ? remainingMs : Math.min(nextDelayMs, remainingMs);
-    });
-
-    runNonUrgentUpdate(() => {
-      setDelayedLoadingById((prev) => {
-        const previousKeys = Object.keys(prev);
-        const nextKeys = Object.keys(nextDelayedLoadingById);
-        if (
-          previousKeys.length === nextKeys.length &&
-          nextKeys.every((id) => prev[id] === nextDelayedLoadingById[id])
-        ) {
-          return prev;
-        }
-        return nextDelayedLoadingById;
-      });
-    });
-
-    if (nextDelayMs != null) {
-      loadingDelayTimeoutRef.current = window.setTimeout(
-        () => {
-          loadingDelayTimeoutRef.current = null;
-          setLoadingDelayTick((value) => value + 1);
-        },
-        Math.max(16, Math.ceil(nextDelayMs))
-      );
-    }
-
-    return () => {
-      if (loadingDelayTimeoutRef.current != null) {
-        window.clearTimeout(loadingDelayTimeoutRef.current);
-        loadingDelayTimeoutRef.current = null;
-      }
+    return {
+      loadingIds: nextLoadingIds,
+      spinnerCandidateIds: nextSpinnerCandidateIds,
     };
-  }, [loadingDelayTick, pendingCardIds, runNonUrgentUpdate]);
+  }, [allVisibleCardItems, loadedMap]);
+  const pendingCardIdSet = React.useMemo(
+    () => new Set(loadingCardState.loadingIds),
+    [loadingCardState.loadingIds]
+  );
+  const spinnerCandidateIdSet = React.useMemo(
+    () => new Set(loadingCardState.spinnerCandidateIds),
+    [loadingCardState.spinnerCandidateIds]
+  );
+  const maxAnimatedSpinners = React.useMemo(() => {
+    if (perfWatchdog.degradeLevel >= 2) return REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_2;
+    if (perfWatchdog.degradeLevel >= 1) return REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_1;
+    return REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_0;
+  }, [perfWatchdog.degradeLevel]);
+  // Pending outputs are inserted at index 0; reverse yields FIFO by generation age.
+  const pendingSpinnerQueueIds = React.useMemo(
+    () => [...loadingCardState.spinnerCandidateIds].reverse(),
+    [loadingCardState.spinnerCandidateIds]
+  );
+  const spinnerSlotIds = React.useMemo(
+    () => pendingSpinnerQueueIds.slice(0, Math.max(1, maxAnimatedSpinners)),
+    [maxAnimatedSpinners, pendingSpinnerQueueIds]
+  );
+  const spinnerSlotIdSet = React.useMemo(() => new Set(spinnerSlotIds), [spinnerSlotIds]);
   const transformedAdaptivePreviewCount = React.useMemo(() => {
     let count = 0;
     visibleCardItems.forEach((card) => {
@@ -1970,10 +1973,17 @@ export function ReferenceCanvas({
           undefined,
       });
     });
-    hydrationQueueRef.current = hydrationQueueRef.current.filter((id) => candidateIdSet.has(id));
-    hydrationQueuedIdSetRef.current = new Set(hydrationQueueRef.current);
-    syncImageHydrationState();
-    processHydrationQueue();
+    const currentQueue = hydrationQueueRef.current;
+    const nextQueue = currentQueue.filter((id) => candidateIdSet.has(id));
+    const queueChanged =
+      nextQueue.length !== currentQueue.length ||
+      nextQueue.some((id, index) => currentQueue[index] !== id);
+    if (queueChanged) {
+      hydrationQueueRef.current = nextQueue;
+      hydrationQueuedIdSetRef.current = new Set(nextQueue);
+      syncImageHydrationState();
+      processHydrationQueue();
+    }
   }, [
     activeOutputId,
     curatedVisibleCardItems,
@@ -2010,14 +2020,24 @@ export function ReferenceCanvas({
       if (validOutputIds.has(id)) return;
       delete hydrationFailedOptimizedUrlByIdRef.current[id];
     });
+
+    // Avoid dispatching a no-op state update on every render; only prune when stale hydrated ids exist.
+    const hasStaleHydratedIds = Object.keys(hydrationHydratedByIdRef.current).some(
+      (id) => !validOutputIds.has(id)
+    );
+    if (!hasStaleHydratedIds) return;
+
     runNonUrgentUpdate(() => {
       setImageHydrationState((prev) => {
+        let changed = false;
         const nextHydratedById = Object.fromEntries(
-          Object.entries(prev.hydratedById).filter(([id]) => validOutputIds.has(id))
+          Object.entries(prev.hydratedById).filter(([id]) => {
+            const keep = validOutputIds.has(id);
+            if (!keep) changed = true;
+            return keep;
+          })
         );
-        if (Object.keys(nextHydratedById).length === Object.keys(prev.hydratedById).length) {
-          return prev;
-        }
+        if (!changed) return prev;
         return {
           ...prev,
           hydratedById: nextHydratedById,
@@ -2083,14 +2103,20 @@ export function ReferenceCanvas({
       const effectiveType = (nav.connection?.effectiveType ?? "").toLowerCase();
       const isSlowNetwork = effectiveType.includes("2g");
       const isLowMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
-      const nextBudget =
-        saveData || isSlowNetwork || isLowMemory
-          ? REFERENCE_AUTOPLAY_MAX_CONSTRAINED
-          : isSmallScreen
-            ? REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN
-            : REFERENCE_AUTOPLAY_MAX_DESKTOP;
-      setDesiredVideoAttachBudget((prev) => (prev === nextBudget ? prev : nextBudget));
-      if (saveData || isSlowNetwork || isLowMemory) {
+      const isConstrained = saveData || isSlowNetwork || isLowMemory;
+      const nextBudget = isConstrained
+        ? REFERENCE_AUTOPLAY_MAX_CONSTRAINED
+        : isSmallScreen
+          ? REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN
+          : REFERENCE_AUTOPLAY_MAX_DESKTOP;
+      if (desiredVideoAttachBudgetRef.current !== nextBudget) {
+        desiredVideoAttachBudgetRef.current = nextBudget;
+        setDesiredVideoAttachBudget(nextBudget);
+      }
+      if (
+        isConstrained &&
+        autoplayEnabledIdsStateRef.current.length > REFERENCE_AUTOPLAY_MAX_CONSTRAINED
+      ) {
         runNonUrgentUpdate(() => {
           setAutoplayEnabledIds((prev) =>
             prev.length <= REFERENCE_AUTOPLAY_MAX_CONSTRAINED
@@ -2099,7 +2125,7 @@ export function ReferenceCanvas({
           );
         });
       }
-      recomputeAutoplayBudget();
+      recomputeAutoplayBudgetRef.current();
     };
     refreshBudget();
     window.addEventListener("resize", refreshBudget);
@@ -2108,7 +2134,7 @@ export function ReferenceCanvas({
       window.removeEventListener("resize", refreshBudget);
       connection?.removeEventListener?.("change", refreshBudget);
     };
-  }, [recomputeAutoplayBudget, runNonUrgentUpdate]);
+  }, [runNonUrgentUpdate]);
 
   React.useEffect(() => {
     const validOutputIdSet = new Set(outputs.map((output) => output.id));
@@ -2298,10 +2324,6 @@ export function ReferenceCanvas({
         window.cancelAnimationFrame(hydrationRafFlushRef.current);
         hydrationRafFlushRef.current = null;
       }
-      if (loadingDelayTimeoutRef.current != null) {
-        window.clearTimeout(loadingDelayTimeoutRef.current);
-        loadingDelayTimeoutRef.current = null;
-      }
       Object.keys(hydrationGeneratedObjectUrlByIdRef.current).forEach((id) => {
         revokeGeneratedHydrationUrl(id);
       });
@@ -2373,29 +2395,27 @@ export function ReferenceCanvas({
       perfWatchdog.degradeLevel >= 1 ||
       canvasDropMode !== "none" ||
       isCuratedDropActive ||
-      pendingCardIds.length > 8;
+      loadingCardState.loadingIds.length > 8;
     setMediaPerfSamplingPolicy(shouldDefer ? "defer_non_critical" : "normal");
     return () => {
       setMediaPerfSamplingPolicy("normal");
     };
-  }, [canvasDropMode, isCuratedDropActive, pendingCardIds.length, perfWatchdog.degradeLevel]);
+  }, [
+    canvasDropMode,
+    isCuratedDropActive,
+    loadingCardState.loadingIds.length,
+    perfWatchdog.degradeLevel,
+  ]);
 
   const markLoaded = useCallback(
     (id: string, options?: { notifyAutoSave?: boolean }) => {
       const shouldNotify = options?.notifyAutoSave ?? true;
       if (loadedIdsRef.current.has(id)) return;
       loadedIdsRef.current.add(id);
-      delete loadingPendingSinceByIdRef.current[id];
       runNonUrgentUpdate(() => {
         setLoadedMap((prev) => {
           if (prev[id]) return prev;
           return { ...prev, [id]: true };
-        });
-        setDelayedLoadingById((prev) => {
-          if (!prev[id]) return prev;
-          const next = { ...prev };
-          delete next[id];
-          return next;
         });
       });
       if (shouldNotify) {
@@ -2407,7 +2427,7 @@ export function ReferenceCanvas({
 
   const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
     canvasDragDepthRef.current = 0;
-    setCanvasDropMode("none");
+    setCanvasDropModeSafe("none");
     // Ignore drops that originate from existing reference cards to avoid creating duplicates/empties.
     const internalRefId = event.dataTransfer.getData("text/reference-id");
     if (internalRefId) {
@@ -2436,9 +2456,7 @@ export function ReferenceCanvas({
     if (nextDropMode === "none") return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
-    if (canvasDropMode !== nextDropMode) {
-      setCanvasDropMode(nextDropMode);
-    }
+    setCanvasDropModeSafe(nextDropMode);
   };
 
   const handleCanvasDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
@@ -2446,17 +2464,15 @@ export function ReferenceCanvas({
     if (nextDropMode === "none") return;
     event.preventDefault();
     canvasDragDepthRef.current += 1;
-    if (canvasDropMode !== nextDropMode) {
-      setCanvasDropMode(nextDropMode);
-    }
+    setCanvasDropModeSafe(nextDropMode);
   };
 
   const handleCanvasDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
     if (!canAcceptCanvasDrag(event.dataTransfer)) return;
     event.preventDefault();
     canvasDragDepthRef.current = Math.max(0, canvasDragDepthRef.current - 1);
-    if (canvasDragDepthRef.current === 0 && canvasDropMode !== "none") {
-      setCanvasDropMode("none");
+    if (canvasDragDepthRef.current === 0) {
+      setCanvasDropModeSafe("none");
     }
   };
 
@@ -2588,8 +2604,8 @@ export function ReferenceCanvas({
     const clearDropState = () => {
       canvasDragDepthRef.current = 0;
       curatedDragDepthRef.current = 0;
-      setCanvasDropMode("none");
-      setIsCuratedDropActive(false);
+      setCanvasDropModeSafe("none");
+      setCuratedDropActiveSafe(false);
     };
     document.addEventListener("dragend", clearDropState);
     document.addEventListener("drop", clearDropState);
@@ -2597,7 +2613,7 @@ export function ReferenceCanvas({
       document.removeEventListener("dragend", clearDropState);
       document.removeEventListener("drop", clearDropState);
     };
-  }, []);
+  }, [setCanvasDropModeSafe, setCuratedDropActiveSafe]);
 
   const handlePanelPointerEnter = () => {
     isPointerOverPanelRef.current = true;
@@ -2651,7 +2667,7 @@ export function ReferenceCanvas({
       event.preventDefault();
       event.stopPropagation();
       curatedDragDepthRef.current = 0;
-      setIsCuratedDropActive(false);
+      setCuratedDropActiveSafe(false);
       const referenceId = event.dataTransfer.getData("text/reference-id").trim();
       if (!referenceId) return;
       const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
@@ -2674,6 +2690,7 @@ export function ReferenceCanvas({
       onReorderCuratedReference,
       onSelectOutput,
       resolveReferenceDragSourceSurface,
+      setCuratedDropActiveSafe,
     ]
   );
 
@@ -2684,14 +2701,14 @@ export function ReferenceCanvas({
       event.stopPropagation();
       if (!hasInternalReferenceDrag(event.dataTransfer)) {
         event.dataTransfer.dropEffect = "none";
-        setIsCuratedDropActive(false);
+        setCuratedDropActiveSafe(false);
         return;
       }
       const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
       event.dataTransfer.dropEffect = sourceSurface === "curated" ? "move" : "copy";
-      setIsCuratedDropActive(true);
+      setCuratedDropActiveSafe(true);
     },
-    [isCuratedSplitEnabled, resolveReferenceDragSourceSurface]
+    [isCuratedSplitEnabled, resolveReferenceDragSourceSurface, setCuratedDropActiveSafe]
   );
 
   const handleCuratedSectionDragEnter = useCallback(
@@ -2700,9 +2717,9 @@ export function ReferenceCanvas({
       event.preventDefault();
       event.stopPropagation();
       curatedDragDepthRef.current += 1;
-      setIsCuratedDropActive(hasInternalReferenceDrag(event.dataTransfer));
+      setCuratedDropActiveSafe(hasInternalReferenceDrag(event.dataTransfer));
     },
-    [isCuratedSplitEnabled]
+    [isCuratedSplitEnabled, setCuratedDropActiveSafe]
   );
 
   const handleCuratedSectionDragLeave = useCallback(
@@ -2712,10 +2729,10 @@ export function ReferenceCanvas({
       event.stopPropagation();
       curatedDragDepthRef.current = Math.max(0, curatedDragDepthRef.current - 1);
       if (curatedDragDepthRef.current === 0) {
-        setIsCuratedDropActive(false);
+        setCuratedDropActiveSafe(false);
       }
     },
-    [isCuratedSplitEnabled]
+    [isCuratedSplitEnabled, setCuratedDropActiveSafe]
   );
 
   const handleCuratedCardDrop = useCallback(
@@ -2724,7 +2741,7 @@ export function ReferenceCanvas({
       event.preventDefault();
       event.stopPropagation();
       curatedDragDepthRef.current = 0;
-      setIsCuratedDropActive(false);
+      setCuratedDropActiveSafe(false);
       const referenceId = event.dataTransfer.getData("text/reference-id").trim();
       if (!referenceId) return;
       const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
@@ -2750,6 +2767,7 @@ export function ReferenceCanvas({
       onReorderCuratedReference,
       onSelectOutput,
       resolveReferenceDragSourceSurface,
+      setCuratedDropActiveSafe,
     ]
   );
 
@@ -2878,10 +2896,13 @@ export function ReferenceCanvas({
           card.item.taskState === "pending" ||
           (card.item.taskState === "success" && !card.cardPreviewUrl && !card.item.previewText));
       const isPending = pendingCardIdSet.has(card.item.id);
-      const loadingVisual: "none" | "spinner" | "placeholder" = isPending
-        ? delayedLoadingById[card.item.id] || !animatedSpinnerIdSet.has(card.item.id)
-          ? "placeholder"
-          : "spinner"
+      const isSpinnerCandidate = spinnerCandidateIdSet.has(card.item.id);
+      const loadingVisual: "none" | "spinner" | "placeholder" | "pending" = isPending
+        ? spinnerSlotIdSet.has(card.item.id)
+          ? "spinner"
+          : isSpinnerCandidate
+            ? "pending"
+            : "placeholder"
         : "none";
       const canAutoplayVideo =
         card.isVideoPreview &&
@@ -2955,9 +2976,7 @@ export function ReferenceCanvas({
     },
     [
       activeOutputId,
-      animatedSpinnerIdSet,
       autoplayEnabledIdSet,
-      delayedLoadingById,
       disablePromptGenerate,
       generateCostCredits,
       handleAutoplayStarted,
@@ -2983,6 +3002,8 @@ export function ReferenceCanvas({
       perfWatchdog.degradeLevel,
       registerVideoNode,
       showPromptGenerate,
+      spinnerCandidateIdSet,
+      spinnerSlotIdSet,
     ]
   );
 
@@ -3140,9 +3161,6 @@ export function ReferenceCanvas({
                     <div className="reference-curated-empty">
                       <p className="preview-title">
                         Drag &amp; drop references here from the Reference Grid.
-                      </p>
-                      <p className="subdued tiny helper-text">
-                        Curated selections are session-only and stay pinned while curated.
                       </p>
                     </div>
                   ) : (

@@ -1,9 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import {
   resetAiStudioOutputStore,
   setAiStudioOutputStoreSnapshot,
+  subscribeAiStudioOutputs,
   useOutputById,
   useOutputCounts,
   useVisibleOutputWindow,
@@ -108,5 +109,63 @@ describe("aiStudioOutputStore", () => {
     });
 
     expect(result.current).toBe(initialWindow);
+  });
+
+  it("does not notify listeners for equivalent cloned snapshots", () => {
+    const outputA = makeOutput("a");
+    const listener = vi.fn();
+    const unsubscribe = subscribeAiStudioOutputs(listener);
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["a"],
+        outputById: { a: outputA },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["a"],
+        outputById: { a: outputA },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it("coalesces re-entrant snapshot notifications without recursive listener loops", () => {
+    const outputA = makeOutput("a");
+    const outputB = makeOutput("b");
+    let issuedNestedUpdate = false;
+    const listener = vi.fn(() => {
+      if (issuedNestedUpdate) return;
+      issuedNestedUpdate = true;
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["b"],
+        outputById: { b: outputB },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+    const unsubscribe = subscribeAiStudioOutputs(listener);
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["a"],
+        outputById: { a: outputA },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    expect(listener).toHaveBeenCalledTimes(2);
+    unsubscribe();
   });
 });

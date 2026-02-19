@@ -387,6 +387,25 @@ describe("TextPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
   });
 
+  it("disables beginner output-generate pills when primary generate is disabled", () => {
+    renderPanel({
+      beginnerMode: true,
+      agentEnabled: true,
+      characterModeEnabled: false,
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      isGenerateDisabled: true,
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
+  });
+
   it("disables expert output-generate pills when character mode is off without a selected model", () => {
     renderPanel({
       beginnerMode: false,

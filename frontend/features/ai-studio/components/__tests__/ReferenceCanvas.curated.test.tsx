@@ -2,7 +2,7 @@
  * Curated split-grid interaction tests for ReferenceCanvas.
  * Validates add/dedupe/reorder/remove behavior and curated drop rejection rules.
  */
-import { fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceCanvas, type ReferenceCanvasProps } from "../ReferenceCanvas";
 import type { StudioOutput } from "../../types";
@@ -79,6 +79,14 @@ describe("ReferenceCanvas curated split", () => {
   beforeEach(() => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+    Object.defineProperty(window.HTMLMediaElement.prototype, "pause", {
+      configurable: true,
+      value: () => undefined,
+    });
+    Object.defineProperty(window.HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: async () => undefined,
+    });
     if (!window.matchMedia) {
       Object.defineProperty(window, "matchMedia", {
         writable: true,
@@ -97,7 +105,181 @@ describe("ReferenceCanvas curated split", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("keeps the primary pending output on spinner visuals after timeout fallback kicks in", () => {
+    vi.useFakeTimers();
+    const pendingOutput: StudioOutput = {
+      id: "pending-1",
+      prompt: "Pending image",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      taskState: "running",
+    };
+    const { container } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [pendingOutput],
+          activeOutputId: pendingOutput.id,
+        })}
+      />
+    );
+
+    expect(container.querySelector(".reference-spinner")).toBeTruthy();
+
+    act(() => {
+      vi.advanceTimersByTime(1600);
+    });
+
+    expect(container.querySelector(".reference-spinner")).toBeTruthy();
+    expect(container.querySelector(".reference-loading-placeholder")).toBeFalsy();
+  });
+
+  it("applies spinner slots in FIFO order and shows pending badges for queued generations", () => {
+    const pendingOutputs: StudioOutput[] = Array.from({ length: 8 }, (_, index) => {
+      const label = 8 - index;
+      return {
+        id: `pending-${label}`,
+        prompt: `Pending ${label}`,
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        taskState: "running",
+        mediaSource: "generated",
+      };
+    });
+
+    const { container } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: pendingOutputs,
+          activeOutputId: pendingOutputs[0]?.id ?? null,
+        })}
+      />
+    );
+
+    const cards = Array.from(container.querySelectorAll(".reference-card"));
+    expect(cards).toHaveLength(8);
+    expect(container.querySelectorAll(".reference-spinner")).toHaveLength(6);
+    expect(container.querySelectorAll(".reference-loading-pending-label")).toHaveLength(2);
+    expect(container.querySelectorAll(".reference-loading-pending-spinner")).toHaveLength(2);
+    expect(cards[0]?.querySelector(".reference-loading-pending-label")).toBeTruthy();
+    expect(cards[1]?.querySelector(".reference-loading-pending-label")).toBeTruthy();
+    expect(cards[7]?.querySelector(".reference-spinner")).toBeTruthy();
+  });
+
+  it("promotes queued pending cards into spinner slots as older generations finish", () => {
+    const pendingOutputs: StudioOutput[] = Array.from({ length: 8 }, (_, index) => {
+      const label = 8 - index;
+      return {
+        id: `pending-${label}`,
+        prompt: `Pending ${label}`,
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        taskState: "running",
+        mediaSource: "generated",
+      };
+    });
+    const { container, rerender } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: pendingOutputs,
+          activeOutputId: pendingOutputs[0]?.id ?? null,
+        })}
+      />
+    );
+
+    expect(container.querySelectorAll(".reference-loading-pending-label")).toHaveLength(2);
+
+    const resolvedOldestOutputs = pendingOutputs.slice(0, pendingOutputs.length - 1);
+
+    rerender(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: resolvedOldestOutputs,
+          activeOutputId: resolvedOldestOutputs[0]?.id ?? null,
+        })}
+      />
+    );
+
+    expect(container.querySelectorAll(".reference-loading-pending-label")).toHaveLength(1);
+    expect(container.querySelectorAll(".reference-loading-pending-spinner")).toHaveLength(1);
+    expect(container.querySelectorAll(".reference-spinner")).toHaveLength(6);
+  });
+
+  it("renders fallback hydration source when optimized preview URL fails", async () => {
+    vi.useFakeTimers();
+    const requestedHydrationSources: string[] = [];
+    class MockHydrationImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      decoding = "async";
+      naturalWidth = 1024;
+      naturalHeight = 1024;
+      #src = "";
+
+      set src(value: string) {
+        this.#src = value;
+        requestedHydrationSources.push(value);
+        const callback = value.startsWith("/_next/image?") ? this.onerror : this.onload;
+        if (!callback) return;
+        setTimeout(() => callback(), 0);
+      }
+
+      get src() {
+        return this.#src;
+      }
+    }
+
+    vi.stubGlobal("Image", MockHydrationImage as unknown as typeof Image);
+
+    const fallbackUrl = "https://cdn.example.com/generated-image.png?token=raw";
+    const generatedOutput: StudioOutput = {
+      id: "generated-1",
+      prompt: "Generated image",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      taskState: "success",
+      previewStoragePath: fallbackUrl,
+      fullStoragePath: fallbackUrl,
+      previewUrl: fallbackUrl,
+      resultUrls: [fallbackUrl],
+    };
+
+    const { container } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [generatedOutput],
+          activeOutputId: generatedOutput.id,
+        })}
+      />
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+    });
+
+    const imageNode = container.querySelector(".reference-card-image") as HTMLImageElement | null;
+    expect(imageNode).toBeTruthy();
+    expect(imageNode?.getAttribute("data-src")?.startsWith("/_next/image?")).toBe(true);
+    expect(imageNode?.getAttribute("src")).toBe(fallbackUrl);
+    expect(
+      requestedHydrationSources.filter((value) => value.startsWith("/_next/image?"))
+    ).toHaveLength(1);
+    expect(requestedHydrationSources.includes(fallbackUrl)).toBe(false);
   });
 
   it("adds curated refs from all-refs internal drags", () => {
@@ -233,6 +415,114 @@ describe("ReferenceCanvas curated split", () => {
     expect(onPasteTextReference).not.toHaveBeenCalled();
   });
 
+  it("hides save action for generated image references", () => {
+    const onSaveToLibrary = vi.fn();
+    const generatedImage: StudioOutput = {
+      id: "generated-image-1",
+      prompt: "Generated image",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/generated-image.png",
+      mediaSource: "generated",
+    };
+
+    const { queryByLabelText } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [generatedImage],
+          activeOutputId: generatedImage.id,
+          onSaveToLibrary,
+        })}
+      />
+    );
+
+    expect(queryByLabelText("Save to media library")).toBeNull();
+  });
+
+  it("keeps save action for uploaded image references", () => {
+    const onSaveToLibrary = vi.fn();
+    const uploadedImage: StudioOutput = {
+      id: "upload-image-1",
+      prompt: "Uploaded image",
+      mode: "image",
+      aspect: "1:1",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/uploaded-image.png",
+      mediaSource: "upload",
+    };
+
+    const { getByLabelText } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [uploadedImage],
+          activeOutputId: uploadedImage.id,
+          onSaveToLibrary,
+        })}
+      />
+    );
+
+    expect(getByLabelText("Save to media library")).toBeInTheDocument();
+  });
+
+  it("hides save action for generated video references", () => {
+    const onSaveToLibrary = vi.fn();
+    const generatedVideo: StudioOutput = {
+      id: "generated-video-1",
+      prompt: "Generated video",
+      mode: "video",
+      aspect: "16:9",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/generated-video.mp4",
+      mediaSource: "generated",
+    };
+
+    const { queryByLabelText } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [generatedVideo],
+          activeOutputId: generatedVideo.id,
+          onSaveToLibrary,
+        })}
+      />
+    );
+
+    expect(queryByLabelText("Save to media library")).toBeNull();
+  });
+
+  it("keeps save action for uploaded video references", () => {
+    const onSaveToLibrary = vi.fn();
+    const uploadedVideo: StudioOutput = {
+      id: "upload-video-1",
+      prompt: "Uploaded video",
+      mode: "video",
+      aspect: "16:9",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/uploaded-video.mp4",
+      mediaSource: "upload",
+    };
+
+    const { getByLabelText } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [uploadedVideo],
+          activeOutputId: uploadedVideo.id,
+          onSaveToLibrary,
+        })}
+      />
+    );
+
+    expect(getByLabelText("Save to media library")).toBeInTheDocument();
+  });
+
   it("snaps split toward inventory when clicking the divider pill", () => {
     const { container, getByRole, getByText } = render(<ReferenceCanvas {...createProps()} />);
     const divider = getByRole("separator", {
@@ -257,7 +547,7 @@ describe("ReferenceCanvas curated split", () => {
         toJSON: () => ({}),
       }),
     });
-    expect(divider).toHaveAttribute("aria-valuenow", "35");
+    expect(divider).toHaveAttribute("aria-valuenow", "1");
 
     fireEvent.pointerDown(getByText("Inventory ↓"));
     fireEvent.click(getByText("Inventory ↓"));
@@ -297,7 +587,7 @@ describe("ReferenceCanvas curated split", () => {
       configurable: true,
       value: 44,
     });
-    expect(divider).toHaveAttribute("aria-valuenow", "35");
+    expect(divider).toHaveAttribute("aria-valuenow", "1");
 
     fireEvent.pointerDown(getByText("All Refs ↑"));
     fireEvent.click(getByText("All Refs ↑"));

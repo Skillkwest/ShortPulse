@@ -47,7 +47,6 @@ Tooling audit references:
 
 ## AI Studio
 - [ ] AI Studio: run staging smoke tests for aspect-ratio contract (verify submit payload and returned dimensions for Seedream `5:4`, `4:5`, `3:2`, `2:3`, `21:9`).
-- [ ] AI Studio: add CI parity check to fail builds when `modelRegistry` drifts from `modelApiContracts` (aspect/resolution/duration/defaults).
 - [ ] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
 - [ ] AI Studio: alter existing e2e coverage for aspect clamping + submit-time `effective_aspect` consistency after the contract overhaul.
 - [ ] AI Studio: update reference grid styling and adjust `Add files` / `Media library` button colors.
@@ -96,3 +95,5 @@ Tooling audit references:
   Evidence: `frontend/pages/profile.tsx`, `frontend/pages/api/billing/stripe/portal.ts`, `frontend/tests/api/stripe-portal.test.ts`
 - [x] Add targeted automated tests for auth + media library critical API flows.
   Evidence: `frontend/tests/api/auth-helper.test.ts`, `frontend/tests/api/auth-guarded-ai-kei-routes.test.ts`, `frontend/tests/api/media-sign-batch.test.ts`, `frontend/tests/api/media-move.test.ts`
+- [x] AI Studio: add CI parity checks for model registry and submission payload contracts.
+  Evidence: `frontend/features/ai-studio/logic/__tests__/modelApiContracts.test.ts`, `frontend/features/ai-studio/hooks/taskSubmission/__tests__/submissionPayloadMatrix.test.ts`

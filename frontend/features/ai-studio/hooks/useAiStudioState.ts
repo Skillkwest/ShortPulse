@@ -5,7 +5,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -23,6 +22,7 @@ import {
   resolveModelLabel,
   mapUploadsFromFiles,
 } from "../logic/stateParsers";
+import { isRenderableReferenceMediaUrl } from "../logic/referenceGridMedia";
 import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
 import { useAiStudioGenerationPromptComposer } from "./useAiStudioGenerationPromptComposer";
@@ -68,7 +68,6 @@ const isBlobObjectUrl = (value?: string | null) =>
 const stripVideoMarkerFromBlobUrl = (value: string): string => value.replace(/#video=1$/, "");
 
 const toIsoNow = () => new Date().toISOString();
-const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 type OutputCollectionState = {
   order: string[];
@@ -95,6 +94,23 @@ const denormalizeOutputCollection = (state: OutputCollectionState): StudioOutput
   return state.order
     .map((id) => state.byId[id])
     .filter((item): item is StudioOutput => Boolean(item));
+};
+
+const areOutputCollectionStatesEqual = (
+  left: OutputCollectionState,
+  right: OutputCollectionState
+): boolean => {
+  if (left === right) return true;
+  if (left.order.length !== right.order.length) return false;
+  for (let index = 0; index < left.order.length; index += 1) {
+    if (left.order[index] !== right.order[index]) return false;
+  }
+  if (left.byId === right.byId) return true;
+  if (Object.keys(left.byId).length !== Object.keys(right.byId).length) return false;
+  for (const id of left.order) {
+    if (left.byId[id] !== right.byId[id]) return false;
+  }
+  return true;
 };
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
@@ -123,6 +139,9 @@ export const useAiStudioState = ({
   );
   const activeOutputStateRef = useRef<OutputCollectionState>(EMPTY_OUTPUT_COLLECTION_STATE);
   const archivedOutputStateRef = useRef<OutputCollectionState>(EMPTY_OUTPUT_COLLECTION_STATE);
+  const outputStorePublishQueuedRef = useRef(false);
+  const outputStorePublisherUnmountedRef = useRef(false);
+  const outputStorePublishEpochRef = useRef(0);
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
   const [curatedReferenceIds, setCuratedReferenceIds] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
@@ -140,11 +159,27 @@ export const useAiStudioState = ({
   );
   const syncOutputStoreSnapshot = useCallback(
     (nextActiveState: OutputCollectionState, nextArchivedState: OutputCollectionState) => {
-      setAiStudioOutputStoreSnapshot({
-        outputOrder: nextActiveState.order,
-        outputById: nextActiveState.byId,
-        archivedOutputOrder: nextArchivedState.order,
-        archivedOutputById: nextArchivedState.byId,
+      activeOutputStateRef.current = nextActiveState;
+      archivedOutputStateRef.current = nextArchivedState;
+      if (outputStorePublishQueuedRef.current) return;
+      outputStorePublishQueuedRef.current = true;
+      const publishEpoch = outputStorePublishEpochRef.current;
+      const scheduleFlush =
+        typeof queueMicrotask === "function"
+          ? queueMicrotask
+          : (task: () => void) => Promise.resolve().then(task);
+      scheduleFlush(() => {
+        if (publishEpoch !== outputStorePublishEpochRef.current) return;
+        outputStorePublishQueuedRef.current = false;
+        if (outputStorePublisherUnmountedRef.current) return;
+        const latestActiveState = activeOutputStateRef.current;
+        const latestArchivedState = archivedOutputStateRef.current;
+        setAiStudioOutputStoreSnapshot({
+          outputOrder: latestActiveState.order,
+          outputById: latestActiveState.byId,
+          archivedOutputOrder: latestArchivedState.order,
+          archivedOutputById: latestArchivedState.byId,
+        });
       });
     },
     []
@@ -154,6 +189,10 @@ export const useAiStudioState = ({
       const prevRows = denormalizeOutputCollection(prevState);
       const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
       const nextState = normalizeOutputCollection(resolved);
+      if (areOutputCollectionStatesEqual(prevState, nextState)) {
+        activeOutputStateRef.current = prevState;
+        return prevState;
+      }
       activeOutputStateRef.current = nextState;
       return nextState;
     });
@@ -163,6 +202,10 @@ export const useAiStudioState = ({
       const prevRows = denormalizeOutputCollection(prevState);
       const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
       const nextState = normalizeOutputCollection(resolved);
+      if (areOutputCollectionStatesEqual(prevState, nextState)) {
+        archivedOutputStateRef.current = prevState;
+        return prevState;
+      }
       archivedOutputStateRef.current = nextState;
       return nextState;
     });
@@ -601,14 +644,27 @@ export const useAiStudioState = ({
     activeOutputByIdRef.current = activeOutputById;
   }, [activeOutputById]);
 
-  useIsomorphicLayoutEffect(() => {
+  useEffect(() => {
     activeOutputStateRef.current = activeOutputState;
     archivedOutputStateRef.current = archivedOutputState;
-    // Keep external selector store in sync after React commits local state.
-    // Avoid notifying subscribers from state updaters (render phase), which causes
-    // "Cannot update a component while rendering a different component" warnings.
+    // Sync external selector store after commit in a passive effect.
+    // Publishing from layout effects can create nested sync update loops when
+    // selector subscribers schedule immediate re-renders during the same commit.
     syncOutputStoreSnapshot(activeOutputState, archivedOutputState);
   }, [activeOutputState, archivedOutputState, syncOutputStoreSnapshot]);
+
+  useEffect(() => {
+    // React StrictMode mounts, cleans up, and re-runs effects in development.
+    // Re-arm the publisher on each mount so decoupled selector consumers continue receiving updates.
+    outputStorePublisherUnmountedRef.current = false;
+    outputStorePublishQueuedRef.current = false;
+    outputStorePublishEpochRef.current += 1;
+    return () => {
+      outputStorePublisherUnmountedRef.current = true;
+      outputStorePublishQueuedRef.current = false;
+      outputStorePublishEpochRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     const validOutputIds = [...activeOutputState.order, ...archivedOutputState.order];
@@ -944,6 +1000,12 @@ export const useAiStudioState = ({
       const id = `library-${randomId()}`;
       const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
       const previewUrl = payload.previewUrl ?? payload.url;
+      const previewStoragePath = isRenderableReferenceMediaUrl(payload.previewStoragePath)
+        ? payload.previewStoragePath.trim()
+        : previewUrl;
+      const fullStoragePath = isRenderableReferenceMediaUrl(payload.fullStoragePath)
+        ? payload.fullStoragePath.trim()
+        : (payload.fullUrl ?? previewUrl);
       const nextOutput: StudioOutput = {
         id,
         prompt: payload.filename ?? "Media reference",
@@ -954,8 +1016,8 @@ export const useAiStudioState = ({
         status: "ready",
         timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
         previewUrl,
-        previewStoragePath: payload.previewStoragePath ?? previewUrl,
-        fullStoragePath: payload.fullStoragePath ?? payload.fullUrl ?? previewUrl,
+        previewStoragePath,
+        fullStoragePath,
         mediaSource: payload.source === "ai_studio" ? "generated" : "library",
         previewTier: payload.fileType === "video" ? "preview_loop" : "thumb",
         archivedAt: null,

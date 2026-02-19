@@ -229,9 +229,21 @@ const normalizeAgentActions = (value: unknown): AgentResponse["actions"] => {
   return normalized;
 };
 
-const parseAgentJsonWithStatus = (raw: string): ParsedAgentJson | null => {
+const normalizeCompletionText = (rawContent: unknown): string => {
+  if (typeof rawContent === "string") return rawContent;
+  if (!Array.isArray(rawContent)) return "";
+  return rawContent
+    .map((part) => {
+      const record = part && typeof part === "object" ? (part as Record<string, unknown>) : {};
+      return typeof record.text === "string" ? record.text : "";
+    })
+    .join("\n")
+    .trim();
+};
+
+const parseAgentJsonWithStatus = (raw: unknown): ParsedAgentJson | null => {
   const candidates: string[] = [];
-  const trimmed = raw.trim();
+  const trimmed = normalizeCompletionText(raw).trim();
   if (trimmed) candidates.push(trimmed);
   const braceMatch = trimmed.match(/{[\s\S]*}/);
   if (braceMatch) candidates.push(braceMatch[0]);
@@ -278,7 +290,7 @@ const parseAgentJsonWithStatus = (raw: string): ParsedAgentJson | null => {
   return null;
 };
 
-const parseAgentJson = (raw: string): AgentResponse | null =>
+const parseAgentJson = (raw: unknown): AgentResponse | null =>
   parseAgentJsonWithStatus(raw)?.response ?? null;
 
 const extractCompletionText = (rawContent: unknown): string => {

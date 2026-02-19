@@ -6,6 +6,7 @@ import {
   resolveEffectiveAspectForModel,
   listModelApiContracts,
 } from "../modelApiContracts";
+import { resolveSubmissionHandlerRoute } from "../../hooks/taskSubmission/routing";
 
 describe("model API contracts", () => {
   it("provides a contract entry for every registry model", () => {
@@ -42,5 +43,23 @@ describe("model API contracts", () => {
       .filter((aspect) => !uiAspects.has(aspect));
 
     expect(missing).toEqual([]);
+  });
+
+  it("keeps default-route model exceptions explicit for non-text generation models", () => {
+    const knownDefaultRouteModelIds = new Set([
+      "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      "fal-ai/nano-banana",
+      "fal-ai/nano-banana-pro",
+    ]);
+    const unexpectedDefaults = listModelConfigs()
+      .filter((config) => config.mediaType !== "text")
+      .map((config) => config.id)
+      .filter(
+        (modelId) =>
+          resolveSubmissionHandlerRoute(modelId) === "default" &&
+          !knownDefaultRouteModelIds.has(modelId)
+      );
+
+    expect(unexpectedDefaults).toEqual([]);
   });
 });

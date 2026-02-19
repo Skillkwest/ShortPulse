@@ -28,6 +28,18 @@ type ThinkerFormatterSuccess = {
 
 export type ThinkerFormatterTurnResult = ThinkerFormatterSuccess | ThinkerFormatterError;
 
+const extractCompletionText = (rawContent: unknown): string => {
+  if (typeof rawContent === "string") return rawContent;
+  if (!Array.isArray(rawContent)) return "";
+  return rawContent
+    .map((part) => {
+      const record = part && typeof part === "object" ? (part as Record<string, unknown>) : {};
+      return typeof record.text === "string" ? record.text : "";
+    })
+    .join("\n")
+    .trim();
+};
+
 /**
  * Runs thinker -> formatter calls and returns normalized parsed output.
  */
@@ -91,7 +103,7 @@ export const runThinkerFormatterTurn = async ({
   }
 
   const thinkerData = await thinkerResp.json();
-  const thinkerRaw = thinkerData?.choices?.[0]?.message?.content ?? "";
+  const thinkerRaw = extractCompletionText(thinkerData?.choices?.[0]?.message?.content);
   let semantic: unknown = null;
   let semanticStatus: string | null = null;
   try {
@@ -129,7 +141,7 @@ export const runThinkerFormatterTurn = async ({
   }
 
   const formatterData = await formatterResp.json();
-  const formatterRaw = formatterData?.choices?.[0]?.message?.content ?? "";
+  const formatterRaw = extractCompletionText(formatterData?.choices?.[0]?.message?.content);
   const parsed = parseAgentJson(formatterRaw) ?? {
     message: formatterRaw || "No response",
     actions: undefined,

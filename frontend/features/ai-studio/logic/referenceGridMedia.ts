@@ -10,6 +10,8 @@ export type ReferenceGridPreviewQualityBand = "high" | "balanced" | "compact";
 const HTTP_LIKE_PATTERN = /^https?:\/\//i;
 const DATA_LIKE_PATTERN = /^data:(image|video)\//i;
 const BLOB_LIKE_PATTERN = /^blob:/i;
+const WORKSPACE_STORAGE_KEY_ROOT_PATH_PATTERN =
+  /^\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\//i;
 const SUPABASE_HOST_SUFFIX = ".supabase.co";
 const IMAGE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp)(?:$|[?#])/i;
 const VIDEO_EXTENSION_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
@@ -28,7 +30,11 @@ export const isRenderableReferenceMediaUrl = (value: ReferenceMediaCandidate): v
   if (HTTP_LIKE_PATTERN.test(trimmed)) return true;
   if (DATA_LIKE_PATTERN.test(trimmed)) return true;
   if (BLOB_LIKE_PATTERN.test(trimmed)) return true;
-  if (trimmed.startsWith("/")) return true;
+  if (trimmed.startsWith("/")) {
+    // Raw storage keys may be persisted with a leading slash; they are not browser-renderable URLs.
+    if (WORKSPACE_STORAGE_KEY_ROOT_PATH_PATTERN.test(trimmed)) return false;
+    return true;
+  }
   return false;
 };
 

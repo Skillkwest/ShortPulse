@@ -46,7 +46,7 @@ import {
   type ReferenceGridScenario,
   type StudioShellScenario,
 } from "../features/ai-studio/logic/perfAuditGates";
-import type { StudioOutput } from "../features/ai-studio/types";
+import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import {
   getAiStudioShellSectionRenderCounters,
   resetAiStudioShellSectionRenderCounters,
@@ -1278,12 +1278,42 @@ export default function AiStudioPage() {
     (promptText: string) => {
       const normalizedPrompt = normalizePromptText(promptText);
       if (!normalizedPrompt) return;
+      const isVideoWorkflow = selectedTool === "video" || selectedTool === "kling";
+      const isEditWorkflow = selectedTool === "edit" || selectedTool === "image";
+      const workflowTool: ToolId = isVideoWorkflow ? "video" : isEditWorkflow ? "edit" : "create";
+      const workflowMode: StudioMode = isVideoWorkflow ? "video" : "image";
+
+      if (workflowTool === "video") {
+        setVideoReferenceText(normalizedPrompt);
+      } else if (workflowTool === "edit") {
+        setEditReferenceText(normalizedPrompt);
+      } else {
+        setSharedPrompt(normalizedPrompt);
+        if (selectedTool !== "create" && selectedTool !== "text") {
+          setSelectedTool("create");
+        }
+        setMode("image");
+      }
+
       setPromptOrigin("agent");
       void handleGenerate(normalizedPrompt, {
+        modeOverride: workflowMode,
+        toolOverride: workflowTool,
         costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
       });
     },
-    [currentCostCredits, handleGenerate, promptReferenceGenerateCostCredits, setPromptOrigin]
+    [
+      currentCostCredits,
+      handleGenerate,
+      promptReferenceGenerateCostCredits,
+      selectedTool,
+      setEditReferenceText,
+      setMode,
+      setPromptOrigin,
+      setSelectedTool,
+      setSharedPrompt,
+      setVideoReferenceText,
+    ]
   );
   const disableAgentOutputGenerate = useMemo(() => {
     const isCreatePromptTool = selectedTool === "create" || selectedTool === "text";

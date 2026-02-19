@@ -145,6 +145,28 @@ describe("referenceGridMedia", () => {
     expect(resolved.previewUrl).toContain("q=26");
   });
 
+  it("ignores root-relative workspace storage key paths and falls back to preview URL", () => {
+    const invalidStorageKeyPath =
+      "/82004e53-a9bd-48c8-85ff-20dbeb658d21/uploads/images/9cccad0b-e38d-4623-96d9-80e70837bc29-0.jpg";
+    const signedPreviewUrl = "https://cdn.example.com/media/ref-123.jpg?token=signed";
+    const resolved = resolveReferenceCardUrls(
+      {
+        previewStoragePath: invalidStorageKeyPath,
+        fullStoragePath: invalidStorageKeyPath,
+        previewUrl: signedPreviewUrl,
+        resultUrls: [],
+      },
+      {
+        adaptivePreviewQuality: true,
+        pressureLevel: 0,
+      }
+    );
+
+    expect(resolved.previewUrl?.startsWith("/_next/image?url=")).toBe(true);
+    expect(resolved.previewUrl).toContain(`url=${encodeURIComponent(signedPreviewUrl)}`);
+    expect(resolved.fullUrl).toBe(signedPreviewUrl);
+  });
+
   it("does not transform relative video URLs", () => {
     const sourceUrl = "/api/media/video/ref-123.mp4?token=abc";
     const resolved = resolveReferenceCardUrls(

@@ -49,6 +49,29 @@ const makeArgs = (overrides: Partial<ImageSubmissionArgs> = {}): ImageSubmission
 });
 
 describe("Seedream submission payloads", () => {
+  const parseAspect = (aspect: string): number => {
+    const [widthToken, heightToken] = aspect.split(":");
+    return Number(widthToken) / Number(heightToken);
+  };
+
+  const expectAspectLockedAutoSize = (imageSize: unknown, aspect: string) => {
+    expect(typeof imageSize).toBe("object");
+    expect(imageSize).not.toBeNull();
+    if (!imageSize || typeof imageSize !== "object") return;
+    const width = (imageSize as { width?: number }).width;
+    const height = (imageSize as { height?: number }).height;
+    expect(typeof width).toBe("number");
+    expect(typeof height).toBe("number");
+    if (typeof width !== "number" || typeof height !== "number") return;
+    expect(width).toBeGreaterThanOrEqual(256);
+    expect(width).toBeLessThanOrEqual(4096);
+    expect(height).toBeGreaterThanOrEqual(256);
+    expect(height).toBeLessThanOrEqual(4096);
+    expect(width % 2).toBe(0);
+    expect(height % 2).toBe(0);
+    expect(Math.abs(width / height - parseAspect(aspect))).toBeLessThanOrEqual(0.02);
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(submitFalSeedream).mockResolvedValue({ request_id: "seedream-req" });
@@ -80,20 +103,19 @@ describe("Seedream submission payloads", () => {
     expect(args.startPollingWithGeneration).toHaveBeenCalledWith("seedream-req", "fal-seedream");
   });
 
-  it("passes through Seedream auto resolution in text-to-image payload", async () => {
+  it("sends aspect-locked auto_4K dimensions in text-to-image payload", async () => {
     const args = makeArgs({
       finalModel: "fal-ai/bytedance/seedream/v4.5/text-to-image",
       modelConfig: getModelConfig("fal-ai/bytedance/seedream/v4.5/text-to-image"),
+      aspect: "16:9",
       requestedResolution: "auto_4K",
     });
 
     await handleDefaultModelSubmission(args);
 
-    expect(submitFalSeedream).toHaveBeenCalledWith(
-      expect.objectContaining({
-        image_size: "auto_4K",
-      })
-    );
+    const payload = vi.mocked(submitFalSeedream).mock.calls[0]?.[0];
+    expect(payload).toBeDefined();
+    expectAspectLockedAutoSize(payload?.image_size, "16:9");
   });
 
   it("sends exact custom Seedream image_size for 5:4 edit payload", async () => {
@@ -117,20 +139,45 @@ describe("Seedream submission payloads", () => {
     );
   });
 
-  it("passes through Seedream auto resolution in edit payload", async () => {
+  it("sends aspect-locked auto_2K dimensions in edit payload", async () => {
     const args = makeArgs({
       finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
       modelConfig: getModelConfig("fal-ai/bytedance/seedream/v4.5/edit"),
+      aspect: "9:16",
       requestedResolution: "auto_2K",
       preparedImageInputs: ["https://cdn.test/ref-1.png"],
     });
 
     await handleImageModelSubmission(args);
 
-    expect(submitFalSeedreamEdit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        image_size: "auto_2K",
-      })
-    );
+    const payload = vi.mocked(submitFalSeedreamEdit).mock.calls[0]?.[0];
+    expect(payload).toBeDefined();
+    expectAspectLockedAutoSize(payload?.image_size, "9:16");
+  });
+
+  it("keeps orientation aligned for Seedream edit auto_4K across landscape and portrait", async () => {
+    const landscapeArgs = makeArgs({
+      finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
+      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v4.5/edit"),
+      aspect: "16:9",
+      requestedResolution: "auto_4K",
+      preparedImageInputs: ["https://cdn.test/ref-landscape.png"],
+    });
+    const portraitArgs = makeArgs({
+      finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
+      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v4.5/edit"),
+      aspect: "9:16",
+      requestedResolution: "auto_4K",
+      preparedImageInputs: ["https://cdn.test/ref-portrait.png"],
+    });
+
+    await handleImageModelSubmission(landscapeArgs);
+    await handleImageModelSubmission(portraitArgs);
+
+    const landscapePayload = vi.mocked(submitFalSeedreamEdit).mock.calls[0]?.[0];
+    const portraitPayload = vi.mocked(submitFalSeedreamEdit).mock.calls[1]?.[0];
+
+    expectAspectLockedAutoSize(landscapePayload?.image_size, "16:9");
+    expectAspectLockedAutoSize(portraitPayload?.image_size, "9:16");
   });
 });

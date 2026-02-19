@@ -368,6 +368,31 @@
   box-shadow: 0 6px 14px rgba(4, 234, 255, 0.1);
 }
 
+.agent-message .agent-output-generate-pill.agent-generate-prefab:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
+  border-color: rgba(116, 116, 116, 0.133);
+  background: linear-gradient(135deg, rgba(128, 128, 128, 0.109), rgba(96, 96, 96, 0.071));
+  color: #484848;
+}
+
+.agent-message .agent-output-generate-pill.agent-generate-prefab:disabled .agent-generate-label,
+.agent-message .agent-output-generate-pill.agent-generate-prefab:disabled .generate-pill,
+.agent-message
+  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .generate-pill
+  .model-chip-icon,
+.agent-message
+  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .generate-pill
+  .model-chip-credits,
+.agent-message
+  .agent-output-generate-pill.agent-generate-prefab:disabled
+  .generate-pill
+  .model-chip-credits-label {
+  color: rgba(245, 245, 245, 0.16);
+}
+
 .agent-message-drag-ghost.agent-user {
   border-color: rgba(151, 159, 171, 0.5);
   background: linear-gradient(180deg, rgba(20, 25, 34, 0.96), rgba(12, 16, 23, 0.98));

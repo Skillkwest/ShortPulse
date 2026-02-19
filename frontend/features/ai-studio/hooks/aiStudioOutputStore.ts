@@ -44,12 +44,36 @@ const createInitialSnapshot = (): AiStudioOutputStoreSnapshot => ({
 
 let outputStoreSnapshot: AiStudioOutputStoreSnapshot = createInitialSnapshot();
 const outputStoreListeners = new Set<OutputStoreListener>();
+let isNotifyingOutputStoreListeners = false;
+let hasPendingOutputStoreNotify = false;
 
 const areSetsEqual = (left: Set<string>, right: Set<string>) => {
   if (left === right) return true;
   if (left.size !== right.size) return false;
   for (const value of left) {
     if (!right.has(value)) return false;
+  }
+  return true;
+};
+
+const areStringArraysEqual = (left: string[], right: string[]) => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+};
+
+const areOutputMapsEquivalent = (
+  left: Record<string, StudioOutput>,
+  right: Record<string, StudioOutput>,
+  order: string[]
+) => {
+  if (left === right) return true;
+  if (Object.keys(left).length !== Object.keys(right).length) return false;
+  for (const id of order) {
+    if (left[id] !== right[id]) return false;
   }
   return true;
 };
@@ -106,7 +130,23 @@ const buildIndexes = ({
 };
 
 const notifyOutputStoreListeners = () => {
-  outputStoreListeners.forEach((listener) => listener());
+  if (isNotifyingOutputStoreListeners) {
+    hasPendingOutputStoreNotify = true;
+    return;
+  }
+  isNotifyingOutputStoreListeners = true;
+  try {
+    do {
+      hasPendingOutputStoreNotify = false;
+      const listeners = Array.from(outputStoreListeners);
+      listeners.forEach((listener) => {
+        if (!outputStoreListeners.has(listener)) return;
+        listener();
+      });
+    } while (hasPendingOutputStoreNotify);
+  } finally {
+    isNotifyingOutputStoreListeners = false;
+  }
 };
 
 export const getAiStudioOutputSnapshot = (): AiStudioOutputStoreSnapshot => outputStoreSnapshot;
@@ -125,28 +165,53 @@ export const setAiStudioOutputStoreSnapshot = ({
   archivedOutputById,
 }: Omit<AiStudioOutputStoreSnapshot, "indexes">) => {
   const previous = outputStoreSnapshot;
+  const sameOutputOrder =
+    previous.outputOrder === outputOrder || areStringArraysEqual(previous.outputOrder, outputOrder);
+  const sameArchivedOutputOrder =
+    previous.archivedOutputOrder === archivedOutputOrder ||
+    areStringArraysEqual(previous.archivedOutputOrder, archivedOutputOrder);
+  const sameOutputById =
+    previous.outputById === outputById ||
+    (sameOutputOrder && areOutputMapsEquivalent(previous.outputById, outputById, outputOrder));
+  const sameArchivedOutputById =
+    previous.archivedOutputById === archivedOutputById ||
+    (sameArchivedOutputOrder &&
+      areOutputMapsEquivalent(
+        previous.archivedOutputById,
+        archivedOutputById,
+        archivedOutputOrder
+      ));
+
+  const nextOutputOrder = sameOutputOrder ? previous.outputOrder : outputOrder;
+  const nextOutputById = sameOutputById ? previous.outputById : outputById;
+  const nextArchivedOutputOrder = sameArchivedOutputOrder
+    ? previous.archivedOutputOrder
+    : archivedOutputOrder;
+  const nextArchivedOutputById = sameArchivedOutputById
+    ? previous.archivedOutputById
+    : archivedOutputById;
   const indexes = buildIndexes({
-    outputOrder,
-    outputById,
-    archivedOutputOrder,
+    outputOrder: nextOutputOrder,
+    outputById: nextOutputById,
+    archivedOutputOrder: nextArchivedOutputOrder,
     previous: previous.indexes,
   });
 
   if (
-    previous.outputOrder === outputOrder &&
-    previous.outputById === outputById &&
-    previous.archivedOutputOrder === archivedOutputOrder &&
-    previous.archivedOutputById === archivedOutputById &&
+    previous.outputOrder === nextOutputOrder &&
+    previous.outputById === nextOutputById &&
+    previous.archivedOutputOrder === nextArchivedOutputOrder &&
+    previous.archivedOutputById === nextArchivedOutputById &&
     previous.indexes === indexes
   ) {
     return;
   }
 
   outputStoreSnapshot = {
-    outputOrder,
-    outputById,
-    archivedOutputOrder,
-    archivedOutputById,
+    outputOrder: nextOutputOrder,
+    outputById: nextOutputById,
+    archivedOutputOrder: nextArchivedOutputOrder,
+    archivedOutputById: nextArchivedOutputById,
     indexes,
   };
   notifyOutputStoreListeners();
@@ -176,13 +241,12 @@ export const useOutputSelector = <T>(
 
   const subscribe = useCallback(
     (notify: () => void) => {
-      let previousSelected = selectedRef.current;
       return subscribeAiStudioOutputs(() => {
+        const previousSelected = selectedRef.current;
         const nextSelected = selector(outputStoreSnapshot);
         if (isEqual(previousSelected, nextSelected)) {
           return;
         }
-        previousSelected = nextSelected;
         selectedRef.current = nextSelected;
         notify();
       });

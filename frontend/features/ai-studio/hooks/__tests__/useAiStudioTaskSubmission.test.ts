@@ -307,6 +307,76 @@ describe("useAiStudioTaskSubmission", () => {
     expect(outputs[0]?.modelId).toBe("fal-ai/bytedance/seedream/v4.5/edit");
   });
 
+  it("passes selected aspect and auto_4K resolution through create character-mode Seedream submissions", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/edit",
+        prompt: "",
+        isCharacterModeEnabled: true,
+        selectedTool: "create",
+        imageResolution: "auto_4K",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Character prompt", ["https://cdn.test/char-ref.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+    });
+
+    expect(outputs[0]?.modelId).toBe("fal-ai/bytedance/seedream/v4.5/edit");
+    expect(handleImageModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
+        aspect: "16:9",
+        requestedResolution: "auto_4K",
+      })
+    );
+  });
+
   it("converts reference upload prep failures into failed outputs instead of hanging spinners", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

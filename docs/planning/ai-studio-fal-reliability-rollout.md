@@ -35,6 +35,18 @@ Out of scope:
 - Full schema redesign beyond minimal reliability fields.
 - UI visual redesign.
 
+## Stabilization Pivot (2026-02-19)
+Execution has moved to a core-first stabilization track before additional phase expansion.
+
+Active addendum:
+- `docs/planning/ai-studio-generation-runtime-stabilization.md`
+
+Rules during pivot:
+- Treat stuck-generation behavior as release-blocking.
+- Keep Phase 3+ expansion paused until stabilization gates pass for a golden path model.
+- Route new generation changes through one runtime boundary; avoid bespoke per-surface/per-model logic.
+- Preserve existing API contracts, billing semantics, and visible loading UX behavior.
+
 ## Phase Plan
 
 ### Phase 0: Baseline + UX Freeze

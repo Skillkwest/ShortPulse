@@ -46,6 +46,12 @@ Tooling audit references:
 - [ ] Redesign Character Manager with a more polished UI, modeled after the AI Studio character workflow experience.
 
 ## AI Studio
+- [ ] AI Studio: generation runtime stabilization pivot (single runtime entrypoint, no bespoke generation paths). Tracker: `docs/planning/ai-studio-generation-runtime-stabilization.md`.
+- [ ] AI Studio generation runtime stabilization - S0 (Traceability Baseline). `docs/planning/ai-studio-generation-runtime-stabilization.md#s0-traceability-baseline-golden-path-scope`
+- [ ] AI Studio generation runtime stabilization - S1 (Runtime Boundary Lock). `docs/planning/ai-studio-generation-runtime-stabilization.md#s1-runtime-boundary-lock`
+- [ ] AI Studio generation runtime stabilization - S2 (Golden Path Migration). `docs/planning/ai-studio-generation-runtime-stabilization.md#s2-golden-path-migration-flux2-lite`
+- [ ] AI Studio generation runtime stabilization - S3 (Family Rollout). `docs/planning/ai-studio-generation-runtime-stabilization.md#s3-family-rollout-profile-by-profile`
+- [ ] AI Studio generation runtime stabilization - S4 (Billing UI Clarity). `docs/planning/ai-studio-generation-runtime-stabilization.md#s4-billing-ui-clarity-presentation-layer`
 - [ ] AI Studio: Fal reliability rollout (submit + retrieval modular core, shadow -> canary). Tracker: `docs/planning/ai-studio-fal-reliability-rollout.md`.
 - [ ] AI Studio Fal reliability rollout - Phase 0 (Baseline + UX Freeze). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-0-baseline--ux-freeze`
 - [x] AI Studio Fal reliability rollout - Phase 1 (Retrieval Correctness Hotfix). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-1-retrieval-correctness-hotfix`

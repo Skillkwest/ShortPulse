@@ -109,6 +109,7 @@ Start here for all repository documentation.
 - `docs/planning/mvp-ui-ux-phase0-baseline-capture-template.md`
 - `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
 - `docs/planning/ai-studio-fal-reliability-rollout.md`
+- `docs/planning/ai-studio-generation-runtime-stabilization.md`
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
 - `docs/planning/ai-studio-agent-pipeline-hardening-plan.md`
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`

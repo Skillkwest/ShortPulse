@@ -829,3 +829,15 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `npm -C frontend run test -- tests/api/fal-status-proxy.test.ts tests/api/fal-submit-proxy.test.ts`
   - `npm -C frontend run lint`
   - `npm -C frontend run type-check`
+
+## 2026-02-19 (AI Studio generation runtime stabilization pivot documentation)
+- Added stabilization execution addendum:
+  - `docs/planning/ai-studio-generation-runtime-stabilization.md`
+- Updated primary reliability rollout tracker with explicit pivot section and execution constraints:
+  - `docs/planning/ai-studio-fal-reliability-rollout.md`
+- Updated AI Studio backlog with stabilization tasks S0-S4:
+  - `docs/planning/backlog.md`
+- Purpose of this pivot:
+  - stop ad-hoc generation patching,
+  - enforce one runtime boundary for submit/retrieve/persist/billing flow,
+  - gate further phase expansion until golden-path reliability is proven.

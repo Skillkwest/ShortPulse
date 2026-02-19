@@ -92,6 +92,23 @@ const readErrorCode = (error: unknown): string | null => {
   return typeof raw === "string" && raw.trim().length ? raw.trim() : null;
 };
 
+const isMissingColumnError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object" || Array.isArray(error)) return false;
+  const message = String((error as Record<string, unknown>).message ?? "").toLowerCase();
+  return message.includes("column") && message.includes("does not exist");
+};
+
+const stripRecoveryColumns = (payload: JsonObject): JsonObject => {
+  const next = { ...payload };
+  delete next.failure_reason_code;
+  delete next.recovery_state;
+  delete next.recovery_attempts;
+  delete next.last_recovery_at;
+  delete next.next_recovery_at;
+  delete next.last_media_detected_at;
+  return next;
+};
+
 const lookupExistingGeneration = async ({
   userId,
   providerRequestId,
@@ -115,6 +132,43 @@ const lookupExistingGeneration = async ({
   return { row, error: null };
 };
 
+const updateGenerationWithRecoveryFallback = async ({
+  userId,
+  generationId,
+  payload,
+}: {
+  userId: string;
+  generationId: string;
+  payload: JsonObject;
+}) => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const primary = await supabaseAdmin
+    .from("ai_generations")
+    .update(payload)
+    .eq("id", generationId)
+    .eq("user_id", userId);
+  if (!primary.error) return { error: null };
+  if (!isMissingColumnError(primary.error)) return { error: primary.error };
+
+  const fallbackPayload = stripRecoveryColumns(payload);
+  const fallback = await supabaseAdmin
+    .from("ai_generations")
+    .update(fallbackPayload)
+    .eq("id", generationId)
+    .eq("user_id", userId);
+  return { error: fallback.error ?? null };
+};
+
+const insertGenerationWithRecoveryFallback = async (payload: JsonObject) => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const primary = await supabaseAdmin.from("ai_generations").insert(payload).select("id").single();
+  if (!primary.error) return primary;
+  if (!isMissingColumnError(primary.error)) return primary;
+
+  const fallbackPayload = stripRecoveryColumns(payload);
+  return supabaseAdmin.from("ai_generations").insert(fallbackPayload).select("id").single();
+};
+
 /**
  * Ensures a durable ai_generations row exists as soon as submit returns request_id.
  * This is server-authoritative and intentionally best-effort to avoid user-facing regressions.
@@ -129,6 +183,8 @@ export const ensureSubmittedGenerationRecord = async (
     const aspect = asString(input.payload.aspect_ratio) ?? asString(input.payload.aspect);
     const resolution = asString(input.payload.resolution);
     const payloadMetadata = asObject(input.payload.metadata) ?? {};
+    const nowIso = new Date().toISOString();
+    const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
 
     const metadataPatch: JsonObject = {
       source_ref: input.sourceRef,
@@ -139,6 +195,8 @@ export const ensureSubmittedGenerationRecord = async (
       submission_trace_id: asString(payloadMetadata.submission_trace_id),
       generation_trace_id: asString(payloadMetadata.generation_trace_id),
       submit_persisted_at: new Date().toISOString(),
+      recovery_queued_at: nowIso,
+      recovery_queue_reason: "submit_persisted",
       submit_payload_summary: {
         aspect_ratio: asString(input.payload.aspect_ratio),
         resolution,
@@ -162,7 +220,6 @@ export const ensureSubmittedGenerationRecord = async (
       };
     }
 
-    const supabaseAdmin = getSupabaseAdmin();
     const existingRow = existingLookup.row;
     if (existingRow) {
       const existingId = asString(existingRow.id);
@@ -171,17 +228,26 @@ export const ensureSubmittedGenerationRecord = async (
           ...(asObject(existingRow.metadata) ?? {}),
           ...metadataPatch,
         };
-        const { error } = await supabaseAdmin
-          .from("ai_generations")
-          .update({
-            mode,
-            provider: "fal",
-            model_id: input.modelId,
-            request_id: input.providerRequestId,
-            metadata: nextMetadata,
-          })
-          .eq("id", existingId)
-          .eq("user_id", input.userId);
+        const updatePayload: JsonObject = {
+          mode,
+          provider: "fal",
+          model_id: input.modelId,
+          request_id: input.providerRequestId,
+          status: "running",
+          completed_at: null,
+          failure_reason_code: null,
+          recovery_state: "queued",
+          recovery_attempts: 0,
+          last_recovery_at: null,
+          next_recovery_at: nextRecoveryAtIso,
+          last_media_detected_at: null,
+          metadata: nextMetadata,
+        };
+        const { error } = await updateGenerationWithRecoveryFallback({
+          userId: input.userId,
+          generationId: existingId,
+          payload: updatePayload,
+        });
         if (error) {
           return {
             ok: false,
@@ -192,7 +258,7 @@ export const ensureSubmittedGenerationRecord = async (
       }
     }
 
-    const insertPayload = {
+    const insertPayload: JsonObject = {
       user_id: input.userId,
       mode,
       provider: "fal",
@@ -202,14 +268,17 @@ export const ensureSubmittedGenerationRecord = async (
       duration_seconds: durationSeconds,
       resolution: resolution ?? null,
       request_id: input.providerRequestId,
-      status: "pending",
+      status: "running",
+      completed_at: null,
+      failure_reason_code: null,
+      recovery_state: "queued",
+      recovery_attempts: 0,
+      last_recovery_at: null,
+      next_recovery_at: nextRecoveryAtIso,
+      last_media_detected_at: null,
       metadata: metadataPatch,
     };
-    const { data, error } = await supabaseAdmin
-      .from("ai_generations")
-      .insert(insertPayload)
-      .select("id")
-      .single();
+    const { data, error } = await insertGenerationWithRecoveryFallback(insertPayload);
 
     if (error) {
       if (readErrorCode(error) === "23505") {

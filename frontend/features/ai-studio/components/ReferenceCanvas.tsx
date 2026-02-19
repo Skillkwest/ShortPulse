@@ -1075,9 +1075,11 @@ export function ReferenceCanvas({
   const maybeCreateLocalAdaptivePreviewUrl = useCallback(
     async (id: string, sourceUrl: string, image: HTMLImageElement): Promise<string> => {
       if (!REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY) return sourceUrl;
+      const isLocalImageSource = /^blob:/i.test(sourceUrl) || /^data:image\//i.test(sourceUrl);
       const shouldUseLocalAdaptiveTranscode =
-        liveWatchdogDegradeLevelRef.current >= 2 &&
-        liveOutputCountRef.current >= REFERENCE_HIGH_DENSITY_CARD_COUNT;
+        isLocalImageSource ||
+        (liveWatchdogDegradeLevelRef.current >= 2 &&
+          liveOutputCountRef.current >= REFERENCE_HIGH_DENSITY_CARD_COUNT);
       if (!shouldUseLocalAdaptiveTranscode) return sourceUrl;
       if (hasAdaptiveQueryParams(sourceUrl) || isNextOptimizerUrl(sourceUrl)) return sourceUrl;
       if (isVideoUrl(sourceUrl)) return sourceUrl;

@@ -310,6 +310,130 @@ describe("ReferenceCanvas curated split", () => {
     expect(requestedHydrationSources.includes(fallbackUrl)).toBe(false);
   });
 
+  it("applies adaptive local compression to uploaded blob image previews", async () => {
+    vi.useFakeTimers();
+    const requestedHydrationSources: string[] = [];
+    const originalCreateObjectURL = (
+      URL as typeof URL & { createObjectURL?: typeof URL.createObjectURL }
+    ).createObjectURL;
+    const originalRevokeObjectURL = (
+      URL as typeof URL & { revokeObjectURL?: typeof URL.revokeObjectURL }
+    ).revokeObjectURL;
+    const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalCanvasToBlob = HTMLCanvasElement.prototype.toBlob;
+
+    class MockHydrationImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      decoding = "async";
+      naturalWidth = 2048;
+      naturalHeight = 2048;
+      #src = "";
+
+      set src(value: string) {
+        this.#src = value;
+        requestedHydrationSources.push(value);
+        if (!this.onload) return;
+        setTimeout(() => this.onload?.(), 0);
+      }
+
+      get src() {
+        return this.#src;
+      }
+    }
+
+    let unmount: (() => void) | null = null;
+    try {
+      vi.stubGlobal("Image", MockHydrationImage as unknown as typeof Image);
+      const createObjectUrlMock = vi.fn(() => "blob:compressed-preview");
+      const revokeObjectUrlMock = vi.fn();
+      Object.defineProperty(URL, "createObjectURL", {
+        configurable: true,
+        value: createObjectUrlMock,
+      });
+      Object.defineProperty(URL, "revokeObjectURL", {
+        configurable: true,
+        value: revokeObjectUrlMock,
+      });
+
+      const mockCanvasContext = {
+        drawImage: vi.fn(),
+        imageSmoothingEnabled: false,
+        imageSmoothingQuality: "low",
+      };
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        value: vi.fn(() => mockCanvasContext as unknown as CanvasRenderingContext2D),
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+        configurable: true,
+        value: vi.fn((callback: BlobCallback) => {
+          callback(new Blob(["compressed"], { type: "image/webp" }));
+        }),
+      });
+
+      const uploadedOutput: StudioOutput = {
+        id: "upload-blob-1",
+        prompt: "Uploaded image",
+        mode: "image",
+        aspect: "1:1",
+        model: "Upload",
+        status: "ready",
+        timestamp: "Dropped",
+        mediaSource: "upload",
+        previewUrl: "blob:http://localhost:3000/upload-original",
+        previewStoragePath: "blob:http://localhost:3000/upload-original",
+        fullStoragePath: "blob:http://localhost:3000/upload-original",
+      };
+
+      const rendered = render(
+        <ReferenceCanvas
+          {...createProps({
+            outputs: [uploadedOutput],
+            activeOutputId: uploadedOutput.id,
+          })}
+        />
+      );
+      const { container } = rendered;
+      unmount = rendered.unmount;
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(120);
+      });
+
+      const imageNode = container.querySelector(".reference-card-image") as HTMLImageElement | null;
+      expect(imageNode).toBeTruthy();
+      expect(imageNode?.getAttribute("data-src")).toBe(
+        "blob:http://localhost:3000/upload-original"
+      );
+      expect(imageNode?.getAttribute("src")).toBe("blob:compressed-preview");
+      expect(requestedHydrationSources).toContain("blob:http://localhost:3000/upload-original");
+      expect(createObjectUrlMock).toHaveBeenCalledTimes(1);
+      unmount();
+      unmount = null;
+    } finally {
+      if (unmount) {
+        unmount();
+      }
+      Object.defineProperty(URL, "createObjectURL", {
+        configurable: true,
+        value: originalCreateObjectURL,
+      });
+      Object.defineProperty(URL, "revokeObjectURL", {
+        configurable: true,
+        value: originalRevokeObjectURL,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        value: originalCanvasGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+        configurable: true,
+        value: originalCanvasToBlob,
+      });
+    }
+  });
+
   it("adds curated refs from all-refs internal drags", () => {
     const onAddCuratedReference = vi.fn();
     const onSelectOutput = vi.fn();

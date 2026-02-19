@@ -602,6 +602,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     } catch (error) {
       console.warn("[studio-agent] canonical db read failed", withTimeoutMessage(error));
+      await logApiRouteException({
+        req,
+        error,
+        routeLabel: "ai/studio-agent",
+        metadata: {
+          user_id: user.id,
+          conversation_id: normalizedConversationId,
+          stage: "canonical_read",
+        },
+      });
     } finally {
       markStage("canonical_read", canonicalReadStartedAt);
     }
@@ -641,6 +651,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       context = applyVisionSummariesToContext(context, visionSummaryMap);
     } catch (error) {
       console.warn("[studio-agent] server vision summary failed", withTimeoutMessage(error));
+      await logApiRouteException({
+        req,
+        error,
+        routeLabel: "ai/studio-agent",
+        metadata: {
+          user_id: user.id,
+          conversation_id: normalizedConversationId,
+          stage: "vision_summary",
+        },
+      });
     } finally {
       markStage("vision_summary", visionStartedAt);
     }
@@ -829,6 +849,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           });
         } catch (error) {
           console.warn("[studio-agent] canonical db upsert failed", withTimeoutMessage(error));
+          await logApiRouteException({
+            req,
+            error,
+            routeLabel: "ai/studio-agent",
+            metadata: {
+              user_id: user.id,
+              conversation_id: normalizedConversationId,
+              stage: "canonical_write_v2",
+            },
+          });
         } finally {
           markStage("canonical_write", canonicalWriteStartedAt);
         }
@@ -922,6 +952,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       } catch (error) {
         console.warn("[studio-agent] canonical db upsert failed", withTimeoutMessage(error));
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: "ai/studio-agent",
+          metadata: {
+            user_id: user.id,
+            conversation_id: normalizedConversationId,
+            stage: "canonical_write_fast_path",
+          },
+        });
       } finally {
         markStage("canonical_write", canonicalWriteStartedAt);
       }

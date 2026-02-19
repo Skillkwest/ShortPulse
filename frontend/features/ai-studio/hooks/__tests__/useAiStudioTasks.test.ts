@@ -258,9 +258,13 @@ describe("useAiStudioTasks", () => {
   });
 
   it("treats done states as terminal and enters no-media finalization retries", async () => {
-    fetchFalSeedreamStatusMock.mockResolvedValueOnce({
-      status: "done",
-    });
+    fetchFalSeedreamStatusMock
+      .mockResolvedValueOnce({
+        status: "done",
+      })
+      .mockResolvedValueOnce({
+        status: "done",
+      });
 
     let output = makeOutput();
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -285,12 +289,16 @@ describe("useAiStudioTasks", () => {
     });
 
     await vi.advanceTimersByTimeAsync(1200);
+    await flushQueuedOutputUpdates();
 
     expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(1);
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationSuccess).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
-    expect(output.timestamp).toBe("Finalizing media...");
+
+    await vi.advanceTimersByTimeAsync(3000);
+    await flushQueuedOutputUpdates();
+    expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(2);
   });
 
   it("captures timeout context metadata when polling exceeds max wait", () => {

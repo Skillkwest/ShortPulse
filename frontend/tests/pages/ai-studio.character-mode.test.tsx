@@ -314,6 +314,31 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioState", () => ({
   useAiStudioState: () => aiStudioStateMock,
 }));
 
+vi.mock("../../features/ai-studio/hooks/aiStudioOutputStore", () => ({
+  useOutputSelector: (
+    selector: (snapshot: {
+      outputById: Record<string, StudioOutput>;
+      outputOrder: string[];
+      indexes: { inFlightIds: Set<string> };
+    }) => unknown
+  ) => {
+    const outputOrder = aiStudioStateMock.outputs.map((item) => item.id);
+    const outputById = Object.fromEntries(aiStudioStateMock.outputs.map((item) => [item.id, item]));
+    const inFlightIds = new Set(
+      aiStudioStateMock.outputs
+        .filter((item) => item.taskState === "pending" || item.taskState === "running")
+        .map((item) => item.id)
+    );
+    return selector({
+      outputById,
+      outputOrder,
+      indexes: {
+        inFlightIds,
+      },
+    });
+  },
+}));
+
 const createCharacterSnapshot = (
   description: string,
   url: string,

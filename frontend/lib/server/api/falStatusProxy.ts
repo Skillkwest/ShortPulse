@@ -338,7 +338,10 @@ export const createFalStatusHandler = ({
     try {
       let statusResp: Response | null = null;
       let statusData: JsonReadResult | null = null;
+      let retryableStatusResp: Response | null = null;
+      let retryableStatusData: JsonReadResult | null = null;
       let resolvedQueueBaseUrl: string | null = null;
+      let sawRetryableAliasAfterPrimaryCandidate = false;
 
       const captureAndRespondSuccess = async ({
         payload,
@@ -384,8 +387,14 @@ export const createFalStatusHandler = ({
           !data.isJson || response.status === 404 || response.status === 405;
 
         if (canRetryOnAlternateBase) {
-          statusResp = response;
-          statusData = data;
+          if (!statusResp) {
+            retryableStatusResp = response;
+            retryableStatusData = data;
+          } else {
+            sawRetryableAliasAfterPrimaryCandidate = true;
+            // Keep the primary candidate and avoid downgrading to retryable alias responses.
+            break;
+          }
           continue;
         }
 
@@ -408,6 +417,11 @@ export const createFalStatusHandler = ({
         }
 
         break;
+      }
+
+      if (!statusResp && retryableStatusResp && retryableStatusData) {
+        statusResp = retryableStatusResp;
+        statusData = retryableStatusData;
       }
 
       if (!statusResp || !statusData) {
@@ -528,6 +542,10 @@ export const createFalStatusHandler = ({
 
       const isComplete = Boolean(normalizedStatus && completedStatuses.has(normalizedStatus));
       if (!isComplete) {
+        if (sawRetryableAliasAfterPrimaryCandidate) {
+          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
+        }
+
         const responseUrl = extractResponseUrl(statusData.json);
         if (responseUrl) {
           const responseProbe = await fetch(responseUrl, {
@@ -618,7 +636,8 @@ export const createFalStatusHandler = ({
         if (canRetryOnAlternateBase) {
           resultResp = response;
           resultData = data;
-          continue;
+          // Retryable probes should not force a terminal error; let polling continue.
+          break;
         }
         allResultProbesRetryable = false;
 

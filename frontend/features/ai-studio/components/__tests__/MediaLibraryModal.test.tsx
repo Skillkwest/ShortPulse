@@ -36,7 +36,10 @@ const {
     void args;
     return [] as string[];
   }),
-  mockGetSignedMediaUrl: vi.fn(async () => null as string | null),
+  mockGetSignedMediaUrl: vi.fn(async (...args: unknown[]) => {
+    void args;
+    return null as string | null;
+  }),
   mockGetSignedMediaUrlsBatch: vi.fn(async () => new Map<string, string>()),
 }));
 

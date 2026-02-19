@@ -188,4 +188,34 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
 
     expect(removedStaleOrphans).toBe(true);
   });
+
+  it("does not re-run optimistic debit reconciliation on parent rerenders when outputs are unchanged", async () => {
+    const setOptimisticDebitEntries = vi.fn();
+    const stableOutputs = [makeOutput("out-stable", "pending")];
+    const { rerender } = renderHook(
+      ({ outputs }) =>
+        useAiStudioOptimisticDebitReconciliation({
+          outputs,
+          setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
+          refreshBalance: vi.fn(async () => 10),
+          setDetailOutputId: asDispatch<string | null>(vi.fn()),
+        }),
+      {
+        initialProps: {
+          outputs: stableOutputs,
+        },
+      }
+    );
+
+    await waitFor(() => expect(setOptimisticDebitEntries).toHaveBeenCalled());
+    const initialCallCount = setOptimisticDebitEntries.mock.calls.length;
+
+    rerender({ outputs: stableOutputs });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(setOptimisticDebitEntries.mock.calls.length).toBe(initialCallCount);
+  });
 });

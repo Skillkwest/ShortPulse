@@ -43,8 +43,12 @@ export const useReferenceGridHydrationBudget = ({
       const effectiveType = (connection?.effectiveType ?? "").toLowerCase();
       const isSlowNetwork = effectiveType.includes("2g");
       const isLowMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
-      setIsConstrainedProfile(saveData || isSlowNetwork || isLowMemory);
-      setIsSmallScreen(mediaQuery.matches);
+      const nextConstrainedProfile = saveData || isSlowNetwork || isLowMemory;
+      const nextSmallScreen = mediaQuery.matches;
+      setIsConstrainedProfile((prev) =>
+        prev === nextConstrainedProfile ? prev : nextConstrainedProfile
+      );
+      setIsSmallScreen((prev) => (prev === nextSmallScreen ? prev : nextSmallScreen));
     };
     recompute();
     mediaQuery.addEventListener?.("change", recompute);

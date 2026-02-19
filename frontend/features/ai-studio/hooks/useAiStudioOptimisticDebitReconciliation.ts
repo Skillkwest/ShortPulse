@@ -83,14 +83,17 @@ export const useAiStudioOptimisticDebitReconciliation = ({
         errorMessage: item.errorMessage ?? null,
       }));
   }, areOutputLiteListsEqual);
-  const effectiveOutputLite = outputsOverride
-    ? outputs.map((item) => ({
+  const overrideOutputLite = useMemo<ReconciliationOutputLite[]>(
+    () =>
+      outputs.map((item) => ({
         id: item.id,
         taskId: item.taskId,
         taskState: item.taskState,
         errorMessage: item.errorMessage ?? null,
-      }))
-    : outputLite;
+      })),
+    [outputs]
+  );
+  const effectiveOutputLite = outputsOverride ? overrideOutputLite : outputLite;
   const [dismissedFailureIds, setDismissedFailureIds] = useState<Set<string>>(new Set());
   const settledGenerationSignaturesRef = useRef<Set<string>>(new Set());
   const seenOutputIdsRef = useRef<Set<string>>(new Set());
@@ -106,6 +109,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
   );
 
   useEffect(() => {
+    if (!dismissedFailureIds.size) return;
     setDismissedFailureIds((prev) => {
       if (!prev.size) return prev;
       const activeIds = new Set(failedOutputs.map((item) => item.id));
@@ -113,7 +117,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       if (filtered.length === prev.size) return prev;
       return new Set(filtered);
     });
-  }, [failedOutputs]);
+  }, [dismissedFailureIds, failedOutputs]);
 
   useEffect(() => {
     const newlySeenOutputIds: string[] = [];

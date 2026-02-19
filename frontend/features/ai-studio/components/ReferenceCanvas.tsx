@@ -53,6 +53,8 @@ import { useReferenceGridPerfWatchdog } from "../hooks/useReferenceGridPerfWatch
 import { useReferenceGridMediaWorkBudget } from "../hooks/useReferenceGridMediaWorkBudget";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import {
+  isAdaptiveSurfaceEnabled,
+  isRenderableAdaptiveUrl,
   resolveAdaptivePolicyDecision,
   resolveAdaptiveSourceKind,
   shouldTranscodeLocalAdaptiveImage,
@@ -82,6 +84,8 @@ const REFERENCE_PRIORITY_HYDRATION_ROWS = 3;
 const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_0 = 6;
 const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_1 = 6;
 const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_2 = 3;
+const REFERENCE_PREVIEW_QUALITY_RECOVERY_STABLE_MS = 15_000;
+const REFERENCE_PREVIEW_QUALITY_MIN_CHANGE_INTERVAL_MS = 4_000;
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW = PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW;
 const REFERENCE_GRID_FLAG_CURATED_SPLIT = PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT;
 const REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER = PERF_FLAG_REFERENCE_GRID_STRICT_PREVIEW_LADDER;
@@ -161,6 +165,44 @@ const hasAdaptiveQueryParams = (url: string): boolean =>
 
 const isNextOptimizerUrl = (url: string): boolean =>
   /^\/_next\/image\?/i.test(url) || /\/_next\/image\?/i.test(url);
+
+const normalizeComparableUrl = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!trimmed.startsWith("/")) return trimmed;
+  if (typeof window === "undefined") return trimmed;
+  try {
+    return new URL(trimmed, window.location.origin).toString();
+  } catch {
+    return trimmed;
+  }
+};
+
+const resolveOptimizerSourceUrl = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || !isNextOptimizerUrl(trimmed)) return null;
+  try {
+    const parsed = new URL(trimmed, "https://shortpulse.local");
+    const source = parsed.searchParams.get("url");
+    if (!source) return null;
+    return normalizeComparableUrl(source);
+  } catch {
+    return null;
+  }
+};
+
+const resolveFirstRenderableUrl = (
+  ...candidates: Array<string | null | undefined>
+): string | null => {
+  for (const candidate of candidates) {
+    if (!isRenderableAdaptiveUrl(candidate)) continue;
+    const trimmed = candidate.trim();
+    if (trimmed) return trimmed;
+  }
+  return null;
+};
 
 const isOutputVideoPreview = (
   output: Pick<StudioOutput, "mode"> | null | undefined,
@@ -849,6 +891,11 @@ export function ReferenceCanvas({
     perfWatchdog.degradeLevel
   );
   const previewQualityPressureLevelRef = React.useRef<0 | 1 | 2>(perfWatchdog.degradeLevel);
+  const previewQualityLastChangeAtMsRef = React.useRef<number>(0);
+  const previewQualityRecoveryCandidateRef = React.useRef<{
+    level: 0 | 1 | 2;
+    sinceMs: number;
+  } | null>(null);
   const liveWatchdogDegradeLevelRef = React.useRef<0 | 1 | 2>(perfWatchdog.degradeLevel);
   const hydrationBudget = useReferenceGridHydrationBudget({
     enabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
@@ -1047,7 +1094,42 @@ export function ReferenceCanvas({
     const currentLevel = previewQualityPressureLevelRef.current;
     const nextLevel = perfWatchdog.degradeLevel;
     if (nextLevel === currentLevel) return;
+    const now =
+      typeof performance !== "undefined" && typeof performance.now === "function"
+        ? performance.now()
+        : Date.now();
+
+    // Increase pressure quickly to protect responsiveness under real load.
+    if (nextLevel > currentLevel) {
+      previewQualityRecoveryCandidateRef.current = null;
+      previewQualityPressureLevelRef.current = nextLevel;
+      previewQualityLastChangeAtMsRef.current = now;
+      setPreviewQualityPressureLevel((prev) => (prev === nextLevel ? prev : nextLevel));
+      logAdaptiveRecoveryLevelChanged({
+        surface: "reference-grid",
+        prevLevel: currentLevel,
+        nextLevel,
+      });
+      return;
+    }
+
+    // Recover quality slowly to avoid periodic URL churn that causes visible flicker.
+    const candidate = previewQualityRecoveryCandidateRef.current;
+    if (!candidate || candidate.level !== nextLevel) {
+      previewQualityRecoveryCandidateRef.current = {
+        level: nextLevel,
+        sinceMs: now,
+      };
+      return;
+    }
+    const recoveryStableMs = now - candidate.sinceMs;
+    const sinceLastChangeMs = now - previewQualityLastChangeAtMsRef.current;
+    if (recoveryStableMs < REFERENCE_PREVIEW_QUALITY_RECOVERY_STABLE_MS) return;
+    if (sinceLastChangeMs < REFERENCE_PREVIEW_QUALITY_MIN_CHANGE_INTERVAL_MS) return;
+
+    previewQualityRecoveryCandidateRef.current = null;
     previewQualityPressureLevelRef.current = nextLevel;
+    previewQualityLastChangeAtMsRef.current = now;
     setPreviewQualityPressureLevel((prev) => (prev === nextLevel ? prev : nextLevel));
     logAdaptiveRecoveryLevelChanged({
       surface: "reference-grid",
@@ -1682,18 +1764,34 @@ export function ReferenceCanvas({
         const isImagePreview = cardPreviewUrl ? !isVideoPreview : false;
         const isPriorityHydration = visibleIndex < priorityCount || activeOutputId === item.id;
         const hydratedEntry = imageHydrationState.hydratedById[item.id];
-        const fallbackSourceForCard =
-          item.fullStoragePath ??
-          item.previewStoragePath ??
-          item.previewUrl ??
-          resolvedCardUrls.fullUrl ??
-          null;
+        const fallbackSourceForCard = resolveFirstRenderableUrl(
+          resolvedCardUrls.fullUrl ?? null,
+          item.previewUrl ?? null,
+          item.fullStoragePath ?? null,
+          item.previewStoragePath ?? null,
+          item.resultUrls?.[0] ?? null
+        );
+        const normalizedCardPreviewUrl = normalizeComparableUrl(cardPreviewUrl);
+        const normalizedHydratedSourceUrl = normalizeComparableUrl(hydratedEntry?.sourceUrl);
+        const normalizedFallbackSourceUrl = normalizeComparableUrl(fallbackSourceForCard);
+        const cardOptimizerSourceUrl = resolveOptimizerSourceUrl(cardPreviewUrl);
+        const hydratedOptimizerSourceUrl = resolveOptimizerSourceUrl(hydratedEntry?.sourceUrl);
         const hasHydratedSourceForCard =
-          hydratedEntry?.sourceUrl === cardPreviewUrl ||
-          (typeof cardPreviewUrl === "string" &&
-            isNextOptimizerUrl(cardPreviewUrl) &&
-            typeof fallbackSourceForCard === "string" &&
-            hydratedEntry?.sourceUrl === fallbackSourceForCard);
+          Boolean(hydratedEntry) &&
+          (normalizedHydratedSourceUrl === normalizedCardPreviewUrl ||
+            (cardOptimizerSourceUrl != null &&
+              hydratedOptimizerSourceUrl != null &&
+              cardOptimizerSourceUrl === hydratedOptimizerSourceUrl) ||
+            (cardOptimizerSourceUrl != null &&
+              normalizedHydratedSourceUrl != null &&
+              cardOptimizerSourceUrl === normalizedHydratedSourceUrl) ||
+            (hydratedOptimizerSourceUrl != null &&
+              normalizedCardPreviewUrl != null &&
+              hydratedOptimizerSourceUrl === normalizedCardPreviewUrl) ||
+            (normalizedFallbackSourceUrl != null &&
+              (normalizedHydratedSourceUrl === normalizedFallbackSourceUrl ||
+                cardOptimizerSourceUrl === normalizedFallbackSourceUrl ||
+                hydratedOptimizerSourceUrl === normalizedFallbackSourceUrl)));
         const imageSrc =
           isImagePreview && REFERENCE_GRID_FLAG_DECODE_BUDGET
             ? hasHydratedSourceForCard
@@ -1724,7 +1822,7 @@ export function ReferenceCanvas({
   const curatedVisibleCardItems = React.useMemo(
     () =>
       buildVisibleCardItems(visibleCuratedOutputs, curatedHydrationPriorityCount, {
-        surface: "quick-slot",
+        surface: isAdaptiveSurfaceEnabled("quick-slot") ? "quick-slot" : "reference-grid",
         cardLongEdgePx: Math.max(200, Math.round(Math.max(1, curatedVirtualMetrics.rowHeight - 3))),
       }),
     [
@@ -1902,11 +2000,13 @@ export function ReferenceCanvas({
             targetLongEdgePx: resolved.targetLongEdgePx,
             previewQualityBand: resolved.previewQualityBand,
             fallbackUrl:
-              resolved.fullUrl ??
-              activeOutput.fullStoragePath ??
-              activeOutput.previewStoragePath ??
-              activeOutput.previewUrl ??
-              undefined,
+              resolveFirstRenderableUrl(
+                resolved.fullUrl,
+                activeOutput.previewUrl,
+                activeOutput.fullStoragePath,
+                activeOutput.previewStoragePath,
+                activeOutput.resultUrls?.[0]
+              ) ?? undefined,
           });
         }
       }
@@ -1919,10 +2019,12 @@ export function ReferenceCanvas({
         targetLongEdgePx: card.targetLongEdgePx,
         previewQualityBand: card.previewQualityBand,
         fallbackUrl:
-          card.item.fullStoragePath ??
-          card.item.previewStoragePath ??
-          card.item.previewUrl ??
-          undefined,
+          resolveFirstRenderableUrl(
+            card.item.previewUrl,
+            card.item.fullStoragePath,
+            card.item.previewStoragePath,
+            card.item.resultUrls?.[0]
+          ) ?? undefined,
       });
     });
     curatedVisibleCardItems.forEach((card) => {
@@ -1934,10 +2036,12 @@ export function ReferenceCanvas({
         targetLongEdgePx: card.targetLongEdgePx,
         previewQualityBand: card.previewQualityBand,
         fallbackUrl:
-          card.item.fullStoragePath ??
-          card.item.previewStoragePath ??
-          card.item.previewUrl ??
-          undefined,
+          resolveFirstRenderableUrl(
+            card.item.previewUrl,
+            card.item.fullStoragePath,
+            card.item.previewStoragePath,
+            card.item.resultUrls?.[0]
+          ) ?? undefined,
       });
     });
     nearViewportOutputs.forEach((item) => {
@@ -1958,11 +2062,13 @@ export function ReferenceCanvas({
         targetLongEdgePx: resolved.targetLongEdgePx,
         previewQualityBand: resolved.previewQualityBand,
         fallbackUrl:
-          resolved.fullUrl ??
-          item.fullStoragePath ??
-          item.previewStoragePath ??
-          item.previewUrl ??
-          undefined,
+          resolveFirstRenderableUrl(
+            resolved.fullUrl,
+            item.previewUrl,
+            item.fullStoragePath,
+            item.previewStoragePath,
+            item.resultUrls?.[0]
+          ) ?? undefined,
       });
     });
     nearViewportCuratedOutputs.forEach((item) => {
@@ -1971,7 +2077,7 @@ export function ReferenceCanvas({
         strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
         adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
         pressureLevel: previewQualityPressureLevel,
-        surface: "quick-slot",
+        surface: isAdaptiveSurfaceEnabled("quick-slot") ? "quick-slot" : "reference-grid",
         cardLongEdgePx: Math.max(200, Math.round(Math.max(1, curatedVirtualMetrics.rowHeight - 3))),
         devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
       });
@@ -1983,11 +2089,13 @@ export function ReferenceCanvas({
         targetLongEdgePx: resolved.targetLongEdgePx,
         previewQualityBand: resolved.previewQualityBand,
         fallbackUrl:
-          resolved.fullUrl ??
-          item.fullStoragePath ??
-          item.previewStoragePath ??
-          item.previewUrl ??
-          undefined,
+          resolveFirstRenderableUrl(
+            resolved.fullUrl,
+            item.previewUrl,
+            item.fullStoragePath,
+            item.previewStoragePath,
+            item.resultUrls?.[0]
+          ) ?? undefined,
       });
     });
     const currentQueue = hydrationQueueRef.current;

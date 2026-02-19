@@ -760,3 +760,17 @@ Append new entries at the end of this file; each entry should include date (UTC)
   `docs/sops/sop_media_performance_operations.md`,
   `docs/testing-guide.md`,
   `docs/local-development.md`.
+
+## 2026-02-19 (Adaptive Media V2 phase verification checkpoint)
+- Fixed adaptive hydration fallback/source matching in `frontend/features/ai-studio/components/ReferenceCanvas.tsx` so storage-key candidates are no longer treated as renderable URLs during hydration fallback resolution, eliminating stuck `loading preview...`/`generating...` cards in Quick Slot and Reference Grid drag/drop scenarios.
+- Hardened optimized preview equivalence matching for `/_next/image` sources so hydration state remains stable across quick-slot and all-refs surfaces.
+- Completed current regression gate run for this checkpoint:
+  - `npm -C frontend run lint`
+  - `npm -C frontend run type-check`
+  - `npm -C frontend run test -- ReferenceCanvas.curated.test.tsx`
+  - `npm -C frontend run test -- referenceGridMedia.test.ts referenceGridMedia.parity.test.ts`
+  - `npm -C frontend run test -- MediaLibraryModal.test.tsx`
+  - `npm -C frontend run test -- CharacterManagerShell.behavior.test.tsx`
+- Updated rollout tracking artifacts:
+  - `docs/planning/adaptive-media-v2-migration-checklist.md` (Phase 3 and Phase 5 verification marked complete + current QA status notes)
+  - `docs/planning/backlog.md` (added non-blocking follow-up for rare one-off grid flash stabilization pass).

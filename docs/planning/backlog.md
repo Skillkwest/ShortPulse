@@ -61,6 +61,7 @@ Tooling audit references:
 - [ ] AI Studio: in Beginner mode, make the `Create Properties` panel resize to its minimum width when `Create Primary` is clicked.
 - [ ] AI Studio: add a `Canvas` button that opens a free-form canvas for dragging/dropping images and text prompts to visually organize ideas.
 - [ ] AI Studio: clean up beginner-mode copy across all properties panels.
+- [ ] AI Studio: investigate and polish rare one-off full-grid flash in Reference Grid/Quick Slot under adaptive hydration churn (non-blocking follow-up after Adaptive Media V2 phase pass).
 
 ## Profile Page
 - [ ] Add targeted automated tests for saved creators critical flows (auth + media library coverage already exists).

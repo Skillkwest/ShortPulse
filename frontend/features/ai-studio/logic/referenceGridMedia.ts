@@ -260,6 +260,7 @@ export const resolveReferenceCardUrls = (
   const surface = options?.surface ?? "reference-grid";
   const shouldUseV2 = isAdaptiveSurfaceEnabled(surface);
   const shouldShadowCompare = isAdaptiveShadowCompareEnabled();
+  const shouldRenderV2 = shouldUseV2 && !shouldShadowCompare;
   const legacy = resolveReferenceCardUrlsLegacy(output, options);
 
   if (!shouldUseV2 && !shouldShadowCompare) {
@@ -299,7 +300,7 @@ export const resolveReferenceCardUrls = (
     targetLongEdgePx: options?.adaptivePreviewQuality ? v2Resolved.decision.targetLongEdgePx : 960,
   };
 
-  if (shouldUseV2) {
+  if (shouldRenderV2) {
     logAdaptivePolicyApplied({ result: v2Resolved });
   }
 
@@ -320,7 +321,7 @@ export const resolveReferenceCardUrls = (
     }
   }
 
-  return shouldUseV2 ? resolved : legacy;
+  return shouldRenderV2 ? resolved : legacy;
 };
 
 /**

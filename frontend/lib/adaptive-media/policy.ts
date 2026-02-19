@@ -30,9 +30,9 @@ const PARITY_QUALITY_Q: Record<AdaptiveQualityBand, number> = {
 };
 
 const TUNED_QUALITY_Q: Record<AdaptiveQualityBand, number> = {
-  high: 68,
-  balanced: 56,
-  compact: 48,
+  high: 70,
+  balanced: 60,
+  compact: 50,
 };
 
 const PARITY_LOCAL_TRANSCODE_QUALITY: Record<AdaptiveQualityBand, number> = {

@@ -50,7 +50,7 @@ describe("adaptive-media policy", () => {
     });
 
     expect(decision.qualityBand).toBe("balanced");
-    expect(decision.qualityParam).toBe(56);
+    expect(decision.qualityParam).toBe(60);
     expect(decision.targetLongEdgePx).toBe(600);
     expect(decision.localTranscodeQuality).toBeCloseTo(0.72, 4);
   });

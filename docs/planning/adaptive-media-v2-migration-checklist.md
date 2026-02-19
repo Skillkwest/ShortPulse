@@ -25,8 +25,8 @@
 
 ### Phase 3: Tuned Policy
 - [x] Tuned policy contract implemented (DPR/card-aware targets + quality ladder).
-- [ ] Enable tuned policy in QA and validate visual quality/perf.
-- [ ] Confirm no regressions in drag/drop, curated split, and hydration.
+- [x] Enable tuned policy in QA and validate visual quality/perf.
+- [x] Confirm no regressions in drag/drop, curated split, and hydration.
 
 ### Phase 4: Media Library Grids
 - [x] Route grid adapter wired (`media-library-grid`).
@@ -36,7 +36,7 @@
 ### Phase 5: Character Surfaces
 - [x] Character grid adapter wired (`character-grid`).
 - [x] Character reference preview overlay upgraded to full-quality signed URL.
-- [ ] Run character flow regression suite with adaptive flags enabled.
+- [x] Run character flow regression suite with adaptive flags enabled.
 
 ### Phase 6: Post-Stability
 - [ ] Consider automated fallback path after stability window.
@@ -56,3 +56,8 @@
 - `npm -C frontend run test -- --run features/ai-studio/components/__tests__/ReferenceCanvas.curated.test.tsx`
 - `npm -C frontend run test -- --run features/ai-studio/components/__tests__/MediaLibraryModal.test.tsx`
 - `npm -C frontend run test -- --run features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx`
+
+## Current QA Status (2026-02-19)
+- Phase verification is currently pass with tuned policy enabled across target grid surfaces.
+- User-facing QA confirms stable quality and no recurring flicker/regression blockers across Reference Grid, Quick Slot, Media Library grid/modal grid, and Character surfaces.
+- Known low-severity follow-up remains: rare one-off full-grid flash observed during extended watch; not currently reproducible as a blocking issue.

@@ -1,0 +1,439 @@
+import type { NextApiRequest, NextApiResponse } from "next";
+import { requireAdminUser } from "../../../lib/server/api/auth";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
+
+type JsonRow = Record<string, unknown>;
+
+const asSingleString = (value: unknown): string | null => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  if (Array.isArray(value) && typeof value[0] === "string") {
+    const trimmed = value[0].trim();
+    return trimmed.length ? trimmed : null;
+  }
+  return null;
+};
+
+const dedupeRowsById = (rows: JsonRow[]): JsonRow[] => {
+  const map = new Map<string, JsonRow>();
+  rows.forEach((row) => {
+    const id = row.id;
+    if (typeof id !== "string" || !id.trim()) return;
+    if (!map.has(id)) map.set(id, row);
+  });
+  return Array.from(map.values());
+};
+
+const appendObjectRows = (target: JsonRow[], rows: unknown) => {
+  if (!Array.isArray(rows)) return;
+  rows.forEach((row) => {
+    if (row && typeof row === "object" && !Array.isArray(row)) {
+      target.push(row as JsonRow);
+    }
+  });
+};
+
+const readErrorMessage = (error: unknown): string => {
+  if (!error) return "unknown";
+  if (typeof error === "string") return error;
+  if (typeof error === "object" && !Array.isArray(error)) {
+    const message = (error as Record<string, unknown>).message;
+    if (typeof message === "string" && message.trim().length) return message;
+  }
+  return "unknown";
+};
+
+const sortRowsDesc = (rows: JsonRow[]): JsonRow[] =>
+  rows.slice().sort((a, b) => {
+    const aTs =
+      (typeof a.created_at === "string" && a.created_at) ||
+      (typeof a.occurred_at === "string" && a.occurred_at) ||
+      (typeof a.updated_at === "string" && a.updated_at) ||
+      "";
+    const bTs =
+      (typeof b.created_at === "string" && b.created_at) ||
+      (typeof b.occurred_at === "string" && b.occurred_at) ||
+      (typeof b.updated_at === "string" && b.updated_at) ||
+      "";
+    return bTs.localeCompare(aTs);
+  });
+
+const readRequestId = (row: JsonRow): string | null => {
+  const requestId = row.request_id;
+  if (typeof requestId !== "string") return null;
+  const trimmed = requestId.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const selectGenerationFields = [
+  "id",
+  "user_id",
+  "provider",
+  "model_id",
+  "request_id",
+  "status",
+  "error_message",
+  "recovery_state",
+  "recovery_attempts",
+  "last_recovery_at",
+  "next_recovery_at",
+  "last_media_detected_at",
+  "created_at",
+  "completed_at",
+  "metadata",
+].join(", ");
+
+const selectErrorEventFields = [
+  "id",
+  "source",
+  "scope",
+  "severity",
+  "message",
+  "endpoint",
+  "request_id",
+  "metadata",
+  "occurred_at",
+  "created_at",
+].join(", ");
+
+const selectLedgerFields = [
+  "id",
+  "source",
+  "source_ref",
+  "change_cents",
+  "reason",
+  "metadata",
+  "created_at",
+].join(", ");
+
+const selectReservationFields = [
+  "id",
+  "source_ref",
+  "provider_request_id",
+  "model_id",
+  "amount_cents",
+  "status",
+  "reason",
+  "metadata",
+  "created_at",
+  "updated_at",
+  "captured_at",
+  "released_at",
+].join(", ");
+
+const selectMediaEventFields = [
+  "id",
+  "event_type",
+  "entity_type",
+  "entity_id",
+  "metadata",
+  "created_at",
+].join(", ");
+
+const selectMediaFileFields = [
+  "id",
+  "source",
+  "source_ref",
+  "storage_path",
+  "file_type",
+  "metadata",
+  "created_at",
+].join(", ");
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const adminUser = await requireAdminUser(req, res);
+  if (!adminUser) return;
+
+  const generationId = asSingleString(req.query.generationId);
+  const requestId = asSingleString(req.query.requestId);
+  const traceId = asSingleString(req.query.traceId);
+
+  if (!generationId && !requestId && !traceId) {
+    return res
+      .status(400)
+      .json({ error: "Provide at least one of generationId, requestId, or traceId." });
+  }
+
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    const warnings: string[] = [];
+    const generationRows: JsonRow[] = [];
+
+    if (generationId) {
+      const { data, error } = await supabaseAdmin
+        .from("ai_generations")
+        .select(selectGenerationFields)
+        .eq("id", generationId)
+        .limit(5);
+      if (error) {
+        warnings.push(`ai_generations.id lookup failed: ${readErrorMessage(error)}`);
+      } else {
+        appendObjectRows(generationRows, data);
+      }
+    }
+
+    if (requestId) {
+      const { data, error } = await supabaseAdmin
+        .from("ai_generations")
+        .select(selectGenerationFields)
+        .eq("request_id", requestId)
+        .limit(25);
+      if (error) {
+        warnings.push(`ai_generations.request_id lookup failed: ${readErrorMessage(error)}`);
+      } else {
+        appendObjectRows(generationRows, data);
+      }
+    }
+
+    if (traceId) {
+      const [tracePrimary, traceFallback] = await Promise.all([
+        supabaseAdmin
+          .from("ai_generations")
+          .select(selectGenerationFields)
+          .contains("metadata", { generation_trace_id: traceId })
+          .limit(25),
+        supabaseAdmin
+          .from("ai_generations")
+          .select(selectGenerationFields)
+          .contains("metadata", { submission_trace_id: traceId })
+          .limit(25),
+      ]);
+      if (tracePrimary.error) {
+        warnings.push(
+          `ai_generations.generation_trace_id lookup failed: ${readErrorMessage(tracePrimary.error)}`
+        );
+      } else {
+        appendObjectRows(generationRows, tracePrimary.data);
+      }
+      if (traceFallback.error) {
+        warnings.push(
+          `ai_generations.submission_trace_id lookup failed: ${readErrorMessage(traceFallback.error)}`
+        );
+      } else {
+        appendObjectRows(generationRows, traceFallback.data);
+      }
+    }
+
+    const generations = sortRowsDesc(dedupeRowsById(generationRows));
+    const generationIds = generations
+      .map((row) => row.id)
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
+    const requestIds = new Set<string>();
+    if (requestId) requestIds.add(requestId);
+    generations.forEach((row) => {
+      const rowRequestId = readRequestId(row);
+      if (rowRequestId) requestIds.add(rowRequestId);
+    });
+
+    const requestIdList = Array.from(requestIds);
+
+    const mediaEvents: JsonRow[] = [];
+    const mediaFiles: JsonRow[] = [];
+    const reservations: JsonRow[] = [];
+    const ledgerRows: JsonRow[] = [];
+    const errorEvents: JsonRow[] = [];
+
+    if (generationIds.length) {
+      const [eventsResult, filesResult] = await Promise.all([
+        supabaseAdmin
+          .from("media_events")
+          .select(selectMediaEventFields)
+          .eq("entity_type", "ai_generation")
+          .in("entity_id", generationIds)
+          .order("created_at", { ascending: false })
+          .limit(200),
+        supabaseAdmin
+          .from("media_files")
+          .select(selectMediaFileFields)
+          .in("source_ref", generationIds)
+          .order("created_at", { ascending: false })
+          .limit(200),
+      ]);
+
+      if (eventsResult.error) {
+        warnings.push(`media_events lookup failed: ${readErrorMessage(eventsResult.error)}`);
+      } else {
+        appendObjectRows(mediaEvents, eventsResult.data);
+      }
+
+      if (filesResult.error) {
+        warnings.push(`media_files lookup failed: ${readErrorMessage(filesResult.error)}`);
+      } else {
+        appendObjectRows(mediaFiles, filesResult.data);
+      }
+    }
+
+    const reservationQueries: Array<PromiseLike<{ data: unknown; error: unknown }>> = [];
+    if (requestIdList.length) {
+      reservationQueries.push(
+        supabaseAdmin
+          .from("ai_credit_reservations")
+          .select(selectReservationFields)
+          .in("provider_request_id", requestIdList)
+          .order("created_at", { ascending: false })
+          .limit(200)
+      );
+    }
+    if (traceId) {
+      reservationQueries.push(
+        supabaseAdmin
+          .from("ai_credit_reservations")
+          .select(selectReservationFields)
+          .eq("source_ref", traceId)
+          .order("created_at", { ascending: false })
+          .limit(200)
+      );
+    }
+    if (reservationQueries.length) {
+      const reservationResults = await Promise.all(reservationQueries);
+      reservationResults.forEach((result) => {
+        if (result.error) {
+          warnings.push(`ai_credit_reservations lookup failed: ${readErrorMessage(result.error)}`);
+          return;
+        }
+        appendObjectRows(reservations, result.data);
+      });
+    }
+
+    const ledgerQueries: Array<PromiseLike<{ data: unknown; error: unknown }>> = [];
+    if (traceId) {
+      ledgerQueries.push(
+        supabaseAdmin
+          .from("ai_credit_ledger")
+          .select(selectLedgerFields)
+          .eq("source_ref", traceId)
+          .order("created_at", { ascending: false })
+          .limit(200)
+      );
+    }
+    requestIdList.forEach((id) => {
+      ledgerQueries.push(
+        supabaseAdmin
+          .from("ai_credit_ledger")
+          .select(selectLedgerFields)
+          .contains("metadata", { provider_request_id: id })
+          .order("created_at", { ascending: false })
+          .limit(200)
+      );
+    });
+    if (ledgerQueries.length) {
+      const ledgerResults = await Promise.all(ledgerQueries);
+      ledgerResults.forEach((result) => {
+        if (result.error) {
+          warnings.push(`ai_credit_ledger lookup failed: ${readErrorMessage(result.error)}`);
+          return;
+        }
+        appendObjectRows(ledgerRows, result.data);
+      });
+    }
+
+    const errorQueries: Array<PromiseLike<{ data: unknown; error: unknown }>> = [];
+    if (requestIdList.length) {
+      errorQueries.push(
+        supabaseAdmin
+          .from("app_error_events")
+          .select(selectErrorEventFields)
+          .in("request_id", requestIdList)
+          .order("created_at", { ascending: false })
+          .limit(200)
+      );
+      requestIdList.forEach((id) => {
+        errorQueries.push(
+          supabaseAdmin
+            .from("app_error_events")
+            .select(selectErrorEventFields)
+            .contains("metadata", { provider_request_id: id })
+            .order("created_at", { ascending: false })
+            .limit(200)
+        );
+      });
+    }
+    generationIds.forEach((id) => {
+      errorQueries.push(
+        supabaseAdmin
+          .from("app_error_events")
+          .select(selectErrorEventFields)
+          .contains("metadata", { generation_id: id })
+          .order("created_at", { ascending: false })
+          .limit(200)
+      );
+    });
+    if (traceId) {
+      errorQueries.push(
+        supabaseAdmin
+          .from("app_error_events")
+          .select(selectErrorEventFields)
+          .contains("metadata", { generation_trace_id: traceId })
+          .order("created_at", { ascending: false })
+          .limit(200)
+      );
+      errorQueries.push(
+        supabaseAdmin
+          .from("app_error_events")
+          .select(selectErrorEventFields)
+          .contains("metadata", { submission_trace_id: traceId })
+          .order("created_at", { ascending: false })
+          .limit(200)
+      );
+    }
+    if (errorQueries.length) {
+      const errorResults = await Promise.all(errorQueries);
+      errorResults.forEach((result) => {
+        if (result.error) {
+          warnings.push(`app_error_events lookup failed: ${readErrorMessage(result.error)}`);
+          return;
+        }
+        appendObjectRows(errorEvents, result.data);
+      });
+    }
+
+    const dedupedReservations = sortRowsDesc(dedupeRowsById(reservations));
+    const dedupedLedger = sortRowsDesc(dedupeRowsById(ledgerRows));
+    const dedupedErrors = sortRowsDesc(dedupeRowsById(errorEvents));
+    const dedupedMediaEvents = sortRowsDesc(dedupeRowsById(mediaEvents));
+    const dedupedMediaFiles = sortRowsDesc(dedupeRowsById(mediaFiles));
+
+    return res.status(200).json({
+      query: {
+        generationId: generationId ?? null,
+        requestId: requestId ?? null,
+        traceId: traceId ?? null,
+      },
+      summary: {
+        generations: generations.length,
+        mediaEvents: dedupedMediaEvents.length,
+        mediaFiles: dedupedMediaFiles.length,
+        reservations: dedupedReservations.length,
+        ledgerEntries: dedupedLedger.length,
+        errorEvents: dedupedErrors.length,
+      },
+      generations,
+      mediaEvents: dedupedMediaEvents,
+      mediaFiles: dedupedMediaFiles,
+      reservations: dedupedReservations,
+      ledgerEntries: dedupedLedger,
+      errorEvents: dedupedErrors,
+      warnings,
+    });
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      routeLabel: "admin.generation_trace",
+      error,
+      metadata: {
+        generation_id: generationId ?? null,
+        request_id: requestId ?? null,
+        trace_id: traceId ?? null,
+      },
+      user: adminUser,
+    });
+    return res.status(500).json({ error: "Failed to load generation trace timeline." });
+  }
+}

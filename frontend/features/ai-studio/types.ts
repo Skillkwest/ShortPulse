@@ -44,6 +44,8 @@ export type StudioOutput = {
   status: "ready" | "saved";
   timestamp: string;
   taskId?: string;
+  submissionTraceId?: string;
+  generationTraceId?: string;
   taskState?: "pending" | "running" | "success" | "fail";
   errorMessage?: string | null;
   errorMessageShort?: string | null;

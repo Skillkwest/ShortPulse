@@ -222,6 +222,8 @@ export const useAiStudioPersistenceActions = ({
             fullUrlHint: output.previewUrl ?? null,
             metadata: {
               task_id: output.taskId ?? null,
+              generation_trace_id: output.generationTraceId ?? output.taskId ?? null,
+              submission_trace_id: output.submissionTraceId ?? null,
             },
           });
           if (!delivery) {

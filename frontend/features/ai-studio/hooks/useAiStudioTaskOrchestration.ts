@@ -155,6 +155,8 @@ export const useAiStudioTaskOrchestration = ({
             metadata: {
               result_urls: urls,
               media_file_ids: mediaFileIds,
+              generation_trace_id: output.generationTraceId ?? output.taskId ?? pending.taskId,
+              submission_trace_id: output.submissionTraceId ?? null,
             },
           });
         } catch {
@@ -235,6 +237,8 @@ export const useAiStudioTaskOrchestration = ({
             metadata: {
               error: message,
               failure_reason_code: reasonCode ?? null,
+              generation_trace_id: output.generationTraceId ?? output.taskId ?? taskId ?? null,
+              submission_trace_id: output.submissionTraceId ?? null,
             },
           });
           await logMediaEvent({
@@ -246,6 +250,8 @@ export const useAiStudioTaskOrchestration = ({
               provider,
               model_id: output.modelId ?? output.model,
               failure_reason_code: reasonCode ?? null,
+              generation_trace_id: output.generationTraceId ?? output.taskId ?? taskId ?? null,
+              submission_trace_id: output.submissionTraceId ?? null,
             },
           });
         } catch {

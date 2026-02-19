@@ -46,8 +46,8 @@ Single allowed implementation path:
 
 ### S0: Traceability Baseline (Golden Path Scope)
 Tasks:
-- [ ] Add deterministic generation trace IDs spanning submit/status/persist/billing.
-- [ ] Add one local admin/debug view for a generation timeline by `requestId`/`generationId`.
+- [x] Add deterministic generation trace IDs spanning submit/status/persist/billing.
+- [x] Add one local admin/debug view for a generation timeline by `requestId`/`generationId`.
 - [ ] Capture baseline for one model path (`FLUX.2 Lite`) from click to reference-grid materialization.
 
 Exit gates:

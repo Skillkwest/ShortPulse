@@ -974,6 +974,9 @@ export default function AdminDashboardPage() {
           >
             Errors
           </button>
+          <Link href="/admin/generation-trace" className="ghost-btn mini">
+            Generation trace
+          </Link>
         </div>
 
         {activeTab === "overview" ? (

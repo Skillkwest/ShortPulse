@@ -841,3 +841,23 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - stop ad-hoc generation patching,
   - enforce one runtime boundary for submit/retrieve/persist/billing flow,
   - gate further phase expansion until golden-path reliability is proven.
+
+## 2026-02-19 (AI Studio generation runtime stabilization S0 traceability implementation)
+- Added submission/generation trace identifiers to AI Studio output lifecycle and persistence metadata:
+  - `frontend/features/ai-studio/types.ts`
+  - `frontend/features/ai-studio/logic/ids.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioTaskOrchestration.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioPersistenceActions.ts`
+- Added admin generation trace API endpoint for stitched timeline debugging by `generationId`, `requestId`, or `traceId`:
+  - `frontend/pages/api/admin/generation-trace.ts`
+  - `frontend/tests/api/admin-generation-trace.test.ts`
+- Added a local operator UI surface for trace inspection:
+  - `frontend/pages/admin/generation-trace.tsx`
+  - linked from `frontend/pages/admin/index.tsx`
+- Updated internal API docs:
+  - `docs/api/api-internal-routes.md`
+- Validation evidence:
+  - `npm -C frontend run test -- admin-generation-trace useAiStudioTaskSubmission useAiStudioTaskOrchestration useAiStudioTasks`
+  - `npm -C frontend run type-check`
+  - `npm -C frontend run lint`

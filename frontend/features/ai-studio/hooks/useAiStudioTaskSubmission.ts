@@ -4,7 +4,7 @@
  */
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { randomId } from "../logic/ids";
+import { buildGenerationSubmissionTraceId, randomId } from "../logic/ids";
 import { getModelConfig } from "../logic/pricing";
 import {
   clampImageResolutionForModel,
@@ -169,6 +169,7 @@ export const useAiStudioTaskSubmission = ({
       setIsPromptGenerating(true);
       try {
         const id = optimisticOutputId ?? `out-${randomId()}`;
+        const submissionTraceId = buildGenerationSubmissionTraceId(id);
         const isCharacterModeCreateRun =
           isCharacterModeEnabled && (effectiveTool === "create" || effectiveTool === "text");
         const modelLabel = isCharacterModeCreateRun
@@ -230,6 +231,7 @@ export const useAiStudioTaskSubmission = ({
           saveState: "idle",
           saveError: null,
           characterContext: options?.characterContextOverride,
+          submissionTraceId,
         };
 
         // Render or reconcile the spinner placeholder before URL prep/submission work begins.
@@ -387,6 +389,7 @@ export const useAiStudioTaskSubmission = ({
               ...item,
               ...patch,
               taskId,
+              generationTraceId: taskId,
               taskState: "running",
               timestamp: "Submitted",
               provider: item.provider ?? provider,
@@ -405,6 +408,8 @@ export const useAiStudioTaskSubmission = ({
                 effective_aspect: effectiveAspect,
                 resolution: requestedResolution ?? null,
                 duration_seconds: requestedDurationSeconds,
+                submission_trace_id: submissionTraceId,
+                generation_trace_id: taskId,
               },
             });
           };

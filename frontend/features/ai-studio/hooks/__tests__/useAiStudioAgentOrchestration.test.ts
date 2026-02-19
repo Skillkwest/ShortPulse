@@ -224,4 +224,30 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(setEditReferenceText).not.toHaveBeenCalled();
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
   });
+
+  it("reuses prepared image URLs across repeated sends for the same attachment source", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
+    const params = createParams({
+      agentInput: "refine this",
+      sendToAgent,
+      agentAttachments: [
+        {
+          id: "img-1",
+          kind: "image",
+          imageUrl: "https://cdn.test/image.png",
+          text: null,
+          aspect: null,
+        },
+      ],
+      getAgentContext: vi.fn(() => ({})),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+      await result.current.handleAgentSend();
+    });
+
+    expect(prepareImageUrlMock).toHaveBeenCalledTimes(1);
+  });
 });

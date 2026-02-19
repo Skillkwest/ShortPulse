@@ -6,6 +6,7 @@ import type { StudioOutput } from "../types";
 
 type ReferenceMediaCandidate = string | null | undefined;
 export type ReferenceGridPreviewQualityBand = "high" | "balanced" | "compact";
+type ReferenceGridMediaKindHint = "image" | "video" | null;
 
 const HTTP_LIKE_PATTERN = /^https?:\/\//i;
 const DATA_LIKE_PATTERN = /^data:(image|video)\//i;
@@ -54,9 +55,9 @@ const getSupabaseOrigin = (): string | null => {
 };
 
 const resolvePreviewQualityParam = (qualityBand: ReferenceGridPreviewQualityBand): number => {
-  if (qualityBand === "compact") return 28;
-  if (qualityBand === "balanced") return 26;
-  return 34;
+  if (qualityBand === "compact") return 34;
+  if (qualityBand === "balanced") return 34;
+  return 40;
 };
 
 const resolveNextImageWidth = (targetLongEdgePx: number): number =>
@@ -114,10 +115,12 @@ const applyAdaptivePreviewTransform = ({
   url,
   targetLongEdgePx,
   qualityBand,
+  mediaKindHint,
 }: {
   url: string;
   targetLongEdgePx: number;
   qualityBand: ReferenceGridPreviewQualityBand;
+  mediaKindHint: ReferenceGridMediaKindHint;
 }): string => {
   const parsedCandidate = parseTransformCandidateUrl(url);
   if (!parsedCandidate) {
@@ -127,10 +130,14 @@ const applyAdaptivePreviewTransform = ({
   if (isRelativeInput && parsed.pathname.startsWith(NEXT_IMAGE_OPTIMIZER_PATH)) {
     return url;
   }
-  if (isLikelyVideoPath(parsed.pathname)) return url;
+  const hintedIsVideo = mediaKindHint === "video";
+  const hintedIsImage = mediaKindHint === "image";
+  if (hintedIsVideo || isLikelyVideoPath(parsed.pathname)) return url;
+  const isRenderImagePath = isSupabaseRenderImagePath(parsed.pathname);
+  const hasImageSignal = hintedIsImage || isLikelyImagePath(parsed.pathname) || isRenderImagePath;
   if (isSupabaseStorageUrl(parsed)) {
-    if (!isLikelyImagePath(parsed.pathname)) return url;
-    if (!isSupabaseRenderImagePath(parsed.pathname)) {
+    if (!hasImageSignal) return url;
+    if (!isRenderImagePath) {
       // Signed/object URLs often ignore width/quality params; force Next optimizer for reliable
       // downsampling and compression in the reference grid.
       return toNextImageOptimizedUrl({
@@ -176,7 +183,7 @@ export const resolveReferenceCardUrls = (
   output: Pick<
     StudioOutput,
     "previewStoragePath" | "fullStoragePath" | "previewUrl" | "resultUrls"
-  >,
+  > & { mode?: StudioOutput["mode"] | null },
   options?: {
     strictPreviewLadder?: boolean;
     pressureLevel?: number;
@@ -188,6 +195,8 @@ export const resolveReferenceCardUrls = (
   const strictPreviewLadder = options?.strictPreviewLadder === true;
   const adaptivePreviewQuality = options?.adaptivePreviewQuality === true;
   const pressureLevel = options?.pressureLevel ?? 0;
+  const mediaKindHint: ReferenceGridMediaKindHint =
+    output.mode === "video" ? "video" : output.mode === "image" ? "image" : null;
   const { qualityBand, targetLongEdgePx } = resolvePreviewQualityTarget({
     pressureLevel,
     cardLongEdgePx: options?.cardLongEdgePx ?? null,
@@ -210,6 +219,7 @@ export const resolveReferenceCardUrls = (
             url: resolvedPreviewUrl,
             qualityBand,
             targetLongEdgePx,
+            mediaKindHint,
           })
         : resolvedPreviewUrl;
     return {
@@ -227,6 +237,7 @@ export const resolveReferenceCardUrls = (
           url: resolvedPreviewUrl,
           qualityBand,
           targetLongEdgePx,
+          mediaKindHint,
         })
       : resolvedPreviewUrl;
 

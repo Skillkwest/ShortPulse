@@ -109,6 +109,58 @@ describe("createFalStatusHandler", () => {
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
+  it("returns terminal status payload media without depending on result fetch probes", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "COMPLETED",
+          data: {
+            images: [{ url: "https://cdn.shortpulse.test/terminal-status-media.png" }],
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-terminal-media" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      status: string;
+      state: string;
+      request_id: string;
+      data?: { images?: Array<{ url?: string }> };
+    };
+    expect(payload.status).toBe("completed");
+    expect(payload.state).toBe("completed");
+    expect(payload.request_id).toBe("req-terminal-media");
+    expect(payload.data?.images?.[0]?.url).toBe(
+      "https://cdn.shortpulse.test/terminal-status-media.png"
+    );
+    expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        providerRequestId: "req-terminal-media",
+      })
+    );
+    expect(settleFailedGenerationByProviderRequestMock).not.toHaveBeenCalled();
+  });
+
   it("does not downgrade terminal status when completed status payload has stale in-progress response_url data", async () => {
     const fetchMock = vi
       .fn()
@@ -160,6 +212,56 @@ describe("createFalStatusHandler", () => {
     expect(payload.state).toBe("completed");
     expect(payload.request_id).toBe("req-2");
     expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/seedream-image-2.png");
+  });
+
+  it("probes alternate queue bases when the first status base misses", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ detail: "Not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+            data: { images: [{ url: "https://cdn.shortpulse.test/alt-base-success.png" }] },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: [
+        "https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests",
+        "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      ],
+      routeLabel: "Fal Nano Banana Pro Edit",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-alt-base" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      status: string;
+      request_id: string;
+      data?: { images?: Array<{ url?: string }> };
+    };
+    expect(payload.status).toBe("completed");
+    expect(payload.request_id).toBe("req-alt-base");
+    expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/alt-base-success.png");
   });
 
   it("does not downgrade terminal status when completed status payload has stale in-progress result data", async () => {

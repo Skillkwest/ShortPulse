@@ -95,6 +95,45 @@ describe("DetailModal", () => {
     expect(vessel.classList.contains("is-zoomed")).toBe(false);
   });
 
+  it("treats uploaded image blob URLs as images instead of videos", () => {
+    const { container } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          previewUrl: "blob:https://shortpulse.test/reference-image-1",
+          timestamp: "Dropped",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(container.querySelector("video.art-hero-image")).toBeNull();
+    expect(container.querySelector("img.art-hero-image")).not.toBeNull();
+  });
+
+  it("keeps image mode previews as images when URL paths contain video-like segments", () => {
+    const { container } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "image",
+          previewUrl:
+            "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/uploads/videos/reference_asset_12345?token=abc123",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(container.querySelector("video.art-hero-image")).toBeNull();
+    expect(container.querySelector("img.art-hero-image")).not.toBeNull();
+  });
+
   it("falls back to an alternative result URL when the first image does not match the output aspect", async () => {
     const { container } = render(
       <DetailModal

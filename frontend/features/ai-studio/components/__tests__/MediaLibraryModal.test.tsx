@@ -14,6 +14,9 @@ type MediaRow = {
   source?: string;
   created_at: string;
   metadata?: Record<string, unknown> | null;
+  thumb_variant_path?: string | null;
+  poster_variant_path?: string | null;
+  preview_variant_path?: string | null;
 };
 
 const mockMediaRows: MediaRow[] = [];
@@ -33,7 +36,7 @@ const {
     void args;
     return [] as string[];
   }),
-  mockGetSignedMediaUrl: vi.fn(async () => null),
+  mockGetSignedMediaUrl: vi.fn(async () => null as string | null),
   mockGetSignedMediaUrlsBatch: vi.fn(async () => new Map<string, string>()),
 }));
 
@@ -281,5 +284,109 @@ describe("MediaLibraryModal", () => {
       expect(screen.getByText("No saved prompts yet.")).toBeTruthy();
     });
     expect(mockGetSignedMediaUrlsBatch).not.toHaveBeenCalled();
+  });
+
+  it("passes metadata prompt text when selecting media", async () => {
+    mockMediaRows.push({
+      id: "media-prompt-1",
+      filename: "forest.png",
+      storage_path: "user-1/upload/forest.png",
+      file_type: "image/png",
+      source: "upload",
+      created_at: "2026-02-14T00:00:00.000Z",
+      metadata: {
+        prompt: "Golden-hour beach portrait with soft shadows.",
+      },
+    });
+    mockResolveMediaSigningStoragePaths.mockImplementation(() => ["user-1/upload/forest.png"]);
+    mockGetSignedMediaUrl.mockImplementation(async () => "https://signed.example.com/forest.png");
+    const onSelectMedia = vi.fn();
+
+    const { container } = render(
+      <MediaLibraryModal
+        isOpen
+        onClose={() => undefined}
+        onSelectMedia={onSelectMedia}
+        onSelectPrompt={() => undefined}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("[data-media-id='media-prompt-1']")).toBeTruthy();
+    });
+    fireEvent.click(
+      container.querySelector("[data-media-id='media-prompt-1']") as HTMLButtonElement
+    );
+
+    await waitFor(() => {
+      expect(onSelectMedia).toHaveBeenCalledTimes(1);
+    });
+    expect(onSelectMedia.mock.calls[0]?.[0]).toMatchObject({
+      id: "media-prompt-1",
+      filename: "forest.png",
+      promptText: "Golden-hour beach portrait with soft shadows.",
+    });
+  });
+
+  it("prefers canonical storage path when selecting media", async () => {
+    mockMediaRows.push({
+      id: "media-prefer-full-1",
+      filename: "portrait.png",
+      storage_path: "user-1/upload/portrait.png",
+      thumb_variant_path: "user-1/upload/portrait-thumb.png",
+      file_type: "image/png",
+      source: "upload",
+      created_at: "2026-02-14T00:00:00.000Z",
+      metadata: {
+        prompt: "Portrait reference",
+      },
+    });
+    mockResolveMediaSigningStoragePaths.mockImplementation(() => [
+      "user-1/upload/portrait-thumb.png",
+      "user-1/upload/portrait.png",
+    ]);
+    mockGetSignedMediaUrl.mockImplementation(async (input: unknown) => {
+      const storagePath =
+        input && typeof input === "object" && "storagePath" in input
+          ? String((input as { storagePath: string }).storagePath)
+          : "";
+      if (storagePath.endsWith("portrait.png")) {
+        return "https://signed.example.com/portrait-full.png";
+      }
+      if (storagePath.endsWith("portrait-thumb.png")) {
+        return "https://signed.example.com/portrait-thumb.png";
+      }
+      return null;
+    });
+    const onSelectMedia = vi.fn();
+
+    const { container } = render(
+      <MediaLibraryModal
+        isOpen
+        onClose={() => undefined}
+        onSelectMedia={onSelectMedia}
+        onSelectPrompt={() => undefined}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("[data-media-id='media-prefer-full-1']")).toBeTruthy();
+    });
+    fireEvent.click(
+      container.querySelector("[data-media-id='media-prefer-full-1']") as HTMLButtonElement
+    );
+
+    await waitFor(() => {
+      expect(onSelectMedia).toHaveBeenCalledTimes(1);
+    });
+
+    expect(onSelectMedia.mock.calls[0]?.[0]).toMatchObject({
+      id: "media-prefer-full-1",
+      url: "https://signed.example.com/portrait-full.png",
+      previewUrl: "https://signed.example.com/portrait-full.png",
+      fullUrl: "https://signed.example.com/portrait-full.png",
+      previewStoragePath: "user-1/upload/portrait.png",
+      fullStoragePath: "user-1/upload/portrait.png",
+    });
   });
 });

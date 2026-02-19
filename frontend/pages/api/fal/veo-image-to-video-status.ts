@@ -328,6 +328,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(statusResp.status).json(statusJson);
     }
 
+    if (hasVideoPayload(statusJson)) {
+      const captureResult = await captureSucceededGenerationByProviderRequest({
+        userId: user.id,
+        providerRequestId: requestId,
+        reason: "Generation charge captured after successful Fal Veo image-to-video output.",
+        routeLabel: "Fal Veo image-to-video",
+        detail: {
+          stage: "status_payload",
+        },
+      });
+      if (!captureResult.settled && captureResult.note !== "charge_not_found") {
+        console.error("[veo-image-status] capture on status payload did not settle", {
+          requestId,
+          note: captureResult.note,
+        });
+      }
+      return res.status(200).json({
+        status: normalizedStatus ?? "completed",
+        request_id: requestId,
+        ...statusJson,
+      });
+    }
+
     const resultUrl = responseUrl ?? `${FAL_VEO_QUEUE_BASE}/${requestId}`;
     const resultResp = await fetchJson(resultUrl, controller.signal, apiKey);
     const resultStatus =

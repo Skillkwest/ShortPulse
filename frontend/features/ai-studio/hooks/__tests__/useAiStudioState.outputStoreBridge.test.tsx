@@ -5,6 +5,12 @@ import type { StudioOutput } from "../../types";
 import { getAiStudioOutputSnapshot, resetAiStudioOutputStore } from "../aiStudioOutputStore";
 import { useAiStudioState } from "../useAiStudioState";
 
+const mockUpdateOutputById = vi.fn();
+const mockFindOutputById = vi.fn(() => null);
+const mockDeleteOutputFromLifecycle = vi.fn();
+const mockNotifyGenerationFailure = vi.fn();
+const mockUpdateOutputPrompt = vi.fn();
+
 vi.mock("../useAiStudioReferenceSelectionState", () => ({
   useAiStudioReferenceSelectionState: () => ({
     selectedTool: "create",
@@ -49,11 +55,11 @@ vi.mock("../useAiStudioStateEffects", () => ({
 
 vi.mock("../useAiStudioOutputLifecycle", () => ({
   useAiStudioOutputLifecycle: () => ({
-    updateOutputById: vi.fn(),
-    findOutputById: vi.fn(() => null),
-    deleteOutput: vi.fn(),
-    notifyGenerationFailure: vi.fn(),
-    updateOutputPrompt: vi.fn(),
+    updateOutputById: mockUpdateOutputById,
+    findOutputById: mockFindOutputById,
+    deleteOutput: mockDeleteOutputFromLifecycle,
+    notifyGenerationFailure: mockNotifyGenerationFailure,
+    updateOutputPrompt: mockUpdateOutputPrompt,
   }),
 }));
 
@@ -104,6 +110,11 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
 describe("useAiStudioState output store bridge", () => {
   beforeEach(() => {
     resetAiStudioOutputStore();
+    mockUpdateOutputById.mockClear();
+    mockFindOutputById.mockClear();
+    mockDeleteOutputFromLifecycle.mockClear();
+    mockNotifyGenerationFailure.mockClear();
+    mockUpdateOutputPrompt.mockClear();
   });
 
   it("publishes output mutations to selector store in StrictMode", async () => {
@@ -171,5 +182,50 @@ describe("useAiStudioState output store bridge", () => {
       const snapshot = getAiStudioOutputSnapshot();
       expect(snapshot.outputOrder).toEqual(["out-remount"]);
     });
+  });
+
+  it("maps media-library references with filename header label and saved prompt text", async () => {
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.addLibraryMediaReference({
+        id: "media-1",
+        url: "https://signed.example.com/forest.png",
+        fileType: "image",
+        filename: "forest.png",
+        promptText: "Golden-hour beach portrait with soft shadows.",
+        source: "upload",
+      });
+    });
+
+    await waitFor(() => {
+      const snapshot = getAiStudioOutputSnapshot();
+      expect(snapshot.outputOrder.length).toBe(1);
+      const outputId = snapshot.outputOrder[0];
+      const output = snapshot.outputById[outputId];
+      expect(output.mediaSource).toBe("library");
+      expect(output.prompt).toBe("Golden-hour beach portrait with soft shadows.");
+      expect(output.model).toBe("forest.png");
+    });
+  });
+
+  it("hides curated references from all refs when delete is requested", async () => {
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.addCuratedReference("out-1");
+    });
+    await waitFor(() => {
+      expect(result.current.curatedReferenceIds).toEqual(["out-1"]);
+    });
+
+    act(() => {
+      result.current.deleteOutput("out-1");
+      result.current.deleteOutput("out-2");
+    });
+
+    expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith("out-2");
+    expect(mockDeleteOutputFromLifecycle).not.toHaveBeenCalledWith("out-1");
+    expect(mockUpdateOutputById).toHaveBeenCalledWith("out-1", expect.any(Function));
   });
 });

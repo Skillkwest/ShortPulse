@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useRef,
   useState,
   type Dispatch,
   type MutableRefObject,
@@ -20,6 +21,7 @@ import { randomId } from "../logic/ids";
 import type { StudioOutput, ToolId } from "../types";
 
 const MAX_AGENT_IMAGE_ATTACHMENTS = 3;
+const PREPARED_AGENT_IMAGE_URL_CACHE_TTL_MS = 10 * 60 * 1000;
 
 type AgentModeHint = "chat" | "text" | "describe" | "reference";
 
@@ -120,6 +122,9 @@ export const useAiStudioAgentOrchestration = ({
   const [isPromptRefining, setIsPromptRefining] = useState(false);
   const [isReferencePromptEnhancing, setIsReferencePromptEnhancing] = useState(false);
   const [describeInFlightCount, setDescribeInFlightCount] = useState(0);
+  const preparedImageUrlCacheRef = useRef(
+    new Map<string, { safeUrl: string; expiresAtMs: number }>()
+  );
 
   const handleAgentSend = useCallback(
     async (
@@ -182,11 +187,34 @@ export const useAiStudioAgentOrchestration = ({
         if (imageAttachments.length > 0) {
           const imageAttachmentIds = imageAttachments.map((attachment) => attachment.id);
           markAttachmentDelivery(imageAttachmentIds, "preparing");
+          const preparedImageUrlCache = preparedImageUrlCacheRef.current;
+          const resolvePreparedImageUrl = async (sourceUrl: string): Promise<string | null> => {
+            const cached = preparedImageUrlCache.get(sourceUrl);
+            if (cached && cached.expiresAtMs > Date.now()) {
+              return cached.safeUrl;
+            }
+            if (cached) {
+              preparedImageUrlCache.delete(sourceUrl);
+            }
+            const safeUrl = sourceUrl ? await prepareImageUrl(sourceUrl) : null;
+            if (!safeUrl?.startsWith("https://")) return safeUrl;
+            preparedImageUrlCache.set(sourceUrl, {
+              safeUrl,
+              expiresAtMs: Date.now() + PREPARED_AGENT_IMAGE_URL_CACHE_TTL_MS,
+            });
+            if (preparedImageUrlCache.size > 64) {
+              const oldestKey = preparedImageUrlCache.keys().next().value;
+              if (oldestKey) {
+                preparedImageUrlCache.delete(oldestKey);
+              }
+            }
+            return safeUrl;
+          };
 
           const preparedResults = await Promise.allSettled(
             imageAttachments.map(async (attachment) => {
               const sourceUrl = attachment.imageUrl?.trim() ?? "";
-              const safeUrl = sourceUrl ? await prepareImageUrl(sourceUrl) : null;
+              const safeUrl = await resolvePreparedImageUrl(sourceUrl);
               return {
                 attachmentId: attachment.id,
                 safeUrl,

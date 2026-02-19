@@ -75,12 +75,66 @@ export const computeModalPosition = (target: HTMLElement): { top: number; left: 
   return { top, left };
 };
 
-export const isVideoUrl = (url: string | null | undefined) =>
-  !!url &&
-  (/\.mp4(\?|$)/i.test(url) ||
-    url.includes("/video") ||
-    url.includes("video=") ||
-    (url.startsWith("blob:") && url.includes("video=1")));
+const VIDEO_EXTENSION_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
+const IMAGE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:$|[?#])/i;
+const VIDEO_SEGMENT_PATTERN = /\/(?:videos|video)(?:\/|$)/i;
+const IMAGE_SEGMENT_PATTERN = /\/(?:images|image)(?:\/|$)/i;
+const VIDEO_MARKER_PATTERN = /(?:[?#&]|^)video=1(?:$|[&#])/i;
+const NEXT_IMAGE_PATH_PATTERN = /\/_next\/image$/i;
+const SUPABASE_RENDER_IMAGE_PATH_PATTERN = /\/storage\/v1\/render\/image\//i;
+
+const parseMediaCandidateUrl = (value: string): URL | null => {
+  try {
+    return new URL(value, "https://shortpulse.local");
+  } catch {
+    return null;
+  }
+};
+
+export const isVideoUrl = (url: string | null | undefined) => {
+  if (!url) return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (/^data:video\//i.test(trimmed)) return true;
+  if (/^data:image\//i.test(trimmed)) return false;
+  if (/^blob:/i.test(trimmed)) return VIDEO_MARKER_PATTERN.test(trimmed);
+  if (VIDEO_EXTENSION_PATTERN.test(trimmed)) return true;
+  if (IMAGE_EXTENSION_PATTERN.test(trimmed)) return false;
+
+  const parsed = parseMediaCandidateUrl(trimmed);
+  if (!parsed) {
+    const hasVideoSegment = VIDEO_SEGMENT_PATTERN.test(trimmed);
+    const hasImageSegment = IMAGE_SEGMENT_PATTERN.test(trimmed);
+    return hasVideoSegment && !hasImageSegment;
+  }
+
+  const decodedPathname = (() => {
+    try {
+      return decodeURIComponent(parsed.pathname);
+    } catch {
+      return parsed.pathname;
+    }
+  })();
+  if (NEXT_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
+  if (SUPABASE_RENDER_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
+  if (VIDEO_EXTENSION_PATTERN.test(decodedPathname)) return true;
+  if (IMAGE_EXTENSION_PATTERN.test(decodedPathname)) return false;
+
+  const queryMimeType =
+    parsed.searchParams.get("mimeType") ??
+    parsed.searchParams.get("mime") ??
+    parsed.searchParams.get("contentType") ??
+    parsed.searchParams.get("type") ??
+    "";
+  const normalizedQueryMimeType = queryMimeType.toLowerCase();
+  if (normalizedQueryMimeType.startsWith("video/")) return true;
+  if (normalizedQueryMimeType.startsWith("image/")) return false;
+  if (parsed.searchParams.get("video") === "1") return true;
+
+  const hasVideoSegment = VIDEO_SEGMENT_PATTERN.test(decodedPathname);
+  const hasImageSegment = IMAGE_SEGMENT_PATTERN.test(decodedPathname);
+  return hasVideoSegment && !hasImageSegment;
+};
 
 type OutputLike = {
   id: string;

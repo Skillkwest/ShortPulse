@@ -5,13 +5,18 @@ import type { StudioOutput } from "../../types";
 import { useAiStudioAgentComposer } from "../useAiStudioAgentComposer";
 import { extractDragDropPayload } from "../../utils/dragDrop";
 
-vi.mock("../../utils/dragDrop", () => ({
-  extractDragDropPayload: vi.fn(),
-}));
+vi.mock("../../utils/dragDrop", async () => {
+  const actual =
+    await vi.importActual<typeof import("../../utils/dragDrop")>("../../utils/dragDrop");
+  return {
+    ...actual,
+    extractDragDropPayload: vi.fn(),
+  };
+});
 
 const extractDragDropPayloadMock = vi.mocked(extractDragDropPayload);
 
-const makeOutput = (id: string): StudioOutput => ({
+const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id,
   prompt: "Prompt",
   mode: "image",
@@ -20,6 +25,7 @@ const makeOutput = (id: string): StudioOutput => ({
   status: "ready",
   timestamp: "now",
   taskState: "success",
+  ...overrides,
 });
 
 const createFindOutputById = (outputs: StudioOutput[]) => {
@@ -174,5 +180,40 @@ describe("useAiStudioAgentComposer", () => {
       "out-3",
       "out-4",
     ]);
+  });
+
+  it("falls back to output storage URLs when drop payload omits imageUrl", () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: null,
+      promptText: "Reference note",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([
+          makeOutput("out-1", {
+            previewUrl: undefined,
+            fullStoragePath: "https://example.com/fallback-image.png",
+          }),
+        ]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    expect(result.current.agentAttachments).toHaveLength(1);
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      referenceId: "out-1",
+      imageUrl: "https://example.com/fallback-image.png",
+      text: "Reference note",
+    });
   });
 });

@@ -26,6 +26,7 @@ import {
   resolveReferenceCardUrls,
   type ReferenceGridPreviewQualityBand,
 } from "../logic/referenceGridMedia";
+import { isVideoUrl } from "../logic/stateParsers";
 import {
   calculateReferenceGridWindow,
   resolveReferenceGridOverscanRows,
@@ -52,9 +53,6 @@ import { useReferenceGridPerfWatchdog } from "../hooks/useReferenceGridPerfWatch
 import { useReferenceGridMediaWorkBudget } from "../hooks/useReferenceGridMediaWorkBudget";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 
-const isVideoUrl = (url: string) =>
-  /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
-
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
 const FALLBACK_REFERENCE_ROW_HEIGHT = 220;
@@ -76,7 +74,6 @@ const REFERENCE_PRIORITY_HYDRATION_ROWS = 3;
 const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_0 = 6;
 const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_1 = 6;
 const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_2 = 3;
-const REFERENCE_PREVIEW_QUALITY_RECOVERY_DELAY_MS = 45_000;
 const REFERENCE_LOCAL_ADAPTIVE_WEBP_QUALITY: Record<ReferenceGridPreviewQualityBand, number> = {
   high: 0.42,
   balanced: 0.32,
@@ -161,6 +158,16 @@ const hasAdaptiveQueryParams = (url: string): boolean =>
 
 const isNextOptimizerUrl = (url: string): boolean =>
   /^\/_next\/image\?/i.test(url) || /\/_next\/image\?/i.test(url);
+
+const isOutputVideoPreview = (
+  output: Pick<StudioOutput, "mode"> | null | undefined,
+  url: string | null | undefined
+): boolean => {
+  if (!url) return false;
+  if (output?.mode === "video") return true;
+  if (output?.mode === "image") return false;
+  return isVideoUrl(url);
+};
 
 const normalizeClipboardText = (value: string): string => value.trim();
 
@@ -434,6 +441,7 @@ type ReferenceCanvasCardProps = {
   onDownload?: (output: StudioOutput) => void;
   onDescribeImage?: (output: StudioOutput) => void;
   onGeneratePrompt?: (output: StudioOutput) => void;
+  hideReferenceActions?: boolean;
 };
 
 const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
@@ -498,6 +506,7 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
   onDownload,
   onDescribeImage,
   onGeneratePrompt,
+  hideReferenceActions = false,
 }: ReferenceCanvasCardProps) {
   const isFailing = item.taskState === "fail";
   const isSelected = activeOutputId === item.id;
@@ -506,8 +515,11 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
   const saveLabel = item.saveState === "failed" ? "Retry save" : "Save to media library";
   const isGeneratedReference =
     item.mediaSource === "generated" || Boolean(item.generationId || item.taskId);
+  const loadingPlaceholderLabel = isGeneratedReference ? "generating..." : "loading preview...";
+  const loadingPendingLabel = isGeneratedReference ? "queued" : "loading";
   const shouldShowSaveAction = Boolean(
     onSaveToLibrary &&
+    item.saveState !== "saved" &&
     (isPromptOnly || ((isImagePreview || isVideoPreview) && !isGeneratedReference))
   );
   const saveIcon =
@@ -607,12 +619,12 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
         >
           {loadingVisual === "spinner" ? <div className="reference-spinner" /> : null}
           {loadingVisual === "placeholder" ? (
-            <span className="reference-loading-placeholder">generating...</span>
+            <span className="reference-loading-placeholder">{loadingPlaceholderLabel}</span>
           ) : null}
           {loadingVisual === "pending" ? (
             <span className="reference-loading-pending-chip">
               <span className="reference-loading-pending-spinner" aria-hidden="true" />
-              <span className="reference-loading-pending-label">pending</span>
+              <span className="reference-loading-pending-label">{loadingPendingLabel}</span>
             </span>
           ) : null}
         </div>
@@ -664,7 +676,8 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
           </button>
         </div>
       ) : null}
-      {shouldShowSaveAction || (onDownload && (isImagePreview || isVideoPreview)) ? (
+      {!hideReferenceActions &&
+      (shouldShowSaveAction || (onDownload && (isImagePreview || isVideoPreview))) ? (
         <div className="reference-card-actions" aria-label="Reference actions">
           {shouldShowSaveAction ? (
             <button
@@ -802,18 +815,22 @@ export function ReferenceCanvas({
         .filter((item): item is StudioOutput => Boolean(item)),
     areOutputListsEqual
   );
-  const outputs = outputsProp ?? selectorOutputs;
+  const allOutputs = outputsProp ?? selectorOutputs;
   const archivedOutputs = archivedOutputsProp ?? selectorArchivedOutputs;
+  const outputs = React.useMemo(
+    () => allOutputs.filter((item) => item.hiddenInReferenceGrid !== true),
+    [allOutputs]
+  );
   const isCuratedSplitEnabled =
     REFERENCE_GRID_FLAG_CURATED_SPLIT &&
     Boolean(onAddCuratedReference && onRemoveCuratedReference && onReorderCuratedReference);
   const outputById = React.useMemo(() => {
     const map: Record<string, StudioOutput> = {};
-    outputs.forEach((item) => {
+    [...allOutputs, ...archivedOutputs].forEach((item) => {
       map[item.id] = item;
     });
     return map;
-  }, [outputs]);
+  }, [allOutputs, archivedOutputs]);
   const curatedOutputs = React.useMemo(
     () =>
       curatedReferenceIds
@@ -830,7 +847,7 @@ export function ReferenceCanvas({
   );
   const previewQualityPressureLevelRef = React.useRef<0 | 1 | 2>(perfWatchdog.degradeLevel);
   const liveWatchdogDegradeLevelRef = React.useRef<0 | 1 | 2>(perfWatchdog.degradeLevel);
-  const previewQualityRecoveryTimeoutRef = React.useRef<number | null>(null);
+  const liveOutputCountRef = React.useRef<number>(outputs.length);
   const hydrationBudget = useReferenceGridHydrationBudget({
     enabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
     pressureLevel: perfWatchdog.degradeLevel,
@@ -1022,6 +1039,9 @@ export function ReferenceCanvas({
     liveWatchdogDegradeLevelRef.current = perfWatchdog.degradeLevel;
   }, [perfWatchdog.degradeLevel]);
   React.useEffect(() => {
+    liveOutputCountRef.current = outputs.length;
+  }, [outputs.length]);
+  React.useEffect(() => {
     previewQualityPressureLevelRef.current = previewQualityPressureLevel;
   }, [previewQualityPressureLevel]);
   React.useEffect(() => {
@@ -1029,38 +1049,14 @@ export function ReferenceCanvas({
     const nextLevel = perfWatchdog.degradeLevel;
     if (nextLevel === currentLevel) return;
 
+    // Prevent periodic quality-level oscillation from triggering global image URL churn.
+    // We only ratchet down quality under rising pressure; we do not auto-recover within the
+    // same live session.
     if (nextLevel > currentLevel) {
-      if (previewQualityRecoveryTimeoutRef.current != null) {
-        window.clearTimeout(previewQualityRecoveryTimeoutRef.current);
-        previewQualityRecoveryTimeoutRef.current = null;
-      }
       previewQualityPressureLevelRef.current = nextLevel;
       setPreviewQualityPressureLevel((prev) => (prev === nextLevel ? prev : nextLevel));
-      return;
     }
-
-    if (previewQualityRecoveryTimeoutRef.current != null) {
-      window.clearTimeout(previewQualityRecoveryTimeoutRef.current);
-      previewQualityRecoveryTimeoutRef.current = null;
-    }
-    previewQualityRecoveryTimeoutRef.current = window.setTimeout(() => {
-      previewQualityRecoveryTimeoutRef.current = null;
-      const liveLevel = liveWatchdogDegradeLevelRef.current;
-      const stableLevel = previewQualityPressureLevelRef.current;
-      if (liveLevel >= stableLevel) return;
-      previewQualityPressureLevelRef.current = liveLevel;
-      setPreviewQualityPressureLevel((prev) => (prev === liveLevel ? prev : liveLevel));
-    }, REFERENCE_PREVIEW_QUALITY_RECOVERY_DELAY_MS);
   }, [perfWatchdog.degradeLevel]);
-  React.useEffect(
-    () => () => {
-      if (previewQualityRecoveryTimeoutRef.current != null) {
-        window.clearTimeout(previewQualityRecoveryTimeoutRef.current);
-        previewQualityRecoveryTimeoutRef.current = null;
-      }
-    },
-    []
-  );
   const mediaWorkBudget = useReferenceGridMediaWorkBudget({
     enabled: REFERENCE_GRID_FLAG_GLOBAL_MEDIA_BUDGET,
     pressureLevel: perfWatchdog.degradeLevel,
@@ -1079,6 +1075,10 @@ export function ReferenceCanvas({
   const maybeCreateLocalAdaptivePreviewUrl = useCallback(
     async (id: string, sourceUrl: string, image: HTMLImageElement): Promise<string> => {
       if (!REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY) return sourceUrl;
+      const shouldUseLocalAdaptiveTranscode =
+        liveWatchdogDegradeLevelRef.current >= 2 &&
+        liveOutputCountRef.current >= REFERENCE_HIGH_DENSITY_CARD_COUNT;
+      if (!shouldUseLocalAdaptiveTranscode) return sourceUrl;
       if (hasAdaptiveQueryParams(sourceUrl) || isNextOptimizerUrl(sourceUrl)) return sourceUrl;
       if (isVideoUrl(sourceUrl)) return sourceUrl;
       const previewMeta = hydrationPreviewMetaByIdRef.current[id];
@@ -1609,10 +1609,9 @@ export function ReferenceCanvas({
     const visibleVideoIds = outputs
       .filter((output) => {
         const resolvedPreview = resolveReferenceCardUrls(output, {
-          strictPreviewLadder:
-            REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+          strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
         }).previewUrl;
-        if (!resolvedPreview || !isVideoUrl(resolvedPreview)) return false;
+        if (!resolvedPreview || !isOutputVideoPreview(output, resolvedPreview)) return false;
         return visibleOutputIdSet.has(output.id);
       })
       .map((output) => output.id);
@@ -1664,23 +1663,14 @@ export function ReferenceCanvas({
   const buildVisibleCardItems = useCallback(
     (rows: StudioOutput[], priorityCount: number) =>
       rows.map((item, visibleIndex) => {
-        const isVideoMode = item.mode === "video";
-        const strictPreviewLadderEnabled =
-          REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER;
-        const resolvedCardUrls = REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW
-          ? resolveReferenceCardUrls(item, {
-              strictPreviewLadder: strictPreviewLadderEnabled,
-              adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
-              pressureLevel: previewQualityPressureLevel,
-            })
-          : {
-              previewUrl: item.previewUrl ?? null,
-              fullUrl: item.previewUrl ?? null,
-              previewQualityBand: "high" as const,
-              targetLongEdgePx: 960,
-            };
+        const resolvedCardUrls = resolveReferenceCardUrls(item, {
+          strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+          adaptivePreviewQuality:
+            REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY || REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW,
+          pressureLevel: previewQualityPressureLevel,
+        });
         const cardPreviewUrl = resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl;
-        const isVideoPreview = cardPreviewUrl ? isVideoMode || isVideoUrl(cardPreviewUrl) : false;
+        const isVideoPreview = isOutputVideoPreview(item, cardPreviewUrl);
         const isImagePreview = cardPreviewUrl ? !isVideoPreview : false;
         const isPriorityHydration = visibleIndex < priorityCount || activeOutputId === item.id;
         const hydratedEntry = imageHydrationState.hydratedById[item.id];
@@ -1876,13 +1866,12 @@ export function ReferenceCanvas({
       const activeOutput = outputs.find((item) => item.id === activeOutputId);
       if (activeOutput) {
         const resolved = resolveReferenceCardUrls(activeOutput, {
-          strictPreviewLadder:
-            REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+          strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
           adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
           pressureLevel: previewQualityPressureLevel,
         });
         const activeUrl = resolved.previewUrl ?? resolved.fullUrl;
-        if (activeUrl && !isVideoUrl(activeUrl)) {
+        if (activeUrl && !isOutputVideoPreview(activeOutput, activeUrl)) {
           candidateIdSet.add(activeOutputId);
           enqueueImageHydration(activeOutputId, activeUrl, {
             priority: "high",
@@ -1930,13 +1919,12 @@ export function ReferenceCanvas({
     nearViewportOutputs.forEach((item) => {
       if (candidateIdSet.has(item.id)) return;
       const resolved = resolveReferenceCardUrls(item, {
-        strictPreviewLadder:
-          REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+        strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
         adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
         pressureLevel: previewQualityPressureLevel,
       });
       const previewUrl = resolved.previewUrl ?? resolved.fullUrl;
-      if (!previewUrl || isVideoUrl(previewUrl)) return;
+      if (!previewUrl || isOutputVideoPreview(item, previewUrl)) return;
       candidateIdSet.add(item.id);
       enqueueImageHydration(item.id, previewUrl, {
         priority: "low",
@@ -1953,13 +1941,12 @@ export function ReferenceCanvas({
     nearViewportCuratedOutputs.forEach((item) => {
       if (candidateIdSet.has(item.id)) return;
       const resolved = resolveReferenceCardUrls(item, {
-        strictPreviewLadder:
-          REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW && REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+        strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
         adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
         pressureLevel: previewQualityPressureLevel,
       });
       const previewUrl = resolved.previewUrl ?? resolved.fullUrl;
-      if (!previewUrl || isVideoUrl(previewUrl)) return;
+      if (!previewUrl || isOutputVideoPreview(item, previewUrl)) return;
       candidateIdSet.add(item.id);
       enqueueImageHydration(item.id, previewUrl, {
         priority: "low",
@@ -2964,13 +2951,14 @@ export function ReferenceCanvas({
           onAutoplayStarted={handleAutoplayStarted}
           onAutoplayStopped={handleAutoplayStopped}
           onRetryStatus={onRetryStatus}
-          onDeleteOutput={onDeleteOutput}
+          onDeleteOutput={options.isCuratedSurface ? undefined : onDeleteOutput}
           onRemoveCuratedReference={options.isCuratedSurface ? onRemoveCuratedReference : undefined}
           showCuratedRemoveAction={options.isCuratedSurface}
           onSaveToLibrary={onSaveToLibrary}
           onDownload={onDownload}
           onDescribeImage={onDescribeImage}
           onGeneratePrompt={onGeneratePrompt}
+          hideReferenceActions={options.isCuratedSurface}
         />
       );
     },

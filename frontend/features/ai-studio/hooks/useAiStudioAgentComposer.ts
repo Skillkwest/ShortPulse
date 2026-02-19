@@ -1,6 +1,12 @@
 import { useCallback, useMemo, useRef, useState, type DragEvent } from "react";
 import { randomId } from "../logic/ids";
-import { extractDragDropPayload } from "../utils/dragDrop";
+import {
+  extractDragDropPayload,
+  looksLikeImageUrl,
+  looksLikeVideoUrl,
+  normalizeReferenceTransferUrlCandidate,
+  resolveReferenceTransferUrl,
+} from "../utils/dragDrop";
 import type { StudioOutput } from "../types";
 import type { AgentAttachment, AgentAttachmentDeliveryStatus } from "../../../prefabs/agent";
 
@@ -33,6 +39,14 @@ const normalizeAttachmentImageUrl = (value: string | null) => {
   if (!trimmed) return null;
   if (isCurrentDocumentUrl(trimmed)) return null;
   return trimmed;
+};
+
+const normalizeDroppedImageCandidate = (value: string | null | undefined) => {
+  const normalizedTransferValue = normalizeReferenceTransferUrlCandidate(value);
+  const normalized = normalizeAttachmentImageUrl(normalizedTransferValue ?? value ?? null);
+  if (!normalized) return null;
+  if (!looksLikeImageUrl(normalized) || looksLikeVideoUrl(normalized)) return null;
+  return normalized;
 };
 
 type UseAiStudioAgentComposerParams = {
@@ -171,19 +185,23 @@ export const useAiStudioAgentComposer = ({
       const resolvedPreviewUrl = droppedReferenceId
         ? resolveOutputPreviewUrlById(droppedReferenceId)
         : null;
-      const transferReferenceUrl = event.dataTransfer.getData("text/reference-url") || null;
+      const matchedOutputImageUrl = matchedOutput
+        ? resolveReferenceTransferUrl(matchedOutput, "image")
+        : null;
+      const transferReferenceUrl =
+        normalizeReferenceTransferUrlCandidate(event.dataTransfer.getData("text/reference-url")) ??
+        null;
       const normalizedPromptText =
         payload.promptText?.trim() ||
         matchedOutput?.prompt?.trim() ||
         matchedOutput?.previewText?.trim() ||
         null;
-      const normalizedImageUrl = normalizeAttachmentImageUrl(
-        resolvedPreviewUrl ||
-          matchedOutput?.previewUrl ||
-          transferReferenceUrl ||
-          payload.imageUrl ||
-          null
-      );
+      const normalizedImageUrl =
+        normalizeDroppedImageCandidate(resolvedPreviewUrl) ||
+        normalizeDroppedImageCandidate(matchedOutputImageUrl) ||
+        normalizeDroppedImageCandidate(transferReferenceUrl) ||
+        normalizeDroppedImageCandidate(payload.imageUrl) ||
+        null;
 
       if (!normalizedImageUrl && !normalizedPromptText) return;
       if (!agentSessionEnabled) {

@@ -264,7 +264,7 @@ export const useReferencePropertiesInteractions = ({
       );
       if (videoFile) {
         const url = URL.createObjectURL(videoFile);
-        onMotionVideoChange?.(url);
+        onMotionVideoChange?.(`${url}#video=1`);
       }
     }
   };
@@ -273,7 +273,7 @@ export const useReferencePropertiesInteractions = ({
     const file = event.target.files?.[0];
     if (file && file.type.startsWith("video/")) {
       const url = URL.createObjectURL(file);
-      onMotionVideoChange?.(url);
+      onMotionVideoChange?.(`${url}#video=1`);
     }
     event.target.value = "";
   };

@@ -5,9 +5,7 @@
 import React from "react";
 import { ArrowClockwise, CloudArrowUp, ImageSquare, UploadSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
-
-const isVideoUrl = (url: string) =>
-  /\.mp4(\?|$)/i.test(url) || url.includes("/video") || url.includes("video=");
+import { isVideoUrl } from "../logic/stateParsers";
 
 type StudioPreviewProps = {
   activeOutput: StudioOutput | null;
@@ -43,7 +41,10 @@ function StudioPreviewComponent({
   onOpenMediaLibrary,
 }: StudioPreviewProps) {
   const previewMedia = activeOutput?.previewUrl || referenceImageUrl;
-  const isVideoPreview = previewMedia ? isVideoUrl(previewMedia) : false;
+  const isVideoPreview = Boolean(
+    previewMedia &&
+    (activeOutput?.mode === "video" || (activeOutput?.mode !== "image" && isVideoUrl(previewMedia)))
+  );
   const taskState = activeOutput?.taskState;
   const errorMessage = activeOutput?.errorMessageShort ?? activeOutput?.errorMessage;
   const handleReferenceDrop = (event: React.DragEvent<HTMLDivElement>) => {

@@ -57,6 +57,7 @@ export type StudioOutput = {
   localObjectUrl?: string | null;
   previewText?: string;
   pinned?: boolean;
+  hiddenInReferenceGrid?: boolean;
   archivedAt?: string | null;
   archiveReason?: "soft_limit" | "manual" | "cleanup" | null;
   characterContext?: StudioOutputCharacterContext;

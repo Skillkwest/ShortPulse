@@ -2,7 +2,7 @@
  * Curated split-grid interaction tests for ReferenceCanvas.
  * Validates add/dedupe/reorder/remove behavior and curated drop rejection rules.
  */
-import { act, fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceCanvas, type ReferenceCanvasProps } from "../ReferenceCanvas";
 import type { StudioOutput } from "../../types";
@@ -140,6 +140,32 @@ describe("ReferenceCanvas curated split", () => {
     expect(container.querySelector(".reference-loading-placeholder")).toBeFalsy();
   });
 
+  it("uses loading preview copy for non-generated media placeholders", () => {
+    const importedOutput: StudioOutput = {
+      id: "imported-1",
+      prompt: "Imported image",
+      mode: "image",
+      aspect: "1:1",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Library",
+      mediaSource: "library",
+      previewUrl: "https://example.com/imported.png",
+    };
+    const { container } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [importedOutput],
+          activeOutputId: importedOutput.id,
+        })}
+      />
+    );
+
+    const placeholder = container.querySelector(".reference-loading-placeholder");
+    expect(placeholder).toBeTruthy();
+    expect(placeholder?.textContent).toBe("loading preview...");
+  });
+
   it("applies spinner slots in FIFO order and shows pending badges for queued generations", () => {
     const pendingOutputs: StudioOutput[] = Array.from({ length: 8 }, (_, index) => {
       const label = 8 - index;
@@ -172,6 +198,8 @@ describe("ReferenceCanvas curated split", () => {
     expect(container.querySelectorAll(".reference-loading-pending-spinner")).toHaveLength(2);
     expect(cards[0]?.querySelector(".reference-loading-pending-label")).toBeTruthy();
     expect(cards[1]?.querySelector(".reference-loading-pending-label")).toBeTruthy();
+    expect(cards[0]?.querySelector(".reference-loading-pending-label")?.textContent).toBe("queued");
+    expect(cards[1]?.querySelector(".reference-loading-pending-label")?.textContent).toBe("queued");
     expect(cards[7]?.querySelector(".reference-spinner")).toBeTruthy();
   });
 
@@ -388,6 +416,27 @@ describe("ReferenceCanvas curated split", () => {
     expect(onRemoveCuratedReference).toHaveBeenCalledWith("out-1");
   });
 
+  it("shows only the curated remove action in quick slot card actions", () => {
+    const { container } = render(
+      <ReferenceCanvas
+        {...createProps({
+          curatedReferenceIds: ["out-1"],
+          onSaveToLibrary: vi.fn(),
+          onDownload: vi.fn(),
+          onDeleteOutput: vi.fn(),
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const curatedQueries = within(curatedSection);
+
+    expect(curatedQueries.getByLabelText("Remove from curated")).toBeInTheDocument();
+    expect(curatedQueries.queryByLabelText("Save to media library")).toBeNull();
+    expect(curatedQueries.queryByLabelText("Download reference")).toBeNull();
+    expect(curatedQueries.queryByLabelText("Remove reference from grid")).toBeNull();
+  });
+
   it("rejects non-internal drops in curated section", () => {
     const onAddCuratedReference = vi.fn();
     const onReorderCuratedReference = vi.fn();
@@ -413,6 +462,50 @@ describe("ReferenceCanvas curated split", () => {
     expect(onAddCuratedReference).not.toHaveBeenCalled();
     expect(onReorderCuratedReference).not.toHaveBeenCalled();
     expect(onPasteTextReference).not.toHaveBeenCalled();
+  });
+
+  it("keeps hidden curated references in quick slots while excluding them from all refs", () => {
+    const hiddenCurated: StudioOutput = {
+      id: "out-hidden",
+      prompt: "Hidden",
+      mode: "text",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewText: "Hidden in quick slot only",
+      hiddenInReferenceGrid: true,
+    };
+    const visibleAllRefs: StudioOutput = {
+      id: "out-visible",
+      prompt: "Visible",
+      mode: "text",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewText: "Visible in all refs",
+    };
+
+    const { container } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [hiddenCurated, visibleAllRefs],
+          curatedReferenceIds: [hiddenCurated.id],
+          activeOutputId: hiddenCurated.id,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    expect(allRefsSection).toBeTruthy();
+    const curatedQueries = within(curatedSection);
+    const allRefsQueries = within(allRefsSection);
+
+    expect(curatedQueries.getByText("Hidden in quick slot only")).toBeInTheDocument();
+    expect(allRefsQueries.queryByText("Hidden in quick slot only")).toBeNull();
+    expect(allRefsQueries.getByText("Visible in all refs")).toBeInTheDocument();
   });
 
   it("hides save action for generated image references", () => {
@@ -442,6 +535,62 @@ describe("ReferenceCanvas curated split", () => {
     expect(queryByLabelText("Save to media library")).toBeNull();
   });
 
+  it("keeps save action for unsaved prompt references", () => {
+    const onSaveToLibrary = vi.fn();
+    const promptReference: StudioOutput = {
+      id: "prompt-ref-1",
+      prompt: "Prompt reference",
+      mode: "text",
+      aspect: "1:1",
+      model: "Prompt",
+      status: "ready",
+      timestamp: "Now",
+      previewText: "Unsaved prompt reference",
+      mediaSource: "prompt",
+    };
+
+    const { getByLabelText } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [promptReference],
+          activeOutputId: promptReference.id,
+          onSaveToLibrary,
+        })}
+      />
+    );
+
+    expect(getByLabelText("Save to media library")).toBeInTheDocument();
+  });
+
+  it("hides save action when prompt references are already saved", () => {
+    const onSaveToLibrary = vi.fn();
+    const savedPromptReference: StudioOutput = {
+      id: "prompt-ref-saved-1",
+      prompt: "Saved prompt reference",
+      mode: "text",
+      aspect: "1:1",
+      model: "Prompt",
+      status: "ready",
+      timestamp: "Now",
+      previewText: "Saved prompt reference",
+      mediaSource: "prompt",
+      saveState: "saved",
+    };
+
+    const { getByLabelText, queryByLabelText } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [savedPromptReference],
+          activeOutputId: savedPromptReference.id,
+          onSaveToLibrary,
+        })}
+      />
+    );
+
+    expect(getByLabelText("Saved")).toBeInTheDocument();
+    expect(queryByLabelText("Save to media library")).toBeNull();
+  });
+
   it("keeps save action for uploaded image references", () => {
     const onSaveToLibrary = vi.fn();
     const uploadedImage: StudioOutput = {
@@ -467,6 +616,35 @@ describe("ReferenceCanvas curated split", () => {
     );
 
     expect(getByLabelText("Save to media library")).toBeInTheDocument();
+  });
+
+  it("hides save action when uploaded media is already saved", () => {
+    const onSaveToLibrary = vi.fn();
+    const savedUploadedImage: StudioOutput = {
+      id: "upload-image-saved-1",
+      prompt: "Uploaded image saved",
+      mode: "image",
+      aspect: "1:1",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/uploaded-image-saved.png",
+      mediaSource: "upload",
+      saveState: "saved",
+    };
+
+    const { queryByLabelText, getByLabelText } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [savedUploadedImage],
+          activeOutputId: savedUploadedImage.id,
+          onSaveToLibrary,
+        })}
+      />
+    );
+
+    expect(getByLabelText("Saved")).toBeInTheDocument();
+    expect(queryByLabelText("Save to media library")).toBeNull();
   });
 
   it("hides save action for generated video references", () => {
@@ -521,6 +699,62 @@ describe("ReferenceCanvas curated split", () => {
     );
 
     expect(getByLabelText("Save to media library")).toBeInTheDocument();
+  });
+
+  it("renders image cards for image mode outputs even when preview URL contains /videos/", () => {
+    const uploadedImageWithVideoLikePath: StudioOutput = {
+      id: "upload-image-video-like-path-1",
+      prompt: "Uploaded image with video-like URL",
+      mode: "image",
+      aspect: "4:5",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl:
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/uploads/videos/reference_asset_12345?token=abc123",
+      mediaSource: "upload",
+    };
+
+    const { container } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [uploadedImageWithVideoLikePath],
+          activeOutputId: uploadedImageWithVideoLikePath.id,
+        })}
+      />
+    );
+
+    expect(container.querySelector(".reference-card-video")).toBeNull();
+    expect(container.querySelector(".reference-card-image")).not.toBeNull();
+  });
+
+  it("hides save action when uploaded video is already saved", () => {
+    const onSaveToLibrary = vi.fn();
+    const savedUploadedVideo: StudioOutput = {
+      id: "upload-video-saved-1",
+      prompt: "Uploaded video saved",
+      mode: "video",
+      aspect: "16:9",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/uploaded-video-saved.mp4",
+      mediaSource: "upload",
+      saveState: "saved",
+    };
+
+    const { getByLabelText, queryByLabelText } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [savedUploadedVideo],
+          activeOutputId: savedUploadedVideo.id,
+          onSaveToLibrary,
+        })}
+      />
+    );
+
+    expect(getByLabelText("Saved")).toBeInTheDocument();
+    expect(queryByLabelText("Save to media library")).toBeNull();
   });
 
   it("snaps split toward inventory when clicking the divider pill", () => {

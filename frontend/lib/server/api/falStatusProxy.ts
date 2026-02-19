@@ -568,6 +568,15 @@ export const createFalStatusHandler = ({
         return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
       }
 
+      // Some Fal models return terminal status payloads that already include media while
+      // follow-up result probes intermittently lag or fail. Treat that payload as authoritative.
+      if (hasMediaPayload(statusData.json)) {
+        return captureAndRespondSuccess({
+          payload: statusData.json,
+          payloadStatus: resolveSuccessfulPayloadStatus(normalizedStatus),
+        });
+      }
+
       let resultResp: Response | null = null;
       let resultData: JsonReadResult | null = null;
       let allResultProbesRetryable = true;

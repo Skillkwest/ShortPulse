@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TrashSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
-import { looksLikeVideoUrl } from "../utils/dragDrop";
+import { isVideoUrl } from "../logic/stateParsers";
 import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
 
 type DetailModalProps = {
@@ -115,7 +115,10 @@ export function DetailModal({
       : 0;
   const displayPreviewUrl =
     previewCandidates.length > 0 ? (previewCandidates[activePreviewCandidateIndex] ?? null) : null;
-  const isVideoOutput = Boolean(displayPreviewUrl && looksLikeVideoUrl(displayPreviewUrl));
+  const isVideoOutput = Boolean(
+    output?.mode === "video" ||
+    (output?.mode !== "image" && displayPreviewUrl && isVideoUrl(displayPreviewUrl))
+  );
   const isImageOutput = Boolean(displayPreviewUrl) && !isVideoOutput;
   const mediaType = displayPreviewUrl ? (isVideoOutput ? "Video" : "Image") : "Prompt";
   const isPromptOnly = output?.mode === "text" && !displayPreviewUrl;

@@ -209,6 +209,10 @@
   flex-direction: column;
 }
 
+.reference-all-refs-section .reference-all-refs-header {
+  margin-top: 6px;
+}
+
 .reference-all-refs-section.is-inventory-expanded .reference-canvas-scroll {
   display: none;
 }

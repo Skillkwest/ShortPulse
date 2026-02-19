@@ -691,6 +691,24 @@ export const useAiStudioState = ({
   }, [curatedReferenceIds]);
 
   useEffect(() => {
+    if (curatedReferenceIds.length === 0) {
+      setOutputs((prev) =>
+        prev.some((item) => item.hiddenInReferenceGrid)
+          ? prev.filter((item) => item.hiddenInReferenceGrid !== true)
+          : prev
+      );
+      return;
+    }
+    const curatedIdSet = new Set(curatedReferenceIds);
+    setOutputs((prev) => {
+      const next = prev.filter(
+        (item) => !(item.hiddenInReferenceGrid === true && !curatedIdSet.has(item.id))
+      );
+      return next.length === prev.length ? prev : next;
+    });
+  }, [curatedReferenceIds, setOutputs]);
+
+  useEffect(() => {
     const currentUrlMap: Record<string, string> = {};
     [...outputs, ...archivedOutputs].forEach((item) => {
       const tracked = resolveTrackedObjectUrl(item);
@@ -744,10 +762,18 @@ export const useAiStudioState = ({
   });
   const deleteOutput = useCallback(
     (id: string) => {
-      removeCuratedReference(id);
-      deleteOutputFromLifecycle(id);
+      const outputId = id.trim();
+      if (!outputId) return;
+      if (curatedReferenceIds.includes(outputId)) {
+        updateOutputById(outputId, (item) =>
+          item.hiddenInReferenceGrid ? item : { ...item, hiddenInReferenceGrid: true }
+        );
+        setActiveOutputId((prev) => (prev === outputId ? null : prev));
+        return;
+      }
+      deleteOutputFromLifecycle(outputId);
     },
-    [deleteOutputFromLifecycle, removeCuratedReference]
+    [curatedReferenceIds, deleteOutputFromLifecycle, setActiveOutputId, updateOutputById]
   );
 
   const {
@@ -990,6 +1016,7 @@ export const useAiStudioState = ({
       url: string;
       fileType: "image" | "video";
       filename?: string | null;
+      promptText?: string | null;
       source?: string | null;
       previewStoragePath?: string | null;
       fullStoragePath?: string | null;
@@ -998,7 +1025,11 @@ export const useAiStudioState = ({
     }) => {
       if (!payload.url) return;
       const id = `library-${randomId()}`;
-      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
+      const filenameLabel = payload.filename?.trim() || "";
+      const fallbackModelLabel = model ? resolveModelLabel(model) : "Library media";
+      const displayModelLabel = filenameLabel || fallbackModelLabel;
+      const resolvedPromptText =
+        payload.promptText?.trim() || payload.filename?.trim() || "Media reference";
       const previewUrl = payload.previewUrl ?? payload.url;
       const previewStoragePath = isRenderableReferenceMediaUrl(payload.previewStoragePath)
         ? payload.previewStoragePath.trim()
@@ -1008,11 +1039,10 @@ export const useAiStudioState = ({
         : (payload.fullUrl ?? previewUrl);
       const nextOutput: StudioOutput = {
         id,
-        prompt: payload.filename ?? "Media reference",
+        prompt: resolvedPromptText,
         mode: payload.fileType === "video" ? "video" : "image",
         aspect,
-        model: placeholderModelLabel,
-        modelId: model ?? undefined,
+        model: displayModelLabel,
         status: "ready",
         timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
         previewUrl,
@@ -1097,7 +1127,11 @@ export const useAiStudioState = ({
 
       if (selected) {
         focusedReferenceId = selected.id;
-        const hasImage = selected.previewUrl && !isVideoUrl(selected.previewUrl);
+        const hasImage = Boolean(
+          selected.previewUrl &&
+          (selected.mode === "image" ||
+            (selected.mode !== "video" && !isVideoUrl(selected.previewUrl)))
+        );
         if (hasImage) {
           // Vision-first: supply the selected image for description; keep prompt metadata secondary.
           focusedSource = "image";

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mapUploadsFromFiles } from "../stateParsers";
+import { isVideoUrl, mapUploadsFromFiles } from "../stateParsers";
 
 const toFileList = (files: File[]): FileList => {
   const indexed = files.reduce<Record<number, File>>((acc, file, index) => {
@@ -78,5 +78,16 @@ describe("mapUploadsFromFiles", () => {
     expect(outputs).toHaveLength(1);
     expect(outputs[0]?.localObjectUrl).toBeNull();
     expect(outputs[0]?.previewUrl?.startsWith("data:image/png;base64,")).toBe(true);
+  });
+
+  it("does not classify image optimizer URLs as video when source contains /videos/", () => {
+    const optimizerUrl =
+      "/_next/image?url=https%3A%2F%2Fexample.supabase.co%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fuploads%2Fvideos%2Freference_asset_12345%3Ftoken%3Dabc123&w=512&q=34";
+    expect(isVideoUrl(optimizerUrl)).toBe(false);
+  });
+
+  it("does not classify model slugs containing video text as video media", () => {
+    const imageUrl = "https://cdn.example.com/fal-ai/kling-video/v3/pro/reference-output.png";
+    expect(isVideoUrl(imageUrl)).toBe(false);
   });
 });

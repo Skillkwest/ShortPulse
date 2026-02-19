@@ -68,7 +68,7 @@
 .reference-canvas-panel[data-selection-theme="video"] {
   --reference-selection-active-bg: rgba(165, 101, 239, 0.42);
   --reference-selection-active-shadow: rgba(101, 145, 239, 0.34);
-  --reference-selection-active-outline: rgb(255, 112, 224);
+  --reference-selection-active-outline: rgba(170, 101, 239, 0.78);
   --reference-selection-active-glow: rgba(170, 101, 239, 0.24);
   --reference-generate-border: rgba(170, 101, 239, 0.9);
   --reference-generate-start: #b32ba9;
@@ -322,12 +322,13 @@
 .reference-card.is-loading {
   background: var(--ai-container-card-bg);
   border: none;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: none;
+  outline: none;
   transform: none;
 }
 
 .reference-card.is-loading:hover {
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: none;
   transform: none;
 }
 

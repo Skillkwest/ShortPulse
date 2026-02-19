@@ -8,6 +8,7 @@ import {
   extractVideoDragDropPayload,
   isVideoDragTransfer,
   prepareReferenceDrag,
+  resolveReferenceTransferUrl,
 } from "../dragDrop";
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
@@ -33,6 +34,21 @@ describe("dragDrop payload extraction", () => {
     expect(payload.referenceId).toBe("ref-1");
     expect(payload.imageUrl).toBe("https://cdn.example.com/reference-image.png");
     expect(payload.promptText).toBe("cinematic portrait");
+  });
+
+  it("unwraps Next image optimizer URLs before extracting image payloads", () => {
+    const encodedSourceUrl = encodeURIComponent("https://cdn.example.com/reference-image.png");
+    const transfer = makeTransfer({
+      "text/reference-id": "ref-1",
+      "text/reference-url": `${window.location.origin}/_next/image?url=${encodedSourceUrl}&w=640&q=75`,
+      "text/plain": "portrait notes",
+    });
+
+    const payload = extractDragDropPayload(transfer);
+
+    expect(payload.referenceId).toBe("ref-1");
+    expect(payload.imageUrl).toBe("https://cdn.example.com/reference-image.png");
+    expect(payload.promptText).toBe("portrait notes");
   });
 
   it("falls back to uri-list when no internal reference URL exists", () => {
@@ -113,5 +129,51 @@ describe("dragDrop payload extraction", () => {
     );
 
     expect(setData).toHaveBeenCalledWith("text/reference-source-surface", "curated");
+  });
+
+  it("uses storage/full URL fallbacks when previewUrl is missing during internal drags", () => {
+    const setData = vi.fn();
+    const event = {
+      dataTransfer: {
+        effectAllowed: "all",
+        setData,
+        setDragImage: vi.fn(),
+      },
+      currentTarget: document.createElement("div"),
+    } as unknown as Parameters<typeof prepareReferenceDrag>[0];
+
+    prepareReferenceDrag(event, {
+      id: "ref-2",
+      prompt: "Prompt",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: undefined,
+      fullStoragePath: "https://example.com/fallback-full.png",
+      previewStoragePath: "https://example.com/fallback-preview.png",
+      resultUrls: ["https://example.com/fallback-result.png"],
+    });
+
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-url",
+      "https://example.com/fallback-full.png"
+    );
+    expect(setData).toHaveBeenCalledWith("image/url", "https://example.com/fallback-full.png");
+  });
+
+  it("resolves best transfer URL in priority order", () => {
+    const resolved = resolveReferenceTransferUrl(
+      {
+        previewUrl: "",
+        fullStoragePath: "https://example.com/full.png",
+        previewStoragePath: "https://example.com/preview.png",
+        resultUrls: ["https://example.com/result.png"],
+      },
+      "image"
+    );
+
+    expect(resolved).toBe("https://example.com/full.png");
   });
 });

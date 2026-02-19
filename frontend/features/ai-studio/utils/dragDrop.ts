@@ -1,8 +1,10 @@
 import { StudioOutput } from "../types";
+import { isVideoUrl } from "../logic/stateParsers";
 
 const imageUrlPattern = /^(data:image\/|blob:|https?:\/\/)/i;
-const videoUrlPattern = /^(data:video\/|blob:|https?:\/\/)/i;
-const videoExtensionPattern = /\.(mp4|webm|mov|m4v)(\?|$)/i;
+const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
+const RELATIVE_MEDIA_PATH_HINT_PATTERN =
+  /^\/(?:_next\/image|storage\/|.*\.(?:avif|bmp|gif|heic|heif|jpe?g|png|webp|m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#]))/i;
 
 const dedupeText = (value?: string) => (value ? value.trim() : "");
 
@@ -42,6 +44,41 @@ export type ReferenceDragSourceSurface = "all-refs" | "curated";
 
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
 
+const toAbsoluteTransferUrl = (value: string): string => {
+  if (!value.startsWith("/")) return value;
+  if (!RELATIVE_MEDIA_PATH_HINT_PATTERN.test(value)) return value;
+  if (typeof window === "undefined") return value;
+  try {
+    return new URL(value, window.location.href).toString();
+  } catch {
+    return value;
+  }
+};
+
+const unwrapNextImageTransferUrl = (value: string): string => {
+  if (typeof window === "undefined") return value;
+  try {
+    const parsed = new URL(value, window.location.href);
+    if (parsed.pathname !== NEXT_IMAGE_OPTIMIZER_PATH) return value;
+    const sourceUrl = parsed.searchParams.get("url")?.trim();
+    if (!sourceUrl) return value;
+    return toAbsoluteTransferUrl(sourceUrl);
+  } catch {
+    return value;
+  }
+};
+
+export const normalizeReferenceTransferUrlCandidate = (
+  value: string | null | undefined
+): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const withAbsoluteOrigin = toAbsoluteTransferUrl(trimmed);
+  const unwrapped = unwrapNextImageTransferUrl(withAbsoluteOrigin).trim();
+  return unwrapped || null;
+};
+
 const isCurrentDocumentUrl = (value?: string | null) => {
   if (!value || typeof window === "undefined") return false;
   try {
@@ -62,7 +99,7 @@ const resolveDraggedUrl = (
   referenceUrl: string | null,
   matcher: (value?: string) => boolean
 ) => {
-  const candidate = value.trim();
+  const candidate = normalizeReferenceTransferUrlCandidate(value) ?? value.trim();
   if (!candidate) return null;
   if (matcher(candidate)) return candidate;
   if (!referenceUrl) return null;
@@ -79,27 +116,48 @@ export const looksLikeImageUrl = (value?: string) => {
 
 export const looksLikeVideoUrl = (value?: string) => {
   if (!value) return false;
-  const trimmed = value.trim();
-  if (trimmed.startsWith("data:video/")) return true;
-  if (trimmed.startsWith("blob:")) return true;
-  return (
-    videoUrlPattern.test(trimmed) &&
-    (videoExtensionPattern.test(trimmed) ||
-      trimmed.includes("/video") ||
-      trimmed.includes("video="))
-  );
+  const normalized = normalizeReferenceTransferUrlCandidate(value) ?? value.trim();
+  return isVideoUrl(normalized);
 };
 
 const isLikelyImageTransferUrl = (value?: string) =>
   looksLikeImageUrl(value) && !looksLikeVideoUrl(value);
 
+export const resolveReferenceTransferUrl = (
+  output: Pick<
+    StudioOutput,
+    "previewUrl" | "previewStoragePath" | "fullStoragePath" | "resultUrls"
+  >,
+  kind: "image" | "video" | "any" = "any"
+): string | null => {
+  const candidates = [
+    output.previewUrl,
+    output.fullStoragePath,
+    output.previewStoragePath,
+    ...(output.resultUrls ?? []),
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeReferenceTransferUrlCandidate(candidate);
+    if (!normalized) continue;
+    if (kind === "image" && isLikelyImageTransferUrl(normalized)) return normalized;
+    if (kind === "video" && looksLikeVideoUrl(normalized)) return normalized;
+    if (kind === "any" && (isLikelyImageTransferUrl(normalized) || looksLikeVideoUrl(normalized))) {
+      return normalized;
+    }
+  }
+
+  return null;
+};
+
 export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload => {
   const imageFile = findImageFile(transfer.files);
-  const referenceUrl = transfer.getData("text/reference-url");
+  const referenceUrl = normalizeReferenceTransferUrlCandidate(
+    transfer.getData("text/reference-url")
+  );
   const referenceId = transfer.getData("text/reference-id") || null;
-  const normalizedReferenceUrl = isLikelyImageTransferUrl(referenceUrl)
-    ? referenceUrl.trim()
-    : null;
+  const normalizedReferenceUrl =
+    referenceUrl && isLikelyImageTransferUrl(referenceUrl) ? referenceUrl : null;
 
   if (imageFile) {
     return {
@@ -121,7 +179,8 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
 
   const uriListValue = transfer.getData("text/uri-list");
   if (uriListValue) {
-    const cleanUri = getFirstUriListValue(uriListValue);
+    const cleanUriValue = getFirstUriListValue(uriListValue);
+    const cleanUri = normalizeReferenceTransferUrlCandidate(cleanUriValue) ?? cleanUriValue;
     if (cleanUri) {
       const resolvedUri = resolveDraggedUrl(
         cleanUri,
@@ -139,7 +198,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
     }
   }
 
-  const imageUrl = transfer.getData("image/url");
+  const imageUrl = normalizeReferenceTransferUrlCandidate(transfer.getData("image/url"));
   if (imageUrl) {
     const resolvedImageUrl = resolveDraggedUrl(
       imageUrl,
@@ -157,9 +216,10 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
   }
 
   const rawText = transfer.getData("text/plain");
-  if (rawText && isLikelyImageTransferUrl(rawText)) {
+  const normalizedRawText = normalizeReferenceTransferUrlCandidate(rawText);
+  if (normalizedRawText && isLikelyImageTransferUrl(normalizedRawText)) {
     const resolvedTextUrl = resolveDraggedUrl(
-      rawText,
+      normalizedRawText,
       normalizedReferenceUrl,
       isLikelyImageTransferUrl
     );
@@ -183,9 +243,12 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
 
 export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDropPayload => {
   const videoFile = findVideoFile(transfer.files);
-  const referenceUrl = transfer.getData("text/reference-url");
+  const referenceUrl = normalizeReferenceTransferUrlCandidate(
+    transfer.getData("text/reference-url")
+  );
   const referenceId = transfer.getData("text/reference-id") || null;
-  const normalizedReferenceUrl = looksLikeVideoUrl(referenceUrl) ? referenceUrl.trim() : null;
+  const normalizedReferenceUrl =
+    referenceUrl && looksLikeVideoUrl(referenceUrl) ? referenceUrl : null;
 
   if (videoFile) {
     return {
@@ -207,7 +270,8 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
 
   const uriListValue = transfer.getData("text/uri-list");
   if (uriListValue) {
-    const cleanUri = getFirstUriListValue(uriListValue);
+    const cleanUriValue = getFirstUriListValue(uriListValue);
+    const cleanUri = normalizeReferenceTransferUrlCandidate(cleanUriValue) ?? cleanUriValue;
     if (cleanUri && looksLikeVideoUrl(cleanUri)) {
       const resolvedUri = resolveDraggedUrl(cleanUri, normalizedReferenceUrl, looksLikeVideoUrl);
       if (resolvedUri) {
@@ -221,7 +285,7 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
     }
   }
 
-  const imageUrl = transfer.getData("image/url");
+  const imageUrl = normalizeReferenceTransferUrlCandidate(transfer.getData("image/url"));
   if (imageUrl && looksLikeVideoUrl(imageUrl)) {
     const resolvedImageUrl = resolveDraggedUrl(imageUrl, normalizedReferenceUrl, looksLikeVideoUrl);
     if (resolvedImageUrl) {
@@ -235,8 +299,13 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
   }
 
   const rawText = transfer.getData("text/plain");
-  if (rawText && looksLikeVideoUrl(rawText)) {
-    const resolvedTextUrl = resolveDraggedUrl(rawText, normalizedReferenceUrl, looksLikeVideoUrl);
+  const normalizedRawText = normalizeReferenceTransferUrlCandidate(rawText);
+  if (normalizedRawText && looksLikeVideoUrl(normalizedRawText)) {
+    const resolvedTextUrl = resolveDraggedUrl(
+      normalizedRawText,
+      normalizedReferenceUrl,
+      looksLikeVideoUrl
+    );
     if (resolvedTextUrl) {
       return {
         videoUrl: resolvedTextUrl,
@@ -258,14 +327,21 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
 const extractPromptText = (transfer: DataTransfer) => {
   const promptText = transfer.getData("text/prompt") || transfer.getData("text/plain");
   if (!promptText) return null;
-  return looksLikeImageUrl(promptText) ? null : promptText.trim();
+  const normalizedPromptUrl = normalizeReferenceTransferUrlCandidate(promptText);
+  if (
+    normalizedPromptUrl &&
+    (looksLikeImageUrl(normalizedPromptUrl) || looksLikeVideoUrl(normalizedPromptUrl))
+  ) {
+    return null;
+  }
+  return promptText.trim();
 };
 
 export const isImageDragTransfer = (transfer: DataTransfer) => {
   if (transfer.types.includes("Files")) return true;
   if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) return true;
-  const plainText = transfer.getData("text/plain");
-  return looksLikeImageUrl(plainText);
+  const plainText = normalizeReferenceTransferUrlCandidate(transfer.getData("text/plain"));
+  return Boolean(plainText && looksLikeImageUrl(plainText));
 };
 
 export const isVideoDragTransfer = (transfer: DataTransfer) => {
@@ -281,8 +357,8 @@ export const isVideoDragTransfer = (transfer: DataTransfer) => {
   if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) return true;
   const videoFile = findVideoFile(transfer.files);
   if (videoFile) return true;
-  const plainText = transfer.getData("text/plain");
-  return looksLikeVideoUrl(plainText);
+  const plainText = normalizeReferenceTransferUrlCandidate(transfer.getData("text/plain"));
+  return Boolean(plainText && looksLikeVideoUrl(plainText));
 };
 
 export const prepareReferenceDrag = (
@@ -294,13 +370,14 @@ export const prepareReferenceDrag = (
   transfer.effectAllowed = "copy";
   const sourceSurface = options?.sourceSurface ?? "all-refs";
   const promptText = dedupeText(output.prompt ?? output.previewText);
-  const previewUrl = output.previewUrl?.trim();
+  const previewUrl = resolveReferenceTransferUrl(output, "any");
+  const imagePreviewUrl = resolveReferenceTransferUrl(output, "image");
   const referenceMediaId = output.savedMediaIds?.[0]?.trim();
   if (previewUrl) {
     transfer.setData("text/uri-list", previewUrl);
     transfer.setData("text/reference-url", previewUrl);
-    if (isLikelyImageTransferUrl(previewUrl)) {
-      transfer.setData("image/url", previewUrl);
+    if (imagePreviewUrl) {
+      transfer.setData("image/url", imagePreviewUrl);
     }
   }
   if (output.id) {

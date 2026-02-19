@@ -100,6 +100,7 @@ type MediaLibraryModalProps = {
     url: string;
     fileType: "image" | "video";
     filename?: string | null;
+    promptText?: string | null;
     source?: string | null;
     previewStoragePath?: string | null;
     fullStoragePath?: string | null;
@@ -287,6 +288,22 @@ const sortByCreatedAtDesc = <T extends { created_at?: string | null; id?: string
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
+
+const resolveMediaMetadataPromptText = (
+  metadata?: Record<string, unknown> | null
+): string | null => {
+  if (!metadata) return null;
+  const prompt =
+    typeof metadata.prompt === "string"
+      ? metadata.prompt
+      : typeof metadata.prompt_text === "string"
+        ? metadata.prompt_text
+        : typeof metadata.promptText === "string"
+          ? metadata.promptText
+          : "";
+  const trimmed = prompt.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
 
 export function MediaLibraryModal({
   isOpen,
@@ -619,6 +636,22 @@ export function MediaLibraryModal({
       }
     },
     [applySignedUrlsToTab, signStoragePath]
+  );
+
+  const resolveReferenceSelectionUrl = useCallback(
+    async (file: MediaFileRow): Promise<string | null> => {
+      const primaryStoragePath = file.storage_path?.trim() ?? "";
+      const candidates = [
+        primaryStoragePath,
+        ...resolveMediaSigningStoragePaths(file, currentUserIdRef.current),
+      ].filter((value, index, all) => Boolean(value) && all.indexOf(value) === index);
+      for (const storagePath of candidates) {
+        const signedUrl = await signStoragePath(storagePath, { forceRefresh: true });
+        if (signedUrl) return signedUrl;
+      }
+      return null;
+    },
+    [signStoragePath]
   );
 
   const handleMediaPreviewError = useCallback(
@@ -1262,7 +1295,10 @@ export function MediaLibraryModal({
                         ref={getMediaCardRef(file.id)}
                         aria-pressed={isSelected}
                         onClick={async () => {
-                          const nextUrl = (await refreshSignedUrl(file)) ?? file.signedUrl;
+                          const nextUrl =
+                            (await resolveReferenceSelectionUrl(file)) ??
+                            (await refreshSignedUrl(file)) ??
+                            file.signedUrl;
                           if (!nextUrl) return;
                           setSelectedIds((prev) => {
                             const next = new Set(prev);
@@ -1274,8 +1310,9 @@ export function MediaLibraryModal({
                             url: nextUrl,
                             fileType: isVideoFile(file.file_type) ? "video" : "image",
                             filename: file.filename,
+                            promptText: resolveMediaMetadataPromptText(file.metadata),
                             source: file.source ?? "upload",
-                            previewStoragePath: file.preview_storage_path ?? file.storage_path,
+                            previewStoragePath: file.storage_path,
                             fullStoragePath: file.storage_path,
                             previewUrl: nextUrl,
                             fullUrl: nextUrl,

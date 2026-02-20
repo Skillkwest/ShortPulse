@@ -92,23 +92,6 @@ const readErrorCode = (error: unknown): string | null => {
   return typeof raw === "string" && raw.trim().length ? raw.trim() : null;
 };
 
-const isMissingColumnError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object" || Array.isArray(error)) return false;
-  const message = String((error as Record<string, unknown>).message ?? "").toLowerCase();
-  return message.includes("column") && message.includes("does not exist");
-};
-
-const stripRecoveryColumns = (payload: JsonObject): JsonObject => {
-  const next = { ...payload };
-  delete next.failure_reason_code;
-  delete next.recovery_state;
-  delete next.recovery_attempts;
-  delete next.last_recovery_at;
-  delete next.next_recovery_at;
-  delete next.last_media_detected_at;
-  return next;
-};
-
 const lookupExistingGeneration = async ({
   userId,
   providerRequestId,
@@ -142,31 +125,17 @@ const updateGenerationWithRecoveryFallback = async ({
   payload: JsonObject;
 }) => {
   const supabaseAdmin = getSupabaseAdmin();
-  const primary = await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from("ai_generations")
     .update(payload)
     .eq("id", generationId)
     .eq("user_id", userId);
-  if (!primary.error) return { error: null };
-  if (!isMissingColumnError(primary.error)) return { error: primary.error };
-
-  const fallbackPayload = stripRecoveryColumns(payload);
-  const fallback = await supabaseAdmin
-    .from("ai_generations")
-    .update(fallbackPayload)
-    .eq("id", generationId)
-    .eq("user_id", userId);
-  return { error: fallback.error ?? null };
+  return { error: error ?? null };
 };
 
 const insertGenerationWithRecoveryFallback = async (payload: JsonObject) => {
   const supabaseAdmin = getSupabaseAdmin();
-  const primary = await supabaseAdmin.from("ai_generations").insert(payload).select("id").single();
-  if (!primary.error) return primary;
-  if (!isMissingColumnError(primary.error)) return primary;
-
-  const fallbackPayload = stripRecoveryColumns(payload);
-  return supabaseAdmin.from("ai_generations").insert(fallbackPayload).select("id").single();
+  return supabaseAdmin.from("ai_generations").insert(payload).select("id").single();
 };
 
 /**

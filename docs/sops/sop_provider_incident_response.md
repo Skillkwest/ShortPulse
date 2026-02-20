@@ -16,7 +16,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 - Supabase SQL access for read diagnostics.
 - Access to deployment logs for API routes.
 - Current env verification: `FAL_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`.
-- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`.
+- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_SECRET`, `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`.
 
 ## Triage workflow (first 15 minutes)
 1. Confirm incident scope in `/admin`:
@@ -70,6 +70,7 @@ Fal reliability rollout controls (when enabled):
 2. If incident severity requires immediate containment, set mode to `legacy` (global kill switch).
 3. If recovery lag is accumulating, run one protected reconciler pass via `/api/internal/generation-recovery/run` and inspect replay outcomes.
 4. For exhausted/edge cases, use admin replay (`/api/admin/generation-recovery/replay`) or card rebuild (`/api/admin/generation-recovery/rebuild-card`).
+5. If webhook ingestion is unhealthy, keep polling fallback active and verify `/api/fal/webhook` signature errors before disabling webhook mode.
 
 Failure-code action map (Fal reliability rollout):
 | `failure_reason_code` | Primary action |

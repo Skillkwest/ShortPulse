@@ -8,6 +8,7 @@ import { randomUUID } from "crypto";
 import { computeCostForModel, getModelConfig } from "../../../features/ai-studio/logic/pricing";
 import { requireApiUser } from "./auth";
 import { insertCreditLedgerEntry } from "./creditLedger";
+import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import {
   isDuplicateError,
   isInsufficientCreditError,
@@ -28,6 +29,7 @@ import { GENERATION_BILLING_FAILURE_MESSAGE } from "./generationBilling/types";
 export { resolveProviderRequestOwnership } from "./generationBilling/ownershipResolver";
 export {
   captureSucceededGenerationByProviderRequest,
+  settleGenerationOutcome,
   settleFailedGenerationByProviderRequest,
 } from "./generationBilling/settlementService";
 export type { ProviderRequestOwnership } from "./generationBilling/types";
@@ -118,6 +120,7 @@ export const chargeGenerationRequest = async ({
 
   const useReservationMode = isFalModel(modelId);
   if (useReservationMode) {
+    const runtimeFlags = readFalRuntimeFlags();
     const reserveResult = await reserveGenerationCredits({
       userId: user.id,
       sourceRef,
@@ -150,8 +153,27 @@ export const chargeGenerationRequest = async ({
           reservation_code: reserveResult.code ?? null,
         });
       }
+      if (!runtimeFlags.directDebitFallbackEnabled) {
+        console.error(
+          "[generationBilling] reservation RPC unavailable; direct debit fallback off",
+          {
+            modelId,
+            route: req.url ?? null,
+            sourceRef,
+            code: reserveResult.code ?? null,
+            message: reserveResult.message ?? null,
+          }
+        );
+        return respondChargeFailure(500, GENERATION_BILLING_FAILURE_MESSAGE, {
+          reservation_mode: true,
+          reservation_status: reserveResult.status,
+          reservation_message: reserveResult.message ?? null,
+          reservation_code: reserveResult.code ?? null,
+          fallback_enabled: false,
+        });
+      }
       console.warn(
-        "[generationBilling] reservation RPC unavailable; falling back to direct debit",
+        "[generationBilling] reservation RPC unavailable; direct debit fallback enabled",
         {
           modelId,
           route: req.url ?? null,

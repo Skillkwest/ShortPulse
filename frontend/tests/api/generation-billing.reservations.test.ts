@@ -27,11 +27,13 @@ const createMockResponse = () => ({
 describe("generationBilling reservation RPC handling", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED = "false";
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
     insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
   });
 
-  it("falls back to direct debit when reservation RPC fails with ambiguous source_ref SQL error", async () => {
+  it("falls back to direct debit only when the emergency fallback flag is enabled", async () => {
+    process.env.SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED = "true";
     const rpcMock = vi.fn().mockResolvedValueOnce({
       data: null,
       error: { code: "42702", message: 'column reference "source_ref" is ambiguous' },

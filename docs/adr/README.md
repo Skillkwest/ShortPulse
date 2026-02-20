@@ -15,3 +15,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 ## Latest ADRs
 - `docs/adr/0018-adaptive-media-v2-modular-policy-and-surface-adapters.md`
 - `docs/adr/0019-fal-modular-submit-retrieval-reliability.md`
+- `docs/adr/0020-ai-studio-server-authoritative-runtime-v2.md`

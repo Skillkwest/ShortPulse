@@ -899,3 +899,13 @@ Append new entries at the end of this file; each entry should include date (UTC)
     - explicit deferral of full durable internal queue architecture until after S1/S2 gates.
 - Updated backlog tracking so rate-limit protection is a visible pre-canary requirement:
   - `docs/planning/backlog.md`
+
+## 2026-02-20
+- Locked AI Studio generation runtime v2 execution and governance: added ADR `0020` plus authoritative planning/audit docs (`docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`, `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`) and archived superseded planning docs.
+- Implemented server runtime flag wiring (`frontend/lib/server/api/falRuntimeFlags.ts`) and documented rollout flags in `frontend/.env.example`, `docs/deployment.md`, and API/SOP references.
+- Unified Fal terminal billing settlement to one API (`settleGenerationOutcome`) and switched status proxy settlement to the unified path; direct-debit fallback is now emergency-only via `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED`.
+- Added webhook-first Fal ingestion route (`POST /api/fal/webhook`) with signature verification helper (`frontend/lib/server/api/falWebhook.ts`) and explicit proxy webhook exception.
+- Added protected internal reconciler trigger route (`POST /api/internal/generation-recovery/run`) with `x-shortpulse-cron-secret` auth and runtime-flag-gated claim/requeue/exhaust logic.
+- Removed runtime missing-column fallback behavior in generation persistence paths (`generationSubmitPersistence` and admin replay update path) to align with schema convergence requirements.
+- Added SQL migrations `020`-`023` for recovery convergence, status transition enforcement, persistence idempotency index, and `SKIP LOCKED` reconciler claim function.
+- Expanded test coverage for new auth boundaries/routes and updated status-proxy settlement tests to the unified settlement API.

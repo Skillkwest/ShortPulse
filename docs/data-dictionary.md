@@ -129,7 +129,7 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `duration_seconds` (int, nullable)
 - `resolution` (text, nullable)
 - `request_id` (text, nullable)
-- `status` (text, default `pending`): pending | running | success | fail.
+- `status` (text, default `pending`): pending | submitted | running | success | fail.
 - `error_message` (text, nullable)
 - `failure_reason_code` (text, nullable): Normalized failure code for retrieval/persist/recovery incidents.
 - `recovery_state` (text, not null, default `none`): none | queued | recovering | recovered | exhausted.
@@ -143,8 +143,10 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Constraints and indexes:
   - `ai_generations_recovery_state_check` enforces `recovery_state` enum values.
+  - `ai_generations_recovery_attempts_non_negative_check` enforces non-negative attempts.
   - Unique partial index on `(user_id, request_id)` where `request_id is not null`.
   - Reconciler scan index on `(recovery_state, next_recovery_at, created_at)`.
+  - Trigger `trg_ai_generations_enforce_status_transition` blocks illegal status transitions.
 
 ### media_events
 - `id` (uuid, pk, default `gen_random_uuid()`)
@@ -155,6 +157,16 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `metadata` (jsonb, default `{}`): Event payload details.
 - `created_at` (timestamptz, default now)
 - RLS: select + insert allowed only when `user_id = auth.uid()`.
+
+### generation persistence idempotency
+- `media_files_generation_output_idx_unique`:
+  - Unique index on `(source_ref, metadata->>'generation_output_index')` for `source='ai_studio'`.
+  - Prevents duplicate media rows for the same generation output slot.
+
+### reconciler claim function
+- `claim_generation_recovery_batch(p_limit, p_max_attempts, p_min_age_seconds)`:
+  - Claims recovery work using `FOR UPDATE SKIP LOCKED`.
+  - Increments `recovery_attempts` and marks claimed rows `recovery_state='recovering'`.
 
 ### user_preferences
 - `user_id` (uuid, pk, references `auth.users(id)`): Profile owner.

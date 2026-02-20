@@ -108,8 +108,10 @@ Start here for all repository documentation.
 - `docs/planning/mvp-ui-ux-phase0-baseline-qa-checklist.md`
 - `docs/planning/mvp-ui-ux-phase0-baseline-capture-template.md`
 - `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
-- `docs/planning/ai-studio-fal-reliability-rollout.md`
-- `docs/planning/ai-studio-generation-runtime-stabilization.md`
+- `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
+- `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
+- `docs/planning/ai-studio-fal-reliability-rollout.md` (archived pointer)
+- `docs/planning/ai-studio-generation-runtime-stabilization.md` (archived pointer)
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
 - `docs/planning/ai-studio-agent-pipeline-hardening-plan.md`
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
@@ -143,10 +145,13 @@ Start here for all repository documentation.
 - `docs/adr/0017-ai-studio-curated-reference-split-grid.md`
 - `docs/adr/0018-adaptive-media-v2-modular-policy-and-surface-adapters.md`
 - `docs/adr/0019-fal-modular-submit-retrieval-reliability.md`
+- `docs/adr/0020-ai-studio-server-authoritative-runtime-v2.md`
 
 ## Archive
 - `docs/archive/README.md`
 - `docs/archive/planning/README.md`
+- `docs/archive/planning/ai-studio-fal-reliability-rollout.md`
+- `docs/archive/planning/ai-studio-generation-runtime-stabilization.md`
 - `docs/archive/planning/ai-studio-character-mode-injection-plan.md`
 - `docs/archive/planning/media-library-move-tabs-plan.md`
 - `docs/archive/planning/mvp-pre-tester-anchor-plan.md`

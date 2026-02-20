@@ -156,14 +156,71 @@ create table if not exists ai_generations (
     duration_seconds int,
     resolution text,
     request_id text,
-    status text not null default 'pending', -- pending | running | success | fail
+    status text not null default 'pending', -- pending | submitted | running | success | fail
     error_message text,
+    failure_reason_code text,
+    recovery_state text not null default 'none', -- none | queued | recovering | recovered | exhausted
+    recovery_attempts int not null default 0,
+    last_recovery_at timestamptz,
+    next_recovery_at timestamptz,
+    last_media_detected_at timestamptz,
     created_at timestamptz not null default now(),
     completed_at timestamptz,
     metadata jsonb not null default '{}'::jsonb
 );
 
 create index if not exists ix_ai_generations_user_created on ai_generations (user_id, created_at desc);
+create unique index if not exists ai_generations_user_request_id_unique_idx
+    on ai_generations (user_id, request_id)
+    where request_id is not null;
+create index if not exists ai_generations_recovery_scan_idx
+    on ai_generations (recovery_state, next_recovery_at, created_at);
+
+alter table ai_generations
+    drop constraint if exists ai_generations_recovery_state_check;
+alter table ai_generations
+    add constraint ai_generations_recovery_state_check
+    check (recovery_state in ('none', 'queued', 'recovering', 'recovered', 'exhausted'));
+
+alter table ai_generations
+    drop constraint if exists ai_generations_recovery_attempts_non_negative_check;
+alter table ai_generations
+    add constraint ai_generations_recovery_attempts_non_negative_check
+    check (recovery_attempts >= 0);
+
+create or replace function is_valid_ai_generation_transition(p_from text, p_to text)
+returns boolean
+language sql
+immutable
+as $$
+    select case
+        when p_to is null then false
+        when lower(p_to) not in ('pending', 'submitted', 'running', 'success', 'fail') then false
+        when p_from is null then true
+        when lower(p_from) = lower(p_to) then true
+        when lower(p_from) in ('pending', 'submitted') and lower(p_to) in ('submitted', 'running', 'fail') then true
+        when lower(p_from) = 'running' and lower(p_to) in ('success', 'fail') then true
+        else false
+    end;
+$$;
+
+create or replace function enforce_ai_generation_status_transition()
+returns trigger
+language plpgsql
+as $$
+begin
+    if not is_valid_ai_generation_transition(old.status, new.status) then
+        raise exception 'invalid ai_generations status transition from % to %', old.status, new.status
+            using errcode = '22000';
+    end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists trg_ai_generations_enforce_status_transition on ai_generations;
+create trigger trg_ai_generations_enforce_status_transition
+before update of status on ai_generations
+for each row execute function enforce_ai_generation_status_transition();
 
 alter table ai_generations enable row level security;
 drop policy if exists select_ai_generations_isolation on ai_generations;
@@ -205,6 +262,66 @@ alter table media_files
 alter table media_files
     add constraint fk_media_files_generation
     foreign key (source_ref) references ai_generations(id) on delete set null;
+
+create unique index if not exists media_files_generation_output_idx_unique
+    on media_files (
+        source_ref,
+        ((metadata ->> 'generation_output_index'))
+    )
+    where source = 'ai_studio'
+      and source_ref is not null
+      and (metadata ->> 'generation_output_index') is not null;
+
+create or replace function claim_generation_recovery_batch(
+    p_limit integer default 25,
+    p_max_attempts integer default 5,
+    p_min_age_seconds integer default 120
+)
+returns table (
+    id uuid,
+    user_id uuid,
+    request_id text,
+    model_id text,
+    status text,
+    recovery_state text,
+    recovery_attempts integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    v_limit integer := greatest(coalesce(p_limit, 1), 1);
+    v_max_attempts integer := greatest(coalesce(p_max_attempts, 1), 1);
+    v_min_age_seconds integer := greatest(coalesce(p_min_age_seconds, 0), 0);
+begin
+    return query
+    with candidates as (
+        select g.id
+        from ai_generations g
+        where g.provider = 'fal'
+          and g.recovery_state in ('queued', 'recovering')
+          and coalesce(g.recovery_attempts, 0) < v_max_attempts
+          and g.created_at <= now() - make_interval(secs => v_min_age_seconds)
+          and (g.next_recovery_at is null or g.next_recovery_at <= now())
+        order by coalesce(g.next_recovery_at, g.created_at), g.created_at
+        for update skip locked
+        limit v_limit
+    ),
+    claimed as (
+        update ai_generations g
+        set
+            recovery_state = 'recovering',
+            recovery_attempts = coalesce(g.recovery_attempts, 0) + 1,
+            last_recovery_at = now(),
+            next_recovery_at = now()
+        from candidates c
+        where g.id = c.id
+        returning g.id, g.user_id, g.request_id, g.model_id, g.status, g.recovery_state, g.recovery_attempts
+    )
+    select * from claimed;
+end;
+$$;
 
 -- Storage bucket and RLS for media uploads
 insert into storage.buckets (id, name, public)

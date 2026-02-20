@@ -103,7 +103,16 @@ If enabling stricter Character Manager media integrity (source/path/metadata + c
 If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconciler), also apply:
 
 19. `sql/migrations/019_add_generation_recovery_fields.sql`
-20. Rollback file: `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
+20. `sql/migrations/020_generation_runtime_convergence.sql`
+21. `sql/migrations/021_generation_state_machine_constraints.sql`
+22. `sql/migrations/022_generation_persist_idempotency.sql`
+23. `sql/migrations/023_generation_reconciler_claims.sql`
+24. Rollback files:
+    - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
+    - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
+    - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
+    - `sql/migrations/rollback/022_generation_persist_idempotency_rollback.sql`
+    - `sql/migrations/rollback/023_generation_reconciler_claims_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -112,6 +121,8 @@ Billing safety note:
   reservation RPC caller binding + execute grant hardening.
 - Migration `019_add_generation_recovery_fields.sql` adds minimal recovery-state durability
   (`failure_reason_code`, `recovery_state`, retry timing fields, and reconciler indexes) without a new attempts table in v1.
+- Migrations `020`-`023` converge runtime assumptions (no missing-column fallback), enforce status transitions,
+  add media persistence idempotency keys, and provide `SKIP LOCKED` reconciler claim semantics.
 
 ## Media storage scope verification (post-017)
 

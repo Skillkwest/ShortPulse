@@ -476,29 +476,11 @@ const updateGenerationRecoveryState = async ({
   updates: Record<string, unknown>;
 }) => {
   const supabaseAdmin = getSupabaseAdmin();
-  const fullUpdate = await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from("ai_generations")
     .update(updates)
     .eq("id", generationId);
-  if (!fullUpdate.error) return;
-  const message = String(fullUpdate.error.message ?? "").toLowerCase();
-  if (!message.includes("column") || !message.includes("does not exist")) {
-    throw fullUpdate.error;
-  }
-  const legacySafeUpdates = { ...updates };
-  delete legacySafeUpdates.failure_reason_code;
-  delete legacySafeUpdates.recovery_state;
-  delete legacySafeUpdates.recovery_attempts;
-  delete legacySafeUpdates.last_recovery_at;
-  delete legacySafeUpdates.next_recovery_at;
-  delete legacySafeUpdates.last_media_detected_at;
-  const fallbackUpdate = await supabaseAdmin
-    .from("ai_generations")
-    .update(legacySafeUpdates)
-    .eq("id", generationId);
-  if (fallbackUpdate.error) {
-    throw fallbackUpdate.error;
-  }
+  if (error) throw error;
 };
 
 const readGenerationRow = async ({

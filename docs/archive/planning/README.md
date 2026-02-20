@@ -9,5 +9,7 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 
 ## Contents
 - `docs/archive/planning/ai-studio-character-mode-injection-plan.md`
+- `docs/archive/planning/ai-studio-fal-reliability-rollout.md`
+- `docs/archive/planning/ai-studio-generation-runtime-stabilization.md`
 - `docs/archive/planning/media-library-move-tabs-plan.md`
 - `docs/archive/planning/mvp-pre-tester-anchor-plan.md`

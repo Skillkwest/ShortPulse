@@ -3,9 +3,8 @@ import { createFalStatusHandler } from "../../lib/server/api/falStatusProxy";
 
 const requireApiUserMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
-const captureSucceededGenerationByProviderRequestMock = vi.fn();
+const settleGenerationOutcomeMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
-const settleFailedGenerationByProviderRequestMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -16,12 +15,9 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
-  captureSucceededGenerationByProviderRequest: (...args: unknown[]) =>
-    captureSucceededGenerationByProviderRequestMock(...args),
   resolveProviderRequestOwnership: (...args: unknown[]) =>
     resolveProviderRequestOwnershipMock(...args),
-  settleFailedGenerationByProviderRequest: (...args: unknown[]) =>
-    settleFailedGenerationByProviderRequestMock(...args),
+  settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -35,13 +31,9 @@ describe("createFalStatusHandler", () => {
     process.env.FAL_KEY = "test-fal-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
-    captureSucceededGenerationByProviderRequestMock.mockResolvedValue({
+    settleGenerationOutcomeMock.mockResolvedValue({
       settled: true,
       note: "captured",
-    });
-    settleFailedGenerationByProviderRequestMock.mockResolvedValue({
-      settled: false,
-      note: "charge_not_found",
     });
   });
 
@@ -100,10 +92,11 @@ describe("createFalStatusHandler", () => {
     expect(payload.state).toBe("completed");
     expect(payload.request_id).toBe("req-1");
     expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/seedream-image.png");
-    expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith(
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
         providerRequestId: "req-1",
+        outcome: "success",
       })
     );
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
@@ -152,13 +145,16 @@ describe("createFalStatusHandler", () => {
     expect(payload.data?.images?.[0]?.url).toBe(
       "https://cdn.shortpulse.test/terminal-status-media.png"
     );
-    expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith(
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
         providerRequestId: "req-terminal-media",
+        outcome: "success",
       })
     );
-    expect(settleFailedGenerationByProviderRequestMock).not.toHaveBeenCalled();
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "fail" })
+    );
   });
 
   it("does not downgrade terminal status when completed status payload has stale in-progress response_url data", async () => {
@@ -328,13 +324,16 @@ describe("createFalStatusHandler", () => {
     expect(payload.data?.images?.[0]?.url).toBe(
       "https://cdn.shortpulse.test/cross-alias-media.png"
     );
-    expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith(
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
         providerRequestId: "req-cross-alias",
+        outcome: "success",
       })
     );
-    expect(settleFailedGenerationByProviderRequestMock).not.toHaveBeenCalled();
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "fail" })
+    );
   });
 
   it("does not downgrade terminal status when completed status payload has stale in-progress result data", async () => {
@@ -461,12 +460,15 @@ describe("createFalStatusHandler", () => {
     expect(payload.state).toBe("completed");
     expect(payload.request_id).toBe("req-veo-alias-conflict");
     expect(payload.data?.videos?.[0]?.url).toBe("https://cdn.shortpulse.test/veo-alias-media.mp4");
-    expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith(
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
         providerRequestId: "req-veo-alias-conflict",
+        outcome: "success",
       })
     );
-    expect(settleFailedGenerationByProviderRequestMock).not.toHaveBeenCalled();
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "fail" })
+    );
   });
 });

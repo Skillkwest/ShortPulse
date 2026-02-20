@@ -5,11 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
 import { logGenerationFailure } from "./appErrorLogs";
-import {
-  captureSucceededGenerationByProviderRequest,
-  resolveProviderRequestOwnership,
-  settleFailedGenerationByProviderRequest,
-} from "./generationBilling";
+import { resolveProviderRequestOwnership, settleGenerationOutcome } from "./generationBilling";
 import {
   asString,
   extractResponseUrl,
@@ -91,9 +87,10 @@ const settleFailure = async ({
   routeLabel: string;
   detail?: JsonObject;
 }) => {
-  const result = await settleFailedGenerationByProviderRequest({
+  const result = await settleGenerationOutcome({
     userId,
     providerRequestId: requestId,
+    outcome: "fail",
     reason,
     routeLabel,
     detail,
@@ -256,9 +253,10 @@ export const createFalStatusHandler = ({
         payload: JsonObject;
         payloadStatus: string;
       }) => {
-        const captureResult = await captureSucceededGenerationByProviderRequest({
+        const captureResult = await settleGenerationOutcome({
           userId: user.id,
           providerRequestId: requestId,
+          outcome: "success",
           reason: "Generation charge captured after successful Fal output.",
           routeLabel,
           detail: {

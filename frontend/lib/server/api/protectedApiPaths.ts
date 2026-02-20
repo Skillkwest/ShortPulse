@@ -16,7 +16,7 @@ export const PROTECTED_API_PREFIXES = [
   "/api/billing/stripe/portal",
 ];
 
-export const WEBHOOK_PATHS = new Set(["/api/billing/stripe/webhook"]);
+export const WEBHOOK_PATHS = new Set(["/api/billing/stripe/webhook", "/api/fal/webhook"]);
 const INTERNAL_API_PREFIXES = ["/api/_utils", "/api/_utils/"];
 
 /**

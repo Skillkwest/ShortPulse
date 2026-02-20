@@ -18,9 +18,10 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Model picker + cost badges: `frontend/features/ai-studio/components/ModelModal.tsx` (uses registry defaults).
 - Reference Grid performance controls: `frontend/features/ai-studio/components/ReferenceCanvas.tsx` (virtualization + autoplay budget gating).
 
-## Fal reliability rollout notes (v2 architecture, planned)
-- Primary tracker: `docs/planning/ai-studio-fal-reliability-rollout.md`
-- ADR: `docs/adr/0019-fal-modular-submit-retrieval-reliability.md`
+## Fal reliability rollout notes (v2 architecture)
+- Primary tracker: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
+- Audit snapshot: `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
+- ADR: `docs/adr/0020-ai-studio-server-authoritative-runtime-v2.md`
 - Route contracts and rollout flags: `docs/api/api-internal-routes.md`
 - Provider/operator runbook: `docs/sops/sop_provider_incident_response.md`
 

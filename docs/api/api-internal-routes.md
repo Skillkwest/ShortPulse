@@ -6,7 +6,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 - Global API auth gate: `frontend/proxy.ts` protects `/api/fal/*`, `/api/kei/*`, `/api/ai/*`, `/api/media/*`, uploads, admin APIs, and billing checkout/portal routes by requiring a Supabase bearer token.
 - KEI routes are currently hard-disabled for MVP and return `410` from route handlers.
 - Route-level auth: several handlers still call `requireApiUser`/`requireAdminUser` in `frontend/lib/server/api/auth.ts` for direct enforcement and user context.
-- Webhook exception: `/api/billing/stripe/webhook` is intentionally unauthenticated and protected by Stripe signature verification.
+- Webhook exceptions: `/api/billing/stripe/webhook` and `/api/fal/webhook` are intentionally unauthenticated and protected by provider signature verification.
 
 ## Route families
 | Route family | Methods | Auth | Purpose | Source of truth |
@@ -21,6 +21,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/media/move-batch` | `POST` | Bearer (proxy + route) | Move multiple media files in one request with per-file success/failure summary. | `frontend/pages/api/media/move-batch.ts` |
 | `/api/media/resolve-previews` | `POST` | Bearer (proxy + route) | Resolve media preview URLs in bulk (signed-url hydration + user-scoped URL fallback for legacy records). | `frontend/pages/api/media/resolve-previews.ts`, `frontend/lib/mediaPreviewPath.ts` |
 | `/api/fal/*` | `POST` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic. | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, model docs in `docs/api/api-fal-*.md` |
+| `/api/fal/webhook` | `POST` raw body | Fal signature | Webhook-first Fal lifecycle ingestion; validates signature, settles terminal billing idempotently, and writes server-authoritative generation state transitions. | `frontend/pages/api/fal/webhook.ts` |
 | `/api/kei/create-task`, `/api/kei/task-status`, `/api/kei/status`, `/api/kei/gpt4o-generate` | `POST` | Bearer (proxy) | KEI routes are disabled for MVP and return `410` (`KEI_DISABLED_FOR_MVP`). | `frontend/pages/api/kei/*.ts` |
 | `/api/billing/credit-packages` | `GET` | Bearer (proxy + route) | List active top-up packages for billing UI. | `frontend/pages/api/billing/credit-packages.ts` |
 | `/api/credits/snapshot` | `GET` | Bearer (proxy + route) | Return user credit snapshot (`availableCents`, `reservedCents`, `spendableCents`) for responsive balance/hold UX. | `frontend/pages/api/credits/snapshot.ts`, `docs/sops/sop_billing_credits_operations.md` |
@@ -36,6 +37,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/errors-test` | `POST` | Admin bearer | Create a synthetic app or generation incident for operator smoke tests of telemetry ingestion/UI. | `frontend/pages/api/admin/errors-test.ts`, `docs/monitoring.md` |
 | `/api/admin/generation-trace` | `GET` | Admin bearer | Return stitched generation timeline by `generationId`, `requestId`, or trace id across `ai_generations`, `media_events`, `media_files`, reservations, ledger entries, and app error events. Intended for operator debugging and S0 traceability baselines. | `frontend/pages/api/admin/generation-trace.ts`, `docs/planning/ai-studio-generation-runtime-stabilization.md` |
 | `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay stalled generation retrieval/persistence by `generationId` or `requestId` (Fal only). Re-polls provider aliases, persists recovered media, and updates generation recovery metadata/state. | `frontend/pages/api/admin/generation-recovery/replay.ts`, `docs/planning/ai-studio-fal-reliability-rollout.md` |
+| `/api/internal/generation-recovery/run` | `POST` | `x-shortpulse-cron-secret` | Trigger reconciler claim/requeue/exhaustion pass for stale Fal generations. | `frontend/pages/api/internal/generation-recovery/run.ts`, `docs/sops/sop_provider_incident_response.md` |
 | `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
 
 ## Planned routes (Fal reliability rollout)
@@ -43,7 +45,6 @@ These routes are tracked as part of the AI Studio Fal reliability rollout and sh
 
 | Route | Methods | Auth | Purpose | Source of truth |
 | --- | --- | --- | --- | --- |
-| `/api/internal/generation-recovery/run` | `POST` | `x-shortpulse-cron-secret` | Trigger reconciler batch pass for stale/no-media/failed-persist recovery candidates. | `docs/planning/ai-studio-fal-reliability-rollout.md`, `docs/sops/sop_provider_incident_response.md` |
 | `/api/admin/generation-recovery/rebuild-card` | `POST` | Admin bearer | Rebuild reference-card linkage from already persisted media without provider calls. | `docs/planning/ai-studio-fal-reliability-rollout.md`, `docs/sops/sop_provider_incident_response.md` |
 
 ## Shared runtime contracts
@@ -68,6 +69,9 @@ These routes are tracked as part of the AI Studio Fal reliability rollout and sh
 - Fal reliability rollout flags (feature-gated):
   - `SHORTPULSE_FAL_INTEGRATION_MODE`
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST`
+  - `SHORTPULSE_FAL_WEBHOOK_ENABLED`
+  - `SHORTPULSE_FAL_WEBHOOK_SECRET`
+  - `SHORTPULSE_FAL_WEBHOOK_TOLERANCE_SECONDS`
   - `SHORTPULSE_FAL_RECONCILER_ENABLED`
   - `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
   - `SHORTPULSE_FAL_RECONCILER_BATCH_SIZE`

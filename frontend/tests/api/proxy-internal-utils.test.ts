@@ -15,6 +15,18 @@ describe("API proxy protections", () => {
     expect(response.status).toBe(401);
   });
 
+  it("allows webhook exceptions without bearer auth", async () => {
+    const request = new NextRequest("http://localhost:3000/api/fal/webhook");
+    const response = await proxy(request);
+    expect(response.status).toBe(200);
+  });
+
+  it("passes internal reconciler route through to route-level secret auth", async () => {
+    const request = new NextRequest("http://localhost:3000/api/internal/generation-recovery/run");
+    const response = await proxy(request);
+    expect(response.status).toBe(200);
+  });
+
   it("injects authenticated user context headers for protected API requests", async () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";

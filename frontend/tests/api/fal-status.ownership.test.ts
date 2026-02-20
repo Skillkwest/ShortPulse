@@ -3,20 +3,16 @@ import handler from "../../pages/api/fal/status";
 
 const requireApiUserMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
-const captureSucceededGenerationByProviderRequestMock = vi.fn();
-const settleFailedGenerationByProviderRequestMock = vi.fn();
+const settleGenerationOutcomeMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
 }));
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
-  captureSucceededGenerationByProviderRequest: (...args: unknown[]) =>
-    captureSucceededGenerationByProviderRequestMock(...args),
   resolveProviderRequestOwnership: (...args: unknown[]) =>
     resolveProviderRequestOwnershipMock(...args),
-  settleFailedGenerationByProviderRequest: (...args: unknown[]) =>
-    settleFailedGenerationByProviderRequestMock(...args),
+  settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -41,13 +37,9 @@ describe("POST /api/fal/status ownership", () => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
-    captureSucceededGenerationByProviderRequestMock.mockResolvedValue({
+    settleGenerationOutcomeMock.mockResolvedValue({
       settled: true,
       note: "captured",
-    });
-    settleFailedGenerationByProviderRequestMock.mockResolvedValue({
-      settled: true,
-      note: "released",
     });
   });
 

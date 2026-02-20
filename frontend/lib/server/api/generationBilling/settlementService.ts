@@ -1,4 +1,5 @@
 import { insertCreditLedgerEntry } from "../creditLedger";
+import { readFalRuntimeFlags } from "../falRuntimeFlags";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import {
   isDuplicateError,
@@ -13,6 +14,9 @@ import {
 import type {
   FailedGenerationSettlementOptions,
   FailedGenerationSettlementResult,
+  GenerationSettlementOptions,
+  GenerationSettlementResult,
+  GenerationSettlementOutcome,
   JsonObject,
   LedgerChargeRow,
 } from "./types";
@@ -59,7 +63,7 @@ const lookupChargeBySourceRef = async (
   }
 };
 
-const lookupChargeByProviderRequestId = async (
+const lookupLegacyChargeByProviderRequestId = async (
   userId: string,
   providerRequestId: string
 ): Promise<LedgerChargeRow | null> => {
@@ -157,19 +161,103 @@ const refundChargeRow = async ({
   return { settled: false, sourceRef: charge.source_ref, note: error.message ?? "refund_failed" };
 };
 
-/**
- * Settles failed generation outcomes by provider request id.
- * This is called from status routes when the upstream reports a definitive failure.
- */
-export const settleFailedGenerationByProviderRequest = async ({
+const settleLegacyDirectDebitOutcome = async ({
   userId,
   providerRequestId,
+  outcome,
+  reason,
+  routeLabel,
+  detail,
+}: {
+  userId: string;
+  providerRequestId: string;
+  outcome: GenerationSettlementOutcome;
+  reason: string;
+  routeLabel: string;
+  detail: JsonObject;
+}): Promise<GenerationSettlementResult> => {
+  const flags = readFalRuntimeFlags();
+  if (!flags.directDebitFallbackEnabled) {
+    return { settled: false, note: "charge_not_found" };
+  }
+
+  const charge = await lookupLegacyChargeByProviderRequestId(userId, providerRequestId);
+  if (!charge) return { settled: false, note: "charge_not_found" };
+
+  if (outcome === "success") {
+    return {
+      settled: true,
+      sourceRef: charge.source_ref ?? null,
+      note: "legacy_charge_exists",
+    };
+  }
+
+  return refundChargeRow({
+    userId,
+    charge,
+    reason,
+    metadata: {
+      provider_request_id: providerRequestId,
+      route: routeLabel,
+      settled_at: new Date().toISOString(),
+      ...detail,
+    },
+  });
+};
+
+export const settleGenerationOutcome = async ({
+  userId,
+  providerRequestId,
+  outcome,
   reason,
   routeLabel,
   detail = {},
-}: FailedGenerationSettlementOptions): Promise<FailedGenerationSettlementResult> => {
+}: GenerationSettlementOptions): Promise<GenerationSettlementResult> => {
   if (!providerRequestId) {
     return { settled: false, note: "missing_provider_request_id" };
+  }
+
+  if (outcome === "success") {
+    const captureResult = await captureGenerationReservationByProviderRequest({
+      userId,
+      providerRequestId,
+      reason,
+      metadata: {
+        route: routeLabel,
+        provider_request_id: providerRequestId,
+        captured_at: new Date().toISOString(),
+        ...detail,
+      },
+    });
+    if (captureResult.status === "captured" || captureResult.status === "already_captured") {
+      return {
+        settled: true,
+        sourceRef: captureResult.sourceRef ?? null,
+        note: captureResult.status,
+      };
+    }
+    if (captureResult.status === "already_released") {
+      return {
+        settled: false,
+        sourceRef: captureResult.sourceRef ?? null,
+        note: "already_released",
+      };
+    }
+    if (captureResult.status === "failed" && !isRecoverableReservationFailure(captureResult)) {
+      return {
+        settled: false,
+        sourceRef: captureResult.sourceRef ?? null,
+        note: captureResult.message ?? "reservation_capture_failed",
+      };
+    }
+    return settleLegacyDirectDebitOutcome({
+      userId,
+      providerRequestId,
+      outcome,
+      reason,
+      routeLabel,
+      detail,
+    });
   }
 
   const releaseResult = await releaseGenerationReservationByProviderRequest({
@@ -204,22 +292,34 @@ export const settleFailedGenerationByProviderRequest = async ({
       note: releaseResult.message ?? "reservation_release_failed",
     };
   }
-
-  const charge = await lookupChargeByProviderRequestId(userId, providerRequestId);
-  if (!charge) {
-    return { settled: false, note: "charge_not_found" };
-  }
-
-  return refundChargeRow({
+  return settleLegacyDirectDebitOutcome({
     userId,
-    charge,
+    providerRequestId,
+    outcome,
     reason,
-    metadata: {
-      provider_request_id: providerRequestId,
-      route: routeLabel,
-      settled_at: new Date().toISOString(),
-      ...detail,
-    },
+    routeLabel,
+    detail,
+  });
+};
+
+/**
+ * Settles failed generation outcomes by provider request id.
+ * This is called from status routes when the upstream reports a definitive failure.
+ */
+export const settleFailedGenerationByProviderRequest = async ({
+  userId,
+  providerRequestId,
+  reason,
+  routeLabel,
+  detail = {},
+}: FailedGenerationSettlementOptions): Promise<FailedGenerationSettlementResult> => {
+  return settleGenerationOutcome({
+    userId,
+    providerRequestId,
+    outcome: "fail",
+    reason,
+    routeLabel,
+    detail,
   });
 };
 
@@ -233,50 +333,12 @@ export const captureSucceededGenerationByProviderRequest = async ({
   routeLabel,
   detail = {},
 }: FailedGenerationSettlementOptions): Promise<FailedGenerationSettlementResult> => {
-  if (!providerRequestId) {
-    return { settled: false, note: "missing_provider_request_id" };
-  }
-
-  const captureResult = await captureGenerationReservationByProviderRequest({
+  return settleGenerationOutcome({
     userId,
     providerRequestId,
+    outcome: "success",
     reason,
-    metadata: {
-      route: routeLabel,
-      provider_request_id: providerRequestId,
-      captured_at: new Date().toISOString(),
-      ...detail,
-    },
+    routeLabel,
+    detail,
   });
-  if (captureResult.status === "captured" || captureResult.status === "already_captured") {
-    return {
-      settled: true,
-      sourceRef: captureResult.sourceRef ?? null,
-      note: captureResult.status,
-    };
-  }
-  if (captureResult.status === "already_released") {
-    return {
-      settled: false,
-      sourceRef: captureResult.sourceRef ?? null,
-      note: "already_released",
-    };
-  }
-  if (captureResult.status === "failed" && !isRecoverableReservationFailure(captureResult)) {
-    return {
-      settled: false,
-      sourceRef: captureResult.sourceRef ?? null,
-      note: captureResult.message ?? "reservation_capture_failed",
-    };
-  }
-
-  const legacyCharge = await lookupChargeByProviderRequestId(userId, providerRequestId);
-  if (legacyCharge) {
-    return {
-      settled: true,
-      sourceRef: legacyCharge.source_ref ?? null,
-      note: "legacy_charge_exists",
-    };
-  }
-  return { settled: false, note: "charge_not_found" };
 };

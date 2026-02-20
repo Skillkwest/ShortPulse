@@ -5,17 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/fal/status";
 
 const resolveProviderRequestOwnershipMock = vi.fn();
-const captureSucceededGenerationByProviderRequestMock = vi.fn();
-const settleFailedGenerationByProviderRequestMock = vi.fn();
+const settleGenerationOutcomeMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   resolveProviderRequestOwnership: (...args: unknown[]) =>
     resolveProviderRequestOwnershipMock(...args),
-  captureSucceededGenerationByProviderRequest: (...args: unknown[]) =>
-    captureSucceededGenerationByProviderRequestMock(...args),
-  settleFailedGenerationByProviderRequest: (...args: unknown[]) =>
-    settleFailedGenerationByProviderRequestMock(...args),
+  settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
 }));
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
@@ -43,13 +39,9 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-key";
-    captureSucceededGenerationByProviderRequestMock.mockResolvedValue({
+    settleGenerationOutcomeMock.mockResolvedValue({
       settled: true,
       note: "captured",
-    });
-    settleFailedGenerationByProviderRequestMock.mockResolvedValue({
-      settled: true,
-      note: "released",
     });
   });
 
@@ -177,7 +169,9 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ status: "completed" });
-    expect(settleFailedGenerationByProviderRequestMock).not.toHaveBeenCalled();
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "fail" })
+    );
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });

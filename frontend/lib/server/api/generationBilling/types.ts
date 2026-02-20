@@ -26,19 +26,26 @@ export type LedgerChargeRow = {
   metadata: JsonObject | null;
 };
 
-export type FailedGenerationSettlementOptions = {
+export type GenerationSettlementOutcome = "success" | "fail";
+
+export type GenerationSettlementOptions = {
   userId: string;
   providerRequestId: string;
+  outcome: GenerationSettlementOutcome;
   reason: string;
   routeLabel: string;
   detail?: JsonObject;
 };
 
-export type FailedGenerationSettlementResult = {
+export type GenerationSettlementResult = {
   settled: boolean;
   sourceRef?: string | null;
   note: string;
 };
+
+export type FailedGenerationSettlementOptions = Omit<GenerationSettlementOptions, "outcome">;
+
+export type FailedGenerationSettlementResult = GenerationSettlementResult;
 
 export type ProviderRequestOwnership = "owned" | "forbidden" | "unknown";
 

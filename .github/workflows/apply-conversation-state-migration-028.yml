@@ -1,4 +1,4 @@
-name: Apply Conversation State Migration 028
+name: Apply Conversation State Migration
 
 on:
   workflow_dispatch:
@@ -18,13 +18,21 @@ on:
         options:
           - apply
           - rollback
+      migration_id:
+        description: "Migration identifier"
+        required: true
+        default: "028"
+        type: choice
+        options:
+          - "028"
+          - "029"
       confirm_token:
-        description: "Type apply-028 or rollback-028 to confirm"
+        description: "Type apply-<id> or rollback-<id> to confirm"
         required: true
         type: string
 
 jobs:
-  apply_conversation_state_migration_028:
+  apply_conversation_state_migration:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: ${{ github.event.inputs.target_environment }}
@@ -45,6 +53,7 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           OPERATION: ${{ github.event.inputs.operation }}
+          MIGRATION_ID: ${{ github.event.inputs.migration_id }}
           CONFIRM_TOKEN: ${{ github.event.inputs.confirm_token }}
         run: |
           set -euo pipefail
@@ -54,12 +63,23 @@ jobs:
             exit 1
           fi
 
+          if [ "$MIGRATION_ID" = "028" ]; then
+            FORWARD_SQL="sql/migrations/028_harden_ai_agent_conversation_state_security.sql"
+            ROLLBACK_SQL="sql/migrations/rollback/028_harden_ai_agent_conversation_state_security_rollback.sql"
+          elif [ "$MIGRATION_ID" = "029" ]; then
+            FORWARD_SQL="sql/migrations/029_fix_conversation_state_upsert_ambiguity.sql"
+            ROLLBACK_SQL="sql/migrations/rollback/029_fix_conversation_state_upsert_ambiguity_rollback.sql"
+          else
+            echo "::error::Unsupported migration id: $MIGRATION_ID"
+            exit 1
+          fi
+
           if [ "$OPERATION" = "apply" ]; then
-            SQL_FILE="sql/migrations/028_harden_ai_agent_conversation_state_security.sql"
-            EXPECTED_TOKEN="apply-028"
+            SQL_FILE="$FORWARD_SQL"
+            EXPECTED_TOKEN="apply-$MIGRATION_ID"
           elif [ "$OPERATION" = "rollback" ]; then
-            SQL_FILE="sql/migrations/rollback/028_harden_ai_agent_conversation_state_security_rollback.sql"
-            EXPECTED_TOKEN="rollback-028"
+            SQL_FILE="$ROLLBACK_SQL"
+            EXPECTED_TOKEN="rollback-$MIGRATION_ID"
           else
             echo "::error::Unsupported operation: $OPERATION"
             exit 1
@@ -79,8 +99,9 @@ jobs:
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/conversation_state_migration_028_apply.log
 
           {
-            echo "### Conversation State Migration 028"
+            echo "### Conversation State Migration"
             echo "- Environment: ${{ github.event.inputs.target_environment }}"
+            echo "- Migration ID: $MIGRATION_ID"
             echo "- Operation: $OPERATION"
             echo "- SQL file: \`$SQL_FILE\`"
             echo "- Result: success"
@@ -90,6 +111,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: conversation-state-migration-028-${{ github.run_id }}
+          name: conversation-state-migration-${{ github.event.inputs.migration_id }}-${{ github.run_id }}
           path: /tmp/conversation_state_migration_028_apply.log
           if-no-files-found: ignore

@@ -8,8 +8,10 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 - `npm -C frontend run test`
 - `npm -C frontend run type-check`
 - `npm -C frontend run build`
+- `npm -C frontend run deadcode:check`
 - No secrets added/changed (`.env*` stays uncommitted; only `.env.example` changes are acceptable)
 - Optional (post-format-baseline): `npm -C frontend run format:check`
+- Optional dead-code audit report (non-blocking): `npm -C frontend run deadcode:check:full`
 
 ## Manual product smoke
 
@@ -36,3 +38,9 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 
 - Saved Creators: add/edit/remove a handle; data is user-scoped
 - Performance: demo refresh/filter workflow works; charts/cards render; no console errors
+
+## Rollout safety (cleanup/refactor PRs)
+
+- Keep dead-code cleanup PRs isolated from feature work.
+- Require PR review plus all status checks before merge.
+- After deploy, watch `/admin` incident/event feeds for a short canary window before the next cleanup batch.

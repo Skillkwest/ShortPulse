@@ -4,6 +4,7 @@
 ## Testing
 - [ ] `npm -C frontend run lint`
 - [ ] `npm -C frontend run build`
+- [ ] `npm -C frontend run deadcode:check`
 - [ ] `npm -C frontend run test` (when logic/API behavior is touched)
 
 ## AI Studio Perf Gates (when AI Studio behavior is touched)
@@ -24,3 +25,4 @@
 
 ## Risk / rollout notes
 - Any migrations, data-contract changes, or user-visible behavior changes?
+- For cleanup/refactor PRs: describe the canary observation window and explicit revert trigger.

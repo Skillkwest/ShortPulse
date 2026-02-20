@@ -76,6 +76,14 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 - Before release, verify incident ingestion is functioning.
 - After release, spot-check new incidents and confirm no high-severity regressions.
 
+## Canary window for cleanup PRs
+- Deploy dead-code/refactor PRs separately from feature launches.
+- During the first post-deploy window, monitor:
+  - `/api/admin/error-events` for event spikes,
+  - `/api/admin/errors` for new/open incidents,
+  - route/API status changes (404/500) on recently touched surfaces.
+- If a regression appears, revert the cleanup PR first, then re-open analysis with a narrowed delete set.
+
 ## Auth Boundary Latency Benchmark (2026-02-14)
 - Scope: synthetic benchmark of `requireApiUser` on protected API paths comparing middleware-authenticated context reuse vs token-only fallback verification.
 - Method: `frontend/tests/api/auth-latency-benchmark.test.ts` runs `40` samples per path with a controlled `12ms` mocked Supabase `/auth/v1/user` delay for fallback.

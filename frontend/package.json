@@ -23,6 +23,8 @@
     "db:migrate": "cd .. && supabase db push",
     "db:reset": "cd .. && supabase db reset",
     "docs:check": "cd .. && node scripts/check_docs_links.js",
+    "deadcode:check": "knip --production --include files --max-issues 0",
+    "deadcode:check:full": "knip --production --include files,exports,dependencies --no-exit-code",
     "latency:protected-route": "cd .. && node scripts/capture_protected_route_latency.mjs",
     "prepare": "cd .. && husky"
   },
@@ -54,6 +56,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "husky": "^9.1.7",
     "jsdom": "^28.0.0",
+    "knip": "^5.84.1",
     "lint-staged": "^15.5.2",
     "prettier": "^3.8.1",
     "supabase": "^2.76.7",
@@ -68,6 +71,14 @@
     ],
     "*.{json,md,css}": [
       "prettier --write"
+    ]
+  },
+  "knip": {
+    "ignoreFiles": [
+      "scripts/ai-studio-perf-release-check.mjs",
+      "tests/e2e/ai-studio-perf.audit.js",
+      "tests/e2e/character-pipeline.audit.js",
+      "vitest.setup.ts"
     ]
   }
 }

@@ -4,7 +4,7 @@ Purpose: describe how the frontend is structured after modularization so new wor
 
 ## Top-level layout
 - `pages/`: Route entry points. Keep them lean; orchestrate data + composed components.
-- `components/`: Reusable UI elements shared across features (e.g., `PerformanceScatter`, `PreviewGrid`).
+- `components/`: Reusable UI elements shared across features (e.g., `PerformanceScatter`).
 - `prefabs/{domain}/`: Prefab UI kits that need consistent styling across features (current: `prefabs/agent`).
 - `features/{featureName}/`: Feature-scoped folders. Each feature owns its types, data, logic, utils, and components.
 - `styles/`: Modular CSS files imported via `styles/globals.css`.

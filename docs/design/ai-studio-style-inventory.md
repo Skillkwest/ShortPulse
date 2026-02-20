@@ -118,7 +118,6 @@ These are AI Studio component literals outside the CSS modules and should be fol
 | File | Literal Colors / Sizes | Current Use |
 | --- | --- | --- |
 | `frontend/features/ai-studio/components/CharacterPanel.tsx` | `#06b6d4`, `rgba(6, 182, 212, 0.08)`, `rgba(6, 182, 212, 0.2)`, `16px/14px/13px` | Placeholder Character card icon and info callout |
-| `frontend/features/ai-studio/components/CanvasPanel.tsx` | `#a78bf7`, `rgba(124, 92, 255, 0.08)`, `rgba(124, 92, 255, 0.2)`, `16px/14px/13px` | Placeholder Canvas card icon and info callout |
 | `frontend/features/ai-studio/components/KlingComingSoonCard.tsx` | `#22d3ee`, `rgba(6, 182, 212, 0.08)`, `rgba(6, 182, 212, 0.2)`, `13px` | Kling coming-soon icon and callout |
 | `frontend/features/ai-studio/components/ReferenceGenerateStep.tsx` | `#FEF3C7`, `#FCD34D`, `#92400E`, `12px` | Inline warning banner in generate step |
 | `frontend/features/ai-studio/components/AiStudioPageContent.tsx` | `11px` | Inline eyebrow text sizing |

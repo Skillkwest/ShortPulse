@@ -77,6 +77,11 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
   cd frontend
   npm run validate
   ```
+- Dead-code guard rail:
+  ```bash
+  cd frontend
+  npm run deadcode:check
+  ```
 - E2E harness command (add specs incrementally):
   ```bash
   cd frontend

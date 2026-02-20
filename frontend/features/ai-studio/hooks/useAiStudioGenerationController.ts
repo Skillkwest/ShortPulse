@@ -124,7 +124,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   selectedTool,
   prompt,
   agentInput,
-  agentBusy,
   currentCostCredits,
   isGenerateDisabled,
   isCreditGuardrail,
@@ -239,11 +238,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         return;
       }
 
-      if (agentBusy) {
-        handleBlockedGeneration();
-        return;
-      }
-
       if (
         options?.costOverrideCredits != null &&
         effectiveBalanceCredits != null &&
@@ -320,7 +314,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       ensureFreshCreditsForRun,
       generateOutput,
       handleBlockedGeneration,
-      agentBusy,
       isCreditGuardrail,
       isGenerateDisabled,
       insertOptimisticGenerationPlaceholder,
@@ -363,10 +356,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   const runRegenerateWithDebit = useCallback(async () => {
     if (!tryAcquireGenerateClickLock()) return;
 
-    if (agentBusy) {
-      handleBlockedGeneration();
-      return;
-    }
     if (isGenerateDisabled && !isCreditGuardrail) {
       handleBlockedGeneration();
       return;
@@ -400,7 +389,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       setUiNotice(characterModeOverrides.notice);
     }
   }, [
-    agentBusy,
     activeOutputId,
     currentCostCredits,
     enqueueOptimisticDebit,

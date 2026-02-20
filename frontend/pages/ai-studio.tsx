@@ -1332,13 +1332,11 @@ export default function AiStudioPage() {
       isCreatePromptTextMode ||
       isPromptGenerating ||
       isGenerateDisabled ||
-      agentBusy ||
       isGenerateClickLocked ||
       missingGenerationTarget ||
       !hasSufficientCreditsForPromptReferenceGenerate
     );
   }, [
-    agentBusy,
     hasSufficientCreditsForPromptReferenceGenerate,
     isCharacterModeEnabled,
     isGenerateClickLocked,

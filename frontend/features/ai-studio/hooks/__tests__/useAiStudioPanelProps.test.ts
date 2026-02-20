@@ -157,6 +157,26 @@ describe("useAiStudioPanelProps", () => {
     expect(typeof result.current.propertiesText.onGenerateFromAgentOutputPrompt).toBe("function");
   });
 
+  it("does not disable generate controls when only agent send is busy", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          agentBusy: true,
+          isGenerateDisabled: false,
+          isGenerateClickLocked: false,
+          isPromptGenerating: false,
+          isPromptRefining: false,
+          describeInFlightCount: 0,
+        })
+      )
+    );
+
+    expect(result.current.propertiesText.agentIsSending).toBe(true);
+    expect(result.current.propertiesText.isGenerateDisabled).toBe(false);
+    expect(result.current.propertiesImage.isGenerateDisabled).toBe(false);
+    expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
+  });
+
   it("locks image/video generate actions while a submit is in flight", () => {
     const { result } = renderHook(() =>
       useAiStudioPanelProps(

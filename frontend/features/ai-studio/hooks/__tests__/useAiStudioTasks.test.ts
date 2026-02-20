@@ -96,7 +96,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-1", "out-1", 0, "fal", Date.now(), 20);
     });
 
-    await vi.advanceTimersByTimeAsync(1200);
+    await vi.advanceTimersByTimeAsync(2_300);
     await flushQueuedOutputUpdates();
 
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
@@ -147,7 +147,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-1", "out-1", 0, "fal", Date.now(), 20);
     });
 
-    await vi.advanceTimersByTimeAsync(1200);
+    await vi.advanceTimersByTimeAsync(2_300);
     await flushQueuedOutputUpdates();
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
 
@@ -191,7 +191,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-1", "out-1", 0, "fal");
     });
 
-    await vi.advanceTimersByTimeAsync(1200);
+    await vi.advanceTimersByTimeAsync(2_300);
     await flushQueuedOutputUpdates();
 
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
@@ -242,7 +242,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("seedream-task-1", "out-1", 0, "fal-seedream");
     });
 
-    await vi.advanceTimersByTimeAsync(1200);
+    await vi.advanceTimersByTimeAsync(2_300);
 
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationSuccess).toHaveBeenCalledWith(
@@ -288,7 +288,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("seedream-task-2", "out-1", 0, "fal-seedream");
     });
 
-    await vi.advanceTimersByTimeAsync(1200);
+    await vi.advanceTimersByTimeAsync(2_300);
     await flushQueuedOutputUpdates();
 
     expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(1);
@@ -296,7 +296,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationSuccess).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
 
-    await vi.advanceTimersByTimeAsync(3000);
+    await vi.advanceTimersByTimeAsync(5_500);
     await flushQueuedOutputUpdates();
     expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(2);
   });
@@ -305,7 +305,7 @@ describe("useAiStudioTasks", () => {
     const updateOutputById = vi.fn();
     const notifyGenerationFailure = vi.fn();
     const onGenerationFailure = vi.fn();
-    const startedAt = Date.now() - (9 * 60 * 1000 + 2_000);
+    const startedAt = Date.now() - (13 * 60 * 1000 + 2_000);
 
     const { result } = renderHook(() =>
       useAiStudioTasks({
@@ -327,7 +327,7 @@ describe("useAiStudioTasks", () => {
         reasonCode: "poll_timeout",
         pollAttempt: 4,
         noMediaAttempt: 2,
-        maxWaitMs: 8 * 60 * 1000,
+        maxWaitMs: 12 * 60 * 1000,
       })
     );
     expect(onGenerationFailure).toHaveBeenCalledWith(
@@ -430,7 +430,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-transient", "out-1", 0, "fal");
     });
 
-    await vi.advanceTimersByTimeAsync(2_500);
+    await vi.advanceTimersByTimeAsync(3_500);
     await flushQueuedOutputUpdates();
 
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
@@ -520,7 +520,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-dup", "out-1", 0, "fal");
     });
 
-    await vi.advanceTimersByTimeAsync(1_250);
+    await vi.advanceTimersByTimeAsync(2_300);
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
   });
 });

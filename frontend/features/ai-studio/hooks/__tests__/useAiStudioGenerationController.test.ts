@@ -92,6 +92,21 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
+  it("allows generate submissions while agent send is in flight", async () => {
+    const generateOutput = vi.fn();
+    const params = createParams({
+      agentBusy: true,
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt");
+    });
+
+    expect(generateOutput).toHaveBeenCalledTimes(1);
+  });
+
   it("inserts an optimistic placeholder before async submission prep and forwards its output id", async () => {
     const callOrder: string[] = [];
     const generateOutput = vi.fn(() => {
@@ -353,6 +368,21 @@ describe("useAiStudioGenerationController", () => {
     expect(updater?.([])).toEqual([
       expect.objectContaining({ credits: 7, outputId: null, createdAtMs: expect.any(Number) }),
     ]);
+  });
+
+  it("allows regenerate submissions while agent send is in flight", async () => {
+    const regenerateOutput = vi.fn();
+    const params = createParams({
+      agentBusy: true,
+      regenerateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleRegenerateWithDebit();
+    });
+
+    expect(regenerateOutput).toHaveBeenCalledTimes(1);
   });
 
   it("blocks option-based generate when generation guardrails disable submissions", async () => {

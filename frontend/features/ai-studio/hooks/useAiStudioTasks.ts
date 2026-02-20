@@ -146,7 +146,12 @@ const terminalFailureStates = new Set(["fail", "failed", "error", "cancelled", "
 const BACKGROUND_RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
 const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
 const MAX_CONCURRENT_STATUS_REQUESTS = 3;
-const OUTPUT_LOOKUP_MISS_MAX_RETRIES = 6;
+const IMAGE_POLL_MAX_WAIT_MS = 12 * 60 * 1000;
+const VIDEO_POLL_MAX_WAIT_MS = 20 * 60 * 1000;
+const POLL_DELAY_INITIAL_MS = 2_200;
+const POLL_DELAY_BACKOFF_STEP_MS = 800;
+const POLL_DELAY_MAX_MS = 10_000;
+const OUTPUT_LOOKUP_MISS_MAX_RETRIES = 10;
 const OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS = 400;
 const OUTPUT_LOOKUP_RECOVERY_RETRY_DELAY_MS = 2_000;
 const OUTPUT_LOOKUP_MISS_HARD_STOP_MS = 5 * 60 * 1000;
@@ -661,7 +666,9 @@ export function useAiStudioTasks({
       }
 
       const elapsedMs = Date.now() - startedAt;
-      const maxWaitMs = longRunningVideoProviders.has(provider) ? 20 * 60 * 1000 : 8 * 60 * 1000;
+      const maxWaitMs = longRunningVideoProviders.has(provider)
+        ? VIDEO_POLL_MAX_WAIT_MS
+        : IMAGE_POLL_MAX_WAIT_MS;
       if (elapsedMs > maxWaitMs) {
         const timeoutMessage = "Timed out waiting for provider result.";
         addBreadcrumb({
@@ -698,7 +705,10 @@ export function useAiStudioTasks({
         return;
       }
 
-      const delay = Math.min(8000, 1200 + attempt * 600);
+      const delay = Math.min(
+        POLL_DELAY_MAX_MS,
+        POLL_DELAY_INITIAL_MS + attempt * POLL_DELAY_BACKOFF_STEP_MS
+      );
       const timeoutId = window.setTimeout(async () => {
         if ((pollSessionsRef.current[outputId] ?? 0) !== activePollSessionId) {
           return;

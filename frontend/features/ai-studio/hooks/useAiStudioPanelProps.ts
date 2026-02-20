@@ -323,7 +323,7 @@ export const useAiStudioPanelProps = ({
       costCredits: currentCostCredits,
       outputGenerateCostCredits: promptReferenceGenerateCostCredits,
       hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
-      isGenerateDisabled: isGenerateDisabled || agentBusy || isGenerateClickLocked,
+      isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked,
       guardrailReason: generationGuardrail,
       onExpandChat: handleExpandChat,
       onClearAgentChat: handleClearAgentChat,
@@ -428,8 +428,7 @@ export const useAiStudioPanelProps = ({
       onSave: handleEditPromptSave,
       onRegenerate: handleImageRegenerateWithDebit,
       costCredits: currentCostCredits,
-      isGenerateDisabled:
-        isGenerateDisabled || agentBusy || isGenerateClickLocked || isPromptGenerating,
+      isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked || isPromptGenerating,
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
       agentIsSending: isReferencePromptEnhancing || isPromptGenerating,
@@ -439,7 +438,6 @@ export const useAiStudioPanelProps = ({
       beginnerMode,
     }),
     [
-      agentBusy,
       aspect,
       beginnerMode,
       currentCostCredits,
@@ -516,8 +514,7 @@ export const useAiStudioPanelProps = ({
       costCredits: currentCostCredits,
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
-      isGenerateDisabled:
-        isGenerateDisabled || agentBusy || isGenerateClickLocked || isPromptGenerating,
+      isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked || isPromptGenerating,
       agentIsSending: agentBusy || isPromptGenerating,
       agentError: agentAttachmentError ?? agentError ?? undefined,
       onAgentEnhanceSend: handleReferencePromptEnhance,

@@ -5,6 +5,7 @@ const requireApiUserMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
+const executeGenerationRecoveryMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -18,6 +19,10 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
   resolveProviderRequestOwnership: (...args: unknown[]) =>
     resolveProviderRequestOwnershipMock(...args),
   settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
+}));
+
+vi.mock("../../lib/server/falIntegration/recoveryExecution", () => ({
+  executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -34,6 +39,15 @@ describe("createFalStatusHandler", () => {
     settleGenerationOutcomeMock.mockResolvedValue({
       settled: true,
       note: "captured",
+    });
+    executeGenerationRecoveryMock.mockResolvedValue({
+      ok: true,
+      state: "recovered",
+      generationId: "gen-1",
+      requestId: "req-1",
+      mediaFileIds: [],
+      mediaUrls: [],
+      processed: true,
     });
   });
 

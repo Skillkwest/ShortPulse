@@ -110,6 +110,7 @@ Start here for all repository documentation.
 - `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
 - `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
 - `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
+- `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - `docs/planning/ai-studio-fal-reliability-rollout.md` (archived pointer)
 - `docs/planning/ai-studio-generation-runtime-stabilization.md` (archived pointer)
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
@@ -146,6 +147,7 @@ Start here for all repository documentation.
 - `docs/adr/0018-adaptive-media-v2-modular-policy-and-surface-adapters.md`
 - `docs/adr/0019-fal-modular-submit-retrieval-reliability.md`
 - `docs/adr/0020-ai-studio-server-authoritative-runtime-v2.md`
+- `docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md`
 
 ## Archive
 - `docs/archive/README.md`

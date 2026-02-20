@@ -46,6 +46,15 @@ const asObject = (value: unknown): JsonObject | null => {
   return value as JsonObject;
 };
 
+const readWebhookFromSubmitTarget = (submitTargetUrl: string): string | null => {
+  try {
+    const parsed = new URL(submitTargetUrl);
+    return asString(parsed.searchParams.get("fal_webhook"));
+  } catch {
+    return null;
+  }
+};
+
 const readDurationSeconds = (payload: JsonObject): number | null => {
   const durationSeconds = asNumber(payload.duration_seconds);
   if (durationSeconds !== null) return Math.max(1, Math.round(durationSeconds));
@@ -154,6 +163,7 @@ export const ensureSubmittedGenerationRecord = async (
     const payloadMetadata = asObject(input.payload.metadata) ?? {};
     const nowIso = new Date().toISOString();
     const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+    const submitWebhookUrl = readWebhookFromSubmitTarget(input.submitTargetUrl);
 
     const metadataPatch: JsonObject = {
       source_ref: input.sourceRef,
@@ -161,6 +171,8 @@ export const ensureSubmittedGenerationRecord = async (
       route_label: input.routeLabel,
       submit_target_url: input.submitTargetUrl,
       submit_target_index: input.submitTargetIndex,
+      submit_webhook_url: submitWebhookUrl,
+      submit_webhook_registered: Boolean(submitWebhookUrl),
       submission_trace_id: asString(payloadMetadata.submission_trace_id),
       generation_trace_id: asString(payloadMetadata.generation_trace_id),
       submit_persisted_at: new Date().toISOString(),

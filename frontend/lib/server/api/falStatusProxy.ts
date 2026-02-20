@@ -14,6 +14,7 @@ import {
   normalizeStatus,
   toRecord,
 } from "../falIntegration/falAdapter";
+import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
 import {
   selectBestResultCandidate,
   selectBestStatusCandidate,
@@ -101,6 +102,25 @@ const settleFailure = async ({
       routeLabel,
       note: result.note,
       sourceRef: result.sourceRef ?? null,
+    });
+  }
+  try {
+    await executeGenerationRecovery({
+      actor: "status_proxy",
+      requestId,
+      userId,
+      routeLabel,
+      observation: {
+        state: "failed",
+        payload: detail ?? null,
+        mediaUrls: [],
+      },
+    });
+  } catch (error) {
+    console.error("[falStatusProxy] failed to sync generation failure state", {
+      requestId,
+      routeLabel,
+      error: String(error),
     });
   }
 };
@@ -269,6 +289,25 @@ export const createFalStatusHandler = ({
             requestId,
             routeLabel,
             note: captureResult.note,
+          });
+        }
+        try {
+          await executeGenerationRecovery({
+            actor: "status_proxy",
+            requestId,
+            userId: user.id,
+            routeLabel,
+            observation: {
+              state: "completed",
+              payload,
+              mediaUrls: [],
+            },
+          });
+        } catch (error) {
+          console.error("[falStatusProxy] failed to sync generation success state", {
+            requestId,
+            routeLabel,
+            error: String(error),
           });
         }
 

@@ -1,0 +1,324 @@
+# AI Studio Runtime V2: Staging Execution Checklist
+
+Status: Active  
+Owner: AI Studio Engineering  
+Last updated: 2026-02-20
+
+## Purpose
+Execute Runtime V2 rollout in staging with deterministic ordering and verifiable gates.
+
+## What Is Already Done In Repo
+- Runtime V2 code paths are implemented (shared recovery engine, webhook inbox, reconciler full execution, thin-client lifecycle cutover).
+- New migrations are present through `027`.
+- Local validation passed:
+  - `npm run build`
+  - `npm run lint`
+  - `npm run type-check`
+  - `npm run docs:check`
+  - Targeted Runtime V2 tests.
+
+## Inputs You Need
+- Staging app base URL, for example `https://staging.shortpulse.app`
+- Staging Supabase SQL editor access
+- Staging deploy access (Vercel or equivalent)
+- Staging runtime env access
+- `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
+
+## Ordered Execution Steps
+
+### 1. Prepare and stage the code change set
+Run from repo root:
+
+```bash
+git status --short
+```
+
+Stage intended Runtime V2 files:
+
+```bash
+git add docs frontend sql
+git status --short
+```
+
+If `frontend/next-env.d.ts` appears and you do not want generated noise:
+
+```bash
+git restore --staged frontend/next-env.d.ts
+git checkout -- frontend/next-env.d.ts
+```
+
+### 2. Apply staging DB migrations in strict order
+Apply these SQL files in this order:
+
+1. `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`
+2. `sql/migrations/014_harden_generation_reservation_rpc_security.sql`
+3. `sql/migrations/019_add_generation_recovery_fields.sql`
+4. `sql/migrations/020_generation_runtime_convergence.sql`
+5. `sql/migrations/021_generation_state_machine_constraints.sql`
+6. `sql/migrations/022_generation_persist_idempotency.sql`
+7. `sql/migrations/023_generation_reconciler_claims.sql`
+8. `sql/migrations/024_fal_webhook_inbox.sql`
+9. `sql/migrations/025_generation_recovery_leases.sql`
+10. `sql/migrations/026_generation_recovery_transition_guards.sql`
+11. `sql/migrations/027_fix_reservation_rpc_on_conflict_ambiguity.sql`
+
+### 3. Run post-migration verification SQL
+Run these checks:
+
+```sql
+-- 024: webhook inbox table exists
+select to_regclass('public.fal_webhook_events') as webhook_inbox_table;
+
+-- 025: 4-argument claim function exists
+select
+  n.nspname as schema_name,
+  p.proname,
+  oidvectortypes(p.proargtypes) as args
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where p.proname = 'claim_generation_recovery_batch'
+order by 1,2,3;
+
+-- 014: execute grants hardened
+select
+  has_function_privilege('anon', 'reserve_generation_credits(uuid,text,text,integer,text,jsonb)', 'EXECUTE') as anon_exec,
+  has_function_privilege('authenticated', 'reserve_generation_credits(uuid,text,text,integer,text,jsonb)', 'EXECUTE') as auth_exec,
+  has_function_privilege('service_role', 'reserve_generation_credits(uuid,text,text,integer,text,jsonb)', 'EXECUTE') as service_exec;
+
+-- 022: media idempotency index exists
+select indexname
+from pg_indexes
+where schemaname = 'public'
+  and tablename = 'media_files'
+  and indexname = 'media_files_generation_output_idx_unique';
+```
+
+Expected:
+- `webhook_inbox_table = fal_webhook_events`
+- `claim_generation_recovery_batch` has `args = integer, integer, integer, integer`
+- `anon_exec = false`, `auth_exec = false`, `service_exec = true`
+- index `media_files_generation_output_idx_unique` exists
+
+### 3b. Submit-path blocker diagnostics (run if `/api/fal/*-submit` returns 500)
+Use this when logs show `reservation_rpc_ambiguous_column` or credits briefly drop to `0` and then recover.
+
+```sql
+-- Confirm the exact runtime function bodies currently active in this DB.
+select
+  n.nspname as schema_name,
+  p.proname,
+  oidvectortypes(p.proargtypes) as args,
+  pg_get_functiondef(p.oid) as definition
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in (
+    'reserve_generation_credits',
+    'mark_generation_reservation_submitted',
+    'release_generation_reservation_by_source_ref',
+    'release_generation_reservation_by_provider_request',
+    'capture_generation_reservation_by_provider_request'
+  )
+order by p.proname, args;
+
+-- Fast check for legacy unqualified source_ref predicates (should all be false).
+select
+  p.proname,
+  oidvectortypes(p.proargtypes) as args,
+  position(' where source_ref = p_source_ref' in lower(pg_get_functiondef(p.oid))) > 0
+    as has_unqualified_source_ref_predicate,
+  position('on conflict (user_id, source_ref)' in lower(pg_get_functiondef(p.oid))) > 0
+    as has_on_conflict_source_ref_target,
+  position('#variable_conflict use_column' in lower(pg_get_functiondef(p.oid))) > 0
+    as has_variable_conflict_use_column
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in (
+    'reserve_generation_credits',
+    'mark_generation_reservation_submitted',
+    'release_generation_reservation_by_source_ref',
+    'release_generation_reservation_by_provider_request',
+    'capture_generation_reservation_by_provider_request'
+  )
+order by p.proname, args;
+
+-- Snapshot components for credit display math.
+-- If spendable hits 0 unexpectedly, inspect available vs reserved.
+with balance as (
+  select user_id, balance_cents
+  from public.ai_credit_balance
+),
+reserved as (
+  select
+    user_id,
+    coalesce(sum(amount_cents), 0) as reserved_cents
+  from public.ai_credit_reservations
+  where status = 'reserved'
+  group by user_id
+)
+select
+  b.user_id,
+  b.balance_cents as available_cents,
+  coalesce(r.reserved_cents, 0) as reserved_cents,
+  greatest(0, b.balance_cents - coalesce(r.reserved_cents, 0)) as spendable_cents
+from balance b
+left join reserved r on r.user_id = b.user_id
+order by b.balance_cents desc
+limit 50;
+```
+
+Interpretation:
+- If `has_unqualified_source_ref_predicate` is `true` for any reservation RPC, re-run `013` then `014` in this same database.
+- If `has_on_conflict_source_ref_target` is `true` and `has_variable_conflict_use_column` is `false` on reservation RPCs, apply `027_fix_reservation_rpc_on_conflict_ambiguity.sql`.
+- If function bodies are correct but submit still reports ambiguous-column errors, your app runtime is likely pointed at a different Supabase project than the SQL editor you used.
+- If spendable is `0` while available is non-zero, reserved holds are consuming balance; inspect and release stale `reserved` rows for the affected user.
+
+### 4. Set staging env vars before deploy
+Required for Runtime V2 staging:
+
+- `SHORTPULSE_FAL_INTEGRATION_MODE=shadow`
+- `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST=fal-ai/bytedance/seedream/*`
+- `SHORTPULSE_FAL_WEBHOOK_ENABLED=true`
+- `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE=dual`
+- `SHORTPULSE_FAL_WEBHOOK_JWKS_URL=https://rest.alpha.fal.ai/.well-known/jwks.json`
+- `SHORTPULSE_PUBLIC_API_BASE_URL=<your-staging-origin>`
+- `SHORTPULSE_FAL_RECONCILER_ENABLED=true`
+- `SHORTPULSE_FAL_RECONCILER_CRON_SECRET=<strong-secret>`
+- `SHORTPULSE_FAL_RECONCILER_BATCH_SIZE=25`
+- `SHORTPULSE_FAL_RECONCILER_MAX_ATTEMPTS=5`
+- `SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS=120`
+- `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS=120`
+- `SHORTPULSE_FAL_WEBHOOK_SECRET=<set only during dual-mode cutover window>`
+
+### 5. Deploy staging app
+Deploy code after migration and env updates are complete.
+
+### 6. Smoke-test webhook-first path
+1. Submit one Seedream generation in staging UI.
+2. Verify latest generation row:
+
+```sql
+select
+  id,
+  request_id,
+  model_id,
+  status,
+  recovery_state,
+  failure_reason_code,
+  metadata ->> 'submit_webhook_registered' as submit_webhook_registered,
+  created_at,
+  updated_at
+from ai_generations
+where provider = 'fal'
+order by created_at desc
+limit 10;
+```
+
+3. Take a `request_id` from that result and check webhook ingestion:
+
+```sql
+select
+  event_id,
+  request_id,
+  verification_method,
+  processing_status,
+  received_at,
+  processed_at
+from fal_webhook_events
+where request_id = '<REQUEST_ID>'
+order by received_at desc
+limit 20;
+```
+
+4. Verify persisted media linkage for that generation:
+
+```sql
+select
+  m.id,
+  m.source_ref,
+  m.source,
+  m.metadata ->> 'generation_output_index' as generation_output_index,
+  m.created_at
+from media_files m
+join ai_generations g
+  on g.id::text = m.source_ref
+where g.request_id = '<REQUEST_ID>'
+order by m.created_at desc;
+```
+
+### 7. Smoke-test reconciler execution route
+Run from terminal:
+
+```bash
+export STAGING_BASE_URL="https://<your-staging-domain>"
+export CRON_SECRET="<SHORTPULSE_FAL_RECONCILER_CRON_SECRET>"
+
+curl -sS -X POST "${STAGING_BASE_URL}/api/internal/generation-recovery/run" \
+  -H "x-shortpulse-cron-secret: ${CRON_SECRET}" \
+  -H "content-type: application/json" \
+  -d '{}' | jq
+```
+
+Expected JSON shape includes:
+- `claimed`
+- `processed`
+- `recovered`
+- `requeued`
+- `exhausted`
+- `duplicates`
+- `errors`
+- `skipped`
+
+### 8. Run shadow parity window and monitor gate metrics
+Run these SQL checks periodically during staging shadow:
+
+```sql
+-- Duplicate settlement guard (must return zero rows)
+select provider_request_id, count(*) as captured_count
+from ai_credit_reservations
+where status = 'captured'
+  and provider_request_id is not null
+group by provider_request_id
+having count(*) > 1;
+
+-- Duplicate persistence guard (must return zero rows)
+select
+  source_ref,
+  metadata ->> 'generation_output_index' as generation_output_index,
+  count(*) as duplicate_count
+from media_files
+where source = 'ai_studio'
+  and source_ref is not null
+  and metadata ->> 'generation_output_index' is not null
+group by source_ref, metadata ->> 'generation_output_index'
+having count(*) > 1;
+
+-- Stuck-running snapshot
+select count(*) as stuck_running_30m
+from ai_generations
+where provider = 'fal'
+  and lower(status) = 'running'
+  and created_at <= now() - interval '30 minutes';
+
+-- terminal_success_no_media unresolved backlog
+select count(*) as unresolved_terminal_success_no_media_30m
+from ai_generations
+where provider = 'fal'
+  and lower(coalesce(failure_reason_code, '')) = 'terminal_success_no_media'
+  and lower(coalesce(recovery_state, 'none')) not in ('recovered', 'exhausted')
+  and created_at <= now() - interval '30 minutes';
+```
+
+### 9. Move from shadow to canary-on
+After clean shadow results:
+1. Set `SHORTPULSE_FAL_INTEGRATION_MODE=on`
+2. Keep allowlist scoped to Seedream only
+3. Hold for 72 hours with gate checks above
+
+### 10. Complete signature cutover
+After stable canary:
+1. Set `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE=fal_only`
+2. Keep monitoring webhook verification failures
+3. Remove deprecated legacy fallback secret in follow-up release:
+   - `SHORTPULSE_FAL_WEBHOOK_SECRET`

@@ -909,3 +909,12 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Removed runtime missing-column fallback behavior in generation persistence paths (`generationSubmitPersistence` and admin replay update path) to align with schema convergence requirements.
 - Added SQL migrations `020`-`023` for recovery convergence, status transition enforcement, persistence idempotency index, and `SKIP LOCKED` reconciler claim function.
 - Expanded test coverage for new auth boundaries/routes and updated status-proxy settlement tests to the unified settlement API.
+
+## 2026-02-20 (runtime v2 audit-corrected implementation)
+- Implemented Fal webhook verification cutover controls with JWKS/Ed25519 support and dual-mode fallback (`SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`), plus callback-base wiring (`SHORTPULSE_PUBLIC_API_BASE_URL`) and submit-time `fal_webhook` registration.
+- Added durable webhook inbox/idempotency pipeline and migrations `024_fal_webhook_inbox.sql` (+ rollback), and rewired `/api/fal/webhook` to ingest event records before terminal side effects.
+- Added shared runtime recovery execution engine (`frontend/lib/server/falIntegration/recoveryExecution.ts`) and wired webhook, status proxy terminal sync, internal reconciler, and admin replay to the same execution path.
+- Added lease-based reconciler claims migration `025_generation_recovery_leases.sql` (+ rollback) and guarded recovery transition migration `026_generation_recovery_transition_guards.sql` (+ rollback).
+- Completed thin-client lifecycle cutover by removing client-side generation lifecycle writes from AI Studio orchestration hooks/persistence flow.
+- Added/updated tests for Fal webhook signature verification, webhook route ingestion path, reconciler execution route, status proxy integration, submit proxy behavior, and orchestration hook behavior; lint + type-check passing.
+- Updated runtime docs/indices (planning, ADR, API/internal routes, deployment, data dictionary, migration docs, schema snapshot, and env example) to reflect the new source of truth.

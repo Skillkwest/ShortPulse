@@ -21,7 +21,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/media/move-batch` | `POST` | Bearer (proxy + route) | Move multiple media files in one request with per-file success/failure summary. | `frontend/pages/api/media/move-batch.ts` |
 | `/api/media/resolve-previews` | `POST` | Bearer (proxy + route) | Resolve media preview URLs in bulk (signed-url hydration + user-scoped URL fallback for legacy records). | `frontend/pages/api/media/resolve-previews.ts`, `frontend/lib/mediaPreviewPath.ts` |
 | `/api/fal/*` | `POST` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic. | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, model docs in `docs/api/api-fal-*.md` |
-| `/api/fal/webhook` | `POST` raw body | Fal signature | Webhook-first Fal lifecycle ingestion; validates signature, settles terminal billing idempotently, and writes server-authoritative generation state transitions. | `frontend/pages/api/fal/webhook.ts` |
+| `/api/fal/webhook` | `POST` raw body | Fal signature | Webhook-first Fal lifecycle ingestion; verifies Fal webhook signatures (JWKS/Ed25519 with dual-mode fallback), writes durable webhook inbox records, and executes shared recovery/persistence/settlement path idempotently. | `frontend/pages/api/fal/webhook.ts`, `frontend/lib/server/api/falWebhook.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
 | `/api/kei/create-task`, `/api/kei/task-status`, `/api/kei/status`, `/api/kei/gpt4o-generate` | `POST` | Bearer (proxy) | KEI routes are disabled for MVP and return `410` (`KEI_DISABLED_FOR_MVP`). | `frontend/pages/api/kei/*.ts` |
 | `/api/billing/credit-packages` | `GET` | Bearer (proxy + route) | List active top-up packages for billing UI. | `frontend/pages/api/billing/credit-packages.ts` |
 | `/api/credits/snapshot` | `GET` | Bearer (proxy + route) | Return user credit snapshot (`availableCents`, `reservedCents`, `spendableCents`) for responsive balance/hold UX. | `frontend/pages/api/credits/snapshot.ts`, `docs/sops/sop_billing_credits_operations.md` |
@@ -36,16 +36,9 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/errors-status` | `POST` | Admin bearer | Update status (`open`/`resolved`/`ignored`) for an incident (`errorId`) or promote/link an unlinked event (`eventId`) and apply status with metadata history. | `frontend/pages/api/admin/errors-status.ts` |
 | `/api/admin/errors-test` | `POST` | Admin bearer | Create a synthetic app or generation incident for operator smoke tests of telemetry ingestion/UI. | `frontend/pages/api/admin/errors-test.ts`, `docs/monitoring.md` |
 | `/api/admin/generation-trace` | `GET` | Admin bearer | Return stitched generation timeline by `generationId`, `requestId`, or trace id across `ai_generations`, `media_events`, `media_files`, reservations, ledger entries, and app error events. Intended for operator debugging and S0 traceability baselines. | `frontend/pages/api/admin/generation-trace.ts`, `docs/planning/ai-studio-generation-runtime-stabilization.md` |
-| `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay stalled generation retrieval/persistence by `generationId` or `requestId` (Fal only). Re-polls provider aliases, persists recovered media, and updates generation recovery metadata/state. | `frontend/pages/api/admin/generation-recovery/replay.ts`, `docs/planning/ai-studio-fal-reliability-rollout.md` |
-| `/api/internal/generation-recovery/run` | `POST` | `x-shortpulse-cron-secret` | Trigger reconciler claim/requeue/exhaustion pass for stale Fal generations. | `frontend/pages/api/internal/generation-recovery/run.ts`, `docs/sops/sop_provider_incident_response.md` |
+| `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay stalled generation recovery by `generationId` or `requestId` (Fal only) using the shared runtime execution engine (provider probe -> persist -> settle -> transition). | `frontend/pages/api/admin/generation-recovery/replay.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
+| `/api/internal/generation-recovery/run` | `POST` | `x-shortpulse-cron-secret` | Trigger lease-based reconciler claims and execute shared runtime recovery for each claimed generation; returns stage metrics (`claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `duplicates`, `errors`, `skipped`). | `frontend/pages/api/internal/generation-recovery/run.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts`, `docs/sops/sop_provider_incident_response.md` |
 | `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
-
-## Planned routes (Fal reliability rollout)
-These routes are tracked as part of the AI Studio Fal reliability rollout and should remain feature-flag gated until implemented and canary-validated.
-
-| Route | Methods | Auth | Purpose | Source of truth |
-| --- | --- | --- | --- | --- |
-| `/api/admin/generation-recovery/rebuild-card` | `POST` | Admin bearer | Rebuild reference-card linkage from already persisted media without provider calls. | `docs/planning/ai-studio-fal-reliability-rollout.md`, `docs/sops/sop_provider_incident_response.md` |
 
 ## Shared runtime contracts
 - Credit lifecycle for generation:
@@ -70,13 +63,17 @@ These routes are tracked as part of the AI Studio Fal reliability rollout and sh
   - `SHORTPULSE_FAL_INTEGRATION_MODE`
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST`
   - `SHORTPULSE_FAL_WEBHOOK_ENABLED`
+  - `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE` (`dual|fal_only|hmac_only`)
+  - `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`
   - `SHORTPULSE_FAL_WEBHOOK_SECRET`
   - `SHORTPULSE_FAL_WEBHOOK_TOLERANCE_SECONDS`
+  - `SHORTPULSE_PUBLIC_API_BASE_URL` (or `APP_BASE_URL` fallback for Fal webhook callback registration)
   - `SHORTPULSE_FAL_RECONCILER_ENABLED`
   - `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
   - `SHORTPULSE_FAL_RECONCILER_BATCH_SIZE`
   - `SHORTPULSE_FAL_RECONCILER_MAX_ATTEMPTS`
   - `SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS`
+  - `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_ENABLED`
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_THRESHOLD_15M`
 

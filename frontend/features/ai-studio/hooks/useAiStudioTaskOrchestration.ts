@@ -3,11 +3,6 @@
  * Owns generation polling lifecycle, deferred autosave finalization, status retry handling, and task-submission wiring.
  */
 import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
-import {
-  findGenerationRecordByRequestId,
-  logMediaEvent,
-  updateGenerationRecord,
-} from "../logic/mediaLibraryPersistence";
 import { type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
@@ -24,11 +19,6 @@ type GenerationFailureReason =
   | "poll_timeout"
   | "provider_error"
   | "status_poll_error";
-
-const shouldQueueFailureRecovery = (reasonCode?: GenerationFailureReason) =>
-  reasonCode === "no_media_after_terminal_success" ||
-  reasonCode === "poll_timeout" ||
-  reasonCode === "status_poll_error";
 
 type TaskSubmissionConfig = Omit<
   Parameters<typeof useAiStudioTaskSubmission>[0],
@@ -152,31 +142,6 @@ export const useAiStudioTaskOrchestration = ({
         const message = errors[0] ?? "Unable to save media.";
         markOutputSaveFailed(outputId, message, { showPill: true });
       }
-      if (generationId) {
-        try {
-          const nowIso = new Date().toISOString();
-          await updateGenerationRecord(generationId, {
-            provider: pending.provider,
-            modelId: output.modelId ?? output.model,
-            promptText: output.prompt,
-            aspect: output.aspect,
-            requestId: pending.taskId,
-            status: "success",
-            failureReasonCode: null,
-            recoveryState: "none",
-            nextRecoveryAt: null,
-            lastMediaDetectedAt: nowIso,
-            metadata: {
-              result_urls: urls,
-              media_file_ids: mediaFileIds,
-              generation_trace_id: output.generationTraceId ?? output.taskId ?? pending.taskId,
-              submission_trace_id: output.submissionTraceId ?? null,
-            },
-          });
-        } catch {
-          // best-effort update
-        }
-      }
     },
     [
       ensureGenerationRecord,
@@ -218,123 +183,31 @@ export const useAiStudioTaskOrchestration = ({
   );
 
   const handleGenerationFailure = useCallback(
-    async ({
-      outputId,
-      taskId,
-      provider,
-      message,
-      reasonCode,
-    }: {
+    async (payload: {
       outputId: string;
       taskId?: string;
       provider: Provider;
       message: string;
       reasonCode?: GenerationFailureReason;
     }) => {
+      const { outputId } = payload;
       delete pendingAutoSavesRef.current[outputId];
-      const output = findOutputById(outputId);
-      if (!output) return;
-      const generationId =
-        output.generationId ??
-        (await ensureGenerationRecord({
-          outputId,
-          provider,
-          taskId,
-        }));
-      if (generationId) {
-        try {
-          const nowIso = new Date().toISOString();
-          const queueRecovery = shouldQueueFailureRecovery(reasonCode);
-          await updateGenerationRecord(generationId, {
-            provider,
-            modelId: output.modelId ?? output.model,
-            promptText: output.prompt,
-            aspect: output.aspect,
-            requestId: taskId ?? output.taskId,
-            status: "fail",
-            failureReasonCode: reasonCode ?? null,
-            recoveryState: queueRecovery ? "queued" : "exhausted",
-            lastRecoveryAt: nowIso,
-            nextRecoveryAt: queueRecovery
-              ? new Date(Date.now() + 2 * 60 * 1000).toISOString()
-              : null,
-            metadata: {
-              error: message,
-              failure_reason_code: reasonCode ?? null,
-              generation_trace_id: output.generationTraceId ?? output.taskId ?? taskId ?? null,
-              submission_trace_id: output.submissionTraceId ?? null,
-            },
-          });
-          await logMediaEvent({
-            eventType: "generation_failed",
-            entityType: "ai_generation",
-            entityId: generationId,
-            metadata: {
-              error: message,
-              provider,
-              model_id: output.modelId ?? output.model,
-              failure_reason_code: reasonCode ?? null,
-              generation_trace_id: output.generationTraceId ?? output.taskId ?? taskId ?? null,
-              submission_trace_id: output.submissionTraceId ?? null,
-            },
-          });
-        } catch {
-          // best-effort updates
-        }
-      }
     },
-    [ensureGenerationRecord, findOutputById, pendingAutoSavesRef]
+    [pendingAutoSavesRef]
   );
 
   const handlePollingOutputLookupHardStop = useCallback(
-    async ({
-      outputId,
-      taskId,
-      provider,
-      lookupMisses,
-      missingDurationMs,
-    }: {
+    async (payload: {
       outputId: string;
       taskId: string;
       provider: Provider;
       lookupMisses: number;
       missingDurationMs: number;
     }) => {
-      try {
-        const output = findOutputById(outputId);
-        const existing = await findGenerationRecordByRequestId(taskId);
-        const generationId = output?.generationId ?? existing?.id ?? null;
-        if (!generationId) return;
-        const nowIso = new Date().toISOString();
-        await updateGenerationRecord(generationId, {
-          requestId: taskId,
-          status: "running",
-          failureReasonCode: "output_lookup_missing",
-          recoveryState: "queued",
-          recoveryAttempts: (existing?.recoveryAttempts ?? 0) + 1,
-          lastRecoveryAt: nowIso,
-          nextRecoveryAt: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
-        });
-        await logMediaEvent({
-          eventType: "generation_recovery_queued",
-          entityType: "ai_generation",
-          entityId: generationId,
-          metadata: {
-            reason: "output_lookup_missing",
-            provider,
-            request_id: taskId,
-            output_id: outputId,
-            lookup_misses: lookupMisses,
-            missing_duration_ms: missingDurationMs,
-            generation_trace_id: output?.generationTraceId ?? output?.taskId ?? taskId,
-            submission_trace_id: output?.submissionTraceId ?? null,
-          },
-        });
-      } catch {
-        // best-effort persistence hint only
-      }
+      void payload;
+      // Server runtime owns lifecycle persistence and recovery scheduling.
     },
-    [findOutputById]
+    []
   );
 
   const { startPollingTask, clearPollTimer, pollTimersRef } = useAiStudioTasks({

@@ -5,6 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { chargeGenerationRequest } from "./generationBilling";
 import { logGenerationFailure } from "./appErrorLogs";
 import { ensureSubmittedGenerationRecord } from "./generationSubmitPersistence";
+import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import type { SubmitTarget } from "../falIntegration/contracts";
 import { submitWithFallbackTargets } from "../falIntegration/submitEngine";
 
@@ -27,6 +28,45 @@ const readProviderRequestId = (payload: JsonValue): string | null => {
   if (typeof requestId !== "string") return null;
   const trimmed = requestId.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const isFalQueueUrl = (value: string): boolean => {
+  try {
+    const parsed = new URL(value);
+    return parsed.hostname.endsWith("fal.run") || parsed.hostname.endsWith("fal.ai");
+  } catch {
+    return false;
+  }
+};
+
+const appendFalWebhookParam = (targetUrl: string, webhookUrl: string): string => {
+  const parsed = new URL(targetUrl);
+  if (!parsed.searchParams.get("fal_webhook")) {
+    parsed.searchParams.set("fal_webhook", webhookUrl);
+  }
+  return parsed.toString();
+};
+
+const resolveWebhookCallbackUrl = (): string | null => {
+  const flags = readFalRuntimeFlags();
+  const baseUrl = flags.publicApiBaseUrl;
+  if (!flags.webhookEnabled || flags.integrationMode === "legacy" || !baseUrl) return null;
+  try {
+    return new URL("/api/fal/webhook", baseUrl).toString();
+  } catch {
+    return null;
+  }
+};
+
+const withWebhookTargets = (targets: SubmitTarget[], webhookUrl: string | null): SubmitTarget[] => {
+  if (!webhookUrl) return targets;
+  return targets.map((target) => {
+    if (!isFalQueueUrl(target.submitUrl)) return target;
+    return {
+      ...target,
+      submitUrl: appendFalWebhookParam(target.submitUrl, webhookUrl),
+    };
+  });
 };
 
 /**
@@ -101,12 +141,17 @@ export const createFalSubmitHandler =
       });
       return res.status(500).json({ error: "No Fal submit target configured for route" });
     }
+    const webhookCallbackUrl = resolveWebhookCallbackUrl();
+    const resolvedTargetsWithWebhook = withWebhookTargets(
+      resolvedSubmitTargets,
+      webhookCallbackUrl
+    );
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const upstreamResult = await submitWithFallbackTargets({
-        targets: resolvedSubmitTargets,
+        targets: resolvedTargetsWithWebhook,
         payload,
         apiKey,
         signal: controller.signal,
@@ -165,6 +210,8 @@ export const createFalSubmitHandler =
           upstream_status: upstream.status,
           upstream_target_url: upstreamResult.targetUrl,
           upstream_target_index: upstreamResult.targetIndex,
+          webhook_callback_url: webhookCallbackUrl,
+          webhook_registered: Boolean(webhookCallbackUrl),
         });
         const persistenceResult = await ensureSubmittedGenerationRecord({
           userId: charge.userId,

@@ -222,6 +222,11 @@ const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> 
   try {
     const response = await fetchWithAuth("/api/credits/snapshot", {
       method: "GET",
+      cache: "no-store",
+      headers: {
+        "cache-control": "no-cache",
+        pragma: "no-cache",
+      },
       shortpulseLogScope: "generation",
       shortpulseSkipErrorLogging: true,
     });

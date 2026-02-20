@@ -90,9 +90,7 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     );
 
     await waitFor(() => expect(setOptimisticDebitEntries).toHaveBeenCalled());
-    await waitFor(() =>
-      expect(refreshBalance).toHaveBeenCalledWith({ silent: true, preferLedger: true })
-    );
+    await waitFor(() => expect(refreshBalance).toHaveBeenCalledWith({ silent: true }));
 
     const removedFailure = updaterFns(setOptimisticDebitEntries).some((updater) => {
       const next = updater([
@@ -121,7 +119,6 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
       expect(refreshBalance).toHaveBeenCalledWith(
         expect.objectContaining({
           silent: true,
-          preferLedger: true,
           beforeCommit: expect.any(Function),
         })
       )

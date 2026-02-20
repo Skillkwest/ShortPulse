@@ -193,6 +193,17 @@ export const useAiStudioOptimisticDebitReconciliation = ({
   }, [effectiveOutputLite, setOptimisticDebitEntries]);
 
   useEffect(() => {
+    const hasInFlightOutput = effectiveOutputLite.some(
+      (item) => item.taskState === "pending" || item.taskState === "running"
+    );
+    if (hasInFlightOutput) return;
+    setOptimisticDebitEntries((prev) => {
+      const next = prev.filter((entry) => entry.outputId != null);
+      return next.length === prev.length ? prev : next;
+    });
+  }, [effectiveOutputLite, setOptimisticDebitEntries]);
+
+  useEffect(() => {
     const settledOutputs = effectiveOutputLite.filter(
       (item) => item.taskState === "success" || item.taskState === "fail"
     );
@@ -225,7 +236,6 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       let removedBeforeBalanceCommit = false;
       const refreshedBalance = await refreshBalance({
         silent: true,
-        preferLedger: true,
         ...(successfulOutputIds.size
           ? {
               beforeCommit: () => {

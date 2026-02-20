@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { readFalRuntimeFlags } from "../../../../lib/server/api/falRuntimeFlags";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
+import { executeGenerationRecovery } from "../../../../lib/server/falIntegration/recoveryExecution";
 
 type JsonObject = Record<string, unknown>;
 
@@ -72,19 +73,24 @@ const claimFallback = async ({
   batchSize,
   maxAttempts,
   minAgeSeconds,
+  leaseSeconds,
 }: {
   batchSize: number;
   maxAttempts: number;
   minAgeSeconds: number;
+  leaseSeconds: number;
 }): Promise<ClaimedGeneration[]> => {
   const supabaseAdmin = getSupabaseAdmin();
   const oldestCreatedAtIso = new Date(Date.now() - minAgeSeconds * 1000).toISOString();
+  const nowIso = new Date().toISOString();
+  const leaseUntilIso = new Date(Date.now() + leaseSeconds * 1000).toISOString();
   const { data, error } = await supabaseAdmin
     .from("ai_generations")
     .select("id, user_id, request_id, model_id, status, recovery_state, recovery_attempts")
     .eq("provider", "fal")
     .in("recovery_state", ["queued", "recovering"])
     .lte("created_at", oldestCreatedAtIso)
+    .or(`next_recovery_at.is.null,next_recovery_at.lte.${nowIso}`)
     .lt("recovery_attempts", maxAttempts)
     .order("next_recovery_at", { ascending: true, nullsFirst: true })
     .order("created_at", { ascending: true })
@@ -92,7 +98,6 @@ const claimFallback = async ({
   if (error || !Array.isArray(data)) return [];
 
   const claimed: ClaimedGeneration[] = [];
-  const nowIso = new Date().toISOString();
   for (const raw of data) {
     const row = parseClaimedGeneration(raw);
     if (!row) continue;
@@ -103,6 +108,7 @@ const claimFallback = async ({
         recovery_state: "recovering",
         recovery_attempts: nextAttempts,
         last_recovery_at: nowIso,
+        next_recovery_at: leaseUntilIso,
       })
       .eq("id", row.id)
       .eq("user_id", row.user_id);
@@ -136,6 +142,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       p_limit: flags.reconcilerBatchSize,
       p_max_attempts: flags.reconcilerMaxAttempts,
       p_min_age_seconds: flags.reconcilerMinAgeSeconds,
+      p_lease_seconds: flags.reconcilerLeaseSeconds,
     });
     let claimedRows: ClaimedGeneration[] = [];
     if (!claimResponse.error && Array.isArray(claimResponse.data)) {
@@ -147,50 +154,75 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         batchSize: flags.reconcilerBatchSize,
         maxAttempts: flags.reconcilerMaxAttempts,
         minAgeSeconds: flags.reconcilerMinAgeSeconds,
+        leaseSeconds: flags.reconcilerLeaseSeconds,
       });
     }
 
-    const now = Date.now();
-    let exhausted = 0;
+    let recovered = 0;
     let requeued = 0;
+    let exhausted = 0;
     let skipped = 0;
+    let duplicates = 0;
+    let processed = 0;
+    let errors = 0;
+
     for (const row of claimedRows) {
       if (!isAllowedModel(row.model_id, flags.modelAllowlist)) {
         skipped += 1;
         continue;
       }
-      const attempts = row.recovery_attempts ?? 0;
-      if (!row.request_id || attempts >= flags.reconcilerMaxAttempts) {
-        const { error } = await supabaseAdmin
+      try {
+        const result = await executeGenerationRecovery({
+          actor: "reconciler",
+          generationId: row.id,
+          requestId: row.request_id,
+          maxAttempts: flags.reconcilerMaxAttempts,
+          routeLabel: "internal/generation-recovery/run",
+        });
+        if (result.processed) processed += 1;
+        if (result.state === "recovered") {
+          recovered += 1;
+          continue;
+        }
+        if (result.state === "already_persisted") {
+          duplicates += 1;
+          recovered += 1;
+          continue;
+        }
+        if (result.state === "provider_running" || result.state === "no_media") {
+          requeued += 1;
+          continue;
+        }
+        if (result.state === "exhausted" || result.state === "provider_failed") {
+          exhausted += 1;
+          continue;
+        }
+        if (result.state === "skipped") {
+          skipped += 1;
+        }
+      } catch {
+        errors += 1;
+        const retryAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+        await supabaseAdmin
           .from("ai_generations")
           .update({
-            recovery_state: "exhausted",
-            failure_reason_code: "recovery_exhausted",
-            next_recovery_at: null,
-            last_recovery_at: new Date(now).toISOString(),
+            recovery_state: "queued",
+            next_recovery_at: retryAt,
           })
           .eq("id", row.id)
           .eq("user_id", row.user_id);
-        if (!error) exhausted += 1;
-        continue;
       }
-
-      const { error } = await supabaseAdmin
-        .from("ai_generations")
-        .update({
-          recovery_state: "queued",
-          next_recovery_at: new Date(now + 2 * 60 * 1000).toISOString(),
-        })
-        .eq("id", row.id)
-        .eq("user_id", row.user_id);
-      if (!error) requeued += 1;
     }
 
     return res.status(200).json({
       ok: true,
       claimed: claimedRows.length,
+      processed,
+      recovered,
       requeued,
       exhausted,
+      duplicates,
+      errors,
       skipped,
     });
   } catch (error) {

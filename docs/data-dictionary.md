@@ -146,7 +146,7 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
   - `ai_generations_recovery_attempts_non_negative_check` enforces non-negative attempts.
   - Unique partial index on `(user_id, request_id)` where `request_id is not null`.
   - Reconciler scan index on `(recovery_state, next_recovery_at, created_at)`.
-  - Trigger `trg_ai_generations_enforce_status_transition` blocks illegal status transitions.
+  - Trigger `trg_ai_generations_enforce_status_transition` blocks illegal status transitions, with guarded recovery override for `fail -> success` when `failure_reason_code='terminal_success_no_media'` and recovery state is converging to `recovered`.
 
 ### media_events
 - `id` (uuid, pk, default `gen_random_uuid()`)
@@ -164,9 +164,23 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
   - Prevents duplicate media rows for the same generation output slot.
 
 ### reconciler claim function
-- `claim_generation_recovery_batch(p_limit, p_max_attempts, p_min_age_seconds)`:
+- `claim_generation_recovery_batch(p_limit, p_max_attempts, p_min_age_seconds, p_lease_seconds)`:
   - Claims recovery work using `FOR UPDATE SKIP LOCKED`.
   - Increments `recovery_attempts` and marks claimed rows `recovery_state='recovering'`.
+  - Sets `next_recovery_at` lease to prevent concurrent re-claims during active execution.
+
+### fal_webhook_events
+- `id` (uuid, pk): Ingestion event row id.
+- `event_id` (text, unique): Provider webhook event id for idempotent ingest.
+- `request_id` (text, nullable): Provider request/job id.
+- `fal_user_id` (text, nullable): Provider user id header snapshot.
+- `headers` (jsonb): Canonical verified Fal header values.
+- `payload` (jsonb): Raw webhook payload snapshot.
+- `verification_method` (text, nullable): `fal` or `hmac` during dual cutover.
+- `payload_hash` (text, nullable): SHA-256 hash used in Fal signature validation.
+- `processing_status` (text): received | recovered | exhausted | ignored_* | failed.
+- `processing_error` (text, nullable): Processing failure detail when applicable.
+- `received_at` / `processed_at` (timestamptz): Ingestion + terminal processing timestamps.
 
 ### user_preferences
 - `user_id` (uuid, pk, references `auth.users(id)`): Profile owner.

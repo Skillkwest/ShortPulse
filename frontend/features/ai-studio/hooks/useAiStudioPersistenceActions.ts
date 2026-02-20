@@ -6,12 +6,9 @@ import { randomId } from "../logic/ids";
 import { isVideoUrl, resolveModelLabel, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import {
-  createGenerationRecord,
-  findGenerationRecordByRequestId,
   logMediaEvent,
   saveMediaUrlToLibrary,
   savePromptRecord,
-  updateGenerationRecord,
 } from "../logic/mediaLibraryPersistence";
 
 type UseAiStudioPersistenceActionsArgs = {
@@ -74,11 +71,7 @@ export const useAiStudioPersistenceActions = ({
   const ensureGenerationRecord = useCallback(
     async ({
       outputId,
-      provider,
       taskId,
-      durationSeconds,
-      resolution,
-      metadata,
     }: {
       outputId: string;
       provider: Provider;
@@ -89,73 +82,11 @@ export const useAiStudioPersistenceActions = ({
     }) => {
       const output = findOutputById(outputId);
       if (!output) return null;
-      if (output.generationId) {
-        try {
-          await updateGenerationRecord(output.generationId, {
-            provider,
-            modelId: output.modelId ?? output.model,
-            promptText: output.prompt,
-            aspect: output.aspect,
-            durationSeconds,
-            resolution: resolution ?? null,
-            requestId: taskId ?? output.taskId ?? null,
-            status: "running",
-            metadata,
-          });
-        } catch {
-          return output.generationId;
-        }
-        return output.generationId;
+      if (output.generationId) return output.generationId;
+      if (taskId && taskId !== output.taskId) {
+        updateOutputById(outputId, (item) => ({ ...item, taskId }));
       }
-
-      const requestId = taskId ?? output.taskId ?? null;
-      if (requestId) {
-        try {
-          const existing = await findGenerationRecordByRequestId(requestId);
-          if (existing?.id) {
-            try {
-              await updateGenerationRecord(existing.id, {
-                provider,
-                modelId: output.modelId ?? output.model,
-                promptText: output.prompt,
-                aspect: output.aspect,
-                durationSeconds,
-                resolution: resolution ?? null,
-                requestId,
-                status: "running",
-                metadata,
-              });
-            } catch {
-              // Best effort: keep existing generation id linked even if patch write fails.
-            }
-            updateOutputById(outputId, (item) => ({ ...item, generationId: existing.id }));
-            return existing.id;
-          }
-        } catch {
-          // Continue to create path when lookup fails.
-        }
-      }
-
-      try {
-        const generationId = await createGenerationRecord({
-          mode: output.mode,
-          provider,
-          modelId: output.modelId ?? output.model,
-          promptText: output.prompt,
-          aspect: output.aspect,
-          durationSeconds,
-          resolution: resolution ?? null,
-          requestId,
-          status: "running",
-          metadata,
-        });
-        if (generationId) {
-          updateOutputById(outputId, (item) => ({ ...item, generationId }));
-        }
-        return generationId;
-      } catch {
-        return null;
-      }
+      return null;
     },
     [findOutputById, updateOutputById]
   );

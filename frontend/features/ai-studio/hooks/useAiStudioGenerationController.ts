@@ -111,6 +111,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     characterContextOverride?: StudioOutput["characterContext"];
     outputIdOverride?: string;
   }) => void;
+  activeOutputId?: string | null;
 };
 
 const GENERATE_CLICK_COOLDOWN_MS = 700;
@@ -146,6 +147,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   removeOptimisticGenerationPlaceholder,
   generateOutput,
   regenerateOutput,
+  activeOutputId,
 }: UseAiStudioGenerationControllerParams<TBundle, TFallbackCode>) => {
   const generateClickLockUntilRef = useRef(0);
   const generateClickLockTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
@@ -385,7 +387,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       characterModeBundleForSubmit
     );
     trackCharacterModeFallback(characterModeOverrides, selectedTool);
-    enqueueOptimisticDebit(currentCostCredits);
+    enqueueOptimisticDebit(currentCostCredits, activeOutputId ?? null);
     regenerateOutput({
       submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
       displayPromptOverride: characterModeOverrides?.displayPromptOverride,
@@ -399,6 +401,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     }
   }, [
     agentBusy,
+    activeOutputId,
     currentCostCredits,
     enqueueOptimisticDebit,
     ensureFreshCreditsForRun,

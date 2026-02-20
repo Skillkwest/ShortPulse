@@ -46,9 +46,23 @@ The repo had strong shared submit/status foundations, but lifecycle authority wa
    - webhook route behavior,
    - internal reconciler route behavior,
    - settlement API integration in status tests.
+9. Added Fal webhook verification hardening and cutover controls:
+   - dual-mode verify (`fal` JWKS/Ed25519 + temporary legacy HMAC),
+   - new runtime flags for verify mode + JWKS URL + callback base URL.
+10. Added durable webhook inbox + processing audit:
+    - `024_fal_webhook_inbox.sql`
+    - webhook route now records `event_id` before side effects.
+11. Added shared recovery execution engine and wiring:
+    - `frontend/lib/server/falIntegration/recoveryExecution.ts`
+    - used by webhook, status proxy, internal reconciler, and admin replay.
+12. Added lease-based reconciler claims + guarded transition support:
+    - `025_generation_recovery_leases.sql`
+    - `026_generation_recovery_transition_guards.sql`.
+13. Removed remaining client lifecycle writes from orchestration hooks:
+    - `useAiStudioTaskOrchestration`
+    - `useAiStudioPersistenceActions`.
 
 ## Remaining high-value work
-1. Move remaining client-side lifecycle writes out of AI Studio hooks.
-2. Complete profile-driven adapter migration for all model families.
-3. Implement reconciler replay execution (beyond claim/requeue/exhaust trigger pass).
-4. Finalize Seedream shadow parity report and canary gate automation.
+1. Complete profile-driven adapter migration for all model families.
+2. Finalize Seedream shadow parity report and canary gate automation.
+3. Deprecate legacy HMAC fallback and remove `SHORTPULSE_FAL_WEBHOOK_SECRET` after dual-mode cutover window.

@@ -209,6 +209,14 @@ returns trigger
 language plpgsql
 as $$
 begin
+    if lower(coalesce(old.status, '')) = 'fail'
+       and lower(coalesce(new.status, '')) = 'success'
+       and lower(coalesce(old.failure_reason_code, '')) = 'terminal_success_no_media'
+       and lower(coalesce(old.recovery_state, '')) in ('queued', 'recovering', 'recovered')
+       and lower(coalesce(new.recovery_state, '')) = 'recovered' then
+        return new;
+    end if;
+
     if not is_valid_ai_generation_transition(old.status, new.status) then
         raise exception 'invalid ai_generations status transition from % to %', old.status, new.status
             using errcode = '22000';
@@ -275,7 +283,8 @@ create unique index if not exists media_files_generation_output_idx_unique
 create or replace function claim_generation_recovery_batch(
     p_limit integer default 25,
     p_max_attempts integer default 5,
-    p_min_age_seconds integer default 120
+    p_min_age_seconds integer default 120,
+    p_lease_seconds integer default 120
 )
 returns table (
     id uuid,
@@ -294,6 +303,7 @@ declare
     v_limit integer := greatest(coalesce(p_limit, 1), 1);
     v_max_attempts integer := greatest(coalesce(p_max_attempts, 1), 1);
     v_min_age_seconds integer := greatest(coalesce(p_min_age_seconds, 0), 0);
+    v_lease_seconds integer := greatest(coalesce(p_lease_seconds, 1), 1);
 begin
     return query
     with candidates as (
@@ -314,7 +324,7 @@ begin
             recovery_state = 'recovering',
             recovery_attempts = coalesce(g.recovery_attempts, 0) + 1,
             last_recovery_at = now(),
-            next_recovery_at = now()
+            next_recovery_at = now() + make_interval(secs => v_lease_seconds)
         from candidates c
         where g.id = c.id
         returning g.id, g.user_id, g.request_id, g.model_id, g.status, g.recovery_state, g.recovery_attempts
@@ -322,6 +332,9 @@ begin
     select * from claimed;
 end;
 $$;
+
+revoke all on function claim_generation_recovery_batch(integer, integer, integer, integer) from public;
+grant execute on function claim_generation_recovery_batch(integer, integer, integer, integer) to service_role;
 
 -- Storage bucket and RLS for media uploads
 insert into storage.buckets (id, name, public)
@@ -493,6 +506,30 @@ create table if not exists stripe_event_log (
 );
 
 alter table stripe_event_log enable row level security;
+
+-- Fal webhook ingestion inbox (idempotency + processing audit)
+create table if not exists fal_webhook_events (
+    id uuid primary key default gen_random_uuid(),
+    event_id text not null,
+    request_id text,
+    fal_user_id text,
+    headers jsonb not null default '{}'::jsonb,
+    payload jsonb not null default '{}'::jsonb,
+    verification_method text,
+    payload_hash text,
+    processing_status text not null default 'received',
+    processing_error text,
+    received_at timestamptz not null default now(),
+    processed_at timestamptz
+);
+
+create unique index if not exists fal_webhook_events_event_id_unique
+    on fal_webhook_events (event_id);
+
+create index if not exists fal_webhook_events_request_id_received_idx
+    on fal_webhook_events (request_id, received_at desc);
+
+alter table fal_webhook_events enable row level security;
 
 -- Credit balance table (kept in sync from ledger trigger).
 -- Some legacy deployments already have ai_credit_balance as a view.

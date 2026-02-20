@@ -108,26 +108,6 @@ const fetchBlobWithTimeout = async (url: string) => {
   throw lastError instanceof Error ? lastError : new Error("Failed to fetch media.");
 };
 
-export type GenerationRecordInput = {
-  mode: StudioMode;
-  provider: string;
-  modelId: string;
-  promptText: string;
-  aspect?: string | null;
-  durationSeconds?: number | null;
-  resolution?: string | null;
-  requestId?: string | null;
-  status?: string;
-  metadata?: Record<string, unknown>;
-};
-
-export type GenerationRecordLookup = {
-  id: string;
-  status: string | null;
-  metadata: Record<string, unknown>;
-  recoveryAttempts: number | null;
-};
-
 export type PromptRecordInput = {
   promptText: string;
   mode: StudioMode;
@@ -172,157 +152,6 @@ export type SaveMediaUrlResult = {
     previewUrl: string | null;
     fullUrl: string | null;
   };
-};
-
-/**
- * Create a generation record and return the new id.
- */
-export const createGenerationRecord = async (input: GenerationRecordInput) => {
-  const { supabase, userId } = await resolveSupabaseContext();
-  const { data, error } = await supabase
-    .from("ai_generations")
-    .insert({
-      user_id: userId,
-      mode: input.mode,
-      provider: input.provider,
-      model_id: input.modelId,
-      prompt_text: input.promptText,
-      aspect: input.aspect ?? null,
-      duration_seconds: input.durationSeconds ?? null,
-      resolution: input.resolution ?? null,
-      request_id: input.requestId ?? null,
-      status: input.status ?? "pending",
-      metadata: input.metadata ?? {},
-    })
-    .select("id")
-    .single();
-  if (error) {
-    throw error;
-  }
-  return data?.id ?? null;
-};
-
-/**
- * Lookup the newest generation row by provider request id for the signed-in user.
- */
-export const findGenerationRecordByRequestId = async (
-  requestId: string
-): Promise<GenerationRecordLookup | null> => {
-  const normalizedRequestId = requestId.trim();
-  if (!normalizedRequestId) return null;
-  const { supabase, userId } = await resolveSupabaseContext();
-  const { data, error } = await supabase
-    .from("ai_generations")
-    .select("id, status, metadata, recovery_attempts, created_at")
-    .eq("user_id", userId)
-    .eq("request_id", normalizedRequestId)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  if (error) {
-    throw error;
-  }
-  if (!Array.isArray(data) || !data.length) return null;
-  const row = data[0] as {
-    id?: unknown;
-    status?: unknown;
-    metadata?: unknown;
-    recovery_attempts?: unknown;
-  };
-  if (typeof row.id !== "string" || !row.id.trim()) return null;
-  return {
-    id: row.id,
-    status: typeof row.status === "string" ? row.status : null,
-    metadata:
-      row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
-        ? (row.metadata as Record<string, unknown>)
-        : {},
-    recoveryAttempts: typeof row.recovery_attempts === "number" ? row.recovery_attempts : null,
-  };
-};
-
-/**
- * Update a generation record by id.
- */
-type GenerationRecordUpdateInput = Partial<GenerationRecordInput> & {
-  failureReasonCode?: string | null;
-  recoveryState?: "none" | "queued" | "recovering" | "recovered" | "exhausted" | null;
-  recoveryAttempts?: number | null;
-  lastRecoveryAt?: string | null;
-  nextRecoveryAt?: string | null;
-  lastMediaDetectedAt?: string | null;
-  completedAt?: string | null;
-};
-
-const hasOwn = <T extends object>(value: T, key: keyof T) =>
-  Object.prototype.hasOwnProperty.call(value, key);
-
-export const updateGenerationRecord = async (id: string, patch: GenerationRecordUpdateInput) => {
-  const { supabase } = await resolveSupabaseContext();
-  const updates: Record<string, unknown> = {};
-  if (hasOwn(patch, "mode")) updates.mode = patch.mode;
-  if (hasOwn(patch, "provider")) updates.provider = patch.provider;
-  if (hasOwn(patch, "modelId")) updates.model_id = patch.modelId;
-  if (hasOwn(patch, "promptText")) updates.prompt_text = patch.promptText;
-  if (hasOwn(patch, "aspect")) updates.aspect = patch.aspect ?? null;
-  if (hasOwn(patch, "durationSeconds")) updates.duration_seconds = patch.durationSeconds ?? null;
-  if (hasOwn(patch, "resolution")) updates.resolution = patch.resolution ?? null;
-  if (hasOwn(patch, "requestId")) updates.request_id = patch.requestId ?? null;
-  if (hasOwn(patch, "status")) updates.status = patch.status;
-  if (hasOwn(patch, "metadata")) updates.metadata = patch.metadata ?? {};
-  if (hasOwn(patch, "failureReasonCode")) {
-    updates.failure_reason_code = patch.failureReasonCode ?? null;
-  }
-  if (hasOwn(patch, "recoveryState")) {
-    updates.recovery_state = patch.recoveryState ?? null;
-  }
-  if (hasOwn(patch, "recoveryAttempts")) {
-    updates.recovery_attempts = patch.recoveryAttempts ?? null;
-  }
-  if (hasOwn(patch, "lastRecoveryAt")) {
-    updates.last_recovery_at = patch.lastRecoveryAt ?? null;
-  }
-  if (hasOwn(patch, "nextRecoveryAt")) {
-    updates.next_recovery_at = patch.nextRecoveryAt ?? null;
-  }
-  if (hasOwn(patch, "lastMediaDetectedAt")) {
-    updates.last_media_detected_at = patch.lastMediaDetectedAt ?? null;
-  }
-  if (hasOwn(patch, "completedAt")) {
-    updates.completed_at = patch.completedAt ?? null;
-  } else if (patch.status === "success" || patch.status === "fail") {
-    updates.completed_at = new Date().toISOString();
-  }
-
-  if (!Object.keys(updates).length) {
-    return;
-  }
-
-  const { error: updateError } = await supabase.from("ai_generations").update(updates).eq("id", id);
-  if (!updateError) return;
-
-  const message = String(updateError.message ?? "").toLowerCase();
-  const isMissingColumnError = message.includes("column") && message.includes("does not exist");
-  if (!isMissingColumnError) {
-    throw updateError;
-  }
-
-  const legacySafeUpdates = { ...updates };
-  delete legacySafeUpdates.failure_reason_code;
-  delete legacySafeUpdates.recovery_state;
-  delete legacySafeUpdates.recovery_attempts;
-  delete legacySafeUpdates.last_recovery_at;
-  delete legacySafeUpdates.next_recovery_at;
-  delete legacySafeUpdates.last_media_detected_at;
-  if (!Object.keys(legacySafeUpdates).length) {
-    return;
-  }
-  const { error: fallbackError } = await supabase
-    .from("ai_generations")
-    .update(legacySafeUpdates)
-    .eq("id", id);
-  if (fallbackError) {
-    throw fallbackError;
-  }
 };
 
 /**
@@ -406,6 +235,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         provider: input.provider ?? null,
         model_id: input.modelId ?? null,
         prompt: input.promptText ?? null,
+        generation_output_index: input.index,
         index: input.index,
         ...input.metadata,
       },

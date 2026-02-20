@@ -4,6 +4,7 @@
  */
 
 export type FalIntegrationMode = "legacy" | "shadow" | "on";
+export type FalWebhookVerifyMode = "dual" | "fal_only" | "hmac_only";
 
 export type FalRuntimeFlags = {
   integrationMode: FalIntegrationMode;
@@ -13,9 +14,14 @@ export type FalRuntimeFlags = {
   reconcilerBatchSize: number;
   reconcilerMaxAttempts: number;
   reconcilerMinAgeSeconds: number;
+  reconcilerLeaseSeconds: number;
   circuitBreakerEnabled: boolean;
   circuitBreakerThreshold15m: number;
   webhookEnabled: boolean;
+  webhookVerifyMode: FalWebhookVerifyMode;
+  webhookJwksUrl: string | null;
+  webhookToleranceSeconds: number;
+  publicApiBaseUrl: string | null;
   directDebitFallbackEnabled: boolean;
 };
 
@@ -40,6 +46,26 @@ const parseMode = (value: string | undefined): FalIntegrationMode => {
     return normalized;
   }
   return "legacy";
+};
+
+const parseWebhookVerifyMode = (value: string | undefined): FalWebhookVerifyMode => {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "dual" || normalized === "fal_only" || normalized === "hmac_only") {
+    return normalized;
+  }
+  return "dual";
+};
+
+const normalizeBaseUrl = (value: string | undefined): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (!parsed.protocol.startsWith("http")) return null;
+    return parsed.toString().replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
 };
 
 const parseAllowlist = (value: string | undefined): Set<string> => {
@@ -72,6 +98,7 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     120,
     0
   ),
+  reconcilerLeaseSeconds: parseInteger(process.env.SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS, 120, 1),
   circuitBreakerEnabled: parseBoolean(process.env.SHORTPULSE_FAL_CIRCUIT_BREAKER_ENABLED, false),
   circuitBreakerThreshold15m: parseInteger(
     process.env.SHORTPULSE_FAL_CIRCUIT_BREAKER_THRESHOLD_15M,
@@ -79,6 +106,18 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     1
   ),
   webhookEnabled: parseBoolean(process.env.SHORTPULSE_FAL_WEBHOOK_ENABLED, false),
+  webhookVerifyMode: parseWebhookVerifyMode(process.env.SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE),
+  webhookJwksUrl:
+    process.env.SHORTPULSE_FAL_WEBHOOK_JWKS_URL?.trim() ||
+    "https://rest.alpha.fal.ai/.well-known/jwks.json",
+  webhookToleranceSeconds: parseInteger(
+    process.env.SHORTPULSE_FAL_WEBHOOK_TOLERANCE_SECONDS,
+    300,
+    1
+  ),
+  publicApiBaseUrl: normalizeBaseUrl(
+    process.env.SHORTPULSE_PUBLIC_API_BASE_URL ?? process.env.APP_BASE_URL
+  ),
   directDebitFallbackEnabled: parseBoolean(
     process.env.SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED,
     false

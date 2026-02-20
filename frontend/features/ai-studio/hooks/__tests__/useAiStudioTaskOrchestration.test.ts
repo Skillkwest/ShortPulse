@@ -5,10 +5,6 @@ import type { StudioOutput } from "../../types";
 import { useAiStudioTaskOrchestration } from "../useAiStudioTaskOrchestration";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "../useAiStudioTasks";
-import {
-  findGenerationRecordByRequestId,
-  updateGenerationRecord,
-} from "../../logic/mediaLibraryPersistence";
 
 vi.mock("../useAiStudioTaskSubmission", () => ({
   useAiStudioTaskSubmission: vi.fn(),
@@ -16,12 +12,6 @@ vi.mock("../useAiStudioTaskSubmission", () => ({
 
 vi.mock("../useAiStudioTasks", () => ({
   useAiStudioTasks: vi.fn(),
-}));
-
-vi.mock("../../logic/mediaLibraryPersistence", () => ({
-  findGenerationRecordByRequestId: vi.fn(async () => null),
-  logMediaEvent: vi.fn(async () => undefined),
-  updateGenerationRecord: vi.fn(async () => undefined),
 }));
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
@@ -46,8 +36,6 @@ type TasksCallbacks = Parameters<typeof useAiStudioTasks>[0];
 describe("useAiStudioTaskOrchestration", () => {
   const useAiStudioTaskSubmissionMock = vi.mocked(useAiStudioTaskSubmission);
   const useAiStudioTasksMock = vi.mocked(useAiStudioTasks);
-  const findGenerationRecordByRequestIdMock = vi.mocked(findGenerationRecordByRequestId);
-  const updateGenerationRecordMock = vi.mocked(updateGenerationRecord);
 
   let capturedTaskCallbacks: TasksCallbacks | null;
   let startPollingTask: ReturnType<typeof vi.fn>;
@@ -62,7 +50,6 @@ describe("useAiStudioTaskOrchestration", () => {
     pollTimersRef = { current: {} };
 
     useAiStudioTaskSubmissionMock.mockReturnValue(vi.fn());
-    findGenerationRecordByRequestIdMock.mockResolvedValue(null);
     useAiStudioTasksMock.mockImplementation(((callbacks: TasksCallbacks) => {
       capturedTaskCallbacks = callbacks;
       return {
@@ -159,16 +146,6 @@ describe("useAiStudioTaskOrchestration", () => {
     });
     expect(markOutputSaved).toHaveBeenCalledWith("out-1", ["media-1"], { showPill: true });
     expect(markOutputSaveFailed).not.toHaveBeenCalled();
-    expect(updateGenerationRecordMock).toHaveBeenCalledWith(
-      "gen-1",
-      expect.objectContaining({
-        status: "success",
-        failureReasonCode: null,
-        recoveryState: "none",
-        nextRecoveryAt: null,
-        lastMediaDetectedAt: expect.any(String),
-      })
-    );
     expect(pendingAutoSavesRef.current["out-1"]).toBeUndefined();
 
     await act(async () => {
@@ -177,11 +154,20 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(persistMediaUrls).toHaveBeenCalledTimes(1);
   });
 
-  it("queues recovery fields for retryable failure reasons", async () => {
+  it("clears pending autosave entry on failure callback", async () => {
     const outputs = [
       createOutput({ id: "out-1", taskId: "task-123", provider: "fal", generationId: "gen-1" }),
     ];
     const updateOutputById = vi.fn();
+    const pendingAutoSavesRef = {
+      current: {
+        "out-1": {
+          taskId: "task-123",
+          provider: "fal" as const,
+          resultUrls: ["https://example.com/final.png"],
+        },
+      },
+    };
 
     renderHook(() =>
       useAiStudioTaskOrchestration({
@@ -218,7 +204,7 @@ describe("useAiStudioTaskOrchestration", () => {
         },
         outputs,
         findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
-        pendingAutoSavesRef: { current: {} },
+        pendingAutoSavesRef,
         markOutputSaved: vi.fn(),
         markOutputSaveFailed: vi.fn(),
         persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
@@ -235,22 +221,10 @@ describe("useAiStudioTaskOrchestration", () => {
       });
     });
 
-    expect(updateGenerationRecordMock).toHaveBeenCalledWith(
-      "gen-1",
-      expect.objectContaining({
-        status: "fail",
-        failureReasonCode: "poll_timeout",
-        recoveryState: "queued",
-        lastRecoveryAt: expect.any(String),
-      })
-    );
-    const patch = updateGenerationRecordMock.mock.calls[0]?.[1] as {
-      nextRecoveryAt?: string | null;
-    };
-    expect(typeof patch.nextRecoveryAt).toBe("string");
+    expect(pendingAutoSavesRef.current["out-1"]).toBeUndefined();
   });
 
-  it("queues generation recovery when polling hard-stops due to prolonged output lookup misses", async () => {
+  it("no-ops client persistence when polling hard-stop callback fires", async () => {
     const outputs = [
       createOutput({ id: "out-1", taskId: "task-123", provider: "fal", generationId: "gen-1" }),
     ];
@@ -308,17 +282,7 @@ describe("useAiStudioTaskOrchestration", () => {
       });
     });
 
-    expect(findGenerationRecordByRequestIdMock).toHaveBeenCalledWith("task-123");
-    expect(updateGenerationRecordMock).toHaveBeenCalledWith(
-      "gen-1",
-      expect.objectContaining({
-        requestId: "task-123",
-        status: "running",
-        failureReasonCode: "output_lookup_missing",
-        recoveryState: "queued",
-        recoveryAttempts: 1,
-      })
-    );
+    expect(updateOutputById).not.toHaveBeenCalled();
   });
 
   it("shows a notice and skips poll restart when task id is missing", () => {

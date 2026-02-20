@@ -57,7 +57,7 @@ Decision:
 Positive:
 - Reduced submit/retrieve drift through centralized contracts.
 - Improved eventual media capture via deterministic retrieval and reconciler replay.
-- Better operator control with replay and rebuild-card admin actions.
+- Better operator control with replay-oriented admin recovery actions.
 
 Tradeoffs:
 - Additional internal state and flag complexity.

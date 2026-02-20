@@ -1276,6 +1276,7 @@ export default function AiStudioPage() {
     removeOptimisticGenerationPlaceholder,
     generateOutput,
     regenerateOutput,
+    activeOutputId,
   });
   const handleGenerateFromAgentOutputPrompt = useCallback(
     (promptText: string) => {

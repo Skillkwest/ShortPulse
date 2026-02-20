@@ -4,7 +4,6 @@
  */
 export const PROTECTED_API_PREFIXES = [
   "/api/fal/",
-  "/api/kei/",
   "/api/ai/",
   "/api/media/",
   "/api/upload-video",

@@ -37,7 +37,7 @@ Owner: Engineering
 
 - `auth-helper`
 - `proxy-internal-utils`
-- `auth-guarded-ai-kei-routes` (disabled-route tombstone parity during compatibility window)
+- `auth-guarded-ai-routes`
 - `fal-status.auth-context`
 - `fal-status.ownership`
 - `auth-latency-benchmark`

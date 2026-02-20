@@ -109,8 +109,7 @@ async function main() {
         url.includes("/api/fal/seedream-edit-submit") ||
         url.includes("/api/fal/seedream-status") ||
         url.includes("/api/upload-image") ||
-        url.includes("/api/billing/") ||
-        url.includes("/api/kei/");
+        url.includes("/api/billing/");
       if (!keep) return;
       out.network.push({
         url: url.replace(BASE_URL, ""),

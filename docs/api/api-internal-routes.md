@@ -3,8 +3,7 @@
 Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (auth boundaries, route families, and operational ownership).
 
 ## Auth boundary model
-- Global API auth gate: `frontend/proxy.ts` protects `/api/fal/*`, `/api/kei/*`, `/api/ai/*`, `/api/media/*`, uploads, admin APIs, and billing checkout/portal routes by requiring a Supabase bearer token.
-- KEI routes are currently hard-disabled for MVP and return `410` from route handlers.
+- Global API auth gate: `frontend/proxy.ts` protects `/api/fal/*`, `/api/ai/*`, `/api/media/*`, uploads, admin APIs, and billing checkout/portal routes by requiring a Supabase bearer token.
 - Route-level auth: several handlers still call `requireApiUser`/`requireAdminUser` in `frontend/lib/server/api/auth.ts` for direct enforcement and user context.
 - Webhook exceptions: `/api/billing/stripe/webhook` and `/api/fal/webhook` are intentionally unauthenticated and protected by provider signature verification.
 
@@ -22,7 +21,6 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/media/resolve-previews` | `POST` | Bearer (proxy + route) | Resolve media preview URLs in bulk (signed-url hydration + user-scoped URL fallback for legacy records). | `frontend/pages/api/media/resolve-previews.ts`, `frontend/lib/mediaPreviewPath.ts` |
 | `/api/fal/*` | `POST` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic. | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, model docs in `docs/api/api-fal-*.md` |
 | `/api/fal/webhook` | `POST` raw body | Fal signature | Webhook-first Fal lifecycle ingestion; verifies Fal webhook signatures (JWKS/Ed25519 with dual-mode fallback), writes durable webhook inbox records, and executes shared recovery/persistence/settlement path idempotently. | `frontend/pages/api/fal/webhook.ts`, `frontend/lib/server/api/falWebhook.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
-| `/api/kei/create-task`, `/api/kei/task-status`, `/api/kei/status`, `/api/kei/gpt4o-generate` | `POST` | Bearer (proxy) | KEI routes are disabled for MVP and return `410` (`KEI_DISABLED_FOR_MVP`). | `frontend/pages/api/kei/*.ts` |
 | `/api/billing/credit-packages` | `GET` | Bearer (proxy + route) | List active top-up packages for billing UI. | `frontend/pages/api/billing/credit-packages.ts` |
 | `/api/credits/snapshot` | `GET` | Bearer (proxy + route) | Return user credit snapshot (`availableCents`, `reservedCents`, `spendableCents`) for responsive balance/hold UX. | `frontend/pages/api/credits/snapshot.ts`, `docs/sops/sop_billing_credits_operations.md` |
 | `/api/billing/stripe/checkout` | `POST` | Bearer (proxy + route) | Create Stripe checkout sessions for credit packages. | `frontend/pages/api/billing/stripe/checkout.ts` |

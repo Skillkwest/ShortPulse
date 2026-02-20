@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import generatePromptHandler from "../../pages/api/ai/generate-prompt";
 import describeImageHandler from "../../pages/api/ai/describe-image";
 import studioAgentHandler from "../../pages/api/ai/studio-agent";
-import keiTaskStatusHandler from "../../pages/api/kei/task-status";
 
 const requireApiUserMock = vi.fn();
 
@@ -19,7 +18,7 @@ const createMockResponse = () => {
   return res;
 };
 
-describe("API auth guards: AI and KEI routes", () => {
+describe("API auth guards: AI routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockImplementation(
@@ -70,18 +69,5 @@ describe("API auth guards: AI and KEI routes", () => {
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(requireApiUserMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("returns disabled response for kei task-status requests", async () => {
-    const req = {
-      method: "POST",
-      body: { taskId: "task_123" },
-    };
-    const res = createMockResponse();
-
-    await keiTaskStatusHandler(req as never, res as never);
-
-    expect(res.status).toHaveBeenCalledWith(410);
-    expect(requireApiUserMock).toHaveBeenCalledTimes(0);
   });
 });

@@ -289,7 +289,7 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
 
 const computeSora2ProPerSecondCost: StrategyFn = (params) => {
   const duration = resolveDefaultDuration(params, 10);
-  // Kie supports 10s or 15s; clamp to those tiers for pricing consistency.
+  // Sora pricing supports 10s or 15s; clamp to those tiers for pricing consistency.
   const tierDuration = duration <= 10 ? 10 : 15;
   const res = resolveDefaultResolution(params, "High").toLowerCase();
   const isStandard = res.includes("720") || res.includes("standard");

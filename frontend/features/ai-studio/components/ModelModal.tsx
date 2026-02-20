@@ -225,7 +225,6 @@ const sectionLogos: Record<string, string> = {
   Kling: "/Kling%20LOGO.png",
   "Kling AI": "/Kling%20LOGO.png",
   OpenAI: "/Sora%202%20LOGO.png",
-  "Kie.ai": "/Sora%202%20LOGO.png",
   ByteDance: "/Seedream%20LOGO.png",
   Seedream: "/Seedream%20LOGO.png",
 };

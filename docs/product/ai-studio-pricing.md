@@ -15,7 +15,7 @@ Short version: Models declare their own metadata (provider, aspects, size maps, 
 - Defaults for duration/resolution/audio are read from `modelRegistry` (e.g., Veo 3.1 → 8s @ 1080p with audio) and reused by cost chips and debit logic. Use `buildDefaultPricingParams(modelId)` when you need a consistent baseline.
 - Credit conversion is two-step and shared across estimations/debits for all models except explicit fixed-price exceptions: `rawCredits = ceil(usd / 0.01)`, then `credits = ceil(rawCredits / 5) * 5`.
 - `usdRaw` is provider-estimated pre-rounding USD; `usd` is the billed USD equivalent (`credits * 0.01`).
-- MVP scope: KEI pricing is intentionally excluded from active model options; KEI API routes remain hard-disabled with `410`.
+- KEI pricing is excluded from active model options and KEI runtime/API surfaces are decommissioned.
 
 ## Adding a model
 1) Add a `ModelConfig` entry in `modelRegistry.ts` with `defaultAspect`, `allowedAspects`, and `pricingStrategy`.

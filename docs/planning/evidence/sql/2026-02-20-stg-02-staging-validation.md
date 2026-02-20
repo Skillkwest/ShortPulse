@@ -45,3 +45,21 @@ Reviewer: Pending
 3. Re-run workflow:
    - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
 4. After a clean warn-mode run, repeat with `mode=enforce`.
+
+## Attempt C: Re-run after secret update
+- Command:
+  - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
+- Run URL:
+  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242201237`
+- Result:
+  - Workflow `success` (warn mode), gate script `failed` and emitted warning.
+- Artifact:
+  - `conversation-state-hardening-gate-22242201237`
+  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242201237/artifacts/5596628163`
+
+## Attempt C failure detail
+- `psql: error: connection to server on socket "@db.jwmcytzyhcvacjwqtynn.supabase.co/.s.PGSQL.5432" failed: Connection refused`
+
+## Interpretation
+- The secret value is still being parsed as a non-URI/local-socket style target.
+- `SUPABASE_DB_URL` likely is not a full `postgresql://...` connection URI yet.

@@ -14,7 +14,8 @@ Harden conversation-state storage and RPC behavior with deterministic retention 
 - [x] Restrict execute grants to required runtime role.
 - [x] Add stale-row cleanup function and schedule guidance.
 - [x] Add GitHub Actions workflow for environment-gated hardening gate execution.
-- [ ] Run staging validation gate and archive evidence output.
+- [x] Run staging validation gate and archive evidence output.
+- [x] Remediate staging-discovered runtime ambiguities via forward migrations (`029`, `030`).
 - [ ] Complete production rollout + rollback readiness check.
 
 ## Verification
@@ -36,8 +37,14 @@ Harden conversation-state storage and RPC behavior with deterministic retention 
 ## Evidence
 - `sql/migrations/028_harden_ai_agent_conversation_state_security.sql`
 - `sql/migrations/rollback/028_harden_ai_agent_conversation_state_security_rollback.sql`
+- `sql/migrations/029_fix_conversation_state_upsert_ambiguity.sql`
+- `sql/migrations/rollback/029_fix_conversation_state_upsert_ambiguity_rollback.sql`
+- `sql/migrations/030_fix_conversation_state_upsert_conflict_target.sql`
+- `sql/migrations/rollback/030_fix_conversation_state_upsert_conflict_target_rollback.sql`
 - `sql/check_conversation_state_hardening_028.sql`
 - `scripts/conversation_state_hardening_gate.sh`
 - `.github/workflows/conversation-state-hardening-gate.yml`
+- `.github/workflows/apply-conversation-state-migration-028.yml`
 - `docs/planning/evidence/sql/`
 - `docs/planning/evidence/sql/2026-02-20-stg-02-local-preflight.md`
+- `docs/planning/evidence/sql/2026-02-20-stg-02-staging-validation.md`

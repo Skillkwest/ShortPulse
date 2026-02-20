@@ -1,4 +1,4 @@
-# STG-02 Staging Validation Evidence (2026-02-20)
+# STG-02 Staging Validation (2026-02-20)
 
 Date: 2026-02-20  
 Environment: staging  
@@ -6,135 +6,34 @@ Operator: @sleepyseamonster
 Reviewer: Pending
 
 ## Scope
-- Trigger `conversation_state_hardening_gate` in staging (`mode=warn`).
-- Capture run URL/artifact for STG-02 evidence.
-- Record blockers and corrective action.
+- Apply conversation-state hardening migrations to staging.
+- Run `conversation_state_hardening_gate` in `warn` and `enforce` modes.
+- Capture run evidence and defect remediation trace.
 
-## Attempt A: Dispatch before workflow was on default branch
-- Command:
-  - `gh workflow run .github/workflows/conversation-state-hardening-gate.yml --ref fal-modular-makeover -f target_environment=staging -f mode=warn`
-- Result:
-  - `fail`
-- Error:
-  - `HTTP 404: workflow .github/workflows/conversation-state-hardening-gate.yml not found on the default branch`
+## Execution timeline
 
-## Root cause
-- GitHub Actions workflow-dispatch requires the workflow to exist on the repository default branch.
-- Workflow currently exists on branch `fal-modular-makeover` (PR `#27`) and is not yet on `main`.
+| Sequence | Action | Run / PR | Result | Notes |
+| --- | --- | --- | --- | --- |
+| 1 | Hardening gate (`warn`) | [Run 22243270817](https://github.com/sleepyseamonster/ShortPulse/actions/runs/22243270817) | fail (warn mode) | Missing function `public.prune_ai_agent_conversation_state_expired(integer)` in staging (028 not yet applied). |
+| 2 | Merge migration 028 to `main` | [PR #29](https://github.com/sleepyseamonster/ShortPulse/pull/29) | merged | Added `028` + rollback to default branch. |
+| 3 | Add controlled migration apply workflow | [PR #30](https://github.com/sleepyseamonster/ShortPulse/pull/30) | merged | Added manual environment-gated workflow using `SUPABASE_DB_URL`. |
+| 4 | Apply migration 028 (`staging`) | [Run 22243364824](https://github.com/sleepyseamonster/ShortPulse/actions/runs/22243364824) | pass | `028` applied in staging. |
+| 5 | Hardening gate (`warn`) | [Run 22243385772](https://github.com/sleepyseamonster/ShortPulse/actions/runs/22243385772) | fail (warn mode) | Runtime defect found: ambiguous `user_id` in `delete` inside upsert function. |
+| 6 | Add remediation migration 029 | [PR #31](https://github.com/sleepyseamonster/ShortPulse/pull/31) | merged | Fixed delete ambiguity + extended apply workflow for `029`. |
+| 7 | Apply migration 029 (`staging`) | [Run 22243460603](https://github.com/sleepyseamonster/ShortPulse/actions/runs/22243460603) | pass | `029` applied in staging. |
+| 8 | Hardening gate (`warn`) | [Run 22243485270](https://github.com/sleepyseamonster/ShortPulse/actions/runs/22243485270) | fail (warn mode) | Runtime defect found: ambiguous `user_id` in `on conflict (user_id, conversation_id)`. |
+| 9 | Add remediation migration 030 | [PR #32](https://github.com/sleepyseamonster/ShortPulse/pull/32) | merged | Switched to `on conflict on constraint ai_agent_conversation_state_pkey`; workflow extended for `030`. |
+| 10 | Apply migration 030 (`staging`) | [Run 22243553110](https://github.com/sleepyseamonster/ShortPulse/actions/runs/22243553110) | pass | `030` applied in staging. |
+| 11 | Hardening gate (`warn`) | [Run 22243573266](https://github.com/sleepyseamonster/ShortPulse/actions/runs/22243573266) | fail (warn mode) | FK-safe test issue: hardcoded UUIDs in check script violated `auth.users` FK. |
+| 12 | Patch gate check script for FK-safe users | Commit `97e0bccd` on `main` | merged to `main` | `sql/check_conversation_state_hardening_028.sql` now derives test IDs from `auth.users`. |
+| 13 | Hardening gate (`warn`) | [Run 22243621180](https://github.com/sleepyseamonster/ShortPulse/actions/runs/22243621180) | pass | Full matrix passed in warn mode. |
+| 14 | Hardening gate (`enforce`) | [Run 22243636554](https://github.com/sleepyseamonster/ShortPulse/actions/runs/22243636554) | pass | Full matrix passed in enforce mode. |
 
-## Attempt B: Dispatch after bootstrap merge to `main`
-- Bootstrap PR merged:
-  - `https://github.com/sleepyseamonster/ShortPulse/pull/28`
-- Command:
-  - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
-- Run URL:
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22241985874`
-- Result:
-  - Workflow `success` (warn mode), gate script `failed` and emitted warning.
-- Artifact:
-  - `conversation-state-hardening-gate-22241985874`
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22241985874/artifacts/5596546277`
+## Final status
+- Staging validation for STG-02 is complete.
+- Conversation-state hardening gate is green in both `warn` and `enforce` modes.
+- Runtime defects discovered during validation were remediated via forward-only migrations (`029`, `030`) and a test harness fix.
 
-## Attempt B failure detail
-- `psql: error: connection to server on socket "@db.jwmcytzyhcvacjwqtynn.supabase.co/.s.PGSQL.5432" failed: Connection refused`
-
-## Corrective action
-1. Update environment secret `SUPABASE_DB_URL` (staging) to a full Postgres URI, not a bare host/string.
-2. Recommended format (redacted):
-   - `postgresql://<user>:<password>@<host>:<port>/<db>?sslmode=require`
-3. Re-run workflow:
-   - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
-4. After a clean warn-mode run, repeat with `mode=enforce`.
-
-## Attempt C: Re-run after secret update
-- Command:
-  - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
-- Run URL:
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242201237`
-- Result:
-  - Workflow `success` (warn mode), gate script `failed` and emitted warning.
-- Artifact:
-  - `conversation-state-hardening-gate-22242201237`
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242201237/artifacts/5596628163`
-
-## Attempt C failure detail
-- `psql: error: connection to server on socket "@db.jwmcytzyhcvacjwqtynn.supabase.co/.s.PGSQL.5432" failed: Connection refused`
-
-## Interpretation
-- The secret value is still being parsed as a non-URI/local-socket style target.
-- `SUPABASE_DB_URL` likely is not a full `postgresql://...` connection URI yet.
-
-## Attempt D: Re-run after second secret update
-- Command:
-  - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
-- Run URL:
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242348404`
-- Result:
-  - Workflow `success` (warn mode), gate script `failed` and emitted warning.
-- Artifact:
-  - `conversation-state-hardening-gate-22242348404`
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242348404/artifacts/5596682614`
-
-## Attempt D failure detail
-- `psql: error: connection to server at "db.jwmcytzyhcvacjwqtynn.supabase.co" (2600:1f13:838:6e0a:1375:3b43:dbbb:7e18), port 5432 failed: Network is unreachable`
-
-## Updated interpretation
-- `SUPABASE_DB_URL` is now a valid direct Postgres URI.
-- GitHub-hosted runner cannot reach the direct Supabase host in this path (IPv6 network unreachable).
-- Next correction is to use the Supabase pooler connection URI (IPv4-compatible) for CI-runner access.
-
-## Attempt E: Re-run after pooler-format update
-- Command:
-  - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
-- Run URL:
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242467447`
-- Result:
-  - Workflow `success` (warn mode), gate script `failed` and emitted warning.
-- Artifact:
-  - `conversation-state-hardening-gate-22242467447`
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242467447/artifacts/5596731281`
-
-## Attempt E failure detail
-- `psql: error: could not translate host name "aws-us-west-2.pooler.supabase.com" to address: Name or service not known`
-
-## Updated interpretation (Attempt E)
-- The secret now references a pooler hostname, but the host string is invalid.
-- The correct host must match Supabase-provided pooler DNS exactly (for example, region hosts often include an index like `aws-0-...`).
-
-## Attempt F: Re-run after pooler host correction
-- Command:
-  - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
-- Run URL:
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242629513`
-- Result:
-  - Workflow `success` (warn mode), gate script `failed` and emitted warning.
-- Artifact:
-  - `conversation-state-hardening-gate-22242629513`
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242629513/artifacts/5596790693`
-
-## Attempt F failure detail
-- `psql: error: connection to server at "aws-0-us-west-2.pooler.supabase.com" (35.160.209.8), port 5432 failed: FATAL:  password authentication failed for user "postgres"`
-
-## Updated interpretation (Attempt F)
-- Network path and DNS are now correct.
-- Remaining issue is connection credentials for pooler auth:
-  - pooler username format and/or password value is incorrect for this URI.
-
-## Attempt G: Re-run after credential correction
-- Command:
-  - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
-- Run URL:
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242944019`
-- Result:
-  - Workflow `success` (warn mode), gate script `failed` and emitted warning.
-- Artifact:
-  - `conversation-state-hardening-gate-22242944019`
-  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242944019/artifacts/5596902244`
-
-## Attempt G failure detail
-- `ERROR: function "public.prune_ai_agent_conversation_state_expired(integer)" does not exist`
-
-## Updated interpretation (Attempt G)
-- Connection/auth path is now valid.
-- Staging DB schema is missing part of hardening contract expected by `sql/check_conversation_state_hardening_028.sql`.
-- Migration `028_harden_ai_agent_conversation_state_security.sql` (or equivalent function deployment) is not fully present in staging yet.
+## Artifacts
+- Gate artifacts are attached to each run as `conversation-state-hardening-gate-<run_id>`.
+- Migration apply artifacts are attached as `conversation-state-migration-<migration_id>-<run_id>`.

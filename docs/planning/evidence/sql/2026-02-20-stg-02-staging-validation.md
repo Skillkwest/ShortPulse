@@ -100,3 +100,22 @@ Reviewer: Pending
 ## Updated interpretation (Attempt E)
 - The secret now references a pooler hostname, but the host string is invalid.
 - The correct host must match Supabase-provided pooler DNS exactly (for example, region hosts often include an index like `aws-0-...`).
+
+## Attempt F: Re-run after pooler host correction
+- Command:
+  - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
+- Run URL:
+  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242629513`
+- Result:
+  - Workflow `success` (warn mode), gate script `failed` and emitted warning.
+- Artifact:
+  - `conversation-state-hardening-gate-22242629513`
+  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242629513/artifacts/5596790693`
+
+## Attempt F failure detail
+- `psql: error: connection to server at "aws-0-us-west-2.pooler.supabase.com" (35.160.209.8), port 5432 failed: FATAL:  password authentication failed for user "postgres"`
+
+## Updated interpretation (Attempt F)
+- Network path and DNS are now correct.
+- Remaining issue is connection credentials for pooler auth:
+  - pooler username format and/or password value is incorrect for this URI.

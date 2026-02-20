@@ -168,12 +168,13 @@ select pg_temp.assert_check(
 -- Runtime behavior checks (all data mutations rolled back).
 do $$
 declare
-    v_user_upper uuid := '11111111-1111-1111-1111-111111111111';
-    v_user_lower uuid := '22222222-2222-2222-2222-222222222222';
-    v_user_cap uuid := '33333333-3333-3333-3333-333333333333';
-    v_user_tie uuid := '44444444-4444-4444-4444-444444444444';
-    v_user_expire uuid := '55555555-5555-5555-5555-555555555555';
-    v_user_prune uuid := '66666666-6666-6666-6666-666666666666';
+    v_users uuid[];
+    v_user_upper uuid;
+    v_user_lower uuid;
+    v_user_cap uuid;
+    v_user_tie uuid;
+    v_user_expire uuid;
+    v_user_prune uuid;
     v_now timestamptz;
     v_row record;
     v_count integer;
@@ -182,10 +183,31 @@ declare
 begin
     perform set_config('request.jwt.claim.role', 'service_role', true);
 
+    select array_agg(u.id order by u.id)
+      into v_users
+      from (
+          select id
+            from auth.users
+           order by id
+           limit 6
+      ) u;
+
+    if coalesce(array_length(v_users, 1), 0) = 0 then
+        raise exception 'No auth.users rows available for conversation-state hardening checks.';
+    end if;
+
+    v_user_upper := v_users[1];
+    v_user_lower := coalesce(v_users[2], v_users[1]);
+    v_user_cap := coalesce(v_users[3], v_users[1]);
+    v_user_tie := coalesce(v_users[4], v_users[1]);
+    v_user_expire := coalesce(v_users[5], v_users[1]);
+    v_user_prune := coalesce(v_users[6], v_users[1]);
+
     delete from public.ai_agent_conversation_state
      where user_id in (v_user_upper, v_user_lower, v_user_cap, v_user_tie, v_user_expire, v_user_prune);
 
     -- TTL upper clamp (90d) and cap upper clamp (200).
+    delete from public.ai_agent_conversation_state where user_id = v_user_upper;
     v_now := clock_timestamp();
     select * into v_row
       from public.upsert_ai_agent_conversation_state(
@@ -202,6 +224,7 @@ begin
     );
 
     -- TTL lower clamp (1d).
+    delete from public.ai_agent_conversation_state where user_id = v_user_lower;
     v_now := clock_timestamp();
     select * into v_row
       from public.upsert_ai_agent_conversation_state(
@@ -237,6 +260,7 @@ begin
     );
 
     -- cap lower clamp to 1 and keep-current-row behavior.
+    delete from public.ai_agent_conversation_state where user_id = v_user_cap;
     perform public.upsert_ai_agent_conversation_state(v_user_cap, 'cap-old', 'prompt-a', interval '30 days', 200);
     perform public.upsert_ai_agent_conversation_state(v_user_cap, 'cap-new', 'prompt-b', interval '30 days', 0);
     select count(*) into v_count
@@ -259,6 +283,7 @@ begin
     );
 
     -- Deterministic tie-break pruning under identical updated_at values.
+    delete from public.ai_agent_conversation_state where user_id = v_user_tie;
     insert into public.ai_agent_conversation_state (
         user_id,
         conversation_id,
@@ -295,6 +320,7 @@ begin
     );
 
     -- Expired rows are pruned during write cycle.
+    delete from public.ai_agent_conversation_state where user_id = v_user_expire;
     insert into public.ai_agent_conversation_state (
         user_id,
         conversation_id,
@@ -329,6 +355,7 @@ begin
     );
 
     -- Stale cleanup function removes expired rows and returns deleted count.
+    delete from public.ai_agent_conversation_state where user_id = v_user_prune;
     insert into public.ai_agent_conversation_state (
         user_id,
         conversation_id,

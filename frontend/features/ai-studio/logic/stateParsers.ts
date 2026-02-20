@@ -2,15 +2,13 @@
  * Helper utilities for AI Studio state and provider plumbing.
  * Separated from hooks to keep business logic small and testable.
  */
-import { keiAllowedAspects, klingAllowedAspects, modelOptions } from "../constants";
+import { klingAllowedAspects, modelOptions } from "../constants";
 import { resolveEffectiveAspectForModel } from "./modelApiContracts";
 import type { ModelMediaType, ModelOption } from "../constants";
-import type { KeiTaskStatus } from "../../../lib/keiClient";
 import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
 import type { StudioMode, StudioOutput } from "../types";
 
 export type Provider =
-  | "kei"
   | "fal"
   | "fal-flux2"
   | "fal-flux2-klein"
@@ -35,8 +33,6 @@ export const resolveModelLabel = (value?: string) =>
     ? (modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})`)
     : "Choose Model";
 
-export const normalizeAspectForKei = (value: string) =>
-  keiAllowedAspects.has(value) ? value : "auto";
 export const normalizeAspectForFalNanoBanana = (value: string) =>
   resolveEffectiveAspectForModel("fal-ai/nano-banana", value, "1:1");
 export const normalizeAspectForFalNanoBananaPro = (value: string) =>
@@ -379,10 +375,7 @@ export const extractFalMediaUrls = (status: unknown): string[] => {
   return [];
 };
 
-export const extractResultUrls = (
-  resultJson: KeiTaskStatus["resultJson"],
-  fallback?: unknown
-): string[] => {
+export const extractResultUrls = (resultJson: unknown, fallback?: unknown): string[] => {
   const extractGenericUrls = (value: unknown): string[] => {
     const record = toRecord(value);
     const directUrls = asStringArray(record.resultUrls);

@@ -127,20 +127,6 @@ export const falNanoBananaProAllowedAspects = new Set(
   ])
 );
 
-// Kie.ai expects one of these aspect ratios; anything else falls back to "auto" when sending requests.
-export const keiAllowedAspects = new Set([
-  "1:1",
-  "2:3",
-  "3:2",
-  "3:4",
-  "4:3",
-  "4:5",
-  "5:4",
-  "9:16",
-  "16:9",
-  "auto",
-]);
-
 // Kling image-to-video supports a limited aspect list.
 export const klingAllowedAspects = new Set(
   getModelAllowedAspects("fal-ai/kling-video/v3/pro/text-to-video", ["16:9", "9:16", "1:1"])

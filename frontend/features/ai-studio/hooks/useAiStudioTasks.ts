@@ -24,13 +24,12 @@ import {
   fetchFalVeoImageToVideoStatus,
 } from "../../../lib/falClient";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
-import { fetchKeiTaskStatus } from "../../../lib/keiClient";
 import {
   PERF_FLAG_RAF_STATUS_FLUSH,
   PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE,
 } from "../logic/perfProfileFlags";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
-import { extractFalMediaUrls, extractResultUrls, Provider } from "../logic/stateParsers";
+import { extractFalMediaUrls, Provider } from "../logic/stateParsers";
 import { StudioOutput } from "../types";
 
 type GenerationFailureReason =
@@ -276,25 +275,12 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalNanoBananaProStatus(taskId);
     case "fal-nano-banana-pro-edit":
       return fetchFalNanoBananaProEditStatus(taskId);
-    case "kei":
     default:
-      return fetchKeiTaskStatus(taskId);
+      return fetchFalStatus(taskId);
   }
 };
 
-const extractMediaByProvider = (provider: Provider, status: PollStatus) => {
-  if (provider === "kei") {
-    const keiResultJson =
-      typeof status?.resultJson === "string"
-        ? status.resultJson
-        : status?.resultJson && typeof status.resultJson === "object"
-          ? (status.resultJson as Record<string, unknown>)
-          : null;
-    const resultUrls = extractResultUrls(keiResultJson, status?.raw);
-    return resultUrls;
-  }
-  return extractFalMediaUrls(status);
-};
+const extractMediaByProvider = (status: PollStatus) => extractFalMediaUrls(status);
 
 export function useAiStudioTasks({
   updateOutputById,
@@ -450,7 +436,7 @@ export function useAiStudioTasks({
 
           try {
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
-            const recoveredUrls = extractMediaByProvider(provider, status).filter(Boolean);
+            const recoveredUrls = extractMediaByProvider(status).filter(Boolean);
 
             if (recoveredUrls.length > 0) {
               addBreadcrumb({
@@ -804,13 +790,12 @@ export function useAiStudioTasks({
               status?.output?.status != null ||
               status?.data?.result?.status != null;
 
-            const allUrls = extractMediaByProvider(provider, status);
+            const allUrls = extractMediaByProvider(status);
             const hasMedia = allUrls.length > 0;
             const isTerminalSuccess = terminalSuccessStates.has(state);
             // Fal capture/debit happens in status endpoints on terminal states, so avoid
             // short-circuiting early success when provider explicitly reports in-progress.
-            const canUseMediaShortcut =
-              provider === "kei" || !hasExplicitState || !nonTerminalStates.has(state);
+            const canUseMediaShortcut = !hasExplicitState || !nonTerminalStates.has(state);
             const shouldForceImageMediaSuccess =
               hasMedia &&
               imageGenerationProviders.has(provider) &&
@@ -837,8 +822,7 @@ export function useAiStudioTasks({
               }
               // Provider may report terminal success before media URLs are materialized.
               // Track a dedicated "no media yet" retry budget instead of using total poll attempts.
-              const maxNoMediaAttempts =
-                provider === "kei" ? 10 : longRunningVideoProviders.has(provider) ? 30 : 20;
+              const maxNoMediaAttempts = longRunningVideoProviders.has(provider) ? 30 : 20;
               const shouldRetryForMedia = !hasMedia && noMediaAttempt < maxNoMediaAttempts;
               if (shouldRetryForMedia) {
                 if (noMediaAttempt === 0) {

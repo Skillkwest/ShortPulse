@@ -31,7 +31,7 @@ describe("useAiStudioTaskSubmission", () => {
     "fal-ai/nano-banana/edit",
     "fal-ai/nano-banana-pro/edit",
     "fal-ai/bytedance/seedream/v4.5/edit",
-    "kei/gpt4o-image",
+    "custom/legacy-image",
   ] as const;
 
   const prepareImageUrlForSubmissionMock = vi.mocked(prepareImageUrlForSubmission);

@@ -8,10 +8,6 @@ vi.mock("../../../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: vi.fn(),
 }));
 
-vi.mock("../../../../lib/keiClient", () => ({
-  fetchKeiTaskStatus: vi.fn(),
-}));
-
 vi.mock("../../../../lib/falClient", () => ({
   fetchFalStatus: vi.fn(),
   fetchFalFlux2Status: vi.fn(),

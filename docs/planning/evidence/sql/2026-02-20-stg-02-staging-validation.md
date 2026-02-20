@@ -119,3 +119,22 @@ Reviewer: Pending
 - Network path and DNS are now correct.
 - Remaining issue is connection credentials for pooler auth:
   - pooler username format and/or password value is incorrect for this URI.
+
+## Attempt G: Re-run after credential correction
+- Command:
+  - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
+- Run URL:
+  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242944019`
+- Result:
+  - Workflow `success` (warn mode), gate script `failed` and emitted warning.
+- Artifact:
+  - `conversation-state-hardening-gate-22242944019`
+  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242944019/artifacts/5596902244`
+
+## Attempt G failure detail
+- `ERROR: function "public.prune_ai_agent_conversation_state_expired(integer)" does not exist`
+
+## Updated interpretation (Attempt G)
+- Connection/auth path is now valid.
+- Staging DB schema is missing part of hardening contract expected by `sql/check_conversation_state_hardening_028.sql`.
+- Migration `028_harden_ai_agent_conversation_state_security.sql` (or equivalent function deployment) is not fully present in staging yet.

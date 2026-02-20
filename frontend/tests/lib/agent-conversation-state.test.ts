@@ -85,6 +85,50 @@ describe("agentConversationState", () => {
       p_user_id: "user-1",
       p_conversation_id: "convo-1",
       p_canonical_prompt: "final prompt",
+      p_ttl: "30 days",
+      p_user_cap: 200,
+    });
+  });
+
+  it("retries upsert without ttl when rpc signature cache misses", async () => {
+    const rpcMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          message:
+            "Could not find the function public.upsert_ai_agent_conversation_state(p_canonical_prompt, p_conversation_id, p_user_cap, p_user_id) in the schema cache",
+        },
+      })
+      .mockResolvedValueOnce({
+        data: [{ canonical_prompt: "final prompt" }],
+        error: null,
+      });
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn(),
+      rpc: rpcMock,
+    });
+
+    const canonical = await upsertAgentConversationCanonicalPrompt({
+      userId: "user-1",
+      conversationId: "convo-1",
+      canonicalPrompt: "final prompt",
+    });
+
+    expect(canonical).toBe("final prompt");
+    expect(rpcMock).toHaveBeenCalledTimes(2);
+    expect(rpcMock).toHaveBeenNthCalledWith(1, "upsert_ai_agent_conversation_state", {
+      p_user_id: "user-1",
+      p_conversation_id: "convo-1",
+      p_canonical_prompt: "final prompt",
+      p_ttl: "30 days",
+      p_user_cap: 200,
+    });
+    expect(rpcMock).toHaveBeenNthCalledWith(2, "upsert_ai_agent_conversation_state", {
+      p_user_id: "user-1",
+      p_conversation_id: "convo-1",
+      p_canonical_prompt: "final prompt",
       p_user_cap: 200,
     });
   });
@@ -119,5 +163,6 @@ describe("agentConversationState", () => {
         canonicalPrompt: "prompt",
       })
     ).rejects.toThrow("Failed to upsert canonical prompt state: rpc failed");
+    expect(rpcMock).toHaveBeenCalledTimes(1);
   });
 });

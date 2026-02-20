@@ -2,6 +2,9 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
 
 const AGENT_CONVERSATION_STATE_TABLE = "ai_agent_conversation_state";
 const AGENT_CONVERSATION_UPSERT_RPC = "upsert_ai_agent_conversation_state";
+const AGENT_CONVERSATION_TTL = "30 days";
+const AGENT_CONVERSATION_RPC_SIGNATURE_MISS =
+  "Could not find the function public.upsert_ai_agent_conversation_state";
 
 export const AGENT_CANONICAL_PROMPT_MAX_LENGTH = 4096;
 export const AGENT_CANONICAL_USER_ROW_CAP = 200;
@@ -56,6 +59,11 @@ type UpsertConversationStateRpcRow = {
   canonical_prompt?: string | null;
 };
 
+const isRpcSignatureMissError = (error: { message?: string } | null): boolean => {
+  if (!error || typeof error.message !== "string") return false;
+  return error.message.includes(AGENT_CONVERSATION_RPC_SIGNATURE_MISS);
+};
+
 export const upsertAgentConversationCanonicalPrompt = async ({
   userId,
   conversationId,
@@ -70,12 +78,24 @@ export const upsertAgentConversationCanonicalPrompt = async ({
   if (!normalizedConversationId || !normalizedPrompt) return null;
 
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin.rpc(AGENT_CONVERSATION_UPSERT_RPC, {
+  let { data, error } = await supabaseAdmin.rpc(AGENT_CONVERSATION_UPSERT_RPC, {
     p_user_id: userId,
     p_conversation_id: normalizedConversationId,
     p_canonical_prompt: normalizedPrompt,
+    p_ttl: AGENT_CONVERSATION_TTL,
     p_user_cap: AGENT_CANONICAL_USER_ROW_CAP,
   });
+
+  if (isRpcSignatureMissError(error)) {
+    const legacyRpcResult = await supabaseAdmin.rpc(AGENT_CONVERSATION_UPSERT_RPC, {
+      p_user_id: userId,
+      p_conversation_id: normalizedConversationId,
+      p_canonical_prompt: normalizedPrompt,
+      p_user_cap: AGENT_CANONICAL_USER_ROW_CAP,
+    });
+    data = legacyRpcResult.data;
+    error = legacyRpcResult.error;
+  }
 
   if (error) {
     throw new Error(`Failed to upsert canonical prompt state: ${error.message}`);

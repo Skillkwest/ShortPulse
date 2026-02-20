@@ -40,7 +40,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run docs:check
-      - run: npm run test -- auth-helper proxy-internal-utils kei-task-status.auth-context fal-status.auth-context auth-latency-benchmark
+      - run: npm run test -- auth-helper proxy-internal-utils auth-guarded-ai-kei-routes fal-status.auth-context fal-status.ownership auth-latency-benchmark
       - run: npm test
       - run: npm run build
 

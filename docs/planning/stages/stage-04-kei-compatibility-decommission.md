@@ -5,7 +5,7 @@ Retire KEI safely using compatibility hold, coverage replacement, and phased del
 
 ## Checklist
 - [x] Phase A: remove runtime KEI callers while keeping `/api/kei/*` tombstones.
-- [ ] Phase B: replace auth/ownership coverage before KEI test deletion.
+- [x] Phase B: replace auth/ownership coverage before KEI test deletion.
 - [ ] Phase C: remove KEI API/client/tests after one release hold window.
 
 ## Verification
@@ -24,3 +24,4 @@ Retire KEI safely using compatibility hold, coverage replacement, and phased del
 ## Evidence
 - `docs/planning/evidence/kei/`
 - `docs/planning/evidence/kei/2026-02-20-phase-a-runtime-caller-removal.md`
+- `docs/planning/evidence/kei/2026-02-20-phase-b-coverage-replacement-and-fast-lane-update.md`

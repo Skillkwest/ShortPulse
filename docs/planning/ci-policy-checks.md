@@ -31,6 +31,15 @@ Owner: Engineering
 - `scripts/check_architecture_boundaries.js` (planned)
 - `scripts/check_size_budgets.js` (planned)
 
+## Frontend fast-lane suites
+
+- `auth-helper`
+- `proxy-internal-utils`
+- `auth-guarded-ai-kei-routes` (disabled-route tombstone parity during compatibility window)
+- `fal-status.auth-context`
+- `fal-status.ownership`
+- `auth-latency-benchmark`
+
 ## SQL lint gate
 
 - Command: `supabase db lint --local --schema public --fail-on warning`

@@ -6,9 +6,16 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK_SQL_FILE="$ROOT_DIR/sql/check_conversation_state_hardening_028.sql"
+PSQL_BIN="$(command -v psql || true)"
 
-if ! command -v psql >/dev/null 2>&1; then
+if [[ -z "$PSQL_BIN" && -x "/opt/homebrew/opt/libpq/bin/psql" ]]; then
+  PSQL_BIN="/opt/homebrew/opt/libpq/bin/psql"
+fi
+
+if [[ -z "$PSQL_BIN" ]]; then
   echo "[conversation-state-gate] psql is required but not found in PATH."
+  echo "[conversation-state-gate] On macOS with Homebrew, install via: brew install libpq"
+  echo "[conversation-state-gate] Then add to PATH: export PATH=\"/opt/homebrew/opt/libpq/bin:\$PATH\""
   exit 1
 fi
 
@@ -23,6 +30,6 @@ if [[ ! -f "$CHECK_SQL_FILE" ]]; then
 fi
 
 echo "[conversation-state-gate] Running 028 hardening diagnostics..."
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$CHECK_SQL_FILE"
+"$PSQL_BIN" "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$CHECK_SQL_FILE"
 
 echo "[conversation-state-gate] PASS: 028 hardening diagnostics completed."

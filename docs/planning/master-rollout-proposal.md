@@ -130,10 +130,17 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 - Phase A: remove runtime callers; keep tombstone routes.
 - Phase B: merge replacement tests and CI fast-lane updates.
 - Phase C: after compatibility window and low/no traffic, delete KEI API/client/tests and protected-path prefix.
+- Hold-window Phase C gate (quantified):
+- at least one production release after Phase B (`2026-02-20` baseline)
+- trailing 14-day tombstone traffic is zero (`app_error_logs`, `source='api.kei_route_disabled'`, threshold `count=0`)
+- last two base-branch runs for fast-lane auth/ownership suites are green
+- any non-zero tombstone traffic resets the 14-day clock
+- during tombstone hold, keep `410` behavior and add deprecation metadata (`Deprecation` and/or `Link: <...>; rel=\"deprecation\"`); add `Sunset` once Phase C target date is approved
 - Validation:
 - Build/lint/type-check/test/docs-check all pass.
 - Auth boundary suites remain green after KEI test removal.
 - No runtime imports/references to KEI remain.
+- Hold-window evidence file exists: `docs/planning/evidence/kei/<date>-phase-c-hold-window-validation.md`.
 - Rollback:
 - Revert latest KEI phase PR only.
 - Keep tombstones if Phase C fails.
@@ -170,6 +177,10 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 - Seeded drift fixture fails checks intentionally.
 - Aligned state passes.
 - Enforce mode only after two green cycles.
+- STG-06 cannot be marked `Completed` until:
+- STG-04 Phase C is complete
+- warn/evaluate checks are green for two release cycles
+- branch-protection mapping proof with exact required check names is archived at `docs/planning/evidence/docs/<date>-branch-protection-required-check-mapping.md`
 - Rollback:
 - Downgrade new checks to warn/evaluate mode and revert latest CI policy PR.
 
@@ -182,6 +193,10 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 - Copy source plans verbatim without frontmatter edits.
 - Store hash, byte size, source commit, archive timestamp, copier in manifest.
 - Add manifest verification script.
+- Chat-sourced provenance convention:
+- `source_path` uses `user-provided-plan:<exact plan title>`
+- `source_commit` is the commit introducing archive entries
+- `notes` includes: `Verbatim copy from user-provided plan text (conversation source, 2026-02-20).`
 - Validation:
 - Hash and byte counts match manifest.
 - No transformed text in archived originals.

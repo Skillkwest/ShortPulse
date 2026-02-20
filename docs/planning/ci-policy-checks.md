@@ -73,3 +73,21 @@ Owner: Engineering
 ## Branch protection mapping
 
 Required checks must map to exact CI job IDs. Job ID renames are blocked after branch protection binding.
+
+Current required check names (to be mirrored exactly in GitHub settings):
+- `frontend`
+- `security`
+- `deadcode`
+
+Planned required check names (promoted after warn/evaluate stabilization):
+- `docs_semantic_drift`
+- `migration_parity`
+- `sql_lint`
+- `archive_manifest_check`
+
+## Manual evidence runbook (required)
+Repository API access for branch rules/protection is restricted in this repo context (`403`), so evidence is captured manually:
+- Capture repository settings screenshot/export showing required checks.
+- Copy exact required check names into this document.
+- Add operator/date evidence note at `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`.
+- Keep STG-06 enforcement state as pending until two green cycles are logged.

@@ -25,6 +25,11 @@ type GenerationFailureReason =
   | "provider_error"
   | "status_poll_error";
 
+const shouldQueueFailureRecovery = (reasonCode?: GenerationFailureReason) =>
+  reasonCode === "no_media_after_terminal_success" ||
+  reasonCode === "poll_timeout" ||
+  reasonCode === "status_poll_error";
+
 type TaskSubmissionConfig = Omit<
   Parameters<typeof useAiStudioTaskSubmission>[0],
   "startPollingTask"
@@ -149,6 +154,7 @@ export const useAiStudioTaskOrchestration = ({
       }
       if (generationId) {
         try {
+          const nowIso = new Date().toISOString();
           await updateGenerationRecord(generationId, {
             provider: pending.provider,
             modelId: output.modelId ?? output.model,
@@ -156,6 +162,10 @@ export const useAiStudioTaskOrchestration = ({
             aspect: output.aspect,
             requestId: pending.taskId,
             status: "success",
+            failureReasonCode: null,
+            recoveryState: "none",
+            nextRecoveryAt: null,
+            lastMediaDetectedAt: nowIso,
             metadata: {
               result_urls: urls,
               media_file_ids: mediaFileIds,
@@ -201,8 +211,10 @@ export const useAiStudioTaskOrchestration = ({
         provider,
         resultUrls: urls,
       };
+      // Persist as soon as provider URLs are available; media-load callback remains fallback.
+      void finalizeDeferredAutoSave(outputId);
     },
-    [findOutputById, pendingAutoSavesRef]
+    [finalizeDeferredAutoSave, findOutputById, pendingAutoSavesRef]
   );
 
   const handleGenerationFailure = useCallback(
@@ -231,6 +243,8 @@ export const useAiStudioTaskOrchestration = ({
         }));
       if (generationId) {
         try {
+          const nowIso = new Date().toISOString();
+          const queueRecovery = shouldQueueFailureRecovery(reasonCode);
           await updateGenerationRecord(generationId, {
             provider,
             modelId: output.modelId ?? output.model,
@@ -238,6 +252,12 @@ export const useAiStudioTaskOrchestration = ({
             aspect: output.aspect,
             requestId: taskId ?? output.taskId,
             status: "fail",
+            failureReasonCode: reasonCode ?? null,
+            recoveryState: queueRecovery ? "queued" : "exhausted",
+            lastRecoveryAt: nowIso,
+            nextRecoveryAt: queueRecovery
+              ? new Date(Date.now() + 2 * 60 * 1000).toISOString()
+              : null,
             metadata: {
               error: message,
               failure_reason_code: reasonCode ?? null,

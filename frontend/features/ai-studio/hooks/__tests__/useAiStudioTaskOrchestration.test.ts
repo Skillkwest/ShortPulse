@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
@@ -73,7 +73,7 @@ describe("useAiStudioTaskOrchestration", () => {
     }) as typeof useAiStudioTasks);
   });
 
-  it("finalizes deferred autosave after generation success callback", async () => {
+  it("finalizes deferred autosave immediately after generation success callback", async () => {
     let outputs = [createOutput({ id: "out-1", taskId: "task-1" })];
 
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -138,7 +138,7 @@ describe("useAiStudioTaskOrchestration", () => {
       })
     );
 
-    act(() => {
+    await act(async () => {
       capturedTaskCallbacks?.onGenerationSuccess?.({
         outputId: "out-1",
         taskId: "task-1",
@@ -146,9 +146,8 @@ describe("useAiStudioTaskOrchestration", () => {
         resultUrls: ["https://example.com/final.png"],
       });
     });
-
-    await act(async () => {
-      await result.current.onReferenceOutputMediaLoaded("out-1");
+    await waitFor(() => {
+      expect(persistMediaUrls).toHaveBeenCalled();
     });
 
     expect(persistMediaUrls).toHaveBeenCalledWith({
@@ -160,8 +159,95 @@ describe("useAiStudioTaskOrchestration", () => {
     });
     expect(markOutputSaved).toHaveBeenCalledWith("out-1", ["media-1"], { showPill: true });
     expect(markOutputSaveFailed).not.toHaveBeenCalled();
-    expect(updateGenerationRecordMock).toHaveBeenCalled();
+    expect(updateGenerationRecordMock).toHaveBeenCalledWith(
+      "gen-1",
+      expect.objectContaining({
+        status: "success",
+        failureReasonCode: null,
+        recoveryState: "none",
+        nextRecoveryAt: null,
+        lastMediaDetectedAt: expect.any(String),
+      })
+    );
     expect(pendingAutoSavesRef.current["out-1"]).toBeUndefined();
+
+    await act(async () => {
+      await result.current.onReferenceOutputMediaLoaded("out-1");
+    });
+    expect(persistMediaUrls).toHaveBeenCalledTimes(1);
+  });
+
+  it("queues recovery fields for retryable failure reasons", async () => {
+    const outputs = [
+      createOutput({ id: "out-1", taskId: "task-123", provider: "fal", generationId: "gen-1" }),
+    ];
+    const updateOutputById = vi.fn();
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById,
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+        pendingAutoSavesRef: { current: {} },
+        markOutputSaved: vi.fn(),
+        markOutputSaveFailed: vi.fn(),
+        persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
+      })
+    );
+
+    await act(async () => {
+      await capturedTaskCallbacks?.onGenerationFailure?.({
+        outputId: "out-1",
+        taskId: "task-123",
+        provider: "fal",
+        message: "Timed out waiting for provider result.",
+        reasonCode: "poll_timeout",
+      });
+    });
+
+    expect(updateGenerationRecordMock).toHaveBeenCalledWith(
+      "gen-1",
+      expect.objectContaining({
+        status: "fail",
+        failureReasonCode: "poll_timeout",
+        recoveryState: "queued",
+        lastRecoveryAt: expect.any(String),
+      })
+    );
+    const patch = updateGenerationRecordMock.mock.calls[0]?.[1] as {
+      nextRecoveryAt?: string | null;
+    };
+    expect(typeof patch.nextRecoveryAt).toBe("string");
   });
 
   it("queues generation recovery when polling hard-stops due to prolonged output lookup misses", async () => {

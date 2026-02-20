@@ -189,6 +189,25 @@ describe("referenceGridMedia", () => {
     expect(resolved.fullUrl).toBe(sourceUrl);
   });
 
+  it("does not route fal media image URLs through the next image optimizer", () => {
+    const sourceUrl = "https://v3b.fal.media/files/b/0a8f2961/example-image.png";
+    const resolved = resolveReferenceCardUrls(
+      {
+        previewStoragePath: sourceUrl,
+        fullStoragePath: sourceUrl,
+        previewUrl: undefined,
+        resultUrls: [],
+      },
+      {
+        adaptivePreviewQuality: true,
+        pressureLevel: 2,
+      }
+    );
+
+    expect(resolved.previewUrl).toBe(sourceUrl);
+    expect(resolved.fullUrl).toBe(sourceUrl);
+  });
+
   it("falls back to next image optimizer for relative image URLs", () => {
     const sourceUrl = "/api/media/preview/ref-123?token=abc";
     const resolved = resolveReferenceCardUrls(

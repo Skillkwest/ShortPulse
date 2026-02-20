@@ -26,6 +26,7 @@ const HTTP_PROTOCOL_PATTERN = /^https?:\/\//i;
 const ROOT_RELATIVE_PATTERN = /^\//;
 const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
 const NEXT_IMAGE_ALLOWED_WIDTHS = [384, 448, 512, 576, 640, 750, 828, 1080, 1200];
+const FAL_MEDIA_HOST_SUFFIX = ".fal.media";
 
 /**
  * Returns true when a media candidate is directly renderable by an `<img>`/`<video>` tag.
@@ -105,6 +106,11 @@ const isSupabaseStorageUrl = (parsedUrl: URL): boolean => {
   return configuredSupabaseOrigin != null && parsedUrl.origin === configuredSupabaseOrigin;
 };
 
+const isFalMediaUrl = (parsedUrl: URL): boolean => {
+  const hostname = parsedUrl.hostname.toLowerCase();
+  return hostname === "fal.media" || hostname.endsWith(FAL_MEDIA_HOST_SUFFIX);
+};
+
 const applyAdaptivePreviewTransform = ({
   url,
   targetLongEdgePx,
@@ -145,6 +151,9 @@ const applyAdaptivePreviewTransform = ({
     return parsed.toString();
   }
   if (!HTTP_PROTOCOL_PATTERN.test(url) && !isRelativeInput) {
+    return url;
+  }
+  if (isFalMediaUrl(parsed)) {
     return url;
   }
   return toNextImageOptimizedUrl({

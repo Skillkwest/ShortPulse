@@ -58,7 +58,7 @@ Single allowed implementation path:
 Tasks:
 - [x] Add deterministic generation trace IDs spanning submit/status/persist/billing.
 - [x] Add one local admin/debug view for a generation timeline by `requestId`/`generationId`.
-- [ ] Capture baseline for one model path (`FLUX.2 Lite`) from click to reference-grid materialization.
+- [X] Capture baseline for one model path (`FLUX.2 Lite`) from click to reference-grid materialization.
 
 Exit gates:
 - [ ] Can inspect one generation lifecycle end-to-end without ad-hoc log digging.

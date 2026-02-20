@@ -533,7 +533,9 @@ export function DetailModal({
   const handleImageWheel = useCallback(
     (event: React.WheelEvent<HTMLDivElement>) => {
       if (!isImageOutput) return;
-      event.preventDefault();
+      if (event.nativeEvent.cancelable) {
+        event.preventDefault();
+      }
 
       const zoomFactor = event.deltaY < 0 ? 1.12 : 0.88;
       const nextScale = Math.min(6, Math.max(1, imageZoomScale * zoomFactor));

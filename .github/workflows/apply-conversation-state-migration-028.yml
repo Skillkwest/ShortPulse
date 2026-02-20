@@ -26,6 +26,7 @@ on:
         options:
           - "028"
           - "029"
+          - "030"
       confirm_token:
         description: "Type apply-<id> or rollback-<id> to confirm"
         required: true
@@ -69,6 +70,9 @@ jobs:
           elif [ "$MIGRATION_ID" = "029" ]; then
             FORWARD_SQL="sql/migrations/029_fix_conversation_state_upsert_ambiguity.sql"
             ROLLBACK_SQL="sql/migrations/rollback/029_fix_conversation_state_upsert_ambiguity_rollback.sql"
+          elif [ "$MIGRATION_ID" = "030" ]; then
+            FORWARD_SQL="sql/migrations/030_fix_conversation_state_upsert_conflict_target.sql"
+            ROLLBACK_SQL="sql/migrations/rollback/030_fix_conversation_state_upsert_conflict_target_rollback.sql"
           else
             echo "::error::Unsupported migration id: $MIGRATION_ID"
             exit 1

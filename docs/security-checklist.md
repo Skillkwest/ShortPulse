@@ -1,6 +1,6 @@
 # Security Checklist
 
-Purpose: ensure user isolation and authenticated access across the frontend-only stack.
+Purpose: ensure user isolation and authenticated access across the Next.js app + internal API stack.
 
 ## Current expectations
 - Supabase client uses persisted sessions and auto-refresh tokens.
@@ -21,12 +21,13 @@ Purpose: ensure user isolation and authenticated access across the frontend-only
 - **Character table isolation**: Keep RLS enabled on `characters`, `character_reference_packs`, `character_reference_images`, and `character_generation_jobs` with strict `user_id = auth.uid()` policies (run `sql/migrations/008_add_character_manager_foundation.sql`).
 - **Media source integrity**: Keep `media_files.source` constrained to `upload | private_upload | ai_studio | character_reference | character_generation`, enforce non-null/default semantics, and keep private/character path checks aligned (run `sql/migrations/003_add_private_media_source.sql`, `sql/migrations/004_add_private_media_integrity_checks.sql`, `sql/migrations/007_harden_media_source_and_usage_rpc.sql`, and `sql/migrations/010_harden_character_reference_media_integrity.sql`).
 - **Media usage aggregate**: Keep `get_media_library_usage_bytes()` available for authenticated users so usage UI can avoid partial totals from paged caches.
-- **Frontend route protection**: Guard dashboard/performance/saved-creators/media-library/profile; redirect unauthenticated users to `/auth`.
+- **Frontend route protection**: Guard `/dashboard`, `/performance*`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/creator-studio`, `/character*`, and `/admin`; redirect unauthenticated users to `/auth`.
 - **Key management**: Never expose the service-role key. Use only the anon key in the browser.
 - **Network calls**: All Supabase requests already include the user’s JWT; avoid any other unauthenticated calls for user-owned data.
 - **API auth boundary**: Require authenticated bearer tokens for provider proxy routes (`/api/fal/*`, `/api/ai/*`), media routes (`/api/media/*`), upload endpoints, billing routes, and admin routes (enforced in `frontend/proxy.ts`, with additional route-level guards where needed).
 - **Route-level auth checks**: Keep `requireApiUser`/`requireAdminUser` in sensitive API handlers even when `frontend/proxy.ts` already guards the prefix, so auth still fails closed if middleware configuration drifts.
 - **Admin boundary**: Restrict admin APIs to operator roles from `app_metadata` (`role`/`roles`) or explicit allow-listed admin emails. Do not trust `user_metadata` for admin authorization.
+- **Conversation-state RPC hardening**: Keep `upsert_ai_agent_conversation_state` execute scope service-role-only, enforce bounded TTL/cap in DB logic, and run scheduled cleanup via `prune_ai_agent_conversation_state_expired`.
 
 ## Validation
 - Periodically test RLS with different users to confirm isolation.

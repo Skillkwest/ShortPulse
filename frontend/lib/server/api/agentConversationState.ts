@@ -8,6 +8,7 @@ const AGENT_CONVERSATION_RPC_SIGNATURE_MISS =
 
 export const AGENT_CANONICAL_PROMPT_MAX_LENGTH = 4096;
 export const AGENT_CANONICAL_USER_ROW_CAP = 200;
+export const AGENT_CONVERSATION_ID_MAX_LENGTH = 191;
 
 type ConversationStateRow = {
   canonical_prompt?: string | null;
@@ -16,6 +17,7 @@ type ConversationStateRow = {
 const normalizeConversationId = (value: string | null | undefined): string | null => {
   if (!value || typeof value !== "string") return null;
   const trimmed = value.trim();
+  if (trimmed.length > AGENT_CONVERSATION_ID_MAX_LENGTH) return null;
   return trimmed.length ? trimmed : null;
 };
 

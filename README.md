@@ -1,6 +1,6 @@
 # ShortPulse v1
 
-Client-only short-form analytics and workspace surfaces. Everything runs in the browser with Supabase for auth/storage and a demo dataset you can refresh and filter from the UI—no backend services to start or maintain.
+Short-form analytics and creative workspace surfaces built on Next.js with Supabase auth/storage and internal API routes for provider proxying, billing, uploads, and runtime orchestration.
 
 ## Tech
 
@@ -27,7 +27,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
    npm install
    npm run dev
    ```
-   The app runs entirely client-side; there is no backend server to start.
+   This starts the Next.js app, including server API routes under `frontend/pages/api/*`.
 
 ## Optional Supabase bootstrap
 
@@ -62,7 +62,7 @@ Client-only short-form analytics and workspace surfaces. Everything runs in the 
 
 - Only the Supabase anon key is used on the client; never share the service role key.
 - Enable RLS on `saved_creators` and `media_files` (per-user isolation) and keep the `media_library` bucket private with paths prefixed by `auth.uid()`.
-- Route protection: `/dashboard`, `/performance`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/character`, `/character-soon`, and `/admin` expect authenticated sessions and redirect to `/auth` when missing.
+- Route protection: `/dashboard`, `/performance`, `/performance-soon`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/creator-studio`, `/character`, `/character-soon`, and `/admin` expect authenticated sessions and redirect to `/auth` when missing.
 - API protection: provider proxy routes, media routes, billing routes, upload routes, and admin routes require bearer-authenticated Supabase sessions.
 
 ## Testing

@@ -918,3 +918,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Completed thin-client lifecycle cutover by removing client-side generation lifecycle writes from AI Studio orchestration hooks/persistence flow.
 - Added/updated tests for Fal webhook signature verification, webhook route ingestion path, reconciler execution route, status proxy integration, submit proxy behavior, and orchestration hook behavior; lint + type-check passing.
 - Updated runtime docs/indices (planning, ADR, API/internal routes, deployment, data dictionary, migration docs, schema snapshot, and env example) to reflect the new source of truth.
+
+## 2026-02-20 (governance realignment foundation)
+- Added governance rollout artifacts under `docs/planning/` for inventory, overlap audit, feasibility, master rollout proposal, stage execution docs, CI policy checks, implementation tracker, and final validation summary.
+- Added forward SQL hardening migration `sql/migrations/028_harden_ai_agent_conversation_state_security.sql` plus rollback pair for conversation-state retention clamps, deterministic pruning, service-role execute posture, and cleanup helper function.
+- Updated migration/security/data-dictionary/runbook docs to include `018` + `028` conversation-state contracts and bounded retention policy.
+- Introduced docs governance automation scripts: `scripts/check_docs_semantic_drift.js`, `scripts/check_migration_doc_parity.js`, and `scripts/check_archive_manifest.js`; wired into `npm -C frontend run docs:check`.
+- Added CI jobs `docs_semantic_drift`, `migration_parity`, `archive_manifest_check`, and `sql_lint` with warn/enforce mode toggles.
+- Aligned active architecture guidance by removing stale client-only wording from `README.md` and `frontend/AGENTS.md`.

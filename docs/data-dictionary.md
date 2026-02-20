@@ -1,6 +1,6 @@
 # Data Dictionary
 
-Purpose: define the Supabase tables and demo analytics fields used by ShortPulse’s frontend-only experience.
+Purpose: define the Supabase tables and analytics fields used by ShortPulse’s Next.js app and internal API routes.
 
 ## Supabase tables
 ### saved_creators
@@ -122,7 +122,7 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `mode` (text): image | video.
-- `provider` (text): fal | kei | ...
+- `provider` (text): fal | kei (legacy) | ...
 - `model_id` (text): Model used to generate.
 - `prompt_text` (text): Prompt used for the generation.
 - `aspect` (text, nullable)
@@ -181,6 +181,32 @@ Purpose: define the Supabase tables and demo analytics fields used by ShortPulse
 - `processing_status` (text): received | recovered | exhausted | ignored_* | failed.
 - `processing_error` (text, nullable): Processing failure detail when applicable.
 - `received_at` / `processed_at` (timestamptz): Ingestion + terminal processing timestamps.
+
+### ai_agent_conversation_state
+- `user_id` (uuid, pk segment, fk -> `auth.users.id`): Owner for state isolation.
+- `conversation_id` (text, pk segment): Conversation identity (`<=191` chars).
+- `canonical_prompt` (text): Canonical prompt continuity value (`<=4096` chars).
+- `updated_at` (timestamptz): Last canonical state write.
+- `expires_at` (timestamptz): Retention horizon for pruning.
+- `turn_count` (integer): Incrementing turn counter per conversation.
+- RLS: enabled with user ownership policy (`auth.uid() = user_id`).
+- Integrity:
+  - `ai_agent_conversation_state_conversation_id_length_check` enforces bounded conversation id length.
+  - Expired rows are removed in write path and can be pruned operationally.
+
+### Conversation state RPC contract
+- `upsert_ai_agent_conversation_state(p_user_id, p_conversation_id, p_canonical_prompt, p_ttl, p_user_cap)`
+  - Name/signature and return shape are stable for runtime compatibility.
+  - Execution posture: service-role path only.
+  - Server-owned bounds:
+    - TTL clamp `1 day..90 days` (default `30 days`).
+    - Per-user cap clamp `1..200` (default `200`).
+  - Deterministic retention:
+    - Stable tie-break ordering with current-conversation preservation during same-cycle pruning.
+  - Concurrency:
+    - Per-user advisory lock serializes upsert/prune for deterministic behavior.
+- `prune_ai_agent_conversation_state_expired(p_limit default 10000)`
+  - Service-role cleanup helper for scheduled stale-row pruning.
 
 ### user_preferences
 - `user_id` (uuid, pk, references `auth.users(id)`): Profile owner.

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  AGENT_CONVERSATION_ID_MAX_LENGTH,
   AGENT_CANONICAL_PROMPT_MAX_LENGTH,
   clampCanonicalPrompt,
   readAgentConversationCanonicalPrompt,
@@ -164,5 +165,32 @@ describe("agentConversationState", () => {
       })
     ).rejects.toThrow("Failed to upsert canonical prompt state: rpc failed");
     expect(rpcMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips read/upsert when conversation id exceeds max length", async () => {
+    const queryBuilder = createQueryBuilder();
+    const selectMock = vi.fn(() => queryBuilder);
+    const fromMock = vi.fn(() => ({ select: selectMock }));
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({
+      from: fromMock,
+      rpc: rpcMock,
+    });
+
+    const tooLongConversationId = `c-${"x".repeat(AGENT_CONVERSATION_ID_MAX_LENGTH)}`;
+    const readResult = await readAgentConversationCanonicalPrompt({
+      userId: "user-1",
+      conversationId: tooLongConversationId,
+    });
+    const upsertResult = await upsertAgentConversationCanonicalPrompt({
+      userId: "user-1",
+      conversationId: tooLongConversationId,
+      canonicalPrompt: "prompt",
+    });
+
+    expect(readResult).toBeNull();
+    expect(upsertResult).toBeNull();
+    expect(fromMock).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 });

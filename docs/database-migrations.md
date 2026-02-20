@@ -10,6 +10,7 @@ For operator run order, diagnostics loops, and common SQL error playbooks, use:
 - Canonical folder: `sql/migrations/`
 - Naming pattern: `NNN_short_description.sql` (e.g., `001_initial_schema.sql`)
 - Keep legacy bootstrap scripts in `sql/` unchanged for historical reference.
+- Canonical truth policy: migration files are source-of-truth for current runtime contracts; `docs/supabase_full_schema.sql` is a bootstrap snapshot and may lag between refreshes.
 
 ## Create a migration
 
@@ -26,6 +27,7 @@ For operator run order, diagnostics loops, and common SQL error playbooks, use:
    cd frontend
    npm run validate
    npm run build
+   npx supabase db lint --local --schema public --fail-on warning
    ```
 3. Validate impacted flows (auth, AI Studio billing/debits, media library, admin routes).
 
@@ -99,19 +101,21 @@ If enabling stricter Character Manager media integrity (source/path/metadata + c
 16. `sql/migrations/010_harden_character_reference_media_integrity.sql`
 17. `sql/migrations/011_add_character_description_to_characters.sql`
 18. `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`
+19. `sql/migrations/018_add_ai_agent_conversation_state.sql`
 
 If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconciler), also apply:
 
-19. `sql/migrations/019_add_generation_recovery_fields.sql`
-20. `sql/migrations/020_generation_runtime_convergence.sql`
-21. `sql/migrations/021_generation_state_machine_constraints.sql`
-22. `sql/migrations/022_generation_persist_idempotency.sql`
-23. `sql/migrations/023_generation_reconciler_claims.sql`
-24. `sql/migrations/024_fal_webhook_inbox.sql`
-25. `sql/migrations/025_generation_recovery_leases.sql`
-26. `sql/migrations/026_generation_recovery_transition_guards.sql`
-27. `sql/migrations/027_fix_reservation_rpc_on_conflict_ambiguity.sql`
-28. Rollback files:
+20. `sql/migrations/019_add_generation_recovery_fields.sql`
+21. `sql/migrations/020_generation_runtime_convergence.sql`
+22. `sql/migrations/021_generation_state_machine_constraints.sql`
+23. `sql/migrations/022_generation_persist_idempotency.sql`
+24. `sql/migrations/023_generation_reconciler_claims.sql`
+25. `sql/migrations/024_fal_webhook_inbox.sql`
+26. `sql/migrations/025_generation_recovery_leases.sql`
+27. `sql/migrations/026_generation_recovery_transition_guards.sql`
+28. `sql/migrations/027_fix_reservation_rpc_on_conflict_ambiguity.sql`
+29. `sql/migrations/028_harden_ai_agent_conversation_state_security.sql`
+30. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -121,6 +125,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/025_generation_recovery_leases_rollback.sql`
     - `sql/migrations/rollback/026_generation_recovery_transition_guards_rollback.sql`
     - `sql/migrations/rollback/027_fix_reservation_rpc_on_conflict_ambiguity_rollback.sql`
+    - `sql/migrations/rollback/028_harden_ai_agent_conversation_state_security_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -136,6 +141,8 @@ Billing safety note:
 - Migration `026_generation_recovery_transition_guards.sql` keeps strict status transitions while allowing bounded recovery `fail -> success` convergence.
 - Migration `027_fix_reservation_rpc_on_conflict_ambiguity.sql` resolves remaining reservation RPC ambiguity paths caused by
   `source_ref` output parameter name collisions inside `ON CONFLICT` clauses.
+- Migration `018_add_ai_agent_conversation_state.sql` introduces canonical prompt continuity persistence.
+- Migration `028_harden_ai_agent_conversation_state_security.sql` hardens conversation-state RPC grants, bounded TTL/cap policy, deterministic pruning, and cleanup operations.
 
 ## Media storage scope verification (post-017)
 

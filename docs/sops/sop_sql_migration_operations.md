@@ -48,6 +48,17 @@ Current set:
 - `015_add_app_error_events.sql`
 - `016_harden_media_storage_path_scope.sql`
 - `017_harden_media_storage_path_shape.sql`
+- `018_add_ai_agent_conversation_state.sql`
+- `019_add_generation_recovery_fields.sql`
+- `020_generation_runtime_convergence.sql`
+- `021_generation_state_machine_constraints.sql`
+- `022_generation_persist_idempotency.sql`
+- `023_generation_reconciler_claims.sql`
+- `024_fal_webhook_inbox.sql`
+- `025_generation_recovery_leases.sql`
+- `026_generation_recovery_transition_guards.sql`
+- `027_fix_reservation_rpc_on_conflict_ambiguity.sql`
+- `028_harden_ai_agent_conversation_state_security.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.
@@ -65,6 +76,9 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 
 4. Re-run hardening after repairs.
 - Expected loop: harden -> diagnose -> repair -> harden -> diagnose.
+
+5. Lint SQL before merge when migrations/functions changed.
+- Run: `supabase db lint --local --schema public --fail-on warning`.
 
 ## Standard Runbooks
 
@@ -178,6 +192,20 @@ order by count(*) desc;
 4. Promote same SQL sequence to production.
 5. Run post-deploy drift and policy verification.
 6. Record outcome in `docs/change_log.md`.
+
+## Conversation state hardening ops (018 + 028)
+
+After applying `018` and `028`:
+
+1. Validate RPC execution posture:
+   - `upsert_ai_agent_conversation_state` should execute via service-role path only.
+2. Validate bounded retention behavior:
+   - TTL clamp: `1 day..90 days` (default `30 days`).
+   - Cap clamp: `1..200` (default `200`).
+3. Validate deterministic pruning:
+   - tie-break ordering should remain stable under timestamp ties.
+4. Validate cleanup operation:
+   - `prune_ai_agent_conversation_state_expired(...)` callable from service role for daily cleanup cadence.
 
 ## Related Docs
 - `docs/database-migrations.md`

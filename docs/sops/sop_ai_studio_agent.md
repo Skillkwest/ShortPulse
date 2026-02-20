@@ -69,7 +69,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 ## Data handling & safety
 - Never send raw file blobs to the LLM route; convert local previews to signed/public `https://` URLs first.
 - No transcript storage in Supabase; chats live in memory with optional `sessionStorage` backup; clear on sign-out.
-- Canonical prompt continuity is persisted in Supabase (`ai_agent_conversation_state`) with TTL + per-user cap pruning.
+- Canonical prompt continuity is persisted in Supabase (`ai_agent_conversation_state`) through a service-role RPC with DB-enforced retention bounds (TTL `1..90 days`, cap `1..200`, defaults `30 days` + `200`) and deterministic pruning.
 - Strip EXIF when downscaling; videos send only a single poster frame.
 - Agent must refuse PII extraction and harmful requests (covered in `STUDIO_AGENT_SYSTEM` prompt).
 

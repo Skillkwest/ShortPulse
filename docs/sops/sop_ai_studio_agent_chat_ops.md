@@ -51,7 +51,7 @@ Prompt ownership rule:
   - “Add to grid” pushes the latest agent prompt as a card; close returns to Reference Grid.
 
 ## Safeguards & drift control
-- Canonical prompt store: API persists canonical prompt state in Supabase (`ai_agent_conversation_state`) keyed by `user_id + conversation_id`, with TTL/cap pruning.
+- Canonical prompt store: API persists canonical prompt state in Supabase (`ai_agent_conversation_state`) keyed by `user_id + conversation_id`, with service-role-only execute posture, DB-enforced TTL/cap clamps, deterministic pruning, and daily stale-row cleanup support.
 - Canonical read order: DB canonical → request canonical prompt → `context.lastAssistantMessage`.
 - Canonical write policy: upsert only on successful non-refusal turns.
 - Explicit-edit reliability: when the user issues an explicit edit request (e.g., remove/replace/change) and the first V2 result is a no-op, the API runs one stronger retry pass before returning.

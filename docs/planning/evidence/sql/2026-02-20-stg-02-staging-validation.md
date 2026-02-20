@@ -63,3 +63,22 @@ Reviewer: Pending
 ## Interpretation
 - The secret value is still being parsed as a non-URI/local-socket style target.
 - `SUPABASE_DB_URL` likely is not a full `postgresql://...` connection URI yet.
+
+## Attempt D: Re-run after second secret update
+- Command:
+  - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
+- Run URL:
+  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242348404`
+- Result:
+  - Workflow `success` (warn mode), gate script `failed` and emitted warning.
+- Artifact:
+  - `conversation-state-hardening-gate-22242348404`
+  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242348404/artifacts/5596682614`
+
+## Attempt D failure detail
+- `psql: error: connection to server at "db.jwmcytzyhcvacjwqtynn.supabase.co" (2600:1f13:838:6e0a:1375:3b43:dbbb:7e18), port 5432 failed: Network is unreachable`
+
+## Updated interpretation
+- `SUPABASE_DB_URL` is now a valid direct Postgres URI.
+- GitHub-hosted runner cannot reach the direct Supabase host in this path (IPv6 network unreachable).
+- Next correction is to use the Supabase pooler connection URI (IPv4-compatible) for CI-runner access.

@@ -13,10 +13,15 @@ Harden conversation-state storage and RPC behavior with deterministic retention 
 - [x] Add per-user advisory lock for upsert/prune cycle.
 - [x] Restrict execute grants to required runtime role.
 - [x] Add stale-row cleanup function and schedule guidance.
+- [ ] Run staging validation gate and archive evidence output.
+- [ ] Complete production rollout + rollback readiness check.
 
 ## Verification
 - `test -f sql/migrations/028_harden_ai_agent_conversation_state_security.sql`
 - `test -f sql/migrations/rollback/028_harden_ai_agent_conversation_state_security_rollback.sql`
+- `test -f sql/check_conversation_state_hardening_028.sql`
+- `test -x scripts/conversation_state_hardening_gate.sh`
+- `SUPABASE_DB_URL=... ./scripts/conversation_state_hardening_gate.sh`
 - `supabase db lint --local --schema public --fail-on warning`
 
 ## Owners and validators
@@ -29,4 +34,6 @@ Harden conversation-state storage and RPC behavior with deterministic retention 
 ## Evidence
 - `sql/migrations/028_harden_ai_agent_conversation_state_security.sql`
 - `sql/migrations/rollback/028_harden_ai_agent_conversation_state_security_rollback.sql`
+- `sql/check_conversation_state_hardening_028.sql`
+- `scripts/conversation_state_hardening_gate.sh`
 - `docs/planning/evidence/sql/`

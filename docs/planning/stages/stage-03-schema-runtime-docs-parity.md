@@ -29,3 +29,4 @@ Align migration docs, runtime contracts, and route/auth/API documentation with c
 - `README.md`
 - `docs/routes.md`
 - `docs/security-checklist.md`
+- `docs/planning/evidence/docs/2026-02-20-stg-03-parity-validation.md`

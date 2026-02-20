@@ -37,3 +37,4 @@ Harden conversation-state storage and RPC behavior with deterministic retention 
 - `sql/check_conversation_state_hardening_028.sql`
 - `scripts/conversation_state_hardening_gate.sh`
 - `docs/planning/evidence/sql/`
+- `docs/planning/evidence/sql/2026-02-20-stg-02-local-preflight.md`

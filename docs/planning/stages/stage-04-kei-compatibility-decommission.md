@@ -1,0 +1,25 @@
+# STG-04 KEI Compatibility Decommission
+
+## Summary
+Retire KEI safely using compatibility hold, coverage replacement, and phased deletion.
+
+## Checklist
+- [ ] Phase A: remove runtime KEI callers while keeping `/api/kei/*` tombstones.
+- [ ] Phase B: replace auth/ownership coverage before KEI test deletion.
+- [ ] Phase C: remove KEI API/client/tests after one release hold window.
+
+## Verification
+- `npm -C frontend run lint`
+- `npm -C frontend run type-check`
+- `npm -C frontend run test`
+- `npm -C frontend run build`
+
+## Owners and validators
+- Owner: Engineering
+- Validator: Security + QA
+
+## KPI
+- Zero runtime KEI references after Phase C, with no auth-boundary coverage regressions.
+
+## Evidence
+- `docs/planning/evidence/kei/`

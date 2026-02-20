@@ -3,6 +3,13 @@
 Purpose: active planning artifacts and current execution backlogs.
 
 ## Contents
+- `_inventory.md`: source inventory, decision locks, and traceability map for the governance realignment program.
+- `overlap-audit.md`: conflict/risk register with severity and resolution mapping across plan sources.
+- `feasibility-report.md`: rollout critical path, blockers, and dependency gating analysis.
+- `master-rollout-proposal.md`: canonical staged rollout contract (`STG-00` through `STG-08`).
+- `implementation-tracker.md`: stage-by-stage status, ownership, and compliance evidence tracking.
+- `ci-policy-checks.md`: CI job inventory, governance checks, and branch-protection mapping.
+- `final-validation-summary.md`: closeout validation matrix and signoff checklist.
 - `backlog.md`: active and upcoming work.
 - `documentation-audit-2026-02-17.md`: documentation governance audit artifact (classification matrix, contradiction method, backlog evidence matrix).
 - `audit-progress.md`: automation/docs audit status.
@@ -29,6 +36,9 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-shell-render-isolation-v3-plan.md`: selector-store + shell-boundary isolation execution and rollout plan for 50-60 reference shell responsiveness.
 - `expert-workflow-hardening-css-reorg-plan.md`: execution tracker for expert workflow hardening and expert CSS reorganization.
 - `tooling-audit-2026-02-16.md`: comprehensive tooling and framework audit with prioritized recommendations for masonry layout, image optimization, DnD, toasts, lightbox, date formatting, state management, and schema validation.
+- `stages/stage-00-governance-contract-lock.md` through `stages/stage-08-final-validation-signoff.md`: decision-complete stage execution docs.
+- `archive/original-plans/manifest.json`: machine-checkable inventory for verbatim source-plan preservation.
+- `archive/original-plans/shortpulse-governance-realignment-master-rollout-plan-2026-02-20.md`: verbatim archived source copy of the master rollout plan text.
 
 ## Maintenance
 - Keep plans actionable and current.

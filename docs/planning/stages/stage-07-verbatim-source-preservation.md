@@ -1,0 +1,23 @@
+# STG-07 Verbatim Source Preservation
+
+## Summary
+Preserve source planning inputs verbatim with manifest-based integrity.
+
+## Checklist
+- [x] Create archive folder scaffold.
+- [x] Add manifest schema and checksum validation script.
+- [ ] Copy source plans verbatim into archive.
+- [ ] Fill manifest with hash/size/source commit metadata.
+
+## Verification
+- `node scripts/check_archive_manifest.js`
+
+## Owners and validators
+- Owner: Engineering
+- Validator: Docs governance
+
+## KPI
+- 100% manifest checksum parity for archived originals.
+
+## Evidence
+- `docs/planning/archive/original-plans/manifest.json`

@@ -98,6 +98,13 @@ Start here for all repository documentation.
 
 ## Planning And History
 - `docs/planning/README.md`
+- `docs/planning/master-rollout-proposal.md`
+- `docs/planning/_inventory.md`
+- `docs/planning/overlap-audit.md`
+- `docs/planning/feasibility-report.md`
+- `docs/planning/implementation-tracker.md`
+- `docs/planning/ci-policy-checks.md`
+- `docs/planning/final-validation-summary.md`
 - `docs/planning/backlog.md`
 - `docs/planning/documentation-audit-2026-02-17.md`
 - `docs/planning/audit-progress.md`
@@ -167,6 +174,7 @@ Start here for all repository documentation.
 - `docs/archive/sops/sop_character_identity.md`
 - `docs/archive/refactor_prompt_archive.md`
 - `docs/archive/design-system-v1-draft.md`
+- `docs/planning/archive/original-plans/README.md` (controlled exception for verbatim source-plan evidence with checksum manifest)
 
 ## Design And Brainstorming
 - `docs/design/README.md`

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "generated_at_utc": "2026-02-20T20:03:55Z",
+  "entries": [
+    {
+      "id": "SP-GRMP-2026-02-20",
+      "source_path": "user-provided-plan:ShortPulse Governance Realignment Master Rollout Plan (2026-02-20)",
+      "archived_path": "docs/planning/archive/original-plans/shortpulse-governance-realignment-master-rollout-plan-2026-02-20.md",
+      "sha256": "253aa326e5bbdc0353dd3e19231150701329aa9cb4e530bd17479e1b1927d922",
+      "bytes": 12210,
+      "source_commit": "332099d9d395c6ab3441ed3fd17ded72a18bac8d",
+      "archived_at_utc": "2026-02-20T20:03:55Z",
+      "copied_by": "codex",
+      "notes": "Verbatim copy of user-provided master plan text for controlled planning archive."
+    }
+  ]
+}

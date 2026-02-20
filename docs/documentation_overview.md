@@ -33,6 +33,7 @@ Archive requirements:
 - Add an explicit archive note at the top of archived docs (for example: moved date + superseded-by path).
 - Keep `Status: Legacy` markers only in files under `docs/archive/`.
 - Update `docs/README.md` and relevant section indexes when docs move.
+- Controlled exception: source-plan evidence for governance synthesis may live under `docs/planning/archive/original-plans/` with manifest + checksum validation.
 
 ## Done state for docs cleanup
 A docs cleanup is complete when all are true:

@@ -115,7 +115,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 27. `sql/migrations/026_generation_recovery_transition_guards.sql`
 28. `sql/migrations/027_fix_reservation_rpc_on_conflict_ambiguity.sql`
 29. `sql/migrations/028_harden_ai_agent_conversation_state_security.sql`
-30. Rollback files:
+30. `sql/migrations/029_fix_conversation_state_upsert_ambiguity.sql`
+31. `sql/migrations/030_fix_conversation_state_upsert_conflict_target.sql`
+32. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -126,6 +128,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/026_generation_recovery_transition_guards_rollback.sql`
     - `sql/migrations/rollback/027_fix_reservation_rpc_on_conflict_ambiguity_rollback.sql`
     - `sql/migrations/rollback/028_harden_ai_agent_conversation_state_security_rollback.sql`
+    - `sql/migrations/rollback/029_fix_conversation_state_upsert_ambiguity_rollback.sql`
+    - `sql/migrations/rollback/030_fix_conversation_state_upsert_conflict_target_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -143,6 +147,8 @@ Billing safety note:
   `source_ref` output parameter name collisions inside `ON CONFLICT` clauses.
 - Migration `018_add_ai_agent_conversation_state.sql` introduces canonical prompt continuity persistence.
 - Migration `028_harden_ai_agent_conversation_state_security.sql` hardens conversation-state RPC grants, bounded TTL/cap policy, deterministic pruning, and cleanup operations.
+- Migration `029_fix_conversation_state_upsert_ambiguity.sql` resolves PL/pgSQL name-collision ambiguity in conversation-state upsert delete path.
+- Migration `030_fix_conversation_state_upsert_conflict_target.sql` resolves PL/pgSQL name-collision ambiguity in upsert `ON CONFLICT` targeting.
 
 ## Media storage scope verification (post-017)
 

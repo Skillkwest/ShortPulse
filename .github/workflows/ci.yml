@@ -44,6 +44,180 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  docs_semantic_drift:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run semantic docs drift checks (warn/enforce)
+        env:
+          DOCS_SEMANTIC_DRIFT_MODE: ${{ vars.DOCS_SEMANTIC_DRIFT_MODE }}
+        run: |
+          set -euo pipefail
+          MODE="${DOCS_SEMANTIC_DRIFT_MODE:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown DOCS_SEMANTIC_DRIFT_MODE='$MODE'. Falling back to 'warn'."
+            MODE="warn"
+          fi
+
+          set +e
+          cd ..
+          node scripts/check_docs_semantic_drift.js
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "docs_semantic_drift passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::docs_semantic_drift failed in warn mode."
+            echo "docs_semantic_drift failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "docs_semantic_drift failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
+  migration_parity:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run migration/docs parity checks (warn/enforce)
+        env:
+          MIGRATION_PARITY_MODE: ${{ vars.MIGRATION_PARITY_MODE }}
+        run: |
+          set -euo pipefail
+          MODE="${MIGRATION_PARITY_MODE:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown MIGRATION_PARITY_MODE='$MODE'. Falling back to 'warn'."
+            MODE="warn"
+          fi
+
+          set +e
+          cd ..
+          node scripts/check_migration_doc_parity.js
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "migration_parity passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::migration_parity failed in warn mode."
+            echo "migration_parity failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "migration_parity failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
+  archive_manifest_check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run archive manifest checks (warn/enforce)
+        env:
+          ARCHIVE_MANIFEST_MODE: ${{ vars.ARCHIVE_MANIFEST_MODE }}
+        run: |
+          set -euo pipefail
+          MODE="${ARCHIVE_MANIFEST_MODE:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown ARCHIVE_MANIFEST_MODE='$MODE'. Falling back to 'warn'."
+            MODE="warn"
+          fi
+
+          set +e
+          cd ..
+          node scripts/check_archive_manifest.js
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "archive_manifest_check passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::archive_manifest_check failed in warn mode."
+            echo "archive_manifest_check failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "archive_manifest_check failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
+  sql_lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Run SQL lint gate (warn/enforce)
+        env:
+          SQL_LINT_MODE: ${{ vars.SQL_LINT_MODE }}
+        run: |
+          set -euo pipefail
+          MODE="${SQL_LINT_MODE:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown SQL_LINT_MODE='$MODE'. Falling back to 'warn'."
+            MODE="warn"
+          fi
+
+          set +e
+          npx supabase db lint --local --schema public --fail-on warning
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "sql_lint passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::sql_lint failed in warn mode."
+            echo "sql_lint failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "sql_lint failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
   adaptive_media_gate:
     runs-on: ubuntu-latest
     defaults:

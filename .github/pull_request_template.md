@@ -5,7 +5,9 @@
 - [ ] `npm -C frontend run lint`
 - [ ] `npm -C frontend run build`
 - [ ] `npm -C frontend run deadcode:check`
+- [ ] `npm -C frontend run docs:check` (includes semantic drift + migration parity + archive manifest checks)
 - [ ] `npm -C frontend run test` (when logic/API behavior is touched)
+- [ ] `npx supabase db lint --local --schema public --fail-on warning` (when SQL/migrations are touched)
 
 ## AI Studio Perf Gates (when AI Studio behavior is touched)
 - [ ] `window.__shortpulseAiStudioPerf.runReferenceGridAudit({ counts: [40, 60], clickSamples: 24 })` passes.

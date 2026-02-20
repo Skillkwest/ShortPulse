@@ -5,6 +5,17 @@
 /docs/ @sleepyseamonster
 /sql/ @sleepyseamonster
 /.github/ @sleepyseamonster
+/.github/CODEOWNERS @sleepyseamonster
+
+# Governance truth-chain docs
+/docs/database-migrations.md @sleepyseamonster
+/docs/sops/sop_sql_migration_operations.md @sleepyseamonster
+/docs/data-dictionary.md @sleepyseamonster
+/docs/routes.md @sleepyseamonster
+/docs/security-checklist.md @sleepyseamonster
+/docs/planning/master-rollout-proposal.md @sleepyseamonster
+/docs/planning/_inventory.md @sleepyseamonster
+/docs/planning/overlap-audit.md @sleepyseamonster
 
 # Adaptive Media V2 critical paths
 /frontend/lib/adaptive-media/ @sleepyseamonster

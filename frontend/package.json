@@ -22,7 +22,7 @@
     "validate": "npm run lint && npm run type-check && npm run test",
     "db:migrate": "cd .. && supabase db push",
     "db:reset": "cd .. && supabase db reset",
-    "docs:check": "cd .. && node scripts/check_docs_links.js",
+    "docs:check": "cd .. && node scripts/check_docs_links.js && node scripts/check_docs_semantic_drift.js && node scripts/check_migration_doc_parity.js && node scripts/check_archive_manifest.js",
     "deadcode:check": "knip --production --include files --max-issues 0",
     "deadcode:check:full": "knip --production --include files,exports,dependencies --no-exit-code",
     "latency:protected-route": "cd .. && node scripts/capture_protected_route_latency.mjs",

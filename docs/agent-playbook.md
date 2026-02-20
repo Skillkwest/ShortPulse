@@ -21,7 +21,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 ## Supabase and security
 - Only use anon key on the client; never check in service-role keys or `.env.local`.
 - Enforce per-user isolation: RLS on `saved_creators`, `media_files`, and private `media_library` bucket paths (`auth.uid()` scoped).
-- Protected routes: `/dashboard`, `/performance`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/creator-studio`.
+- Protected routes: `/dashboard`, `/performance*`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/creator-studio`, `/character*`, `/admin`.
 - Reuse `frontend/lib/supabaseClient` and `useProtectedRoute` instead of ad-hoc clients.
 
 ## File hygiene
@@ -40,7 +40,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - For large refactors, propose a plan and execute incrementally; avoid exceeding file size limits.
 
 ## Maintenance skills
-- Run `npm -C frontend run docs:check` to validate docs API indexing, markdown link integrity, and legacy-status placement rules.
+- Run `npm -C frontend run docs:check` to validate markdown/index integrity plus semantic parity checks (routes, API inventory, migrations, archive manifest).
 - Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.
 - Use `skills/skill-doc-index/SKILL.md` when adding or renaming docs.
 - Use `skills/skill-ui-ux-critic/SKILL.md` for UI-focused PR audits and trend-fit recommendations.

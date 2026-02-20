@@ -12,6 +12,7 @@ Owner: Engineering
 - `ai_studio_perf_gate`
 - `ai_studio_perf_gate_notice`
 - `security`
+- `conversation_state_hardening_gate` (manual workflow-dispatch; environment-gated)
 
 ## New CI jobs
 
@@ -45,6 +46,16 @@ Owner: Engineering
 - Command: `supabase db lint --local --schema public --fail-on warning`
 - Initial mode: warn/evaluate
 - Enforce mode: after two green release cycles
+
+## Conversation-state hardening gate
+
+- Workflow: `.github/workflows/conversation-state-hardening-gate.yml`
+- Trigger: `workflow_dispatch`
+- Job ID: `conversation_state_hardening_gate`
+- Secret source: GitHub Environment secret `SUPABASE_DB_URL` (staging/production)
+- Command: `./scripts/conversation_state_hardening_gate.sh`
+- Modes: `warn` and `enforce` via dispatch input
+- Evidence: upload run log artifact and link run URL in `docs/planning/evidence/sql/*.md`
 
 ## Branch protection mapping
 

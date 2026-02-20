@@ -13,6 +13,7 @@ Harden conversation-state storage and RPC behavior with deterministic retention 
 - [x] Add per-user advisory lock for upsert/prune cycle.
 - [x] Restrict execute grants to required runtime role.
 - [x] Add stale-row cleanup function and schedule guidance.
+- [x] Add GitHub Actions workflow for environment-gated hardening gate execution.
 - [ ] Run staging validation gate and archive evidence output.
 - [ ] Complete production rollout + rollback readiness check.
 
@@ -22,6 +23,7 @@ Harden conversation-state storage and RPC behavior with deterministic retention 
 - `test -f sql/check_conversation_state_hardening_028.sql`
 - `test -x scripts/conversation_state_hardening_gate.sh`
 - `SUPABASE_DB_URL=... ./scripts/conversation_state_hardening_gate.sh`
+- GitHub Actions: run `Conversation State Hardening Gate` with `target_environment=staging` and attach run URL/artifact in SQL evidence.
 - `supabase db lint --local --schema public --fail-on warning`
 
 ## Owners and validators
@@ -36,5 +38,6 @@ Harden conversation-state storage and RPC behavior with deterministic retention 
 - `sql/migrations/rollback/028_harden_ai_agent_conversation_state_security_rollback.sql`
 - `sql/check_conversation_state_hardening_028.sql`
 - `scripts/conversation_state_hardening_gate.sh`
+- `.github/workflows/conversation-state-hardening-gate.yml`
 - `docs/planning/evidence/sql/`
 - `docs/planning/evidence/sql/2026-02-20-stg-02-local-preflight.md`

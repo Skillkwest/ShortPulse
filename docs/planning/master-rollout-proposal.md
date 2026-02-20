@@ -220,6 +220,7 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 - `size_budget`
 - `sql_lint`
 - `archive_manifest_check`
+- `conversation_state_hardening_gate` (manual, environment-gated)
 
 ## PR Train
 1. PR-01: STG-00 + STG-01

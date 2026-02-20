@@ -1,0 +1,82 @@
+name: Conversation State Hardening Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "GitHub Environment containing SUPABASE_DB_URL"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      mode:
+        description: "warn (non-blocking) or enforce (blocking)"
+        required: true
+        default: warn
+        type: choice
+        options:
+          - warn
+          - enforce
+
+jobs:
+  conversation_state_hardening_gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ github.event.inputs.target_environment }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install PostgreSQL client
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Run conversation-state hardening gate (warn/enforce)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          MODE_INPUT: ${{ github.event.inputs.mode }}
+        run: |
+          set -euo pipefail
+          MODE="${MODE_INPUT:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown mode '$MODE'. Falling back to warn."
+            MODE="warn"
+          fi
+
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::Missing environment secret SUPABASE_DB_URL."
+            exit 1
+          fi
+
+          set +e
+          ./scripts/conversation_state_hardening_gate.sh 2>&1 | tee /tmp/conversation_state_hardening_gate.log
+          STATUS=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "conversation_state_hardening_gate passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::conversation_state_hardening_gate failed in warn mode."
+            echo "conversation_state_hardening_gate failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "conversation_state_hardening_gate failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
+      - name: Upload gate log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conversation-state-hardening-gate-${{ github.run_id }}
+          path: /tmp/conversation_state_hardening_gate.log
+          if-no-files-found: ignore

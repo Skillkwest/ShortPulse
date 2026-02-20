@@ -21,8 +21,12 @@ Operator: @sleepyseamonster
 - Direct Postgres connectivity to Supabase host/port needs to be validated from the execution environment used for the gate.
 
 ## Next action
-1. Run gate in staging environment with `psql` available:
-   - `SUPABASE_DB_URL=... ./scripts/conversation_state_hardening_gate.sh`
-2. Record full output in:
+1. Configure GitHub Environment secrets:
+   - `staging` environment secret: `SUPABASE_DB_URL`
+   - `production` environment secret: `SUPABASE_DB_URL`
+2. Run GitHub workflow `Conversation State Hardening Gate` with:
+   - `target_environment=staging`
+   - `mode=warn` (promote to `enforce` after stability window)
+3. Record run URL and artifact summary in:
    - `docs/planning/evidence/sql/<date>-stg-02-staging-validation.md`
-3. Repeat for production after staging signoff.
+4. Repeat for production after staging signoff.

@@ -22,10 +22,19 @@ Reviewer: `<name>`
   - `<details>`
 
 ## 028 hardening gate
-- Command:
-  - `SUPABASE_DB_URL=... ./scripts/conversation_state_hardening_gate.sh`
+- Workflow:
+  - `Conversation State Hardening Gate` (`conversation_state_hardening_gate`)
+- Inputs:
+  - `target_environment=<staging|production>`
+  - `mode=<warn|enforce>`
+- Secret source:
+  - GitHub Environment secret `SUPABASE_DB_URL`
 - Result:
   - `<pass|fail>`
+- Run URL:
+  - `<https://github.com/.../actions/runs/...>`
+- Artifact:
+  - `conversation-state-hardening-gate-<run_id>`
 - Key checks:
   - grant posture (`service_role` allowed, `authenticated/public` denied)
   - `SECURITY DEFINER` + `search_path` hygiene

@@ -8,12 +8,14 @@ Automate anti-drift checks and wire governance gates to CI with staged enforceme
 - [x] Add migration parity checker.
 - [x] Add archive manifest checker.
 - [x] Wire new CI jobs with warn/evaluate behavior.
+- [x] Add environment-gated SQL hardening workflow for staged DB verification.
 - [ ] Promote to enforce mode after two green release cycles.
 
 ## Verification
 - `node scripts/check_docs_semantic_drift.js`
 - `node scripts/check_migration_doc_parity.js`
 - `node scripts/check_archive_manifest.js`
+- `gh workflow run conversation-state-hardening-gate.yml -f target_environment=staging -f mode=warn`
 
 ## Owners and validators
 - Owner: Engineering

@@ -72,10 +72,21 @@ describe("useMediaPreviewRuntime", () => {
         triggerObserver = callback;
       }
 
-      observe = observeMock;
-      unobserve = unobserveMock;
-      disconnect = disconnectMock;
-      takeRecords = () => [];
+      observe(target: Element): void {
+        (observeMock as unknown as (node: Element) => void)(target);
+      }
+
+      unobserve(target: Element): void {
+        (unobserveMock as unknown as (node: Element) => void)(target);
+      }
+
+      disconnect(): void {
+        (disconnectMock as unknown as () => void)();
+      }
+
+      takeRecords(): IntersectionObserverEntry[] {
+        return [];
+      }
     }
 
     globalThis.IntersectionObserver = MockIntersectionObserver as typeof IntersectionObserver;

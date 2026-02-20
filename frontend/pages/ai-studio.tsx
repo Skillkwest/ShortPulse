@@ -1152,6 +1152,7 @@ export default function AiStudioPage() {
   const { visibleFailures, dismissFailure, focusFailure } =
     useAiStudioOptimisticDebitReconciliation({
       outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
+      optimisticDebitEntries,
       setOptimisticDebitEntries,
       refreshBalance,
       setDetailOutputId,

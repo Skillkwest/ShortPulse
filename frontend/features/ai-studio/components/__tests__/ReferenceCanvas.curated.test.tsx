@@ -632,7 +632,7 @@ describe("ReferenceCanvas curated split", () => {
     expect(allRefsQueries.getByText("Visible in all refs")).toBeInTheDocument();
   });
 
-  it("hides save action for generated image references", () => {
+  it("shows save action for generated image references", () => {
     const onSaveToLibrary = vi.fn();
     const generatedImage: StudioOutput = {
       id: "generated-image-1",
@@ -646,7 +646,7 @@ describe("ReferenceCanvas curated split", () => {
       mediaSource: "generated",
     };
 
-    const { queryByLabelText } = render(
+    const { getByLabelText } = render(
       <ReferenceCanvas
         {...createProps({
           outputs: [generatedImage],
@@ -656,7 +656,7 @@ describe("ReferenceCanvas curated split", () => {
       />
     );
 
-    expect(queryByLabelText("Save to media library")).toBeNull();
+    expect(getByLabelText("Save to media library")).toBeInTheDocument();
   });
 
   it("keeps save action for unsaved prompt references", () => {

@@ -1,24 +1,12 @@
 /**
  * AI Studio task orchestration hook.
- * Owns generation polling lifecycle, deferred autosave finalization, status retry handling, and task-submission wiring.
+ * Owns generation polling lifecycle, status retry handling, and task-submission wiring.
  */
-import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "./useAiStudioTasks";
-
-export type PendingAutoSave = {
-  taskId: string;
-  provider: Provider;
-  resultUrls: string[];
-};
-
-type GenerationFailureReason =
-  | "no_media_after_terminal_success"
-  | "poll_timeout"
-  | "provider_error"
-  | "status_poll_error";
 
 type TaskSubmissionConfig = Omit<
   Parameters<typeof useAiStudioTaskSubmission>[0],
@@ -29,33 +17,6 @@ type UseAiStudioTaskOrchestrationParams = {
   taskSubmissionConfig: TaskSubmissionConfig;
   outputs?: StudioOutput[];
   findOutputById: (id: string) => StudioOutput | null;
-  pendingAutoSavesRef: MutableRefObject<Record<string, PendingAutoSave>>;
-  markOutputSaved: (
-    outputId: string,
-    mediaFileIds?: string[],
-    options?: { showPill?: boolean }
-  ) => void;
-  markOutputSaveFailed: (
-    outputId: string,
-    message: string,
-    options?: { showPill?: boolean }
-  ) => void;
-  persistMediaUrls: (args: {
-    outputId: string;
-    urls: string[];
-    provider: Provider;
-    source: "upload" | "ai_studio";
-    generationId?: string | null;
-  }) => Promise<{
-    mediaFileIds: string[];
-    errors: string[];
-    delivery: {
-      previewStoragePath: string | null;
-      fullStoragePath: string | null;
-      previewUrl: string | null;
-      fullUrl: string | null;
-    } | null;
-  }>;
 };
 
 type StuckSpinnerRetryState = {
@@ -86,115 +47,9 @@ export const useAiStudioTaskOrchestration = ({
   taskSubmissionConfig,
   outputs = [],
   findOutputById,
-  pendingAutoSavesRef,
-  markOutputSaved,
-  markOutputSaveFailed,
-  persistMediaUrls,
 }: UseAiStudioTaskOrchestrationParams) => {
-  const { updateOutputById, notifyGenerationFailure, ensureGenerationRecord, setUiNotice } =
-    taskSubmissionConfig;
+  const { updateOutputById, notifyGenerationFailure, setUiNotice } = taskSubmissionConfig;
   const stuckSpinnerRetryStateRef = useRef<Record<string, StuckSpinnerRetryState>>({});
-
-  const finalizeDeferredAutoSave = useCallback(
-    async (outputId: string) => {
-      const pending = pendingAutoSavesRef.current[outputId];
-      if (!pending) return;
-      delete pendingAutoSavesRef.current[outputId];
-
-      const output = findOutputById(outputId);
-      if (!output || output.savedMediaIds?.length) return;
-
-      const urls = pending.resultUrls.filter(Boolean);
-      if (!urls.length) return;
-
-      const generationId =
-        output.generationId ??
-        (await ensureGenerationRecord({
-          outputId,
-          provider: pending.provider,
-          taskId: pending.taskId,
-        }));
-
-      updateOutputById(outputId, (item) => ({
-        ...item,
-        saveState: "saving",
-        saveError: null,
-      }));
-      const { mediaFileIds, errors, delivery } = await persistMediaUrls({
-        outputId,
-        urls,
-        provider: pending.provider,
-        source: "ai_studio",
-        generationId: generationId ?? null,
-      });
-      if (delivery) {
-        updateOutputById(outputId, (item) => ({
-          ...item,
-          previewStoragePath: delivery.previewStoragePath ?? item.previewStoragePath ?? null,
-          fullStoragePath:
-            delivery.fullStoragePath ?? item.fullStoragePath ?? item.previewStoragePath ?? null,
-          previewUrl: item.previewUrl ?? delivery.previewUrl ?? delivery.fullUrl ?? undefined,
-        }));
-      }
-      if (mediaFileIds.length) {
-        markOutputSaved(outputId, mediaFileIds, { showPill: true });
-      } else if (errors.length) {
-        const message = errors[0] ?? "Unable to save media.";
-        markOutputSaveFailed(outputId, message, { showPill: true });
-      }
-    },
-    [
-      ensureGenerationRecord,
-      findOutputById,
-      markOutputSaveFailed,
-      markOutputSaved,
-      pendingAutoSavesRef,
-      persistMediaUrls,
-      updateOutputById,
-    ]
-  );
-
-  const handleGenerationSuccess = useCallback(
-    ({
-      outputId,
-      taskId,
-      provider,
-      resultUrls,
-    }: {
-      outputId: string;
-      taskId: string;
-      provider: Provider;
-      resultUrls: string[];
-    }) => {
-      const output = findOutputById(outputId);
-      if (!output) return;
-      if (output.savedMediaIds?.length) return;
-      const urls = resultUrls.filter(Boolean);
-      if (!urls.length) return;
-      pendingAutoSavesRef.current[outputId] = {
-        taskId,
-        provider,
-        resultUrls: urls,
-      };
-      // Persist as soon as provider URLs are available; media-load callback remains fallback.
-      void finalizeDeferredAutoSave(outputId);
-    },
-    [finalizeDeferredAutoSave, findOutputById, pendingAutoSavesRef]
-  );
-
-  const handleGenerationFailure = useCallback(
-    async (payload: {
-      outputId: string;
-      taskId?: string;
-      provider: Provider;
-      message: string;
-      reasonCode?: GenerationFailureReason;
-    }) => {
-      const { outputId } = payload;
-      delete pendingAutoSavesRef.current[outputId];
-    },
-    [pendingAutoSavesRef]
-  );
 
   const handlePollingOutputLookupHardStop = useCallback(
     async (payload: {
@@ -214,8 +69,6 @@ export const useAiStudioTaskOrchestration = ({
     updateOutputById,
     findOutputById,
     notifyGenerationFailure,
-    onGenerationSuccess: handleGenerationSuccess,
-    onGenerationFailure: handleGenerationFailure,
     onPollingOutputLookupHardStop: handlePollingOutputLookupHardStop,
   });
 
@@ -224,12 +77,10 @@ export const useAiStudioTaskOrchestration = ({
     startPollingTask,
   });
 
-  const onReferenceOutputMediaLoaded = useCallback(
-    (outputId: string) => {
-      void finalizeDeferredAutoSave(outputId);
-    },
-    [finalizeDeferredAutoSave]
-  );
+  const onReferenceOutputMediaLoaded = useCallback((outputId: string) => {
+    void outputId;
+    // Generated reference-grid media remains unsaved until explicitly saved by the user.
+  }, []);
 
   const retryOutputStatus = useCallback(
     (outputId: string) => {

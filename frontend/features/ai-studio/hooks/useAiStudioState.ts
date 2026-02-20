@@ -27,7 +27,7 @@ import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
 import { useAiStudioGenerationPromptComposer } from "./useAiStudioGenerationPromptComposer";
 import { useAiStudioReferenceSelectionState } from "./useAiStudioReferenceSelectionState";
-import { type PendingAutoSave, useAiStudioTaskOrchestration } from "./useAiStudioTaskOrchestration";
+import { useAiStudioTaskOrchestration } from "./useAiStudioTaskOrchestration";
 import { useAiStudioWorkflowSettings } from "./useAiStudioWorkflowSettings";
 import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
 import {
@@ -144,8 +144,9 @@ export const useAiStudioState = ({
   const outputStorePublishEpochRef = useRef(0);
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
   const [curatedReferenceIds, setCuratedReferenceIds] = useState<string[]>([]);
+  const curatedReferenceIdsRef = useRef<string[]>([]);
   const [saved, setSaved] = useState(false);
-  const pendingAutoSavesRef = useRef<Record<string, PendingAutoSave>>({});
+  const pendingAutoSavesRef = useRef<Record<string, unknown>>({});
   const outputObjectUrlByIdRef = useRef<Record<string, string>>({});
   const lastOutputUrlsByIdRef = useRef<Record<string, string>>({});
   const activeOutputByIdRef = useRef<Record<string, StudioOutput>>({});
@@ -667,9 +668,16 @@ export const useAiStudioState = ({
   }, []);
 
   useEffect(() => {
+    curatedReferenceIdsRef.current = curatedReferenceIds;
+  }, [curatedReferenceIds]);
+
+  useEffect(() => {
     const validOutputIds = [...activeOutputState.order, ...archivedOutputState.order];
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCuratedReferenceIds((prev) => pruneCuratedReferenceIds(prev, validOutputIds));
+    const currentCuratedIds = curatedReferenceIdsRef.current;
+    const nextCuratedIds = pruneCuratedReferenceIds(currentCuratedIds, validOutputIds);
+    if (nextCuratedIds === currentCuratedIds) return;
+    curatedReferenceIdsRef.current = nextCuratedIds;
+    setCuratedReferenceIds(nextCuratedIds);
   }, [activeOutputState.order, archivedOutputState.order]);
 
   useEffect(() => {
@@ -777,10 +785,7 @@ export const useAiStudioState = ({
   );
 
   const {
-    markOutputSaved,
-    markOutputSaveFailed,
     ensureGenerationRecord,
-    persistMediaUrls,
     saveActiveOutput,
     saveReferenceToLibrary,
     savePromptReference,
@@ -833,10 +838,6 @@ export const useAiStudioState = ({
       },
       outputs,
       findOutputById,
-      pendingAutoSavesRef,
-      markOutputSaved,
-      markOutputSaveFailed,
-      persistMediaUrls,
     });
   const { generateOutput, regenerateOutput } = useAiStudioGenerationPromptComposer({
     prompt,

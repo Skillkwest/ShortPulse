@@ -16,6 +16,7 @@ const STALE_UNASSIGNED_OPTIMISTIC_DEBIT_MS = 2 * 60 * 1000;
 
 type UseAiStudioOptimisticDebitReconciliationParams = {
   outputs?: StudioOutput[];
+  optimisticDebitEntries: OptimisticDebitEntry[];
   setOptimisticDebitEntries: Dispatch<SetStateAction<OptimisticDebitEntry[]>>;
   refreshBalance: (options?: {
     silent?: boolean;
@@ -56,6 +57,7 @@ const areOutputLiteListsEqual = (
  */
 export const useAiStudioOptimisticDebitReconciliation = ({
   outputs: outputsOverride,
+  optimisticDebitEntries,
   setOptimisticDebitEntries,
   refreshBalance,
   setDetailOutputId,
@@ -102,6 +104,14 @@ export const useAiStudioOptimisticDebitReconciliation = ({
     () => outputs.filter((item) => item.taskState === "fail" && item.errorMessage),
     [outputs]
   );
+  const failedOutputIdsKey = useMemo(
+    () =>
+      failedOutputs
+        .map((item) => item.id)
+        .sort()
+        .join("|"),
+    [failedOutputs]
+  );
 
   const visibleFailures = useMemo(
     () => failedOutputs.filter((item) => !dismissedFailureIds.has(item.id)),
@@ -117,7 +127,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       if (filtered.length === prev.size) return prev;
       return new Set(filtered);
     });
-  }, [dismissedFailureIds, failedOutputs]);
+  }, [dismissedFailureIds, failedOutputIdsKey, failedOutputs]);
 
   useEffect(() => {
     const newlySeenOutputIds: string[] = [];
@@ -128,8 +138,36 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       seenOutputIdsRef.current.add(output.id);
     });
 
+    const now = Date.now();
+    const hasUnassignedEntry = optimisticDebitEntries.some((entry) => entry.outputId == null);
+    const hasStaleUnassignedEntry = optimisticDebitEntries.some((entry) => {
+      if (entry.outputId != null) return false;
+      const createdAtMs = entry.createdAtMs;
+      return (
+        typeof createdAtMs === "number" &&
+        createdAtMs > 0 &&
+        now - createdAtMs > STALE_UNASSIGNED_OPTIMISTIC_DEBIT_MS
+      );
+    });
+    if (!hasUnassignedEntry && !hasStaleUnassignedEntry) return;
+    if (!newlySeenOutputIds.length && !hasStaleUnassignedEntry) return;
+    const assignedOutputIds = new Set(
+      optimisticDebitEntries
+        .map((entry) => entry.outputId)
+        .filter((id): id is string => Boolean(id))
+    );
+    const assignableOutputIds = newlySeenOutputIds.filter((id) => {
+      const item = effectiveOutputLite.find((output) => output.id === id);
+      return Boolean(
+        item &&
+        item.id.startsWith("out-") &&
+        (item.taskState === "pending" || item.taskState === "running") &&
+        !assignedOutputIds.has(item.id)
+      );
+    });
+    if (!hasStaleUnassignedEntry && !assignableOutputIds.length) return;
+
     setOptimisticDebitEntries((prev) => {
-      const now = Date.now();
       let changed = false;
       const activeEntries = prev.filter((entry) => {
         if (entry.outputId != null) return true;
@@ -150,19 +188,12 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       if (!newlySeenOutputIds.length) {
         return changed ? activeEntries : prev;
       }
-      const assignedOutputIds = new Set(
+      const activeAssignedOutputIds = new Set(
         activeEntries.map((entry) => entry.outputId).filter((id): id is string => Boolean(id))
       );
-      const newlyPendingOutputIds = newlySeenOutputIds.filter((id) => {
-        const item = effectiveOutputLite.find((output) => output.id === id);
-        return Boolean(
-          item &&
-          item.id.startsWith("out-") &&
-          (item.taskState === "pending" || item.taskState === "running") &&
-          !assignedOutputIds.has(item.id)
-        );
-      });
-      const availableOutputIds = [...newlyPendingOutputIds];
+      const availableOutputIds = assignableOutputIds.filter(
+        (id) => !activeAssignedOutputIds.has(id)
+      );
       if (!availableOutputIds.length) return changed ? activeEntries : prev;
 
       let nextIndex = 0;
@@ -178,7 +209,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       });
       return changed ? next : prev;
     });
-  }, [effectiveOutputLite, setOptimisticDebitEntries]);
+  }, [effectiveOutputLite, optimisticDebitEntries, setOptimisticDebitEntries]);
 
   useEffect(() => {
     const failedOutputIds = new Set(
@@ -197,11 +228,12 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       (item) => item.taskState === "pending" || item.taskState === "running"
     );
     if (hasInFlightOutput) return;
+    if (!optimisticDebitEntries.some((entry) => entry.outputId == null)) return;
     setOptimisticDebitEntries((prev) => {
       const next = prev.filter((entry) => entry.outputId != null);
       return next.length === prev.length ? prev : next;
     });
-  }, [effectiveOutputLite, setOptimisticDebitEntries]);
+  }, [effectiveOutputLite, optimisticDebitEntries, setOptimisticDebitEntries]);
 
   useEffect(() => {
     const settledOutputs = effectiveOutputLite.filter(

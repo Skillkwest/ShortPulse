@@ -137,6 +137,27 @@ const MEDIA_MODAL_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
   signBatchSize: 3,
 };
 const MEDIA_MODAL_MAX_SIGN_ATTEMPTS_PER_ITEM = 3;
+const NEXT_IMAGE_OPTIMIZER_PATH_PATTERN = /(?:^|\/)_next\/image\?/i;
+
+const isNextImageOptimizerUrl = (value: string | null | undefined): boolean => {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && NEXT_IMAGE_OPTIMIZER_PATH_PATTERN.test(trimmed);
+};
+
+const resolveNextImageOptimizerSourceUrl = (value: string | null | undefined): string | null => {
+  if (!isNextImageOptimizerUrl(value)) return null;
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed, "https://shortpulse.local");
+    const source = parsed.searchParams.get("url");
+    const resolved = source?.trim() ?? "";
+    return resolved.length > 0 ? resolved : null;
+  } catch {
+    return null;
+  }
+};
 
 const resolveModalSignBudget = (): MediaSignBudget => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -346,6 +367,9 @@ export function MediaLibraryModal({
   const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
   const [signPassNonce, setSignPassNonce] = useState(0);
   const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveModalSignBudget);
+  const [optimizerFallbackMediaIds, setOptimizerFallbackMediaIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const currentUserIdRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
   const activeMediaTab = isMediaDataTab(activeTab) ? activeTab : null;
@@ -409,6 +433,7 @@ export function MediaLibraryModal({
 
   useEffect(() => {
     signAttemptRef.current = {};
+    setOptimizerFallbackMediaIds(new Set());
   }, [activeTab, activeMediaQuery]);
 
   useEffect(() => {
@@ -660,7 +685,20 @@ export function MediaLibraryModal({
   );
 
   const handleMediaPreviewError = useCallback(
-    (file: MediaFileRow) => {
+    (file: MediaFileRow, failedUrl?: string | null) => {
+      if (isNextImageOptimizerUrl(failedUrl)) {
+        const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
+        const tab = getMediaDataTabForRow(file);
+        if (sourceUrl) {
+          applySignedUrlsToTab(tab, new Map([[file.id, sourceUrl]]));
+        }
+        setOptimizerFallbackMediaIds((prev) => {
+          if (prev.has(file.id)) return prev;
+          const next = new Set(prev);
+          next.add(file.id);
+          return next;
+        });
+      }
       const attempts = signedUrlRetryRef.current[file.id] ?? 0;
       if (attempts >= 3) return;
       signedUrlRetryRef.current[file.id] = attempts + 1;
@@ -674,7 +712,7 @@ export function MediaLibraryModal({
         void hydrateViaStorageDownload(file);
       });
     },
-    [hydrateViaStorageDownload, refreshSignedUrl, resolveSignedUrlsByMediaIds]
+    [applySignedUrlsToTab, hydrateViaStorageDownload, refreshSignedUrl, resolveSignedUrlsByMediaIds]
   );
 
   const markFirstMediaPaint = useCallback(
@@ -1288,31 +1326,35 @@ export function MediaLibraryModal({
                 ) : (
                   activeMedia.map((file) => {
                     const isSelected = selectedIds.has(file.id);
+                    const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
                     const previewAspectRatio = resolveMediaCardAspectRatio({
                       fileType: file.file_type,
                       metadata: file.metadata,
                     });
-                    const adaptiveCardPreview = file.signedUrl
-                      ? resolveAdaptiveMedia({
-                          surface: "media-library-modal-grid",
-                          mediaKind: isVideoFile(file.file_type) ? "video" : "image",
-                          source: resolveAdaptiveSourceKind(file.signedUrl),
-                          urls: {
-                            previewUrl: file.signedUrl,
-                            fullUrl: file.signedUrl,
-                          },
-                          storage: {},
-                          pressureLevel: 0,
-                          cardLongEdgePx: 320,
-                          devicePixelRatio:
-                            typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-                          strictPreviewLadder: true,
-                          adaptivePreviewQuality: isAdaptiveSurfaceEnabled(
-                            "media-library-modal-grid"
-                          ),
-                        })
-                      : null;
-                    const cardPreviewUrl = adaptiveCardPreview?.previewUrl ?? file.signedUrl;
+                    const adaptiveCardPreview =
+                      file.signedUrl && !shouldBypassAdaptivePreview
+                        ? resolveAdaptiveMedia({
+                            surface: "media-library-modal-grid",
+                            mediaKind: isVideoFile(file.file_type) ? "video" : "image",
+                            source: resolveAdaptiveSourceKind(file.signedUrl),
+                            urls: {
+                              previewUrl: file.signedUrl,
+                              fullUrl: file.signedUrl,
+                            },
+                            storage: {},
+                            pressureLevel: 0,
+                            cardLongEdgePx: 320,
+                            devicePixelRatio:
+                              typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+                            strictPreviewLadder: true,
+                            adaptivePreviewQuality: isAdaptiveSurfaceEnabled(
+                              "media-library-modal-grid"
+                            ),
+                          })
+                        : null;
+                    const cardPreviewUrl = shouldBypassAdaptivePreview
+                      ? file.signedUrl
+                      : (adaptiveCardPreview?.previewUrl ?? file.signedUrl);
                     return (
                       <button
                         key={file.id}
@@ -1367,7 +1409,7 @@ export function MediaLibraryModal({
                               onLoadedData={() => {
                                 markFirstMediaPaint("video");
                               }}
-                              onError={() => handleMediaPreviewError(file)}
+                              onError={() => handleMediaPreviewError(file, cardPreviewUrl)}
                             />
                           ) : (
                             <>
@@ -1384,7 +1426,7 @@ export function MediaLibraryModal({
                                   signedUrlRetryRef.current[file.id] = 0;
                                   markFirstMediaPaint("image");
                                 }}
-                                onError={() => handleMediaPreviewError(file)}
+                                onError={() => handleMediaPreviewError(file, cardPreviewUrl)}
                               />
                             </>
                           )

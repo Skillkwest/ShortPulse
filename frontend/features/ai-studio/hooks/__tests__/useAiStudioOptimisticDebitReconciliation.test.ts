@@ -42,6 +42,7 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     renderHook(() =>
       useAiStudioOptimisticDebitReconciliation({
         outputs: [makeOutput("out-1", "pending")],
+        optimisticDebitEntries: [{ credits: 3, outputId: null }],
         setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
         refreshBalance: vi.fn(async () => 10),
         setDetailOutputId: asDispatch<string | null>(vi.fn()),
@@ -62,6 +63,7 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     renderHook(() =>
       useAiStudioOptimisticDebitReconciliation({
         outputs: [makeOutput("out-7", "running")],
+        optimisticDebitEntries: [{ credits: 6, outputId: null }],
         setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
         refreshBalance: vi.fn(async () => 10),
         setDetailOutputId: asDispatch<string | null>(vi.fn()),
@@ -83,6 +85,7 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     renderHook(() =>
       useAiStudioOptimisticDebitReconciliation({
         outputs: [makeOutput("out-2", "fail", { errorMessage: "Generation failed" })],
+        optimisticDebitEntries: [],
         setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
         refreshBalance,
         setDetailOutputId: asDispatch<string | null>(vi.fn()),
@@ -109,6 +112,7 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     renderHook(() =>
       useAiStudioOptimisticDebitReconciliation({
         outputs: [makeOutput("out-1", "success")],
+        optimisticDebitEntries: [],
         setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
         refreshBalance,
         setDetailOutputId: asDispatch<string | null>(vi.fn()),
@@ -141,6 +145,7 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     const { result } = renderHook(() =>
       useAiStudioOptimisticDebitReconciliation({
         outputs: [makeOutput("out-fail", "fail", { errorMessage: "Failure" })],
+        optimisticDebitEntries: [],
         setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(vi.fn()),
         refreshBalance: vi.fn(async () => 10),
         setDetailOutputId: asDispatch<string | null>(setDetailOutputId),
@@ -165,6 +170,7 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     renderHook(() =>
       useAiStudioOptimisticDebitReconciliation({
         outputs: [makeOutput("out-new", "pending")],
+        optimisticDebitEntries: [{ credits: 4, outputId: null }],
         setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
         refreshBalance: vi.fn(async () => 10),
         setDetailOutputId: asDispatch<string | null>(vi.fn()),
@@ -193,6 +199,7 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
       ({ outputs }) =>
         useAiStudioOptimisticDebitReconciliation({
           outputs,
+          optimisticDebitEntries: [{ credits: 2, outputId: null }],
           setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
           refreshBalance: vi.fn(async () => 10),
           setDetailOutputId: asDispatch<string | null>(vi.fn()),

@@ -1,6 +1,6 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioTaskOrchestration } from "../useAiStudioTaskOrchestration";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
@@ -60,29 +60,10 @@ describe("useAiStudioTaskOrchestration", () => {
     }) as typeof useAiStudioTasks);
   });
 
-  it("finalizes deferred autosave immediately after generation success callback", async () => {
-    let outputs = [createOutput({ id: "out-1", taskId: "task-1" })];
-
-    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
-      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
-    });
-    const findOutputById = vi.fn((id: string) => outputs.find((item) => item.id === id) ?? null);
-
-    const markOutputSaved = vi.fn();
-    const markOutputSaveFailed = vi.fn();
-    const persistMediaUrls = vi.fn(async () => ({
-      mediaFileIds: ["media-1"],
-      errors: [],
-      delivery: null,
-    }));
-    const ensureGenerationRecord = vi.fn(async () => "gen-1");
+  it("does not wire generation success into auto-persistence", async () => {
+    const outputs = [createOutput({ id: "out-1", taskId: "task-1" })];
+    const updateOutputById = vi.fn();
     const setUiNotice = vi.fn();
-
-    const pendingAutoSavesRef = {
-      current: {},
-    } as MutableRefObject<
-      Record<string, { taskId: string; provider: "kei"; resultUrls: string[] }>
-    >;
 
     const { result } = renderHook(() =>
       useAiStudioTaskOrchestration({
@@ -115,113 +96,20 @@ describe("useAiStudioTaskOrchestration", () => {
           getDefaultDurationSeconds: vi.fn(() => 6),
           notifyGenerationFailure: vi.fn(),
           updateOutputById,
-          ensureGenerationRecord,
-        },
-        findOutputById,
-        pendingAutoSavesRef,
-        markOutputSaved,
-        markOutputSaveFailed,
-        persistMediaUrls,
-      })
-    );
-
-    await act(async () => {
-      capturedTaskCallbacks?.onGenerationSuccess?.({
-        outputId: "out-1",
-        taskId: "task-1",
-        provider: "kei",
-        resultUrls: ["https://example.com/final.png"],
-      });
-    });
-    await waitFor(() => {
-      expect(persistMediaUrls).toHaveBeenCalled();
-    });
-
-    expect(persistMediaUrls).toHaveBeenCalledWith({
-      outputId: "out-1",
-      urls: ["https://example.com/final.png"],
-      provider: "kei",
-      source: "ai_studio",
-      generationId: "gen-1",
-    });
-    expect(markOutputSaved).toHaveBeenCalledWith("out-1", ["media-1"], { showPill: true });
-    expect(markOutputSaveFailed).not.toHaveBeenCalled();
-    expect(pendingAutoSavesRef.current["out-1"]).toBeUndefined();
-
-    await act(async () => {
-      await result.current.onReferenceOutputMediaLoaded("out-1");
-    });
-    expect(persistMediaUrls).toHaveBeenCalledTimes(1);
-  });
-
-  it("clears pending autosave entry on failure callback", async () => {
-    const outputs = [
-      createOutput({ id: "out-1", taskId: "task-123", provider: "fal", generationId: "gen-1" }),
-    ];
-    const updateOutputById = vi.fn();
-    const pendingAutoSavesRef = {
-      current: {
-        "out-1": {
-          taskId: "task-123",
-          provider: "fal" as const,
-          resultUrls: ["https://example.com/final.png"],
-        },
-      },
-    };
-
-    renderHook(() =>
-      useAiStudioTaskOrchestration({
-        taskSubmissionConfig: {
-          aspect: "9:16",
-          mode: "image",
-          model: "model-id",
-          prompt: "Prompt",
-          selectedTool: "create",
-          imageResolution: "model_default",
-          videoDurationSeconds: 6,
-          videoResolution: "1080p",
-          videoGenerateAudio: false,
-          videoReferenceMode: "standard",
-          videoReferenceImageUrl: null,
-          motionReferenceVideoUrl: null,
-          videoCameraFixed: false,
-          videoAutoFix: false,
-          klingNegativePrompt: "blur",
-          klingCfgScale: 0.5,
-          klingShotType: "customize",
-          klingVoiceIds: ["", ""],
-          klingMultiPrompts: [],
-          klingElements: [],
-          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
-          setUiError: asDispatch<string | null>(vi.fn()),
-          setUiNotice: asDispatch<string | null>(vi.fn()),
-          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
-          setSaved: asDispatch<boolean>(vi.fn()),
-          getDefaultDurationSeconds: vi.fn(() => 6),
-          notifyGenerationFailure: vi.fn(),
-          updateOutputById,
           ensureGenerationRecord: vi.fn(async () => null),
         },
         outputs,
         findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
-        pendingAutoSavesRef,
-        markOutputSaved: vi.fn(),
-        markOutputSaveFailed: vi.fn(),
-        persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
       })
     );
 
-    await act(async () => {
-      await capturedTaskCallbacks?.onGenerationFailure?.({
-        outputId: "out-1",
-        taskId: "task-123",
-        provider: "fal",
-        message: "Timed out waiting for provider result.",
-        reasonCode: "poll_timeout",
-      });
-    });
+    expect(capturedTaskCallbacks?.onGenerationSuccess).toBeUndefined();
+    expect(capturedTaskCallbacks?.onGenerationFailure).toBeUndefined();
 
-    expect(pendingAutoSavesRef.current["out-1"]).toBeUndefined();
+    await act(async () => {
+      await result.current.onReferenceOutputMediaLoaded("out-1");
+    });
+    expect(updateOutputById).not.toHaveBeenCalled();
   });
 
   it("no-ops client persistence when polling hard-stop callback fires", async () => {
@@ -265,10 +153,6 @@ describe("useAiStudioTaskOrchestration", () => {
         },
         outputs,
         findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
-        pendingAutoSavesRef: { current: {} },
-        markOutputSaved: vi.fn(),
-        markOutputSaveFailed: vi.fn(),
-        persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
       })
     );
 
@@ -324,10 +208,6 @@ describe("useAiStudioTaskOrchestration", () => {
           ensureGenerationRecord: vi.fn(async () => null),
         },
         findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
-        pendingAutoSavesRef: { current: {} },
-        markOutputSaved: vi.fn(),
-        markOutputSaveFailed: vi.fn(),
-        persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
       })
     );
 
@@ -383,10 +263,6 @@ describe("useAiStudioTaskOrchestration", () => {
           ensureGenerationRecord: vi.fn(async () => null),
         },
         findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
-        pendingAutoSavesRef: { current: {} },
-        markOutputSaved: vi.fn(),
-        markOutputSaveFailed: vi.fn(),
-        persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
       })
     );
 
@@ -448,10 +324,6 @@ describe("useAiStudioTaskOrchestration", () => {
           },
           outputs,
           findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
-          pendingAutoSavesRef: { current: {} },
-          markOutputSaved: vi.fn(),
-          markOutputSaveFailed: vi.fn(),
-          persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
         })
       );
 
@@ -509,10 +381,6 @@ describe("useAiStudioTaskOrchestration", () => {
           },
           outputs,
           findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
-          pendingAutoSavesRef: { current: {} },
-          markOutputSaved: vi.fn(),
-          markOutputSaveFailed: vi.fn(),
-          persistMediaUrls: vi.fn(async () => ({ mediaFileIds: [], errors: [], delivery: null })),
         })
       );
 

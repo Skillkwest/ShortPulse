@@ -193,6 +193,51 @@ describe("MediaLibraryModal", () => {
     }
   });
 
+  it("falls back to direct source URL when optimizer preview errors in modal cards", async () => {
+    const sourceUrl = "https://signed.example.com/forest.png?token=abc123";
+    const optimizerUrl = `/_next/image?url=${encodeURIComponent(sourceUrl)}&w=750&q=70`;
+    mockMediaRows.push({
+      id: "media-optimizer-fallback-1",
+      filename: "forest.png",
+      storage_path: "user-1/upload/forest.png",
+      file_type: "image/png",
+      source: "upload",
+      created_at: "2026-02-14T00:00:00.000Z",
+      metadata: {
+        dimensions: { width: "1200", height: "800" },
+      },
+    });
+    mockResolveMediaSigningStoragePaths.mockImplementation(() => ["user-1/upload/forest.png"]);
+    mockGetSignedMediaUrlsBatch.mockImplementation(
+      async () => new Map<string, string>([["user-1/upload/forest.png", optimizerUrl]])
+    );
+    mockGetSignedMediaUrl.mockImplementation(async () => sourceUrl);
+
+    const { container } = render(
+      <MediaLibraryModal
+        isOpen
+        onClose={() => undefined}
+        onSelectMedia={() => undefined}
+        onSelectPrompt={() => undefined}
+      />
+    );
+
+    await waitFor(() => {
+      const image = container.querySelector(".media-thumb") as HTMLImageElement | null;
+      expect(image).toBeTruthy();
+      expect(image?.getAttribute("src")).toBe(optimizerUrl);
+    });
+
+    const image = container.querySelector(".media-thumb") as HTMLImageElement;
+    fireEvent.error(image);
+
+    await waitFor(() => {
+      const nextImage = container.querySelector(".media-thumb") as HTMLImageElement | null;
+      expect(nextImage).toBeTruthy();
+      expect(nextImage?.getAttribute("src")).toBe(sourceUrl);
+    });
+  });
+
   it.each([
     {
       tabLabel: "Uploaded Images",

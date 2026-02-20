@@ -566,7 +566,7 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
   const shouldShowSaveAction = Boolean(
     onSaveToLibrary &&
     item.saveState !== "saved" &&
-    (isPromptOnly || ((isImagePreview || isVideoPreview) && !isGeneratedReference))
+    (isPromptOnly || isImagePreview || (isVideoPreview && !isGeneratedReference))
   );
   const saveIcon =
     item.saveState === "failed" ? (
@@ -1016,6 +1016,8 @@ export function ReferenceCanvas({
       }
     >
   >({});
+  const hydrationQueueSizeRef = React.useRef(0);
+  const hydrationDecodeInflightRef = React.useRef(0);
   const hydrationRafFlushRef = React.useRef<number | null>(null);
   const hydrationPendingLoadedRef = React.useRef<
     Record<
@@ -1209,10 +1211,18 @@ export function ReferenceCanvas({
   );
 
   const syncImageHydrationState = useCallback(() => {
+    const nextQueueSize = hydrationQueueRef.current.length;
+    const nextInflight = hydrationInflightIdSetRef.current.size;
+    if (
+      hydrationQueueSizeRef.current === nextQueueSize &&
+      hydrationDecodeInflightRef.current === nextInflight
+    ) {
+      return;
+    }
+    hydrationQueueSizeRef.current = nextQueueSize;
+    hydrationDecodeInflightRef.current = nextInflight;
     runNonUrgentUpdate(() => {
       setImageHydrationState((prev) => {
-        const nextQueueSize = hydrationQueueRef.current.length;
-        const nextInflight = hydrationInflightIdSetRef.current.size;
         if (prev.queueSize === nextQueueSize && prev.decodeInflight === nextInflight) return prev;
         return {
           ...prev,
@@ -1225,7 +1235,13 @@ export function ReferenceCanvas({
 
   React.useEffect(() => {
     hydrationHydratedByIdRef.current = imageHydrationState.hydratedById;
-  }, [imageHydrationState.hydratedById]);
+    hydrationQueueSizeRef.current = imageHydrationState.queueSize;
+    hydrationDecodeInflightRef.current = imageHydrationState.decodeInflight;
+  }, [
+    imageHydrationState.decodeInflight,
+    imageHydrationState.hydratedById,
+    imageHydrationState.queueSize,
+  ]);
 
   const flushHydratedImages = useCallback(() => {
     hydrationRafFlushRef.current = null;
@@ -1236,11 +1252,37 @@ export function ReferenceCanvas({
       return;
     }
     runNonUrgentUpdate(() => {
-      setImageHydrationState((prev) => ({
-        hydratedById: { ...prev.hydratedById, ...pending },
-        queueSize: hydrationQueueRef.current.length,
-        decodeInflight: hydrationInflightIdSetRef.current.size,
-      }));
+      const nextQueueSize = hydrationQueueRef.current.length;
+      const nextInflight = hydrationInflightIdSetRef.current.size;
+      hydrationQueueSizeRef.current = nextQueueSize;
+      hydrationDecodeInflightRef.current = nextInflight;
+      setImageHydrationState((prev) => {
+        let hydratedChanged = false;
+        const nextHydratedById = { ...prev.hydratedById };
+        Object.entries(pending).forEach(([id, hydrated]) => {
+          const existing = prev.hydratedById[id];
+          if (
+            existing?.sourceUrl === hydrated.sourceUrl &&
+            existing?.renderUrl === hydrated.renderUrl
+          ) {
+            return;
+          }
+          hydratedChanged = true;
+          nextHydratedById[id] = hydrated;
+        });
+        if (
+          !hydratedChanged &&
+          prev.queueSize === nextQueueSize &&
+          prev.decodeInflight === nextInflight
+        ) {
+          return prev;
+        }
+        return {
+          hydratedById: hydratedChanged ? nextHydratedById : prev.hydratedById,
+          queueSize: nextQueueSize,
+          decodeInflight: nextInflight,
+        };
+      });
     });
   }, [runNonUrgentUpdate, syncImageHydrationState]);
 
@@ -1368,9 +1410,9 @@ export function ReferenceCanvas({
           if (currentIndex > 0) {
             hydrationQueueRef.current.splice(currentIndex, 1);
             hydrationQueueRef.current.unshift(id);
+            syncImageHydrationState();
+            processHydrationQueue();
           }
-          syncImageHydrationState();
-          processHydrationQueue();
         }
         return;
       }

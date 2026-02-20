@@ -228,9 +228,23 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       (item) => item.taskState === "pending" || item.taskState === "running"
     );
     if (hasInFlightOutput) return;
-    if (!optimisticDebitEntries.some((entry) => entry.outputId == null)) return;
+    const now = Date.now();
+    const hasUnassignedEntry = optimisticDebitEntries.some((entry) => entry.outputId == null);
+    if (!hasUnassignedEntry) return;
+    const hasFreshUnassignedEntry = optimisticDebitEntries.some((entry) => {
+      if (entry.outputId != null) return false;
+      const createdAtMs = entry.createdAtMs;
+      if (typeof createdAtMs !== "number" || createdAtMs <= 0) return true;
+      return now - createdAtMs <= STALE_UNASSIGNED_OPTIMISTIC_DEBIT_MS;
+    });
+    if (hasFreshUnassignedEntry) return;
     setOptimisticDebitEntries((prev) => {
-      const next = prev.filter((entry) => entry.outputId != null);
+      const next = prev.filter((entry) => {
+        if (entry.outputId != null) return true;
+        const createdAtMs = entry.createdAtMs;
+        if (typeof createdAtMs !== "number" || createdAtMs <= 0) return false;
+        return now - createdAtMs <= STALE_UNASSIGNED_OPTIMISTIC_DEBIT_MS;
+      });
       return next.length === prev.length ? prev : next;
     });
   }, [effectiveOutputLite, optimisticDebitEntries, setOptimisticDebitEntries]);

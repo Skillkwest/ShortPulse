@@ -192,6 +192,25 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     expect(removedStaleOrphans).toBe(true);
   });
 
+  it("keeps fresh unassigned optimistic debits while no outputs are in flight", async () => {
+    const setOptimisticDebitEntries = vi.fn();
+    renderHook(() =>
+      useAiStudioOptimisticDebitReconciliation({
+        outputs: [],
+        optimisticDebitEntries: [{ credits: 4, outputId: null, createdAtMs: Date.now() }],
+        setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
+        refreshBalance: vi.fn(async () => 10),
+        setDetailOutputId: asDispatch<string | null>(vi.fn()),
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
+  });
+
   it("does not re-run optimistic debit reconciliation on parent rerenders when outputs are unchanged", async () => {
     const setOptimisticDebitEntries = vi.fn();
     const stableOutputs = [makeOutput("out-stable", "pending")];

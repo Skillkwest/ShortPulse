@@ -82,3 +82,21 @@ Reviewer: Pending
 - `SUPABASE_DB_URL` is now a valid direct Postgres URI.
 - GitHub-hosted runner cannot reach the direct Supabase host in this path (IPv6 network unreachable).
 - Next correction is to use the Supabase pooler connection URI (IPv4-compatible) for CI-runner access.
+
+## Attempt E: Re-run after pooler-format update
+- Command:
+  - `gh workflow run conversation-state-hardening-gate.yml --ref main -f target_environment=staging -f mode=warn`
+- Run URL:
+  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242467447`
+- Result:
+  - Workflow `success` (warn mode), gate script `failed` and emitted warning.
+- Artifact:
+  - `conversation-state-hardening-gate-22242467447`
+  - `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22242467447/artifacts/5596731281`
+
+## Attempt E failure detail
+- `psql: error: could not translate host name "aws-us-west-2.pooler.supabase.com" to address: Name or service not known`
+
+## Updated interpretation (Attempt E)
+- The secret now references a pooler hostname, but the host string is invalid.
+- The correct host must match Supabase-provided pooler DNS exactly (for example, region hosts often include an index like `aws-0-...`).

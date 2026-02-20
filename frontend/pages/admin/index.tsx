@@ -93,6 +93,7 @@ type ErrorEventsLoadOverrides = {
   source?: string;
   synthetic?: "all" | "exclude" | "only";
   signal?: AdminErrorEventSignalFilter;
+  incident?: AdminErrorEventIncidentFilter;
   search?: string;
 };
 
@@ -468,6 +469,7 @@ export default function AdminDashboardPage() {
         const activeSource = overrides?.source ?? errorSourceFilter;
         const activeSynthetic = overrides?.synthetic ?? errorEventSyntheticFilter;
         const activeSignal = overrides?.signal ?? errorEventSignalFilter;
+        const activeIncident = overrides?.incident ?? errorEventIncidentFilter;
         const activeSearch = overrides?.search ?? debouncedErrorSearch;
 
         const params = new URLSearchParams();
@@ -478,6 +480,7 @@ export default function AdminDashboardPage() {
         if (activeSource !== "all") params.set("source", activeSource);
         if (activeSynthetic !== "all") params.set("synthetic", activeSynthetic);
         if (activeSignal !== "all") params.set("signal", activeSignal);
+        if (activeIncident !== "all") params.set("incident", activeIncident);
         if (activeSearch.trim()) params.set("search", activeSearch.trim());
 
         const response = await fetchWithAuth(`/api/admin/error-events?${params.toString()}`, {
@@ -604,6 +607,7 @@ export default function AdminDashboardPage() {
       debouncedErrorSearch,
       errorEventSyntheticFilter,
       errorEventSignalFilter,
+      errorEventIncidentFilter,
       errorEventsPage,
       errorScopeFilter,
       errorSeverityFilter,
@@ -852,6 +856,7 @@ export default function AdminDashboardPage() {
             source: "all",
             synthetic: "exclude",
             signal: "all",
+            incident: "actionable",
             search: "",
           }),
         ]);
@@ -1321,6 +1326,7 @@ export default function AdminDashboardPage() {
             }}
             onErrorEventIncidentFilterChange={(value) => {
               setErrorEventIncidentFilter(value);
+              setErrorEventsPage(1);
             }}
             onErrorSearchChange={(value) => {
               setErrorSearch(value);

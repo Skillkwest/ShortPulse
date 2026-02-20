@@ -24,6 +24,7 @@ type EventQuery = {
   like: (column: string, value: string) => EventQuery;
   not: (column: string, operator: string, value: string) => EventQuery;
   gte: (column: string, value: string) => EventQuery;
+  is: (column: string, value: null) => EventQuery;
   or: (filters: string) => EventQuery;
 };
 
@@ -53,6 +54,7 @@ type SignalFilterValue =
   | "all"
   | "character_mode_reference_refresh_empty"
   | "character_mode_bundle_unavailable_fallback";
+type IncidentFilterValue = "all" | "actionable" | "open" | "resolved" | "ignored" | "unlinked";
 type ErrorEventsHealth = {
   eventsTableAvailable: boolean;
   degraded: boolean;
@@ -88,6 +90,16 @@ const asSignalFilter = (value: unknown): SignalFilterValue => {
   const normalized = asFilterValue(value);
   if (normalized === "character_mode_reference_refresh_empty") return normalized;
   if (normalized === "character_mode_bundle_unavailable_fallback") return normalized;
+  return "all";
+};
+
+const asIncidentFilter = (value: unknown): IncidentFilterValue => {
+  const normalized = asFilterValue(value);
+  if (normalized === "actionable") return "actionable";
+  if (normalized === "open") return "open";
+  if (normalized === "resolved") return "resolved";
+  if (normalized === "ignored") return "ignored";
+  if (normalized === "unlinked") return "unlinked";
   return "all";
 };
 
@@ -182,6 +194,7 @@ const applyEventFilters = (
     search: string;
     synthetic: SyntheticFilterValue;
     signal: SignalFilterValue;
+    incident: IncidentFilterValue;
     excludeTelemetrySources: boolean;
   }
 ): EventQuery => {
@@ -212,21 +225,45 @@ const applyEventFilters = (
       .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
       .eq("message", CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT);
   }
-  if (filters.search) {
+
+  if (filters.incident === "open") {
+    next = next.eq("app_error_logs.status", "open");
+  } else if (filters.incident === "resolved") {
+    next = next.eq("app_error_logs.status", "resolved");
+  } else if (filters.incident === "ignored") {
+    next = next.eq("app_error_logs.status", "ignored");
+  } else if (filters.incident === "unlinked") {
+    next = next.is("incident_id", null);
+  }
+
+  const searchClause = (() => {
+    if (!filters.search) return null;
     const pattern = `%${filters.search.replace(/\s+/g, "%")}%`;
-    next = next.or(
-      [
-        `message.ilike.${pattern}`,
-        `user_email.ilike.${pattern}`,
-        `user_id.ilike.${pattern}`,
-        `endpoint.ilike.${pattern}`,
-        `route.ilike.${pattern}`,
-        `request_id.ilike.${pattern}`,
-        `source.ilike.${pattern}`,
-        `fingerprint.ilike.${pattern}`,
-        `incident_id.ilike.${pattern}`,
-      ].join(",")
-    );
+    return [
+      `message.ilike.${pattern}`,
+      `user_email.ilike.${pattern}`,
+      `user_id.ilike.${pattern}`,
+      `endpoint.ilike.${pattern}`,
+      `route.ilike.${pattern}`,
+      `request_id.ilike.${pattern}`,
+      `source.ilike.${pattern}`,
+      `fingerprint.ilike.${pattern}`,
+      `incident_id.ilike.${pattern}`,
+    ].join(",");
+  })();
+
+  if (filters.incident === "actionable") {
+    const actionableClause = "incident_id.is.null,app_error_logs.status.eq.open";
+    if (searchClause) {
+      next = next.or(`and(or(${searchClause}),or(${actionableClause}))`);
+    } else {
+      next = next.or(actionableClause);
+    }
+    return next;
+  }
+
+  if (searchClause) {
+    next = next.or(searchClause);
   }
   return next;
 };
@@ -313,6 +350,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       search: normalizeSearchTerm(req.query.search),
       synthetic: asSyntheticFilter(req.query.synthetic),
       signal: asSignalFilter(req.query.signal),
+      incident: asIncidentFilter(req.query.incident),
       excludeTelemetrySources: false,
     };
     const summaryFilters: {
@@ -322,6 +360,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       search: string;
       synthetic: SyntheticFilterValue;
       signal: SignalFilterValue;
+      incident: IncidentFilterValue;
       excludeTelemetrySources: boolean;
     } = {
       scope: "all",
@@ -331,6 +370,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Operational summaries should reflect real traffic, not operator test events.
       synthetic: "exclude",
       signal: "all",
+      incident: "all",
       excludeTelemetrySources: true,
     };
     const nowMs = Date.now();
@@ -354,7 +394,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       supabaseAdmin
         .from("app_error_events")
         .select(
-          "id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at"
+          "id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at, app_error_logs!left(status)"
         )
         .order("occurred_at", { ascending: false })
         .range(offset, offset + limit - 1) as unknown as EventQuery,
@@ -362,7 +402,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ) as unknown as Promise<ListQueryResult>;
 
     const filteredCountQuery = applyEventFilters(
-      supabaseAdmin.from("app_error_events").select("id", {
+      supabaseAdmin.from("app_error_events").select("id, app_error_logs!left(status)", {
         count: "exact",
         head: true,
       }) as unknown as EventQuery,
@@ -525,7 +565,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         supabaseAdmin
           .from("app_error_events")
           .select(
-            "id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at"
+            "id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at, app_error_logs!left(status)"
           )
           .order("occurred_at", { ascending: false })
           .range(fallbackOffset, fallbackOffset + limit - 1) as unknown as EventQuery,
@@ -649,6 +689,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         search_filter: typeof req.query.search === "string" ? req.query.search : null,
         synthetic_filter: typeof req.query.synthetic === "string" ? req.query.synthetic : null,
         signal_filter: typeof req.query.signal === "string" ? req.query.signal : null,
+        incident_filter: typeof req.query.incident === "string" ? req.query.incident : null,
       },
     });
     return res.status(500).json({

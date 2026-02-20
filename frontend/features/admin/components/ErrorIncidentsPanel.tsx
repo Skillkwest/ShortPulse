@@ -2,7 +2,7 @@
  * Admin error incidents panel.
  * Renders summary cards, filters, and grouped incident rows for operator triage.
  */
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WarningCircle } from "phosphor-react";
 import type {
   AdminErrorEventIncidentFilter,
@@ -201,6 +201,7 @@ export function ErrorIncidentsPanel({
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [bulkResolveSubmitting, setBulkResolveSubmitting] = useState(false);
   const [bulkResolveResult, setBulkResolveResult] = useState<string | null>(null);
+  const autoAdvancedEventPageRef = useRef<number | null>(null);
   const errorSourceOptions = useMemo(() => {
     const values = new Set([
       ...errors.map((row) => row.source),
@@ -340,6 +341,32 @@ export function ErrorIncidentsPanel({
     if (!selectedEvent) return "";
     return JSON.stringify(selectedEvent.metadata ?? {}, null, 2);
   }, [selectedEvent]);
+
+  useEffect(() => {
+    const shouldAutoAdvance =
+      !errorEventsLoading &&
+      errorEventIncidentFilter !== "all" &&
+      errorEvents.length > 0 &&
+      visibleEvents.length === 0 &&
+      errorEventsPagination.hasNextPage;
+    if (!shouldAutoAdvance) {
+      autoAdvancedEventPageRef.current = null;
+      return;
+    }
+    if (autoAdvancedEventPageRef.current === errorEventsPagination.page) {
+      return;
+    }
+    autoAdvancedEventPageRef.current = errorEventsPagination.page;
+    onEventNextPage();
+  }, [
+    errorEventIncidentFilter,
+    errorEvents.length,
+    errorEventsLoading,
+    errorEventsPagination.hasNextPage,
+    errorEventsPagination.page,
+    onEventNextPage,
+    visibleEvents.length,
+  ]);
 
   useEffect(() => {
     if (!selectedEventId) return;

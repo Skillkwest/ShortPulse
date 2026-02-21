@@ -62,6 +62,7 @@ Exit validation:
 ### Phase 3: Modularization Pass
 - [x] Slice 1: extract studio-agent route envelope + turn-response modules.
 - [x] Slice 2: extract studio-agent OpenAI gateway + canonical persistence modules.
+- [x] Slice 3: extract studio-agent vision summary module.
 - [ ] Split `frontend/pages/api/ai/studio-agent.ts` by concern.
 - [ ] Split `frontend/features/ai-agent/useAiAgent.ts` into transport/session/store.
 - [ ] Split `frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts` by pipeline concern.

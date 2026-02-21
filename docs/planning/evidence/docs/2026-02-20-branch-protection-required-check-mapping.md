@@ -22,6 +22,18 @@ UI verification attempt (recorded):
 - Evidence timestamp (from capture): 2026-02-20 17:12 local
 - Date recorded: 2026-02-21
 
+UI verification attempt (updated capture):
+- Source: repository Settings -> Rules -> Rulesets -> `Production`
+- Result:
+  - Ruleset created (`Ruleset created` toast shown).
+  - Ruleset status set to `Active`.
+  - Target branch criteria set to `Default` and applies to `main`.
+  - Required status checks configured: `frontend`, `security`, `deadcode`.
+  - Additional rules enabled: PR required, 1 approval, dismiss stale approvals, require conversation resolution, require branches up to date, block force pushes, restrict deletions, require linear history.
+  - Banner still present: `Your rulesets won't be enforced on this private repository until you move to GitHub Team organization account.`
+- Evidence timestamp (from capture): 2026-02-20 17:21 local
+- Date recorded: 2026-02-21
+
 ## Required check names (documented target)
 
 - `frontend`
@@ -37,11 +49,11 @@ Planned required checks after warn/evaluate stabilization:
 ## Manual capture checklist
 
 - [x] Capture repository settings screenshot/export showing ruleset availability constraints.
-- [ ] Capture repository settings screenshot/export showing required checks (blocked until protection is enforceable).
-- [ ] Confirm exact check names match `docs/planning/ci-policy-checks.md` (blocked until required checks can be configured).
+- [x] Capture repository settings screenshot/export showing required checks.
+- [x] Confirm exact check names match `docs/planning/ci-policy-checks.md`.
 - [x] Record operator/date in this file.
 - [ ] Record reviewer/date in this file after UI verification.
 
 ## Status
 
-Blocked by repository plan/protection availability constraints; pending upgrade/path change or enforceable branch-protection access.
+Configured and documented, but not enforceable on current repository plan; pending GitHub Team/org upgrade (or equivalent) for enforcement.

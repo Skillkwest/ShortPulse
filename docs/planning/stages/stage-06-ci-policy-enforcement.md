@@ -10,7 +10,7 @@ Automate anti-drift checks and wire governance gates to CI with staged enforceme
 - [x] Wire new CI jobs with warn/evaluate behavior.
 - [x] Add environment-gated SQL hardening workflow for staged DB verification.
 - [ ] Promote to enforce mode after two green release cycles.
-- [ ] Capture manual branch-protection mapping evidence with exact required check names.
+- [x] Capture manual branch-protection mapping evidence with exact required check names.
 
 ## Verification
 - `node scripts/check_docs_semantic_drift.js`
@@ -29,7 +29,7 @@ Automate anti-drift checks and wire governance gates to CI with staged enforceme
 STG-06 may be `In Progress`, but it cannot be marked `Completed` until all are true:
 - [x] STG-04 Phase C is complete.
 - [ ] Warn/evaluate checks are green for two release cycles.
-- [ ] Branch-protection mapping proof is captured with exact required check names.
+- [x] Branch-protection mapping proof is captured with exact required check names.
 
 ## Evidence
 - `docs/planning/ci-policy-checks.md`

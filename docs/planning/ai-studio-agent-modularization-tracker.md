@@ -98,7 +98,7 @@ Exit validation:
 
 Exit validation:
 - [ ] Required checks reflect target state.
-- [ ] Two green cycles logged with full enforce-mode check set (pending SQL lint re-promotion + post-promotion cycles).
+- [ ] Two green cycles logged with full enforce-mode check set (1/2 complete: `22258656706`).
 - [ ] Governance evidence complete.
 
 ### Phase 5: Progressive Rollout

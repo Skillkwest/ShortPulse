@@ -48,6 +48,7 @@ Enforce-trial result:
 - Post-rollback validation run `22251094709` completed `success`.
 - CI bootstrap fix applied: `sql_lint` job now starts local Supabase (postgres-only footprint) before lint.
 - SQL lint enforce mode re-promoted: `SQL_LINT_MODE=enforce` (2026-02-21).
+- Post-repromotion validation run `22258656706` completed `success` (first green cycle after SQL lint re-promotion).
 
 ## Result
 - Pre-promotion two-green-cycle criterion is satisfied.
@@ -55,6 +56,6 @@ Enforce-trial result:
 - STG-06 remains `In Progress` until SQL lint bootstrap is fixed and two consecutive CI cycles are logged with stable target-mode configuration.
 
 ## Next Action Required
-- Record two fresh consecutive green `ci.yml` cycles after SQL lint re-promotion.
+- Record one additional consecutive green `ci.yml` cycle after SQL lint re-promotion.
 - Refresh branch-protection evidence review metadata (reviewer/date) after UI verification.
 - Keep plan-tier enforcement constraint (`403` API / non-enforceable private ruleset) tracked as open dependency for production-readiness closeout.

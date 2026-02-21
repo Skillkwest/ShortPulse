@@ -27,4 +27,5 @@ Updated `.github/workflows/ci.yml` `sql_lint` job:
 
 ## Next Verification
 1. `SQL_LINT_MODE` was re-promoted to `enforce` on 2026-02-21.
-2. Record two consecutive green `ci.yml` runs after re-promotion.
+2. First post-repromotion validation run succeeded: `22258656706`.
+3. Record one additional consecutive green `ci.yml` run after re-promotion.

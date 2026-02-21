@@ -50,12 +50,14 @@ Enforce-trial result:
 - SQL lint enforce mode re-promoted: `SQL_LINT_MODE=enforce` (2026-02-21).
 - Post-repromotion validation run `22258656706` completed `success` (first green cycle after SQL lint re-promotion).
 - Post-repromotion validation run `22258746736` completed `success` (second consecutive green cycle after SQL lint re-promotion).
+- Additional full-check verification run `22258824796` completed `success` (includes successful `frontend` and `sql_lint` completion after governance packet update).
 
 ## Result
 - Pre-promotion two-green-cycle criterion is satisfied.
 - Expanded enforce-mode trial surfaced CI bootstrap gap for SQL lint.
 - SQL lint bootstrap gap is resolved and two consecutive post-repromotion green cycles are now recorded.
-- STG-06 remains `In Progress` pending final governance evidence completion (branch-protection reviewer/date metadata and plan-tier enforcement constraint tracking).
+- Governance evidence packet is now published (`docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-governance-closeout.md`).
+- STG-06 remains `In Progress` pending branch-protection reviewer/date metadata and plan-tier enforcement constraint tracking.
 
 ## Next Action Required
 - Refresh branch-protection evidence review metadata (reviewer/date) after UI verification.

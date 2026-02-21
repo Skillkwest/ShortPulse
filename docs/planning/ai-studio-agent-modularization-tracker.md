@@ -15,7 +15,7 @@ Phase dates in the program doc are target windows. Guardrail setup and initial s
 | Phase 1: Correctness Hardening | Completed | AI Platform + Frontend | 2026-02-26 | 2026-03-06 | audit-delta defects closed | `docs/planning/evidence/agent/phase-1/` |
 | Phase 2: Strangler Consolidation | Completed | AI Platform | 2026-02-21 | 2026-03-20 | no logic duplication across 3 routes | `docs/planning/evidence/agent/phase-2/` |
 | Phase 3: Modularization Pass | Completed | Frontend | 2026-03-23 | 2026-04-03 | size budget pass or ADR exceptions | `docs/planning/evidence/architecture/` |
-| Phase 4: Guardrails + Governance | In Progress | Platform + DevEx | 2026-02-21 | 2026-04-10 | enforce mode stable for 2 cycles | `docs/planning/evidence/agent/phase-4/` |
+| Phase 4: Guardrails + Governance | In Progress | Platform + DevEx | 2026-02-21 | 2026-04-10 | enforce mode stable for 2 cycles + governance evidence packet | `docs/planning/evidence/agent/phase-4/` |
 | Phase 5: Progressive Rollout | Planned | AI Platform + Ops | 2026-04-13 | 2026-04-24 | all canary rings pass | `docs/planning/evidence/agent/phase-5/` |
 | Phase 6: Legacy Decommission | Planned | AI Platform | 2026-04-27 | 2026-05-01 | 14-day zero first-party traffic | `docs/planning/evidence/agent/phase-6/` |
 
@@ -93,13 +93,15 @@ Exit validation:
 - [x] Promote remaining guardrail checks to enforce mode (`ARCHIVE_MANIFEST_MODE`, `SQL_LINT_MODE`, `ARCHITECTURE_BOUNDARY_MODE`, `SIZE_BUDGET_MODE`, `AGENT_CONTRACT_TESTS_MODE`, `AGENT_DISABLE_CONTINUITY_MODE`) on 2026-02-21 (`docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-required-check-enforce-promotion.md`).
 - [x] Apply rollback-first stabilization for SQL lint (`SQL_LINT_MODE=warn`) after run `22251008051` failed due missing local Supabase/Postgres bootstrap in CI.
 - [x] Add SQL lint CI bootstrap in `.github/workflows/ci.yml` to start local Supabase (postgres-only footprint) before `supabase db lint --local` (`docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-sql-lint-bootstrap.md`).
-- [x] Re-promote SQL lint to enforce mode (`SQL_LINT_MODE=enforce`) after bootstrap fix on 2026-02-21; validation cycles pending.
+- [x] Re-promote SQL lint to enforce mode (`SQL_LINT_MODE=enforce`) after bootstrap fix on 2026-02-21; validation cycles completed.
 - [x] Refresh branch-protection evidence mapping (`docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md` refreshed 2026-02-21).
+- [x] Publish governance closeout packet for STG-06 with explicit dependency tracking and compensating controls (`docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-governance-closeout.md`).
 
 Exit validation:
 - [x] Required checks reflect target state.
 - [x] Two green cycles logged with full enforce-mode check set (`22258656706`, `22258746736`).
-- [ ] Governance evidence complete.
+- [x] Governance evidence complete.
+- [ ] Branch-protection UI reviewer/date metadata captured (manual-control artifact), with plan-tier enforceability constraint tracked as `DEP-01`.
 
 ### Phase 5: Progressive Rollout
 - [ ] Staging soak 24h.
@@ -132,7 +134,7 @@ Exit validation:
 | `deadcode` | Active | Enforced | Platform | knip production file gate |
 | `docs_semantic_drift` | Active | Enforced | Docs | workflow mode promoted to enforce 2026-02-21 |
 | `migration_parity` | Active | Enforced | Platform | workflow mode promoted to enforce 2026-02-21 |
-| `sql_lint` | Active | Enforced | Platform | re-promoted to enforce on 2026-02-21 after CI bootstrap fix; post-promotion green-cycle validation pending |
+| `sql_lint` | Active | Enforced | Platform | re-promoted to enforce on 2026-02-21 after CI bootstrap fix; validated by runs `22258656706`, `22258746736`, and `22258824796` |
 | `archive_manifest_check` | Active | Enforced | Docs | workflow mode promoted to enforce 2026-02-21 |
 | `architecture_boundary` | Active | Enforced | Platform | workflow mode promoted to enforce 2026-02-21 |
 | `size_budget` | Active | Enforced | Frontend | workflow mode promoted to enforce 2026-02-21 |

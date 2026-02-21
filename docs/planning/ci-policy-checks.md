@@ -49,6 +49,12 @@ Owner: Engineering
 - Initial mode: warn/evaluate
 - Enforce mode: after two green release cycles
 
+## Security gate
+
+- Blocking command: `npm audit --omit=dev --audit-level=moderate`
+- Advisory command: `npm audit --audit-level=moderate`
+- Policy intent: block production dependency vulnerabilities while preserving visibility into dev/tooling advisories without stalling release-cycle stabilization.
+
 ## Prototype mode policy (MVP)
 
 - During MVP prototype iteration, governance checks remain in advisory/warn mode.

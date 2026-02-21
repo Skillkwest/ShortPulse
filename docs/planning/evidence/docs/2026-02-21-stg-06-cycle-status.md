@@ -40,5 +40,6 @@ Refresh note:
 - STG-06 remains `In Progress`.
 
 ## Next action required
+- Validate the updated `security` job behavior (`production audit` blocking + `full audit` advisory) on the next CI cycle.
 - Capture two consecutive green release cycles in CI run history and update this evidence file.
 - Keep enforce promotion blocked until this condition and branch-protection UI evidence are both complete.

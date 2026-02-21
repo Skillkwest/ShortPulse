@@ -34,4 +34,5 @@ STG-06 may be `In Progress`, but it cannot be marked `Completed` until all are t
 ## Evidence
 - `docs/planning/ci-policy-checks.md`
 - `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
+- `docs/planning/evidence/docs/2026-02-21-stg-06-cycle-status.md`
 - `.github/workflows/ci.yml`

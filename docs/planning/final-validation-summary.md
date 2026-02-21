@@ -13,7 +13,7 @@ Owner: Engineering
 | No CI job collisions | Pending | `docs/planning/ci-policy-checks.md` |
 | Machine-checkable risk controls | Pending | `scripts/check_*.js` |
 | Embedded change control | Pending | `docs/planning/stages/stage-*.md` |
-| Source traceability across artifacts | Pending | `docs/planning/_inventory.md`, `docs/planning/overlap-audit.md` |
+| Source traceability across artifacts | Pass | `docs/planning/_inventory.md`, `docs/planning/overlap-audit.md`, `docs/planning/archive/original-plans/manifest.json` |
 
 ## SQL/RPC hardening checks
 

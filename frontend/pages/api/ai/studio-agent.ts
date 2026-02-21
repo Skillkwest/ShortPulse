@@ -3,37 +3,32 @@
  * Keeps system prompt and context handling server-side to protect keys and size limits.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { randomUUID } from "node:crypto";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
 import type { AgentContext, AgentMessage } from "../../../prefabs/agent";
 import {
   isExplicitEditRequest,
   preservesContext,
-  resolveCanonicalPrompt,
   shouldRetryExplicitNoOp,
 } from "../../../features/ai-agent/logic/studioAgentCanonical";
 import { sanitizeGenerationPromptText } from "../../../features/agent-core/promptText";
 import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/logic/studioAgentReferenceSelection";
 import { buildStudioAgentOrchestration } from "../../../features/ai-agent/logic/studioAgentOrchestration";
 import { runThinkerFormatterTurn } from "../../../features/ai-agent/logic/studioAgentThinkerFormatter";
+import { STUDIO_AGENT_MAX_MEDIA } from "../../../features/agent-runtime/studioAgentRequestGuards";
 import {
-  STUDIO_AGENT_MAX_MEDIA,
-  STUDIO_AGENT_RATE_LIMIT_MAX_REQUESTS,
-  STUDIO_AGENT_RATE_LIMIT_WINDOW_MS,
-  isStudioAgentRateLimited,
-  parseStudioAgentMessages,
-  parseStudioAgentSessionKey,
-  readStudioAgentRequestBodyBytes,
-  resolveStudioAgentMaxRequestBytes,
-  sanitizeStudioAgentContext,
-} from "../../../features/agent-runtime/studioAgentRequestGuards";
+  isStudioAgentFeatureEnabled,
+  parseStudioAgentRequestEnvelope,
+  resolveStudioAgentTraceId,
+  sendStudioAgentError,
+  setStudioAgentContractHeaders,
+} from "../../../features/agent-runtime/studioAgentRouteEnvelope";
 import {
-  ensureStudioAgentApplyPromptContract,
   extractStudioAgentCompletionText,
   isStudioAgentRefusalResponse,
   parseStudioAgentJson,
   parseStudioAgentJsonWithStatus,
 } from "../../../features/agent-runtime/studioAgentResponseNormalization";
+import { resolveStudioAgentTurnResponse } from "../../../features/agent-runtime/studioAgentTurnResponse";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import {
@@ -49,7 +44,6 @@ const DEFAULT_VISION_MODEL = "gpt-5-nano";
 const DEFAULT_TIMEOUT_MS = 20000;
 const MIN_TIMEOUT_MS = 1000;
 const MAX_TIMEOUT_MS = 120000;
-const AGENT_CONTRACT_VERSION = "1";
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
@@ -60,45 +54,6 @@ type OpenAIChatMessage =
         | { type: "image_url"; image_url: { url: string; detail?: "low" | "high" } }
       >;
     };
-
-type StudioAgentErrorCode =
-  | "METHOD_NOT_ALLOWED"
-  | "AGENT_DISABLED"
-  | "INVALID_REQUEST"
-  | "INVALID_SESSION_KEY"
-  | "INVALID_MESSAGE_ROLE"
-  | "REQUEST_BODY_TOO_LARGE"
-  | "RATE_LIMITED"
-  | "MESSAGES_REQUIRED";
-
-type StudioAgentErrorResponse = {
-  code: StudioAgentErrorCode;
-  message: string;
-  details?: Record<string, unknown>;
-  traceId: string;
-};
-
-const resolveTraceId = (req: NextApiRequest): string => {
-  const headerTraceId = req.headers?.["x-shortpulse-request-id"];
-  if (typeof headerTraceId === "string" && headerTraceId.trim().length) {
-    return headerTraceId.trim().slice(0, 128);
-  }
-
-  const bodyTraceId =
-    typeof req.body?.traceId === "string" && req.body.traceId.trim().length
-      ? req.body.traceId.trim()
-      : null;
-  if (bodyTraceId) return bodyTraceId.slice(0, 128);
-  return randomUUID();
-};
-
-const setContractHeaders = (res: NextApiResponse, traceId: string): void => {
-  res.setHeader("Agent-Contract-Version", AGENT_CONTRACT_VERSION);
-  res.setHeader("x-agent-trace-id", traceId);
-};
-
-const sendError = (res: NextApiResponse, status: number, payload: StudioAgentErrorResponse) =>
-  res.status(status).json(payload);
 
 const buildOpenAiMessages = (
   messages: AgentMessage[],
@@ -331,15 +286,15 @@ const emitTurnTelemetry = ({
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const requestStartedAt = Date.now();
-  const traceId = resolveTraceId(req);
-  setContractHeaders(res, traceId);
+  const traceId = resolveStudioAgentTraceId(req);
+  setStudioAgentContractHeaders(res, traceId);
   const stageLatencyMs: Record<string, number> = {};
   const markStage = (stage: string, startedAt: number) => {
     stageLatencyMs[stage] = Date.now() - startedAt;
   };
 
   if (req.method !== "POST") {
-    return sendError(res, 405, {
+    return sendStudioAgentError(res, 405, {
       code: "METHOD_NOT_ALLOWED",
       message: "Method not allowed",
       traceId,
@@ -349,46 +304,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await requireApiUser(req, res);
   if (!user) return;
 
-  const serverFlag = process.env.STUDIO_AGENT_ENABLED;
-  const publicFlag = process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT;
-  const featureEnabled =
-    typeof serverFlag === "string"
-      ? serverFlag === "true"
-      : typeof publicFlag === "string"
-        ? publicFlag === "true"
-        : true;
-  if (!featureEnabled) {
-    return sendError(res, 503, {
+  if (
+    !isStudioAgentFeatureEnabled({
+      serverFlag: process.env.STUDIO_AGENT_ENABLED,
+      publicFlag: process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT,
+    })
+  ) {
+    return sendStudioAgentError(res, 503, {
       code: "AGENT_DISABLED",
       message: "Studio agent is disabled",
       traceId,
     });
   }
 
-  const bodyBytes = readStudioAgentRequestBodyBytes(req.body);
-  const maxRequestBytes = resolveStudioAgentMaxRequestBytes(req.body);
-  if (bodyBytes > maxRequestBytes) {
-    return sendError(res, 413, {
-      code: "REQUEST_BODY_TOO_LARGE",
-      message: "Request body exceeds allowed size limit",
-      details: {
-        maxBytes: maxRequestBytes,
-        actualBytes: bodyBytes,
-      },
-      traceId,
-    });
-  }
-
-  if (isStudioAgentRateLimited(user.id)) {
-    return sendError(res, 429, {
-      code: "RATE_LIMITED",
-      message: "Too many studio-agent requests. Please retry shortly.",
-      details: {
-        windowMs: STUDIO_AGENT_RATE_LIMIT_WINDOW_MS,
-        maxRequests: STUDIO_AGENT_RATE_LIMIT_MAX_REQUESTS,
-      },
-      traceId,
-    });
+  const requestEnvelope = parseStudioAgentRequestEnvelope({
+    req,
+    userId: user.id,
+    traceId,
+  });
+  if (!requestEnvelope.ok) {
+    return sendStudioAgentError(res, requestEnvelope.status, requestEnvelope.payload);
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
@@ -410,42 +345,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "STUDIO_AGENT_SYSTEM prompt missing", traceId });
   }
 
-  const parsedSessionKey = parseStudioAgentSessionKey(req.body?.clientSessionKey);
-  if (!parsedSessionKey.ok) {
-    return sendError(res, 400, {
-      code: "INVALID_SESSION_KEY",
-      message: parsedSessionKey.message,
-      details: parsedSessionKey.details,
-      traceId,
-    });
-  }
-  const clientSessionKey = parsedSessionKey.sessionKey;
-
-  const parsedMessages = parseStudioAgentMessages(req.body?.messages);
-  if (!parsedMessages.ok) {
-    return sendError(res, 400, {
-      code: parsedMessages.code,
-      message: parsedMessages.message,
-      details: parsedMessages.details,
-      traceId,
-    });
-  }
-  const messages = parsedMessages.messages;
-  if (!messages.length) {
-    return sendError(res, 400, {
-      code: "MESSAGES_REQUIRED",
-      message: "messages are required",
-      traceId,
-    });
-  }
-
-  const normalizedConversationId = clientSessionKey;
-  let context = sanitizeStudioAgentContext(req.body?.context);
-
-  const incomingCanonical =
-    typeof req.body?.canonicalPrompt === "string" && req.body.canonicalPrompt.trim().length
-      ? (sanitizeGenerationPromptText(req.body.canonicalPrompt.trim()) ?? null)
-      : null;
+  const normalizedConversationId = requestEnvelope.value.clientSessionKey;
+  const messages = requestEnvelope.value.messages;
+  let context = requestEnvelope.value.context;
+  const incomingCanonical = requestEnvelope.value.incomingCanonical;
 
   const canonicalDbEnabled = process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED !== "false";
   const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
@@ -672,12 +575,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
-      const refusal = isStudioAgentRefusalResponse({
+      const preResolutionRefusal = isStudioAgentRefusalResponse({
         status: semanticStatus,
         response: parsed,
       });
 
-      if (!refusal && effectiveCanonical && nextCanonical && !bypassDriftGuard) {
+      if (!preResolutionRefusal && effectiveCanonical && nextCanonical && !bypassDriftGuard) {
         if (!preservesContext(effectiveCanonical, nextCanonical)) {
           console.warn("[studio-agent] drift detected; restoring canonical prompt");
           parsed.actions = parsed.actions ?? {};
@@ -686,27 +589,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
-      const fallbackPrompt =
-        sanitizeGenerationPromptText(
-          nextCanonical ??
-            effectiveCanonical ??
-            context.activePrompt ??
-            messages[messages.length - 1]?.content ??
-            ""
-        ) ?? "";
-
-      if (refusal) {
-        parsed = {
-          message: parsed.message?.trim() || "I cannot help with that request.",
-          actions: undefined,
-        };
-      } else {
-        parsed = ensureStudioAgentApplyPromptContract({ parsed, fallbackPrompt });
-      }
-
-      const resolvedCanonical = refusal
-        ? effectiveCanonical
-        : resolveCanonicalPrompt(parsed.actions?.applyPrompt, nextCanonical, effectiveCanonical);
+      const resolvedTurn = resolveStudioAgentTurnResponse({
+        parsed,
+        semanticStatus,
+        nextCanonical,
+        effectiveCanonical,
+        context,
+        messages,
+      });
+      parsed = resolvedTurn.parsed;
+      const refusal = resolvedTurn.refusal;
+      const resolvedCanonical = resolvedTurn.resolvedCanonical;
 
       if (!refusal && canonicalDbEnabled && normalizedConversationId && resolvedCanonical) {
         const canonicalWriteStartedAt = Date.now();
@@ -782,35 +675,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       actions: undefined,
     };
 
-    const refusal = isStudioAgentRefusalResponse({
-      status: parsedWithStatus?.status ?? null,
-      response: parsed,
-    });
-
     const nextCanonical = sanitizeGenerationPromptText(
       parsed?.actions?.applyPrompt ?? parsed?.message ?? effectiveCanonical ?? null
     );
 
-    if (refusal) {
-      parsed = {
-        message: parsed.message?.trim() || "I cannot help with that request.",
-        actions: undefined,
-      };
-    } else {
-      const fallbackPrompt =
-        sanitizeGenerationPromptText(
-          nextCanonical ??
-            effectiveCanonical ??
-            context.activePrompt ??
-            messages[messages.length - 1]?.content ??
-            ""
-        ) ?? "";
-      parsed = ensureStudioAgentApplyPromptContract({ parsed, fallbackPrompt });
-    }
-
-    const resolvedCanonical = refusal
-      ? effectiveCanonical
-      : resolveCanonicalPrompt(parsed.actions?.applyPrompt, nextCanonical, effectiveCanonical);
+    const resolvedTurn = resolveStudioAgentTurnResponse({
+      parsed,
+      semanticStatus: parsedWithStatus?.status ?? null,
+      nextCanonical,
+      effectiveCanonical,
+      context,
+      messages,
+    });
+    parsed = resolvedTurn.parsed;
+    const refusal = resolvedTurn.refusal;
+    const resolvedCanonical = resolvedTurn.resolvedCanonical;
 
     if (!refusal && canonicalDbEnabled && normalizedConversationId && resolvedCanonical) {
       const canonicalWriteStartedAt = Date.now();

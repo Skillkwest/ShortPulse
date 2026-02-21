@@ -7,7 +7,7 @@ import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
 import { AgentPromptId } from "../../../lib/agentPromptsConfig";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logGenerationFailure } from "../../../lib/server/api/appErrorLogs";
-import { sanitizeGenerationPromptText } from "../../../features/ai-studio/logic/agentPromptOwnership";
+import { sanitizeGenerationPromptText } from "../../../features/agent-core/promptText";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const TEXT_ENHANCER_ID: AgentPromptId = "OPENAI_PROMPT_SYSTEM";

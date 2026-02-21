@@ -20,7 +20,7 @@ import {
 import {
   removeAspectRatioLanguage,
   sanitizeGenerationPromptText,
-} from "../../../features/ai-studio/logic/agentPromptOwnership";
+} from "../../../features/agent-core/promptText";
 import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/logic/studioAgentReferenceSelection";
 import { buildStudioAgentOrchestration } from "../../../features/ai-agent/logic/studioAgentOrchestration";
 import { runThinkerFormatterTurn } from "../../../features/ai-agent/logic/studioAgentThinkerFormatter";

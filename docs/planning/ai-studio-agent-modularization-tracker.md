@@ -115,10 +115,10 @@ Exit validation:
 | `migration_parity` | Active | Warn/Evaluate | Platform | promote after 2 green cycles |
 | `sql_lint` | Active | Warn/Evaluate | Platform | currently advisory |
 | `archive_manifest_check` | Active | Warn/Evaluate | Docs | currently advisory |
-| `architecture_boundary` | Planned | N/A | Platform | to be added |
-| `size_budget` | Planned | N/A | Frontend | to be added |
-| `agent_contract_tests` | Planned | N/A | AI Platform | to be added |
-| `agent_disable_continuity` | Planned | N/A | AI Platform | to be added |
+| `architecture_boundary` | Active | Warn/Evaluate | Platform | promote to enforce after two green cycles |
+| `size_budget` | Active | Warn/Evaluate | Frontend | promote to enforce after two green cycles |
+| `agent_contract_tests` | Active | Warn/Evaluate | AI Platform | promote to enforce after two green cycles |
+| `agent_disable_continuity` | Active | Warn/Evaluate | AI Platform | promote to enforce after two green cycles |
 
 ## Rollout Gate Tracker
 | Ring | Start | End | Pass/Fail | p95 | p99 | 5xx | timeout | refusal delta | Decision | Evidence |

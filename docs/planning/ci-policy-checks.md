@@ -8,6 +8,14 @@ Owner: Engineering
 
 - `deadcode`
 - `frontend`
+- `docs_semantic_drift`
+- `migration_parity`
+- `sql_lint`
+- `archive_manifest_check`
+- `architecture_boundary`
+- `size_budget`
+- `agent_contract_tests`
+- `agent_disable_continuity`
 - `adaptive_media_gate`
 - `ai_studio_perf_gate`
 - `ai_studio_perf_gate_notice`
@@ -15,27 +23,16 @@ Owner: Engineering
 - `conversation_state_hardening_gate` (manual workflow-dispatch; environment-gated)
 - `apply_conversation_state_migration` (manual workflow-dispatch; environment-gated)
 
-## New CI jobs
-
-- `docs_semantic_drift`
-- `migration_parity`
-- `sql_lint`
-- `archive_manifest_check`
-- `architecture_boundary` (planned)
-- `size_budget` (planned)
-- `agent_contract_tests` (planned)
-- `agent_disable_continuity` (planned)
-
 ## Policy-as-code artifacts
 
 - `scripts/check_docs_links.js` (existing)
 - `scripts/check_docs_semantic_drift.js` (new)
 - `scripts/check_migration_doc_parity.js` (new)
 - `scripts/check_archive_manifest.js` (new)
-- `scripts/check_architecture_boundaries.js` (planned)
-- `scripts/check_size_budgets.js` (planned)
-- `scripts/check_agent_contract_tests.js` (planned)
-- `scripts/check_agent_disable_continuity.js` (planned)
+- `scripts/check_architecture_boundaries.js` (new)
+- `scripts/check_size_budgets.js` (new)
+- `scripts/check_agent_contract_tests.js` (new)
+- `scripts/check_agent_disable_continuity.js` (new)
 
 ## Frontend fast-lane suites
 
@@ -94,6 +91,10 @@ Planned required check names (promoted after warn/evaluate stabilization):
 - `migration_parity`
 - `sql_lint`
 - `archive_manifest_check`
+- `architecture_boundary`
+- `size_budget`
+- `agent_contract_tests`
+- `agent_disable_continuity`
 
 ## Manual evidence runbook (required)
 Repository API access for branch rules/protection is restricted in this repo context (`403`), so evidence is captured manually:

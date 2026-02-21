@@ -218,6 +218,184 @@ jobs:
           echo "sql_lint failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
           exit "$STATUS"
 
+  architecture_boundary:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run architecture boundary checks (warn/enforce)
+        env:
+          ARCHITECTURE_BOUNDARY_MODE: ${{ vars.ARCHITECTURE_BOUNDARY_MODE }}
+        run: |
+          set -euo pipefail
+          MODE="${ARCHITECTURE_BOUNDARY_MODE:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown ARCHITECTURE_BOUNDARY_MODE='$MODE'. Falling back to 'warn'."
+            MODE="warn"
+          fi
+
+          set +e
+          cd ..
+          node scripts/check_architecture_boundaries.js
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "architecture_boundary passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::architecture_boundary failed in warn mode."
+            echo "architecture_boundary failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "architecture_boundary failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
+  size_budget:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run size budget checks (warn/enforce)
+        env:
+          SIZE_BUDGET_MODE: ${{ vars.SIZE_BUDGET_MODE }}
+        run: |
+          set -euo pipefail
+          MODE="${SIZE_BUDGET_MODE:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown SIZE_BUDGET_MODE='$MODE'. Falling back to 'warn'."
+            MODE="warn"
+          fi
+
+          set +e
+          cd ..
+          node scripts/check_size_budgets.js
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "size_budget passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::size_budget failed in warn mode."
+            echo "size_budget failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "size_budget failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
+  agent_contract_tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Run agent contract tests (warn/enforce)
+        env:
+          AGENT_CONTRACT_TESTS_MODE: ${{ vars.AGENT_CONTRACT_TESTS_MODE }}
+        run: |
+          set -euo pipefail
+          MODE="${AGENT_CONTRACT_TESTS_MODE:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown AGENT_CONTRACT_TESTS_MODE='$MODE'. Falling back to 'warn'."
+            MODE="warn"
+          fi
+
+          set +e
+          cd ..
+          node scripts/check_agent_contract_tests.js
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "agent_contract_tests passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::agent_contract_tests failed in warn mode."
+            echo "agent_contract_tests failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "agent_contract_tests failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
+  agent_disable_continuity:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Run agent disable/continuity tests (warn/enforce)
+        env:
+          AGENT_DISABLE_CONTINUITY_MODE: ${{ vars.AGENT_DISABLE_CONTINUITY_MODE }}
+        run: |
+          set -euo pipefail
+          MODE="${AGENT_DISABLE_CONTINUITY_MODE:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown AGENT_DISABLE_CONTINUITY_MODE='$MODE'. Falling back to 'warn'."
+            MODE="warn"
+          fi
+
+          set +e
+          cd ..
+          node scripts/check_agent_disable_continuity.js
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "agent_disable_continuity passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::agent_disable_continuity failed in warn mode."
+            echo "agent_disable_continuity failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "agent_disable_continuity failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
   adaptive_media_gate:
     runs-on: ubuntu-latest
     defaults:

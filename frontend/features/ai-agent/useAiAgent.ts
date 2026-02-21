@@ -11,14 +11,10 @@ import type {
   AgentMessage,
   AgentResponse,
 } from "../../prefabs/agent";
+import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agent-core/promptText";
 import { buildAgentContext } from "./logic/contextBuilder";
-import { randomId } from "../ai-studio/logic/ids";
 import { fetchWithAuth } from "../../lib/authenticatedFetch";
 import { normalizeErrorText } from "../../lib/errorText";
-import {
-  removeAspectRatioLanguage,
-  sanitizeGenerationPromptText,
-} from "../ai-studio/logic/agentPromptOwnership";
 
 type UseAiAgentOptions = {
   initialMessages?: AgentMessage[];
@@ -44,6 +40,13 @@ type SendResult = {
 // Stable default to prevent Fast Refresh issues
 const EMPTY_MESSAGES: AgentMessage[] = [];
 const AGENT_SESSION_STORAGE_KEY_PREFIX = "shortpulse.agent.clientSession.v1.";
+
+const randomId = (): string => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `agent_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+};
 
 const buildSessionStorageKey = (namespace: string): string =>
   `${AGENT_SESSION_STORAGE_KEY_PREFIX}${namespace.trim() || "default"}`;

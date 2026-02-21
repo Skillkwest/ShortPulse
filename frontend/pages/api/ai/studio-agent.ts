@@ -5,12 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { randomUUID } from "node:crypto";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
-import type {
-  AgentActions,
-  AgentContext,
-  AgentMessage,
-  AgentResponse,
-} from "../../../prefabs/agent";
+import type { AgentContext, AgentMessage } from "../../../prefabs/agent";
 import {
   isExplicitEditRequest,
   preservesContext,
@@ -32,6 +27,13 @@ import {
   resolveStudioAgentMaxRequestBytes,
   sanitizeStudioAgentContext,
 } from "../../../features/agent-runtime/studioAgentRequestGuards";
+import {
+  ensureStudioAgentApplyPromptContract,
+  extractStudioAgentCompletionText,
+  isStudioAgentRefusalResponse,
+  parseStudioAgentJson,
+  parseStudioAgentJsonWithStatus,
+} from "../../../features/agent-runtime/studioAgentResponseNormalization";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import {
@@ -58,11 +60,6 @@ type OpenAIChatMessage =
         | { type: "image_url"; image_url: { url: string; detail?: "low" | "high" } }
       >;
     };
-
-type ParsedAgentJson = {
-  response: AgentResponse;
-  status: string | null;
-};
 
 type StudioAgentErrorCode =
   | "METHOD_NOT_ALLOWED"
@@ -157,140 +154,6 @@ const buildFormatterMessages = (semantic: unknown, prompt: string): OpenAIChatMe
   { role: "user", content: JSON.stringify(semantic) },
 ];
 
-const asStringArray = (value: unknown): string[] | undefined => {
-  if (!Array.isArray(value)) return undefined;
-  const cleaned = value.filter(
-    (entry): entry is string => typeof entry === "string" && entry.trim().length > 0
-  );
-  return cleaned.length ? cleaned : undefined;
-};
-
-const asReferenceCard = (value: unknown): AgentActions["referenceCard"] | undefined => {
-  if (!value || typeof value !== "object") return undefined;
-  const record = value as Record<string, unknown>;
-  if (typeof record.prompt !== "string" || !record.prompt.trim()) return undefined;
-  return {
-    title: typeof record.title === "string" ? record.title : undefined,
-    prompt: record.prompt,
-  };
-};
-
-const normalizeAgentActions = (value: unknown): AgentResponse["actions"] => {
-  if (!value || typeof value !== "object") return undefined;
-  const record = value as Record<string, unknown>;
-  const applyPrompt =
-    typeof record.applyPrompt === "string"
-      ? record.applyPrompt
-      : typeof record.apply_prompt === "string"
-        ? record.apply_prompt
-        : undefined;
-
-  const cleanedApplyPrompt = sanitizeGenerationPromptText(applyPrompt ?? null) ?? undefined;
-
-  const normalized = {
-    applyPrompt: cleanedApplyPrompt,
-    variations:
-      asStringArray(record.variations)
-        ?.map((variation) => sanitizeGenerationPromptText(variation))
-        .filter((variation): variation is string => Boolean(variation)) ?? undefined,
-    describeTargets: asStringArray(record.describeTargets ?? record.describe_targets),
-    referenceCard: (() => {
-      const card = asReferenceCard(record.referenceCard);
-      if (!card) return undefined;
-      const prompt = sanitizeGenerationPromptText(card.prompt ?? null);
-      if (!prompt) return undefined;
-      return { ...card, prompt };
-    })(),
-  };
-
-  if (
-    !normalized.applyPrompt &&
-    !normalized.variations &&
-    !normalized.describeTargets &&
-    !normalized.referenceCard
-  ) {
-    return undefined;
-  }
-
-  return normalized;
-};
-
-const normalizeCompletionText = (rawContent: unknown): string => {
-  if (typeof rawContent === "string") return rawContent;
-  if (!Array.isArray(rawContent)) return "";
-  return rawContent
-    .map((part) => {
-      const record = part && typeof part === "object" ? (part as Record<string, unknown>) : {};
-      return typeof record.text === "string" ? record.text : "";
-    })
-    .join("\n")
-    .trim();
-};
-
-const parseAgentJsonWithStatus = (raw: unknown): ParsedAgentJson | null => {
-  const candidates: string[] = [];
-  const trimmed = normalizeCompletionText(raw).trim();
-  if (trimmed) candidates.push(trimmed);
-  const braceMatch = trimmed.match(/{[\s\S]*}/);
-  if (braceMatch) candidates.push(braceMatch[0]);
-
-  for (const candidate of candidates) {
-    try {
-      const parsed = JSON.parse(candidate);
-      if (!parsed || typeof parsed !== "object") continue;
-      const parsedRecord = parsed as Record<string, unknown>;
-      const message =
-        typeof parsedRecord.message === "string"
-          ? (sanitizeGenerationPromptText(parsedRecord.message) ?? "")
-          : "";
-      const actions = normalizeAgentActions(parsedRecord.actions);
-      const usageRecord =
-        parsedRecord.usage && typeof parsedRecord.usage === "object"
-          ? (parsedRecord.usage as Record<string, unknown>)
-          : null;
-      const usage = usageRecord
-        ? {
-            inputTokens:
-              typeof usageRecord.inputTokens === "number"
-                ? usageRecord.inputTokens
-                : typeof usageRecord.input_tokens === "number"
-                  ? usageRecord.input_tokens
-                  : undefined,
-            outputTokens:
-              typeof usageRecord.outputTokens === "number"
-                ? usageRecord.outputTokens
-                : typeof usageRecord.output_tokens === "number"
-                  ? usageRecord.output_tokens
-                  : undefined,
-          }
-        : undefined;
-      const status = typeof parsedRecord.status === "string" ? parsedRecord.status : null;
-      return {
-        response: { message, actions, usage },
-        status,
-      };
-    } catch {
-      continue;
-    }
-  }
-  return null;
-};
-
-const parseAgentJson = (raw: unknown): AgentResponse | null =>
-  parseAgentJsonWithStatus(raw)?.response ?? null;
-
-const extractCompletionText = (rawContent: unknown): string => {
-  if (typeof rawContent === "string") return rawContent;
-  if (!Array.isArray(rawContent)) return "";
-  return rawContent
-    .map((part) => {
-      const record = part && typeof part === "object" ? (part as Record<string, unknown>) : {};
-      return typeof record.text === "string" ? record.text : "";
-    })
-    .join("\n")
-    .trim();
-};
-
 const fetchOpenAiChatCompletion = async ({
   apiKey,
   model,
@@ -381,7 +244,7 @@ const buildImageSummaryMap = async ({
         throw new Error(await response.text());
       }
       const data = await response.json();
-      const rawText = extractCompletionText(data?.choices?.[0]?.message?.content);
+      const rawText = extractStudioAgentCompletionText(data?.choices?.[0]?.message?.content);
       const cleaned = sanitizeGenerationPromptText(rawText) ?? "";
       const summary = cleaned.trim();
       if (!summary.length) return null;
@@ -433,50 +296,6 @@ const applyVisionSummariesToContext = (
     references,
     media,
   };
-};
-
-const isRefusalResponse = ({
-  status,
-  response,
-}: {
-  status: string | null;
-  response: AgentResponse;
-}): boolean => {
-  if (status?.toLowerCase() === "refuse") return true;
-  const hasApplyPrompt = Boolean(response.actions?.applyPrompt?.trim());
-  if (hasApplyPrompt) return false;
-  const message = response.message?.trim() ?? "";
-  if (!message.length) return false;
-  return /(^|\s)(cannot|can't|unable|refuse|won't|not able)\b/i.test(message);
-};
-
-const ensureApplyPromptContract = ({
-  parsed,
-  fallbackPrompt,
-}: {
-  parsed: AgentResponse;
-  fallbackPrompt: string;
-}): AgentResponse => {
-  const resolvedFallback = sanitizeGenerationPromptText(fallbackPrompt) ?? "";
-  const cleanedApplyPrompt = sanitizeGenerationPromptText(parsed.actions?.applyPrompt ?? null);
-  if (!cleanedApplyPrompt) {
-    parsed.actions = parsed.actions ?? {};
-    parsed.actions.applyPrompt = resolvedFallback;
-  } else {
-    parsed.actions = parsed.actions ?? {};
-    parsed.actions.applyPrompt = cleanedApplyPrompt;
-  }
-  if (parsed.actions?.applyPrompt && !parsed.actions.referenceCard?.prompt) {
-    parsed.actions.referenceCard = {
-      title: "Prompt",
-      prompt: parsed.actions.applyPrompt,
-    };
-  }
-  parsed.message =
-    parsed.actions?.applyPrompt ??
-    sanitizeGenerationPromptText(parsed.message ?? null) ??
-    resolvedFallback;
-  return parsed;
 };
 
 const emitTurnTelemetry = ({
@@ -789,7 +608,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         formatterModel: openAiFormatterModel,
         thinkerMessages: buildThinkerMessages(thinkerPayload, thinkerPrompt),
         buildFormatterMessages: (semantic) => buildFormatterMessages(semantic, formatterPrompt),
-        parseAgentJson,
+        parseAgentJson: parseStudioAgentJson,
         timeoutMs: requestTimeoutMs,
       });
       markStage("v2_turn", v2StartedAt);
@@ -841,7 +660,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             thinkerPrompt
           ),
           buildFormatterMessages: (semantic) => buildFormatterMessages(semantic, formatterPrompt),
-          parseAgentJson,
+          parseAgentJson: parseStudioAgentJson,
           timeoutMs: requestTimeoutMs,
         });
         markStage("v2_retry_turn", retryStartedAt);
@@ -853,7 +672,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
-      const refusal = isRefusalResponse({
+      const refusal = isStudioAgentRefusalResponse({
         status: semanticStatus,
         response: parsed,
       });
@@ -882,7 +701,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           actions: undefined,
         };
       } else {
-        parsed = ensureApplyPromptContract({ parsed, fallbackPrompt });
+        parsed = ensureStudioAgentApplyPromptContract({ parsed, fallbackPrompt });
       }
 
       const resolvedCanonical = refusal
@@ -956,14 +775,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const data = await response.json();
-    const contentText = extractCompletionText(data?.choices?.[0]?.message?.content);
-    const parsedWithStatus = parseAgentJsonWithStatus(contentText);
+    const contentText = extractStudioAgentCompletionText(data?.choices?.[0]?.message?.content);
+    const parsedWithStatus = parseStudioAgentJsonWithStatus(contentText);
     let parsed = parsedWithStatus?.response ?? {
       message: sanitizeGenerationPromptText(contentText || "No response") ?? "No response",
       actions: undefined,
     };
 
-    const refusal = isRefusalResponse({
+    const refusal = isStudioAgentRefusalResponse({
       status: parsedWithStatus?.status ?? null,
       response: parsed,
     });
@@ -986,7 +805,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             messages[messages.length - 1]?.content ??
             ""
         ) ?? "";
-      parsed = ensureApplyPromptContract({ parsed, fallbackPrompt });
+      parsed = ensureStudioAgentApplyPromptContract({ parsed, fallbackPrompt });
     }
 
     const resolvedCanonical = refusal

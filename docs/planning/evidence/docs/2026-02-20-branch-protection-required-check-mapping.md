@@ -57,3 +57,4 @@ Planned required checks after warn/evaluate stabilization:
 ## Status
 
 Configured and documented, but not enforceable on current repository plan; pending GitHub Team/org upgrade (or equivalent) for enforcement.
+Prototype-mode waiver applies; this remains non-blocking for MVP feature iteration and blocking only for production-readiness completion.

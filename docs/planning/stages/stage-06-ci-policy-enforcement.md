@@ -31,8 +31,15 @@ STG-06 may be `In Progress`, but it cannot be marked `Completed` until all are t
 - [ ] Warn/evaluate checks are green for two release cycles.
 - [x] Branch-protection mapping proof is captured with exact required check names.
 
+## Prototype-mode waiver (MVP)
+For MVP prototype execution, STG-06 completion is waived as a production-only gate:
+- Build/commit/feature implementation is allowed while STG-06 remains `In Progress`.
+- Governance checks continue in warn/evaluate mode with evidence updates.
+- Full STG-06 completion remains mandatory before production readiness signoff.
+
 ## Evidence
 - `docs/planning/ci-policy-checks.md`
 - `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
 - `docs/planning/evidence/docs/2026-02-21-stg-06-cycle-status.md`
+- `docs/planning/evidence/docs/2026-02-21-stg-06-prototype-waiver.md`
 - `.github/workflows/ci.yml`

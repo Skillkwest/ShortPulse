@@ -15,6 +15,7 @@ Owner: Engineering
 | Embedded change control | Pass | `docs/planning/stages/stage-*.md`, `docs/planning/implementation-tracker.md` |
 | Source traceability across artifacts | Pass | `docs/planning/_inventory.md`, `docs/planning/overlap-audit.md`, `docs/planning/archive/original-plans/manifest.json` |
 | STG-06 completion gate (two green cycles + enforceable settings) | Pending | `docs/planning/evidence/docs/2026-02-21-stg-06-cycle-status.md`, `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md` |
+| STG-06 prototype-mode waiver documented | Pass | `docs/planning/evidence/docs/2026-02-21-stg-06-prototype-waiver.md` |
 
 ## SQL/RPC hardening checks
 
@@ -34,3 +35,4 @@ Owner: Engineering
 ## Pre-closeout evidence
 
 - `docs/planning/evidence/docs/2026-02-21-stg-08-precloseout-validation.md`
+- `docs/planning/evidence/docs/2026-02-21-stg-06-prototype-waiver.md`

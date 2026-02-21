@@ -15,6 +15,7 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 6. KEI API tombstones stay for one compatibility window before deletion.
 7. New CI checks start in warn/evaluate mode, then move to enforce after two green release cycles.
 8. Required status checks must map to exact CI job IDs.
+9. Prototype-mode waiver: STG-06 enforcement completion is deferred for MVP iteration and remains mandatory before production readiness signoff.
 
 ## Governance Control Mapping
 - COBIT 2019: EDM/BAI-aligned stage gates, ownership, measurable controls.
@@ -181,6 +182,9 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 - STG-04 Phase C is complete
 - warn/evaluate checks are green for two release cycles
 - branch-protection mapping proof with exact required check names is archived at `docs/planning/evidence/docs/<date>-branch-protection-required-check-mapping.md`
+- Prototype-mode waiver:
+- MVP feature development may continue while STG-06 stays `In Progress`
+- production readiness still requires full STG-06 completion
 - Rollback:
 - Downgrade new checks to warn/evaluate mode and revert latest CI policy PR.
 

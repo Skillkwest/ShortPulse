@@ -48,6 +48,12 @@ Owner: Engineering
 - Initial mode: warn/evaluate
 - Enforce mode: after two green release cycles
 
+## Prototype mode policy (MVP)
+
+- During MVP prototype iteration, governance checks remain in advisory/warn mode.
+- This policy does not block local build/test/commit or feature delivery.
+- Enforcement promotion is deferred to production-readiness hardening.
+
 ## Conversation-state hardening gate
 
 - Workflow: `.github/workflows/conversation-state-hardening-gate.yml`

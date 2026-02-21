@@ -122,6 +122,8 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-generation-runtime-stabilization.md` (archived pointer)
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
 - `docs/planning/ai-studio-agent-pipeline-hardening-plan.md`
+- `docs/planning/ai-studio-agent-modularization-program.md`
+- `docs/planning/ai-studio-agent-modularization-tracker.md`
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
 - `docs/planning/ai-studio-primary-character-panel-build-plan.md`
 - `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`

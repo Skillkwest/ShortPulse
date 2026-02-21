@@ -23,6 +23,8 @@ Owner: Engineering
 - `archive_manifest_check`
 - `architecture_boundary` (planned)
 - `size_budget` (planned)
+- `agent_contract_tests` (planned)
+- `agent_disable_continuity` (planned)
 
 ## Policy-as-code artifacts
 
@@ -32,6 +34,8 @@ Owner: Engineering
 - `scripts/check_archive_manifest.js` (new)
 - `scripts/check_architecture_boundaries.js` (planned)
 - `scripts/check_size_budgets.js` (planned)
+- `scripts/check_agent_contract_tests.js` (planned)
+- `scripts/check_agent_disable_continuity.js` (planned)
 
 ## Frontend fast-lane suites
 

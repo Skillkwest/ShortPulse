@@ -45,6 +45,10 @@ Planned required checks after warn/evaluate stabilization:
 - `migration_parity`
 - `sql_lint`
 - `archive_manifest_check`
+- `architecture_boundary`
+- `size_budget`
+- `agent_contract_tests`
+- `agent_disable_continuity`
 
 ## Manual capture checklist
 

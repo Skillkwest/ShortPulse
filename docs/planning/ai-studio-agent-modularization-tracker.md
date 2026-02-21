@@ -70,11 +70,12 @@ Exit validation:
 - [x] Slice 8: extract `useAiAgent` transport/session/store/action-normalizer modules.
 - [x] Slice 9: extract `useAiStudioAgentOrchestration` attachment-prep and context-pipeline modules.
 - [x] Slice 10: extract `ai-studio.tsx` agent bridge wiring into dedicated hook.
+- [x] Slice 11: extract `useAiStudioState` agent context/reference adapters.
 - [x] Split `frontend/pages/api/ai/studio-agent.ts` by concern.
 - [x] Split `frontend/features/ai-agent/useAiAgent.ts` into transport/session/store.
 - [x] Split `frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts` by pipeline concern.
 - [x] Split `frontend/pages/ai-studio.tsx` agent bridge wiring out.
-- [ ] Split `frontend/features/ai-studio/hooks/useAiStudioState.ts` agent adapters out.
+- [x] Split `frontend/features/ai-studio/hooks/useAiStudioState.ts` agent adapters out.
 - [ ] Split `frontend/features/ai-studio/components/PromptStep.tsx` history/composer/actions.
 - [ ] Enforce size budgets with explicit ADR exceptions where required.
 

@@ -15,9 +15,8 @@ import { modelOptions } from "../constants";
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput, ToolId } from "../types";
 import { DEFAULT_KLING_DURATION_SECONDS, getModelConfig } from "../logic/pricing";
-import type { AgentContext, AgentMediaPreview, AgentReferenceSummary } from "../../ai-agent/types";
+import type { AgentContext } from "../../ai-agent/types";
 import {
-  isVideoUrl,
   resolvePreviewUrlById,
   resolveModelLabel,
   mapUploadsFromFiles,
@@ -45,6 +44,12 @@ import {
   reorderCuratedReferenceId,
   syncCuratedPinnedOutputsByOrder,
 } from "../logic/curatedReferences";
+import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
+import {
+  buildAgentPromptReferenceOutput,
+  buildPastedMediaReferenceOutput,
+  buildPastedPromptReferenceOutput,
+} from "./stateAdapters/agentReferenceOutputs";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
 const CHARACTER_MODE_PENDING_MODEL_LABEL = "Pulse Character Model";
@@ -915,26 +920,12 @@ export const useAiStudioState = ({
       void title;
       const cleanedPrompt = promptText?.trim();
       if (!cleanedPrompt) return;
-      const id = `prompt-${randomId()}`;
-      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
-      const promptReference: StudioOutput = {
-        id,
-        prompt: cleanedPrompt,
-        mode: "text",
+      const promptReference = buildAgentPromptReferenceOutput({
+        id: `prompt-${randomId()}`,
+        promptText: cleanedPrompt,
         aspect,
-        model: placeholderModelLabel,
-        modelId: model ?? undefined,
-        status: "ready",
-        timestamp: "Agent",
-        // Always show the actual prompt text on the reference card.
-        previewText: cleanedPrompt,
-        mediaSource: "prompt",
-        previewTier: "full",
-        archivedAt: null,
-        archiveReason: null,
-        saveState: "idle",
-        saveError: null,
-      };
+        model,
+      });
       setOutputs((prev) => [promptReference, ...prev]);
       setSharedPrompt(cleanedPrompt);
     },
@@ -945,25 +936,12 @@ export const useAiStudioState = ({
     (promptText: string) => {
       const cleanedPrompt = promptText?.trim();
       if (!cleanedPrompt) return;
-      const id = `prompt-paste-${randomId()}`;
-      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
-      const promptReference: StudioOutput = {
-        id,
-        prompt: cleanedPrompt,
-        mode: "text",
+      const promptReference = buildPastedPromptReferenceOutput({
+        id: `prompt-paste-${randomId()}`,
+        promptText: cleanedPrompt,
         aspect,
-        model: placeholderModelLabel,
-        modelId: model ?? undefined,
-        status: "ready",
-        timestamp: "Clipboard",
-        previewText: cleanedPrompt,
-        mediaSource: "prompt",
-        previewTier: "full",
-        archivedAt: null,
-        archiveReason: null,
-        saveState: "idle",
-        saveError: null,
-      };
+        model,
+      });
       setOutputs((prev) => [promptReference, ...prev]);
     },
     [aspect, model, setOutputs]
@@ -973,39 +951,13 @@ export const useAiStudioState = ({
     (payload: { url: string; mimeType?: string | null }) => {
       const cleanedUrl = payload.url?.trim();
       if (!cleanedUrl) return;
-      const isVideo =
-        payload.mimeType?.startsWith("video/") || (!payload.mimeType && isVideoUrl(cleanedUrl));
-      const id = `media-paste-${randomId()}`;
-      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
-      const parsedFilename = (() => {
-        if (/^data:/i.test(cleanedUrl)) return null;
-        try {
-          const path = new URL(cleanedUrl).pathname;
-          const segment = path.split("/").pop();
-          return segment ? decodeURIComponent(segment) : null;
-        } catch {
-          return null;
-        }
-      })();
-      const nextOutput: StudioOutput = {
-        id,
-        prompt: parsedFilename ?? (isVideo ? "Pasted video" : "Pasted image"),
-        mode: isVideo ? "video" : "image",
+      const nextOutput = buildPastedMediaReferenceOutput({
+        id: `media-paste-${randomId()}`,
+        url: cleanedUrl,
+        mimeType: payload.mimeType,
         aspect,
-        model: placeholderModelLabel,
-        modelId: model ?? undefined,
-        status: "ready",
-        timestamp: "Clipboard",
-        previewUrl: cleanedUrl,
-        mediaSource: "clipboard",
-        previewTier: isVideo ? "preview_loop" : "full",
-        fullStoragePath: null,
-        previewStoragePath: null,
-        archivedAt: null,
-        archiveReason: null,
-        saveState: "idle",
-        saveError: null,
-      };
+        model,
+      });
       setOutputs((prev) => [nextOutput, ...prev]);
     },
     [aspect, model, setOutputs]
@@ -1109,80 +1061,13 @@ export const useAiStudioState = ({
       selectedOverride?: StudioOutput | null;
       modeHint?: "chat" | "text" | "describe" | "reference";
     }): AgentContext => {
-      // Do not implicitly include the currently selected reference card.
-      // Agent context should only include references explicitly provided by the caller
-      // (for example, drag/drop attachments passed as selectedOverride/attachments).
-      const selected = options?.selectedOverride ?? null;
-      const selectedReferenceIds = selected ? [selected.id] : [];
-
-      // Default fallback: rely on the latest assistant output.
-      let focusedSource: AgentContext["focusedSource"] = "agent-output";
-      let focusedReferenceId: string | null = null;
-      let media: AgentMediaPreview[] = [];
-      let references: AgentReferenceSummary[] = [];
-      let activePromptValue: string | null = null;
-
-      if (selected) {
-        focusedReferenceId = selected.id;
-        const hasImage = Boolean(
-          selected.previewUrl &&
-          (selected.mode === "image" ||
-            (selected.mode !== "video" && !isVideoUrl(selected.previewUrl)))
-        );
-        if (hasImage) {
-          // Vision-first: supply the selected image for description; keep prompt metadata secondary.
-          focusedSource = "image";
-          media = [
-            {
-              id: selected.id,
-              kind: "image",
-              url: selected.previewUrl as string,
-              thumbnailAlt: selected.prompt ?? selected.previewText ?? null,
-            },
-          ];
-          references = [
-            {
-              id: selected.id,
-              kind: "prompt",
-              promptSnippet: selected.prompt ?? selected.previewText ?? null,
-              aspect: selected.aspect ?? null,
-              caption: selected.previewText ?? null,
-            },
-          ];
-        } else {
-          // Prompt-selected (includes video cards; we read prompt text, no media).
-          focusedSource = "prompt";
-          const promptSnippet = selected.prompt ?? selected.previewText ?? null;
-          activePromptValue = promptSnippet;
-          references = promptSnippet
-            ? [
-                {
-                  id: selected.id,
-                  kind: "prompt",
-                  promptSnippet,
-                  aspect: selected.aspect ?? null,
-                  caption: selected.previewText ?? null,
-                },
-              ]
-            : [];
-        }
-      } else {
-        // No selection: use the last assistant chat message if provided.
-        activePromptValue = options?.lastAssistantMessage ?? null;
-      }
-
-      return {
-        activePrompt: activePromptValue,
-        modelId: model,
+      return buildAiStudioAgentContext({
+        selected: options?.selectedOverride ?? null,
+        model,
         mode,
-        references,
-        media,
-        selectedReferenceIds,
-        focusedSource,
-        focusedReferenceId,
         lastAssistantMessage: options?.lastAssistantMessage ?? null,
-        modeHint: options?.modeHint ?? undefined,
-      };
+        modeHint: options?.modeHint,
+      });
     },
     [model, mode]
   );

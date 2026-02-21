@@ -13,6 +13,15 @@ API verification attempt (recorded):
 - Result: `403` with message: `Upgrade to GitHub Pro or make this repository public to enable this feature.`
 - Date: 2026-02-21
 
+UI verification attempt (recorded):
+- Source: repository Settings -> Rules -> Rulesets -> New branch ruleset
+- Result:
+  - `Your rulesets won't be enforced on this private repository until you move to GitHub Team organization account.`
+  - Enforcement status shown as `Disabled`.
+  - Branch targeting not configured (`Branch targeting has not been configured`).
+- Evidence timestamp (from capture): 2026-02-20 17:12 local
+- Date recorded: 2026-02-21
+
 ## Required check names (documented target)
 
 - `frontend`
@@ -27,11 +36,12 @@ Planned required checks after warn/evaluate stabilization:
 
 ## Manual capture checklist
 
-- [ ] Capture repository settings screenshot/export showing required checks.
-- [ ] Confirm exact check names match `docs/planning/ci-policy-checks.md`.
+- [x] Capture repository settings screenshot/export showing ruleset availability constraints.
+- [ ] Capture repository settings screenshot/export showing required checks (blocked until protection is enforceable).
+- [ ] Confirm exact check names match `docs/planning/ci-policy-checks.md` (blocked until required checks can be configured).
 - [x] Record operator/date in this file.
 - [ ] Record reviewer/date in this file after UI verification.
 
 ## Status
 
-Pending manual UI capture and reviewer signoff.
+Blocked by repository plan/protection availability constraints; pending upgrade/path change or enforceable branch-protection access.

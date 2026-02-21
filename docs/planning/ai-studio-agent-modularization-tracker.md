@@ -110,6 +110,8 @@ Exit validation:
 - [x] Record ops-readiness bootstrap evidence and CI validation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-ops-readiness-bootstrap.md`, run `22258904215`).
 - [x] Record DEP-03 dashboard/alert readiness evidence with source mapping and CI validation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`, run `22258999203`).
 - [x] Kick off staging soak ring and archive rollout report (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`).
+- [x] Publish staging soak checkpoint monitoring plan with gate thresholds and evidence links (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-staging-soak-monitoring-plan.md`).
+- [ ] Attach external dashboard/alert URLs + policy links in DEP-03 readiness evidence before 5% ring.
 - [ ] Staging soak 24h.
 - [ ] Production 5% 24h.
 - [ ] Production 25% 24h.
@@ -159,12 +161,12 @@ Exit validation:
 ## Risk Register Tracker
 | Rank | Risk | State | Leading Indicator | Mitigation Owner | Last Review |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Contract drift | Open | contract test drift/snapshot mismatch | AI Platform | TBD |
-| 2 | Hidden behavior regressions in modularization | Open | characterization diffs | Frontend | TBD |
-| 3 | Reload continuity regressions | Open | continuity SLI drops | AI Platform | TBD |
-| 4 | Legacy traffic persists near sunset | Open | non-zero legacy traffic after deprecation | Product Eng | TBD |
-| 5 | Branch-policy enforceability constrained by plan tier | Open | required checks not enforceable at branch level | Engineering Mgmt | TBD |
-| 6 | Mixed-flow cost/latency spike | Open | p95/p99 and token trend increase | AI Platform | TBD |
+| 1 | Contract drift | Open | contract test drift/snapshot mismatch | AI Platform | 2026-02-21 |
+| 2 | Hidden behavior regressions in modularization | Open | characterization diffs | Frontend | 2026-02-21 |
+| 3 | Reload continuity regressions | Open | continuity SLI drops | AI Platform | 2026-02-21 |
+| 4 | Legacy traffic persists near sunset | Open | non-zero legacy traffic after deprecation | Product Eng | 2026-02-21 |
+| 5 | Branch-policy enforceability constrained by plan tier | Open | required checks not enforceable at branch level | Engineering Mgmt | 2026-02-21 |
+| 6 | Mixed-flow cost/latency spike | Open | p95/p99 and token trend increase | AI Platform | 2026-02-21 |
 
 ## Blockers And Dependencies
 | ID | Blocker/Dependency | Impact | Owner | Status | Resolution Target |

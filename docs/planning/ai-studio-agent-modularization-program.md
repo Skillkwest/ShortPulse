@@ -228,7 +228,7 @@ Branch required-check enforcement is currently constrained by repository plan li
 5. Final closeout in `docs/planning/final-validation-summary.md`.
 
 ## Assumptions (Locked)
-1. Program start date: 2026-02-23.
+1. Program target start date: 2026-02-23; execution was pulled forward to 2026-02-21 for risk reduction and is tracked in the tracker execution note.
 2. Compatibility window required through 2026-04-26.
 3. Legacy route removal target: 2026-04-27 after zero-usage criterion.
 4. Zero regression means no unplanned behavior change and no release past failed required gate.

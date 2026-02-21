@@ -50,3 +50,26 @@ Verify repo-level readiness for `DEP-03` (dashboard + alert wiring for ring-gate
 `In Progress`:
 1. Repo-level instrumentation and runbook wiring are ready.
 2. External dashboard/alert resource provisioning remains an operator task outside this repository and must be linked in rollout evidence before 5% production ring promotion.
+
+## External Artifacts Required Before 5% Promotion
+The following must be attached to this file before advancing beyond staging soak:
+
+1. Dashboard links:
+   - [ ] Latency by stage + flow panel URL.
+   - [ ] Error + timeout by ring panel URL.
+   - [ ] Refusal-rate delta versus baseline panel URL.
+   - [ ] Contract rejection rate by reason panel URL.
+   - [ ] Continuity success-rate panel URL.
+2. Alert routing links:
+   - [ ] Sev-2 latency/error/timeout policy URL.
+   - [ ] Sev-2 continuity SLI policy URL.
+   - [ ] Sev-3 contract-rejection spike policy URL.
+   - [ ] On-call escalation target reference URL.
+3. Verification metadata:
+   - [ ] Validation timestamp (UTC):
+   - [ ] Operator:
+   - [ ] Reviewer:
+   - [ ] Tracker dependency update completed (`DEP-03`):
+
+Promotion gate rule:
+Do not start Production 5% ring until every checklist item above is complete and linked.

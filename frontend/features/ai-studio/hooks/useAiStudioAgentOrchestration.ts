@@ -1,87 +1,15 @@
-import {
-  useCallback,
-  useRef,
-  useState,
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-} from "react";
-import type {
-  AgentActions,
-  AgentAttachment,
-  AgentContext,
-  AgentMediaPreview,
-  AgentReferenceSummary,
-} from "../../../prefabs/agent";
+import { useCallback, useRef, useState } from "react";
 import { postGeneratePrompt } from "../logic/promptGeneration";
 import { postDescribeImage, prepareImageUrl } from "../logic/imageDescription";
-import { normalizePromptText, type PromptOrigin } from "../logic/agentPromptOwnership";
+import { normalizePromptText } from "../logic/agentPromptOwnership";
 import { shouldApplyAgentPromptToSharedPrompt } from "../logic/promptTargeting";
 import { randomId } from "../logic/ids";
-import type { StudioOutput, ToolId } from "../types";
-
-const MAX_AGENT_IMAGE_ATTACHMENTS = 3;
-const PREPARED_AGENT_IMAGE_URL_CACHE_TTL_MS = 10 * 60 * 1000;
-
-type AgentModeHint = "chat" | "text" | "describe" | "reference";
-
-type AgentSendOptions = {
-  captureResult?: boolean;
-  selectedOverride?: StudioOutput | null;
-  modeHint?: AgentModeHint;
-};
-
-type UseAiStudioAgentOrchestrationParams = {
-  agentIsSending: boolean;
-  agentUiBusyRef: MutableRefObject<boolean>;
-  setAgentUiBusy: Dispatch<SetStateAction<boolean>>;
-  agentSessionEnabled: boolean;
-  setAgentSessionEnabled: Dispatch<SetStateAction<boolean>>;
-  agentInput: string;
-  setAgentInput: Dispatch<SetStateAction<string>>;
-  agentAttachments: AgentAttachment[];
-  setAgentAttachments: Dispatch<SetStateAction<AgentAttachment[]>>;
-  setAgentAttachmentError: Dispatch<SetStateAction<string | null>>;
-  markAttachmentDelivery: (
-    ids: string[],
-    status: "pending" | "preparing" | "ready" | "failed",
-    deliveryError?: string | null | ((attachment: AgentAttachment) => string | null)
-  ) => void;
-  prompt: string;
-  latestAgentPrompt: string | null;
-  setLatestAgentPrompt: Dispatch<SetStateAction<string | null>>;
-  setAgentActions: Dispatch<SetStateAction<AgentActions | undefined>>;
-  selectedTool: ToolId | null;
-  setSharedPrompt: (value: string) => void;
-  setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
-  sendToAgent: (params: {
-    text: string;
-    payloadText?: string;
-    previousPrompt?: string | null;
-    context?: AgentContext;
-    skipUserEcho?: boolean;
-    optimisticUserMessageId?: string | null;
-  }) => Promise<{ response: unknown; actions: AgentActions | undefined }>;
-  appendUserMessage: (text: string) => string | null;
-  getAgentContext: (params: {
-    lastAssistantMessage: string | null;
-    selectedOverride?: StudioOutput | null;
-    modeHint?: AgentModeHint;
-  }) => AgentContext;
-  trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
-  addAgentPromptReference: (promptText: string, title?: string) => void;
-  editReferenceText: string;
-  setEditReferenceText: (value: string) => void;
-  videoReferenceText: string;
-  setVideoReferenceText: (value: string) => void;
-  getOutputById: (id: string) => StudioOutput | null;
-  aspect: string;
-  model: string | null;
-  setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
-  setActiveOutputId: Dispatch<SetStateAction<string | null>>;
-  lastAssistantMessage: string | null;
-  setUiNotice: Dispatch<SetStateAction<string | null>>;
-};
+import { mergeAttachmentContext } from "./agentOrchestration/attachmentContext";
+import { prepareAgentImageAttachments } from "./agentOrchestration/attachmentPreparation";
+import type {
+  AgentSendOptions,
+  UseAiStudioAgentOrchestrationParams,
+} from "./agentOrchestration/types";
 
 export const useAiStudioAgentOrchestration = ({
   agentIsSending,
@@ -161,7 +89,6 @@ export const useAiStudioAgentOrchestration = ({
         setAgentInput("");
       }
       try {
-        const preparedImageUrls = new Map<string, string>();
         const imageAttachmentsMissingUrl = agentAttachments.filter(
           (attachment) => attachment.kind === "image" && !attachment.imageUrl?.trim()
         );
@@ -180,62 +107,37 @@ export const useAiStudioAgentOrchestration = ({
           });
           return;
         }
-        const imageAttachments = agentAttachments.filter(
-          (attachment): attachment is AgentAttachment =>
-            attachment.kind === "image" && Boolean(attachment.imageUrl?.trim())
-        );
-        if (imageAttachments.length > 0) {
-          const imageAttachmentIds = imageAttachments.map((attachment) => attachment.id);
+
+        const imageAttachmentIds = agentAttachments
+          .filter(
+            (attachment) => attachment.kind === "image" && Boolean(attachment.imageUrl?.trim())
+          )
+          .map((attachment) => attachment.id);
+        let preparedImageUrls = new Map<string, string>();
+        if (imageAttachmentIds.length > 0) {
           markAttachmentDelivery(imageAttachmentIds, "preparing");
-          const preparedImageUrlCache = preparedImageUrlCacheRef.current;
-          const resolvePreparedImageUrl = async (sourceUrl: string): Promise<string | null> => {
-            const cached = preparedImageUrlCache.get(sourceUrl);
-            if (cached && cached.expiresAtMs > Date.now()) {
-              return cached.safeUrl;
-            }
-            if (cached) {
-              preparedImageUrlCache.delete(sourceUrl);
-            }
-            const safeUrl = sourceUrl ? await prepareImageUrl(sourceUrl) : null;
-            if (!safeUrl?.startsWith("https://")) return safeUrl;
-            preparedImageUrlCache.set(sourceUrl, {
-              safeUrl,
-              expiresAtMs: Date.now() + PREPARED_AGENT_IMAGE_URL_CACHE_TTL_MS,
-            });
-            if (preparedImageUrlCache.size > 64) {
-              const oldestKey = preparedImageUrlCache.keys().next().value;
-              if (oldestKey) {
-                preparedImageUrlCache.delete(oldestKey);
-              }
-            }
-            return safeUrl;
-          };
 
-          const preparedResults = await Promise.allSettled(
-            imageAttachments.map(async (attachment) => {
-              const sourceUrl = attachment.imageUrl?.trim() ?? "";
-              const safeUrl = await resolvePreparedImageUrl(sourceUrl);
-              return {
-                attachmentId: attachment.id,
-                safeUrl,
-              };
-            })
-          );
-
-          const failedAttachmentIds: string[] = [];
-          preparedResults.forEach((result, index) => {
-            const attachmentId = imageAttachments[index]?.id;
-            if (!attachmentId) return;
-            if (result.status === "fulfilled" && result.value.safeUrl?.startsWith("https://")) {
-              preparedImageUrls.set(attachmentId, result.value.safeUrl);
+          const preparedImageResult = await prepareAgentImageAttachments({
+            attachments: agentAttachments,
+            preparedImageUrlCache: preparedImageUrlCacheRef.current,
+          });
+          if (!preparedImageResult.ok) {
+            if (preparedImageResult.reason === "missing_url") {
+              markAttachmentDelivery(
+                preparedImageResult.failedIds,
+                "failed",
+                "Image URL missing. Remove this image and attach it again."
+              );
+              setAgentAttachmentError(
+                "One or more attached images are missing a valid URL. Remove failed images and try again."
+              );
+              trackAgentUiEvent("studio_agent_attachment_missing_url", {
+                failed_image_attachments: preparedImageResult.failedIds.length,
+              });
               return;
             }
-            failedAttachmentIds.push(attachmentId);
-          });
-
-          if (failedAttachmentIds.length) {
             markAttachmentDelivery(
-              failedAttachmentIds,
+              preparedImageResult.failedIds,
               "failed",
               "Image upload/preparation failed. Remove this image and try again."
             );
@@ -243,12 +145,13 @@ export const useAiStudioAgentOrchestration = ({
               "One or more attached images failed to prepare. Remove failed images and try again."
             );
             trackAgentUiEvent("studio_agent_attachment_prepare_failed", {
-              failed_image_attachments: failedAttachmentIds.length,
-              attempted_image_attachments: imageAttachmentIds.length,
+              failed_image_attachments: preparedImageResult.failedIds.length,
+              attempted_image_attachments: preparedImageResult.attemptedCount,
             });
             return;
           }
 
+          preparedImageUrls = preparedImageResult.preparedImageUrls;
           markAttachmentDelivery(imageAttachmentIds, "ready", null);
         }
 
@@ -261,83 +164,11 @@ export const useAiStudioAgentOrchestration = ({
           baseContext.activePrompt = latestAgentPrompt;
           baseContext.lastAssistantMessage = latestAgentPrompt;
         }
-        let mediaPatchedContext = baseContext;
-
-        if (agentAttachments.length) {
-          const attachmentRefs: AgentReferenceSummary[] = [];
-          const attachmentMedia: AgentMediaPreview[] = [];
-          const selectedAttachmentIds: string[] = [];
-
-          agentAttachments.forEach((attachment) => {
-            const referenceId = attachment.referenceId ?? attachment.id;
-            const attachmentText = attachment.text?.trim() || null;
-            if (attachment.referenceId) {
-              selectedAttachmentIds.push(attachment.referenceId);
-            }
-            if (attachment.kind === "image") {
-              attachmentRefs.push({
-                id: referenceId,
-                kind: "image",
-                promptSnippet: attachmentText,
-                aspect: attachment.aspect ?? null,
-                caption: attachmentText,
-              });
-              const safeImageUrl = preparedImageUrls.get(attachment.id);
-              if (safeImageUrl) {
-                attachmentMedia.push({
-                  id: referenceId,
-                  kind: "image",
-                  url: safeImageUrl,
-                  thumbnailAlt: attachmentText,
-                });
-              }
-              return;
-            }
-            attachmentRefs.push({
-              id: referenceId,
-              kind: "prompt",
-              promptSnippet: attachmentText,
-              aspect: attachment.aspect ?? null,
-              caption: null,
-            });
-          });
-
-          const dedupedRefs = [...attachmentRefs, ...(mediaPatchedContext.references ?? [])].filter(
-            (item, index, all) =>
-              all.findIndex(
-                (candidate) => candidate.id === item.id && candidate.kind === item.kind
-              ) === index
-          );
-          const dedupedMedia = [...attachmentMedia, ...(mediaPatchedContext.media ?? [])].filter(
-            (item, index, all) =>
-              all.findIndex(
-                (candidate) => candidate.id === item.id && candidate.url === item.url
-              ) === index
-          );
-          const mergedSelectedReferenceIds = Array.from(
-            new Set([...(mediaPatchedContext.selectedReferenceIds ?? []), ...selectedAttachmentIds])
-          ).slice(0, 8);
-          const hasImageAttachments = attachmentMedia.length > 0;
-          const hasCanonicalPromptContext = Boolean(
-            mediaPatchedContext.activePrompt?.trim() ||
-            mediaPatchedContext.lastAssistantMessage?.trim()
-          );
-          const nextFocusedSource = hasImageAttachments
-            ? "image"
-            : hasCanonicalPromptContext
-              ? (mediaPatchedContext.focusedSource ?? "agent-output")
-              : "prompt";
-
-          mediaPatchedContext = {
-            ...mediaPatchedContext,
-            references: dedupedRefs.slice(0, 24),
-            media: dedupedMedia.slice(0, MAX_AGENT_IMAGE_ATTACHMENTS),
-            selectedReferenceIds: mergedSelectedReferenceIds,
-            focusedSource: nextFocusedSource,
-            focusedReferenceId:
-              mergedSelectedReferenceIds.length === 1 ? mergedSelectedReferenceIds[0] : null,
-          };
-        }
+        const mediaPatchedContext = mergeAttachmentContext({
+          baseContext,
+          attachments: agentAttachments,
+          preparedImageUrls,
+        });
 
         const { response, actions } = await sendToAgent({
           text: outboundText,

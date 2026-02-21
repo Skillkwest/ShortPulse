@@ -45,6 +45,7 @@ Enforce-trial result:
 - `ci.yml` run `22251008051` failed only on `sql_lint` after promotion.
 - Failure detail: `supabase db lint --local` could not connect to local postgres (`127.0.0.1:54322`).
 - Rollback-first stabilization applied: `SQL_LINT_MODE=warn` (all other promoted checks remain `enforce`).
+- Post-rollback validation run `22251094709` completed `success`.
 
 ## Result
 - Pre-promotion two-green-cycle criterion is satisfied.

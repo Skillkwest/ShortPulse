@@ -42,5 +42,6 @@ Refresh note:
 ## Next action required
 - Validate the updated `security` job behavior (`production audit` blocking + `full audit` advisory) on the next CI cycle.
 - Validate `ci.yml` startup fix for perf-gate secret handling by confirming next run creates jobs (not zero-job startup failure).
+- Validate workflow permission fix (`pull-requests: read`) by confirming path-filter steps no longer fail with `Resource not accessible by integration`.
 - Capture two consecutive green release cycles in CI run history and update this evidence file.
 - Keep enforce promotion blocked until this condition and branch-protection UI evidence are both complete.

@@ -39,10 +39,10 @@ Purpose: active planning artifacts and current execution backlogs.
 - `stages/stage-00-governance-contract-lock.md` through `stages/stage-08-final-validation-signoff.md`: decision-complete stage execution docs.
 - `archive/original-plans/manifest.json`: machine-checkable inventory for verbatim source-plan preservation.
 - `archive/original-plans/shortpulse-governance-realignment-master-rollout-plan-2026-02-20.md`: verbatim archived source copy of the master rollout plan text.
-- `archive/original-plans/plan-01-foundational-cleanup.md` (pending STG-07 capture): verbatim source-plan archive target.
-- `archive/original-plans/plan-02-kei-removal-v2.md` (pending STG-07 capture): verbatim source-plan archive target.
-- `archive/original-plans/plan-03-doc-governance-realignment-v2.md` (pending STG-07 capture): verbatim source-plan archive target.
-- `archive/original-plans/plan-04-decoupling-modularization-audited.md` (pending STG-07 capture): verbatim source-plan archive target.
+- `archive/original-plans/plan-01-foundational-cleanup.md`: verbatim source-plan archive copy.
+- `archive/original-plans/plan-02-kei-removal-v2.md`: verbatim source-plan archive copy.
+- `archive/original-plans/plan-03-doc-governance-realignment-v2.md`: verbatim source-plan archive copy.
+- `archive/original-plans/plan-04-decoupling-modularization-audited.md`: verbatim source-plan archive copy.
 
 ## Maintenance
 - Keep plans actionable and current.

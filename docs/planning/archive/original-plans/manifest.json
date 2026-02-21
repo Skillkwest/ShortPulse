@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at_utc": "2026-02-20T20:03:55Z",
+  "generated_at_utc": "2026-02-21T00:02:05Z",
   "entries": [
     {
       "id": "SP-GRMP-2026-02-20",
@@ -10,6 +10,50 @@
       "bytes": 12210,
       "source_commit": "332099d9d395c6ab3441ed3fd17ded72a18bac8d",
       "archived_at_utc": "2026-02-20T20:03:55Z",
+      "copied_by": "codex",
+      "notes": "Verbatim copy from user-provided plan text (conversation source, 2026-02-20)."
+    },
+    {
+      "id": "SP-FCP-2026-02-20",
+      "source_path": "user-provided-plan:Foundational Cleanup Plan (Security + Schema Drift First)",
+      "archived_path": "docs/planning/archive/original-plans/plan-01-foundational-cleanup.md",
+      "sha256": "491875c7e41adb2bb4983fd11a9a175fa114fdee8ec2c27df43f6a266b707a30",
+      "bytes": 5713,
+      "source_commit": "9bc0fa79",
+      "archived_at_utc": "2026-02-21T00:02:05Z",
+      "copied_by": "codex",
+      "notes": "Verbatim copy from user-provided plan text (conversation source, 2026-02-20)."
+    },
+    {
+      "id": "SP-KEI-2026-02-20",
+      "source_path": "user-provided-plan:KEI Removal Plan v2 (Audit-Adjusted, Breakage-Safe)",
+      "archived_path": "docs/planning/archive/original-plans/plan-02-kei-removal-v2.md",
+      "sha256": "e61bca1f70bdb5dc6af3011d3a4a719ccbc02befb887477341334c0a0abea864",
+      "bytes": 5876,
+      "source_commit": "9bc0fa79",
+      "archived_at_utc": "2026-02-21T00:02:05Z",
+      "copied_by": "codex",
+      "notes": "Verbatim copy from user-provided plan text (conversation source, 2026-02-20)."
+    },
+    {
+      "id": "SP-DGR-2026-02-20",
+      "source_path": "user-provided-plan:ShortPulse Documentation + Governance Realignment v2 (with 018 Addendum)",
+      "archived_path": "docs/planning/archive/original-plans/plan-03-doc-governance-realignment-v2.md",
+      "sha256": "22c024e2668ee028a64e19592a6520ce27b0bc93613759ca67860f16a86d8b44",
+      "bytes": 10079,
+      "source_commit": "9bc0fa79",
+      "archived_at_utc": "2026-02-21T00:02:05Z",
+      "copied_by": "codex",
+      "notes": "Verbatim copy from user-provided plan text (conversation source, 2026-02-20)."
+    },
+    {
+      "id": "SP-DMP-2026-02-20",
+      "source_path": "user-provided-plan:ShortPulse Decoupling and Modularization Plan (Audited + Rewritten, Feb 20, 2026)",
+      "archived_path": "docs/planning/archive/original-plans/plan-04-decoupling-modularization-audited.md",
+      "sha256": "9388aead693e63cca08c3235566c2863836332652a0c39559f31a3d524d2fcc7",
+      "bytes": 8788,
+      "source_commit": "9bc0fa79",
+      "archived_at_utc": "2026-02-21T00:02:05Z",
       "copied_by": "codex",
       "notes": "Verbatim copy from user-provided plan text (conversation source, 2026-02-20)."
     }

@@ -24,7 +24,8 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
       - run: npm run deadcode:check
 
   frontend:
@@ -41,7 +42,8 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
       - run: npm run lint
       - run: npm run docs:check
       - run: npm run test -- auth-helper proxy-internal-utils auth-guarded-ai-routes fal-status.auth-context fal-status.ownership auth-latency-benchmark
@@ -191,7 +193,8 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
       - name: Run SQL lint gate (warn/enforce)
         env:
           SQL_LINT_MODE: ${{ vars.SQL_LINT_MODE }}
@@ -336,7 +339,8 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
       - name: Run agent contract tests (warn/enforce)
         env:
           AGENT_CONTRACT_TESTS_MODE: ${{ vars.AGENT_CONTRACT_TESTS_MODE }}
@@ -382,7 +386,8 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
       - name: Run agent disable/continuity tests (warn/enforce)
         env:
           AGENT_DISABLE_CONTINUITY_MODE: ${{ vars.AGENT_DISABLE_CONTINUITY_MODE }}
@@ -460,8 +465,9 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - if: ${{ steps.should_run.outputs.run == 'true' }}
-        run: npm ci
+      - name: Install dependencies (npm ci with transient retry)
+        if: ${{ steps.should_run.outputs.run == 'true' }}
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
       - if: ${{ steps.should_run.outputs.run == 'true' }}
         run: npm run test:adaptive-v2-gate
       - name: Adaptive Media V2 gate skipped (no adaptive-impacting file changes)
@@ -526,8 +532,9 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - if: ${{ steps.should_run.outputs.run == 'true' }}
-        run: npm ci
+      - name: Install dependencies (npm ci with transient retry)
+        if: ${{ steps.should_run.outputs.run == 'true' }}
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
       - if: ${{ steps.should_run.outputs.run == 'true' }}
         run: npx playwright install --with-deps chromium
       - name: Build production app with perf audit runtime
@@ -607,7 +614,8 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
       - name: Run production dependency audit (blocking)
         run: npm audit --omit=dev --audit-level=moderate
       - name: Run full dependency audit (advisory)

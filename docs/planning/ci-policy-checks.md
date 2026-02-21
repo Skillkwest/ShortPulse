@@ -32,6 +32,7 @@ Owner: Engineering
 - `scripts/check_size_budgets.js` (new)
 - `scripts/check_agent_contract_tests.js` (new)
 - `scripts/check_agent_disable_continuity.js` (new)
+- `scripts/ci_npm_ci_with_retry.sh` (new)
 
 ## Frontend fast-lane suites
 
@@ -48,6 +49,12 @@ Owner: Engineering
 - Initial mode: warn/evaluate
 - Current mode: `enforce` (re-promoted 2026-02-21 after CI bootstrap fix; validated by runs `22258656706` and `22258746736`)
 - CI bootstrap update (2026-02-21): `sql_lint` workflow now runs `supabase start` (postgres-only footprint via exclude list) before lint and always executes `supabase stop --all --no-backup` cleanup.
+
+## CI install hardening
+
+- Shared CI install wrapper: `scripts/ci_npm_ci_with_retry.sh`.
+- Purpose: retry `npm ci` only for transient network/download failures (for example proxy `502` or connection reset), while failing fast for deterministic dependency issues.
+- Applied to CI jobs that run `npm ci` in `.github/workflows/ci.yml`.
 
 ## Security gate
 

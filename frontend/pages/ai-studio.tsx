@@ -8,22 +8,12 @@ import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPa
 import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
 import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWorkflow";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
-import { useAiAgent } from "../features/ai-agent/useAiAgent";
-import type { AgentActions } from "../prefabs/agent";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
 import { useBeginnerModePreference } from "../features/ai-studio/hooks/useBeginnerModePreference";
-import {
-  getStagedAgentPrompt,
-  normalizePromptText,
-  resolvePromptSourceBadge,
-  type PromptOrigin,
-} from "../features/ai-studio/logic/agentPromptOwnership";
-import { isEditPromptTool } from "../features/ai-studio/logic/promptTargeting";
+import { normalizePromptText } from "../features/ai-studio/logic/agentPromptOwnership";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
-import { useAiStudioAgentComposer } from "../features/ai-studio/hooks/useAiStudioAgentComposer";
-import { useAiStudioAgentOrchestration } from "../features/ai-studio/hooks/useAiStudioAgentOrchestration";
-import { useAiStudioAgentInteractions } from "../features/ai-studio/hooks/useAiStudioAgentInteractions";
+import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
 import {
   useAiStudioCharacterModeController,
@@ -979,62 +969,6 @@ export default function AiStudioPage() {
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
   const { beginnerMode, setBeginnerMode } = useBeginnerModePreference();
-  const agentFlag =
-    process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === undefined ||
-    process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
-  const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(agentFlag);
-  const agentEnabled = agentFlag && agentSessionEnabled;
-  const {
-    messages: agentMessages,
-    isSending: agentIsSending,
-    error: agentError,
-    send: sendToAgent,
-    appendUserMessage,
-    reset: resetAgentChat,
-  } = useAiAgent({
-    enabled: agentEnabled,
-    sessionNamespace: `ai-studio:${selectedTool ?? "none"}:${mode}`,
-  });
-  const [agentUiBusy, setAgentUiBusy] = useState(false);
-  const agentUiBusyRef = useRef(false);
-  const agentBusy = agentIsSending || agentUiBusy;
-  const [agentActions, setAgentActions] = useState<AgentActions | undefined>(undefined);
-  const [isAgentChatOpen, setIsAgentChatOpen] = useState(false);
-  const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
-  const [promptOrigin, setPromptOrigin] = useState<PromptOrigin>("manual");
-  const ensureAgentSession = useCallback(() => {
-    if (agentFlag) setAgentSessionEnabled(true);
-  }, [agentFlag]);
-  const {
-    agentInput,
-    setAgentInput,
-    handleAgentInputChange,
-    agentAttachmentError,
-    setAgentAttachmentError,
-    agentAttachments,
-    setAgentAttachments,
-    linkedPromptReferenceIds,
-    isAgentDropActive,
-    markAttachmentDelivery,
-    handleAgentAttachmentDragOver,
-    handleAgentAttachmentDragEnter,
-    handleAgentAttachmentDragLeave,
-    handleAgentAttachmentDrop,
-    handleRemoveAgentAttachment,
-    handleClearAgentAttachments,
-    resetAgentComposer,
-  } = useAiStudioAgentComposer({
-    agentSessionEnabled,
-    ensureAgentSession,
-    findOutputById,
-    resolveOutputPreviewUrlById: resolvePanelOutputPreviewUrl,
-  });
-  const latestAssistantMessage = useMemo(
-    () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
-    [agentMessages]
-  );
-  const agentPrimarySource = resolvePromptSourceBadge(promptOrigin);
-  const stagedAgentPrompt = getStagedAgentPrompt(promptOrigin, latestAgentPrompt);
   const trackUiEvent = useCallback((message: string, data?: Record<string, unknown>) => {
     addBreadcrumb({
       type: "ui",
@@ -1072,78 +1006,62 @@ export default function AiStudioPage() {
     trackCharacterModeEvent: trackUiEvent,
     bundleStaleAfterMs: CHARACTER_MODE_BUNDLE_STALE_AFTER_MS,
   });
-
-  const editPromptToolSelected = isEditPromptTool(selectedTool);
-
   const {
+    agentEnabled,
+    agentMessages,
+    agentError,
+    agentBusy,
+    agentInput,
+    agentAttachmentError,
+    agentAttachments,
+    linkedPromptReferenceIds,
+    isAgentDropActive,
+    agentActions,
+    isAgentChatOpen,
+    latestAgentPrompt,
+    setPromptOrigin,
+    agentPrimarySource,
+    stagedAgentPrompt,
     isPromptRefining,
     isReferencePromptEnhancing,
     describeInFlightCount,
+    handleAgentInputChange,
     handleAgentSend,
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
     handleDescribeReference,
     handleAgentDescribeTargets,
-  } = useAiStudioAgentOrchestration({
-    agentIsSending,
-    agentUiBusyRef,
-    setAgentUiBusy,
-    agentSessionEnabled,
-    setAgentSessionEnabled,
-    agentInput,
-    setAgentInput,
-    agentAttachments,
-    setAgentAttachments,
-    setAgentAttachmentError,
-    markAttachmentDelivery,
-    prompt,
-    latestAgentPrompt,
-    setLatestAgentPrompt,
-    setAgentActions,
-    selectedTool,
-    setSharedPrompt,
-    setPromptOrigin,
-    sendToAgent,
-    appendUserMessage,
-    getAgentContext,
-    trackAgentUiEvent: trackUiEvent,
-    addAgentPromptReference,
-    editReferenceText,
-    setEditReferenceText,
-    videoReferenceText,
-    setVideoReferenceText,
-    getOutputById: findOutputById,
-    aspect,
-    model,
-    setOutputs,
-    setActiveOutputId,
-    lastAssistantMessage: latestAssistantMessage,
-    setUiNotice,
-  });
-
-  const {
+    handleAgentAttachmentDragOver,
+    handleAgentAttachmentDragEnter,
+    handleAgentAttachmentDragLeave,
+    handleAgentAttachmentDrop,
+    handleRemoveAgentAttachment,
+    handleClearAgentAttachments,
     handleAgentApplyPrompt,
     handleAgentSelectVariation,
     handleExpandChat,
     handleAgentAddToGrid,
     handleClearAgentChat,
     handleCloseAgentChat,
-  } = useAiStudioAgentInteractions({
-    editPromptToolSelected,
+  } = useAiStudioAgentBridge({
+    mode,
+    selectedTool,
+    prompt,
     setSharedPrompt,
-    setLatestAgentPrompt,
-    setPromptOrigin,
-    trackAgentUiEvent: trackUiEvent,
-    setAgentInput,
+    getAgentContext,
     addAgentPromptReference,
-    setIsAgentChatOpen,
-    agentSessionEnabled,
-    setAgentSessionEnabled,
-    latestAgentPrompt,
-    agentActions,
-    resetAgentChat,
-    resetAgentComposer,
-    setAgentActions,
+    editReferenceText,
+    setEditReferenceText,
+    videoReferenceText,
+    setVideoReferenceText,
+    findOutputById,
+    resolvePanelOutputPreviewUrl,
+    aspect,
+    model,
+    setOutputs,
+    setActiveOutputId,
+    setUiNotice,
+    trackAgentUiEvent: trackUiEvent,
   });
   const triggerFilePicker = () => referenceCanvasFileInputRef.current?.click();
   const dismissError = () => setUiError(null);

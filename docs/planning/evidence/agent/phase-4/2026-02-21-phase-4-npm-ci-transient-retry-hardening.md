@@ -26,3 +26,7 @@ Run `22258999203` initially failed in `agent_disable_continuity` during `npm ci`
 1. Preserve strict required-check semantics.
 2. Reduce merge noise from upstream download instability.
 3. Keep deterministic failures immediately actionable.
+
+## Validation
+1. CI run `22259261557` completed `success` with retry-wrapped install steps active across `npm ci` jobs.
+2. No required-check regressions introduced by the wrapper change.

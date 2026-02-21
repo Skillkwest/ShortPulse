@@ -65,6 +65,8 @@ CI cycle verification command (recorded):
   - `22258824796` (success, additional full-check validation after governance closeout packet update)
   - `22258904215` (success, phase-4 governance closeout docs commit validation)
   - `22258999203` (success after failed-job rerun; transient Supabase CLI checksum fetch `502` during `npm ci` resolved on rerun)
+  - `22259160316` (success, phase-5 staging-soak kickoff docs alignment)
+  - `22259261557` (success, CI `npm ci` transient-retry wrapper validation)
 - Date: 2026-02-21
 
 Mode snapshot command (recorded):

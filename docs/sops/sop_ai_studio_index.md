@@ -9,6 +9,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Media performance ops: `docs/sops/sop_media_performance_operations.md` — Reference Grid autoplay budgeting, media signing behavior, and performance triage.
 - Agent collaboration: `docs/sops/sop_ai_studio_agent.md` — chat-based assistant that replaces prompt textareas, sees the reference grid, and applies prompts to generation.
 - Agent chat ops: `docs/sops/sop_ai_studio_agent_chat_ops.md` — UI entry points, context pipeline, fallbacks, and validation checklist for the agent chat surfaces.
+- Agent rollout ops: `docs/sops/sop_ai_studio_agent_rollout_operations.md` — progressive ring rollout, freeze/rollback triggers, and evidence capture workflow.
 
 ## Shared primitives (do not duplicate)
 - Model metadata: `frontend/features/ai-studio/logic/modelRegistry.ts` (provider, mediaType, defaultAspect, allowedAspects, pricingStrategy, defaultDurationSeconds/resolution/audio).

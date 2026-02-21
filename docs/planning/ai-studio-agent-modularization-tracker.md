@@ -104,6 +104,9 @@ Exit validation:
 - [ ] Branch-protection UI reviewer/date metadata captured (manual-control artifact), with plan-tier enforceability constraint tracked as `DEP-01`.
 
 ### Phase 5: Progressive Rollout
+- [x] Publish on-call rollout runbook before ring execution (`docs/sops/sop_ai_studio_agent_rollout_operations.md`).
+- [x] Seed phase-5 evidence templates for rollout reports and rollback drills (`docs/planning/evidence/agent/phase-5/phase-5-rollout-report-template.md`, `docs/planning/evidence/agent/phase-5/phase-5-rollback-drill-template.md`).
+- [x] Record ops-readiness bootstrap evidence and CI validation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-ops-readiness-bootstrap.md`, run `22258904215`).
 - [ ] Staging soak 24h.
 - [ ] Production 5% 24h.
 - [ ] Production 25% 24h.

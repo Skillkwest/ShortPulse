@@ -23,6 +23,11 @@ import {
   sendStudioAgentError,
   setStudioAgentContractHeaders,
 } from "../../../features/agent-runtime/studioAgentRouteEnvelope";
+import {
+  buildStudioAgentRouteFailurePayload,
+  buildStudioAgentUpstreamErrorPayload,
+  emitStudioAgentTurnTelemetry,
+} from "../../../features/agent-runtime/studioAgentRouteOutcomes";
 import { executeStudioAgentFastPathTurn } from "../../../features/agent-runtime/studioAgentFastPathTurn";
 import { resolveStudioAgentTurnResponse } from "../../../features/agent-runtime/studioAgentTurnResponse";
 import { executeStudioAgentV2Turn } from "../../../features/agent-runtime/studioAgentV2Turn";
@@ -87,37 +92,6 @@ const buildOpenAiMessages = (
     });
   });
   return chat;
-};
-
-const emitTurnTelemetry = ({
-  flow,
-  path,
-  status,
-  model,
-  retryUsed,
-  totalLatencyMs,
-  stageLatencyMs,
-}: {
-  flow: string;
-  path: string;
-  status: "success" | "refuse" | "error";
-  model: string;
-  retryUsed: boolean;
-  totalLatencyMs: number;
-  stageLatencyMs: Record<string, number>;
-}) => {
-  console.info(
-    "[studio-agent][telemetry]",
-    JSON.stringify({
-      flow,
-      path,
-      status,
-      model,
-      retry_used: retryUsed,
-      latency_ms_total: totalLatencyMs,
-      latency_ms_stage: stageLatencyMs,
-    })
-  );
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -293,7 +267,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       if (!v2Turn.ok) {
-        emitTurnTelemetry({
+        emitStudioAgentTurnTelemetry({
           flow: orchestration.flow,
           path,
           status: "error",
@@ -302,11 +276,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           totalLatencyMs: Date.now() - requestStartedAt,
           stageLatencyMs,
         });
-        return res.status(v2Turn.status).json({
-          error: `Upstream error (${v2Turn.stage})`,
-          detail: v2Turn.detail,
-          traceId,
-        });
+        return res.status(v2Turn.status).json(
+          buildStudioAgentUpstreamErrorPayload({
+            stage: v2Turn.stage,
+            detail: v2Turn.detail,
+            traceId,
+          })
+        );
       }
 
       let parsed = v2Turn.result.parsed;
@@ -340,7 +316,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      emitTurnTelemetry({
+      emitStudioAgentTurnTelemetry({
         flow: orchestration.flow,
         path,
         status: refusal ? "refuse" : "success",
@@ -371,7 +347,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!fastPathTurn.ok) {
-      emitTurnTelemetry({
+      emitStudioAgentTurnTelemetry({
         flow: orchestration.flow,
         path,
         status: "error",
@@ -380,9 +356,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
       });
-      return res
-        .status(fastPathTurn.status)
-        .json({ error: "Upstream error", detail: fastPathTurn.detail, traceId });
+      return res.status(fastPathTurn.status).json(
+        buildStudioAgentUpstreamErrorPayload({
+          detail: fastPathTurn.detail,
+          traceId,
+        })
+      );
     }
 
     const parsed = fastPathTurn.result.parsed;
@@ -403,7 +382,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    emitTurnTelemetry({
+    emitStudioAgentTurnTelemetry({
       flow: orchestration.flow,
       path,
       status: refusal ? "refuse" : "success",
@@ -420,7 +399,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       traceId,
     });
   } catch (error) {
-    emitTurnTelemetry({
+    emitStudioAgentTurnTelemetry({
       flow: "unknown",
       path,
       status: "error",
@@ -438,11 +417,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         conversation_id: normalizedConversationId,
       },
     });
-    return res.status(500).json({
-      error: "Agent call failed",
-      detail: formatStudioAgentErrorMessage(error),
-      traceId,
-    });
+    return res.status(500).json(
+      buildStudioAgentRouteFailurePayload({
+        detail: formatStudioAgentErrorMessage(error),
+        traceId,
+      })
+    );
   }
 }
 

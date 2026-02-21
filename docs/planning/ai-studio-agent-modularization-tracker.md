@@ -89,12 +89,12 @@ Exit validation:
 - [x] Add size-budget check script + CI gate (active warn/evaluate).
 - [x] Add contract-test suite as required check (active warn/evaluate).
 - [x] Add disable-path continuity suite as required check (active warn/evaluate).
-- [ ] Promote docs/parity checks to enforce mode after 2 green cycles.
+- [x] Promote docs/parity checks to enforce mode after 2 green cycles (`DOCS_SEMANTIC_DRIFT_MODE=enforce`, `MIGRATION_PARITY_MODE=enforce`).
 - [x] Refresh branch-protection evidence mapping (`docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md` refreshed 2026-02-21).
 
 Exit validation:
 - [ ] Required checks reflect target state.
-- [ ] Two green cycles logged.
+- [x] Two green cycles logged (`22250627010`, `22250698460`).
 - [ ] Governance evidence complete.
 
 ### Phase 5: Progressive Rollout
@@ -126,8 +126,8 @@ Exit validation:
 | `frontend` | Active | Enforced | Frontend | core app/build/test gate |
 | `security` | Active | Enforced | Platform | security checks |
 | `deadcode` | Active | Enforced | Platform | knip production file gate |
-| `docs_semantic_drift` | Active | Warn/Evaluate | Docs | promote after 2 green cycles |
-| `migration_parity` | Active | Warn/Evaluate | Platform | promote after 2 green cycles |
+| `docs_semantic_drift` | Active | Enforced | Docs | workflow mode promoted to enforce 2026-02-21 |
+| `migration_parity` | Active | Enforced | Platform | workflow mode promoted to enforce 2026-02-21 |
 | `sql_lint` | Active | Warn/Evaluate | Platform | currently advisory |
 | `archive_manifest_check` | Active | Warn/Evaluate | Docs | currently advisory |
 | `architecture_boundary` | Active | Warn/Evaluate | Platform | promote to enforce after two green cycles |

@@ -97,8 +97,8 @@ Exit validation:
 - [x] Refresh branch-protection evidence mapping (`docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md` refreshed 2026-02-21).
 
 Exit validation:
-- [ ] Required checks reflect target state.
-- [ ] Two green cycles logged with full enforce-mode check set (1/2 complete: `22258656706`).
+- [x] Required checks reflect target state.
+- [x] Two green cycles logged with full enforce-mode check set (`22258656706`, `22258746736`).
 - [ ] Governance evidence complete.
 
 ### Phase 5: Progressive Rollout

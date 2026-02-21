@@ -17,13 +17,21 @@ import {
   resolveCanonicalPrompt,
   shouldRetryExplicitNoOp,
 } from "../../../features/ai-agent/logic/studioAgentCanonical";
-import {
-  removeAspectRatioLanguage,
-  sanitizeGenerationPromptText,
-} from "../../../features/agent-core/promptText";
+import { sanitizeGenerationPromptText } from "../../../features/agent-core/promptText";
 import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/logic/studioAgentReferenceSelection";
 import { buildStudioAgentOrchestration } from "../../../features/ai-agent/logic/studioAgentOrchestration";
 import { runThinkerFormatterTurn } from "../../../features/ai-agent/logic/studioAgentThinkerFormatter";
+import {
+  STUDIO_AGENT_MAX_MEDIA,
+  STUDIO_AGENT_RATE_LIMIT_MAX_REQUESTS,
+  STUDIO_AGENT_RATE_LIMIT_WINDOW_MS,
+  isStudioAgentRateLimited,
+  parseStudioAgentMessages,
+  parseStudioAgentSessionKey,
+  readStudioAgentRequestBodyBytes,
+  resolveStudioAgentMaxRequestBytes,
+  sanitizeStudioAgentContext,
+} from "../../../features/agent-runtime/studioAgentRequestGuards";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import {
@@ -39,15 +47,7 @@ const DEFAULT_VISION_MODEL = "gpt-5-nano";
 const DEFAULT_TIMEOUT_MS = 20000;
 const MIN_TIMEOUT_MS = 1000;
 const MAX_TIMEOUT_MS = 120000;
-const MAX_MESSAGES = 24;
-const MAX_MEDIA = 3;
 const AGENT_CONTRACT_VERSION = "1";
-const MAX_TEXT_REQUEST_BYTES = 512 * 1024;
-const MAX_MIXED_REQUEST_BYTES = 1536 * 1024;
-const SESSION_KEY_MAX_CHARS = 160;
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT_MAX_REQUESTS = 24;
-const RATE_LIMIT_MAX_TRACKED_USERS = 5000;
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
@@ -81,13 +81,6 @@ type StudioAgentErrorResponse = {
   traceId: string;
 };
 
-type RateLimitBucket = {
-  timestamps: number[];
-  lastSeenAt: number;
-};
-
-const requestTimestampsByUser = new Map<string, RateLimitBucket>();
-
 const resolveTraceId = (req: NextApiRequest): string => {
   const headerTraceId = req.headers?.["x-shortpulse-request-id"];
   if (typeof headerTraceId === "string" && headerTraceId.trim().length) {
@@ -109,119 +102,6 @@ const setContractHeaders = (res: NextApiResponse, traceId: string): void => {
 
 const sendError = (res: NextApiResponse, status: number, payload: StudioAgentErrorResponse) =>
   res.status(status).json(payload);
-
-const readRequestBodyBytes = (body: unknown): number => {
-  try {
-    return Buffer.byteLength(JSON.stringify(body ?? {}), "utf8");
-  } catch {
-    return 0;
-  }
-};
-
-const pruneRateLimitBuckets = (): void => {
-  if (requestTimestampsByUser.size <= RATE_LIMIT_MAX_TRACKED_USERS) return;
-  const excess = requestTimestampsByUser.size - RATE_LIMIT_MAX_TRACKED_USERS;
-  const bucketsByLastSeen = [...requestTimestampsByUser.entries()].sort(
-    (a, b) => a[1].lastSeenAt - b[1].lastSeenAt
-  );
-  for (let index = 0; index < excess; index += 1) {
-    const oldestUserId = bucketsByLastSeen[index]?.[0];
-    if (!oldestUserId) break;
-    requestTimestampsByUser.delete(oldestUserId);
-  }
-};
-
-const isRateLimited = (userId: string): boolean => {
-  pruneRateLimitBuckets();
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const bucket = requestTimestampsByUser.get(userId);
-  const history = (bucket?.timestamps ?? []).filter((value) => value >= windowStart);
-  if (history.length >= RATE_LIMIT_MAX_REQUESTS) {
-    requestTimestampsByUser.set(userId, {
-      timestamps: history,
-      lastSeenAt: now,
-    });
-    return true;
-  }
-  history.push(now);
-  requestTimestampsByUser.set(userId, {
-    timestamps: history,
-    lastSeenAt: now,
-  });
-  return false;
-};
-
-const parseMessages = (
-  rawMessages: unknown
-):
-  | { ok: true; messages: AgentMessage[] }
-  | {
-      ok: false;
-      code: StudioAgentErrorCode;
-      message: string;
-      details?: Record<string, unknown>;
-    } => {
-  if (!Array.isArray(rawMessages)) {
-    return { ok: false, code: "MESSAGES_REQUIRED", message: "messages are required" };
-  }
-  const parsed: AgentMessage[] = [];
-  for (let index = 0; index < rawMessages.length; index += 1) {
-    const item = rawMessages[index];
-    if (!item || typeof item !== "object") continue;
-    const role = (item as AgentMessage).role;
-    const content = (item as AgentMessage).content;
-    if (role !== "user" && role !== "assistant") {
-      return {
-        ok: false,
-        code: "INVALID_MESSAGE_ROLE",
-        message: "Only user and assistant roles are allowed",
-        details: {
-          index,
-          role,
-          allowedRoles: ["user", "assistant"],
-        },
-      };
-    }
-    if (!content || typeof content !== "string") continue;
-    parsed.push({ role, content });
-  }
-  return { ok: true, messages: parsed.slice(-MAX_MESSAGES) };
-};
-
-const safeContext = (context?: AgentContext): AgentContext => {
-  if (!context) return {};
-  const media =
-    context.media
-      ?.filter((item) => {
-        if (item?.kind && item.kind !== "image") return false;
-        const isHttpsUrl = typeof item?.url === "string" && item.url.startsWith("https://");
-        return isHttpsUrl;
-      })
-      .slice(0, MAX_MEDIA) ?? [];
-
-  return {
-    activePrompt: sanitizeGenerationPromptText(context.activePrompt ?? null),
-    modelId: context.modelId ?? null,
-    mode: context.mode,
-    creditBalance: context.creditBalance ?? null,
-    references: Array.isArray(context.references)
-      ? context.references.slice(0, 24).map((reference) => ({
-          ...reference,
-          promptSnippet: removeAspectRatioLanguage(reference.promptSnippet ?? null),
-          caption: removeAspectRatioLanguage(reference.caption ?? null),
-        }))
-      : [],
-    media,
-    selectedReferenceIds: Array.isArray(context.selectedReferenceIds)
-      ? context.selectedReferenceIds.slice(0, 8)
-      : [],
-    focusedSource: context.focusedSource ?? undefined,
-    focusedReferenceId: context.focusedReferenceId ?? null,
-    lastAssistantMessage: sanitizeGenerationPromptText(context.lastAssistantMessage ?? null),
-    modeHint: context.modeHint ?? undefined,
-  };
-};
 
 const buildOpenAiMessages = (
   messages: AgentMessage[],
@@ -475,7 +355,7 @@ const buildImageSummaryMap = async ({
 }): Promise<Map<string, string>> => {
   const mediaItems = (context.media ?? [])
     .filter((item) => item.kind === "image")
-    .slice(0, MAX_MEDIA);
+    .slice(0, STUDIO_AGENT_MAX_MEDIA);
   if (!mediaItems.length) return new Map();
 
   const summaries = await Promise.allSettled(
@@ -666,10 +546,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
-  const bodyBytes = readRequestBodyBytes(req.body);
-  const hasMediaPayload =
-    Array.isArray(req.body?.context?.media) && req.body.context.media.length > 0;
-  const maxRequestBytes = hasMediaPayload ? MAX_MIXED_REQUEST_BYTES : MAX_TEXT_REQUEST_BYTES;
+  const bodyBytes = readStudioAgentRequestBodyBytes(req.body);
+  const maxRequestBytes = resolveStudioAgentMaxRequestBytes(req.body);
   if (bodyBytes > maxRequestBytes) {
     return sendError(res, 413, {
       code: "REQUEST_BODY_TOO_LARGE",
@@ -682,13 +560,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
-  if (isRateLimited(user.id)) {
+  if (isStudioAgentRateLimited(user.id)) {
     return sendError(res, 429, {
       code: "RATE_LIMITED",
       message: "Too many studio-agent requests. Please retry shortly.",
       details: {
-        windowMs: RATE_LIMIT_WINDOW_MS,
-        maxRequests: RATE_LIMIT_MAX_REQUESTS,
+        windowMs: STUDIO_AGENT_RATE_LIMIT_WINDOW_MS,
+        maxRequests: STUDIO_AGENT_RATE_LIMIT_MAX_REQUESTS,
       },
       traceId,
     });
@@ -713,27 +591,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "STUDIO_AGENT_SYSTEM prompt missing", traceId });
   }
 
-  const clientSessionKey =
-    typeof req.body?.clientSessionKey === "string" ? req.body.clientSessionKey.trim() : "";
-  if (!clientSessionKey) {
+  const parsedSessionKey = parseStudioAgentSessionKey(req.body?.clientSessionKey);
+  if (!parsedSessionKey.ok) {
     return sendError(res, 400, {
       code: "INVALID_SESSION_KEY",
-      message: "clientSessionKey is required",
+      message: parsedSessionKey.message,
+      details: parsedSessionKey.details,
       traceId,
     });
   }
-  if (clientSessionKey.length > SESSION_KEY_MAX_CHARS) {
-    return sendError(res, 400, {
-      code: "INVALID_SESSION_KEY",
-      message: "clientSessionKey exceeds allowed length",
-      details: {
-        maxChars: SESSION_KEY_MAX_CHARS,
-      },
-      traceId,
-    });
-  }
+  const clientSessionKey = parsedSessionKey.sessionKey;
 
-  const parsedMessages = parseMessages(req.body?.messages);
+  const parsedMessages = parseStudioAgentMessages(req.body?.messages);
   if (!parsedMessages.ok) {
     return sendError(res, 400, {
       code: parsedMessages.code,
@@ -752,7 +621,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const normalizedConversationId = clientSessionKey;
-  let context = safeContext(req.body?.context);
+  let context = sanitizeStudioAgentContext(req.body?.context);
 
   const incomingCanonical =
     typeof req.body?.canonicalPrompt === "string" && req.body.canonicalPrompt.trim().length

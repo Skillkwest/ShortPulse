@@ -53,6 +53,7 @@ Enforce-trial result:
 - Additional full-check verification run `22258824796` completed `success` (includes successful `frontend` and `sql_lint` completion after governance packet update).
 - Additional validation run `22258999203` completed `success` after failed-job rerun; initial `agent_disable_continuity` failure was transient Supabase CLI checksum fetch `502` during `npm ci`, and CI install retry hardening was added (`scripts/ci_npm_ci_with_retry.sh`).
 - Additional validation run `22259338790` completed `success` after retry-hardening evidence sync; all enforce-mode guardrail jobs remained green.
+- Additional validation run `22259592274` completed `success` after Vercel preview throttle-control rollout; all enforce-mode guardrail jobs remained green.
 
 ## Result
 - Pre-promotion two-green-cycle criterion is satisfied.

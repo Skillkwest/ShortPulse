@@ -41,12 +41,18 @@ Expanded promotion:
 Command used:
 - `gh variable list | rg 'DOCS_SEMANTIC_DRIFT_MODE|MIGRATION_PARITY_MODE|ARCHIVE_MANIFEST_MODE|SQL_LINT_MODE|ARCHITECTURE_BOUNDARY_MODE|SIZE_BUDGET_MODE|AGENT_CONTRACT_TESTS_MODE|AGENT_DISABLE_CONTINUITY_MODE'`
 
+Enforce-trial result:
+- `ci.yml` run `22251008051` failed only on `sql_lint` after promotion.
+- Failure detail: `supabase db lint --local` could not connect to local postgres (`127.0.0.1:54322`).
+- Rollback-first stabilization applied: `SQL_LINT_MODE=warn` (all other promoted checks remain `enforce`).
+
 ## Result
 - Pre-promotion two-green-cycle criterion is satisfied.
-- Full required-check mode configuration now reflects `enforce` for target guardrail checks.
-- STG-06 remains `In Progress` until two consecutive CI cycles are logged after the expanded enforce-mode promotion.
+- Expanded enforce-mode trial surfaced CI bootstrap gap for SQL lint.
+- STG-06 remains `In Progress` until SQL lint bootstrap is fixed and two consecutive CI cycles are logged with stable target-mode configuration.
 
 ## Next Action Required
-- Record two fresh consecutive green `ci.yml` cycles under the expanded enforce-mode configuration.
+- Implement CI-safe SQL lint bootstrap (or approved equivalent), then re-promote `SQL_LINT_MODE=enforce`.
+- Record two fresh consecutive green `ci.yml` cycles after SQL lint re-promotion.
 - Refresh branch-protection evidence review metadata (reviewer/date) after UI verification.
 - Keep plan-tier enforcement constraint (`403` API / non-enforceable private ruleset) tracked as open dependency for production-readiness closeout.

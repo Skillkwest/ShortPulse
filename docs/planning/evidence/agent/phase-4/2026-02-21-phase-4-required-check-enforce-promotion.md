@@ -30,9 +30,11 @@ gh variable list | rg 'DOCS_SEMANTIC_DRIFT_MODE|MIGRATION_PARITY_MODE|ARCHIVE_MA
 ```
 
 ## Result
-1. All target Phase 4 governance checks now run in enforce mode in CI.
-2. Branch-level required-check enforcement remains constrained by current repository plan tier; manual evidence controls stay active.
-3. STG-06 closeout remains pending until two fresh consecutive green cycles are observed with this full enforce-mode configuration.
+1. Initial post-promotion trial run (`22251008051`) failed on `sql_lint` only.
+2. Failure cause: `supabase db lint --local` could not connect to local postgres (`127.0.0.1:54322`) in CI runtime.
+3. Rollback-first stabilization applied: `SQL_LINT_MODE=warn`; other promoted governance checks remain `enforce`.
+4. Branch-level required-check enforcement remains constrained by current repository plan tier; manual evidence controls stay active.
+5. STG-06 closeout remains pending until SQL lint bootstrap is fixed and two fresh consecutive green cycles are observed.
 
 ## Best-Practice Alignment Notes
 1. Required status checks should use stable, unique job names and remain consistently mapped in branch governance policy:  

@@ -46,7 +46,7 @@ Owner: Engineering
 
 - Command: `supabase db lint --local --schema public --fail-on warning`
 - Initial mode: warn/evaluate
-- Current mode: `enforce` (promoted 2026-02-21 after stabilization cycles)
+- Current mode: `warn` (rolled back 2026-02-21 after enforce trial run `22251008051` failed: local DB bootstrap unavailable in CI for `supabase db lint --local`)
 
 ## Security gate
 

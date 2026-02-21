@@ -62,7 +62,7 @@ CI cycle verification command (recorded):
 
 Mode snapshot command (recorded):
 - Command: `gh variable list | rg 'DOCS_SEMANTIC_DRIFT_MODE|MIGRATION_PARITY_MODE|ARCHIVE_MANIFEST_MODE|SQL_LINT_MODE|ARCHITECTURE_BOUNDARY_MODE|SIZE_BUDGET_MODE|AGENT_CONTRACT_TESTS_MODE|AGENT_DISABLE_CONTINUITY_MODE'`
-- Result: all listed check-mode variables are set to `enforce`.
+- Result: all listed check-mode variables are `enforce` except `SQL_LINT_MODE=warn` (rollback-first stabilization after run `22251008051` failed to connect to local DB for `supabase db lint --local`).
 - Date: 2026-02-21
 
 ## Required check names (documented target)

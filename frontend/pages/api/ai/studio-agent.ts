@@ -3,6 +3,7 @@
  * Keeps system prompt and context handling server-side to protect keys and size limits.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { randomUUID } from "node:crypto";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
 import type {
   AgentActions,
@@ -39,8 +40,14 @@ const DEFAULT_TIMEOUT_MS = 20000;
 const MIN_TIMEOUT_MS = 1000;
 const MAX_TIMEOUT_MS = 120000;
 const MAX_MESSAGES = 24;
-const MAX_IMAGE_BYTES = 350 * 1024;
 const MAX_MEDIA = 3;
+const AGENT_CONTRACT_VERSION = "1";
+const MAX_TEXT_REQUEST_BYTES = 512 * 1024;
+const MAX_MIXED_REQUEST_BYTES = 1536 * 1024;
+const SESSION_KEY_MAX_CHARS = 160;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 24;
+const RATE_LIMIT_MAX_TRACKED_USERS = 5000;
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
@@ -57,27 +64,129 @@ type ParsedAgentJson = {
   status: string | null;
 };
 
-const estimateBase64Bytes = (dataUrl: string) => {
-  const commaIndex = dataUrl.indexOf(",");
-  if (commaIndex === -1) return dataUrl.length;
-  const base64 = dataUrl.slice(commaIndex + 1);
-  return Math.floor((base64.length * 3) / 4);
+type StudioAgentErrorCode =
+  | "METHOD_NOT_ALLOWED"
+  | "AGENT_DISABLED"
+  | "INVALID_REQUEST"
+  | "INVALID_SESSION_KEY"
+  | "INVALID_MESSAGE_ROLE"
+  | "REQUEST_BODY_TOO_LARGE"
+  | "RATE_LIMITED"
+  | "MESSAGES_REQUIRED";
+
+type StudioAgentErrorResponse = {
+  code: StudioAgentErrorCode;
+  message: string;
+  details?: Record<string, unknown>;
+  traceId: string;
 };
 
-const parseMessages = (rawMessages: unknown): AgentMessage[] => {
-  if (!Array.isArray(rawMessages)) return [];
-  return rawMessages
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const role = (item as AgentMessage).role;
-      const content = (item as AgentMessage).content;
-      if (!content || typeof content !== "string") return null;
-      if (role !== "user" && role !== "assistant" && role !== "system" && role !== "observation")
-        return null;
-      return { role, content };
-    })
-    .filter(Boolean)
-    .slice(-MAX_MESSAGES) as AgentMessage[];
+type RateLimitBucket = {
+  timestamps: number[];
+  lastSeenAt: number;
+};
+
+const requestTimestampsByUser = new Map<string, RateLimitBucket>();
+
+const resolveTraceId = (req: NextApiRequest): string => {
+  const headerTraceId = req.headers?.["x-shortpulse-request-id"];
+  if (typeof headerTraceId === "string" && headerTraceId.trim().length) {
+    return headerTraceId.trim().slice(0, 128);
+  }
+
+  const bodyTraceId =
+    typeof req.body?.traceId === "string" && req.body.traceId.trim().length
+      ? req.body.traceId.trim()
+      : null;
+  if (bodyTraceId) return bodyTraceId.slice(0, 128);
+  return randomUUID();
+};
+
+const setContractHeaders = (res: NextApiResponse, traceId: string): void => {
+  res.setHeader("Agent-Contract-Version", AGENT_CONTRACT_VERSION);
+  res.setHeader("x-agent-trace-id", traceId);
+};
+
+const sendError = (res: NextApiResponse, status: number, payload: StudioAgentErrorResponse) =>
+  res.status(status).json(payload);
+
+const readRequestBodyBytes = (body: unknown): number => {
+  try {
+    return Buffer.byteLength(JSON.stringify(body ?? {}), "utf8");
+  } catch {
+    return 0;
+  }
+};
+
+const pruneRateLimitBuckets = (): void => {
+  if (requestTimestampsByUser.size <= RATE_LIMIT_MAX_TRACKED_USERS) return;
+  const excess = requestTimestampsByUser.size - RATE_LIMIT_MAX_TRACKED_USERS;
+  const bucketsByLastSeen = [...requestTimestampsByUser.entries()].sort(
+    (a, b) => a[1].lastSeenAt - b[1].lastSeenAt
+  );
+  for (let index = 0; index < excess; index += 1) {
+    const oldestUserId = bucketsByLastSeen[index]?.[0];
+    if (!oldestUserId) break;
+    requestTimestampsByUser.delete(oldestUserId);
+  }
+};
+
+const isRateLimited = (userId: string): boolean => {
+  pruneRateLimitBuckets();
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const bucket = requestTimestampsByUser.get(userId);
+  const history = (bucket?.timestamps ?? []).filter((value) => value >= windowStart);
+  if (history.length >= RATE_LIMIT_MAX_REQUESTS) {
+    requestTimestampsByUser.set(userId, {
+      timestamps: history,
+      lastSeenAt: now,
+    });
+    return true;
+  }
+  history.push(now);
+  requestTimestampsByUser.set(userId, {
+    timestamps: history,
+    lastSeenAt: now,
+  });
+  return false;
+};
+
+const parseMessages = (
+  rawMessages: unknown
+):
+  | { ok: true; messages: AgentMessage[] }
+  | {
+      ok: false;
+      code: StudioAgentErrorCode;
+      message: string;
+      details?: Record<string, unknown>;
+    } => {
+  if (!Array.isArray(rawMessages)) {
+    return { ok: false, code: "MESSAGES_REQUIRED", message: "messages are required" };
+  }
+  const parsed: AgentMessage[] = [];
+  for (let index = 0; index < rawMessages.length; index += 1) {
+    const item = rawMessages[index];
+    if (!item || typeof item !== "object") continue;
+    const role = (item as AgentMessage).role;
+    const content = (item as AgentMessage).content;
+    if (role !== "user" && role !== "assistant") {
+      return {
+        ok: false,
+        code: "INVALID_MESSAGE_ROLE",
+        message: "Only user and assistant roles are allowed",
+        details: {
+          index,
+          role,
+          allowedRoles: ["user", "assistant"],
+        },
+      };
+    }
+    if (!content || typeof content !== "string") continue;
+    parsed.push({ role, content });
+  }
+  return { ok: true, messages: parsed.slice(-MAX_MESSAGES) };
 };
 
 const safeContext = (context?: AgentContext): AgentContext => {
@@ -86,12 +195,8 @@ const safeContext = (context?: AgentContext): AgentContext => {
     context.media
       ?.filter((item) => {
         if (item?.kind && item.kind !== "image") return false;
-        const isDataUrl = typeof item?.dataUrl === "string" && item.dataUrl.startsWith("data:");
         const isHttpsUrl = typeof item?.url === "string" && item.url.startsWith("https://");
-        if (!isDataUrl && !isHttpsUrl) return false;
-        if (isDataUrl && estimateBase64Bytes(item.dataUrl as string) > MAX_IMAGE_BYTES)
-          return false;
-        return true;
+        return isHttpsUrl;
       })
       .slice(0, MAX_MEDIA) ?? [];
 
@@ -144,7 +249,7 @@ const buildOpenAiMessages = (
         ...context.media.map((item) => ({
           type: "image_url" as const,
           image_url: {
-            url: (item.dataUrl as string) || (item.url as string),
+            url: item.url as string,
             detail: "low" as const,
           },
         })),
@@ -153,8 +258,9 @@ const buildOpenAiMessages = (
   }
 
   messages.forEach((message) => {
+    const role: "user" | "assistant" = message.role === "assistant" ? "assistant" : "user";
     chat.push({
-      role: message.role === "observation" ? "assistant" : message.role,
+      role,
       content: message.content,
     });
   });
@@ -374,7 +480,7 @@ const buildImageSummaryMap = async ({
 
   const summaries = await Promise.allSettled(
     mediaItems.map(async (item) => {
-      const imageUrl = item.url ?? item.dataUrl ?? "";
+      const imageUrl = item.url ?? "";
       if (!imageUrl) return null;
       const response = await fetchOpenAiChatCompletion({
         apiKey,
@@ -526,29 +632,71 @@ const emitTurnTelemetry = ({
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const requestStartedAt = Date.now();
+  const traceId = resolveTraceId(req);
+  setContractHeaders(res, traceId);
   const stageLatencyMs: Record<string, number> = {};
   const markStage = (stage: string, startedAt: number) => {
     stageLatencyMs[stage] = Date.now() - startedAt;
   };
 
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return sendError(res, 405, {
+      code: "METHOD_NOT_ALLOWED",
+      message: "Method not allowed",
+      traceId,
+    });
   }
 
   const user = await requireApiUser(req, res);
   if (!user) return;
 
+  const serverFlag = process.env.STUDIO_AGENT_ENABLED;
+  const publicFlag = process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT;
   const featureEnabled =
-    process.env.STUDIO_AGENT_ENABLED === "true" ||
-    process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true" ||
-    process.env.STUDIO_AGENT_ENABLED === undefined;
+    typeof serverFlag === "string"
+      ? serverFlag === "true"
+      : typeof publicFlag === "string"
+        ? publicFlag === "true"
+        : true;
   if (!featureEnabled) {
-    return res.status(503).json({ error: "Studio agent is disabled" });
+    return sendError(res, 503, {
+      code: "AGENT_DISABLED",
+      message: "Studio agent is disabled",
+      traceId,
+    });
+  }
+
+  const bodyBytes = readRequestBodyBytes(req.body);
+  const hasMediaPayload =
+    Array.isArray(req.body?.context?.media) && req.body.context.media.length > 0;
+  const maxRequestBytes = hasMediaPayload ? MAX_MIXED_REQUEST_BYTES : MAX_TEXT_REQUEST_BYTES;
+  if (bodyBytes > maxRequestBytes) {
+    return sendError(res, 413, {
+      code: "REQUEST_BODY_TOO_LARGE",
+      message: "Request body exceeds allowed size limit",
+      details: {
+        maxBytes: maxRequestBytes,
+        actualBytes: bodyBytes,
+      },
+      traceId,
+    });
+  }
+
+  if (isRateLimited(user.id)) {
+    return sendError(res, 429, {
+      code: "RATE_LIMITED",
+      message: "Too many studio-agent requests. Please retry shortly.",
+      details: {
+        windowMs: RATE_LIMIT_WINDOW_MS,
+        maxRequests: RATE_LIMIT_MAX_REQUESTS,
+      },
+      traceId,
+    });
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "OPENAI_API_KEY is not set" });
+    return res.status(500).json({ error: "OPENAI_API_KEY is not set", traceId });
   }
 
   const systemPrompt = loadAgentPrompt("STUDIO_AGENT_SYSTEM", process.env.STUDIO_AGENT_SYSTEM);
@@ -562,17 +710,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     process.env.OPENAI_PROMPT_IMAGE_DESCRIBE
   );
   if (!systemPrompt) {
-    return res.status(500).json({ error: "STUDIO_AGENT_SYSTEM prompt missing" });
+    return res.status(500).json({ error: "STUDIO_AGENT_SYSTEM prompt missing", traceId });
   }
 
-  const messages = parseMessages(req.body?.messages);
+  const clientSessionKey =
+    typeof req.body?.clientSessionKey === "string" ? req.body.clientSessionKey.trim() : "";
+  if (!clientSessionKey) {
+    return sendError(res, 400, {
+      code: "INVALID_SESSION_KEY",
+      message: "clientSessionKey is required",
+      traceId,
+    });
+  }
+  if (clientSessionKey.length > SESSION_KEY_MAX_CHARS) {
+    return sendError(res, 400, {
+      code: "INVALID_SESSION_KEY",
+      message: "clientSessionKey exceeds allowed length",
+      details: {
+        maxChars: SESSION_KEY_MAX_CHARS,
+      },
+      traceId,
+    });
+  }
+
+  const parsedMessages = parseMessages(req.body?.messages);
+  if (!parsedMessages.ok) {
+    return sendError(res, 400, {
+      code: parsedMessages.code,
+      message: parsedMessages.message,
+      details: parsedMessages.details,
+      traceId,
+    });
+  }
+  const messages = parsedMessages.messages;
   if (!messages.length) {
-    return res.status(400).json({ error: "messages are required" });
+    return sendError(res, 400, {
+      code: "MESSAGES_REQUIRED",
+      message: "messages are required",
+      traceId,
+    });
   }
 
-  const conversationId =
-    typeof req.body?.conversationId === "string" ? req.body.conversationId.trim() : "";
-  const normalizedConversationId = conversationId.length ? conversationId : null;
+  const normalizedConversationId = clientSessionKey;
   let context = safeContext(req.body?.context);
 
   const incomingCanonical =
@@ -756,9 +935,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           totalLatencyMs: Date.now() - requestStartedAt,
           stageLatencyMs,
         });
-        return res
-          .status(firstPass.status)
-          .json({ error: `Upstream error (${firstPass.stage})`, detail: firstPass.detail });
+        return res.status(firstPass.status).json({
+          error: `Upstream error (${firstPass.stage})`,
+          detail: firstPass.detail,
+          traceId,
+        });
       }
 
       let parsed = firstPass.result.parsed;
@@ -878,6 +1059,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ...parsed,
         usage,
         canonicalPrompt: resolvedCanonical,
+        traceId,
       });
     }
 
@@ -901,7 +1083,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
       });
-      return res.status(response.status).json({ error: "Upstream error", detail });
+      return res.status(response.status).json({ error: "Upstream error", detail, traceId });
     }
 
     const data = await response.json();
@@ -984,6 +1166,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         outputTokens: data?.usage?.completion_tokens,
       },
       canonicalPrompt: resolvedCanonical,
+      traceId,
     });
   } catch (error) {
     emitTurnTelemetry({
@@ -1004,6 +1187,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         conversation_id: normalizedConversationId,
       },
     });
-    return res.status(500).json({ error: "Agent call failed", detail: withTimeoutMessage(error) });
+    return res.status(500).json({
+      error: "Agent call failed",
+      detail: withTimeoutMessage(error),
+      traceId,
+    });
   }
 }
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "2mb",
+    },
+  },
+};

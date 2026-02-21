@@ -19,20 +19,22 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 
 ## Prerequisites
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-5-nano`), optional `OPENAI_VISION_MODEL`, optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `OPENAI_API_BASE`.
-- Feature flag: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT=true` (client gate); API gate returns 503 when disabled.
-- Size guardrails (API constants): `AGENT_MAX_IMAGE_BYTES` (default 350 KB), `AGENT_MAX_FRAMES=1` for videos.
+- Feature flags: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` controls UI behavior (`undefined` or `true` = enabled, `false` = disabled). `STUDIO_AGENT_ENABLED` is a server override (`true|false`); if unset, server follows `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`, and if both are unset defaults enabled.
+- Size guardrails: body size cap 512 KB (text) / 1.5 MB (mixed/image) plus Next API parser cap (`2mb`).
 - Frontend uploads local blob/data previews to `/api/upload-image` and sends signed/public `https://` URLs to the agent route.
 
 ## System prompt + message schema
 - System prompt ID: `STUDIO_AGENT_SYSTEM` in `frontend/lib/agentPromptsConfig.ts` (includes role, allowed tools, tone, brevity rules, safety refusal).
 - Request payload (`POST /api/ai/studio-agent`):
-  - `messages`: chat history `{ role: "user" | "assistant" | "system" | "observation", content: string }[]`.
+  - `messages`: chat history `{ role: "user" | "assistant", content: string }[]`.
+  - `clientSessionKey`: stable session key (required; used for canonical continuity).
+  - `traceId` (optional): request correlation ID echoed by server.
   - `context`: {
     `activePrompt`: string;
     `modelId`: string | null;
     `mode`: "text" | "image" | "video";
     `references`: array of `{ id, kind: "image" | "video" | "prompt", promptSnippet?: string, aspect?: string, caption?: string }`;
-    `media`: array of `{ id, kind: "image" | "video", dataUrl?: string, thumbnailAlt?: string }` where `dataUrl` is optional and capped by guardrails;
+    `media`: array of `{ id, kind: "image", url: "https://...", thumbnailAlt?: string }`;
     `selectedReferenceIds`?: string[];
     `focusedSource`?: "image" | "prompt" | "agent-output";
     `focusedReferenceId`?: string | null;
@@ -45,10 +47,11 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
   - `actions` (optional): `{ applyPrompt?: string; variations?: string[]; describeTargets?: string[]; referenceCard?: { title?: string; prompt: string } }`.
   - `usage`: token accounting when available.
   - `canonicalPrompt`: resolved canonical prompt for continuity.
+  - `traceId`: request correlation ID (server-generated if client omitted).
 
 ## Workflow (happy path)
 1. User types or pastes in the chat UI (embedded where prompt textarea used to be). Messages persist per session/tool.
-2. `useAiAgent` gathers context: active prompt/model/mode, reference grid summaries, and downscaled previews for up to the 3 most recent images (or 1 video frame snapshot). Object URLs are revoked after use.
+2. `useAiAgent` gathers context: active prompt/model/mode, reference grid summaries, and safe `https://` previews for up to 3 images. Video references contribute text metadata only.
 3. If the user drags references into the chat surface, staged attachments are merged into context before send (prompt refs + image refs/media), then cleared on success.
 4. Client calls `/api/ai/studio-agent`; the route verifies feature flag, key, payload size, and model support.
 5. Route classifies turn type (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`) and builds orchestration metadata.
@@ -68,7 +71,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 
 ## Data handling & safety
 - Never send raw file blobs to the LLM route; convert local previews to signed/public `https://` URLs first.
-- No transcript storage in Supabase; chats live in memory with optional `sessionStorage` backup; clear on sign-out.
+- No transcript storage in Supabase; chats live in memory while `clientSessionKey` persists in `sessionStorage` for reload continuity.
 - Canonical prompt continuity is persisted in Supabase (`ai_agent_conversation_state`) through a service-role RPC with DB-enforced retention bounds (TTL `1..90 days`, cap `1..200`, defaults `30 days` + `200`) and deterministic pruning.
 - Strip EXIF when downscaling; videos send only a single poster frame.
 - Agent must refuse PII extraction and harmful requests (covered in `STUDIO_AGENT_SYSTEM` prompt).

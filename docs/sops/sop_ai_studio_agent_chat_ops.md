@@ -15,8 +15,8 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 
 ## System prerequisites & gates
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-5-nano`), optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `OPENAI_API_BASE`.
-- Flags: server gate `STUDIO_AGENT_ENABLED` (defaults on if unset) and client gate `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` (UI enable switch). API returns 503 when disabled.
-- Payload guardrails: max 3 images, 350 KB each; videos are excluded from vision payload.
+- Flags: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` controls UI and baseline server enablement (`undefined` or `true` = enabled, `false` = disabled); `STUDIO_AGENT_ENABLED=true|false` explicitly overrides server enablement.
+- Payload guardrails: max 3 images, HTTPS-only media URLs, request body cap 512 KB (text) / 1.5 MB (mixed/image), API parser cap `2mb`.
 - Media transport rule: client now prefers signed/public `https://` URLs for agent vision calls. Local blob/data previews are uploaded through `/api/upload-image` before send.
 
 ## Data flow (chat send)
@@ -28,9 +28,10 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
    - image attachments become both `context.references` + `context.media` (up to 3),
    - `selectedReferenceIds` are merged, `focusedSource` is set based on staged kind, and `modeHint` defaults to `"reference"` when attachments are present.
 5) `contextBuilder` + API `safeContext` filter to safe media/refs and enforce caps before provider calls.
-6) `/api/ai/studio-agent` classifies the turn into `TEXT_ONLY`, `IMAGE_ONLY`, or `MIXED`, applies flow-aware routing, and stores canonical prompt continuity in Supabase (`ai_agent_conversation_state`) by `user_id + conversation_id`.
-7) Response is normalized into `actions` (applyPrompt, referenceCard, variations, describeTargets) + `message`.
-8) UI applies `actions.applyPrompt` to state (`setPrompt`, `setLatestAgentPrompt`), clears input, and exposes actions in the panel. Clicking a message or “Add to grid” writes a prompt reference card.
+6) `/api/ai/studio-agent` validates message roles (`user|assistant`), requires `clientSessionKey`, classifies turn into `TEXT_ONLY`, `IMAGE_ONLY`, or `MIXED`, and stores canonical prompt continuity in Supabase (`ai_agent_conversation_state`) by `user_id + clientSessionKey`.
+7) Responses include `traceId` and `Agent-Contract-Version: 1` for correlation and contract governance.
+8) Response is normalized into `actions` (applyPrompt, referenceCard, variations, describeTargets) + `message`.
+9) UI applies `actions.applyPrompt` to state (`setPrompt`, `setLatestAgentPrompt`), clears input, and exposes actions in the panel. Clicking a message or “Add to grid” writes a prompt reference card.
 
 Prompt ownership rule:
 - Prompt state is updated from `actions.applyPrompt` only (not generic assistant message text) so generation always uses explicit, structured prompt output from the agent route.
@@ -51,13 +52,13 @@ Prompt ownership rule:
   - “Add to grid” pushes the latest agent prompt as a card; close returns to Reference Grid.
 
 ## Safeguards & drift control
-- Canonical prompt store: API persists canonical prompt state in Supabase (`ai_agent_conversation_state`) keyed by `user_id + conversation_id`, with service-role-only execute posture, DB-enforced TTL/cap clamps, deterministic pruning, and daily stale-row cleanup support.
+- Canonical prompt store: API persists canonical prompt state in Supabase (`ai_agent_conversation_state`) keyed by `user_id + clientSessionKey`, with service-role-only execute posture, DB-enforced TTL/cap clamps, deterministic pruning, and daily stale-row cleanup support.
 - Canonical read order: DB canonical → request canonical prompt → `context.lastAssistantMessage`.
 - Canonical write policy: upsert only on successful non-refusal turns.
 - Explicit-edit reliability: when the user issues an explicit edit request (e.g., remove/replace/change) and the first V2 result is a no-op, the API runs one stronger retry pass before returning.
-- Size and source checks: `safeContext` and `buildAgentContext` drop non-https/data URLs and oversize media before send.
+- Size and source checks: `safeContext` and `buildAgentContext` drop non-https URLs and enforce payload limits before send.
 - Fallbacks: If API errors, `useAiAgent` surfaces the error string; UI shows inline error under the prompt step and leaves the previous prompt intact.
-- Agent disable path: if the API returns 503 (flag off or missing key), chat remains visible but requests fail; users can still generate via the legacy prompt textarea (Prompt mode).
+- Agent disable path: when feature flag is off, chat is hidden/disabled in UI and API returns 503; users continue through non-agent prompt generation paths.
 - No-question policy: questions are removed from prompt contracts, action parsing, and UI chips.
 
 ## Operational checklist (per release or after prompt/model updates)
@@ -70,7 +71,7 @@ Prompt ownership rule:
 - ✅ Refusal path: refusal returns message with empty actions and does not overwrite canonical prompt.
 
 ## Known gaps / follow-ups
-- No transcript persistence beyond session memory; reload drops history.
+- No transcript persistence beyond session memory; only `clientSessionKey` persists for canonical continuity.
 - No streaming UI; large responses wait for full completion.
 - Video references are ignored for vision; only prompt text from video cards is used.
 - Server vision runs in `/api/ai/studio-agent` for chat attachment turns; manual describe actions still use `/api/ai/describe-image`.

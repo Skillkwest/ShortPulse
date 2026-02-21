@@ -16,6 +16,7 @@ const createMockResponse = () => {
   const res = {
     status: vi.fn().mockReturnThis(),
     json: vi.fn().mockReturnThis(),
+    setHeader: vi.fn().mockReturnThis(),
   };
   return res;
 };
@@ -54,6 +55,8 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     await generatePromptHandler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.setHeader).toHaveBeenCalledWith("Deprecation", "true");
+    expect(res.setHeader).toHaveBeenCalledWith("Sunset", "Sun, 26 Apr 2026 00:00:00 GMT");
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: "An ancient Mayan temple rises from dense jungle.",

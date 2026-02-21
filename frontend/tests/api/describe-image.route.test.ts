@@ -23,6 +23,7 @@ vi.mock("node:dns/promises", () => ({
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
+  setHeader: vi.fn().mockReturnThis(),
 });
 
 describe("POST /api/ai/describe-image", () => {
@@ -62,6 +63,8 @@ describe("POST /api/ai/describe-image", () => {
 
     await describeImageHandler(req as never, res as never);
 
+    expect(res.setHeader).toHaveBeenCalledWith("Deprecation", "true");
+    expect(res.setHeader).toHaveBeenCalledWith("Sunset", "Sun, 26 Apr 2026 00:00:00 GMT");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: "HEAD" });
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: "GET" });

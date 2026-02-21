@@ -9,7 +9,6 @@ import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
 import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWorkflow";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useAiAgent } from "../features/ai-agent/useAiAgent";
-import { randomId } from "../features/ai-studio/logic/ids";
 import type { AgentActions } from "../prefabs/agent";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
@@ -198,7 +197,6 @@ export default function AiStudioPage() {
   const [isCharacterModeEnabled, setIsCharacterModeEnabled] = useState(false);
   const [characterModeInjectionBundle, setCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
-  const [agentConversationId] = useState<string>(() => randomId());
 
   // Character workflow state (used when Character tool is active)
   const {
@@ -981,9 +979,11 @@ export default function AiStudioPage() {
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
   const { beginnerMode, setBeginnerMode } = useBeginnerModePreference();
-  const agentFlag = process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
-  const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(true);
-  const agentEnabled = agentFlag || agentSessionEnabled;
+  const agentFlag =
+    process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === undefined ||
+    process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
+  const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(agentFlag);
+  const agentEnabled = agentFlag && agentSessionEnabled;
   const {
     messages: agentMessages,
     isSending: agentIsSending,
@@ -992,8 +992,8 @@ export default function AiStudioPage() {
     appendUserMessage,
     reset: resetAgentChat,
   } = useAiAgent({
-    enabled: true, // allow first-click activation; API will gate if truly disabled server-side
-    conversationId: agentConversationId,
+    enabled: agentEnabled,
+    sessionNamespace: `ai-studio:${selectedTool ?? "none"}:${mode}`,
   });
   const [agentUiBusy, setAgentUiBusy] = useState(false);
   const agentUiBusyRef = useRef(false);
@@ -1003,8 +1003,8 @@ export default function AiStudioPage() {
   const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
   const [promptOrigin, setPromptOrigin] = useState<PromptOrigin>("manual");
   const ensureAgentSession = useCallback(() => {
-    setAgentSessionEnabled(true);
-  }, []);
+    if (agentFlag) setAgentSessionEnabled(true);
+  }, [agentFlag]);
   const {
     agentInput,
     setAgentInput,

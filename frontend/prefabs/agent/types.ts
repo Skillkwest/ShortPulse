@@ -3,6 +3,7 @@
  * Shared by UI prefabs, feature logic, and API handlers.
  */
 export type AgentMessageRole = "user" | "assistant" | "system" | "observation";
+export type AgentApiMessageRole = "user" | "assistant";
 
 export type AgentAttachmentDeliveryStatus = "pending" | "preparing" | "ready" | "failed";
 
@@ -39,6 +40,13 @@ export type AgentMediaPreview = {
   thumbnailAlt?: string | null;
 };
 
+export type AgentApiMediaPreview = {
+  id: string;
+  kind: "image";
+  url: string;
+  thumbnailAlt?: string | null;
+};
+
 export type AgentContext = {
   activePrompt?: string | null;
   modelId?: string | null;
@@ -51,6 +59,10 @@ export type AgentContext = {
   focusedReferenceId?: string | null;
   lastAssistantMessage?: string | null;
   modeHint?: "chat" | "text" | "describe" | "reference";
+};
+
+export type AgentApiContext = Omit<AgentContext, "media"> & {
+  media?: AgentApiMediaPreview[];
 };
 
 export type AgentActions = {
@@ -71,11 +83,23 @@ export type AgentResponse = {
     outputTokens?: number;
   };
   canonicalPrompt?: string | null;
+  traceId?: string;
+};
+
+export type AgentApiMessage = {
+  role: AgentApiMessageRole;
+  content: string;
 };
 
 export type AgentApiRequest = {
-  messages: AgentMessage[];
-  context?: AgentContext;
+  messages: AgentApiMessage[];
+  context?: AgentApiContext;
+  clientSessionKey: string;
+  traceId?: string;
+  /**
+   * @deprecated Backward-compatibility alias for older clients.
+   * Server ignores this when `clientSessionKey` is present.
+   */
   conversationId?: string;
   canonicalPrompt?: string | null;
 };

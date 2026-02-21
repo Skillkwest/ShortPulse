@@ -12,6 +12,7 @@ const fetchWithAuthMock = vi.mocked(fetchWithAuth);
 describe("useAiAgent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
   });
 
   it("allows image-context-only turns without injecting describe text", async () => {
@@ -36,11 +37,14 @@ describe("useAiAgent", () => {
     const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
     const body = JSON.parse(String(requestInit?.body ?? "{}")) as {
       messages?: Array<{ role: string; content: string }>;
+      clientSessionKey?: string;
     };
     expect(body.messages?.[body.messages.length - 1]).toEqual({ role: "user", content: " " });
     expect(
       result.current.messages.some((message) => message.content === "Describe this image")
     ).toBe(false);
+    expect(typeof body.clientSessionKey).toBe("string");
+    expect((body.clientSessionKey ?? "").length).toBeGreaterThan(0);
   });
 
   it("still returns early for empty text with no media context", async () => {
@@ -56,5 +60,103 @@ describe("useAiAgent", () => {
     });
 
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
+  });
+
+  it("reuses stored clientSessionKey across hook remounts and rotates on reset", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "ok" }),
+    } as Response);
+
+    const { result, unmount } = renderHook(() =>
+      useAiAgent({ enabled: true, sessionNamespace: "ai-studio:test" })
+    );
+
+    await act(async () => {
+      await result.current.send({
+        text: "first",
+        payloadText: "first",
+      });
+    });
+
+    const firstBody = JSON.parse(String(fetchWithAuthMock.mock.calls[0]?.[1]?.body ?? "{}")) as {
+      clientSessionKey?: string;
+    };
+    expect(typeof firstBody.clientSessionKey).toBe("string");
+    const firstKey = firstBody.clientSessionKey as string;
+
+    unmount();
+
+    const remounted = renderHook(() =>
+      useAiAgent({ enabled: true, sessionNamespace: "ai-studio:test" })
+    );
+    await act(async () => {
+      await remounted.result.current.send({
+        text: "second",
+        payloadText: "second",
+      });
+    });
+
+    const secondBody = JSON.parse(String(fetchWithAuthMock.mock.calls[1]?.[1]?.body ?? "{}")) as {
+      clientSessionKey?: string;
+    };
+    expect(secondBody.clientSessionKey).toBe(firstKey);
+
+    act(() => {
+      remounted.result.current.reset();
+    });
+
+    await act(async () => {
+      await remounted.result.current.send({
+        text: "third",
+        payloadText: "third",
+      });
+    });
+
+    const thirdBody = JSON.parse(String(fetchWithAuthMock.mock.calls[2]?.[1]?.body ?? "{}")) as {
+      clientSessionKey?: string;
+    };
+    expect(thirdBody.clientSessionKey).not.toBe(firstKey);
+  });
+
+  it("switches clientSessionKey by sessionNamespace and restores prior namespace key", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "ok" }),
+    } as Response);
+
+    const hook = renderHook(
+      ({ namespace }) => useAiAgent({ enabled: true, sessionNamespace: namespace }),
+      { initialProps: { namespace: "ai-studio:tool-a" } }
+    );
+
+    await act(async () => {
+      await hook.result.current.send({ text: "a1", payloadText: "a1" });
+    });
+    const bodyA1 = JSON.parse(String(fetchWithAuthMock.mock.calls[0]?.[1]?.body ?? "{}")) as {
+      clientSessionKey?: string;
+    };
+    const keyA = bodyA1.clientSessionKey;
+    expect(typeof keyA).toBe("string");
+
+    hook.rerender({ namespace: "ai-studio:tool-b" });
+    await act(async () => {
+      await hook.result.current.send({ text: "b1", payloadText: "b1" });
+    });
+    const bodyB1 = JSON.parse(String(fetchWithAuthMock.mock.calls[1]?.[1]?.body ?? "{}")) as {
+      clientSessionKey?: string;
+    };
+    const keyB = bodyB1.clientSessionKey;
+    expect(typeof keyB).toBe("string");
+    expect(keyB).not.toBe(keyA);
+
+    hook.rerender({ namespace: "ai-studio:tool-a" });
+    await act(async () => {
+      await hook.result.current.send({ text: "a2", payloadText: "a2" });
+    });
+    const bodyA2 = JSON.parse(String(fetchWithAuthMock.mock.calls[2]?.[1]?.body ?? "{}")) as {
+      clientSessionKey?: string;
+    };
+    expect(bodyA2.clientSessionKey).toBe(keyA);
   });
 });

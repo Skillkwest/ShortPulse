@@ -5,7 +5,11 @@
 export type {
   AgentAttachment,
   AgentActions,
+  AgentApiContext,
+  AgentApiMessage,
+  AgentApiMessageRole,
   AgentApiRequest,
+  AgentApiMediaPreview,
   AgentContext,
   AgentMediaPreview,
   AgentMessage,

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AgentActions,
+  AgentApiMessage,
   AgentApiRequest,
   AgentContext,
   AgentMessage,
@@ -23,6 +24,7 @@ type UseAiAgentOptions = {
   initialMessages?: AgentMessage[];
   enabled?: boolean;
   conversationId?: string;
+  sessionNamespace?: string;
 };
 
 type SendParams = {
@@ -41,6 +43,37 @@ type SendResult = {
 
 // Stable default to prevent Fast Refresh issues
 const EMPTY_MESSAGES: AgentMessage[] = [];
+const AGENT_SESSION_STORAGE_KEY_PREFIX = "shortpulse.agent.clientSession.v1.";
+
+const buildSessionStorageKey = (namespace: string): string =>
+  `${AGENT_SESSION_STORAGE_KEY_PREFIX}${namespace.trim() || "default"}`;
+
+const loadSessionKey = (namespace: string): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = window.sessionStorage.getItem(buildSessionStorageKey(namespace));
+    return stored?.trim() ? stored.trim() : null;
+  } catch {
+    return null;
+  }
+};
+
+const persistSessionKey = (namespace: string, value: string): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(buildSessionStorageKey(namespace), value);
+  } catch {
+    // no-op: storage may be unavailable in privacy modes
+  }
+};
+
+const ensureSessionKey = (namespace: string, seed?: string): string => {
+  const fromStorage = loadSessionKey(namespace);
+  if (fromStorage) return fromStorage;
+  const next = seed?.trim() || randomId();
+  persistSessionKey(namespace, next);
+  return next;
+};
 
 const toRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -92,17 +125,21 @@ export const useAiAgent = ({
   initialMessages = EMPTY_MESSAGES,
   enabled = true,
   conversationId,
+  sessionNamespace = "ai-studio-default",
 }: UseAiAgentOptions = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>(initialMessages);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesRef = useRef<AgentMessage[]>(initialMessages);
-  // Use a stable ref initialization to prevent Fast Refresh issues
-  const conversationIdRef = useRef<string>();
-  if (!conversationIdRef.current) {
-    conversationIdRef.current = conversationId || randomId();
+  const clientSessionKeyRef = useRef<string>();
+  if (!clientSessionKeyRef.current) {
+    clientSessionKeyRef.current = ensureSessionKey(sessionNamespace, conversationId);
   }
   const canonicalPromptRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    clientSessionKeyRef.current = ensureSessionKey(sessionNamespace, conversationId);
+  }, [conversationId, sessionNamespace]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -167,15 +204,25 @@ export const useAiAgent = ({
         const baseHistory = previousMessagesForApi.slice(-12); // small window for API
         // Canonical prompt is sent separately; avoid duplicating assistant content in the message list.
         void previousPrompt;
-        const apiMessages: AgentMessage[] = [
+        const apiMessages: AgentApiMessage[] = [
           ...baseHistory,
-          { role: "user", content: userPayloadForApi } as AgentMessage,
-        ];
+          { role: "user", content: userPayloadForApi },
+        ].reduce<AgentApiMessage[]>((acc, message) => {
+          if (message.role === "user" || message.role === "assistant") {
+            acc.push({ role: message.role, content: message.content });
+          }
+          return acc;
+        }, []);
+        const clientSessionKey =
+          clientSessionKeyRef.current ?? ensureSessionKey(sessionNamespace, conversationId);
+        clientSessionKeyRef.current = clientSessionKey;
 
         const body: AgentApiRequest = {
           messages: apiMessages,
           context: context ? buildAgentContext(context) : undefined,
-          conversationId: conversationIdRef.current,
+          clientSessionKey,
+          conversationId: clientSessionKey,
+          traceId: `agent-${randomId()}`,
           canonicalPrompt: canonicalPromptRef.current,
         };
         const response = await fetchWithAuth("/api/ai/studio-agent", {
@@ -228,7 +275,7 @@ export const useAiAgent = ({
         setIsSending(false);
       }
     },
-    [enabled]
+    [conversationId, enabled, sessionNamespace]
   );
 
   const state = useMemo(
@@ -244,9 +291,10 @@ export const useAiAgent = ({
     setMessages([]);
     messagesRef.current = [];
     canonicalPromptRef.current = null;
-    conversationIdRef.current = randomId();
+    clientSessionKeyRef.current = randomId();
+    persistSessionKey(sessionNamespace, clientSessionKeyRef.current);
     setError(null);
-  }, []);
+  }, [sessionNamespace]);
 
   return { ...state, send, reset, appendUserMessage };
 };

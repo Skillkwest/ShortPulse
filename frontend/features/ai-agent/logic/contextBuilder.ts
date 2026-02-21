@@ -3,8 +3,9 @@
  * Keeps filtering and size caps in one place so UI code stays lean.
  */
 import type {
+  AgentApiContext,
+  AgentApiMediaPreview,
   AgentContext,
-  AgentMediaPreview,
   AgentReferenceSummary,
 } from "../../../prefabs/agent";
 
@@ -16,18 +17,24 @@ const isSafeRemoteUrl = (value?: string | null) => {
   return true;
 };
 
-const pickMediaPreviews = (media?: AgentMediaPreview[]): AgentMediaPreview[] => {
+const pickMediaPreviews = (media?: AgentContext["media"]): AgentApiMediaPreview[] => {
   if (!media || !media.length) return [];
   return (
     media
       .filter((item) => item.kind === "image") // videos are not processed by the agent; exclude them from vision payload
       // Use signed/public HTTPS URLs only to avoid oversized chat payloads from base64 data URLs.
       .filter((item) => isSafeRemoteUrl(item.url))
+      .map((item) => ({
+        id: item.id,
+        kind: "image" as const,
+        url: item.url as string,
+        thumbnailAlt: item.thumbnailAlt ?? undefined,
+      }))
       .slice(0, MAX_MEDIA_ITEMS)
   );
 };
 
-export const buildAgentContext = (context: AgentContext): AgentContext => {
+export const buildAgentContext = (context: AgentContext): AgentApiContext => {
   return {
     activePrompt: context.activePrompt ?? null,
     modelId: context.modelId ?? null,

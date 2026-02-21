@@ -69,6 +69,7 @@ CI cycle verification command (recorded):
   - `22259261557` (success, CI `npm ci` transient-retry wrapper validation)
   - `22259338790` (success, post-wrapper evidence-sync validation; enforce-mode guardrail set remained green)
   - `22259592274` (success, post-Vercel throttle-control validation; required CI guardrail set remained green)
+  - `22262296039` (success, post-evidence-sync validation; required CI guardrail set remained green and Vercel checks recovered)
 - Date: 2026-02-21
 
 Mode snapshot command (recorded):

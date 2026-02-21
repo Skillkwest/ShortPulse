@@ -94,7 +94,7 @@ Exit validation:
 - [x] Apply rollback-first stabilization for SQL lint (`SQL_LINT_MODE=warn`) after run `22251008051` failed due missing local Supabase/Postgres bootstrap in CI.
 - [x] Add SQL lint CI bootstrap in `.github/workflows/ci.yml` to start local Supabase (postgres-only footprint) before `supabase db lint --local` (`docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-sql-lint-bootstrap.md`).
 - [x] Re-promote SQL lint to enforce mode (`SQL_LINT_MODE=enforce`) after bootstrap fix on 2026-02-21; validation cycles completed.
-- [x] Harden CI dependency install path with transient-retry wrapper for `npm ci` across install jobs (`scripts/ci_npm_ci_with_retry.sh`, `docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-npm-ci-transient-retry-hardening.md`, validated by runs `22259261557`, `22259338790`, and `22259592274`).
+- [x] Harden CI dependency install path with transient-retry wrapper for `npm ci` across install jobs (`scripts/ci_npm_ci_with_retry.sh`, `docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-npm-ci-transient-retry-hardening.md`, validated by runs `22259261557`, `22259338790`, `22259592274`, and `22262296039`).
 - [x] Refresh branch-protection evidence mapping (`docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md` refreshed 2026-02-21).
 - [x] Publish governance closeout packet for STG-06 with explicit dependency tracking and compensating controls (`docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-governance-closeout.md`).
 
@@ -111,6 +111,7 @@ Exit validation:
 - [x] Record DEP-03 dashboard/alert readiness evidence with source mapping and CI validation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`, run `22258999203`).
 - [x] Kick off staging soak ring and archive rollout report (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`).
 - [x] Publish staging soak checkpoint monitoring plan with gate thresholds and evidence links (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-staging-soak-monitoring-plan.md`).
+- [x] Publish pre-promotion gate checklist artifact for soak-exit decision control (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`).
 - [x] Add Vercel preview throttle control for docs-only/non-frontend commits (`frontend/vercel.json`, `frontend/scripts/vercel-ignore-build.sh`, evidence: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-vercel-preview-throttle-control.md`).
 - [ ] Attach external dashboard/alert URLs + policy links in DEP-03 readiness evidence before 5% ring.
 - [ ] Staging soak 24h.

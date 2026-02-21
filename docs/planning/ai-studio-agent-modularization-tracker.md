@@ -7,13 +7,13 @@ Program Doc: `docs/planning/ai-studio-agent-modularization-program.md`
 
 ## Status Overview
 Execution note:
-Phase dates in the program doc are target windows. Guardrail setup was pulled forward on 2026-02-21 to reduce regression risk before deeper modularization.
+Phase dates in the program doc are target windows. Guardrail setup and initial strangler extraction were pulled forward on 2026-02-21 to reduce regression risk before deeper modularization.
 
 | Phase | Status | Owner | Start | Target End | Gate | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Phase 0: Contract Freeze | Completed | AI Platform | 2026-02-23 | 2026-02-25 | schema source-of-truth locked | `docs/planning/evidence/agent/phase-0/` |
 | Phase 1: Correctness Hardening | In Progress | AI Platform + Frontend | 2026-02-26 | 2026-03-06 | audit-delta defects closed | `docs/planning/evidence/agent/phase-1/` |
-| Phase 2: Strangler Consolidation | Planned | AI Platform | 2026-03-09 | 2026-03-20 | no logic duplication across 3 routes | `docs/planning/evidence/agent/phase-2/` |
+| Phase 2: Strangler Consolidation | In Progress | AI Platform | 2026-02-21 | 2026-03-20 | no logic duplication across 3 routes | `docs/planning/evidence/agent/phase-2/` |
 | Phase 3: Modularization Pass | Planned | Frontend | 2026-03-23 | 2026-04-03 | size budget pass or ADR exceptions | `docs/planning/evidence/architecture/` |
 | Phase 4: Guardrails + Governance | In Progress | Platform + DevEx | 2026-02-21 | 2026-04-10 | enforce mode stable for 2 cycles | `docs/planning/evidence/agent/phase-4/` |
 | Phase 5: Progressive Rollout | Planned | AI Platform + Ops | 2026-04-13 | 2026-04-24 | all canary rings pass | `docs/planning/evidence/agent/phase-5/` |
@@ -48,11 +48,11 @@ Exit validation:
 - [x] Doc/runtime/schema parity pass.
 
 ### Phase 2: Strangler Consolidation
-- [ ] Introduce `AgentRuntimeService` internal entrypoints.
-- [ ] Route `/generate-prompt` through runtime adapter.
-- [ ] Route `/describe-image` through runtime adapter.
-- [ ] Keep external contracts stable in compatibility mode.
-- [ ] Emit deprecation + sunset headers on legacy routes.
+- [x] Introduce `AgentRuntimeService` internal entrypoints.
+- [x] Route `/generate-prompt` through runtime adapter.
+- [x] Route `/describe-image` through runtime adapter.
+- [x] Keep external contracts stable in compatibility mode.
+- [x] Emit deprecation + sunset headers on legacy routes.
 
 Exit validation:
 - [ ] No duplicated business logic among AI routes.

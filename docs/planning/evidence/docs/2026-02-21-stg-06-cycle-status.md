@@ -31,6 +31,13 @@ Refresh note:
 - Re-verified with `gh run list --workflow ci.yml --limit 10 --json databaseId,headBranch,conclusion,createdAt,updatedAt,event` on 2026-02-21.
 - Result unchanged: no two consecutive green cycles.
 
+### Incremental remediation runs (2026-02-21)
+- `22250505283` (failure): workflow-file startup issue (`This run likely failed because of a workflow file issue.`), zero jobs created.
+- `22250581279` (failure): startup issue fixed (jobs created/executed), but `adaptive_media_gate` and `ai_studio_perf_gate` failed with `Resource not accessible by integration`.
+- `22250627010` (in progress at capture): permission fix applied (`pull-requests: read`), and both path-filter detection steps now pass:
+  - `Detect Adaptive Media V2-impacting changes` => success
+  - `Detect AI Studio perf-impacting changes` => success
+
 ### Environment-gated SQL workflows (supporting signal)
 - `conversation-state-hardening-gate.yml` recent runs are successful (`warn` + `enforce`) and documented under STG-02 evidence.
 - `apply-conversation-state-migration-028.yml` recent production runs show successful `028/029/030` applies with earlier failed attempts before secret setup.
@@ -40,8 +47,6 @@ Refresh note:
 - STG-06 remains `In Progress`.
 
 ## Next action required
-- Validate the updated `security` job behavior (`production audit` blocking + `full audit` advisory) on the next CI cycle.
-- Validate `ci.yml` startup fix for perf-gate secret handling by confirming next run creates jobs (not zero-job startup failure).
-- Validate workflow permission fix (`pull-requests: read`) by confirming path-filter steps no longer fail with `Resource not accessible by integration`.
+- Confirm final conclusion for run `22250627010` and record whether it counts as green cycle #1.
 - Capture two consecutive green release cycles in CI run history and update this evidence file.
 - Keep enforce promotion blocked until this condition and branch-protection UI evidence are both complete.

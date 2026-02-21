@@ -46,7 +46,7 @@ Owner: Engineering
 
 - Command: `supabase db lint --local --schema public --fail-on warning`
 - Initial mode: warn/evaluate
-- Enforce mode: after two green release cycles
+- Current mode: `enforce` (promoted 2026-02-21 after stabilization cycles)
 
 ## Security gate
 
@@ -56,9 +56,10 @@ Owner: Engineering
 
 ## Prototype mode policy (MVP)
 
-- During MVP prototype iteration, governance checks remain in advisory/warn mode.
+- During MVP prototype iteration, governance checks may begin in advisory/warn mode.
 - This policy does not block local build/test/commit or feature delivery.
 - Enforcement promotion is deferred to production-readiness hardening.
+- Current hardening state (2026-02-21): target governance checks have been promoted to `enforce` in CI.
 
 ## Conversation-state hardening gate
 
@@ -91,7 +92,7 @@ Current required check names (to be mirrored exactly in GitHub settings):
 - `security`
 - `deadcode`
 
-Planned required check names (promoted after warn/evaluate stabilization):
+Target required check names (running in `enforce` mode in CI; branch-level enforcement still constrained by repository plan tier):
 - `docs_semantic_drift`
 - `migration_parity`
 - `sql_lint`
@@ -106,4 +107,4 @@ Repository API access for branch rules/protection is restricted in this repo con
 - Capture repository settings screenshot/export showing required checks.
 - Copy exact required check names into this document.
 - Add operator/date evidence note at `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`.
-- Keep STG-06 enforcement state as pending until two green cycles are logged.
+- Keep STG-06 closeout pending until two green cycles are logged after the most recent enforce-mode promotion.

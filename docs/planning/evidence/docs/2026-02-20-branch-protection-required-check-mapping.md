@@ -53,7 +53,16 @@ Workflow job-name/source-of-truth check (from `.github/workflows/ci.yml`):
 
 CI cycle verification command (recorded):
 - Command: `gh run list --workflow ci.yml --limit 10 --json databaseId,headBranch,conclusion,createdAt,updatedAt,event`
-- Result: recent runs remain failures; no two consecutive green cycles observed.
+- Result: recent runs on `fal-modular-makeover` show consecutive successes:
+  - `22250627010` (success)
+  - `22250698460` (success)
+  - `22250715981` (success)
+  - `22250809128` (success)
+- Date: 2026-02-21
+
+Mode snapshot command (recorded):
+- Command: `gh variable list | rg 'DOCS_SEMANTIC_DRIFT_MODE|MIGRATION_PARITY_MODE|ARCHIVE_MANIFEST_MODE|SQL_LINT_MODE|ARCHITECTURE_BOUNDARY_MODE|SIZE_BUDGET_MODE|AGENT_CONTRACT_TESTS_MODE|AGENT_DISABLE_CONTINUITY_MODE'`
+- Result: all listed check-mode variables are set to `enforce`.
 - Date: 2026-02-21
 
 ## Required check names (documented target)
@@ -84,4 +93,4 @@ Planned required checks after warn/evaluate stabilization:
 
 Configured and documented, but not enforceable on current repository plan; pending GitHub Team/org upgrade (or equivalent) for enforcement.
 Prototype-mode waiver applies; this remains non-blocking for MVP feature iteration and blocking only for production-readiness completion.
-Branch-protection mapping evidence was refreshed on 2026-02-21 and remains aligned with current workflow check names.
+Branch-protection mapping evidence was refreshed on 2026-02-21 and remains aligned with current workflow check names and enforce-mode CI guardrail configuration.

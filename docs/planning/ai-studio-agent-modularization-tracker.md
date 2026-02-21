@@ -90,11 +90,12 @@ Exit validation:
 - [x] Add contract-test suite as required check (active warn/evaluate).
 - [x] Add disable-path continuity suite as required check (active warn/evaluate).
 - [x] Promote docs/parity checks to enforce mode after 2 green cycles (`DOCS_SEMANTIC_DRIFT_MODE=enforce`, `MIGRATION_PARITY_MODE=enforce`).
+- [x] Promote remaining guardrail checks to enforce mode (`ARCHIVE_MANIFEST_MODE`, `SQL_LINT_MODE`, `ARCHITECTURE_BOUNDARY_MODE`, `SIZE_BUDGET_MODE`, `AGENT_CONTRACT_TESTS_MODE`, `AGENT_DISABLE_CONTINUITY_MODE`) on 2026-02-21 (`docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-required-check-enforce-promotion.md`).
 - [x] Refresh branch-protection evidence mapping (`docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md` refreshed 2026-02-21).
 
 Exit validation:
-- [ ] Required checks reflect target state.
-- [x] Two green cycles logged (`22250627010`, `22250698460`).
+- [x] Required checks reflect target state.
+- [ ] Two green cycles logged with full enforce-mode check set (pending post-promotion cycles).
 - [ ] Governance evidence complete.
 
 ### Phase 5: Progressive Rollout
@@ -128,12 +129,12 @@ Exit validation:
 | `deadcode` | Active | Enforced | Platform | knip production file gate |
 | `docs_semantic_drift` | Active | Enforced | Docs | workflow mode promoted to enforce 2026-02-21 |
 | `migration_parity` | Active | Enforced | Platform | workflow mode promoted to enforce 2026-02-21 |
-| `sql_lint` | Active | Warn/Evaluate | Platform | currently advisory |
-| `archive_manifest_check` | Active | Warn/Evaluate | Docs | currently advisory |
-| `architecture_boundary` | Active | Warn/Evaluate | Platform | promote to enforce after two green cycles |
-| `size_budget` | Active | Warn/Evaluate | Frontend | promote to enforce after two green cycles |
-| `agent_contract_tests` | Active | Warn/Evaluate | AI Platform | promote to enforce after two green cycles |
-| `agent_disable_continuity` | Active | Warn/Evaluate | AI Platform | promote to enforce after two green cycles |
+| `sql_lint` | Active | Enforced | Platform | workflow mode promoted to enforce 2026-02-21 |
+| `archive_manifest_check` | Active | Enforced | Docs | workflow mode promoted to enforce 2026-02-21 |
+| `architecture_boundary` | Active | Enforced | Platform | workflow mode promoted to enforce 2026-02-21 |
+| `size_budget` | Active | Enforced | Frontend | workflow mode promoted to enforce 2026-02-21 |
+| `agent_contract_tests` | Active | Enforced | AI Platform | workflow mode promoted to enforce 2026-02-21 |
+| `agent_disable_continuity` | Active | Enforced | AI Platform | workflow mode promoted to enforce 2026-02-21 |
 
 ## Rollout Gate Tracker
 | Ring | Start | End | Pass/Fail | p95 | p99 | 5xx | timeout | refusal delta | Decision | Evidence |

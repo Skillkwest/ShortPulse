@@ -5,58 +5,48 @@ Stage: STG-06
 Operator: @sleepyseamonster
 
 ## Scope
-- Verify whether STG-06 completion criterion "two green release cycles" is satisfied.
-- Record observable CI run evidence from GitHub Actions metadata.
+- Verify two-green-cycle stabilization evidence for CI guardrail promotion.
+- Track enforce-mode transitions and remaining closeout conditions.
 
-## Evidence snapshot
+## Evidence Snapshot
 
-### CI workflow (`ci.yml`) recent runs
-- Branch `fal-modular-makeover` recent runs are failures:
-  - `22244077894` (failure)
-  - `22242984069` (failure)
-  - `22242667509` (failure)
-  - `22242513970` (failure)
-  - `22242387568` (failure)
-- Branch `main` recent runs are failures with one older success:
-  - `22243687034` (failure)
-  - `22243617781` (failure)
-  - `22243548893` (failure)
-  - `22243457800` (failure)
-  - `22243362387` (failure)
-  - `22243258422` (failure)
-  - `22241972832` (failure)
-  - `22030430395` (success, older)
+### CI workflow (`ci.yml`) stabilization runs
+- `22250627010` (success)
+- `22250698460` (success)
+- `22250715981` (success)
+- `22250809128` (success)
 
-Refresh note:
-- Re-verified with `gh run list --workflow ci.yml --limit 10 --json databaseId,headBranch,conclusion,createdAt,updatedAt,event` on 2026-02-21.
-- Result now includes two consecutive green cycles on `fal-modular-makeover`:
-  - `22250627010` (success)
-  - `22250698460` (success)
+Commands used:
+- `gh run list --workflow ci.yml --branch fal-modular-makeover --limit 10`
+- `gh run view 22250809128 --json status,conclusion,jobs,headSha,createdAt,updatedAt`
 
-### Incremental remediation runs (2026-02-21)
-- `22250505283` (failure): workflow-file startup issue (`This run likely failed because of a workflow file issue.`), zero jobs created.
-- `22250581279` (failure): startup issue fixed (jobs created/executed), but `adaptive_media_gate` and `ai_studio_perf_gate` failed with `Resource not accessible by integration`.
-- `22250627010` (success): permission fix applied (`pull-requests: read`), both path-filter detection steps pass, and all jobs completed green.
-- `22250698460` (success): follow-up verification cycle remained green across all CI jobs.
-- `22250715981` (success): additional follow-up cycle remained green across all CI jobs.
+### Incremental remediation history (same day)
+- `22250505283` (failure): workflow startup issue (no jobs).
+- `22250581279` (failure): path-filter jobs failed (`Resource not accessible by integration`).
+- `22250627010` (success): permissions fix validated (`pull-requests: read`), full CI green.
 
-### Mode promotion (2026-02-21)
-- Repository Actions variables promoted to enforce mode for docs/parity checks:
-  - `DOCS_SEMANTIC_DRIFT_MODE=enforce`
-  - `MIGRATION_PARITY_MODE=enforce`
-- Command used:
-  - `gh variable set DOCS_SEMANTIC_DRIFT_MODE --body enforce`
-  - `gh variable set MIGRATION_PARITY_MODE --body enforce`
+### Enforce-mode promotions (2026-02-21)
+Initial promotion:
+- `DOCS_SEMANTIC_DRIFT_MODE=enforce`
+- `MIGRATION_PARITY_MODE=enforce`
 
-### Environment-gated SQL workflows (supporting signal)
-- `conversation-state-hardening-gate.yml` recent runs are successful (`warn` + `enforce`) and documented under STG-02 evidence.
-- `apply-conversation-state-migration-028.yml` recent production runs show successful `028/029/030` applies with earlier failed attempts before secret setup.
+Expanded promotion:
+- `ARCHIVE_MANIFEST_MODE=enforce`
+- `SQL_LINT_MODE=enforce`
+- `ARCHITECTURE_BOUNDARY_MODE=enforce`
+- `SIZE_BUDGET_MODE=enforce`
+- `AGENT_CONTRACT_TESTS_MODE=enforce`
+- `AGENT_DISABLE_CONTINUITY_MODE=enforce`
+
+Command used:
+- `gh variable list | rg 'DOCS_SEMANTIC_DRIFT_MODE|MIGRATION_PARITY_MODE|ARCHIVE_MANIFEST_MODE|SQL_LINT_MODE|ARCHITECTURE_BOUNDARY_MODE|SIZE_BUDGET_MODE|AGENT_CONTRACT_TESTS_MODE|AGENT_DISABLE_CONTINUITY_MODE'`
 
 ## Result
-- STG-06 two-green-cycle criterion is **met** as of 2026-02-21 (`22250627010`, `22250698460`).
-- STG-06 remains `In Progress`.
+- Pre-promotion two-green-cycle criterion is satisfied.
+- Full required-check mode configuration now reflects `enforce` for target guardrail checks.
+- STG-06 remains `In Progress` until two consecutive CI cycles are logged after the expanded enforce-mode promotion.
 
-## Next action required
-- Confirm sustained stability on subsequent cycles (newer than `22250715981`).
-- Continue phased promotion decisions for remaining warn/evaluate checks.
-- Keep enforce promotion blocked until this condition and branch-protection UI evidence are both complete.
+## Next Action Required
+- Record two fresh consecutive green `ci.yml` cycles under the expanded enforce-mode configuration.
+- Refresh branch-protection evidence review metadata (reviewer/date) after UI verification.
+- Keep plan-tier enforcement constraint (`403` API / non-enforceable private ruleset) tracked as open dependency for production-readiness closeout.

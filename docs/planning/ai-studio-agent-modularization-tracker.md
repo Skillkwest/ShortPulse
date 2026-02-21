@@ -109,9 +109,12 @@ Exit validation:
 - [x] Seed phase-5 evidence templates for rollout reports and rollback drills (`docs/planning/evidence/agent/phase-5/phase-5-rollout-report-template.md`, `docs/planning/evidence/agent/phase-5/phase-5-rollback-drill-template.md`).
 - [x] Record ops-readiness bootstrap evidence and CI validation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-ops-readiness-bootstrap.md`, run `22258904215`).
 - [x] Record DEP-03 dashboard/alert readiness evidence with source mapping and CI validation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`, run `22258999203`).
+- [x] Publish DEP-03 ops intake template for external dashboard/alert artifact collection (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`).
 - [x] Kick off staging soak ring and archive rollout report (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`).
 - [x] Publish staging soak checkpoint monitoring plan with gate thresholds and evidence links (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-staging-soak-monitoring-plan.md`).
+- [x] Publish staging soak checkpoint log sheet for C1-C4 evidence capture (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-checkpoint-log.md`).
 - [x] Publish pre-promotion gate checklist artifact for soak-exit decision control (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`).
+- [x] Publish 5% promotion decision packet template for deterministic go/no-go documentation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md`).
 - [x] Add Vercel preview throttle control for docs-only/non-frontend commits (`frontend/vercel.json`, `frontend/scripts/vercel-ignore-build.sh`, evidence: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-vercel-preview-throttle-control.md`).
 - [ ] Attach external dashboard/alert URLs + policy links in DEP-03 readiness evidence before 5% ring.
 - [ ] Staging soak 24h.

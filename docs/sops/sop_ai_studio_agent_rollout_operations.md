@@ -49,6 +49,8 @@ Rollback-first posture is mandatory unless explicitly waived by incident command
 2. Dashboard screenshots/links for latency, error/timeout, refusal delta, continuity.
 3. CI links for required checks on the deployed SHA.
 4. Incident packet if freeze/rollback occurs.
+5. Staging soak checkpoints recorded in checkpoint log before 5% promotion decision.
+6. 5% promotion decision packet completed at soak exit.
 
 Store evidence under `docs/planning/evidence/agent/phase-5/`.
 
@@ -57,3 +59,6 @@ Store evidence under `docs/planning/evidence/agent/phase-5/`.
 2. Update `docs/planning/ai-studio-agent-modularization-tracker.md` ring table.
 3. Confirm next ring start time and owner handoff.
 4. Re-validate alert routing/on-call coverage before promotion.
+5. For staging soak -> 5% transition, ensure:
+   - `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-checkpoint-log.md` is updated through C4.
+   - `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md` is completed.

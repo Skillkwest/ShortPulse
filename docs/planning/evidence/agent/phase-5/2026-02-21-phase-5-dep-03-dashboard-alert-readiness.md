@@ -50,6 +50,8 @@ Verify repo-level readiness for `DEP-03` (dashboard + alert wiring for ring-gate
 `In Progress`:
 1. Repo-level instrumentation and runbook wiring are ready.
 2. External dashboard/alert resource provisioning remains an operator task outside this repository and must be linked in rollout evidence before 5% production ring promotion.
+3. Ops intake template is published for deterministic artifact collection:
+   - `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`
 
 ## External Artifacts Required Before 5% Promotion
 The following must be attached to this file before advancing beyond staging soak:

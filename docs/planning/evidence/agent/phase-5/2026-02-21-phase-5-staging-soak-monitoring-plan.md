@@ -41,6 +41,8 @@ Phase: 5 (Staging soak control window)
 ## Evidence Links
 - Rollout report: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`
 - DEP-03 readiness: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
+- Checkpoint log: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-checkpoint-log.md`
+- 5% promotion decision packet: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md`
 - Rollout SOP: `docs/sops/sop_ai_studio_agent_rollout_operations.md`
 
 ## Completion Criteria

@@ -1,0 +1,85 @@
+import { describe, expect, it, vi } from "vitest";
+import { executeStudioAgentFastPathTurn } from "../studioAgentFastPathTurn";
+
+const fetchStudioAgentChatCompletionMock = vi.fn();
+
+vi.mock("../studioAgentOpenAiGateway", async () => {
+  const actual = await vi.importActual("../studioAgentOpenAiGateway");
+  return {
+    ...(actual as object),
+    fetchStudioAgentChatCompletion: (...args: unknown[]) =>
+      fetchStudioAgentChatCompletionMock(...args),
+  };
+});
+
+describe("executeStudioAgentFastPathTurn", () => {
+  it("returns upstream failure with status and detail", async () => {
+    fetchStudioAgentChatCompletionMock.mockResolvedValue({
+      ok: false,
+      status: 502,
+      text: async () => "gateway error",
+    });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "hello" }],
+      timeoutMs: 20000,
+      effectiveCanonical: "base canonical",
+      context: {},
+      messages: [{ role: "user", content: "hello" }],
+      markStage,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      status: 502,
+      detail: "gateway error",
+    });
+    expect(markStage).toHaveBeenCalledWith("fast_path_turn", expect.any(Number));
+  });
+
+  it("returns normalized success payload and usage", async () => {
+    fetchStudioAgentChatCompletionMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                message: "enhanced prompt",
+                actions: { apply_prompt: "enhanced prompt" },
+              }),
+            },
+          },
+        ],
+        usage: { prompt_tokens: 22, completion_tokens: 14 },
+      }),
+    });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "hello" }],
+      timeoutMs: 20000,
+      effectiveCanonical: "base canonical",
+      context: {},
+      messages: [{ role: "user", content: "hello" }],
+      markStage,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.result.refusal).toBe(false);
+    expect(result.result.parsed.actions?.applyPrompt).toBe("enhanced prompt");
+    expect(result.result.resolvedCanonical).toBe("enhanced prompt");
+    expect(result.result.usage).toEqual({
+      inputTokens: 22,
+      outputTokens: 14,
+    });
+  });
+});

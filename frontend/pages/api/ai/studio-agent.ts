@@ -13,7 +13,6 @@ import {
   writeStudioAgentCanonicalPrompt,
 } from "../../../features/agent-runtime/studioAgentCanonicalPersistence";
 import {
-  fetchStudioAgentChatCompletion,
   formatStudioAgentErrorMessage,
   resolveStudioAgentOpenAiConfig,
 } from "../../../features/agent-runtime/studioAgentOpenAiGateway";
@@ -24,10 +23,7 @@ import {
   sendStudioAgentError,
   setStudioAgentContractHeaders,
 } from "../../../features/agent-runtime/studioAgentRouteEnvelope";
-import {
-  extractStudioAgentCompletionText,
-  parseStudioAgentJsonWithStatus,
-} from "../../../features/agent-runtime/studioAgentResponseNormalization";
+import { executeStudioAgentFastPathTurn } from "../../../features/agent-runtime/studioAgentFastPathTurn";
 import { resolveStudioAgentTurnResponse } from "../../../features/agent-runtime/studioAgentTurnResponse";
 import { executeStudioAgentV2Turn } from "../../../features/agent-runtime/studioAgentV2Turn";
 import {
@@ -362,18 +358,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const fastPathStartedAt = Date.now();
-    const response = await fetchStudioAgentChatCompletion({
+    const fastPathTurn = await executeStudioAgentFastPathTurn({
       apiKey,
       openAiUrl,
       model: openAiModel,
-      messages: openAiMessages,
+      openAiMessages,
       timeoutMs: requestTimeoutMs,
+      effectiveCanonical,
+      context,
+      messages,
+      markStage,
     });
-    markStage("fast_path_turn", fastPathStartedAt);
 
-    if (!response.ok) {
-      const detail = await response.text();
+    if (!fastPathTurn.ok) {
       emitTurnTelemetry({
         flow: orchestration.flow,
         path,
@@ -383,32 +380,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
       });
-      return res.status(response.status).json({ error: "Upstream error", detail, traceId });
+      return res
+        .status(fastPathTurn.status)
+        .json({ error: "Upstream error", detail: fastPathTurn.detail, traceId });
     }
 
-    const data = await response.json();
-    const contentText = extractStudioAgentCompletionText(data?.choices?.[0]?.message?.content);
-    const parsedWithStatus = parseStudioAgentJsonWithStatus(contentText);
-    let parsed = parsedWithStatus?.response ?? {
-      message: sanitizeGenerationPromptText(contentText || "No response") ?? "No response",
-      actions: undefined,
-    };
-
-    const nextCanonical = sanitizeGenerationPromptText(
-      parsed?.actions?.applyPrompt ?? parsed?.message ?? effectiveCanonical ?? null
-    );
-
-    const resolvedTurn = resolveStudioAgentTurnResponse({
-      parsed,
-      semanticStatus: parsedWithStatus?.status ?? null,
-      nextCanonical,
-      effectiveCanonical,
-      context,
-      messages,
-    });
-    parsed = resolvedTurn.parsed;
-    const refusal = resolvedTurn.refusal;
-    const resolvedCanonical = resolvedTurn.resolvedCanonical;
+    const parsed = fastPathTurn.result.parsed;
+    const refusal = fastPathTurn.result.refusal;
+    const resolvedCanonical = fastPathTurn.result.resolvedCanonical;
+    const usage = fastPathTurn.result.usage;
 
     if (!refusal) {
       await writeStudioAgentCanonicalPrompt({
@@ -435,10 +415,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({
       ...parsed,
-      usage: {
-        inputTokens: data?.usage?.prompt_tokens,
-        outputTokens: data?.usage?.completion_tokens,
-      },
+      usage,
       canonicalPrompt: resolvedCanonical,
       traceId,
     });

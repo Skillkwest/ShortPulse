@@ -66,7 +66,8 @@ Exit validation:
 - [x] Slice 4: extract studio-agent thinker/formatter V2 turn module.
 - [x] Slice 5: extract studio-agent fast-path turn module.
 - [x] Slice 6: extract studio-agent telemetry and route-outcome helpers.
-- [ ] Split `frontend/pages/api/ai/studio-agent.ts` by concern.
+- [x] Slice 7: extract studio-agent coordinator shell for fast-path/v2 orchestration.
+- [x] Split `frontend/pages/api/ai/studio-agent.ts` by concern.
 - [ ] Split `frontend/features/ai-agent/useAiAgent.ts` into transport/session/store.
 - [ ] Split `frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts` by pipeline concern.
 - [ ] Split `frontend/pages/ai-studio.tsx` agent bridge wiring out.

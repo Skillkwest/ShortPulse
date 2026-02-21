@@ -49,7 +49,6 @@ Workflow job-name/source-of-truth check (from `.github/workflows/ci.yml`):
 - `agent_disable_continuity`
 - `adaptive_media_gate`
 - `ai_studio_perf_gate`
-- `ai_studio_perf_gate_notice`
 - `security`
 
 CI cycle verification command (recorded):

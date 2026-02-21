@@ -54,7 +54,7 @@ Adopt an adaptive reference-grid runtime that combines:
 - CI includes an authenticated production-mode perf gate job (`ai_studio_perf_gate`) when audit credentials are available.
 - On pull requests, CI scopes that perf gate to AI Studio perf-impacting file changes.
 - CI gate mode is controlled via repository variable `AI_STUDIO_PERF_GATE_MODE` (`warn` during stabilization, `enforce` after sustained pass rate).
-- CI emits a companion notice job (`ai_studio_perf_gate_notice`) when perf-gate secrets are missing.
+- CI emits an in-job skip summary when perf-gate secrets are missing.
 
 ## Related
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`

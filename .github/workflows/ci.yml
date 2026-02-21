@@ -452,8 +452,10 @@ jobs:
           echo "Adaptive Media V2 gate skipped for this PR because no adaptive-impacting files changed." >> "$GITHUB_STEP_SUMMARY"
 
   ai_studio_perf_gate:
-    if: ${{ secrets.PLAYWRIGHT_AUDIT_EMAIL != '' && secrets.PLAYWRIGHT_AUDIT_PASSWORD != '' }}
     runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_AUDIT_EMAIL: ${{ secrets.PLAYWRIGHT_AUDIT_EMAIL }}
+      PLAYWRIGHT_AUDIT_PASSWORD: ${{ secrets.PLAYWRIGHT_AUDIT_PASSWORD }}
     defaults:
       run:
         working-directory: frontend
@@ -482,15 +484,24 @@ jobs:
         id: should_run
         run: |
           set -euo pipefail
+          if [ -z "${PLAYWRIGHT_AUDIT_EMAIL:-}" ] || [ -z "${PLAYWRIGHT_AUDIT_PASSWORD:-}" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "reason=missing_secrets" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=run_all_non_pr" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [ "${{ steps.changes.outputs.ai_studio || 'false' }}" = "true" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=changed_files" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "reason=no_perf_impacting_changes" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
         if: ${{ steps.should_run.outputs.run == 'true' }}
         with:
@@ -507,8 +518,6 @@ jobs:
       - name: Run AI Studio production perf gate
         if: ${{ steps.should_run.outputs.run == 'true' }}
         env:
-          PLAYWRIGHT_AUDIT_EMAIL: ${{ secrets.PLAYWRIGHT_AUDIT_EMAIL }}
-          PLAYWRIGHT_AUDIT_PASSWORD: ${{ secrets.PLAYWRIGHT_AUDIT_PASSWORD }}
           AI_STUDIO_PERF_GATE_MODE: ${{ vars.AI_STUDIO_PERF_GATE_MODE }}
         run: |
           set -euo pipefail
@@ -551,19 +560,20 @@ jobs:
 
           echo "AI Studio perf gate failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
           exit "$STATUS"
-      - name: AI Studio perf gate skipped (no perf-impacting file changes)
+      - name: AI Studio perf gate skipped
         if: ${{ steps.should_run.outputs.run != 'true' }}
         run: |
-          echo "AI Studio perf gate skipped for this PR because no AI Studio perf-impacting files changed." >> "$GITHUB_STEP_SUMMARY"
-
-  ai_studio_perf_gate_notice:
-    if: ${{ secrets.PLAYWRIGHT_AUDIT_EMAIL == '' || secrets.PLAYWRIGHT_AUDIT_PASSWORD == '' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: AI Studio perf gate skipped (missing secrets)
-        run: |
-          echo "AI Studio perf gate skipped because PLAYWRIGHT_AUDIT_EMAIL and/or PLAYWRIGHT_AUDIT_PASSWORD are not configured."
-          echo "Set repository secrets to enable the authenticated production perf gate." >> "$GITHUB_STEP_SUMMARY"
+          case "${{ steps.should_run.outputs.reason }}" in
+            missing_secrets)
+              echo "AI Studio perf gate skipped because PLAYWRIGHT_AUDIT_EMAIL and/or PLAYWRIGHT_AUDIT_PASSWORD are not configured." >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            no_perf_impacting_changes)
+              echo "AI Studio perf gate skipped for this PR because no AI Studio perf-impacting files changed." >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            *)
+              echo "AI Studio perf gate skipped." >> "$GITHUB_STEP_SUMMARY"
+              ;;
+          esac
 
   security:
     runs-on: ubuntu-latest

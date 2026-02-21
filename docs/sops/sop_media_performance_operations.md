@@ -248,7 +248,7 @@ Monitor these events during rollout:
    - Runs `npm run test:perf:ai-studio` against production build/start.
    - On pull requests, runs only when AI Studio perf-impacting files changed.
    - Gate mode defaults to `warn` and can be switched to `enforce` with repo variable `AI_STUDIO_PERF_GATE_MODE`.
-   - If secrets are missing, CI posts a notice from `ai_studio_perf_gate_notice`.
+   - If secrets are missing, the same job records a skip summary and exits cleanly.
 
 ## CI Secret And Variable Setup
 - GitHub UI:

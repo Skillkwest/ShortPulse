@@ -230,7 +230,6 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 - `frontend`
 - `adaptive_media_gate`
 - `ai_studio_perf_gate`
-- `ai_studio_perf_gate_notice`
 - `security`
 - Planned jobs:
 - `docs_semantic_drift`

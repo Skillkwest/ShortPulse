@@ -18,7 +18,6 @@ Owner: Engineering
 - `agent_disable_continuity`
 - `adaptive_media_gate`
 - `ai_studio_perf_gate`
-- `ai_studio_perf_gate_notice`
 - `security`
 - `conversation_state_hardening_gate` (manual workflow-dispatch; environment-gated)
 - `apply_conversation_state_migration` (manual workflow-dispatch; environment-gated)

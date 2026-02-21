@@ -4,10 +4,10 @@
 Confirm all controls, compatibility windows, and evidence are complete before closeout.
 
 ## Checklist
-- [ ] Validate no migration ordering conflicts.
-- [ ] Validate no enforcement before compatibility windows.
-- [ ] Validate no CI job collisions.
-- [ ] Validate machine-checkable evidence for all controls.
+- [x] Validate no migration ordering conflicts.
+- [x] Validate no enforcement before compatibility windows.
+- [x] Validate no CI job collisions.
+- [x] Validate machine-checkable evidence for all controls.
 - [ ] Capture engineering, security, and operations signoff.
 
 ## Verification
@@ -24,3 +24,4 @@ Confirm all controls, compatibility windows, and evidence are complete before cl
 
 ## Evidence
 - `docs/planning/final-validation-summary.md`
+- `docs/planning/evidence/docs/2026-02-21-stg-08-precloseout-validation.md`

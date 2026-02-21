@@ -46,6 +46,8 @@ Enforce-trial result:
 - Failure detail: `supabase db lint --local` could not connect to local postgres (`127.0.0.1:54322`).
 - Rollback-first stabilization applied: `SQL_LINT_MODE=warn` (all other promoted checks remain `enforce`).
 - Post-rollback validation run `22251094709` completed `success`.
+- CI bootstrap fix applied: `sql_lint` job now starts local Supabase (postgres-only footprint) before lint.
+- SQL lint enforce mode re-promoted: `SQL_LINT_MODE=enforce` (2026-02-21).
 
 ## Result
 - Pre-promotion two-green-cycle criterion is satisfied.
@@ -53,7 +55,6 @@ Enforce-trial result:
 - STG-06 remains `In Progress` until SQL lint bootstrap is fixed and two consecutive CI cycles are logged with stable target-mode configuration.
 
 ## Next Action Required
-- Implement CI-safe SQL lint bootstrap (or approved equivalent), then re-promote `SQL_LINT_MODE=enforce`.
 - Record two fresh consecutive green `ci.yml` cycles after SQL lint re-promotion.
 - Refresh branch-protection evidence review metadata (reviewer/date) after UI verification.
 - Keep plan-tier enforcement constraint (`403` API / non-enforceable private ruleset) tracked as open dependency for production-readiness closeout.

@@ -46,7 +46,8 @@ Owner: Engineering
 
 - Command: `supabase db lint --local --schema public --fail-on warning`
 - Initial mode: warn/evaluate
-- Current mode: `warn` (rolled back 2026-02-21 after enforce trial run `22251008051` failed: local DB bootstrap unavailable in CI for `supabase db lint --local`)
+- Current mode: `enforce` (re-promoted 2026-02-21 after CI bootstrap fix; validate with fresh post-promotion green cycles)
+- CI bootstrap update (2026-02-21): `sql_lint` workflow now runs `supabase start` (postgres-only footprint via exclude list) before lint and always executes `supabase stop --all --no-backup` cleanup.
 
 ## Security gate
 

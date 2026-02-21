@@ -203,9 +203,23 @@ jobs:
             MODE="warn"
           fi
 
+          # Keep local CI footprint small: start only postgres for linting.
+          EXCLUDES="gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor"
+          cleanup() {
+            npx supabase stop --all --no-backup >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
           set +e
-          npx supabase db lint --local --schema public --fail-on warning
-          STATUS=$?
+          npx supabase start -x "$EXCLUDES"
+          START_STATUS=$?
+          if [ "$START_STATUS" -eq 0 ]; then
+            npx supabase db lint --local --schema public --fail-on warning
+            STATUS=$?
+          else
+            echo "::warning::Failed to start local Supabase services for SQL lint."
+            STATUS="$START_STATUS"
+          fi
           set -e
 
           if [ "$STATUS" -eq 0 ]; then

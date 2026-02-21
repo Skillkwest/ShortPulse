@@ -14,6 +14,15 @@ import { sanitizeGenerationPromptText } from "../../../features/agent-core/promp
 import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/logic/studioAgentReferenceSelection";
 import { buildStudioAgentOrchestration } from "../../../features/ai-agent/logic/studioAgentOrchestration";
 import { runThinkerFormatterTurn } from "../../../features/ai-agent/logic/studioAgentThinkerFormatter";
+import {
+  readStudioAgentCanonicalPrompt,
+  writeStudioAgentCanonicalPrompt,
+} from "../../../features/agent-runtime/studioAgentCanonicalPersistence";
+import {
+  fetchStudioAgentChatCompletion,
+  formatStudioAgentErrorMessage,
+  resolveStudioAgentOpenAiConfig,
+} from "../../../features/agent-runtime/studioAgentOpenAiGateway";
 import { STUDIO_AGENT_MAX_MEDIA } from "../../../features/agent-runtime/studioAgentRequestGuards";
 import {
   isStudioAgentFeatureEnabled,
@@ -31,19 +40,7 @@ import {
 import { resolveStudioAgentTurnResponse } from "../../../features/agent-runtime/studioAgentTurnResponse";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
-import {
-  clampCanonicalPrompt,
-  readAgentConversationCanonicalPrompt,
-  upsertAgentConversationCanonicalPrompt,
-} from "../../../lib/server/api/agentConversationState";
-
-const OPENAI_URL =
-  (process.env.OPENAI_API_BASE || "https://api.openai.com/v1") + "/chat/completions";
-const DEFAULT_MODEL = "gpt-5-nano";
-const DEFAULT_VISION_MODEL = "gpt-5-nano";
-const DEFAULT_TIMEOUT_MS = 20000;
-const MIN_TIMEOUT_MS = 1000;
-const MAX_TIMEOUT_MS = 120000;
+import { clampCanonicalPrompt } from "../../../lib/server/api/agentConversationState";
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
@@ -109,62 +106,15 @@ const buildFormatterMessages = (semantic: unknown, prompt: string): OpenAIChatMe
   { role: "user", content: JSON.stringify(semantic) },
 ];
 
-const fetchOpenAiChatCompletion = async ({
-  apiKey,
-  model,
-  messages,
-  timeoutMs,
-}: {
-  apiKey: string;
-  model: string;
-  messages: unknown[];
-  timeoutMs: number;
-}) => {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ model, messages }),
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-};
-
-const withTimeoutMessage = (error: unknown): string => {
-  if (error instanceof DOMException && error.name === "AbortError") {
-    return "OpenAI request timed out";
-  }
-  return error instanceof Error ? error.message : String(error);
-};
-
-const parseRequestTimeoutMs = (value: string | undefined): number => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return DEFAULT_TIMEOUT_MS;
-  const rounded = Math.trunc(parsed);
-  if (rounded < MIN_TIMEOUT_MS) return MIN_TIMEOUT_MS;
-  if (rounded > MAX_TIMEOUT_MS) return MAX_TIMEOUT_MS;
-  return rounded;
-};
-
-const resolveModelEnv = (candidate: string | undefined, fallback: string): string => {
-  const trimmed = candidate?.trim();
-  return trimmed && trimmed.length ? trimmed : fallback;
-};
-
 const buildImageSummaryMap = async ({
+  openAiUrl,
   context,
   imageDescribePrompt,
   apiKey,
   visionModel,
   timeoutMs,
 }: {
+  openAiUrl: string;
   context: AgentContext;
   imageDescribePrompt: string;
   apiKey: string;
@@ -180,8 +130,9 @@ const buildImageSummaryMap = async ({
     mediaItems.map(async (item) => {
       const imageUrl = item.url ?? "";
       if (!imageUrl) return null;
-      const response = await fetchOpenAiChatCompletion({
+      const response = await fetchStudioAgentChatCompletion({
         apiKey,
+        openAiUrl,
         model: visionModel,
         timeoutMs,
         messages: [
@@ -353,39 +304,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const canonicalDbEnabled = process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED !== "false";
   const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
   const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
-  const openAiModel = resolveModelEnv(process.env.OPENAI_MODEL, DEFAULT_MODEL);
-  const openAiVisionModel = resolveModelEnv(process.env.OPENAI_VISION_MODEL, DEFAULT_VISION_MODEL);
-  const openAiThinkerModel = resolveModelEnv(process.env.STUDIO_AGENT_THINKER_MODEL, openAiModel);
-  const openAiFormatterModel = resolveModelEnv(
-    process.env.STUDIO_AGENT_FORMATTER_MODEL,
-    openAiThinkerModel
-  );
-  const requestTimeoutMs = parseRequestTimeoutMs(process.env.STUDIO_AGENT_TIMEOUT_MS);
+  const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
+  const { openAiUrl, openAiModel, openAiVisionModel, openAiThinkerModel, openAiFormatterModel } =
+    openAiConfig;
+  const requestTimeoutMs = openAiConfig.requestTimeoutMs;
 
-  let storedCanonical: string | null = null;
-  if (canonicalDbEnabled && normalizedConversationId) {
-    const canonicalReadStartedAt = Date.now();
-    try {
-      storedCanonical = await readAgentConversationCanonicalPrompt({
-        userId: user.id,
-        conversationId: normalizedConversationId,
-      });
-    } catch (error) {
-      console.warn("[studio-agent] canonical db read failed", withTimeoutMessage(error));
-      await logApiRouteException({
-        req,
-        error,
-        routeLabel: "ai/studio-agent",
-        metadata: {
-          user_id: user.id,
-          conversation_id: normalizedConversationId,
-          stage: "canonical_read",
-        },
-      });
-    } finally {
-      markStage("canonical_read", canonicalReadStartedAt);
-    }
-  }
+  const storedCanonical = await readStudioAgentCanonicalPrompt({
+    req,
+    userId: user.id,
+    conversationId: normalizedConversationId,
+    canonicalDbEnabled,
+    markStage,
+    formatErrorMessage: formatStudioAgentErrorMessage,
+  });
 
   const canonicalPrompt =
     sanitizeGenerationPromptText(storedCanonical) ??
@@ -412,6 +343,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const visionStartedAt = Date.now();
     try {
       visionSummaryMap = await buildImageSummaryMap({
+        openAiUrl,
         context,
         imageDescribePrompt,
         apiKey,
@@ -420,7 +352,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       context = applyVisionSummariesToContext(context, visionSummaryMap);
     } catch (error) {
-      console.warn("[studio-agent] server vision summary failed", withTimeoutMessage(error));
+      console.warn(
+        "[studio-agent] server vision summary failed",
+        formatStudioAgentErrorMessage(error)
+      );
       await logApiRouteException({
         req,
         error,
@@ -506,7 +441,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const v2StartedAt = Date.now();
       const firstPass = await runThinkerFormatterTurn({
         apiKey,
-        openAiUrl: OPENAI_URL,
+        openAiUrl,
         thinkerModel: openAiThinkerModel,
         formatterModel: openAiFormatterModel,
         thinkerMessages: buildThinkerMessages(thinkerPayload, thinkerPrompt),
@@ -551,7 +486,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const retryStartedAt = Date.now();
         const retryPass = await runThinkerFormatterTurn({
           apiKey,
-          openAiUrl: OPENAI_URL,
+          openAiUrl,
           thinkerModel: openAiThinkerModel,
           formatterModel: openAiFormatterModel,
           thinkerMessages: buildThinkerMessages(
@@ -601,29 +536,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const refusal = resolvedTurn.refusal;
       const resolvedCanonical = resolvedTurn.resolvedCanonical;
 
-      if (!refusal && canonicalDbEnabled && normalizedConversationId && resolvedCanonical) {
-        const canonicalWriteStartedAt = Date.now();
-        try {
-          await upsertAgentConversationCanonicalPrompt({
-            userId: user.id,
-            conversationId: normalizedConversationId,
-            canonicalPrompt: resolvedCanonical,
-          });
-        } catch (error) {
-          console.warn("[studio-agent] canonical db upsert failed", withTimeoutMessage(error));
-          await logApiRouteException({
-            req,
-            error,
-            routeLabel: "ai/studio-agent",
-            metadata: {
-              user_id: user.id,
-              conversation_id: normalizedConversationId,
-              stage: "canonical_write_v2",
-            },
-          });
-        } finally {
-          markStage("canonical_write", canonicalWriteStartedAt);
-        }
+      if (!refusal) {
+        await writeStudioAgentCanonicalPrompt({
+          req,
+          userId: user.id,
+          conversationId: normalizedConversationId,
+          canonicalPrompt: resolvedCanonical,
+          canonicalDbEnabled,
+          markStage,
+          writeFailureStage: "canonical_write_v2",
+          formatErrorMessage: formatStudioAgentErrorMessage,
+        });
       }
 
       emitTurnTelemetry({
@@ -645,8 +568,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const fastPathStartedAt = Date.now();
-    const response = await fetchOpenAiChatCompletion({
+    const response = await fetchStudioAgentChatCompletion({
       apiKey,
+      openAiUrl,
       model: openAiModel,
       messages: openAiMessages,
       timeoutMs: requestTimeoutMs,
@@ -691,29 +615,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const refusal = resolvedTurn.refusal;
     const resolvedCanonical = resolvedTurn.resolvedCanonical;
 
-    if (!refusal && canonicalDbEnabled && normalizedConversationId && resolvedCanonical) {
-      const canonicalWriteStartedAt = Date.now();
-      try {
-        await upsertAgentConversationCanonicalPrompt({
-          userId: user.id,
-          conversationId: normalizedConversationId,
-          canonicalPrompt: resolvedCanonical,
-        });
-      } catch (error) {
-        console.warn("[studio-agent] canonical db upsert failed", withTimeoutMessage(error));
-        await logApiRouteException({
-          req,
-          error,
-          routeLabel: "ai/studio-agent",
-          metadata: {
-            user_id: user.id,
-            conversation_id: normalizedConversationId,
-            stage: "canonical_write_fast_path",
-          },
-        });
-      } finally {
-        markStage("canonical_write", canonicalWriteStartedAt);
-      }
+    if (!refusal) {
+      await writeStudioAgentCanonicalPrompt({
+        req,
+        userId: user.id,
+        conversationId: normalizedConversationId,
+        canonicalPrompt: resolvedCanonical,
+        canonicalDbEnabled,
+        markStage,
+        writeFailureStage: "canonical_write_fast_path",
+        formatErrorMessage: formatStudioAgentErrorMessage,
+      });
     }
 
     emitTurnTelemetry({
@@ -756,7 +668,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
     return res.status(500).json({
       error: "Agent call failed",
-      detail: withTimeoutMessage(error),
+      detail: formatStudioAgentErrorMessage(error),
       traceId,
     });
   }

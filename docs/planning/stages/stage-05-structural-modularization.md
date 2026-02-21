@@ -4,10 +4,10 @@
 Reduce oversized hotspot files by concern-oriented splits without feature behavior changes.
 
 ## Checklist
-- [ ] Prioritize hotspot files by churn and blast radius.
-- [ ] Split by concern (UI, state wiring, side effects, adapters).
-- [ ] Enforce file-size budget checks or documented exception.
-- [ ] Keep behavior stable and validate regressions.
+- [x] Prioritize hotspot files by churn and blast radius.
+- [x] Split by concern (UI, state wiring, side effects, adapters).
+- [x] Enforce file-size budget checks or documented exception.
+- [x] Keep behavior stable and validate regressions.
 
 ## Verification
 - `npm -C frontend run validate`
@@ -22,3 +22,4 @@ Reduce oversized hotspot files by concern-oriented splits without feature behavi
 
 ## Evidence
 - `docs/planning/evidence/architecture/`
+- `docs/planning/evidence/architecture/2026-02-21-phase-3-closeout-validation.md`

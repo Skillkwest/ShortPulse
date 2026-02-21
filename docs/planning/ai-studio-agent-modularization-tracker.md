@@ -14,7 +14,7 @@ Phase dates in the program doc are target windows. Guardrail setup and initial s
 | Phase 0: Contract Freeze | Completed | AI Platform | 2026-02-23 | 2026-02-25 | schema source-of-truth locked | `docs/planning/evidence/agent/phase-0/` |
 | Phase 1: Correctness Hardening | Completed | AI Platform + Frontend | 2026-02-26 | 2026-03-06 | audit-delta defects closed | `docs/planning/evidence/agent/phase-1/` |
 | Phase 2: Strangler Consolidation | Completed | AI Platform | 2026-02-21 | 2026-03-20 | no logic duplication across 3 routes | `docs/planning/evidence/agent/phase-2/` |
-| Phase 3: Modularization Pass | In Progress | Frontend | 2026-03-23 | 2026-04-03 | size budget pass or ADR exceptions | `docs/planning/evidence/architecture/` |
+| Phase 3: Modularization Pass | Completed | Frontend | 2026-03-23 | 2026-04-03 | size budget pass or ADR exceptions | `docs/planning/evidence/architecture/` |
 | Phase 4: Guardrails + Governance | In Progress | Platform + DevEx | 2026-02-21 | 2026-04-10 | enforce mode stable for 2 cycles | `docs/planning/evidence/agent/phase-4/` |
 | Phase 5: Progressive Rollout | Planned | AI Platform + Ops | 2026-04-13 | 2026-04-24 | all canary rings pass | `docs/planning/evidence/agent/phase-5/` |
 | Phase 6: Legacy Decommission | Planned | AI Platform | 2026-04-27 | 2026-05-01 | 14-day zero first-party traffic | `docs/planning/evidence/agent/phase-6/` |
@@ -78,11 +78,11 @@ Exit validation:
 - [x] Split `frontend/pages/ai-studio.tsx` agent bridge wiring out.
 - [x] Split `frontend/features/ai-studio/hooks/useAiStudioState.ts` agent adapters out.
 - [x] Split `frontend/features/ai-studio/components/PromptStep.tsx` history/composer/actions.
-- [ ] Enforce size budgets with explicit ADR exceptions where required.
+- [x] Enforce size budgets with explicit ADR exceptions where required (no exceptions required after slice completion).
 
 Exit validation:
-- [ ] Behavior parity test suite unchanged and green.
-- [ ] Boundaries + size checks green.
+- [x] Behavior parity test suite unchanged and green.
+- [x] Boundaries + size checks green.
 
 ### Phase 4: Guardrails + Governance
 - [x] Add architecture-boundary check script + CI gate (active warn/evaluate).

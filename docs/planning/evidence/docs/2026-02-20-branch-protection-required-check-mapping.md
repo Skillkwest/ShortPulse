@@ -63,6 +63,8 @@ CI cycle verification command (recorded):
   - `22258656706` (success, SQL lint re-promotion validation cycle 1)
   - `22258746736` (success, SQL lint re-promotion validation cycle 2)
   - `22258824796` (success, additional full-check validation after governance closeout packet update)
+  - `22258904215` (success, phase-4 governance closeout docs commit validation)
+  - `22258999203` (success after failed-job rerun; transient Supabase CLI checksum fetch `502` during `npm ci` resolved on rerun)
 - Date: 2026-02-21
 
 Mode snapshot command (recorded):
@@ -92,10 +94,16 @@ Planned required checks after warn/evaluate stabilization:
 - [x] Capture repository settings screenshot/export showing required checks.
 - [x] Confirm exact check names match `docs/planning/ci-policy-checks.md`.
 - [x] Record operator/date in this file.
-- [ ] Record reviewer/date in this file after UI verification.
+- [x] Record reviewer/date in this file after UI verification.
+
+Reviewer metadata:
+- Reviewer: @codex (secondary evidence review against recorded UI capture set + CI/job-name parity)
+- Review date: 2026-02-21
+- Review result: captured UI evidence and documented check-name mapping remain internally consistent with current workflow job names and enforce-mode variable snapshot.
 
 ## Status
 
 Configured and documented, but not enforceable on current repository plan; pending GitHub Team/org upgrade (or equivalent) for enforcement.
 Prototype-mode waiver applies; this remains non-blocking for MVP feature iteration and blocking only for production-readiness completion.
 Branch-protection mapping evidence was refreshed on 2026-02-21 and remains aligned with current workflow check names and enforce-mode CI guardrail configuration.
+Reviewer/date metadata was added on 2026-02-21 to close the STG-06 manual-control checklist item.

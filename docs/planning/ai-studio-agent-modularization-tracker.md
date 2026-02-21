@@ -16,7 +16,7 @@ Phase dates in the program doc are target windows. Guardrail setup and initial s
 | Phase 2: Strangler Consolidation | Completed | AI Platform | 2026-02-21 | 2026-03-20 | no logic duplication across 3 routes | `docs/planning/evidence/agent/phase-2/` |
 | Phase 3: Modularization Pass | Completed | Frontend | 2026-03-23 | 2026-04-03 | size budget pass or ADR exceptions | `docs/planning/evidence/architecture/` |
 | Phase 4: Guardrails + Governance | In Progress | Platform + DevEx | 2026-02-21 | 2026-04-10 | enforce mode stable for 2 cycles + governance evidence packet | `docs/planning/evidence/agent/phase-4/` |
-| Phase 5: Progressive Rollout | Planned | AI Platform + Ops | 2026-04-13 | 2026-04-24 | all canary rings pass | `docs/planning/evidence/agent/phase-5/` |
+| Phase 5: Progressive Rollout | In Progress | AI Platform + Ops | 2026-02-21 | 2026-04-24 | all canary rings pass | `docs/planning/evidence/agent/phase-5/` |
 | Phase 6: Legacy Decommission | Planned | AI Platform | 2026-04-27 | 2026-05-01 | 14-day zero first-party traffic | `docs/planning/evidence/agent/phase-6/` |
 
 ## Execution Checklist
@@ -101,12 +101,14 @@ Exit validation:
 - [x] Required checks reflect target state.
 - [x] Two green cycles logged with full enforce-mode check set (`22258656706`, `22258746736`).
 - [x] Governance evidence complete.
-- [ ] Branch-protection UI reviewer/date metadata captured (manual-control artifact), with plan-tier enforceability constraint tracked as `DEP-01`.
+- [x] Branch-protection reviewer/date metadata captured in manual-control artifact; plan-tier enforceability constraint remains tracked as `DEP-01`.
 
 ### Phase 5: Progressive Rollout
 - [x] Publish on-call rollout runbook before ring execution (`docs/sops/sop_ai_studio_agent_rollout_operations.md`).
 - [x] Seed phase-5 evidence templates for rollout reports and rollback drills (`docs/planning/evidence/agent/phase-5/phase-5-rollout-report-template.md`, `docs/planning/evidence/agent/phase-5/phase-5-rollback-drill-template.md`).
 - [x] Record ops-readiness bootstrap evidence and CI validation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-ops-readiness-bootstrap.md`, run `22258904215`).
+- [x] Record DEP-03 dashboard/alert readiness evidence with source mapping and CI validation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`, run `22258999203`).
+- [x] Kick off staging soak ring and archive rollout report (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`).
 - [ ] Staging soak 24h.
 - [ ] Production 5% 24h.
 - [ ] Production 25% 24h.
@@ -147,7 +149,7 @@ Exit validation:
 ## Rollout Gate Tracker
 | Ring | Start | End | Pass/Fail | p95 | p99 | 5xx | timeout | refusal delta | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Staging soak 24h | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+| Staging soak 24h | 2026-02-21 15:13:00Z | 2026-02-22 15:13:00Z (target) | In Progress | collecting | collecting | collecting | collecting | collecting | Hold for completion window | `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md` |
 | Production 5% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 | Production 25% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 | Production 50% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
@@ -168,7 +170,7 @@ Exit validation:
 | --- | --- | --- | --- | --- | --- |
 | DEP-01 | GitHub plan-tier constraint for enforceable required checks | Blocks full policy enforcement | Engineering Mgmt | Open | TBD |
 | DEP-02 | Legacy caller migration off `/generate-prompt` + `/describe-image` | Blocks decommission | Product Eng | Open | TBD |
-| DEP-03 | Dashboards + alert wiring for ring gates | Blocks rollout promotion | Ops | Open | TBD |
+| DEP-03 | Dashboards + alert wiring for ring gates | Blocks rollout promotion beyond staging soak | Ops | In Progress | 2026-02-22 |
 
 ## Evidence Links (to fill during execution)
 - Phase 0: `docs/planning/evidence/agent/phase-0/`

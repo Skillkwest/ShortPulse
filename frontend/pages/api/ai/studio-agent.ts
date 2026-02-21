@@ -5,15 +5,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
 import type { AgentContext, AgentMessage } from "../../../prefabs/agent";
-import {
-  isExplicitEditRequest,
-  preservesContext,
-  shouldRetryExplicitNoOp,
-} from "../../../features/ai-agent/logic/studioAgentCanonical";
 import { sanitizeGenerationPromptText } from "../../../features/agent-core/promptText";
 import { pickSelectedReferencesForThinker } from "../../../features/ai-agent/logic/studioAgentReferenceSelection";
 import { buildStudioAgentOrchestration } from "../../../features/ai-agent/logic/studioAgentOrchestration";
-import { runThinkerFormatterTurn } from "../../../features/ai-agent/logic/studioAgentThinkerFormatter";
 import {
   readStudioAgentCanonicalPrompt,
   writeStudioAgentCanonicalPrompt,
@@ -32,11 +26,10 @@ import {
 } from "../../../features/agent-runtime/studioAgentRouteEnvelope";
 import {
   extractStudioAgentCompletionText,
-  isStudioAgentRefusalResponse,
-  parseStudioAgentJson,
   parseStudioAgentJsonWithStatus,
 } from "../../../features/agent-runtime/studioAgentResponseNormalization";
 import { resolveStudioAgentTurnResponse } from "../../../features/agent-runtime/studioAgentTurnResponse";
+import { executeStudioAgentV2Turn } from "../../../features/agent-runtime/studioAgentV2Turn";
 import {
   applyStudioAgentVisionSummariesToContext,
   buildStudioAgentImageSummaryMap,
@@ -99,16 +92,6 @@ const buildOpenAiMessages = (
   });
   return chat;
 };
-
-const buildThinkerMessages = (payload: unknown, prompt: string): OpenAIChatMessage[] => [
-  { role: "system", content: prompt },
-  { role: "user", content: JSON.stringify(payload) },
-];
-
-const buildFormatterMessages = (semantic: unknown, prompt: string): OpenAIChatMessage[] => [
-  { role: "system", content: prompt },
-  { role: "user", content: JSON.stringify(semantic) },
-];
 
 const emitTurnTelemetry = ({
   flow,
@@ -295,69 +278,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : "fallback_fast_path";
 
   try {
-    let retryUsed = false;
-
     if (useV2Path && thinkerPrompt && formatterPrompt) {
-      const userInput = messages[messages.length - 1]?.content ?? "";
-      const imageSummaries = selectedReferences
-        .filter((reference) => reference.kind === "image")
-        .map((reference) => ({
-          id: reference.id,
-          summary:
-            visionSummaryMap.get(reference.id) ??
-            reference.caption ??
-            reference.promptSnippet ??
-            undefined,
-        }))
-        .filter((entry) => typeof entry.summary === "string" && entry.summary.trim().length > 0);
-
-      const thinkerPayload = {
-        input_flow: orchestration.flow,
-        orchestration,
-        context_type: orchestration.contextType,
-        canonical_prompt: effectiveCanonical,
-        user_input: userInput,
-        text_agent_input: orchestration.textInput,
-        edit_instructions:
-          effectiveCanonical && userInput.trim().length
-            ? `Edit the canonical prompt in place.\nCanonical prompt:\n${effectiveCanonical}\n\nUser change:\n${userInput}`
-            : null,
-        context_payload:
-          orchestration.flow === "TEXT_ONLY"
-            ? orchestration.textInput ||
-              context.activePrompt ||
-              context.references?.[0]?.promptSnippet ||
-              ""
-            : orchestration.flow === "IMAGE_ONLY"
-              ? {
-                  image_summaries: imageSummaries,
-                }
-              : {
-                  text_seed: orchestration.textInput,
-                  image_summaries: imageSummaries,
-                  image_refs: orchestration.imageReferenceIds,
-                },
-        selected_reference_ids: context.selectedReferenceIds ?? [],
-        selected_references: selectedReferences,
-        focused_source: context.focusedSource ?? null,
-        focused_reference_id: context.focusedReferenceId ?? null,
-        mode_hint: context.modeHint ?? null,
-      };
-
-      const v2StartedAt = Date.now();
-      const firstPass = await runThinkerFormatterTurn({
+      const v2Turn = await executeStudioAgentV2Turn({
         apiKey,
         openAiUrl,
         thinkerModel: openAiThinkerModel,
         formatterModel: openAiFormatterModel,
-        thinkerMessages: buildThinkerMessages(thinkerPayload, thinkerPrompt),
-        buildFormatterMessages: (semantic) => buildFormatterMessages(semantic, formatterPrompt),
-        parseAgentJson: parseStudioAgentJson,
+        thinkerPrompt,
+        formatterPrompt,
         timeoutMs: requestTimeoutMs,
+        orchestration,
+        context,
+        messages,
+        selectedReferences,
+        visionSummaryMap,
+        effectiveCanonical,
+        markStage,
       });
-      markStage("v2_turn", v2StartedAt);
 
-      if (!firstPass.ok) {
+      if (!v2Turn.ok) {
         emitTurnTelemetry({
           flow: orchestration.flow,
           path,
@@ -367,68 +306,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           totalLatencyMs: Date.now() - requestStartedAt,
           stageLatencyMs,
         });
-        return res.status(firstPass.status).json({
-          error: `Upstream error (${firstPass.stage})`,
-          detail: firstPass.detail,
+        return res.status(v2Turn.status).json({
+          error: `Upstream error (${v2Turn.stage})`,
+          detail: v2Turn.detail,
           traceId,
         });
       }
 
-      let parsed = firstPass.result.parsed;
-      let nextCanonical = firstPass.result.nextCanonical ?? effectiveCanonical ?? null;
-      let usage = firstPass.result.usage;
-      let semanticStatus = firstPass.result.semanticStatus;
-      const explicitEditRequest = isExplicitEditRequest(userInput);
-      const bypassDriftGuard = explicitEditRequest;
-
-      if (
-        shouldRetryExplicitNoOp({
-          userInput,
-          effectiveCanonical,
-          nextCanonical,
-        })
-      ) {
-        retryUsed = true;
-        const retryStartedAt = Date.now();
-        const retryPass = await runThinkerFormatterTurn({
-          apiKey,
-          openAiUrl,
-          thinkerModel: openAiThinkerModel,
-          formatterModel: openAiFormatterModel,
-          thinkerMessages: buildThinkerMessages(
-            {
-              ...thinkerPayload,
-              retry_instruction:
-                "Your previous draft did not apply the explicit user edit. Re-apply the user change to the canonical prompt now and return the full updated prompt.",
-            },
-            thinkerPrompt
-          ),
-          buildFormatterMessages: (semantic) => buildFormatterMessages(semantic, formatterPrompt),
-          parseAgentJson: parseStudioAgentJson,
-          timeoutMs: requestTimeoutMs,
-        });
-        markStage("v2_retry_turn", retryStartedAt);
-        if (retryPass.ok) {
-          parsed = retryPass.result.parsed;
-          nextCanonical = retryPass.result.nextCanonical ?? nextCanonical;
-          usage = retryPass.result.usage;
-          semanticStatus = retryPass.result.semanticStatus;
-        }
-      }
-
-      const preResolutionRefusal = isStudioAgentRefusalResponse({
-        status: semanticStatus,
-        response: parsed,
-      });
-
-      if (!preResolutionRefusal && effectiveCanonical && nextCanonical && !bypassDriftGuard) {
-        if (!preservesContext(effectiveCanonical, nextCanonical)) {
-          console.warn("[studio-agent] drift detected; restoring canonical prompt");
-          parsed.actions = parsed.actions ?? {};
-          parsed.actions.applyPrompt = effectiveCanonical;
-          nextCanonical = effectiveCanonical;
-        }
-      }
+      let parsed = v2Turn.result.parsed;
+      const nextCanonical = v2Turn.result.nextCanonical;
+      const usage = v2Turn.result.usage;
+      const semanticStatus = v2Turn.result.semanticStatus;
+      const retryUsed = v2Turn.result.retryUsed;
 
       const resolvedTurn = resolveStudioAgentTurnResponse({
         parsed,

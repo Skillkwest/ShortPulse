@@ -5,7 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { applyAgentLegacyDeprecationHeaders } from "../../../features/agent-runtime/legacyDeprecation";
-import { executeLegacyPromptGeneration } from "../../../features/agent-runtime/legacyPromptGenerationService";
+import { agentRuntimeService } from "../../../features/agent-runtime/agentRuntimeService";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const routeLabel = "ai/generate-prompt";
@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const user = await requireApiUser(req, res);
   if (!user) return;
-  const result = await executeLegacyPromptGeneration({
+  const result = await agentRuntimeService.generatePrompt({
     req,
     user,
     prompt: (req.body as { prompt?: unknown })?.prompt,

@@ -12,8 +12,8 @@ Phase dates in the program doc are target windows. Guardrail setup and initial s
 | Phase | Status | Owner | Start | Target End | Gate | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Phase 0: Contract Freeze | Completed | AI Platform | 2026-02-23 | 2026-02-25 | schema source-of-truth locked | `docs/planning/evidence/agent/phase-0/` |
-| Phase 1: Correctness Hardening | In Progress | AI Platform + Frontend | 2026-02-26 | 2026-03-06 | audit-delta defects closed | `docs/planning/evidence/agent/phase-1/` |
-| Phase 2: Strangler Consolidation | In Progress | AI Platform | 2026-02-21 | 2026-03-20 | no logic duplication across 3 routes | `docs/planning/evidence/agent/phase-2/` |
+| Phase 1: Correctness Hardening | Completed | AI Platform + Frontend | 2026-02-26 | 2026-03-06 | audit-delta defects closed | `docs/planning/evidence/agent/phase-1/` |
+| Phase 2: Strangler Consolidation | Completed | AI Platform | 2026-02-21 | 2026-03-20 | no logic duplication across 3 routes | `docs/planning/evidence/agent/phase-2/` |
 | Phase 3: Modularization Pass | Planned | Frontend | 2026-03-23 | 2026-04-03 | size budget pass or ADR exceptions | `docs/planning/evidence/architecture/` |
 | Phase 4: Guardrails + Governance | In Progress | Platform + DevEx | 2026-02-21 | 2026-04-10 | enforce mode stable for 2 cycles | `docs/planning/evidence/agent/phase-4/` |
 | Phase 5: Progressive Rollout | Planned | AI Platform + Ops | 2026-04-13 | 2026-04-24 | all canary rings pass | `docs/planning/evidence/agent/phase-5/` |
@@ -55,9 +55,9 @@ Exit validation:
 - [x] Emit deprecation + sunset headers on legacy routes.
 
 Exit validation:
-- [ ] No duplicated business logic among AI routes.
-- [ ] Compatibility tests pass.
-- [ ] Migration report published.
+- [x] No duplicated business logic among AI routes.
+- [x] Compatibility tests pass.
+- [x] Migration report published.
 
 ### Phase 3: Modularization Pass
 - [ ] Split `frontend/pages/api/ai/studio-agent.ts` by concern.

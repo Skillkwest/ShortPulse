@@ -28,4 +28,4 @@ npm -C frontend run docs:check
 
 ## Result
 Permission failure cause isolated and validated on run `22250627010`: both path-filter detection steps executed successfully without integration-permission errors.
-Full run conclusion remains in progress at capture time and must be recorded in STG-06 cycle evidence.
+The same run completed successfully and establishes green cycle #1 in STG-06 evidence.

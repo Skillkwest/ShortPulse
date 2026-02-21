@@ -65,6 +65,10 @@ describe("POST /api/ai/describe-image", () => {
 
     expect(res.setHeader).toHaveBeenCalledWith("Deprecation", "true");
     expect(res.setHeader).toHaveBeenCalledWith("Sunset", "Sun, 26 Apr 2026 00:00:00 GMT");
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Link",
+      '<https://docs.shortpulse.app/agent-route-migration>; rel="deprecation"'
+    );
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: "HEAD" });
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: "GET" });

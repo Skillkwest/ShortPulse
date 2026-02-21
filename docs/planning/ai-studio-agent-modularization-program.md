@@ -243,6 +243,6 @@ Branch required-check enforcement is currently constrained by repository plan li
 5. Martin Fowler monolith-first boundaries: https://martinfowler.com/bliki/MonolithFirst.html
 6. Pact contract versioning: https://docs.pact.io/getting_started/versioning_in_the_pact_broker
 7. RFC 8594 Sunset header: https://datatracker.ietf.org/doc/html/rfc8594
-8. Deprecation header draft: https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-deprecation-header-09
+8. RFC 9745 Deprecation header: https://datatracker.ietf.org/doc/html/rfc9745
 9. Feature flag debt hygiene: https://launchdarkly.com/docs/guides/flags/technical-debt
 10. GitHub protected branches behavior: https://docs.github.com/en/enterprise-server@3.19/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches

@@ -8,6 +8,7 @@ const FRONTEND_ROOT = path.join(REPO_ROOT, "frontend");
 const AI_STUDIO_ROOT = path.join(FRONTEND_ROOT, "features", "ai-studio");
 const AGENT_FEATURE_ROOT = path.join(FRONTEND_ROOT, "features", "ai-agent");
 const AGENT_CORE_ROOT = path.join(FRONTEND_ROOT, "features", "agent-core");
+const AGENT_RUNTIME_ROOT = path.join(FRONTEND_ROOT, "features", "agent-runtime");
 const AGENT_API_ROUTES = [
   path.join(FRONTEND_ROOT, "pages", "api", "ai", "studio-agent.ts"),
   path.join(FRONTEND_ROOT, "pages", "api", "ai", "generate-prompt.ts"),
@@ -69,7 +70,12 @@ function isInside(targetPath, parentPath) {
 
 function checkBoundaries() {
   const errors = [];
-  const filesToCheck = [...walk(AGENT_FEATURE_ROOT), ...walk(AGENT_CORE_ROOT), ...AGENT_API_ROUTES];
+  const filesToCheck = [
+    ...walk(AGENT_FEATURE_ROOT),
+    ...walk(AGENT_CORE_ROOT),
+    ...walk(AGENT_RUNTIME_ROOT),
+    ...AGENT_API_ROUTES,
+  ];
 
   for (const filePath of filesToCheck) {
     if (!fs.existsSync(filePath)) continue;

@@ -14,24 +14,15 @@ import {
   shouldRetryWithFallbackVisionModel,
 } from "../../../lib/server/api/imageDescribeOpenAi";
 import { probeImageUrlForDescribe } from "../../../lib/server/api/imageDescribeUrlGuard";
+import { applyAgentLegacyDeprecationHeaders } from "../../../features/agent-runtime/legacyDeprecation";
 
 const IMAGE_DESCRIBER_ID: AgentPromptId = "OPENAI_PROMPT_IMAGE_DESCRIBE";
 const DEFAULT_VISION_MODEL = "gpt-5-nano";
 const DEFAULT_FALLBACK_VISION_MODEL = "gpt-5-nano";
-const DEPRECATION_SUNSET = "Sun, 26 Apr 2026 00:00:00 GMT";
-const DEPRECATION_LINK =
-  process.env.STUDIO_AGENT_DEPRECATION_DOC_URL ||
-  "https://docs.shortpulse.app/agent-route-migration";
-
-const setDeprecationHeaders = (res: NextApiResponse): void => {
-  res.setHeader("Deprecation", "true");
-  res.setHeader("Sunset", DEPRECATION_SUNSET);
-  res.setHeader("Link", `<${DEPRECATION_LINK}>; rel="deprecation"`);
-};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const routeLabel = "ai/describe-image";
-  setDeprecationHeaders(res);
+  applyAgentLegacyDeprecationHeaders(res);
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

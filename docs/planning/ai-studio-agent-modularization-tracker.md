@@ -6,13 +6,16 @@ Owner: Engineering
 Program Doc: `docs/planning/ai-studio-agent-modularization-program.md`
 
 ## Status Overview
+Execution note:
+Phase dates in the program doc are target windows. Guardrail setup was pulled forward on 2026-02-21 to reduce regression risk before deeper modularization.
+
 | Phase | Status | Owner | Start | Target End | Gate | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Phase 0: Contract Freeze | Completed | AI Platform | 2026-02-23 | 2026-02-25 | schema source-of-truth locked | `docs/planning/evidence/agent/phase-0/` |
 | Phase 1: Correctness Hardening | In Progress | AI Platform + Frontend | 2026-02-26 | 2026-03-06 | audit-delta defects closed | `docs/planning/evidence/agent/phase-1/` |
 | Phase 2: Strangler Consolidation | Planned | AI Platform | 2026-03-09 | 2026-03-20 | no logic duplication across 3 routes | `docs/planning/evidence/agent/phase-2/` |
 | Phase 3: Modularization Pass | Planned | Frontend | 2026-03-23 | 2026-04-03 | size budget pass or ADR exceptions | `docs/planning/evidence/architecture/` |
-| Phase 4: Guardrails + Governance | Planned | Platform + DevEx | 2026-04-06 | 2026-04-10 | enforce mode stable for 2 cycles | `docs/planning/evidence/docs/` |
+| Phase 4: Guardrails + Governance | In Progress | Platform + DevEx | 2026-02-21 | 2026-04-10 | enforce mode stable for 2 cycles | `docs/planning/evidence/agent/phase-4/` |
 | Phase 5: Progressive Rollout | Planned | AI Platform + Ops | 2026-04-13 | 2026-04-24 | all canary rings pass | `docs/planning/evidence/agent/phase-5/` |
 | Phase 6: Legacy Decommission | Planned | AI Platform | 2026-04-27 | 2026-05-01 | 14-day zero first-party traffic | `docs/planning/evidence/agent/phase-6/` |
 
@@ -70,10 +73,10 @@ Exit validation:
 - [ ] Boundaries + size checks green.
 
 ### Phase 4: Guardrails + Governance
-- [ ] Add architecture-boundary check script + CI gate.
-- [ ] Add size-budget check script + CI gate.
-- [ ] Add contract-test suite as required check.
-- [ ] Add disable-path continuity suite as required check.
+- [x] Add architecture-boundary check script + CI gate (active warn/evaluate).
+- [x] Add size-budget check script + CI gate (active warn/evaluate).
+- [x] Add contract-test suite as required check (active warn/evaluate).
+- [x] Add disable-path continuity suite as required check (active warn/evaluate).
 - [ ] Promote docs/parity checks to enforce mode after 2 green cycles.
 - [ ] Refresh branch-protection evidence mapping.
 
@@ -151,7 +154,7 @@ Exit validation:
 - Phase 1: `docs/planning/evidence/agent/phase-1/`
 - Phase 2: `docs/planning/evidence/agent/phase-2/`
 - Phase 3: `docs/planning/evidence/architecture/`
-- Phase 4: `docs/planning/evidence/docs/`
+- Phase 4: `docs/planning/evidence/agent/phase-4/`
 - Phase 5: `docs/planning/evidence/agent/phase-5/`
 - Phase 6: `docs/planning/evidence/agent/phase-6/`
 

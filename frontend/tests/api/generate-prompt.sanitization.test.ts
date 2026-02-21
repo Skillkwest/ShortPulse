@@ -57,6 +57,10 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.setHeader).toHaveBeenCalledWith("Deprecation", "true");
     expect(res.setHeader).toHaveBeenCalledWith("Sunset", "Sun, 26 Apr 2026 00:00:00 GMT");
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Link",
+      '<https://docs.shortpulse.app/agent-route-migration>; rel="deprecation"'
+    );
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: "An ancient Mayan temple rises from dense jungle.",

@@ -1,0 +1,56 @@
+/**
+ * Message-store helpers for `useAiAgent`.
+ * Keeps UI/history windowing and API payload shaping behavior centralized.
+ */
+import type { AgentApiMessage, AgentMessage } from "../../../prefabs/agent";
+
+const MAX_UI_MESSAGES = 24;
+const MAX_API_HISTORY_MESSAGES = 12;
+
+/**
+ * Append a message to the UI history window.
+ */
+export const appendUiMessage = (messages: AgentMessage[], message: AgentMessage): AgentMessage[] =>
+  [...messages, message].slice(-MAX_UI_MESSAGES);
+
+/**
+ * Append an assistant response to the UI history window while reserving one slot.
+ */
+export const appendAssistantMessage = (
+  messages: AgentMessage[],
+  content: string
+): AgentMessage[] => [...messages.slice(-(MAX_UI_MESSAGES - 1)), { role: "assistant", content }];
+
+/**
+ * Build API message history for the next turn from current local history.
+ */
+export const buildApiMessagesForTurn = ({
+  previousMessages,
+  userPayloadForApi,
+  skipUserEcho,
+  optimisticUserMessageId,
+}: {
+  previousMessages: AgentMessage[];
+  userPayloadForApi: string;
+  skipUserEcho: boolean;
+  optimisticUserMessageId: string | null;
+}): AgentApiMessage[] => {
+  const hasOptimisticUserAtTail =
+    skipUserEcho &&
+    previousMessages.length > 0 &&
+    previousMessages[previousMessages.length - 1]?.id === optimisticUserMessageId;
+  const previousMessagesForApi = hasOptimisticUserAtTail
+    ? previousMessages.slice(0, -1)
+    : previousMessages;
+
+  const baseHistory = previousMessagesForApi.slice(-MAX_API_HISTORY_MESSAGES);
+  return [...baseHistory, { role: "user", content: userPayloadForApi }].reduce<AgentApiMessage[]>(
+    (acc, message) => {
+      if (message.role === "user" || message.role === "assistant") {
+        acc.push({ role: message.role, content: message.content });
+      }
+      return acc;
+    },
+    []
+  );
+};

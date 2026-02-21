@@ -90,7 +90,7 @@ Exit validation:
 - [x] Add contract-test suite as required check (active warn/evaluate).
 - [x] Add disable-path continuity suite as required check (active warn/evaluate).
 - [ ] Promote docs/parity checks to enforce mode after 2 green cycles.
-- [ ] Refresh branch-protection evidence mapping.
+- [x] Refresh branch-protection evidence mapping (`docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md` refreshed 2026-02-21).
 
 Exit validation:
 - [ ] Required checks reflect target state.

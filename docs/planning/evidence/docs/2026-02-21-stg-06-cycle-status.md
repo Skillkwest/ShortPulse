@@ -27,6 +27,10 @@ Operator: @sleepyseamonster
   - `22241972832` (failure)
   - `22030430395` (success, older)
 
+Refresh note:
+- Re-verified with `gh run list --workflow ci.yml --limit 10 --json databaseId,headBranch,conclusion,createdAt,updatedAt,event` on 2026-02-21.
+- Result unchanged: no two consecutive green cycles.
+
 ### Environment-gated SQL workflows (supporting signal)
 - `conversation-state-hardening-gate.yml` recent runs are successful (`warn` + `enforce`) and documented under STG-02 evidence.
 - `apply-conversation-state-migration-028.yml` recent production runs show successful `028/029/030` applies with earlier failed attempts before secret setup.
@@ -38,4 +42,3 @@ Operator: @sleepyseamonster
 ## Next action required
 - Capture two consecutive green release cycles in CI run history and update this evidence file.
 - Keep enforce promotion blocked until this condition and branch-protection UI evidence are both complete.
-

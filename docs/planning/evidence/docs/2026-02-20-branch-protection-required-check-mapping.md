@@ -1,4 +1,4 @@
-# Branch Protection Required-Check Mapping (2026-02-20)
+# Branch Protection Required-Check Mapping (2026-02-20, refreshed 2026-02-21)
 
 Date: 2026-02-20  
 Operator: @sleepyseamonster  
@@ -34,6 +34,29 @@ UI verification attempt (updated capture):
 - Evidence timestamp (from capture): 2026-02-20 17:21 local
 - Date recorded: 2026-02-21
 
+## Refresh snapshot (2026-02-21)
+
+Workflow job-name/source-of-truth check (from `.github/workflows/ci.yml`):
+- `deadcode`
+- `frontend`
+- `docs_semantic_drift`
+- `migration_parity`
+- `archive_manifest_check`
+- `sql_lint`
+- `architecture_boundary`
+- `size_budget`
+- `agent_contract_tests`
+- `agent_disable_continuity`
+- `adaptive_media_gate`
+- `ai_studio_perf_gate`
+- `ai_studio_perf_gate_notice`
+- `security`
+
+CI cycle verification command (recorded):
+- Command: `gh run list --workflow ci.yml --limit 10 --json databaseId,headBranch,conclusion,createdAt,updatedAt,event`
+- Result: recent runs remain failures; no two consecutive green cycles observed.
+- Date: 2026-02-21
+
 ## Required check names (documented target)
 
 - `frontend`
@@ -62,3 +85,4 @@ Planned required checks after warn/evaluate stabilization:
 
 Configured and documented, but not enforceable on current repository plan; pending GitHub Team/org upgrade (or equivalent) for enforcement.
 Prototype-mode waiver applies; this remains non-blocking for MVP feature iteration and blocking only for production-readiness completion.
+Branch-protection mapping evidence was refreshed on 2026-02-21 and remains aligned with current workflow check names.

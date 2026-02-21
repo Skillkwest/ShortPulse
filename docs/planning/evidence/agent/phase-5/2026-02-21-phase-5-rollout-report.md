@@ -29,6 +29,7 @@ Phase: 5 (Progressive Rollout)
 ## Evidence Links
 - Dashboard/alert readiness: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
 - Staging soak monitoring plan: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-staging-soak-monitoring-plan.md`
+- Vercel preview throttle control: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-vercel-preview-throttle-control.md`
 - CI run (kickoff): `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22258999203`
 - CI run (latest validation): `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22259338790`
 - Ops readiness bootstrap: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-ops-readiness-bootstrap.md`

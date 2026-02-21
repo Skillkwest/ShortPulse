@@ -83,6 +83,18 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
 5. Set output mode to Next.js default.
 6. Add all required environment variables before first production deploy.
 
+### Preview deployment throttle control (docs-only skip)
+
+To reduce preview deployment churn and avoid quota/rate pressure during documentation-heavy work:
+
+1. Keep `frontend/vercel.json` with `ignoreCommand`.
+2. Keep `frontend/scripts/vercel-ignore-build.sh` executable.
+3. Behavior:
+   - `production` deployments always build (never skipped).
+   - `preview` deployments are skipped when no files changed under `frontend/`.
+4. Verification (from repo root):
+   - `cd frontend && bash ./scripts/vercel-ignore-build.sh`
+
 ## Supabase production configuration
 
 1. Keep RLS enabled on user-owned tables.

@@ -111,6 +111,7 @@ Exit validation:
 - [x] Record DEP-03 dashboard/alert readiness evidence with source mapping and CI validation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`, run `22258999203`).
 - [x] Kick off staging soak ring and archive rollout report (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`).
 - [x] Publish staging soak checkpoint monitoring plan with gate thresholds and evidence links (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-staging-soak-monitoring-plan.md`).
+- [x] Add Vercel preview throttle control for docs-only/non-frontend commits (`frontend/vercel.json`, `frontend/scripts/vercel-ignore-build.sh`, evidence: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-vercel-preview-throttle-control.md`).
 - [ ] Attach external dashboard/alert URLs + policy links in DEP-03 readiness evidence before 5% ring.
 - [ ] Staging soak 24h.
 - [ ] Production 5% 24h.

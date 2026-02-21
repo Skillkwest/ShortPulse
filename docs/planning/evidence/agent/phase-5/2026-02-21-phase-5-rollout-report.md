@@ -21,14 +21,15 @@ Phase: 5 (Progressive Rollout)
 | Production 100% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | Hold | TBD |
 
 ## Gate Validation
-1. Required CI checks green on deployed SHA: Yes (`22258999203`, final successful rerun)
-2. Contract + disable-path + continuity suites green: Yes (same run)
+1. Required CI checks green on deployed SHA: Yes (`22258999203`, final successful rerun); latest post-kickoff validation run also green (`22259338790`).
+2. Contract + disable-path + continuity suites green: Yes (validated in `22258999203` and `22259338790`).
 3. No open Sev-1/Sev-2 related incidents: no active Sev-1/Sev-2 linked in current evidence set
 4. Rollback path verified before promotion: runbook + rollback-drill template published; drill execution pending before 50% ring
 
 ## Evidence Links
 - Dashboard/alert readiness: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
-- CI run: `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22258999203`
+- CI run (kickoff): `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22258999203`
+- CI run (latest validation): `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22259338790`
 - Ops readiness bootstrap: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-ops-readiness-bootstrap.md`
 - Tracker update: `docs/planning/ai-studio-agent-modularization-tracker.md`
 

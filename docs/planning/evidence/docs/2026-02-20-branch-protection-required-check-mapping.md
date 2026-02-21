@@ -67,6 +67,7 @@ CI cycle verification command (recorded):
   - `22258999203` (success after failed-job rerun; transient Supabase CLI checksum fetch `502` during `npm ci` resolved on rerun)
   - `22259160316` (success, phase-5 staging-soak kickoff docs alignment)
   - `22259261557` (success, CI `npm ci` transient-retry wrapper validation)
+  - `22259338790` (success, post-wrapper evidence-sync validation; enforce-mode guardrail set remained green)
 - Date: 2026-02-21
 
 Mode snapshot command (recorded):

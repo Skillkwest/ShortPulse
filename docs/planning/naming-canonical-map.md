@@ -18,6 +18,11 @@ Purpose: single source of truth for canonical terms, compatibility policy, and s
 | Hook symbol | `useAiStudioReferenceCanvasProps` | `useAiStudioReferenceGridProps` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
 | Hook symbol | `useReferenceGridCanvasDropController` | `useReferenceGridDropController` | Canonical symbol active; retain deprecated alias export | >= 2 release cycles |
 | Reference-grid controller file path | `reference-grid/controllers/useReferenceGridCanvasDropController.ts` | `reference-grid/controllers/useReferenceGridDropController.ts` | Canonical file path active; retain legacy-path shim file | >= 2 release cycles |
+| Test file path | `components/__tests__/ReferenceCanvas.curated.test.tsx` | `components/__tests__/ReferenceGrid.curated.test.tsx` | Canonical test file path active; migrated without compatibility shim | Immediate |
+| Test file path | `components/__tests__/ReferenceCanvas.paste.test.tsx` | `components/__tests__/ReferenceGrid.paste.test.tsx` | Canonical test file path active; migrated without compatibility shim | Immediate |
+| Test file path | `components/__tests__/ReferenceCanvas.selectorStore.test.tsx` | `components/__tests__/ReferenceGrid.selectorStore.test.tsx` | Canonical test file path active; migrated without compatibility shim | Immediate |
+| Test file path | `components/__tests__/TextPropertiesPanel.test.tsx` | `components/__tests__/CreatePropertiesPanel.test.tsx` | Canonical test file path active; migrated without compatibility shim | Immediate |
+| Test file path | `hooks/__tests__/useAiStudioReferenceCanvasProps.test.ts` | `hooks/__tests__/useAiStudioReferenceGridProps.test.ts` | Canonical test file path active; migrated without compatibility shim | Immediate |
 | Create panel symbol | `TextPropertiesPanel` | `CreatePropertiesPanel` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
 | Create panel props type | `TextPropertiesPanelProps` | `CreatePropertiesPanelProps` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
 | Grid drop type symbol | `ReferenceCanvasDropMode` | `ReferenceGridDropMode` | Migrate internal controller consumers; keep deprecated type alias | >= 2 release cycles |

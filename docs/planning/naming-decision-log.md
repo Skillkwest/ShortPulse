@@ -138,6 +138,17 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-reference-grid-drop-controller-path-canonicalization-batch-b.md`
 - Next allowed action: continue Phase 5 shim-first canonicalization batches for remaining legacy file-name families.
 
+## 2026-02-23: Stop-Point 5 (File/path rename batch C)
+- Phase/Stop point: Phase 5 batch C completion
+- Decision: approved canonical test file path migration (`ReferenceGrid*`, `CreatePropertiesPanel*`, `useAiStudioReferenceGridProps*`) and adaptive gate script alignment.
+- Preconditions reviewed:
+  - targeted renamed suites pass
+  - `validate`, `test:adaptive-v2-gate`, `build`, `docs:check`, `check:architecture-boundary`, and `check:size-budget` pass
+  - Playwright perf gate intentionally not executed per explicit no-Playwright direction
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-test-and-gate-script-path-canonicalization-batch-c.md`
+- Next allowed action: continue Phase 5 bounded batches for remaining runtime/file wrapper legacy families and asset-path canonicalization prep.
+
 ## Stop-Point Approval Template
 - Date:
 - Phase/Stop point:

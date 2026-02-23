@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "test:adaptive-v2-gate": "npm run lint && npm run type-check && npm run test -- ReferenceCanvas.curated.test.tsx referenceGridMedia.test.ts referenceGridMedia.parity.test.ts MediaLibraryModal.test.tsx CharacterManagerShell.behavior.test.tsx lib/adaptive-media/__tests__/policy.test.ts",
+    "test:adaptive-v2-gate": "npm run lint && npm run type-check && npm run test -- ReferenceGrid.curated.test.tsx referenceGridMedia.test.ts referenceGridMedia.parity.test.ts MediaLibraryModal.test.tsx CharacterManagerShell.behavior.test.tsx lib/adaptive-media/__tests__/policy.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:character": "NODE_PATH=./node_modules node ./tests/e2e/character-pipeline.audit.js",
     "test:perf:ai-studio": "NODE_PATH=./node_modules node ./tests/e2e/ai-studio-perf.audit.js",

@@ -53,7 +53,7 @@
 - `npm -C frontend run lint`
 - `npm -C frontend run type-check`
 - `npm -C frontend run test -- --run features/ai-studio/logic/__tests__/referenceGridMedia.parity.test.ts`
-- `npm -C frontend run test -- --run features/ai-studio/components/__tests__/ReferenceCanvas.curated.test.tsx`
+- `npm -C frontend run test -- --run features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`
 - `npm -C frontend run test -- --run features/ai-studio/components/__tests__/MediaLibraryModal.test.tsx`
 - `npm -C frontend run test -- --run features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx`
 

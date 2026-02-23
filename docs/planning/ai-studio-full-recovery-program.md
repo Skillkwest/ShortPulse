@@ -41,7 +41,7 @@ Goal: Ensure all user actions that should add/show references reliably update th
 ### Evidence
 - Tests:
   - `frontend/features/ai-studio/hooks/__tests__/useAiStudioState.outputStoreBridge.test.tsx`
-  - `frontend/features/ai-studio/components/__tests__/ReferenceCanvas.selectorStore.test.tsx`
+  - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.selectorStore.test.tsx`
   - Existing targeted suites (generation controller, prompt steps, reference canvas)
 - Bounded smoke captures: pending card, pin action, paste/upload action.
 

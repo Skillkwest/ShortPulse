@@ -198,7 +198,7 @@ Evidence paths:
 - `frontend/features/ai-studio/hooks/useAiStudioCharacterPanelProps.ts`
 - `frontend/features/ai-studio/hooks/__tests__/useAiStudioCharacterPanelProps.test.ts`
 - `frontend/features/ai-studio/hooks/useAiStudioReferenceCanvasProps.ts`
-- `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceCanvasProps.test.ts`
+- `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceGridProps.test.ts`
 - `frontend/features/ai-studio/hooks/useAiStudioPreviewDetailProps.ts`
 - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPreviewDetailProps.test.ts`
 
@@ -331,7 +331,7 @@ Checklist:
 - [x] Extract `ai-studio` character properties-panel prop composition into a dedicated hook.
   Evidence paths: `frontend/features/ai-studio/hooks/useAiStudioCharacterPanelProps.ts`, `frontend/features/ai-studio/hooks/__tests__/useAiStudioCharacterPanelProps.test.ts`, `frontend/pages/ai-studio.tsx`
 - [x] Extract `ai-studio` reference-canvas prop composition into a dedicated hook.
-  Evidence paths: `frontend/features/ai-studio/hooks/useAiStudioReferenceCanvasProps.ts`, `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceCanvasProps.test.ts`, `frontend/pages/ai-studio.tsx`
+  Evidence paths: `frontend/features/ai-studio/hooks/useAiStudioReferenceCanvasProps.ts`, `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceGridProps.test.ts`, `frontend/pages/ai-studio.tsx`
 - [x] Extract `ai-studio` studio-preview prop composition + detail-modal action wiring into a dedicated hook.
   Evidence paths: `frontend/features/ai-studio/hooks/useAiStudioPreviewDetailProps.ts`, `frontend/features/ai-studio/hooks/__tests__/useAiStudioPreviewDetailProps.test.ts`, `frontend/pages/ai-studio.tsx`
 - [x] Split `frontend/pages/media-library.tsx` into page orchestration + feature modules for tab data, modal actions, and performance/signing logic.

@@ -32,8 +32,9 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 2026-02-23 | Phase 4 reference-grid internal symbol canonicalization slice G | completed | Canonical internal `ReferenceGrid*` symbols for sections/card/archive controls with alias compatibility | pass (non-Playwright gates) | Evidence: `phase-4/2026-02-23-phase-4-reference-grid-internal-symbol-canonicalization-slice-g.md` |
 | 2026-02-23 | Phase 5 file/path canonicalization batch A | completed | Internal `ReferenceCanvas*` reference-grid component file names renamed to canonical `ReferenceGrid*` paths with legacy-path shim files | pass (non-Playwright gates) | Evidence: `phase-5/2026-02-23-phase-5-reference-grid-internal-file-path-canonicalization-batch-a.md` |
 | 2026-02-23 | Phase 5 file/path canonicalization batch B | completed | Drop-controller file path and primary hook symbol canonicalized to `useReferenceGridDropController` with legacy path/symbol compatibility retained | pass (non-Playwright gates) | Evidence: `phase-5/2026-02-23-phase-5-reference-grid-drop-controller-path-canonicalization-batch-b.md` |
+| 2026-02-23 | Phase 5 file/path canonicalization batch C | completed | Canonicalized AI Studio test file paths (`ReferenceGrid*`, `CreatePropertiesPanel*`, `useAiStudioReferenceGridProps*`) and aligned adaptive gate script/skill references | pass (non-Playwright gates) | Evidence: `phase-5/2026-02-23-phase-5-test-and-gate-script-path-canonicalization-batch-c.md` |
 
 ## Active Risks
 1. Perf-release gate is intentionally deferred in this execution track because Playwright runs are out-of-scope.
-2. Residual legacy symbol families remain in compatibility aliases, file paths, and some test/file naming (`ReferenceCanvas*`, `TextPropertiesPanel*`).
+2. Residual legacy symbol families remain in compatibility aliases and runtime/file wrapper paths (`ReferenceCanvas*`, `TextPropertiesPanel*`).
 3. File/path rename batches can silently break imports without explicit shim coverage and docs/path sweep.

@@ -222,6 +222,19 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/naming-phase-7-entry-readiness.md`
 - Next allowed action: maintain release-window stability evidence and prepare explicit contraction batch approvals when entry criteria are met.
 
+## 2026-02-23: Stop-Point 7 (Release-window evidence scaffold)
+- Phase/Stop point: Phase 7 readiness operations slice
+- Decision: approved reusable R1/R2 checkpoint evidence scaffold and explicit capture procedure for release-window proof.
+- Preconditions reviewed:
+  - release-window template covers required gates and regression assertions
+  - file naming convention for R1/R2 checkpoints defined
+  - `docs:check` pass
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-7/2026-02-23-phase-7-release-window-evidence-scaffold.md`
+  - `docs/planning/evidence/naming-canonicalization/phase-7/phase-7-release-window-checkpoint-template.md`
+  - `docs/planning/naming-phase-7-entry-readiness.md`
+- Next allowed action: capture R1 checkpoint on next release boundary, then repeat for R2 and request contraction approval if both pass.
+
 ## Stop-Point Approval Template
 - Date:
 - Phase/Stop point:

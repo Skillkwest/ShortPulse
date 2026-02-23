@@ -39,6 +39,7 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 2026-02-23 | Phase 6 asset canonicalization batch B | completed | Canonicalized dashboard media-library card image path, corrected Saved Creators SOP asset naming drift, and recorded residual legacy asset inventory for sunset planning | pass (non-Playwright gates) | Evidence: `phase-6/2026-02-23-phase-6-asset-path-canonicalization-batch-b.md`, `phase-6/2026-02-23-phase-6-residual-asset-inventory.md` |
 | 2026-02-23 | Phase 7 contract entry readiness + drift guard | completed | Added alias-sunset readiness plan and enforced active-doc canonical naming checks in `docs:check` | pass (non-Playwright gates) | Evidence: `phase-7/2026-02-23-phase-7-entry-readiness-and-drift-guard.md` |
 | 2026-02-23 | Phase 7 runtime legacy usage guard | completed | Added runtime guard to keep legacy alias terms confined to approved compatibility files and wired it into `validate` | pass (non-Playwright gates) | Evidence: `phase-7/2026-02-23-phase-7-runtime-legacy-usage-guard.md` |
+| 2026-02-23 | Phase 7 release-window evidence scaffold | completed | Added reusable R1/R2 checkpoint template and explicit release-window capture procedure | pass (non-Playwright gates) | Evidence: `phase-7/2026-02-23-phase-7-release-window-evidence-scaffold.md`, `phase-7/phase-7-release-window-checkpoint-template.md` |
 
 ## Active Risks
 1. Perf-release gate is intentionally deferred in this execution track because Playwright runs are out-of-scope.

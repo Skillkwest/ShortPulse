@@ -81,3 +81,17 @@ Each batch requires:
 2. `npm -C frontend run docs:check` now includes this guard, blocking reintroduction of legacy naming in active docs.
 3. `scripts/check_naming_legacy_usage.js` enforces that runtime legacy alias terms remain confined to approved compatibility files.
 4. `npm -C frontend run validate` now includes `check:naming-legacy-usage`.
+
+## Release Window Evidence Procedure
+1. At each production release boundary during the deprecation window, create a checkpoint file from:
+- `docs/planning/evidence/naming-canonicalization/phase-7/phase-7-release-window-checkpoint-template.md`
+2. Save checkpoint artifacts as:
+- `docs/planning/evidence/naming-canonicalization/phase-7/YYYY-MM-DD-phase-7-r1-release-window-checkpoint.md`
+- `docs/planning/evidence/naming-canonicalization/phase-7/YYYY-MM-DD-phase-7-r2-release-window-checkpoint.md`
+3. Attach validation outputs for:
+- `validate`, `docs:check`, `test:adaptive-v2-gate`, `build`, `check:architecture-boundary`, `check:size-budget`
+4. If Playwright credentials are available, include `perf:ai-studio:release-check`; otherwise record waiver.
+5. Update:
+- `docs/planning/naming-canonicalization-tracker.md` (slice log + risk notes)
+- `docs/planning/naming-decision-log.md` (R1/R2 checkpoint decision entries)
+6. Only request contraction approval after both `R1` and `R2` checkpoint files are `pass`.

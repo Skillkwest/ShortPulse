@@ -13,6 +13,7 @@ import {
 } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import { canRetryMediaPreviewSignedUrl } from "../../../lib/mediaPreviewRuntimePolicy";
 import {
   resolveMediaDirectPreviewUrls,
   resolveMediaSigningStoragePaths,
@@ -395,7 +396,7 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
   const handleMediaPreviewError = useCallback(
     (row: TRow) => {
       const attempts = signedUrlRetryRef.current[row.id] ?? 0;
-      if (attempts >= 3) return;
+      if (!canRetryMediaPreviewSignedUrl(attempts)) return;
       signedUrlRetryRef.current[row.id] = attempts + 1;
       void refreshSignedUrl(row).then(async (nextUrl) => {
         const returnedSameUrl = Boolean(nextUrl && row.signedUrl && nextUrl === row.signedUrl);

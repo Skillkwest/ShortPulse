@@ -13,6 +13,12 @@ import {
   X,
 } from "phosphor-react";
 import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import {
+  canAttemptMediaPreviewSignBatch,
+  canRetryMediaPreviewSignedUrl,
+  resolveMediaPreviewSignBudget,
+  type MediaSignBudget,
+} from "../../../lib/mediaPreviewRuntimePolicy";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import {
   resolveMediaDirectPreviewUrls,
@@ -82,16 +88,8 @@ type MediaTabCache = {
 type MediaTabRequestState = Record<MediaDataTab, number>;
 type MediaTabBooleanState = Record<MediaDataTab, boolean>;
 type MediaCardRefCallback = (node: HTMLButtonElement | null) => void;
-type MediaSignBudget = {
-  initialSignLimit: number;
-  prefetchWindow: number;
-  signBatchSize: number;
-};
 type NavigatorWithConnection = Navigator & {
-  deviceMemory?: number;
   connection?: {
-    saveData?: boolean;
-    effectiveType?: string;
     addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
     removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
   };
@@ -136,7 +134,6 @@ const MEDIA_MODAL_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
   prefetchWindow: 8,
   signBatchSize: 3,
 };
-const MEDIA_MODAL_MAX_SIGN_ATTEMPTS_PER_ITEM = 3;
 const NEXT_IMAGE_OPTIMIZER_PATH_PATTERN = /(?:^|\/)_next\/image\?/i;
 
 const isNextImageOptimizerUrl = (value: string | null | undefined): boolean => {
@@ -160,22 +157,12 @@ const resolveNextImageOptimizerSourceUrl = (value: string | null | undefined): s
 };
 
 const resolveModalSignBudget = (): MediaSignBudget => {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return MEDIA_MODAL_SIGN_BUDGET_DESKTOP;
-  }
-  const nav = navigator as NavigatorWithConnection;
-  const isSmallScreen = window.matchMedia(MEDIA_MODAL_SIGN_SMALL_SCREEN_QUERY).matches;
-  const saveData = nav.connection?.saveData === true;
-  const effectiveType = (nav.connection?.effectiveType ?? "").toLowerCase();
-  const isSlowNetwork = effectiveType.includes("2g");
-  const isLowMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
-  if (saveData || isSlowNetwork || isLowMemory) {
-    return MEDIA_MODAL_SIGN_BUDGET_CONSTRAINED;
-  }
-  if (isSmallScreen) {
-    return MEDIA_MODAL_SIGN_BUDGET_SMALL_SCREEN;
-  }
-  return MEDIA_MODAL_SIGN_BUDGET_DESKTOP;
+  return resolveMediaPreviewSignBudget({
+    desktop: MEDIA_MODAL_SIGN_BUDGET_DESKTOP,
+    smallScreen: MEDIA_MODAL_SIGN_BUDGET_SMALL_SCREEN,
+    constrained: MEDIA_MODAL_SIGN_BUDGET_CONSTRAINED,
+    smallScreenQuery: MEDIA_MODAL_SIGN_SMALL_SCREEN_QUERY,
+  });
 };
 
 const isVideoFile = (fileType?: string | null) =>
@@ -700,7 +687,7 @@ export function MediaLibraryModal({
         });
       }
       const attempts = signedUrlRetryRef.current[file.id] ?? 0;
-      if (attempts >= 3) return;
+      if (!canRetryMediaPreviewSignedUrl(attempts)) return;
       signedUrlRetryRef.current[file.id] = attempts + 1;
       void refreshSignedUrl(file).then(async (nextUrl) => {
         const returnedSameUrl = Boolean(nextUrl && file.signedUrl && nextUrl === file.signedUrl);
@@ -986,7 +973,7 @@ export function MediaLibraryModal({
     const seen = new Set<string>();
     const enqueue = (row?: MediaFileRow) => {
       if (!row) return;
-      if ((signAttemptRef.current[row.id] ?? 0) >= MEDIA_MODAL_MAX_SIGN_ATTEMPTS_PER_ITEM) {
+      if (!canAttemptMediaPreviewSignBatch(signAttemptRef.current[row.id] ?? 0)) {
         return;
       }
       if (

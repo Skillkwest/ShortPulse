@@ -2,6 +2,11 @@
  * Shared Media Library page helpers for tab routing, cache state, and pagination utilities.
  * Keep this module React-free so page orchestration stays focused on UI and side effects.
  */
+import {
+  resolveMediaPreviewSignBudget,
+  type MediaSignBudget,
+} from "../../../lib/mediaPreviewRuntimePolicy";
+export type { MediaSignBudget } from "../../../lib/mediaPreviewRuntimePolicy";
 
 export const BUCKET = "media_library";
 export const PRIVATE_MEDIA_SOURCE = "private_upload";
@@ -30,22 +35,6 @@ export type MediaTabCache<TRow> = {
 export type MediaTabRequestState = Record<MediaDataTab, number>;
 export type MediaTabBooleanState = Record<MediaDataTab, boolean>;
 
-export type MediaSignBudget = {
-  initialSignLimit: number;
-  prefetchWindow: number;
-  signBatchSize: number;
-};
-
-type NavigatorWithConnection = Navigator & {
-  deviceMemory?: number;
-  connection?: {
-    saveData?: boolean;
-    effectiveType?: string;
-    addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-    removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-  };
-};
-
 const MEDIA_ROUTE_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
   initialSignLimit: 12,
   prefetchWindow: 24,
@@ -63,24 +52,12 @@ const MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
 };
 
 export const resolveRouteSignBudget = (): MediaSignBudget => {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return MEDIA_ROUTE_SIGN_BUDGET_DESKTOP;
-  }
-  const nav = navigator as NavigatorWithConnection;
-  const isSmallScreen =
-    typeof window.matchMedia === "function" &&
-    window.matchMedia(MEDIA_ROUTE_SIGN_SMALL_SCREEN_QUERY).matches;
-  const saveData = nav.connection?.saveData === true;
-  const effectiveType = (nav.connection?.effectiveType ?? "").toLowerCase();
-  const isSlowNetwork = effectiveType.includes("2g");
-  const isLowMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
-  if (saveData || isSlowNetwork || isLowMemory) {
-    return MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED;
-  }
-  if (isSmallScreen) {
-    return MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN;
-  }
-  return MEDIA_ROUTE_SIGN_BUDGET_DESKTOP;
+  return resolveMediaPreviewSignBudget({
+    desktop: MEDIA_ROUTE_SIGN_BUDGET_DESKTOP,
+    smallScreen: MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN,
+    constrained: MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED,
+    smallScreenQuery: MEDIA_ROUTE_SIGN_SMALL_SCREEN_QUERY,
+  });
 };
 
 export const MEDIA_DATA_TABS: MediaDataTab[] = [

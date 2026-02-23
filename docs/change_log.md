@@ -989,3 +989,13 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - expanded parity coverage for explicit suppression behavior in projection, canvas curated, and state output-store bridge suites.
 - Added phase-3 closeout evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-3/2026-02-23-phase-03-projection-semantics-closeout.md`
+- Started Phase 4 media runtime unification with shared runtime policy foundation:
+  - added `frontend/lib/mediaPreviewRuntimePolicy.ts` for centralized sign-budget resolution and retry-cap helpers.
+  - rewired `frontend/features/media-library/logic/mediaLibraryPageHelpers.ts` route budget resolution to the shared policy module.
+  - rewired modal/route preview-error retry gates and modal sign-batch cap checks to shared policy helpers:
+    - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+    - `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts`
+  - added dedicated policy unit tests:
+    - `frontend/features/media-library/logic/__tests__/mediaPreviewRuntimePolicy.test.ts`
+- Added phase-4 foundation evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-runtime-unification-foundation.md`

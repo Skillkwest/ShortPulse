@@ -226,7 +226,7 @@ export default function DashboardPage() {
       href: "/media-library",
       cta: "Open library →",
       variant: "tool-media",
-      image: "/dashboard/media_library_purp.png",
+      image: "/dashboard/media-library-purple.png",
       icon: FolderSimple,
     },
     {

@@ -35,8 +35,9 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 2026-02-23 | Phase 5 file/path canonicalization batch C | completed | Canonicalized AI Studio test file paths (`ReferenceGrid*`, `CreatePropertiesPanel*`, `useAiStudioReferenceGridProps*`) and aligned adaptive gate script/skill references | pass (non-Playwright gates) | Evidence: `phase-5/2026-02-23-phase-5-test-and-gate-script-path-canonicalization-batch-c.md` |
 | 2026-02-23 | Phase 4 closeout audit | completed | Confirmed legacy naming usage in `frontend` callsites is limited to explicit compatibility bridges/deprecated aliases | pass (non-Playwright gates) | Evidence: `phase-4/` slices A-G + callsite audit |
 | 2026-02-23 | Phase 6 asset canonicalization batch A | completed | Canonicalized active logo/background asset paths to lowercase/kebab-case filenames with legacy files retained | pass (non-Playwright gates) | Evidence: `phase-6/2026-02-23-phase-6-asset-path-canonicalization-batch-a.md` |
+| 2026-02-23 | Phase 6 asset canonicalization batch B | completed | Canonicalized dashboard media-library card image path, corrected Saved Creators SOP asset naming drift, and recorded residual legacy asset inventory for sunset planning | pass (non-Playwright gates) | Evidence: `phase-6/2026-02-23-phase-6-asset-path-canonicalization-batch-b.md`, `phase-6/2026-02-23-phase-6-residual-asset-inventory.md` |
 
 ## Active Risks
 1. Perf-release gate is intentionally deferred in this execution track because Playwright runs are out-of-scope.
 2. Residual legacy symbol families remain in compatibility aliases and runtime/file wrapper paths (`ReferenceCanvas*`, `TextPropertiesPanel*`).
-3. Some legacy public asset filenames still exist intentionally during dual-path compatibility window and need explicit sunset tracking.
+3. Some legacy public asset filenames still exist intentionally during dual-path compatibility window; residual inventory is now tracked for explicit sunset batching.

@@ -31,6 +31,7 @@ Purpose: single source of truth for canonical terms, compatibility policy, and s
 | Public asset path | `/tiny%20logo.png` | `/tiny-logo.png` | Canonical path active in runtime references; legacy file retained | >= 2 release cycles |
 | Public asset path | `/Gray.png` | `/background-gray.png` | Canonical path active in runtime references; legacy file retained | >= 2 release cycles |
 | Public asset path | `/dashboard/performance%20analytics.png` | `/dashboard/performance-analytics.png` | Canonical path active in runtime references; legacy file retained | >= 2 release cycles |
+| Public asset path | `/dashboard/media_library_purp.png` | `/dashboard/media-library-purple.png` | Canonical path active in runtime references; legacy file retained | >= 2 release cycles |
 | Create panel symbol | `TextPropertiesPanel` | `CreatePropertiesPanel` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
 | Create panel props type | `TextPropertiesPanelProps` | `CreatePropertiesPanelProps` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
 | Grid drop type symbol | `ReferenceCanvasDropMode` | `ReferenceGridDropMode` | Migrate internal controller consumers; keep deprecated type alias | >= 2 release cycles |

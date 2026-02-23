@@ -11,7 +11,7 @@ Manage the saved creator list, add new handles with platform context, and launch
 - Delete removes the row by `id` and prunes local state.
 
 ## UX layout (Saved Creators)
-- Back link → trimmed hero with Gray.png (full opacity, no dark overlays).
+- Back link -> trimmed hero with `background-gray.png` (full opacity, no dark overlays).
 - Header stat chips (Searches placeholder, Plan chip).
 - Intake panel: handle input with `@` prefix, platform dropdown (custom select), add button. Autofill is tamed to keep the dark UI.
 - Saved list: table-style rows (creator, platform, followers, avg views, actions).
@@ -24,6 +24,6 @@ Manage the saved creator list, add new handles with platform context, and launch
 
 ## Update checklist
 - When changing link logic or sanitizer, update both `getProfileUrl`, Supabase insert, and mapping when loading.
-- Keep Gray.png in `frontend/public/Gray.png` and set hero to use it directly (no blending).
+- Keep `background-gray.png` in `frontend/public/background-gray.png` as the active runtime asset (legacy `Gray.png` remains only for compatibility during sunset window).
 - Maintain consistent spacing (24px) between cards and headers.
 - Keep avatar styles synced with `workspace-dashboard.css` (circular, dark fill, teal outline, muted teal icon).

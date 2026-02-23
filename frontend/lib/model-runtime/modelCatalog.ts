@@ -514,6 +514,15 @@ const catalog: Record<string, ModelCatalogEntry> = {
       "https://queue.fal.run/fal-ai/veo3.1/image-to-video/requests",
     ],
     falTimeoutMs: 90000,
+    payloadValidation: {
+      requiredStringFields: ["prompt", "first_frame_url", "last_frame_url"],
+      enumFields: {
+        aspect_ratio: ["auto", "16:9", "9:16"],
+        duration: ["4s", "6s", "8s"],
+        resolution: ["720p", "1080p", "4k"],
+      },
+      optionalBooleanFields: ["generate_audio"],
+    },
   },
   "fal-ai/sora-2/text-to-video/pro": {
     modelId: "fal-ai/sora-2/text-to-video/pro",

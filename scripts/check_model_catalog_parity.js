@@ -1,5 +1,8 @@
 // Model catalog parity checks for API docs and runtime governance.
 // Run with: node scripts/check_model_catalog_parity.js
+// Optional env:
+// - SHORTPULSE_MODEL_CATALOG_MAX_STALE_DAYS=45
+// - SHORTPULSE_MODEL_CATALOG_STALE_MODE=warn|enforce
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
@@ -17,6 +20,10 @@ const DOCS_API_DIR = path.join(REPO_ROOT, "docs", "api");
 const DOCS_API_INDEX = path.join(DOCS_API_DIR, "README.md");
 const DOCS_ROOT_INDEX = path.join(REPO_ROOT, "docs", "README.md");
 const MAX_STALE_DAYS = Number(process.env.SHORTPULSE_MODEL_CATALOG_MAX_STALE_DAYS || 45);
+const STALE_MODE_RAW = String(process.env.SHORTPULSE_MODEL_CATALOG_STALE_MODE || "warn")
+  .trim()
+  .toLowerCase();
+const STALE_MODE = STALE_MODE_RAW === "enforce" ? "enforce" : "warn";
 
 const MODEL_DOC_MAP = {
   "fal-ai/flux-2/klein/9b": "api-fal-flux-2-klein-9b.md",
@@ -92,10 +99,38 @@ function listFalSubmitRouteModelIds() {
   return modelIds;
 }
 
+function listFalSubmitRouteDefinitions() {
+  const files = fs
+    .readdirSync(FAL_ROUTES_DIR)
+    .filter((name) => name.endsWith("-submit.ts") || name === "submit.ts");
+
+  return files.map((fileName) => {
+    const content = readText(path.join(FAL_ROUTES_DIR, fileName));
+    const modelIdMatch = content.match(/modelId:\s*"([^"]+)"/);
+    const validatePayloadMatch = content.match(/validatePayload\s*:\s*([A-Za-z0-9_()."'\s-]+)/);
+    const helperValidatorMatch = content.match(
+      /validatePayload\s*:\s*validateFalPayloadForModel\("([^"]+)"\)/
+    );
+
+    return {
+      fileName,
+      modelId: modelIdMatch ? modelIdMatch[1] : null,
+      hasValidatePayload: Boolean(validatePayloadMatch),
+      helperValidatorModelId: helperValidatorMatch ? helperValidatorMatch[1] : null,
+    };
+  });
+}
+
 function run() {
   const errors = [];
   const warnings = [];
   const today = new Date();
+
+  if (STALE_MODE_RAW && STALE_MODE_RAW !== "warn" && STALE_MODE_RAW !== "enforce") {
+    warnings.push(
+      `Unknown SHORTPULSE_MODEL_CATALOG_STALE_MODE='${STALE_MODE_RAW}', defaulting to 'warn'.`,
+    );
+  }
 
   const modelCatalogModule = loadTsModule(MODEL_CATALOG_PATH);
   const listModelCatalogEntries = modelCatalogModule.listModelCatalogEntries;
@@ -135,9 +170,12 @@ function run() {
       } else {
         const ageDays = daysBetween(parsed, today);
         if (ageDays > MAX_STALE_DAYS) {
-          warnings.push(
-            `Catalog verification is stale for ${modelId}: ${verifiedAt} (${ageDays} days old; max ${MAX_STALE_DAYS}).`,
-          );
+          const staleMessage = `Catalog verification is stale for ${modelId}: ${verifiedAt} (${ageDays} days old; max ${MAX_STALE_DAYS}).`;
+          if (STALE_MODE === "enforce") {
+            errors.push(staleMessage);
+          } else {
+            warnings.push(staleMessage);
+          }
         }
       }
     }
@@ -148,6 +186,9 @@ function run() {
       }
       if (!Array.isArray(entry.falStatusBaseUrls) || entry.falStatusBaseUrls.length === 0) {
         errors.push(`falStatusBaseUrls missing for Fal model ${modelId}`);
+      }
+      if (!entry.payloadValidation) {
+        errors.push(`payloadValidation missing for Fal model ${modelId}`);
       }
     }
 
@@ -172,6 +213,7 @@ function run() {
   }
 
   const falSubmitModelIds = listFalSubmitRouteModelIds();
+  const falSubmitRouteDefinitions = listFalSubmitRouteDefinitions();
   for (const modelId of falSubmitModelIds) {
     if (!seenIds.has(modelId)) {
       errors.push(`Fal submit route references unknown catalog model id: ${modelId}`);
@@ -185,6 +227,23 @@ function run() {
   for (const modelId of falCatalogModelIds) {
     if (!falSubmitModelIds.has(modelId)) {
       errors.push(`Catalog Fal model missing submit route coverage: ${modelId}`);
+    }
+  }
+
+  for (const route of falSubmitRouteDefinitions) {
+    const routeLabel = `frontend/pages/api/fal/${route.fileName}`;
+    if (!route.modelId) {
+      errors.push(`${routeLabel} missing modelId in createFalSubmitHandler config.`);
+      continue;
+    }
+    if (!route.hasValidatePayload) {
+      errors.push(`${routeLabel} missing validatePayload in createFalSubmitHandler config.`);
+      continue;
+    }
+    if (route.helperValidatorModelId && route.helperValidatorModelId !== route.modelId) {
+      errors.push(
+        `${routeLabel} validateFalPayloadForModel id mismatch: modelId='${route.modelId}' validate='${route.helperValidatorModelId}'.`,
+      );
     }
   }
 

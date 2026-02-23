@@ -47,6 +47,8 @@ jobs:
         run: bash ../scripts/ci_npm_ci_with_retry.sh
       - run: npm run lint
       - run: npm run docs:check
+        env:
+          SHORTPULSE_MODEL_CATALOG_STALE_MODE: enforce
       - run: npm run test -- auth-helper proxy-internal-utils auth-guarded-ai-routes fal-status.auth-context fal-status.ownership auth-latency-benchmark
       - run: npm test
       - run: npm run build

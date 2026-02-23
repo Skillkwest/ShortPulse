@@ -10,7 +10,7 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 1 Active docs canonicalization | completed | Docs | Active docs path/naming drift resolved | `docs/planning/evidence/naming-canonicalization/phase-1/` |
 | 2 User-facing copy canonicalization | completed | Frontend | UI copy canonical with no UX regressions | `docs/planning/evidence/naming-canonicalization/phase-2/` |
 | 3 Bridge layer (expand) | completed | Frontend | Canonical aliases added and backward compatibility preserved | `docs/planning/evidence/naming-canonicalization/phase-3/` |
-| 4 Callsite migration (migrate) | in_progress | Frontend | Legacy callsites migrated in bounded slices | `docs/planning/evidence/naming-canonicalization/phase-4/` |
+| 4 Callsite migration (migrate) | completed | Frontend | Legacy callsites migrated in bounded slices | `docs/planning/evidence/naming-canonicalization/phase-4/` |
 | 5 File/path renames | in_progress | Frontend | Renamed files stable with shim strategy | `docs/planning/evidence/naming-canonicalization/phase-5/` |
 | 6 Asset canonicalization | pending | Frontend | Canonical asset paths in use with dual-path window | `docs/planning/evidence/naming-canonicalization/phase-6/` |
 | 7 Alias sunset (contract) | pending | Frontend + Docs | Alias removals approved after stability window | `docs/planning/evidence/naming-canonicalization/phase-7/` |
@@ -33,6 +33,7 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 2026-02-23 | Phase 5 file/path canonicalization batch A | completed | Internal `ReferenceCanvas*` reference-grid component file names renamed to canonical `ReferenceGrid*` paths with legacy-path shim files | pass (non-Playwright gates) | Evidence: `phase-5/2026-02-23-phase-5-reference-grid-internal-file-path-canonicalization-batch-a.md` |
 | 2026-02-23 | Phase 5 file/path canonicalization batch B | completed | Drop-controller file path and primary hook symbol canonicalized to `useReferenceGridDropController` with legacy path/symbol compatibility retained | pass (non-Playwright gates) | Evidence: `phase-5/2026-02-23-phase-5-reference-grid-drop-controller-path-canonicalization-batch-b.md` |
 | 2026-02-23 | Phase 5 file/path canonicalization batch C | completed | Canonicalized AI Studio test file paths (`ReferenceGrid*`, `CreatePropertiesPanel*`, `useAiStudioReferenceGridProps*`) and aligned adaptive gate script/skill references | pass (non-Playwright gates) | Evidence: `phase-5/2026-02-23-phase-5-test-and-gate-script-path-canonicalization-batch-c.md` |
+| 2026-02-23 | Phase 4 closeout audit | completed | Confirmed legacy naming usage in `frontend` callsites is limited to explicit compatibility bridges/deprecated aliases | pass (non-Playwright gates) | Evidence: `phase-4/` slices A-G + callsite audit |
 
 ## Active Risks
 1. Perf-release gate is intentionally deferred in this execution track because Playwright runs are out-of-scope.

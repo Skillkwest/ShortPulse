@@ -149,6 +149,22 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-test-and-gate-script-path-canonicalization-batch-c.md`
 - Next allowed action: continue Phase 5 bounded batches for remaining runtime/file wrapper legacy families and asset-path canonicalization prep.
 
+## 2026-02-23: Stop-Point 4 (Phase closeout audit)
+- Phase/Stop point: Phase 4 closeout
+- Decision: approved Phase 4 completion; legacy naming usage in `frontend` callsites is now confined to explicit compatibility bridges and deprecated alias surfaces.
+- Preconditions reviewed:
+  - targeted callsite scan shows no active runtime consumer usage of legacy prop/file-input/handler names outside bridge points
+  - all Phase 4 slices A-G completed with passing non-Playwright validation evidence
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-runtime-slice-a.md`
+  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-internal-drop-mode-slice-b.md`
+  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-canonical-props-and-tests-slice-c.md`
+  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-hook-canonicalization-slice-d.md`
+  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-create-panel-file-ownership-canonicalization-slice-e.md`
+  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-file-ownership-canonicalization-slice-f.md`
+  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-internal-symbol-canonicalization-slice-g.md`
+- Next allowed action: continue Phase 5 file/path canonicalization and Phase 6 asset-path dual-path rollout planning.
+
 ## Stop-Point Approval Template
 - Date:
 - Phase/Stop point:

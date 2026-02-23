@@ -11,6 +11,7 @@ type UseAiStudioReferenceCanvasPropsParams = {
   archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
   curatedReferenceIds?: string[];
+  removedFromAllRefsIds?: string[];
   onReferenceOutputMediaLoaded: (id: string) => void;
   linkedPromptReferenceIds: string[];
   showReferencePromptGenerate: boolean;
@@ -46,6 +47,7 @@ export const useAiStudioReferenceCanvasProps = ({
   archivedOutputs = [],
   activeOutputId,
   curatedReferenceIds = [],
+  removedFromAllRefsIds = [],
   onReferenceOutputMediaLoaded,
   linkedPromptReferenceIds,
   showReferencePromptGenerate,
@@ -74,6 +76,7 @@ export const useAiStudioReferenceCanvasProps = ({
       archivedOutputs,
       activeOutputId,
       curatedReferenceIds,
+      removedFromAllRefsIds,
       showHeader: true,
       onOutputMediaLoaded: onReferenceOutputMediaLoaded,
       linkedPromptReferenceIds,
@@ -102,6 +105,7 @@ export const useAiStudioReferenceCanvasProps = ({
       addCuratedReference,
       archivedOutputs,
       curatedReferenceIds,
+      removedFromAllRefsIds,
       currentCostCredits,
       deleteOutput,
       disableReferencePromptGenerate,

@@ -7,12 +7,15 @@ import {
   addQuickSlotReference,
   applyAllRefsSuppressionCompatibility,
   createEmptyReferenceProjectionState,
+  isReferenceSuppressedFromAllRefs,
   markReferenceRemovedFromAllRefs,
   pruneReferenceProjectionState,
   removeQuickSlotReference,
   reorderQuickSlotReference,
   selectAllRefsProjection,
+  selectAllRefsProjectionWithLegacyFallback,
   selectQuickSlotProjection,
+  shouldFinalizeRemovalOnQuickSlotDetach,
 } from "../index";
 
 const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
@@ -32,11 +35,13 @@ describe("reference-projections", () => {
     const withA = addQuickSlotReference(initial, "a");
     const withAB = addQuickSlotReference(withA, "b");
     const reordered = reorderQuickSlotReference(withAB, "b", "a", "before");
-    const removed = removeQuickSlotReference(reordered, "a");
+    const suppressed = markReferenceRemovedFromAllRefs(reordered, "a");
+    const removed = removeQuickSlotReference(suppressed, "a");
 
     expect(withAB.quickSlotIds).toEqual(["a", "b"]);
     expect(reordered.quickSlotIds).toEqual(["b", "a"]);
     expect(removed.quickSlotIds).toEqual(["b"]);
+    expect(removed.removedFromAllRefsIds).toEqual([]);
   });
 
   it("suppresses quick-slot references from all-refs projection", () => {
@@ -75,5 +80,29 @@ describe("reference-projections", () => {
   it("does not suppress non-quick-slot references", () => {
     const state = markReferenceRemovedFromAllRefs(createEmptyReferenceProjectionState(), "a");
     expect(state).toEqual(createEmptyReferenceProjectionState());
+  });
+
+  it("reports suppression/finalize helpers for detached quick slots", () => {
+    const withQuickSlot = addQuickSlotReference(createEmptyReferenceProjectionState(), "a");
+    const suppressed = markReferenceRemovedFromAllRefs(withQuickSlot, "a");
+
+    expect(isReferenceSuppressedFromAllRefs(suppressed, "a")).toBe(true);
+    expect(shouldFinalizeRemovalOnQuickSlotDetach(suppressed, "a")).toBe(true);
+    expect(shouldFinalizeRemovalOnQuickSlotDetach(withQuickSlot, "a")).toBe(false);
+  });
+
+  it("falls back to legacy hidden flag only when explicit suppression is absent", () => {
+    const outputs = [makeOutput("a", { hiddenInReferenceGrid: true }), makeOutput("b")];
+    const state = createEmptyReferenceProjectionState();
+
+    expect(
+      selectAllRefsProjectionWithLegacyFallback(outputs, state).map((item) => item.id)
+    ).toEqual(["b"]);
+
+    const withQuickSlot = addQuickSlotReference(state, "a");
+    const suppressed = markReferenceRemovedFromAllRefs(withQuickSlot, "a");
+    expect(
+      selectAllRefsProjectionWithLegacyFallback(outputs, suppressed).map((item) => item.id)
+    ).toEqual(["b"]);
   });
 });

@@ -52,6 +52,7 @@ import { useReferenceGridHydrationBudget } from "../hooks/useReferenceGridHydrat
 import { useReferenceGridPerfWatchdog } from "../hooks/useReferenceGridPerfWatchdog";
 import { useReferenceGridMediaWorkBudget } from "../hooks/useReferenceGridMediaWorkBudget";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
+import { selectAllRefsProjectionWithLegacyFallback } from "../reference-projections";
 import {
   isAdaptiveSurfaceEnabled,
   isRenderableAdaptiveUrl,
@@ -413,6 +414,7 @@ export type ReferenceCanvasProps = {
   archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
   curatedReferenceIds?: string[];
+  removedFromAllRefsIds?: string[];
   showHeader?: boolean;
   onOutputMediaLoaded?: (id: string) => void;
   linkedPromptReferenceIds?: string[];
@@ -828,6 +830,7 @@ export function ReferenceCanvas({
   archivedOutputs: archivedOutputsProp,
   activeOutputId,
   curatedReferenceIds = [],
+  removedFromAllRefsIds = [],
   showHeader = true,
   onOutputMediaLoaded,
   linkedPromptReferenceIds = [],
@@ -870,8 +873,12 @@ export function ReferenceCanvas({
   const allOutputs = outputsProp ?? selectorOutputs;
   const archivedOutputs = archivedOutputsProp ?? selectorArchivedOutputs;
   const outputs = React.useMemo(
-    () => allOutputs.filter((item) => item.hiddenInReferenceGrid !== true),
-    [allOutputs]
+    () =>
+      selectAllRefsProjectionWithLegacyFallback(allOutputs, {
+        quickSlotIds: curatedReferenceIds,
+        removedFromAllRefsIds,
+      }),
+    [allOutputs, curatedReferenceIds, removedFromAllRefsIds]
   );
   const isCuratedSplitEnabled =
     REFERENCE_GRID_FLAG_CURATED_SPLIT &&

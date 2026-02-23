@@ -982,3 +982,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - updated output-store bridge tests for projection-based suppression behavior.
 - Added phase-3 foundation evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-3/2026-02-23-phase-03-projection-semantics-foundation.md`
+- Closed Phase 3 projection semantics:
+  - wired explicit `removedFromAllRefsIds` projection state through `useAiStudioState` -> page wiring -> `ReferenceCanvas`.
+  - switched all-refs visibility computation in `ReferenceCanvas` to projection selector contracts with legacy fallback compatibility.
+  - removed implicit hidden-delete cleanup coupling and finalized suppressed deletions on quick-slot detach via lifecycle path.
+  - expanded parity coverage for explicit suppression behavior in projection, canvas curated, and state output-store bridge suites.
+- Added phase-3 closeout evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-3/2026-02-23-phase-03-projection-semantics-closeout.md`

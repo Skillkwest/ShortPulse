@@ -662,6 +662,50 @@ describe("ReferenceCanvas curated split", () => {
     expect(allRefsQueries.getByText("Visible in all refs")).toBeInTheDocument();
   });
 
+  it("keeps explicitly suppressed curated references in quick slots while excluding them from all refs", () => {
+    const suppressedCurated: StudioOutput = {
+      id: "out-suppressed",
+      prompt: "Suppressed",
+      mode: "text",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewText: "Suppressed in quick slot only",
+    };
+    const visibleAllRefs: StudioOutput = {
+      id: "out-visible-explicit",
+      prompt: "Visible explicit",
+      mode: "text",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewText: "Visible explicit all refs",
+    };
+
+    const { container } = render(
+      <ReferenceCanvas
+        {...createProps({
+          outputs: [suppressedCurated, visibleAllRefs],
+          curatedReferenceIds: [suppressedCurated.id],
+          removedFromAllRefsIds: [suppressedCurated.id],
+          activeOutputId: suppressedCurated.id,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    expect(allRefsSection).toBeTruthy();
+    const curatedQueries = within(curatedSection);
+    const allRefsQueries = within(allRefsSection);
+
+    expect(curatedQueries.getByText("Suppressed in quick slot only")).toBeInTheDocument();
+    expect(allRefsQueries.queryByText("Suppressed in quick slot only")).toBeNull();
+    expect(allRefsQueries.getByText("Visible explicit all refs")).toBeInTheDocument();
+  });
+
   it("shows save action for generated image references", () => {
     const onSaveToLibrary = vi.fn();
     const generatedImage: StudioOutput = {

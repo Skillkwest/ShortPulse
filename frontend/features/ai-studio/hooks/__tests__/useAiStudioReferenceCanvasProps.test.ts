@@ -21,6 +21,7 @@ const createParams = (
   outputs: [output],
   activeOutputId: "out-1",
   curatedReferenceIds: ["out-1"],
+  removedFromAllRefsIds: ["out-1"],
   onReferenceOutputMediaLoaded: vi.fn(),
   linkedPromptReferenceIds: ["out-1"],
   showReferencePromptGenerate: true,
@@ -115,6 +116,7 @@ describe("useAiStudioReferenceCanvasProps", () => {
 
     expect(result.current.showHeader).toBe(true);
     expect(result.current.curatedReferenceIds).toEqual(["out-1"]);
+    expect(result.current.removedFromAllRefsIds).toEqual(["out-1"]);
     expect(result.current.selectedTool).toBe("video");
     expect(result.current.generateCostCredits).toBeNull();
     expect(result.current.disablePromptGenerate).toBe(true);

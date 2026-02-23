@@ -317,6 +317,39 @@ describe("useAiStudioState output store bridge", () => {
       expect(
         result.current.outputs.find((item) => item.id === "out-1")?.hiddenInReferenceGrid
       ).toBe(true);
+      expect(result.current.removedFromAllRefsIds).toEqual(["out-1"]);
     });
+  });
+
+  it("finalizes suppressed curated deletions when quick-slot linkage is removed", async () => {
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.setOutputs([makeOutput("out-1"), makeOutput("out-2")]);
+      result.current.addCuratedReference("out-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.curatedReferenceIds).toEqual(["out-1"]);
+    });
+
+    act(() => {
+      result.current.deleteOutput("out-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.removedFromAllRefsIds).toEqual(["out-1"]);
+    });
+    expect(mockDeleteOutputFromLifecycle).not.toHaveBeenCalledWith("out-1");
+
+    act(() => {
+      result.current.removeCuratedReference("out-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.curatedReferenceIds).toEqual([]);
+      expect(result.current.removedFromAllRefsIds).toEqual([]);
+    });
+    expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith("out-1");
   });
 });

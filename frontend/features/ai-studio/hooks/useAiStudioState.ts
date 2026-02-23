@@ -45,6 +45,7 @@ import {
   pruneReferenceProjectionState,
   removeQuickSlotReference,
   reorderQuickSlotReference,
+  shouldFinalizeRemovalOnQuickSlotDetach,
   type ReferenceProjectionState,
 } from "../reference-projections";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
@@ -121,15 +122,18 @@ export const useAiStudioState = ({
     useState<ReferenceProjectionState>(createEmptyReferenceProjectionState);
   const referenceProjectionStateRef = useRef<ReferenceProjectionState>(referenceProjectionState);
   const curatedReferenceIds = referenceProjectionState.quickSlotIds;
+  const removedFromAllRefsIds = referenceProjectionState.removedFromAllRefsIds;
   const [saved, setSaved] = useState(false);
   const pendingAutoSavesRef = useRef<Record<string, unknown>>({});
+  const pendingFinalizeRemovalIdsRef = useRef<Set<string>>(new Set());
   const outputObjectUrlByIdRef = useRef<Record<string, string>>({});
   const lastOutputUrlsByIdRef = useRef<Record<string, string>>({});
   const activeOutputByIdRef = useRef<Record<string, StudioOutput>>({});
-  const outputs = useMemo(
+  const activeOutputs = useMemo(
     () => denormalizeStudioOutputCollection(activeOutputState),
     [activeOutputState]
   );
+  const outputs = activeOutputs;
   const archivedOutputs = useMemo(
     () => denormalizeStudioOutputCollection(archivedOutputState),
     [archivedOutputState]
@@ -463,7 +467,12 @@ export const useAiStudioState = ({
     setReferenceProjectionState((prev) => addQuickSlotReference(prev, id));
   }, []);
   const removeCuratedReference = useCallback((id: string) => {
-    setReferenceProjectionState((prev) => removeQuickSlotReference(prev, id));
+    setReferenceProjectionState((prev) => {
+      if (shouldFinalizeRemovalOnQuickSlotDetach(prev, id)) {
+        pendingFinalizeRemovalIdsRef.current.add(id);
+      }
+      return removeQuickSlotReference(prev, id);
+    });
   }, []);
   const reorderCuratedReference = useCallback(
     (id: string, targetId: string | null, placement: "before" | "after" | "end") => {
@@ -474,7 +483,12 @@ export const useAiStudioState = ({
     []
   );
   const clearCuratedReferences = useCallback(() => {
-    setReferenceProjectionState((prev) => clearQuickSlotReferences(prev));
+    setReferenceProjectionState((prev) => {
+      prev.removedFromAllRefsIds.forEach((id) => {
+        pendingFinalizeRemovalIdsRef.current.add(id);
+      });
+      return clearQuickSlotReferences(prev);
+    });
   }, []);
   const resetReferenceGridState = useCallback(() => {
     setOutputsState([]);
@@ -689,24 +703,6 @@ export const useAiStudioState = ({
   }, [referenceProjectionState, setOutputs]);
 
   useEffect(() => {
-    if (curatedReferenceIds.length === 0) {
-      setOutputs((prev) =>
-        prev.some((item) => item.hiddenInReferenceGrid)
-          ? prev.filter((item) => item.hiddenInReferenceGrid !== true)
-          : prev
-      );
-      return;
-    }
-    const curatedIdSet = new Set(curatedReferenceIds);
-    setOutputs((prev) => {
-      const next = prev.filter(
-        (item) => !(item.hiddenInReferenceGrid === true && !curatedIdSet.has(item.id))
-      );
-      return next.length === prev.length ? prev : next;
-    });
-  }, [curatedReferenceIds, setOutputs]);
-
-  useEffect(() => {
     const currentUrlMap: Record<string, string> = {};
     [...outputs, ...archivedOutputs].forEach((item) => {
       const tracked = resolveTrackedObjectUrl(item);
@@ -771,6 +767,21 @@ export const useAiStudioState = ({
     },
     [deleteOutputFromLifecycle, setActiveOutputId]
   );
+
+  useEffect(() => {
+    if (pendingFinalizeRemovalIdsRef.current.size === 0) return;
+    const quickSlotIds = new Set(referenceProjectionState.quickSlotIds);
+    const readyToFinalize = [...pendingFinalizeRemovalIdsRef.current].filter(
+      (candidateId) => !quickSlotIds.has(candidateId)
+    );
+    if (!readyToFinalize.length) return;
+    readyToFinalize.forEach((candidateId) =>
+      pendingFinalizeRemovalIdsRef.current.delete(candidateId)
+    );
+    readyToFinalize.forEach((candidateId) => {
+      deleteOutputFromLifecycle(candidateId);
+    });
+  }, [deleteOutputFromLifecycle, referenceProjectionState.quickSlotIds]);
 
   const {
     ensureGenerationRecord,
@@ -1093,6 +1104,7 @@ export const useAiStudioState = ({
     setOutputs,
     resetReferenceGridState,
     curatedReferenceIds,
+    removedFromAllRefsIds,
     addCuratedReference,
     removeCuratedReference,
     reorderCuratedReference,

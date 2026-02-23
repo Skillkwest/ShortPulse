@@ -72,10 +72,16 @@ export const removeQuickSlotReference = (
   id: string
 ): ReferenceProjectionState => {
   const nextQuickSlotIds = removeCuratedReferenceId(state.quickSlotIds, id);
-  if (areListsEqual(nextQuickSlotIds, state.quickSlotIds)) return state;
+  const nextRemovedIds = removeIdFromList(state.removedFromAllRefsIds, id);
+  if (
+    areListsEqual(nextQuickSlotIds, state.quickSlotIds) &&
+    areListsEqual(nextRemovedIds, state.removedFromAllRefsIds)
+  ) {
+    return state;
+  }
   return {
-    ...state,
     quickSlotIds: nextQuickSlotIds,
+    removedFromAllRefsIds: nextRemovedIds,
   };
 };
 
@@ -102,10 +108,10 @@ export const reorderQuickSlotReference = (
 export const clearQuickSlotReferences = (
   state: ReferenceProjectionState
 ): ReferenceProjectionState => {
-  if (state.quickSlotIds.length === 0) return state;
+  if (state.quickSlotIds.length === 0 && state.removedFromAllRefsIds.length === 0) return state;
   return {
-    ...state,
     quickSlotIds: [],
+    removedFromAllRefsIds: [],
   };
 };
 
@@ -125,6 +131,26 @@ export const markReferenceRemovedFromAllRefs = (
     removedFromAllRefsIds: [...state.removedFromAllRefsIds, normalizedId],
   };
 };
+
+/**
+ * Indicates whether a reference id is currently suppressed from all-refs projection.
+ */
+export const isReferenceSuppressedFromAllRefs = (
+  state: ReferenceProjectionState,
+  id: string
+): boolean => {
+  const normalizedId = normalizeId(id);
+  if (!normalizedId) return false;
+  return state.removedFromAllRefsIds.includes(normalizedId);
+};
+
+/**
+ * Returns whether removing a quick-slot should finalize deletion from active outputs.
+ */
+export const shouldFinalizeRemovalOnQuickSlotDetach = (
+  state: ReferenceProjectionState,
+  id: string
+): boolean => isReferenceSuppressedFromAllRefs(state, id);
 
 /**
  * Drops stale projection ids when outputs are removed/archived.
@@ -158,6 +184,18 @@ export const selectAllRefsProjection = (
   if (!state.removedFromAllRefsIds.length) return outputs;
   const removedSet = new Set(state.removedFromAllRefsIds);
   return outputs.filter((item) => !removedSet.has(item.id));
+};
+
+/**
+ * Resolves all-refs projection with legacy hidden-flag fallback for transitional consumers.
+ */
+export const selectAllRefsProjectionWithLegacyFallback = (
+  outputs: StudioOutput[],
+  state: ReferenceProjectionState
+): StudioOutput[] => {
+  const explicitProjection = selectAllRefsProjection(outputs, state);
+  if (state.removedFromAllRefsIds.length > 0) return explicitProjection;
+  return explicitProjection.filter((item) => item.hiddenInReferenceGrid !== true);
 };
 
 /**

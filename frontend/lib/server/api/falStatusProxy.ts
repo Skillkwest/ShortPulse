@@ -20,6 +20,17 @@ import {
   selectBestStatusCandidate,
 } from "../falIntegration/retrievalEngine";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "../falIntegration/contracts";
+import {
+  buildFalStatusErrorPayload,
+  isCompletedStatus,
+  isFailedStatus,
+  probeResponseUrlsForMedia,
+  isRetryableUpstreamResponse,
+  readJsonSafe,
+  resolveSuccessfulPayloadStatus,
+  type JsonObject,
+  type JsonReadResult,
+} from "../falIntegration/statusProxyRuntime";
 
 type FalStatusConfig = {
   queueBaseUrl: string | string[];
@@ -27,60 +38,6 @@ type FalStatusConfig = {
   timeoutMs?: number;
   alwaysHttp200?: boolean;
 };
-
-type JsonObject = Record<string, unknown>;
-
-type JsonReadResult = {
-  json: JsonObject;
-  text: string;
-  isJson: boolean;
-};
-
-const completedStatuses = new Set(["completed", "succeeded", "success", "done"]);
-const failedStatuses = new Set(["failed", "error", "cancelled", "canceled"]);
-const retryableUpstreamStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
-
-const isRetryableUpstreamResponse = (response: Response): boolean => {
-  if (retryableUpstreamStatuses.has(response.status)) return true;
-  const retryableHeader = response.headers.get("x-fal-retryable");
-  return typeof retryableHeader === "string" && retryableHeader.trim().toLowerCase() === "true";
-};
-
-const resolveSuccessfulPayloadStatus = (...candidates: unknown[]): string => {
-  for (const candidate of candidates) {
-    const normalized = normalizeStatus(candidate);
-    if (normalized && completedStatuses.has(normalized)) {
-      return normalized;
-    }
-  }
-  return "completed";
-};
-
-const readJsonSafe = async (response: Response): Promise<JsonReadResult> => {
-  const text = await response.text();
-  if (!text) return { json: {}, text: "", isJson: true };
-  try {
-    return { json: JSON.parse(text), text, isJson: true };
-  } catch {
-    return { json: { raw: text.slice(0, 4000) }, text, isJson: false };
-  }
-};
-
-const buildErrorPayload = ({
-  requestId,
-  error,
-  detail,
-}: {
-  requestId: string;
-  error: string;
-  detail?: unknown;
-}): JsonObject => ({
-  status: "error",
-  state: "error",
-  error,
-  detail: detail ?? error,
-  request_id: requestId,
-});
 
 const settleFailure = async ({
   userId,
@@ -148,7 +105,7 @@ const respondError = ({
   statusCode?: number;
 }) => {
   const code = alwaysHttp200 ? 200 : (statusCode ?? 500);
-  return res.status(code).json(buildErrorPayload({ requestId, error, detail }));
+  return res.status(code).json(buildFalStatusErrorPayload({ requestId, error, detail }));
 };
 
 /**
@@ -326,40 +283,6 @@ export const createFalStatusHandler = ({
         });
       };
 
-      const probeResponseUrlsForMedia = async ({
-        responseUrls,
-        statusHint,
-      }: {
-        responseUrls: string[];
-        statusHint: string | null;
-      }): Promise<{ payload: JsonObject; payloadStatus: string } | null> => {
-        for (const responseUrl of responseUrls) {
-          const responseProbe = await fetch(responseUrl, {
-            method: "GET",
-            headers: { Authorization: `Key ${apiKey}` },
-            signal: controller.signal,
-          });
-          const responseProbeData = await readJsonSafe(responseProbe);
-          if (
-            !responseProbe.ok ||
-            !responseProbeData.isJson ||
-            !hasMediaPayload(responseProbeData.json)
-          ) {
-            continue;
-          }
-          const probeStatus = resolveSuccessfulPayloadStatus(
-            responseProbeData.json.status,
-            toRecord(responseProbeData.json).state,
-            statusHint
-          );
-          return {
-            payload: responseProbeData.json,
-            payloadStatus: probeStatus,
-          };
-        }
-        return null;
-      };
-
       for (const [index, baseUrl] of queueBaseUrls.entries()) {
         const response = await fetch(`${baseUrl}/${requestId}/status`, {
           method: "GET",
@@ -370,10 +293,8 @@ export const createFalStatusHandler = ({
         const candidateStatus = data.isJson
           ? (normalizeStatus(data.json.status) ?? normalizeStatus(toRecord(data.json).state))
           : null;
-        const isCandidateCompleted = Boolean(
-          candidateStatus && completedStatuses.has(candidateStatus)
-        );
-        const isCandidateFailed = Boolean(candidateStatus && failedStatuses.has(candidateStatus));
+        const isCandidateCompleted = Boolean(candidateStatus && isCompletedStatus(candidateStatus));
+        const isCandidateFailed = Boolean(candidateStatus && isFailedStatus(candidateStatus));
         const probe: StatusProbeCandidate = {
           index,
           baseUrl,
@@ -505,7 +426,7 @@ export const createFalStatusHandler = ({
             ...Array.from(statusResponseUrls).filter((url) => url !== preferredResponseUrl),
           ]
         : Array.from(statusResponseUrls);
-      if (normalizedStatus && failedStatuses.has(normalizedStatus)) {
+      if (normalizedStatus && isFailedStatus(normalizedStatus)) {
         await settleFailure({
           userId: user.id,
           requestId,
@@ -559,11 +480,13 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const isComplete = Boolean(normalizedStatus && completedStatuses.has(normalizedStatus));
+      const isComplete = Boolean(normalizedStatus && isCompletedStatus(normalizedStatus));
       if (!isComplete) {
         const responseUrlProbe = await probeResponseUrlsForMedia({
           responseUrls: orderedResponseUrls,
           statusHint: normalizedStatus,
+          apiKey,
+          signal: controller.signal,
         });
         if (responseUrlProbe) {
           return captureAndRespondSuccess(responseUrlProbe);
@@ -613,6 +536,8 @@ export const createFalStatusHandler = ({
       const responseUrlProbe = await probeResponseUrlsForMedia({
         responseUrls: orderedResponseUrls,
         statusHint: normalizedStatus,
+        apiKey,
+        signal: controller.signal,
       });
       if (responseUrlProbe) {
         return captureAndRespondSuccess(responseUrlProbe);

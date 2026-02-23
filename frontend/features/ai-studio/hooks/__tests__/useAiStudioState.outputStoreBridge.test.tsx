@@ -288,8 +288,15 @@ describe("useAiStudioState output store bridge", () => {
     expect(result.current.outputs.some((item) => item.id === archivedId)).toBe(true);
   });
 
-  it("hides curated references from all refs when delete is requested", async () => {
+  it("suppresses curated references from all refs when delete is requested", async () => {
     const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.setOutputs([makeOutput("out-1"), makeOutput("out-2")]);
+    });
+    await waitFor(() => {
+      expect(result.current.outputs.map((item) => item.id)).toEqual(["out-1", "out-2"]);
+    });
 
     act(() => {
       result.current.addCuratedReference("out-1");
@@ -305,6 +312,11 @@ describe("useAiStudioState output store bridge", () => {
 
     expect(mockDeleteOutputFromLifecycle).toHaveBeenCalledWith("out-2");
     expect(mockDeleteOutputFromLifecycle).not.toHaveBeenCalledWith("out-1");
-    expect(mockUpdateOutputById).toHaveBeenCalledWith("out-1", expect.any(Function));
+    expect(mockUpdateOutputById).not.toHaveBeenCalledWith("out-1", expect.any(Function));
+    await waitFor(() => {
+      expect(
+        result.current.outputs.find((item) => item.id === "out-1")?.hiddenInReferenceGrid
+      ).toBe(true);
+    });
   });
 });

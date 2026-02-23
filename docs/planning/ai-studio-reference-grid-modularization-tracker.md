@@ -11,7 +11,7 @@ Program Doc: `docs/planning/ai-studio-reference-grid-modularization-program.md`
 | Phase 0: Contract Freeze | Completed | Frontend | 2026-02-23 | 2026-02-25 | baseline matrix approved | `docs/planning/evidence/reference-grid-modularization/phase-0/` |
 | Phase 1: Domain Core | Completed | Frontend | 2026-02-26 | 2026-03-03 | reducer/selectors parity | `docs/planning/evidence/reference-grid-modularization/phase-1/` |
 | Phase 2: Ingestion Unification | Completed | Frontend | 2026-03-04 | 2026-03-10 | canonical ingress matrix pass | `docs/planning/evidence/reference-grid-modularization/phase-2/` |
-| Phase 3: Projection Semantics | Ready | Frontend | 2026-03-11 | 2026-03-17 | curated semantics parity | `docs/planning/evidence/reference-grid-modularization/phase-3/` |
+| Phase 3: Projection Semantics | In Progress | Frontend | 2026-03-11 | 2026-03-17 | curated semantics parity | `docs/planning/evidence/reference-grid-modularization/phase-3/` |
 | Phase 4: Media Runtime Unification | Planned | Frontend + Media | 2026-03-18 | 2026-03-24 | modal/route runtime parity | `docs/planning/evidence/reference-grid-modularization/phase-4/` |
 | Phase 5: Canvas + State Decomposition | Planned | Frontend | 2026-03-25 | 2026-04-02 | size budget targets pass in target lane | `docs/planning/evidence/reference-grid-modularization/phase-5/` |
 | Phase 6: Guardrails + Cleanup | Planned | Frontend + DevEx | 2026-04-03 | 2026-04-09 | two green cycles + cleanup complete | `docs/planning/evidence/reference-grid-modularization/phase-6/` |
@@ -130,6 +130,7 @@ Exit validation:
 - Phase 2 post-implementation audit + external benchmark: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-post-implementation-audit-and-external-benchmark.md`
 - Phase 2 hardening evidence: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-hardening-ingestion-contract-parity.md`
 - Phase 2 hold-closure evidence: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-hold-closure-integration-and-keyboard-parity.md`
+- Phase 3 foundation evidence: `docs/planning/evidence/reference-grid-modularization/phase-3/2026-02-23-phase-03-projection-semantics-foundation.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -139,3 +140,4 @@ Exit validation:
 | 2026-02-23 | Hold Phase 3 kickoff pending phase-2 post-implementation hardening deltas | preserve no-regression promotion standard on ingress and quick-slot semantics | Frontend |
 | 2026-02-23 | Keep Phase 3 hold active after ingestion hardening until integration + keyboard parity coverage closes | no-regression bar requires flow-level + accessibility parity evidence | Frontend |
 | 2026-02-23 | Lift Phase 3 kickoff hold after integration + keyboard parity evidence closure | all hold criteria closed under phase-2 evidence packet | Frontend |
+| 2026-02-23 | Start Phase 3 with explicit projection-state foundation + compatibility bridge | decouple semantics first while preserving current UI behavior and rollback safety | Frontend |

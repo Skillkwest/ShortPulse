@@ -976,3 +976,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - added integration coverage for media-library add -> quick-slot reorder/remove -> archive overflow -> restore lifecycle.
 - Added hold-closure evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-hold-closure-integration-and-keyboard-parity.md`
+- Started Phase 3 projection-semantics foundation:
+  - added `frontend/features/ai-studio/reference-projections/` module (state contracts, transitions, selectors, compatibility adapter, unit tests).
+  - rewired curated delete suppression in `useAiStudioState` to explicit projection-state transitions with legacy hidden-flag compatibility mirroring.
+  - updated output-store bridge tests for projection-based suppression behavior.
+- Added phase-3 foundation evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-3/2026-02-23-phase-03-projection-semantics-foundation.md`

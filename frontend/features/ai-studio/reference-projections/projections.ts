@@ -1,0 +1,200 @@
+/**
+ * Reference projection helpers.
+ * Provides deterministic transitions and selectors for all refs and quick-slot surfaces.
+ */
+import type { StudioOutput } from "../types";
+import {
+  addCuratedReferenceId,
+  removeCuratedReferenceId,
+  reorderCuratedReferenceId,
+} from "../logic/curatedReferences";
+import type { ReferenceProjectionState } from "./types";
+
+const normalizeId = (value: string | null | undefined): string =>
+  typeof value === "string" ? value.trim() : "";
+
+const uniqueIds = (ids: Iterable<string>): string[] => {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const raw of ids) {
+    const id = normalizeId(raw);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    deduped.push(id);
+  }
+  return deduped;
+};
+
+const removeIdFromList = (ids: string[], id: string): string[] => {
+  const normalizedId = normalizeId(id);
+  if (!normalizedId) return ids;
+  const next = ids.filter((value) => value !== normalizedId);
+  return next.length === ids.length ? ids : next;
+};
+
+const areListsEqual = (left: string[], right: string[]): boolean =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
+
+/**
+ * Builds empty projection state.
+ */
+export const createEmptyReferenceProjectionState = (): ReferenceProjectionState => ({
+  quickSlotIds: [],
+  removedFromAllRefsIds: [],
+});
+
+/**
+ * Adds a reference to quick slots and clears all-refs suppression for that id.
+ */
+export const addQuickSlotReference = (
+  state: ReferenceProjectionState,
+  id: string
+): ReferenceProjectionState => {
+  const nextQuickSlotIds = addCuratedReferenceId(state.quickSlotIds, id);
+  const nextRemovedIds = removeIdFromList(state.removedFromAllRefsIds, id);
+  if (
+    areListsEqual(nextQuickSlotIds, state.quickSlotIds) &&
+    areListsEqual(nextRemovedIds, state.removedFromAllRefsIds)
+  ) {
+    return state;
+  }
+  return {
+    quickSlotIds: nextQuickSlotIds,
+    removedFromAllRefsIds: nextRemovedIds,
+  };
+};
+
+/**
+ * Removes a reference from quick slots.
+ */
+export const removeQuickSlotReference = (
+  state: ReferenceProjectionState,
+  id: string
+): ReferenceProjectionState => {
+  const nextQuickSlotIds = removeCuratedReferenceId(state.quickSlotIds, id);
+  if (areListsEqual(nextQuickSlotIds, state.quickSlotIds)) return state;
+  return {
+    ...state,
+    quickSlotIds: nextQuickSlotIds,
+  };
+};
+
+/**
+ * Reorders quick slots around a target id.
+ */
+export const reorderQuickSlotReference = (
+  state: ReferenceProjectionState,
+  id: string,
+  targetId: string | null,
+  placement: "before" | "after" | "end"
+): ReferenceProjectionState => {
+  const nextQuickSlotIds = reorderCuratedReferenceId(state.quickSlotIds, id, targetId, placement);
+  if (areListsEqual(nextQuickSlotIds, state.quickSlotIds)) return state;
+  return {
+    ...state,
+    quickSlotIds: nextQuickSlotIds,
+  };
+};
+
+/**
+ * Clears all quick-slot ids.
+ */
+export const clearQuickSlotReferences = (
+  state: ReferenceProjectionState
+): ReferenceProjectionState => {
+  if (state.quickSlotIds.length === 0) return state;
+  return {
+    ...state,
+    quickSlotIds: [],
+  };
+};
+
+/**
+ * Marks a quick-slot reference as removed from all-refs projection.
+ */
+export const markReferenceRemovedFromAllRefs = (
+  state: ReferenceProjectionState,
+  id: string
+): ReferenceProjectionState => {
+  const normalizedId = normalizeId(id);
+  if (!normalizedId) return state;
+  if (!state.quickSlotIds.includes(normalizedId)) return state;
+  if (state.removedFromAllRefsIds.includes(normalizedId)) return state;
+  return {
+    ...state,
+    removedFromAllRefsIds: [...state.removedFromAllRefsIds, normalizedId],
+  };
+};
+
+/**
+ * Drops stale projection ids when outputs are removed/archived.
+ */
+export const pruneReferenceProjectionState = (
+  state: ReferenceProjectionState,
+  validOutputIds: Iterable<string>
+): ReferenceProjectionState => {
+  const validIdSet = new Set(uniqueIds(validOutputIds));
+  const nextQuickSlotIds = state.quickSlotIds.filter((id) => validIdSet.has(id));
+  const nextRemovedIds = state.removedFromAllRefsIds.filter((id) => validIdSet.has(id));
+  if (
+    areListsEqual(nextQuickSlotIds, state.quickSlotIds) &&
+    areListsEqual(nextRemovedIds, state.removedFromAllRefsIds)
+  ) {
+    return state;
+  }
+  return {
+    quickSlotIds: nextQuickSlotIds,
+    removedFromAllRefsIds: nextRemovedIds,
+  };
+};
+
+/**
+ * Resolves all-refs projection from active outputs.
+ */
+export const selectAllRefsProjection = (
+  outputs: StudioOutput[],
+  state: ReferenceProjectionState
+): StudioOutput[] => {
+  if (!state.removedFromAllRefsIds.length) return outputs;
+  const removedSet = new Set(state.removedFromAllRefsIds);
+  return outputs.filter((item) => !removedSet.has(item.id));
+};
+
+/**
+ * Resolves quick-slot projection from active outputs and quick-slot ids.
+ */
+export const selectQuickSlotProjection = (
+  outputs: StudioOutput[],
+  state: ReferenceProjectionState
+): StudioOutput[] => {
+  if (!state.quickSlotIds.length) return [];
+  const byId = new Map(outputs.map((item) => [item.id, item]));
+  return state.quickSlotIds
+    .map((id) => byId.get(id))
+    .filter((item): item is StudioOutput => Boolean(item));
+};
+
+/**
+ * Applies compatibility mirror for legacy hidden-flag consumers.
+ */
+export const applyAllRefsSuppressionCompatibility = (
+  outputs: StudioOutput[],
+  state: ReferenceProjectionState
+): StudioOutput[] => {
+  if (!outputs.length) return outputs;
+  const removedSet = new Set(state.removedFromAllRefsIds);
+  let changed = false;
+  const next = outputs.map((item) => {
+    const shouldHide = removedSet.has(item.id);
+    const isHidden = item.hiddenInReferenceGrid === true;
+    if (isHidden === shouldHide) {
+      return item;
+    }
+    changed = true;
+    return {
+      ...item,
+      hiddenInReferenceGrid: shouldHide ? true : undefined,
+    };
+  });
+  return changed ? next : outputs;
+};

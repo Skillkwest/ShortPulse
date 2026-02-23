@@ -33,12 +33,20 @@ import {
 } from "./aiStudioOutputStore";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 import {
-  addCuratedReferenceId,
   pruneCuratedReferenceIds,
-  removeCuratedReferenceId,
-  reorderCuratedReferenceId,
   syncCuratedPinnedOutputsByOrder,
 } from "../logic/curatedReferences";
+import {
+  addQuickSlotReference,
+  applyAllRefsSuppressionCompatibility,
+  clearQuickSlotReferences,
+  createEmptyReferenceProjectionState,
+  markReferenceRemovedFromAllRefs,
+  pruneReferenceProjectionState,
+  removeQuickSlotReference,
+  reorderQuickSlotReference,
+  type ReferenceProjectionState,
+} from "../reference-projections";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
 import {
   buildStudioOutputsFromReferenceInput,
@@ -109,8 +117,10 @@ export const useAiStudioState = ({
   const outputStorePublisherUnmountedRef = useRef(false);
   const outputStorePublishEpochRef = useRef(0);
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
-  const [curatedReferenceIds, setCuratedReferenceIds] = useState<string[]>([]);
-  const curatedReferenceIdsRef = useRef<string[]>([]);
+  const [referenceProjectionState, setReferenceProjectionState] =
+    useState<ReferenceProjectionState>(createEmptyReferenceProjectionState);
+  const referenceProjectionStateRef = useRef<ReferenceProjectionState>(referenceProjectionState);
+  const curatedReferenceIds = referenceProjectionState.quickSlotIds;
   const [saved, setSaved] = useState(false);
   const pendingAutoSavesRef = useRef<Record<string, unknown>>({});
   const outputObjectUrlByIdRef = useRef<Record<string, string>>({});
@@ -450,19 +460,21 @@ export const useAiStudioState = ({
     [archiveOlderOutputs, setOutputsState]
   );
   const addCuratedReference = useCallback((id: string) => {
-    setCuratedReferenceIds((prev) => addCuratedReferenceId(prev, id));
+    setReferenceProjectionState((prev) => addQuickSlotReference(prev, id));
   }, []);
   const removeCuratedReference = useCallback((id: string) => {
-    setCuratedReferenceIds((prev) => removeCuratedReferenceId(prev, id));
+    setReferenceProjectionState((prev) => removeQuickSlotReference(prev, id));
   }, []);
   const reorderCuratedReference = useCallback(
     (id: string, targetId: string | null, placement: "before" | "after" | "end") => {
-      setCuratedReferenceIds((prev) => reorderCuratedReferenceId(prev, id, targetId, placement));
+      setReferenceProjectionState((prev) =>
+        reorderQuickSlotReference(prev, id, targetId, placement)
+      );
     },
     []
   );
   const clearCuratedReferences = useCallback(() => {
-    setCuratedReferenceIds((prev) => (prev.length > 0 ? [] : prev));
+    setReferenceProjectionState((prev) => clearQuickSlotReferences(prev));
   }, []);
   const resetReferenceGridState = useCallback(() => {
     setOutputsState([]);
@@ -634,16 +646,24 @@ export const useAiStudioState = ({
   }, []);
 
   useEffect(() => {
-    curatedReferenceIdsRef.current = curatedReferenceIds;
-  }, [curatedReferenceIds]);
+    referenceProjectionStateRef.current = referenceProjectionState;
+  }, [referenceProjectionState]);
 
   useEffect(() => {
     const validOutputIds = [...activeOutputState.order, ...archivedOutputState.order];
-    const currentCuratedIds = curatedReferenceIdsRef.current;
-    const nextCuratedIds = pruneCuratedReferenceIds(currentCuratedIds, validOutputIds);
-    if (nextCuratedIds === currentCuratedIds) return;
-    curatedReferenceIdsRef.current = nextCuratedIds;
-    setCuratedReferenceIds(nextCuratedIds);
+    // Keep projection ids aligned with output lifecycle transitions (active + archived stores).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReferenceProjectionState((prev) => {
+      const nextQuickSlotIds = pruneCuratedReferenceIds(prev.quickSlotIds, validOutputIds);
+      const withPrunedQuickSlots =
+        nextQuickSlotIds === prev.quickSlotIds
+          ? prev
+          : {
+              ...prev,
+              quickSlotIds: nextQuickSlotIds,
+            };
+      return pruneReferenceProjectionState(withPrunedQuickSlots, validOutputIds);
+    });
   }, [activeOutputState.order, archivedOutputState.order]);
 
   useEffect(() => {
@@ -663,6 +683,10 @@ export const useAiStudioState = ({
     setActiveOutputState(syncPinnedState);
     setArchivedOutputState(syncPinnedState);
   }, [curatedReferenceIds]);
+
+  useEffect(() => {
+    setOutputs((prev) => applyAllRefsSuppressionCompatibility(prev, referenceProjectionState));
+  }, [referenceProjectionState, setOutputs]);
 
   useEffect(() => {
     if (curatedReferenceIds.length === 0) {
@@ -738,16 +762,14 @@ export const useAiStudioState = ({
     (id: string) => {
       const outputId = id.trim();
       if (!outputId) return;
-      if (curatedReferenceIds.includes(outputId)) {
-        updateOutputById(outputId, (item) =>
-          item.hiddenInReferenceGrid ? item : { ...item, hiddenInReferenceGrid: true }
-        );
+      if (referenceProjectionStateRef.current.quickSlotIds.includes(outputId)) {
+        setReferenceProjectionState((prev) => markReferenceRemovedFromAllRefs(prev, outputId));
         setActiveOutputId((prev) => (prev === outputId ? null : prev));
         return;
       }
       deleteOutputFromLifecycle(outputId);
     },
-    [curatedReferenceIds, deleteOutputFromLifecycle, setActiveOutputId, updateOutputById]
+    [deleteOutputFromLifecycle, setActiveOutputId]
   );
 
   const {

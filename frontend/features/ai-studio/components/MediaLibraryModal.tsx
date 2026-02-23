@@ -3,25 +3,48 @@
  * Loads user media/prompts and lets creators add them to the reference grid.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  CheckCircle,
-  CloudArrowDown,
-  ImageSquare,
-  LockSimple,
-  MagnifyingGlass,
-  VideoCamera,
-  X,
-} from "phosphor-react";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 import {
   MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
-  resolveMediaPreviewSignBudget,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
-import { resolveMediaCardAspectRatio } from "../logic/mediaLibraryAspectRatio";
+import {
+  BUCKET,
+  MEDIA_MODAL_CACHE_TTL_MS,
+  MEDIA_MODAL_PAGE_SIZE,
+  createMediaTabBooleanState,
+  createMediaTabCacheState,
+  createMediaTabRequestState,
+  getErrorMessage,
+  getMediaDataTabForRow,
+  isMediaDataTab,
+  isNextImageOptimizerUrl,
+  isVideoFile,
+  mergePageRows,
+  normalizeMediaSearchTerm,
+  resolveMediaMetadataPromptText,
+  resolveModalSignBudget,
+  resolveNextImageOptimizerSourceUrl,
+  sortByCreatedAtDesc,
+  type MediaCardRefCallback,
+  type MediaDataTab,
+  type MediaFileRow,
+  type MediaTab,
+  type MediaTabBooleanState,
+  type MediaTabCache,
+  type MediaTabRequestState,
+  type NavigatorWithConnection,
+  type PromptRow,
+  withMediaSearchFilter,
+  withMediaTabFilter,
+  buildCursorFromRows,
+} from "../logic/mediaLibraryModalModel";
+import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
+import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
+import { MediaLibraryModalControls } from "./media-library-modal/MediaLibraryModalControls";
 import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
 import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
@@ -30,72 +53,6 @@ import {
   resolveAndApplySignedPreviewUrlsByRows,
   signMediaStoragePath,
 } from "../../media-library/logic/mediaPreviewRuntimeShared";
-import {
-  isAdaptiveSurfaceEnabled,
-  resolveAdaptiveMedia,
-  resolveAdaptiveSourceKind,
-} from "../../../lib/adaptive-media";
-
-type MediaFileRow = {
-  id: string;
-  filename: string;
-  storage_path: string;
-  preview_storage_path?: string;
-  file_type: string;
-  source?: string | null;
-  created_at?: string | null;
-  metadata?: Record<string, unknown> | null;
-  thumb_variant_path?: string | null;
-  poster_variant_path?: string | null;
-  preview_variant_path?: string | null;
-  signedUrl?: string | null;
-};
-
-type PromptRow = {
-  id: string;
-  title: string | null;
-  prompt_text: string;
-  mode?: string | null;
-  model_id?: string | null;
-  source?: string | null;
-  created_at?: string | null;
-};
-
-type MediaTab =
-  | "uploaded_images"
-  | "uploaded_videos"
-  | "private"
-  | "saved_prompts"
-  | "ai_generations";
-
-type MediaDataTab = Exclude<MediaTab, "saved_prompts">;
-
-type MediaCursor = {
-  createdAt: string;
-  id: string;
-};
-
-type MediaTabCache = {
-  rows: MediaFileRow[];
-  nextCursor: MediaCursor | null;
-  pagesLoaded: number;
-  query: string;
-  loadedAtMs: number | null;
-  hasMore: boolean;
-  loading: boolean;
-  loaded: boolean;
-  error: string | null;
-};
-
-type MediaTabRequestState = Record<MediaDataTab, number>;
-type MediaTabBooleanState = Record<MediaDataTab, boolean>;
-type MediaCardRefCallback = (node: HTMLButtonElement | null) => void;
-type NavigatorWithConnection = Navigator & {
-  connection?: {
-    addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-    removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-  };
-};
 
 type MediaLibraryModalProps = {
   isOpen: boolean;
@@ -113,211 +70,6 @@ type MediaLibraryModalProps = {
     fullUrl?: string | null;
   }) => void;
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
-};
-
-const BUCKET = "media_library";
-const PRIVATE_MEDIA_SOURCE = "private_upload";
-const PRIVATE_MEDIA_FOLDER = "private";
-const MEDIA_MODAL_PAGE_SIZE = 36;
-const MEDIA_MODAL_CACHE_TTL_MS = 20_000;
-const MEDIA_MODAL_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
-const MEDIA_MODAL_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
-  initialSignLimit: 10,
-  prefetchWindow: 18,
-  signBatchSize: 8,
-};
-const MEDIA_MODAL_SIGN_BUDGET_SMALL_SCREEN: MediaSignBudget = {
-  initialSignLimit: 6,
-  prefetchWindow: 12,
-  signBatchSize: 5,
-};
-const MEDIA_MODAL_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
-  initialSignLimit: 4,
-  prefetchWindow: 8,
-  signBatchSize: 3,
-};
-const NEXT_IMAGE_OPTIMIZER_PATH_PATTERN = /(?:^|\/)_next\/image\?/i;
-
-const isNextImageOptimizerUrl = (value: string | null | undefined): boolean => {
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  return trimmed.length > 0 && NEXT_IMAGE_OPTIMIZER_PATH_PATTERN.test(trimmed);
-};
-
-const resolveNextImageOptimizerSourceUrl = (value: string | null | undefined): string | null => {
-  if (!isNextImageOptimizerUrl(value)) return null;
-  const trimmed = value?.trim();
-  if (!trimmed) return null;
-  try {
-    const parsed = new URL(trimmed, "https://shortpulse.local");
-    const source = parsed.searchParams.get("url");
-    const resolved = source?.trim() ?? "";
-    return resolved.length > 0 ? resolved : null;
-  } catch {
-    return null;
-  }
-};
-
-const resolveModalSignBudget = (): MediaSignBudget => {
-  return resolveMediaPreviewSignBudget({
-    desktop: MEDIA_MODAL_SIGN_BUDGET_DESKTOP,
-    smallScreen: MEDIA_MODAL_SIGN_BUDGET_SMALL_SCREEN,
-    constrained: MEDIA_MODAL_SIGN_BUDGET_CONSTRAINED,
-    smallScreenQuery: MEDIA_MODAL_SIGN_SMALL_SCREEN_QUERY,
-  });
-};
-
-const isVideoFile = (fileType?: string | null) =>
-  (fileType ?? "").toLowerCase().startsWith("video");
-const isPrivateStoragePath = (storagePath?: string | null) =>
-  (storagePath ?? "").split("/").filter(Boolean).includes(PRIVATE_MEDIA_FOLDER);
-const isPrivateMediaFile = (file: Pick<MediaFileRow, "source" | "storage_path">) =>
-  (file.source ?? "") === PRIVATE_MEDIA_SOURCE || isPrivateStoragePath(file.storage_path);
-
-const isMediaDataTab = (tab: MediaTab): tab is MediaDataTab => tab !== "saved_prompts";
-
-const getMediaDataTabForRow = (
-  row: Pick<MediaFileRow, "source" | "storage_path" | "file_type">
-): MediaDataTab => {
-  if (isPrivateMediaFile(row)) return "private";
-  if ((row.source ?? "upload") === "ai_studio") return "ai_generations";
-  return isVideoFile(row.file_type) ? "uploaded_videos" : "uploaded_images";
-};
-
-const createEmptyMediaTabCache = (): MediaTabCache => ({
-  rows: [],
-  nextCursor: null,
-  pagesLoaded: 0,
-  query: "",
-  loadedAtMs: null,
-  hasMore: true,
-  loading: false,
-  loaded: false,
-  error: null,
-});
-
-const createMediaTabCacheState = (): Record<MediaDataTab, MediaTabCache> => ({
-  uploaded_images: createEmptyMediaTabCache(),
-  uploaded_videos: createEmptyMediaTabCache(),
-  private: createEmptyMediaTabCache(),
-  ai_generations: createEmptyMediaTabCache(),
-});
-
-const createMediaTabRequestState = (): MediaTabRequestState => ({
-  uploaded_images: 0,
-  uploaded_videos: 0,
-  private: 0,
-  ai_generations: 0,
-});
-
-const createMediaTabBooleanState = (): MediaTabBooleanState => ({
-  uploaded_images: false,
-  uploaded_videos: false,
-  private: false,
-  ai_generations: false,
-});
-
-const withMediaTabFilter = <
-  T extends {
-    eq: (column: string, value: string) => T;
-    ilike: (column: string, pattern: string) => T;
-    or: (clause: string) => T;
-  },
->(
-  query: T,
-  tab: MediaDataTab
-): T => {
-  if (tab === "private") return query.eq("source", PRIVATE_MEDIA_SOURCE);
-  if (tab === "ai_generations") return query.eq("source", "ai_studio");
-  if (tab === "uploaded_videos") return query.eq("source", "upload").ilike("file_type", "video%");
-  return query.eq("source", "upload").ilike("file_type", "image%");
-};
-
-const normalizeMediaSearchTerm = (value: string): string =>
-  value
-    .trim()
-    .replace(/[,%*()]/g, " ")
-    .replace(/\s+/g, " ");
-
-const buildMediaSearchOrClause = (value: string): string | null => {
-  const normalized = normalizeMediaSearchTerm(value);
-  if (!normalized) return null;
-  const wildcard = `*${normalized}*`;
-  return `filename.ilike.${wildcard},storage_path.ilike.${wildcard}`;
-};
-
-const withMediaSearchFilter = <T extends { or: (clause: string) => T }>(
-  query: T,
-  rawSearchTerm: string
-): T => {
-  const clause = buildMediaSearchOrClause(rawSearchTerm);
-  if (!clause) return query;
-  return query.or(clause);
-};
-
-const buildCursorFromRows = <T extends { id?: string | null; created_at?: string | null }>(
-  rows: T[]
-): MediaCursor | null => {
-  if (!rows.length) return null;
-  const tail = rows[rows.length - 1];
-  const id = tail.id ?? "";
-  const createdAt = tail.created_at ?? "";
-  if (!id || !createdAt) return null;
-  return { id, createdAt };
-};
-
-const mergePageRows = (current: MediaFileRow[], incoming: MediaFileRow[]): MediaFileRow[] => {
-  if (!incoming.length) return current;
-  const byId = new Map(current.map((row) => [row.id, row]));
-  for (const row of incoming) {
-    byId.set(row.id, row);
-  }
-  return Array.from(byId.values()).sort((a, b) => {
-    const createdDelta = createdAtTime(b.created_at) - createdAtTime(a.created_at);
-    if (createdDelta !== 0) return createdDelta;
-    return (b.id ?? "").localeCompare(a.id ?? "");
-  });
-};
-
-const formatDate = (value?: string | null) => {
-  if (!value) return "Unknown";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown";
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-};
-
-const createdAtTime = (value?: string | null): number => {
-  if (!value) return 0;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
-const sortByCreatedAtDesc = <T extends { created_at?: string | null; id?: string | null }>(
-  rows: T[]
-): T[] =>
-  [...rows].sort((a, b) => {
-    const createdDelta = createdAtTime(b.created_at) - createdAtTime(a.created_at);
-    if (createdDelta !== 0) return createdDelta;
-    return (b.id ?? "").localeCompare(a.id ?? "");
-  });
-
-const getErrorMessage = (error: unknown, fallback: string): string =>
-  error instanceof Error ? error.message : fallback;
-
-const resolveMediaMetadataPromptText = (
-  metadata?: Record<string, unknown> | null
-): string | null => {
-  if (!metadata) return null;
-  const prompt =
-    typeof metadata.prompt === "string"
-      ? metadata.prompt
-      : typeof metadata.prompt_text === "string"
-        ? metadata.prompt_text
-        : typeof metadata.promptText === "string"
-          ? metadata.promptText
-          : "";
-  const trimmed = prompt.trim();
-  return trimmed.length > 0 ? trimmed : null;
 };
 
 export function MediaLibraryModal({
@@ -907,6 +659,56 @@ export function MediaLibraryModal({
   const loadingMoreMedia = Boolean(activeMediaCache?.loaded && activeMediaCache?.loading);
   const hasMoreMediaPages = Boolean(activeMediaCache?.hasMore);
   const isMediaTab = activeTab !== "saved_prompts";
+  const handleSelectPromptCard = useCallback(
+    (prompt: PromptRow) => {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.add(prompt.id);
+        return next;
+      });
+      onSelectPrompt({
+        id: prompt.id,
+        promptText: prompt.prompt_text,
+        title: prompt.title,
+      });
+    },
+    [onSelectPrompt]
+  );
+  const handleSelectMediaFile = useCallback(
+    async (file: MediaFileRow) => {
+      const nextUrl =
+        (await resolveSignedSelectionUrl({
+          row: file,
+          currentUserId: currentUserIdRef.current,
+          signStoragePath,
+        })) ??
+        (await refreshSignedUrl(file)) ??
+        file.signedUrl;
+      if (!nextUrl) return;
+      const previewStoragePath = file.preview_storage_path ?? file.storage_path;
+      const fullStoragePath = file.storage_path;
+      const previewUrl = file.signedUrl ?? nextUrl;
+      const fullUrl = nextUrl;
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.add(file.id);
+        return next;
+      });
+      onSelectMedia({
+        id: file.id,
+        url: nextUrl,
+        fileType: isVideoFile(file.file_type) ? "video" : "image",
+        filename: file.filename,
+        promptText: resolveMediaMetadataPromptText(file.metadata),
+        source: file.source ?? "upload",
+        previewStoragePath,
+        fullStoragePath,
+        previewUrl,
+        fullUrl,
+      });
+    },
+    [onSelectMedia, refreshSignedUrl, signStoragePath]
+  );
 
   useEffect(() => {
     if (!isOpen || loading || firstCardShellLoggedRef.current) return;
@@ -931,270 +733,44 @@ export function MediaLibraryModal({
         aria-label="Media library"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="media-library-modal-header">
-          <div>
-            <p className="eyebrow">Media Library</p>
-            <p className="tiny subdued helper-text">
-              Select media or prompts to add to the reference grid.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="art-close-btn"
-            onClick={onClose}
-            aria-label="Close media library"
-          >
-            <X size={18} weight="bold" />
-          </button>
-        </div>
-
-        <div className="media-library-modal-tabs" role="tablist" aria-label="Media library tabs">
-          <button
-            type="button"
-            role="tab"
-            className={`media-library-tab ${activeTab === "uploaded_images" ? "is-active" : ""}`}
-            aria-selected={activeTab === "uploaded_images"}
-            onClick={() => setActiveTab("uploaded_images")}
-          >
-            <ImageSquare size={14} weight="bold" aria-hidden />
-            Uploaded Images
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={`media-library-tab ${activeTab === "uploaded_videos" ? "is-active" : ""}`}
-            aria-selected={activeTab === "uploaded_videos"}
-            onClick={() => setActiveTab("uploaded_videos")}
-          >
-            <VideoCamera size={14} weight="bold" aria-hidden />
-            Uploaded Videos
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={`media-library-tab ${activeTab === "saved_prompts" ? "is-active" : ""}`}
-            aria-selected={activeTab === "saved_prompts"}
-            onClick={() => setActiveTab("saved_prompts")}
-          >
-            <CloudArrowDown size={14} weight="bold" aria-hidden />
-            Saved Prompts
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={`media-library-tab ${activeTab === "ai_generations" ? "is-active" : ""}`}
-            aria-selected={activeTab === "ai_generations"}
-            onClick={() => setActiveTab("ai_generations")}
-          >
-            <CloudArrowDown size={14} weight="bold" aria-hidden />
-            AI Studio Generations
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={`media-library-tab ${activeTab === "private" ? "is-active" : ""}`}
-            aria-selected={activeTab === "private"}
-            onClick={() => setActiveTab("private")}
-          >
-            <LockSimple size={14} weight="bold" aria-hidden />
-            Private
-          </button>
-        </div>
-
-        <div className="media-library-modal-search">
-          <div className="search-input">
-            <MagnifyingGlass size={15} weight="bold" aria-hidden />
-            <input
-              type="text"
-              placeholder={isMediaTab ? "Search media by name or file" : "Search saved prompts"}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </div>
-        </div>
+        <MediaLibraryModalControls
+          activeTab={activeTab}
+          isMediaTab={isMediaTab}
+          search={search}
+          onClose={onClose}
+          onTabChange={setActiveTab}
+          onSearchChange={setSearch}
+        />
 
         <div className="media-library-modal-body">
           {loading ? <p className="tiny subdued">Loading media library…</p> : null}
           {error ? <p className="tiny subdued">{error}</p> : null}
 
           {!loading && !error && activeTab === "saved_prompts" ? (
-            <div className="prompt-grid media-library-prompt-grid">
-              {prompts.length === 0 ? (
-                <p className="tiny subdued">No saved prompts yet.</p>
-              ) : (
-                sortedPrompts.map((prompt) => {
-                  const isSelected = selectedIds.has(prompt.id);
-                  return (
-                    <button
-                      key={prompt.id}
-                      type="button"
-                      className={`prompt-card media-library-prompt-card${isSelected ? " is-selected" : ""}`}
-                      aria-pressed={isSelected}
-                      onClick={() => {
-                        setSelectedIds((prev) => {
-                          const next = new Set(prev);
-                          next.add(prompt.id);
-                          return next;
-                        });
-                        onSelectPrompt({
-                          id: prompt.id,
-                          promptText: prompt.prompt_text,
-                          title: prompt.title,
-                        });
-                      }}
-                    >
-                      {isSelected ? (
-                        <span className="media-library-select-indicator" aria-hidden>
-                          <CheckCircle size={16} weight="fill" />
-                        </span>
-                      ) : null}
-                      <div className="prompt-card-header">
-                        <div>
-                          <p className="metric-label">{prompt.title || "Saved prompt"}</p>
-                          <p className="metric-value tiny">{formatDate(prompt.created_at)}</p>
-                        </div>
-                        <span className="pill tiny">Prompt</span>
-                      </div>
-                      <p className="prompt-card-body">{prompt.prompt_text}</p>
-                    </button>
-                  );
-                })
-              )}
-            </div>
+            <MediaLibraryPromptGrid
+              prompts={prompts}
+              sortedPrompts={sortedPrompts}
+              selectedIds={selectedIds}
+              onSelectPromptCard={handleSelectPromptCard}
+            />
           ) : null}
 
           {!loading && !error && isMediaTab ? (
             <>
-              <div className="media-grid media-library-modal-grid media-library-modal-grid-packed">
-                {activeMedia.length === 0 ? (
-                  <p className="tiny subdued">No media found for this tab.</p>
-                ) : (
-                  activeMedia.map((file) => {
-                    const isSelected = selectedIds.has(file.id);
-                    const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
-                    const previewAspectRatio = resolveMediaCardAspectRatio({
-                      fileType: file.file_type,
-                      metadata: file.metadata,
-                    });
-                    const adaptiveCardPreview =
-                      file.signedUrl && !shouldBypassAdaptivePreview
-                        ? resolveAdaptiveMedia({
-                            surface: "media-library-modal-grid",
-                            mediaKind: isVideoFile(file.file_type) ? "video" : "image",
-                            source: resolveAdaptiveSourceKind(file.signedUrl),
-                            urls: {
-                              previewUrl: file.signedUrl,
-                              fullUrl: file.signedUrl,
-                            },
-                            storage: {},
-                            pressureLevel: 0,
-                            cardLongEdgePx: 320,
-                            devicePixelRatio:
-                              typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-                            strictPreviewLadder: true,
-                            adaptivePreviewQuality: isAdaptiveSurfaceEnabled(
-                              "media-library-modal-grid"
-                            ),
-                          })
-                        : null;
-                    const cardPreviewUrl = shouldBypassAdaptivePreview
-                      ? file.signedUrl
-                      : (adaptiveCardPreview?.previewUrl ?? file.signedUrl);
-                    return (
-                      <button
-                        key={file.id}
-                        type="button"
-                        className={`media-card media-library-modal-card${isSelected ? " is-selected" : ""}`}
-                        ref={getMediaCardRef(file.id)}
-                        aria-pressed={isSelected}
-                        onClick={async () => {
-                          const nextUrl =
-                            (await resolveSignedSelectionUrl({
-                              row: file,
-                              currentUserId: currentUserIdRef.current,
-                              signStoragePath,
-                            })) ??
-                            (await refreshSignedUrl(file)) ??
-                            file.signedUrl;
-                          if (!nextUrl) return;
-                          const previewStoragePath = file.preview_storage_path ?? file.storage_path;
-                          const fullStoragePath = file.storage_path;
-                          const previewUrl = file.signedUrl ?? nextUrl;
-                          const fullUrl = nextUrl;
-                          setSelectedIds((prev) => {
-                            const next = new Set(prev);
-                            next.add(file.id);
-                            return next;
-                          });
-                          onSelectMedia({
-                            id: file.id,
-                            url: nextUrl,
-                            fileType: isVideoFile(file.file_type) ? "video" : "image",
-                            filename: file.filename,
-                            promptText: resolveMediaMetadataPromptText(file.metadata),
-                            source: file.source ?? "upload",
-                            previewStoragePath,
-                            fullStoragePath,
-                            previewUrl,
-                            fullUrl,
-                          });
-                        }}
-                      >
-                        {isSelected ? (
-                          <span className="media-library-select-indicator" aria-hidden>
-                            <CheckCircle size={16} weight="fill" />
-                          </span>
-                        ) : null}
-                        {cardPreviewUrl ? (
-                          isVideoFile(file.file_type) ? (
-                            <video
-                              className="media-thumb"
-                              src={cardPreviewUrl}
-                              muted
-                              playsInline
-                              loop
-                              autoPlay
-                              preload="metadata"
-                              style={{ aspectRatio: previewAspectRatio }}
-                              onLoadedMetadata={() => {
-                                signedUrlRetryRef.current[file.id] = 0;
-                              }}
-                              onLoadedData={() => {
-                                markFirstMediaPaint("video");
-                              }}
-                              onError={() => handleMediaPreviewError(file, cardPreviewUrl)}
-                            />
-                          ) : (
-                            <>
-                              {/* Signed URLs are generated dynamically at runtime. */}
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                className="media-thumb"
-                                src={cardPreviewUrl}
-                                alt={file.filename}
-                                loading="lazy"
-                                decoding="async"
-                                style={{ aspectRatio: previewAspectRatio }}
-                                onLoad={() => {
-                                  signedUrlRetryRef.current[file.id] = 0;
-                                  markFirstMediaPaint("image");
-                                }}
-                                onError={() => handleMediaPreviewError(file, cardPreviewUrl)}
-                              />
-                            </>
-                          )
-                        ) : (
-                          <div
-                            className="media-thumb placeholder"
-                            style={{ aspectRatio: previewAspectRatio }}
-                            aria-hidden
-                          />
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
+              <MediaLibraryMediaGrid
+                activeMedia={activeMedia}
+                selectedIds={selectedIds}
+                optimizerFallbackMediaIds={optimizerFallbackMediaIds}
+                getMediaCardRef={getMediaCardRef}
+                onSelectMediaFile={(file) => {
+                  void handleSelectMediaFile(file);
+                }}
+                onMediaPreviewError={handleMediaPreviewError}
+                onMediaPaint={markFirstMediaPaint}
+                onSignedUrlLoaded={(id) => {
+                  signedUrlRetryRef.current[id] = 0;
+                }}
+              />
               {hasMoreMediaPages ? (
                 <div className="media-load-more" ref={loadMoreSentinelRef}>
                   <button

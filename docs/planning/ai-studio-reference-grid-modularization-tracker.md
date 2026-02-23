@@ -13,8 +13,8 @@ Program Doc: `docs/planning/ai-studio-reference-grid-modularization-program.md`
 | Phase 2: Ingestion Unification | Completed | Frontend | 2026-03-04 | 2026-03-10 | canonical ingress matrix pass | `docs/planning/evidence/reference-grid-modularization/phase-2/` |
 | Phase 3: Projection Semantics | Completed | Frontend | 2026-03-11 | 2026-03-17 | curated semantics parity | `docs/planning/evidence/reference-grid-modularization/phase-3/` |
 | Phase 4: Media Runtime Unification | Completed | Frontend + Media | 2026-03-18 | 2026-03-24 | modal/route runtime parity | `docs/planning/evidence/reference-grid-modularization/phase-4/` |
-| Phase 5: Canvas + State Decomposition | In Progress | Frontend | 2026-03-25 | 2026-04-02 | size budget targets pass in target lane | `docs/planning/evidence/reference-grid-modularization/phase-5/` |
-| Phase 6: Guardrails + Cleanup | Planned | Frontend + DevEx | 2026-04-03 | 2026-04-09 | two green cycles + cleanup complete | `docs/planning/evidence/reference-grid-modularization/phase-6/` |
+| Phase 5: Canvas + State Decomposition | Completed | Frontend | 2026-03-25 | 2026-04-02 | size budget targets pass in target lane | `docs/planning/evidence/reference-grid-modularization/phase-5/` |
+| Phase 6: Guardrails + Cleanup | In Progress | Frontend + DevEx | 2026-04-03 | 2026-04-09 | two green cycles + cleanup complete | `docs/planning/evidence/reference-grid-modularization/phase-6/` |
 
 ## Execution Checklist
 ### Phase 0: Contract Freeze
@@ -70,13 +70,13 @@ Exit validation:
 - [x] No regression in media modal flow tests.
 
 ### Phase 5: Canvas + State Decomposition
-- [ ] Split `ReferenceCanvas` into view + controller modules.
-- [ ] Split `useAiStudioState` reference concerns into domain services.
-- [ ] Maintain behavior parity under compatibility flags.
+- [x] Split `ReferenceCanvas` into view + controller modules.
+- [x] Split `useAiStudioState` reference concerns into domain services.
+- [x] Maintain behavior parity under compatibility flags.
 
 Exit validation:
-- [ ] Behavior parity suites green.
-- [ ] Target size budgets met in phase target lane.
+- [x] Behavior parity suites green.
+- [x] Target size budgets met in phase target lane.
 
 ### Phase 6: Guardrails + Cleanup
 - [ ] Promote reference-grid boundary checks to enforce mode.
@@ -146,6 +146,28 @@ Exit validation:
 - Phase 5 canvas decomposition virtual-metrics-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-virtual-metrics-controller-slice-6.md`
 - Phase 5 canvas decomposition video-lifecycle-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-video-lifecycle-controller-slice-7.md`
 - Phase 5 canvas decomposition autoplay-budget-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-autoplay-budget-controller-slice-8.md`
+- Phase 5 canvas decomposition telemetry-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-telemetry-controller-slice-9.md`
+- Phase 5 canvas decomposition autoplay-events-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-autoplay-events-controller-slice-10.md`
+- Phase 5 canvas decomposition archive-controls-component slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-archive-controls-component-slice-11.md`
+- Phase 5 canvas decomposition card-drag-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-card-drag-controller-slice-12.md`
+- Phase 5 canvas decomposition loaded-media-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-loaded-media-controller-slice-13.md`
+- Phase 5 canvas decomposition sections-component slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-sections-component-slice-14.md`
+- Phase 5 canvas decomposition card-render-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-card-render-controller-slice-15.md`
+- Phase 5 canvas decomposition preview-swap-telemetry-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-preview-swap-telemetry-controller-slice-16.md`
+- Phase 5 canvas decomposition loading-visual-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-loading-visual-controller-slice-17.md`
+- Phase 5 canvas decomposition autoplay-selection-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-autoplay-selection-controller-slice-18.md`
+- Phase 5 canvas decomposition drop-helpers-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-drop-helpers-controller-slice-19.md`
+- Phase 5 canvas decomposition image-hydration-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-image-hydration-controller-slice-20.md`
+- Phase 5 canvas decomposition viewport-projection-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-viewport-projection-controller-slice-21.md`
+- Phase 5 canvas decomposition card-items-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-card-items-controller-slice-22.md`
+- Phase 5 canvas decomposition hydration-queue-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-hydration-queue-controller-slice-23.md`
+- Phase 5 media-library-modal decomposition slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-media-library-modal-decomposition-slice-24.md`
+- Phase 5 ai-studio-state reference-ingestion-actions slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-ai-studio-state-reference-ingestion-actions-slice-25.md`
+- Phase 5 ai-studio-state reference-grid-actions slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-ai-studio-state-reference-grid-actions-slice-26.md`
+- Phase 5 ai-studio-state object-url-lifecycle slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-ai-studio-state-object-url-lifecycle-slice-27.md`
+- Phase 5 ai-studio-state output/projection decomposition slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-ai-studio-state-output-collection-and-projection-effects-slice-28.md`
+- Phase 5 closeout evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-and-state-decomposition-closeout.md`
+- Phase 6 guardrail effective-mode alignment slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-guardrail-effective-mode-alignment-slice-1.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -171,3 +193,25 @@ Exit validation:
 | 2026-02-23 | Continue Phase 5 with extracted virtual-metrics/resize-observer controller hook for ReferenceCanvas | isolate grid measurement and resize-observer lifecycle from render orchestration while preserving virtualization behavior | Frontend |
 | 2026-02-23 | Continue Phase 5 with extracted video lifecycle controller hook for ReferenceCanvas | isolate video node registration, visibility observers, and autoplay detach cleanup from render orchestration while preserving autoplay semantics | Frontend |
 | 2026-02-23 | Continue Phase 5 with extracted autoplay budget policy controller hook for ReferenceCanvas | isolate responsive/network/device autoplay budget runtime policy from render orchestration while preserving constrained-profile clamping behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted telemetry controller hook for ReferenceCanvas | isolate render-commit/longtask/backpressure telemetry effects from render orchestration while preserving telemetry payload and threshold behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted autoplay events controller hook for ReferenceCanvas | isolate autoplay started/stopped telemetry callbacks from render orchestration while preserving event payload compatibility | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted archive controls presentation component for ReferenceCanvas | isolate add-files/media-library/archive header and archive panel view logic from render orchestration while preserving UI behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted card drag controller hook for ReferenceCanvas | isolate card drag protocol handlers from render orchestration while preserving drag payload semantics | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted loaded-media controller hook for ReferenceCanvas | isolate loaded-media callback bookkeeping and notification fan-out from render orchestration while preserving callback semantics | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted sections presentation component for ReferenceCanvas | isolate quick-slot/all-refs split layout view composition from render orchestration while preserving split behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted card render controller hook for ReferenceCanvas | isolate per-card action wiring and curated/all-refs card-node mapping from render orchestration while preserving card behavior contracts | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted preview-swap telemetry controller hook for ReferenceCanvas | isolate preview swap metric tracking/reset effects from render orchestration while preserving telemetry semantics | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted loading visual controller hook for ReferenceCanvas | isolate loading/spinner derivation from render orchestration while preserving spinner prioritization semantics | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted autoplay selection controller hook for ReferenceCanvas | isolate visible-video prioritization and runtime ref-sync effects from render orchestration while preserving autoplay selection behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted drop-helpers controller hook for ReferenceCanvas | isolate media-file normalization, drop-mode detection, and FileList helper primitives from render orchestration while preserving drop behavior semantics | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted image hydration runtime controller hook for ReferenceCanvas | isolate hydration queue/decode/adaptive-preview runtime and cleanup lifecycle from render orchestration while preserving hydration fallback and queue-prune behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted viewport projection controller hook for ReferenceCanvas | isolate virtual-window/visible-slice/near-viewport derivations from render orchestration while preserving overscan and hard-cap behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted card-items controller hook for ReferenceCanvas | isolate card URL/preview derivations and hydration-source matching from render orchestration while preserving preview and transformed-adaptive semantics | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted hydration-queue scheduling controller hook for ReferenceCanvas | isolate active/visible/near-viewport hydration enqueue effect from render orchestration while preserving queue priority and pruning behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted MediaLibraryModal model + presentation modules | isolate modal model/contracts and grid/chrome rendering from orchestration while preserving signing/recovery/select behavior and meeting size budget | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted `useAiStudioState` reference-ingestion action bundle hook | isolate agent/paste/library/files ingestion callbacks and agent-context projection from state orchestration while preserving ingestion behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted `useAiStudioState` reference-grid action bundle hook | isolate archive/restore and curated projection actions from state orchestration while preserving soft-archive and quick-slot behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted `useAiStudioState` output object-URL lifecycle hook | isolate blob URL tracking/revocation side effects from state orchestration while preserving cleanup behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted `useAiStudioState` output collection bridge + projection lifecycle hooks | isolate output store bridge, projection effects, optimistic placeholder actions, and selector wrappers while preserving parity and meeting size target | Frontend |
+| 2026-02-23 | Close Phase 5 after hotspot size-budget target closure and full guardrail pass | `ReferenceCanvas`, `MediaLibraryModal`, and `useAiStudioState` all meet phase targets with parity suites and adaptive gate green | Frontend |
+| 2026-02-23 | Start Phase 6 by aligning CI wrapper effective mode with reference-grid enforce flags | ensure architecture/size guardrails cannot silently pass when subsystem enforce mode is active | Frontend + DevEx |

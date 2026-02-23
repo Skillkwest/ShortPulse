@@ -3,26 +3,9 @@
  * Supports drag/drop into other surfaces and exposes a detail action on double click.
  */
 import React, { useCallback, useState } from "react";
-import { CloudArrowUp, UploadSimple } from "phosphor-react";
-import { PromptLibraryButton } from "./PromptLibraryButton";
 import { StudioOutput } from "../types";
-import {
-  clearDragState,
-  prepareReferenceDrag,
-  type ReferenceDragSourceSurface,
-} from "../utils/dragDrop";
 import type { ToolId } from "../types";
-import { logMediaPerf, setMediaPerfSamplingPolicy } from "../../../lib/mediaPerfTelemetry";
 import { useOutputSelector } from "../hooks/aiStudioOutputStore";
-import {
-  resolveReferenceCardUrls,
-  type ReferenceGridPreviewQualityBand,
-} from "../logic/referenceGridMedia";
-import { isVideoUrl } from "../logic/stateParsers";
-import {
-  calculateReferenceGridWindow,
-  resolveReferenceGridOverscanRows,
-} from "../logic/referenceGridVirtualization";
 import {
   PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW,
   PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT,
@@ -47,20 +30,10 @@ import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizo
 import { selectAllRefsProjectionWithLegacyFallback } from "../reference-projections";
 import {
   isAdaptiveSurfaceEnabled,
-  isRenderableAdaptiveUrl,
-  resolveAdaptivePolicyDecision,
-  resolveAdaptiveSourceKind,
-  shouldTranscodeLocalAdaptiveImage,
-  transcodeLocalImageToObjectUrl,
-  logAdaptiveLocalTranscode,
   logAdaptiveRecoveryLevelChanged,
 } from "../../../lib/adaptive-media";
-import {
-  dedupeMediaFiles,
-  normalizeMediaFile,
-  type PastedMediaReference,
-} from "../reference-grid/controllers/referenceGridClipboard";
-import { ReferenceCanvasCard } from "../reference-grid/components/ReferenceCanvasCard";
+import { type PastedMediaReference } from "../reference-grid/controllers/referenceGridClipboard";
+import { ReferenceCanvasSections } from "../reference-grid/components/ReferenceCanvasSections";
 import { useReferenceGridClipboardController } from "../reference-grid/controllers/useReferenceGridClipboardController";
 import {
   useReferenceGridCanvasDropController,
@@ -71,6 +44,19 @@ import { useReferenceGridScrollController } from "../reference-grid/controllers/
 import { useReferenceGridVirtualMetricsController } from "../reference-grid/controllers/useReferenceGridVirtualMetricsController";
 import { useReferenceGridVideoLifecycleController } from "../reference-grid/controllers/useReferenceGridVideoLifecycleController";
 import { useReferenceGridAutoplayBudgetController } from "../reference-grid/controllers/useReferenceGridAutoplayBudgetController";
+import { useReferenceGridTelemetryController } from "../reference-grid/controllers/useReferenceGridTelemetryController";
+import { useReferenceGridAutoplayEventController } from "../reference-grid/controllers/useReferenceGridAutoplayEventController";
+import { useReferenceGridCardDragController } from "../reference-grid/controllers/useReferenceGridCardDragController";
+import { useReferenceGridLoadedMediaController } from "../reference-grid/controllers/useReferenceGridLoadedMediaController";
+import { useReferenceGridCardRenderController } from "../reference-grid/controllers/useReferenceGridCardRenderController";
+import { useReferenceGridPreviewSwapTelemetryController } from "../reference-grid/controllers/useReferenceGridPreviewSwapTelemetryController";
+import { useReferenceGridLoadingVisualController } from "../reference-grid/controllers/useReferenceGridLoadingVisualController";
+import { useReferenceGridAutoplaySelectionController } from "../reference-grid/controllers/useReferenceGridAutoplaySelectionController";
+import { useReferenceGridDropHelpersController } from "../reference-grid/controllers/useReferenceGridDropHelpersController";
+import { useReferenceGridImageHydrationController } from "../reference-grid/controllers/useReferenceGridImageHydrationController";
+import { useReferenceGridViewportProjectionController } from "../reference-grid/controllers/useReferenceGridViewportProjectionController";
+import { useReferenceGridCardItemsController } from "../reference-grid/controllers/useReferenceGridCardItemsController";
+import { useReferenceGridHydrationQueueController } from "../reference-grid/controllers/useReferenceGridHydrationQueueController";
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
@@ -125,62 +111,6 @@ const resolveReferenceSelectionTheme = (selectedTool: ToolId | null): ReferenceS
   return "create";
 };
 
-const areIdListsEqual = (left: string[], right: string[]) =>
-  left.length === right.length && left.every((value, index) => value === right[index]);
-
-const hasAdaptiveQueryParams = (url: string): boolean =>
-  /[?&]width=\d+/i.test(url) && /[?&]quality=\d+/i.test(url);
-
-const isNextOptimizerUrl = (url: string): boolean =>
-  /^\/_next\/image\?/i.test(url) || /\/_next\/image\?/i.test(url);
-
-const normalizeComparableUrl = (value: string | null | undefined): string | null => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (!trimmed.startsWith("/")) return trimmed;
-  if (typeof window === "undefined") return trimmed;
-  try {
-    return new URL(trimmed, window.location.origin).toString();
-  } catch {
-    return trimmed;
-  }
-};
-
-const resolveOptimizerSourceUrl = (value: string | null | undefined): string | null => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed || !isNextOptimizerUrl(trimmed)) return null;
-  try {
-    const parsed = new URL(trimmed, "https://shortpulse.local");
-    const source = parsed.searchParams.get("url");
-    if (!source) return null;
-    return normalizeComparableUrl(source);
-  } catch {
-    return null;
-  }
-};
-
-const resolveFirstRenderableUrl = (
-  ...candidates: Array<string | null | undefined>
-): string | null => {
-  for (const candidate of candidates) {
-    if (!isRenderableAdaptiveUrl(candidate)) continue;
-    const trimmed = candidate.trim();
-    if (trimmed) return trimmed;
-  }
-  return null;
-};
-
-const isOutputVideoPreview = (
-  output: Pick<StudioOutput, "mode"> | null | undefined,
-  url: string | null | undefined
-): boolean => {
-  if (!url) return false;
-  if (output?.mode === "video") return true;
-  if (output?.mode === "image") return false;
-  return isVideoUrl(url);
-};
 const EMPTY_OUTPUTS: StudioOutput[] = [];
 
 const areOutputListsEqual = (left: StudioOutput[], right: StudioOutput[]) => {
@@ -383,59 +313,6 @@ export function ReferenceCanvas({
     canvasDropModeRef.current = next;
     setCanvasDropMode(next);
   }, []);
-  const [imageHydrationState, setImageHydrationState] = useState<{
-    hydratedById: Record<
-      string,
-      {
-        sourceUrl: string;
-        renderUrl: string;
-      }
-    >;
-    queueSize: number;
-    decodeInflight: number;
-  }>({
-    hydratedById: {},
-    queueSize: 0,
-    decodeInflight: 0,
-  });
-  const hydrationQueueRef = React.useRef<string[]>([]);
-  const hydrationQueuedIdSetRef = React.useRef<Set<string>>(new Set());
-  const hydrationInflightIdSetRef = React.useRef<Set<string>>(new Set());
-  const hydrationUrlByIdRef = React.useRef<Record<string, string>>({});
-  const hydrationFallbackUrlByIdRef = React.useRef<Record<string, string>>({});
-  const hydrationFailedOptimizedUrlByIdRef = React.useRef<Record<string, string>>({});
-  const hydrationPreviewMetaByIdRef = React.useRef<
-    Record<
-      string,
-      {
-        targetLongEdgePx: number;
-        previewQualityBand: ReferenceGridPreviewQualityBand;
-      }
-    >
-  >({});
-  const hydrationGeneratedObjectUrlByIdRef = React.useRef<Record<string, string>>({});
-  const hydrationHydratedByIdRef = React.useRef<
-    Record<
-      string,
-      {
-        sourceUrl: string;
-        renderUrl: string;
-      }
-    >
-  >({});
-  const hydrationQueueSizeRef = React.useRef(0);
-  const hydrationDecodeInflightRef = React.useRef(0);
-  const hydrationRafFlushRef = React.useRef<number | null>(null);
-  const hydrationPendingLoadedRef = React.useRef<
-    Record<
-      string,
-      {
-        sourceUrl: string;
-        renderUrl: string;
-      }
-    >
-  >({});
-  const processHydrationQueueRef = React.useRef<() => void>(() => {});
   const [virtualMetrics, setVirtualMetrics] = useState({
     scrollTop: 0,
     viewportHeight: 0,
@@ -553,346 +430,18 @@ export function ReferenceCanvas({
     desiredVideoAttachSlots: desiredVideoAttachBudget,
   });
 
-  const revokeGeneratedHydrationUrl = useCallback((id: string) => {
-    const existing = hydrationGeneratedObjectUrlByIdRef.current[id];
-    if (!existing) return;
-    URL.revokeObjectURL(existing);
-    delete hydrationGeneratedObjectUrlByIdRef.current[id];
-  }, []);
-
-  const maybeCreateLocalAdaptivePreviewUrl = useCallback(
-    async (id: string, sourceUrl: string, image: HTMLImageElement): Promise<string> => {
-      if (!REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY) return sourceUrl;
-      if (hasAdaptiveQueryParams(sourceUrl) || isNextOptimizerUrl(sourceUrl)) return sourceUrl;
-      if (isVideoUrl(sourceUrl)) return sourceUrl;
-      const previewMeta = hydrationPreviewMetaByIdRef.current[id];
-      if (!previewMeta) return sourceUrl;
-      const naturalWidth = image.naturalWidth;
-      const naturalHeight = image.naturalHeight;
-      if (!Number.isFinite(naturalWidth) || !Number.isFinite(naturalHeight)) {
-        return sourceUrl;
-      }
-      if (naturalWidth <= 0 || naturalHeight <= 0) return sourceUrl;
-      const decision = resolveAdaptivePolicyDecision({
-        surface: "reference-grid",
-        mediaKind: "image",
-        source: resolveAdaptiveSourceKind(sourceUrl),
-        urls: {
-          previewUrl: sourceUrl,
-        },
-        storage: {},
-        pressureLevel: liveWatchdogDegradeLevelRef.current,
-        cardLongEdgePx: previewMeta.targetLongEdgePx,
-        devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-        adaptivePreviewQuality: true,
-      });
-      if (
-        !shouldTranscodeLocalAdaptiveImage({
-          sourceUrl,
-          naturalWidth,
-          naturalHeight,
-          decision,
-        })
-      ) {
-        return sourceUrl;
-      }
-      const objectUrl = await transcodeLocalImageToObjectUrl({
-        image,
-        decision,
-      });
-      if (!objectUrl) return sourceUrl;
-      const previousUrl = hydrationGeneratedObjectUrlByIdRef.current[id];
-      if (previousUrl && previousUrl !== objectUrl) {
-        URL.revokeObjectURL(previousUrl);
-      }
-      hydrationGeneratedObjectUrlByIdRef.current[id] = objectUrl;
-      logAdaptiveLocalTranscode({
-        surface: "reference-grid",
-        pressureLevel: liveWatchdogDegradeLevelRef.current,
-        qualityBand: decision.qualityBand,
-        targetLongEdgePx: decision.targetLongEdgePx,
-      });
-      return objectUrl;
-    },
-    []
-  );
-
-  const syncImageHydrationState = useCallback(() => {
-    const nextQueueSize = hydrationQueueRef.current.length;
-    const nextInflight = hydrationInflightIdSetRef.current.size;
-    if (
-      hydrationQueueSizeRef.current === nextQueueSize &&
-      hydrationDecodeInflightRef.current === nextInflight
-    ) {
-      return;
-    }
-    hydrationQueueSizeRef.current = nextQueueSize;
-    hydrationDecodeInflightRef.current = nextInflight;
-    runNonUrgentUpdate(() => {
-      setImageHydrationState((prev) => {
-        if (prev.queueSize === nextQueueSize && prev.decodeInflight === nextInflight) return prev;
-        return {
-          ...prev,
-          queueSize: nextQueueSize,
-          decodeInflight: nextInflight,
-        };
-      });
+  const { imageHydrationState, enqueueImageHydration, pruneHydrationQueueToCandidateIds } =
+    useReferenceGridImageHydrationController({
+      decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
+      adaptivePreviewQualityEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
+      imageDecodeBudget: mediaWorkBudget.imageDecodeBudget,
+      activeOutputId,
+      outputs,
+      runNonUrgentUpdate,
+      liveWatchdogDegradeLevelRef,
     });
-  }, [runNonUrgentUpdate]);
-
-  React.useEffect(() => {
-    hydrationHydratedByIdRef.current = imageHydrationState.hydratedById;
-    hydrationQueueSizeRef.current = imageHydrationState.queueSize;
-    hydrationDecodeInflightRef.current = imageHydrationState.decodeInflight;
-  }, [
-    imageHydrationState.decodeInflight,
-    imageHydrationState.hydratedById,
-    imageHydrationState.queueSize,
-  ]);
-
-  const flushHydratedImages = useCallback(() => {
-    hydrationRafFlushRef.current = null;
-    const pending = hydrationPendingLoadedRef.current;
-    hydrationPendingLoadedRef.current = {};
-    if (!Object.keys(pending).length) {
-      syncImageHydrationState();
-      return;
-    }
-    runNonUrgentUpdate(() => {
-      const nextQueueSize = hydrationQueueRef.current.length;
-      const nextInflight = hydrationInflightIdSetRef.current.size;
-      hydrationQueueSizeRef.current = nextQueueSize;
-      hydrationDecodeInflightRef.current = nextInflight;
-      setImageHydrationState((prev) => {
-        let hydratedChanged = false;
-        const nextHydratedById = { ...prev.hydratedById };
-        Object.entries(pending).forEach(([id, hydrated]) => {
-          const existing = prev.hydratedById[id];
-          if (
-            existing?.sourceUrl === hydrated.sourceUrl &&
-            existing?.renderUrl === hydrated.renderUrl
-          ) {
-            return;
-          }
-          hydratedChanged = true;
-          nextHydratedById[id] = hydrated;
-        });
-        if (
-          !hydratedChanged &&
-          prev.queueSize === nextQueueSize &&
-          prev.decodeInflight === nextInflight
-        ) {
-          return prev;
-        }
-        return {
-          hydratedById: hydratedChanged ? nextHydratedById : prev.hydratedById,
-          queueSize: nextQueueSize,
-          decodeInflight: nextInflight,
-        };
-      });
-    });
-  }, [runNonUrgentUpdate, syncImageHydrationState]);
-
-  const scheduleHydrationFlush = useCallback(() => {
-    if (hydrationRafFlushRef.current != null) return;
-    if (typeof window === "undefined") return;
-    hydrationRafFlushRef.current = window.requestAnimationFrame(() => {
-      flushHydratedImages();
-    });
-  }, [flushHydratedImages]);
-
-  const processHydrationQueue = useCallback(() => {
-    if (!REFERENCE_GRID_FLAG_DECODE_BUDGET || typeof window === "undefined") return;
-    const maxInflight = mediaWorkBudget.imageDecodeBudget;
-    while (
-      hydrationInflightIdSetRef.current.size < maxInflight &&
-      hydrationQueueRef.current.length > 0
-    ) {
-      const nextId = hydrationQueueRef.current.shift();
-      if (!nextId) continue;
-      hydrationQueuedIdSetRef.current.delete(nextId);
-      const nextUrl = hydrationUrlByIdRef.current[nextId];
-      if (!nextUrl) continue;
-      const fallbackUrl = hydrationFallbackUrlByIdRef.current[nextId];
-
-      hydrationInflightIdSetRef.current.add(nextId);
-      const image = new Image();
-      image.decoding = "async";
-      const shouldPrioritize = nextId === activeOutputId;
-      try {
-        (image as HTMLImageElement & { fetchPriority?: "high" | "low" | "auto" }).fetchPriority =
-          shouldPrioritize ? "high" : "low";
-      } catch {
-        // Keep compatibility with runtimes that do not expose fetchPriority.
-      }
-      const finalize = (sourceUrl: string, renderUrl: string) => {
-        hydrationInflightIdSetRef.current.delete(nextId);
-        hydrationPendingLoadedRef.current[nextId] = {
-          sourceUrl,
-          renderUrl,
-        };
-        scheduleHydrationFlush();
-        processHydrationQueueRef.current();
-      };
-      image.onload = () => {
-        if (hydrationFailedOptimizedUrlByIdRef.current[nextId] === nextUrl) {
-          delete hydrationFailedOptimizedUrlByIdRef.current[nextId];
-        }
-        void (async () => {
-          const renderUrl = await maybeCreateLocalAdaptivePreviewUrl(nextId, nextUrl, image).catch(
-            () => nextUrl
-          );
-          finalize(nextUrl, renderUrl);
-        })();
-      };
-      image.onerror = () => {
-        const resolvedFallback = fallbackUrl && fallbackUrl !== nextUrl ? fallbackUrl : nextUrl;
-        if (isNextOptimizerUrl(nextUrl)) {
-          hydrationFailedOptimizedUrlByIdRef.current[nextId] = nextUrl;
-          if (resolvedFallback !== nextUrl) {
-            hydrationUrlByIdRef.current[nextId] = resolvedFallback;
-          }
-        }
-        finalize(resolvedFallback, resolvedFallback);
-      };
-      image.src = nextUrl;
-    }
-    syncImageHydrationState();
-  }, [
-    activeOutputId,
-    mediaWorkBudget.imageDecodeBudget,
-    maybeCreateLocalAdaptivePreviewUrl,
-    scheduleHydrationFlush,
-    syncImageHydrationState,
-  ]);
-
-  const enqueueImageHydration = useCallback(
-    (
-      id: string,
-      url: string,
-      options?: {
-        priority?: "high" | "normal" | "low";
-        targetLongEdgePx?: number;
-        previewQualityBand?: ReferenceGridPreviewQualityBand;
-        fallbackUrl?: string;
-      }
-    ) => {
-      if (!REFERENCE_GRID_FLAG_DECODE_BUDGET) return;
-      const previousUrl = hydrationUrlByIdRef.current[id];
-      if (typeof options?.targetLongEdgePx === "number" && options.previewQualityBand) {
-        hydrationPreviewMetaByIdRef.current[id] = {
-          targetLongEdgePx: options.targetLongEdgePx,
-          previewQualityBand: options.previewQualityBand,
-        };
-      }
-      if (typeof options?.fallbackUrl === "string" && options.fallbackUrl.length > 0) {
-        hydrationFallbackUrlByIdRef.current[id] = options.fallbackUrl;
-      }
-      const fallbackUrl = hydrationFallbackUrlByIdRef.current[id];
-      const shouldBypassOptimizedUrl =
-        isNextOptimizerUrl(url) &&
-        hydrationFailedOptimizedUrlByIdRef.current[id] === url &&
-        typeof fallbackUrl === "string" &&
-        fallbackUrl.length > 0;
-      const nextHydrationUrl = shouldBypassOptimizedUrl ? fallbackUrl : url;
-      hydrationUrlByIdRef.current[id] = nextHydrationUrl;
-      if (
-        hydrationFailedOptimizedUrlByIdRef.current[id] &&
-        hydrationFailedOptimizedUrlByIdRef.current[id] !== url
-      ) {
-        delete hydrationFailedOptimizedUrlByIdRef.current[id];
-      }
-      if (previousUrl && previousUrl !== nextHydrationUrl) {
-        revokeGeneratedHydrationUrl(id);
-      }
-      const pendingHydratedEntry = hydrationPendingLoadedRef.current[id];
-      if (pendingHydratedEntry?.sourceUrl === nextHydrationUrl) return;
-      const hydratedEntry = hydrationHydratedByIdRef.current[id];
-      if (hydratedEntry?.sourceUrl === nextHydrationUrl) return;
-      if (hydrationInflightIdSetRef.current.has(id)) return;
-      const priority = options?.priority ?? "normal";
-      if (hydrationQueuedIdSetRef.current.has(id)) {
-        if (priority === "high") {
-          const currentIndex = hydrationQueueRef.current.indexOf(id);
-          if (currentIndex > 0) {
-            hydrationQueueRef.current.splice(currentIndex, 1);
-            hydrationQueueRef.current.unshift(id);
-            syncImageHydrationState();
-            processHydrationQueue();
-          }
-        }
-        return;
-      }
-      hydrationQueuedIdSetRef.current.add(id);
-      if (priority === "high") {
-        hydrationQueueRef.current.unshift(id);
-      } else {
-        hydrationQueueRef.current.push(id);
-      }
-      syncImageHydrationState();
-      processHydrationQueue();
-    },
-    [processHydrationQueue, revokeGeneratedHydrationUrl, syncImageHydrationState]
-  );
-
-  React.useEffect(() => {
-    processHydrationQueueRef.current = processHydrationQueue;
-  }, [processHydrationQueue]);
-  const normalizeMediaFiles = useCallback((files: File[]): File[] => {
-    return dedupeMediaFiles(
-      files
-        .map((file, index) => normalizeMediaFile(file, null, index))
-        .filter((file): file is File => Boolean(file))
-    );
-  }, []);
-
-  const resolveCanvasDropMode = useCallback(
-    (transfer: DataTransfer | null | undefined): ReferenceCanvasDropMode => {
-      if (!transfer) return "none";
-      const normalizedTypes = Array.from(transfer.types || []).map((type) => type.toLowerCase());
-      if (normalizedTypes.includes("text/reference-id")) return "none";
-      if (transfer.files && transfer.files.length > 0) return "files";
-      if (normalizedTypes.includes("files")) return "files";
-      if (
-        normalizedTypes.some(
-          (type) =>
-            type.includes("text") ||
-            type.includes("plain") ||
-            type.includes("prompt") ||
-            type.includes("utf8")
-        )
-      ) {
-        return "text";
-      }
-      return "none";
-    },
-    []
-  );
-
-  const canAcceptCanvasDrag = useCallback(
-    (transfer: DataTransfer | null | undefined) => {
-      return resolveCanvasDropMode(transfer) !== "none";
-    },
-    [resolveCanvasDropMode]
-  );
-
-  const buildFileList = useCallback((files: File[]): FileList | null => {
-    if (files.length === 0) return null;
-    if (typeof DataTransfer !== "undefined") {
-      const transfer = new DataTransfer();
-      files.forEach((file) => transfer.items.add(file));
-      return transfer.files;
-    }
-    const fallback = files.reduce<Record<number, File>>((acc, file, index) => {
-      acc[index] = file;
-      return acc;
-    }, {});
-    return {
-      ...fallback,
-      length: files.length,
-      item: (index: number) => files[index] ?? null,
-    } as unknown as FileList;
-  }, []);
+  const { normalizeMediaFiles, resolveCanvasDropMode, canAcceptCanvasDrag, buildFileList } =
+    useReferenceGridDropHelpersController();
 
   const gridStyle = React.useMemo(
     () =>
@@ -937,184 +486,59 @@ export function ReferenceCanvas({
     },
   });
 
-  const dynamicOverscanRows = REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION
-    ? resolveReferenceGridOverscanRows(outputs.length, {
-        pressureLevel: perfWatchdog.degradeLevel,
-      })
-    : REFERENCE_VIRTUAL_OVERSCAN_ROWS;
-  const curatedOverscanRows = REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION
-    ? resolveReferenceGridOverscanRows(curatedOutputs.length, {
-        pressureLevel: perfWatchdog.degradeLevel,
-      })
-    : REFERENCE_VIRTUAL_OVERSCAN_ROWS;
-  const virtualWindow = calculateReferenceGridWindow({
-    itemCount: outputs.length,
-    columnCount: virtualMetrics.columnCount,
-    rowHeight: virtualMetrics.rowHeight,
-    scrollTop: virtualMetrics.scrollTop,
-    viewportHeight:
-      virtualMetrics.viewportHeight > 0
-        ? virtualMetrics.viewportHeight
-        : FALLBACK_REFERENCE_ROW_HEIGHT * 5,
-    overscanRows: dynamicOverscanRows,
-    virtualizeMinItems: REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION
-      ? REFERENCE_VIRTUALIZE_MIN_ITEMS
-      : 24,
-  });
-  const curatedVirtualWindow = isCuratedSplitEnabled
-    ? calculateReferenceGridWindow({
-        itemCount: curatedOutputs.length,
-        columnCount: curatedVirtualMetrics.columnCount,
-        rowHeight: curatedVirtualMetrics.rowHeight,
-        scrollTop: curatedVirtualMetrics.scrollTop,
-        viewportHeight:
-          curatedVirtualMetrics.viewportHeight > 0
-            ? curatedVirtualMetrics.viewportHeight
-            : FALLBACK_REFERENCE_ROW_HEIGHT * 3,
-        overscanRows: curatedOverscanRows,
-        virtualizeMinItems: REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION
-          ? REFERENCE_VIRTUALIZE_MIN_ITEMS
-          : 24,
-      })
-    : {
-        shouldVirtualize: false,
-        totalRows: 1,
-        startRow: 0,
-        endRow: 0,
-        startIndex: 0,
-        endIndex: curatedOutputs.length,
-        topSpacerHeight: 0,
-        bottomSpacerHeight: 0,
-      };
-  const shouldVirtualize = virtualWindow.shouldVirtualize;
-  const curatedShouldVirtualize = curatedVirtualWindow.shouldVirtualize;
-  const isHighDensity = outputs.length >= REFERENCE_HIGH_DENSITY_CARD_COUNT;
-  const denseVisualModeEnabled = REFERENCE_GRID_FLAG_DENSE_VISUAL_SIMPLIFY && outputs.length >= 40;
-  const startIndex = virtualWindow.startIndex;
-  const endIndex = virtualWindow.endIndex;
-  const curatedStartIndex = curatedVirtualWindow.startIndex;
-  const curatedEndIndex = curatedVirtualWindow.endIndex;
-  const baseVisibleOutputs = shouldVirtualize ? outputs.slice(startIndex, endIndex) : outputs;
-  const visibleRows = Math.max(
-    1,
-    Math.ceil(
-      (virtualMetrics.viewportHeight > 0
-        ? virtualMetrics.viewportHeight
-        : FALLBACK_REFERENCE_ROW_HEIGHT * 5) / Math.max(1, virtualMetrics.rowHeight)
-    )
-  );
-  const hardViewportVisibleLimit =
-    (visibleRows + Math.max(0, dynamicOverscanRows) * 2) *
-    Math.max(REFERENCE_GRID_MIN_COLUMNS, virtualMetrics.columnCount);
-  const visibleOutputs = React.useMemo(() => {
-    if (!REFERENCE_GRID_FLAG_HARD_VIEWPORT_CAP) {
-      return baseVisibleOutputs;
-    }
-    if (baseVisibleOutputs.length <= hardViewportVisibleLimit) {
-      return baseVisibleOutputs;
-    }
-    const capped = baseVisibleOutputs.slice(0, Math.max(1, hardViewportVisibleLimit));
-    if (!activeOutputId) return capped;
-    if (capped.some((item) => item.id === activeOutputId)) return capped;
-    const activeOutput = outputs.find((item) => item.id === activeOutputId);
-    if (!activeOutput) return capped;
-    if (capped.length === 0) return [activeOutput];
-    return [...capped.slice(0, capped.length - 1), activeOutput];
-  }, [activeOutputId, baseVisibleOutputs, hardViewportVisibleLimit, outputs]);
-  const visibleCuratedOutputs = curatedShouldVirtualize
-    ? curatedOutputs.slice(curatedStartIndex, curatedEndIndex)
-    : curatedOutputs;
-  const topSpacerHeight = virtualWindow.topSpacerHeight;
-  const bottomSpacerHeight = virtualWindow.bottomSpacerHeight;
-  const curatedTopSpacerHeight = curatedVirtualWindow.topSpacerHeight;
-  const curatedBottomSpacerHeight = curatedVirtualWindow.bottomSpacerHeight;
-  const renderedItemCount = visibleOutputs.length;
-  const renderedOutputIdSet = React.useMemo(() => {
-    const ids = new Set(visibleOutputs.map((output) => output.id));
-    if (isCuratedSplitEnabled) {
-      visibleCuratedOutputs.forEach((output) => ids.add(output.id));
-    }
-    return ids;
-  }, [isCuratedSplitEnabled, visibleCuratedOutputs, visibleOutputs]);
-  const archiveCount = archivedOutputs.length;
-  const nearViewportOutputs = React.useMemo(() => {
-    if (!shouldVirtualize) return [];
-    const nearSpan = Math.max(1, virtualMetrics.columnCount);
-    const start = Math.max(0, startIndex - nearSpan);
-    const end = Math.min(outputs.length, endIndex + nearSpan);
-    return outputs.slice(start, end);
-  }, [endIndex, outputs, shouldVirtualize, startIndex, virtualMetrics.columnCount]);
-  const nearViewportCuratedOutputs = React.useMemo(() => {
-    if (!isCuratedSplitEnabled || !curatedShouldVirtualize) return [];
-    const nearSpan = Math.max(1, curatedVirtualMetrics.columnCount);
-    const start = Math.max(0, curatedStartIndex - nearSpan);
-    const end = Math.min(curatedOutputs.length, curatedEndIndex + nearSpan);
-    return curatedOutputs.slice(start, end);
-  }, [
-    curatedEndIndex,
-    curatedOutputs,
-    curatedShouldVirtualize,
-    curatedStartIndex,
-    curatedVirtualMetrics.columnCount,
-    isCuratedSplitEnabled,
-  ]);
-  const recomputeAutoplayBudget = useCallback(() => {
-    const visibleOutputIdSet = new Set<string>();
-    videoVisibleKeySetRef.current.forEach((key) => {
-      const outputId = videoOutputIdByKeyRef.current.get(key);
-      if (outputId) {
-        visibleOutputIdSet.add(outputId);
-      }
-    });
-    const visibleVideoIds = outputs
-      .filter((output) => {
-        const resolvedPreview = resolveReferenceCardUrls(output, {
-          strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
-          surface: "reference-grid",
-          cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualMetrics.rowHeight - 3))),
-          devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-        }).previewUrl;
-        if (!resolvedPreview || !isOutputVideoPreview(output, resolvedPreview)) return false;
-        return visibleOutputIdSet.has(output.id);
-      })
-      .map((output) => output.id);
-    const prioritizedVideoIds =
-      activeOutputId && visibleVideoIds.includes(activeOutputId)
-        ? [activeOutputId, ...visibleVideoIds.filter((id) => id !== activeOutputId)]
-        : visibleVideoIds;
-    if (perfWatchdog.degradeLevel >= 2) {
-      runNonUrgentUpdate(() => {
-        setAutoplayEnabledIds((prev) => (prev.length === 0 ? prev : []));
-      });
-      return;
-    }
-    const nextEnabled = prioritizedVideoIds.slice(
-      0,
-      Math.max(0, mediaWorkBudget.videoAttachBudget)
-    );
-    runNonUrgentUpdate(() => {
-      setAutoplayEnabledIds((prev) => (areIdListsEqual(prev, nextEnabled) ? prev : nextEnabled));
-    });
-  }, [
-    activeOutputId,
-    mediaWorkBudget.videoAttachBudget,
+  const {
+    shouldVirtualize,
+    isHighDensity,
+    denseVisualModeEnabled,
+    startIndex,
+    endIndex,
+    visibleOutputs,
+    visibleCuratedOutputs,
+    topSpacerHeight,
+    bottomSpacerHeight,
+    curatedTopSpacerHeight,
+    curatedBottomSpacerHeight,
+    renderedItemCount,
+    renderedOutputIdSet,
+    nearViewportOutputs,
+    nearViewportCuratedOutputs,
+  } = useReferenceGridViewportProjectionController({
     outputs,
-    perfWatchdog.degradeLevel,
+    curatedOutputs,
+    activeOutputId,
+    isCuratedSplitEnabled,
+    perfDegradeLevel: perfWatchdog.degradeLevel,
+    virtualMetrics,
+    curatedVirtualMetrics,
+    config: {
+      dynamicVirtualizationEnabled: REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION,
+      hardViewportCapEnabled: REFERENCE_GRID_FLAG_HARD_VIEWPORT_CAP,
+      denseVisualSimplifyEnabled: REFERENCE_GRID_FLAG_DENSE_VISUAL_SIMPLIFY,
+      virtualOverscanRows: REFERENCE_VIRTUAL_OVERSCAN_ROWS,
+      virtualizeMinItems: REFERENCE_VIRTUALIZE_MIN_ITEMS,
+      fallbackReferenceRowHeight: FALLBACK_REFERENCE_ROW_HEIGHT,
+      referenceGridMinColumns: REFERENCE_GRID_MIN_COLUMNS,
+      highDensityCardCount: REFERENCE_HIGH_DENSITY_CARD_COUNT,
+    },
+  });
+  const archiveCount = archivedOutputs.length;
+  const { recomputeAutoplayBudget } = useReferenceGridAutoplaySelectionController({
+    activeOutputId,
+    outputs,
+    virtualRowHeight: virtualMetrics.rowHeight,
+    strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+    videoAttachBudget: mediaWorkBudget.videoAttachBudget,
+    perfDegradeLevel: perfWatchdog.degradeLevel,
     runNonUrgentUpdate,
-    virtualMetrics.rowHeight,
-  ]);
-
-  React.useEffect(() => {
-    recomputeAutoplayBudgetRef.current = recomputeAutoplayBudget;
-  }, [recomputeAutoplayBudget]);
-
-  React.useEffect(() => {
-    desiredVideoAttachBudgetRef.current = desiredVideoAttachBudget;
-  }, [desiredVideoAttachBudget]);
-
-  React.useEffect(() => {
-    autoplayEnabledIdsStateRef.current = autoplayEnabledIds;
-  }, [autoplayEnabledIds]);
+    setAutoplayEnabledIds,
+    videoVisibleKeySetRef,
+    videoOutputIdByKeyRef,
+    recomputeAutoplayBudgetRef,
+    desiredVideoAttachBudgetRef,
+    desiredVideoAttachBudget,
+    autoplayEnabledIdsStateRef,
+    autoplayEnabledIds,
+  });
 
   const baseHydrationPriorityRows = REFERENCE_GRID_FLAG_DECODE_BUDGET
     ? hydrationBudget.priorityRows
@@ -1124,435 +548,64 @@ export function ReferenceCanvas({
   const curatedHydrationPriorityCount =
     Math.max(REFERENCE_GRID_MIN_COLUMNS, curatedVirtualMetrics.columnCount) *
     baseHydrationPriorityRows;
-  const buildVisibleCardItems = useCallback(
-    (
-      rows: StudioOutput[],
-      priorityCount: number,
-      options: { surface: "reference-grid" | "quick-slot"; cardLongEdgePx: number }
-    ) =>
-      rows.map((item, visibleIndex) => {
-        const resolvedCardUrls = resolveReferenceCardUrls(item, {
-          strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
-          adaptivePreviewQuality:
-            REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY || REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW,
-          pressureLevel: previewQualityPressureLevel,
-          surface: options.surface,
-          cardLongEdgePx: options.cardLongEdgePx,
-          devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-        });
-        const cardPreviewUrl = resolvedCardUrls.previewUrl ?? resolvedCardUrls.fullUrl;
-        const isVideoPreview = isOutputVideoPreview(item, cardPreviewUrl);
-        const isImagePreview = cardPreviewUrl ? !isVideoPreview : false;
-        const isPriorityHydration = visibleIndex < priorityCount || activeOutputId === item.id;
-        const hydratedEntry = imageHydrationState.hydratedById[item.id];
-        const fallbackSourceForCard = resolveFirstRenderableUrl(
-          resolvedCardUrls.fullUrl ?? null,
-          item.previewUrl ?? null,
-          item.fullStoragePath ?? null,
-          item.previewStoragePath ?? null,
-          item.resultUrls?.[0] ?? null
-        );
-        const normalizedCardPreviewUrl = normalizeComparableUrl(cardPreviewUrl);
-        const normalizedHydratedSourceUrl = normalizeComparableUrl(hydratedEntry?.sourceUrl);
-        const normalizedFallbackSourceUrl = normalizeComparableUrl(fallbackSourceForCard);
-        const cardOptimizerSourceUrl = resolveOptimizerSourceUrl(cardPreviewUrl);
-        const hydratedOptimizerSourceUrl = resolveOptimizerSourceUrl(hydratedEntry?.sourceUrl);
-        const hasHydratedSourceForCard =
-          Boolean(hydratedEntry) &&
-          (normalizedHydratedSourceUrl === normalizedCardPreviewUrl ||
-            (cardOptimizerSourceUrl != null &&
-              hydratedOptimizerSourceUrl != null &&
-              cardOptimizerSourceUrl === hydratedOptimizerSourceUrl) ||
-            (cardOptimizerSourceUrl != null &&
-              normalizedHydratedSourceUrl != null &&
-              cardOptimizerSourceUrl === normalizedHydratedSourceUrl) ||
-            (hydratedOptimizerSourceUrl != null &&
-              normalizedCardPreviewUrl != null &&
-              hydratedOptimizerSourceUrl === normalizedCardPreviewUrl) ||
-            (normalizedFallbackSourceUrl != null &&
-              (normalizedHydratedSourceUrl === normalizedFallbackSourceUrl ||
-                cardOptimizerSourceUrl === normalizedFallbackSourceUrl ||
-                hydratedOptimizerSourceUrl === normalizedFallbackSourceUrl)));
-        const imageSrc =
-          isImagePreview && REFERENCE_GRID_FLAG_DECODE_BUDGET
-            ? hasHydratedSourceForCard
-              ? (hydratedEntry.renderUrl ?? undefined)
-              : undefined
-            : (cardPreviewUrl ?? undefined);
-        return {
-          item,
-          cardPreviewUrl,
-          previewQualityBand: resolvedCardUrls.previewQualityBand ?? "high",
-          targetLongEdgePx: resolvedCardUrls.targetLongEdgePx ?? 960,
-          isVideoPreview,
-          isImagePreview,
-          isPriorityHydration,
-          imageSrc,
-        };
-      }),
-    [activeOutputId, imageHydrationState.hydratedById, previewQualityPressureLevel]
-  );
-  const visibleCardItems = React.useMemo(
-    () =>
-      buildVisibleCardItems(visibleOutputs, hydrationPriorityCount, {
-        surface: "reference-grid",
-        cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualMetrics.rowHeight - 3))),
-      }),
-    [buildVisibleCardItems, hydrationPriorityCount, virtualMetrics.rowHeight, visibleOutputs]
-  );
-  const curatedVisibleCardItems = React.useMemo(
-    () =>
-      buildVisibleCardItems(visibleCuratedOutputs, curatedHydrationPriorityCount, {
-        surface: isAdaptiveSurfaceEnabled("quick-slot") ? "quick-slot" : "reference-grid",
-        cardLongEdgePx: Math.max(200, Math.round(Math.max(1, curatedVirtualMetrics.rowHeight - 3))),
-      }),
-    [
-      buildVisibleCardItems,
-      curatedHydrationPriorityCount,
-      curatedVirtualMetrics.rowHeight,
-      visibleCuratedOutputs,
-    ]
-  );
-  const allVisibleCardItems = React.useMemo(
-    () => [...curatedVisibleCardItems, ...visibleCardItems],
-    [curatedVisibleCardItems, visibleCardItems]
-  );
-  React.useEffect(() => {
-    if (typeof performance === "undefined") return;
-    const nextVisibleUrlById: Record<string, string | null> = {};
-    const previousVisibleUrlById = previousVisiblePreviewUrlByIdRef.current;
-    let swappedCount = 0;
-    visibleCardItems.forEach((card) => {
-      const nextUrl = card.cardPreviewUrl ?? null;
-      nextVisibleUrlById[card.item.id] = nextUrl;
-      const previousUrl = previousVisibleUrlById[card.item.id];
-      if (typeof previousUrl !== "string") return;
-      if (previousUrl === nextUrl) return;
-      swappedCount += 1;
-    });
-    previousVisiblePreviewUrlByIdRef.current = nextVisibleUrlById;
-    if (swappedCount === 0) return;
-
-    const nowMs = performance.now();
-    if (previewSwapTelemetryRef.current.windowStartedAtMs <= 0) {
-      previewSwapTelemetryRef.current.windowStartedAtMs = nowMs;
-    }
-    previewSwapTelemetryRef.current.totalSwapCount += swappedCount;
-    const repaintSpikeThreshold = Math.max(6, Math.floor(renderedItemCount * 0.75));
-    if (swappedCount >= repaintSpikeThreshold) {
-      previewSwapTelemetryRef.current.repaintSpikeCount += 1;
-    }
-
-    const elapsedMs = Math.max(1, nowMs - previewSwapTelemetryRef.current.windowStartedAtMs);
-    const swapRatePerMinute = Math.round(
-      (previewSwapTelemetryRef.current.totalSwapCount * 60_000) / elapsedMs
-    );
-    const repaintSpikeCount = previewSwapTelemetryRef.current.repaintSpikeCount;
-    setPreviewSwapMetrics((prev) => {
-      if (
-        prev.swapRatePerMinute === swapRatePerMinute &&
-        prev.repaintSpikeCount === repaintSpikeCount &&
-        prev.lastSwapBurstCount === swappedCount
-      ) {
-        return prev;
-      }
-      return {
-        swapRatePerMinute,
-        repaintSpikeCount,
-        lastSwapBurstCount: swappedCount,
-      };
-    });
-  }, [renderedItemCount, visibleCardItems]);
-  React.useEffect(() => {
-    if (outputs.length > 0) return;
-    previousVisiblePreviewUrlByIdRef.current = {};
-    previewSwapTelemetryRef.current = {
-      windowStartedAtMs: 0,
-      totalSwapCount: 0,
-      repaintSpikeCount: 0,
-    };
-    setPreviewSwapMetrics((prev) => {
-      if (
-        prev.swapRatePerMinute === 0 &&
-        prev.repaintSpikeCount === 0 &&
-        prev.lastSwapBurstCount === 0
-      ) {
-        return prev;
-      }
-      return {
-        swapRatePerMinute: 0,
-        repaintSpikeCount: 0,
-        lastSwapBurstCount: 0,
-      };
-    });
-  }, [outputs.length]);
-  const loadingCardState = React.useMemo(() => {
-    const nextLoadingIds: string[] = [];
-    const nextSpinnerCandidateIds: string[] = [];
-    allVisibleCardItems.forEach((card) => {
-      const isFailing = card.item.taskState === "fail";
-      const isLoading =
-        !isFailing &&
-        (card.item.taskState === "running" ||
-          card.item.taskState === "pending" ||
-          (card.item.taskState === "success" && !card.cardPreviewUrl && !card.item.previewText));
-      if (isLoading) {
-        nextSpinnerCandidateIds.push(card.item.id);
-      }
-      const isLoaded = loadedMap[card.item.id];
-      const shouldShowLoading =
-        !isFailing &&
-        (isLoading ||
-          (!isLoaded && !card.item.previewText) ||
-          (card.isImagePreview &&
-            REFERENCE_GRID_FLAG_DECODE_BUDGET &&
-            !card.imageSrc &&
-            card.isPriorityHydration));
-      if (shouldShowLoading) {
-        nextLoadingIds.push(card.item.id);
-      }
-    });
-    return {
-      loadingIds: nextLoadingIds,
-      spinnerCandidateIds: nextSpinnerCandidateIds,
-    };
-  }, [allVisibleCardItems, loadedMap]);
-  const pendingCardIdSet = React.useMemo(
-    () => new Set(loadingCardState.loadingIds),
-    [loadingCardState.loadingIds]
-  );
-  const spinnerCandidateIdSet = React.useMemo(
-    () => new Set(loadingCardState.spinnerCandidateIds),
-    [loadingCardState.spinnerCandidateIds]
-  );
-  const maxAnimatedSpinners = React.useMemo(() => {
-    if (perfWatchdog.degradeLevel >= 2) return REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_2;
-    if (perfWatchdog.degradeLevel >= 1) return REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_1;
-    return REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_0;
-  }, [perfWatchdog.degradeLevel]);
-  // Pending outputs are inserted at index 0; reverse yields FIFO by generation age.
-  const pendingSpinnerQueueIds = React.useMemo(
-    () => [...loadingCardState.spinnerCandidateIds].reverse(),
-    [loadingCardState.spinnerCandidateIds]
-  );
-  const spinnerSlotIds = React.useMemo(
-    () => pendingSpinnerQueueIds.slice(0, Math.max(1, maxAnimatedSpinners)),
-    [maxAnimatedSpinners, pendingSpinnerQueueIds]
-  );
-  const spinnerSlotIdSet = React.useMemo(() => new Set(spinnerSlotIds), [spinnerSlotIds]);
-  const transformedAdaptivePreviewCount = React.useMemo(() => {
-    let count = 0;
-    visibleCardItems.forEach((card) => {
-      const url = card.cardPreviewUrl;
-      if (!url) return;
-      if (hasAdaptiveQueryParams(url) || isNextOptimizerUrl(url)) {
-        count += 1;
-        return;
-      }
-      const hydratedEntry = imageHydrationState.hydratedById[card.item.id];
-      if (!hydratedEntry) return;
-      if (hydratedEntry.sourceUrl !== url) return;
-      if (hydratedEntry.renderUrl === hydratedEntry.sourceUrl) return;
-      if (!hydratedEntry.renderUrl.startsWith("blob:")) return;
-      count += 1;
-    });
-    return count;
-  }, [imageHydrationState.hydratedById, visibleCardItems]);
-
-  React.useEffect(() => {
-    if (!REFERENCE_GRID_FLAG_DECODE_BUDGET) return;
-    const candidateIdSet = new Set<string>();
-    if (activeOutputId) {
-      const activeOutput = outputs.find((item) => item.id === activeOutputId);
-      if (activeOutput) {
-        const resolved = resolveReferenceCardUrls(activeOutput, {
-          strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
-          adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
-          pressureLevel: previewQualityPressureLevel,
-          surface: "reference-grid",
-          cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualMetrics.rowHeight - 3))),
-          devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-        });
-        const activeUrl = resolved.previewUrl ?? resolved.fullUrl;
-        if (activeUrl && !isOutputVideoPreview(activeOutput, activeUrl)) {
-          candidateIdSet.add(activeOutputId);
-          enqueueImageHydration(activeOutputId, activeUrl, {
-            priority: "high",
-            targetLongEdgePx: resolved.targetLongEdgePx,
-            previewQualityBand: resolved.previewQualityBand,
-            fallbackUrl:
-              resolveFirstRenderableUrl(
-                resolved.fullUrl,
-                activeOutput.previewUrl,
-                activeOutput.fullStoragePath,
-                activeOutput.previewStoragePath,
-                activeOutput.resultUrls?.[0]
-              ) ?? undefined,
-          });
-        }
-      }
-    }
-    visibleCardItems.forEach((card) => {
-      if (!card.isImagePreview || !card.cardPreviewUrl) return;
-      candidateIdSet.add(card.item.id);
-      enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
-        priority: card.isPriorityHydration ? "high" : "normal",
-        targetLongEdgePx: card.targetLongEdgePx,
-        previewQualityBand: card.previewQualityBand,
-        fallbackUrl:
-          resolveFirstRenderableUrl(
-            card.item.previewUrl,
-            card.item.fullStoragePath,
-            card.item.previewStoragePath,
-            card.item.resultUrls?.[0]
-          ) ?? undefined,
-      });
-    });
-    curatedVisibleCardItems.forEach((card) => {
-      if (!card.isImagePreview || !card.cardPreviewUrl) return;
-      if (candidateIdSet.has(card.item.id)) return;
-      candidateIdSet.add(card.item.id);
-      enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
-        priority: card.isPriorityHydration ? "high" : "normal",
-        targetLongEdgePx: card.targetLongEdgePx,
-        previewQualityBand: card.previewQualityBand,
-        fallbackUrl:
-          resolveFirstRenderableUrl(
-            card.item.previewUrl,
-            card.item.fullStoragePath,
-            card.item.previewStoragePath,
-            card.item.resultUrls?.[0]
-          ) ?? undefined,
-      });
-    });
-    nearViewportOutputs.forEach((item) => {
-      if (candidateIdSet.has(item.id)) return;
-      const resolved = resolveReferenceCardUrls(item, {
-        strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
-        adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
-        pressureLevel: previewQualityPressureLevel,
-        surface: "reference-grid",
-        cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualMetrics.rowHeight - 3))),
-        devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-      });
-      const previewUrl = resolved.previewUrl ?? resolved.fullUrl;
-      if (!previewUrl || isOutputVideoPreview(item, previewUrl)) return;
-      candidateIdSet.add(item.id);
-      enqueueImageHydration(item.id, previewUrl, {
-        priority: "low",
-        targetLongEdgePx: resolved.targetLongEdgePx,
-        previewQualityBand: resolved.previewQualityBand,
-        fallbackUrl:
-          resolveFirstRenderableUrl(
-            resolved.fullUrl,
-            item.previewUrl,
-            item.fullStoragePath,
-            item.previewStoragePath,
-            item.resultUrls?.[0]
-          ) ?? undefined,
-      });
-    });
-    nearViewportCuratedOutputs.forEach((item) => {
-      if (candidateIdSet.has(item.id)) return;
-      const resolved = resolveReferenceCardUrls(item, {
-        strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
-        adaptivePreviewQuality: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
-        pressureLevel: previewQualityPressureLevel,
-        surface: isAdaptiveSurfaceEnabled("quick-slot") ? "quick-slot" : "reference-grid",
-        cardLongEdgePx: Math.max(200, Math.round(Math.max(1, curatedVirtualMetrics.rowHeight - 3))),
-        devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-      });
-      const previewUrl = resolved.previewUrl ?? resolved.fullUrl;
-      if (!previewUrl || isOutputVideoPreview(item, previewUrl)) return;
-      candidateIdSet.add(item.id);
-      enqueueImageHydration(item.id, previewUrl, {
-        priority: "low",
-        targetLongEdgePx: resolved.targetLongEdgePx,
-        previewQualityBand: resolved.previewQualityBand,
-        fallbackUrl:
-          resolveFirstRenderableUrl(
-            resolved.fullUrl,
-            item.previewUrl,
-            item.fullStoragePath,
-            item.previewStoragePath,
-            item.resultUrls?.[0]
-          ) ?? undefined,
-      });
-    });
-    const currentQueue = hydrationQueueRef.current;
-    const nextQueue = currentQueue.filter((id) => candidateIdSet.has(id));
-    const queueChanged =
-      nextQueue.length !== currentQueue.length ||
-      nextQueue.some((id, index) => currentQueue[index] !== id);
-    if (queueChanged) {
-      hydrationQueueRef.current = nextQueue;
-      hydrationQueuedIdSetRef.current = new Set(nextQueue);
-      syncImageHydrationState();
-      processHydrationQueue();
-    }
-  }, [
-    activeOutputId,
-    curatedVirtualMetrics.rowHeight,
-    curatedVisibleCardItems,
-    enqueueImageHydration,
-    nearViewportCuratedOutputs,
-    nearViewportOutputs,
-    outputs,
-    previewQualityPressureLevel,
-    processHydrationQueue,
-    syncImageHydrationState,
-    virtualMetrics.rowHeight,
+  const quickSlotAdaptiveSurfaceEnabled = isAdaptiveSurfaceEnabled("quick-slot");
+  const {
     visibleCardItems,
-  ]);
+    curatedVisibleCardItems,
+    allVisibleCardItems,
+    transformedAdaptivePreviewCount,
+  } = useReferenceGridCardItemsController({
+    activeOutputId,
+    previewQualityPressureLevel,
+    strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+    adaptivePreviewEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW,
+    adaptivePreviewQualityEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
+    decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
+    visibleOutputs,
+    visibleCuratedOutputs,
+    hydrationPriorityCount,
+    curatedHydrationPriorityCount,
+    virtualRowHeight: virtualMetrics.rowHeight,
+    curatedVirtualRowHeight: curatedVirtualMetrics.rowHeight,
+    quickSlotAdaptiveSurfaceEnabled,
+    hydratedById: imageHydrationState.hydratedById,
+  });
+  useReferenceGridPreviewSwapTelemetryController({
+    visibleCardItems,
+    renderedItemCount,
+    outputsLength: outputs.length,
+    previousVisiblePreviewUrlByIdRef,
+    previewSwapTelemetryRef,
+    setPreviewSwapMetrics,
+  });
+  const { pendingCardIdSet, spinnerCandidateIdSet, spinnerSlotIdSet, loadingIdsLength } =
+    useReferenceGridLoadingVisualController({
+      allVisibleCardItems,
+      loadedMap,
+      decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
+      perfDegradeLevel: perfWatchdog.degradeLevel,
+      maxAnimatedSpinnersLevel0: REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_0,
+      maxAnimatedSpinnersLevel1: REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_1,
+      maxAnimatedSpinnersLevel2: REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_2,
+    });
 
-  React.useEffect(() => {
-    if (!REFERENCE_GRID_FLAG_DECODE_BUDGET) return;
-    const validOutputIds = new Set(outputs.map((output) => output.id));
-    Object.keys(hydrationGeneratedObjectUrlByIdRef.current).forEach((id) => {
-      if (validOutputIds.has(id)) return;
-      revokeGeneratedHydrationUrl(id);
-    });
-    Object.keys(hydrationPreviewMetaByIdRef.current).forEach((id) => {
-      if (validOutputIds.has(id)) return;
-      delete hydrationPreviewMetaByIdRef.current[id];
-    });
-    Object.keys(hydrationUrlByIdRef.current).forEach((id) => {
-      if (validOutputIds.has(id)) return;
-      delete hydrationUrlByIdRef.current[id];
-    });
-    Object.keys(hydrationFallbackUrlByIdRef.current).forEach((id) => {
-      if (validOutputIds.has(id)) return;
-      delete hydrationFallbackUrlByIdRef.current[id];
-    });
-    Object.keys(hydrationFailedOptimizedUrlByIdRef.current).forEach((id) => {
-      if (validOutputIds.has(id)) return;
-      delete hydrationFailedOptimizedUrlByIdRef.current[id];
-    });
-
-    // Avoid dispatching a no-op state update on every render; only prune when stale hydrated ids exist.
-    const hasStaleHydratedIds = Object.keys(hydrationHydratedByIdRef.current).some(
-      (id) => !validOutputIds.has(id)
-    );
-    if (!hasStaleHydratedIds) return;
-
-    runNonUrgentUpdate(() => {
-      setImageHydrationState((prev) => {
-        let changed = false;
-        const nextHydratedById = Object.fromEntries(
-          Object.entries(prev.hydratedById).filter(([id]) => {
-            const keep = validOutputIds.has(id);
-            if (!keep) changed = true;
-            return keep;
-          })
-        );
-        if (!changed) return prev;
-        return {
-          ...prev,
-          hydratedById: nextHydratedById,
-        };
-      });
-    });
-  }, [outputs, revokeGeneratedHydrationUrl, runNonUrgentUpdate]);
+  useReferenceGridHydrationQueueController({
+    decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
+    activeOutputId,
+    outputs,
+    visibleCardItems,
+    curatedVisibleCardItems,
+    nearViewportOutputs,
+    nearViewportCuratedOutputs,
+    previewQualityPressureLevel,
+    strictPreviewLadder: REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER,
+    adaptivePreviewQualityEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
+    virtualRowHeight: virtualMetrics.rowHeight,
+    curatedVirtualRowHeight: curatedVirtualMetrics.rowHeight,
+    quickSlotAdaptiveSurfaceEnabled,
+    enqueueImageHydration,
+    pruneHydrationQueueToCandidateIds,
+  });
 
   useReferenceGridAutoplayBudgetController({
     smallScreenQuery: REFERENCE_AUTOPLAY_SMALL_SCREEN_QUERY,
@@ -1587,112 +640,33 @@ export function ReferenceCanvas({
     recomputeAutoplayBudget,
   });
 
-  React.useEffect(
-    () => () => {
-      if (hydrationRafFlushRef.current != null) {
-        window.cancelAnimationFrame(hydrationRafFlushRef.current);
-        hydrationRafFlushRef.current = null;
-      }
-      Object.keys(hydrationGeneratedObjectUrlByIdRef.current).forEach((id) => {
-        revokeGeneratedHydrationUrl(id);
-      });
-    },
-    [revokeGeneratedHydrationUrl]
-  );
-
-  React.useEffect(() => {
-    if (!REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY) return;
-    if (typeof performance === "undefined") return;
-    const now = performance.now();
-    const durationMs =
-      lastRenderCommitAtRef.current > 0
-        ? Math.max(0, Math.round(now - lastRenderCommitAtRef.current))
-        : 0;
-    lastRenderCommitAtRef.current = now;
-    logMediaPerf("media.grid.render.commit", {
-      surface: "reference-grid",
-      rendered_item_count: renderedItemCount,
-      total_item_count: outputs.length,
-      virtualized: shouldVirtualize,
-      high_density: isHighDensity,
-      image_hydration_queue: imageHydrationState.queueSize,
-      image_decode_inflight: imageHydrationState.decodeInflight,
-      perf_degrade_level: perfWatchdog.degradeLevel,
-      preview_src_swap_rate_per_minute: previewSwapMetrics.swapRatePerMinute,
-      preview_repaint_spike_count: previewSwapMetrics.repaintSpikeCount,
-      preview_last_swap_burst_count: previewSwapMetrics.lastSwapBurstCount,
-      duration_ms: durationMs,
-    });
-  }, [
-    endIndex,
-    imageHydrationState.decodeInflight,
-    imageHydrationState.queueSize,
-    isHighDensity,
-    outputs.length,
-    perfWatchdog.degradeLevel,
-    previewSwapMetrics.lastSwapBurstCount,
-    previewSwapMetrics.repaintSpikeCount,
-    previewSwapMetrics.swapRatePerMinute,
+  useReferenceGridTelemetryController({
+    renderCommitTelemetryEnabled: REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY,
+    telemetryBackpressureEnabled: REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE,
+    lastRenderCommitAtRef,
     renderedItemCount,
+    outputsLength: outputs.length,
     shouldVirtualize,
+    isHighDensity,
+    imageHydrationQueueSize: imageHydrationState.queueSize,
+    imageDecodeInflight: imageHydrationState.decodeInflight,
+    perfDegradeLevel: perfWatchdog.degradeLevel,
+    previewSwapRatePerMinute: previewSwapMetrics.swapRatePerMinute,
+    previewRepaintSpikeCount: previewSwapMetrics.repaintSpikeCount,
+    previewLastSwapBurstCount: previewSwapMetrics.lastSwapBurstCount,
     startIndex,
-  ]);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined" || typeof PerformanceObserver === "undefined") return;
-    const observer = new PerformanceObserver((entryList) => {
-      entryList.getEntries().forEach((entry) => {
-        logMediaPerf("media.grid.longtask.sample", {
-          surface: "reference-grid",
-          duration_ms: Math.round(entry.duration),
-          name: entry.name,
-        });
-      });
-    });
-    try {
-      observer.observe({ type: "longtask", buffered: true });
-    } catch {
-      observer.disconnect();
-      return;
-    }
-    return () => observer.disconnect();
-  }, []);
-
-  React.useEffect(() => {
-    if (!REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE) return;
-    const shouldDefer =
-      perfWatchdog.degradeLevel >= 1 ||
-      canvasDropMode !== "none" ||
-      isCuratedDropActive ||
-      loadingCardState.loadingIds.length > 8;
-    setMediaPerfSamplingPolicy(shouldDefer ? "defer_non_critical" : "normal");
-    return () => {
-      setMediaPerfSamplingPolicy("normal");
-    };
-  }, [
+    endIndex,
     canvasDropMode,
     isCuratedDropActive,
-    loadingCardState.loadingIds.length,
-    perfWatchdog.degradeLevel,
-  ]);
+    loadingCardCount: loadingIdsLength,
+  });
 
-  const markLoaded = useCallback(
-    (id: string, options?: { notifyAutoSave?: boolean }) => {
-      const shouldNotify = options?.notifyAutoSave ?? true;
-      if (loadedIdsRef.current.has(id)) return;
-      loadedIdsRef.current.add(id);
-      runNonUrgentUpdate(() => {
-        setLoadedMap((prev) => {
-          if (prev[id]) return prev;
-          return { ...prev, [id]: true };
-        });
-      });
-      if (shouldNotify) {
-        onOutputMediaLoaded?.(id);
-      }
-    },
-    [onOutputMediaLoaded, runNonUrgentUpdate]
-  );
+  const { markLoaded } = useReferenceGridLoadedMediaController({
+    loadedIdsRef,
+    setLoadedMap,
+    runNonUrgentUpdate,
+    onOutputMediaLoaded,
+  });
 
   const { handleCanvasDrop, handleCanvasDragOver, handleCanvasDragEnter, handleCanvasDragLeave } =
     useReferenceGridCanvasDropController({
@@ -1721,23 +695,7 @@ export function ReferenceCanvas({
       onPasteTextReference,
     });
 
-  const handleCardDragStart = useCallback(
-    (
-      event: React.DragEvent<HTMLElement>,
-      item: StudioOutput,
-      sourceSurface: ReferenceDragSourceSurface
-    ) => {
-      prepareReferenceDrag(event, item, {
-        dragImage: event.currentTarget as HTMLElement,
-        sourceSurface,
-      });
-    },
-    []
-  );
-
-  const handleCardDragEnd = useCallback((event: React.DragEvent<HTMLElement>) => {
-    clearDragState(event);
-  }, []);
+  const { handleCardDragStart, handleCardDragEnd } = useReferenceGridCardDragController();
 
   const {
     handleCuratedSectionDrop,
@@ -1763,260 +721,45 @@ export function ReferenceCanvas({
     renderedItemCount,
   });
 
-  const handleAutoplayStarted = useCallback(
-    (id: string) => {
-      if (autoplayingIdsRef.current.has(id)) return;
-      autoplayingIdsRef.current.add(id);
-      logMediaPerf("media.grid.autoplay.started", {
-        surface: "reference-grid",
-        output_id: id,
-        active_autoplay_count: autoplayingIdsRef.current.size,
-        visible_item_count: renderedItemCount,
-        total_item_count: outputs.length,
-      });
-    },
-    [outputs.length, renderedItemCount]
-  );
-
-  const handleAutoplayStopped = useCallback(
-    (id: string) => {
-      if (!autoplayingIdsRef.current.has(id)) return;
-      autoplayingIdsRef.current.delete(id);
-      logMediaPerf("media.grid.autoplay.stopped", {
-        surface: "reference-grid",
-        output_id: id,
-        active_autoplay_count: autoplayingIdsRef.current.size,
-        visible_item_count: renderedItemCount,
-        total_item_count: outputs.length,
-      });
-    },
-    [outputs.length, renderedItemCount]
-  );
-
-  const renderReferenceCard = useCallback(
-    (
-      card: (typeof visibleCardItems)[number],
-      options: {
-        surface: ReferenceDragSourceSurface;
-        isCuratedSurface: boolean;
-      }
-    ) => {
-      const isFailing = card.item.taskState === "fail";
-      const isLoading =
-        !isFailing &&
-        (card.item.taskState === "running" ||
-          card.item.taskState === "pending" ||
-          (card.item.taskState === "success" && !card.cardPreviewUrl && !card.item.previewText));
-      const isPending = pendingCardIdSet.has(card.item.id);
-      const isSpinnerCandidate = spinnerCandidateIdSet.has(card.item.id);
-      const loadingVisual: "none" | "spinner" | "placeholder" | "pending" = isPending
-        ? spinnerSlotIdSet.has(card.item.id)
-          ? "spinner"
-          : isSpinnerCandidate
-            ? "pending"
-            : "placeholder"
-        : "none";
-      const canAutoplayVideo =
-        card.isVideoPreview &&
-        autoplayEnabledIdSet.has(card.item.id) &&
-        perfWatchdog.degradeLevel < 2;
-      const isPromptOnly = !card.cardPreviewUrl && !!card.item.previewText;
-      const isLinkedPromptReference = isPromptOnly && linkedPromptReferenceIdSet.has(card.item.id);
-      const canRetryStatus = Boolean(onRetryStatus && card.item.taskId) && (isFailing || isLoading);
-      const videoNodeKey = `${options.surface}:${card.item.id}`;
-      return (
-        <ReferenceCanvasCard
-          key={options.isCuratedSurface ? `curated-${card.item.id}` : card.item.id}
-          item={card.item}
-          dragSourceSurface={options.surface}
-          videoNodeKey={videoNodeKey}
-          activeOutputId={activeOutputId}
-          loadingVisual={loadingVisual}
-          cardPreviewUrl={card.cardPreviewUrl}
-          isVideoPreview={card.isVideoPreview}
-          isImagePreview={card.isImagePreview}
-          canAutoplayVideo={canAutoplayVideo}
-          isPromptOnly={isPromptOnly}
-          isLinkedPromptReference={isLinkedPromptReference}
-          canRetryStatus={canRetryStatus}
-          showPromptGenerate={showPromptGenerate}
-          disablePromptGenerate={disablePromptGenerate}
-          generateCostCredits={generateCostCredits}
-          imageSrc={card.imageSrc}
-          imageLoading={card.isPriorityHydration ? "eager" : "lazy"}
-          imageFetchPriority={card.isPriorityHydration ? "high" : "low"}
-          onSelectOutput={onSelectOutput}
-          onOpenDetails={onOpenDetails}
-          onCardDragStart={handleCardDragStart}
-          onCardDragEnd={handleCardDragEnd}
-          onCardDragOver={
-            options.isCuratedSurface
-              ? (event) => {
-                  handleCuratedSectionDragOver(event);
-                }
-              : undefined
-          }
-          onCardDrop={options.isCuratedSurface ? handleCuratedCardDrop : undefined}
-          onCardDragEnter={
-            options.isCuratedSurface
-              ? (event) => {
-                  handleCuratedSectionDragEnter(event);
-                }
-              : undefined
-          }
-          onCardDragLeave={
-            options.isCuratedSurface
-              ? (event) => {
-                  handleCuratedSectionDragLeave(event);
-                }
-              : undefined
-          }
-          onKeyboardReorderCurated={
-            options.isCuratedSurface ? handleCuratedCardKeyboardReorder : undefined
-          }
-          registerVideoNode={registerVideoNode}
-          markLoaded={markLoaded}
-          onAutoplayStarted={handleAutoplayStarted}
-          onAutoplayStopped={handleAutoplayStopped}
-          onRetryStatus={onRetryStatus}
-          onDeleteOutput={options.isCuratedSurface ? undefined : onDeleteOutput}
-          onRemoveCuratedReference={options.isCuratedSurface ? onRemoveCuratedReference : undefined}
-          showCuratedRemoveAction={options.isCuratedSurface}
-          onSaveToLibrary={onSaveToLibrary}
-          onDownload={onDownload}
-          onDescribeImage={onDescribeImage}
-          onGeneratePrompt={onGeneratePrompt}
-          hideReferenceActions={options.isCuratedSurface}
-        />
-      );
-    },
-    [
-      activeOutputId,
-      autoplayEnabledIdSet,
-      disablePromptGenerate,
-      generateCostCredits,
-      handleAutoplayStarted,
-      handleAutoplayStopped,
-      handleCardDragStart,
-      handleCardDragEnd,
-      handleCuratedCardDrop,
-      handleCuratedCardKeyboardReorder,
-      handleCuratedSectionDragEnter,
-      handleCuratedSectionDragLeave,
-      handleCuratedSectionDragOver,
-      linkedPromptReferenceIdSet,
-      markLoaded,
-      onDeleteOutput,
-      onDescribeImage,
-      onDownload,
-      onGeneratePrompt,
-      onOpenDetails,
-      onRemoveCuratedReference,
-      onRetryStatus,
-      onSaveToLibrary,
-      onSelectOutput,
-      pendingCardIdSet,
-      perfWatchdog.degradeLevel,
-      registerVideoNode,
-      showPromptGenerate,
-      spinnerCandidateIdSet,
-      spinnerSlotIdSet,
-    ]
-  );
-
-  const referenceGridHeader = (
-    <div className="panel-header preview-header reference-all-refs-header">
-      <div>
-        <p className="eyebrow">Reference Grid</p>
-      </div>
-      <div className="preview-header-actions">
-        <button
-          type="button"
-          className="ghost-btn mini preview-media-btn reference-grid-add-files-btn"
-          onClick={onTriggerFileSelect}
-        >
-          <UploadSimple size={14} weight="regular" />
-          <span>Add files</span>
-        </button>
-        <PromptLibraryButton
-          onClick={(event) => {
-            event.preventDefault();
-            onOpenMediaLibrary?.();
-          }}
-          className="prompt-media-btn preview-media-btn reference-grid-media-library-btn"
-          aria-label="Open media library"
-          label="Media Library"
-          icon={<CloudArrowUp size={16} weight="regular" aria-hidden />}
-          tone="library"
-        />
-        {archiveCount > 0 ? (
-          <button
-            type="button"
-            className="ghost-btn mini preview-media-btn reference-archive-btn"
-            onClick={() => setIsArchivePanelOpen((prev) => !prev)}
-            aria-expanded={isArchivePanelOpen}
-          >
-            Archived ({archiveCount})
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-
-  const referenceArchiveInline =
-    !showHeader && archiveCount > 0 ? (
-      <div className="reference-archive-inline">
-        <button
-          type="button"
-          className="ghost-btn mini preview-media-btn reference-archive-btn"
-          onClick={() => setIsArchivePanelOpen((prev) => !prev)}
-          aria-expanded={isArchivePanelOpen}
-        >
-          Archived ({archiveCount})
-        </button>
-        {onRestoreAllArchivedOutputs ? (
-          <button
-            type="button"
-            className="ghost-btn mini preview-media-btn reference-archive-restore-all-btn"
-            onClick={() => onRestoreAllArchivedOutputs()}
-          >
-            Restore all
-          </button>
-        ) : null}
-      </div>
-    ) : null;
-
-  const referenceArchivePanel =
-    isArchivePanelOpen && archiveCount > 0 ? (
-      <div className="reference-archive-panel" aria-label="Archived references">
-        <div className="reference-archive-header">
-          <p className="tiny subdued">Older references are archived to keep the grid responsive.</p>
-          <button
-            type="button"
-            className="ghost-btn mini preview-media-btn reference-archive-restore-all-btn"
-            onClick={() => onRestoreAllArchivedOutputs?.()}
-          >
-            Restore all
-          </button>
-        </div>
-        <div className="reference-archive-list">
-          {archivedOutputs.slice(0, 24).map((item) => (
-            <div key={item.id} className="reference-archive-item">
-              <span className="reference-archive-item-label">
-                {item.previewText ? item.previewText : item.prompt}
-              </span>
-              <button
-                type="button"
-                className="ghost-btn mini reference-archive-item-restore"
-                onClick={() => onRestoreArchivedOutput?.(item.id)}
-              >
-                Restore
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    ) : null;
+  const { handleAutoplayStarted, handleAutoplayStopped } = useReferenceGridAutoplayEventController({
+    autoplayingIdsRef,
+    renderedItemCount,
+    outputsLength: outputs.length,
+  });
+  const { curatedCardNodes, allRefsCardNodes } = useReferenceGridCardRenderController({
+    activeOutputId,
+    showPromptGenerate,
+    disablePromptGenerate,
+    generateCostCredits,
+    autoplayEnabledIdSet,
+    linkedPromptReferenceIdSet,
+    pendingCardIdSet,
+    spinnerCandidateIdSet,
+    spinnerSlotIdSet,
+    perfDegradeLevel: perfWatchdog.degradeLevel,
+    visibleCardItems,
+    curatedVisibleCardItems,
+    onSelectOutput,
+    onOpenDetails,
+    onCardDragStart: handleCardDragStart,
+    onCardDragEnd: handleCardDragEnd,
+    onCuratedSectionDragOver: handleCuratedSectionDragOver,
+    onCuratedCardDrop: handleCuratedCardDrop,
+    onCuratedSectionDragEnter: handleCuratedSectionDragEnter,
+    onCuratedSectionDragLeave: handleCuratedSectionDragLeave,
+    onCuratedCardKeyboardReorder: handleCuratedCardKeyboardReorder,
+    registerVideoNode,
+    markLoaded,
+    onAutoplayStarted: handleAutoplayStarted,
+    onAutoplayStopped: handleAutoplayStopped,
+    onRetryStatus,
+    onDeleteOutput,
+    onRemoveCuratedReference,
+    onSaveToLibrary,
+    onDownload,
+    onDescribeImage,
+    onGeneratePrompt,
+  });
 
   return (
     <div
@@ -2046,153 +789,43 @@ export function ReferenceCanvas({
       onPointerDown={handlePanelPointerDown}
       tabIndex={0}
     >
-      {!isCuratedSplitEnabled && showHeader ? referenceGridHeader : null}
-      {!isCuratedSplitEnabled ? referenceArchiveInline : null}
-      {!isCuratedSplitEnabled ? referenceArchivePanel : null}
-      <div className={`reference-grid-sections${isCuratedSplitEnabled ? " is-curated-split" : ""}`}>
-        {isCuratedSplitEnabled ? (
-          <>
-            <div
-              ref={curatedSectionRef}
-              className={`reference-curated-section${isCuratedDropActive ? " is-drop-active" : ""}${horizontalSplit.isAllRefsExpanded ? " is-all-refs-expanded" : ""}`}
-              style={horizontalSplit.topSectionStyle}
-              onDrop={handleCuratedSectionDrop}
-              onDragOver={handleCuratedSectionDragOver}
-              onDragEnter={handleCuratedSectionDragEnter}
-              onDragLeave={handleCuratedSectionDragLeave}
-            >
-              <div ref={curatedHeaderRef} className="reference-curated-header">
-                <p className="eyebrow">Quick Slot Inventory</p>
-              </div>
-              <div
-                className="reference-curated-scroll"
-                onScroll={handleCuratedScroll}
-                ref={curatedScrollContainerRef}
-              >
-                <div
-                  className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
-                  ref={curatedGridRef}
-                  style={curatedGridStyle}
-                >
-                  {curatedOutputs.length === 0 ? (
-                    <div className="reference-curated-empty">
-                      <p className="preview-title">
-                        Drag &amp; drop references here from the Reference Grid.
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      {curatedTopSpacerHeight > 0 ? (
-                        <div
-                          className="reference-virtual-spacer"
-                          style={{ height: curatedTopSpacerHeight }}
-                        />
-                      ) : null}
-                      {curatedVisibleCardItems.map((card) =>
-                        renderReferenceCard(card, {
-                          surface: "curated",
-                          isCuratedSurface: true,
-                        })
-                      )}
-                      {curatedBottomSpacerHeight > 0 ? (
-                        <div
-                          className="reference-virtual-spacer"
-                          style={{ height: curatedBottomSpacerHeight }}
-                        />
-                      ) : null}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div
-              className="reference-grid-horizontal-divider-wrap"
-              {...horizontalSplit.dividerProps}
-            >
-              <button
-                type="button"
-                className="reference-grid-horizontal-divider-pill"
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  horizontalSplit.snapToInventoryExpanded();
-                }}
-              >
-                Inventory ↓
-              </button>
-              <div className="reference-grid-horizontal-divider" />
-              <button
-                type="button"
-                className="reference-grid-horizontal-divider-pill"
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  const curatedHeaderNode = curatedSectionRef.current?.querySelector(
-                    ".reference-curated-header"
-                  );
-                  const targetTopHeightPx =
-                    curatedHeaderNode instanceof HTMLElement
-                      ? curatedHeaderNode.offsetHeight
-                      : undefined;
-                  horizontalSplit.snapToAllRefsExpanded(targetTopHeightPx);
-                }}
-              >
-                All Refs ↑
-              </button>
-            </div>
-          </>
-        ) : null}
-        <div
-          className={`reference-all-refs-section${horizontalSplit.isInventoryExpanded ? " is-inventory-expanded" : ""}`}
-          style={isCuratedSplitEnabled ? horizontalSplit.bottomSectionStyle : undefined}
-        >
-          {isCuratedSplitEnabled && showHeader ? referenceGridHeader : null}
-          {isCuratedSplitEnabled ? referenceArchiveInline : null}
-          {isCuratedSplitEnabled ? referenceArchivePanel : null}
-          <div
-            className="reference-canvas-scroll"
-            onScroll={handleAllRefsScroll}
-            ref={scrollContainerRef}
-          >
-            <div
-              className={`reference-canvas-grid${!selectedTool ? " reference-canvas-grid--wide" : ""}`}
-              ref={gridRef}
-              style={gridStyle}
-            >
-              {outputs.length === 0 ? (
-                <div className="reference-empty">
-                  <p className="preview-title">Upload or generate to see your references here.</p>
-                  <p className="subdued tiny helper-text">
-                    New text prompts, images, and videos will appear in this grid.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {topSpacerHeight > 0 ? (
-                    <div className="reference-virtual-spacer" style={{ height: topSpacerHeight }} />
-                  ) : null}
-                  {visibleCardItems.map((card) =>
-                    renderReferenceCard(card, {
-                      surface: "all-refs",
-                      isCuratedSurface: false,
-                    })
-                  )}
-                  {bottomSpacerHeight > 0 ? (
-                    <div
-                      className="reference-virtual-spacer"
-                      style={{ height: bottomSpacerHeight }}
-                    />
-                  ) : null}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <ReferenceCanvasSections
+        isCuratedSplitEnabled={isCuratedSplitEnabled}
+        isCuratedDropActive={isCuratedDropActive}
+        showHeader={showHeader}
+        archiveCount={archiveCount}
+        isArchivePanelOpen={isArchivePanelOpen}
+        archivedOutputs={archivedOutputs}
+        onToggleArchivePanel={() => setIsArchivePanelOpen((prev) => !prev)}
+        onTriggerFileSelect={onTriggerFileSelect}
+        onOpenMediaLibrary={onOpenMediaLibrary}
+        onRestoreArchivedOutput={onRestoreArchivedOutput}
+        onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
+        horizontalSplit={horizontalSplit}
+        curatedSectionRef={curatedSectionRef}
+        curatedHeaderRef={curatedHeaderRef}
+        curatedScrollContainerRef={curatedScrollContainerRef}
+        curatedGridRef={curatedGridRef}
+        scrollContainerRef={scrollContainerRef}
+        gridRef={gridRef}
+        handleCuratedSectionDrop={handleCuratedSectionDrop}
+        handleCuratedSectionDragOver={handleCuratedSectionDragOver}
+        handleCuratedSectionDragEnter={handleCuratedSectionDragEnter}
+        handleCuratedSectionDragLeave={handleCuratedSectionDragLeave}
+        handleCuratedScroll={handleCuratedScroll}
+        handleAllRefsScroll={handleAllRefsScroll}
+        selectedTool={selectedTool}
+        curatedGridStyle={curatedGridStyle}
+        gridStyle={gridStyle}
+        curatedOutputsLength={curatedOutputs.length}
+        outputsLength={outputs.length}
+        curatedTopSpacerHeight={curatedTopSpacerHeight}
+        curatedBottomSpacerHeight={curatedBottomSpacerHeight}
+        topSpacerHeight={topSpacerHeight}
+        bottomSpacerHeight={bottomSpacerHeight}
+        curatedCardNodes={curatedCardNodes}
+        allRefsCardNodes={allRefsCardNodes}
+      />
     </div>
   );
 }

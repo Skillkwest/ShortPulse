@@ -258,9 +258,18 @@ jobs:
         run: |
           set -euo pipefail
           MODE="${ARCHITECTURE_BOUNDARY_MODE:-warn}"
+          RG_MODE="${REFERENCE_GRID_BOUNDARY_MODE:-warn}"
           if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
             echo "::warning::Unknown ARCHITECTURE_BOUNDARY_MODE='$MODE'. Falling back to 'warn'."
             MODE="warn"
+          fi
+          if [ "$RG_MODE" != "warn" ] && [ "$RG_MODE" != "enforce" ]; then
+            echo "::warning::Unknown REFERENCE_GRID_BOUNDARY_MODE='$RG_MODE'. Falling back to 'warn'."
+            RG_MODE="warn"
+          fi
+          EFFECTIVE_MODE="$MODE"
+          if [ "$RG_MODE" = "enforce" ]; then
+            EFFECTIVE_MODE="enforce"
           fi
 
           set +e
@@ -270,11 +279,11 @@ jobs:
           set -e
 
           if [ "$STATUS" -eq 0 ]; then
-            echo "architecture_boundary passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            echo "architecture_boundary passed (mode=$EFFECTIVE_MODE)." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
-          if [ "$MODE" = "warn" ]; then
+          if [ "$EFFECTIVE_MODE" = "warn" ]; then
             echo "::warning::architecture_boundary failed in warn mode."
             echo "architecture_boundary failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -302,9 +311,18 @@ jobs:
         run: |
           set -euo pipefail
           MODE="${SIZE_BUDGET_MODE:-warn}"
+          RG_MODE="${REFERENCE_GRID_SIZE_BUDGET_MODE:-warn}"
           if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
             echo "::warning::Unknown SIZE_BUDGET_MODE='$MODE'. Falling back to 'warn'."
             MODE="warn"
+          fi
+          if [ "$RG_MODE" != "warn" ] && [ "$RG_MODE" != "enforce" ]; then
+            echo "::warning::Unknown REFERENCE_GRID_SIZE_BUDGET_MODE='$RG_MODE'. Falling back to 'warn'."
+            RG_MODE="warn"
+          fi
+          EFFECTIVE_MODE="$MODE"
+          if [ "$RG_MODE" = "enforce" ]; then
+            EFFECTIVE_MODE="enforce"
           fi
 
           set +e
@@ -314,11 +332,11 @@ jobs:
           set -e
 
           if [ "$STATUS" -eq 0 ]; then
-            echo "size_budget passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            echo "size_budget passed (mode=$EFFECTIVE_MODE)." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
-          if [ "$MODE" = "warn" ]; then
+          if [ "$EFFECTIVE_MODE" = "warn" ]; then
             echo "::warning::size_budget failed in warn mode."
             echo "size_budget failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
             exit 0

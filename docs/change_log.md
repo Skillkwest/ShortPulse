@@ -1087,3 +1087,134 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites, AI Studio drop-path suite, and adaptive v2 gate.
 - Added phase-5 slice-8 evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-autoplay-budget-controller-slice-8.md`
+- Continued Phase 5 canvas decomposition (slice 9 telemetry controller extraction):
+  - extracted render-commit, longtask observer, and telemetry-backpressure policy effects into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridTelemetryController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed telemetry orchestration.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites, AI Studio drop-path suite, and adaptive v2 gate.
+- Added phase-5 slice-9 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-telemetry-controller-slice-9.md`
+- Continued Phase 5 canvas decomposition (slice 10 autoplay-events controller extraction):
+  - extracted autoplay started/stopped telemetry handlers into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridAutoplayEventController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed autoplay event callbacks.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites.
+- Added phase-5 slice-10 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-autoplay-events-controller-slice-10.md`
+- Continued Phase 5 canvas decomposition (slice 11 archive-controls component extraction):
+  - extracted header/archive inline/archive panel presentation into `frontend/features/ai-studio/reference-grid/components/ReferenceCanvasArchiveControls.tsx`.
+  - rewired split and non-split `ReferenceCanvas` surfaces to consume shared archive controls component.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites.
+- Added phase-5 slice-11 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-archive-controls-component-slice-11.md`
+- Continued Phase 5 canvas decomposition (slice 12 card-drag controller extraction):
+  - extracted card drag start/end protocol handlers into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridCardDragController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed card drag handlers.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites.
+- Added phase-5 slice-12 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-card-drag-controller-slice-12.md`
+- Continued Phase 5 canvas decomposition (slice 13 loaded-media controller extraction):
+  - extracted loaded-media callback bookkeeping and notification fan-out into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridLoadedMediaController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed `markLoaded` callback.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites.
+- Added phase-5 slice-13 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-loaded-media-controller-slice-13.md`
+- Continued Phase 5 canvas decomposition (slice 14 sections component extraction):
+  - extracted split/non-split quick-slot/all-refs layout rendering into `frontend/features/ai-studio/reference-grid/components/ReferenceCanvasSections.tsx`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to pass section view-model props and rendered card nodes into shared sections component.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites.
+- Added phase-5 slice-14 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-sections-component-slice-14.md`
+- Continued Phase 5 canvas decomposition (slice 15 card-render controller extraction):
+  - extracted per-card action wiring and curated/all-refs card-node mapping into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridCardRenderController.tsx`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed `curatedCardNodes` and `allRefsCardNodes`.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites.
+- Added phase-5 slice-15 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-card-render-controller-slice-15.md`
+- Continued Phase 5 canvas decomposition (slice 16 preview-swap telemetry controller extraction):
+  - extracted preview swap metric tracking/reset effects into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridPreviewSwapTelemetryController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed preview swap telemetry orchestration.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites.
+- Added phase-5 slice-16 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-preview-swap-telemetry-controller-slice-16.md`
+- Continued Phase 5 canvas decomposition (slice 17 loading-visual controller extraction):
+  - extracted loading/spinner derivation into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridLoadingVisualController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed loading/spinner sets and loading count.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites.
+- Added phase-5 slice-17 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-loading-visual-controller-slice-17.md`
+- Continued Phase 5 canvas decomposition (slice 18 autoplay-selection controller extraction):
+  - extracted visible-video prioritization, autoplay-enabled id selection, and related runtime ref-sync effects into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridAutoplaySelectionController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed autoplay selection orchestration.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites.
+- Added phase-5 slice-18 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-autoplay-selection-controller-slice-18.md`
+- Continued Phase 5 canvas decomposition (slice 19 drop-helpers controller extraction):
+  - extracted media-file normalization, drop-mode detection, and FileList helper primitives into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridDropHelpersController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed drop helper callbacks.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites.
+- Added phase-5 slice-19 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-drop-helpers-controller-slice-19.md`
+- Continued Phase 5 canvas decomposition (slice 20 image-hydration controller extraction):
+  - extracted hydration queue/decode runtime, adaptive local transcode path, stale-id pruning, and hydration object URL cleanup into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridImageHydrationController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed `imageHydrationState`, `enqueueImageHydration`, and queue-prune API.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites, AI Studio drop-path suite, and adaptive v2 gate.
+- Added phase-5 slice-20 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-image-hydration-controller-slice-20.md`
+- Continued Phase 5 canvas decomposition (slice 21 viewport-projection controller extraction):
+  - extracted virtual-window derivation, hard viewport cap projection, visible slices, spacer heights, and near-viewport derivation into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridViewportProjectionController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed projection outputs.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites and AI Studio drop-path suite.
+- Added phase-5 slice-21 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-viewport-projection-controller-slice-21.md`
+- Continued Phase 5 canvas decomposition (slice 22 card-items controller extraction):
+  - extracted visible card-item URL/preview derivation, hydration-source matching, and transformed adaptive preview counting into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridCardItemsController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed card-item derivations.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites and AI Studio drop-path suite.
+- Added phase-5 slice-22 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-card-items-controller-slice-22.md`
+- Continued Phase 5 canvas decomposition (slice 23 hydration-queue controller extraction):
+  - extracted active/visible/near-viewport hydration enqueue scheduling and queue-prune orchestration into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridHydrationQueueController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed hydration queue scheduling.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites and AI Studio drop-path suite.
+- Added phase-5 slice-23 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-hydration-queue-controller-slice-23.md`
+- Continued Phase 5 decomposition (slice 24 media-library-modal extraction):
+  - extracted Media Library modal model/types/constants/helpers into `frontend/features/ai-studio/logic/mediaLibraryModalModel.ts`.
+  - extracted prompt/media grid rendering and modal chrome controls into:
+    - `frontend/features/ai-studio/components/media-library-modal/MediaLibraryPromptGrid.tsx`
+    - `frontend/features/ai-studio/components/media-library-modal/MediaLibraryMediaGrid.tsx`
+    - `frontend/features/ai-studio/components/media-library-modal/MediaLibraryModalControls.tsx`
+  - rewired `frontend/features/ai-studio/components/MediaLibraryModal.tsx` to consume extracted modules while preserving behavior.
+  - reduced `MediaLibraryModal.tsx` to 796 lines (under the 800-line size target).
+- Added phase-5 slice-24 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-media-library-modal-decomposition-slice-24.md`
+- Continued Phase 5 decomposition (slice 25 ai-studio-state reference-ingestion actions extraction):
+  - extracted agent/paste/library/file ingestion callbacks and agent-context projection into `frontend/features/ai-studio/hooks/useAiStudioReferenceIngestionActions.ts`.
+  - rewired `frontend/features/ai-studio/hooks/useAiStudioState.ts` to consume hook-managed ingestion actions.
+- Added phase-5 slice-25 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-ai-studio-state-reference-ingestion-actions-slice-25.md`
+- Continued Phase 5 decomposition (slice 26 ai-studio-state reference-grid actions extraction):
+  - extracted soft-archive/restore + curated projection action bundle into `frontend/features/ai-studio/hooks/useAiStudioReferenceGridStateActions.ts`.
+  - rewired `frontend/features/ai-studio/hooks/useAiStudioState.ts` to consume hook-managed archive/projection actions.
+- Added phase-5 slice-26 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-ai-studio-state-reference-grid-actions-slice-26.md`
+- Continued Phase 5 decomposition (slice 27 ai-studio-state object-url lifecycle extraction):
+  - extracted output blob URL tracking and revocation lifecycle into `frontend/features/ai-studio/hooks/useAiStudioOutputObjectUrlLifecycle.ts`.
+  - rewired `frontend/features/ai-studio/hooks/useAiStudioState.ts` to consume hook-managed object URL lifecycle.
+  - reduced `useAiStudioState.ts` to 872 lines.
+- Added phase-5 slice-27 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-ai-studio-state-object-url-lifecycle-slice-27.md`
+
+## 2026-02-23 (reference-grid phase 5 slice 28 + closeout)
+- Continued Phase 5 decomposition by extracting `useAiStudioState` output/store bridge, projection lifecycle effects, model-option derivation, optimistic placeholder actions, and output-store selector wrappers into dedicated hooks.
+- Rewired `frontend/features/ai-studio/hooks/useAiStudioState.ts` to consume extracted hooks while preserving no-regression behavior and selector-store compatibility.
+- Closed target hotspot size budgets: `ReferenceCanvas.tsx` 834 (<=900), `MediaLibraryModal.tsx` 796 (<=800), and `useAiStudioState.ts` 641 (<=650).
+- Added Phase 5 slice-28 evidence and Phase 5 closeout artifacts:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-ai-studio-state-output-collection-and-projection-effects-slice-28.md`
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-and-state-decomposition-closeout.md`
+- Updated tracker to mark Phase 5 complete and link new evidence artifacts.
+
+## 2026-02-23 (reference-grid phase 6 slice 1)
+- Started Phase 6 guardrail cleanup by fixing CI wrapper mode resolution for `architecture_boundary` and `size_budget` so reference-grid enforce-mode flags cannot be masked by global warn-mode wrappers.
+- Updated `.github/workflows/ci.yml` to derive `EFFECTIVE_MODE` from both global and reference-grid gate variables for boundary and size checks.
+- Added Phase 6 slice-1 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-guardrail-effective-mode-alignment-slice-1.md`

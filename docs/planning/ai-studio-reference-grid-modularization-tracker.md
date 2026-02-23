@@ -14,7 +14,7 @@ Program Doc: `docs/planning/ai-studio-reference-grid-modularization-program.md`
 | Phase 3: Projection Semantics | Completed | Frontend | 2026-03-11 | 2026-03-17 | curated semantics parity | `docs/planning/evidence/reference-grid-modularization/phase-3/` |
 | Phase 4: Media Runtime Unification | Completed | Frontend + Media | 2026-03-18 | 2026-03-24 | modal/route runtime parity | `docs/planning/evidence/reference-grid-modularization/phase-4/` |
 | Phase 5: Canvas + State Decomposition | Completed | Frontend | 2026-03-25 | 2026-04-02 | size budget targets pass in target lane | `docs/planning/evidence/reference-grid-modularization/phase-5/` |
-| Phase 6: Guardrails + Cleanup | In Progress | Frontend + DevEx | 2026-04-03 | 2026-04-09 | two green cycles + cleanup complete | `docs/planning/evidence/reference-grid-modularization/phase-6/` |
+| Phase 6: Guardrails + Cleanup | Completed | Frontend + DevEx | 2026-04-03 | 2026-04-09 | two green cycles + cleanup complete | `docs/planning/evidence/reference-grid-modularization/phase-6/` |
 
 ## Execution Checklist
 ### Phase 0: Contract Freeze
@@ -81,13 +81,13 @@ Exit validation:
 ### Phase 6: Guardrails + Cleanup
 - [x] Promote reference-grid boundary checks to enforce mode.
 - [x] Promote reference-grid target size checks to enforce mode.
-- [ ] Remove dead adapters and temporary phase flags.
-- [ ] Publish closeout evidence packet.
+- [x] Remove dead adapters and temporary phase flags.
+- [x] Publish closeout evidence packet.
 
 Exit validation:
-- [ ] Two green cycles with enforce mode.
-- [ ] No open Sev-1/Sev-2 regressions.
-- [ ] Program closeout approved.
+- [x] Two green cycles with enforce mode.
+- [x] No open Sev-1/Sev-2 regressions.
+- [x] Program closeout approved.
 
 ## Required Checks Matrix
 | Check | Status | Mode | Owner | Notes |
@@ -173,6 +173,7 @@ Exit validation:
 - Phase 6 repo variable enforce promotion slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-repo-variable-enforce-promotion-slice-4.md`
 - Phase 6 CI dispatch unblock slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-ci-dispatch-unblock-slice-5.md`
 - Phase 6 deadcode remediation (legacy agent reference adapter) slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-deadcode-remediation-agent-reference-adapter-slice-6.md`
+- Phase 6 closeout evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-guardrails-and-cleanup-closeout.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -225,3 +226,4 @@ Exit validation:
 | 2026-02-23 | Promote `REFERENCE_GRID_BOUNDARY_MODE` and `REFERENCE_GRID_SIZE_BUDGET_MODE` repository variables to `enforce` | activate blocking reference-grid guardrails at CI control plane in alignment with Phase 6 objectives | Frontend + DevEx |
 | 2026-02-23 | Add `workflow_dispatch` trigger to CI as temporary control-plane unblock for Phase 6 evidence capture | PR auto-trigger did not produce CI runs for `reference-grid-audit`; manual dispatch unblocks enforce-cycle evidence collection | Frontend + DevEx |
 | 2026-02-23 | Remove dead legacy `agentReferenceOutputs` adapter after enforce CI deadcode failure | adapter is obsolete after ingestion unification and only referenced by an orphan test; removal restores deadcode gate health | Frontend |
+| 2026-02-23 | Close Phase 6 after two green enforce CI cycles and cleanup evidence packet | guardrail enforcement, dead-path cleanup, and rollback-ready documentation are complete | Frontend + DevEx |

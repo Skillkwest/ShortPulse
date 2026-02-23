@@ -95,6 +95,26 @@ describe("useAiStudioWorkspaceActions", () => {
     expect(setShowCreateTools).toHaveBeenCalledWith(false);
   });
 
+  it("preserves non-workflow tool selections like templates", () => {
+    const setSelectedTool = vi.fn();
+    const setMode = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioWorkspaceActions(
+        createParams({
+          setSelectedTool,
+          setMode: asDispatch<StudioMode>(setMode),
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleToolSelect("templates");
+    });
+
+    expect(setSelectedTool).toHaveBeenCalledWith("templates");
+    expect(setMode).not.toHaveBeenCalled();
+  });
+
   it("routes file browser selection by primary Character tool and clears input value", () => {
     const addCharacterReferences = vi.fn();
     const addOutputsFromFiles = vi.fn();

@@ -130,11 +130,12 @@ export const useAiStudioWorkspaceActions = ({
   const handleToolSelect = useCallback(
     (tool: ToolId | null) => {
       const normalizedTool = normalizeToolId(tool);
-      setSelectedTool(normalizedTool);
-      if (isCreateWorkflow(normalizedTool) || normalizedTool === "edit") {
+      const nextTool = normalizedTool ?? tool ?? null;
+      setSelectedTool(nextTool);
+      if (isCreateWorkflow(nextTool) || nextTool === "edit") {
         setMode("image");
       }
-      if (!normalizedTool) {
+      if (!nextTool) {
         setShowCreateTools(false);
       }
     },

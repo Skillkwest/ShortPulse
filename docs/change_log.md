@@ -1045,3 +1045,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - reduced `ReferenceCanvas.tsx` from 3489 lines to 2902 lines while preserving behavior parity in existing ReferenceCanvas suites.
 - Added phase-5 slice-1 evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-foundation-slice-1.md`
+- Continued Phase 5 canvas decomposition (slice 2 controller extraction):
+  - extracted document-level paste capture and pointer priming controller into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridClipboardController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume controller hook callbacks and removed in-component document listener orchestration for clipboard/pointer handling.
+  - preserved no-regression behavior in existing ReferenceCanvas paste/curated/selector suites.
+- Added phase-5 slice-2 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-controller-slice-2.md`

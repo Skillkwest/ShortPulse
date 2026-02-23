@@ -1013,3 +1013,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - added shared recovery controller tests in `frontend/features/media-library/hooks/__tests__/useMediaPreviewRecoveryController.test.ts`.
 - Added phase-4 slice-3 evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-preview-recovery-controller-slice-3.md`
+- Continued Phase 4 media runtime unification (slice 4 preview-resolver API parity):
+  - added shared preview resolver module `frontend/features/media-library/logic/mediaPreviewResolver.ts` for `/api/media/resolve-previews` request/response normalization.
+  - rewired route and modal unresolved-preview resolver callbacks to shared helper:
+    - `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts`
+    - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+  - added shared resolver unit tests in `frontend/features/media-library/logic/__tests__/mediaPreviewResolver.test.ts`.
+- Added phase-4 slice-4 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-preview-resolver-api-parity-slice-4.md`

@@ -16,6 +16,10 @@ import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import {
+  collectUniqueMediaIds,
+  resolveSignedPreviewUrlsByMediaIds,
+} from "../logic/mediaPreviewResolver";
 import { useMediaPreviewRecoveryController } from "./useMediaPreviewRecoveryController";
 import type { MediaTab } from "../logic/mediaMoveRouting";
 import {
@@ -320,38 +324,18 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
 
   const resolveSignedUrlsByMediaIds = useCallback(
     async (tab: MediaDataTab, rows: TRow[]): Promise<Set<string>> => {
-      const ids = Array.from(new Set(rows.map((row) => row.id).filter(Boolean)));
+      const ids = collectUniqueMediaIds(rows);
       const unresolvedIds = new Set(ids);
       if (!ids.length) return unresolvedIds;
-      try {
-        const response = await fetchWithAuth("/api/media/resolve-previews", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ids,
-            expiresInSeconds: 3600,
-          }),
-          shortpulseLogScope: "app",
-        }).catch(() => null);
-        if (!response?.ok) return unresolvedIds;
-        const payload = (await response.json().catch(() => null)) as {
-          urls?: Record<string, string | null>;
-        } | null;
-        const urls = payload?.urls ?? {};
-        const resolvedById = new Map<string, string>();
-        for (const mediaId of ids) {
-          const url = urls[mediaId];
-          if (!url) continue;
-          resolvedById.set(mediaId, url);
-          unresolvedIds.delete(mediaId);
-        }
-        applySignedUrlsToTab(tab, resolvedById);
-        return unresolvedIds;
-      } catch {
-        return unresolvedIds;
+      const resolvedById = await resolveSignedPreviewUrlsByMediaIds({
+        ids,
+        fetcher: fetchWithAuth,
+      });
+      for (const mediaId of resolvedById.keys()) {
+        unresolvedIds.delete(mediaId);
       }
+      applySignedUrlsToTab(tab, resolvedById);
+      return unresolvedIds;
     },
     [applySignedUrlsToTab]
   );

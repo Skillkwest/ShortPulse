@@ -1218,3 +1218,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated `.github/workflows/ci.yml` to derive `EFFECTIVE_MODE` from both global and reference-grid gate variables for boundary and size checks.
 - Added Phase 6 slice-1 evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-guardrail-effective-mode-alignment-slice-1.md`
+
+## 2026-02-23 (reference-grid phase 6 slice 2)
+- Added Phase 6 enforce-cycle preflight evidence after two consecutive local green cycles under enforce-mode boundary and size settings.
+- Captured promotion-ready status for reference-grid guardrails pending CI repository-variable toggle and enforce-cycle capture.
+- Added evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-enforce-cycle-preflight-slice-2.md`

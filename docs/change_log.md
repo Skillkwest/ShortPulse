@@ -1245,3 +1245,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added `workflow_dispatch` trigger to `.github/workflows/ci.yml` as a temporary CI control-plane unblock to capture required Phase 6 enforce-cycle evidence on `reference-grid-audit`.
 - Added evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-ci-dispatch-unblock-slice-5.md`
+
+## 2026-02-23 (reference-grid phase 6 slice 6)
+- Fixed CI deadcode failure by removing obsolete legacy adapter and orphan test:
+  - deleted `frontend/features/ai-studio/hooks/stateAdapters/agentReferenceOutputs.ts`
+  - deleted `frontend/features/ai-studio/hooks/stateAdapters/__tests__/agentReferenceOutputs.test.ts`
+- Added evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-deadcode-remediation-agent-reference-adapter-slice-6.md`

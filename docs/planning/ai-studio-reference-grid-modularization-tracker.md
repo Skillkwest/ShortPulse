@@ -172,6 +172,7 @@ Exit validation:
 - Phase 6 dead-flag retirement (normalized-state toggle) slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-dead-flag-retirement-normalized-state-slice-3.md`
 - Phase 6 repo variable enforce promotion slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-repo-variable-enforce-promotion-slice-4.md`
 - Phase 6 CI dispatch unblock slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-ci-dispatch-unblock-slice-5.md`
+- Phase 6 deadcode remediation (legacy agent reference adapter) slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-deadcode-remediation-agent-reference-adapter-slice-6.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -223,3 +224,4 @@ Exit validation:
 | 2026-02-23 | Retire temporary `NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE` compatibility flag | normalized output fast-path is now foundational behavior; removing toggle reduces dead-branch risk and config complexity | Frontend |
 | 2026-02-23 | Promote `REFERENCE_GRID_BOUNDARY_MODE` and `REFERENCE_GRID_SIZE_BUDGET_MODE` repository variables to `enforce` | activate blocking reference-grid guardrails at CI control plane in alignment with Phase 6 objectives | Frontend + DevEx |
 | 2026-02-23 | Add `workflow_dispatch` trigger to CI as temporary control-plane unblock for Phase 6 evidence capture | PR auto-trigger did not produce CI runs for `reference-grid-audit`; manual dispatch unblocks enforce-cycle evidence collection | Frontend + DevEx |
+| 2026-02-23 | Remove dead legacy `agentReferenceOutputs` adapter after enforce CI deadcode failure | adapter is obsolete after ingestion unification and only referenced by an orphan test; removal restores deadcode gate health | Frontend |

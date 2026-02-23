@@ -142,6 +142,7 @@ Exit validation:
 - Phase 5 canvas decomposition controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-controller-slice-2.md`
 - Phase 5 canvas decomposition drop-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-drop-controller-slice-3.md`
 - Phase 5 canvas decomposition curated-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-curated-controller-slice-4.md`
+- Phase 5 canvas decomposition scroll-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-scroll-controller-slice-5.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -163,3 +164,4 @@ Exit validation:
 | 2026-02-23 | Continue Phase 5 with extracted document-level paste/pointer controller hook for ReferenceCanvas | separate global clipboard/pointer side effects from render orchestration while preserving paste parity behavior | Frontend |
 | 2026-02-23 | Continue Phase 5 with extracted canvas drag/drop controller hook for ReferenceCanvas | isolate drop-mode side effects and drag cleanup listeners from component render orchestration while preserving file/text drop parity | Frontend |
 | 2026-02-23 | Continue Phase 5 with extracted curated drag/drop + keyboard reorder controller hook for ReferenceCanvas | isolate curated interaction policies from component render orchestration while preserving quick-slot parity behavior | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted all-refs/curated scroll controller hook for ReferenceCanvas | isolate RAF-throttled scroll metric updates and telemetry sampling from render orchestration while preserving virtualization parity | Frontend |

@@ -67,6 +67,7 @@ import {
   type ReferenceCanvasDropMode,
 } from "../reference-grid/controllers/useReferenceGridCanvasDropController";
 import { useReferenceGridCuratedDndController } from "../reference-grid/controllers/useReferenceGridCuratedDndController";
+import { useReferenceGridScrollController } from "../reference-grid/controllers/useReferenceGridScrollController";
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
@@ -326,17 +327,6 @@ export function ReferenceCanvas({
   const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
   const loadedIdsRef = React.useRef<Set<string>>(new Set());
   const autoplayingIdsRef = React.useRef<Set<string>>(new Set());
-  const lastScrollSampleAtRef = React.useRef(0);
-  const allRefsScrollRafIdRef = React.useRef<number | null>(null);
-  const curatedScrollRafIdRef = React.useRef<number | null>(null);
-  const queuedAllRefsScrollMetricsRef = React.useRef<{
-    scrollTop: number;
-    viewportHeight: number;
-  } | null>(null);
-  const queuedCuratedScrollMetricsRef = React.useRef<{
-    scrollTop: number;
-    viewportHeight: number;
-  } | null>(null);
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
   const gridRef = React.useRef<HTMLDivElement | null>(null);
   const curatedScrollContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -1902,14 +1892,6 @@ export function ReferenceCanvas({
 
   React.useEffect(
     () => () => {
-      if (allRefsScrollRafIdRef.current != null) {
-        window.cancelAnimationFrame(allRefsScrollRafIdRef.current);
-        allRefsScrollRafIdRef.current = null;
-      }
-      if (curatedScrollRafIdRef.current != null) {
-        window.cancelAnimationFrame(curatedScrollRafIdRef.current);
-        curatedScrollRafIdRef.current = null;
-      }
       if (hydrationRafFlushRef.current != null) {
         window.cancelAnimationFrame(hydrationRafFlushRef.current);
         hydrationRafFlushRef.current = null;
@@ -2077,85 +2059,12 @@ export function ReferenceCanvas({
     onSelectOutput,
   });
 
-  const handleAllRefsScroll = useCallback(
-    (event: React.UIEvent<HTMLDivElement>) => {
-      const node = event.currentTarget;
-      queuedAllRefsScrollMetricsRef.current = {
-        scrollTop: node.scrollTop,
-        viewportHeight: node.clientHeight,
-      };
-      if (allRefsScrollRafIdRef.current == null && typeof window !== "undefined") {
-        allRefsScrollRafIdRef.current = window.requestAnimationFrame(() => {
-          allRefsScrollRafIdRef.current = null;
-          const queuedMetrics = queuedAllRefsScrollMetricsRef.current;
-          if (!queuedMetrics) return;
-          setVirtualMetrics((prev) => {
-            const next = {
-              ...prev,
-              scrollTop: queuedMetrics.scrollTop,
-              viewportHeight: queuedMetrics.viewportHeight,
-            };
-            const stable =
-              Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
-              Math.abs(prev.viewportHeight - next.viewportHeight) < 1;
-            return stable ? prev : next;
-          });
-        });
-      }
-      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-      if (now - lastScrollSampleAtRef.current < 1200) return;
-      lastScrollSampleAtRef.current = now;
-      logMediaPerf("media.grid.scroll.sample", {
-        surface: "reference-grid",
-        scroll_top: Math.round(node.scrollTop),
-        scroll_height: node.scrollHeight,
-        viewport_height: node.clientHeight,
-        visible_item_count: renderedItemCount,
-        total_item_count: outputs.length,
-      });
-      const memory = (
-        performance as Performance & {
-          memory?: { usedJSHeapSize?: number; totalJSHeapSize?: number };
-        }
-      ).memory;
-      if (memory?.usedJSHeapSize && memory?.totalJSHeapSize) {
-        logMediaPerf("media.grid.memory.sample", {
-          surface: "reference-grid",
-          used_js_heap_mb: Math.round(memory.usedJSHeapSize / (1024 * 1024)),
-          total_js_heap_mb: Math.round(memory.totalJSHeapSize / (1024 * 1024)),
-          visible_item_count: renderedItemCount,
-          total_item_count: outputs.length,
-        });
-      }
-    },
-    [outputs.length, renderedItemCount]
-  );
-
-  const handleCuratedScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    const node = event.currentTarget;
-    queuedCuratedScrollMetricsRef.current = {
-      scrollTop: node.scrollTop,
-      viewportHeight: node.clientHeight,
-    };
-    if (curatedScrollRafIdRef.current == null && typeof window !== "undefined") {
-      curatedScrollRafIdRef.current = window.requestAnimationFrame(() => {
-        curatedScrollRafIdRef.current = null;
-        const queuedMetrics = queuedCuratedScrollMetricsRef.current;
-        if (!queuedMetrics) return;
-        setCuratedVirtualMetrics((prev) => {
-          const next = {
-            ...prev,
-            scrollTop: queuedMetrics.scrollTop,
-            viewportHeight: queuedMetrics.viewportHeight,
-          };
-          const stable =
-            Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
-            Math.abs(prev.viewportHeight - next.viewportHeight) < 1;
-          return stable ? prev : next;
-        });
-      });
-    }
-  }, []);
+  const { handleAllRefsScroll, handleCuratedScroll } = useReferenceGridScrollController({
+    setVirtualMetrics,
+    setCuratedVirtualMetrics,
+    outputsLength: outputs.length,
+    renderedItemCount,
+  });
 
   const handleAutoplayStarted = useCallback(
     (id: string) => {

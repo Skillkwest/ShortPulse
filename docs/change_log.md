@@ -1006,3 +1006,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - added controller test coverage for signing-pass enable gating in `frontend/features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts`.
 - Added phase-4 slice-2 evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-runtime-controller-parity-slice-2.md`
+- Continued Phase 4 media runtime unification (slice 3 preview-recovery parity):
+  - added shared recovery controller `frontend/features/media-library/hooks/useMediaPreviewRecoveryController.ts` for signed-url refresh, retry-cap handling, and hydrate fallback.
+  - rewired route runtime (`frontend/features/media-library/hooks/useMediaPreviewRuntime.ts`) and modal runtime (`frontend/features/ai-studio/components/MediaLibraryModal.tsx`) to shared recovery callbacks.
+  - preserved modal optimizer fallback behavior using controller `beforeRetry` callback seam.
+  - added shared recovery controller tests in `frontend/features/media-library/hooks/__tests__/useMediaPreviewRecoveryController.test.ts`.
+- Added phase-4 slice-3 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-preview-recovery-controller-slice-3.md`

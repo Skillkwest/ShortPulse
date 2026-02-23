@@ -15,19 +15,16 @@ import {
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 import {
   MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
-  canRetryMediaPreviewSignedUrl,
   resolveMediaPreviewSignBudget,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
-import {
-  resolveMediaDirectPreviewUrls,
-  resolveMediaSigningStoragePaths,
-} from "../../../lib/mediaPreviewPath";
+import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { resolveMediaCardAspectRatio } from "../logic/mediaLibraryAspectRatio";
+import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
 import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
 import {
   isAdaptiveSurfaceEnabled,
@@ -622,39 +619,31 @@ export function MediaLibraryModal({
     [applySignedUrlsToTab]
   );
 
-  const refreshSignedUrl = useCallback(
-    async (file: MediaFileRow): Promise<string | null> => {
-      const signingCandidates = resolveMediaSigningStoragePaths(file, currentUserIdRef.current);
-      if (!signingCandidates.length) return null;
-      try {
-        for (const storagePath of signingCandidates) {
-          const nextSignedUrl = await signStoragePath(storagePath, { forceRefresh: true });
-          if (!nextSignedUrl) continue;
-          const previousObjectUrl = objectUrlByMediaIdRef.current[file.id];
-          if (previousObjectUrl) {
-            URL.revokeObjectURL(previousObjectUrl);
-            delete objectUrlByMediaIdRef.current[file.id];
-          }
-          applySignedUrlsToTab(getMediaDataTabForRow(file), new Map([[file.id, nextSignedUrl]]));
-          return nextSignedUrl;
+  const { refreshSignedUrl, handleMediaPreviewError } =
+    useMediaPreviewRecoveryController<MediaFileRow>({
+      applySignedUrlsToTab,
+      currentUserIdRef,
+      resolveSignedUrlsByMediaIds,
+      hydrateViaStorageDownload,
+      signStoragePath,
+      signedUrlRetryRef,
+      objectUrlByMediaIdRef,
+      resolveTabForRow: getMediaDataTabForRow,
+      beforeRetry: ({ row: file, failedUrl }) => {
+        if (!isNextImageOptimizerUrl(failedUrl)) return;
+        const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
+        const tab = getMediaDataTabForRow(file);
+        if (sourceUrl) {
+          applySignedUrlsToTab(tab, new Map([[file.id, sourceUrl]]));
         }
-        const directUrl = resolveMediaDirectPreviewUrls(file, currentUserIdRef.current)[0] ?? null;
-        if (directUrl) {
-          const previousObjectUrl = objectUrlByMediaIdRef.current[file.id];
-          if (previousObjectUrl) {
-            URL.revokeObjectURL(previousObjectUrl);
-            delete objectUrlByMediaIdRef.current[file.id];
-          }
-          applySignedUrlsToTab(getMediaDataTabForRow(file), new Map([[file.id, directUrl]]));
-          return directUrl;
-        }
-        return null;
-      } catch {
-        return null;
-      }
-    },
-    [applySignedUrlsToTab, signStoragePath]
-  );
+        setOptimizerFallbackMediaIds((prev) => {
+          if (prev.has(file.id)) return prev;
+          const next = new Set(prev);
+          next.add(file.id);
+          return next;
+        });
+      },
+    });
 
   const resolveReferenceSelectionUrl = useCallback(
     async (file: MediaFileRow): Promise<string | null> => {
@@ -670,37 +659,6 @@ export function MediaLibraryModal({
       return null;
     },
     [signStoragePath]
-  );
-
-  const handleMediaPreviewError = useCallback(
-    (file: MediaFileRow, failedUrl?: string | null) => {
-      if (isNextImageOptimizerUrl(failedUrl)) {
-        const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
-        const tab = getMediaDataTabForRow(file);
-        if (sourceUrl) {
-          applySignedUrlsToTab(tab, new Map([[file.id, sourceUrl]]));
-        }
-        setOptimizerFallbackMediaIds((prev) => {
-          if (prev.has(file.id)) return prev;
-          const next = new Set(prev);
-          next.add(file.id);
-          return next;
-        });
-      }
-      const attempts = signedUrlRetryRef.current[file.id] ?? 0;
-      if (!canRetryMediaPreviewSignedUrl(attempts)) return;
-      signedUrlRetryRef.current[file.id] = attempts + 1;
-      void refreshSignedUrl(file).then(async (nextUrl) => {
-        const returnedSameUrl = Boolean(nextUrl && file.signedUrl && nextUrl === file.signedUrl);
-        if (nextUrl && !returnedSameUrl) return;
-        const stillUnresolved = await resolveSignedUrlsByMediaIds(getMediaDataTabForRow(file), [
-          file,
-        ]);
-        if (!stillUnresolved.has(file.id)) return;
-        void hydrateViaStorageDownload(file);
-      });
-    },
-    [applySignedUrlsToTab, hydrateViaStorageDownload, refreshSignedUrl, resolveSignedUrlsByMediaIds]
   );
 
   const markFirstMediaPaint = useCallback(

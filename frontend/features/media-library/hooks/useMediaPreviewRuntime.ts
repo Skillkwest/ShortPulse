@@ -13,13 +13,10 @@ import {
 } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
-import { canRetryMediaPreviewSignedUrl } from "../../../lib/mediaPreviewRuntimePolicy";
-import {
-  resolveMediaDirectPreviewUrls,
-  resolveMediaSigningStoragePaths,
-} from "../../../lib/mediaPreviewPath";
+import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
+import { useMediaPreviewRecoveryController } from "./useMediaPreviewRecoveryController";
 import type { MediaTab } from "../logic/mediaMoveRouting";
 import {
   BUCKET,
@@ -359,57 +356,16 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
     [applySignedUrlsToTab]
   );
 
-  const refreshSignedUrl = useCallback(
-    async (row: TRow): Promise<string | null> => {
-      const signingCandidates = resolveMediaSigningStoragePaths(row, currentUserIdRef.current);
-      if (!signingCandidates.length) return null;
-      try {
-        for (const storagePath of signingCandidates) {
-          const nextSignedUrl = await signStoragePath(storagePath, { forceRefresh: true });
-          if (!nextSignedUrl) continue;
-          const previousObjectUrl = objectUrlByMediaIdRef.current[row.id];
-          if (previousObjectUrl) {
-            URL.revokeObjectURL(previousObjectUrl);
-            delete objectUrlByMediaIdRef.current[row.id];
-          }
-          applySignedUrlsToTab(getMediaDataTabForRow(row), new Map([[row.id, nextSignedUrl]]));
-          return nextSignedUrl;
-        }
-        const directUrl = resolveMediaDirectPreviewUrls(row, currentUserIdRef.current)[0] ?? null;
-        if (directUrl) {
-          const previousObjectUrl = objectUrlByMediaIdRef.current[row.id];
-          if (previousObjectUrl) {
-            URL.revokeObjectURL(previousObjectUrl);
-            delete objectUrlByMediaIdRef.current[row.id];
-          }
-          applySignedUrlsToTab(getMediaDataTabForRow(row), new Map([[row.id, directUrl]]));
-          return directUrl;
-        }
-        return null;
-      } catch {
-        return null;
-      }
-    },
-    [applySignedUrlsToTab, signStoragePath]
-  );
-
-  const handleMediaPreviewError = useCallback(
-    (row: TRow) => {
-      const attempts = signedUrlRetryRef.current[row.id] ?? 0;
-      if (!canRetryMediaPreviewSignedUrl(attempts)) return;
-      signedUrlRetryRef.current[row.id] = attempts + 1;
-      void refreshSignedUrl(row).then(async (nextUrl) => {
-        const returnedSameUrl = Boolean(nextUrl && row.signedUrl && nextUrl === row.signedUrl);
-        if (nextUrl && !returnedSameUrl) return;
-        const stillUnresolved = await resolveSignedUrlsByMediaIds(getMediaDataTabForRow(row), [
-          row,
-        ]);
-        if (!stillUnresolved.has(row.id)) return;
-        void hydrateViaStorageDownload(row);
-      });
-    },
-    [hydrateViaStorageDownload, refreshSignedUrl, resolveSignedUrlsByMediaIds]
-  );
+  const { handleMediaPreviewError } = useMediaPreviewRecoveryController<TRow>({
+    applySignedUrlsToTab,
+    currentUserIdRef,
+    resolveSignedUrlsByMediaIds,
+    hydrateViaStorageDownload,
+    signStoragePath,
+    signedUrlRetryRef,
+    objectUrlByMediaIdRef,
+    resolveTabForRow: getMediaDataTabForRow,
+  });
 
   const markFirstMediaPaint = useCallback(
     (assetKind: "image" | "video") => {

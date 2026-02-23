@@ -4,6 +4,7 @@
  */
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import { canAttemptMediaPreviewSignBatch } from "../../../lib/mediaPreviewRuntimePolicy";
 import {
   resolveMediaDirectPreviewUrls,
   resolveMediaSigningStoragePaths,
@@ -23,7 +24,7 @@ type PreviewSigningRowBase = {
   source?: string | null;
   file_type?: string | null;
   status?: "uploading" | "ready";
-  signedUrl?: string;
+  signedUrl?: string | null;
 };
 
 type UseMediaPreviewSigningControllerArgs<TRow extends PreviewSigningRowBase> = {
@@ -45,6 +46,11 @@ type UseMediaPreviewSigningControllerArgs<TRow extends PreviewSigningRowBase> = 
   signPassNonce: number;
   visibleMediaIdsRef: MutableRefObject<Set<string>>;
   visibleMediaVersion: number;
+  isSigningPassEnabled?: boolean;
+  surface?: "media-library-route" | "media-library-modal";
+  unresolvedWarningPrefix?: string;
+  isResultStillRelevant?: (params: { tab: MediaDataTab; query: string }) => boolean;
+  maxSignAttemptsPerItem?: number;
 };
 
 /**
@@ -72,8 +78,14 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
   signPassNonce,
   visibleMediaIdsRef,
   visibleMediaVersion,
+  isSigningPassEnabled = true,
+  surface = "media-library-route",
+  unresolvedWarningPrefix = "[media-library]",
+  isResultStillRelevant,
+  maxSignAttemptsPerItem,
 }: UseMediaPreviewSigningControllerArgs<TRow>) => {
   useEffect(() => {
+    if (!isSigningPassEnabled) return;
     if (!activeMediaTab) return;
     if (activeMediaCacheLoading) return;
     if (mediaSignInFlightRef.current[activeMediaTab]) return;
@@ -85,6 +97,16 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
     const seen = new Set<string>();
     const enqueue = (row?: TRow) => {
       if (!row) return;
+      if (
+        typeof maxSignAttemptsPerItem === "number" &&
+        Number.isFinite(maxSignAttemptsPerItem) &&
+        !canAttemptMediaPreviewSignBatch(
+          signAttemptRef.current[row.id] ?? 0,
+          maxSignAttemptsPerItem
+        )
+      ) {
+        return;
+      }
       if (
         !resolveMediaSigningStoragePaths(row, currentUserIdRef.current).length ||
         row.signedUrl ||
@@ -133,7 +155,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
     const queryForBatch = activeMediaQueryRef.current;
     mediaSignInFlightRef.current[tabForBatch] = true;
     const finishSignBatch = createMediaPerfTimer({
-      surface: "media-library-route",
+      surface,
       tab: tabForBatch,
       batch_size: signBatch.length,
       page_index: activeMediaCachePagesLoaded,
@@ -179,8 +201,13 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
         })
       )
       .then(async (results) => {
-        if (activeTabRef.current !== tabForBatch) return;
-        if (activeMediaQueryRef.current !== queryForBatch) return;
+        if (
+          isResultStillRelevant
+            ? !isResultStillRelevant({ tab: tabForBatch, query: queryForBatch })
+            : activeTabRef.current !== tabForBatch || activeMediaQueryRef.current !== queryForBatch
+        ) {
+          return;
+        }
         const signedById = new Map<string, string>();
         for (const result of results) {
           if (result.signedUrl) {
@@ -219,11 +246,11 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
               }))
               .slice(0, 8);
             if (unresolved.length) {
-              console.warn("[media-library] unresolved preview rows", unresolved);
+              console.warn(`${unresolvedWarningPrefix} unresolved preview rows`, unresolved);
             }
           }
           logMediaPerf("media.sign.batch.failed", {
-            surface: "media-library-route",
+            surface,
             tab: tabForBatch,
             batch_size: results.length,
             failed_count: failedCount,
@@ -250,7 +277,10 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
     filteredMedia,
     hydrateViaStorageDownload,
     isMountedRef,
+    isResultStillRelevant,
+    isSigningPassEnabled,
     mediaSignInFlightRef,
+    maxSignAttemptsPerItem,
     resolveSignedUrlsByMediaIds,
     setSignPassNonce,
     signAttemptRef,
@@ -258,6 +288,8 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
     signBudget.prefetchWindow,
     signBudget.signBatchSize,
     signPassNonce,
+    surface,
+    unresolvedWarningPrefix,
     visibleMediaIdsRef,
     visibleMediaVersion,
   ]);

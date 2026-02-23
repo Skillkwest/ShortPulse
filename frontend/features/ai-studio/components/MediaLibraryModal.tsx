@@ -12,9 +12,9 @@ import {
   VideoCamera,
   X,
 } from "phosphor-react";
-import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 import {
-  canAttemptMediaPreviewSignBatch,
+  MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
   canRetryMediaPreviewSignedUrl,
   resolveMediaPreviewSignBudget,
   type MediaSignBudget,
@@ -24,10 +24,11 @@ import {
   resolveMediaDirectPreviewUrls,
   resolveMediaSigningStoragePaths,
 } from "../../../lib/mediaPreviewPath";
-import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
+import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { resolveMediaCardAspectRatio } from "../logic/mediaLibraryAspectRatio";
+import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
 import {
   isAdaptiveSurfaceEnabled,
   resolveAdaptiveMedia,
@@ -964,187 +965,32 @@ export function MediaLibraryModal({
     });
   }, [activeMediaTab, files, mediaSearchTerm]);
 
-  useEffect(() => {
-    if (!isOpen || !activeMediaTab) return;
-    if (activeMediaCache?.loading) return;
-    if (mediaSignInFlightRef.current[activeMediaTab]) return;
-
-    const prioritizedRows: MediaFileRow[] = [];
-    const seen = new Set<string>();
-    const enqueue = (row?: MediaFileRow) => {
-      if (!row) return;
-      if (!canAttemptMediaPreviewSignBatch(signAttemptRef.current[row.id] ?? 0)) {
-        return;
-      }
-      if (
-        !resolveMediaSigningStoragePaths(row, currentUserIdRef.current).length ||
-        row.signedUrl ||
-        seen.has(row.id)
-      )
-        return;
-      seen.add(row.id);
-      prioritizedRows.push(row);
-    };
-
-    for (const row of activeMedia.slice(0, signBudget.initialSignLimit)) {
-      enqueue(row);
-    }
-
-    const visibleIndexes: number[] = [];
-    for (let idx = 0; idx < activeMedia.length; idx += 1) {
-      if (visibleMediaIdsRef.current.has(activeMedia[idx].id)) {
-        visibleIndexes.push(idx);
-      }
-    }
-
-    if (visibleIndexes.length) {
-      const firstVisible = Math.min(...visibleIndexes);
-      const lastVisible = Math.max(...visibleIndexes);
-      const before = Math.floor(signBudget.prefetchWindow / 3);
-      const start = Math.max(0, firstVisible - before);
-      const end = Math.min(activeMedia.length, lastVisible + 1 + signBudget.prefetchWindow);
-      for (let idx = start; idx < end; idx += 1) {
-        enqueue(activeMedia[idx]);
-      }
-    } else {
-      const fallbackEnd = Math.min(
-        activeMedia.length,
-        signBudget.initialSignLimit + signBudget.prefetchWindow
-      );
-      for (let idx = signBudget.initialSignLimit; idx < fallbackEnd; idx += 1) {
-        enqueue(activeMedia[idx]);
-      }
-    }
-
-    const signBatch = prioritizedRows.slice(0, signBudget.signBatchSize);
-    if (!signBatch.length) return;
-
-    const tabForBatch = activeMediaTab;
-    const queryForBatch = activeMediaQueryRef.current;
-    mediaSignInFlightRef.current[tabForBatch] = true;
-    const finishSignBatch = createMediaPerfTimer({
-      surface: "media-library-modal",
-      tab: tabForBatch,
-      batch_size: signBatch.length,
-      page_index: activeMediaCache?.pagesLoaded ?? 0,
-      query_mode: queryForBatch ? "search" : "default",
-    });
-
-    const signCandidatesByRow = signBatch.map((row) => {
-      const candidates = resolveMediaSigningStoragePaths(row, currentUserIdRef.current);
-      return {
-        id: row.id,
-        primaryPath: candidates[0] ?? null,
-        candidates,
-        directUrls: resolveMediaDirectPreviewUrls(row, currentUserIdRef.current),
-      };
-    });
-    const signPaths = Array.from(new Set(signCandidatesByRow.flatMap((entry) => entry.candidates)));
-    if (!signPaths.length) {
-      mediaSignInFlightRef.current[tabForBatch] = false;
-      return;
-    }
-
-    void getSignedMediaUrlsBatch({
-      bucket: BUCKET,
-      storagePaths: signPaths,
-      expiresInSeconds: 3600,
-    })
-      .then((signedByPath) =>
-        signCandidatesByRow.map((entry) => {
-          const matchedPath =
-            entry.candidates.find((path) => Boolean(signedByPath.get(path))) ?? null;
-          const signedFromPath = matchedPath ? (signedByPath.get(matchedPath) ?? null) : null;
-          const directUrl = signedFromPath ? null : (entry.directUrls[0] ?? null);
-          const signedUrl = signedFromPath ?? directUrl;
-          const usedFallback = Boolean(
-            matchedPath && entry.primaryPath && matchedPath !== entry.primaryPath
-          );
-          return {
-            id: entry.id,
-            signedUrl,
-            usedFallback,
-            attemptedPaths: entry.candidates.slice(0, 4),
-          };
-        })
-      )
-      .then(async (results) => {
-        if (!isOpenRef.current || activeTabRef.current !== tabForBatch) return;
-        if (activeMediaQueryRef.current !== queryForBatch) return;
-        const signedById = new Map<string, string>();
-        for (const result of results) {
-          if (result.signedUrl) {
-            signAttemptRef.current[result.id] = 0;
-            signedById.set(result.id, result.signedUrl);
-          } else {
-            signAttemptRef.current[result.id] = (signAttemptRef.current[result.id] ?? 0) + 1;
-          }
-        }
-        applySignedUrlsToTab(tabForBatch, signedById);
-        const unresolvedRows = signBatch.filter((row) => !signedById.has(row.id));
-        const unresolvedAfterResolver = unresolvedRows.length
-          ? await resolveSignedUrlsByMediaIds(tabForBatch, unresolvedRows)
-          : new Set<string>();
-        for (const unresolvedRow of unresolvedRows.slice(0, 4)) {
-          if (!unresolvedAfterResolver.has(unresolvedRow.id)) continue;
-          void hydrateViaStorageDownload(unresolvedRow);
-        }
-        const failedCount = results.length - signedById.size;
-        const fallbackCount = results.reduce(
-          (count, result) => (result.usedFallback ? count + 1 : count),
-          0
-        );
-        finishSignBatch("media.sign.batch.completed", {
-          signed_count: signedById.size,
-          failed_count: failedCount,
-          fallback_count: fallbackCount,
-        });
-        if (failedCount > 0) {
-          if (process.env.NODE_ENV !== "production") {
-            const unresolved = results
-              .filter((result) => !result.signedUrl)
-              .map((result) => ({
-                id: result.id,
-                paths: result.attemptedPaths,
-              }))
-              .slice(0, 8);
-            if (unresolved.length) {
-              console.warn("[media-library-modal] unresolved preview rows", unresolved);
-            }
-          }
-          logMediaPerf("media.sign.batch.failed", {
-            surface: "media-library-modal",
-            tab: tabForBatch,
-            batch_size: results.length,
-            failed_count: failedCount,
-            fallback_count: fallbackCount,
-            page_index: activeMediaCache?.pagesLoaded ?? 0,
-            query_mode: queryForBatch ? "search" : "default",
-          });
-        }
-      })
-      .finally(() => {
-        mediaSignInFlightRef.current[tabForBatch] = false;
-        if (isMountedRef.current) {
-          setSignPassNonce((prev) => prev + 1);
-        }
-      });
-  }, [
-    activeMedia,
-    activeMediaCache?.loading,
-    activeMediaCache?.pagesLoaded,
+  useMediaPreviewSigningController({
     activeMediaTab,
+    activeMediaCacheLoading: Boolean(activeMediaCache?.loading),
+    activeMediaCachePagesLoaded: activeMediaCache?.pagesLoaded ?? 0,
+    activeMediaQueryRef,
+    activeTabRef,
     applySignedUrlsToTab,
+    currentUserIdRef,
+    filteredMedia: activeMedia,
     hydrateViaStorageDownload,
-    isOpen,
+    isMountedRef,
+    mediaSignInFlightRef,
     resolveSignedUrlsByMediaIds,
-    signBudget.initialSignLimit,
-    signBudget.prefetchWindow,
-    signBudget.signBatchSize,
+    setSignPassNonce,
+    signAttemptRef,
+    signBudget,
     signPassNonce,
-    signStoragePath,
+    visibleMediaIdsRef,
     visibleMediaVersion,
-  ]);
+    isSigningPassEnabled: isOpen,
+    surface: "media-library-modal",
+    unresolvedWarningPrefix: "[media-library-modal]",
+    maxSignAttemptsPerItem: MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
+    isResultStillRelevant: ({ tab, query }) =>
+      isOpenRef.current && activeTabRef.current === tab && activeMediaQueryRef.current === query,
+  });
 
   const loadingMoreMedia = Boolean(activeMediaCache?.loaded && activeMediaCache?.loading);
   const hasMoreMediaPages = Boolean(activeMediaCache?.hasMore);

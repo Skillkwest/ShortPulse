@@ -133,6 +133,7 @@ Exit validation:
 - Phase 3 foundation evidence: `docs/planning/evidence/reference-grid-modularization/phase-3/2026-02-23-phase-03-projection-semantics-foundation.md`
 - Phase 3 closeout evidence: `docs/planning/evidence/reference-grid-modularization/phase-3/2026-02-23-phase-03-projection-semantics-closeout.md`
 - Phase 4 foundation evidence: `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-runtime-unification-foundation.md`
+- Phase 4 controller parity slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-runtime-controller-parity-slice-2.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -145,3 +146,4 @@ Exit validation:
 | 2026-02-23 | Start Phase 3 with explicit projection-state foundation + compatibility bridge | decouple semantics first while preserving current UI behavior and rollback safety | Frontend |
 | 2026-02-23 | Close Phase 3 after explicit all-refs suppression wiring and quick-slot detach finalization checks | hidden-delete coupling removed, curated/archive parity checks green, and guardrails passed | Frontend |
 | 2026-02-23 | Start Phase 4 with shared preview policy extraction (budget + retry caps) | introduce low-risk seam for modal/route runtime unification before controller merge | Frontend |
+| 2026-02-23 | Route modal signing-pass runtime through shared signing controller with modal-specific relevance/cap options | remove duplicated sign-pass algorithm while preserving modal retry-cap semantics and telemetry surface separation | Frontend |

@@ -999,3 +999,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
     - `frontend/features/media-library/logic/__tests__/mediaPreviewRuntimePolicy.test.ts`
 - Added phase-4 foundation evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-runtime-unification-foundation.md`
+- Continued Phase 4 media runtime unification (slice 2 controller parity):
+  - generalized `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts` with configurable surface/relevance/enabled/cap options.
+  - removed duplicated sign-pass runtime effect from `frontend/features/ai-studio/components/MediaLibraryModal.tsx` and routed modal signing passes through the shared controller hook.
+  - preserved modal no-regression sign-attempt cap via shared controller option (`maxSignAttemptsPerItem`) and shared policy constant.
+  - added controller test coverage for signing-pass enable gating in `frontend/features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts`.
+- Added phase-4 slice-2 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-runtime-controller-parity-slice-2.md`

@@ -227,4 +227,48 @@ describe("useMediaPreviewSigningController", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
   });
+
+  it("skips signing when pass is disabled by the caller surface", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+
+    renderHook(() => {
+      const rows = [makeRow()];
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const applySignedUrlsToTab = vi.fn();
+      const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+      const hydrateViaStorageDownload = vi.fn(async () => null);
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 1, prefetchWindow: 1, signBatchSize: 1 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 0,
+        isSigningPassEnabled: false,
+      });
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
+  });
 });

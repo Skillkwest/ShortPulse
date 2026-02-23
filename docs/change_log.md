@@ -1240,3 +1240,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `REFERENCE_GRID_SIZE_BUDGET_MODE=enforce`
 - Captured enforcement promotion evidence:
   - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-repo-variable-enforce-promotion-slice-4.md`
+
+## 2026-02-23 (reference-grid phase 6 slice 5)
+- Added `workflow_dispatch` trigger to `.github/workflows/ci.yml` as a temporary CI control-plane unblock to capture required Phase 6 enforce-cycle evidence on `reference-grid-audit`.
+- Added evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-ci-dispatch-unblock-slice-5.md`

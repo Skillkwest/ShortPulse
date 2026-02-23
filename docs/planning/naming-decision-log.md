@@ -83,6 +83,17 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-create-panel-file-ownership-canonicalization-slice-e.md`
 - Next allowed action: continue Phase 4 bounded slices for residual reference-grid/canvas file-ownership and alias families; then Phase 5 path rename planning.
 
+## 2026-02-23: Stop-Point 4 (Callsite migration slice F)
+- Phase/Stop point: Phase 4 slice F completion
+- Decision: approved canonical file ownership for reference-grid implementation in `ReferenceGrid.tsx`, with `ReferenceCanvas.tsx` retained as a compatibility wrapper alias.
+- Preconditions reviewed:
+  - targeted reference-grid/canvas suites pass
+  - `validate`, `test:adaptive-v2-gate`, and production `build` pass
+  - Playwright perf gate intentionally not executed per explicit no-Playwright direction
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-file-ownership-canonicalization-slice-f.md`
+- Next allowed action: continue Phase 4 cleanup for remaining legacy symbol/file-name usage in tests/scripts/docs references before Phase 5 path rename batches.
+
 ## Stop-Point Approval Template
 - Date:
 - Phase/Stop point:

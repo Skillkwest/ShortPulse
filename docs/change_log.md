@@ -971,3 +971,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - corrected media-library selection payload to preserve `previewStoragePath` and `fullStoragePath` separation.
 - Added hardening evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-hardening-ingestion-contract-parity.md`
+- Closed remaining Phase 2 kickoff-hold deltas:
+  - added keyboard quick-slot reorder path on curated cards (`ArrowUp` / `ArrowDown`) with curated interaction tests.
+  - added integration coverage for media-library add -> quick-slot reorder/remove -> archive overflow -> restore lifecycle.
+- Added hold-closure evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-hold-closure-integration-and-keyboard-parity.md`

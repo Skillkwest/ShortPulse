@@ -524,6 +524,36 @@ describe("ReferenceCanvas curated split", () => {
     expect(onReorderCuratedReference).toHaveBeenCalledWith("out-2", "out-1", "after");
   });
 
+  it("reorders curated refs with keyboard arrows on focused cards", () => {
+    const onReorderCuratedReference = vi.fn();
+    const onSelectOutput = vi.fn();
+    const { container } = render(
+      <ReferenceCanvas
+        {...createProps({
+          curatedReferenceIds: ["out-1", "out-2"],
+          onReorderCuratedReference,
+          onSelectOutput,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const cards = curatedSection.querySelectorAll(".reference-card");
+    expect(cards.length).toBeGreaterThanOrEqual(2);
+    const firstCard = cards[0] as HTMLElement;
+    const secondCard = cards[1] as HTMLElement;
+
+    firstCard.focus();
+    fireEvent.keyDown(firstCard, { key: "ArrowDown" });
+    expect(onReorderCuratedReference).toHaveBeenCalledWith("out-1", "out-2", "after");
+    expect(onSelectOutput).toHaveBeenCalledWith("out-1");
+
+    secondCard.focus();
+    fireEvent.keyDown(secondCard, { key: "ArrowUp" });
+    expect(onReorderCuratedReference).toHaveBeenCalledWith("out-2", "out-1", "before");
+    expect(onSelectOutput).toHaveBeenCalledWith("out-2");
+  });
+
   it("removes curated items with the explicit action button", () => {
     const onRemoveCuratedReference = vi.fn();
     const { getByLabelText } = render(

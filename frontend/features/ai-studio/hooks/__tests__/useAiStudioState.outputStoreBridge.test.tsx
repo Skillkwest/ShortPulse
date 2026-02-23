@@ -209,6 +209,85 @@ describe("useAiStudioState output store bridge", () => {
     });
   });
 
+  it("supports media-library add -> quick-slot reorder/remove -> archive/restore flow", async () => {
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.addLibraryMediaReference({
+        id: "media-flow-1",
+        url: "https://signed.example.com/flow-a.png",
+        fileType: "image",
+        filename: "flow-a.png",
+        promptText: "Flow prompt A",
+        source: "upload",
+      });
+      result.current.addLibraryMediaReference({
+        id: "media-flow-2",
+        url: "https://signed.example.com/flow-b.png",
+        fileType: "image",
+        filename: "flow-b.png",
+        promptText: "Flow prompt B",
+        source: "upload",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.outputs.length).toBe(2);
+    });
+
+    const flowAId = result.current.outputs.find((item) => item.prompt === "Flow prompt A")?.id;
+    const flowBId = result.current.outputs.find((item) => item.prompt === "Flow prompt B")?.id;
+    expect(flowAId).toBeTruthy();
+    expect(flowBId).toBeTruthy();
+
+    act(() => {
+      result.current.addCuratedReference(flowAId as string);
+      result.current.addCuratedReference(flowBId as string);
+    });
+
+    await waitFor(() => {
+      expect(result.current.curatedReferenceIds).toEqual([flowAId, flowBId]);
+    });
+
+    act(() => {
+      result.current.reorderCuratedReference(flowAId as string, flowBId as string, "after");
+    });
+
+    expect(result.current.curatedReferenceIds).toEqual([flowBId, flowAId]);
+
+    act(() => {
+      result.current.removeCuratedReference(flowAId as string);
+      result.current.removeCuratedReference(flowBId as string);
+    });
+
+    await waitFor(() => {
+      expect(result.current.curatedReferenceIds).toEqual([]);
+    });
+
+    const bulkOutputs = Array.from({ length: 520 }, (_, index) =>
+      makeOutput(`bulk-${index + 1}`, { prompt: `Bulk ${index + 1}` })
+    );
+    act(() => {
+      result.current.setOutputs((prev) => [...prev, ...bulkOutputs]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.archivedOutputs.length).toBeGreaterThan(0);
+    });
+
+    const archivedId = result.current.archivedOutputs[0]?.id;
+    expect(archivedId).toBeTruthy();
+
+    act(() => {
+      result.current.restoreArchivedOutput(archivedId as string);
+    });
+
+    await waitFor(() => {
+      expect(result.current.archivedOutputs.some((item) => item.id === archivedId)).toBe(false);
+    });
+    expect(result.current.outputs.some((item) => item.id === archivedId)).toBe(true);
+  });
+
   it("hides curated references from all refs when delete is requested", async () => {
     const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
 

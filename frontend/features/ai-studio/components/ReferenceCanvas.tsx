@@ -475,6 +475,7 @@ type ReferenceCanvasCardProps = {
   onCardDrop?: (event: React.DragEvent<HTMLElement>, item: StudioOutput) => void;
   onCardDragEnter?: (event: React.DragEvent<HTMLElement>, item: StudioOutput) => void;
   onCardDragLeave?: (event: React.DragEvent<HTMLElement>, item: StudioOutput) => void;
+  onKeyboardReorderCurated?: (id: string, direction: "up" | "down") => void;
   registerVideoNode: (nodeKey: string, outputId: string, node: HTMLVideoElement | null) => void;
   markLoaded: (id: string, options?: { notifyAutoSave?: boolean }) => void;
   onAutoplayStarted: (id: string) => void;
@@ -540,6 +541,7 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
   onCardDrop,
   onCardDragEnter,
   onCardDragLeave,
+  onKeyboardReorderCurated,
   registerVideoNode,
   markLoaded,
   onAutoplayStarted,
@@ -587,6 +589,12 @@ const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onSelectOutput(item.id);
+          return;
+        }
+        if (!onKeyboardReorderCurated) return;
+        if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+          event.preventDefault();
+          onKeyboardReorderCurated(item.id, event.key === "ArrowUp" ? "up" : "down");
         }
       }}
       onDoubleClick={() => onOpenDetails(item.id)}
@@ -2939,6 +2947,26 @@ export function ReferenceCanvas({
     ]
   );
 
+  const handleCuratedCardKeyboardReorder = useCallback(
+    (id: string, direction: "up" | "down") => {
+      if (!isCuratedSplitEnabled || !onReorderCuratedReference) return;
+      const currentIndex = curatedReferenceIds.indexOf(id);
+      if (currentIndex < 0) return;
+      if (direction === "up") {
+        if (currentIndex === 0) return;
+        const targetId = curatedReferenceIds[currentIndex - 1];
+        onReorderCuratedReference(id, targetId, "before");
+        onSelectOutput(id);
+        return;
+      }
+      if (currentIndex >= curatedReferenceIds.length - 1) return;
+      const targetId = curatedReferenceIds[currentIndex + 1];
+      onReorderCuratedReference(id, targetId, "after");
+      onSelectOutput(id);
+    },
+    [curatedReferenceIds, isCuratedSplitEnabled, onReorderCuratedReference, onSelectOutput]
+  );
+
   const handleAllRefsScroll = useCallback(
     (event: React.UIEvent<HTMLDivElement>) => {
       const node = event.currentTarget;
@@ -3127,6 +3155,9 @@ export function ReferenceCanvas({
                 }
               : undefined
           }
+          onKeyboardReorderCurated={
+            options.isCuratedSurface ? handleCuratedCardKeyboardReorder : undefined
+          }
           registerVideoNode={registerVideoNode}
           markLoaded={markLoaded}
           onAutoplayStarted={handleAutoplayStarted}
@@ -3153,6 +3184,7 @@ export function ReferenceCanvas({
       handleCardDragStart,
       handleCardDragEnd,
       handleCuratedCardDrop,
+      handleCuratedCardKeyboardReorder,
       handleCuratedSectionDragEnter,
       handleCuratedSectionDragLeave,
       handleCuratedSectionDragOver,

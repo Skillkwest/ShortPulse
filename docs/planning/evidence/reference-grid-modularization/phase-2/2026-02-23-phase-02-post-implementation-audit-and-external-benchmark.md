@@ -22,9 +22,10 @@ Scope: Audit of Phase 1 (`ba37eadb`) and Phase 2 (`4a35d819`) deliverables befor
   - item 1 (picker/drop source parity tests)
   - item 2 (library full-vs-preview contract handling + tests)
 - Evidence: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-hardening-ingestion-contract-parity.md`
-- Still open:
+- Closed via hold-closure evidence:
   - item 3 (ingress-to-projection integration test path)
   - item 4 (keyboard quick-slot reorder parity path)
+- Evidence: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-hold-closure-integration-and-keyboard-parity.md`
 
 ## Delta Findings (Misses)
 

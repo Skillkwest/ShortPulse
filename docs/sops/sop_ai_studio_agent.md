@@ -14,8 +14,8 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 | `frontend/features/ai-agent/{logic,useAiAgent.ts}` | Feature module: manages chat state, context assembly, media downscaling, and action parsing. |
 | `frontend/prefabs/agent/{types.ts,buttons,inputs,panels}` | Prefab UI kit + shared agent types used by UI and API. |
 | `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Supplies prompt/model/reference state to the agent and receives applied prompts. |
-| `frontend/features/ai-studio/components/{TextPropertiesPanel,EditPropertiesPanel,VideoPropertiesPanel,DetailModal,StudioPreview}` | Replace prompt textareas with `AgentChatPanel` embeds; surface “Apply prompt”/“Generate” actions. |
-| `frontend/features/ai-studio/components/ReferenceCanvas.tsx` | Supplies lightweight reference metadata (id, type, prompt, preview URL) to the agent context. |
+| `frontend/features/ai-studio/components/{CreatePropertiesPanel,EditPropertiesPanel,VideoPropertiesPanel,DetailModal,StudioPreview}` | Replace prompt textareas with `AgentChatPanel` embeds; surface “Apply prompt”/“Generate” actions. |
+| `frontend/features/ai-studio/components/ReferenceGrid.tsx` | Supplies lightweight reference metadata (id, type, prompt, preview URL) to the agent context. |
 
 ## Prerequisites
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-5-nano`), optional `OPENAI_VISION_MODEL`, optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `OPENAI_API_BASE`.

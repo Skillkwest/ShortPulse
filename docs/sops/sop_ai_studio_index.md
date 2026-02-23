@@ -24,7 +24,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Pricing strategies: `frontend/features/ai-studio/logic/pricingStrategies.ts` (per-MP, per-image, per-duration).
 - UI orchestration: `frontend/features/ai-studio/hooks/useAiStudioState.ts`, `frontend/pages/ai-studio.tsx`.
 - Model picker + cost badges: `frontend/features/ai-studio/components/ModelModal.tsx` (uses registry defaults).
-- Reference Grid performance controls: `frontend/features/ai-studio/components/ReferenceCanvas.tsx` (virtualization + autoplay budget gating).
+- Reference Grid performance controls: `frontend/features/ai-studio/components/ReferenceGrid.tsx` (virtualization + autoplay budget gating).
 
 ## Fal reliability rollout notes (v2 architecture)
 - Primary tracker: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
@@ -34,7 +34,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Provider/operator runbook: `docs/sops/sop_provider_incident_response.md`
 
 Non-negotiables for this rollout:
-- Preserve current `ReferenceCanvas` user-visible loading and retry UX behavior.
+- Preserve current `ReferenceGrid` user-visible loading and retry UX behavior.
 - Keep `/api/fal/*` response contracts backward-compatible.
 - Keep billing reservation/capture/release semantics unchanged and idempotent.
 

@@ -86,7 +86,7 @@ Purpose: deliver a zero-regression naming canonicalization program using paralle
 5. Evidence exists for each slice and final closeout.
 
 ## Current Execution Snapshot (2026-02-23)
-1. Phase 1 completed with active docs canonicalization evidence recorded.
+1. Phase 1 completed with active docs canonicalization evidence recorded, including a same-day active SOP follow-up sweep for residual terminology drift.
 2. Phase 2 completed with user-facing copy canonicalization evidence recorded.
 3. Phase 3 completed with bridge-layer aliases/shim files in code.
 4. Phase 4 completed with bounded callsite migration slices A-G and closeout audit.

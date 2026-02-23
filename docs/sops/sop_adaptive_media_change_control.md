@@ -9,7 +9,7 @@ Purpose: prevent regressions while continuing development in other AI Studio and
 
 ## Protected Code Paths
 - `frontend/lib/adaptive-media/**`
-- `frontend/features/ai-studio/components/ReferenceCanvas.tsx`
+- `frontend/features/ai-studio/components/ReferenceGrid.tsx`
 - `frontend/features/ai-studio/logic/referenceGridMedia.ts`
 - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - `frontend/features/ai-studio/reference-domain/**`
@@ -38,7 +38,7 @@ npm run test:adaptive-v2-gate
 This gate currently includes:
 - `lint`
 - `type-check`
-- `ReferenceCanvas.curated` suite
+- `ReferenceGrid.curated` suite
 - `referenceGridMedia` + parity suites
 - `MediaLibraryModal` suite
 - `CharacterManagerShell.behavior` suite

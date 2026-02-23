@@ -23,7 +23,7 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 - AI Studio Media Library modal:
   - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - Reference Grid autoplay budget:
-  - `frontend/features/ai-studio/components/ReferenceCanvas.tsx`
+  - `frontend/features/ai-studio/components/ReferenceGrid.tsx`
 - Reference Grid archive + output lifecycle controls:
   - `frontend/features/ai-studio/hooks/useAiStudioState.ts`
 - Upload preview ingestion path:
@@ -111,7 +111,7 @@ Key indicators:
 - Modal sign budget constants:
   - `MEDIA_MODAL_SIGN_BUDGET_*` in `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - Reference Grid autoplay caps:
-  - `REFERENCE_AUTOPLAY_MAX_*` in `frontend/features/ai-studio/components/ReferenceCanvas.tsx`
+  - `REFERENCE_AUTOPLAY_MAX_*` in `frontend/features/ai-studio/components/ReferenceGrid.tsx`
 - Reference Grid active/archived caps:
   - `NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT` (default `500`)
   - `NEXT_PUBLIC_REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT` (default `120`)

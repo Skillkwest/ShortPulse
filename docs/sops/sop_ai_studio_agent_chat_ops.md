@@ -7,7 +7,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 - Out of scope: Character tool agent flows (none today), media library ingestion, and non-studio routes.
 
 ## UI entry points
-- Inline prompt step (`TextPropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
+- Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
 - Expand to column (`AiStudioPageContent`): `ArrowsOut` opens the Agent Chat column, replacing the reference grid. Clicking a chat bubble adds that text to the Reference Grid as a prompt card (`addAgentPromptReference`).
 - Generate card (`ComposeSendCard`): generation uses whichever prompt is active; the agent is only involved if chat applied a prompt.
 - Prompt save: Save buttons persist the current prompt (including agent-applied text) to the reference grid.

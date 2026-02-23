@@ -14,9 +14,9 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 | Component | Role |
 | --- | --- |
 | `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Central state/actions: handles prompt, aspect, model selection, submits generation, polls task status, and manages outputs/reference images. |
-| `frontend/features/ai-studio/components/TextPropertiesPanel.tsx` | UI for Text flow (mode toggle, aspect, model picker, prompt textarea, Generate CTA showing estimated credits). |
+| `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx` | UI for Text flow (mode toggle, aspect, model picker, prompt textarea, Generate CTA showing estimated credits). |
 | `frontend/features/ai-studio/components/StudioPreview.tsx` | Shows latest output/reference preview and allows drag/drop to seed regeneration; accepts dropped image files. |
-| `frontend/features/ai-studio/components/ReferenceCanvas.tsx` | Reference grid (draggable cards) and file drop surface for seeding references. |
+| `frontend/features/ai-studio/components/ReferenceGrid.tsx` | Reference grid (draggable cards) and file drop surface for seeding references. |
 | `frontend/features/ai-studio/logic/*` | Pricing (`pricing.ts`), prompt/token estimates, drag/drop utilities, and provider clients (Fal). |
 | `frontend/pages/ai-studio.tsx` | Orchestrates panels, wires cost display, and renders the error banner. |
 | `frontend/features/ai-studio/logic/promptGeneration.ts` | Client helper for prompt refinement (Agent 1) that can precede image generation. |
@@ -29,7 +29,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 ## Image generation workflow (Create → Image)
 
-1. User selects mode “Image” in TextPropertiesPanel and chooses aspect + model (Fal options filtered by mode).  
+1. User selects mode “Image” in CreatePropertiesPanel and chooses aspect + model (Fal options filtered by mode).  
 2. In advanced mode (`beginnerMode` off), user can choose model-specific image resolution from the dedicated resolution step card (same control style as video settings).
 3. User enters a prompt (optionally informed by previously described prompts).  
 4. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect, resolution })`; disabled until a model is selected or the user lacks sufficient credits.  
@@ -43,7 +43,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 ## Character Mode (Create workflow)
 
-- Scope: applies only to Create workflow when Character Mode is enabled in `TextPropertiesPanel`.
+- Scope: applies only to Create workflow when Character Mode is enabled in `CreatePropertiesPanel`.
 - Model/quality lock:
   - Model is forced to `fal-ai/bytedance/seedream/v4.5/edit`.
   - Image resolution is forced to highest allowed for that model (`auto_4K` currently via `getHighestImageResolutionForModel`).
@@ -88,7 +88,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 ## Image resolution controls
 
 - The image resolution step card appears only when `beginnerMode` is off.
-- The card is shown in both `TextPropertiesPanel` (text-to-image) and `EditPropertiesPanel` (image-to-image).
+- The card is shown in both `CreatePropertiesPanel` (text-to-image) and `EditPropertiesPanel` (image-to-image).
 - Resolution options are model-driven from `modelRegistry.ts` (`allowedResolutions` + `defaultResolution`):
   - FLUX models / Nano Banana: `model_default` (no separate resolution enum exposed in current UI payload mapping).
   - Nano Banana Pro + Nano Banana Pro Edit: `1K`, `2K`, `4K`.

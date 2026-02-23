@@ -54,7 +54,7 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
    - `temperature: 0.6`, `max_tokens: 2000`
 5. Upstream response is parsed for `choices[0]?.message?.content`; absence triggers a 502 error.
 6. Successful responses return `{ prompt: string, usage: { inputTokens?, outputTokens? } }`.
-7. The Text tool in AI Studio binds the shared `prompt` state to the textarea (`frontend/features/ai-studio/components/TextPropertiesPanel.tsx:55-214`); once `postGeneratePrompt` replies, `useAiStudioState` sets `prompt` and prepends a `StudioOutput` record to `outputs` (`frontend/features/ai-studio/hooks/useAiStudioState.ts:292-352`). The user never copies a string—the textarea and the Reference Grid card both update with the refined prompt, and the new card is immediately draggable.
+7. The Text tool in AI Studio binds the shared `prompt` state to the textarea (`frontend/features/ai-studio/components/CreatePropertiesPanel.tsx:55-214`); once `postGeneratePrompt` replies, `useAiStudioState` sets `prompt` and prepends a `StudioOutput` record to `outputs` (`frontend/features/ai-studio/hooks/useAiStudioState.ts:292-352`). The user never copies a string—the textarea and the Reference Grid card both update with the refined prompt, and the new card is immediately draggable.
 8. The system prompt is always loaded directly from `frontend/lib/agentPromptsConfig.ts` via `loadAgentPrompt("OPENAI_PROMPT_SYSTEM")` to enforce one canonical source; avoid duplicating text in markdown files and keep the config keys aligned with the exported `AgentPromptId` type so the TS compiler can help you find the right entry.
 
 ## Image description workflow
@@ -71,9 +71,9 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 
 ## Studio UX surfaces (Create → Text, Create → Image/Video, Reference Grid)
 
-- **TextPropertiesPanel** (`frontend/features/ai-studio/components/TextPropertiesPanel.tsx`) is chat-first for prompt building. The inline prompt card includes a “Primary generation prompt” state block so users can verify the exact prompt Generate will run and whether it came from agent output or manual edits.
+- **CreatePropertiesPanel** (`frontend/features/ai-studio/components/CreatePropertiesPanel.tsx`) is chat-first for prompt building. The inline prompt card includes a “Primary generation prompt” state block so users can verify the exact prompt Generate will run and whether it came from agent output or manual edits.
 - **EditPropertiesPanel/VideoPropertiesPanel** (`frontend/features/ai-studio/components/EditPropertiesPanel.tsx` and `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx`) keep drag-and-drop reference behavior for image/video flows while using the same chat-first prompt builder; the active `referenceText` remains shared with Studio Preview.
-- **Reference Grid & Studio Preview** show prompt cards and preview text automatically (`frontend/features/ai-studio/components/ReferenceCanvas.tsx:13-83` and `frontend/features/ai-studio/components/StudioPreview.tsx:10-89`). New `StudioOutput` rows rendered by `setOutputs` include the generated prompt text in `previewText`, so Reference Grid cards and Studio Preview’s textarea display the generated prompt immediately, ready to be dragged back into Create → Text or Create → Image/Video panels.
+- **Reference Grid & Studio Preview** show prompt cards and preview text automatically (`frontend/features/ai-studio/components/ReferenceGrid.tsx:13-83` and `frontend/features/ai-studio/components/StudioPreview.tsx:10-89`). New `StudioOutput` rows rendered by `setOutputs` include the generated prompt text in `previewText`, so Reference Grid cards and Studio Preview’s textarea display the generated prompt immediately, ready to be dragged back into Create → Text or Create → Image/Video panels.
 - **UX notes**: `docs/product/shortpulse_ai_studio.md:59-62` explains that the Reference Grid is live (no copy/paste) and that Studio Preview/Reference Grid drag handles support regenerated prompt reuse, consistent with this SOP’s requirement that new prompts populate the text boxes and reference grid instantly.
 
 ## Prompt maintenance

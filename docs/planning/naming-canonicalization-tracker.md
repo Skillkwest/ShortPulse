@@ -21,6 +21,7 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | --- | --- | --- | --- | --- | --- |
 | 2026-02-23 | Program docs + baseline scaffold | blocked | Planning/docs governance artifacts | partial pass | Perf release check blocked by missing audit credentials (`PLAYWRIGHT_AUDIT_EMAIL`) |
 | 2026-02-23 | Phase 1 active docs canonicalization | completed | Active docs naming/path drift | pass | Evidence: `phase-1/2026-02-23-phase-1-active-docs-canonicalization.md` |
+| 2026-02-23 | Phase 1 active SOP canonical terminology sweep | completed | Canonicalized residual active SOP references from `TextPropertiesPanel`/`ReferenceCanvas` to `CreatePropertiesPanel`/`ReferenceGrid` | pass | Evidence: `phase-1/2026-02-23-phase-1-active-sops-canonical-terminology-sweep.md` |
 | 2026-02-23 | Phase 2 user-facing copy canonicalization | completed | Verified user-facing AI Studio vocabulary is canonical (`Reference Grid`, `Create`) with no legacy UI terms exposed | pass (non-Playwright gates) | Evidence: `phase-2/2026-02-23-phase-2-user-facing-copy-canonicalization.md` |
 | 2026-02-23 | Phase 3 bridge layer aliases | completed | Canonical export/type/hook aliases and shims | pass | Evidence: `phase-3/2026-02-23-phase-3-bridge-layer-expand.md` |
 | 2026-02-23 | Phase 4 runtime callsite migration slice A | completed | Runtime imports and prop keys | pass (perf blocked) | Evidence: `phase-4/2026-02-23-phase-4-callsite-migration-runtime-slice-a.md` |

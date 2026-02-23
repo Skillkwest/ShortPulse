@@ -20,6 +20,16 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/evidence/naming-canonicalization/phase-1/2026-02-23-phase-1-active-docs-canonicalization.md`
 - Next allowed action: Phase 3 bridge-layer expansion.
 
+## 2026-02-23: Stop-Point 1 (Active SOP follow-up sweep)
+- Phase/Stop point: Phase 1 follow-up sweep completion
+- Decision: approved residual active SOP terminology canonicalization (`TextPropertiesPanel` -> `CreatePropertiesPanel`, `ReferenceCanvas` -> `ReferenceGrid`) and canonical code-path references in active SOPs.
+- Preconditions reviewed:
+  - `npm -C frontend run docs:check` pass
+  - canonical file-path existence checks pass for `CreatePropertiesPanel.tsx` and `ReferenceGrid.tsx`
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-1/2026-02-23-phase-1-active-sops-canonical-terminology-sweep.md`
+- Next allowed action: continue active phase execution (Phase 6 asset-path batches, then Phase 7 stability-window planning).
+
 ## 2026-02-23: Stop-Point 2 (User-facing copy)
 - Phase/Stop point: Phase 2 completion
 - Decision: approved user-facing copy canonicalization closeout; no active UI surfaces expose `Reference Canvas` or `Text Properties Panel`.

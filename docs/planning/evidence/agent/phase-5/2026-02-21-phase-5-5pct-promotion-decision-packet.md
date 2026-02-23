@@ -13,30 +13,30 @@ Decision Scope: promote from staging soak to Production 5% ring
 ## Promotion Gate Evaluation
 | Gate | Result | Evidence |
 | --- | --- | --- |
-| p95/p99 within budgets by flow | Pending | |
-| timeout and 5xx within budgets | Pending | |
-| refusal delta within budget | Pending | |
-| continuity SLI >= 99.5% | Pending | |
-| contract rejection spike not breached | Pending | |
-| rollback path verified | Pending | |
-| single active canary confirmed | Pending | |
+| p95/p99 within budgets by flow | Hold (not verified) | Dashboard panel links not attached in DEP-03 evidence. |
+| timeout and 5xx within budgets | Hold (not verified) | Dashboard panel links not attached in DEP-03 evidence. |
+| refusal delta within budget | Hold (not verified) | Dashboard panel links not attached in DEP-03 evidence. |
+| continuity SLI >= 99.5% | Hold (not verified) | Dashboard panel links not attached in DEP-03 evidence. |
+| contract rejection spike not breached | Hold (not verified) | Dashboard panel links not attached in DEP-03 evidence. |
+| rollback path verified | Pass | `docs/sops/sop_ai_studio_agent_rollout_operations.md` |
+| single active canary confirmed | Pass | Tracker ring state shows staging-only active ring. |
 
 ## Control And Ownership
-- Operator:
-- Reviewer:
-- Incident commander:
-- On-call coverage confirmed: Yes/No
+- Operator: @codex
+- Reviewer: TBD
+- Incident commander: TBD
+- On-call coverage confirmed: No (external ops coverage link not attached)
 
 ## Decision
-- Decision: `Promote` | `Hold` | `Freeze/Rollback`
-- Decision timestamp (UTC):
-- Rationale:
+- Decision: `Hold`
+- Decision timestamp (UTC): `2026-02-23 01:15:33Z`
+- Rationale: Staging soak target window elapsed, but promotion gates requiring DEP-03 external dashboard/alert artifacts and metrics evidence are not satisfied in the repository evidence packet.
 
 ## If Not Promoted
-- Blocking gate(s):
-- Owner:
-- Remediation ETA:
-- Re-evaluation checkpoint:
+- Blocking gate(s): DEP-03 external dashboard URLs and alert policy/escalation URLs missing; checkpoint metric evidence not attached.
+- Owner: Ops (DEP-03 links) + AI Platform (promotion packet final verification).
+- Remediation ETA: before any Production 5% ring start.
+- Re-evaluation checkpoint: immediately after DEP-03 artifacts are attached and reviewed.
 
 ## Evidence Bundle
 1. Rollout report: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`

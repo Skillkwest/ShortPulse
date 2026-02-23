@@ -52,6 +52,8 @@ Verify repo-level readiness for `DEP-03` (dashboard + alert wiring for ring-gate
 2. External dashboard/alert resource provisioning remains an operator task outside this repository and must be linked in rollout evidence before 5% production ring promotion.
 3. Ops intake template is published for deterministic artifact collection:
    - `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`
+4. Soak-exit review timestamp: `2026-02-23 01:15:33Z`.
+5. Promotion outcome at soak exit: `Hold` (DEP-03 external artifacts incomplete).
 
 ## External Artifacts Required Before 5% Promotion
 The following must be attached to this file before advancing beyond staging soak:
@@ -66,10 +68,10 @@ The following must be attached to this file before advancing beyond staging soak
    - [ ] Sev-2 latency/error/timeout policy URL.
    - [ ] Sev-2 continuity SLI policy URL.
    - [ ] Sev-3 contract-rejection spike policy URL.
-   - [ ] On-call escalation target reference URL.
+   - [ ] On-call escalation target reference URL (external).
 3. Verification metadata:
-   - [ ] Validation timestamp (UTC):
-   - [ ] Operator:
+   - [x] Validation timestamp (UTC): `2026-02-23 01:15:33Z`
+   - [x] Operator: `@codex`
    - [ ] Reviewer:
    - [ ] Tracker dependency update completed (`DEP-03`):
 

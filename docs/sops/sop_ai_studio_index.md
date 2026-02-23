@@ -18,7 +18,8 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - ADR: `docs/adr/0022-reference-grid-domain-modular-architecture.md`
 
 ## Shared primitives (do not duplicate)
-- Model metadata: `frontend/features/ai-studio/logic/modelRegistry.ts` (provider, mediaType, defaultAspect, allowedAspects, pricingStrategy, defaultDurationSeconds/resolution/audio).
+- Canonical model API metadata: `frontend/lib/model-runtime/modelCatalog.ts` (provider model ids, submit/status aliases, validated fields, defaults, provider source URLs, verification dates).
+- UI model metadata: `frontend/features/ai-studio/logic/modelRegistry.ts` (labels, mediaType, pricing strategy, UI capabilities).
 - Pricing dispatcher: `frontend/features/ai-studio/logic/pricing.ts` (`computeCostForModel`, `buildDefaultPricingParams`).
 - Pricing strategies: `frontend/features/ai-studio/logic/pricingStrategies.ts` (per-MP, per-image, per-duration).
 - UI orchestration: `frontend/features/ai-studio/hooks/useAiStudioState.ts`, `frontend/pages/ai-studio.tsx`.
@@ -48,7 +49,7 @@ Planned reliability module boundaries:
 - `frontend/lib/server/falIntegration/reconciler.ts`
 - `frontend/lib/server/falIntegration/circuitBreaker.ts`
 
-## Default model params (source of truth: modelRegistry.ts)
+## Default model params (source of truth: modelCatalog.ts surfaced via modelRegistry.ts)
 | Model | Defaults | Notes |
 | --- | --- | --- |
 | fal/flux-2 / -pro | Aspect: 4:3 (allowed: 1:1, 4:3, 3:4, 16:9, 9:16) | Uses Fal size map for per-MP pricing. |
@@ -83,7 +84,7 @@ Planned reliability module boundaries:
 
 ## Coordination rules
 - Add/modify SOPs in the vertical file, and add the link here if a new vertical is introduced.
-- When changing model defaults or adding models, update `modelRegistry.ts`, pricing strategies, and the per-vertical SOP tables; avoid duplicating the raw numbers elsewhere.
+- When changing model defaults or adding models, update `modelCatalog.ts`, `modelRegistry.ts`, pricing strategies, and the per-vertical SOP tables; avoid duplicating raw values elsewhere.
 - Use this index to keep headings consistent across SOPs; keep shared info here and link out from the vertical docs.
 
 ## Upcoming flows (prep checklist)

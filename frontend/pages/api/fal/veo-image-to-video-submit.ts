@@ -3,11 +3,18 @@
  * Uses ordered submit targets to absorb provider alias drift without route-level duplication.
  */
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
-import { falModelProfiles } from "../../../lib/server/falIntegration/modelProfiles";
+import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
+import { getFalModelProfileByModelId } from "../../../lib/server/falIntegration/modelProfiles";
+
+const veoI2vProfile = getFalModelProfileByModelId("fal-ai/veo3.1/image-to-video");
+if (!veoI2vProfile) {
+  throw new Error("Missing Fal model profile for fal-ai/veo3.1/image-to-video");
+}
 
 export default createFalSubmitHandler({
   modelId: "fal-ai/veo3.1/image-to-video",
-  submitTargets: falModelProfiles.veoImageToVideo.submitTargets,
+  submitTargets: veoI2vProfile.submitTargets,
   routeLabel: "Fal Veo image-to-video",
-  timeoutMs: 20000,
+  timeoutMs: veoI2vProfile.timeoutMs,
+  validatePayload: validateFalPayloadForModel("fal-ai/veo3.1/image-to-video"),
 });

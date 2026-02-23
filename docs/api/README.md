@@ -12,7 +12,7 @@ Purpose: canonical integration references for first-party API routes and externa
 - Naming: `api-<provider>-<model>.md`.
 - First-party exception: use `api-internal-*.md` for route-contract docs maintained by the app team.
 - Every API doc should include: auth, submit endpoint, status/result flow, key params, output schema, and ShortPulse defaults.
-- Keep implementation details aligned with `frontend/pages/api/*` proxies and `frontend/features/ai-studio/logic/*` pricing/model registry.
+- Keep implementation details aligned with `frontend/pages/api/*` proxies and the canonical model catalog in `frontend/lib/model-runtime/modelCatalog.ts`.
 
 ## Current docs
 - `docs/api/api-internal-routes.md`
@@ -27,6 +27,7 @@ Purpose: canonical integration references for first-party API routes and externa
 - `docs/api/api-fal-seedance-1-5-pro.md`
 - `docs/api/api-fal-seedance-1-5-pro-i2v.md`
 - `docs/api/api-fal-flux-2.md`
+- `docs/api/api-fal-flux-2-klein-9b.md`
 - `docs/api/api-fal-flux-2-edit.md`
 - `docs/api/api-fal-flux-2-pro.md`
 - `docs/api/api-fal-flux-2-pro-edit.md`
@@ -39,7 +40,7 @@ Purpose: canonical integration references for first-party API routes and externa
 - `docs/api/api-fal-seedream-4-5-edit.md`
 
 ## Maintenance checklist
-1. Add/update the model in code (`modelRegistry.ts`, pricing, submit/status handlers).
+1. Add/update the model in code (`frontend/lib/model-runtime/modelCatalog.ts`, pricing, submit/status handlers).
 2. Add/update the API doc in this folder.
 3. Link it in `docs/README.md`.
 4. Run `npm -C frontend run docs:check`.

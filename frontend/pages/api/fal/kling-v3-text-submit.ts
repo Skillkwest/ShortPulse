@@ -1,10 +1,14 @@
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
-
-const FAL_KLING_V3_TEXT_SUBMIT_URL =
-  "https://queue.fal.run/fal-ai/kling-video/v3/pro/text-to-video";
+import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
+import {
+  getFalSubmitUrlRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
 
 export default createFalSubmitHandler({
   modelId: "fal-ai/kling-video/v3/pro/text-to-video",
-  submitUrl: FAL_KLING_V3_TEXT_SUBMIT_URL,
+  submitUrl: getFalSubmitUrlRequired("fal-ai/kling-video/v3/pro/text-to-video"),
   routeLabel: "Fal Kling 3.0 text",
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/kling-video/v3/pro/text-to-video", 20000),
+  validatePayload: validateFalPayloadForModel("fal-ai/kling-video/v3/pro/text-to-video"),
 });

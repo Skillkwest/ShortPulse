@@ -1,6 +1,7 @@
 # Fal.ai FLUX 2 Edit (Image-to-Image) API Reference
 
 Reference for integrating the FLUX.2 image-to-image/edit queue (`fal-ai/flux-2/edit`) via our `/api/fal` proxies.
+ShortPulse catalog model id: `fal/flux-2/edit`.
 
 ## Authentication
 - Set `FAL_KEY` in the runtime and keep it server-side.

@@ -1,9 +1,14 @@
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
-
-const FAL_NANO_BANANA_EDIT_SUBMIT_URL = "https://queue.fal.run/fal-ai/nano-banana/edit";
+import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
+import {
+  getFalSubmitUrlRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
 
 export default createFalSubmitHandler({
   modelId: "fal-ai/nano-banana/edit",
-  submitUrl: FAL_NANO_BANANA_EDIT_SUBMIT_URL,
+  submitUrl: getFalSubmitUrlRequired("fal-ai/nano-banana/edit"),
   routeLabel: "Fal Nano Banana edit",
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/nano-banana/edit", 20000),
+  validatePayload: validateFalPayloadForModel("fal-ai/nano-banana/edit"),
 });

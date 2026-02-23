@@ -3,14 +3,13 @@
  * Accepts { requestId }, returns normalized status payloads.
  */
 import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
-
-const QUEUE_BASE_URLS = [
-  "https://queue.fal.run/fal-ai/flux-2-pro/requests",
-  "https://queue.fal.run/fal-ai/flux-2-pro/edit/requests",
-];
+import {
+  getFalStatusBaseUrlsRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
 
 export default createFalStatusHandler({
-  queueBaseUrl: QUEUE_BASE_URLS,
+  queueBaseUrl: getFalStatusBaseUrlsRequired("fal/flux-2-pro/edit"),
   routeLabel: "Fal FLUX 2 Pro Edit",
-  timeoutMs: 60000,
+  timeoutMs: getFalTimeoutMsOrDefault("fal/flux-2-pro/edit", 60000),
 });

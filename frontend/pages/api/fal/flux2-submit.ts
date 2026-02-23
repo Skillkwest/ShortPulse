@@ -1,9 +1,14 @@
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
-
-const FAL_FLUX2_SUBMIT_URL = "https://queue.fal.run/fal-ai/flux-2";
+import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
+import {
+  getFalSubmitUrlRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
 
 export default createFalSubmitHandler({
   modelId: "fal/flux-2",
-  submitUrl: FAL_FLUX2_SUBMIT_URL,
+  submitUrl: getFalSubmitUrlRequired("fal/flux-2"),
   routeLabel: "Fal FLUX 2",
+  timeoutMs: getFalTimeoutMsOrDefault("fal/flux-2", 20000),
+  validatePayload: validateFalPayloadForModel("fal/flux-2"),
 });

@@ -1,9 +1,14 @@
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
-
-const FAL_VEO_SUBMIT_URL = "https://queue.fal.run/fal-ai/veo3.1";
+import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
+import {
+  getFalSubmitUrlRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
 
 export default createFalSubmitHandler({
   modelId: "fal-ai/veo3.1",
-  submitUrl: FAL_VEO_SUBMIT_URL,
+  submitUrl: getFalSubmitUrlRequired("fal-ai/veo3.1"),
   routeLabel: "Fal Veo",
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/veo3.1", 20000),
+  validatePayload: validateFalPayloadForModel("fal-ai/veo3.1"),
 });

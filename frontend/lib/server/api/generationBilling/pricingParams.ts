@@ -1,5 +1,6 @@
 import { getModelConfig } from "../../../../features/ai-studio/logic/pricing";
 import type { PricingParams } from "../../../../features/ai-studio/logic/pricingTypes";
+import { getModelCatalogEntry } from "../../../model-runtime/modelCatalog";
 import type { JsonObject } from "./types";
 import { asBoolean, asNumber, asString } from "./utils";
 
@@ -128,6 +129,29 @@ const normalizeDurationForModel = (
   return normalizedDuration;
 };
 
+const resolveBooleanAlias = (payload: JsonObject, aliases: string[]): boolean | undefined => {
+  for (const alias of aliases) {
+    const value = asBoolean(payload[alias]);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+};
+
+const resolveWebSearchFlag = (payload: JsonObject, modelId: string): boolean | undefined => {
+  const aliasCandidates = [
+    ...(getModelCatalogEntry(modelId)?.pricingParamAliases?.webSearch ?? []),
+    "enable_web_search",
+    "web_search",
+    "enable_google_search",
+  ];
+  const aliasSet = new Set<string>();
+  aliasCandidates.forEach((alias) => {
+    const cleaned = alias.trim();
+    if (cleaned.length) aliasSet.add(cleaned);
+  });
+  return resolveBooleanAlias(payload, Array.from(aliasSet));
+};
+
 export const summarizePayload = (payload: JsonObject): JsonObject => {
   const keys = [
     "aspect",
@@ -185,7 +209,7 @@ export const buildPricingParams = (
     params.voiceControl = true;
   }
 
-  const webSearch = asBoolean(payload.enable_web_search) ?? asBoolean(payload.web_search);
+  const webSearch = resolveWebSearchFlag(payload, modelId);
   if (webSearch !== undefined) params.webSearch = webSearch;
 
   if (!params.durationSeconds && config?.defaultDurationSeconds) {

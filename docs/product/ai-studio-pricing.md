@@ -1,9 +1,10 @@
-# AI Studio Pricing & Model Registry
+# AI Studio Pricing & Model Catalog
 
 Short version: Models declare their own metadata (provider, aspects, size maps, pricing strategy). Pricing strategies consume that metadata to compute cost; UIs call a single `computeCostForModel` entry point.
 
 ## Where things live
-- `frontend/features/ai-studio/logic/modelRegistry.ts` — model configs (id, provider, media type, default/allowed aspects, size map, pricing strategy, default duration/resolution/audio when relevant).
+- `frontend/lib/model-runtime/modelCatalog.ts` — canonical provider/model API contracts (submit/status aliases, defaults, validated fields, doc source + verification date).
+- `frontend/features/ai-studio/logic/modelRegistry.ts` — UI/runtime metadata (labels, media type, pricing strategy) derived from catalog defaults.
 - `frontend/features/ai-studio/logic/modelSizes.ts` — reusable aspect → size maps (used by FLUX variants).
 - `frontend/features/ai-studio/logic/pricingStrategies.ts` — per-strategy calculators (Fal per-MP today).
 - `frontend/features/ai-studio/logic/pricing.ts` — dispatcher (`computeCostForModel`) and compatibility helpers.
@@ -12,16 +13,17 @@ Short version: Models declare their own metadata (provider, aspects, size maps, 
 - Model config includes `pricingStrategy` and optional `sizeMap` for strategies that need dimensions.
 - `computeCostForModel(modelId, { aspect })` returns `{ credits, usd, rawCredits, usdRaw, megapixels, width, height } | null`.
 - UIs and hooks stay dumb: pick a model, pass parameters, render the returned cost.
-- Defaults for duration/resolution/audio are read from `modelRegistry` (e.g., Veo 3.1 → 8s @ 1080p with audio) and reused by cost chips and debit logic. Use `buildDefaultPricingParams(modelId)` when you need a consistent baseline.
+- Defaults for duration/resolution/audio are sourced from the model catalog and surfaced through `modelRegistry` (e.g., Veo 3.1 → 8s @ 1080p with audio) for cost chips and debit logic. Use `buildDefaultPricingParams(modelId)` when you need a consistent baseline.
 - Credit conversion is two-step and shared across estimations/debits for all models except explicit fixed-price exceptions: `rawCredits = ceil(usd / 0.01)`, then `credits = ceil(rawCredits / 5) * 5`.
 - `usdRaw` is provider-estimated pre-rounding USD; `usd` is the billed USD equivalent (`credits * 0.01`).
 - KEI pricing is excluded from active model options and KEI runtime/API surfaces are decommissioned.
 
 ## Adding a model
-1) Add a `ModelConfig` entry in `modelRegistry.ts` with `defaultAspect`, `allowedAspects`, and `pricingStrategy`.
-2) Provide a `sizeMap` in `modelSizes.ts` if the strategy needs dimensions.
-3) If pricing differs, add a new strategy in `pricingStrategies.ts` and reference it from the model.
-4) Write tests covering the size map and cost output.
+1) Add/update the model API contract in `frontend/lib/model-runtime/modelCatalog.ts`.
+2) Add/update the `ModelConfig` entry in `modelRegistry.ts` with label/media/pricing metadata.
+3) Provide a `sizeMap` in `modelSizes.ts` if the strategy needs dimensions.
+4) If pricing differs, add a new strategy in `pricingStrategies.ts` and reference it from the model.
+5) Write tests covering the size map and cost output.
 
 ## Current strategies
 - `fal-flux2-per-mp`: $0.012 per MP, then converted with 5-credit step rounding. Uses the model’s `sizeMap`.

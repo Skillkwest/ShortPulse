@@ -3,11 +3,13 @@
  * Accepts { requestId }, returns normalized status payloads.
  */
 import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
-
-const QUEUE_BASE_URL = "https://queue.fal.run/fal-ai/nano-banana/requests";
+import {
+  getFalStatusBaseUrlsRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
 
 export default createFalStatusHandler({
-  queueBaseUrl: QUEUE_BASE_URL,
+  queueBaseUrl: getFalStatusBaseUrlsRequired("fal-ai/nano-banana"),
   routeLabel: "Fal Nano Banana",
-  timeoutMs: 60000,
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/nano-banana", 60000),
 });

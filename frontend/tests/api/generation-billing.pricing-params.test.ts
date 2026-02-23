@@ -31,4 +31,12 @@ describe("generationBilling pricing params normalization", () => {
     expect(params.durationSeconds).toBe(12);
     expect(params.resolution).toBe("720p");
   });
+
+  it("maps enable_google_search to webSearch for nano-banana pricing", () => {
+    const params = buildPricingParams("fal-ai/nano-banana-pro", {
+      enable_google_search: true,
+    });
+
+    expect(params.webSearch).toBe(true);
+  });
 });

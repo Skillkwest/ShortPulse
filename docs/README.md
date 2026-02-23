@@ -56,6 +56,7 @@ Start here for all repository documentation.
 - `docs/api/api-fal-seedance-1-5-pro.md`
 - `docs/api/api-fal-seedance-1-5-pro-i2v.md`
 - `docs/api/api-fal-flux-2.md`
+- `docs/api/api-fal-flux-2-klein-9b.md`
 - `docs/api/api-fal-flux-2-edit.md`
 - `docs/api/api-fal-flux-2-pro.md`
 - `docs/api/api-fal-flux-2-pro-edit.md`

@@ -3,14 +3,13 @@
  * Accepts { requestId }, returns normalized status payloads.
  */
 import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
-
-const QUEUE_BASE_URLS = [
-  "https://queue.fal.run/fal-ai/sora-2/requests",
-  "https://queue.fal.run/fal-ai/sora-2/text-to-video/pro/requests",
-];
+import {
+  getFalStatusBaseUrlsRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
 
 export default createFalStatusHandler({
-  queueBaseUrl: QUEUE_BASE_URLS,
+  queueBaseUrl: getFalStatusBaseUrlsRequired("fal-ai/sora-2/text-to-video/pro"),
   routeLabel: "Fal Sora",
-  timeoutMs: 60000,
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/sora-2/text-to-video/pro", 60000),
 });

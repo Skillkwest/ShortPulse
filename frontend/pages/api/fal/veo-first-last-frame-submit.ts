@@ -1,7 +1,8 @@
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
-
-const FAL_VEO_FIRST_LAST_SUBMIT_URL =
-  "https://queue.fal.run/fal-ai/veo3.1/first-last-frame-to-video";
+import {
+  getFalSubmitUrlRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
 const VIDEO_FILE_PATTERN = /\.(mp4|webm|mov|m4v)(?:[?#].*)?$/i;
 const ALLOWED_ASPECTS = new Set(["auto", "16:9", "9:16"]);
 const ALLOWED_DURATIONS = new Set(["4s", "6s", "8s"]);
@@ -89,7 +90,8 @@ export const validateVeoFirstLastPayload = (payload: Record<string, unknown>) =>
 
 export default createFalSubmitHandler({
   modelId: "fal-ai/veo3.1/first-last-frame-to-video",
-  submitUrl: FAL_VEO_FIRST_LAST_SUBMIT_URL,
+  submitUrl: getFalSubmitUrlRequired("fal-ai/veo3.1/first-last-frame-to-video"),
   routeLabel: "Fal Veo first/last frame",
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/veo3.1/first-last-frame-to-video", 20000),
   validatePayload: validateVeoFirstLastPayload,
 });

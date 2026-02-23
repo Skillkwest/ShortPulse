@@ -1,3 +1,5 @@
+import { fetchOpenAiCompatibleChatCompletion } from "../../lib/server/api/openAiCompat";
+
 const DEFAULT_OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = "gpt-5-nano";
 const DEFAULT_VISION_MODEL = "gpt-5-nano";
@@ -62,21 +64,13 @@ export const fetchStudioAgentChatCompletion = async ({
   messages: unknown[];
   timeoutMs: number;
 }) => {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(openAiUrl || DEFAULT_OPENAI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ model, messages }),
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  return await fetchOpenAiCompatibleChatCompletion({
+    apiKey,
+    openAiUrl: openAiUrl || DEFAULT_OPENAI_URL,
+    model,
+    messages: messages as Parameters<typeof fetchOpenAiCompatibleChatCompletion>[0]["messages"],
+    timeoutMs,
+  });
 };
 
 export const formatStudioAgentErrorMessage = (error: unknown): string => {

@@ -4,12 +4,17 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
-import { falModelProfiles } from "../../../lib/server/falIntegration/modelProfiles";
+import { getFalModelProfileByModelId } from "../../../lib/server/falIntegration/modelProfiles";
+
+const veoI2vProfile = getFalModelProfileByModelId("fal-ai/veo3.1/image-to-video");
+if (!veoI2vProfile) {
+  throw new Error("Missing Fal model profile for fal-ai/veo3.1/image-to-video");
+}
 
 const baseHandler = createFalStatusHandler({
-  queueBaseUrl: falModelProfiles.veoImageToVideo.statusBases,
+  queueBaseUrl: veoI2vProfile.statusBases,
   routeLabel: "Fal Veo image-to-video",
-  timeoutMs: falModelProfiles.veoImageToVideo.timeoutMs,
+  timeoutMs: veoI2vProfile.timeoutMs,
 });
 
 const readQueryRequestId = (req: NextApiRequest): string | null => {

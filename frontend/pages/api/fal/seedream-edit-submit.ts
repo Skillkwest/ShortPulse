@@ -3,9 +3,11 @@
  * Enforces prompt + 1..10 image references before charging/submitting upstream.
  */
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
+import {
+  getFalSubmitUrlRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
 import { validateSeedreamImageSizePayload } from "../../../lib/server/api/seedreamPayloadValidation";
-
-const FAL_SEEDREAM_EDIT_SUBMIT_URL = "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit";
 const VIDEO_FILE_PATTERN = /\.(mp4|webm|mov|m4v)(?:[?#].*)?$/i;
 
 const asTrimmedString = (value: unknown): string | null => {
@@ -63,8 +65,8 @@ export const validateSeedreamEditPayload = (payload: Record<string, unknown>) =>
 
 export default createFalSubmitHandler({
   modelId: "fal-ai/bytedance/seedream/v4.5/edit",
-  submitUrl: FAL_SEEDREAM_EDIT_SUBMIT_URL,
+  submitUrl: getFalSubmitUrlRequired("fal-ai/bytedance/seedream/v4.5/edit"),
   routeLabel: "Fal Seedream edit",
-  timeoutMs: 60000,
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/bytedance/seedream/v4.5/edit", 60000),
   validatePayload: validateSeedreamEditPayload,
 });

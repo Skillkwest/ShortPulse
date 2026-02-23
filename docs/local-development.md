@@ -29,6 +29,8 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `OPENAI_API_BASE`
    - `OPENAI_MODEL`
    - `OPENAI_VISION_MODEL`
+   - `SHORTPULSE_OPENAI_RESPONSES_ENABLED` (optional; `true` enables Responses API compatibility mode)
+   - `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED` (optional; defaults to `true`)
    - `STUDIO_AGENT_THINKER_MODEL` (optional override; defaults to `OPENAI_MODEL`)
    - `STUDIO_AGENT_FORMATTER_MODEL` (optional override; defaults to thinker model)
    - `OPENAI_PROMPT_SYSTEM`

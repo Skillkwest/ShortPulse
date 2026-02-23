@@ -3,9 +3,9 @@ import { loadAgentPrompt } from "../../lib/agentPromptLoader";
 import { AgentPromptId } from "../../lib/agentPromptsConfig";
 import type { AuthenticatedApiUser } from "../../lib/server/api/auth";
 import { logGenerationFailure } from "../../lib/server/api/appErrorLogs";
+import { fetchOpenAiCompatibleChatCompletion } from "../../lib/server/api/openAiCompat";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
 
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const TEXT_ENHANCER_ID: AgentPromptId = "OPENAI_PROMPT_SYSTEM";
 
 type LegacyPromptSuccess = {
@@ -83,19 +83,15 @@ export const executeLegacyPromptGeneration = async ({
   }
 
   try {
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL ?? "gpt-5-nano",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: prompt },
-        ],
-      }),
+    const response = await fetchOpenAiCompatibleChatCompletion({
+      apiKey,
+      model: process.env.OPENAI_MODEL ?? "gpt-5-nano",
+      openAiApiBase: process.env.OPENAI_API_BASE,
+      timeoutMs: 20000,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt },
+      ],
     });
 
     if (!response.ok) {

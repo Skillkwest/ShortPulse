@@ -2,7 +2,8 @@
  * OpenAI request helpers for describe-image.
  * Encapsulates retries, fallback decisions, and response text extraction.
  */
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+import { fetchOpenAiCompatibleChatCompletion } from "./openAiCompat";
+
 const OPENAI_TIMEOUT_MS = 25000;
 const OPENAI_UPSTREAM_MAX_ATTEMPTS = 2;
 const OPENAI_UPSTREAM_RETRY_DELAY_MS = 450;
@@ -56,29 +57,22 @@ const requestOpenAiImageDescribe = async ({
   systemPrompt: string;
   imageUrl: string;
 }): Promise<OpenAiDescribeAttemptResult> => {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
   try {
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Describe the image exactly as you see it." },
-              { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-            ],
-          },
-        ],
-      }),
-      signal: controller.signal,
+    const response = await fetchOpenAiCompatibleChatCompletion({
+      apiKey,
+      model,
+      openAiApiBase: process.env.OPENAI_API_BASE,
+      timeoutMs: OPENAI_TIMEOUT_MS,
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Describe the image exactly as you see it." },
+            { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+          ],
+        },
+      ],
     });
 
     if (!response.ok) {
@@ -101,8 +95,6 @@ const requestOpenAiImageDescribe = async ({
       detail: trimDetail(detail),
       model,
     };
-  } finally {
-    clearTimeout(timeoutId);
   }
 };
 

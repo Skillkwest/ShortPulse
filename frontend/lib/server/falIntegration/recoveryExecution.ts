@@ -7,15 +7,8 @@ import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { settleGenerationOutcome } from "../api/generationBilling";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
-import {
-  asString,
-  extractResponseUrl,
-  hasMediaPayload,
-  normalizeStatus,
-  toRecord,
-} from "./falAdapter";
-import type { ResultProbeCandidate, StatusProbeCandidate } from "./contracts";
-import { selectBestResultCandidate, selectBestStatusCandidate } from "./retrievalEngine";
+import { asString } from "./falAdapter";
+import { extractRecoveryMediaUrls, probeProviderResult } from "./recoveryProviderProbe";
 import { isLegalGenerationTransition, normalizeGenerationLifecycleState } from "./stateMachine";
 
 type JsonObject = Record<string, unknown>;
@@ -34,12 +27,6 @@ type GenerationRow = {
   failure_reason_code: string | null;
   recovery_state: string;
   completed_at: string | null;
-};
-
-type JsonReadResult = {
-  ok: boolean;
-  status: number;
-  json: JsonObject;
 };
 
 export type RecoveryProbeState = "running" | "failed" | "completed";
@@ -100,9 +87,6 @@ const CONTENT_TYPE_EXTENSION: Record<string, string> = {
   "video/quicktime": "mov",
   "video/x-m4v": "m4v",
 };
-
-const completedStatuses = new Set(["completed", "succeeded", "success", "done", "ok"]);
-const failedStatuses = new Set(["failed", "error", "cancelled", "canceled"]);
 
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
@@ -173,182 +157,6 @@ const resolveExtension = (contentType: string | null, url: string): string => {
   const ext = extensionFromUrl(url);
   if (ext) return ext;
   return normalizedType.startsWith("video/") ? "mp4" : "png";
-};
-
-const readJsonSafe = async (response: Response): Promise<JsonReadResult> => {
-  const text = await response.text();
-  if (!text) return { ok: response.ok, status: response.status, json: {} };
-  try {
-    const parsed = JSON.parse(text);
-    return { ok: response.ok, status: response.status, json: asObject(parsed) };
-  } catch {
-    return {
-      ok: response.ok,
-      status: response.status,
-      json: { raw: text.slice(0, 4000) },
-    };
-  }
-};
-
-const extractUrlObjects = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (typeof item === "string") return asString(item);
-      const record = asObject(item);
-      return (
-        asString(record.url) ||
-        asString(record.download_url) ||
-        asString(record.video_url) ||
-        asString(record.image_url) ||
-        asString(record.file_url)
-      );
-    })
-    .filter((url): url is string => Boolean(url));
-};
-
-const collectCandidates = (payload: JsonObject): JsonObject[] => {
-  const data = asObject(payload.data);
-  const output = asObject(payload.output);
-  const result = asObject(payload.result);
-  const response = asObject(payload.response);
-  const rootPayload = asObject(payload.payload);
-  return [
-    payload,
-    rootPayload,
-    data,
-    output,
-    result,
-    response,
-    asObject(data.result),
-    asObject(result.data),
-    asObject(response.result),
-    asObject(rootPayload.result),
-  ].filter((item) => Object.keys(item).length > 0);
-};
-
-const extractMediaUrls = (payload: JsonObject): string[] => {
-  const candidates = collectCandidates(payload);
-  for (const candidate of candidates) {
-    const fromImages = extractUrlObjects(candidate.images);
-    if (fromImages.length) return fromImages;
-    const fromVideos = extractUrlObjects(candidate.videos);
-    if (fromVideos.length) return fromVideos;
-    const fromOutputs = extractUrlObjects(candidate.outputs);
-    if (fromOutputs.length) return fromOutputs;
-    const fromArtifacts = extractUrlObjects(candidate.artifacts);
-    if (fromArtifacts.length) return fromArtifacts;
-    const fromResultUrls = extractUrlObjects(
-      candidate.result_urls ?? candidate.resultUrls ?? candidate.image_urls ?? candidate.video_urls
-    );
-    if (fromResultUrls.length) return fromResultUrls;
-
-    const mediaUrl =
-      asString(candidate.url) ||
-      asString(candidate.video) ||
-      asString(candidate.image) ||
-      asString(asObject(candidate.video).url) ||
-      asString(asObject(candidate.image).url) ||
-      asString(candidate.video_url) ||
-      asString(candidate.image_url) ||
-      asString(asObject(asObject(candidate.assets).video).url) ||
-      asString(asObject(asObject(candidate.assets).image).url) ||
-      asString(asObject(asObject(candidate.assets).video).download_url) ||
-      asString(asObject(asObject(candidate.assets).image).download_url) ||
-      asString(candidate.file_url) ||
-      asString(candidate.media_url) ||
-      asString(candidate.download_url);
-    if (mediaUrl) return [mediaUrl];
-  }
-  return [];
-};
-
-const resolveQueueBaseUrlsForModel = (modelId: string): string[] => {
-  switch (modelId) {
-    case "fal/flux-2":
-      return ["https://queue.fal.run/fal-ai/flux-2/requests"];
-    case "fal/flux-2/edit":
-      return [
-        "https://queue.fal.run/fal-ai/flux-2/requests",
-        "https://queue.fal.run/fal-ai/flux-2/edit/requests",
-      ];
-    case "fal-ai/flux-2/klein/9b":
-      return [
-        "https://queue.fal.run/fal-ai/flux-2/requests",
-        "https://queue.fal.run/fal-ai/flux-2/klein/9b/requests",
-      ];
-    case "fal/flux-2-pro":
-      return ["https://queue.fal.run/fal-ai/flux-2-pro/requests"];
-    case "fal/flux-2-pro/edit":
-      return [
-        "https://queue.fal.run/fal-ai/flux-2-pro/requests",
-        "https://queue.fal.run/fal-ai/flux-2-pro/edit/requests",
-      ];
-    case "fal-ai/nano-banana":
-      return ["https://queue.fal.run/fal-ai/nano-banana/requests"];
-    case "fal-ai/nano-banana/edit":
-      return [
-        "https://queue.fal.run/fal-ai/nano-banana/requests",
-        "https://queue.fal.run/fal-ai/nano-banana/edit/requests",
-      ];
-    case "fal-ai/nano-banana-pro":
-      return ["https://queue.fal.run/fal-ai/nano-banana-pro/requests"];
-    case "fal-ai/nano-banana-pro/edit":
-      return [
-        "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
-        "https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests",
-      ];
-    case "fal-ai/bytedance/seedream/v4.5/text-to-image":
-    case "fal-ai/bytedance/seedream/v4.5/edit":
-      return [
-        "https://queue.fal.run/fal-ai/bytedance/requests",
-        "https://queue.fal.run/fal-ai/bytedance/seedream/requests",
-        "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/requests",
-        "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests",
-        "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit/requests",
-      ];
-    case "fal-ai/bytedance/seedance/v1.5/pro/text-to-video":
-      return [
-        "https://queue.fal.run/fal-ai/bytedance/requests",
-        "https://queue.fal.run/fal-ai/bytedance/seedance/requests",
-        "https://queue.fal.run/fal-ai/bytedance/seedance/v1.5/pro/text-to-video/requests",
-      ];
-    case "fal-ai/bytedance/seedance/v1.5/pro/image-to-video":
-      return [
-        "https://queue.fal.run/fal-ai/bytedance/requests",
-        "https://queue.fal.run/fal-ai/bytedance/seedance/requests",
-        "https://queue.fal.run/fal-ai/bytedance/seedance/v1.5/pro/image-to-video/requests",
-      ];
-    case "fal-ai/kling-video/v3/pro/text-to-video":
-      return [
-        "https://queue.fal.run/fal-ai/kling-video/requests",
-        "https://queue.fal.run/fal-ai/kling-video/v3/pro/text-to-video/requests",
-      ];
-    case "fal-ai/kling-video/v3/pro/image-to-video":
-      return [
-        "https://queue.fal.run/fal-ai/kling-video/requests",
-        "https://queue.fal.run/fal-ai/kling-video/v3/pro/image-to-video/requests",
-      ];
-    case "fal-ai/veo3.1":
-      return [
-        "https://queue.fal.run/fal-ai/veo3.1/requests",
-        "https://queue.fal.run/fal-ai/veo3.1/first-last-frame-to-video/requests",
-        "https://queue.fal.run/fal-ai/veo3.1/image-to-video/requests",
-      ];
-    case "fal-ai/veo3.1/image-to-video":
-      return [
-        "https://queue.fal.run/fal-ai/veo3.1/requests",
-        "https://queue.fal.run/fal-ai/veo3.1/image-to-video/requests",
-        "https://queue.fal.run/fal-ai/veo3.1/reference-to-video/requests",
-      ];
-    case "fal-ai/sora-2/text-to-video/pro":
-      return [
-        "https://queue.fal.run/fal-ai/sora-2/requests",
-        "https://queue.fal.run/fal-ai/sora-2/text-to-video/pro/requests",
-      ];
-    default:
-      return [`https://queue.fal.run/${modelId}/requests`];
-  }
 };
 
 const fetchBufferWithRetry = async (
@@ -579,110 +387,6 @@ const persistMediaFilesForGeneration = async ({
   return mediaFileIds;
 };
 
-const probeProviderResult = async ({
-  requestId,
-  modelId,
-  apiKey,
-}: {
-  requestId: string;
-  modelId: string;
-  apiKey: string;
-}): Promise<RecoveryObservation> => {
-  const queueBaseUrls = resolveQueueBaseUrlsForModel(modelId);
-  const responseUrlSet = new Set<string>();
-  const statusCandidates: StatusProbeCandidate[] = [];
-  const resultCandidates: ResultProbeCandidate[] = [];
-  const payloadByStatusIndex = new Map<number, JsonObject>();
-  const payloadByResultIndex = new Map<number, JsonObject>();
-
-  for (const [index, baseUrl] of queueBaseUrls.entries()) {
-    const statusResponse = await fetch(`${baseUrl}/${requestId}/status`, {
-      method: "GET",
-      headers: { Authorization: `Key ${apiKey}` },
-    });
-    const statusData = await readJsonSafe(statusResponse);
-    const payload = Object.keys(statusData.json).length ? statusData.json : {};
-    const statusValue = normalizeStatus(payload.status) ?? normalizeStatus(toRecord(payload).state);
-    const isCompleted = Boolean(statusValue && completedStatuses.has(statusValue));
-    const isFailed = Boolean(statusValue && failedStatuses.has(statusValue));
-    statusCandidates.push({
-      index,
-      baseUrl,
-      isJson: true,
-      isRetryableAlias: statusResponse.status === 404 || statusResponse.status === 405,
-      httpStatus: statusResponse.status,
-      isHttpOk: statusResponse.ok,
-      status: statusValue,
-      isTerminal: isCompleted || isFailed,
-      isCompleted,
-      isFailed,
-      hasResponseUrl: Boolean(extractResponseUrl(payload)),
-      hasMedia: hasMediaPayload(payload),
-    });
-    payloadByStatusIndex.set(index, payload);
-    const responseUrl = extractResponseUrl(payload);
-    if (responseUrl) responseUrlSet.add(responseUrl);
-  }
-
-  const bestStatus = selectBestStatusCandidate(statusCandidates);
-  if (bestStatus?.hasMedia) {
-    const payload = payloadByStatusIndex.get(bestStatus.index) ?? null;
-    if (payload) {
-      return { state: "completed", payload, mediaUrls: extractMediaUrls(payload) };
-    }
-  }
-
-  for (const responseUrl of responseUrlSet) {
-    const responseProbe = await fetch(responseUrl, {
-      method: "GET",
-      headers: { Authorization: `Key ${apiKey}` },
-    });
-    const responseData = await readJsonSafe(responseProbe);
-    if (!responseProbe.ok || !hasMediaPayload(responseData.json)) continue;
-    return {
-      state: "completed",
-      payload: responseData.json,
-      mediaUrls: extractMediaUrls(responseData.json),
-    };
-  }
-
-  for (const [index, baseUrl] of queueBaseUrls.entries()) {
-    const resultResponse = await fetch(`${baseUrl}/${requestId}`, {
-      method: "GET",
-      headers: { Authorization: `Key ${apiKey}` },
-    });
-    const resultData = await readJsonSafe(resultResponse);
-    const payload = Object.keys(resultData.json).length ? resultData.json : {};
-    const statusValue = normalizeStatus(payload.status) ?? normalizeStatus(toRecord(payload).state);
-    const hasError = Boolean(asString(payload.error)) || Boolean(asString(payload.detail));
-    resultCandidates.push({
-      index,
-      baseUrl,
-      isJson: true,
-      isRetryableAlias: resultResponse.status === 404 || resultResponse.status === 405,
-      httpStatus: resultResponse.status,
-      isHttpOk: resultResponse.ok,
-      status: statusValue,
-      hasError,
-      hasMedia: hasMediaPayload(payload),
-    });
-    payloadByResultIndex.set(index, payload);
-  }
-
-  const bestResult = selectBestResultCandidate(resultCandidates);
-  if (bestResult?.hasMedia) {
-    const payload = payloadByResultIndex.get(bestResult.index) ?? null;
-    if (payload) {
-      return { state: "completed", payload, mediaUrls: extractMediaUrls(payload) };
-    }
-  }
-
-  if (bestStatus?.isFailed || (bestResult?.status && failedStatuses.has(bestResult.status))) {
-    return { state: "failed", payload: null, mediaUrls: [] };
-  }
-  return { state: "running", payload: null, mediaUrls: [] };
-};
-
 const updateGenerationRecoveryState = async ({
   generation,
   updates,
@@ -843,7 +547,7 @@ export const executeGenerationRecovery = async ({
     new Set(
       [
         ...currentObservation.mediaUrls,
-        ...(currentObservation.payload ? extractMediaUrls(currentObservation.payload) : []),
+        ...(currentObservation.payload ? extractRecoveryMediaUrls(currentObservation.payload) : []),
       ]
         .map((url) => url.trim())
         .filter((url) => Boolean(url))

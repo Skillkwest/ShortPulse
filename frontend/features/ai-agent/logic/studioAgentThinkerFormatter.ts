@@ -3,6 +3,7 @@
  * Keeps two-stage model orchestration outside the API route handler.
  */
 import type { AgentResponse } from "../../../prefabs/agent";
+import { fetchOpenAiCompatibleChatCompletion } from "../../../lib/server/api/openAiCompat";
 
 export type ThinkerFormatterResult = {
   parsed: AgentResponse;
@@ -165,25 +166,13 @@ export const runThinkerFormatterTurn = async ({
     messages: unknown[];
     stageModel: string;
   }) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(openAiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: stageModel,
-          messages,
-        }),
-        signal: controller.signal,
-      });
-      return response;
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    return await fetchOpenAiCompatibleChatCompletion({
+      apiKey,
+      openAiUrl,
+      model: stageModel,
+      messages: messages as Parameters<typeof fetchOpenAiCompatibleChatCompletion>[0]["messages"],
+      timeoutMs,
+    });
   };
 
   const runStage = async ({

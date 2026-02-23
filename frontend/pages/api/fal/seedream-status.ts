@@ -3,17 +3,13 @@
  * Accepts { requestId }, returns normalized status payloads.
  */
 import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
-
-const QUEUE_BASE_URLS = [
-  "https://queue.fal.run/fal-ai/bytedance/requests",
-  "https://queue.fal.run/fal-ai/bytedance/seedream/requests",
-  "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/requests",
-  "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests",
-  "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit/requests",
-];
+import {
+  getFalStatusBaseUrlsRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
 
 export default createFalStatusHandler({
-  queueBaseUrl: QUEUE_BASE_URLS,
+  queueBaseUrl: getFalStatusBaseUrlsRequired("fal-ai/bytedance/seedream/v4.5/text-to-image"),
   routeLabel: "Fal Seedream",
-  timeoutMs: 60000,
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/bytedance/seedream/v4.5/text-to-image", 60000),
 });

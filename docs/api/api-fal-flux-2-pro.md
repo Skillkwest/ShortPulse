@@ -1,6 +1,7 @@
 # Fal.ai FLUX 2 PRO Text-to-Image API Reference
 
 Reference for integrating Fal.ai’s FLUX 2 PRO (`fal-ai/flux-2-pro`) queue endpoint.
+ShortPulse catalog model id: `fal/flux-2-pro`.
 
 ## Authentication
 - Set `FAL_KEY` in the environment.

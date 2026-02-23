@@ -53,6 +53,8 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `STUDIO_AGENT_THINKER_MODEL` (optional override; defaults to `OPENAI_MODEL`)
   - `STUDIO_AGENT_FORMATTER_MODEL` (optional override; defaults to thinker model)
   - `OPENAI_VISION_FALLBACK_MODEL`
+  - `SHORTPULSE_OPENAI_RESPONSES_ENABLED` (optional; enables Responses API compatibility mode)
+  - `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED` (optional; defaults to `true`)
   - `OPENAI_DESCRIBE_ALLOWED_HOSTS` (optional hardening)
   - `OPENAI_DESCRIBE_REQUIRE_ALLOWED_HOSTS` (optional hardening)
   - `OPENAI_PROMPT_SYSTEM`

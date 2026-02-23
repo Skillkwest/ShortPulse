@@ -133,6 +133,7 @@ Start here for all repository documentation.
 - `docs/planning/naming-canonical-map.md`
 - `docs/planning/naming-decision-log.md`
 - `docs/planning/naming-canonicalization-tracker.md`
+- `docs/planning/naming-phase-7-entry-readiness.md`
 - `docs/planning/ai-studio-primary-character-panel-build-plan.md`
 - `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`
 - `docs/planning/expert-workflow-hardening-css-reorg-plan.md`

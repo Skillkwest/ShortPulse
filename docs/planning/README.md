@@ -37,6 +37,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `naming-canonical-map.md`: canonical naming source-of-truth map and compatibility window policy.
 - `naming-decision-log.md`: stop-point approvals and canonical naming decision log.
 - `naming-canonicalization-tracker.md`: phase and slice tracker for naming canonicalization execution.
+- `naming-phase-7-entry-readiness.md`: alias-sunset contract entry checklist, release-window tracker, and compatibility alias inventory.
 - `media-library-reference-grid-optimization-plan.md`: near-instant media loading architecture plan (Media Library + AI Studio Reference Grid).
 - `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
 - `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.

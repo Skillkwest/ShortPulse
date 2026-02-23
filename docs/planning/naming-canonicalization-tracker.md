@@ -13,7 +13,7 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 4 Callsite migration (migrate) | completed | Frontend | Legacy callsites migrated in bounded slices | `docs/planning/evidence/naming-canonicalization/phase-4/` |
 | 5 File/path renames | in_progress | Frontend | Renamed files stable with shim strategy | `docs/planning/evidence/naming-canonicalization/phase-5/` |
 | 6 Asset canonicalization | in_progress | Frontend | Canonical asset paths in use with dual-path window | `docs/planning/evidence/naming-canonicalization/phase-6/` |
-| 7 Alias sunset (contract) | pending | Frontend + Docs | Alias removals approved after stability window | `docs/planning/evidence/naming-canonicalization/phase-7/` |
+| 7 Alias sunset (contract) | in_progress | Frontend + Docs | Alias removals approved after stability window | `docs/planning/evidence/naming-canonicalization/phase-7/` |
 
 ## Slice Log
 
@@ -37,8 +37,10 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 2026-02-23 | Phase 4 closeout audit | completed | Confirmed legacy naming usage in `frontend` callsites is limited to explicit compatibility bridges/deprecated aliases | pass (non-Playwright gates) | Evidence: `phase-4/` slices A-G + callsite audit |
 | 2026-02-23 | Phase 6 asset canonicalization batch A | completed | Canonicalized active logo/background asset paths to lowercase/kebab-case filenames with legacy files retained | pass (non-Playwright gates) | Evidence: `phase-6/2026-02-23-phase-6-asset-path-canonicalization-batch-a.md` |
 | 2026-02-23 | Phase 6 asset canonicalization batch B | completed | Canonicalized dashboard media-library card image path, corrected Saved Creators SOP asset naming drift, and recorded residual legacy asset inventory for sunset planning | pass (non-Playwright gates) | Evidence: `phase-6/2026-02-23-phase-6-asset-path-canonicalization-batch-b.md`, `phase-6/2026-02-23-phase-6-residual-asset-inventory.md` |
+| 2026-02-23 | Phase 7 contract entry readiness + drift guard | completed | Added alias-sunset readiness plan and enforced active-doc canonical naming checks in `docs:check` | pass (non-Playwright gates) | Evidence: `phase-7/2026-02-23-phase-7-entry-readiness-and-drift-guard.md` |
 
 ## Active Risks
 1. Perf-release gate is intentionally deferred in this execution track because Playwright runs are out-of-scope.
 2. Residual legacy symbol families remain in compatibility aliases and runtime/file wrapper paths (`ReferenceCanvas*`, `TextPropertiesPanel*`).
 3. Some legacy public asset filenames still exist intentionally during dual-path compatibility window; residual inventory is now tracked for explicit sunset batching.
+4. Alias sunset removal cannot begin until two release cycles complete with no naming regressions.

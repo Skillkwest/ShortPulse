@@ -49,3 +49,4 @@ Purpose: single source of truth for canonical terms, compatibility policy, and s
 1. Any new naming variant discovered during a slice must be recorded here.
 2. High-impact unresolved variants require a decision-log entry before proceeding.
 3. Canonical map changes require tracker update and evidence linkage.
+4. Active docs must pass `scripts/check_naming_canonical_drift.js` (via `npm -C frontend run docs:check`) before merge.

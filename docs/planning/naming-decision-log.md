@@ -198,6 +198,18 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/evidence/naming-canonicalization/phase-6/2026-02-23-phase-6-residual-asset-inventory.md`
 - Next allowed action: continue Phase 6 residual runtime asset-path canonicalization batches (if any remain), then prepare Phase 6 sunset candidate set for Stop-Point approval.
 
+## 2026-02-23: Stop-Point 7 (Contract entry readiness package)
+- Phase/Stop point: Phase 7 readiness planning slice
+- Decision: approved Phase 7 entry-readiness package; alias deletion remains deferred pending two-release-cycle stability window.
+- Preconditions reviewed:
+  - active docs legacy-term scan clean in authoritative surfaces
+  - `docs:check` now enforces canonical naming drift guard for active docs
+  - compatibility alias inventory and removal batch plan documented
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-7/2026-02-23-phase-7-entry-readiness-and-drift-guard.md`
+  - `docs/planning/naming-phase-7-entry-readiness.md`
+- Next allowed action: maintain stability window, capture release-cycle evidence, and begin contraction only after explicit Stop-Point 7 removal approval.
+
 ## Stop-Point Approval Template
 - Date:
 - Phase/Stop point:

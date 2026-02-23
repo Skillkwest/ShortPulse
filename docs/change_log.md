@@ -1075,3 +1075,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites, AI Studio drop-path suite, and adaptive v2 gate.
 - Added phase-5 slice-6 evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-virtual-metrics-controller-slice-6.md`
+- Continued Phase 5 canvas decomposition (slice 7 video-lifecycle controller extraction):
+  - extracted video node registration, visibility observer lifecycle, stale-node pruning, and autoplay detach cleanup into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridVideoLifecycleController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed `registerVideoNode` and lifecycle orchestration.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites, AI Studio drop-path suite, and adaptive v2 gate.
+- Added phase-5 slice-7 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-video-lifecycle-controller-slice-7.md`

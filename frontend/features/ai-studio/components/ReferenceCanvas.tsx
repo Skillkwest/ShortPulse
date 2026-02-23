@@ -69,6 +69,7 @@ import {
 import { useReferenceGridCuratedDndController } from "../reference-grid/controllers/useReferenceGridCuratedDndController";
 import { useReferenceGridScrollController } from "../reference-grid/controllers/useReferenceGridScrollController";
 import { useReferenceGridVirtualMetricsController } from "../reference-grid/controllers/useReferenceGridVirtualMetricsController";
+import { useReferenceGridVideoLifecycleController } from "../reference-grid/controllers/useReferenceGridVideoLifecycleController";
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
@@ -1560,45 +1561,6 @@ export function ReferenceCanvas({
     });
   }, [outputs, revokeGeneratedHydrationUrl, runNonUrgentUpdate]);
 
-  const resolveVideoSurfaceFromNodeKey = useCallback(
-    (nodeKey: string): "all-refs" | "curated" =>
-      nodeKey.startsWith("curated:") ? "curated" : "all-refs",
-    []
-  );
-
-  const registerVideoNode = useCallback(
-    (nodeKey: string, outputId: string, node: HTMLVideoElement | null) => {
-      const currentNode = videoNodeByKeyRef.current.get(nodeKey);
-      if (currentNode && currentNode !== node) {
-        videoIntersectionObserverBySurfaceRef.current.forEach((observer) => {
-          observer.unobserve(currentNode);
-        });
-        videoNodeByKeyRef.current.delete(nodeKey);
-      }
-      if (!node) {
-        const detachTimeout = videoDetachTimeoutByKeyRef.current.get(nodeKey);
-        if (detachTimeout) {
-          window.clearTimeout(detachTimeout);
-          videoDetachTimeoutByKeyRef.current.delete(nodeKey);
-        }
-        videoNodeByKeyRef.current.delete(nodeKey);
-        videoOutputIdByKeyRef.current.delete(nodeKey);
-        if (videoVisibleKeySetRef.current.delete(nodeKey)) {
-          recomputeAutoplayBudget();
-        }
-        return;
-      }
-      const surface = resolveVideoSurfaceFromNodeKey(nodeKey);
-      node.dataset.outputId = outputId;
-      node.dataset.outputKey = nodeKey;
-      node.dataset.referenceSurface = surface;
-      videoNodeByKeyRef.current.set(nodeKey, node);
-      videoOutputIdByKeyRef.current.set(nodeKey, outputId);
-      videoIntersectionObserverBySurfaceRef.current.get(surface)?.observe(node);
-    },
-    [recomputeAutoplayBudget, resolveVideoSurfaceFromNodeKey]
-  );
-
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const nav = navigator as NavigatorWithConnection;
@@ -1650,139 +1612,25 @@ export function ReferenceCanvas({
     };
   }, [runNonUrgentUpdate]);
 
-  React.useEffect(() => {
-    const validOutputIdSet = new Set(outputs.map((output) => output.id));
-    let removedAny = false;
-    videoOutputIdByKeyRef.current.forEach((outputId, nodeKey) => {
-      if (validOutputIdSet.has(outputId)) return;
-      if (videoVisibleKeySetRef.current.delete(nodeKey)) {
-        removedAny = true;
-      }
-      const timeoutId = videoDetachTimeoutByKeyRef.current.get(nodeKey);
-      if (timeoutId != null) {
-        window.clearTimeout(timeoutId);
-      }
-      videoDetachTimeoutByKeyRef.current.delete(nodeKey);
-      const node = videoNodeByKeyRef.current.get(nodeKey);
-      if (node) {
-        videoIntersectionObserverBySurfaceRef.current.forEach((observer) =>
-          observer.unobserve(node)
-        );
-      }
-      videoNodeByKeyRef.current.delete(nodeKey);
-      videoOutputIdByKeyRef.current.delete(nodeKey);
-    });
-    videoDetachTimeoutByKeyRef.current.forEach((timeoutId, nodeKey) => {
-      if (videoOutputIdByKeyRef.current.has(nodeKey)) return;
-      window.clearTimeout(timeoutId);
-      videoDetachTimeoutByKeyRef.current.delete(nodeKey);
-    });
-    if (removedAny) {
-      recomputeAutoplayBudget();
-    }
-  }, [outputs, recomputeAutoplayBudget]);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const allRefsRoot = scrollContainerRef.current;
-    if (!allRefsRoot) return;
-    const observerBySurface = new Map<"all-refs" | "curated", IntersectionObserver>();
-    const createObserver = (root: Element | null) =>
-      new IntersectionObserver(
-        (entries) => {
-          let changed = false;
-          entries.forEach((entry) => {
-            const nodeKey = (entry.target as HTMLElement).dataset.outputKey;
-            if (!nodeKey) return;
-            const isVisible =
-              entry.isIntersecting &&
-              entry.intersectionRatio >= REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD;
-            if (isVisible) {
-              if (!videoVisibleKeySetRef.current.has(nodeKey)) {
-                videoVisibleKeySetRef.current.add(nodeKey);
-                changed = true;
-              }
-              return;
-            }
-            if (videoVisibleKeySetRef.current.delete(nodeKey)) {
-              changed = true;
-            }
-          });
-          if (changed) {
-            recomputeAutoplayBudget();
-          }
-        },
-        {
-          root,
-          threshold: [0, REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD, 1],
-        }
-      );
-    const allRefsObserver = createObserver(allRefsRoot);
-    observerBySurface.set("all-refs", allRefsObserver);
-    if (isCuratedSplitEnabled && curatedScrollContainerRef.current) {
-      observerBySurface.set("curated", createObserver(curatedScrollContainerRef.current));
-    }
-    videoIntersectionObserverBySurfaceRef.current = observerBySurface;
-    videoNodeByKeyRef.current.forEach((node, nodeKey) => {
-      const surface = resolveVideoSurfaceFromNodeKey(nodeKey);
-      observerBySurface.get(surface)?.observe(node);
-    });
-    return () => {
-      observerBySurface.forEach((observer) => observer.disconnect());
-      videoIntersectionObserverBySurfaceRef.current.clear();
-    };
-  }, [isCuratedSplitEnabled, recomputeAutoplayBudget, resolveVideoSurfaceFromNodeKey]);
-
-  React.useEffect(() => {
-    const validOutputIds = shouldVirtualize
-      ? renderedOutputIdSet
-      : new Set(outputs.map((output) => output.id));
-    autoplayingIdsRef.current.forEach((id) => {
-      if (!validOutputIds.has(id)) {
-        autoplayingIdsRef.current.delete(id);
-      }
-    });
-  }, [outputs, renderedOutputIdSet, shouldVirtualize]);
-
-  React.useEffect(() => {
-    const enabledSet = new Set(autoplayEnabledIds);
-    videoNodeByKeyRef.current.forEach((node, nodeKey) => {
-      const outputId = videoOutputIdByKeyRef.current.get(nodeKey);
-      if (!outputId) return;
-      if (enabledSet.has(outputId)) {
-        const detachTimeout = videoDetachTimeoutByKeyRef.current.get(nodeKey);
-        if (detachTimeout) {
-          window.clearTimeout(detachTimeout);
-          videoDetachTimeoutByKeyRef.current.delete(nodeKey);
-        }
-        return;
-      }
-      node.pause();
-      if (videoDetachTimeoutByKeyRef.current.has(nodeKey)) return;
-      const timeoutId = window.setTimeout(() => {
-        const currentOutputId = videoOutputIdByKeyRef.current.get(nodeKey);
-        if (currentOutputId && autoplayEnabledIdSet.has(currentOutputId)) return;
-        node.pause();
-        node.removeAttribute("src");
-        node.load();
-        if (currentOutputId) {
-          autoplayingIdsRef.current.delete(currentOutputId);
-        }
-        videoDetachTimeoutByKeyRef.current.delete(nodeKey);
-      }, REFERENCE_AUTOPLAY_DETACH_DELAY_MS);
-      videoDetachTimeoutByKeyRef.current.set(nodeKey, timeoutId);
-    });
-  }, [autoplayEnabledIdSet, autoplayEnabledIds]);
-
-  React.useEffect(() => {
-    const detachTimeoutById = videoDetachTimeoutByKeyRef.current;
-    return () => {
-      detachTimeoutById.forEach((timeoutId) => {
-        window.clearTimeout(timeoutId);
-      });
-      detachTimeoutById.clear();
-    };
-  }, []);
+  const { registerVideoNode } = useReferenceGridVideoLifecycleController({
+    outputs,
+    shouldVirtualize,
+    renderedOutputIdSet,
+    autoplayEnabledIds,
+    autoplayEnabledIdSet,
+    isCuratedSplitEnabled,
+    scrollContainerRef,
+    curatedScrollContainerRef,
+    autoplayingIdsRef,
+    videoVisibleKeySetRef,
+    videoOutputIdByKeyRef,
+    videoNodeByKeyRef,
+    videoDetachTimeoutByKeyRef,
+    videoIntersectionObserverBySurfaceRef,
+    autoplayDetachDelayMs: REFERENCE_AUTOPLAY_DETACH_DELAY_MS,
+    autoplayVisibilityThreshold: REFERENCE_AUTOPLAY_VISIBILITY_THRESHOLD,
+    recomputeAutoplayBudget,
+  });
 
   React.useEffect(
     () => () => {

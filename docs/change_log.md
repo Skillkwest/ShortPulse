@@ -1035,5 +1035,6 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - added shared helper tests in `frontend/features/media-library/logic/__tests__/mediaPreviewRuntimeShared.test.ts`.
 - Closed Phase 4 media runtime unification:
   - marked phase checklist + exit validation complete and resolved runtime parity blocker (`RG-DEP-03`) in `docs/planning/ai-studio-reference-grid-modularization-tracker.md`.
+  - aligned tracker risk state by marking modal/route runtime divergence (`Risk #4`) as `Mitigated`.
   - added closeout evidence artifact:
     - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-runtime-unification-closeout.md`

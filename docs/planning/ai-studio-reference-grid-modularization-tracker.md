@@ -118,7 +118,7 @@ Exit validation:
 | 1 | Hidden regression in legacy-to-domain bridge | Open | parity test diffs | Frontend | 2026-02-23 |
 | 2 | Ingestion inconsistency across entry points | Open | matrix test failures | Frontend | 2026-02-23 |
 | 3 | Curated semantics drift | Open | curated flow failures | Frontend | 2026-02-23 |
-| 4 | Modal/route runtime divergence | Open | media parity failures | Frontend + Media | 2026-02-23 |
+| 4 | Modal/route runtime divergence | Mitigated | media parity failures | Frontend + Media | 2026-02-23 |
 | 5 | Guardrails enforce too early | Open | CI failures before decomposition | DevEx | 2026-02-23 |
 
 ## Evidence Links

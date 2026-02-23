@@ -5,7 +5,7 @@ import {
   resetAiStudioOutputStore,
   setAiStudioOutputStoreSnapshot,
 } from "../../hooks/aiStudioOutputStore";
-import { ReferenceCanvas, type ReferenceCanvasProps } from "../ReferenceCanvas";
+import { ReferenceGrid, type ReferenceGridProps } from "../ReferenceGrid";
 
 class MockResizeObserver {
   observe() {
@@ -35,7 +35,7 @@ class MockIntersectionObserver {
   }
 }
 
-const baseProps: ReferenceCanvasProps = {
+const baseProps: ReferenceGridProps = {
   activeOutputId: null,
   onSelectOutput: () => undefined,
   onOpenDetails: () => undefined,
@@ -56,7 +56,7 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
   ...overrides,
 });
 
-describe("ReferenceCanvas selector-store bridge", () => {
+describe("ReferenceGrid selector-store bridge", () => {
   beforeEach(() => {
     resetAiStudioOutputStore();
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
@@ -83,7 +83,7 @@ describe("ReferenceCanvas selector-store bridge", () => {
   });
 
   it("renders prompt reference cards from selector snapshot when outputs prop is omitted", () => {
-    render(<ReferenceCanvas {...baseProps} />);
+    render(<ReferenceGrid {...baseProps} />);
 
     act(() => {
       setAiStudioOutputStoreSnapshot({
@@ -100,7 +100,7 @@ describe("ReferenceCanvas selector-store bridge", () => {
   });
 
   it("shows loading visual for pending selector snapshot entries", () => {
-    const { container } = render(<ReferenceCanvas {...baseProps} />);
+    const { container } = render(<ReferenceGrid {...baseProps} />);
 
     act(() => {
       setAiStudioOutputStoreSnapshot({

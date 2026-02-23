@@ -1,10 +1,10 @@
 /**
- * Clipboard paste behavior tests for ReferenceCanvas.
+ * Clipboard paste behavior tests for ReferenceGrid.
  * Verifies pasted media files and plain text are converted into reference-grid actions.
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ReferenceCanvas, type ReferenceCanvasProps } from "../ReferenceCanvas";
+import { ReferenceGrid, type ReferenceGridProps } from "../ReferenceGrid";
 
 class MockResizeObserver {
   observe() {
@@ -41,7 +41,7 @@ const makeFileList = (files: File[]): FileList =>
     item: (index: number) => files[index] ?? null,
   }) as unknown as FileList;
 
-const baseProps: ReferenceCanvasProps = {
+const baseProps: ReferenceGridProps = {
   outputs: [],
   activeOutputId: null,
   onSelectOutput: () => undefined,
@@ -49,7 +49,7 @@ const baseProps: ReferenceCanvasProps = {
   selectedTool: "create",
 };
 
-describe("ReferenceCanvas paste handling", () => {
+describe("ReferenceGrid paste handling", () => {
   beforeEach(() => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
@@ -86,7 +86,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -124,7 +124,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -155,7 +155,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -183,7 +183,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -207,7 +207,7 @@ describe("ReferenceCanvas paste handling", () => {
       getData: vi.fn(() => ""),
     } as unknown as DataTransfer;
 
-    const { container } = render(<ReferenceCanvas {...baseProps} />);
+    const { container } = render(<ReferenceGrid {...baseProps} />);
     const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
     expect(panel).toBeTruthy();
 
@@ -229,7 +229,7 @@ describe("ReferenceCanvas paste handling", () => {
       getData: vi.fn(() => ""),
     } as unknown as DataTransfer;
 
-    const { container } = render(<ReferenceCanvas {...baseProps} />);
+    const { container } = render(<ReferenceGrid {...baseProps} />);
     const panel = container.querySelector(".reference-canvas-panel") as HTMLElement;
     expect(panel).toBeTruthy();
 
@@ -252,7 +252,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -291,7 +291,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -323,7 +323,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -351,7 +351,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -380,7 +380,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -408,7 +408,7 @@ describe("ReferenceCanvas paste handling", () => {
     render(
       <>
         <textarea data-testid="outside-editor" />
-        <ReferenceCanvas
+        <ReferenceGrid
           {...baseProps}
           onDropFiles={onDropFiles}
           onPasteTextReference={onPasteTextReference}
@@ -437,7 +437,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -470,7 +470,7 @@ describe("ReferenceCanvas paste handling", () => {
         <div className="ai-preview-column reference-column">
           <div className="reference-column-sticky">
             <div data-testid="surface-empty-zone" style={{ minHeight: "48px" }} />
-            <ReferenceCanvas
+            <ReferenceGrid
               {...baseProps}
               onDropFiles={onDropFiles}
               onPasteTextReference={onPasteTextReference}
@@ -503,7 +503,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -539,7 +539,7 @@ describe("ReferenceCanvas paste handling", () => {
     } as unknown as DataTransfer;
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         onDropFiles={onDropFiles}
         onPasteTextReference={onPasteTextReference}
@@ -559,7 +559,7 @@ describe("ReferenceCanvas paste handling", () => {
 
   it("does not render a billing guidance note for prompt-reference generation", () => {
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...baseProps}
         activeOutputId="prompt-ref-1"
         outputs={[

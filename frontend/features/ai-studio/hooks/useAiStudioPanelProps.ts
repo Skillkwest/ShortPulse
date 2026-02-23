@@ -251,8 +251,13 @@ export const useAiStudioPanelProps = ({
   handleRegenerateWithDebit,
 }: UseAiStudioPanelPropsParams): Pick<
   AiStudioPageContentProps,
-  "propertiesText" | "propertiesImage" | "propertiesVideo"
-> => {
+  "propertiesCreate" | "propertiesImage" | "propertiesVideo"
+> & {
+  /**
+   * @deprecated Use `propertiesCreate`.
+   */
+  propertiesText: AiStudioPageContentProps["propertiesCreate"];
+} => {
   const isDevBuild = process.env.NODE_ENV === "development";
   const explicitExpertCreateUiFlag = process.env.NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI;
   const normalizedExpertCreateUiFlag = explicitExpertCreateUiFlag?.trim().toLowerCase();
@@ -286,7 +291,7 @@ export const useAiStudioPanelProps = ({
     [setKlingVoiceIds]
   );
 
-  const propertiesText = useAiStudioCreatePanelProps({
+  const propertiesCreate = useAiStudioCreatePanelProps({
     mode,
     aspect,
     model,
@@ -437,7 +442,9 @@ export const useAiStudioPanelProps = ({
   });
 
   return {
-    propertiesText,
+    propertiesCreate,
+    // Temporary alias while downstream callsites are migrated.
+    propertiesText: propertiesCreate,
     propertiesImage,
     propertiesVideo,
   };

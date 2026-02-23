@@ -150,11 +150,11 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesText.isPromptGenerating).toBe(true);
-    expect(result.current.propertiesText.isGenerateDisabled).toBe(true);
-    expect(result.current.propertiesText.outputGenerateCostCredits).toBe(25);
-    expect(result.current.propertiesText.hasSufficientCreditsForOutputGenerate).toBe(true);
-    expect(typeof result.current.propertiesText.onGenerateFromAgentOutputPrompt).toBe("function");
+    expect(result.current.propertiesCreate.isPromptGenerating).toBe(true);
+    expect(result.current.propertiesCreate.isGenerateDisabled).toBe(true);
+    expect(result.current.propertiesCreate.outputGenerateCostCredits).toBe(25);
+    expect(result.current.propertiesCreate.hasSufficientCreditsForOutputGenerate).toBe(true);
+    expect(typeof result.current.propertiesCreate.onGenerateFromAgentOutputPrompt).toBe("function");
   });
 
   it("does not disable generate controls when only agent send is busy", () => {
@@ -171,8 +171,8 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesText.agentIsSending).toBe(true);
-    expect(result.current.propertiesText.isGenerateDisabled).toBe(false);
+    expect(result.current.propertiesCreate.agentIsSending).toBe(true);
+    expect(result.current.propertiesCreate.isGenerateDisabled).toBe(false);
     expect(result.current.propertiesImage.isGenerateDisabled).toBe(false);
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
   });
@@ -243,7 +243,7 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesText.expertCreateUiEligible).toBe(true);
+    expect(result.current.propertiesCreate.expertCreateUiEligible).toBe(true);
   });
 
   it("allows explicit env override to disable expert create UI in development", () => {
@@ -257,7 +257,7 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesText.expertCreateUiEligible).toBe(false);
+    expect(result.current.propertiesCreate.expertCreateUiEligible).toBe(false);
   });
 
   it("allows explicit env override to enable expert create UI in production", () => {
@@ -271,7 +271,7 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesText.expertCreateUiEligible).toBe(true);
+    expect(result.current.propertiesCreate.expertCreateUiEligible).toBe(true);
   });
 
   it("disables expert create UI in production builds and while beginner mode is on", () => {
@@ -283,7 +283,7 @@ describe("useAiStudioPanelProps", () => {
         })
       )
     );
-    expect(productionResult.current.propertiesText.expertCreateUiEligible).toBe(false);
+    expect(productionResult.current.propertiesCreate.expertCreateUiEligible).toBe(false);
 
     vi.stubEnv("NODE_ENV", "development");
     const { result: beginnerResult } = renderHook(() =>
@@ -293,6 +293,6 @@ describe("useAiStudioPanelProps", () => {
         })
       )
     );
-    expect(beginnerResult.current.propertiesText.expertCreateUiEligible).toBe(false);
+    expect(beginnerResult.current.propertiesCreate.expertCreateUiEligible).toBe(false);
   });
 });

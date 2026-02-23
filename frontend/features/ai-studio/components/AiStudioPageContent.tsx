@@ -403,7 +403,7 @@ export type AiStudioPageContentProps = {
   /**
    * @deprecated Use `referenceGridFileInputRef`.
    */
-  referenceCanvasFileInputRef: React.RefObject<HTMLInputElement>;
+  referenceCanvasFileInputRef?: React.RefObject<HTMLInputElement>;
   onFileBrowserSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
   uiError: string | null;
   uiNotice: string | null;
@@ -427,7 +427,7 @@ export type AiStudioPageContentProps = {
   /**
    * @deprecated Use `propertiesCreate`.
    */
-  propertiesText: CreateSectionProps;
+  propertiesText?: CreateSectionProps;
   propertiesImage: EditSectionProps;
   propertiesVideo: VideoSectionProps;
   isTemplateView: boolean;
@@ -435,7 +435,7 @@ export type AiStudioPageContentProps = {
   /**
    * @deprecated Use `referenceGridProps`.
    */
-  referenceCanvasProps: ReferenceGridProps;
+  referenceCanvasProps?: ReferenceGridProps;
   studioPreviewProps: React.ComponentProps<typeof StudioPreview>;
   detailModalOutput: StudioOutput | null;
   onDetailClose: () => void;
@@ -458,7 +458,7 @@ export type AiStudioPageContentProps = {
   /**
    * @deprecated Use `handleReferenceGridFiles`.
    */
-  handleReferenceCanvasFiles: (files: FileList) => void;
+  handleReferenceCanvasFiles?: (files: FileList) => void;
   triggerFilePicker: () => void;
 };
 

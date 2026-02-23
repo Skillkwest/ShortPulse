@@ -1,10 +1,10 @@
 /**
- * Curated split-grid interaction tests for ReferenceCanvas.
+ * Curated split-grid interaction tests for ReferenceGrid.
  * Validates add/dedupe/reorder/remove behavior and curated drop rejection rules.
  */
 import { act, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ReferenceCanvas, type ReferenceCanvasProps } from "../ReferenceCanvas";
+import { ReferenceGrid, type ReferenceGridProps } from "../ReferenceGrid";
 import type { StudioOutput } from "../../types";
 
 class MockResizeObserver {
@@ -61,7 +61,7 @@ const makeTransfer = (data: Record<string, string>): DataTransfer =>
     getData: (type: string) => data[type] ?? "",
   }) as unknown as DataTransfer;
 
-const createProps = (overrides: Partial<ReferenceCanvasProps> = {}): ReferenceCanvasProps => ({
+const createProps = (overrides: Partial<ReferenceGridProps> = {}): ReferenceGridProps => ({
   outputs,
   activeOutputId: "out-1",
   selectedTool: "image",
@@ -75,7 +75,7 @@ const createProps = (overrides: Partial<ReferenceCanvasProps> = {}): ReferenceCa
   ...overrides,
 });
 
-describe("ReferenceCanvas curated split", () => {
+describe("ReferenceGrid curated split", () => {
   beforeEach(() => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
@@ -122,7 +122,7 @@ describe("ReferenceCanvas curated split", () => {
       taskState: "running",
     };
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [pendingOutput],
           activeOutputId: pendingOutput.id,
@@ -153,7 +153,7 @@ describe("ReferenceCanvas curated split", () => {
       previewUrl: "https://example.com/imported.png",
     };
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [importedOutput],
           activeOutputId: importedOutput.id,
@@ -183,7 +183,7 @@ describe("ReferenceCanvas curated split", () => {
     });
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: pendingOutputs,
           activeOutputId: pendingOutputs[0]?.id ?? null,
@@ -219,7 +219,7 @@ describe("ReferenceCanvas curated split", () => {
       };
     });
     const { container, rerender } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: pendingOutputs,
           activeOutputId: pendingOutputs[0]?.id ?? null,
@@ -232,7 +232,7 @@ describe("ReferenceCanvas curated split", () => {
     const resolvedOldestOutputs = pendingOutputs.slice(0, pendingOutputs.length - 1);
 
     rerender(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: resolvedOldestOutputs,
           activeOutputId: resolvedOldestOutputs[0]?.id ?? null,
@@ -288,7 +288,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [generatedOutput],
           activeOutputId: generatedOutput.id,
@@ -387,7 +387,7 @@ describe("ReferenceCanvas curated split", () => {
       };
 
       const rendered = render(
-        <ReferenceCanvas
+        <ReferenceGrid
           {...createProps({
             outputs: [uploadedOutput],
             activeOutputId: uploadedOutput.id,
@@ -438,7 +438,7 @@ describe("ReferenceCanvas curated split", () => {
     const onAddCuratedReference = vi.fn();
     const onSelectOutput = vi.fn();
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           onAddCuratedReference,
           onSelectOutput,
@@ -463,7 +463,7 @@ describe("ReferenceCanvas curated split", () => {
     const onAddCuratedReference = vi.fn();
     const onSelectOutput = vi.fn();
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           curatedReferenceIds: ["out-2"],
           onAddCuratedReference,
@@ -488,7 +488,7 @@ describe("ReferenceCanvas curated split", () => {
   it("reorders curated refs on internal curated drops", () => {
     const onReorderCuratedReference = vi.fn();
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           curatedReferenceIds: ["out-1", "out-2"],
           onReorderCuratedReference,
@@ -528,7 +528,7 @@ describe("ReferenceCanvas curated split", () => {
     const onReorderCuratedReference = vi.fn();
     const onSelectOutput = vi.fn();
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           curatedReferenceIds: ["out-1", "out-2"],
           onReorderCuratedReference,
@@ -557,7 +557,7 @@ describe("ReferenceCanvas curated split", () => {
   it("removes curated items with the explicit action button", () => {
     const onRemoveCuratedReference = vi.fn();
     const { getByLabelText } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           curatedReferenceIds: ["out-1"],
           onRemoveCuratedReference,
@@ -572,7 +572,7 @@ describe("ReferenceCanvas curated split", () => {
 
   it("shows only the curated remove action in quick slot card actions", () => {
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           curatedReferenceIds: ["out-1"],
           onSaveToLibrary: vi.fn(),
@@ -596,7 +596,7 @@ describe("ReferenceCanvas curated split", () => {
     const onReorderCuratedReference = vi.fn();
     const onPasteTextReference = vi.fn();
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           onAddCuratedReference,
           onReorderCuratedReference,
@@ -642,7 +642,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [hiddenCurated, visibleAllRefs],
           curatedReferenceIds: [hiddenCurated.id],
@@ -685,7 +685,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [suppressedCurated, visibleAllRefs],
           curatedReferenceIds: [suppressedCurated.id],
@@ -721,7 +721,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { getByLabelText } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [generatedImage],
           activeOutputId: generatedImage.id,
@@ -748,7 +748,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { getByLabelText } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [promptReference],
           activeOutputId: promptReference.id,
@@ -776,7 +776,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { getByLabelText, queryByLabelText } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [savedPromptReference],
           activeOutputId: savedPromptReference.id,
@@ -804,7 +804,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { getByLabelText } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [uploadedImage],
           activeOutputId: uploadedImage.id,
@@ -832,7 +832,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { queryByLabelText, getByLabelText } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [savedUploadedImage],
           activeOutputId: savedUploadedImage.id,
@@ -860,7 +860,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { queryByLabelText } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [generatedVideo],
           activeOutputId: generatedVideo.id,
@@ -887,7 +887,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { getByLabelText } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [uploadedVideo],
           activeOutputId: uploadedVideo.id,
@@ -914,7 +914,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { container } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [uploadedImageWithVideoLikePath],
           activeOutputId: uploadedImageWithVideoLikePath.id,
@@ -942,7 +942,7 @@ describe("ReferenceCanvas curated split", () => {
     };
 
     const { getByLabelText, queryByLabelText } = render(
-      <ReferenceCanvas
+      <ReferenceGrid
         {...createProps({
           outputs: [savedUploadedVideo],
           activeOutputId: savedUploadedVideo.id,
@@ -956,7 +956,7 @@ describe("ReferenceCanvas curated split", () => {
   });
 
   it("snaps split toward inventory when clicking the divider pill", () => {
-    const { container, getByRole, getByText } = render(<ReferenceCanvas {...createProps()} />);
+    const { container, getByRole, getByText } = render(<ReferenceGrid {...createProps()} />);
     const divider = getByRole("separator", {
       name: "Resize Quick Slot Inventory and Reference Grid sections",
     });
@@ -990,7 +990,7 @@ describe("ReferenceCanvas curated split", () => {
   });
 
   it("snaps split toward all refs when clicking the all-refs divider pill", () => {
-    const { container, getByRole, getByText } = render(<ReferenceCanvas {...createProps()} />);
+    const { container, getByRole, getByText } = render(<ReferenceGrid {...createProps()} />);
     const divider = getByRole("separator", {
       name: "Resize Quick Slot Inventory and Reference Grid sections",
     });
@@ -1030,7 +1030,7 @@ describe("ReferenceCanvas curated split", () => {
   });
 
   it("collapses quick slots when resizing to the top bound", () => {
-    const { container, getByRole } = render(<ReferenceCanvas {...createProps()} />);
+    const { container, getByRole } = render(<ReferenceGrid {...createProps()} />);
     const divider = getByRole("separator", {
       name: "Resize Quick Slot Inventory and Reference Grid sections",
     });

@@ -1281,7 +1281,7 @@ export default function AiStudioPage() {
       setUiError,
     });
 
-  const { propertiesText, propertiesImage, propertiesVideo } = useAiStudioPanelProps({
+  const { propertiesCreate, propertiesImage, propertiesVideo } = useAiStudioPanelProps({
     mode,
     aspect,
     model,
@@ -1454,7 +1454,6 @@ export default function AiStudioPage() {
       </Head>
       <AiStudioPageContent
         referenceGridFileInputRef={referenceGridFileInputRef}
-        referenceCanvasFileInputRef={referenceGridFileInputRef}
         onFileBrowserSelection={handleFileBrowserSelection}
         uiError={uiError}
         uiNotice={effectiveUiNotice}
@@ -1474,13 +1473,11 @@ export default function AiStudioPage() {
         showCreateTools={showCreateTools}
         onSelectTool={handleToolSelect}
         onToggleCreateTools={setShowCreateTools}
-        propertiesCreate={propertiesText}
-        propertiesText={propertiesText}
+        propertiesCreate={propertiesCreate}
         propertiesImage={propertiesImage}
         propertiesVideo={propertiesVideo}
         isTemplateView={isTemplateView}
         referenceGridProps={referenceGridProps}
-        referenceCanvasProps={referenceGridProps}
         studioPreviewProps={studioPreviewProps}
         detailModalOutput={detailModalOutput}
         onDetailClose={onDetailClose}
@@ -1526,7 +1523,6 @@ export default function AiStudioPage() {
           disableOutputGenerate: disableAgentOutputGenerate,
         }}
         handleReferenceGridFiles={handleReferenceGridFiles}
-        handleReferenceCanvasFiles={handleReferenceGridFiles}
         triggerFilePicker={triggerFilePicker}
       />
       <MediaLibraryModal

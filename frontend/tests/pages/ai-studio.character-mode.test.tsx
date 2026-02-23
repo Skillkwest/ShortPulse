@@ -177,7 +177,7 @@ vi.mock("next/head", () => ({
 
 vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
   AiStudioPageContent: (props: {
-    propertiesText: {
+    propertiesCreate: {
       onGenerate: () => void;
       onSelectedCharacterIdChange?: (value: string) => void;
       onCharacterModeEnabledChange?: (value: boolean) => void;
@@ -186,13 +186,13 @@ vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
     pendingHoldCredits?: number | null;
   }) => {
     aiStudioPageContentCapture.lastProps = props;
-    const { propertiesText } = props;
+    const { propertiesCreate } = props;
     return (
       <div>
         <button
           type="button"
           onClick={() => {
-            propertiesText.onCharacterModeEnabledChange?.(true);
+            propertiesCreate.onCharacterModeEnabledChange?.(true);
           }}
         >
           enable-character-mode
@@ -200,12 +200,12 @@ vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
         <button
           type="button"
           onClick={() => {
-            propertiesText.onSelectedCharacterIdChange?.("char-1");
+            propertiesCreate.onSelectedCharacterIdChange?.("char-1");
           }}
         >
           select-character
         </button>
-        <button type="button" onClick={() => propertiesText.onGenerate()}>
+        <button type="button" onClick={() => propertiesCreate.onGenerate()}>
           generate
         </button>
       </div>

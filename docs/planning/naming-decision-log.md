@@ -50,6 +50,17 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-internal-drop-mode-slice-b.md`
 - Next allowed action: continue Phase 4 bounded slices.
 
+## 2026-02-23: Stop-Point 4 (Callsite migration slice C)
+- Phase/Stop point: Phase 4 slice C completion
+- Decision: approved canonical runtime prop callsites (`propertiesCreate`, `referenceGrid*`) and canonical panel/grid symbol usage in active AI Studio tests while preserving deprecated aliases.
+- Preconditions reviewed:
+  - targeted suites pass for touched modules
+  - `validate` and `test:adaptive-v2-gate` pass
+  - perf release check remains blocked by missing `PLAYWRIGHT_AUDIT_EMAIL`
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-canonical-props-and-tests-slice-c.md`
+- Next allowed action: continue Phase 4 bounded slices focused on remaining legacy file/symbol families before Phase 5 path renames.
+
 ## Stop-Point Approval Template
 - Date:
 - Phase/Stop point:

@@ -150,7 +150,7 @@ export const useAiStudioCreatePanelProps = ({
   setImageResolution,
   beginnerMode,
   expertCreateUiEligible,
-}: UseAiStudioCreatePanelPropsParams): AiStudioPageContentProps["propertiesText"] =>
+}: UseAiStudioCreatePanelPropsParams): AiStudioPageContentProps["propertiesCreate"] =>
   useMemo(
     () => ({
       mode,

@@ -24,8 +24,9 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 2026-02-23 | Phase 3 bridge layer aliases | completed | Canonical export/type/hook aliases and shims | pass | Evidence: `phase-3/2026-02-23-phase-3-bridge-layer-expand.md` |
 | 2026-02-23 | Phase 4 runtime callsite migration slice A | completed | Runtime imports and prop keys | pass (perf blocked) | Evidence: `phase-4/2026-02-23-phase-4-callsite-migration-runtime-slice-a.md` |
 | 2026-02-23 | Phase 4 internal type migration slice B | completed | Reference-grid drop-mode type symbol migration | pass | Evidence: `phase-4/2026-02-23-phase-4-callsite-migration-internal-drop-mode-slice-b.md` |
+| 2026-02-23 | Phase 4 canonical props/tests migration slice C | completed | Canonical page callsites and panel/grid test symbols | pass (perf blocked) | Evidence: `phase-4/2026-02-23-phase-4-callsite-migration-canonical-props-and-tests-slice-c.md` |
 
 ## Active Risks
 1. Perf-release gate cannot execute without Playwright audit credentials in environment.
-2. Residual `ReferenceCanvas*` symbol families remain in lower-level reference-grid internal modules.
+2. Residual legacy symbol families remain in compatibility aliases, file paths, and some test/file naming (`ReferenceCanvas*`, `TextPropertiesPanel*`).
 3. File/path rename phase can silently break imports without explicit shim coverage.

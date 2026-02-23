@@ -1,11 +1,11 @@
 /**
- * TextPropertiesPanel rendering tests.
+ * CreatePropertiesPanel rendering tests.
  * Verifies Create workflow controls that should stay visible in Character Mode.
  */
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ComposeSendCard, TextPropertiesPanel } from "../TextPropertiesPanel";
+import { ComposeSendCard, CreatePropertiesPanel } from "../CreatePropertiesPanel";
 
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => {
@@ -16,8 +16,8 @@ vi.mock("next/image", () => ({
   },
 }));
 
-describe("TextPropertiesPanel", () => {
-  const baseProps: React.ComponentProps<typeof TextPropertiesPanel> = {
+describe("CreatePropertiesPanel", () => {
+  const baseProps: React.ComponentProps<typeof CreatePropertiesPanel> = {
     mode: "image",
     aspect: "9:16",
     modelId: "fal-ai/bytedance/seedream/v4.5/edit",
@@ -36,8 +36,9 @@ describe("TextPropertiesPanel", () => {
     onSavePrompt: vi.fn(),
   };
 
-  const renderPanel = (overrides: Partial<React.ComponentProps<typeof TextPropertiesPanel>> = {}) =>
-    render(<TextPropertiesPanel {...baseProps} {...overrides} />);
+  const renderPanel = (
+    overrides: Partial<React.ComponentProps<typeof CreatePropertiesPanel>> = {}
+  ) => render(<CreatePropertiesPanel {...baseProps} {...overrides} />);
 
   it("shows image resolution controls in character mode for Seedream edit", () => {
     renderPanel({
@@ -106,7 +107,7 @@ describe("TextPropertiesPanel", () => {
     });
     expect(screen.getByRole("group", { name: "Expert create composer" })).toBeInTheDocument();
 
-    rerender(<TextPropertiesPanel {...baseProps} beginnerMode expertCreateUiEligible />);
+    rerender(<CreatePropertiesPanel {...baseProps} beginnerMode expertCreateUiEligible />);
     expect(screen.queryByRole("group", { name: "Expert create composer" })).not.toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Character mode section" })).toBeInTheDocument();
   });
@@ -121,7 +122,7 @@ describe("TextPropertiesPanel", () => {
     expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
 
     rerender(
-      <TextPropertiesPanel
+      <CreatePropertiesPanel
         {...baseProps}
         beginnerMode={false}
         expertCreateUiEligible
@@ -209,11 +210,11 @@ describe("TextPropertiesPanel", () => {
   it("routes both expert generate buttons to the same handler and mirrors disabled state", () => {
     const onGenerate = vi.fn();
     const renderExpertWithComposeCard = (
-      overrides: Partial<React.ComponentProps<typeof TextPropertiesPanel>> = {}
+      overrides: Partial<React.ComponentProps<typeof CreatePropertiesPanel>> = {}
     ) =>
       render(
         <>
-          <TextPropertiesPanel
+          <CreatePropertiesPanel
             {...baseProps}
             beginnerMode={false}
             expertCreateUiEligible
@@ -242,7 +243,7 @@ describe("TextPropertiesPanel", () => {
 
     rerender(
       <>
-        <TextPropertiesPanel
+        <CreatePropertiesPanel
           {...baseProps}
           beginnerMode={false}
           expertCreateUiEligible
@@ -318,7 +319,7 @@ describe("TextPropertiesPanel", () => {
     expect(screen.getByRole("dialog", { name: "Choose character" })).toBeInTheDocument();
 
     rerender(
-      <TextPropertiesPanel
+      <CreatePropertiesPanel
         {...baseProps}
         beginnerMode={false}
         expertCreateUiEligible
@@ -330,7 +331,7 @@ describe("TextPropertiesPanel", () => {
     expect(screen.queryByRole("dialog", { name: "Choose character" })).not.toBeInTheDocument();
 
     rerender(
-      <TextPropertiesPanel
+      <CreatePropertiesPanel
         {...baseProps}
         beginnerMode={false}
         expertCreateUiEligible

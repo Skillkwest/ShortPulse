@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import type { AiStudioPageContentProps } from "../components/AiStudioPageContent";
 import type { StudioOutput, ToolId } from "../types";
 
-type UseAiStudioReferenceCanvasPropsParams = {
+export type UseAiStudioReferenceGridPropsParams = {
   outputs?: StudioOutput[];
   archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
@@ -40,9 +40,14 @@ type UseAiStudioReferenceCanvasPropsParams = {
 };
 
 /**
+ * @deprecated Use `UseAiStudioReferenceGridPropsParams`.
+ */
+export type UseAiStudioReferenceCanvasPropsParams = UseAiStudioReferenceGridPropsParams;
+
+/**
  * Returns the reference-canvas props consumed by `AiStudioPageContent`.
  */
-export const useAiStudioReferenceCanvasProps = ({
+export const useAiStudioReferenceGridProps = ({
   outputs,
   archivedOutputs = [],
   activeOutputId,
@@ -69,7 +74,7 @@ export const useAiStudioReferenceCanvasProps = ({
   restoreAllArchivedOutputs,
   currentCostCredits,
   selectedTool,
-}: UseAiStudioReferenceCanvasPropsParams): AiStudioPageContentProps["referenceCanvasProps"] =>
+}: UseAiStudioReferenceGridPropsParams): AiStudioPageContentProps["referenceGridProps"] =>
   useMemo(
     () => ({
       outputs,
@@ -129,3 +134,8 @@ export const useAiStudioReferenceCanvasProps = ({
       showReferencePromptGenerate,
     ]
   );
+
+/**
+ * @deprecated Use `useAiStudioReferenceGridProps`.
+ */
+export const useAiStudioReferenceCanvasProps = useAiStudioReferenceGridProps;

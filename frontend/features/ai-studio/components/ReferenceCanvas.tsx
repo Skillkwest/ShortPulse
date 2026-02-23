@@ -37,7 +37,7 @@ import { ReferenceCanvasSections } from "../reference-grid/components/ReferenceC
 import { useReferenceGridClipboardController } from "../reference-grid/controllers/useReferenceGridClipboardController";
 import {
   useReferenceGridCanvasDropController,
-  type ReferenceCanvasDropMode,
+  type ReferenceGridDropMode,
 } from "../reference-grid/controllers/useReferenceGridCanvasDropController";
 import { useReferenceGridCuratedDndController } from "../reference-grid/controllers/useReferenceGridCuratedDndController";
 import { useReferenceGridScrollController } from "../reference-grid/controllers/useReferenceGridScrollController";
@@ -119,7 +119,7 @@ const areOutputListsEqual = (left: StudioOutput[], right: StudioOutput[]) => {
   return left.every((item, index) => item === right[index]);
 };
 
-export type ReferenceCanvasProps = {
+export type ReferenceGridProps = {
   outputs?: StudioOutput[];
   archivedOutputs?: StudioOutput[];
   activeOutputId: string | null;
@@ -157,9 +157,14 @@ export type ReferenceCanvasProps = {
 };
 
 /**
+ * @deprecated Use `ReferenceGridProps`.
+ */
+export type ReferenceCanvasProps = ReferenceGridProps;
+
+/**
  * Displays the reference grid and handles drag/drop + selection behavior.
  */
-export function ReferenceCanvas({
+export function ReferenceGrid({
   outputs: outputsProp,
   archivedOutputs: archivedOutputsProp,
   activeOutputId,
@@ -190,7 +195,7 @@ export function ReferenceCanvas({
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
   generateCostCredits,
-}: ReferenceCanvasProps) {
+}: ReferenceGridProps) {
   const selectorOutputs = useOutputSelector((snapshot) => {
     if (outputsProp) return EMPTY_OUTPUTS;
     return snapshot.outputOrder
@@ -278,8 +283,8 @@ export function ReferenceCanvas({
   const desiredVideoAttachBudgetRef = React.useRef<number>(REFERENCE_AUTOPLAY_MAX_DESKTOP);
   const autoplayEnabledIdsStateRef = React.useRef<string[]>([]);
   const recomputeAutoplayBudgetRef = React.useRef<() => void>(() => {});
-  const [canvasDropMode, setCanvasDropMode] = useState<ReferenceCanvasDropMode>("none");
-  const canvasDropModeRef = React.useRef<ReferenceCanvasDropMode>("none");
+  const [canvasDropMode, setCanvasDropMode] = useState<ReferenceGridDropMode>("none");
+  const canvasDropModeRef = React.useRef<ReferenceGridDropMode>("none");
   const [isCuratedDropActive, setIsCuratedDropActive] = useState(false);
   const isCuratedDropActiveRef = React.useRef(false);
   const [isArchivePanelOpen, setIsArchivePanelOpen] = useState(false);
@@ -308,7 +313,7 @@ export function ReferenceCanvas({
     isCuratedDropActiveRef.current = next;
     setIsCuratedDropActive(next);
   }, []);
-  const setCanvasDropModeSafe = useCallback((next: ReferenceCanvasDropMode) => {
+  const setCanvasDropModeSafe = useCallback((next: ReferenceGridDropMode) => {
     if (canvasDropModeRef.current === next) return;
     canvasDropModeRef.current = next;
     setCanvasDropMode(next);
@@ -829,3 +834,8 @@ export function ReferenceCanvas({
     </div>
   );
 }
+
+/**
+ * @deprecated Use `ReferenceGrid`.
+ */
+export const ReferenceCanvas = ReferenceGrid;

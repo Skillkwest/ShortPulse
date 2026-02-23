@@ -15,7 +15,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 | --- | --- |
 | `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Central state/actions: handles prompt, aspect, model selection, submits generation, polls task status, and manages outputs/reference images/videos. |
 | `frontend/features/ai-studio/components/TextPropertiesPanel.tsx` | UI for Text flow (mode toggle, aspect, model picker, prompt textarea, Generate CTA showing estimated credits). |
-| `frontend/features/ai-studio/components/ReferencePropertiesPanel.tsx` | UI for Video (reference drops, prompt textarea, aspect/model picker, Generate CTA). |
+| `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx` | UI for Video (reference drops, prompt textarea, aspect/model picker, Generate CTA). |
 | `frontend/features/ai-studio/components/StudioPreview.tsx` | Shows latest output/reference preview and allows drag/drop to seed regeneration; accepts dropped image files for image-to-video. |
 | `frontend/features/ai-studio/components/ReferenceCanvas.tsx` | Reference grid (draggable cards) and file drop surface for seeding references; renders inline video previews when outputs are mp4s. |
 | `frontend/features/ai-studio/logic/*` | Pricing (`pricing.ts`), token estimates, drag/drop utilities, and provider clients (Fal). |
@@ -29,7 +29,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 ## Video generation workflow (Create → Video)
 
-1. User selects Create → Video; ReferencePropertiesPanel renders with aspect + model (video-capable options filtered by mode).  
+1. User selects Create → Video; `VideoPropertiesPanel` renders with aspect + model (video-capable options filtered by mode).
 2. User enters a prompt (and optionally prepares an image reference if the model requires/accepts it).  
 3. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect })`; disabled until a model is selected or the user lacks sufficient credits.  
 4. On click:  
@@ -42,7 +42,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 ## Reference-based video workflow (Create → Video, image-to-video models)
 
-1. User opens the Video tool (ReferencePropertiesPanel) and selects aspect + model.  
+1. User opens the Video tool (`VideoPropertiesPanel`) and selects aspect + model.
 2. User drops/uploads two reference frames (required): **First frame** (primary dropzone) and **Last frame** (second primary dropzone). Extra secondary dropzones are hidden in this flow.  
 3. User enters or drops a prompt into the prompt textarea.  
 4. Generate CTA shows estimated credits; disabled if either frame or the model is missing or credits are insufficient.  
@@ -50,7 +50,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 ## Reference handling
 
-- Users can drag existing reference cards (images) or drop external image files into Reference Canvas or Studio Preview; dropped files become `StudioOutput` entries with object URLs.  
+- Users can drag existing reference cards (images) or drop external image files into the Reference Grid or Studio Preview; dropped files become `StudioOutput` entries with object URLs.
 - Image-to-video models require at least one reference image; Create → Video may be text-only unless a specific model demands an image.  
 - Drag/drop ignores non-image payloads and prefers real URLs over blobs when available.
 

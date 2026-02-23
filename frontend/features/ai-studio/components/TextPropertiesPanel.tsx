@@ -23,7 +23,7 @@ import { ExpertCreatePanelView } from "./create/ExpertCreatePanelView";
 const CHARACTER_MODE_UI_MODEL_LABEL = "Pulse Character";
 const CHARACTER_MODE_UI_MODEL_LOGO = "/tiny%20logo.png";
 
-type TextPropertiesPanelProps = {
+export type CreatePropertiesPanelProps = {
   mode: StudioMode;
   aspect: string;
   modelId: string | null;
@@ -92,6 +92,11 @@ type TextPropertiesPanelProps = {
   characterModeEnabled?: boolean;
   onCharacterModeEnabledChange?: (value: boolean) => void;
 };
+
+/**
+ * @deprecated Use `CreatePropertiesPanelProps`.
+ */
+export type TextPropertiesPanelProps = CreatePropertiesPanelProps;
 
 type ComposeSendCardProps = {
   agentEnabled?: boolean;
@@ -218,7 +223,7 @@ const CharacterPickerModal = ({
 /**
  * Renders the Create tool controls.
  */
-export function TextPropertiesPanel({
+export function CreatePropertiesPanel({
   mode,
   aspect,
   modelId,
@@ -275,7 +280,7 @@ export function TextPropertiesPanel({
   characterModeEnabled = true,
   onCharacterModeEnabledChange,
   onGenerate,
-}: TextPropertiesPanelProps) {
+}: CreatePropertiesPanelProps) {
   const showExpertView = Boolean(expertCreateUiEligible && !beginnerMode);
   const promptStepNumber = beginnerMode ? "2" : "1";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
@@ -573,6 +578,11 @@ export function TextPropertiesPanel({
     </>
   );
 }
+
+/**
+ * @deprecated Use `CreatePropertiesPanel`.
+ */
+export const TextPropertiesPanel = CreatePropertiesPanel;
 
 export function ComposeSendCard({
   agentEnabled = false,

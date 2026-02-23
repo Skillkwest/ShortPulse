@@ -3,13 +3,13 @@
  * Contains the reference-grid canvas surface as an isolated shell section.
  */
 import React from "react";
-import { ReferenceCanvas } from "./ReferenceCanvas";
+import { ReferenceGrid } from "./ReferenceGrid";
 import type { ToolId } from "../types";
-import type { ReferenceCanvasProps } from "./ReferenceCanvas";
+import type { ReferenceGridProps } from "./ReferenceGrid";
 import { recordAiStudioShellSectionRender } from "../logic/shellRenderCounters";
 
 type AiStudioReferenceRailProps = {
-  referenceCanvasProps: ReferenceCanvasProps;
+  referenceGridProps: ReferenceGridProps;
   onDropFiles: (files: FileList) => void;
   onTriggerFilePicker: () => void;
   selectedTool: ToolId | null;
@@ -17,7 +17,7 @@ type AiStudioReferenceRailProps = {
 };
 
 export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
-  referenceCanvasProps,
+  referenceGridProps,
   onDropFiles,
   onTriggerFilePicker,
   selectedTool,
@@ -27,8 +27,8 @@ export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
   return (
     <div className="ai-preview-column reference-column">
       <div className="reference-column-sticky">
-        <ReferenceCanvas
-          {...referenceCanvasProps}
+        <ReferenceGrid
+          {...referenceGridProps}
           onDropFiles={onDropFiles}
           onTriggerFileSelect={onTriggerFilePicker}
           selectedTool={selectedTool}

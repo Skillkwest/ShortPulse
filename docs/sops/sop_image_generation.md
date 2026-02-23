@@ -62,7 +62,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 ## Reference handling
 
-- Users can drag existing reference cards (images) or drop external image files into Reference Canvas or Studio Preview; dropped files become `StudioOutput` entries with object URLs.  
+- Users can drag existing reference cards (images) or drop external image files into the Reference Grid or Studio Preview; dropped files become `StudioOutput` entries with object URLs.
 - For image-to-image/video modes, the primary reference is required; for pure text-to-image, references are optional.  
 - Drag/drop is hardened to ignore non-image payloads and prefer real URLs over blobs when available.
 
@@ -88,7 +88,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 ## Image resolution controls
 
 - The image resolution step card appears only when `beginnerMode` is off.
-- The card is shown in both `TextPropertiesPanel` (text-to-image) and `ReferencePropertiesPanel` (image-to-image).
+- The card is shown in both `TextPropertiesPanel` (text-to-image) and `EditPropertiesPanel` (image-to-image).
 - Resolution options are model-driven from `modelRegistry.ts` (`allowedResolutions` + `defaultResolution`):
   - FLUX models / Nano Banana: `model_default` (no separate resolution enum exposed in current UI payload mapping).
   - Nano Banana Pro + Nano Banana Pro Edit: `1K`, `2K`, `4K`.

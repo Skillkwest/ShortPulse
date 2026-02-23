@@ -36,6 +36,7 @@ Purpose: operational runbooks for recurring engineering and product workflows.
 - `docs/sops/sop_provider_incident_response.md`
 - `docs/sops/sop_new_model_ingestion.md`
 - `docs/sops/sop_new_feature_modularization.md`
+- `docs/sops/sop_naming_canonicalization_rollback.md`
 
 ## Archived Legacy SOPs (reference only)
 - `docs/archive/sops/sop_character_generation.md` (legacy pipeline context; superseded by `docs/sops/sop_character_manager_operations.md`)

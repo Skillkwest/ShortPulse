@@ -8,7 +8,7 @@ import { FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phos
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
-import { TextPropertiesPanel, ComposeSendCard } from "./TextPropertiesPanel";
+import { CreatePropertiesPanel, ComposeSendCard } from "./CreatePropertiesPanel";
 import { DetailModal } from "./DetailModal";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
@@ -21,7 +21,7 @@ import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
 import type { StudioOutput, ToolId } from "../types";
-import type { ReferenceCanvasProps } from "./ReferenceCanvas";
+import type { ReferenceGridProps } from "./ReferenceGrid";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 import { isCreateWorkflow } from "../logic/workflowIdentity";
@@ -226,7 +226,7 @@ const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColumnDropP
   return { kind: "none" };
 };
 
-type TextSectionProps = React.ComponentProps<typeof TextPropertiesPanel>;
+type CreateSectionProps = React.ComponentProps<typeof CreatePropertiesPanel>;
 type EditSectionProps = React.ComponentProps<typeof EditPropertiesPanel>;
 type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
 const PERFORMANCE_DENSE_REFERENCE_COUNT = 40;
@@ -399,6 +399,10 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
 });
 
 export type AiStudioPageContentProps = {
+  referenceGridFileInputRef: React.RefObject<HTMLInputElement>;
+  /**
+   * @deprecated Use `referenceGridFileInputRef`.
+   */
   referenceCanvasFileInputRef: React.RefObject<HTMLInputElement>;
   onFileBrowserSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
   uiError: string | null;
@@ -419,11 +423,19 @@ export type AiStudioPageContentProps = {
   showCreateTools: boolean;
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (value: boolean) => void;
-  propertiesText: TextSectionProps;
+  propertiesCreate: CreateSectionProps;
+  /**
+   * @deprecated Use `propertiesCreate`.
+   */
+  propertiesText: CreateSectionProps;
   propertiesImage: EditSectionProps;
   propertiesVideo: VideoSectionProps;
   isTemplateView: boolean;
-  referenceCanvasProps: ReferenceCanvasProps;
+  referenceGridProps: ReferenceGridProps;
+  /**
+   * @deprecated Use `referenceGridProps`.
+   */
+  referenceCanvasProps: ReferenceGridProps;
   studioPreviewProps: React.ComponentProps<typeof StudioPreview>;
   detailModalOutput: StudioOutput | null;
   onDetailClose: () => void;
@@ -442,11 +454,16 @@ export type AiStudioPageContentProps = {
     context?: ModelModalContext | null;
   };
   agentChat: AgentChatProps;
+  handleReferenceGridFiles: (files: FileList) => void;
+  /**
+   * @deprecated Use `handleReferenceGridFiles`.
+   */
   handleReferenceCanvasFiles: (files: FileList) => void;
   triggerFilePicker: () => void;
 };
 
 export function AiStudioPageContent({
+  referenceGridFileInputRef,
   referenceCanvasFileInputRef,
   onFileBrowserSelection,
   uiError,
@@ -466,10 +483,12 @@ export function AiStudioPageContent({
   showCreateTools,
   onSelectTool,
   onToggleCreateTools,
+  propertiesCreate,
   propertiesText,
   propertiesImage,
   propertiesVideo,
   isTemplateView,
+  referenceGridProps,
   referenceCanvasProps,
   studioPreviewProps,
   detailModalOutput,
@@ -481,20 +500,26 @@ export function AiStudioPageContent({
   onOpenMediaLibrary,
   modelModalState,
   agentChat,
+  handleReferenceGridFiles,
   handleReferenceCanvasFiles,
   triggerFilePicker,
 }: AiStudioPageContentProps) {
+  const resolvedReferenceGridFileInputRef =
+    referenceGridFileInputRef ?? referenceCanvasFileInputRef;
+  const resolvedCreateProperties = propertiesCreate ?? propertiesText;
+  const resolvedReferenceGridProps = referenceGridProps ?? referenceCanvasProps;
+  const resolvedHandleReferenceGridFiles = handleReferenceGridFiles ?? handleReferenceCanvasFiles;
   const selectedComingSoonTool = isComingSoonTool(selectedTool) ? selectedTool : null;
   const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
   const ComingSoonIcon = comingSoon ? comingSoon.icon : null;
-  const referenceCanvasFileAccept = isPrimaryCharacterTool(selectedTool)
+  const referenceGridFileAccept = isPrimaryCharacterTool(selectedTool)
     ? "image/*"
     : "image/*,video/*";
   const propertiesPanelKind = resolvePropertiesPanelKind(selectedTool);
   const showExpertCreatePanel = Boolean(
     propertiesPanelKind === "create" &&
-    propertiesText.expertCreateUiEligible &&
-    !propertiesText.beginnerMode
+    resolvedCreateProperties.expertCreateUiEligible &&
+    !resolvedCreateProperties.beginnerMode
   );
   const { activeCount } = useOutputCounts();
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
@@ -590,13 +615,16 @@ export function AiStudioPageContent({
     () => ({
       create: (
         <>
-          <TextPropertiesPanel
-            {...propertiesText}
+          <CreatePropertiesPanel
+            {...resolvedCreateProperties}
             agentChatOpen={agentChat.isOpen}
-            onAgentEnhanceSend={propertiesText.onAgentEnhanceSend}
+            onAgentEnhanceSend={resolvedCreateProperties.onAgentEnhanceSend}
           />
           {!showExpertCreatePanel ? (
-            <ComposeSendCard {...propertiesText} onGenerate={propertiesText.onGenerate} />
+            <ComposeSendCard
+              {...resolvedCreateProperties}
+              onGenerate={resolvedCreateProperties.onGenerate}
+            />
           ) : null}
         </>
       ),
@@ -609,7 +637,7 @@ export function AiStudioPageContent({
       agentChat.isOpen,
       beginnerMode,
       propertiesImage,
-      propertiesText,
+      resolvedCreateProperties,
       propertiesVideo,
       showExpertCreatePanel,
     ]
@@ -659,9 +687,9 @@ export function AiStudioPageContent({
     rightColumnRef: rightColumnRef as React.RefObject<HTMLElement | null>,
     resolveDropMode: (transfer) => resolveRightColumnDropMode(transfer) as RightColumnDropMode,
     resolveDropPayload: (transfer) => resolveRightColumnDropPayload(transfer),
-    onDropFiles: handleReferenceCanvasFiles,
-    onDropMediaReference: referenceCanvasProps.onPasteMediaReference,
-    onDropTextReference: referenceCanvasProps.onPasteTextReference,
+    onDropFiles: resolvedHandleReferenceGridFiles,
+    onDropMediaReference: resolvedReferenceGridProps.onPasteMediaReference,
+    onDropTextReference: resolvedReferenceGridProps.onPasteTextReference,
     useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,
   });
 
@@ -674,9 +702,9 @@ export function AiStudioPageContent({
         data-selected-tool={selectedTool ?? undefined}
       >
         <input
-          ref={referenceCanvasFileInputRef}
+          ref={resolvedReferenceGridFileInputRef}
           type="file"
-          accept={referenceCanvasFileAccept}
+          accept={referenceGridFileAccept}
           multiple
           style={{ display: "none" }}
           onChange={onFileBrowserSelection}
@@ -745,9 +773,9 @@ export function AiStudioPageContent({
               onShellDragOverCapture={handleShellDragOverCapture}
               onShellDropCapture={handleShellDropCapture}
               agentChat={agentChat}
-              referenceCanvasProps={referenceCanvasProps}
+              referenceGridProps={resolvedReferenceGridProps}
               studioPreviewProps={studioPreviewProps}
-              handleReferenceCanvasFiles={handleReferenceCanvasFiles}
+              handleReferenceGridFiles={resolvedHandleReferenceGridFiles}
               triggerFilePicker={triggerFilePicker}
               onOpenMediaLibrary={onOpenMediaLibrary}
               beginnerMode={beginnerMode}

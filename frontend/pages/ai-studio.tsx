@@ -25,7 +25,7 @@ import { useAiStudioOptimisticDebitReconciliation } from "../features/ai-studio/
 import { useAiStudioWorkspaceActions } from "../features/ai-studio/hooks/useAiStudioWorkspaceActions";
 import { useAiStudioPageDerivations } from "../features/ai-studio/hooks/useAiStudioPageDerivations";
 import { useAiStudioPanelProps } from "../features/ai-studio/hooks/useAiStudioPanelProps";
-import { useAiStudioReferenceCanvasProps } from "../features/ai-studio/hooks/useAiStudioReferenceCanvasProps";
+import { useAiStudioReferenceGridProps } from "../features/ai-studio/hooks/useAiStudioReferenceGridProps";
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
 import { useOutputSelector } from "../features/ai-studio/hooks/aiStudioOutputStore";
 import {
@@ -948,7 +948,7 @@ export default function AiStudioPage() {
     setOutputs,
   ]);
 
-  const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
+  const referenceGridFileInputRef = useRef<HTMLInputElement | null>(null);
   const {
     beginnerMode,
     loading: beginnerModeLoading,
@@ -1050,7 +1050,7 @@ export default function AiStudioPage() {
     setUiNotice,
     trackAgentUiEvent: trackUiEvent,
   });
-  const triggerFilePicker = () => referenceCanvasFileInputRef.current?.click();
+  const triggerFilePicker = () => referenceGridFileInputRef.current?.click();
   const dismissError = () => setUiError(null);
   const dismissNotice = () => setUiNotice(null);
   const beginnerModeUiNotice = beginnerModeError
@@ -1132,7 +1132,7 @@ export default function AiStudioPage() {
     handleOpenMediaLibrary,
     handleCloseMediaLibrary,
     handleFileBrowserSelection,
-    handleReferenceCanvasFiles,
+    handleReferenceGridFiles,
     handleSelectOutput,
     showReferencePromptGenerate,
     disableReferencePromptGenerate,
@@ -1385,7 +1385,7 @@ export default function AiStudioPage() {
     handleVideoPromptTextChange,
     handleRegenerateWithDebit,
   });
-  const referenceCanvasProps = useAiStudioReferenceCanvasProps({
+  const referenceGridProps = useAiStudioReferenceGridProps({
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
     archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
     activeOutputId,
@@ -1453,7 +1453,8 @@ export default function AiStudioPage() {
         ) : null}
       </Head>
       <AiStudioPageContent
-        referenceCanvasFileInputRef={referenceCanvasFileInputRef}
+        referenceGridFileInputRef={referenceGridFileInputRef}
+        referenceCanvasFileInputRef={referenceGridFileInputRef}
         onFileBrowserSelection={handleFileBrowserSelection}
         uiError={uiError}
         uiNotice={effectiveUiNotice}
@@ -1473,11 +1474,13 @@ export default function AiStudioPage() {
         showCreateTools={showCreateTools}
         onSelectTool={handleToolSelect}
         onToggleCreateTools={setShowCreateTools}
+        propertiesCreate={propertiesText}
         propertiesText={propertiesText}
         propertiesImage={propertiesImage}
         propertiesVideo={propertiesVideo}
         isTemplateView={isTemplateView}
-        referenceCanvasProps={referenceCanvasProps}
+        referenceGridProps={referenceGridProps}
+        referenceCanvasProps={referenceGridProps}
         studioPreviewProps={studioPreviewProps}
         detailModalOutput={detailModalOutput}
         onDetailClose={onDetailClose}
@@ -1522,7 +1525,8 @@ export default function AiStudioPage() {
           outputGenerateCostCredits: promptReferenceGenerateCostCredits,
           disableOutputGenerate: disableAgentOutputGenerate,
         }}
-        handleReferenceCanvasFiles={handleReferenceCanvasFiles}
+        handleReferenceGridFiles={handleReferenceGridFiles}
+        handleReferenceCanvasFiles={handleReferenceGridFiles}
         triggerFilePicker={triggerFilePicker}
       />
       <MediaLibraryModal

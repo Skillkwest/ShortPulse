@@ -14,7 +14,7 @@ Checklist:
 ## `next build` / `next lint` prompts to “configure ESLint”
 This happens when the repo has `eslint-config-next` installed but no ESLint config file exists.
 
-Fix: ensure `frontend/.eslintrc.json` exists (this repo uses `next/core-web-vitals`).
+Fix: ensure `frontend/eslint.config.mjs` is present and valid (flat ESLint config in this repo).
 
 ## Supabase auth redirects not working
 Checklist:

@@ -4,7 +4,7 @@
  */
 import { useEffect, type MutableRefObject } from "react";
 import { logMediaPerf, setMediaPerfSamplingPolicy } from "../../../../lib/mediaPerfTelemetry";
-import type { ReferenceCanvasDropMode } from "./useReferenceGridCanvasDropController";
+import type { ReferenceGridDropMode } from "./useReferenceGridCanvasDropController";
 
 type UseReferenceGridTelemetryControllerArgs = {
   renderCommitTelemetryEnabled: boolean;
@@ -22,7 +22,7 @@ type UseReferenceGridTelemetryControllerArgs = {
   previewLastSwapBurstCount: number;
   startIndex: number;
   endIndex: number;
-  canvasDropMode: ReferenceCanvasDropMode;
+  canvasDropMode: ReferenceGridDropMode;
   isCuratedDropActive: boolean;
   loadingCardCount: number;
 };

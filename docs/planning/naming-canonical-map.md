@@ -1,0 +1,32 @@
+# Naming Canonical Map
+
+Status: Active  
+Last updated: 2026-02-23
+
+Purpose: single source of truth for canonical terms, compatibility policy, and sunset targets.
+
+## Term Map
+
+| Domain | Legacy term | Canonical term | Current policy | Sunset target |
+| --- | --- | --- | --- | --- |
+| User-facing AI Studio surface | Reference Canvas | Reference Grid | Canonicalize in active docs/UI now; keep internal aliases during migration | After phase 7 closeout |
+| Component symbol | `ReferenceCanvas` | `ReferenceGrid` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
+| Component props type | `ReferenceCanvasProps` | `ReferenceGridProps` | Keep both during bridge window | >= 2 release cycles |
+| Hook symbol | `useAiStudioReferenceCanvasProps` | `useAiStudioReferenceGridProps` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
+| Create panel symbol | `TextPropertiesPanel` | `CreatePropertiesPanel` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
+| Create panel props type | `TextPropertiesPanelProps` | `CreatePropertiesPanelProps` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
+| Grid drop type symbol | `ReferenceCanvasDropMode` | `ReferenceGridDropMode` | Migrate internal controller consumers; keep deprecated type alias | >= 2 release cycles |
+| View-model prop key | `referenceCanvasProps` | `referenceGridProps` | Migrate runtime callsites; keep deprecated prop key bridge in `AiStudioPageContentProps` | >= 2 release cycles |
+| File-drop handler symbol | `handleReferenceCanvasFiles` | `handleReferenceGridFiles` | Migrate runtime callsites; keep deprecated handler alias in workspace actions/page props | >= 2 release cycles |
+| File input ref key | `referenceCanvasFileInputRef` | `referenceGridFileInputRef` | Migrate runtime callsites; keep deprecated prop key bridge in `AiStudioPageContentProps` | >= 2 release cycles |
+| Active docs panel reference | `ReferencePropertiesPanel` | `EditPropertiesPanel` / `VideoPropertiesPanel` (context-dependent) | Fix immediately in active docs | Immediate |
+| Character DB compat fields | `reference_pack_*` | `character_sheet_*` | Intentional dual-path compatibility per ADR 0011 | Separate program only |
+
+## Non-Authoritative Scope Policy
+- Files under `docs/archive/` and `docs/brainstorming/` are non-authoritative for naming audits.
+- Archive content may preserve legacy terms for historical traceability.
+
+## Update Rules
+1. Any new naming variant discovered during a slice must be recorded here.
+2. High-impact unresolved variants require a decision-log entry before proceeding.
+3. Canonical map changes require tracker update and evidence linkage.

@@ -22,6 +22,7 @@ Purpose: define the documentation information architecture, ownership rules, and
 
 3. Historical:
 - Files in `docs/archive/` and `docs/brainstorming/`.
+- Historical docs are non-authoritative for naming/terminology canonicalization unless explicitly designated by a migration plan.
 
 ## Lifecycle states and archive policy
 - `Active`: current source-of-truth docs used for implementation/operations.

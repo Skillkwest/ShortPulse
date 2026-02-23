@@ -6,7 +6,7 @@ import React from "react";
 import { AgentChatPanel } from "../../../prefabs/agent";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
 import type { ToolId } from "../types";
-import type { ReferenceCanvasProps } from "./ReferenceCanvas";
+import type { ReferenceGridProps } from "./ReferenceGrid";
 import { AiStudioPropertiesRail } from "./AiStudioPropertiesRail";
 import { AiStudioReferenceRail } from "./AiStudioReferenceRail";
 import { AiStudioPreviewRail } from "./AiStudioPreviewRail";
@@ -60,9 +60,9 @@ type AiStudioShellFrameProps = {
   onShellDragOverCapture: (event: React.DragEvent<HTMLElement>) => void;
   onShellDropCapture: (event: React.DragEvent<HTMLElement>) => void;
   agentChat: AgentChatProps;
-  referenceCanvasProps: ReferenceCanvasProps;
+  referenceGridProps: ReferenceGridProps;
   studioPreviewProps: React.ComponentProps<typeof AiStudioPreviewRail>["studioPreviewProps"];
-  handleReferenceCanvasFiles: (files: FileList) => void;
+  handleReferenceGridFiles: (files: FileList) => void;
   triggerFilePicker: () => void;
   onOpenMediaLibrary?: () => void;
   beginnerMode: boolean;
@@ -86,9 +86,9 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
   onShellDragOverCapture,
   onShellDropCapture,
   agentChat,
-  referenceCanvasProps,
+  referenceGridProps,
   studioPreviewProps,
-  handleReferenceCanvasFiles,
+  handleReferenceGridFiles,
   triggerFilePicker,
   onOpenMediaLibrary,
   beginnerMode,
@@ -187,15 +187,15 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
         ) : (
           <>
             <AiStudioReferenceRail
-              referenceCanvasProps={referenceCanvasProps}
-              onDropFiles={handleReferenceCanvasFiles}
+              referenceGridProps={referenceGridProps}
+              onDropFiles={handleReferenceGridFiles}
               onTriggerFilePicker={triggerFilePicker}
               selectedTool={selectedTool}
               onOpenMediaLibrary={onOpenMediaLibrary}
             />
             <AiStudioPreviewRail
               studioPreviewProps={studioPreviewProps}
-              onDropFiles={handleReferenceCanvasFiles}
+              onDropFiles={handleReferenceGridFiles}
               onTriggerFilePicker={triggerFilePicker}
               onOpenMediaLibrary={onOpenMediaLibrary}
             />

@@ -1,3 +1,3 @@
 # Planning Evidence
 
-Store stage evidence snapshots here (`sql/`, `docs/`, `kei/`, `architecture/`) with dated filenames.
+Store stage evidence snapshots here (`sql/`, `docs/`, `kei/`, `architecture/`, `reference-grid-modularization/`, `naming-canonicalization/`) with dated filenames.

@@ -87,6 +87,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_text_generation.md`
 - `docs/sops/sop_image_generation.md`
 - `docs/sops/sop_video_generation.md`
+- `docs/sops/sop_naming_canonicalization_rollback.md`
 
 ## Product
 - `docs/product/README.md`
@@ -128,6 +129,10 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
 - `docs/planning/ai-studio-reference-grid-modularization-program.md`
 - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
+- `docs/planning/naming-canonicalization-program.md`
+- `docs/planning/naming-canonical-map.md`
+- `docs/planning/naming-decision-log.md`
+- `docs/planning/naming-canonicalization-tracker.md`
 - `docs/planning/ai-studio-primary-character-panel-build-plan.md`
 - `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`
 - `docs/planning/expert-workflow-hardening-css-reorg-plan.md`
@@ -137,6 +142,7 @@ Start here for all repository documentation.
 - `docs/planning/tooling-audit-2026-02-16.md`
 - `docs/planning/evidence/reference-grid-modularization/README.md`
 - `docs/planning/evidence/reference-grid-modularization/phase-report-template.md`
+- `docs/planning/evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`
 - `docs/change_log.md`
 
 ## ADRs
@@ -163,6 +169,7 @@ Start here for all repository documentation.
 - `docs/adr/0020-ai-studio-server-authoritative-runtime-v2.md`
 - `docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md`
 - `docs/adr/0022-reference-grid-domain-modular-architecture.md`
+- `docs/adr/0023-ai-studio-naming-canonicalization-and-alias-sunset-policy.md`
 
 ## Archive
 - `docs/archive/README.md`

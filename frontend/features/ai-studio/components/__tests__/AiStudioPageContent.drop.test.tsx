@@ -23,8 +23,8 @@ vi.mock("../AiStudioToolbar", () => ({
   AiStudioToolbar: () => <div data-testid="ai-toolbar" />,
 }));
 
-vi.mock("../TextPropertiesPanel", () => ({
-  TextPropertiesPanel: () => <div data-testid="text-properties" />,
+vi.mock("../CreatePropertiesPanel", () => ({
+  CreatePropertiesPanel: () => <div data-testid="text-properties" />,
   ComposeSendCard: () => <div data-testid="compose-send-card" />,
 }));
 
@@ -36,8 +36,8 @@ vi.mock("../ModelModal", () => ({
   ModelModal: () => null,
 }));
 
-vi.mock("../ReferenceCanvas", () => ({
-  ReferenceCanvas: () => (
+vi.mock("../ReferenceGrid", () => ({
+  ReferenceGrid: () => (
     <div
       data-testid="reference-canvas"
       onDrop={(event: React.DragEvent<HTMLDivElement>) => event.preventDefault()}
@@ -86,6 +86,7 @@ const makeEmptyFileList = (): FileList =>
 const createProps = (
   overrides: Partial<AiStudioPageContentProps> = {}
 ): AiStudioPageContentProps => ({
+  referenceGridFileInputRef: { current: null },
   referenceCanvasFileInputRef: { current: null },
   onFileBrowserSelection: vi.fn(),
   uiError: null,
@@ -106,10 +107,20 @@ const createProps = (
   showCreateTools: false,
   onSelectTool: vi.fn(),
   onToggleCreateTools: vi.fn(),
+  propertiesCreate: {} as AiStudioPageContentProps["propertiesCreate"],
   propertiesText: {} as AiStudioPageContentProps["propertiesText"],
   propertiesImage: {} as AiStudioPageContentProps["propertiesImage"],
   propertiesVideo: {} as AiStudioPageContentProps["propertiesVideo"],
   isTemplateView: false,
+  referenceGridProps: {
+    outputs: [],
+    activeOutputId: null,
+    onSelectOutput: vi.fn(),
+    onOpenDetails: vi.fn(),
+    selectedTool: null,
+    onPasteTextReference: vi.fn(),
+    onPasteMediaReference: vi.fn(),
+  },
   referenceCanvasProps: {
     outputs: [],
     activeOutputId: null,
@@ -167,6 +178,7 @@ const createProps = (
     outputGenerateCostCredits: null,
     disableOutputGenerate: false,
   },
+  handleReferenceGridFiles: vi.fn(),
   handleReferenceCanvasFiles: vi.fn(),
   triggerFilePicker: vi.fn(),
   ...overrides,
@@ -204,6 +216,10 @@ describe("AiStudioPageContent right column drop router", () => {
   it("creates a text card when text is dropped on the right column shell", () => {
     const onPasteTextReference = vi.fn();
     const props = createProps({
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onPasteTextReference,
+      },
       referenceCanvasProps: {
         ...createProps().referenceCanvasProps,
         onPasteTextReference,
@@ -226,13 +242,18 @@ describe("AiStudioPageContent right column drop router", () => {
 
   it("routes file drops through the reference-canvas file handler", () => {
     const onPasteTextReference = vi.fn();
-    const handleReferenceCanvasFiles = vi.fn();
+    const handleReferenceGridFiles = vi.fn();
     const props = createProps({
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onPasteTextReference,
+      },
       referenceCanvasProps: {
         ...createProps().referenceCanvasProps,
         onPasteTextReference,
       },
-      handleReferenceCanvasFiles,
+      handleReferenceGridFiles,
+      handleReferenceCanvasFiles: handleReferenceGridFiles,
     });
     const { container } = render(<AiStudioPageContent {...props} />);
     const rightColumn = container.querySelector(".ai-shell-right");
@@ -251,13 +272,17 @@ describe("AiStudioPageContent right column drop router", () => {
     fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
 
     expect(onPasteTextReference).not.toHaveBeenCalled();
-    expect(handleReferenceCanvasFiles).toHaveBeenCalledTimes(1);
-    expect(handleReferenceCanvasFiles).toHaveBeenCalledWith(dataTransfer.files);
+    expect(handleReferenceGridFiles).toHaveBeenCalledTimes(1);
+    expect(handleReferenceGridFiles).toHaveBeenCalledWith(dataTransfer.files);
   });
 
   it("accepts text drops when browser uses non-standard text MIME identifiers", () => {
     const onPasteTextReference = vi.fn();
     const props = createProps({
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onPasteTextReference,
+      },
       referenceCanvasProps: {
         ...createProps().referenceCanvasProps,
         onPasteTextReference,
@@ -281,6 +306,10 @@ describe("AiStudioPageContent right column drop router", () => {
   it("creates a text card when drop payload includes Files plus text payload", () => {
     const onPasteTextReference = vi.fn();
     const props = createProps({
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onPasteTextReference,
+      },
       referenceCanvasProps: {
         ...createProps().referenceCanvasProps,
         onPasteTextReference,
@@ -304,6 +333,10 @@ describe("AiStudioPageContent right column drop router", () => {
   it("creates a text card when dropping on nested right-column children", () => {
     const onPasteTextReference = vi.fn();
     const props = createProps({
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onPasteTextReference,
+      },
       referenceCanvasProps: {
         ...createProps().referenceCanvasProps,
         onPasteTextReference,
@@ -327,6 +360,11 @@ describe("AiStudioPageContent right column drop router", () => {
     const onPasteMediaReference = vi.fn();
     const onPasteTextReference = vi.fn();
     const props = createProps({
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onPasteMediaReference,
+        onPasteTextReference,
+      },
       referenceCanvasProps: {
         ...createProps().referenceCanvasProps,
         onPasteMediaReference,

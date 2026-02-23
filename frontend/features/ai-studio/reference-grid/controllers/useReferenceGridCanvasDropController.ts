@@ -5,14 +5,19 @@
 import { useEffect, type MutableRefObject } from "react";
 import { extractDroppedPromptText } from "./referenceGridClipboard";
 
-export type ReferenceCanvasDropMode = "none" | "text" | "files";
+export type ReferenceGridDropMode = "none" | "text" | "files";
+
+/**
+ * @deprecated Use `ReferenceGridDropMode`.
+ */
+export type ReferenceCanvasDropMode = ReferenceGridDropMode;
 
 type UseReferenceGridCanvasDropControllerArgs = {
   canvasDragDepthRef: MutableRefObject<number>;
   curatedDragDepthRef: MutableRefObject<number>;
-  setCanvasDropModeSafe: (next: ReferenceCanvasDropMode) => void;
+  setCanvasDropModeSafe: (next: ReferenceGridDropMode) => void;
   setCuratedDropActiveSafe: (next: boolean) => void;
-  resolveCanvasDropMode: (transfer: DataTransfer) => ReferenceCanvasDropMode;
+  resolveCanvasDropMode: (transfer: DataTransfer) => ReferenceGridDropMode;
   canAcceptCanvasDrag: (transfer: DataTransfer) => boolean;
   normalizeMediaFiles: (files: File[]) => File[];
   buildFileList: (files: File[]) => FileList | null;

@@ -4,11 +4,11 @@
  */
 import { useCallback } from "react";
 import { dedupeMediaFiles, normalizeMediaFile } from "./referenceGridClipboard";
-import type { ReferenceCanvasDropMode } from "./useReferenceGridCanvasDropController";
+import type { ReferenceGridDropMode } from "./useReferenceGridCanvasDropController";
 
 type UseReferenceGridDropHelpersControllerResult = {
   normalizeMediaFiles: (files: File[]) => File[];
-  resolveCanvasDropMode: (transfer: DataTransfer | null | undefined) => ReferenceCanvasDropMode;
+  resolveCanvasDropMode: (transfer: DataTransfer | null | undefined) => ReferenceGridDropMode;
   canAcceptCanvasDrag: (transfer: DataTransfer | null | undefined) => boolean;
   buildFileList: (files: File[]) => FileList | null;
 };
@@ -27,7 +27,7 @@ export const useReferenceGridDropHelpersController =
     }, []);
 
     const resolveCanvasDropMode = useCallback(
-      (transfer: DataTransfer | null | undefined): ReferenceCanvasDropMode => {
+      (transfer: DataTransfer | null | undefined): ReferenceGridDropMode => {
         if (!transfer) return "none";
         const normalizedTypes = Array.from(transfer.types || []).map((type) => type.toLowerCase());
         if (normalizedTypes.includes("text/reference-id")) return "none";

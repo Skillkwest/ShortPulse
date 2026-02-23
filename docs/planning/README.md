@@ -33,6 +33,10 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-reference-grid-stabilization-v4-plan.md`: decision-complete stabilization plan for 50-60 reference sessions (decoupling, adaptive delivery, hydration/decode budgets, virtualization, watchdog degrade levels).
 - `ai-studio-reference-grid-modularization-program.md`: documentation-first foundation program for no-regression reference-grid modularization (domain contracts, strangler phases, rollback policy, guardrails).
 - `ai-studio-reference-grid-modularization-tracker.md`: phase tracker for reference-grid modularization status, gates, blockers, and evidence links.
+- `naming-canonicalization-program.md`: zero-regression naming canonicalization program (expand/migrate/contract phases, controls, and stop-points).
+- `naming-canonical-map.md`: canonical naming source-of-truth map and compatibility window policy.
+- `naming-decision-log.md`: stop-point approvals and canonical naming decision log.
+- `naming-canonicalization-tracker.md`: phase and slice tracker for naming canonicalization execution.
 - `media-library-reference-grid-optimization-plan.md`: near-instant media loading architecture plan (Media Library + AI Studio Reference Grid).
 - `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
 - `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.
@@ -49,6 +53,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `archive/original-plans/plan-04-decoupling-modularization-audited.md`: verbatim source-plan archive copy.
 - `evidence/reference-grid-modularization/README.md`: canonical evidence index and phase evidence folder structure for the reference-grid foundation program.
 - `evidence/reference-grid-modularization/phase-report-template.md`: standardized phase closeout template for scope/tests/perf/regression/rollback evidence.
+- `evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`: standardized naming-canonicalization evidence template for every execution slice.
 
 ## Maintenance
 - Keep plans actionable and current.

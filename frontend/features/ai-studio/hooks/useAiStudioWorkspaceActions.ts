@@ -164,7 +164,7 @@ export const useAiStudioWorkspaceActions = ({
     [addCharacterReferences, addOutputsFromFiles, selectedTool]
   );
 
-  const handleReferenceCanvasFiles = useCallback(
+  const handleReferenceGridFiles = useCallback(
     (files: FileList) => {
       if (isPrimaryCharacterTool(selectedTool)) {
         addCharacterReferences(files);
@@ -240,7 +240,11 @@ export const useAiStudioWorkspaceActions = ({
     handleOpenMediaLibrary,
     handleCloseMediaLibrary,
     handleFileBrowserSelection,
-    handleReferenceCanvasFiles,
+    handleReferenceGridFiles,
+    /**
+     * @deprecated Use `handleReferenceGridFiles`.
+     */
+    handleReferenceCanvasFiles: handleReferenceGridFiles,
     handleSelectOutput,
     showReferencePromptGenerate,
     disableReferencePromptGenerate: !showReferencePromptGenerate,

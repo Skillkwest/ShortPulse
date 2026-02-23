@@ -1057,3 +1057,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - preserved no-regression behavior in ReferenceCanvas and AI Studio page drop-path suites.
 - Added phase-5 slice-3 evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-drop-controller-slice-3.md`
+- Continued Phase 5 canvas decomposition (slice 4 curated-controller extraction):
+  - extracted curated quick-slot drag/drop and keyboard reorder orchestration into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridCuratedDndController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume curated controller hook callbacks.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites and AI Studio drop-path suite.
+- Added phase-5 slice-4 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-curated-controller-slice-4.md`

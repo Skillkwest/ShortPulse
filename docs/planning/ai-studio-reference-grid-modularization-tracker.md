@@ -141,6 +141,7 @@ Exit validation:
 - Phase 5 canvas decomposition foundation slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-foundation-slice-1.md`
 - Phase 5 canvas decomposition controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-controller-slice-2.md`
 - Phase 5 canvas decomposition drop-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-drop-controller-slice-3.md`
+- Phase 5 canvas decomposition curated-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-curated-controller-slice-4.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -161,3 +162,4 @@ Exit validation:
 | 2026-02-23 | Start Phase 5 with ReferenceCanvas view/controller foundation split (card view + clipboard controller extraction) | begin strangler decomposition with low-risk seams and parity-test-backed extraction before state-hook decomposition | Frontend |
 | 2026-02-23 | Continue Phase 5 with extracted document-level paste/pointer controller hook for ReferenceCanvas | separate global clipboard/pointer side effects from render orchestration while preserving paste parity behavior | Frontend |
 | 2026-02-23 | Continue Phase 5 with extracted canvas drag/drop controller hook for ReferenceCanvas | isolate drop-mode side effects and drag cleanup listeners from component render orchestration while preserving file/text drop parity | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted curated drag/drop + keyboard reorder controller hook for ReferenceCanvas | isolate curated interaction policies from component render orchestration while preserving quick-slot parity behavior | Frontend |

@@ -66,6 +66,7 @@ import {
   useReferenceGridCanvasDropController,
   type ReferenceCanvasDropMode,
 } from "../reference-grid/controllers/useReferenceGridCanvasDropController";
+import { useReferenceGridCuratedDndController } from "../reference-grid/controllers/useReferenceGridCuratedDndController";
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
@@ -2059,149 +2060,22 @@ export function ReferenceCanvas({
     clearDragState(event);
   }, []);
 
-  const hasInternalReferenceDrag = (transfer: DataTransfer): boolean => {
-    const types = Array.from(transfer.types || []).map((value) => value.toLowerCase());
-    if (types.includes("text/reference-id")) return true;
-    return Boolean(transfer.getData("text/reference-id"));
-  };
-
-  const resolveReferenceDragSourceSurface = useCallback(
-    (transfer: DataTransfer): ReferenceDragSourceSurface => {
-      const sourceSurface = transfer.getData("text/reference-source-surface");
-      return sourceSurface === "curated" ? "curated" : "all-refs";
-    },
-    []
-  );
-
-  const handleCuratedSectionDrop = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      if (!isCuratedSplitEnabled) return;
-      event.preventDefault();
-      event.stopPropagation();
-      curatedDragDepthRef.current = 0;
-      setCuratedDropActiveSafe(false);
-      const referenceId = event.dataTransfer.getData("text/reference-id").trim();
-      if (!referenceId) return;
-      const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
-      if (sourceSurface === "all-refs") {
-        if (curatedReferenceIds.includes(referenceId)) {
-          onSelectOutput(referenceId);
-          return;
-        }
-        onAddCuratedReference?.(referenceId);
-        onSelectOutput(referenceId);
-        return;
-      }
-      onReorderCuratedReference?.(referenceId, null, "end");
-      onSelectOutput(referenceId);
-    },
-    [
-      curatedReferenceIds,
-      isCuratedSplitEnabled,
-      onAddCuratedReference,
-      onReorderCuratedReference,
-      onSelectOutput,
-      resolveReferenceDragSourceSurface,
-      setCuratedDropActiveSafe,
-    ]
-  );
-
-  const handleCuratedSectionDragOver = useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
-      if (!isCuratedSplitEnabled) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (!hasInternalReferenceDrag(event.dataTransfer)) {
-        event.dataTransfer.dropEffect = "none";
-        setCuratedDropActiveSafe(false);
-        return;
-      }
-      const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
-      event.dataTransfer.dropEffect = sourceSurface === "curated" ? "move" : "copy";
-      setCuratedDropActiveSafe(true);
-    },
-    [isCuratedSplitEnabled, resolveReferenceDragSourceSurface, setCuratedDropActiveSafe]
-  );
-
-  const handleCuratedSectionDragEnter = useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
-      if (!isCuratedSplitEnabled) return;
-      event.preventDefault();
-      event.stopPropagation();
-      curatedDragDepthRef.current += 1;
-      setCuratedDropActiveSafe(hasInternalReferenceDrag(event.dataTransfer));
-    },
-    [isCuratedSplitEnabled, setCuratedDropActiveSafe]
-  );
-
-  const handleCuratedSectionDragLeave = useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
-      if (!isCuratedSplitEnabled) return;
-      event.preventDefault();
-      event.stopPropagation();
-      curatedDragDepthRef.current = Math.max(0, curatedDragDepthRef.current - 1);
-      if (curatedDragDepthRef.current === 0) {
-        setCuratedDropActiveSafe(false);
-      }
-    },
-    [isCuratedSplitEnabled, setCuratedDropActiveSafe]
-  );
-
-  const handleCuratedCardDrop = useCallback(
-    (event: React.DragEvent<HTMLElement>, target: StudioOutput): void => {
-      if (!isCuratedSplitEnabled) return;
-      event.preventDefault();
-      event.stopPropagation();
-      curatedDragDepthRef.current = 0;
-      setCuratedDropActiveSafe(false);
-      const referenceId = event.dataTransfer.getData("text/reference-id").trim();
-      if (!referenceId) return;
-      const sourceSurface = resolveReferenceDragSourceSurface(event.dataTransfer);
-      if (sourceSurface === "all-refs") {
-        if (curatedReferenceIds.includes(referenceId)) {
-          onSelectOutput(referenceId);
-          return;
-        }
-        onAddCuratedReference?.(referenceId);
-        onSelectOutput(referenceId);
-        return;
-      }
-      const rect = event.currentTarget.getBoundingClientRect();
-      const placement: "before" | "after" =
-        event.clientY < rect.top + rect.height / 2 ? "before" : "after";
-      onReorderCuratedReference?.(referenceId, target.id, placement);
-      onSelectOutput(referenceId);
-    },
-    [
-      curatedReferenceIds,
-      isCuratedSplitEnabled,
-      onAddCuratedReference,
-      onReorderCuratedReference,
-      onSelectOutput,
-      resolveReferenceDragSourceSurface,
-      setCuratedDropActiveSafe,
-    ]
-  );
-
-  const handleCuratedCardKeyboardReorder = useCallback(
-    (id: string, direction: "up" | "down") => {
-      if (!isCuratedSplitEnabled || !onReorderCuratedReference) return;
-      const currentIndex = curatedReferenceIds.indexOf(id);
-      if (currentIndex < 0) return;
-      if (direction === "up") {
-        if (currentIndex === 0) return;
-        const targetId = curatedReferenceIds[currentIndex - 1];
-        onReorderCuratedReference(id, targetId, "before");
-        onSelectOutput(id);
-        return;
-      }
-      if (currentIndex >= curatedReferenceIds.length - 1) return;
-      const targetId = curatedReferenceIds[currentIndex + 1];
-      onReorderCuratedReference(id, targetId, "after");
-      onSelectOutput(id);
-    },
-    [curatedReferenceIds, isCuratedSplitEnabled, onReorderCuratedReference, onSelectOutput]
-  );
+  const {
+    handleCuratedSectionDrop,
+    handleCuratedSectionDragOver,
+    handleCuratedSectionDragEnter,
+    handleCuratedSectionDragLeave,
+    handleCuratedCardDrop,
+    handleCuratedCardKeyboardReorder,
+  } = useReferenceGridCuratedDndController({
+    isCuratedSplitEnabled,
+    curatedReferenceIds,
+    curatedDragDepthRef,
+    setCuratedDropActiveSafe,
+    onAddCuratedReference,
+    onReorderCuratedReference,
+    onSelectOutput,
+  });
 
   const handleAllRefsScroll = useCallback(
     (event: React.UIEvent<HTMLDivElement>) => {

@@ -290,4 +290,164 @@ describe("executeGenerationRecovery", () => {
     );
     expect(typeof scenario.updatePayloads[0]?.next_recovery_at).toBe("string");
   });
+
+  it("marks missing request id as exhausted with recovery_exhausted reason", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        request_id: null,
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "exhausted",
+        requestId: null,
+        processed: true,
+        note: "missing_request_id",
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual({
+      recovery_state: "exhausted",
+      failure_reason_code: "recovery_exhausted",
+      next_recovery_at: null,
+      last_recovery_at: expect.any(String),
+    });
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
+  });
+
+  it("settles success and marks recovered when media already exists on non-success generation", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "running",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    readExistingRecoveryMediaRowsMock.mockResolvedValue([{ id: "media-1", index: 0 }]);
+
+    const result = await executeGenerationRecovery({
+      actor: "webhook",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "already_persisted",
+        processed: true,
+        mediaFileIds: ["media-1"],
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "success",
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        status: "success",
+        recovery_state: "recovered",
+        next_recovery_at: null,
+        failure_reason_code: null,
+        last_recovery_at: expect.any(String),
+        last_media_detected_at: expect.any(String),
+        completed_at: expect.any(String),
+      })
+    );
+  });
+
+  it("records provider failed terminal state and exhausts recovery", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "running",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "webhook",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "failed",
+        payload: null,
+        mediaUrls: [],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "provider_failed",
+        processed: true,
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "fail",
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual({
+      status: "fail",
+      completed_at: expect.any(String),
+      failure_reason_code: "provider_error",
+      recovery_state: "exhausted",
+      last_recovery_at: expect.any(String),
+      next_recovery_at: null,
+    });
+  });
+
+  it("records no-media as exhausted when attempts hit max threshold", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "running",
+        recovery_attempts: 5,
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      maxAttempts: 5,
+      observation: {
+        state: "completed",
+        payload: null,
+        mediaUrls: [],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "exhausted",
+        processed: true,
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual({
+      status: "fail",
+      completed_at: expect.any(String),
+      failure_reason_code: "terminal_success_no_media",
+      recovery_state: "exhausted",
+      last_recovery_at: expect.any(String),
+      next_recovery_at: null,
+    });
+  });
 });

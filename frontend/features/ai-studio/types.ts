@@ -4,6 +4,8 @@
  */
 export type StudioMode = "text" | "image" | "video";
 
+export type WorkflowId = "create" | "edit" | "video" | "character" | "none";
+
 export type AspectOption = {
   value: string;
   ratioLabel: string;

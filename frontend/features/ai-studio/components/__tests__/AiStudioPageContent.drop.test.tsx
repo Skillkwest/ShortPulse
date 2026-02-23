@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent, type AiStudioPageContentProps } from "../AiStudioPageContent";
 
@@ -53,19 +53,11 @@ vi.mock("../StudioPreview", () => ({
   StudioPreview: () => <div data-testid="studio-preview" />,
 }));
 
-vi.mock("../../character/components/CharacterPropertiesPanel", () => ({
-  CharacterPropertiesPanel: () => <div data-testid="character-properties" />,
-}));
-
-vi.mock("./CharacterPanel", () => ({
+vi.mock("../CharacterPanel", () => ({
   CharacterPanel: () => <div data-testid="character-panel" />,
 }));
 
-vi.mock("./KlingComingSoonCard", () => ({
-  KlingComingSoonCard: () => <div data-testid="kling-coming-soon" />,
-}));
-
-vi.mock("./VideoPropertiesPanel", () => ({
+vi.mock("../VideoPropertiesPanel", () => ({
   VideoPropertiesPanel: () => <div data-testid="video-properties" />,
 }));
 
@@ -115,7 +107,6 @@ const createProps = (
   onSelectTool: vi.fn(),
   onToggleCreateTools: vi.fn(),
   propertiesText: {} as AiStudioPageContentProps["propertiesText"],
-  propertiesCharacter: {} as AiStudioPageContentProps["propertiesCharacter"],
   propertiesImage: {} as AiStudioPageContentProps["propertiesImage"],
   propertiesVideo: {} as AiStudioPageContentProps["propertiesVideo"],
   isTemplateView: false,
@@ -182,6 +173,34 @@ const createProps = (
 });
 
 describe("AiStudioPageContent right column drop router", () => {
+  it("routes primary workflows and aliases to the expected panel surfaces", () => {
+    const { rerender } = render(
+      <AiStudioPageContent {...createProps({ selectedTool: "create" })} />
+    );
+    expect(screen.getByTestId("text-properties")).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "text" })} />);
+    expect(screen.getByTestId("text-properties")).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "edit" })} />);
+    expect(screen.getByTestId("edit-properties")).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "image" })} />);
+    expect(screen.getByTestId("edit-properties")).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "video" })} />);
+    expect(screen.getByTestId("video-properties")).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "kling" })} />);
+    expect(screen.getByTestId("video-properties")).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "character" })} />);
+    expect(screen.getByTestId("character-panel")).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "canvas" })} />);
+    expect(screen.getByTestId("character-panel")).toBeInTheDocument();
+  });
+
   it("creates a text card when text is dropped on the right column shell", () => {
     const onPasteTextReference = vi.fn();
     const props = createProps({

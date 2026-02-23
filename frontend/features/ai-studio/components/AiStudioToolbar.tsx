@@ -27,6 +27,12 @@ import {
   primaryToolList,
 } from "../constants";
 import { ToolId } from "../types";
+import {
+  isCharacterWorkflow,
+  isCreateWorkflow,
+  isEditWorkflow,
+  isVideoWorkflow,
+} from "../logic/workflowIdentity";
 
 type AiStudioToolbarProps = {
   selectedTool: ToolId | null;
@@ -65,15 +71,18 @@ function AiStudioToolbarComponent({
   onToggleCreateTools,
   onToggleBeginnerMode,
 }: AiStudioToolbarProps) {
-  const isCreateSelected = selectedTool === "create" || selectedTool === "text";
-  const activePrimary: "create" | "video" | "edit" | "canvas" | null = isCreateSelected
+  const isCreateSelected = isCreateWorkflow(selectedTool);
+  const isEditSelected = isEditWorkflow(selectedTool);
+  const isVideoSelected = isVideoWorkflow(selectedTool);
+  const isCharacterSelected = isCharacterWorkflow(selectedTool);
+  const activePrimary: "create" | "video" | "edit" | "character" | null = isCreateSelected
     ? "create"
-    : selectedTool === "video"
+    : isVideoSelected
       ? "video"
-      : selectedTool === "edit"
+      : isEditSelected
         ? "edit"
-        : selectedTool === "canvas"
-          ? "canvas"
+        : isCharacterSelected
+          ? "character"
           : null;
 
   return (
@@ -106,7 +115,7 @@ function AiStudioToolbarComponent({
               }
               // Create now behaves exactly like the old Text child action.
               onToggleCreateTools(false);
-              onSelectTool("text");
+              onSelectTool("create");
               return;
             }
             onToggleCreateTools(false);
@@ -130,7 +139,14 @@ function AiStudioToolbarComponent({
         })}
         {editToolList.map((tool) => {
           const IconComponent = toolIcons[tool.id];
-          const isActive = selectedTool === tool.id;
+          const isActive =
+            tool.id === "video"
+              ? isVideoSelected
+              : tool.id === "character"
+                ? isCharacterSelected
+                : tool.id === "edit"
+                  ? isEditSelected
+                  : selectedTool === tool.id;
           return (
             <button
               key={tool.id}
@@ -139,7 +155,7 @@ function AiStudioToolbarComponent({
               data-tool-id={tool.id}
               onClick={() => {
                 const isToggleablePrimary =
-                  tool.id === "video" || tool.id === "edit" || tool.id === "canvas";
+                  tool.id === "video" || tool.id === "edit" || tool.id === "character";
                 if (isToggleablePrimary && isActive) {
                   onToggleCreateTools(false);
                   onSelectTool(null);

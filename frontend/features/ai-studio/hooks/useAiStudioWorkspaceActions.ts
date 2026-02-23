@@ -14,6 +14,12 @@ import type { ModelModalContext } from "../components/ModelModal";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import { isReferencePromptTool } from "../logic/promptTargeting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
+import {
+  isCreateWorkflow,
+  isEditWorkflow,
+  isVideoWorkflow,
+  normalizeToolId,
+} from "../logic/workflowIdentity";
 import type { StudioMode, ToolId } from "../types";
 
 type UseAiStudioWorkspaceActionsParams = {
@@ -123,11 +129,12 @@ export const useAiStudioWorkspaceActions = ({
 
   const handleToolSelect = useCallback(
     (tool: ToolId | null) => {
-      setSelectedTool(tool);
-      if (tool === "create" || tool === "text" || tool === "edit") {
+      const normalizedTool = normalizeToolId(tool);
+      setSelectedTool(normalizedTool);
+      if (isCreateWorkflow(normalizedTool) || normalizedTool === "edit") {
         setMode("image");
       }
-      if (!tool) {
+      if (!normalizedTool) {
         setShowCreateTools(false);
       }
     },
@@ -176,9 +183,9 @@ export const useAiStudioWorkspaceActions = ({
   );
 
   const showReferencePromptGenerate = useMemo(() => {
-    const isCreateWorkflowSelected = selectedTool === "create" || selectedTool === "text";
-    const isEditWorkflowSelected = selectedTool === "edit" || selectedTool === "image";
-    const isVideoWorkflowSelected = selectedTool === "video" || selectedTool === "kling";
+    const isCreateWorkflowSelected = isCreateWorkflow(selectedTool);
+    const isEditWorkflowSelected = isEditWorkflow(selectedTool);
+    const isVideoWorkflowSelected = isVideoWorkflow(selectedTool);
     const hasModelSelected = Boolean(model);
     const hasPrimaryReferenceImage = Boolean(referenceImageUrl);
     const hasFirstLastFrameReferences = Boolean(referenceImageUrl && extraImageUrls[0]);

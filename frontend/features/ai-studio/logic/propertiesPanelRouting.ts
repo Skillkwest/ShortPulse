@@ -1,37 +1,13 @@
 /**
  * Maps selected AI Studio tools to the properties panel surface to render.
  */
-import type { ToolId } from "../types";
+import type { ToolId, WorkflowId } from "../types";
+import { resolveWorkflowId } from "./workflowIdentity";
 
-export type PropertiesPanelKind =
-  | "text"
-  | "character"
-  | "edit"
-  | "video"
-  | "kling"
-  | "canvas"
-  | "none";
+export type PropertiesPanelKind = WorkflowId;
 
 /**
  * Resolves which left-side properties panel should be rendered for a given tool.
  */
-export const resolvePropertiesPanelKind = (selectedTool: ToolId | null): PropertiesPanelKind => {
-  switch (selectedTool) {
-    case "create":
-    case "text":
-      return "text";
-    case "character":
-      return "character";
-    case "image":
-    case "edit":
-      return "edit";
-    case "video":
-      return "video";
-    case "kling":
-      return "kling";
-    case "canvas":
-      return "canvas";
-    default:
-      return "none";
-  }
-};
+export const resolvePropertiesPanelKind = (selectedTool: ToolId | null): PropertiesPanelKind =>
+  resolveWorkflowId(selectedTool);

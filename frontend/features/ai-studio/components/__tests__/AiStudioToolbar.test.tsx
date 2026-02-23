@@ -7,10 +7,14 @@ import { describe, expect, it, vi } from "vitest";
 import { AiStudioToolbar } from "../AiStudioToolbar";
 
 vi.mock("next/image", () => ({
-  default: (props: { alt?: string } & Record<string, unknown>) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img {...props} alt={props.alt} />
-  ),
+  default: ({ alt, ...props }: { alt?: string } & Record<string, unknown>) => {
+    const imgProps = { ...props };
+    delete imgProps.priority;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img {...imgProps} alt={alt} />
+    );
+  },
 }));
 
 vi.mock("../../../../components/DashboardNavPrefab", () => ({
@@ -18,6 +22,32 @@ vi.mock("../../../../components/DashboardNavPrefab", () => ({
 }));
 
 describe("AiStudioToolbar", () => {
+  it.each([
+    { button: "Create", expected: "create" as const },
+    { button: "Edit", expected: "edit" as const },
+    { button: "Video", expected: "video" as const },
+    { button: "Character", expected: "character" as const },
+  ])("routes $button clicks to $expected", ({ button, expected }) => {
+    const onSelectTool = vi.fn();
+    const onToggleCreateTools = vi.fn();
+
+    render(
+      <AiStudioToolbar
+        selectedTool={null}
+        showCreateTools={true}
+        beginnerMode={false}
+        onSelectTool={onSelectTool}
+        onToggleCreateTools={onToggleCreateTools}
+        onToggleBeginnerMode={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: button }));
+
+    expect(onToggleCreateTools).toHaveBeenCalledWith(false);
+    expect(onSelectTool).toHaveBeenCalledWith(expected);
+  });
+
   it("shows Character as a primary toolbar button", () => {
     render(
       <AiStudioToolbar
@@ -33,7 +63,7 @@ describe("AiStudioToolbar", () => {
     expect(screen.getByRole("button", { name: "Character" })).toBeInTheDocument();
   });
 
-  it("routes Character clicks to canvas selection and closes create tools", () => {
+  it("routes Character clicks to canonical character selection and closes create tools", () => {
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();
 
@@ -51,6 +81,57 @@ describe("AiStudioToolbar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Character" }));
 
     expect(onToggleCreateTools).toHaveBeenCalledWith(false);
-    expect(onSelectTool).toHaveBeenCalledWith("canvas");
+    expect(onSelectTool).toHaveBeenCalledWith("character");
+  });
+
+  it("toggles Character off when it is already active", () => {
+    const onSelectTool = vi.fn();
+    const onToggleCreateTools = vi.fn();
+
+    render(
+      <AiStudioToolbar
+        selectedTool="character"
+        showCreateTools={false}
+        beginnerMode={false}
+        onSelectTool={onSelectTool}
+        onToggleCreateTools={onToggleCreateTools}
+        onToggleBeginnerMode={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Character" }));
+
+    expect(onToggleCreateTools).toHaveBeenCalledWith(false);
+    expect(onSelectTool).toHaveBeenCalledWith(null);
+  });
+
+  it.each([
+    { selectedTool: "create" as const, button: "Create" },
+    { selectedTool: "text" as const, button: "Create" },
+    { selectedTool: "edit" as const, button: "Edit" },
+    { selectedTool: "image" as const, button: "Edit" },
+    { selectedTool: "video" as const, button: "Video" },
+    { selectedTool: "kling" as const, button: "Video" },
+    { selectedTool: "character" as const, button: "Character" },
+    { selectedTool: "canvas" as const, button: "Character" },
+  ])("toggles $button off when selectedTool is $selectedTool", ({ selectedTool, button }) => {
+    const onSelectTool = vi.fn();
+    const onToggleCreateTools = vi.fn();
+
+    render(
+      <AiStudioToolbar
+        selectedTool={selectedTool}
+        showCreateTools={false}
+        beginnerMode={false}
+        onSelectTool={onSelectTool}
+        onToggleCreateTools={onToggleCreateTools}
+        onToggleBeginnerMode={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: button }));
+
+    expect(onToggleCreateTools).toHaveBeenCalledWith(false);
+    expect(onSelectTool).toHaveBeenCalledWith(null);
   });
 });

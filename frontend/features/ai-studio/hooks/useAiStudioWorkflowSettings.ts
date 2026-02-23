@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { randomId } from "../logic/ids";
 import type { StudioMode, ToolId } from "../types";
+import { resolveWorkflowId } from "../logic/workflowIdentity";
 
 export const WORKFLOW_SETTINGS_SESSION_KEY = "aiStudioWorkflowSettingsByTool.v1";
 
@@ -58,9 +59,10 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
 };
 
 const resolveWorkflowSettingsKey = (tool: ToolId | null): WorkflowSettingsKey | null => {
-  if (tool === "create" || tool === "text") return "create";
-  if (tool === "edit" || tool === "image") return "edit";
-  if (tool === "video") return "video";
+  const workflowId = resolveWorkflowId(tool);
+  if (workflowId === "create") return "create";
+  if (workflowId === "edit") return "edit";
+  if (workflowId === "video" && tool === "video") return "video";
   if (tool === "kling") return "kling";
   return null;
 };

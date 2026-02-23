@@ -267,6 +267,9 @@ vi.mock("../../features/character/hooks/useCharacterWorkflow", () => ({
 vi.mock("../../features/ai-studio/hooks/useBeginnerModePreference", () => ({
   useBeginnerModePreference: () => ({
     beginnerMode: false,
+    loading: false,
+    error: null,
+    syncState: "ready",
     setBeginnerMode: vi.fn(),
   }),
 }));

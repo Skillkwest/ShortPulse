@@ -25,7 +25,6 @@ import { useAiStudioOptimisticDebitReconciliation } from "../features/ai-studio/
 import { useAiStudioWorkspaceActions } from "../features/ai-studio/hooks/useAiStudioWorkspaceActions";
 import { useAiStudioPageDerivations } from "../features/ai-studio/hooks/useAiStudioPageDerivations";
 import { useAiStudioPanelProps } from "../features/ai-studio/hooks/useAiStudioPanelProps";
-import { useAiStudioCharacterPanelProps } from "../features/ai-studio/hooks/useAiStudioCharacterPanelProps";
 import { useAiStudioReferenceCanvasProps } from "../features/ai-studio/hooks/useAiStudioReferenceCanvasProps";
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
 import { useOutputSelector } from "../features/ai-studio/hooks/aiStudioOutputStore";
@@ -188,29 +187,10 @@ export default function AiStudioPage() {
   const [characterModeInjectionBundle, setCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
 
-  // Character workflow state (used when Character tool is active)
+  // Character workflow state (shared with Character tool workflows and error surfaces)
   const {
-    identity,
-    aspect: characterAspect,
-    modelId: characterModelId,
-    engine: characterEngine,
-    prompt: characterPrompt,
-    poseId: characterPoseId,
-    isBuildingIdentity,
-    isGenerating: isCharacterGenerating,
     error: characterError,
-    hasWebGpu: characterHasWebGpu,
-    modelsAvailable: characterModelsAvailable,
-    capabilityMessage: characterCapabilityMessage,
-    setPrompt: setCharacterPrompt,
-    setAspect: setCharacterAspect,
-    setModelId: setCharacterModelId,
-    setEngine: setCharacterEngine,
-    setPoseId: setCharacterPoseId,
     addReferences: addCharacterReferences,
-    removeReference: removeCharacterReference,
-    buildIdentity: buildCharacterIdentity,
-    generate: generateCharacter,
     clearError: clearCharacterError,
   } = useCharacterWorkflow();
 
@@ -559,7 +539,7 @@ export default function AiStudioPage() {
 
       const toolbarTargets = Array.from(
         document.querySelectorAll<HTMLElement>(
-          ".toolbar-item[data-tool-id='create'], .toolbar-item[data-tool-id='edit'], .toolbar-item[data-tool-id='video'], .toolbar-item[data-tool-id='canvas']"
+          ".toolbar-item[data-tool-id='create'], .toolbar-item[data-tool-id='edit'], .toolbar-item[data-tool-id='video'], .toolbar-item[data-tool-id='character'], .toolbar-item[data-tool-id='canvas']"
         )
       );
       for (let index = 0; index < toolbarSamples; index += 1) {
@@ -969,7 +949,13 @@ export default function AiStudioPage() {
   ]);
 
   const referenceCanvasFileInputRef = useRef<HTMLInputElement | null>(null);
-  const { beginnerMode, setBeginnerMode } = useBeginnerModePreference();
+  const {
+    beginnerMode,
+    loading: beginnerModeLoading,
+    error: beginnerModeError,
+    syncState: beginnerModeSyncState,
+    setBeginnerMode,
+  } = useBeginnerModePreference();
   const trackUiEvent = useCallback((message: string, data?: Record<string, unknown>) => {
     addBreadcrumb({
       type: "ui",
@@ -1067,6 +1053,19 @@ export default function AiStudioPage() {
   const triggerFilePicker = () => referenceCanvasFileInputRef.current?.click();
   const dismissError = () => setUiError(null);
   const dismissNotice = () => setUiNotice(null);
+  const beginnerModeUiNotice = beginnerModeError
+    ? `Beginner mode preference sync failed: ${beginnerModeError}`
+    : beginnerModeSyncState === "saving"
+      ? "Saving beginner mode preference..."
+      : null;
+  const effectiveUiNotice = uiNotice ?? beginnerModeUiNotice;
+  const handleBeginnerModeChange = useCallback(
+    (value: boolean) => {
+      if (beginnerModeLoading || beginnerModeSyncState === "saving") return;
+      setBeginnerMode(value);
+    },
+    [beginnerModeLoading, beginnerModeSyncState, setBeginnerMode]
+  );
 
   const { visibleFailures, dismissFailure, focusFailure } =
     useAiStudioOptimisticDebitReconciliation({
@@ -1386,29 +1385,6 @@ export default function AiStudioPage() {
     handleVideoPromptTextChange,
     handleRegenerateWithDebit,
   });
-  const propertiesCharacter = useAiStudioCharacterPanelProps({
-    identity,
-    characterAspect,
-    characterModelId,
-    characterEngine,
-    characterPrompt,
-    characterPoseId,
-    isBuildingIdentity,
-    isCharacterGenerating,
-    characterHasWebGpu,
-    characterModelsAvailable,
-    characterCapabilityMessage,
-    setCharacterPrompt,
-    setCharacterAspect,
-    setCharacterModelId,
-    setCharacterEngine,
-    setCharacterPoseId,
-    addCharacterReferences,
-    removeCharacterReference,
-    buildCharacterIdentity,
-    generateCharacter,
-    triggerFilePicker,
-  });
   const referenceCanvasProps = useAiStudioReferenceCanvasProps({
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
     archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
@@ -1480,13 +1456,13 @@ export default function AiStudioPage() {
         referenceCanvasFileInputRef={referenceCanvasFileInputRef}
         onFileBrowserSelection={handleFileBrowserSelection}
         uiError={uiError}
-        uiNotice={uiNotice}
+        uiNotice={effectiveUiNotice}
         characterError={characterError}
         onDismissUiError={dismissError}
         onDismissUiNotice={dismissNotice}
         onDismissCharacterError={clearCharacterError}
         beginnerMode={beginnerMode}
-        onBeginnerModeChange={setBeginnerMode}
+        onBeginnerModeChange={handleBeginnerModeChange}
         balanceCredits={effectiveBalanceCredits}
         pendingHoldCredits={pendingHoldCredits > 0 ? pendingHoldCredits : null}
         balanceLoading={balanceLoading}
@@ -1498,7 +1474,6 @@ export default function AiStudioPage() {
         onSelectTool={handleToolSelect}
         onToggleCreateTools={setShowCreateTools}
         propertiesText={propertiesText}
-        propertiesCharacter={propertiesCharacter}
         propertiesImage={propertiesImage}
         propertiesVideo={propertiesVideo}
         isTemplateView={isTemplateView}

@@ -15,9 +15,7 @@ import { AiStudioShellFrame } from "./AiStudioShellFrame";
 import { EditPropertiesPanel } from "./EditPropertiesPanel";
 import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
-import { CharacterPropertiesPanel } from "../../character/components/CharacterPropertiesPanel";
 import { CharacterPanel } from "./CharacterPanel";
-import { KlingComingSoonCard } from "./KlingComingSoonCard";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
@@ -26,6 +24,7 @@ import type { StudioOutput, ToolId } from "../types";
 import type { ReferenceCanvasProps } from "./ReferenceCanvas";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
+import { isCreateWorkflow } from "../logic/workflowIdentity";
 import {
   PERF_FLAG_SHELL_BOUNDARY_SPLIT,
   PERF_FLAG_SHELL_DECOUPLE,
@@ -228,9 +227,6 @@ const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColumnDropP
 };
 
 type TextSectionProps = React.ComponentProps<typeof TextPropertiesPanel>;
-
-type CharacterSectionProps = React.ComponentProps<typeof CharacterPropertiesPanel>;
-
 type EditSectionProps = React.ComponentProps<typeof EditPropertiesPanel>;
 type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
 const PERFORMANCE_DENSE_REFERENCE_COUNT = 40;
@@ -424,7 +420,6 @@ export type AiStudioPageContentProps = {
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (value: boolean) => void;
   propertiesText: TextSectionProps;
-  propertiesCharacter: CharacterSectionProps;
   propertiesImage: EditSectionProps;
   propertiesVideo: VideoSectionProps;
   isTemplateView: boolean;
@@ -472,7 +467,6 @@ export function AiStudioPageContent({
   onSelectTool,
   onToggleCreateTools,
   propertiesText,
-  propertiesCharacter,
   propertiesImage,
   propertiesVideo,
   isTemplateView,
@@ -490,7 +484,6 @@ export function AiStudioPageContent({
   handleReferenceCanvasFiles,
   triggerFilePicker,
 }: AiStudioPageContentProps) {
-  void propertiesCharacter;
   const selectedComingSoonTool = isComingSoonTool(selectedTool) ? selectedTool : null;
   const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
   const ComingSoonIcon = comingSoon ? comingSoon.icon : null;
@@ -499,7 +492,7 @@ export function AiStudioPageContent({
     : "image/*,video/*";
   const propertiesPanelKind = resolvePropertiesPanelKind(selectedTool);
   const showExpertCreatePanel = Boolean(
-    propertiesPanelKind === "text" &&
+    propertiesPanelKind === "create" &&
     propertiesText.expertCreateUiEligible &&
     !propertiesText.beginnerMode
   );
@@ -541,7 +534,7 @@ export function AiStudioPageContent({
   React.useEffect(() => {
     const previousSelectedTool = previousSelectedToolRef.current;
     // Expert Create should always open at its minimum left width when Create is selected.
-    const isCreateToolSelected = selectedTool === "create" || selectedTool === "text";
+    const isCreateToolSelected = isCreateWorkflow(selectedTool);
     const shouldCollapseForExpertCreateSelection = showExpertCreatePanel && isCreateToolSelected;
     if (
       shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool) ||
@@ -593,74 +586,45 @@ export function AiStudioPageContent({
     },
   });
 
-  const memoizedPropertiesPanelContent = React.useMemo(() => {
-    switch (propertiesPanelKind) {
-      case "text":
-        return (
-          <>
-            <TextPropertiesPanel
-              {...propertiesText}
-              agentChatOpen={agentChat.isOpen}
-              onAgentEnhanceSend={propertiesText.onAgentEnhanceSend}
-            />
-            {!showExpertCreatePanel ? (
-              <ComposeSendCard {...propertiesText} onGenerate={propertiesText.onGenerate} />
-            ) : null}
-          </>
-        );
-      case "character":
-        return <CharacterPanel beginnerMode={beginnerMode} />;
-      case "edit":
-        return <EditPropertiesPanel {...propertiesImage} />;
-      case "video":
-        return <VideoPropertiesPanel {...propertiesVideo} />;
-      case "kling":
-        return <KlingComingSoonCard />;
-      case "canvas":
-        return <CharacterPanel beginnerMode={beginnerMode} />;
-      default:
-        return null;
-    }
-  }, [
-    agentChat.isOpen,
-    beginnerMode,
-    propertiesImage,
-    propertiesPanelKind,
-    propertiesText,
-    propertiesVideo,
-    showExpertCreatePanel,
-  ]);
+  const panelRegistry = React.useMemo(
+    () => ({
+      create: (
+        <>
+          <TextPropertiesPanel
+            {...propertiesText}
+            agentChatOpen={agentChat.isOpen}
+            onAgentEnhanceSend={propertiesText.onAgentEnhanceSend}
+          />
+          {!showExpertCreatePanel ? (
+            <ComposeSendCard {...propertiesText} onGenerate={propertiesText.onGenerate} />
+          ) : null}
+        </>
+      ),
+      edit: <EditPropertiesPanel {...propertiesImage} />,
+      video: <VideoPropertiesPanel {...propertiesVideo} />,
+      character: <CharacterPanel beginnerMode={beginnerMode} />,
+      none: null,
+    }),
+    [
+      agentChat.isOpen,
+      beginnerMode,
+      propertiesImage,
+      propertiesText,
+      propertiesVideo,
+      showExpertCreatePanel,
+    ]
+  );
+  const resolvePanelFromRegistry = React.useCallback(
+    (kind: keyof typeof panelRegistry) => panelRegistry[kind],
+    [panelRegistry]
+  );
+  const memoizedPropertiesPanelContent = React.useMemo(
+    () => resolvePanelFromRegistry(propertiesPanelKind),
+    [propertiesPanelKind, resolvePanelFromRegistry]
+  );
   const propertiesPanelContent = FLAG_PANEL_MEMOIZATION
     ? memoizedPropertiesPanelContent
-    : (() => {
-        switch (propertiesPanelKind) {
-          case "text":
-            return (
-              <>
-                <TextPropertiesPanel
-                  {...propertiesText}
-                  agentChatOpen={agentChat.isOpen}
-                  onAgentEnhanceSend={propertiesText.onAgentEnhanceSend}
-                />
-                {!showExpertCreatePanel ? (
-                  <ComposeSendCard {...propertiesText} onGenerate={propertiesText.onGenerate} />
-                ) : null}
-              </>
-            );
-          case "character":
-            return <CharacterPanel beginnerMode={beginnerMode} />;
-          case "edit":
-            return <EditPropertiesPanel {...propertiesImage} />;
-          case "video":
-            return <VideoPropertiesPanel {...propertiesVideo} />;
-          case "kling":
-            return <KlingComingSoonCard />;
-          case "canvas":
-            return <CharacterPanel beginnerMode={beginnerMode} />;
-          default:
-            return null;
-        }
-      })();
+    : resolvePanelFromRegistry(propertiesPanelKind);
   const toolbarRail = FLAG_SHELL_BOUNDARY_SPLIT ? (
     <AiStudioToolbarRail
       selectedTool={selectedTool}

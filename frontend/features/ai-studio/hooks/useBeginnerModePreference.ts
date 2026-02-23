@@ -8,10 +8,13 @@ import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 const DEFAULT_BEGINNER_MODE = true;
 const BEGINNER_MODE_STORAGE_KEY = "shortpulse.ai_studio.beginner_mode";
 
+export type BeginnerSyncState = "loading" | "ready" | "saving" | "error";
+
 type UseBeginnerModePreferenceResult = {
   beginnerMode: boolean;
   loading: boolean;
   error: string | null;
+  syncState: BeginnerSyncState;
   setBeginnerMode: (value: boolean) => void;
 };
 
@@ -38,9 +41,12 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
   const [beginnerMode, setBeginnerModeState] = useState<boolean>(DEFAULT_BEGINNER_MODE);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState<BeginnerSyncState>("loading");
   const [userId, setUserId] = useState<string | null>(null);
   const latestModeRef = useRef<boolean>(DEFAULT_BEGINNER_MODE);
   const remoteSyncEnabledRef = useRef<boolean>(true);
+  const writeVersionRef = useRef<number>(0);
+  const hasLocalOverrideRef = useRef<boolean>(false);
 
   const updateLocalMode = useCallback((value: boolean) => {
     latestModeRef.current = value;
@@ -50,6 +56,9 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setSyncState("loading");
+
     (async () => {
       updateLocalMode(readLocalBeginnerMode());
       try {
@@ -58,12 +67,15 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
         if (sessionError) throw sessionError;
         const id = data.session?.user?.id;
         if (!id) {
+          if (!active) return;
           setUserId(null);
           setError(null);
+          setSyncState("ready");
           return;
         }
         if (!active) return;
         setUserId(id);
+
         const { data: storedPreference, error: preferenceError } = await supabase
           .from("user_preferences")
           .select("beginner_mode")
@@ -71,8 +83,12 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
           .maybeSingle();
         if (preferenceError) throw preferenceError;
         if (!active) return;
+
         const nextValue = storedPreference?.beginner_mode ?? DEFAULT_BEGINNER_MODE;
-        updateLocalMode(nextValue);
+        if (!hasLocalOverrideRef.current) {
+          updateLocalMode(nextValue);
+        }
+
         if (!storedPreference) {
           const { error: insertError } = await supabase
             .from("user_preferences")
@@ -82,15 +98,20 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
             );
           if (insertError) throw insertError;
         }
+
+        if (!active) return;
         setError(null);
+        setSyncState("ready");
       } catch (err) {
         if (!active) return;
         if (isMissingUserPreferencesTableError(err)) {
           remoteSyncEnabledRef.current = false;
           setError(null);
+          setSyncState("ready");
           return;
         }
         setError(err instanceof Error ? err.message : "Unable to load beginner mode preference");
+        setSyncState("error");
       } finally {
         if (active) {
           setLoading(false);
@@ -105,24 +126,43 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
 
   const persistPreference = useCallback(
     async (value: boolean) => {
+      const requestVersion = writeVersionRef.current + 1;
+      writeVersionRef.current = requestVersion;
+      hasLocalOverrideRef.current = true;
+
       const previous = latestModeRef.current;
       updateLocalMode(value);
-      if (!userId || !remoteSyncEnabledRef.current) return;
+      setSyncState("saving");
+      setError(null);
+
+      if (!userId || !remoteSyncEnabledRef.current) {
+        if (requestVersion === writeVersionRef.current) {
+          setSyncState("ready");
+        }
+        return;
+      }
+
       try {
         const supabase = ensureSupabaseClient();
         const { error: upsertError } = await supabase
           .from("user_preferences")
           .upsert({ user_id: userId, beginner_mode: value }, { onConflict: "user_id" });
         if (upsertError) throw upsertError;
+
+        if (requestVersion !== writeVersionRef.current) return;
         setError(null);
+        setSyncState("ready");
       } catch (err) {
+        if (requestVersion !== writeVersionRef.current) return;
         if (isMissingUserPreferencesTableError(err)) {
           remoteSyncEnabledRef.current = false;
           setError(null);
+          setSyncState("ready");
           return;
         }
         updateLocalMode(previous);
         setError(err instanceof Error ? err.message : "Unable to update beginner mode preference");
+        setSyncState("error");
       }
     },
     [userId, updateLocalMode]
@@ -139,6 +179,7 @@ export const useBeginnerModePreference = (): UseBeginnerModePreferenceResult => 
     beginnerMode,
     loading,
     error,
+    syncState,
     setBeginnerMode,
   };
 };

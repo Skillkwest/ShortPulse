@@ -6,6 +6,7 @@ import { aspectOptions } from "../constants";
 import { getModelConfig } from "../logic/pricing";
 import { clampImageResolutionForModel } from "../logic/imageResolution";
 import { computeModalPosition } from "../logic/stateParsers";
+import { isCreateWorkflow, isVideoWorkflow, resolveWorkflowId } from "../logic/workflowIdentity";
 import type { ToolId } from "../types";
 
 const KEYFRAME_COMPATIBLE_MODELS = new Set(["fal-ai/veo3.1/first-last-frame-to-video"]);
@@ -195,7 +196,7 @@ export const useAiStudioStateEffects = ({
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;
-    if (selectedTool !== "video" && selectedTool !== "kling") return;
+    if (!isVideoWorkflow(selectedTool)) return;
     const previousMode = lastVideoReferenceModeRef.current;
     if (videoReferenceMode !== previousMode) {
       lastVideoReferenceModeRef.current = videoReferenceMode;
@@ -265,7 +266,7 @@ export const useAiStudioStateEffects = ({
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;
-    if (selectedTool !== "video") return;
+    if (resolveWorkflowId(selectedTool) !== "video" || selectedTool === "kling") return;
     if (videoReferenceMode === "keyframes" || videoReferenceMode === "motion") return;
     if (videoReferenceMode === "kling3") {
       setVideoReferenceMode("standard");
@@ -317,8 +318,7 @@ export const useAiStudioStateEffects = ({
     const allowedValues = new Set(allowedModelValues);
     if (!allowedValues.has(model)) {
       const isCharacterModeCreateModel =
-        (selectedTool === "create" || selectedTool === "text") &&
-        model === CREATE_CHARACTER_MODE_LOCKED_MODEL_ID;
+        isCreateWorkflow(selectedTool) && model === CREATE_CHARACTER_MODE_LOCKED_MODEL_ID;
       if (isCharacterModeCreateModel) {
         return;
       }

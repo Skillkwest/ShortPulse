@@ -8,6 +8,7 @@ import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
 import { TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { normalizeImageResolutionForPricing } from "../logic/imageResolution";
+import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type ViewModelInput = {
@@ -51,22 +52,18 @@ export const useAiStudioViewModel = ({
   balanceCredits,
   costParamsForModel,
 }: ViewModelInput) => {
-  const isDescribeMode =
-    (selectedTool === "create" || selectedTool === "text") &&
-    mode === "text" &&
-    useReferenceImageIndicator;
+  const isCreateWorkflowSelected = isCreateWorkflow(selectedTool);
+  const isEditWorkflowSelected = isEditWorkflow(selectedTool);
+  const isVideoWorkflowSelected = isVideoWorkflow(selectedTool);
+  const isDescribeMode = isCreateWorkflowSelected && mode === "text" && useReferenceImageIndicator;
   const requiresModelSelection =
-    ((selectedTool === "create" || selectedTool === "text") && mode !== "text") ||
-    selectedTool === "video" ||
-    selectedTool === "image" ||
-    selectedTool === "edit";
+    (isCreateWorkflowSelected && mode !== "text") ||
+    isVideoWorkflowSelected ||
+    isEditWorkflowSelected;
   const isModelSelected = Boolean(model);
   const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
-  const isVideoTool = selectedTool === "video" || selectedTool === "kling";
-  const isImageTool =
-    ((selectedTool === "create" || selectedTool === "text") && mode === "image") ||
-    selectedTool === "image" ||
-    selectedTool === "edit";
+  const isVideoTool = isVideoWorkflowSelected;
+  const isImageTool = (isCreateWorkflowSelected && mode === "image") || isEditWorkflowSelected;
   const pricingImageResolution = useMemo(
     () => normalizeImageResolutionForPricing(imageResolution),
     [imageResolution]
@@ -79,7 +76,7 @@ export const useAiStudioViewModel = ({
   );
 
   const currentCost = useMemo(() => {
-    if (selectedTool === "create" || selectedTool === "text") {
+    if (isCreateWorkflowSelected) {
       if (mode === "image") {
         if (!model) return null;
         return computeCostForModel(
@@ -103,7 +100,7 @@ export const useAiStudioViewModel = ({
       return null;
     }
 
-    if (selectedTool === "image" || selectedTool === "edit") {
+    if (isEditWorkflowSelected) {
       if (!model) return null;
       return computeCostForModel(
         model,
@@ -132,7 +129,8 @@ export const useAiStudioViewModel = ({
     getDefaultDurationSeconds,
     mode,
     model,
-    selectedTool,
+    isCreateWorkflowSelected,
+    isEditWorkflowSelected,
     isVideoTool,
     videoDurationSeconds,
     videoResolution,
@@ -191,11 +189,9 @@ export const useAiStudioViewModel = ({
       : balanceCredits >= promptReferenceGenerateCostCredits;
 
   const costedFlow =
-    ((selectedTool === "create" || selectedTool === "text") &&
-      (mode === "image" || mode === "video")) ||
+    (isCreateWorkflowSelected && (mode === "image" || mode === "video")) ||
     isVideoTool ||
-    selectedTool === "image" ||
-    selectedTool === "edit";
+    isEditWorkflowSelected;
 
   const hasSufficientCreditsForCost =
     !costedFlow || balanceCredits == null || currentCostCredits == null
@@ -204,10 +200,10 @@ export const useAiStudioViewModel = ({
   const isCreditGuardrail = costedFlow && !hasSufficientCreditsForCost;
 
   const generationGuardrail = useMemo(() => {
-    if ((selectedTool === "create" || selectedTool === "text") && mode === "text") return null;
+    if (isCreateWorkflowSelected && mode === "text") return null;
     if (requiresModelSelection && !isModelSelected)
       return "Select a model before running a generation.";
-    if (selectedTool === "edit") {
+    if (isEditWorkflowSelected) {
       if (!referenceImageUrl) return "Add a reference image before generating.";
       if (!prompt.trim()) return 'Add a prompt in "Write Your Prompt" before generating.';
     }
@@ -253,7 +249,8 @@ export const useAiStudioViewModel = ({
     referenceImageUrl,
     requiresModelSelection,
     mode,
-    selectedTool,
+    isCreateWorkflowSelected,
+    isEditWorkflowSelected,
     videoReferenceMode,
   ]);
 
@@ -265,7 +262,7 @@ export const useAiStudioViewModel = ({
     if (!model || !modelConfig) return null;
 
     // Check if using image tool with image-to-image model but no reference
-    if (selectedTool === "image" || selectedTool === "edit") {
+    if (isEditWorkflowSelected) {
       const hasReference = Boolean(referenceImageUrl);
       const isImageToImageOnly =
         modelConfig.supportsImageToImage && !modelConfig.supportsTextToImage;
@@ -296,7 +293,7 @@ export const useAiStudioViewModel = ({
   }, [
     model,
     modelConfig,
-    selectedTool,
+    isEditWorkflowSelected,
     referenceImageUrl,
     isVideoTool,
     videoReferenceMode,

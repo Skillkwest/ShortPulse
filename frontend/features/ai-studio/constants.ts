@@ -179,7 +179,7 @@ export const primaryToolList: ToolConfig[] = [
 export const editToolList: ToolConfig[] = [
   { id: "edit", label: "Edit", desc: "Edit and refine content" },
   { id: "video", label: "Video", desc: "Generate video content" },
-  { id: "canvas", label: "Character", desc: "Create and manage character references" },
+  { id: "character", label: "Character", desc: "Create and manage character references" },
 ];
 
 export const lowerToolList: ToolConfig[] = [

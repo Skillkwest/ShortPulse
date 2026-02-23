@@ -57,12 +57,15 @@ import {
 } from "../../../lib/adaptive-media";
 import {
   dedupeMediaFiles,
-  extractDroppedPromptText,
   normalizeMediaFile,
   type PastedMediaReference,
 } from "../reference-grid/controllers/referenceGridClipboard";
 import { ReferenceCanvasCard } from "../reference-grid/components/ReferenceCanvasCard";
 import { useReferenceGridClipboardController } from "../reference-grid/controllers/useReferenceGridClipboardController";
+import {
+  useReferenceGridCanvasDropController,
+  type ReferenceCanvasDropMode,
+} from "../reference-grid/controllers/useReferenceGridCanvasDropController";
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
@@ -261,7 +264,6 @@ export function ReferenceCanvas({
   onRestoreAllArchivedOutputs,
   generateCostCredits,
 }: ReferenceCanvasProps) {
-  type CanvasDropMode = "none" | "text" | "files";
   const selectorOutputs = useOutputSelector((snapshot) => {
     if (outputsProp) return EMPTY_OUTPUTS;
     return snapshot.outputOrder
@@ -360,8 +362,8 @@ export function ReferenceCanvas({
   const desiredVideoAttachBudgetRef = React.useRef<number>(REFERENCE_AUTOPLAY_MAX_DESKTOP);
   const autoplayEnabledIdsStateRef = React.useRef<string[]>([]);
   const recomputeAutoplayBudgetRef = React.useRef<() => void>(() => {});
-  const [canvasDropMode, setCanvasDropMode] = useState<CanvasDropMode>("none");
-  const canvasDropModeRef = React.useRef<CanvasDropMode>("none");
+  const [canvasDropMode, setCanvasDropMode] = useState<ReferenceCanvasDropMode>("none");
+  const canvasDropModeRef = React.useRef<ReferenceCanvasDropMode>("none");
   const [isCuratedDropActive, setIsCuratedDropActive] = useState(false);
   const isCuratedDropActiveRef = React.useRef(false);
   const [isArchivePanelOpen, setIsArchivePanelOpen] = useState(false);
@@ -390,7 +392,7 @@ export function ReferenceCanvas({
     isCuratedDropActiveRef.current = next;
     setIsCuratedDropActive(next);
   }, []);
-  const setCanvasDropModeSafe = useCallback((next: CanvasDropMode) => {
+  const setCanvasDropModeSafe = useCallback((next: ReferenceCanvasDropMode) => {
     if (canvasDropModeRef.current === next) return;
     canvasDropModeRef.current = next;
     setCanvasDropMode(next);
@@ -859,7 +861,7 @@ export function ReferenceCanvas({
   }, []);
 
   const resolveCanvasDropMode = useCallback(
-    (transfer: DataTransfer | null | undefined): CanvasDropMode => {
+    (transfer: DataTransfer | null | undefined): ReferenceCanvasDropMode => {
       if (!transfer) return "none";
       const normalizedTypes = Array.from(transfer.types || []).map((type) => type.toLowerCase());
       if (normalizedTypes.includes("text/reference-id")) return "none";
@@ -2012,56 +2014,19 @@ export function ReferenceCanvas({
     [onOutputMediaLoaded, runNonUrgentUpdate]
   );
 
-  const handleCanvasDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    canvasDragDepthRef.current = 0;
-    setCanvasDropModeSafe("none");
-    // Ignore drops that originate from existing reference cards to avoid creating duplicates/empties.
-    const internalRefId = event.dataTransfer.getData("text/reference-id");
-    if (internalRefId) {
-      event.preventDefault();
-      return;
-    }
-    const files = event.dataTransfer.files;
-    if (files && files.length > 0 && onDropFiles) {
-      const mediaFiles = normalizeMediaFiles(Array.from(files));
-      if (mediaFiles.length === 0) return;
-      const fileList = buildFileList(mediaFiles);
-      if (!fileList) return;
-      event.preventDefault();
-      onDropFiles(fileList);
-      return;
-    }
-
-    const droppedPromptText = extractDroppedPromptText(event.dataTransfer);
-    if (!droppedPromptText || !onPasteTextReference) return;
-    event.preventDefault();
-    onPasteTextReference(droppedPromptText);
-  };
-
-  const handleCanvasDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    const nextDropMode = resolveCanvasDropMode(event.dataTransfer);
-    if (nextDropMode === "none") return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-    setCanvasDropModeSafe(nextDropMode);
-  };
-
-  const handleCanvasDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
-    const nextDropMode = resolveCanvasDropMode(event.dataTransfer);
-    if (nextDropMode === "none") return;
-    event.preventDefault();
-    canvasDragDepthRef.current += 1;
-    setCanvasDropModeSafe(nextDropMode);
-  };
-
-  const handleCanvasDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
-    if (!canAcceptCanvasDrag(event.dataTransfer)) return;
-    event.preventDefault();
-    canvasDragDepthRef.current = Math.max(0, canvasDragDepthRef.current - 1);
-    if (canvasDragDepthRef.current === 0) {
-      setCanvasDropModeSafe("none");
-    }
-  };
+  const { handleCanvasDrop, handleCanvasDragOver, handleCanvasDragEnter, handleCanvasDragLeave } =
+    useReferenceGridCanvasDropController({
+      canvasDragDepthRef,
+      curatedDragDepthRef,
+      setCanvasDropModeSafe,
+      setCuratedDropActiveSafe,
+      resolveCanvasDropMode,
+      canAcceptCanvasDrag,
+      normalizeMediaFiles,
+      buildFileList,
+      onDropFiles,
+      onPasteTextReference,
+    });
 
   const { handlePanelPointerEnter, handlePanelPointerLeave, handlePanelPointerDown } =
     useReferenceGridClipboardController({
@@ -2075,22 +2040,6 @@ export function ReferenceCanvas({
       onPasteMediaReference,
       onPasteTextReference,
     });
-
-  React.useEffect(() => {
-    if (typeof document === "undefined") return;
-    const clearDropState = () => {
-      canvasDragDepthRef.current = 0;
-      curatedDragDepthRef.current = 0;
-      setCanvasDropModeSafe("none");
-      setCuratedDropActiveSafe(false);
-    };
-    document.addEventListener("dragend", clearDropState);
-    document.addEventListener("drop", clearDropState);
-    return () => {
-      document.removeEventListener("dragend", clearDropState);
-      document.removeEventListener("drop", clearDropState);
-    };
-  }, [setCanvasDropModeSafe, setCuratedDropActiveSafe]);
 
   const handleCardDragStart = useCallback(
     (

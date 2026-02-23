@@ -12,6 +12,11 @@ export type SubmitResult = {
   targetIndex: number;
 };
 
+const clampStartTimeoutSeconds = (value: number): number => {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(1, Math.trunc(value));
+};
+
 const readJsonSafe = async (response: Response): Promise<Record<string, unknown>> => {
   const text = await response.text();
   if (!text) return {};
@@ -28,12 +33,14 @@ const runSubmitTarget = async ({
   apiKey,
   signal,
   targetIndex,
+  requestStartTimeoutSeconds,
 }: {
   target: SubmitTarget;
   payload: SubmitPayload;
   apiKey: string;
   signal: AbortSignal;
   targetIndex: number;
+  requestStartTimeoutSeconds: number;
 }): Promise<SubmitResult> => {
   const body = target.transformPayload ? target.transformPayload(payload) : payload;
   const response = await fetch(target.submitUrl, {
@@ -41,6 +48,7 @@ const runSubmitTarget = async ({
     headers: {
       "Content-Type": "application/json",
       Authorization: `Key ${apiKey}`,
+      "X-Fal-Request-Timeout": String(requestStartTimeoutSeconds),
     },
     body: JSON.stringify(body),
     signal,
@@ -59,15 +67,18 @@ export const submitWithFallbackTargets = async ({
   payload,
   apiKey,
   signal,
+  requestStartTimeoutSeconds,
 }: {
   targets: SubmitTarget[];
   payload: SubmitPayload;
   apiKey: string;
   signal: AbortSignal;
+  requestStartTimeoutSeconds?: number;
 }): Promise<SubmitResult> => {
   if (!targets.length) {
     throw new Error("submitWithFallbackTargets requires at least one submit target.");
   }
+  const resolvedStartTimeoutSeconds = clampStartTimeoutSeconds(requestStartTimeoutSeconds ?? 30);
 
   const primary = await runSubmitTarget({
     target: targets[0],
@@ -75,6 +86,7 @@ export const submitWithFallbackTargets = async ({
     apiKey,
     signal,
     targetIndex: 0,
+    requestStartTimeoutSeconds: resolvedStartTimeoutSeconds,
   });
   if (primary.response.ok || targets.length === 1) {
     return primary;
@@ -88,6 +100,7 @@ export const submitWithFallbackTargets = async ({
       apiKey,
       signal,
       targetIndex: offset + 1,
+      requestStartTimeoutSeconds: resolvedStartTimeoutSeconds,
     });
     if (fallback.response.ok) {
       return fallback;

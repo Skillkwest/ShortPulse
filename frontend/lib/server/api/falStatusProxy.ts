@@ -38,6 +38,13 @@ type JsonReadResult = {
 
 const completedStatuses = new Set(["completed", "succeeded", "success", "done"]);
 const failedStatuses = new Set(["failed", "error", "cancelled", "canceled"]);
+const retryableUpstreamStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+
+const isRetryableUpstreamResponse = (response: Response): boolean => {
+  if (retryableUpstreamStatuses.has(response.status)) return true;
+  const retryableHeader = response.headers.get("x-fal-retryable");
+  return typeof retryableHeader === "string" && retryableHeader.trim().toLowerCase() === "true";
+};
 
 const resolveSuccessfulPayloadStatus = (...candidates: unknown[]): string => {
   for (const candidate of candidates) {
@@ -525,6 +532,9 @@ export const createFalStatusHandler = ({
       }
 
       if (!statusResp.ok) {
+        if (isRetryableUpstreamResponse(statusResp)) {
+          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
+        }
         await settleFailure({
           userId: user.id,
           requestId,
@@ -679,6 +689,9 @@ export const createFalStatusHandler = ({
       }
 
       if (!resultData.isJson) {
+        if (isRetryableUpstreamResponse(resultResp)) {
+          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
+        }
         await settleFailure({
           userId: user.id,
           requestId,
@@ -724,6 +737,9 @@ export const createFalStatusHandler = ({
       }
 
       if (!resultResp.ok) {
+        if (isRetryableUpstreamResponse(resultResp)) {
+          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
+        }
         await settleFailure({
           userId: user.id,
           requestId,

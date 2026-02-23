@@ -155,6 +155,7 @@ export const createFalSubmitHandler =
         payload,
         apiKey,
         signal: controller.signal,
+        requestStartTimeoutSeconds: Math.max(1, Math.ceil(timeoutMs / 1000)),
       });
       const upstream = upstreamResult.response;
       const data = upstreamResult.data;

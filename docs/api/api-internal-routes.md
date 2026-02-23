@@ -41,6 +41,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 ## Shared runtime contracts
 - Credit lifecycle for generation:
   - Submit path: reserve credits (`reserve_generation_credits`).
+  - Submit proxy sends `X-Fal-Request-Timeout` to queue endpoints to bound pre-start latency at provider edge.
   - Provider request accepted: attach provider request ID to reservation.
   - Success path: capture reservation to ledger debit.
   - Failure path: release reservation (no debit).

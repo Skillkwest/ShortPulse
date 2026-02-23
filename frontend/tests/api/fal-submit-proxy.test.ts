@@ -95,6 +95,14 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstHeaders = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.headers as
+      | Record<string, string>
+      | undefined;
+    const secondHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit | undefined)?.headers as
+      | Record<string, string>
+      | undefined;
+    expect(firstHeaders?.["X-Fal-Request-Timeout"]).toBe("20");
+    expect(secondHeaders?.["X-Fal-Request-Timeout"]).toBe("20");
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ request_id: "req-fallback" });
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
@@ -152,6 +160,14 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstHeaders = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.headers as
+      | Record<string, string>
+      | undefined;
+    const secondHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit | undefined)?.headers as
+      | Record<string, string>
+      | undefined;
+    expect(firstHeaders?.["X-Fal-Request-Timeout"]).toBe("20");
+    expect(secondHeaders?.["X-Fal-Request-Timeout"]).toBe("20");
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "primary fail" });
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;

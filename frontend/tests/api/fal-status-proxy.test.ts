@@ -485,4 +485,90 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({ outcome: "fail" })
     );
   });
+
+  it("treats retryable status upstream failures as transient and keeps polling payload", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "upstream temporarily unavailable" }), {
+        status: 503,
+        headers: {
+          "Content-Type": "application/json",
+          "x-fal-retryable": "true",
+        },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-status-retryable" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "upstream temporarily unavailable",
+    });
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "fail" })
+    );
+  });
+
+  it("treats retryable result upstream failures as transient and keeps completed status payload", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "result temporarily unavailable" }), {
+          status: 503,
+          headers: {
+            "Content-Type": "application/json",
+            "x-fal-retryable": "true",
+          },
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-result-retryable" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "COMPLETED",
+      })
+    );
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "fail" })
+    );
+  });
 });

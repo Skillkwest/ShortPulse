@@ -8,8 +8,16 @@ import { settleGenerationOutcome } from "../api/generationBilling";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { asString } from "./falAdapter";
-import { extractRecoveryMediaUrls, probeProviderResult } from "./recoveryProviderProbe";
-import { isLegalGenerationTransition, normalizeGenerationLifecycleState } from "./stateMachine";
+import {
+  canTransitionToSuccess,
+  clampPrompt,
+  collectRecoveredUrls,
+  resolveExtension,
+  resolveFileType,
+  resolveRetryDelaySeconds,
+  sanitizeFilename,
+} from "./recoveryExecutionRuntime";
+import { probeProviderResult } from "./recoveryProviderProbe";
 
 type JsonObject = Record<string, unknown>;
 
@@ -71,22 +79,6 @@ type ExecuteRecoveryInput = {
 const MEDIA_BUCKET = "media_library";
 const FETCH_TIMEOUT_MS = 60000;
 const FETCH_RETRY_ATTEMPTS = 2;
-const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v"]);
-
-const CONTENT_TYPE_EXTENSION: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/jpg": "jpg",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "image/avif": "avif",
-  "image/heic": "heic",
-  "image/heif": "heif",
-  "video/mp4": "mp4",
-  "video/webm": "webm",
-  "video/quicktime": "mov",
-  "video/x-m4v": "m4v",
-};
 
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
@@ -119,44 +111,6 @@ const parseGenerationRow = (value: unknown): GenerationRow | null => {
     recovery_state: recoveryState,
     completed_at: asString(row.completed_at),
   };
-};
-
-const sanitizeFilename = (value: string): string => value.replace(/[^\w.-]+/g, "_");
-
-const clampPrompt = (value?: string | null): string => {
-  const trimmed = (value ?? "").trim();
-  if (!trimmed) return "ai-studio-generation";
-  return trimmed.length > 48 ? `${trimmed.slice(0, 48).trim()}...` : trimmed;
-};
-
-const extensionFromUrl = (url: string): string => {
-  try {
-    const parsed = new URL(url);
-    const base = parsed.pathname.split("/").pop() ?? "";
-    const ext = base.includes(".") ? (base.split(".").pop() ?? "") : "";
-    return ext.replace(/[^a-z0-9]+/gi, "").toLowerCase();
-  } catch {
-    return "";
-  }
-};
-
-const resolveFileType = (contentType: string | null, url: string): "image" | "video" => {
-  const normalizedType = (contentType ?? "").toLowerCase();
-  if (normalizedType.startsWith("video/")) return "video";
-  if (normalizedType.startsWith("image/")) return "image";
-  const ext = extensionFromUrl(url);
-  if (VIDEO_EXTENSIONS.has(ext)) return "video";
-  return "image";
-};
-
-const resolveExtension = (contentType: string | null, url: string): string => {
-  const normalizedType = (contentType ?? "").toLowerCase();
-  if (normalizedType && CONTENT_TYPE_EXTENSION[normalizedType]) {
-    return CONTENT_TYPE_EXTENSION[normalizedType];
-  }
-  const ext = extensionFromUrl(url);
-  if (ext) return ext;
-  return normalizedType.startsWith("video/") ? "mp4" : "png";
 };
 
 const fetchBufferWithRetry = async (
@@ -402,28 +356,6 @@ const updateGenerationRecoveryState = async ({
   if (error) throw error;
 };
 
-const resolveRetryDelaySeconds = (attempts: number): number => {
-  const base = 120;
-  const scaled = base * Math.pow(2, Math.max(0, attempts - 1));
-  return Math.min(900, Math.round(scaled));
-};
-
-const canTransitionToSuccess = (generation: GenerationRow): boolean => {
-  const currentState = normalizeGenerationLifecycleState(generation.status);
-  if (!currentState) return false;
-  if (currentState === "fail") {
-    const reason = (generation.failure_reason_code ?? "").toLowerCase();
-    const recovery = (generation.recovery_state ?? "").toLowerCase();
-    if (
-      reason === "terminal_success_no_media" &&
-      (recovery === "queued" || recovery === "recovering" || recovery === "recovered")
-    ) {
-      return true;
-    }
-  }
-  return isLegalGenerationTransition({ from: currentState, to: "success" });
-};
-
 /**
  * Execute shared Fal recovery flow for reconciler, admin replay, webhook, and status proxy.
  */
@@ -543,16 +475,10 @@ export const executeGenerationRecovery = async ({
     });
   }
 
-  const recoveredUrls = Array.from(
-    new Set(
-      [
-        ...currentObservation.mediaUrls,
-        ...(currentObservation.payload ? extractRecoveryMediaUrls(currentObservation.payload) : []),
-      ]
-        .map((url) => url.trim())
-        .filter((url) => Boolean(url))
-    )
-  );
+  const recoveredUrls = collectRecoveredUrls({
+    mediaUrls: currentObservation.mediaUrls,
+    payload: currentObservation.payload,
+  });
 
   if (currentObservation.state === "running") {
     const nextDelaySeconds = resolveRetryDelaySeconds(Math.max(attempts, 1));
@@ -651,7 +577,13 @@ export const executeGenerationRecovery = async ({
     };
   }
 
-  if (!canTransitionToSuccess(generation)) {
+  if (
+    !canTransitionToSuccess({
+      status: generation.status,
+      failureReasonCode: generation.failure_reason_code,
+      recoveryState: generation.recovery_state,
+    })
+  ) {
     return {
       ok: true,
       state: "skipped",

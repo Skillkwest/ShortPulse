@@ -1,6 +1,6 @@
 /**
  * Autoplay event controller for Reference Grid cards.
- * Keeps autoplay start/stop telemetry handlers out of ReferenceCanvas render composition.
+ * Keeps autoplay start/stop telemetry handlers out of ReferenceGrid render composition.
  */
 import { useCallback, type MutableRefObject } from "react";
 import { logMediaPerf } from "../../../../lib/mediaPerfTelemetry";

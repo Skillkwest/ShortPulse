@@ -1,6 +1,6 @@
 /**
  * Card drag controller for Reference Grid cards.
- * Keeps drag protocol wiring out of ReferenceCanvas render composition.
+ * Keeps drag protocol wiring out of ReferenceGrid render composition.
  */
 import { useCallback } from "react";
 import type { StudioOutput } from "../../types";

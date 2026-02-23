@@ -1,6 +1,6 @@
 /**
  * Card render controller for Reference Grid.
- * Keeps per-card action wiring and visual state mapping out of ReferenceCanvas.
+ * Keeps per-card action wiring and visual state mapping out of ReferenceGrid.
  */
 import React, { useCallback } from "react";
 import { ReferenceCanvasCard } from "../components/ReferenceCanvasCard";

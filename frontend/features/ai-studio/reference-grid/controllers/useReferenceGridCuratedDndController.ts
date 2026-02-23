@@ -1,6 +1,6 @@
 /**
  * Curated quick-slot drag/drop and keyboard-reorder controller.
- * Keeps curated interaction policies out of ReferenceCanvas rendering/orchestration code.
+ * Keeps curated interaction policies out of ReferenceGrid rendering/orchestration code.
  */
 import { useCallback, type MutableRefObject } from "react";
 import type { StudioOutput } from "../../types";

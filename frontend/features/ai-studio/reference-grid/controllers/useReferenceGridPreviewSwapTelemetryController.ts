@@ -1,6 +1,6 @@
 /**
  * Preview-swap telemetry controller for Reference Grid.
- * Encapsulates URL swap-rate tracking and reset logic away from ReferenceCanvas composition.
+ * Encapsulates URL swap-rate tracking and reset logic away from ReferenceGrid composition.
  */
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 

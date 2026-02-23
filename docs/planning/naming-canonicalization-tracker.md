@@ -25,6 +25,7 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 2026-02-23 | Phase 4 runtime callsite migration slice A | completed | Runtime imports and prop keys | pass (perf blocked) | Evidence: `phase-4/2026-02-23-phase-4-callsite-migration-runtime-slice-a.md` |
 | 2026-02-23 | Phase 4 internal type migration slice B | completed | Reference-grid drop-mode type symbol migration | pass | Evidence: `phase-4/2026-02-23-phase-4-callsite-migration-internal-drop-mode-slice-b.md` |
 | 2026-02-23 | Phase 4 canonical props/tests migration slice C | completed | Canonical page callsites and panel/grid test symbols | pass (perf blocked) | Evidence: `phase-4/2026-02-23-phase-4-callsite-migration-canonical-props-and-tests-slice-c.md` |
+| 2026-02-23 | Phase 4 reference-grid hook canonicalization slice D | completed | Canonical hook implementation ownership with legacy wrapper alias | pass (non-Playwright gates) | Evidence: `phase-4/2026-02-23-phase-4-reference-grid-hook-canonicalization-slice-d.md` |
 
 ## Active Risks
 1. Perf-release gate cannot execute without Playwright audit credentials in environment.

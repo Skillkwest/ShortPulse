@@ -1,6 +1,6 @@
 /**
  * Loaded-media controller for Reference Grid cards.
- * Keeps media loaded bookkeeping and callback fan-out out of ReferenceCanvas render composition.
+ * Keeps media loaded bookkeeping and callback fan-out out of ReferenceGrid render composition.
  */
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 

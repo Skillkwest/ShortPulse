@@ -1,6 +1,6 @@
 /**
  * Virtual metrics controller for Reference Grid surfaces.
- * Keeps resize/measurement orchestration and observer lifecycle out of ReferenceCanvas rendering logic.
+ * Keeps resize/measurement orchestration and observer lifecycle out of ReferenceGrid rendering logic.
  */
 import {
   useCallback,

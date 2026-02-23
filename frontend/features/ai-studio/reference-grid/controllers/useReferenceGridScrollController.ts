@@ -1,6 +1,6 @@
 /**
  * Scroll controller for Reference Grid virtualization surfaces.
- * Keeps RAF-throttled metric updates and telemetry sampling out of ReferenceCanvas rendering logic.
+ * Keeps RAF-throttled metric updates and telemetry sampling out of ReferenceGrid rendering logic.
  */
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { logMediaPerf } from "../../../../lib/mediaPerfTelemetry";

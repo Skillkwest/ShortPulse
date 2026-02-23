@@ -1,6 +1,6 @@
 /**
  * Presentational card for a single reference-grid item.
- * Keeps render and card-level interaction wiring isolated from ReferenceCanvas orchestration.
+ * Keeps render and card-level interaction wiring isolated from ReferenceGrid orchestration.
  */
 import React from "react";
 import { ArrowClockwise, CheckCircle, DownloadSimple, FloppyDisk, X } from "phosphor-react";

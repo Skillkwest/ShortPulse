@@ -1,7 +1,10 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
-import { useAiStudioReferenceCanvasProps } from "../useAiStudioReferenceCanvasProps";
+import {
+  useAiStudioReferenceCanvasProps,
+  useAiStudioReferenceGridProps,
+} from "../useAiStudioReferenceGridProps";
 
 const output: StudioOutput = {
   id: "out-1",
@@ -16,8 +19,8 @@ const output: StudioOutput = {
 };
 
 const createParams = (
-  overrides: Partial<Parameters<typeof useAiStudioReferenceCanvasProps>[0]> = {}
-): Parameters<typeof useAiStudioReferenceCanvasProps>[0] => ({
+  overrides: Partial<Parameters<typeof useAiStudioReferenceGridProps>[0]> = {}
+): Parameters<typeof useAiStudioReferenceGridProps>[0] => ({
   outputs: [output],
   activeOutputId: "out-1",
   curatedReferenceIds: ["out-1"],
@@ -44,7 +47,7 @@ const createParams = (
   ...overrides,
 });
 
-describe("useAiStudioReferenceCanvasProps", () => {
+describe("useAiStudioReferenceGridProps", () => {
   it("routes output action callbacks through output id wrappers", () => {
     const handleDescribeReference = vi.fn();
     const handleSaveReference = vi.fn();
@@ -55,7 +58,7 @@ describe("useAiStudioReferenceCanvasProps", () => {
     const retryOutputStatus = vi.fn();
 
     const { result } = renderHook(() =>
-      useAiStudioReferenceCanvasProps(
+      useAiStudioReferenceGridProps(
         createParams({
           handleDescribeReference,
           handleSaveReference,
@@ -102,7 +105,7 @@ describe("useAiStudioReferenceCanvasProps", () => {
     const restoreArchivedOutput = vi.fn();
     const restoreAllArchivedOutputs = vi.fn();
     const { result } = renderHook(() =>
-      useAiStudioReferenceCanvasProps(
+      useAiStudioReferenceGridProps(
         createParams({
           selectedTool: "video",
           currentCostCredits: null,
@@ -133,7 +136,7 @@ describe("useAiStudioReferenceCanvasProps", () => {
     const removeCuratedReference = vi.fn();
     const reorderCuratedReference = vi.fn();
     const { result } = renderHook(() =>
-      useAiStudioReferenceCanvasProps(
+      useAiStudioReferenceGridProps(
         createParams({
           addCuratedReference,
           removeCuratedReference,
@@ -149,5 +152,9 @@ describe("useAiStudioReferenceCanvasProps", () => {
     expect(addCuratedReference).toHaveBeenCalledWith("out-1");
     expect(removeCuratedReference).toHaveBeenCalledWith("out-1");
     expect(reorderCuratedReference).toHaveBeenCalledWith("out-1", "out-2", "after");
+  });
+
+  it("retains the legacy alias export for compatibility", () => {
+    expect(useAiStudioReferenceCanvasProps).toBe(useAiStudioReferenceGridProps);
   });
 });

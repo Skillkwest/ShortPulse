@@ -61,6 +61,17 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-canonical-props-and-tests-slice-c.md`
 - Next allowed action: continue Phase 4 bounded slices focused on remaining legacy file/symbol families before Phase 5 path renames.
 
+## 2026-02-23: Stop-Point 4 (Callsite migration slice D)
+- Phase/Stop point: Phase 4 slice D completion
+- Decision: approved canonical ownership of reference-grid hook implementation in `useAiStudioReferenceGridProps`, with `useAiStudioReferenceCanvasProps` retained as a compatibility wrapper alias.
+- Preconditions reviewed:
+  - targeted hook/shell suites pass
+  - `validate` and `test:adaptive-v2-gate` pass
+  - Playwright perf gate intentionally not executed in this run per explicit user direction
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-hook-canonicalization-slice-d.md`
+- Next allowed action: continue Phase 4 bounded slices for residual symbol families, then prepare Phase 5 file/path rename batch plan.
+
 ## Stop-Point Approval Template
 - Date:
 - Phase/Stop point:

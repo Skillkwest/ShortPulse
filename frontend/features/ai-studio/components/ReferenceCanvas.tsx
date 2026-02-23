@@ -68,6 +68,7 @@ import {
 } from "../reference-grid/controllers/useReferenceGridCanvasDropController";
 import { useReferenceGridCuratedDndController } from "../reference-grid/controllers/useReferenceGridCuratedDndController";
 import { useReferenceGridScrollController } from "../reference-grid/controllers/useReferenceGridScrollController";
+import { useReferenceGridVirtualMetricsController } from "../reference-grid/controllers/useReferenceGridVirtualMetricsController";
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
@@ -899,97 +900,6 @@ export function ReferenceCanvas({
     } as unknown as FileList;
   }, []);
 
-  const syncVirtualMetricsForSurface = useCallback(
-    ({
-      scrollNode,
-      gridNode,
-      surface,
-      setMetrics,
-    }: {
-      scrollNode: HTMLDivElement | null;
-      gridNode: HTMLDivElement | null;
-      surface: "all-refs" | "curated";
-      setMetrics: React.Dispatch<
-        React.SetStateAction<{
-          scrollTop: number;
-          viewportHeight: number;
-          columnCount: number;
-          rowHeight: number;
-        }>
-      >;
-    }) => {
-      if (!scrollNode || !gridNode) return;
-      const defaultRequestedMaxColumns = selectedTool
-        ? REFERENCE_GRID_MAX_COLUMNS
-        : REFERENCE_GRID_MAX_COLUMNS_WIDE;
-      const requestedMaxColumns =
-        surface === "curated"
-          ? Math.min(QUICK_SLOT_INVENTORY_MAX_COLUMNS, REFERENCE_GRID_MAX_COLUMNS_WIDE)
-          : defaultRequestedMaxColumns;
-      const emergencyMaxColumns =
-        REFERENCE_GRID_FLAG_PERF_WATCHDOG && perfWatchdog.degradeLevel >= 2
-          ? REFERENCE_GRID_EMERGENCY_MAX_COLUMNS
-          : requestedMaxColumns;
-      const maxColumns = Math.max(
-        REFERENCE_GRID_MIN_COLUMNS,
-        Math.min(Math.floor(requestedMaxColumns), Math.floor(emergencyMaxColumns))
-      );
-      const minCardWidth = selectedTool
-        ? REFERENCE_GRID_MIN_CARD_PX
-        : REFERENCE_GRID_MIN_CARD_PX_WIDE;
-      const style = window.getComputedStyle(gridNode);
-      const rowGap = Number.parseFloat(style.rowGap || style.gap || "0");
-      const gap = Number.isFinite(rowGap) ? rowGap : 3;
-      const paddingLeft = Number.parseFloat(style.paddingLeft || "0") || 0;
-      const paddingRight = Number.parseFloat(style.paddingRight || "0") || 0;
-      const gridWidth = Math.max(0, gridNode.clientWidth - paddingLeft - paddingRight);
-      const estimatedColumnCount =
-        gridWidth > 0 ? Math.floor((gridWidth + gap) / (minCardWidth + gap)) : 1;
-      const columnCount = Math.max(
-        REFERENCE_GRID_MIN_COLUMNS,
-        Math.min(maxColumns, estimatedColumnCount || REFERENCE_GRID_MIN_COLUMNS)
-      );
-      const cardWidth =
-        columnCount > 0 ? Math.max(0, (gridWidth - gap * (columnCount - 1)) / columnCount) : 0;
-      const cardHeight = cardWidth > 0 ? (cardWidth * 5) / 4 : FALLBACK_REFERENCE_ROW_HEIGHT;
-      const rowHeight = Math.max(1, cardHeight + gap);
-      setMetrics((prev) => {
-        const next = {
-          scrollTop: scrollNode.scrollTop,
-          viewportHeight: scrollNode.clientHeight,
-          columnCount,
-          rowHeight,
-        };
-        const stable =
-          Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
-          Math.abs(prev.viewportHeight - next.viewportHeight) < 1 &&
-          prev.columnCount === next.columnCount &&
-          Math.abs(prev.rowHeight - next.rowHeight) < 1;
-        return stable ? prev : next;
-      });
-    },
-    [perfWatchdog.degradeLevel, selectedTool]
-  );
-
-  const syncVirtualMetrics = useCallback(() => {
-    syncVirtualMetricsForSurface({
-      scrollNode: scrollContainerRef.current,
-      gridNode: gridRef.current,
-      surface: "all-refs",
-      setMetrics: setVirtualMetrics,
-    });
-  }, [syncVirtualMetricsForSurface]);
-
-  const syncCuratedVirtualMetrics = useCallback(() => {
-    if (!isCuratedSplitEnabled) return;
-    syncVirtualMetricsForSurface({
-      scrollNode: curatedScrollContainerRef.current,
-      gridNode: curatedGridRef.current,
-      surface: "curated",
-      setMetrics: setCuratedVirtualMetrics,
-    });
-  }, [isCuratedSplitEnabled, syncVirtualMetricsForSurface]);
-
   const gridStyle = React.useMemo(
     () =>
       ({
@@ -1008,6 +918,30 @@ export function ReferenceCanvas({
       }) as React.CSSProperties,
     [curatedVirtualMetrics.columnCount]
   );
+  useReferenceGridVirtualMetricsController({
+    isCuratedSplitEnabled,
+    selectedTool,
+    perfDegradeLevel: perfWatchdog.degradeLevel,
+    outputsLength: outputs.length,
+    curatedOutputsLength: curatedOutputs.length,
+    scrollContainerRef,
+    gridRef,
+    curatedScrollContainerRef,
+    curatedGridRef,
+    setVirtualMetrics,
+    setCuratedVirtualMetrics,
+    config: {
+      referenceGridMinColumns: REFERENCE_GRID_MIN_COLUMNS,
+      referenceGridMinCardPx: REFERENCE_GRID_MIN_CARD_PX,
+      referenceGridMinCardPxWide: REFERENCE_GRID_MIN_CARD_PX_WIDE,
+      referenceGridMaxColumns: REFERENCE_GRID_MAX_COLUMNS,
+      referenceGridMaxColumnsWide: REFERENCE_GRID_MAX_COLUMNS_WIDE,
+      quickSlotInventoryMaxColumns: QUICK_SLOT_INVENTORY_MAX_COLUMNS,
+      referenceGridEmergencyMaxColumns: REFERENCE_GRID_EMERGENCY_MAX_COLUMNS,
+      fallbackReferenceRowHeight: FALLBACK_REFERENCE_ROW_HEIGHT,
+      perfWatchdogEnabled: REFERENCE_GRID_FLAG_PERF_WATCHDOG,
+    },
+  });
 
   const dynamicOverscanRows = REFERENCE_GRID_FLAG_DYNAMIC_VIRTUALIZATION
     ? resolveReferenceGridOverscanRows(outputs.length, {
@@ -1747,46 +1681,6 @@ export function ReferenceCanvas({
       recomputeAutoplayBudget();
     }
   }, [outputs, recomputeAutoplayBudget]);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    syncVirtualMetrics();
-    syncCuratedVirtualMetrics();
-    const scrollNode = scrollContainerRef.current;
-    const gridNode = gridRef.current;
-    const curatedScrollNode = curatedScrollContainerRef.current;
-    const curatedGridNode = curatedGridRef.current;
-    if (!scrollNode || !gridNode) return;
-    const handleResize = () => {
-      syncVirtualMetrics();
-      syncCuratedVirtualMetrics();
-    };
-    const observer =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => {
-            syncVirtualMetrics();
-            syncCuratedVirtualMetrics();
-          })
-        : null;
-    observer?.observe(scrollNode);
-    observer?.observe(gridNode);
-    if (isCuratedSplitEnabled && curatedScrollNode && curatedGridNode) {
-      observer?.observe(curatedScrollNode);
-      observer?.observe(curatedGridNode);
-    }
-    window.addEventListener("resize", handleResize);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [
-    isCuratedSplitEnabled,
-    outputs.length,
-    selectedTool,
-    syncCuratedVirtualMetrics,
-    syncVirtualMetrics,
-    curatedOutputs.length,
-  ]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;

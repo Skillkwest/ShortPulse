@@ -1069,3 +1069,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites, AI Studio drop-path suite, and adaptive v2 gate.
 - Added phase-5 slice-5 evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-scroll-controller-slice-5.md`
+- Continued Phase 5 canvas decomposition (slice 6 virtual-metrics controller extraction):
+  - extracted virtual grid measurement and resize-observer orchestration into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridVirtualMetricsController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed virtual-metrics orchestration for all-refs and quick-slot surfaces.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites, AI Studio drop-path suite, and adaptive v2 gate.
+- Added phase-5 slice-6 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-virtual-metrics-controller-slice-6.md`

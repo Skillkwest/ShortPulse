@@ -971,7 +971,7 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="kling"],
   .toolbar-item[data-tool-id="video"],
   .toolbar-item[data-tool-id="edit"],
-  .toolbar-item[data-tool-id="canvas"] {
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]) {
     transition: none;
   }
 
@@ -979,7 +979,7 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="kling"]:hover,
   .toolbar-item[data-tool-id="video"]:hover,
   .toolbar-item[data-tool-id="edit"]:hover,
-  .toolbar-item[data-tool-id="canvas"]:hover {
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):hover {
     transform: none;
   }
 
@@ -987,7 +987,7 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="kling"].is-active,
   .toolbar-item[data-tool-id="video"].is-active,
   .toolbar-item[data-tool-id="edit"].is-active,
-  .toolbar-item[data-tool-id="canvas"].is-active {
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]).is-active {
     transform: none;
   }
 }
@@ -1012,7 +1012,7 @@ body.ai-shell-resizing * {
 .toolbar-item[data-tool-id="kling"]::before,
 .toolbar-item[data-tool-id="video"]::before,
 .toolbar-item[data-tool-id="edit"]::before,
-.toolbar-item[data-tool-id="canvas"]::before {
+.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"])::before {
   display: none;
 }
 
@@ -1085,7 +1085,7 @@ body.ai-shell-resizing * {
 }
 
 /* Canvas button - purple/indigo gradient */
-.toolbar-item[data-tool-id="canvas"] {
+.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]) {
   background: linear-gradient(135deg, #155d46 0%, #4dba67 100%);
   margin: 4px 0;
   padding: 10px 14px;
@@ -1098,7 +1098,7 @@ body.ai-shell-resizing * {
 }
 
 /* Canvas button hover */
-.toolbar-item[data-tool-id="canvas"]:hover {
+.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):hover {
   background: linear-gradient(135deg, #155d46 0%, #3dcc5f 100%);
   transform: translateY(-2px);
   box-shadow:
@@ -1108,7 +1108,7 @@ body.ai-shell-resizing * {
 }
 
 /* Canvas button active - dual borders (dark + purple) */
-.toolbar-item[data-tool-id="canvas"].is-active {
+.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]).is-active {
   background: linear-gradient(135deg, #106d50 0%, #4cc768 100%);
   transform: scale(1);
   box-shadow:
@@ -1136,7 +1136,7 @@ body.ai-shell-resizing * {
   outline-offset: 3px;
 }
 
-.toolbar-item[data-tool-id="canvas"]:focus-visible {
+.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):focus-visible {
   outline: 2px solid #34d399;
   outline-offset: 3px;
 }
@@ -1146,24 +1146,30 @@ body.ai-shell-resizing * {
 .ai-toolbar[data-primary-active="create"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="create"]
-  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
+    :hover
+  ):not(:focus-visible),
 .ai-toolbar[data-primary-active="video"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="video"]
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="video"]
-  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
+    :hover
+  ):not(:focus-visible),
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible),
 .ai-toolbar[data-primary-active="edit"]
-  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible),
-.ai-toolbar[data-primary-active="canvas"]
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
+    :hover
+  ):not(:focus-visible),
+.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible),
-.ai-toolbar[data-primary-active="canvas"]
+.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible),
-.ai-toolbar[data-primary-active="canvas"]
+.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible) {
   background: transparent;
   border: 1px solid var(--ai-toolbar-secondary-fg);
@@ -1178,7 +1184,9 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="create"]
-  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
+    :hover
+  ):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="video"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
@@ -1187,7 +1195,9 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="video"]
-  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
+    :hover
+  ):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
@@ -1196,15 +1206,17 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
 .ai-toolbar[data-primary-active="edit"]
-  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
+    :hover
+  ):not(:focus-visible)
   svg,
-.ai-toolbar[data-primary-active="canvas"]
+.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
-.ai-toolbar[data-primary-active="canvas"]
+.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   svg,
-.ai-toolbar[data-primary-active="canvas"]
+.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   svg {
   color: var(--ai-toolbar-secondary-fg) !important;
@@ -1217,7 +1229,9 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="create"]
-  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
+    :hover
+  ):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="video"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
@@ -1226,7 +1240,9 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="video"]
-  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
+    :hover
+  ):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="edit"]
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
@@ -1235,15 +1251,17 @@ body.ai-shell-resizing * {
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
 .ai-toolbar[data-primary-active="edit"]
-  .toolbar-item[data-tool-id="canvas"]:not(.is-active):not(:hover):not(:focus-visible)
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):not(.is-active):not(
+    :hover
+  ):not(:focus-visible)
   .toolbar-label,
-.ai-toolbar[data-primary-active="canvas"]
+.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
   .toolbar-item[data-tool-id="create"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
-.ai-toolbar[data-primary-active="canvas"]
+.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
   .toolbar-item[data-tool-id="video"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label,
-.ai-toolbar[data-primary-active="canvas"]
+.ai-toolbar:is([data-primary-active="character"], [data-primary-active="canvas"])
   .toolbar-item[data-tool-id="edit"]:not(.is-active):not(:hover):not(:focus-visible)
   .toolbar-label {
   color: var(--ai-toolbar-secondary-fg) !important;
@@ -1253,7 +1271,7 @@ body.ai-shell-resizing * {
 .toolbar-item[data-tool-id="kling"] svg,
 .toolbar-item[data-tool-id="video"] svg,
 .toolbar-item[data-tool-id="edit"] svg,
-.toolbar-item[data-tool-id="canvas"] svg {
+.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]) svg {
   width: 18px !important;
   height: 18px !important;
   color: #ffffff !important;
@@ -1263,7 +1281,7 @@ body.ai-shell-resizing * {
 .toolbar-item[data-tool-id="kling"] .toolbar-label,
 .toolbar-item[data-tool-id="video"] .toolbar-label,
 .toolbar-item[data-tool-id="edit"] .toolbar-label,
-.toolbar-item[data-tool-id="canvas"] .toolbar-label {
+.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]) .toolbar-label {
   font-size: 14px !important;
   font-weight: 600 !important;
   letter-spacing: 0.3px;

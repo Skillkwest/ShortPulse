@@ -73,7 +73,7 @@ a:focus-visible {
   outline-offset: 3px;
 }
 
-.toolbar-item[data-tool-id="canvas"]:focus-visible {
+.toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):focus-visible {
   outline: 2px solid #34d399;
   outline-offset: 3px;
 }
@@ -182,7 +182,7 @@ a:focus-visible {
   .toolbar-item[data-tool-id="kling"]:hover,
   .toolbar-item[data-tool-id="video"]:hover,
   .toolbar-item[data-tool-id="edit"]:hover,
-  .toolbar-item[data-tool-id="canvas"]:hover {
+  .toolbar-item:is([data-tool-id="character"], [data-tool-id="canvas"]):hover {
     transform: none;
   }
 

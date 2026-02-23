@@ -12,6 +12,11 @@ Purpose: prevent regressions while continuing development in other AI Studio and
 - `frontend/features/ai-studio/components/ReferenceCanvas.tsx`
 - `frontend/features/ai-studio/logic/referenceGridMedia.ts`
 - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+- `frontend/features/ai-studio/reference-domain/**`
+- `frontend/features/ai-studio/reference-ingestion/**`
+- `frontend/features/ai-studio/reference-projections/**`
+- `frontend/features/ai-studio/reference-media-runtime/**`
+- `frontend/features/ai-studio/reference-dnd/**`
 - `frontend/features/character-manager/components/CharacterManagerShell.tsx`
 - `frontend/features/ai-studio/components/DetailModal.tsx`
 
@@ -38,6 +43,18 @@ This gate currently includes:
 - `MediaLibraryModal` suite
 - `CharacterManagerShell.behavior` suite
 - `adaptive-media policy` suite
+- `check:architecture-boundary` (reference-grid boundary lane)
+- `check:size-budget` (reference-grid budget lane)
+
+## Reference Grid Foundation Program Controls
+- Program plan: `docs/planning/ai-studio-reference-grid-modularization-program.md`
+- Tracker: `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
+- Evidence root: `docs/planning/evidence/reference-grid-modularization/`
+- CI mode variables:
+  - `REFERENCE_GRID_BOUNDARY_MODE=warn|enforce`
+  - `REFERENCE_GRID_SIZE_BUDGET_MODE=warn|enforce`
+- Closeout requirement:
+  - promote both variables to `enforce` only after phase-6 evidence packet is complete.
 
 ## Required Manual Smoke (10-15 minutes)
 1. Ingress coverage:
@@ -67,6 +84,7 @@ This gate currently includes:
 
 ## PR Requirements
 - Include test evidence for `test:adaptive-v2-gate`.
+- Include evidence for `check:architecture-boundary` and `check:size-budget` when touching protected paths.
 - Note active adaptive flags used during QA.
 - Include any known low-severity issues and whether they are blocking or deferred.
 

@@ -34,6 +34,16 @@ Owner: Engineering
 - `scripts/check_agent_disable_continuity.js` (new)
 - `scripts/ci_npm_ci_with_retry.sh` (new)
 
+## Reference-grid foundation guardrail lane
+
+The reference-grid modularization program uses staged guardrail variables:
+- `REFERENCE_GRID_BOUNDARY_MODE` for reference-domain boundary checks inside `architecture_boundary`.
+- `REFERENCE_GRID_SIZE_BUDGET_MODE` for target size budgets inside `size_budget`.
+
+Mode policy:
+1. `warn` during decomposition phases while legacy hotspots are above final targets.
+2. `enforce` only after phase-6 evidence and two green cycles.
+
 ## Frontend fast-lane suites
 
 - `auth-helper`

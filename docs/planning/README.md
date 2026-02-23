@@ -31,6 +31,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-agent-modularization-program.md`: decision-complete hardening and modularization program plan (v3) with architecture invariants, gates, budgets, and rollback policy.
 - `ai-studio-agent-modularization-tracker.md`: execution tracker for phase checklists, risks, blockers, rollout rings, and evidence links.
 - `ai-studio-reference-grid-stabilization-v4-plan.md`: decision-complete stabilization plan for 50-60 reference sessions (decoupling, adaptive delivery, hydration/decode budgets, virtualization, watchdog degrade levels).
+- `ai-studio-reference-grid-modularization-program.md`: documentation-first foundation program for no-regression reference-grid modularization (domain contracts, strangler phases, rollback policy, guardrails).
+- `ai-studio-reference-grid-modularization-tracker.md`: phase tracker for reference-grid modularization status, gates, blockers, and evidence links.
 - `media-library-reference-grid-optimization-plan.md`: near-instant media loading architecture plan (Media Library + AI Studio Reference Grid).
 - `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
 - `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.
@@ -45,6 +47,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `archive/original-plans/plan-02-kei-removal-v2.md`: verbatim source-plan archive copy.
 - `archive/original-plans/plan-03-doc-governance-realignment-v2.md`: verbatim source-plan archive copy.
 - `archive/original-plans/plan-04-decoupling-modularization-audited.md`: verbatim source-plan archive copy.
+- `evidence/reference-grid-modularization/README.md`: canonical evidence index and phase evidence folder structure for the reference-grid foundation program.
+- `evidence/reference-grid-modularization/phase-report-template.md`: standardized phase closeout template for scope/tests/perf/regression/rollback evidence.
 
 ## Maintenance
 - Keep plans actionable and current.

@@ -254,6 +254,7 @@ jobs:
       - name: Run architecture boundary checks (warn/enforce)
         env:
           ARCHITECTURE_BOUNDARY_MODE: ${{ vars.ARCHITECTURE_BOUNDARY_MODE }}
+          REFERENCE_GRID_BOUNDARY_MODE: ${{ vars.REFERENCE_GRID_BOUNDARY_MODE }}
         run: |
           set -euo pipefail
           MODE="${ARCHITECTURE_BOUNDARY_MODE:-warn}"
@@ -297,6 +298,7 @@ jobs:
       - name: Run size budget checks (warn/enforce)
         env:
           SIZE_BUDGET_MODE: ${{ vars.SIZE_BUDGET_MODE }}
+          REFERENCE_GRID_SIZE_BUDGET_MODE: ${{ vars.REFERENCE_GRID_SIZE_BUDGET_MODE }}
         run: |
           set -euo pipefail
           MODE="${SIZE_BUDGET_MODE:-warn}"

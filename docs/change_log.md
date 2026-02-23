@@ -926,3 +926,32 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Introduced docs governance automation scripts: `scripts/check_docs_semantic_drift.js`, `scripts/check_migration_doc_parity.js`, and `scripts/check_archive_manifest.js`; wired into `npm -C frontend run docs:check`.
 - Added CI jobs `docs_semantic_drift`, `migration_parity`, `archive_manifest_check`, and `sql_lint` with warn/enforce mode toggles.
 - Aligned active architecture guidance by removing stale client-only wording from `README.md` and `frontend/AGENTS.md`.
+
+## 2026-02-23
+- Added the documentation-first Reference Grid Foundation Program package:
+  - `docs/planning/ai-studio-reference-grid-modularization-program.md`
+  - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
+  - `docs/planning/evidence/reference-grid-modularization/README.md`
+  - `docs/planning/evidence/reference-grid-modularization/phase-report-template.md`
+  - phase evidence folders `phase-0` through `phase-6`
+- Added `docs/adr/0022-reference-grid-domain-modular-architecture.md` to formalize modular domain boundaries and strangler migration contracts.
+- Updated SOP governance for reference-grid modularization controls:
+  - `docs/sops/sop_media_performance_operations.md`
+  - `docs/sops/sop_adaptive_media_change_control.md`
+  - `docs/sops/sop_ai_studio_index.md`
+- Updated documentation indexes for discoverability:
+  - `docs/planning/README.md`
+  - `docs/README.md`
+  - `docs/adr/README.md`
+- Expanded guardrail scripts for reference-grid modularization rollout lanes:
+  - `scripts/check_architecture_boundaries.js`
+  - `scripts/check_size_budgets.js`
+- Added CI env wiring for staged reference-grid guardrail modes in `.github/workflows/ci.yml`:
+  - `REFERENCE_GRID_BOUNDARY_MODE`
+  - `REFERENCE_GRID_SIZE_BUDGET_MODE`
+- Began Reference Grid Foundation Program Phase 1 implementation:
+  - Added canonical reference-domain modules under `frontend/features/ai-studio/reference-domain/` (`types`, `reducer`, `selectors`, `adapters`, `index`).
+  - Added domain unit coverage: `referenceDomain.reducer.test.ts` and `referenceDomain.adapters.test.ts`.
+  - Adopted shared output collection normalization helpers in `frontend/features/ai-studio/hooks/useAiStudioState.ts` to start runtime-safe migration with behavior parity.
+- Added phase evidence artifact: `docs/planning/evidence/reference-grid-modularization/phase-1/2026-02-23-phase-01-domain-core-foundation.md`.
+- Updated tracker state to reflect Phase 0 completion and Phase 1 progress in `docs/planning/ai-studio-reference-grid-modularization-tracker.md`.

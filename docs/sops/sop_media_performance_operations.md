@@ -31,6 +31,10 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 - Telemetry buffer + debug handle:
   - `frontend/lib/mediaPerfTelemetry.ts`
   - initialized via `frontend/pages/_app.tsx`
+- Reference-grid modularization governance:
+  - `docs/planning/ai-studio-reference-grid-modularization-program.md`
+  - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
+  - `docs/planning/evidence/reference-grid-modularization/`
 
 ## Prerequisites
 - User can authenticate in-app (bearer token required for `/api/media/sign-batch`).
@@ -149,6 +153,12 @@ Key indicators:
   - `NEXT_PUBLIC_AI_STUDIO_PAGE_OUTPUT_DECOUPLE`
   - `NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH`
   - `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME` (default `false`; enable only for controlled production audits)
+- Reference-grid modularization migration flags:
+  - `NEXT_PUBLIC_REFERENCE_GRID_DOMAIN_BRIDGE`
+  - `NEXT_PUBLIC_REFERENCE_GRID_INGESTION_UNIFIED`
+  - `NEXT_PUBLIC_REFERENCE_GRID_PROJECTION_V2`
+  - `NEXT_PUBLIC_REFERENCE_GRID_MEDIA_RUNTIME_SHARED`
+  - `NEXT_PUBLIC_REFERENCE_GRID_CONTROLLER_SPLIT`
 
 Adjust only after telemetry review; keep desktop/mobile/constrained profiles distinct.
 
@@ -227,22 +237,26 @@ Monitor these events during rollout:
 2. `npm -C frontend run type-check`
 3. When adaptive paths are touched: `npm -C frontend run test:adaptive-v2-gate`
 4. `npm -C frontend run build`
-5. Run in-browser gate audit from DevTools on `/ai-studio`:
+5. `npm -C frontend run check:architecture-boundary`
+6. `npm -C frontend run check:size-budget`
+7. For reference-grid modularization phases, include phase report:
+   - `docs/planning/evidence/reference-grid-modularization/phase-*/`
+8. Run in-browser gate audit from DevTools on `/ai-studio`:
    - `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
    - `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
-6. Production-mode verification (release signal):
+9. Production-mode verification (release signal):
    - Run the one-command release check (build + start + authenticated perf audit + teardown):
      - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
    - Optional fast rerun without rebuild:
      - `cd frontend && AI_STUDIO_PERF_SKIP_BUILD=true PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
    - Optional port override:
      - `cd frontend && AI_STUDIO_PERF_PORT=3200 PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
-7. Manual verification:
+10. Manual verification:
    - Media Library route (images/videos/private/AI tabs)
    - AI Studio modal search + paging + selection
    - Reference Grid autoplay behavior on desktop and small-screen widths
    - Curated split interactions (drag add/reorder/remove + divider resize)
-7. CI perf gate (internal branches with audit creds):
+11. CI perf gate (internal branches with audit creds):
    - `.github/workflows/ci.yml` job `ai_studio_perf_gate`
    - Uses `PLAYWRIGHT_AUDIT_EMAIL` + `PLAYWRIGHT_AUDIT_PASSWORD` secrets
    - Runs `npm run test:perf:ai-studio` against production build/start.
@@ -260,11 +274,15 @@ Monitor these events during rollout:
   - Add:
     - `AI_STUDIO_PERF_GATE_MODE=warn` during stabilization
     - switch to `AI_STUDIO_PERF_GATE_MODE=enforce` after one stable week
+    - `REFERENCE_GRID_BOUNDARY_MODE=warn` during decomposition; `enforce` at Phase 6 closeout
+    - `REFERENCE_GRID_SIZE_BUDGET_MODE=warn` during decomposition; `enforce` at Phase 6 closeout
 - GitHub CLI (maintainer machine):
   - `gh secret set PLAYWRIGHT_AUDIT_EMAIL --body "<audit-email>"`
   - `gh secret set PLAYWRIGHT_AUDIT_PASSWORD --body "<audit-password>"`
   - `gh variable set AI_STUDIO_PERF_GATE_MODE --body "warn"`
   - `gh variable set AI_STUDIO_PERF_GATE_MODE --body "enforce"`
+  - `gh variable set REFERENCE_GRID_BOUNDARY_MODE --body "warn"`
+  - `gh variable set REFERENCE_GRID_SIZE_BUDGET_MODE --body "warn"`
 
 ## Reference Grid Perf Harness
 - Browser command (DevTools Console on `/ai-studio`):
@@ -307,7 +325,10 @@ Monitor these events during rollout:
 - `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`
 - `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`
 - `docs/adr/0017-ai-studio-curated-reference-split-grid.md`
+- `docs/adr/0022-reference-grid-domain-modular-architecture.md`
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
+- `docs/planning/ai-studio-reference-grid-modularization-program.md`
+- `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
 - `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`
 - `docs/planning/media-optimization-phase0-measurement-spec.md`

@@ -50,6 +50,13 @@ import {
   buildPastedMediaReferenceOutput,
   buildPastedPromptReferenceOutput,
 } from "./stateAdapters/agentReferenceOutputs";
+import {
+  areStudioOutputCollectionStatesEqual,
+  denormalizeStudioOutputCollection,
+  EMPTY_STUDIO_OUTPUT_COLLECTION_STATE,
+  normalizeStudioOutputCollection,
+  type StudioOutputCollectionState,
+} from "../reference-domain";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
 const CHARACTER_MODE_PENDING_MODEL_LABEL = "Pulse Character Model";
@@ -74,49 +81,9 @@ const stripVideoMarkerFromBlobUrl = (value: string): string => value.replace(/#v
 
 const toIsoNow = () => new Date().toISOString();
 
-type OutputCollectionState = {
-  order: string[];
-  byId: Record<string, StudioOutput>;
-};
+type OutputCollectionState = StudioOutputCollectionState;
 
-const EMPTY_OUTPUT_COLLECTION_STATE: OutputCollectionState = {
-  order: [],
-  byId: {},
-};
-
-const normalizeOutputCollection = (rows: StudioOutput[]): OutputCollectionState => {
-  const byId: Record<string, StudioOutput> = {};
-  const order: string[] = [];
-  rows.forEach((item) => {
-    if (!item?.id || byId[item.id]) return;
-    byId[item.id] = item;
-    order.push(item.id);
-  });
-  return { order, byId };
-};
-
-const denormalizeOutputCollection = (state: OutputCollectionState): StudioOutput[] => {
-  return state.order
-    .map((id) => state.byId[id])
-    .filter((item): item is StudioOutput => Boolean(item));
-};
-
-const areOutputCollectionStatesEqual = (
-  left: OutputCollectionState,
-  right: OutputCollectionState
-): boolean => {
-  if (left === right) return true;
-  if (left.order.length !== right.order.length) return false;
-  for (let index = 0; index < left.order.length; index += 1) {
-    if (left.order[index] !== right.order[index]) return false;
-  }
-  if (left.byId === right.byId) return true;
-  if (Object.keys(left.byId).length !== Object.keys(right.byId).length) return false;
-  for (const id of left.order) {
-    if (left.byId[id] !== right.byId[id]) return false;
-  }
-  return true;
-};
+const EMPTY_OUTPUT_COLLECTION_STATE: OutputCollectionState = EMPTY_STUDIO_OUTPUT_COLLECTION_STATE;
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
  */
@@ -156,11 +123,11 @@ export const useAiStudioState = ({
   const lastOutputUrlsByIdRef = useRef<Record<string, string>>({});
   const activeOutputByIdRef = useRef<Record<string, StudioOutput>>({});
   const outputs = useMemo(
-    () => denormalizeOutputCollection(activeOutputState),
+    () => denormalizeStudioOutputCollection(activeOutputState),
     [activeOutputState]
   );
   const archivedOutputs = useMemo(
-    () => denormalizeOutputCollection(archivedOutputState),
+    () => denormalizeStudioOutputCollection(archivedOutputState),
     [archivedOutputState]
   );
   const syncOutputStoreSnapshot = useCallback(
@@ -192,10 +159,10 @@ export const useAiStudioState = ({
   );
   const setOutputsState = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>((nextValue) => {
     setActiveOutputState((prevState) => {
-      const prevRows = denormalizeOutputCollection(prevState);
+      const prevRows = denormalizeStudioOutputCollection(prevState);
       const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
-      const nextState = normalizeOutputCollection(resolved);
-      if (areOutputCollectionStatesEqual(prevState, nextState)) {
+      const nextState = normalizeStudioOutputCollection(resolved);
+      if (areStudioOutputCollectionStatesEqual(prevState, nextState)) {
         activeOutputStateRef.current = prevState;
         return prevState;
       }
@@ -205,10 +172,10 @@ export const useAiStudioState = ({
   }, []);
   const setArchivedOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>((nextValue) => {
     setArchivedOutputState((prevState) => {
-      const prevRows = denormalizeOutputCollection(prevState);
+      const prevRows = denormalizeStudioOutputCollection(prevState);
       const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
-      const nextState = normalizeOutputCollection(resolved);
-      if (areOutputCollectionStatesEqual(prevState, nextState)) {
+      const nextState = normalizeStudioOutputCollection(resolved);
+      if (areStudioOutputCollectionStatesEqual(prevState, nextState)) {
         archivedOutputStateRef.current = prevState;
         return prevState;
       }

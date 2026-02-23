@@ -125,6 +125,8 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-agent-modularization-program.md`
 - `docs/planning/ai-studio-agent-modularization-tracker.md`
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
+- `docs/planning/ai-studio-reference-grid-modularization-program.md`
+- `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
 - `docs/planning/ai-studio-primary-character-panel-build-plan.md`
 - `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`
 - `docs/planning/expert-workflow-hardening-css-reorg-plan.md`
@@ -132,6 +134,8 @@ Start here for all repository documentation.
 - `docs/planning/media-optimization-phase0-measurement-spec.md`
 - `docs/planning/media-optimization-schema-and-migration-spec.md`
 - `docs/planning/tooling-audit-2026-02-16.md`
+- `docs/planning/evidence/reference-grid-modularization/README.md`
+- `docs/planning/evidence/reference-grid-modularization/phase-report-template.md`
 - `docs/change_log.md`
 
 ## ADRs
@@ -157,6 +161,7 @@ Start here for all repository documentation.
 - `docs/adr/0019-fal-modular-submit-retrieval-reliability.md`
 - `docs/adr/0020-ai-studio-server-authoritative-runtime-v2.md`
 - `docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md`
+- `docs/adr/0022-reference-grid-domain-modular-architecture.md`
 
 ## Archive
 - `docs/archive/README.md`

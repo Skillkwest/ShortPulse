@@ -1,0 +1,129 @@
+# AI Studio Reference Grid Modularization Tracker
+
+Date: 2026-02-23
+Authority: Working
+Owner: Engineering
+Program Doc: `docs/planning/ai-studio-reference-grid-modularization-program.md`
+
+## Status Overview
+| Phase | Status | Owner | Start | Target End | Gate | Evidence |
+| --- | --- | --- | --- | --- | --- | --- |
+| Phase 0: Contract Freeze | Completed | Frontend | 2026-02-23 | 2026-02-25 | baseline matrix approved | `docs/planning/evidence/reference-grid-modularization/phase-0/` |
+| Phase 1: Domain Core | In Progress | Frontend | 2026-02-26 | 2026-03-03 | reducer/selectors parity | `docs/planning/evidence/reference-grid-modularization/phase-1/` |
+| Phase 2: Ingestion Unification | Planned | Frontend | 2026-03-04 | 2026-03-10 | canonical ingress matrix pass | `docs/planning/evidence/reference-grid-modularization/phase-2/` |
+| Phase 3: Projection Semantics | Planned | Frontend | 2026-03-11 | 2026-03-17 | curated semantics parity | `docs/planning/evidence/reference-grid-modularization/phase-3/` |
+| Phase 4: Media Runtime Unification | Planned | Frontend + Media | 2026-03-18 | 2026-03-24 | modal/route runtime parity | `docs/planning/evidence/reference-grid-modularization/phase-4/` |
+| Phase 5: Canvas + State Decomposition | Planned | Frontend | 2026-03-25 | 2026-04-02 | size budget targets pass in target lane | `docs/planning/evidence/reference-grid-modularization/phase-5/` |
+| Phase 6: Guardrails + Cleanup | Planned | Frontend + DevEx | 2026-04-03 | 2026-04-09 | two green cycles + cleanup complete | `docs/planning/evidence/reference-grid-modularization/phase-6/` |
+
+## Execution Checklist
+### Phase 0: Contract Freeze
+- [x] Publish contract-freeze artifact for baseline behavior and perf.
+- [x] Lock ingress acceptance matrix (picker/drop/paste/library/agent).
+- [x] Capture current quick-slot pointer and keyboard behavior expectations.
+- [x] Capture modal/route preview/signing parity baseline.
+- [x] Confirm no extraction PR merges before freeze signoff.
+
+Exit validation:
+- [x] Baseline tests green.
+- [x] Perf baseline capture attached.
+- [x] Freeze artifact linked and approved.
+
+### Phase 1: Domain Core
+- [x] Introduce `ReferenceEntity` discriminated union.
+- [x] Introduce normalized `ReferenceState`.
+- [x] Add reducer action API and selectors.
+- [x] Add `StudioOutput <-> ReferenceEntity` parity adapters.
+
+Exit validation:
+- [x] Domain reducer tests green.
+- [x] Adapter parity tests green.
+
+### Phase 2: Ingestion Unification
+- [ ] Create canonical `ReferenceInput` ingestion adapter.
+- [ ] Route picker/drop/paste/library/agent through canonical adapter.
+- [ ] Add ingestion acceptance matrix tests.
+
+Exit validation:
+- [ ] Ingress parity matrix pass.
+- [ ] No behavior drift in existing flow tests.
+
+### Phase 3: Projection Semantics
+- [ ] Introduce explicit all/quick-slot/archived projections.
+- [ ] Remove implicit hidden-delete coupling semantics.
+- [ ] Preserve curated behavior via compatibility bridge.
+
+Exit validation:
+- [ ] Curated tests green.
+- [ ] Archive/restore determinism verified.
+
+### Phase 4: Media Runtime Unification
+- [ ] Extract shared modal/route preview-sign-retry-download runtime.
+- [ ] Replace duplicated modal runtime logic.
+- [ ] Add parity tests for ladder/fallback/retry semantics.
+
+Exit validation:
+- [ ] Runtime parity tests green.
+- [ ] No regression in media modal flow tests.
+
+### Phase 5: Canvas + State Decomposition
+- [ ] Split `ReferenceCanvas` into view + controller modules.
+- [ ] Split `useAiStudioState` reference concerns into domain services.
+- [ ] Maintain behavior parity under compatibility flags.
+
+Exit validation:
+- [ ] Behavior parity suites green.
+- [ ] Target size budgets met in phase target lane.
+
+### Phase 6: Guardrails + Cleanup
+- [ ] Promote reference-grid boundary checks to enforce mode.
+- [ ] Promote reference-grid target size checks to enforce mode.
+- [ ] Remove dead adapters and temporary phase flags.
+- [ ] Publish closeout evidence packet.
+
+Exit validation:
+- [ ] Two green cycles with enforce mode.
+- [ ] No open Sev-1/Sev-2 regressions.
+- [ ] Program closeout approved.
+
+## Required Checks Matrix
+| Check | Status | Mode | Owner | Notes |
+| --- | --- | --- | --- | --- |
+| `frontend` | Active | Enforced | Frontend | app and build gate |
+| `docs_semantic_drift` | Active | warn/enforce | Docs | existing CI gate |
+| `migration_parity` | Active | warn/enforce | Platform | existing CI gate |
+| `archive_manifest_check` | Active | warn/enforce | Docs | existing CI gate |
+| `architecture_boundary` | Active | warn/enforce | Platform | includes reference-grid lane with `REFERENCE_GRID_BOUNDARY_MODE` |
+| `size_budget` | Active | warn/enforce | Frontend | includes target lane with `REFERENCE_GRID_SIZE_BUDGET_MODE` |
+| `sql_lint` | Active | warn/enforce | Platform | existing CI gate |
+| `deadcode` | Active | Enforced | Platform | existing CI gate |
+| `test:adaptive-v2-gate` | Active | Enforced | Frontend | required for protected adaptive/reference paths |
+
+## Blockers And Dependencies
+| ID | Dependency | Impact | Owner | Status | Resolution Target |
+| --- | --- | --- | --- | --- | --- |
+| RG-DEP-01 | Contract freeze signoff | Blocks code extraction | Frontend | Resolved | 2026-02-23 |
+| RG-DEP-02 | Keyboard reorder acceptance baseline | Blocks curated accessibility parity closure | Frontend | Open | 2026-02-25 |
+| RG-DEP-03 | Shared modal/route runtime parity matrix | Blocks phase 4 promotion | Frontend + Media | Open | 2026-03-24 |
+| RG-DEP-04 | STG-06 branch-protection enforceability constraint | Blocks production-readiness closeout gating | Engineering Mgmt | Open | TBD |
+| RG-DEP-05 | STG-05/STG-06 sequencing compliance | Blocks guardrail enforce promotion if out of sequence | Frontend + DevEx | Open | 2026-04-09 |
+
+## Risk Register Tracker
+| Rank | Risk | State | Leading Indicator | Owner | Last Review |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Hidden regression in legacy-to-domain bridge | Open | parity test diffs | Frontend | 2026-02-23 |
+| 2 | Ingestion inconsistency across entry points | Open | matrix test failures | Frontend | 2026-02-23 |
+| 3 | Curated semantics drift | Open | curated flow failures | Frontend | 2026-02-23 |
+| 4 | Modal/route runtime divergence | Open | media parity failures | Frontend + Media | 2026-02-23 |
+| 5 | Guardrails enforce too early | Open | CI failures before decomposition | DevEx | 2026-02-23 |
+
+## Evidence Links
+- Program evidence root: `docs/planning/evidence/reference-grid-modularization/`
+- Phase report template: `docs/planning/evidence/reference-grid-modularization/phase-report-template.md`
+- Phase 0 baseline artifact: `docs/planning/evidence/reference-grid-modularization/phase-0/2026-02-23-phase-00-contract-freeze-baseline.md`
+
+## Decision Log
+| Date | Decision | Rationale | Owner |
+| --- | --- | --- | --- |
+| 2026-02-23 | Documentation-first starts with Phase 0 artifacts before extraction | lock behavior and reduce regression risk | Frontend |
+| 2026-02-23 | Reference-grid boundary and size checks start in warn lane | staged enforcement while legacy hotspots still large | Frontend + DevEx |

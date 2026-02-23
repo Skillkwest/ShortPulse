@@ -11,6 +11,12 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Agent chat ops: `docs/sops/sop_ai_studio_agent_chat_ops.md` — UI entry points, context pipeline, fallbacks, and validation checklist for the agent chat surfaces.
 - Agent rollout ops: `docs/sops/sop_ai_studio_agent_rollout_operations.md` — progressive ring rollout, freeze/rollback triggers, and evidence capture workflow.
 
+## Reference Grid Foundation Program Docs
+- Program plan: `docs/planning/ai-studio-reference-grid-modularization-program.md`
+- Program tracker: `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
+- Evidence index: `docs/planning/evidence/reference-grid-modularization/README.md`
+- ADR: `docs/adr/0022-reference-grid-domain-modular-architecture.md`
+
 ## Shared primitives (do not duplicate)
 - Model metadata: `frontend/features/ai-studio/logic/modelRegistry.ts` (provider, mediaType, defaultAspect, allowedAspects, pricingStrategy, defaultDurationSeconds/resolution/audio).
 - Pricing dispatcher: `frontend/features/ai-studio/logic/pricing.ts` (`computeCostForModel`, `buildDefaultPricingParams`).

@@ -34,8 +34,6 @@ const DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT = 500;
 const DEFAULT_ARCHIVE_PREVIEW_KEEP_COUNT = 120;
 const REFERENCE_GRID_FLAG_SOFT_ARCHIVE =
   process.env.NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE !== "false";
-const REFERENCE_GRID_FLAG_NORMALIZED_STATE =
-  process.env.NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE !== "false";
 const REFERENCE_GRID_ACTIVE_LIMIT = Number(
   process.env.NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT ?? DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT
 );
@@ -258,21 +256,6 @@ export const useAiStudioState = ({
 
   const updateActiveOutputById = useCallback(
     (id: string, updater: (item: StudioOutput) => StudioOutput) => {
-      if (!REFERENCE_GRID_FLAG_NORMALIZED_STATE) {
-        setOutputs((prev) => {
-          const targetIndex = prev.findIndex((item) => item.id === id);
-          if (targetIndex === -1) return prev;
-          const current = prev[targetIndex];
-          if (!current) return prev;
-          const nextItem = updater(current);
-          if (nextItem === current) return prev;
-          const next = [...prev];
-          next[targetIndex] = nextItem;
-          return next;
-        });
-        return;
-      }
-
       setActiveOutputState((prevState) => {
         const current = prevState.byId[id];
         if (!current) return prevState;
@@ -287,7 +270,7 @@ export const useAiStudioState = ({
         };
       });
     },
-    [setActiveOutputState, setOutputs]
+    [setActiveOutputState]
   );
 
   const allowedModelOptions = useAiStudioAllowedModelOptions({
@@ -373,8 +356,8 @@ export const useAiStudioState = ({
   } = useAiStudioOutputLifecycle({
     outputs,
     setOutputs,
-    updateOutputByIdFast: REFERENCE_GRID_FLAG_NORMALIZED_STATE ? updateActiveOutputById : undefined,
-    findOutputByIdFast: REFERENCE_GRID_FLAG_NORMALIZED_STATE ? findActiveOutputById : undefined,
+    updateOutputByIdFast: updateActiveOutputById,
+    findOutputByIdFast: findActiveOutputById,
     activeOutputId,
     setActiveOutputId,
     pendingAutoSavesRef,

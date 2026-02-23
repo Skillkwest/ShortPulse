@@ -168,7 +168,6 @@ Checklist:
   - variant paths (`thumb_variant_path`, `poster_variant_path`, `preview_variant_path`) are populated,
   - device/network constraints are applying reduced sign/autoplay budgets.
 - If Reference Grid interactions degrade in long sessions, verify:
-  - normalized output state fast-path is active (`NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE` not set to `false`),
   - soft archive is active (`NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE` not set to `false`),
   - adaptive preview routing is active (`NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW` not set to `false`),
   - active grid count stays near the configured cap (`NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT`, default `500`),

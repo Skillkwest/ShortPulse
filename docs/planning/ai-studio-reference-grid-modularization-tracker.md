@@ -169,6 +169,7 @@ Exit validation:
 - Phase 5 closeout evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-and-state-decomposition-closeout.md`
 - Phase 6 guardrail effective-mode alignment slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-guardrail-effective-mode-alignment-slice-1.md`
 - Phase 6 enforce-cycle preflight slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-enforce-cycle-preflight-slice-2.md`
+- Phase 6 dead-flag retirement (normalized-state toggle) slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-dead-flag-retirement-normalized-state-slice-3.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -217,3 +218,4 @@ Exit validation:
 | 2026-02-23 | Close Phase 5 after hotspot size-budget target closure and full guardrail pass | `ReferenceCanvas`, `MediaLibraryModal`, and `useAiStudioState` all meet phase targets with parity suites and adaptive gate green | Frontend |
 | 2026-02-23 | Start Phase 6 by aligning CI wrapper effective mode with reference-grid enforce flags | ensure architecture/size guardrails cannot silently pass when subsystem enforce mode is active | Frontend + DevEx |
 | 2026-02-23 | Record two consecutive local enforce-mode preflight cycles for reference-grid guardrails | validate promote-readiness before toggling CI repo variables to enforce | Frontend + DevEx |
+| 2026-02-23 | Retire temporary `NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE` compatibility flag | normalized output fast-path is now foundational behavior; removing toggle reduces dead-branch risk and config complexity | Frontend |

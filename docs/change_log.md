@@ -1224,3 +1224,12 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Captured promotion-ready status for reference-grid guardrails pending CI repository-variable toggle and enforce-cycle capture.
 - Added evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-enforce-cycle-preflight-slice-2.md`
+
+## 2026-02-23 (reference-grid phase 6 slice 3)
+- Retired temporary compatibility toggle `NEXT_PUBLIC_REFERENCE_GRID_NORMALIZED_STATE` and removed its fallback branch from `useAiStudioState`; normalized output fast-path is now always on.
+- Updated operational/env docs to remove the retired flag reference:
+  - `frontend/.env.example`
+  - `docs/sops/sop_media_performance_operations.md`
+  - `docs/troubleshooting.md`
+- Added evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-dead-flag-retirement-normalized-state-slice-3.md`

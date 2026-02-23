@@ -50,3 +50,4 @@ Purpose: single source of truth for canonical terms, compatibility policy, and s
 2. High-impact unresolved variants require a decision-log entry before proceeding.
 3. Canonical map changes require tracker update and evidence linkage.
 4. Active docs must pass `scripts/check_naming_canonical_drift.js` (via `npm -C frontend run docs:check`) before merge.
+5. Runtime legacy alias usage must pass `scripts/check_naming_legacy_usage.js` (via `npm -C frontend run validate`) before merge.

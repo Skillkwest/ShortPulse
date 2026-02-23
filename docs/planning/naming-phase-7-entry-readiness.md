@@ -28,9 +28,9 @@ Purpose: define the exact contract-entry checklist for alias sunset (Phase 7), t
 | --- | --- | --- |
 | R1 | Release cycle 1 shipped with aliases in place and no naming regressions | pending |
 | R2 | Release cycle 2 shipped with aliases in place and no naming regressions | pending |
-| G1 | No active code/docs imports of alias paths/symbols outside compatibility wrappers | in_progress |
+| G1 | No active code/docs imports of alias paths/symbols outside compatibility wrappers | pass |
 | G2 | Removal batch rollback plan prepared and reviewed | in_progress |
-| G3 | Stop-Point 7 approval logged in `naming-decision-log.md` | pending |
+| G3 | Stop-Point 7 approval logged in `naming-decision-log.md` | pass |
 
 ## Compatibility Alias Inventory (Current)
 
@@ -79,3 +79,5 @@ Each batch requires:
 ## Drift Prevention Control (Now Active)
 1. `scripts/check_naming_canonical_drift.js` enforces canonical naming in active docs surfaces (`docs/sops`, `docs/product`, and selected root docs).
 2. `npm -C frontend run docs:check` now includes this guard, blocking reintroduction of legacy naming in active docs.
+3. `scripts/check_naming_legacy_usage.js` enforces that runtime legacy alias terms remain confined to approved compatibility files.
+4. `npm -C frontend run validate` now includes `check:naming-legacy-usage`.

@@ -210,6 +210,18 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/naming-phase-7-entry-readiness.md`
 - Next allowed action: maintain stability window, capture release-cycle evidence, and begin contraction only after explicit Stop-Point 7 removal approval.
 
+## 2026-02-23: Stop-Point 7 (Runtime legacy usage guard)
+- Phase/Stop point: Phase 7 readiness hardening slice
+- Decision: approved runtime legacy-usage enforcement in `validate`; legacy alias usage is now guarded to approved compatibility files only.
+- Preconditions reviewed:
+  - `node scripts/check_naming_legacy_usage.js` pass
+  - `npm -C frontend run validate` pass with `check:naming-legacy-usage` included
+  - `npm -C frontend run docs:check` pass
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-7/2026-02-23-phase-7-runtime-legacy-usage-guard.md`
+  - `docs/planning/naming-phase-7-entry-readiness.md`
+- Next allowed action: maintain release-window stability evidence and prepare explicit contraction batch approvals when entry criteria are met.
+
 ## Stop-Point Approval Template
 - Date:
 - Phase/Stop point:

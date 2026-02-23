@@ -40,6 +40,8 @@ Purpose: deliver a zero-regression naming canonicalization program using paralle
 - Required before phase transitions and before any contraction/deletion.
 6. Active-doc drift guard:
 - `npm -C frontend run docs:check` must pass `scripts/check_naming_canonical_drift.js` to prevent legacy naming reintroduction in active docs.
+7. Runtime legacy-usage guard:
+- `npm -C frontend run validate` must pass `check:naming-legacy-usage` to ensure legacy naming stays confined to approved compatibility files.
 
 ## Phase Matrix
 
@@ -94,5 +96,5 @@ Purpose: deliver a zero-regression naming canonicalization program using paralle
 4. Phase 4 completed with bounded callsite migration slices A-G and closeout audit.
 5. Phase 5 is in progress; batches A-C completed (reference-grid component + drop-controller path canonicalization with shims, plus canonical test file path/script alignment).
 6. Phase 6 is in progress; batches A-B completed for active runtime public asset path canonicalization with dual-path compatibility, and residual legacy asset inventory is now tracked for sunset planning.
-7. Phase 7 entry-readiness planning is in progress with alias inventory, release-window tracker, and active-doc naming drift guard enforcement in `docs:check`.
+7. Phase 7 entry-readiness planning is in progress with alias inventory, release-window tracker, active-doc drift guard enforcement, and runtime legacy-usage guard enforcement.
 8. Perf release-check gate is currently blocked by missing `PLAYWRIGHT_AUDIT_EMAIL` in local environment.

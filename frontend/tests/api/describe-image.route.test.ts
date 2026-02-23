@@ -132,6 +132,15 @@ describe("POST /api/ai/describe-image", () => {
         description: "A person standing in a neon-lit alley.",
       })
     );
+    expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
+      {
+        "description": "A person standing in a neon-lit alley.",
+        "usage": {
+          "inputTokens": 10,
+          "outputTokens": 12,
+        },
+      }
+    `);
   });
 
   it("retries transient upstream failures before returning error", async () => {
@@ -301,6 +310,15 @@ describe("POST /api/ai/describe-image", () => {
         usage: { inputTokens: 16, outputTokens: 9 },
       })
     );
+    expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
+      {
+        "description": "A futuristic city skyline at night.",
+        "usage": {
+          "inputTokens": 16,
+          "outputTokens": 9,
+        },
+      }
+    `);
   });
 
   it("falls back to chat completions when responses fails and fallback is enabled", async () => {
@@ -343,6 +361,7 @@ describe("POST /api/ai/describe-image", () => {
         description: "A portrait with dramatic side lighting.",
       })
     );
+    expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
   it("returns responses upstream error when chat fallback is disabled", async () => {
@@ -374,5 +393,23 @@ describe("POST /api/ai/describe-image", () => {
       detail: "responses rejected image payload",
       model: "gpt-5-nano",
     });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.image_describe.upstream_error",
+        statusCode: 400,
+        metadata: expect.objectContaining({
+          detail: "responses rejected image payload",
+          model: "gpt-5-nano",
+          attempted_models: ["gpt-5-nano"],
+        }),
+      })
+    );
+    expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
+      {
+        "detail": "responses rejected image payload",
+        "error": "Upstream error",
+        "model": "gpt-5-nano",
+      }
+    `);
   });
 });

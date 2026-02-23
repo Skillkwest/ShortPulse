@@ -68,6 +68,15 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         prompt: "An ancient Mayan temple rises from dense jungle.",
       })
     );
+    expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
+      {
+        "prompt": "An ancient Mayan temple rises from dense jungle.",
+        "usage": {
+          "inputTokens": 22,
+          "outputTokens": 15,
+        },
+      }
+    `);
   });
 
   it("treats summary-only outputs as invalid", async () => {
@@ -131,6 +140,15 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         usage: { inputTokens: 18, outputTokens: 11 },
       })
     );
+    expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
+      {
+        "prompt": "A cinematic portrait at golden hour.",
+        "usage": {
+          "inputTokens": 18,
+          "outputTokens": 11,
+        },
+      }
+    `);
   });
 
   it("falls back to chat completions when responses fails and fallback is enabled", async () => {
@@ -167,6 +185,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         prompt: "A high-detail city skyline at dusk.",
       })
     );
+    expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
   it("returns responses upstream error when chat fallback is disabled", async () => {
@@ -193,5 +212,20 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
       error: "Upstream error",
       detail: "responses unavailable",
     });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.prompt_generation.upstream_error",
+        statusCode: 503,
+        metadata: expect.objectContaining({
+          detail: "responses unavailable",
+        }),
+      })
+    );
+    expect(res.json.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
+      {
+        "detail": "responses unavailable",
+        "error": "Upstream error",
+      }
+    `);
   });
 });

@@ -12,7 +12,7 @@ Program Doc: `docs/planning/ai-studio-reference-grid-modularization-program.md`
 | Phase 1: Domain Core | Completed | Frontend | 2026-02-26 | 2026-03-03 | reducer/selectors parity | `docs/planning/evidence/reference-grid-modularization/phase-1/` |
 | Phase 2: Ingestion Unification | Completed | Frontend | 2026-03-04 | 2026-03-10 | canonical ingress matrix pass | `docs/planning/evidence/reference-grid-modularization/phase-2/` |
 | Phase 3: Projection Semantics | Completed | Frontend | 2026-03-11 | 2026-03-17 | curated semantics parity | `docs/planning/evidence/reference-grid-modularization/phase-3/` |
-| Phase 4: Media Runtime Unification | In Progress | Frontend + Media | 2026-03-18 | 2026-03-24 | modal/route runtime parity | `docs/planning/evidence/reference-grid-modularization/phase-4/` |
+| Phase 4: Media Runtime Unification | Completed | Frontend + Media | 2026-03-18 | 2026-03-24 | modal/route runtime parity | `docs/planning/evidence/reference-grid-modularization/phase-4/` |
 | Phase 5: Canvas + State Decomposition | Planned | Frontend | 2026-03-25 | 2026-04-02 | size budget targets pass in target lane | `docs/planning/evidence/reference-grid-modularization/phase-5/` |
 | Phase 6: Guardrails + Cleanup | Planned | Frontend + DevEx | 2026-04-03 | 2026-04-09 | two green cycles + cleanup complete | `docs/planning/evidence/reference-grid-modularization/phase-6/` |
 
@@ -61,13 +61,13 @@ Exit validation:
 - [x] Archive/restore determinism verified.
 
 ### Phase 4: Media Runtime Unification
-- [ ] Extract shared modal/route preview-sign-retry-download runtime.
-- [ ] Replace duplicated modal runtime logic.
-- [ ] Add parity tests for ladder/fallback/retry semantics.
+- [x] Extract shared modal/route preview-sign-retry-download runtime.
+- [x] Replace duplicated modal runtime logic.
+- [x] Add parity tests for ladder/fallback/retry semantics.
 
 Exit validation:
-- [ ] Runtime parity tests green.
-- [ ] No regression in media modal flow tests.
+- [x] Runtime parity tests green.
+- [x] No regression in media modal flow tests.
 
 ### Phase 5: Canvas + State Decomposition
 - [ ] Split `ReferenceCanvas` into view + controller modules.
@@ -107,7 +107,7 @@ Exit validation:
 | --- | --- | --- | --- | --- | --- |
 | RG-DEP-01 | Contract freeze signoff | Blocks code extraction | Frontend | Resolved | 2026-02-23 |
 | RG-DEP-02 | Keyboard reorder acceptance baseline | Blocks curated accessibility parity closure | Frontend | Resolved | 2026-02-23 |
-| RG-DEP-03 | Shared modal/route runtime parity matrix | Blocks phase 4 promotion | Frontend + Media | Open | 2026-03-24 |
+| RG-DEP-03 | Shared modal/route runtime parity matrix | Blocks phase 4 promotion | Frontend + Media | Resolved | 2026-02-23 |
 | RG-DEP-06 | Ingress-to-projection integration test path | Blocks lifting phase-3 kickoff hold | Frontend | Resolved | 2026-02-23 |
 | RG-DEP-04 | STG-06 branch-protection enforceability constraint | Blocks production-readiness closeout gating | Engineering Mgmt | Open | TBD |
 | RG-DEP-05 | STG-05/STG-06 sequencing compliance | Blocks guardrail enforce promotion if out of sequence | Frontend + DevEx | Open | 2026-04-09 |
@@ -137,6 +137,7 @@ Exit validation:
 - Phase 4 preview-recovery controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-preview-recovery-controller-slice-3.md`
 - Phase 4 preview-resolver API parity slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-preview-resolver-api-parity-slice-4.md`
 - Phase 4 selection-url resolver parity slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-selection-url-resolver-parity-slice-5.md`
+- Phase 4 closeout evidence: `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-runtime-unification-closeout.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -153,3 +154,4 @@ Exit validation:
 | 2026-02-23 | Route modal + route preview recovery fallback through shared recovery controller with modal optimizer callback seam | remove duplicated refresh/retry/hydration logic while preserving no-regression fallback semantics | Frontend |
 | 2026-02-23 | Route modal + route preview resolver API request/parsing through shared helper | remove duplicated resolve-previews transport logic while preserving unresolved-id fallback semantics | Frontend |
 | 2026-02-23 | Route modal media-selection URL signing through shared selection resolver helper | remove duplicated selection signing candidate logic while preserving canonical storage-path priority behavior | Frontend |
+| 2026-02-23 | Close Phase 4 after shared sign/resolve/hydrate helper extraction and parity-gate confirmation | done-state checklist for shared modal/route runtime reached and no-regression gates are green | Frontend |

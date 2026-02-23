@@ -18,19 +18,18 @@ import {
   resolveMediaPreviewSignBudget,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
-import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
-import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { resolveMediaCardAspectRatio } from "../logic/mediaLibraryAspectRatio";
 import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
 import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
+import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import {
-  collectUniqueMediaIds,
-  resolveSignedSelectionUrl,
-  resolveSignedPreviewUrlsByMediaIds,
-} from "../../media-library/logic/mediaPreviewResolver";
+  hydrateMediaPreviewViaStorageDownload,
+  resolveAndApplySignedPreviewUrlsByRows,
+  signMediaStoragePath,
+} from "../../media-library/logic/mediaPreviewRuntimeShared";
 import {
   isAdaptiveSurfaceEnabled,
   resolveAdaptiveMedia,
@@ -508,13 +507,8 @@ export function MediaLibraryModal({
   }, []);
 
   const signStoragePath = useCallback(
-    async (storagePath: string, options?: { forceRefresh?: boolean }): Promise<string | null> =>
-      getSignedMediaUrl({
-        bucket: BUCKET,
-        storagePath,
-        expiresInSeconds: 3600,
-        forceRefresh: options?.forceRefresh ?? false,
-      }),
+    (storagePath: string, options?: { forceRefresh?: boolean }): Promise<string | null> =>
+      signMediaStoragePath(storagePath, options),
     []
   );
 
@@ -566,17 +560,16 @@ export function MediaLibraryModal({
       downloadFallbackInFlightRef.current[file.id] = true;
       try {
         const supabase = ensureSupabaseClient();
-        const storageCandidates = resolveMediaSigningStoragePaths(file, currentUserIdRef.current);
-        for (const storagePath of storageCandidates) {
-          const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
-          if (error || !data) continue;
-          const blob = data as Blob;
-          if (!blob.size) continue;
-          const objectUrl = URL.createObjectURL(blob);
-          setObjectUrlForMediaRow(file, objectUrl);
-          return objectUrl;
-        }
-        return null;
+        return await hydrateMediaPreviewViaStorageDownload({
+          row: file,
+          currentUserId: currentUserIdRef.current,
+          downloadFromStoragePath: async (storagePath) => {
+            const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
+            if (error || !data) return null;
+            return data as Blob;
+          },
+          applyObjectUrlForRow: setObjectUrlForMediaRow,
+        });
       } catch {
         return null;
       } finally {
@@ -587,20 +580,12 @@ export function MediaLibraryModal({
   );
 
   const resolveSignedUrlsByMediaIds = useCallback(
-    async (tab: MediaDataTab, rows: MediaFileRow[]): Promise<Set<string>> => {
-      const ids = collectUniqueMediaIds(rows);
-      const unresolvedIds = new Set(ids);
-      if (!ids.length) return unresolvedIds;
-      const resolvedById = await resolveSignedPreviewUrlsByMediaIds({
-        ids,
-        fetcher: fetchWithAuth,
-      });
-      for (const mediaId of resolvedById.keys()) {
-        unresolvedIds.delete(mediaId);
-      }
-      applySignedUrlsToTab(tab, resolvedById);
-      return unresolvedIds;
-    },
+    (tab: MediaDataTab, rows: MediaFileRow[]): Promise<Set<string>> =>
+      resolveAndApplySignedPreviewUrlsByRows({
+        tab,
+        rows,
+        applySignedUrlsToTab,
+      }),
     [applySignedUrlsToTab]
   );
 

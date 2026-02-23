@@ -11,15 +11,13 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
-import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
-import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import {
-  collectUniqueMediaIds,
-  resolveSignedPreviewUrlsByMediaIds,
-} from "../logic/mediaPreviewResolver";
+  hydrateMediaPreviewViaStorageDownload,
+  resolveAndApplySignedPreviewUrlsByRows,
+  signMediaStoragePath,
+} from "../logic/mediaPreviewRuntimeShared";
 import { useMediaPreviewRecoveryController } from "./useMediaPreviewRecoveryController";
 import type { MediaTab } from "../logic/mediaMoveRouting";
 import {
@@ -236,13 +234,8 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
   }, []);
 
   const signStoragePath = useCallback(
-    async (storagePath: string, options?: { forceRefresh?: boolean }): Promise<string | null> =>
-      getSignedMediaUrl({
-        bucket: BUCKET,
-        storagePath,
-        expiresInSeconds: 3600,
-        forceRefresh: options?.forceRefresh ?? false,
-      }),
+    (storagePath: string, options?: { forceRefresh?: boolean }): Promise<string | null> =>
+      signMediaStoragePath(storagePath, options),
     []
   );
 
@@ -302,17 +295,16 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
       downloadFallbackInFlightRef.current[row.id] = true;
       try {
         const supabase = ensureSupabaseClient();
-        const storageCandidates = resolveMediaSigningStoragePaths(row, currentUserIdRef.current);
-        for (const storagePath of storageCandidates) {
-          const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
-          if (error || !data) continue;
-          const blob = data as Blob;
-          if (!blob.size) continue;
-          const objectUrl = URL.createObjectURL(blob);
-          setObjectUrlForMediaRow(row, objectUrl);
-          return objectUrl;
-        }
-        return null;
+        return await hydrateMediaPreviewViaStorageDownload({
+          row,
+          currentUserId: currentUserIdRef.current,
+          downloadFromStoragePath: async (storagePath) => {
+            const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
+            if (error || !data) return null;
+            return data as Blob;
+          },
+          applyObjectUrlForRow: setObjectUrlForMediaRow,
+        });
       } catch {
         return null;
       } finally {
@@ -323,20 +315,12 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
   );
 
   const resolveSignedUrlsByMediaIds = useCallback(
-    async (tab: MediaDataTab, rows: TRow[]): Promise<Set<string>> => {
-      const ids = collectUniqueMediaIds(rows);
-      const unresolvedIds = new Set(ids);
-      if (!ids.length) return unresolvedIds;
-      const resolvedById = await resolveSignedPreviewUrlsByMediaIds({
-        ids,
-        fetcher: fetchWithAuth,
-      });
-      for (const mediaId of resolvedById.keys()) {
-        unresolvedIds.delete(mediaId);
-      }
-      applySignedUrlsToTab(tab, resolvedById);
-      return unresolvedIds;
-    },
+    (tab: MediaDataTab, rows: TRow[]): Promise<Set<string>> =>
+      resolveAndApplySignedPreviewUrlsByRows({
+        tab,
+        rows,
+        applySignedUrlsToTab,
+      }),
     [applySignedUrlsToTab]
   );
 

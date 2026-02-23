@@ -1027,3 +1027,13 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - expanded shared resolver tests for canonical-first ordering, fallback signing, and deduped candidate resolution in `frontend/features/media-library/logic/__tests__/mediaPreviewResolver.test.ts`.
 - Added phase-4 slice-5 evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-selection-url-resolver-parity-slice-5.md`
+- Continued Phase 4 media runtime unification (slice 6 shared runtime helper parity):
+  - added `frontend/features/media-library/logic/mediaPreviewRuntimeShared.ts` for shared sign-path resolution, resolve-previews application, and storage-download hydration helpers.
+  - rewired both modal and route runtime callbacks to shared helpers:
+    - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+    - `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts`
+  - added shared helper tests in `frontend/features/media-library/logic/__tests__/mediaPreviewRuntimeShared.test.ts`.
+- Closed Phase 4 media runtime unification:
+  - marked phase checklist + exit validation complete and resolved runtime parity blocker (`RG-DEP-03`) in `docs/planning/ai-studio-reference-grid-modularization-tracker.md`.
+  - added closeout evidence artifact:
+    - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-runtime-unification-closeout.md`

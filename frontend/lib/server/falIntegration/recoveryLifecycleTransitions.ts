@@ -1,0 +1,120 @@
+/**
+ * Recovery lifecycle transition helpers.
+ * Keeps update payload shaping and queue/exhaustion policy centralized.
+ */
+
+type JsonObject = Record<string, unknown>;
+
+export type RecoveryQueuePlan = {
+  isExhausted: boolean;
+  recoveryState: "queued" | "exhausted";
+  nextRecoveryAt: string | null;
+};
+
+export const buildRecoveryQueuePlan = ({
+  attempts,
+  effectiveMaxAttempts,
+  nextDelaySeconds,
+}: {
+  attempts: number;
+  effectiveMaxAttempts: number;
+  nextDelaySeconds: number;
+}): RecoveryQueuePlan => {
+  const isExhausted = attempts >= effectiveMaxAttempts;
+  return {
+    isExhausted,
+    recoveryState: isExhausted ? "exhausted" : "queued",
+    nextRecoveryAt: isExhausted
+      ? null
+      : new Date(Date.now() + nextDelaySeconds * 1000).toISOString(),
+  };
+};
+
+export const buildMissingRequestUpdate = (nowIso: string): Record<string, unknown> => ({
+  recovery_state: "exhausted",
+  failure_reason_code: "recovery_exhausted",
+  next_recovery_at: null,
+  last_recovery_at: nowIso,
+});
+
+export const buildAlreadyPersistedSuccessUpdate = ({
+  completedAt,
+  nowIso,
+}: {
+  completedAt: string | null;
+  nowIso: string;
+}): Record<string, unknown> => ({
+  status: "success",
+  completed_at: completedAt ?? nowIso,
+  recovery_state: "recovered",
+  next_recovery_at: null,
+  last_recovery_at: nowIso,
+  last_media_detected_at: nowIso,
+  failure_reason_code: null,
+});
+
+export const buildProviderRunningUpdate = ({
+  nowIso,
+  queuePlan,
+}: {
+  nowIso: string;
+  queuePlan: RecoveryQueuePlan;
+}): Record<string, unknown> => ({
+  recovery_state: queuePlan.recoveryState,
+  failure_reason_code: queuePlan.isExhausted ? "recovery_exhausted" : null,
+  last_recovery_at: nowIso,
+  next_recovery_at: queuePlan.nextRecoveryAt,
+});
+
+export const buildProviderFailedUpdate = (nowIso: string): Record<string, unknown> => ({
+  status: "fail",
+  completed_at: nowIso,
+  failure_reason_code: "provider_error",
+  recovery_state: "exhausted",
+  last_recovery_at: nowIso,
+  next_recovery_at: null,
+});
+
+export const buildNoMediaUpdate = ({
+  nowIso,
+  queuePlan,
+}: {
+  nowIso: string;
+  queuePlan: RecoveryQueuePlan;
+}): Record<string, unknown> => ({
+  status: "fail",
+  completed_at: nowIso,
+  failure_reason_code: "terminal_success_no_media",
+  recovery_state: queuePlan.recoveryState,
+  last_recovery_at: nowIso,
+  next_recovery_at: queuePlan.nextRecoveryAt,
+});
+
+export const buildRecoveredSuccessUpdate = ({
+  nowIso,
+  metadata,
+  mediaUrls,
+  mediaFileIds,
+  actor,
+}: {
+  nowIso: string;
+  metadata: JsonObject;
+  mediaUrls: string[];
+  mediaFileIds: string[];
+  actor: "reconciler" | "admin_replay" | "webhook" | "status_proxy";
+}): Record<string, unknown> => ({
+  status: "success",
+  completed_at: nowIso,
+  metadata: {
+    ...metadata,
+    result_urls: mediaUrls,
+    media_file_ids: mediaFileIds,
+    recovery_execution_at: nowIso,
+    recovery_execution_actor: actor,
+  },
+  recovery_state: "recovered",
+  last_recovery_at: nowIso,
+  next_recovery_at: null,
+  last_media_detected_at: nowIso,
+  failure_reason_code: null,
+});

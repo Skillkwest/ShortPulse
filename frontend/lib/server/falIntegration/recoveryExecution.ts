@@ -12,6 +12,15 @@ import {
   resolveRetryDelaySeconds,
 } from "./recoveryExecutionRuntime";
 import {
+  buildAlreadyPersistedSuccessUpdate,
+  buildMissingRequestUpdate,
+  buildNoMediaUpdate,
+  buildProviderFailedUpdate,
+  buildProviderRunningUpdate,
+  buildRecoveredSuccessUpdate,
+  buildRecoveryQueuePlan,
+} from "./recoveryLifecycleTransitions";
+import {
   persistRecoveryMediaFilesForGeneration,
   readExistingRecoveryMediaRows,
 } from "./recoveryMediaPersistence";
@@ -214,12 +223,7 @@ export const executeGenerationRecovery = async ({
   if (!generation.request_id) {
     await updateGenerationRecoveryState({
       generation,
-      updates: {
-        recovery_state: "exhausted",
-        failure_reason_code: "recovery_exhausted",
-        next_recovery_at: null,
-        last_recovery_at: nowIso,
-      },
+      updates: buildMissingRequestUpdate(nowIso),
     });
     return {
       ok: true,
@@ -249,15 +253,10 @@ export const executeGenerationRecovery = async ({
     });
     await updateGenerationRecoveryState({
       generation,
-      updates: {
-        status: "success",
-        completed_at: generation.completed_at ?? nowIso,
-        recovery_state: "recovered",
-        next_recovery_at: null,
-        last_recovery_at: nowIso,
-        last_media_detected_at: nowIso,
-        failure_reason_code: null,
-      },
+      updates: buildAlreadyPersistedSuccessUpdate({
+        completedAt: generation.completed_at,
+        nowIso,
+      }),
     });
     return {
       ok: true,
@@ -290,21 +289,18 @@ export const executeGenerationRecovery = async ({
 
   if (currentObservation.state === "running") {
     const nextDelaySeconds = resolveRetryDelaySeconds(Math.max(attempts, 1));
+    const queuePlan = buildRecoveryQueuePlan({
+      attempts,
+      effectiveMaxAttempts,
+      nextDelaySeconds,
+    });
     await updateGenerationRecoveryState({
       generation,
-      updates: {
-        recovery_state: attempts >= effectiveMaxAttempts ? "exhausted" : "queued",
-        failure_reason_code: attempts >= effectiveMaxAttempts ? "recovery_exhausted" : null,
-        last_recovery_at: nowIso,
-        next_recovery_at:
-          attempts >= effectiveMaxAttempts
-            ? null
-            : new Date(Date.now() + nextDelaySeconds * 1000).toISOString(),
-      },
+      updates: buildProviderRunningUpdate({ nowIso, queuePlan }),
     });
     return {
       ok: true,
-      state: attempts >= effectiveMaxAttempts ? "exhausted" : "provider_running",
+      state: queuePlan.isExhausted ? "exhausted" : "provider_running",
       generationId: generation.id,
       requestId: generation.request_id,
       mediaFileIds: [],
@@ -327,14 +323,7 @@ export const executeGenerationRecovery = async ({
     });
     await updateGenerationRecoveryState({
       generation,
-      updates: {
-        status: "fail",
-        completed_at: nowIso,
-        failure_reason_code: "provider_error",
-        recovery_state: "exhausted",
-        last_recovery_at: nowIso,
-        next_recovery_at: null,
-      },
+      updates: buildProviderFailedUpdate(nowIso),
     });
     return {
       ok: true,
@@ -360,23 +349,18 @@ export const executeGenerationRecovery = async ({
       },
     });
     const nextDelaySeconds = resolveRetryDelaySeconds(Math.max(attempts, 1));
+    const queuePlan = buildRecoveryQueuePlan({
+      attempts,
+      effectiveMaxAttempts,
+      nextDelaySeconds,
+    });
     await updateGenerationRecoveryState({
       generation,
-      updates: {
-        status: "fail",
-        completed_at: nowIso,
-        failure_reason_code: "terminal_success_no_media",
-        recovery_state: attempts >= effectiveMaxAttempts ? "exhausted" : "queued",
-        last_recovery_at: nowIso,
-        next_recovery_at:
-          attempts >= effectiveMaxAttempts
-            ? null
-            : new Date(Date.now() + nextDelaySeconds * 1000).toISOString(),
-      },
+      updates: buildNoMediaUpdate({ nowIso, queuePlan }),
     });
     return {
       ok: true,
-      state: attempts >= effectiveMaxAttempts ? "exhausted" : "no_media",
+      state: queuePlan.isExhausted ? "exhausted" : "no_media",
       generationId: generation.id,
       requestId: generation.request_id,
       mediaFileIds: [],
@@ -423,22 +407,13 @@ export const executeGenerationRecovery = async ({
   });
   await updateGenerationRecoveryState({
     generation,
-    updates: {
-      status: "success",
-      completed_at: nowIso,
-      metadata: {
-        ...metadata,
-        result_urls: recoveredUrls,
-        media_file_ids: mediaFileIds,
-        recovery_execution_at: nowIso,
-        recovery_execution_actor: actor,
-      },
-      recovery_state: "recovered",
-      last_recovery_at: nowIso,
-      next_recovery_at: null,
-      last_media_detected_at: nowIso,
-      failure_reason_code: null,
-    },
+    updates: buildRecoveredSuccessUpdate({
+      nowIso,
+      metadata,
+      mediaUrls: recoveredUrls,
+      mediaFileIds,
+      actor,
+    }),
   });
   return {
     ok: true,

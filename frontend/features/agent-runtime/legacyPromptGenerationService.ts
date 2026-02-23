@@ -30,6 +30,12 @@ type LegacyPromptFailure = {
 
 export type LegacyPromptGenerationResult = LegacyPromptSuccess | LegacyPromptFailure;
 
+const resolvePromptGenerationUpstreamFailureSource = (status: number): string => {
+  if (status === 429) return "api.prompt_generation.rate_limited";
+  if (status >= 500) return "api.prompt_generation.upstream_unavailable";
+  return "api.prompt_generation.upstream_error";
+};
+
 export const executeLegacyPromptGeneration = async ({
   req,
   user,
@@ -99,7 +105,7 @@ export const executeLegacyPromptGeneration = async ({
       await logGenerationFailure({
         req,
         routeLabel,
-        source: "api.prompt_generation.upstream_error",
+        source: resolvePromptGenerationUpstreamFailureSource(response.status),
         message: "Upstream error",
         statusCode: response.status,
         userId: user.id,

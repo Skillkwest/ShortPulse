@@ -214,7 +214,7 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     });
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        source: "api.prompt_generation.upstream_error",
+        source: "api.prompt_generation.upstream_unavailable",
         statusCode: 503,
         metadata: expect.objectContaining({
           detail: "responses unavailable",
@@ -227,5 +227,34 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
         "error": "Upstream error",
       }
     `);
+  });
+
+  it("classifies upstream 429 failures as rate-limited", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response("rate limited", { status: 429 })
+    );
+
+    const req = {
+      method: "POST",
+      body: { prompt: "storm over city skyline" },
+    };
+    const res = createMockResponse();
+
+    await generatePromptHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Upstream error",
+      detail: "rate limited",
+    });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.prompt_generation.rate_limited",
+        statusCode: 429,
+        metadata: expect.objectContaining({
+          detail: "rate limited",
+        }),
+      })
+    );
   });
 });

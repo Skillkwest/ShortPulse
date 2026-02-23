@@ -127,6 +127,17 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-reference-grid-internal-file-path-canonicalization-batch-a.md`
 - Next allowed action: continue Phase 5 in bounded batches for remaining legacy file-name families (tests/hooks/wrappers/assets) using the same shim-first strategy.
 
+## 2026-02-23: Stop-Point 5 (File/path rename batch B)
+- Phase/Stop point: Phase 5 batch B completion
+- Decision: approved drop-controller canonicalization to `useReferenceGridDropController` (file path + primary symbol), retaining legacy path/symbol compatibility aliases.
+- Preconditions reviewed:
+  - targeted reference-grid suites pass
+  - `validate`, `test:adaptive-v2-gate`, `build`, `docs:check`, `check:architecture-boundary`, and `check:size-budget` pass
+  - Playwright perf gate intentionally not executed per explicit no-Playwright direction
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-reference-grid-drop-controller-path-canonicalization-batch-b.md`
+- Next allowed action: continue Phase 5 shim-first canonicalization batches for remaining legacy file-name families.
+
 ## Stop-Point Approval Template
 - Date:
 - Phase/Stop point:

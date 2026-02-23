@@ -31,6 +31,7 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 2026-02-23 | Phase 4 reference-grid file-ownership canonicalization slice F | completed | Canonical reference-grid file ownership with legacy wrapper alias | pass (non-Playwright gates) | Evidence: `phase-4/2026-02-23-phase-4-reference-grid-file-ownership-canonicalization-slice-f.md` |
 | 2026-02-23 | Phase 4 reference-grid internal symbol canonicalization slice G | completed | Canonical internal `ReferenceGrid*` symbols for sections/card/archive controls with alias compatibility | pass (non-Playwright gates) | Evidence: `phase-4/2026-02-23-phase-4-reference-grid-internal-symbol-canonicalization-slice-g.md` |
 | 2026-02-23 | Phase 5 file/path canonicalization batch A | completed | Internal `ReferenceCanvas*` reference-grid component file names renamed to canonical `ReferenceGrid*` paths with legacy-path shim files | pass (non-Playwright gates) | Evidence: `phase-5/2026-02-23-phase-5-reference-grid-internal-file-path-canonicalization-batch-a.md` |
+| 2026-02-23 | Phase 5 file/path canonicalization batch B | completed | Drop-controller file path and primary hook symbol canonicalized to `useReferenceGridDropController` with legacy path/symbol compatibility retained | pass (non-Playwright gates) | Evidence: `phase-5/2026-02-23-phase-5-reference-grid-drop-controller-path-canonicalization-batch-b.md` |
 
 ## Active Risks
 1. Perf-release gate is intentionally deferred in this execution track because Playwright runs are out-of-scope.

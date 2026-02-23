@@ -36,9 +36,9 @@ import { type PastedMediaReference } from "../reference-grid/controllers/referen
 import { ReferenceGridSections } from "../reference-grid/components/ReferenceGridSections";
 import { useReferenceGridClipboardController } from "../reference-grid/controllers/useReferenceGridClipboardController";
 import {
-  useReferenceGridCanvasDropController,
+  useReferenceGridDropController,
   type ReferenceGridDropMode,
-} from "../reference-grid/controllers/useReferenceGridCanvasDropController";
+} from "../reference-grid/controllers/useReferenceGridDropController";
 import { useReferenceGridCuratedDndController } from "../reference-grid/controllers/useReferenceGridCuratedDndController";
 import { useReferenceGridScrollController } from "../reference-grid/controllers/useReferenceGridScrollController";
 import { useReferenceGridVirtualMetricsController } from "../reference-grid/controllers/useReferenceGridVirtualMetricsController";
@@ -674,7 +674,7 @@ export function ReferenceGrid({
   });
 
   const { handleCanvasDrop, handleCanvasDragOver, handleCanvasDragEnter, handleCanvasDragLeave } =
-    useReferenceGridCanvasDropController({
+    useReferenceGridDropController({
       canvasDragDepthRef,
       curatedDragDepthRef,
       setCanvasDropModeSafe,

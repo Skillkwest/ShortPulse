@@ -4,7 +4,7 @@
  */
 import { useCallback } from "react";
 import { dedupeMediaFiles, normalizeMediaFile } from "./referenceGridClipboard";
-import type { ReferenceGridDropMode } from "./useReferenceGridCanvasDropController";
+import type { ReferenceGridDropMode } from "./useReferenceGridDropController";
 
 type UseReferenceGridDropHelpersControllerResult = {
   normalizeMediaFiles: (files: File[]) => File[];

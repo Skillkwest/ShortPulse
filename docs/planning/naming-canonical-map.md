@@ -16,6 +16,8 @@ Purpose: single source of truth for canonical terms, compatibility policy, and s
 | Reference-grid component file path | `reference-grid/components/ReferenceCanvasArchiveControls.tsx` | `reference-grid/components/ReferenceGridArchiveControls.tsx` | Canonical file path active; retain legacy-path shim file | >= 2 release cycles |
 | Component props type | `ReferenceCanvasProps` | `ReferenceGridProps` | Keep both during bridge window | >= 2 release cycles |
 | Hook symbol | `useAiStudioReferenceCanvasProps` | `useAiStudioReferenceGridProps` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
+| Hook symbol | `useReferenceGridCanvasDropController` | `useReferenceGridDropController` | Canonical symbol active; retain deprecated alias export | >= 2 release cycles |
+| Reference-grid controller file path | `reference-grid/controllers/useReferenceGridCanvasDropController.ts` | `reference-grid/controllers/useReferenceGridDropController.ts` | Canonical file path active; retain legacy-path shim file | >= 2 release cycles |
 | Create panel symbol | `TextPropertiesPanel` | `CreatePropertiesPanel` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
 | Create panel props type | `TextPropertiesPanelProps` | `CreatePropertiesPanelProps` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
 | Grid drop type symbol | `ReferenceCanvasDropMode` | `ReferenceGridDropMode` | Migrate internal controller consumers; keep deprecated type alias | >= 2 release cycles |

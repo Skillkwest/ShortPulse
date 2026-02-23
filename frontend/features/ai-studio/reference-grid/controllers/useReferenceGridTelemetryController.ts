@@ -4,7 +4,7 @@
  */
 import { useEffect, type MutableRefObject } from "react";
 import { logMediaPerf, setMediaPerfSamplingPolicy } from "../../../../lib/mediaPerfTelemetry";
-import type { ReferenceGridDropMode } from "./useReferenceGridCanvasDropController";
+import type { ReferenceGridDropMode } from "./useReferenceGridDropController";
 
 type UseReferenceGridTelemetryControllerArgs = {
   renderCommitTelemetryEnabled: boolean;

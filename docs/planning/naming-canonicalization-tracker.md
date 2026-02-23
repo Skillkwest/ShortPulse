@@ -26,8 +26,9 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 2026-02-23 | Phase 4 internal type migration slice B | completed | Reference-grid drop-mode type symbol migration | pass | Evidence: `phase-4/2026-02-23-phase-4-callsite-migration-internal-drop-mode-slice-b.md` |
 | 2026-02-23 | Phase 4 canonical props/tests migration slice C | completed | Canonical page callsites and panel/grid test symbols | pass (perf blocked) | Evidence: `phase-4/2026-02-23-phase-4-callsite-migration-canonical-props-and-tests-slice-c.md` |
 | 2026-02-23 | Phase 4 reference-grid hook canonicalization slice D | completed | Canonical hook implementation ownership with legacy wrapper alias | pass (non-Playwright gates) | Evidence: `phase-4/2026-02-23-phase-4-reference-grid-hook-canonicalization-slice-d.md` |
+| 2026-02-23 | Phase 4 create panel file-ownership canonicalization slice E | completed | Canonical create panel file ownership with legacy wrapper alias | pass (non-Playwright gates) | Evidence: `phase-4/2026-02-23-phase-4-create-panel-file-ownership-canonicalization-slice-e.md` |
 
 ## Active Risks
-1. Perf-release gate cannot execute without Playwright audit credentials in environment.
+1. Perf-release gate is intentionally deferred in this execution track because Playwright runs are out-of-scope.
 2. Residual legacy symbol families remain in compatibility aliases, file paths, and some test/file naming (`ReferenceCanvas*`, `TextPropertiesPanel*`).
 3. File/path rename phase can silently break imports without explicit shim coverage.

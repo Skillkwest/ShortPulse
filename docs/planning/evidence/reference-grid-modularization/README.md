@@ -24,6 +24,7 @@ Tracker:
 4. Regression summary and mitigation notes.
 5. Rollback readiness statement.
 6. Follow-up actions and owner.
+7. Post-implementation audit addendum when a phase is marked complete.
 
 ## Naming Standard
 Use ISO date and phase prefix:
@@ -31,3 +32,4 @@ Use ISO date and phase prefix:
 
 Example:
 - `2026-02-23-phase-00-contract-freeze-baseline.md`
+- `2026-02-23-phase-02-post-implementation-audit-and-external-benchmark.md`

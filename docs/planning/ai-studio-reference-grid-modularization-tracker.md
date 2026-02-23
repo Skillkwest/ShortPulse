@@ -123,9 +123,11 @@ Exit validation:
 - Phase 0 baseline artifact: `docs/planning/evidence/reference-grid-modularization/phase-0/2026-02-23-phase-00-contract-freeze-baseline.md`
 - Phase 1 evidence: `docs/planning/evidence/reference-grid-modularization/phase-1/2026-02-23-phase-01-domain-core-foundation.md`
 - Phase 2 evidence: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-ingestion-unification-foundation.md`
+- Phase 2 post-implementation audit + external benchmark: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-post-implementation-audit-and-external-benchmark.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
 | --- | --- | --- | --- |
 | 2026-02-23 | Documentation-first starts with Phase 0 artifacts before extraction | lock behavior and reduce regression risk | Frontend |
 | 2026-02-23 | Reference-grid boundary and size checks start in warn lane | staged enforcement while legacy hotspots still large | Frontend + DevEx |
+| 2026-02-23 | Hold Phase 3 kickoff pending phase-2 post-implementation hardening deltas | preserve no-regression promotion standard on ingress and quick-slot semantics | Frontend |

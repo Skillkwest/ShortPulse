@@ -1038,3 +1038,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - aligned tracker risk state by marking modal/route runtime divergence (`Risk #4`) as `Mitigated`.
   - added closeout evidence artifact:
     - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-runtime-unification-closeout.md`
+- Started Phase 5 canvas + state decomposition (slice 1 foundation):
+  - extracted reference-card rendering from `frontend/features/ai-studio/components/ReferenceCanvas.tsx` into `frontend/features/ai-studio/reference-grid/components/ReferenceCanvasCard.tsx`.
+  - extracted clipboard/paste parsing and media normalization into `frontend/features/ai-studio/reference-grid/controllers/referenceGridClipboard.ts`.
+  - added controller unit coverage at `frontend/features/ai-studio/reference-grid/controllers/__tests__/referenceGridClipboard.test.ts`.
+  - reduced `ReferenceCanvas.tsx` from 3489 lines to 2902 lines while preserving behavior parity in existing ReferenceCanvas suites.
+- Added phase-5 slice-1 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-foundation-slice-1.md`

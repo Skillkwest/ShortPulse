@@ -133,6 +133,12 @@ describe("createFalSubmitHandler", () => {
         })
       )
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "primary fail retry" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
         new Response(JSON.stringify({ error: "fallback fail" }), {
           status: 422,
           headers: { "Content-Type": "application/json" },
@@ -159,17 +165,21 @@ describe("createFalSubmitHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     const firstHeaders = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.headers as
       | Record<string, string>
       | undefined;
     const secondHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit | undefined)?.headers as
       | Record<string, string>
       | undefined;
+    const thirdHeaders = (fetchMock.mock.calls[2]?.[1] as RequestInit | undefined)?.headers as
+      | Record<string, string>
+      | undefined;
     expect(firstHeaders?.["X-Fal-Request-Timeout"]).toBe("20");
     expect(secondHeaders?.["X-Fal-Request-Timeout"]).toBe("20");
+    expect(thirdHeaders?.["X-Fal-Request-Timeout"]).toBe("20");
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "primary fail" });
+    expect(res.json).toHaveBeenCalledWith({ error: "primary fail retry" });
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
     expect(charge.refund).toHaveBeenCalledWith(
       "Auto-refund: Fal submit rejected.",
@@ -178,5 +188,89 @@ describe("createFalSubmitHandler", () => {
       })
     );
     expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
+  });
+
+  it("retries retryable primary submit failures before succeeding on the same target", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "temporary outage" }), {
+          status: 503,
+          headers: {
+            "Content-Type": "application/json",
+            "x-fal-retryable": "true",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ request_id: "req-retried-primary" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana-pro",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana-pro" }],
+      routeLabel: "Fal Nano Banana Pro",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "cinematic portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-pro-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ request_id: "req-retried-primary" });
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(charge.refund).not.toHaveBeenCalled();
+  });
+
+  it("does not retry non-retryable primary failures and proceeds to fallback target", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "invalid payload" }), {
+          status: 422,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ request_id: "req-fallback-no-retry" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/veo3.1/image-to-video",
+      submitTargets: [
+        { submitUrl: "https://queue.fal.run/fal-ai/veo3.1/image-to-video" },
+        { submitUrl: "https://queue.fal.run/fal-ai/veo3.1/reference-to-video" },
+      ],
+      routeLabel: "Fal Veo image-to-video",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "animate frame" },
+      headers: {},
+      url: "/api/fal/veo-image-to-video-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ request_id: "req-fallback-no-retry" });
   });
 });

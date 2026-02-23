@@ -17,6 +17,35 @@ const clampStartTimeoutSeconds = (value: number): number => {
   return Math.max(1, Math.trunc(value));
 };
 
+const retryableSubmitStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+
+const sleep = async (ms: number): Promise<void> =>
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const isRetryableFalSubmitFailure = ({
+  response,
+  data,
+}: {
+  response: Response;
+  data: Record<string, unknown>;
+}): boolean => {
+  if (retryableSubmitStatuses.has(response.status)) return true;
+  const retryableHeader = response.headers.get("x-fal-retryable");
+  if (typeof retryableHeader === "string" && retryableHeader.trim().toLowerCase() === "true") {
+    return true;
+  }
+  const upstreamCode = String(data.code ?? "").toLowerCase();
+  return upstreamCode === "rate_limit" || upstreamCode === "overloaded";
+};
+
+const isRetryableSubmitTransportError = (error: unknown): boolean => {
+  if (error instanceof DOMException && error.name === "AbortError") return true;
+  const detail = error instanceof Error ? error.message : String(error);
+  return /timeout|timed out|network|fetch failed|econnreset|etimedout|eai_again/i.test(detail);
+};
+
 const readJsonSafe = async (response: Response): Promise<Record<string, unknown>> => {
   const text = await response.text();
   if (!text) return {};
@@ -34,6 +63,7 @@ const runSubmitTarget = async ({
   signal,
   targetIndex,
   requestStartTimeoutSeconds,
+  maxAttemptsPerTarget,
 }: {
   target: SubmitTarget;
   payload: SubmitPayload;
@@ -41,20 +71,40 @@ const runSubmitTarget = async ({
   signal: AbortSignal;
   targetIndex: number;
   requestStartTimeoutSeconds: number;
+  maxAttemptsPerTarget: number;
 }): Promise<SubmitResult> => {
   const body = target.transformPayload ? target.transformPayload(payload) : payload;
-  const response = await fetch(target.submitUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Key ${apiKey}`,
-      "X-Fal-Request-Timeout": String(requestStartTimeoutSeconds),
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
-  const data = await readJsonSafe(response);
-  return { response, data, targetUrl: target.submitUrl, targetIndex };
+  for (let attempt = 1; attempt <= maxAttemptsPerTarget; attempt += 1) {
+    try {
+      const response = await fetch(target.submitUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Key ${apiKey}`,
+          "X-Fal-Request-Timeout": String(requestStartTimeoutSeconds),
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
+      const data = await readJsonSafe(response);
+      if (
+        !response.ok &&
+        attempt < maxAttemptsPerTarget &&
+        isRetryableFalSubmitFailure({ response, data })
+      ) {
+        await sleep(120 * attempt);
+        continue;
+      }
+      return { response, data, targetUrl: target.submitUrl, targetIndex };
+    } catch (error) {
+      if (attempt < maxAttemptsPerTarget && isRetryableSubmitTransportError(error)) {
+        await sleep(120 * attempt);
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error("Fal submit attempts exhausted unexpectedly.");
 };
 
 /**
@@ -68,17 +118,20 @@ export const submitWithFallbackTargets = async ({
   apiKey,
   signal,
   requestStartTimeoutSeconds,
+  maxAttemptsPerTarget = 2,
 }: {
   targets: SubmitTarget[];
   payload: SubmitPayload;
   apiKey: string;
   signal: AbortSignal;
   requestStartTimeoutSeconds?: number;
+  maxAttemptsPerTarget?: number;
 }): Promise<SubmitResult> => {
   if (!targets.length) {
     throw new Error("submitWithFallbackTargets requires at least one submit target.");
   }
   const resolvedStartTimeoutSeconds = clampStartTimeoutSeconds(requestStartTimeoutSeconds ?? 30);
+  const resolvedMaxAttemptsPerTarget = Math.max(1, Math.min(3, Math.trunc(maxAttemptsPerTarget)));
 
   const primary = await runSubmitTarget({
     target: targets[0],
@@ -87,6 +140,7 @@ export const submitWithFallbackTargets = async ({
     signal,
     targetIndex: 0,
     requestStartTimeoutSeconds: resolvedStartTimeoutSeconds,
+    maxAttemptsPerTarget: resolvedMaxAttemptsPerTarget,
   });
   if (primary.response.ok || targets.length === 1) {
     return primary;
@@ -101,6 +155,7 @@ export const submitWithFallbackTargets = async ({
       signal,
       targetIndex: offset + 1,
       requestStartTimeoutSeconds: resolvedStartTimeoutSeconds,
+      maxAttemptsPerTarget: resolvedMaxAttemptsPerTarget,
     });
     if (fallback.response.ok) {
       return fallback;

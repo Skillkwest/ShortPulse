@@ -5,7 +5,16 @@
 import Image from "next/image";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MagnifyingGlass } from "phosphor-react";
-import { modelLogos, modelOptions, ModelOption } from "../constants";
+import {
+  FLUX_LOGO_SRC,
+  GOOGLE_LOGO_SRC,
+  KLING_LOGO_SRC,
+  modelLogos,
+  modelOptions,
+  ModelOption,
+  SEEDREAM_LOGO_SRC,
+  SORA2_LOGO_SRC,
+} from "../constants";
 import { buildDefaultPricingParams, computeCostForModel } from "../logic/pricing";
 import { stripEditLabel } from "../utils/modelLabels";
 
@@ -218,15 +227,15 @@ const resolveTooltipTags = (modelId: string, contextTag?: string): string[] => {
 };
 
 const sectionLogos: Record<string, string> = {
-  Flux: "/flux%20LOGO.png",
-  "Black Forest Labs": "/flux%20LOGO.png",
-  Google: "/Google%20LOGO.png",
-  "Google DeepMind": "/Google%20LOGO.png",
-  Kling: "/Kling%20LOGO.png",
-  "Kling AI": "/Kling%20LOGO.png",
-  OpenAI: "/Sora%202%20LOGO.png",
-  ByteDance: "/Seedream%20LOGO.png",
-  Seedream: "/Seedream%20LOGO.png",
+  Flux: FLUX_LOGO_SRC,
+  "Black Forest Labs": FLUX_LOGO_SRC,
+  Google: GOOGLE_LOGO_SRC,
+  "Google DeepMind": GOOGLE_LOGO_SRC,
+  Kling: KLING_LOGO_SRC,
+  "Kling AI": KLING_LOGO_SRC,
+  OpenAI: SORA2_LOGO_SRC,
+  ByteDance: SEEDREAM_LOGO_SRC,
+  Seedream: SEEDREAM_LOGO_SRC,
 };
 
 const resolveModelLogo = (modelId: string) => {

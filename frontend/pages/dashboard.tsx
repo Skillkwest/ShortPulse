@@ -258,7 +258,7 @@ export default function DashboardPage() {
       href: "/performance-soon",
       cta: "Open analytics →",
       variant: "tool-performance",
-      image: "/dashboard/performance%20analytics.png",
+      image: "/dashboard/performance-analytics.png",
       icon: ChartBar,
     },
   ];

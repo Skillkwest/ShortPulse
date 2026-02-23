@@ -12,7 +12,7 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 3 Bridge layer (expand) | completed | Frontend | Canonical aliases added and backward compatibility preserved | `docs/planning/evidence/naming-canonicalization/phase-3/` |
 | 4 Callsite migration (migrate) | completed | Frontend | Legacy callsites migrated in bounded slices | `docs/planning/evidence/naming-canonicalization/phase-4/` |
 | 5 File/path renames | in_progress | Frontend | Renamed files stable with shim strategy | `docs/planning/evidence/naming-canonicalization/phase-5/` |
-| 6 Asset canonicalization | pending | Frontend | Canonical asset paths in use with dual-path window | `docs/planning/evidence/naming-canonicalization/phase-6/` |
+| 6 Asset canonicalization | in_progress | Frontend | Canonical asset paths in use with dual-path window | `docs/planning/evidence/naming-canonicalization/phase-6/` |
 | 7 Alias sunset (contract) | pending | Frontend + Docs | Alias removals approved after stability window | `docs/planning/evidence/naming-canonicalization/phase-7/` |
 
 ## Slice Log
@@ -34,8 +34,9 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 2026-02-23 | Phase 5 file/path canonicalization batch B | completed | Drop-controller file path and primary hook symbol canonicalized to `useReferenceGridDropController` with legacy path/symbol compatibility retained | pass (non-Playwright gates) | Evidence: `phase-5/2026-02-23-phase-5-reference-grid-drop-controller-path-canonicalization-batch-b.md` |
 | 2026-02-23 | Phase 5 file/path canonicalization batch C | completed | Canonicalized AI Studio test file paths (`ReferenceGrid*`, `CreatePropertiesPanel*`, `useAiStudioReferenceGridProps*`) and aligned adaptive gate script/skill references | pass (non-Playwright gates) | Evidence: `phase-5/2026-02-23-phase-5-test-and-gate-script-path-canonicalization-batch-c.md` |
 | 2026-02-23 | Phase 4 closeout audit | completed | Confirmed legacy naming usage in `frontend` callsites is limited to explicit compatibility bridges/deprecated aliases | pass (non-Playwright gates) | Evidence: `phase-4/` slices A-G + callsite audit |
+| 2026-02-23 | Phase 6 asset canonicalization batch A | completed | Canonicalized active logo/background asset paths to lowercase/kebab-case filenames with legacy files retained | pass (non-Playwright gates) | Evidence: `phase-6/2026-02-23-phase-6-asset-path-canonicalization-batch-a.md` |
 
 ## Active Risks
 1. Perf-release gate is intentionally deferred in this execution track because Playwright runs are out-of-scope.
 2. Residual legacy symbol families remain in compatibility aliases and runtime/file wrapper paths (`ReferenceCanvas*`, `TextPropertiesPanel*`).
-3. File/path rename batches can silently break imports without explicit shim coverage and docs/path sweep.
+3. Some legacy public asset filenames still exist intentionally during dual-path compatibility window and need explicit sunset tracking.

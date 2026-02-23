@@ -165,6 +165,17 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-internal-symbol-canonicalization-slice-g.md`
 - Next allowed action: continue Phase 5 file/path canonicalization and Phase 6 asset-path dual-path rollout planning.
 
+## 2026-02-23: Stop-Point 6 (Asset canonicalization batch A)
+- Phase/Stop point: Phase 6 batch A completion
+- Decision: approved canonical public asset path migration for active AI Studio + dashboard/saved-creators references, with legacy asset files retained for dual-path compatibility.
+- Preconditions reviewed:
+  - targeted suites pass for touched surfaces
+  - `validate`, `test:adaptive-v2-gate`, `build`, `docs:check`, `check:architecture-boundary`, and `check:size-budget` pass
+  - Playwright perf gate intentionally not executed per explicit no-Playwright direction
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-6/2026-02-23-phase-6-asset-path-canonicalization-batch-a.md`
+- Next allowed action: continue Phase 6 with residual asset inventory/sunset prep, then Phase 7 alias-sunset entry planning after stability window.
+
 ## Stop-Point Approval Template
 - Date:
 - Phase/Stop point:

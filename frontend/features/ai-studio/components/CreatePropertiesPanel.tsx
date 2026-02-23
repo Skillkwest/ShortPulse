@@ -21,7 +21,7 @@ import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
 import { ExpertCreatePanelView } from "./create/ExpertCreatePanelView";
 
 const CHARACTER_MODE_UI_MODEL_LABEL = "Pulse Character";
-const CHARACTER_MODE_UI_MODEL_LOGO = "/tiny%20logo.png";
+const CHARACTER_MODE_UI_MODEL_LOGO = "/tiny-logo.png";
 
 export type CreatePropertiesPanelProps = {
   mode: StudioMode;

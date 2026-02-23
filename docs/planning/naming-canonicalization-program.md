@@ -91,4 +91,5 @@ Purpose: deliver a zero-regression naming canonicalization program using paralle
 3. Phase 3 completed with bridge-layer aliases/shim files in code.
 4. Phase 4 completed with bounded callsite migration slices A-G and closeout audit.
 5. Phase 5 is in progress; batches A-C completed (reference-grid component + drop-controller path canonicalization with shims, plus canonical test file path/script alignment).
-6. Perf release-check gate is currently blocked by missing `PLAYWRIGHT_AUDIT_EMAIL` in local environment.
+6. Phase 6 is in progress; batch A completed for active runtime public asset path canonicalization with dual-path compatibility.
+7. Perf release-check gate is currently blocked by missing `PLAYWRIGHT_AUDIT_EMAIL` in local environment.

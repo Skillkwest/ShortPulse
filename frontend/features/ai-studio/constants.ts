@@ -9,28 +9,33 @@ export type ModelMediaType = "image" | "video" | "image-to-video" | "edit" | "mu
 export type ModelOption = { value: string; label: string; mediaType?: ModelMediaType };
 export type ToolConfig = { id: ToolId; label: string; desc: string };
 export const AI_STUDIO_TOOLBAR_LOGO_SRC = "/ai-studio-toolbar-logo.png";
+export const FLUX_LOGO_SRC = "/flux-logo.png";
+export const GOOGLE_LOGO_SRC = "/google-logo.png";
+export const KLING_LOGO_SRC = "/kling-logo.png";
+export const SEEDREAM_LOGO_SRC = "/seedream-logo.png";
+export const SORA2_LOGO_SRC = "/sora-2-logo.png";
 
 // Map model ids to their logo assets used in selectors and chips.
 export const modelLogos: Record<string, string> = {
-  "fal-ai/flux-2/klein/9b": "/flux%20LOGO.png",
-  "fal/flux-2": "/flux%20LOGO.png",
-  "fal/flux-2/edit": "/flux%20LOGO.png",
-  "fal/flux-2-pro": "/flux%20LOGO.png",
-  "fal/flux-2-pro/edit": "/flux%20LOGO.png",
-  "fal-ai/nano-banana": "/Google%20LOGO.png",
-  "fal-ai/nano-banana/edit": "/Google%20LOGO.png",
-  "fal-ai/nano-banana-pro": "/Google%20LOGO.png",
-  "fal-ai/nano-banana-pro/edit": "/Google%20LOGO.png",
-  "fal-ai/bytedance/seedream/v4.5/text-to-image": "/Seedream%20LOGO.png",
-  "fal-ai/bytedance/seedream/v4.5/edit": "/Seedream%20LOGO.png",
-  "fal-ai/kling-video/v3/pro/text-to-video": "/Kling%20LOGO.png",
-  "fal-ai/kling-video/v3/pro/image-to-video": "/Kling%20LOGO.png",
-  "fal-ai/veo3.1/first-last-frame-to-video": "/Google%20LOGO.png",
-  "fal-ai/veo3.1/image-to-video": "/Google%20LOGO.png",
-  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": "/Seedream%20LOGO.png",
-  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": "/Seedream%20LOGO.png",
-  "fal-ai/veo3.1": "/Google%20LOGO.png",
-  "fal-ai/sora-2/text-to-video/pro": "/Sora%202%20LOGO.png",
+  "fal-ai/flux-2/klein/9b": FLUX_LOGO_SRC,
+  "fal/flux-2": FLUX_LOGO_SRC,
+  "fal/flux-2/edit": FLUX_LOGO_SRC,
+  "fal/flux-2-pro": FLUX_LOGO_SRC,
+  "fal/flux-2-pro/edit": FLUX_LOGO_SRC,
+  "fal-ai/nano-banana": GOOGLE_LOGO_SRC,
+  "fal-ai/nano-banana/edit": GOOGLE_LOGO_SRC,
+  "fal-ai/nano-banana-pro": GOOGLE_LOGO_SRC,
+  "fal-ai/nano-banana-pro/edit": GOOGLE_LOGO_SRC,
+  "fal-ai/bytedance/seedream/v4.5/text-to-image": SEEDREAM_LOGO_SRC,
+  "fal-ai/bytedance/seedream/v4.5/edit": SEEDREAM_LOGO_SRC,
+  "fal-ai/kling-video/v3/pro/text-to-video": KLING_LOGO_SRC,
+  "fal-ai/kling-video/v3/pro/image-to-video": KLING_LOGO_SRC,
+  "fal-ai/veo3.1/first-last-frame-to-video": GOOGLE_LOGO_SRC,
+  "fal-ai/veo3.1/image-to-video": GOOGLE_LOGO_SRC,
+  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": SEEDREAM_LOGO_SRC,
+  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": SEEDREAM_LOGO_SRC,
+  "fal-ai/veo3.1": GOOGLE_LOGO_SRC,
+  "fal-ai/sora-2/text-to-video/pro": SORA2_LOGO_SRC,
 };
 
 export const aspectOptions: AspectOption[] = [

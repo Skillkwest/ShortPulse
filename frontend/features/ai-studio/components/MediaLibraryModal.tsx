@@ -28,6 +28,7 @@ import { useMediaPreviewRecoveryController } from "../../media-library/hooks/use
 import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
 import {
   collectUniqueMediaIds,
+  resolveSignedSelectionUrl,
   resolveSignedPreviewUrlsByMediaIds,
 } from "../../media-library/logic/mediaPreviewResolver";
 import {
@@ -629,22 +630,6 @@ export function MediaLibraryModal({
       },
     });
 
-  const resolveReferenceSelectionUrl = useCallback(
-    async (file: MediaFileRow): Promise<string | null> => {
-      const primaryStoragePath = file.storage_path?.trim() ?? "";
-      const candidates = [
-        primaryStoragePath,
-        ...resolveMediaSigningStoragePaths(file, currentUserIdRef.current),
-      ].filter((value, index, all) => Boolean(value) && all.indexOf(value) === index);
-      for (const storagePath of candidates) {
-        const signedUrl = await signStoragePath(storagePath, { forceRefresh: true });
-        if (signedUrl) return signedUrl;
-      }
-      return null;
-    },
-    [signStoragePath]
-  );
-
   const markFirstMediaPaint = useCallback(
     (assetKind: "image" | "video") => {
       if (firstMediaPaintLoggedRef.current) return;
@@ -1139,7 +1124,11 @@ export function MediaLibraryModal({
                         aria-pressed={isSelected}
                         onClick={async () => {
                           const nextUrl =
-                            (await resolveReferenceSelectionUrl(file)) ??
+                            (await resolveSignedSelectionUrl({
+                              row: file,
+                              currentUserId: currentUserIdRef.current,
+                              signStoragePath,
+                            })) ??
                             (await refreshSignedUrl(file)) ??
                             file.signedUrl;
                           if (!nextUrl) return;

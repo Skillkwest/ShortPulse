@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { collectUniqueMediaIds, resolveSignedPreviewUrlsByMediaIds } from "../mediaPreviewResolver";
+import {
+  collectUniqueMediaIds,
+  resolveSignedPreviewUrlsByMediaIds,
+  resolveSignedSelectionUrl,
+} from "../mediaPreviewResolver";
 
 describe("mediaPreviewResolver", () => {
   it("collects stable unique media ids from rows", () => {
@@ -51,5 +55,47 @@ describe("mediaPreviewResolver", () => {
     });
 
     expect(resolved.size).toBe(0);
+  });
+
+  it("resolves selection URL with canonical path priority and fallback", async () => {
+    const signStoragePath = vi
+      .fn<(storagePath: string, options?: { forceRefresh?: boolean }) => Promise<string | null>>()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce("https://signed.example.com/thumb");
+
+    const resolved = await resolveSignedSelectionUrl({
+      row: {
+        storage_path: "user-1/media/full.jpg",
+        thumb_variant_path: "user-1/media/thumb.jpg",
+        file_type: "image/jpeg",
+      },
+      currentUserId: "user-1",
+      signStoragePath,
+    });
+
+    expect(resolved).toBe("https://signed.example.com/thumb");
+    expect(signStoragePath).toHaveBeenNthCalledWith(1, "user-1/media/full.jpg", {
+      forceRefresh: true,
+    });
+    expect(signStoragePath).toHaveBeenNthCalledWith(2, "user-1/media/thumb.jpg", {
+      forceRefresh: true,
+    });
+  });
+
+  it("dedupes candidate paths when resolving selection URL", async () => {
+    const signStoragePath = vi.fn(async () => "https://signed.example.com/full");
+
+    const resolved = await resolveSignedSelectionUrl({
+      row: {
+        storage_path: "user-1/media/full.jpg",
+        file_type: "image/jpeg",
+      },
+      currentUserId: null,
+      signStoragePath,
+    });
+
+    expect(resolved).toBe("https://signed.example.com/full");
+    expect(signStoragePath).toHaveBeenCalledTimes(1);
+    expect(signStoragePath).toHaveBeenCalledWith("user-1/media/full.jpg", { forceRefresh: true });
   });
 });

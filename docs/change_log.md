@@ -1021,3 +1021,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - added shared resolver unit tests in `frontend/features/media-library/logic/__tests__/mediaPreviewResolver.test.ts`.
 - Added phase-4 slice-4 evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-preview-resolver-api-parity-slice-4.md`
+- Continued Phase 4 media runtime unification (slice 5 selection-url resolver parity):
+  - rewired modal media selection URL signing in `frontend/features/ai-studio/components/MediaLibraryModal.tsx` to shared helper `resolveSignedSelectionUrl` from `frontend/features/media-library/logic/mediaPreviewResolver.ts`.
+  - removed duplicated modal selection signing candidate logic while preserving canonical `storage_path` priority and fallback behavior.
+  - expanded shared resolver tests for canonical-first ordering, fallback signing, and deduped candidate resolution in `frontend/features/media-library/logic/__tests__/mediaPreviewResolver.test.ts`.
+- Added phase-4 slice-5 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-selection-url-resolver-parity-slice-5.md`

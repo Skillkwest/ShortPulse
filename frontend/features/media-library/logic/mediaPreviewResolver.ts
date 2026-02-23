@@ -3,11 +3,21 @@
  * Encapsulates resolve-previews API request/response handling for reuse across surfaces.
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 
 type ResolvePreviewUrlsByMediaIdsArgs = {
   ids: string[];
   expiresInSeconds?: number;
   fetcher?: typeof fetchWithAuth;
+};
+
+type ResolveSelectionUrlArgs<TRow extends { storage_path?: string | null }> = {
+  row: TRow;
+  currentUserId: string | null;
+  signStoragePath: (
+    storagePath: string,
+    options?: { forceRefresh?: boolean }
+  ) => Promise<string | null>;
 };
 
 type ResolvePreviewUrlsPayload = {
@@ -62,4 +72,24 @@ export const resolveSignedPreviewUrlsByMediaIds = async ({
   } catch {
     return new Map();
   }
+};
+
+/**
+ * Resolves a signed URL for media selection, prioritizing canonical storage path.
+ */
+export const resolveSignedSelectionUrl = async <TRow extends { storage_path?: string | null }>({
+  row,
+  currentUserId,
+  signStoragePath,
+}: ResolveSelectionUrlArgs<TRow>): Promise<string | null> => {
+  const primaryStoragePath = row.storage_path?.trim() ?? "";
+  const candidates = [
+    primaryStoragePath,
+    ...resolveMediaSigningStoragePaths(row, currentUserId),
+  ].filter((value, index, all) => Boolean(value) && all.indexOf(value) === index);
+  for (const storagePath of candidates) {
+    const signedUrl = await signStoragePath(storagePath, { forceRefresh: true });
+    if (signedUrl) return signedUrl;
+  }
+  return null;
 };

@@ -136,6 +136,7 @@ Exit validation:
 - Phase 4 controller parity slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-runtime-controller-parity-slice-2.md`
 - Phase 4 preview-recovery controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-media-preview-recovery-controller-slice-3.md`
 - Phase 4 preview-resolver API parity slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-preview-resolver-api-parity-slice-4.md`
+- Phase 4 selection-url resolver parity slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-4/2026-02-23-phase-04-selection-url-resolver-parity-slice-5.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -151,3 +152,4 @@ Exit validation:
 | 2026-02-23 | Route modal signing-pass runtime through shared signing controller with modal-specific relevance/cap options | remove duplicated sign-pass algorithm while preserving modal retry-cap semantics and telemetry surface separation | Frontend |
 | 2026-02-23 | Route modal + route preview recovery fallback through shared recovery controller with modal optimizer callback seam | remove duplicated refresh/retry/hydration logic while preserving no-regression fallback semantics | Frontend |
 | 2026-02-23 | Route modal + route preview resolver API request/parsing through shared helper | remove duplicated resolve-previews transport logic while preserving unresolved-id fallback semantics | Frontend |
+| 2026-02-23 | Route modal media-selection URL signing through shared selection resolver helper | remove duplicated selection signing candidate logic while preserving canonical storage-path priority behavior | Frontend |

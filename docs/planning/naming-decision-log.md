@@ -94,6 +94,17 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-file-ownership-canonicalization-slice-f.md`
 - Next allowed action: continue Phase 4 cleanup for remaining legacy symbol/file-name usage in tests/scripts/docs references before Phase 5 path rename batches.
 
+## 2026-02-23: Stop-Point 4 (Callsite migration slice G)
+- Phase/Stop point: Phase 4 slice G completion
+- Decision: approved internal reference-grid symbol canonicalization (`ReferenceGridSections`, `ReferenceGridArchiveControls`, `ReferenceGridCard`) with deprecated `ReferenceCanvas*` aliases preserved.
+- Preconditions reviewed:
+  - targeted reference-grid suites pass
+  - `validate`, `test:adaptive-v2-gate`, and production `build` pass
+  - Playwright perf gate intentionally not executed per explicit no-Playwright direction
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-internal-symbol-canonicalization-slice-g.md`
+- Next allowed action: continue Phase 4 cleanup for remaining legacy test/script/doc references, then prepare Phase 5 file/path rename batches.
+
 ## Stop-Point Approval Template
 - Date:
 - Phase/Stop point:

@@ -33,7 +33,7 @@ import {
   logAdaptiveRecoveryLevelChanged,
 } from "../../../lib/adaptive-media";
 import { type PastedMediaReference } from "../reference-grid/controllers/referenceGridClipboard";
-import { ReferenceCanvasSections } from "../reference-grid/components/ReferenceCanvasSections";
+import { ReferenceGridSections } from "../reference-grid/components/ReferenceCanvasSections";
 import { useReferenceGridClipboardController } from "../reference-grid/controllers/useReferenceGridClipboardController";
 import {
   useReferenceGridCanvasDropController,
@@ -794,7 +794,7 @@ export function ReferenceGrid({
       onPointerDown={handlePanelPointerDown}
       tabIndex={0}
     >
-      <ReferenceCanvasSections
+      <ReferenceGridSections
         isCuratedSplitEnabled={isCuratedSplitEnabled}
         isCuratedDropActive={isCuratedDropActive}
         showHeader={showHeader}

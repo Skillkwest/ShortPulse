@@ -3,7 +3,7 @@ import { CloudArrowUp, UploadSimple } from "phosphor-react";
 import { PromptLibraryButton } from "../../components/PromptLibraryButton";
 import type { StudioOutput } from "../../types";
 
-type ReferenceCanvasArchiveControlsProps = {
+type ReferenceGridArchiveControlsProps = {
   archiveCount: number;
   showHeader: boolean;
   isArchivePanelOpen: boolean;
@@ -18,7 +18,7 @@ type ReferenceCanvasArchiveControlsProps = {
 /**
  * Shared header + archive inline/panel controls for all-refs and split-grid surfaces.
  */
-export function ReferenceCanvasArchiveControls({
+export function ReferenceGridArchiveControls({
   archiveCount,
   showHeader,
   isArchivePanelOpen,
@@ -28,7 +28,7 @@ export function ReferenceCanvasArchiveControls({
   onOpenMediaLibrary,
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
-}: ReferenceCanvasArchiveControlsProps) {
+}: ReferenceGridArchiveControlsProps) {
   return (
     <>
       {showHeader ? (
@@ -127,3 +127,13 @@ export function ReferenceCanvasArchiveControls({
     </>
   );
 }
+
+/**
+ * @deprecated Use `ReferenceGridArchiveControls`.
+ */
+export type ReferenceCanvasArchiveControlsProps = ReferenceGridArchiveControlsProps;
+
+/**
+ * @deprecated Use `ReferenceGridArchiveControls`.
+ */
+export const ReferenceCanvasArchiveControls = ReferenceGridArchiveControls;

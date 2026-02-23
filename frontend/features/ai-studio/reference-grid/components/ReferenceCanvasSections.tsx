@@ -1,6 +1,6 @@
 import React from "react";
 import type { StudioOutput } from "../../types";
-import { ReferenceCanvasArchiveControls } from "./ReferenceCanvasArchiveControls";
+import { ReferenceGridArchiveControls } from "./ReferenceCanvasArchiveControls";
 
 type HorizontalSplitViewModel = {
   isAllRefsExpanded: boolean;
@@ -12,7 +12,7 @@ type HorizontalSplitViewModel = {
   bottomSectionStyle?: React.CSSProperties;
 };
 
-type ReferenceCanvasSectionsProps = {
+type ReferenceGridSectionsProps = {
   isCuratedSplitEnabled: boolean;
   isCuratedDropActive: boolean;
   showHeader: boolean;
@@ -53,7 +53,7 @@ type ReferenceCanvasSectionsProps = {
 /**
  * Layout-only view for split/non-split reference-grid sections.
  */
-export function ReferenceCanvasSections({
+export function ReferenceGridSections({
   isCuratedSplitEnabled,
   isCuratedDropActive,
   showHeader,
@@ -89,11 +89,11 @@ export function ReferenceCanvasSections({
   bottomSpacerHeight,
   curatedCardNodes,
   allRefsCardNodes,
-}: ReferenceCanvasSectionsProps) {
+}: ReferenceGridSectionsProps) {
   return (
     <>
       {!isCuratedSplitEnabled ? (
-        <ReferenceCanvasArchiveControls
+        <ReferenceGridArchiveControls
           archiveCount={archiveCount}
           showHeader={showHeader}
           isArchivePanelOpen={isArchivePanelOpen}
@@ -202,7 +202,7 @@ export function ReferenceCanvasSections({
           style={isCuratedSplitEnabled ? horizontalSplit.bottomSectionStyle : undefined}
         >
           {isCuratedSplitEnabled ? (
-            <ReferenceCanvasArchiveControls
+            <ReferenceGridArchiveControls
               archiveCount={archiveCount}
               showHeader={showHeader}
               isArchivePanelOpen={isArchivePanelOpen}
@@ -252,3 +252,13 @@ export function ReferenceCanvasSections({
     </>
   );
 }
+
+/**
+ * @deprecated Use `ReferenceGridSections`.
+ */
+export type ReferenceCanvasSectionsProps = ReferenceGridSectionsProps;
+
+/**
+ * @deprecated Use `ReferenceGridSections`.
+ */
+export const ReferenceCanvasSections = ReferenceGridSections;

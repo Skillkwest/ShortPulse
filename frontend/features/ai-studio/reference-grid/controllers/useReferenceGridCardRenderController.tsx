@@ -3,11 +3,11 @@
  * Keeps per-card action wiring and visual state mapping out of ReferenceGrid.
  */
 import React, { useCallback } from "react";
-import { ReferenceCanvasCard } from "../components/ReferenceCanvasCard";
+import { ReferenceGridCard } from "../components/ReferenceCanvasCard";
 import type { StudioOutput } from "../../types";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 
-export type ReferenceCanvasVisibleCard = {
+export type ReferenceGridVisibleCard = {
   item: StudioOutput;
   cardPreviewUrl: string | null;
   isVideoPreview: boolean;
@@ -27,8 +27,8 @@ type UseReferenceGridCardRenderControllerArgs = {
   spinnerCandidateIdSet: Set<string>;
   spinnerSlotIdSet: Set<string>;
   perfDegradeLevel: 0 | 1 | 2;
-  visibleCardItems: ReferenceCanvasVisibleCard[];
-  curatedVisibleCardItems: ReferenceCanvasVisibleCard[];
+  visibleCardItems: ReferenceGridVisibleCard[];
+  curatedVisibleCardItems: ReferenceGridVisibleCard[];
   onSelectOutput: (id: string) => void;
   onOpenDetails: (id: string) => void;
   onCardDragStart: (
@@ -99,7 +99,7 @@ export const useReferenceGridCardRenderController = ({
 }: UseReferenceGridCardRenderControllerArgs): UseReferenceGridCardRenderControllerResult => {
   const renderReferenceCard = useCallback(
     (
-      card: ReferenceCanvasVisibleCard,
+      card: ReferenceGridVisibleCard,
       options: {
         surface: ReferenceDragSourceSurface;
         isCuratedSurface: boolean;
@@ -127,7 +127,7 @@ export const useReferenceGridCardRenderController = ({
       const canRetryStatus = Boolean(onRetryStatus && card.item.taskId) && (isFailing || isLoading);
       const videoNodeKey = `${options.surface}:${card.item.id}`;
       return (
-        <ReferenceCanvasCard
+        <ReferenceGridCard
           key={options.isCuratedSurface ? `curated-${card.item.id}` : card.item.id}
           item={card.item}
           dragSourceSurface={options.surface}
@@ -252,3 +252,8 @@ export const useReferenceGridCardRenderController = ({
     allRefsCardNodes,
   };
 };
+
+/**
+ * @deprecated Use `ReferenceGridVisibleCard`.
+ */
+export type ReferenceCanvasVisibleCard = ReferenceGridVisibleCard;

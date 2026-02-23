@@ -28,6 +28,7 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 | 2026-02-23 | Phase 4 reference-grid hook canonicalization slice D | completed | Canonical hook implementation ownership with legacy wrapper alias | pass (non-Playwright gates) | Evidence: `phase-4/2026-02-23-phase-4-reference-grid-hook-canonicalization-slice-d.md` |
 | 2026-02-23 | Phase 4 create panel file-ownership canonicalization slice E | completed | Canonical create panel file ownership with legacy wrapper alias | pass (non-Playwright gates) | Evidence: `phase-4/2026-02-23-phase-4-create-panel-file-ownership-canonicalization-slice-e.md` |
 | 2026-02-23 | Phase 4 reference-grid file-ownership canonicalization slice F | completed | Canonical reference-grid file ownership with legacy wrapper alias | pass (non-Playwright gates) | Evidence: `phase-4/2026-02-23-phase-4-reference-grid-file-ownership-canonicalization-slice-f.md` |
+| 2026-02-23 | Phase 4 reference-grid internal symbol canonicalization slice G | completed | Canonical internal `ReferenceGrid*` symbols for sections/card/archive controls with alias compatibility | pass (non-Playwright gates) | Evidence: `phase-4/2026-02-23-phase-4-reference-grid-internal-symbol-canonicalization-slice-g.md` |
 
 ## Active Risks
 1. Perf-release gate is intentionally deferred in this execution track because Playwright runs are out-of-scope.

@@ -7,7 +7,7 @@ import { ArrowClockwise, CheckCircle, DownloadSimple, FloppyDisk, X } from "phos
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
 
-export type ReferenceCanvasCardProps = {
+export type ReferenceGridCardProps = {
   item: StudioOutput;
   dragSourceSurface: ReferenceDragSourceSurface;
   videoNodeKey: string;
@@ -80,7 +80,7 @@ const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
 /**
  * Renders one reference item card and forwards interaction events to parent handlers.
  */
-export const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
+export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   item,
   dragSourceSurface,
   videoNodeKey,
@@ -121,7 +121,7 @@ export const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
   onDescribeImage,
   onGeneratePrompt,
   hideReferenceActions = false,
-}: ReferenceCanvasCardProps) {
+}: ReferenceGridCardProps) {
   const isFailing = item.taskState === "fail";
   const isSelected = activeOutputId === item.id;
   const isLoading = loadingVisual !== "none";
@@ -385,3 +385,13 @@ export const ReferenceCanvasCard = React.memo(function ReferenceCanvasCard({
     </div>
   );
 });
+
+/**
+ * @deprecated Use `ReferenceGridCardProps`.
+ */
+export type ReferenceCanvasCardProps = ReferenceGridCardProps;
+
+/**
+ * @deprecated Use `ReferenceGridCard`.
+ */
+export const ReferenceCanvasCard = ReferenceGridCard;

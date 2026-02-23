@@ -36,6 +36,8 @@ describe("POST /api/ai/describe-image", () => {
     delete process.env.OPENAI_VISION_FALLBACK_MODEL;
     delete process.env.OPENAI_DESCRIBE_ALLOWED_HOSTS;
     delete process.env.OPENAI_DESCRIBE_REQUIRE_ALLOWED_HOSTS;
+    delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
+    delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     vi.stubGlobal("fetch", vi.fn());
@@ -255,5 +257,122 @@ describe("POST /api/ai/describe-image", () => {
         error: "Image URL host is not allowed.",
       })
     );
+  });
+
+  it("uses responses endpoint when responses mode is enabled", async () => {
+    process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
+    process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "true";
+
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          output: [
+            {
+              type: "message",
+              content: [{ type: "output_text", text: "A futuristic city skyline at night." }],
+            },
+          ],
+          usage: { input_tokens: 16, output_tokens: 9 },
+        }),
+      });
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/public.png" },
+    };
+    const res = createMockResponse();
+
+    await describeImageHandler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1]?.[0] ?? "")).toBe("https://api.openai.com/v1/responses");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "A futuristic city skyline at night.",
+        usage: { inputTokens: 16, outputTokens: 9 },
+      })
+    );
+  });
+
+  it("falls back to chat completions when responses fails and fallback is enabled", async () => {
+    process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
+    process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "true";
+
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockResolvedValueOnce(new Response("responses unavailable", { status: 503 }))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: "A portrait with dramatic side lighting." } }],
+          usage: { prompt_tokens: 12, completion_tokens: 10 },
+        }),
+      });
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/public.png" },
+    };
+    const res = createMockResponse();
+
+    await describeImageHandler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[1]?.[0] ?? "")).toBe("https://api.openai.com/v1/responses");
+    expect(String(fetchMock.mock.calls[2]?.[0] ?? "")).toBe(
+      "https://api.openai.com/v1/chat/completions"
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "A portrait with dramatic side lighting.",
+      })
+    );
+  });
+
+  it("returns responses upstream error when chat fallback is disabled", async () => {
+    process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
+    process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "false";
+
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockResolvedValueOnce(new Response("responses rejected image payload", { status: 400 }));
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/public.png" },
+    };
+    const res = createMockResponse();
+
+    await describeImageHandler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1]?.[0] ?? "")).toBe("https://api.openai.com/v1/responses");
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Upstream error",
+      detail: "responses rejected image payload",
+      model: "gpt-5-nano",
+    });
   });
 });

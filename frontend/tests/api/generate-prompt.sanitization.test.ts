@@ -26,6 +26,8 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
     vi.clearAllMocks();
     process.env.OPENAI_API_KEY = "test-key";
     process.env.OPENAI_PROMPT_SYSTEM = "You are a prompt refiner.";
+    delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
+    delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     vi.stubGlobal("fetch", vi.fn());
   });
@@ -92,5 +94,104 @@ describe("POST /api/ai/generate-prompt sanitization", () => {
 
     expect(res.status).toHaveBeenCalledWith(502);
     expect(res.json).toHaveBeenCalledWith({ error: "No prompt returned" });
+  });
+
+  it("uses responses endpoint when responses mode is enabled", async () => {
+    process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
+    process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output: [
+          {
+            type: "message",
+            content: [{ type: "output_text", text: "A cinematic portrait at golden hour." }],
+          },
+        ],
+        usage: { input_tokens: 18, output_tokens: 11 },
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait at golden hour" },
+    };
+    const res = createMockResponse();
+
+    await generatePromptHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] ?? "")).toBe(
+      "https://api.openai.com/v1/responses"
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "A cinematic portrait at golden hour.",
+        usage: { inputTokens: 18, outputTokens: 11 },
+      })
+    );
+  });
+
+  it("falls back to chat completions when responses fails and fallback is enabled", async () => {
+    process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
+    process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(new Response("responses unavailable", { status: 503 }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "A high-detail city skyline at dusk." } }],
+          usage: { prompt_tokens: 20, completion_tokens: 13 },
+        }),
+      });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "city skyline at dusk" },
+    };
+    const res = createMockResponse();
+
+    await generatePromptHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] ?? "")).toBe(
+      "https://api.openai.com/v1/responses"
+    );
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[1]?.[0] ?? "")).toBe(
+      "https://api.openai.com/v1/chat/completions"
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "A high-detail city skyline at dusk.",
+      })
+    );
+  });
+
+  it("returns responses upstream error when chat fallback is disabled", async () => {
+    process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
+    process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "false";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response("responses unavailable", { status: 503 })
+    );
+
+    const req = {
+      method: "POST",
+      body: { prompt: "forest temple" },
+    };
+    const res = createMockResponse();
+
+    await generatePromptHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] ?? "")).toBe(
+      "https://api.openai.com/v1/responses"
+    );
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Upstream error",
+      detail: "responses unavailable",
+    });
   });
 });

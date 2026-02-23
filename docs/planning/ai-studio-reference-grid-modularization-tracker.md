@@ -145,6 +145,7 @@ Exit validation:
 - Phase 5 canvas decomposition scroll-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-scroll-controller-slice-5.md`
 - Phase 5 canvas decomposition virtual-metrics-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-virtual-metrics-controller-slice-6.md`
 - Phase 5 canvas decomposition video-lifecycle-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-video-lifecycle-controller-slice-7.md`
+- Phase 5 canvas decomposition autoplay-budget-controller slice evidence: `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-autoplay-budget-controller-slice-8.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -169,3 +170,4 @@ Exit validation:
 | 2026-02-23 | Continue Phase 5 with extracted all-refs/curated scroll controller hook for ReferenceCanvas | isolate RAF-throttled scroll metric updates and telemetry sampling from render orchestration while preserving virtualization parity | Frontend |
 | 2026-02-23 | Continue Phase 5 with extracted virtual-metrics/resize-observer controller hook for ReferenceCanvas | isolate grid measurement and resize-observer lifecycle from render orchestration while preserving virtualization behavior | Frontend |
 | 2026-02-23 | Continue Phase 5 with extracted video lifecycle controller hook for ReferenceCanvas | isolate video node registration, visibility observers, and autoplay detach cleanup from render orchestration while preserving autoplay semantics | Frontend |
+| 2026-02-23 | Continue Phase 5 with extracted autoplay budget policy controller hook for ReferenceCanvas | isolate responsive/network/device autoplay budget runtime policy from render orchestration while preserving constrained-profile clamping behavior | Frontend |

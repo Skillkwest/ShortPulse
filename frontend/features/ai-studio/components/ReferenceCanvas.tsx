@@ -70,6 +70,7 @@ import { useReferenceGridCuratedDndController } from "../reference-grid/controll
 import { useReferenceGridScrollController } from "../reference-grid/controllers/useReferenceGridScrollController";
 import { useReferenceGridVirtualMetricsController } from "../reference-grid/controllers/useReferenceGridVirtualMetricsController";
 import { useReferenceGridVideoLifecycleController } from "../reference-grid/controllers/useReferenceGridVideoLifecycleController";
+import { useReferenceGridAutoplayBudgetController } from "../reference-grid/controllers/useReferenceGridAutoplayBudgetController";
 
 const REFERENCE_VIRTUAL_OVERSCAN_ROWS = 4;
 const REFERENCE_VIRTUALIZE_MIN_ITEMS = 12;
@@ -111,14 +112,6 @@ const REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_TELE
 const REFERENCE_GRID_FLAG_TRANSITION_NONURGENT = PERF_FLAG_REFERENCE_GRID_TRANSITION_NONURGENT;
 const REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY =
   PERF_FLAG_REFERENCE_GRID_RENDER_COMMIT_TELEMETRY;
-
-type NavigatorWithConnection = Navigator & {
-  deviceMemory?: number;
-  connection?: {
-    saveData?: boolean;
-    effectiveType?: string;
-  };
-};
 
 // Temporary UI experiment: set false to revert selection outline theming to default create-blue.
 const ENABLE_TOOL_THEMED_SELECTION_OUTLINE = true;
@@ -1561,56 +1554,18 @@ export function ReferenceCanvas({
     });
   }, [outputs, revokeGeneratedHydrationUrl, runNonUrgentUpdate]);
 
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const nav = navigator as NavigatorWithConnection;
-    const connection = nav.connection as
-      | {
-          addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-          removeEventListener?: (
-            type: string,
-            listener: EventListenerOrEventListenerObject
-          ) => void;
-        }
-      | undefined;
-    const refreshBudget = () => {
-      const isSmallScreen = window.matchMedia(REFERENCE_AUTOPLAY_SMALL_SCREEN_QUERY).matches;
-      const saveData = nav.connection?.saveData === true;
-      const effectiveType = (nav.connection?.effectiveType ?? "").toLowerCase();
-      const isSlowNetwork = effectiveType.includes("2g");
-      const isLowMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
-      const isConstrained = saveData || isSlowNetwork || isLowMemory;
-      const nextBudget = isConstrained
-        ? REFERENCE_AUTOPLAY_MAX_CONSTRAINED
-        : isSmallScreen
-          ? REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN
-          : REFERENCE_AUTOPLAY_MAX_DESKTOP;
-      if (desiredVideoAttachBudgetRef.current !== nextBudget) {
-        desiredVideoAttachBudgetRef.current = nextBudget;
-        setDesiredVideoAttachBudget(nextBudget);
-      }
-      if (
-        isConstrained &&
-        autoplayEnabledIdsStateRef.current.length > REFERENCE_AUTOPLAY_MAX_CONSTRAINED
-      ) {
-        runNonUrgentUpdate(() => {
-          setAutoplayEnabledIds((prev) =>
-            prev.length <= REFERENCE_AUTOPLAY_MAX_CONSTRAINED
-              ? prev
-              : prev.slice(0, REFERENCE_AUTOPLAY_MAX_CONSTRAINED)
-          );
-        });
-      }
-      recomputeAutoplayBudgetRef.current();
-    };
-    refreshBudget();
-    window.addEventListener("resize", refreshBudget);
-    connection?.addEventListener?.("change", refreshBudget);
-    return () => {
-      window.removeEventListener("resize", refreshBudget);
-      connection?.removeEventListener?.("change", refreshBudget);
-    };
-  }, [runNonUrgentUpdate]);
+  useReferenceGridAutoplayBudgetController({
+    smallScreenQuery: REFERENCE_AUTOPLAY_SMALL_SCREEN_QUERY,
+    autoplayMaxDesktop: REFERENCE_AUTOPLAY_MAX_DESKTOP,
+    autoplayMaxSmallScreen: REFERENCE_AUTOPLAY_MAX_SMALL_SCREEN,
+    autoplayMaxConstrained: REFERENCE_AUTOPLAY_MAX_CONSTRAINED,
+    desiredVideoAttachBudgetRef,
+    autoplayEnabledIdsStateRef,
+    recomputeAutoplayBudgetRef,
+    setDesiredVideoAttachBudget,
+    setAutoplayEnabledIds,
+    runNonUrgentUpdate,
+  });
 
   const { registerVideoNode } = useReferenceGridVideoLifecycleController({
     outputs,

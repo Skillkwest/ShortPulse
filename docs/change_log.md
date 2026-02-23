@@ -1081,3 +1081,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites, AI Studio drop-path suite, and adaptive v2 gate.
 - Added phase-5 slice-7 evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-video-lifecycle-controller-slice-7.md`
+- Continued Phase 5 canvas decomposition (slice 8 autoplay-budget controller extraction):
+  - extracted responsive/network/device autoplay budget policy orchestration into `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridAutoplayBudgetController.ts`.
+  - rewired `frontend/features/ai-studio/components/ReferenceCanvas.tsx` to consume hook-managed autoplay budget runtime policy.
+  - preserved no-regression behavior in ReferenceCanvas curated/paste/selector suites, AI Studio drop-path suite, and adaptive v2 gate.
+- Added phase-5 slice-8 evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-5/2026-02-23-phase-05-canvas-decomposition-autoplay-budget-controller-slice-8.md`

@@ -116,9 +116,11 @@ const buildLibraryMediaOutput = ({
   const displayModelLabel = filenameLabel || fallbackModelLabel;
   const resolvedPromptText =
     payload.promptText?.trim() || payload.filename?.trim() || "Media reference";
-  const previewUrl = payload.previewUrl ?? cleanedUrl;
+  const previewUrl = payload.previewUrl?.trim() || cleanedUrl;
+  const fullUrl = payload.fullUrl?.trim() || cleanedUrl;
   const previewStoragePath = asCanonicalStoragePath(payload.previewStoragePath);
   const fullStoragePath = asCanonicalStoragePath(payload.fullStoragePath) ?? previewStoragePath;
+  const resultUrls = fullUrl ? [fullUrl] : undefined;
 
   return {
     id,
@@ -129,6 +131,7 @@ const buildLibraryMediaOutput = ({
     status: "ready",
     timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
     previewUrl,
+    resultUrls,
     previewStoragePath,
     fullStoragePath,
     mediaSource: payload.source === "ai_studio" ? "generated" : "library",
@@ -239,7 +242,8 @@ export const buildStudioOutputsFromReferenceInput = async (
       context.aspect,
       context.model,
       context.resolveModelLabel,
-      context.randomId
+      context.randomId,
+      input.source
     );
     return { outputs };
   }

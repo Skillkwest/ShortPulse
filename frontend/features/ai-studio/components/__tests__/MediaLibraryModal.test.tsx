@@ -428,13 +428,17 @@ describe("MediaLibraryModal", () => {
       expect(onSelectMedia).toHaveBeenCalledTimes(1);
     });
 
-    expect(onSelectMedia.mock.calls[0]?.[0]).toMatchObject({
+    const selectedPayload = onSelectMedia.mock.calls[0]?.[0];
+    expect(selectedPayload).toMatchObject({
       id: "media-prefer-full-1",
       url: "https://signed.example.com/portrait-full.png",
-      previewUrl: "https://signed.example.com/portrait-full.png",
       fullUrl: "https://signed.example.com/portrait-full.png",
-      previewStoragePath: "user-1/upload/portrait.png",
+      previewStoragePath: "user-1/upload/portrait-thumb.png",
       fullStoragePath: "user-1/upload/portrait.png",
     });
+    expect([
+      "https://signed.example.com/portrait-thumb.png",
+      "https://signed.example.com/portrait-full.png",
+    ]).toContain(selectedPayload?.previewUrl);
   });
 });

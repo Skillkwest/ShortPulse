@@ -72,7 +72,39 @@ describe("buildStudioOutputsFromReferenceInput", () => {
       "9:16",
       "fal-ai/model",
       context.resolveModelLabel,
-      context.randomId
+      context.randomId,
+      "filePicker"
+    );
+  });
+
+  it("passes drop source through canonical file ingestion", async () => {
+    const context = createContext();
+    const expected = [makeOutput("upload-drop-1")];
+    mapUploadsFromFilesMock.mockResolvedValue(expected);
+
+    const files = {
+      length: 0,
+      item: () => null,
+    } as unknown as FileList;
+
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "files",
+        source: "drop",
+        files,
+      },
+      context
+    );
+
+    expect(result.outputs).toBe(expected);
+    expect(mapUploadsFromFilesMock).toHaveBeenCalledWith(
+      files,
+      "image",
+      "9:16",
+      "fal-ai/model",
+      context.resolveModelLabel,
+      context.randomId,
+      "drop"
     );
   });
 
@@ -178,7 +210,35 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(output?.mediaSource).toBe("generated");
     expect(output?.previewStoragePath).toBe("user/preview.jpg");
     expect(output?.fullStoragePath).toBe("user/full.jpg");
+    expect(output?.resultUrls).toEqual(["https://example.com/preview.jpg"]);
     expect(output?.savedMediaIds).toEqual(["media-1"]);
+  });
+
+  it("preserves distinct preview and full URLs for library media", async () => {
+    const context = createContext();
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "libraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          id: "media-2",
+          url: "https://example.com/fallback-preview.jpg",
+          fileType: "image",
+          previewUrl: "https://example.com/thumb.jpg",
+          fullUrl: "https://example.com/full.jpg",
+          previewStoragePath: "user/thumb.jpg",
+          fullStoragePath: "user/full.jpg",
+        },
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output?.previewUrl).toBe("https://example.com/thumb.jpg");
+    expect(output?.resultUrls).toEqual(["https://example.com/full.jpg"]);
+    expect(output?.previewStoragePath).toBe("user/thumb.jpg");
+    expect(output?.fullStoragePath).toBe("user/full.jpg");
   });
 
   it("builds library prompt output with saved state", async () => {

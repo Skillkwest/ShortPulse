@@ -964,3 +964,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added phase-2 post-implementation audit + external benchmark artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-post-implementation-audit-and-external-benchmark.md`
   - Captures residual ingress/projection deltas and official best-practice comparison links before Phase 3 promotion.
+- Applied Phase 2 ingestion hardening before Phase 3 kickoff:
+  - preserved library-media full-vs-preview URL intent in canonical ingestion (`resultUrls` carries full URL hint while `previewUrl` remains preview contract).
+  - propagated picker/drop source through file ingestion mapping and added source parity coverage.
+  - normalized duplicate file handling across picker/drop uploads in `mapUploadsFromFiles`.
+  - corrected media-library selection payload to preserve `previewStoragePath` and `fullStoragePath` separation.
+- Added hardening evidence artifact:
+  - `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-hardening-ingestion-contract-parity.md`

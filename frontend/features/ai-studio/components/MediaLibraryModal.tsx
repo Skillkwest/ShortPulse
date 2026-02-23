@@ -1368,6 +1368,10 @@ export function MediaLibraryModal({
                             (await refreshSignedUrl(file)) ??
                             file.signedUrl;
                           if (!nextUrl) return;
+                          const previewStoragePath = file.preview_storage_path ?? file.storage_path;
+                          const fullStoragePath = file.storage_path;
+                          const previewUrl = file.signedUrl ?? nextUrl;
+                          const fullUrl = nextUrl;
                           setSelectedIds((prev) => {
                             const next = new Set(prev);
                             next.add(file.id);
@@ -1380,10 +1384,10 @@ export function MediaLibraryModal({
                             filename: file.filename,
                             promptText: resolveMediaMetadataPromptText(file.metadata),
                             source: file.source ?? "upload",
-                            previewStoragePath: file.storage_path,
-                            fullStoragePath: file.storage_path,
-                            previewUrl: nextUrl,
-                            fullUrl: nextUrl,
+                            previewStoragePath,
+                            fullStoragePath,
+                            previewUrl,
+                            fullUrl,
                           });
                         }}
                       >

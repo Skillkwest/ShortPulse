@@ -45,7 +45,8 @@ describe("mapUploadsFromFiles", () => {
       "1:1",
       "fal-ai/bytedance/seedream/v4.5/edit",
       (value) => value ?? "Model",
-      () => "id"
+      () => "id",
+      "drop"
     );
 
     expect(createObjectUrlMock).toHaveBeenCalledTimes(2);
@@ -54,6 +55,7 @@ describe("mapUploadsFromFiles", () => {
     expect(outputs[0]?.previewTier).toBe("full");
     expect(outputs[0]?.localObjectUrl).toBe("blob:https://local/image-1");
     expect(outputs[0]?.previewUrl).toBe("blob:https://local/image-1");
+    expect(outputs[0]?.timestamp).toBe("Dropped");
     expect(outputs[1]?.mode).toBe("video");
     expect(outputs[1]?.previewUrl).toBe("blob:https://local/video-1#video=1");
     expect(outputs[1]?.localObjectUrl).toBe("blob:https://local/video-1");
@@ -72,12 +74,41 @@ describe("mapUploadsFromFiles", () => {
       "1:1",
       "fal-ai/bytedance/seedream/v4.5/edit",
       (value) => value ?? "Model",
-      () => "fallback-id"
+      () => "fallback-id",
+      "filePicker"
     );
 
     expect(outputs).toHaveLength(1);
     expect(outputs[0]?.localObjectUrl).toBeNull();
     expect(outputs[0]?.previewUrl?.startsWith("data:image/png;base64,")).toBe(true);
+    expect(outputs[0]?.timestamp).toBe("Uploaded");
+  });
+
+  it("dedupes duplicate file entries across picker/drop ingestion", async () => {
+    const createObjectUrlMock = vi.fn().mockReturnValue("blob:https://local/image-1");
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectUrlMock,
+    });
+
+    const duplicate = new File(["image"], "image.png", {
+      type: "image/png",
+      lastModified: 1700000000000,
+    });
+    const files = toFileList([duplicate, duplicate]);
+
+    const outputs = await mapUploadsFromFiles(
+      files,
+      "image",
+      "1:1",
+      "fal-ai/bytedance/seedream/v4.5/edit",
+      (value) => value ?? "Model",
+      () => "dedupe-id",
+      "filePicker"
+    );
+
+    expect(outputs).toHaveLength(1);
+    expect(createObjectUrlMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not classify image optimizer URLs as video when source contains /videos/", () => {

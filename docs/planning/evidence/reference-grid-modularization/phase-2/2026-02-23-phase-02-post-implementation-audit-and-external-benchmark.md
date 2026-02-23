@@ -17,6 +17,15 @@ Scope: Audit of Phase 1 (`ba37eadb`) and Phase 2 (`4a35d819`) deliverables befor
   - `npm -C frontend run docs:check`
   - `npm -C frontend run test -- features/ai-studio/reference-domain/__tests__/referenceDomain.reducer.test.ts features/ai-studio/reference-domain/__tests__/referenceDomain.adapters.test.ts features/ai-studio/reference-ingestion/__tests__/buildFromInput.test.ts features/ai-studio/hooks/__tests__/useAiStudioWorkspaceActions.test.ts features/ai-studio/hooks/__tests__/useAiStudioState.outputStoreBridge.test.tsx`
 
+## Closure Update (2026-02-23)
+- Closed via follow-up hardening evidence:
+  - item 1 (picker/drop source parity tests)
+  - item 2 (library full-vs-preview contract handling + tests)
+- Evidence: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-hardening-ingestion-contract-parity.md`
+- Still open:
+  - item 3 (ingress-to-projection integration test path)
+  - item 4 (keyboard quick-slot reorder parity path)
+
 ## Delta Findings (Misses)
 
 ### High

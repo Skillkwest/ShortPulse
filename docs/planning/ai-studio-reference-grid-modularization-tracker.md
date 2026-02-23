@@ -43,10 +43,12 @@ Exit validation:
 - [x] Create canonical `ReferenceInput` ingestion adapter.
 - [x] Route picker/drop/paste/library/agent through canonical adapter.
 - [x] Add ingestion acceptance matrix tests.
+- [x] Harden ingestion contracts from post-implementation audit (source parity + full/preview semantics).
 
 Exit validation:
 - [x] Ingress parity matrix pass.
 - [x] No behavior drift in existing flow tests.
+- [x] Post-implementation ingestion hardening evidence captured.
 
 ### Phase 3: Projection Semantics
 - [ ] Introduce explicit all/quick-slot/archived projections.
@@ -105,6 +107,7 @@ Exit validation:
 | RG-DEP-01 | Contract freeze signoff | Blocks code extraction | Frontend | Resolved | 2026-02-23 |
 | RG-DEP-02 | Keyboard reorder acceptance baseline | Blocks curated accessibility parity closure | Frontend | Open | 2026-02-25 |
 | RG-DEP-03 | Shared modal/route runtime parity matrix | Blocks phase 4 promotion | Frontend + Media | Open | 2026-03-24 |
+| RG-DEP-06 | Ingress-to-projection integration test path | Blocks lifting phase-3 kickoff hold | Frontend | Open | 2026-02-24 |
 | RG-DEP-04 | STG-06 branch-protection enforceability constraint | Blocks production-readiness closeout gating | Engineering Mgmt | Open | TBD |
 | RG-DEP-05 | STG-05/STG-06 sequencing compliance | Blocks guardrail enforce promotion if out of sequence | Frontend + DevEx | Open | 2026-04-09 |
 
@@ -124,6 +127,7 @@ Exit validation:
 - Phase 1 evidence: `docs/planning/evidence/reference-grid-modularization/phase-1/2026-02-23-phase-01-domain-core-foundation.md`
 - Phase 2 evidence: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-ingestion-unification-foundation.md`
 - Phase 2 post-implementation audit + external benchmark: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-post-implementation-audit-and-external-benchmark.md`
+- Phase 2 hardening evidence: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-hardening-ingestion-contract-parity.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |
@@ -131,3 +135,4 @@ Exit validation:
 | 2026-02-23 | Documentation-first starts with Phase 0 artifacts before extraction | lock behavior and reduce regression risk | Frontend |
 | 2026-02-23 | Reference-grid boundary and size checks start in warn lane | staged enforcement while legacy hotspots still large | Frontend + DevEx |
 | 2026-02-23 | Hold Phase 3 kickoff pending phase-2 post-implementation hardening deltas | preserve no-regression promotion standard on ingress and quick-slot semantics | Frontend |
+| 2026-02-23 | Keep Phase 3 hold active after ingestion hardening until integration + keyboard parity coverage closes | no-regression bar requires flow-level + accessibility parity evidence | Frontend |

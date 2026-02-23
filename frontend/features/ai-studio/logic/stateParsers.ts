@@ -200,11 +200,22 @@ export const mapUploadsFromFiles = async (
   aspect: string,
   model: string | null,
   resolveModelLabelFn: (value?: string) => string,
-  randomIdFn: () => string
+  randomIdFn: () => string,
+  source: "filePicker" | "drop" = "filePicker"
 ): Promise<StudioOutput[]> => {
-  const mediaFiles = Array.from(files).filter(
-    (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
-  );
+  const mediaFiles = Array.from(files)
+    .filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"))
+    .filter((file, index, all) => {
+      const signature = `${file.name}:${file.type}:${file.size}:${file.lastModified}`;
+      return (
+        all.findIndex(
+          (candidate) =>
+            `${candidate.name}:${candidate.type}:${candidate.size}:${candidate.lastModified}` ===
+            signature
+        ) === index
+      );
+    });
+  const timestampLabel = source === "drop" ? "Dropped" : "Uploaded";
 
   const supportsObjectUrl = typeof URL !== "undefined" && typeof URL.createObjectURL === "function";
   const outputs = await Promise.all(
@@ -232,7 +243,7 @@ export const mapUploadsFromFiles = async (
         model: resolveModelLabelFn(model ?? undefined),
         modelId: model ?? undefined,
         status: "ready" as const,
-        timestamp: "Dropped",
+        timestamp: timestampLabel,
         previewUrl,
         previewTier: "full" as const,
         mediaSource: "upload" as const,

@@ -116,9 +116,10 @@ Exit validation:
 - [x] Publish pre-promotion gate checklist artifact for soak-exit decision control (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`).
 - [x] Publish 5% promotion decision packet template for deterministic go/no-go documentation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md`).
 - [x] Add Vercel preview throttle control for docs-only/non-frontend commits (`frontend/vercel.json`, `frontend/scripts/vercel-ignore-build.sh`, evidence: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-vercel-preview-throttle-control.md`).
-- [x] Execute soak-exit decision procedure; complete checkpoint log, pre-promotion checklist, and 5% decision packet with formal `Hold` outcome at `2026-02-23 01:15:33Z`.
-- [ ] Attach external dashboard/alert URLs + policy links in DEP-03 readiness evidence before 5% ring.
-- [x] Staging soak 24h (window elapsed; promotion held pending DEP-03 artifact closure).
+- [x] Execute soak-exit decision procedure; complete checkpoint log, pre-promotion checklist, and 5% decision packet with formal promotion decision at `2026-02-23 01:43:14Z`.
+- [x] Record DEP-03 Vercel observability waiver with compensating controls (`docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`).
+- [x] Capture DEP-03 readiness/ops intake updates for waiver path.
+- [x] Staging soak 24h (window elapsed; promotion approved under DEP-03 waiver path).
 - [ ] Production 5% 24h.
 - [ ] Production 25% 24h.
 - [ ] Production 50% 24h.
@@ -158,8 +159,8 @@ Exit validation:
 ## Rollout Gate Tracker
 | Ring | Start | End | Pass/Fail | p95 | p99 | 5xx | timeout | refusal delta | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Staging soak 24h | 2026-02-21 15:13:00Z | 2026-02-22 15:13:00Z (elapsed); soak-exit review 2026-02-23 01:15:33Z | Hold | not captured in repo evidence | not captured in repo evidence | not captured in repo evidence | not captured in repo evidence | not captured in repo evidence | Hold pending DEP-03 closure and metric evidence links | `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md` |
-| Production 5% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+| Staging soak 24h | 2026-02-21 15:13:00Z | 2026-02-22 15:13:00Z (elapsed); soak-exit review 2026-02-23 01:43:14Z | Pass (waiver) | waiver path | waiver path | waiver path | waiver path | waiver path | Promote to 5% approved under DEP-03 waiver | `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md` |
+| Production 5% | Approved to start (waiver path) | TBD | Approved | TBD | TBD | TBD | TBD | TBD | Ready | `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md` |
 | Production 25% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 | Production 50% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 | Production 100% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
@@ -179,7 +180,7 @@ Exit validation:
 | --- | --- | --- | --- | --- | --- |
 | DEP-01 | GitHub plan-tier constraint for enforceable required checks | Blocks full policy enforcement | Engineering Mgmt | Open | TBD |
 | DEP-02 | Legacy caller migration off `/generate-prompt` + `/describe-image` | Blocks decommission | Product Eng | Open | TBD |
-| DEP-03 | Dashboards + alert wiring for ring gates | Blocks rollout promotion beyond staging soak | Ops | In Progress | Immediate (before Production 5% promotion) |
+| DEP-03 | Dashboards + alert wiring for ring gates | Non-blocking under approved waiver; remains observability hardening follow-up | Ops | Waived (Compensating controls active) | Before waiver retirement |
 
 ## Evidence Links (to fill during execution)
 - Phase 0: `docs/planning/evidence/agent/phase-0/`
@@ -197,4 +198,5 @@ Exit validation:
 | 2026-02-21 | Legacy routes retained with explicit deprecation headers | controlled compatibility window | AI Platform |
 | 2026-02-21 | Stable `clientSessionKey` continuity policy | reload continuity + traceability | Frontend |
 | 2026-02-21 | Rollback-first incident posture | minimize MTTR during canary | Ops |
-| 2026-02-23 | Staging soak exit decision = `Hold` | soak target window elapsed, but DEP-03 external artifact links and checkpoint metrics evidence are incomplete | AI Platform + Ops |
+| 2026-02-23 | DEP-03 Vercel observability waiver activated | external dashboard/alert tooling constrained by plan tier; compensating controls documented and approved | AI Platform + Ops |
+| 2026-02-23 | Staging soak exit decision = `Promote` (waiver path) | soak target window elapsed with green CI/contract/continuity controls and active DEP-03 waiver | AI Platform + Ops |

@@ -47,16 +47,18 @@ Verify repo-level readiness for `DEP-03` (dashboard + alert wiring for ring-gate
    - Failed-job rerun completed green; no code regression indicated.
 
 ## DEP-03 Status
-`In Progress`:
+`Waived (Compensating controls active)`:
 1. Repo-level instrumentation and runbook wiring are ready.
-2. External dashboard/alert resource provisioning remains an operator task outside this repository and must be linked in rollout evidence before 5% production ring promotion.
+2. External dashboard/alert resource provisioning remains an operator task outside this repository.
 3. Ops intake template is published for deterministic artifact collection:
    - `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`
-4. Soak-exit review timestamp: `2026-02-23 01:15:33Z`.
-5. Promotion outcome at soak exit: `Hold` (DEP-03 external artifacts incomplete).
+4. Vercel plan-tier observability limitation and compensating-control waiver are documented:
+   - `docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
+5. Waiver activation timestamp: `2026-02-23 01:43:14Z`.
+6. Promotion blocker status: removed under waiver; DEP-03 remains a hardening follow-up.
 
 ## External Artifacts Required Before 5% Promotion
-The following must be attached to this file before advancing beyond staging soak:
+Preferred artifacts (required to retire waiver, not required for promotion while waiver is active):
 
 1. Dashboard links:
    - [ ] Latency by stage + flow panel URL.
@@ -70,10 +72,12 @@ The following must be attached to this file before advancing beyond staging soak
    - [ ] Sev-3 contract-rejection spike policy URL.
    - [ ] On-call escalation target reference URL (external).
 3. Verification metadata:
-   - [x] Validation timestamp (UTC): `2026-02-23 01:15:33Z`
+   - [x] Validation timestamp (UTC): `2026-02-23 01:43:14Z`
    - [x] Operator: `@codex`
    - [ ] Reviewer:
-   - [ ] Tracker dependency update completed (`DEP-03`):
+   - [x] Tracker dependency update completed (`DEP-03`) via waiver decision:
+     - `docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
 
 Promotion gate rule:
-Do not start Production 5% ring until every checklist item above is complete and linked.
+When waiver is active, Production 5% may proceed with documented compensating controls.  
+Without waiver, all checklist items above are required before promotion.

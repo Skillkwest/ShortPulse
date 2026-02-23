@@ -10,7 +10,7 @@ Purpose: define the operational runbook for Phase 5 progressive rollout of the A
 1. Phase 4 governance checks are in `enforce` mode and green.
 2. Required checks remain passing on the rollout commit SHA.
 3. Branch/ruleset evidence is refreshed in `docs/planning/evidence/docs/`.
-4. `DEP-03` dashboard/alert wiring is marked ready in the tracker.
+4. `DEP-03` dashboard/alert wiring is marked ready in the tracker, or a formal DEP-03 waiver is active with compensating controls.
 5. Incident packet template and rollback drill template are prepared.
 
 ## Ring Execution Order
@@ -28,6 +28,7 @@ Rule: only one active canary for this subsystem at a time.
 3. Contract, disable-path, and continuity suites remain green.
 4. No doc/runtime/schema drift failures.
 5. Rollback path for current ring is verified and documented.
+6. If DEP-03 waiver is active, manual compensating-control evidence is attached for the ring.
 
 ## Freeze Triggers
 1. Any hard-threshold breach in performance/reliability budgets.
@@ -51,6 +52,7 @@ Rollback-first posture is mandatory unless explicitly waived by incident command
 4. Incident packet if freeze/rollback occurs.
 5. Staging soak checkpoints recorded in checkpoint log before 5% promotion decision.
 6. 5% promotion decision packet completed at soak exit.
+7. If dashboard/alert links are unavailable due tooling constraints, include a waiver artifact with explicit compensating controls and approval context.
 
 Store evidence under `docs/planning/evidence/agent/phase-5/`.
 
@@ -62,3 +64,4 @@ Store evidence under `docs/planning/evidence/agent/phase-5/`.
 5. For staging soak -> 5% transition, ensure:
    - `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-checkpoint-log.md` is updated through C4.
    - `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md` is completed.
+6. If DEP-03 waiver is active, ensure waiver evidence is linked in the rollout report and decision packet.

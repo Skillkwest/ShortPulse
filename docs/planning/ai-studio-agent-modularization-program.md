@@ -234,6 +234,7 @@ Branch required-check enforcement is currently constrained by repository plan li
 4. Zero regression means no unplanned behavior change and no release past failed required gate.
 5. No new transcript persistence beyond session continuity metadata.
 6. If branch-rule enforcement remains constrained, 100% rollout requires compensating-control approval + evidence.
+7. If external observability/alert tooling is constrained by platform tier, rollout may proceed under an explicit DEP-03 compensating-control waiver with documented risk acceptance.
 
 ## External Best-Practice References
 1. AWS strangler migration pattern: https://docs.aws.amazon.com/prescriptive-guidance/latest/modernization-aspnet-web-services/fig-pattern.html

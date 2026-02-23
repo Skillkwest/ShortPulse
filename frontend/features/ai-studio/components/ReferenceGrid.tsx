@@ -33,7 +33,7 @@ import {
   logAdaptiveRecoveryLevelChanged,
 } from "../../../lib/adaptive-media";
 import { type PastedMediaReference } from "../reference-grid/controllers/referenceGridClipboard";
-import { ReferenceGridSections } from "../reference-grid/components/ReferenceCanvasSections";
+import { ReferenceGridSections } from "../reference-grid/components/ReferenceGridSections";
 import { useReferenceGridClipboardController } from "../reference-grid/controllers/useReferenceGridClipboardController";
 import {
   useReferenceGridCanvasDropController,

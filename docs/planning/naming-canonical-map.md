@@ -11,6 +11,9 @@ Purpose: single source of truth for canonical terms, compatibility policy, and s
 | --- | --- | --- | --- | --- |
 | User-facing AI Studio surface | Reference Canvas | Reference Grid | Canonicalize in active docs/UI now; keep internal aliases during migration | After phase 7 closeout |
 | Component symbol | `ReferenceCanvas` | `ReferenceGrid` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
+| Reference-grid component file path | `reference-grid/components/ReferenceCanvasCard.tsx` | `reference-grid/components/ReferenceGridCard.tsx` | Canonical file path active; retain legacy-path shim file | >= 2 release cycles |
+| Reference-grid component file path | `reference-grid/components/ReferenceCanvasSections.tsx` | `reference-grid/components/ReferenceGridSections.tsx` | Canonical file path active; retain legacy-path shim file | >= 2 release cycles |
+| Reference-grid component file path | `reference-grid/components/ReferenceCanvasArchiveControls.tsx` | `reference-grid/components/ReferenceGridArchiveControls.tsx` | Canonical file path active; retain legacy-path shim file | >= 2 release cycles |
 | Component props type | `ReferenceCanvasProps` | `ReferenceGridProps` | Keep both during bridge window | >= 2 release cycles |
 | Hook symbol | `useAiStudioReferenceCanvasProps` | `useAiStudioReferenceGridProps` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |
 | Create panel symbol | `TextPropertiesPanel` | `CreatePropertiesPanel` | Add canonical alias first; migrate callsites in slices | >= 2 release cycles |

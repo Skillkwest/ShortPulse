@@ -20,6 +20,17 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs/planning/evidence/naming-canonicalization/phase-1/2026-02-23-phase-1-active-docs-canonicalization.md`
 - Next allowed action: Phase 3 bridge-layer expansion.
 
+## 2026-02-23: Stop-Point 2 (User-facing copy)
+- Phase/Stop point: Phase 2 completion
+- Decision: approved user-facing copy canonicalization closeout; no active UI surfaces expose `Reference Canvas` or `Text Properties Panel`.
+- Preconditions reviewed:
+  - frontend term scan shows no user-facing legacy term matches
+  - `validate`, `test:adaptive-v2-gate`, `build`, and `docs:check` pass
+  - Playwright perf gate intentionally not executed per explicit no-Playwright direction
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-2/2026-02-23-phase-2-user-facing-copy-canonicalization.md`
+- Next allowed action: continue bridge/callsite/path migration phases.
+
 ## 2026-02-23: Stop-Point 3 (Bridge layer)
 - Phase/Stop point: Phase 3 completion
 - Decision: approved compatibility bridge (`CreatePropertiesPanel`, `ReferenceGrid`, `useAiStudioReferenceGridProps`) with deprecated legacy aliases retained.
@@ -104,6 +115,17 @@ Purpose: immutable log of naming decisions and stop-point approvals.
 - Evidence links:
   - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-internal-symbol-canonicalization-slice-g.md`
 - Next allowed action: continue Phase 4 cleanup for remaining legacy test/script/doc references, then prepare Phase 5 file/path rename batches.
+
+## 2026-02-23: Stop-Point 5 (File/path rename batch A)
+- Phase/Stop point: Phase 5 batch A completion
+- Decision: approved internal reference-grid component file path canonicalization (`ReferenceGridArchiveControls.tsx`, `ReferenceGridSections.tsx`, `ReferenceGridCard.tsx`) with legacy-path shim files retained.
+- Preconditions reviewed:
+  - targeted reference-grid suites pass
+  - `validate`, `test:adaptive-v2-gate`, `build`, `docs:check`, `check:architecture-boundary`, and `check:size-budget` pass
+  - Playwright perf gate intentionally not executed per explicit no-Playwright direction
+- Evidence links:
+  - `docs/planning/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-reference-grid-internal-file-path-canonicalization-batch-a.md`
+- Next allowed action: continue Phase 5 in bounded batches for remaining legacy file-name families (tests/hooks/wrappers/assets) using the same shim-first strategy.
 
 ## Stop-Point Approval Template
 - Date:

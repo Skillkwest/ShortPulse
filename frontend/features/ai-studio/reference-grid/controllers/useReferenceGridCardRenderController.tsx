@@ -3,7 +3,7 @@
  * Keeps per-card action wiring and visual state mapping out of ReferenceGrid.
  */
 import React, { useCallback } from "react";
-import { ReferenceGridCard } from "../components/ReferenceCanvasCard";
+import { ReferenceGridCard } from "../components/ReferenceGridCard";
 import type { StudioOutput } from "../../types";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 

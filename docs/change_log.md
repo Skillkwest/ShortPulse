@@ -1233,3 +1233,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/troubleshooting.md`
 - Added evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-dead-flag-retirement-normalized-state-slice-3.md`
+
+## 2026-02-23 (reference-grid phase 6 slice 4)
+- Promoted repository guardrail variables to enforce mode for `sleepyseamonster/ShortPulse`:
+  - `REFERENCE_GRID_BOUNDARY_MODE=enforce`
+  - `REFERENCE_GRID_SIZE_BUDGET_MODE=enforce`
+- Captured enforcement promotion evidence:
+  - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-repo-variable-enforce-promotion-slice-4.md`

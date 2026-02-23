@@ -63,6 +63,8 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "true";
     process.env.STUDIO_AGENT_TIMEOUT_MS = String(20000);
     process.env.NEXT_PUBLIC_AGENT_V2 = "false";
+    delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
+    delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
 
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     readAgentConversationCanonicalPromptMock.mockResolvedValue(null);
@@ -340,6 +342,144 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         actions: expect.objectContaining({
           applyPrompt: "ancient mayan temple in jungle",
         }),
+      })
+    );
+  });
+
+  it("uses responses endpoint for TEXT_ONLY fast path when responses mode is enabled", async () => {
+    process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
+    process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "resp_1",
+          model: "gpt-5-nano",
+          output: [
+            {
+              content: [
+                {
+                  type: "output_text",
+                  text: JSON.stringify({
+                    message: "responses fast path",
+                    actions: { apply_prompt: "responses fast path" },
+                  }),
+                },
+              ],
+            },
+          ],
+          usage: { input_tokens: 9, output_tokens: 4, total_tokens: 13 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "misty lake at dawn" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0])).toBe(
+      "https://api.openai.com/v1/responses"
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actions: expect.objectContaining({ applyPrompt: "responses fast path" }),
+        usage: expect.objectContaining({
+          inputTokens: 9,
+          outputTokens: 4,
+        }),
+      })
+    );
+  });
+
+  it("falls back to chat completions for fast path when responses fails and fallback is enabled", async () => {
+    process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
+    process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(new Response("temporary failure", { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    message: "chat fallback fast path",
+                    actions: { apply_prompt: "chat fallback fast path" },
+                  }),
+                },
+              },
+            ],
+            usage: { prompt_tokens: 5, completion_tokens: 3 },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "stormy coast at dusk" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0])).toBe(
+      "https://api.openai.com/v1/responses"
+    );
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[1]?.[0])).toBe(
+      "https://api.openai.com/v1/chat/completions"
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actions: expect.objectContaining({ applyPrompt: "chat fallback fast path" }),
+      })
+    );
+  });
+
+  it("returns upstream error when responses fails and chat fallback is disabled", async () => {
+    process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
+    process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "false";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response("responses unavailable", { status: 503 })
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "snowy pine forest" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0])).toBe(
+      "https://api.openai.com/v1/responses"
+    );
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Upstream error",
+        detail: "responses unavailable",
       })
     );
   });

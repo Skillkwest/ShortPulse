@@ -955,3 +955,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - Adopted shared output collection normalization helpers in `frontend/features/ai-studio/hooks/useAiStudioState.ts` to start runtime-safe migration with behavior parity.
 - Added phase evidence artifact: `docs/planning/evidence/reference-grid-modularization/phase-1/2026-02-23-phase-01-domain-core-foundation.md`.
 - Updated tracker state to reflect Phase 0 completion and Phase 1 progress in `docs/planning/ai-studio-reference-grid-modularization-tracker.md`.
+- Implemented Reference Grid Foundation Program Phase 2 ingestion unification:
+  - Added canonical ingestion module `frontend/features/ai-studio/reference-ingestion/` with source-tagged `ReferenceIngestionInput` contracts and unified builder (`buildStudioOutputsFromReferenceInput`).
+  - Routed ingestion entrypoints in `frontend/features/ai-studio/hooks/useAiStudioState.ts` (file add, paste prompt/media, library media/prompt, agent prompt) through the canonical ingestion adapter.
+  - Added ingestion acceptance-matrix tests in `frontend/features/ai-studio/reference-ingestion/__tests__/buildFromInput.test.ts` and validated no-regression targeted suites.
+- Added phase evidence artifact: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-ingestion-unification-foundation.md`.
+- Updated tracker progress for phase alignment in `docs/planning/ai-studio-reference-grid-modularization-tracker.md`.

@@ -33,7 +33,7 @@ type UseAiStudioWorkspaceActionsParams = {
   closeModelModal: () => void;
   setModel: (value: string) => void;
   addCharacterReferences: (files: FileList) => void;
-  addOutputsFromFiles: (files: FileList) => void;
+  addOutputsFromFiles: (files: FileList, source?: "filePicker" | "drop") => void;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   model: string | null;
   hasSufficientCreditsForCost: boolean;
@@ -149,7 +149,7 @@ export const useAiStudioWorkspaceActions = ({
         if (isPrimaryCharacterTool(selectedTool)) {
           addCharacterReferences(files);
         } else {
-          addOutputsFromFiles(files);
+          addOutputsFromFiles(files, "filePicker");
         }
       }
       event.target.value = "";
@@ -162,7 +162,7 @@ export const useAiStudioWorkspaceActions = ({
       if (isPrimaryCharacterTool(selectedTool)) {
         addCharacterReferences(files);
       } else {
-        addOutputsFromFiles(files);
+        addOutputsFromFiles(files, "drop");
       }
     },
     [addCharacterReferences, addOutputsFromFiles, selectedTool]

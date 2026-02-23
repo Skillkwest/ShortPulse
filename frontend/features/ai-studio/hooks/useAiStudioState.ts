@@ -16,12 +16,7 @@ import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput, ToolId } from "../types";
 import { DEFAULT_KLING_DURATION_SECONDS, getModelConfig } from "../logic/pricing";
 import type { AgentContext } from "../../ai-agent/types";
-import {
-  resolvePreviewUrlById,
-  resolveModelLabel,
-  mapUploadsFromFiles,
-} from "../logic/stateParsers";
-import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
+import { resolvePreviewUrlById, resolveModelLabel } from "../logic/stateParsers";
 import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
 import { useAiStudioGenerationPromptComposer } from "./useAiStudioGenerationPromptComposer";
@@ -46,10 +41,9 @@ import {
 } from "../logic/curatedReferences";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
 import {
-  buildAgentPromptReferenceOutput,
-  buildPastedMediaReferenceOutput,
-  buildPastedPromptReferenceOutput,
-} from "./stateAdapters/agentReferenceOutputs";
+  buildStudioOutputsFromReferenceInput,
+  buildStudioOutputsFromReferenceInputSync,
+} from "../reference-ingestion";
 import {
   areStudioOutputCollectionStatesEqual,
   denormalizeStudioOutputCollection,
@@ -884,50 +878,72 @@ export const useAiStudioState = ({
 
   const addAgentPromptReference = useCallback(
     (promptText: string, title?: string | null) => {
-      void title;
-      const cleanedPrompt = promptText?.trim();
-      if (!cleanedPrompt) return;
-      const promptReference = buildAgentPromptReferenceOutput({
-        id: `prompt-${randomId()}`,
-        promptText: cleanedPrompt,
-        aspect,
-        model,
-      });
+      const result = buildStudioOutputsFromReferenceInputSync(
+        {
+          kind: "prompt",
+          source: "agent",
+          promptText,
+          title,
+        },
+        {
+          mode,
+          aspect,
+          model,
+          resolveModelLabel,
+          randomId,
+        }
+      );
+      const [promptReference] = result.outputs;
+      if (!promptReference) return;
       setOutputs((prev) => [promptReference, ...prev]);
-      setSharedPrompt(cleanedPrompt);
+      setSharedPrompt(promptReference.prompt);
     },
-    [aspect, model, setOutputs, setSharedPrompt]
+    [aspect, mode, model, setOutputs, setSharedPrompt]
   );
 
   const addPastedPromptReference = useCallback(
     (promptText: string) => {
-      const cleanedPrompt = promptText?.trim();
-      if (!cleanedPrompt) return;
-      const promptReference = buildPastedPromptReferenceOutput({
-        id: `prompt-paste-${randomId()}`,
-        promptText: cleanedPrompt,
-        aspect,
-        model,
-      });
-      setOutputs((prev) => [promptReference, ...prev]);
+      const result = buildStudioOutputsFromReferenceInputSync(
+        {
+          kind: "prompt",
+          source: "paste",
+          promptText,
+        },
+        {
+          mode,
+          aspect,
+          model,
+          resolveModelLabel,
+          randomId,
+        }
+      );
+      if (!result.outputs.length) return;
+      setOutputs((prev) => [...result.outputs, ...prev]);
     },
-    [aspect, model, setOutputs]
+    [aspect, mode, model, setOutputs]
   );
 
   const addPastedMediaReference = useCallback(
     (payload: { url: string; mimeType?: string | null }) => {
-      const cleanedUrl = payload.url?.trim();
-      if (!cleanedUrl) return;
-      const nextOutput = buildPastedMediaReferenceOutput({
-        id: `media-paste-${randomId()}`,
-        url: cleanedUrl,
-        mimeType: payload.mimeType,
-        aspect,
-        model,
-      });
-      setOutputs((prev) => [nextOutput, ...prev]);
+      const result = buildStudioOutputsFromReferenceInputSync(
+        {
+          kind: "mediaUrl",
+          source: "paste",
+          url: payload.url,
+          mimeType: payload.mimeType,
+        },
+        {
+          mode,
+          aspect,
+          model,
+          resolveModelLabel,
+          randomId,
+        }
+      );
+      if (!result.outputs.length) return;
+      setOutputs((prev) => [...result.outputs, ...prev]);
     },
-    [aspect, model, setOutputs]
+    [aspect, mode, model, setOutputs]
   );
 
   const addLibraryMediaReference = useCallback(
@@ -943,81 +959,66 @@ export const useAiStudioState = ({
       previewUrl?: string | null;
       fullUrl?: string | null;
     }) => {
-      if (!payload.url) return;
-      const id = `library-${randomId()}`;
-      const filenameLabel = payload.filename?.trim() || "";
-      const fallbackModelLabel = model ? resolveModelLabel(model) : "Library media";
-      const displayModelLabel = filenameLabel || fallbackModelLabel;
-      const resolvedPromptText =
-        payload.promptText?.trim() || payload.filename?.trim() || "Media reference";
-      const previewUrl = payload.previewUrl ?? payload.url;
-      const previewStoragePath = asCanonicalStoragePath(payload.previewStoragePath);
-      const fullStoragePath = asCanonicalStoragePath(payload.fullStoragePath) ?? previewStoragePath;
-      const nextOutput: StudioOutput = {
-        id,
-        prompt: resolvedPromptText,
-        mode: payload.fileType === "video" ? "video" : "image",
-        aspect,
-        model: displayModelLabel,
-        status: "ready",
-        timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
-        previewUrl,
-        previewStoragePath,
-        fullStoragePath,
-        mediaSource: payload.source === "ai_studio" ? "generated" : "library",
-        previewTier: payload.fileType === "video" ? "preview_loop" : "thumb",
-        archivedAt: null,
-        archiveReason: null,
-        saveState: "idle",
-        saveError: null,
-        savedMediaIds: payload.id ? [payload.id] : undefined,
-      };
-      setOutputs((prev) => [nextOutput, ...prev]);
+      const result = buildStudioOutputsFromReferenceInputSync(
+        {
+          kind: "libraryMedia",
+          source: "mediaLibrary",
+          payload,
+        },
+        {
+          mode,
+          aspect,
+          model,
+          resolveModelLabel,
+          randomId,
+        }
+      );
+      if (!result.outputs.length) return;
+      setOutputs((prev) => [...result.outputs, ...prev]);
     },
-    [aspect, model, setOutputs]
+    [aspect, mode, model, setOutputs]
   );
 
   const addLibraryPromptReference = useCallback(
     (payload: { id: string; promptText: string; title?: string | null }) => {
-      const cleanedPrompt = payload.promptText?.trim();
-      if (!cleanedPrompt) return;
-      const id = `prompt-library-${randomId()}`;
-      const placeholderModelLabel = model ? resolveModelLabel(model) : "Model pending selection";
-      const promptReference: StudioOutput = {
-        id,
-        prompt: cleanedPrompt,
-        mode: "text",
-        aspect,
-        model: placeholderModelLabel,
-        modelId: model ?? undefined,
-        status: "saved",
-        timestamp: "Library",
-        previewText: cleanedPrompt,
-        mediaSource: "prompt",
-        previewTier: "full",
-        archivedAt: null,
-        archiveReason: null,
-        saveState: "idle",
-        saveError: null,
-        promptId: payload.id,
-      };
-      setOutputs((prev) => [promptReference, ...prev]);
+      const result = buildStudioOutputsFromReferenceInputSync(
+        {
+          kind: "libraryPrompt",
+          source: "mediaLibrary",
+          payload,
+        },
+        {
+          mode,
+          aspect,
+          model,
+          resolveModelLabel,
+          randomId,
+        }
+      );
+      if (!result.outputs.length) return;
+      setOutputs((prev) => [...result.outputs, ...prev]);
     },
-    [aspect, model, setOutputs]
+    [aspect, mode, model, setOutputs]
   );
 
   const addOutputsFromFiles = useCallback(
-    async (files: FileList) => {
-      const newEntries = await mapUploadsFromFiles(
-        files,
-        mode,
-        aspect,
-        model,
-        resolveModelLabel,
-        randomId
+    async (files: FileList, source: "filePicker" | "drop" = "filePicker") => {
+      const result = await buildStudioOutputsFromReferenceInput(
+        {
+          kind: "files",
+          source,
+          files,
+        },
+        {
+          mode,
+          aspect,
+          model,
+          resolveModelLabel,
+          randomId,
+        }
       );
-      if (!newEntries.length) return;
-      setOutputs((prev) => [...newEntries, ...prev]);
+      if (!result.outputs.length) return;
+      setOutputs((prev) => [...result.outputs, ...prev]);
     },
     [aspect, model, mode, setOutputs]
   );

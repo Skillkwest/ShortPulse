@@ -1,0 +1,228 @@
+/**
+ * Unit tests for canonical reference ingestion adapter.
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { StudioOutput } from "../../types";
+import type { ReferenceIngestionContext } from "../types";
+import {
+  buildStudioOutputsFromReferenceInput,
+  buildStudioOutputsFromReferenceInputSync,
+} from "../buildFromInput";
+
+const mapUploadsFromFilesMock = vi.fn();
+
+vi.mock("../../logic/stateParsers", () => ({
+  mapUploadsFromFiles: (...args: unknown[]) => mapUploadsFromFilesMock(...args),
+  isVideoUrl: (value: string | null | undefined) => Boolean(value?.includes(".mp4")),
+}));
+
+const createContext = (): ReferenceIngestionContext => {
+  let count = 0;
+  return {
+    mode: "image",
+    aspect: "9:16",
+    model: "fal-ai/model",
+    resolveModelLabel: (value?: string) => (value ? `Model(${value})` : "Choose Model"),
+    randomId: () => {
+      count += 1;
+      return `id-${count}`;
+    },
+  };
+};
+
+const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
+  id,
+  prompt: id,
+  mode: "image",
+  aspect: "9:16",
+  model: "Model(fal-ai/model)",
+  status: "ready",
+  timestamp: "Now",
+  ...overrides,
+});
+
+describe("buildStudioOutputsFromReferenceInput", () => {
+  beforeEach(() => {
+    mapUploadsFromFilesMock.mockReset();
+  });
+
+  it("routes file ingestion through mapUploadsFromFiles", async () => {
+    const context = createContext();
+    const expected = [makeOutput("upload-1")];
+    mapUploadsFromFilesMock.mockResolvedValue(expected);
+
+    const files = {
+      length: 0,
+      item: () => null,
+    } as unknown as FileList;
+
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "files",
+        source: "filePicker",
+        files,
+      },
+      context
+    );
+
+    expect(result.outputs).toBe(expected);
+    expect(mapUploadsFromFilesMock).toHaveBeenCalledWith(
+      files,
+      "image",
+      "9:16",
+      "fal-ai/model",
+      context.resolveModelLabel,
+      context.randomId
+    );
+  });
+
+  it("throws for file ingestion on sync adapter", () => {
+    const context = createContext();
+    const files = {
+      length: 0,
+      item: () => null,
+    } as unknown as FileList;
+
+    expect(() =>
+      buildStudioOutputsFromReferenceInputSync(
+        {
+          kind: "files",
+          source: "filePicker",
+          files,
+        },
+        context
+      )
+    ).toThrowError("does not support file inputs");
+  });
+
+  it("builds agent prompt reference output", async () => {
+    const context = createContext();
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "prompt",
+        source: "agent",
+        promptText: "  cinematic portrait  ",
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output?.id).toBe("prompt-id-1");
+    expect(output?.prompt).toBe("cinematic portrait");
+    expect(output?.timestamp).toBe("Agent");
+    expect(output?.mediaSource).toBe("prompt");
+  });
+
+  it("builds pasted prompt reference output", async () => {
+    const context = createContext();
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "prompt",
+        source: "paste",
+        promptText: "  drone shot over city  ",
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output?.id).toBe("prompt-paste-id-1");
+    expect(output?.timestamp).toBe("Clipboard");
+    expect(output?.prompt).toBe("drone shot over city");
+  });
+
+  it("builds pasted media output with video semantics", async () => {
+    const context = createContext();
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "mediaUrl",
+        source: "paste",
+        url: "https://cdn.example.com/demo.mp4",
+        mimeType: "video/mp4",
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output?.id).toBe("media-paste-id-1");
+    expect(output?.mode).toBe("video");
+    expect(output?.previewTier).toBe("preview_loop");
+    expect(output?.mediaSource).toBe("clipboard");
+  });
+
+  it("builds library media output with generation source semantics", async () => {
+    const context = createContext();
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "libraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          id: "media-1",
+          url: "https://example.com/preview.jpg",
+          fileType: "image",
+          filename: "Reference A",
+          source: "ai_studio",
+          previewStoragePath: "user/preview.jpg",
+          fullStoragePath: "user/full.jpg",
+        },
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output?.id).toBe("library-id-1");
+    expect(output?.timestamp).toBe("Generation");
+    expect(output?.mediaSource).toBe("generated");
+    expect(output?.previewStoragePath).toBe("user/preview.jpg");
+    expect(output?.fullStoragePath).toBe("user/full.jpg");
+    expect(output?.savedMediaIds).toEqual(["media-1"]);
+  });
+
+  it("builds library prompt output with saved state", async () => {
+    const context = createContext();
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "libraryPrompt",
+        source: "mediaLibrary",
+        payload: {
+          id: "prompt-1",
+          promptText: "  dramatic skyline  ",
+        },
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output?.id).toBe("prompt-library-id-1");
+    expect(output?.status).toBe("saved");
+    expect(output?.timestamp).toBe("Library");
+    expect(output?.promptId).toBe("prompt-1");
+  });
+
+  it("returns empty outputs for invalid prompt and media-url inputs", async () => {
+    const context = createContext();
+    const promptResult = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "prompt",
+        source: "paste",
+        promptText: "   ",
+      },
+      context
+    );
+    const mediaResult = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "mediaUrl",
+        source: "paste",
+        url: "   ",
+      },
+      context
+    );
+
+    expect(promptResult.outputs).toEqual([]);
+    expect(mediaResult.outputs).toEqual([]);
+  });
+});

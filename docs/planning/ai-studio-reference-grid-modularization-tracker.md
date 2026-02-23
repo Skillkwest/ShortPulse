@@ -9,8 +9,8 @@ Program Doc: `docs/planning/ai-studio-reference-grid-modularization-program.md`
 | Phase | Status | Owner | Start | Target End | Gate | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | Phase 0: Contract Freeze | Completed | Frontend | 2026-02-23 | 2026-02-25 | baseline matrix approved | `docs/planning/evidence/reference-grid-modularization/phase-0/` |
-| Phase 1: Domain Core | In Progress | Frontend | 2026-02-26 | 2026-03-03 | reducer/selectors parity | `docs/planning/evidence/reference-grid-modularization/phase-1/` |
-| Phase 2: Ingestion Unification | Planned | Frontend | 2026-03-04 | 2026-03-10 | canonical ingress matrix pass | `docs/planning/evidence/reference-grid-modularization/phase-2/` |
+| Phase 1: Domain Core | Completed | Frontend | 2026-02-26 | 2026-03-03 | reducer/selectors parity | `docs/planning/evidence/reference-grid-modularization/phase-1/` |
+| Phase 2: Ingestion Unification | Completed | Frontend | 2026-03-04 | 2026-03-10 | canonical ingress matrix pass | `docs/planning/evidence/reference-grid-modularization/phase-2/` |
 | Phase 3: Projection Semantics | Planned | Frontend | 2026-03-11 | 2026-03-17 | curated semantics parity | `docs/planning/evidence/reference-grid-modularization/phase-3/` |
 | Phase 4: Media Runtime Unification | Planned | Frontend + Media | 2026-03-18 | 2026-03-24 | modal/route runtime parity | `docs/planning/evidence/reference-grid-modularization/phase-4/` |
 | Phase 5: Canvas + State Decomposition | Planned | Frontend | 2026-03-25 | 2026-04-02 | size budget targets pass in target lane | `docs/planning/evidence/reference-grid-modularization/phase-5/` |
@@ -40,13 +40,13 @@ Exit validation:
 - [x] Adapter parity tests green.
 
 ### Phase 2: Ingestion Unification
-- [ ] Create canonical `ReferenceInput` ingestion adapter.
-- [ ] Route picker/drop/paste/library/agent through canonical adapter.
-- [ ] Add ingestion acceptance matrix tests.
+- [x] Create canonical `ReferenceInput` ingestion adapter.
+- [x] Route picker/drop/paste/library/agent through canonical adapter.
+- [x] Add ingestion acceptance matrix tests.
 
 Exit validation:
-- [ ] Ingress parity matrix pass.
-- [ ] No behavior drift in existing flow tests.
+- [x] Ingress parity matrix pass.
+- [x] No behavior drift in existing flow tests.
 
 ### Phase 3: Projection Semantics
 - [ ] Introduce explicit all/quick-slot/archived projections.
@@ -121,6 +121,8 @@ Exit validation:
 - Program evidence root: `docs/planning/evidence/reference-grid-modularization/`
 - Phase report template: `docs/planning/evidence/reference-grid-modularization/phase-report-template.md`
 - Phase 0 baseline artifact: `docs/planning/evidence/reference-grid-modularization/phase-0/2026-02-23-phase-00-contract-freeze-baseline.md`
+- Phase 1 evidence: `docs/planning/evidence/reference-grid-modularization/phase-1/2026-02-23-phase-01-domain-core-foundation.md`
+- Phase 2 evidence: `docs/planning/evidence/reference-grid-modularization/phase-2/2026-02-23-phase-02-ingestion-unification-foundation.md`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |

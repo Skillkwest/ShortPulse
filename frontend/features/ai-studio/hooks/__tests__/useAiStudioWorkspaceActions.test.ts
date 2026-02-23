@@ -128,6 +128,7 @@ describe("useAiStudioWorkspaceActions", () => {
       } as unknown as Parameters<typeof result.current.handleFileBrowserSelection>[0]);
     });
     expect(addOutputsFromFiles).toHaveBeenCalledTimes(1);
+    expect(addOutputsFromFiles).toHaveBeenLastCalledWith(targetB.files, "filePicker");
     expect(targetB.value).toBe("");
 
     rerender({ selectedTool: "character" });
@@ -135,6 +136,14 @@ describe("useAiStudioWorkspaceActions", () => {
       result.current.handleReferenceCanvasFiles(createFileList());
     });
     expect(addCharacterReferences).toHaveBeenCalledTimes(2);
+
+    rerender({ selectedTool: "create" });
+    const droppedFiles = createFileList();
+    act(() => {
+      result.current.handleReferenceCanvasFiles(droppedFiles);
+    });
+    expect(addOutputsFromFiles).toHaveBeenCalledTimes(2);
+    expect(addOutputsFromFiles).toHaveBeenLastCalledWith(droppedFiles, "drop");
   });
 
   it("shows prompt-reference generate only when workflow requirements are met", () => {

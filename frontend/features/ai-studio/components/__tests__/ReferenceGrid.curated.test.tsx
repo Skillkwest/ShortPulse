@@ -137,10 +137,10 @@ describe("ReferenceGrid curated split", () => {
     });
 
     expect(container.querySelector(".reference-spinner")).toBeTruthy();
-    expect(container.querySelector(".reference-loading-placeholder")).toBeFalsy();
+    expect(container.querySelector(".reference-loading-placeholder")).toBeNull();
   });
 
-  it("uses loading preview copy for non-generated media placeholders", () => {
+  it("uses spinner-only loading visuals for non-generated media placeholders", () => {
     const importedOutput: StudioOutput = {
       id: "imported-1",
       prompt: "Imported image",
@@ -161,12 +161,11 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    const placeholder = container.querySelector(".reference-loading-placeholder");
-    expect(placeholder).toBeTruthy();
-    expect(placeholder?.textContent).toBe("loading preview...");
+    expect(container.querySelector(".reference-spinner")).toBeTruthy();
+    expect(container.querySelector(".reference-loading-placeholder")).toBeNull();
   });
 
-  it("applies spinner slots in FIFO order and shows pending badges for queued generations", () => {
+  it("applies spinner slots in FIFO order and falls back to static spinners for overflow", () => {
     const pendingOutputs: StudioOutput[] = Array.from({ length: 8 }, (_, index) => {
       const label = 8 - index;
       return {
@@ -193,17 +192,14 @@ describe("ReferenceGrid curated split", () => {
 
     const cards = Array.from(container.querySelectorAll(".reference-card"));
     expect(cards).toHaveLength(8);
-    expect(container.querySelectorAll(".reference-spinner")).toHaveLength(6);
-    expect(container.querySelectorAll(".reference-loading-pending-label")).toHaveLength(2);
-    expect(container.querySelectorAll(".reference-loading-pending-spinner")).toHaveLength(2);
-    expect(cards[0]?.querySelector(".reference-loading-pending-label")).toBeTruthy();
-    expect(cards[1]?.querySelector(".reference-loading-pending-label")).toBeTruthy();
-    expect(cards[0]?.querySelector(".reference-loading-pending-label")?.textContent).toBe("queued");
-    expect(cards[1]?.querySelector(".reference-loading-pending-label")?.textContent).toBe("queued");
+    expect(container.querySelectorAll(".reference-spinner")).toHaveLength(8);
+    expect(container.querySelectorAll(".reference-spinner.is-static")).toHaveLength(2);
+    expect(cards[0]?.querySelector(".reference-spinner.is-static")).toBeTruthy();
+    expect(cards[1]?.querySelector(".reference-spinner.is-static")).toBeTruthy();
     expect(cards[7]?.querySelector(".reference-spinner")).toBeTruthy();
   });
 
-  it("promotes queued pending cards into spinner slots as older generations finish", () => {
+  it("promotes static spinner cards into animated spinner slots as older generations finish", () => {
     const pendingOutputs: StudioOutput[] = Array.from({ length: 8 }, (_, index) => {
       const label = 8 - index;
       return {
@@ -227,7 +223,7 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    expect(container.querySelectorAll(".reference-loading-pending-label")).toHaveLength(2);
+    expect(container.querySelectorAll(".reference-spinner.is-static")).toHaveLength(2);
 
     const resolvedOldestOutputs = pendingOutputs.slice(0, pendingOutputs.length - 1);
 
@@ -240,9 +236,8 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    expect(container.querySelectorAll(".reference-loading-pending-label")).toHaveLength(1);
-    expect(container.querySelectorAll(".reference-loading-pending-spinner")).toHaveLength(1);
-    expect(container.querySelectorAll(".reference-spinner")).toHaveLength(6);
+    expect(container.querySelectorAll(".reference-spinner.is-static")).toHaveLength(1);
+    expect(container.querySelectorAll(".reference-spinner")).toHaveLength(7);
   });
 
   it("renders fallback hydration source when optimized preview URL fails", async () => {

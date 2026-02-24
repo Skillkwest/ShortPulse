@@ -583,7 +583,7 @@ export function ReferenceGrid({
     previewSwapTelemetryRef,
     setPreviewSwapMetrics,
   });
-  const { pendingCardIdSet, spinnerCandidateIdSet, spinnerSlotIdSet, loadingIdsLength } =
+  const { loadingCardIdSet, animatedSpinnerIdSet, loadingIdsLength } =
     useReferenceGridLoadingVisualController({
       allVisibleCardItems,
       loadedMap,
@@ -738,9 +738,8 @@ export function ReferenceGrid({
     generateCostCredits,
     autoplayEnabledIdSet,
     linkedPromptReferenceIdSet,
-    pendingCardIdSet,
-    spinnerCandidateIdSet,
-    spinnerSlotIdSet,
+    loadingCardIdSet,
+    animatedSpinnerIdSet,
     perfDegradeLevel: perfWatchdog.degradeLevel,
     visibleCardItems,
     curatedVisibleCardItems,

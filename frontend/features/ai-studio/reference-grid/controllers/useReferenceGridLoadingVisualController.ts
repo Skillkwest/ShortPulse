@@ -24,14 +24,13 @@ type UseReferenceGridLoadingVisualControllerArgs = {
 };
 
 type UseReferenceGridLoadingVisualControllerResult = {
-  pendingCardIdSet: Set<string>;
-  spinnerCandidateIdSet: Set<string>;
-  spinnerSlotIdSet: Set<string>;
+  loadingCardIdSet: Set<string>;
+  animatedSpinnerIdSet: Set<string>;
   loadingIdsLength: number;
 };
 
 /**
- * Returns loading/spinner id sets and loading-card count with unchanged prioritization semantics.
+ * Returns loading-card ids plus spinner animation ids with unchanged prioritization semantics.
  */
 export const useReferenceGridLoadingVisualController = ({
   allVisibleCardItems,
@@ -74,13 +73,9 @@ export const useReferenceGridLoadingVisualController = ({
     };
   }, [allVisibleCardItems, decodeBudgetEnabled, loadedMap]);
 
-  const pendingCardIdSet = React.useMemo(
+  const loadingCardIdSet = React.useMemo(
     () => new Set(loadingCardState.loadingIds),
     [loadingCardState.loadingIds]
-  );
-  const spinnerCandidateIdSet = React.useMemo(
-    () => new Set(loadingCardState.spinnerCandidateIds),
-    [loadingCardState.spinnerCandidateIds]
   );
   const maxAnimatedSpinners = React.useMemo(() => {
     if (perfDegradeLevel >= 2) return maxAnimatedSpinnersLevel2;
@@ -101,12 +96,11 @@ export const useReferenceGridLoadingVisualController = ({
     () => pendingSpinnerQueueIds.slice(0, Math.max(1, maxAnimatedSpinners)),
     [maxAnimatedSpinners, pendingSpinnerQueueIds]
   );
-  const spinnerSlotIdSet = React.useMemo(() => new Set(spinnerSlotIds), [spinnerSlotIds]);
+  const animatedSpinnerIdSet = React.useMemo(() => new Set(spinnerSlotIds), [spinnerSlotIds]);
 
   return {
-    pendingCardIdSet,
-    spinnerCandidateIdSet,
-    spinnerSlotIdSet,
+    loadingCardIdSet,
+    animatedSpinnerIdSet,
     loadingIdsLength: loadingCardState.loadingIds.length,
   };
 };

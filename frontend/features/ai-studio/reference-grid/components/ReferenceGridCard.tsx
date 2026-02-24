@@ -12,7 +12,8 @@ export type ReferenceGridCardProps = {
   dragSourceSurface: ReferenceDragSourceSurface;
   videoNodeKey: string;
   activeOutputId: string | null;
-  loadingVisual: "none" | "spinner" | "placeholder" | "pending";
+  loadingVisual: "none" | "spinner";
+  spinnerAnimated: boolean;
   cardPreviewUrl: string | null;
   isVideoPreview: boolean;
   isImagePreview: boolean;
@@ -86,6 +87,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   videoNodeKey,
   activeOutputId,
   loadingVisual,
+  spinnerAnimated,
   cardPreviewUrl,
   isVideoPreview,
   isImagePreview,
@@ -129,8 +131,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const saveLabel = item.saveState === "failed" ? "Retry save" : "Save to media library";
   const isGeneratedReference =
     item.mediaSource === "generated" || Boolean(item.generationId || item.taskId);
-  const loadingPlaceholderLabel = isGeneratedReference ? "generating..." : "loading preview...";
-  const loadingPendingLabel = isGeneratedReference ? "queued" : "loading";
   const shouldShowSaveAction = Boolean(
     onSaveToLibrary &&
     item.saveState !== "saved" &&
@@ -234,19 +234,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         </div>
       ) : null}
       {loadingVisual !== "none" ? (
-        <div
-          className={`reference-loading${loadingVisual !== "spinner" ? " is-static" : ""}${loadingVisual === "pending" ? " is-pending" : ""}`}
-        >
-          {loadingVisual === "spinner" ? <div className="reference-spinner" /> : null}
-          {loadingVisual === "placeholder" ? (
-            <span className="reference-loading-placeholder">{loadingPlaceholderLabel}</span>
-          ) : null}
-          {loadingVisual === "pending" ? (
-            <span className="reference-loading-pending-chip">
-              <span className="reference-loading-pending-spinner" aria-hidden="true" />
-              <span className="reference-loading-pending-label">{loadingPendingLabel}</span>
-            </span>
-          ) : null}
+        <div className={`reference-loading${spinnerAnimated ? "" : " is-static"}`}>
+          <div className={`reference-spinner${spinnerAnimated ? "" : " is-static"}`} />
         </div>
       ) : null}
       {isLoading && canRetryStatus && isSelected ? (

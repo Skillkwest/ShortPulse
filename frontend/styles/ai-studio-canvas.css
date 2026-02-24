@@ -126,10 +126,6 @@
   box-shadow: none;
 }
 
-.reference-canvas-panel.is-dense-visual-mode .reference-loading-pending-spinner {
-  animation: none;
-}
-
 .reference-canvas-panel.is-css-containment-mode .reference-card {
   content-visibility: auto;
   contain: layout paint size style;
@@ -169,14 +165,6 @@
   height: 24px;
   border-width: 2px;
   box-shadow: none;
-}
-
-.reference-canvas-panel.is-grid-pressure-mode .reference-loading-pending-spinner {
-  animation: none;
-}
-
-.reference-canvas-panel.is-grid-pressure-mode .reference-loading-placeholder {
-  animation: none;
 }
 
 .reference-archive-inline {
@@ -819,31 +807,6 @@
   background: linear-gradient(180deg, rgba(12, 15, 22, 0.52), rgba(12, 15, 22, 0.7));
 }
 
-.reference-loading.is-pending {
-  justify-content: flex-end;
-  padding-bottom: 14px;
-}
-
-.reference-loading-pending-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(175, 201, 232, 0.3);
-  background: rgba(9, 14, 22, 0.58);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.reference-loading-placeholder {
-  color: rgba(208, 218, 232, 0.86);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  line-height: 1;
-}
-
 .reference-spinner {
   width: 28px;
   height: 28px;
@@ -853,30 +816,12 @@
   animation: reference-spin 1.05s linear infinite;
 }
 
-.reference-loading-pending-label {
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: rgba(208, 218, 232, 0.86);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  line-height: 1;
-}
-
-.reference-loading-pending-spinner {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: rgba(125, 224, 255, 0.86);
-  animation: reference-spin 1.55s linear infinite;
+.reference-spinner.is-static {
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reference-spinner,
-  .reference-loading-pending-spinner {
+  .reference-spinner {
     animation: none;
   }
 }

@@ -23,9 +23,8 @@ type UseReferenceGridCardRenderControllerArgs = {
   generateCostCredits: number | null | undefined;
   autoplayEnabledIdSet: Set<string>;
   linkedPromptReferenceIdSet: Set<string>;
-  pendingCardIdSet: Set<string>;
-  spinnerCandidateIdSet: Set<string>;
-  spinnerSlotIdSet: Set<string>;
+  loadingCardIdSet: Set<string>;
+  animatedSpinnerIdSet: Set<string>;
   perfDegradeLevel: 0 | 1 | 2;
   visibleCardItems: ReferenceGridVisibleCard[];
   curatedVisibleCardItems: ReferenceGridVisibleCard[];
@@ -70,9 +69,8 @@ export const useReferenceGridCardRenderController = ({
   generateCostCredits,
   autoplayEnabledIdSet,
   linkedPromptReferenceIdSet,
-  pendingCardIdSet,
-  spinnerCandidateIdSet,
-  spinnerSlotIdSet,
+  loadingCardIdSet,
+  animatedSpinnerIdSet,
   perfDegradeLevel,
   visibleCardItems,
   curatedVisibleCardItems,
@@ -111,15 +109,9 @@ export const useReferenceGridCardRenderController = ({
         (card.item.taskState === "running" ||
           card.item.taskState === "pending" ||
           (card.item.taskState === "success" && !card.cardPreviewUrl && !card.item.previewText));
-      const isPending = pendingCardIdSet.has(card.item.id);
-      const isSpinnerCandidate = spinnerCandidateIdSet.has(card.item.id);
-      const loadingVisual: "none" | "spinner" | "placeholder" | "pending" = isPending
-        ? spinnerSlotIdSet.has(card.item.id)
-          ? "spinner"
-          : isSpinnerCandidate
-            ? "pending"
-            : "placeholder"
-        : "none";
+      const isCardLoading = loadingCardIdSet.has(card.item.id);
+      const loadingVisual: "none" | "spinner" = isCardLoading ? "spinner" : "none";
+      const spinnerAnimated = animatedSpinnerIdSet.has(card.item.id);
       const canAutoplayVideo =
         card.isVideoPreview && autoplayEnabledIdSet.has(card.item.id) && perfDegradeLevel < 2;
       const isPromptOnly = !card.cardPreviewUrl && !!card.item.previewText;
@@ -134,6 +126,7 @@ export const useReferenceGridCardRenderController = ({
           videoNodeKey={videoNodeKey}
           activeOutputId={activeOutputId}
           loadingVisual={loadingVisual}
+          spinnerAnimated={spinnerAnimated}
           cardPreviewUrl={card.cardPreviewUrl}
           isVideoPreview={card.isVideoPreview}
           isImagePreview={card.isImagePreview}
@@ -217,12 +210,11 @@ export const useReferenceGridCardRenderController = ({
       onRetryStatus,
       onSaveToLibrary,
       onSelectOutput,
-      pendingCardIdSet,
+      loadingCardIdSet,
       perfDegradeLevel,
       registerVideoNode,
       showPromptGenerate,
-      spinnerCandidateIdSet,
-      spinnerSlotIdSet,
+      animatedSpinnerIdSet,
     ]
   );
 

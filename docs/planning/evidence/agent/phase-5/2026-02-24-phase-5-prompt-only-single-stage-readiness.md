@@ -18,6 +18,10 @@ Scope: prompt-only single-stage runtime cutover readiness packet
   `agent-prompts: trim formatter contract to apply-prompt only`
 - Commit (phase 6): `dc214a1c`  
   `agent-runtime: canonicalize context type to agent-output`
+- Commit (phase 7): `c53b3c50`  
+  `agent-runtime: harden safety error classification and non-safety regression coverage`
+- Commit (phase 8): `f1df08a2`  
+  `agent-runtime: add rollback lever path verification tests`
 
 ## Runtime Flag Plan
 - `STUDIO_AGENT_SINGLE_STAGE_ENABLED=true` (target default for rollout)
@@ -65,8 +69,13 @@ Readiness status for Phase 5 ring progression:
 3. Rollback controls documented: ready
 4. Safety/refusal contract behavior:
    - Safety-policy upstream failures map to normal refusal turns (`200`) with empty actions.
+   - Non-safety upstream auth/config failures remain transport errors (do not map to refusal).
    - Refusal copy standardized to `I cannot describe this.`
-5. Compatibility posture:
+5. Rollback-lever verification:
+   - Test coverage asserts `legacy_v2_fallback` path when lever 1 is enabled.
+   - Test coverage asserts `v2_orchestration` path when lever 2 disables single-stage.
+   - Safety refusals short-circuit and do not execute legacy fallback.
+6. Compatibility posture:
    - External contract remains `Agent-Contract-Version: 1`
    - Canonical prompt persistence behavior unchanged
 

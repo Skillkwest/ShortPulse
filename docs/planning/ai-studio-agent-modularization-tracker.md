@@ -125,6 +125,8 @@ Exit validation:
 - [x] Trim legacy formatter prompt contract to `apply_prompt`-only action output and add regression guard test (`frontend/lib/__tests__/agentPromptsConfig.test.ts`).
 - [x] Canonicalize legacy `context_type` naming to `agent-output | prompt | image` across orchestration + prompt contract to remove chat terminology drift.
 - [x] Add runtime parity regression guard ensuring single-stage and legacy fallback return the same prompt-only envelope shape (`frontend/tests/api/studio-agent.runtime.test.ts`).
+- [x] Harden upstream safety-refusal classifier to avoid mapping non-safety auth/config failures as refusals (`frontend/features/agent-runtime/studioAgentRouteOutcomes.ts` + runtime/route-outcomes tests).
+- [x] Add rollback-lever verification coverage for telemetry route-paths and safety short-circuit behavior (`legacy_v2_fallback`, `v2_orchestration`, and no-fallback-on-safety tests in `frontend/tests/api/studio-agent.runtime.test.ts`).
 - [ ] Production 5% 24h.
 - [ ] Production 25% 24h.
 - [ ] Production 50% 24h.
@@ -211,3 +213,5 @@ Exit validation:
 | 2026-02-24 | Legacy formatter prompt contract slimmed to apply-prompt-only actions | reduce structured-output surface area while preserving compatibility and UI invariants | AI Platform |
 | 2026-02-24 | Legacy context type canonicalized from `chat` to `agent-output` | align orchestration/prompt terminology with active focused-source contract and reduce semantic drift | AI Platform |
 | 2026-02-24 | Single-stage vs legacy fallback prompt-envelope parity test added to runtime contract suite | prevent response-shape drift across primary/fallback paths during phased rollback window | AI Platform |
+| 2026-02-24 | Safety refusal classifier narrowed (status/pattern hardening) | avoid false-refusal mapping for non-safety upstream failures such as auth/config errors while preserving policy refusal handling | AI Platform |
+| 2026-02-24 | Rollback lever verification tests added for route-path telemetry and safety short-circuit | provide deterministic pre-ring proof that fallback levers route as intended and safety refusals do not trigger V2 fallback | AI Platform |

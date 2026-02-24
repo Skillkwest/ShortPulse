@@ -135,7 +135,6 @@ export const useAiStudioAgentBridge = ({
     handleAgentSend,
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
-    handleDescribeReference,
     handleAgentDescribeTargets,
   } = useAiStudioAgentOrchestration({
     agentIsSending,
@@ -223,7 +222,6 @@ export const useAiStudioAgentBridge = ({
     handleAgentSend,
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
-    handleDescribeReference,
     handleAgentDescribeTargets,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,

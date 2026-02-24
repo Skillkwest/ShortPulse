@@ -93,6 +93,7 @@ describe("useAiStudioAgentOrchestration", () => {
   it("sends image-only turns without auto-injecting describe text", async () => {
     const sendToAgent = vi.fn(async () => ({ response: null, actions: undefined }));
     const appendUserMessage = vi.fn(() => "msg-1");
+    const getAgentContext = vi.fn(() => ({}));
     const params = createParams({
       prompt: "   ",
       agentInput: "   ",
@@ -102,13 +103,14 @@ describe("useAiStudioAgentOrchestration", () => {
         {
           id: "img-1",
           kind: "image",
+          referenceId: "ref-image-1",
           imageUrl: "https://cdn.test/image.png",
           text: null,
           aspect: null,
         },
       ],
       markAttachmentDelivery: vi.fn(),
-      getAgentContext: vi.fn(() => ({})),
+      getAgentContext,
     });
 
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
@@ -122,6 +124,28 @@ describe("useAiStudioAgentOrchestration", () => {
       expect.objectContaining({
         text: "",
         payloadText: "",
+        context: expect.objectContaining({
+          focusedSource: "image",
+          selectedReferenceIds: ["ref-image-1"],
+          references: expect.arrayContaining([
+            expect.objectContaining({
+              id: "ref-image-1",
+              kind: "image",
+            }),
+          ]),
+          media: [
+            expect.objectContaining({
+              id: "ref-image-1",
+              kind: "image",
+              url: "https://cdn.test/prepared-image.png",
+            }),
+          ],
+        }),
+      })
+    );
+    expect(getAgentContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modeHint: "reference",
       })
     );
   });

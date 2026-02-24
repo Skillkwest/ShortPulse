@@ -306,6 +306,19 @@ describe("CreatePropertiesPanel", () => {
     expect(onCharacterModeEnabledChange).toHaveBeenCalledWith(false);
   });
 
+  it("keeps the selected model label visible while character mode is enabled", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      characterModeEnabled: true,
+      modelLabel: "Seedream 4.5 Edit",
+    });
+
+    const modelPickerButton = screen.getByRole("button", { name: "Open model picker" });
+    expect(modelPickerButton).toHaveTextContent("Seedream 4.5 Edit");
+    expect(modelPickerButton).not.toHaveTextContent("Pulse Character");
+  });
+
   it("resets character picker open state when character mode is toggled off then on", () => {
     const { rerender } = renderPanel({
       beginnerMode: false,

@@ -1,27 +1,15 @@
-import type { AgentActions, AgentResponse } from "../../prefabs/agent";
+import type { AgentResponse } from "../../prefabs/agent";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
+import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
 
 type ParsedAgentJson = {
   response: AgentResponse;
   status: string | null;
 };
 
-const asStringArray = (value: unknown): string[] | undefined => {
-  if (!Array.isArray(value)) return undefined;
-  const cleaned = value.filter(
-    (entry): entry is string => typeof entry === "string" && entry.trim().length > 0
-  );
-  return cleaned.length ? cleaned : undefined;
-};
-
-const asReferenceCard = (value: unknown): AgentActions["referenceCard"] | undefined => {
-  if (!value || typeof value !== "object") return undefined;
-  const record = value as Record<string, unknown>;
-  if (typeof record.prompt !== "string" || !record.prompt.trim()) return undefined;
-  return {
-    title: typeof record.title === "string" ? record.title : undefined,
-    prompt: record.prompt,
-  };
+type ParsedAgentSemanticOutput = {
+  status: "ready" | "refuse";
+  promptText: string;
 };
 
 const normalizeAgentActions = (value: unknown): AgentResponse["actions"] => {
@@ -36,32 +24,12 @@ const normalizeAgentActions = (value: unknown): AgentResponse["actions"] => {
 
   const cleanedApplyPrompt = sanitizeGenerationPromptText(applyPrompt ?? null) ?? undefined;
 
-  const normalized = {
-    applyPrompt: cleanedApplyPrompt,
-    variations:
-      asStringArray(record.variations)
-        ?.map((variation) => sanitizeGenerationPromptText(variation))
-        .filter((variation): variation is string => Boolean(variation)) ?? undefined,
-    describeTargets: asStringArray(record.describeTargets ?? record.describe_targets),
-    referenceCard: (() => {
-      const card = asReferenceCard(record.referenceCard);
-      if (!card) return undefined;
-      const prompt = sanitizeGenerationPromptText(card.prompt ?? null);
-      if (!prompt) return undefined;
-      return { ...card, prompt };
-    })(),
-  };
-
-  if (
-    !normalized.applyPrompt &&
-    !normalized.variations &&
-    !normalized.describeTargets &&
-    !normalized.referenceCard
-  ) {
+  if (!cleanedApplyPrompt) {
     return undefined;
   }
-
-  return normalized;
+  return {
+    applyPrompt: cleanedApplyPrompt,
+  };
 };
 
 export const extractStudioAgentCompletionText = (rawContent: unknown): string => {
@@ -128,6 +96,44 @@ export const parseStudioAgentJsonWithStatus = (raw: unknown): ParsedAgentJson | 
 export const parseStudioAgentJson = (raw: unknown): AgentResponse | null =>
   parseStudioAgentJsonWithStatus(raw)?.response ?? null;
 
+export const parseStudioAgentSemanticOutput = (raw: unknown): ParsedAgentSemanticOutput | null => {
+  const candidates: string[] = [];
+  const trimmed = extractStudioAgentCompletionText(raw).trim();
+  if (trimmed) candidates.push(trimmed);
+  const braceMatch = trimmed.match(/{[\s\S]*}/);
+  if (braceMatch) candidates.push(braceMatch[0]);
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (!parsed || typeof parsed !== "object") continue;
+      const record = parsed as Record<string, unknown>;
+      const rawStatus = typeof record.status === "string" ? record.status.trim().toLowerCase() : "";
+      if (rawStatus !== "ready" && rawStatus !== "refuse") continue;
+      const promptText = sanitizeGenerationPromptText(
+        typeof record.prompt_text === "string"
+          ? record.prompt_text
+          : typeof record.promptText === "string"
+            ? record.promptText
+            : typeof record.prompt === "string"
+              ? record.prompt
+              : typeof record.message === "string"
+                ? record.message
+                : null
+      );
+      const normalizedPrompt = promptText?.trim() ?? "";
+      if (!normalizedPrompt.length) continue;
+      return {
+        status: rawStatus,
+        promptText: normalizedPrompt,
+      };
+    } catch {
+      continue;
+    }
+  }
+  return null;
+};
+
 export const isStudioAgentRefusalResponse = ({
   status,
   response,
@@ -153,21 +159,39 @@ export const ensureStudioAgentApplyPromptContract = ({
   const resolvedFallback = sanitizeGenerationPromptText(fallbackPrompt) ?? "";
   const cleanedApplyPrompt = sanitizeGenerationPromptText(parsed.actions?.applyPrompt ?? null);
   if (!cleanedApplyPrompt) {
-    parsed.actions = parsed.actions ?? {};
-    parsed.actions.applyPrompt = resolvedFallback;
+    parsed.actions = { applyPrompt: resolvedFallback };
   } else {
-    parsed.actions = parsed.actions ?? {};
-    parsed.actions.applyPrompt = cleanedApplyPrompt;
-  }
-  if (parsed.actions?.applyPrompt && !parsed.actions.referenceCard?.prompt) {
-    parsed.actions.referenceCard = {
-      title: "Prompt",
-      prompt: parsed.actions.applyPrompt,
-    };
+    parsed.actions = { applyPrompt: cleanedApplyPrompt };
   }
   parsed.message =
     parsed.actions?.applyPrompt ??
     sanitizeGenerationPromptText(parsed.message ?? null) ??
     resolvedFallback;
   return parsed;
+};
+
+export const buildStudioAgentSemanticResponse = ({
+  semantic,
+}: {
+  semantic: ParsedAgentSemanticOutput;
+}): { parsed: AgentResponse; status: string | null } => {
+  if (semantic.status === "refuse") {
+    return {
+      parsed: {
+        message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
+        actions: undefined,
+      },
+      status: "refuse",
+    };
+  }
+
+  return {
+    parsed: {
+      message: semantic.promptText,
+      actions: {
+        applyPrompt: semantic.promptText,
+      },
+    },
+    status: "ready",
+  };
 };

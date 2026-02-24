@@ -5,6 +5,7 @@ import {
   ensureStudioAgentApplyPromptContract,
   isStudioAgentRefusalResponse,
 } from "./studioAgentResponseNormalization";
+import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
 
 export const resolveStudioAgentTurnResponse = ({
   parsed,
@@ -32,7 +33,7 @@ export const resolveStudioAgentTurnResponse = ({
 
   if (refusal) {
     parsed = {
-      message: parsed.message?.trim() || "I cannot help with that request.",
+      message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
       actions: undefined,
     };
   } else {

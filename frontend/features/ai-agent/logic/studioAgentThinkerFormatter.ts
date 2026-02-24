@@ -4,6 +4,7 @@
  */
 import type { AgentResponse } from "../../../prefabs/agent";
 import { fetchOpenAiCompatibleChatCompletion } from "../../../lib/server/api/openAiCompat";
+import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "../../agent-runtime/studioAgentRouteOutcomes";
 
 export type ThinkerFormatterResult = {
   parsed: AgentResponse;
@@ -107,7 +108,7 @@ const buildFormatterFallback = ({
   const normalizedStatus = normalizeStatus(semanticStatus);
   if (normalizedStatus === "refuse") {
     return {
-      message: "I cannot help with that request.",
+      message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
       actions: undefined,
     };
   }
@@ -117,10 +118,6 @@ const buildFormatterFallback = ({
     message: prompt,
     actions: {
       applyPrompt: prompt,
-      referenceCard: {
-        title: "Prompt",
-        prompt,
-      },
     },
   };
 };

@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
   emitStudioAgentTurnTelemetry,
+  isStudioAgentSafetyRefusalUpstreamError,
+  STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
 } from "../studioAgentRouteOutcomes";
 
 describe("studioAgentRouteOutcomes", () => {
@@ -61,6 +64,47 @@ describe("studioAgentRouteOutcomes", () => {
       error: "Agent call failed",
       detail: "transport timed out",
       traceId: "trace-3",
+    });
+  });
+
+  it("classifies safety-policy upstream errors for refusal mapping", () => {
+    expect(
+      isStudioAgentSafetyRefusalUpstreamError({
+        status: 400,
+        detail: "content policy violation: unsafe request",
+      })
+    ).toBe(true);
+    expect(
+      isStudioAgentSafetyRefusalUpstreamError({
+        status: 403,
+        detail: '{"error":{"message":"blocked by safety policy"}}',
+      })
+    ).toBe(true);
+    expect(
+      isStudioAgentSafetyRefusalUpstreamError({
+        status: 503,
+        detail: "service unavailable",
+      })
+    ).toBe(false);
+    expect(
+      isStudioAgentSafetyRefusalUpstreamError({
+        status: 400,
+        detail: "invalid request format",
+      })
+    ).toBe(false);
+  });
+
+  it("builds safety refusal payload with canonical continuity", () => {
+    expect(
+      buildStudioAgentSafetyRefusalPayload({
+        traceId: "trace-refuse",
+        canonicalPrompt: "existing canonical",
+      })
+    ).toEqual({
+      message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
+      actions: undefined,
+      canonicalPrompt: "existing canonical",
+      traceId: "trace-refuse",
     });
   });
 });

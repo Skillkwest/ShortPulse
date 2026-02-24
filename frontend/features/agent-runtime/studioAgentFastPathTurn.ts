@@ -2,7 +2,9 @@ import type { AgentContext, AgentMessage, AgentResponse } from "../../prefabs/ag
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
 import { fetchStudioAgentChatCompletion } from "./studioAgentOpenAiGateway";
 import {
+  buildStudioAgentSemanticResponse,
   extractStudioAgentCompletionText,
+  parseStudioAgentSemanticOutput,
   parseStudioAgentJsonWithStatus,
 } from "./studioAgentResponseNormalization";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
@@ -72,7 +74,18 @@ export const executeStudioAgentFastPathTurn = async ({
 
   const data = await response.json();
   const contentText = extractStudioAgentCompletionText(data?.choices?.[0]?.message?.content);
-  const parsedWithStatus = parseStudioAgentJsonWithStatus(contentText);
+  const semanticParsed = parseStudioAgentSemanticOutput(contentText);
+  const parsedWithStatus = semanticParsed
+    ? (() => {
+        const semanticResponse = buildStudioAgentSemanticResponse({
+          semantic: semanticParsed,
+        });
+        return {
+          response: semanticResponse.parsed,
+          status: semanticResponse.status,
+        };
+      })()
+    : parseStudioAgentJsonWithStatus(contentText);
   let parsed = parsedWithStatus?.response ?? {
     message: sanitizeGenerationPromptText(contentText || "No response") ?? "No response",
     actions: undefined,

@@ -127,6 +127,14 @@ export const parseStudioAgentMessages = (
   return { ok: true, messages: parsed.slice(-MAX_MESSAGES) };
 };
 
+const normalizeFocusedSource = (
+  value: AgentContext["focusedSource"] | "chat" | null | undefined
+): AgentContext["focusedSource"] | undefined => {
+  if (value === "image" || value === "prompt" || value === "agent-output") return value;
+  if (value === "chat") return "agent-output";
+  return undefined;
+};
+
 export const sanitizeStudioAgentContext = (context?: AgentContext): AgentContext => {
   if (!context) return {};
   const media =
@@ -154,7 +162,7 @@ export const sanitizeStudioAgentContext = (context?: AgentContext): AgentContext
     selectedReferenceIds: Array.isArray(context.selectedReferenceIds)
       ? context.selectedReferenceIds.slice(0, 8)
       : [],
-    focusedSource: context.focusedSource ?? undefined,
+    focusedSource: normalizeFocusedSource(context.focusedSource),
     focusedReferenceId: context.focusedReferenceId ?? null,
     lastAssistantMessage: sanitizeGenerationPromptText(context.lastAssistantMessage ?? null),
     modeHint: context.modeHint ?? undefined,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveStudioAgentTurnResponse } from "../studioAgentTurnResponse";
+import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "../studioAgentRouteOutcomes";
 
 describe("resolveStudioAgentTurnResponse", () => {
   it("keeps refusal response actionless and preserves canonical prompt", () => {
@@ -18,6 +19,7 @@ describe("resolveStudioAgentTurnResponse", () => {
     });
 
     expect(result.refusal).toBe(true);
+    expect(result.parsed.message).toBe(STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE);
     expect(result.parsed.actions).toBeUndefined();
     expect(result.resolvedCanonical).toBe("existing canonical");
   });
@@ -37,9 +39,7 @@ describe("resolveStudioAgentTurnResponse", () => {
 
     expect(result.refusal).toBe(false);
     expect(result.parsed.actions?.applyPrompt).toBe("cinematic rain-soaked alley portrait");
-    expect(result.parsed.actions?.referenceCard?.prompt).toBe(
-      "cinematic rain-soaked alley portrait"
-    );
+    expect(result.parsed.actions?.referenceCard).toBeUndefined();
     expect(result.resolvedCanonical).toBe("cinematic rain-soaked alley portrait");
   });
 });

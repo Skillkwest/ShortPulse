@@ -43,6 +43,23 @@ describe("adaptive-media resolver", () => {
     expect(result.previewUrl).toContain("q=");
   });
 
+  it("does not wrap fal media URLs with Next optimizer when adaptive quality is enabled", () => {
+    const result = resolveAdaptiveMedia({
+      surface: "reference-grid",
+      mediaKind: "image",
+      source: "remote",
+      urls: {
+        previewUrl: "https://v3b.fal.media/files/b/0a8fb9ad/example.png",
+      },
+      storage: {},
+      strictPreviewLadder: false,
+      adaptivePreviewQuality: true,
+      pressureLevel: 0,
+    });
+
+    expect(result.previewUrl).toBe("https://v3b.fal.media/files/b/0a8fb9ad/example.png");
+  });
+
   it("normalizes canonical storage paths and rejects runtime URLs", () => {
     expect(asCanonicalStoragePath(" user-1/images/file.png ")).toBe("user-1/images/file.png");
     expect(asCanonicalStoragePath("https://example.com/file.png")).toBeNull();

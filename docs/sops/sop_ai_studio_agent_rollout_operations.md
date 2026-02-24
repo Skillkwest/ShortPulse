@@ -70,6 +70,32 @@ For the prompt-only single-stage release, ring operators must apply flags in thi
 
 Store evidence under `docs/planning/evidence/agent/phase-5/`.
 
+### Optional Automation: Gate Snapshot Generator
+Use the snapshot generator to standardize ring evidence blocks and gate decisions from structured input.
+
+Template input:
+- `docs/planning/evidence/agent/phase-5/phase-5-rollout-snapshot-input.template.json`
+
+Command examples:
+```bash
+node scripts/generate_phase5_rollout_snapshot.js \
+  --input docs/planning/evidence/agent/phase-5/phase-5-rollout-snapshot-input.template.json
+```
+
+Append output to active report:
+```bash
+node scripts/generate_phase5_rollout_snapshot.js \
+  --input <ring-metrics.json> \
+  --append-to docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md
+```
+
+CI/automation mode (fails on freeze decision):
+```bash
+node scripts/generate_phase5_rollout_snapshot.js \
+  --input <ring-metrics.json> \
+  --fail-on-freeze
+```
+
 ## Post-Ring Close Checklist
 1. Record pass/fail decision and approver in rollout report.
 2. Update `docs/planning/ai-studio-agent-modularization-tracker.md` ring table.

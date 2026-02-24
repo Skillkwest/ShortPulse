@@ -3,6 +3,9 @@
 ## Provider or webhook outages
 For Fal/OpenAI/Stripe incident triage, use `docs/sops/sop_provider_incident_response.md`.
 
+For AI Studio Fal polling, client status timeouts are intentionally higher than server status-route budgets.
+If regressions reappear, check `app_error_logs` for `source='client.api_network'` with abort-like messages on `/api/fal/*-status` endpoints.
+
 ## Admin runtime/API error handoff workflow
 Use the `/admin` Errors panel `Copy triage` buttons as the default handoff format.
 

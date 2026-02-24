@@ -362,35 +362,94 @@ const submitEndpointRegistry = {
 
 type StatusEndpointConfig = {
   route: string;
+  statusTimeoutMs: number;
   fallbackGetOn405?: boolean;
 };
 
+const STATUS_TIMEOUT_STANDARD_MS = 75_000;
+const STATUS_TIMEOUT_VEO_MS = 105_000;
+
 const statusEndpointRegistry = {
-  flux: { route: `${FAL_API_BASE}/status` },
-  flux2: { route: `${FAL_API_BASE}/flux2-status` },
-  flux2Edit: { route: `${FAL_API_BASE}/flux2-edit-status` },
-  flux2Pro: { route: `${FAL_API_BASE}/flux2pro-status` },
-  flux2ProEdit: { route: `${FAL_API_BASE}/flux2pro-edit-status` },
-  flux2Klein: { route: `${FAL_API_BASE}/flux2klein-status` },
-  nanoBanana: { route: `${FAL_API_BASE}/nano-banana-status` },
-  nanoBananaEdit: { route: `${FAL_API_BASE}/nano-banana-edit-status` },
-  nanoBananaPro: { route: `${FAL_API_BASE}/nano-banana-pro-status` },
-  nanoBananaProEdit: { route: `${FAL_API_BASE}/nano-banana-pro-edit-status` },
-  kling: { route: `${FAL_API_BASE}/kling-status` },
-  sora: { route: `${FAL_API_BASE}/sora-status` },
-  veo: { route: `${FAL_API_BASE}/veo-status` },
+  flux: { route: `${FAL_API_BASE}/status`, statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS },
+  flux2: { route: `${FAL_API_BASE}/flux2-status`, statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS },
+  flux2Edit: {
+    route: `${FAL_API_BASE}/flux2-edit-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  flux2Pro: {
+    route: `${FAL_API_BASE}/flux2pro-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  flux2ProEdit: {
+    route: `${FAL_API_BASE}/flux2pro-edit-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  flux2Klein: {
+    route: `${FAL_API_BASE}/flux2klein-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  nanoBanana: {
+    route: `${FAL_API_BASE}/nano-banana-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  nanoBananaEdit: {
+    route: `${FAL_API_BASE}/nano-banana-edit-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  nanoBananaPro: {
+    route: `${FAL_API_BASE}/nano-banana-pro-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  nanoBananaProEdit: {
+    route: `${FAL_API_BASE}/nano-banana-pro-edit-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  kling: { route: `${FAL_API_BASE}/kling-status`, statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS },
+  sora: { route: `${FAL_API_BASE}/sora-status`, statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS },
+  veo: { route: `${FAL_API_BASE}/veo-status`, statusTimeoutMs: STATUS_TIMEOUT_VEO_MS },
   veoImageToVideo: {
     route: `${FAL_API_BASE}/veo-image-to-video-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_VEO_MS,
     fallbackGetOn405: true,
   },
-  seedream: { route: `${FAL_API_BASE}/seedream-status` },
-  seedance: { route: `${FAL_API_BASE}/seedance-status` },
-  seedanceI2V: { route: `${FAL_API_BASE}/seedance-i2v-status` },
-  klingV3ImageToVideo: { route: `${FAL_API_BASE}/kling-v3-image-to-video-status` },
+  seedream: {
+    route: `${FAL_API_BASE}/seedream-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  seedance: {
+    route: `${FAL_API_BASE}/seedance-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  seedanceI2V: {
+    route: `${FAL_API_BASE}/seedance-i2v-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  klingV3ImageToVideo: {
+    route: `${FAL_API_BASE}/kling-v3-image-to-video-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
 } as const satisfies Record<string, StatusEndpointConfig>;
 
 type SubmitEndpointKey = keyof typeof submitEndpointRegistry;
 type StatusEndpointKey = keyof typeof statusEndpointRegistry;
+
+const isTimeoutLikeError = (error: unknown): boolean => {
+  if (!error) return false;
+  if (typeof error === "object") {
+    const maybeError = error as { name?: unknown; message?: unknown };
+    if (maybeError.name === "AbortError") return true;
+    if (typeof maybeError.message === "string") {
+      return /abort|timed out|timeout/i.test(maybeError.message);
+    }
+  }
+  if (typeof error === "string") {
+    return /abort|timed out|timeout/i.test(error);
+  }
+  return false;
+};
+
+const createStatusTimeoutError = (endpoint: StatusEndpointKey, timeoutMs: number): Error =>
+  new Error(`[fal-status:${endpoint}] timed out after ${timeoutMs}ms`);
 
 const submitFalEndpoint = async <TPayload>(
   endpoint: SubmitEndpointKey,
@@ -415,18 +474,38 @@ const fetchFalStatusEndpoint = async <TStatus>(
   requestId: string
 ): Promise<TStatus> => {
   const config = statusEndpointRegistry[endpoint];
-  const response = await fetchWithTimeout(config.route, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-    timeoutMs: 15000,
-  });
+  const { statusTimeoutMs } = config;
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(config.route, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId }),
+      timeoutMs: statusTimeoutMs,
+    });
+  } catch (error) {
+    if (isTimeoutLikeError(error)) {
+      throw createStatusTimeoutError(endpoint, statusTimeoutMs);
+    }
+    throw error;
+  }
   const fallbackGetOn405 = "fallbackGetOn405" in config && config.fallbackGetOn405 === true;
   if (response.status === 405 && fallbackGetOn405) {
-    const fallback = await fetchWithTimeout(
-      `${config.route}?requestId=${encodeURIComponent(requestId)}`,
-      { method: "GET", timeoutMs: 15000 }
-    );
+    let fallback: Response;
+    try {
+      fallback = await fetchWithTimeout(
+        `${config.route}?requestId=${encodeURIComponent(requestId)}`,
+        {
+          method: "GET",
+          timeoutMs: statusTimeoutMs,
+        }
+      );
+    } catch (error) {
+      if (isTimeoutLikeError(error)) {
+        throw createStatusTimeoutError(endpoint, statusTimeoutMs);
+      }
+      throw error;
+    }
     return handleJson<TStatus>(fallback);
   }
   return handleJson<TStatus>(response);

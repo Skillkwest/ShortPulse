@@ -336,6 +336,64 @@ describe("useAiStudioTasks", () => {
     );
   });
 
+  it("retries timeout-classified status transport errors and succeeds on a later poll", async () => {
+    fetchFalStatusMock
+      .mockRejectedValueOnce(new Error("[fal-status:flux] timed out after 75000ms"))
+      .mockResolvedValueOnce({
+        status: "completed",
+        data: { images: [{ url: "https://cdn.test/timeout-retry-success.png" }] },
+      });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationSuccess,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-timeout-retry", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationFailure).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Retrying status...");
+
+    await vi.advanceTimersByTimeAsync(6_000);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "task-timeout-retry",
+        provider: "fal",
+        resultUrls: ["https://cdn.test/timeout-retry-success.png"],
+      })
+    );
+    expect(output.taskState).toBe("success");
+    expect(output.previewUrl).toBe("https://cdn.test/timeout-retry-success.png");
+  });
+
   it("skips polling when the output was removed before the poll starts", async () => {
     const updateOutputById = vi.fn();
     const notifyGenerationFailure = vi.fn();

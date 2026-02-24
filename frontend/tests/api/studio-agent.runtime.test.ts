@@ -547,6 +547,89 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     );
   });
 
+  it("keeps prompt-only response parity between single-stage and legacy fallback", async () => {
+    const requestBody = {
+      clientSessionKey: "session-1",
+      messages: [{ role: "user", content: "cinematic portrait with soft haze" }],
+      context: {},
+    };
+
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message: "parity prompt output",
+                  actions: { apply_prompt: "parity prompt output" },
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const singleStageResponse = createMockResponse();
+    await studioAgentHandler(
+      {
+        method: "POST",
+        body: requestBody,
+      } as never,
+      singleStageResponse as never
+    );
+
+    const singleStagePayload = singleStageResponse.json.mock.calls.at(-1)?.[0] as
+      | { message?: string; actions?: { applyPrompt?: string; variations?: string[] } }
+      | undefined;
+    expect(singleStageResponse.status).toHaveBeenCalledWith(200);
+    expect(singleStagePayload?.message).toBe("parity prompt output");
+    expect(singleStagePayload?.actions).toEqual({ applyPrompt: "parity prompt output" });
+
+    process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED = "true";
+    runThinkerFormatterTurnMock.mockResolvedValueOnce({
+      ok: true,
+      result: {
+        parsed: {
+          message: "parity prompt output",
+          actions: {
+            applyPrompt: "parity prompt output",
+            variations: ["unused variation"],
+            referenceCard: {
+              title: "Prompt",
+              prompt: "parity prompt output",
+            },
+          },
+        },
+        nextCanonical: "parity prompt output",
+        semanticStatus: "ready",
+        usage: {},
+      },
+    });
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      new Response("upstream unavailable", { status: 503 })
+    );
+
+    const fallbackResponse = createMockResponse();
+    await studioAgentHandler(
+      {
+        method: "POST",
+        body: requestBody,
+      } as never,
+      fallbackResponse as never
+    );
+
+    const fallbackPayload = fallbackResponse.json.mock.calls.at(-1)?.[0] as
+      | { message?: string; actions?: { applyPrompt?: string; variations?: string[] } }
+      | undefined;
+    expect(runThinkerFormatterTurnMock).toHaveBeenCalled();
+    expect(fallbackResponse.status).toHaveBeenCalledWith(200);
+    expect(fallbackPayload?.message).toBe("parity prompt output");
+    expect(fallbackPayload?.actions).toEqual({ applyPrompt: "parity prompt output" });
+  });
+
   it("rejects client-provided non-user/assistant roles", async () => {
     const req = {
       method: "POST",

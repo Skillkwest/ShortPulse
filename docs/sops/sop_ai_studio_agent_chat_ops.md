@@ -58,7 +58,8 @@ Prompt ownership rule:
 - Canonical write policy: upsert only on successful non-refusal turns.
 - Single-stage default: one model call handles text-only and mixed/image turns in the canonical path; legacy V2 is an optional rollback fallback only.
 - Size and source checks: `safeContext` and `buildAgentContext` drop non-https URLs and enforce payload limits before send.
-- Fallbacks: If API errors, `useAiAgent` surfaces the error string; UI shows inline error under the prompt step and leaves the previous prompt intact.
+- Fallbacks: safety refusals and runtime/provider failures now return normal assistant responses (`200`) so prompt-step UI stays in chat lane with no transport-style error banner.
+- Explicit errors remain for auth/config/invalid-request lanes (feature disabled, missing key, malformed payload, auth denial), and `useAiAgent` surfaces those error strings.
 - Agent disable path: when feature flag is off, chat is hidden/disabled in UI and API returns 503; users continue through non-agent prompt generation paths.
 - No-question policy: questions are removed from prompt contracts, action parsing, and UI chips.
 
@@ -70,6 +71,7 @@ Prompt ownership rule:
 - ✅ Oversize media: drop a >350 KB image → request should omit media and return a text-only refinement.
 - ✅ Drift guard: send canonical prompt “sunset bike” then “make it a car” and ensure preserved details unless explicitly changed.
 - ✅ Refusal path: refusal returns `I cannot describe this.` with empty actions and does not overwrite canonical prompt.
+- ✅ Runtime fallback path: force provider 503/timeout and confirm assistant fallback text returns with `200` and no prompt-step transport error.
 
 ## Known gaps / follow-ups
 - No transcript persistence beyond session memory; only `clientSessionKey` persists for canonical continuity.

@@ -1,8 +1,11 @@
+import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
+
 export type StudioAgentTelemetryStatus = "success" | "refuse" | "error";
 export type StudioAgentTelemetryOutcomeClass =
   | "success_prompt"
   | "refusal_model"
   | "refusal_safety"
+  | "fallback_infra"
   | "upstream_error"
   | "route_error";
 export type StudioAgentSafetyTelemetryOutcome = "pass" | "rewritten" | "refusal";
@@ -17,8 +20,10 @@ export const emitStudioAgentTurnTelemetry = ({
   model,
   outcomeClass,
   retryUsed,
+  retryCount,
   totalLatencyMs,
   stageLatencyMs,
+  fallbackReason,
   safetyOutcome,
   safetySource,
   safetyFallback,
@@ -31,8 +36,10 @@ export const emitStudioAgentTurnTelemetry = ({
   model: string;
   outcomeClass: StudioAgentTelemetryOutcomeClass;
   retryUsed: boolean;
+  retryCount?: number;
   totalLatencyMs: number;
   stageLatencyMs: Record<string, number>;
+  fallbackReason?: string;
   safetyOutcome?: StudioAgentSafetyTelemetryOutcome;
   safetySource?: StudioAgentSafetyTelemetrySource;
   safetyFallback?: boolean;
@@ -48,8 +55,10 @@ export const emitStudioAgentTurnTelemetry = ({
       model,
       outcome_class: outcomeClass,
       retry_used: retryUsed,
+      ...(typeof retryCount === "number" ? { retry_count: retryCount } : {}),
       latency_ms_total: totalLatencyMs,
       latency_ms_stage: stageLatencyMs,
+      ...(fallbackReason ? { fallback_reason: fallbackReason } : {}),
       ...(safetyOutcome ? { safety_outcome: safetyOutcome } : {}),
       ...(safetySource ? { safety_source: safetySource } : {}),
       ...(typeof safetyFallback === "boolean" ? { safety_fallback: safetyFallback } : {}),
@@ -83,6 +92,19 @@ export const buildStudioAgentRouteFailurePayload = ({
 }) => ({
   error: "Agent call failed",
   detail,
+  traceId,
+});
+
+export const buildStudioAgentInfraFallbackPayload = ({
+  traceId,
+  canonicalPrompt,
+}: {
+  traceId: string;
+  canonicalPrompt: string | null;
+}) => ({
+  message: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
+  actions: undefined,
+  canonicalPrompt,
   traceId,
 });
 

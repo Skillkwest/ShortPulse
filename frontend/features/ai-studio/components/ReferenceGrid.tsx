@@ -16,6 +16,7 @@ import {
   PERF_FLAG_REFERENCE_GRID_DYNAMIC_VIRTUALIZATION,
   PERF_FLAG_REFERENCE_GRID_GLOBAL_MEDIA_BUDGET,
   PERF_FLAG_REFERENCE_GRID_HARD_VIEWPORT_CAP,
+  PERF_FLAG_REFERENCE_GRID_LOADING_PLACEHOLDER_TIMEOUT,
   PERF_FLAG_REFERENCE_GRID_MEMORY_GUARD,
   PERF_FLAG_REFERENCE_GRID_PERF_WATCHDOG,
   PERF_FLAG_REFERENCE_GRID_RENDER_COMMIT_TELEMETRY,
@@ -76,9 +77,6 @@ const REFERENCE_AUTOPLAY_SMALL_SCREEN_QUERY = "(max-width: 900px)";
 const REFERENCE_AUTOPLAY_DETACH_DELAY_MS = 1400;
 const REFERENCE_HIGH_DENSITY_CARD_COUNT = 180;
 const REFERENCE_PRIORITY_HYDRATION_ROWS = 3;
-const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_0 = 6;
-const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_1 = 6;
-const REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_2 = 3;
 const REFERENCE_PREVIEW_QUALITY_RECOVERY_STABLE_MS = 15_000;
 const REFERENCE_PREVIEW_QUALITY_MIN_CHANGE_INTERVAL_MS = 4_000;
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW = PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW;
@@ -91,6 +89,8 @@ const REFERENCE_GRID_FLAG_MEMORY_GUARD = PERF_FLAG_REFERENCE_GRID_MEMORY_GUARD;
 const REFERENCE_GRID_FLAG_PERF_WATCHDOG = PERF_FLAG_REFERENCE_GRID_PERF_WATCHDOG;
 const REFERENCE_GRID_FLAG_HARD_VIEWPORT_CAP = PERF_FLAG_REFERENCE_GRID_HARD_VIEWPORT_CAP;
 const REFERENCE_GRID_FLAG_CSS_CONTAINMENT = PERF_FLAG_REFERENCE_GRID_CSS_CONTAINMENT;
+const REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT =
+  PERF_FLAG_REFERENCE_GRID_LOADING_PLACEHOLDER_TIMEOUT;
 const REFERENCE_GRID_FLAG_GLOBAL_MEDIA_BUDGET = PERF_FLAG_REFERENCE_GRID_GLOBAL_MEDIA_BUDGET;
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY =
   PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY;
@@ -582,16 +582,11 @@ export function ReferenceGrid({
     previewSwapTelemetryRef,
     setPreviewSwapMetrics,
   });
-  const { loadingCardIdSet, animatedSpinnerIdSet, loadingIdsLength } =
-    useReferenceGridLoadingVisualController({
-      allVisibleCardItems,
-      loadedMap,
-      decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
-      perfDegradeLevel: perfWatchdog.degradeLevel,
-      maxAnimatedSpinnersLevel0: REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_0,
-      maxAnimatedSpinnersLevel1: REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_1,
-      maxAnimatedSpinnersLevel2: REFERENCE_MAX_ANIMATED_SPINNERS_LEVEL_2,
-    });
+  const { loadingCardIdSet, loadingIdsLength } = useReferenceGridLoadingVisualController({
+    allVisibleCardItems,
+    loadedMap,
+    decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
+  });
 
   useReferenceGridHydrationQueueController({
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
@@ -670,6 +665,7 @@ export function ReferenceGrid({
     setLoadedMap,
     runNonUrgentUpdate,
     onOutputMediaLoaded,
+    stabilizeLoadingVisual: REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT,
   });
 
   const { handleCanvasDrop, handleCanvasDragOver, handleCanvasDragEnter, handleCanvasDragLeave } =
@@ -738,7 +734,6 @@ export function ReferenceGrid({
     autoplayEnabledIdSet,
     linkedPromptReferenceIdSet,
     loadingCardIdSet,
-    animatedSpinnerIdSet,
     perfDegradeLevel: perfWatchdog.degradeLevel,
     visibleCardItems,
     curatedVisibleCardItems,
@@ -766,7 +761,7 @@ export function ReferenceGrid({
   return (
     <div
       ref={panelRef}
-      className={`panel ai-panel ai-preview-panel reference-canvas-panel${canvasDropMode !== "none" ? " is-drop-active" : ""}${canvasDropMode === "text" ? " is-drop-active-text" : ""}${canvasDropMode === "files" ? " is-drop-active-files" : ""}${isHighDensity ? " is-high-density" : ""}${denseVisualModeEnabled ? " is-dense-visual-mode" : ""}${REFERENCE_GRID_FLAG_CSS_CONTAINMENT ? " is-css-containment-mode" : ""}${perfWatchdog.degradeLevel >= 1 ? " is-grid-pressure-mode" : ""}${isCuratedSplitEnabled ? " is-curated-split-mode" : ""}`}
+      className={`panel ai-panel ai-preview-panel reference-canvas-panel${canvasDropMode !== "none" ? " is-drop-active" : ""}${canvasDropMode === "text" ? " is-drop-active-text" : ""}${canvasDropMode === "files" ? " is-drop-active-files" : ""}${isHighDensity ? " is-high-density" : ""}${denseVisualModeEnabled ? " is-dense-visual-mode" : ""}${REFERENCE_GRID_FLAG_CSS_CONTAINMENT ? " is-css-containment-mode" : ""}${REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT ? " is-loading-placeholder-timeout-mode" : ""}${perfWatchdog.degradeLevel >= 1 ? " is-grid-pressure-mode" : ""}${isCuratedSplitEnabled ? " is-curated-split-mode" : ""}`}
       data-selection-theme={selectionTheme}
       data-grid-surface="reference-grid"
       data-rendered-item-count={renderedItemCount}

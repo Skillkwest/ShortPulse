@@ -18,10 +18,24 @@ export const isCompletedStatus = (status: string | null): boolean =>
 export const isFailedStatus = (status: string | null): boolean =>
   Boolean(status && failedStatuses.has(status));
 
+const parseBooleanHeader = (value: string | null): boolean | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return null;
+};
+
 export const isRetryableUpstreamResponse = (response: Response): boolean => {
+  const needsRetry = parseBooleanHeader(response.headers.get("x-fal-needs-retry"));
+  if (needsRetry === false) return false;
+  if (needsRetry === true) return true;
+
+  const retryableHeader = parseBooleanHeader(response.headers.get("x-fal-retryable"));
+  if (retryableHeader === true) return true;
+
   if (retryableUpstreamStatuses.has(response.status)) return true;
-  const retryableHeader = response.headers.get("x-fal-retryable");
-  return typeof retryableHeader === "string" && retryableHeader.trim().toLowerCase() === "true";
+  return false;
 };
 
 export const resolveSuccessfulPayloadStatus = (...candidates: unknown[]): string => {

@@ -66,10 +66,12 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 
 ## Error handling & fallbacks
 - If the feature flag or key is missing, show a single-line banner and render the legacy textarea with no chat.
-- Network/LLM errors: show inline retry chip; preserve last draft message.
+- Runtime/provider transient failures (timeouts/network/429/5xx): return assistant fallback text with `200` and keep the previous prompt intact.
+- Explicit auth/config/request failures (missing key, disabled route, invalid payload/auth): keep explicit non-200 errors for debugging.
 - Oversize media payloads: drop images, tell the agent “media omitted due to size” in `context`.
 - Provider refusal/safety: display the refusal and keep the previous prompt intact.
 - Canonical refusal copy: `I cannot describe this.` with empty actions.
+- Infra fallback copy: `I can't process that request right now. Please try again.` with empty actions.
 
 ## Data handling & safety
 - Never send raw file blobs to the LLM route; convert local previews to signed/public `https://` URLs first.

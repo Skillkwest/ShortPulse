@@ -4,6 +4,10 @@
  */
 import React from "react";
 import type { StudioOutput } from "../../types";
+import {
+  isReferenceOutputFailing,
+  isReferenceOutputLoadingTaskState,
+} from "../logic/referenceGridLoadingState";
 
 type LoadingVisualCard = {
   item: StudioOutput;
@@ -17,47 +21,36 @@ type UseReferenceGridLoadingVisualControllerArgs = {
   allVisibleCardItems: LoadingVisualCard[];
   loadedMap: Record<string, boolean>;
   decodeBudgetEnabled: boolean;
-  perfDegradeLevel: 0 | 1 | 2;
-  maxAnimatedSpinnersLevel0: number;
-  maxAnimatedSpinnersLevel1: number;
-  maxAnimatedSpinnersLevel2: number;
 };
 
 type UseReferenceGridLoadingVisualControllerResult = {
   loadingCardIdSet: Set<string>;
-  animatedSpinnerIdSet: Set<string>;
   loadingIdsLength: number;
 };
 
 /**
- * Returns loading-card ids plus spinner animation ids with unchanged prioritization semantics.
+ * Returns loading-card ids for placeholder/spinner visual rendering.
  */
 export const useReferenceGridLoadingVisualController = ({
   allVisibleCardItems,
   loadedMap,
   decodeBudgetEnabled,
-  perfDegradeLevel,
-  maxAnimatedSpinnersLevel0,
-  maxAnimatedSpinnersLevel1,
-  maxAnimatedSpinnersLevel2,
 }: UseReferenceGridLoadingVisualControllerArgs): UseReferenceGridLoadingVisualControllerResult => {
-  const loadingCardState = React.useMemo(() => {
+  const loadingIds = React.useMemo(() => {
     const nextLoadingIds: string[] = [];
-    const nextSpinnerCandidateIds: string[] = [];
     allVisibleCardItems.forEach((card) => {
-      const isFailing = card.item.taskState === "fail";
-      const isLoading =
+      const isFailing = isReferenceOutputFailing(card.item);
+      const isLoadingTaskState =
         !isFailing &&
-        (card.item.taskState === "running" ||
-          card.item.taskState === "pending" ||
-          (card.item.taskState === "success" && !card.cardPreviewUrl && !card.item.previewText));
-      if (isLoading) {
-        nextSpinnerCandidateIds.push(card.item.id);
-      }
+        isReferenceOutputLoadingTaskState({
+          taskState: card.item.taskState,
+          previewText: card.item.previewText,
+          cardPreviewUrl: card.cardPreviewUrl,
+        });
       const isLoaded = loadedMap[card.item.id];
       const shouldShowLoading =
         !isFailing &&
-        (isLoading ||
+        (isLoadingTaskState ||
           (!isLoaded && !card.item.previewText) ||
           (card.isImagePreview &&
             decodeBudgetEnabled &&
@@ -67,40 +60,13 @@ export const useReferenceGridLoadingVisualController = ({
         nextLoadingIds.push(card.item.id);
       }
     });
-    return {
-      loadingIds: nextLoadingIds,
-      spinnerCandidateIds: nextSpinnerCandidateIds,
-    };
+    return nextLoadingIds;
   }, [allVisibleCardItems, decodeBudgetEnabled, loadedMap]);
 
-  const loadingCardIdSet = React.useMemo(
-    () => new Set(loadingCardState.loadingIds),
-    [loadingCardState.loadingIds]
-  );
-  const maxAnimatedSpinners = React.useMemo(() => {
-    if (perfDegradeLevel >= 2) return maxAnimatedSpinnersLevel2;
-    if (perfDegradeLevel >= 1) return maxAnimatedSpinnersLevel1;
-    return maxAnimatedSpinnersLevel0;
-  }, [
-    maxAnimatedSpinnersLevel0,
-    maxAnimatedSpinnersLevel1,
-    maxAnimatedSpinnersLevel2,
-    perfDegradeLevel,
-  ]);
-  // Pending outputs are inserted at index 0; reverse yields FIFO by generation age.
-  const pendingSpinnerQueueIds = React.useMemo(
-    () => [...loadingCardState.spinnerCandidateIds].reverse(),
-    [loadingCardState.spinnerCandidateIds]
-  );
-  const spinnerSlotIds = React.useMemo(
-    () => pendingSpinnerQueueIds.slice(0, Math.max(1, maxAnimatedSpinners)),
-    [maxAnimatedSpinners, pendingSpinnerQueueIds]
-  );
-  const animatedSpinnerIdSet = React.useMemo(() => new Set(spinnerSlotIds), [spinnerSlotIds]);
+  const loadingCardIdSet = React.useMemo(() => new Set(loadingIds), [loadingIds]);
 
   return {
     loadingCardIdSet,
-    animatedSpinnerIdSet,
-    loadingIdsLength: loadingCardState.loadingIds.length,
+    loadingIdsLength: loadingIds.length,
   };
 };

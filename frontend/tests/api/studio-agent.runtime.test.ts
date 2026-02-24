@@ -6,6 +6,7 @@ const runThinkerFormatterTurnMock = vi.fn();
 const readAgentConversationCanonicalPromptMock = vi.fn();
 const upsertAgentConversationCanonicalPromptMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+let apiUserCounter = 0;
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -83,7 +84,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
     delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
 
-    requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
+    requireApiUserMock.mockImplementation(async () => {
+      apiUserCounter += 1;
+      return { id: `user-${apiUserCounter}`, email: "user@example.com" };
+    });
     readAgentConversationCanonicalPromptMock.mockResolvedValue(null);
     upsertAgentConversationCanonicalPromptMock.mockResolvedValue("saved prompt");
     runThinkerFormatterTurnMock.mockResolvedValue({
@@ -232,7 +236,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       })
     );
     expect(readAgentConversationCanonicalPromptMock).toHaveBeenCalledWith({
-      userId: "user-1",
+      userId: expect.stringMatching(/^user-\d+$/),
       conversationId: "conv-1",
     });
     expect(upsertAgentConversationCanonicalPromptMock).not.toHaveBeenCalled();
@@ -473,12 +477,12 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     );
   });
 
-  it("returns upstream error when responses fails and chat fallback is disabled", async () => {
+  it("maps transient upstream failures to assistant fallback when chat fallback is disabled", async () => {
     process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED = "true";
     process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED = "false";
-    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-      new Response("responses unavailable", { status: 503 })
-    );
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(new Response("responses unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response("responses unavailable", { status: 503 }));
 
     const req = {
       method: "POST",
@@ -492,15 +496,19 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
 
     await studioAgentHandler(req as never, res as never);
 
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0])).toBe(
       "https://api.openai.com/v1/responses"
     );
-    expect(res.status).toHaveBeenCalledWith(503);
+    expect(String((fetch as ReturnType<typeof vi.fn>).mock.calls[1]?.[0])).toBe(
+      "https://api.openai.com/v1/responses"
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: "Upstream error",
-        detail: "responses unavailable",
+        message: "I can't process that request right now. Please try again.",
+        actions: undefined,
+        canonicalPrompt: null,
       })
     );
   });
@@ -683,11 +691,44 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(payload?.message).toBeUndefined();
   });
 
+  it("maps transient v2 upstream failures to assistant fallback", async () => {
+    process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "false";
+    process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "false";
+    runThinkerFormatterTurnMock.mockResolvedValue({
+      ok: false,
+      status: 503,
+      stage: "thinker",
+      detail: "upstream unavailable",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "misty mountain village" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "I can't process that request right now. Please try again.",
+        actions: undefined,
+      })
+    );
+  });
+
   it("uses legacy V2 fallback only when explicitly enabled", async () => {
     process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED = "true";
-    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-      new Response("upstream unavailable", { status: 503 })
-    );
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(new Response("upstream unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response("upstream unavailable", { status: 503 }));
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
 
     const req = {
@@ -829,9 +870,9 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         usage: {},
       },
     });
-    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      new Response("upstream unavailable", { status: 503 })
-    );
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(new Response("upstream unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response("upstream unavailable", { status: 503 }));
 
     const fallbackResponse = createMockResponse();
     await studioAgentHandler(
@@ -849,6 +890,31 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(fallbackResponse.status).toHaveBeenCalledWith(200);
     expect(fallbackPayload?.message).toBe("parity prompt output");
     expect(fallbackPayload?.actions).toEqual({ applyPrompt: "parity prompt output" });
+  });
+
+  it("returns assistant fallback for route-level runtime exceptions", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("socket hang up"));
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "stormy portrait scene" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "I can't process that request right now. Please try again.",
+        actions: undefined,
+      })
+    );
+    expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
   });
 
   it("rejects client-provided non-user/assistant roles", async () => {

@@ -185,6 +185,37 @@ describe("useAiAgent", () => {
     );
   });
 
+  it("treats infra fallback payloads as assistant responses without setting error", async () => {
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "I can't process that request right now. Please try again.",
+          actions: undefined,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "describe this image",
+        payloadText: "describe this image",
+      });
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "I can't process that request right now. Please try again.",
+      })
+    );
+  });
+
   it("surfaces structured infra errors in hook state", async () => {
     fetchWithAuthMock.mockResolvedValue(
       new Response(JSON.stringify({ error: "Upstream error", detail: "invalid api key" }), {

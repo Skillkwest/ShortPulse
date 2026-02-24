@@ -103,8 +103,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const safetyPostProcessEnabled = process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED !== "false";
   const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
-  const { openAiUrl, openAiModel, openAiVisionModel, openAiThinkerModel, openAiFormatterModel } =
-    openAiConfig;
+  const {
+    openAiUrl,
+    openAiModel,
+    openAiVisionModel,
+    openAiThinkerModel,
+    openAiFormatterModel,
+    upstreamRetryMaxAttempts,
+    upstreamRetryBaseDelayMs,
+    upstreamRetryMaxDelayMs,
+  } = openAiConfig;
   const requestTimeoutMs = openAiConfig.requestTimeoutMs;
 
   const storedCanonical = await readStudioAgentCanonicalPrompt({
@@ -191,6 +199,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     thinkerPrompt,
     formatterPrompt,
     requestTimeoutMs,
+    upstreamRetryMaxAttempts,
+    upstreamRetryBaseDelayMs,
+    upstreamRetryMaxDelayMs,
     singleStageEnabled,
     legacyV2FallbackEnabled,
     textFastPathEnabled,

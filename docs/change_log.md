@@ -1260,3 +1260,21 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - run `22314737402` (success)
 - Added Phase 6 closeout evidence artifact:
   - `docs/planning/evidence/reference-grid-modularization/phase-6/2026-02-23-phase-06-guardrails-and-cleanup-closeout.md`
+
+## 2026-02-24 (AI Studio agent failure-path hardening)
+- Added shared failure-policy module `frontend/features/agent-runtime/studioAgentFailurePolicy.ts` to centralize failure classification (`safety_refusal`, `infra_transient`, `infra_runtime`, `auth_config`, `invalid_request`), user-lane resolution, and bounded retry backoff+jitter helpers.
+- Hardened `/api/ai/studio-agent` coordinator to:
+  - apply bounded retries for transient upstream failures,
+  - keep safety refusal + SFW rewrite behavior,
+  - return assistant fallback success payloads (`200`) for runtime/provider failure lanes,
+  - preserve explicit non-200 errors for auth/config/invalid-request lanes,
+  - emit telemetry for fallback outcomes (`outcome_class: fallback_infra`) with retry metadata.
+- Hardened `/api/ai/describe-image` legacy service to mirror the same user-lane policy: safety refusal/rewrite as success, runtime/provider failures as safe fallback description (`200`), explicit non-200 for validation/auth/config errors.
+- Expanded regression coverage:
+  - `frontend/features/agent-runtime/__tests__/studioAgentFailurePolicy.test.ts`
+  - `frontend/tests/api/studio-agent.runtime.test.ts`
+  - `frontend/tests/api/describe-image.route.test.ts`
+  - `frontend/features/ai-agent/__tests__/useAiAgent.test.ts`
+- Updated ops docs to reflect the new failure contract:
+  - `docs/sops/sop_ai_studio_agent.md`
+  - `docs/sops/sop_ai_studio_agent_chat_ops.md`

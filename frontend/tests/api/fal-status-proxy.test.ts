@@ -571,4 +571,83 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({ outcome: "fail" })
     );
   });
+
+  it("treats non-retryable result upstream failures as terminal and returns an error payload", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            detail: [
+              {
+                type: "downstream_service_error",
+                msg: "Downstream service error",
+              },
+            ],
+          }),
+          {
+            status: 500,
+            headers: {
+              "Content-Type": "application/json",
+              "x-fal-needs-retry": "false",
+            },
+          }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-result-terminal-failure" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      status: string;
+      state: string;
+      error: string;
+      request_id: string;
+      detail?: {
+        detail?: Array<{ type?: string; msg?: string }>;
+      };
+    };
+    expect(payload.status).toBe("error");
+    expect(payload.state).toBe("error");
+    expect(payload.error).toBe("Generation failed");
+    expect(payload.request_id).toBe("req-result-terminal-failure");
+    expect(payload.detail?.detail?.[0]?.type).toBe("downstream_service_error");
+    expect(payload.detail?.detail?.[0]?.msg).toBe("Downstream service error");
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        providerRequestId: "req-result-terminal-failure",
+        outcome: "fail",
+      })
+    );
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-result-terminal-failure",
+        outcome: "success",
+      })
+    );
+  });
 });

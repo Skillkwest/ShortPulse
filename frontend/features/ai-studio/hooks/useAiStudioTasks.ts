@@ -158,6 +158,13 @@ const REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_UPDATE_
 const AI_STUDIO_FLAG_RAF_STATUS_FLUSH = PERF_FLAG_RAF_STATUS_FLUSH;
 const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
 
+const normalizeProviderStateToTaskState = (state: string): StudioOutput["taskState"] => {
+  if (terminalSuccessStates.has(state)) return "success";
+  if (terminalFailureStates.has(state)) return "fail";
+  if (nonTerminalStates.has(state)) return "running";
+  return "running";
+};
+
 type QueuedOutputUpdate = {
   updater: (item: StudioOutput) => StudioOutput;
   nonUrgent: boolean;
@@ -1049,7 +1056,7 @@ export function useAiStudioTasks({
               return;
             }
 
-            const nextTaskState = (state as StudioOutput["taskState"]) ?? "running";
+            const nextTaskState = normalizeProviderStateToTaskState(state);
             const now = Date.now();
             const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
             const shouldSkipProgressUpdate =

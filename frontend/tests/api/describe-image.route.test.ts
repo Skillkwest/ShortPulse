@@ -184,6 +184,48 @@ describe("POST /api/ai/describe-image", () => {
     );
   });
 
+  it("returns safe fallback description when transient upstream failures persist", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: async () => "Service unavailable",
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: async () => "Service unavailable",
+      });
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/transient-persist.png" },
+    };
+    const res = createMockResponse();
+
+    await describeImageHandler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "I can't process that request right now. Please try again.",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.image_describe.upstream_unavailable",
+        statusCode: 503,
+      })
+    );
+  });
+
   it("maps describe-image upstream safety failures to refusal success payload", async () => {
     const fetchMock = fetch as ReturnType<typeof vi.fn>;
     fetchMock

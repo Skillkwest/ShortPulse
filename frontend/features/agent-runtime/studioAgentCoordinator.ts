@@ -7,10 +7,19 @@ import { writeStudioAgentCanonicalPrompt } from "./studioAgentCanonicalPersisten
 import { formatStudioAgentErrorMessage } from "./studioAgentOpenAiGateway";
 import { executeStudioAgentFastPathTurn } from "./studioAgentFastPathTurn";
 import {
+  classifyStudioAgentFailure,
+  computeStudioAgentRetryDelayMs,
+  resolveStudioAgentFailureResolution,
+  shouldRetryStudioAgentFailure,
+  type StudioAgentFailureClass,
+  waitForStudioAgentRetry,
+} from "./studioAgentFailurePolicy";
+import {
   postProcessStudioAgentSafetyText,
   type StudioAgentSafetyPostProcessOutcome,
 } from "./studioAgentSafetyPostProcess";
 import {
+  buildStudioAgentInfraFallbackPayload,
   buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
@@ -30,6 +39,11 @@ type OpenAIChatMessage =
         | { type: "image_url"; image_url: { url: string; detail?: "low" | "high" } }
       >;
     };
+
+type StudioAgentFastPathSuccessTurn = Extract<
+  Awaited<ReturnType<typeof executeStudioAgentFastPathTurn>>,
+  { ok: true }
+>;
 
 export const buildStudioAgentOpenAiMessages = ({
   messages,
@@ -93,6 +107,9 @@ export const executeStudioAgentCoordinator = async ({
   thinkerPrompt,
   formatterPrompt,
   requestTimeoutMs,
+  upstreamRetryMaxAttempts,
+  upstreamRetryBaseDelayMs,
+  upstreamRetryMaxDelayMs,
   singleStageEnabled,
   legacyV2FallbackEnabled,
   textFastPathEnabled,
@@ -122,6 +139,9 @@ export const executeStudioAgentCoordinator = async ({
   thinkerPrompt: string | null;
   formatterPrompt: string | null;
   requestTimeoutMs: number;
+  upstreamRetryMaxAttempts: number;
+  upstreamRetryBaseDelayMs: number;
+  upstreamRetryMaxDelayMs: number;
   singleStageEnabled: boolean;
   legacyV2FallbackEnabled: boolean;
   textFastPathEnabled: boolean;
@@ -164,6 +184,173 @@ export const executeStudioAgentCoordinator = async ({
     return "pass";
   };
 
+  const resolveFailureClass = ({
+    status,
+    detail,
+    safetyRefusal,
+  }: {
+    status: number;
+    detail: string;
+    safetyRefusal: boolean;
+  }): StudioAgentFailureClass =>
+    classifyStudioAgentFailure({
+      status,
+      detail,
+      safetyRefusal,
+    });
+
+  const buildInfraFallbackResponse = ({
+    path,
+    model,
+    retryUsed,
+    retryCount,
+    fallbackReason,
+  }: {
+    path: string;
+    model: string;
+    retryUsed: boolean;
+    retryCount: number;
+    fallbackReason: string;
+  }): { status: number; payload: Record<string, unknown> } => {
+    emitStudioAgentTurnTelemetry({
+      flow: orchestration.flow,
+      path,
+      status: "success",
+      model,
+      outcomeClass: "fallback_infra",
+      retryUsed,
+      retryCount,
+      totalLatencyMs: Date.now() - requestStartedAt,
+      stageLatencyMs,
+      fallbackReason,
+    });
+    return {
+      status: 200,
+      payload: buildStudioAgentInfraFallbackPayload({
+        traceId,
+        canonicalPrompt: effectiveCanonical,
+      }),
+    };
+  };
+
+  const resolveFailureResponse = ({
+    status,
+    detail,
+    stage,
+    path,
+    model,
+    retryUsed,
+    retryCount,
+    safetyRefusal,
+  }: {
+    status: number;
+    detail: string;
+    stage?: string;
+    path: string;
+    model: string;
+    retryUsed: boolean;
+    retryCount: number;
+    safetyRefusal: boolean;
+  }): {
+    status: number;
+    payload: Record<string, unknown>;
+    failureClass: StudioAgentFailureClass;
+  } => {
+    const failureClass = resolveFailureClass({
+      status,
+      detail,
+      safetyRefusal,
+    });
+    const failureResolution = resolveStudioAgentFailureResolution({ failureClass });
+    if (failureResolution === "canonical_refusal") {
+      emitStudioAgentTurnTelemetry({
+        flow: orchestration.flow,
+        path,
+        status: "refuse",
+        model,
+        outcomeClass: "refusal_safety",
+        retryUsed,
+        retryCount,
+        totalLatencyMs: Date.now() - requestStartedAt,
+        stageLatencyMs,
+      });
+      return {
+        status: 200,
+        payload: buildStudioAgentSafetyRefusalPayload({
+          traceId,
+          canonicalPrompt: effectiveCanonical,
+        }),
+        failureClass,
+      };
+    }
+    if (failureResolution === "assistant_fallback") {
+      return {
+        ...buildInfraFallbackResponse({
+          path,
+          model,
+          retryUsed,
+          retryCount,
+          fallbackReason: stage ?? (detail.slice(0, 120) || "runtime_failure"),
+        }),
+        failureClass,
+      };
+    }
+    emitStudioAgentTurnTelemetry({
+      flow: orchestration.flow,
+      path,
+      status: "error",
+      model,
+      outcomeClass: "upstream_error",
+      retryUsed,
+      retryCount,
+      totalLatencyMs: Date.now() - requestStartedAt,
+      stageLatencyMs,
+    });
+    return {
+      status,
+      payload: buildStudioAgentUpstreamErrorPayload({
+        stage,
+        detail,
+        traceId,
+      }),
+      failureClass,
+    };
+  };
+
+  const maybeRetryTurnFailure = async ({
+    status,
+    detail,
+    safetyRefusal,
+    attempt,
+  }: {
+    status: number;
+    detail: string;
+    safetyRefusal: boolean;
+    attempt: number;
+  }): Promise<StudioAgentFailureClass | null> => {
+    const failureClass = resolveFailureClass({
+      status,
+      detail,
+      safetyRefusal,
+    });
+    if (
+      !shouldRetryStudioAgentFailure({
+        failureClass,
+        attempt,
+        maxAttempts: upstreamRetryMaxAttempts,
+      })
+    ) {
+      return null;
+    }
+    const retryDelayMs = computeStudioAgentRetryDelayMs({
+      attempt,
+      baseDelayMs: upstreamRetryBaseDelayMs,
+      maxDelayMs: upstreamRetryMaxDelayMs,
+    });
+    await waitForStudioAgentRetry(retryDelayMs);
+    return failureClass;
+  };
+
   const finalizeSuccessfulTurn = async ({
     parsed,
     refusal,
@@ -171,6 +358,7 @@ export const executeStudioAgentCoordinator = async ({
     usage,
     model,
     retryUsed,
+    retryCount,
     path,
     writeFailureStage,
   }: {
@@ -180,6 +368,7 @@ export const executeStudioAgentCoordinator = async ({
     usage: Record<string, unknown> | undefined;
     model: string;
     retryUsed: boolean;
+    retryCount: number;
     path: string;
     writeFailureStage:
       | "canonical_write_v2"
@@ -300,6 +489,7 @@ export const executeStudioAgentCoordinator = async ({
           : "refusal_model"
         : "success_prompt",
       retryUsed,
+      retryCount,
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
       safetyOutcome: safetyOutcome === "pass" ? undefined : safetyOutcome,
@@ -325,7 +515,9 @@ export const executeStudioAgentCoordinator = async ({
   ): Promise<{ status: number; payload: Record<string, unknown> } | null> => {
     if (!thinkerPrompt || !formatterPrompt) return null;
 
-    const v2Turn = await executeStudioAgentV2Turn({
+    let attempt = 1;
+    let retryCount = 0;
+    let v2Turn = await executeStudioAgentV2Turn({
       apiKey,
       openAiUrl,
       thinkerModel: openAiThinkerModel,
@@ -342,48 +534,47 @@ export const executeStudioAgentCoordinator = async ({
       markStage,
     });
 
-    if (!v2Turn.ok) {
+    while (!v2Turn.ok) {
       const safetyRefusal = isStudioAgentSafetyRefusalUpstreamError({
         status: v2Turn.status,
         detail: v2Turn.detail,
       });
-      if (safetyRefusal) {
-        emitStudioAgentTurnTelemetry({
-          flow: orchestration.flow,
-          path,
-          status: "refuse",
-          model: openAiThinkerModel,
-          outcomeClass: "refusal_safety",
-          retryUsed: false,
-          totalLatencyMs: Date.now() - requestStartedAt,
-          stageLatencyMs,
-        });
-        return {
-          status: 200,
-          payload: buildStudioAgentSafetyRefusalPayload({
-            traceId,
-            canonicalPrompt: effectiveCanonical,
-          }),
-        };
-      }
-      emitStudioAgentTurnTelemetry({
-        flow: orchestration.flow,
-        path,
-        status: "error",
-        model: openAiThinkerModel,
-        outcomeClass: "upstream_error",
-        retryUsed: false,
-        totalLatencyMs: Date.now() - requestStartedAt,
-        stageLatencyMs,
-      });
-      return {
+      const retryClass = await maybeRetryTurnFailure({
         status: v2Turn.status,
-        payload: buildStudioAgentUpstreamErrorPayload({
-          stage: v2Turn.stage,
+        detail: v2Turn.detail,
+        safetyRefusal,
+        attempt,
+      });
+      if (!retryClass) {
+        return resolveFailureResponse({
+          status: v2Turn.status,
           detail: v2Turn.detail,
-          traceId,
-        }),
-      };
+          stage: v2Turn.stage,
+          path,
+          model: openAiThinkerModel,
+          retryUsed: retryCount > 0,
+          retryCount,
+          safetyRefusal,
+        });
+      }
+      retryCount += 1;
+      attempt += 1;
+      v2Turn = await executeStudioAgentV2Turn({
+        apiKey,
+        openAiUrl,
+        thinkerModel: openAiThinkerModel,
+        formatterModel: openAiFormatterModel,
+        thinkerPrompt,
+        formatterPrompt,
+        timeoutMs: requestTimeoutMs,
+        orchestration,
+        context,
+        messages,
+        selectedReferences,
+        visionSummaryMap,
+        effectiveCanonical,
+        markStage,
+      });
     }
 
     let parsed = v2Turn.result.parsed;
@@ -405,16 +596,73 @@ export const executeStudioAgentCoordinator = async ({
       resolvedCanonical: resolvedTurn.resolvedCanonical,
       usage: (v2Turn.result.usage ?? undefined) as Record<string, unknown> | undefined,
       model: openAiThinkerModel,
-      retryUsed: v2Turn.result.retryUsed,
+      retryUsed: v2Turn.result.retryUsed || retryCount > 0,
+      retryCount: retryCount + (v2Turn.result.retryUsed ? 1 : 0),
       path,
       writeFailureStage: "canonical_write_v2",
     });
   };
 
-  try {
-    if (singleStageEnabled) {
-      runtimePath = "single_stage";
-      const singleStageTurn = await executeStudioAgentFastPathTurn({
+  const executeFastPathWithRetry = async ({
+    path,
+  }: {
+    path: string;
+  }): Promise<
+    | {
+        ok: true;
+        turn: StudioAgentFastPathSuccessTurn;
+        retryCount: number;
+      }
+    | {
+        ok: false;
+        response: { status: number; payload: Record<string, unknown> };
+        failureClass: StudioAgentFailureClass;
+      }
+  > => {
+    let attempt = 1;
+    let retryCount = 0;
+    let turn = await executeStudioAgentFastPathTurn({
+      apiKey,
+      openAiUrl,
+      model: openAiModel,
+      openAiMessages,
+      timeoutMs: requestTimeoutMs,
+      effectiveCanonical,
+      context,
+      messages,
+      markStage,
+    });
+
+    while (!turn.ok) {
+      const safetyRefusal = isStudioAgentSafetyRefusalUpstreamError({
+        status: turn.status,
+        detail: turn.detail,
+      });
+      const retryClass = await maybeRetryTurnFailure({
+        status: turn.status,
+        detail: turn.detail,
+        safetyRefusal,
+        attempt,
+      });
+      if (!retryClass) {
+        const resolved = resolveFailureResponse({
+          status: turn.status,
+          detail: turn.detail,
+          path,
+          model: openAiModel,
+          retryUsed: retryCount > 0,
+          retryCount,
+          safetyRefusal,
+        });
+        return {
+          ok: false,
+          response: resolved,
+          failureClass: resolved.failureClass,
+        };
+      }
+      retryCount += 1;
+      attempt += 1;
+      turn = await executeStudioAgentFastPathTurn({
         apiKey,
         openAiUrl,
         model: openAiModel,
@@ -425,62 +673,44 @@ export const executeStudioAgentCoordinator = async ({
         messages,
         markStage,
       });
+    }
 
-      if (!singleStageTurn.ok) {
-        const safetyRefusal = isStudioAgentSafetyRefusalUpstreamError({
-          status: singleStageTurn.status,
-          detail: singleStageTurn.detail,
-        });
-        if (safetyRefusal) {
-          emitStudioAgentTurnTelemetry({
-            flow: orchestration.flow,
-            path: runtimePath,
-            status: "refuse",
-            model: openAiModel,
-            outcomeClass: "refusal_safety",
-            retryUsed: false,
-            totalLatencyMs: Date.now() - requestStartedAt,
-            stageLatencyMs,
-          });
-          return {
-            status: 200,
-            payload: buildStudioAgentSafetyRefusalPayload({
-              traceId,
-              canonicalPrompt: effectiveCanonical,
-            }),
-          };
-        }
-        if (legacyV2FallbackEnabled && canUseV2Path) {
+    return {
+      ok: true,
+      turn: turn as StudioAgentFastPathSuccessTurn,
+      retryCount,
+    };
+  };
+
+  try {
+    if (singleStageEnabled) {
+      runtimePath = "single_stage";
+      const singleStageResult = await executeFastPathWithRetry({
+        path: runtimePath,
+      });
+
+      if (!singleStageResult.ok) {
+        if (
+          legacyV2FallbackEnabled &&
+          canUseV2Path &&
+          (singleStageResult.failureClass === "infra_transient" ||
+            singleStageResult.failureClass === "infra_runtime")
+        ) {
           runtimePath = "legacy_v2_fallback";
           const fallbackResult = await executeV2Path(runtimePath);
           if (fallbackResult) return fallbackResult;
         }
-        emitStudioAgentTurnTelemetry({
-          flow: orchestration.flow,
-          path: runtimePath,
-          status: "error",
-          model: openAiModel,
-          outcomeClass: "upstream_error",
-          retryUsed: false,
-          totalLatencyMs: Date.now() - requestStartedAt,
-          stageLatencyMs,
-        });
-        return {
-          status: singleStageTurn.status,
-          payload: buildStudioAgentUpstreamErrorPayload({
-            detail: singleStageTurn.detail,
-            traceId,
-          }),
-        };
+        return singleStageResult.response;
       }
 
       return await finalizeSuccessfulTurn({
-        parsed: singleStageTurn.result.parsed as Record<string, unknown>,
-        refusal: singleStageTurn.result.refusal,
-        resolvedCanonical: singleStageTurn.result.resolvedCanonical,
-        usage: singleStageTurn.result.usage as Record<string, unknown>,
+        parsed: singleStageResult.turn.result.parsed as Record<string, unknown>,
+        refusal: singleStageResult.turn.result.refusal,
+        resolvedCanonical: singleStageResult.turn.result.resolvedCanonical,
+        usage: singleStageResult.turn.result.usage as Record<string, unknown>,
         model: openAiModel,
-        retryUsed: false,
+        retryUsed: singleStageResult.retryCount > 0,
+        retryCount: singleStageResult.retryCount,
         path: runtimePath,
         writeFailureStage: "canonical_write_single_stage",
       });
@@ -493,82 +723,27 @@ export const executeStudioAgentCoordinator = async ({
     }
 
     runtimePath = orchestration.flow === "TEXT_ONLY" ? "text_fast_path" : "fallback_fast_path";
-    const fastPathTurn = await executeStudioAgentFastPathTurn({
-      apiKey,
-      openAiUrl,
-      model: openAiModel,
-      openAiMessages,
-      timeoutMs: requestTimeoutMs,
-      effectiveCanonical,
-      context,
-      messages,
-      markStage,
+    const fastPathResult = await executeFastPathWithRetry({
+      path: runtimePath,
     });
 
-    if (!fastPathTurn.ok) {
-      const safetyRefusal = isStudioAgentSafetyRefusalUpstreamError({
-        status: fastPathTurn.status,
-        detail: fastPathTurn.detail,
-      });
-      if (safetyRefusal) {
-        emitStudioAgentTurnTelemetry({
-          flow: orchestration.flow,
-          path: runtimePath,
-          status: "refuse",
-          model: openAiModel,
-          outcomeClass: "refusal_safety",
-          retryUsed: false,
-          totalLatencyMs: Date.now() - requestStartedAt,
-          stageLatencyMs,
-        });
-        return {
-          status: 200,
-          payload: buildStudioAgentSafetyRefusalPayload({
-            traceId,
-            canonicalPrompt: effectiveCanonical,
-          }),
-        };
-      }
-      emitStudioAgentTurnTelemetry({
-        flow: orchestration.flow,
-        path: runtimePath,
-        status: "error",
-        model: openAiModel,
-        outcomeClass: "upstream_error",
-        retryUsed: false,
-        totalLatencyMs: Date.now() - requestStartedAt,
-        stageLatencyMs,
-      });
-      return {
-        status: fastPathTurn.status,
-        payload: buildStudioAgentUpstreamErrorPayload({
-          detail: fastPathTurn.detail,
-          traceId,
-        }),
-      };
+    if (!fastPathResult.ok) {
+      return fastPathResult.response;
     }
 
     return await finalizeSuccessfulTurn({
-      parsed: fastPathTurn.result.parsed as Record<string, unknown>,
-      refusal: fastPathTurn.result.refusal,
-      resolvedCanonical: fastPathTurn.result.resolvedCanonical,
-      usage: fastPathTurn.result.usage as Record<string, unknown>,
+      parsed: fastPathResult.turn.result.parsed as Record<string, unknown>,
+      refusal: fastPathResult.turn.result.refusal,
+      resolvedCanonical: fastPathResult.turn.result.resolvedCanonical,
+      usage: fastPathResult.turn.result.usage as Record<string, unknown>,
       model: openAiModel,
-      retryUsed: false,
+      retryUsed: fastPathResult.retryCount > 0,
+      retryCount: fastPathResult.retryCount,
       path: runtimePath,
       writeFailureStage: "canonical_write_fast_path",
     });
   } catch (error) {
-    emitStudioAgentTurnTelemetry({
-      flow: "unknown",
-      path: runtimePath,
-      status: "error",
-      model: openAiModel,
-      outcomeClass: "route_error",
-      retryUsed: false,
-      totalLatencyMs: Date.now() - requestStartedAt,
-      stageLatencyMs,
-    });
+    const failureDetail = formatStudioAgentErrorMessage(error);
     await logApiRouteException({
       req,
       error,
@@ -578,10 +753,34 @@ export const executeStudioAgentCoordinator = async ({
         conversation_id: normalizedConversationId,
       },
     });
+    const failureClass = classifyStudioAgentFailure({
+      detail: failureDetail,
+    });
+    const failureResolution = resolveStudioAgentFailureResolution({ failureClass });
+    if (failureResolution === "assistant_fallback") {
+      return buildInfraFallbackResponse({
+        path: runtimePath,
+        model: openAiModel,
+        retryUsed: false,
+        retryCount: 0,
+        fallbackReason: "route_exception",
+      });
+    }
+    emitStudioAgentTurnTelemetry({
+      flow: "unknown",
+      path: runtimePath,
+      status: "error",
+      model: openAiModel,
+      outcomeClass: "route_error",
+      retryUsed: false,
+      retryCount: 0,
+      totalLatencyMs: Date.now() - requestStartedAt,
+      stageLatencyMs,
+    });
     return {
       status: 500,
       payload: buildStudioAgentRouteFailurePayload({
-        detail: formatStudioAgentErrorMessage(error),
+        detail: failureDetail,
         traceId,
       }),
     };

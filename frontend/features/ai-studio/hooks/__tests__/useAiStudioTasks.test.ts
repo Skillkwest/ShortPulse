@@ -210,6 +210,63 @@ describe("useAiStudioTasks", () => {
     expect(output.errorMessage).toContain("Failed to download the file.");
   });
 
+  it("fails immediately on terminal provider error payloads and does not continue polling", async () => {
+    fetchFalStatusMock.mockImplementationOnce(async () =>
+      asFalStatusResponse({
+        status: "error",
+        detail: [{ type: "downstream_service_error", msg: "Downstream service error" }],
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-terminal-error", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Downstream service error",
+      "Downstream service error",
+      expect.objectContaining({
+        reasonCode: "provider_error",
+        providerState: "error",
+      })
+    );
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        provider: "fal",
+        reasonCode: "provider_error",
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(output.errorMessage).toBe("Downstream service error");
+
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    await flushQueuedOutputUpdates();
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+  });
+
   it("forces success for image providers when media is present even if state is non-terminal", async () => {
     fetchFalSeedreamStatusMock.mockResolvedValueOnce({
       status: "in_progress",
@@ -295,6 +352,38 @@ describe("useAiStudioTasks", () => {
     await vi.advanceTimersByTimeAsync(5_500);
     await flushQueuedOutputUpdates();
     expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("normalizes provider nonterminal states to running task state", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce({ status: "processing" });
+
+    let output: StudioOutput = {
+      ...makeOutput(),
+      taskState: "pending",
+      timestamp: "Submitting...",
+    };
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-processing", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Processing...");
   });
 
   it("captures timeout context metadata when polling exceeds max wait", () => {

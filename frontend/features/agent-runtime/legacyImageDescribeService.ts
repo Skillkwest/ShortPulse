@@ -10,6 +10,11 @@ import {
   shouldRetryWithFallbackVisionModel,
 } from "../../lib/server/api/imageDescribeOpenAi";
 import { probeImageUrlForDescribe } from "../../lib/server/api/imageDescribeUrlGuard";
+import {
+  classifyStudioAgentFailure,
+  resolveStudioAgentFailureResolution,
+  STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
+} from "./studioAgentFailurePolicy";
 import { postProcessStudioAgentSafetyText } from "./studioAgentSafetyPostProcess";
 import {
   isStudioAgentSafetyRefusalUpstreamError,
@@ -42,6 +47,25 @@ const emitDescribeSafetyTelemetry = ({
       safety_source: "describe_output",
       safety_fallback: fallbackUsed,
       ...(debugEnabled && debugReason ? { safety_debug_reason: debugReason } : {}),
+    })
+  );
+};
+
+const emitDescribeFallbackTelemetry = ({
+  routeLabel,
+  failureClass,
+  detail,
+}: {
+  routeLabel: string;
+  failureClass: string;
+  detail: string;
+}) => {
+  console.info(
+    "[describe-image][fallback]",
+    JSON.stringify({
+      route: routeLabel,
+      failure_class: failureClass,
+      detail,
     })
   );
 };
@@ -203,6 +227,11 @@ export const executeLegacyImageDescribe = async ({
           },
         };
       }
+      const failureClass = classifyStudioAgentFailure({
+        status: describeAttempt.status,
+        detail,
+      });
+      const failureResolution = resolveStudioAgentFailureResolution({ failureClass });
       await logGenerationFailure({
         req,
         routeLabel,
@@ -215,8 +244,24 @@ export const executeLegacyImageDescribe = async ({
           detail,
           model: modelUsed,
           attempted_models: attemptedModels,
+          failure_class: failureClass,
+          user_lane_fallback: failureResolution === "assistant_fallback",
         },
       });
+      if (failureResolution === "assistant_fallback") {
+        emitDescribeFallbackTelemetry({
+          routeLabel,
+          failureClass,
+          detail,
+        });
+        return {
+          ok: true,
+          payload: {
+            description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
+            usage: {},
+          },
+        };
+      }
       return {
         ok: false,
         status: describeAttempt.status,
@@ -234,6 +279,10 @@ export const executeLegacyImageDescribe = async ({
     const completionTokens = usage.completion_tokens;
 
     if (!description) {
+      const failureClass = classifyStudioAgentFailure({
+        status: 502,
+        detail: "No description returned",
+      });
       await logGenerationFailure({
         req,
         routeLabel,
@@ -242,8 +291,23 @@ export const executeLegacyImageDescribe = async ({
         statusCode: 502,
         userId: user.id,
         userEmail: user.email ?? null,
+        metadata: {
+          failure_class: failureClass,
+          user_lane_fallback: true,
+        },
       });
-      return { ok: false, status: 502, payload: { error: "No description returned" } };
+      emitDescribeFallbackTelemetry({
+        routeLabel,
+        failureClass,
+        detail: "No description returned",
+      });
+      return {
+        ok: true,
+        payload: {
+          description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
+          usage: {},
+        },
+      };
     }
 
     const safetyPostProcessResult = await postProcessStudioAgentSafetyText({
@@ -280,6 +344,9 @@ export const executeLegacyImageDescribe = async ({
       },
     };
   } catch (error) {
+    const detail = String(error);
+    const failureClass = classifyStudioAgentFailure({ detail });
+    const failureResolution = resolveStudioAgentFailureResolution({ failureClass });
     await logGenerationFailure({
       req,
       routeLabel,
@@ -290,13 +357,29 @@ export const executeLegacyImageDescribe = async ({
       userId: user.id,
       userEmail: user.email ?? null,
       metadata: {
-        detail: String(error),
+        detail,
+        failure_class: failureClass,
+        user_lane_fallback: failureResolution === "assistant_fallback",
       },
     });
+    if (failureResolution === "assistant_fallback") {
+      emitDescribeFallbackTelemetry({
+        routeLabel,
+        failureClass,
+        detail,
+      });
+      return {
+        ok: true,
+        payload: {
+          description: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
+          usage: {},
+        },
+      };
+    }
     return {
       ok: false,
       status: 500,
-      payload: { error: "Image description failed", detail: String(error) },
+      payload: { error: "Image description failed", detail },
     };
   }
 };

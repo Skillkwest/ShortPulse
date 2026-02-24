@@ -20,27 +20,42 @@ describe("studioAgentOpenAiGateway", () => {
       openAiThinkerModel: "gpt-5-nano",
       openAiFormatterModel: "gpt-5-nano",
       requestTimeoutMs: 20000,
+      upstreamRetryMaxAttempts: 2,
+      upstreamRetryBaseDelayMs: 150,
+      upstreamRetryMaxDelayMs: 1200,
     });
   });
 
-  it("clamps timeout and applies thinker/formatter fallback chain", () => {
+  it("clamps timeout/retry config and applies thinker/formatter fallback chain", () => {
     const lowTimeout = resolveStudioAgentOpenAiConfig({
       STUDIO_AGENT_TIMEOUT_MS: "200",
+      STUDIO_AGENT_UPSTREAM_MAX_ATTEMPTS: "0",
+      STUDIO_AGENT_UPSTREAM_RETRY_BASE_MS: "-1",
+      STUDIO_AGENT_UPSTREAM_RETRY_MAX_MS: "20000",
       OPENAI_MODEL: "gpt-base",
       STUDIO_AGENT_THINKER_MODEL: "",
       STUDIO_AGENT_FORMATTER_MODEL: "gpt-formatter",
     } as unknown as NodeJS.ProcessEnv);
     const highTimeout = resolveStudioAgentOpenAiConfig({
       STUDIO_AGENT_TIMEOUT_MS: "200000",
+      STUDIO_AGENT_UPSTREAM_MAX_ATTEMPTS: "99",
+      STUDIO_AGENT_UPSTREAM_RETRY_BASE_MS: "9999",
+      STUDIO_AGENT_UPSTREAM_RETRY_MAX_MS: "-5",
       OPENAI_MODEL: "gpt-base",
       STUDIO_AGENT_THINKER_MODEL: "gpt-thinker",
       STUDIO_AGENT_FORMATTER_MODEL: "",
     } as unknown as NodeJS.ProcessEnv);
 
     expect(lowTimeout.requestTimeoutMs).toBe(1000);
+    expect(lowTimeout.upstreamRetryMaxAttempts).toBe(1);
+    expect(lowTimeout.upstreamRetryBaseDelayMs).toBe(0);
+    expect(lowTimeout.upstreamRetryMaxDelayMs).toBe(10000);
     expect(lowTimeout.openAiThinkerModel).toBe("gpt-base");
     expect(lowTimeout.openAiFormatterModel).toBe("gpt-formatter");
     expect(highTimeout.requestTimeoutMs).toBe(120000);
+    expect(highTimeout.upstreamRetryMaxAttempts).toBe(5);
+    expect(highTimeout.upstreamRetryBaseDelayMs).toBe(5000);
+    expect(highTimeout.upstreamRetryMaxDelayMs).toBe(0);
     expect(highTimeout.openAiThinkerModel).toBe("gpt-thinker");
     expect(highTimeout.openAiFormatterModel).toBe("gpt-thinker");
   });

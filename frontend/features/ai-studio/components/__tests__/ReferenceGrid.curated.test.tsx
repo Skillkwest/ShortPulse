@@ -61,6 +61,38 @@ const makeTransfer = (data: Record<string, string>): DataTransfer =>
     getData: (type: string) => data[type] ?? "",
   }) as unknown as DataTransfer;
 
+const installRafQueue = () => {
+  let nextFrameId = 1;
+  const callbacks = new Map<number, FrameRequestCallback>();
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    const frameId = nextFrameId;
+    nextFrameId += 1;
+    callbacks.set(frameId, callback);
+    return frameId;
+  });
+  vi.stubGlobal("cancelAnimationFrame", (frameId: number) => {
+    callbacks.delete(frameId);
+  });
+
+  const flushNextFrame = () => {
+    const next = callbacks.entries().next().value as [number, FrameRequestCallback] | undefined;
+    if (!next) return false;
+    const [frameId, callback] = next;
+    callbacks.delete(frameId);
+    callback(0);
+    return true;
+  };
+
+  const flushAllFrames = (limit = 80) => {
+    let remaining = limit;
+    while (remaining > 0 && flushNextFrame()) {
+      remaining -= 1;
+    }
+  };
+
+  return { flushNextFrame, flushAllFrames };
+};
+
 const createProps = (overrides: Partial<ReferenceGridProps> = {}): ReferenceGridProps => ({
   outputs,
   activeOutputId: "out-1",
@@ -172,7 +204,52 @@ describe("ReferenceGrid curated split", () => {
     expect(container.querySelector(".reference-loading-placeholder")).toBeNull();
   });
 
-  it("applies spinner slots in FIFO order and falls back to static spinners for overflow", () => {
+  it("keeps spinner visible through deferred video load commit and then clears after RAF flush", () => {
+    const { flushNextFrame, flushAllFrames } = installRafQueue();
+    const importedOutput: StudioOutput = {
+      id: "imported-raf-video-1",
+      prompt: "Imported video",
+      mode: "video",
+      aspect: "16:9",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Library",
+      mediaSource: "library",
+      previewUrl: "https://example.com/imported-raf.mp4",
+    };
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [importedOutput],
+          activeOutputId: importedOutput.id,
+        })}
+      />
+    );
+
+    const videoNode = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
+    expect(videoNode).toBeTruthy();
+    expect(container.querySelector(".reference-spinner")).toBeTruthy();
+
+    act(() => {
+      fireEvent.loadedData(videoNode as HTMLVideoElement);
+    });
+
+    expect(container.querySelector(".reference-spinner")).toBeTruthy();
+
+    act(() => {
+      flushNextFrame();
+    });
+
+    expect(container.querySelector(".reference-spinner")).toBeTruthy();
+
+    act(() => {
+      flushAllFrames();
+    });
+
+    expect(container.querySelector(".reference-spinner")).toBeNull();
+  });
+
+  it("keeps overflow loading spinners animated", () => {
     const pendingOutputs: StudioOutput[] = Array.from({ length: 8 }, (_, index) => {
       const label = 8 - index;
       return {
@@ -200,13 +277,11 @@ describe("ReferenceGrid curated split", () => {
     const cards = Array.from(container.querySelectorAll(".reference-card"));
     expect(cards).toHaveLength(8);
     expect(container.querySelectorAll(".reference-spinner")).toHaveLength(8);
-    expect(container.querySelectorAll(".reference-spinner.is-static")).toHaveLength(2);
-    expect(cards[0]?.querySelector(".reference-spinner.is-static")).toBeTruthy();
-    expect(cards[1]?.querySelector(".reference-spinner.is-static")).toBeTruthy();
+    expect(container.querySelectorAll(".reference-spinner.is-static")).toHaveLength(0);
     expect(cards[7]?.querySelector(".reference-spinner")).toBeTruthy();
   });
 
-  it("promotes static spinner cards into animated spinner slots as older generations finish", () => {
+  it("keeps spinners animated as older generations finish", () => {
     const pendingOutputs: StudioOutput[] = Array.from({ length: 8 }, (_, index) => {
       const label = 8 - index;
       return {
@@ -230,7 +305,7 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    expect(container.querySelectorAll(".reference-spinner.is-static")).toHaveLength(2);
+    expect(container.querySelectorAll(".reference-spinner.is-static")).toHaveLength(0);
 
     const resolvedOldestOutputs = pendingOutputs.slice(0, pendingOutputs.length - 1);
 
@@ -243,7 +318,7 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    expect(container.querySelectorAll(".reference-spinner.is-static")).toHaveLength(1);
+    expect(container.querySelectorAll(".reference-spinner.is-static")).toHaveLength(0);
     expect(container.querySelectorAll(".reference-spinner")).toHaveLength(7);
   });
 

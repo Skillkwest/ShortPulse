@@ -11,16 +11,34 @@ describe("statusProxyRuntime", () => {
     vi.unstubAllGlobals();
   });
 
-  it("classifies retryable upstream responses by status code and header", () => {
+  it("classifies retryable upstream responses by status code and retry headers", () => {
     const retryableByStatus = new Response("{}", { status: 503 });
     const retryableByHeader = new Response("{}", {
       status: 400,
       headers: { "x-fal-retryable": "true" },
     });
+    const nonRetryableByNeedsRetryFalse = new Response("{}", {
+      status: 500,
+      headers: { "x-fal-needs-retry": "false" },
+    });
+    const retryableByNeedsRetryTrue = new Response("{}", {
+      status: 500,
+      headers: { "x-fal-needs-retry": "true" },
+    });
+    const conflictingHeadersNeedsRetryWins = new Response("{}", {
+      status: 500,
+      headers: {
+        "x-fal-needs-retry": "false",
+        "x-fal-retryable": "true",
+      },
+    });
     const nonRetryable = new Response("{}", { status: 422 });
 
     expect(isRetryableUpstreamResponse(retryableByStatus)).toBe(true);
     expect(isRetryableUpstreamResponse(retryableByHeader)).toBe(true);
+    expect(isRetryableUpstreamResponse(nonRetryableByNeedsRetryFalse)).toBe(false);
+    expect(isRetryableUpstreamResponse(retryableByNeedsRetryTrue)).toBe(true);
+    expect(isRetryableUpstreamResponse(conflictingHeadersNeedsRetryWins)).toBe(false);
     expect(isRetryableUpstreamResponse(nonRetryable)).toBe(false);
   });
 

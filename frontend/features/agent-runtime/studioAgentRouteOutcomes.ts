@@ -5,6 +5,8 @@ export type StudioAgentTelemetryOutcomeClass =
   | "refusal_safety"
   | "upstream_error"
   | "route_error";
+export type StudioAgentSafetyTelemetryOutcome = "pass" | "rewritten" | "refusal";
+export type StudioAgentSafetyTelemetrySource = "model_output" | "describe_output";
 
 export const STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE = "I cannot describe this.";
 
@@ -17,6 +19,11 @@ export const emitStudioAgentTurnTelemetry = ({
   retryUsed,
   totalLatencyMs,
   stageLatencyMs,
+  safetyOutcome,
+  safetySource,
+  safetyFallback,
+  safetyDebugReason,
+  safetyDebugEnabled,
 }: {
   flow: string;
   path: string;
@@ -26,6 +33,11 @@ export const emitStudioAgentTurnTelemetry = ({
   retryUsed: boolean;
   totalLatencyMs: number;
   stageLatencyMs: Record<string, number>;
+  safetyOutcome?: StudioAgentSafetyTelemetryOutcome;
+  safetySource?: StudioAgentSafetyTelemetrySource;
+  safetyFallback?: boolean;
+  safetyDebugReason?: string;
+  safetyDebugEnabled?: boolean;
 }) => {
   console.info(
     "[studio-agent][telemetry]",
@@ -38,6 +50,12 @@ export const emitStudioAgentTurnTelemetry = ({
       retry_used: retryUsed,
       latency_ms_total: totalLatencyMs,
       latency_ms_stage: stageLatencyMs,
+      ...(safetyOutcome ? { safety_outcome: safetyOutcome } : {}),
+      ...(safetySource ? { safety_source: safetySource } : {}),
+      ...(typeof safetyFallback === "boolean" ? { safety_fallback: safetyFallback } : {}),
+      ...(safetyDebugEnabled && safetyDebugReason
+        ? { safety_debug_reason: safetyDebugReason }
+        : {}),
     })
   );
 };

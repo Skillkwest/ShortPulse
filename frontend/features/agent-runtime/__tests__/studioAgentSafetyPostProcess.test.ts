@@ -1,0 +1,85 @@
+import { describe, expect, it } from "vitest";
+import { postProcessStudioAgentSafetyText } from "../studioAgentSafetyPostProcess";
+
+describe("studioAgentSafetyPostProcess", () => {
+  it("passes safe text through unchanged", async () => {
+    const result = await postProcessStudioAgentSafetyText({
+      text: "A portrait of a person in a tailored suit at golden hour.",
+      route: "studio-agent",
+      flow: "TEXT_ONLY",
+      source: "model_output",
+      enabled: true,
+    });
+
+    expect(result).toEqual({
+      outcome: "pass",
+      text: "A portrait of a person in a tailored suit at golden hour.",
+      fallbackUsed: false,
+    });
+  });
+
+  it("rewrites mild explicit language to safe-for-work wording", async () => {
+    const result = await postProcessStudioAgentSafetyText({
+      text: "A sexy portrait of a topless model in lingerie.",
+      route: "describe-image",
+      flow: "describe_image",
+      source: "describe_output",
+      enabled: true,
+    });
+
+    expect(result.outcome).toBe("rewritten");
+    expect(result.fallbackUsed).toBe(true);
+    expect(result.text.toLowerCase()).not.toContain("sexy");
+    expect(result.text.toLowerCase()).not.toContain("topless");
+    expect(result.text.toLowerCase()).not.toContain("lingerie");
+  });
+
+  it("maps severe explicit content directly to refusal", async () => {
+    const result = await postProcessStudioAgentSafetyText({
+      text: "Graphic sexual intercourse with explicit anatomy details.",
+      route: "studio-agent",
+      flow: "MIXED",
+      source: "model_output",
+      enabled: true,
+    });
+
+    expect(result.outcome).toBe("refusal");
+    expect(result.text).toBe("I cannot describe this.");
+  });
+
+  it("uses deterministic fallback rewrite when external rewrite times out", async () => {
+    const result = await postProcessStudioAgentSafetyText({
+      text: "A sensual portrait with revealing outfit.",
+      route: "studio-agent",
+      flow: "MIXED",
+      source: "model_output",
+      enabled: true,
+      rewriteTimeoutMs: 1,
+      rewrite: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return "delayed rewrite";
+      },
+    });
+
+    expect(result.outcome).toBe("rewritten");
+    expect(result.text.toLowerCase()).not.toContain("sensual");
+    expect(result.text.toLowerCase()).not.toContain("revealing outfit");
+    expect(result.fallbackUsed).toBe(true);
+  });
+
+  it("bypasses safety processing when feature flag is disabled", async () => {
+    const result = await postProcessStudioAgentSafetyText({
+      text: "A sexy portrait with provocative styling.",
+      route: "studio-agent",
+      flow: "MIXED",
+      source: "model_output",
+      enabled: false,
+    });
+
+    expect(result).toEqual({
+      outcome: "pass",
+      text: "A sexy portrait with provocative styling.",
+      fallbackUsed: false,
+    });
+  });
+});

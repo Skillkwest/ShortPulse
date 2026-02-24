@@ -76,6 +76,8 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "true";
     process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED = "false";
     process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "true";
+    process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED = "true";
+    process.env.STUDIO_AGENT_SAFETY_DEBUG = "false";
     process.env.STUDIO_AGENT_TIMEOUT_MS = String(20000);
     process.env.NEXT_PUBLIC_AGENT_V2 = "false";
     delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
@@ -559,6 +561,91 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         message: "I cannot describe this.",
         actions: undefined,
         canonicalPrompt: null,
+      })
+    );
+  });
+
+  it("rewrites explicit single-stage output to safe-for-work response text", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message: "A sexy topless portrait in lingerie at sunset.",
+                  actions: {
+                    apply_prompt: "A sexy topless portrait in lingerie at sunset.",
+                  },
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "describe this portrait" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls.at(-1)?.[0] as
+      | { message?: string; actions?: { applyPrompt?: string } }
+      | undefined;
+    expect(payload?.actions?.applyPrompt?.toLowerCase()).not.toContain("sexy");
+    expect(payload?.actions?.applyPrompt?.toLowerCase()).not.toContain("topless");
+    expect(payload?.actions?.applyPrompt?.toLowerCase()).not.toContain("lingerie");
+    expect(payload?.message).toBe(payload?.actions?.applyPrompt);
+  });
+
+  it("falls back to refusal when post-process classifies explicit output as unsafe", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message: "Graphic sexual intercourse with explicit anatomy details.",
+                  actions: {
+                    apply_prompt: "Graphic sexual intercourse with explicit anatomy details.",
+                  },
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "describe this portrait" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "I cannot describe this.",
+        actions: undefined,
       })
     );
   });

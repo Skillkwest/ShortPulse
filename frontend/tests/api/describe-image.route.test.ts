@@ -38,6 +38,8 @@ describe("POST /api/ai/describe-image", () => {
     delete process.env.OPENAI_DESCRIBE_REQUIRE_ALLOWED_HOSTS;
     delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
     delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
+    process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED = "true";
+    process.env.STUDIO_AGENT_SAFETY_DEBUG = "false";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     vi.stubGlobal("fetch", vi.fn());
@@ -180,6 +182,71 @@ describe("POST /api/ai/describe-image", () => {
         description: "A detailed portrait photo.",
       })
     );
+  });
+
+  it("maps describe-image upstream safety failures to refusal success payload", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: async () => '{"error":{"message":"content policy violation: unsafe sexual content"}}',
+      });
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/safety-trigger.png" },
+    };
+    const res = createMockResponse();
+
+    await describeImageHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "I cannot describe this.",
+      })
+    );
+    expect(logGenerationFailureMock).not.toHaveBeenCalled();
+  });
+
+  it("rewrites explicit describe-image responses to safe-for-work text", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "image/png" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: "A sexy topless portrait in lingerie at sunset." } }],
+          usage: { prompt_tokens: 10, completion_tokens: 9 },
+        }),
+      });
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://example.com/explicit-output.png" },
+    };
+    const res = createMockResponse();
+
+    await describeImageHandler(req as never, res as never);
+
+    const payload = res.json.mock.calls.at(-1)?.[0] as
+      | { description?: string; usage?: unknown }
+      | undefined;
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(payload?.description?.toLowerCase()).not.toContain("sexy");
+    expect(payload?.description?.toLowerCase()).not.toContain("topless");
+    expect(payload?.description?.toLowerCase()).not.toContain("lingerie");
   });
 
   it("rejects blocked private hosts before probing network", async () => {

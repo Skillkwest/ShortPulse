@@ -100,6 +100,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const singleStageEnabled = process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED !== "false";
   const legacyV2FallbackEnabled = process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED === "true";
   const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
+  const safetyPostProcessEnabled = process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED !== "false";
+  const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
   const { openAiUrl, openAiModel, openAiVisionModel, openAiThinkerModel, openAiFormatterModel } =
     openAiConfig;
@@ -201,6 +203,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     normalizedConversationId,
     userId: user.id,
     canonicalDbEnabled,
+    safetyPostProcessEnabled,
+    safetyDebugEnabled,
   });
 
   return res.status(coordinatorResult.status).json(coordinatorResult.payload);

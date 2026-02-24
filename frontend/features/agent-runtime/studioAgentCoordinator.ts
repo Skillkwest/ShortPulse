@@ -1,5 +1,5 @@
 import type { NextApiRequest } from "next";
-import type { AgentContext, AgentMessage } from "../../prefabs/agent";
+import type { AgentContext, AgentMessage, AgentResponse } from "../../prefabs/agent";
 import type { StudioAgentOrchestration } from "../ai-agent/logic/studioAgentOrchestration";
 import type { ThinkerSelectedReference } from "../ai-agent/logic/studioAgentReferenceSelection";
 import { logApiRouteException } from "../../lib/server/api/appErrorLogs";
@@ -7,11 +7,16 @@ import { writeStudioAgentCanonicalPrompt } from "./studioAgentCanonicalPersisten
 import { formatStudioAgentErrorMessage } from "./studioAgentOpenAiGateway";
 import { executeStudioAgentFastPathTurn } from "./studioAgentFastPathTurn";
 import {
+  postProcessStudioAgentSafetyText,
+  type StudioAgentSafetyPostProcessOutcome,
+} from "./studioAgentSafetyPostProcess";
+import {
   buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
   emitStudioAgentTurnTelemetry,
   isStudioAgentSafetyRefusalUpstreamError,
+  STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
 } from "./studioAgentRouteOutcomes";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
 import { executeStudioAgentV2Turn } from "./studioAgentV2Turn";
@@ -100,6 +105,8 @@ export const executeStudioAgentCoordinator = async ({
   normalizedConversationId,
   userId,
   canonicalDbEnabled,
+  safetyPostProcessEnabled,
+  safetyDebugEnabled,
 }: {
   req: NextApiRequest;
   traceId: string;
@@ -127,6 +134,8 @@ export const executeStudioAgentCoordinator = async ({
   normalizedConversationId: string;
   userId: string;
   canonicalDbEnabled: boolean;
+  safetyPostProcessEnabled: boolean;
+  safetyDebugEnabled: boolean;
 }): Promise<{ status: number; payload: Record<string, unknown> }> => {
   const openAiMessages = buildStudioAgentOpenAiMessages({
     messages,
@@ -145,6 +154,15 @@ export const executeStudioAgentCoordinator = async ({
       : orchestration.flow === "TEXT_ONLY"
         ? "text_fast_path"
         : "fallback_fast_path";
+
+  const mergeSafetyOutcome = (
+    current: StudioAgentSafetyPostProcessOutcome,
+    next: StudioAgentSafetyPostProcessOutcome
+  ): StudioAgentSafetyPostProcessOutcome => {
+    if (current === "refusal" || next === "refusal") return "refusal";
+    if (current === "rewritten" || next === "rewritten") return "rewritten";
+    return "pass";
+  };
 
   const finalizeSuccessfulTurn = async ({
     parsed,
@@ -168,12 +186,102 @@ export const executeStudioAgentCoordinator = async ({
       | "canonical_write_fast_path"
       | "canonical_write_single_stage";
   }): Promise<{ status: number; payload: Record<string, unknown> }> => {
-    if (!refusal) {
+    let finalParsed = parsed as AgentResponse;
+    let finalRefusal = refusal;
+    let finalResolvedCanonical = resolvedCanonical;
+    let safetyOutcome: StudioAgentSafetyPostProcessOutcome = "pass";
+    let safetyFallback = false;
+    let safetyForcedRefusal = false;
+    let safetyDebugReason: string | undefined;
+
+    const registerSafetyResult = (result: {
+      outcome: StudioAgentSafetyPostProcessOutcome;
+      fallbackUsed: boolean;
+      debugReason?: string;
+    }) => {
+      safetyOutcome = mergeSafetyOutcome(safetyOutcome, result.outcome);
+      safetyFallback = safetyFallback || result.fallbackUsed;
+      if (safetyDebugEnabled && result.debugReason) {
+        safetyDebugReason = result.debugReason;
+      }
+    };
+
+    if (!finalRefusal && safetyPostProcessEnabled) {
+      const applyPromptValue =
+        typeof finalParsed.actions?.applyPrompt === "string" ? finalParsed.actions.applyPrompt : "";
+      if (applyPromptValue) {
+        const applyPromptSafety = await postProcessStudioAgentSafetyText({
+          text: applyPromptValue,
+          route: "studio-agent",
+          flow: orchestration.flow,
+          source: "model_output",
+          enabled: safetyPostProcessEnabled,
+          debug: safetyDebugEnabled,
+          traceId,
+        });
+        registerSafetyResult(applyPromptSafety);
+        if (applyPromptSafety.outcome === "refusal") {
+          finalRefusal = true;
+          safetyForcedRefusal = true;
+        } else if (applyPromptSafety.outcome === "rewritten") {
+          finalParsed = {
+            ...finalParsed,
+            actions: {
+              ...(finalParsed.actions ?? {}),
+              applyPrompt: applyPromptSafety.text,
+            },
+            message: applyPromptSafety.text,
+          };
+          finalResolvedCanonical = applyPromptSafety.text;
+        }
+      }
+
+      if (!finalRefusal) {
+        const messageSafety = await postProcessStudioAgentSafetyText({
+          text: finalParsed.message,
+          route: "studio-agent",
+          flow: orchestration.flow,
+          source: "model_output",
+          enabled: safetyPostProcessEnabled,
+          debug: safetyDebugEnabled,
+          traceId,
+        });
+        registerSafetyResult(messageSafety);
+        if (messageSafety.outcome === "refusal") {
+          finalRefusal = true;
+          safetyForcedRefusal = true;
+        } else if (messageSafety.outcome === "rewritten") {
+          finalParsed = {
+            ...finalParsed,
+            message: messageSafety.text,
+          };
+        }
+      }
+
+      const finalApplyPrompt = finalParsed.actions?.applyPrompt;
+      if (!finalRefusal && finalApplyPrompt) {
+        finalParsed = {
+          ...finalParsed,
+          message: finalApplyPrompt,
+        };
+        finalResolvedCanonical = finalApplyPrompt;
+      }
+    }
+
+    if (finalRefusal && safetyForcedRefusal) {
+      finalParsed = {
+        message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
+        actions: undefined,
+      };
+      finalResolvedCanonical = effectiveCanonical;
+    }
+
+    if (!finalRefusal) {
       await writeStudioAgentCanonicalPrompt({
         req,
         userId,
         conversationId: normalizedConversationId,
-        canonicalPrompt: resolvedCanonical,
+        canonicalPrompt: finalResolvedCanonical,
         canonicalDbEnabled,
         markStage,
         writeFailureStage,
@@ -184,20 +292,29 @@ export const executeStudioAgentCoordinator = async ({
     emitStudioAgentTurnTelemetry({
       flow: orchestration.flow,
       path,
-      status: refusal ? "refuse" : "success",
+      status: finalRefusal ? "refuse" : "success",
       model,
-      outcomeClass: refusal ? "refusal_model" : "success_prompt",
+      outcomeClass: finalRefusal
+        ? safetyForcedRefusal
+          ? "refusal_safety"
+          : "refusal_model"
+        : "success_prompt",
       retryUsed,
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
+      safetyOutcome: safetyOutcome === "pass" ? undefined : safetyOutcome,
+      safetySource: safetyOutcome === "pass" ? undefined : "model_output",
+      safetyFallback: safetyOutcome === "pass" ? undefined : safetyFallback,
+      safetyDebugReason,
+      safetyDebugEnabled,
     });
 
     return {
       status: 200,
       payload: {
-        ...parsed,
+        ...finalParsed,
         ...(usage ? { usage } : {}),
-        canonicalPrompt: resolvedCanonical,
+        canonicalPrompt: finalResolvedCanonical,
         traceId,
       },
     };

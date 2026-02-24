@@ -45,6 +45,13 @@ type SendResult = {
 
 // Stable default to prevent Fast Refresh issues
 const EMPTY_MESSAGES: AgentMessage[] = [];
+const SAFETY_REFUSAL_MESSAGE = "I cannot describe this.";
+
+const resolveSafetyRefusalText = (value: unknown): typeof SAFETY_REFUSAL_MESSAGE | null => {
+  const raw = normalizeErrorText(value, { fallback: "", maxLength: 120 });
+  if (raw === SAFETY_REFUSAL_MESSAGE) return SAFETY_REFUSAL_MESSAGE;
+  return null;
+};
 
 export const useAiAgent = ({
   initialMessages = EMPTY_MESSAGES,
@@ -145,8 +152,25 @@ export const useAiAgent = ({
         };
         const transportResult = await sendStudioAgentTurn(body);
         if (!transportResult.ok) {
+          const refusalText = resolveSafetyRefusalText(
+            transportResult.parsedError ?? transportResult.detail
+          );
+          if (refusalText) {
+            const nextAssistantMessages = appendAssistantMessage(messagesRef.current, refusalText);
+            setMessages(nextAssistantMessages);
+            messagesRef.current = nextAssistantMessages;
+            return {
+              response: { message: refusalText, actions: undefined },
+              actions: undefined,
+            };
+          }
+
+          const structuredErrorText =
+            transportResult.parsedError?.message ??
+            transportResult.parsedError?.detail ??
+            transportResult.parsedError?.error;
           setError(
-            normalizeErrorText(transportResult.detail, {
+            normalizeErrorText(structuredErrorText ?? transportResult.detail, {
               fallback: `Agent request failed (${transportResult.status})`,
               maxLength: 320,
             })

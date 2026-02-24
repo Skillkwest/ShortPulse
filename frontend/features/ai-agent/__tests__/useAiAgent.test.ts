@@ -159,4 +159,48 @@ describe("useAiAgent", () => {
     };
     expect(bodyA2.clientSessionKey).toBe(keyA);
   });
+
+  it("treats refusal payloads as assistant responses without setting error", async () => {
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(JSON.stringify({ message: "I cannot describe this." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "describe this image",
+        payloadText: "describe this image",
+      });
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "I cannot describe this.",
+      })
+    );
+  });
+
+  it("surfaces structured infra errors in hook state", async () => {
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "Upstream error", detail: "invalid api key" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "refine prompt",
+        payloadText: "refine prompt",
+      });
+    });
+
+    expect(result.current.error?.toLowerCase()).toContain("invalid api key");
+  });
 });

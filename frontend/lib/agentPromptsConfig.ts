@@ -202,10 +202,7 @@ Produce only the final UI JSON:
 {
   "message": "<generation-ready prompt text>",
   "actions": {
-    "apply_prompt": "<single best prompt (same as message, generation-ready)>",
-    "variations": [],
-    "describe_targets": [],
-    "reference_card": { "title": "Prompt", "prompt": "<same as apply_prompt>" }
+    "apply_prompt": "<single best prompt (same as message, generation-ready)>"
   }
 }
 

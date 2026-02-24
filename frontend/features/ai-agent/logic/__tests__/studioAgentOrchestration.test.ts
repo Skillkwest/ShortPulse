@@ -17,7 +17,7 @@ describe("buildStudioAgentOrchestration", () => {
     expect(orchestration.shouldRunTextExpansion).toBe(true);
     expect(orchestration.shouldRunVisionDescription).toBe(false);
     expect(orchestration.shouldRunFusion).toBe(false);
-    expect(orchestration.contextType).toBe("chat");
+    expect(orchestration.contextType).toBe("agent-output");
   });
 
   it("classifies image-only describe requests when text is directive-only", () => {

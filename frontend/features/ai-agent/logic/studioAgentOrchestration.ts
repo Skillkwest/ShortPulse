@@ -9,7 +9,7 @@ export type StudioAgentFlow = "TEXT_ONLY" | "IMAGE_ONLY" | "MIXED";
 
 export type StudioAgentOrchestration = {
   flow: StudioAgentFlow;
-  contextType: "chat" | "prompt" | "image";
+  contextType: "agent-output" | "prompt" | "image";
   userInput: string;
   textInput: string;
   imageReferenceIds: string[];
@@ -118,8 +118,12 @@ export const buildStudioAgentOrchestration = ({
     ? userInput
     : canonicalPrompt || activePrompt || promptSeed || userInput;
 
-  const contextType: "chat" | "prompt" | "image" =
-    flow === "IMAGE_ONLY" ? "image" : hasPromptContext || flow === "MIXED" ? "prompt" : "chat";
+  const contextType: "agent-output" | "prompt" | "image" =
+    flow === "IMAGE_ONLY"
+      ? "image"
+      : hasPromptContext || flow === "MIXED"
+        ? "prompt"
+        : "agent-output";
 
   return {
     flow,

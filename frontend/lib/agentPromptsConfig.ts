@@ -151,7 +151,7 @@ I cannot describe this.`,
 
 Input is a JSON object:
 {
-  "context_type": "chat" | "prompt" | "image",
+  "context_type": "agent-output" | "prompt" | "image",
   "canonical_prompt": "<string or null>",
   "user_input": "<latest user text>",
   "edit_instructions": "<optional combined string: edit canonical_prompt in place with user change>",

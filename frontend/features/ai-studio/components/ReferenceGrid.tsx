@@ -98,6 +98,7 @@ const REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_TELE
 const REFERENCE_GRID_FLAG_TRANSITION_NONURGENT = PERF_FLAG_REFERENCE_GRID_TRANSITION_NONURGENT;
 const REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY =
   PERF_FLAG_REFERENCE_GRID_RENDER_COMMIT_TELEMETRY;
+const DEFAULT_CURATED_SPLIT_TOP_RATIO = 0.35;
 
 // Temporary UI experiment: set false to revert selection outline theming to default create-blue.
 const ENABLE_TOOL_THEMED_SELECTION_OUTLINE = true;
@@ -333,7 +334,7 @@ export function ReferenceGrid({
   const horizontalSplit = useReferenceGridHorizontalSplit({
     enabled: isCuratedSplitEnabled,
     containerRef: panelRef,
-    defaultTopRatio: 0,
+    defaultTopRatio: DEFAULT_CURATED_SPLIT_TOP_RATIO,
     minTopSectionHeightPx: curatedHeaderHeightPx,
     minBottomSectionHeightPx: 72,
     allRefsSnapTopHeightPx: curatedHeaderHeightPx,

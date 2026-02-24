@@ -22,6 +22,8 @@
   --create-expert-character-selector-width: 155px;
   --create-expert-resolution-width: 120px;
   --create-expert-selector-gap: 6px;
+  --create-expert-controls-gap: 6px;
+  --create-expert-character-toggle-gap: 6px;
   --create-expert-selector-height: 40px;
   --create-expert-selector-bg: var(--color-bg);
   --create-expert-selector-hover-border: rgba(201, 205, 214, 0.3);

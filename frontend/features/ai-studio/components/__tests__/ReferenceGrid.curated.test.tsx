@@ -974,7 +974,7 @@ describe("ReferenceGrid curated split", () => {
         toJSON: () => ({}),
       }),
     });
-    expect(divider).toHaveAttribute("aria-valuenow", "1");
+    expect(divider).toHaveAttribute("aria-valuenow", "35");
 
     fireEvent.pointerDown(getByText("Inventory ↓"));
     fireEvent.click(getByText("Inventory ↓"));
@@ -1014,7 +1014,7 @@ describe("ReferenceGrid curated split", () => {
       configurable: true,
       value: 44,
     });
-    expect(divider).toHaveAttribute("aria-valuenow", "1");
+    expect(divider).toHaveAttribute("aria-valuenow", "35");
 
     fireEvent.pointerDown(getByText("All Refs ↑"));
     fireEvent.click(getByText("All Refs ↑"));

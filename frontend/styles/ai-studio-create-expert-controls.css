@@ -18,8 +18,8 @@
   display: flex;
   flex: 0 1 auto;
   flex-wrap: wrap;
-  gap: var(--create-expert-selector-gap);
-  row-gap: var(--create-expert-selector-gap);
+  gap: var(--create-expert-controls-gap);
+  row-gap: var(--create-expert-controls-gap);
   justify-content: center;
   align-items: center;
   margin-inline: auto;
@@ -167,11 +167,11 @@
 }
 
 .create-expert-character-mode-control {
-  gap: var(--create-expert-selector-gap);
+  gap: var(--create-expert-character-toggle-gap);
   min-width: 304px;
   min-height: 0;
   height: auto;
-  padding: 0 4px 0 0;
+  padding: 0;
   overflow: hidden;
   border-color: transparent;
   background: transparent;

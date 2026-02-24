@@ -35,14 +35,22 @@ describe("model API contracts", () => {
     ).toBe("5:4");
   });
 
-  it("keeps contract aspect values visible in global UI aspect options", () => {
-    const uiAspects = new Set(aspectOptions.map((option) => option.value));
-    const missing = listModelApiContracts()
-      .flatMap((contract) => contract.allowedAspects)
-      .filter((aspect, index, all) => all.indexOf(aspect) === index)
-      .filter((aspect) => !uiAspects.has(aspect));
+  it("keeps UI aspect values mapped to at least one model contract", () => {
+    const contractAspects = new Set(
+      listModelApiContracts().flatMap((contract) => contract.allowedAspects)
+    );
+    const unsupportedUiAspects = aspectOptions
+      .map((option) => option.value)
+      .filter((aspect) => !contractAspects.has(aspect));
 
-    expect(missing).toEqual([]);
+    expect(unsupportedUiAspects).toEqual([]);
+  });
+
+  it("omits deprecated create aspect presets from the global UI options", () => {
+    const uiAspects = new Set(aspectOptions.map((option) => option.value));
+    ["21:9", "3:4", "2:3", "4:3", "3:2"].forEach((aspect) => {
+      expect(uiAspects.has(aspect)).toBe(false);
+    });
   });
 
   it("keeps default-route model exceptions explicit for non-text generation models", () => {

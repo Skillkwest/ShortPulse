@@ -200,3 +200,4 @@ Exit validation:
 | 2026-02-21 | Rollback-first incident posture | minimize MTTR during canary | Ops |
 | 2026-02-23 | DEP-03 Vercel observability waiver activated | external dashboard/alert tooling constrained by plan tier; compensating controls documented and approved | AI Platform + Ops |
 | 2026-02-23 | Staging soak exit decision = `Promote` (waiver path) | soak target window elapsed with green CI/contract/continuity controls and active DEP-03 waiver | AI Platform + Ops |
+| 2026-02-24 | Prompt-only single-stage runtime promoted as canonical behavior (legacy V2 fallback flag retained) | reduce path complexity and edge-case surface while preserving external contract and UI stability | AI Platform |

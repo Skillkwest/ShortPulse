@@ -18,3 +18,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md`
 - `docs/adr/0022-reference-grid-domain-modular-architecture.md`
 - `docs/adr/0023-ai-studio-naming-canonicalization-and-alias-sunset-policy.md`
+- `docs/adr/0024-ai-studio-agent-prompt-only-single-stage-runtime.md`

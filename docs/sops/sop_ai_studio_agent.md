@@ -19,6 +19,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 
 ## Prerequisites
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-5-nano`), optional `OPENAI_VISION_MODEL`, optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `OPENAI_API_BASE`.
+- Runtime flags: `STUDIO_AGENT_SINGLE_STAGE_ENABLED` (default on), `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED` (default off, rollback aid), `STUDIO_AGENT_TEXT_FAST_PATH_ENABLED` (legacy path control when single-stage is disabled).
 - Feature flags: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` controls UI behavior (`undefined` or `true` = enabled, `false` = disabled). `STUDIO_AGENT_ENABLED` is a server override (`true|false`); if unset, server follows `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`, and if both are unset defaults enabled.
 - Size guardrails: body size cap 512 KB (text) / 1.5 MB (mixed/image) plus Next API parser cap (`2mb`).
 - Frontend uploads local blob/data previews to `/api/upload-image` and sends signed/public `https://` URLs to the agent route.
@@ -44,7 +45,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
   }
 - Response payload:
   - `message`: on success, mirrors the final generation-ready prompt (`actions.applyPrompt`); on refusal, contains refusal text.
-  - `actions` (optional): `{ applyPrompt?: string; variations?: string[]; describeTargets?: string[]; referenceCard?: { title?: string; prompt: string } }`.
+  - `actions` (optional): runtime emits `applyPrompt` for successful turns; refusal leaves actions empty. Legacy extra fields are tolerated for compatibility but are not produced by the canonical path.
   - `usage`: token accounting when available.
   - `canonicalPrompt`: resolved canonical prompt for continuity.
   - `traceId`: request correlation ID (server-generated if client omitted).
@@ -57,17 +58,18 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 5. Route classifies turn type (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`) and builds orchestration metadata.
 6. For image/mixed turns, route can run server-owned vision summaries and inject them into orchestration context.
 7. Provider execution path:
-   - `TEXT_ONLY`: single-call fast path.
-   - `IMAGE_ONLY`/`MIXED`: thinker/formatter orchestration path (with safe fallback fast path when unavailable).
-8. Response returns normalized actions (`applyPrompt`, `variations`, `describeTargets`, `referenceCard`) and canonical prompt continuity.
+   - Canonical: single-stage call for `TEXT_ONLY`, `IMAGE_ONLY`, and `MIXED`.
+   - Optional rollback: legacy thinker/formatter fallback when `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=true`.
+8. Response returns normalized prompt output (`message` + `actions.applyPrompt` on success) and canonical prompt continuity.
 9. On Apply: prompt state in `useAiStudioState` updates; the textarea mirrors the applied text (for manual editing), and the next Generate uses it.
-10. On “Describe references”: if `actions.describeTargets` is present, the client triggers image describe actions for those IDs.
+10. Manual reference describe actions remain available through the existing describe flows; canonical prompt-agent turns do not depend on `describeTargets`.
 
 ## Error handling & fallbacks
 - If the feature flag or key is missing, show a single-line banner and render the legacy textarea with no chat.
 - Network/LLM errors: show inline retry chip; preserve last draft message.
 - Oversize media payloads: drop images, tell the agent “media omitted due to size” in `context`.
 - Provider refusal/safety: display the refusal and keep the previous prompt intact.
+- Canonical refusal copy: `I cannot describe this.` with empty actions.
 
 ## Data handling & safety
 - Never send raw file blobs to the LLM route; convert local previews to signed/public `https://` URLs first.
@@ -80,7 +82,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Chat panel sits where prompt boxes were; shows reference chips and current model badge.
 - Inline chat now includes a “Primary generation prompt” state block so users can confirm the exact prompt Generate will use.
 - Quick actions: “Apply prompt”, “Generate with agent”, “Summarize grid”, “Describe latest image”.
-- When the agent proposes multiple variations, render them as selectable chips that copy into the input on tap.
+- Variation/describe chips remain supported in UI for compatibility, but canonical runtime turns are prompt-only and typically leave these chips empty.
 - Detail modal: agent chat focuses on the selected card and preloads its prompt/preview.
 
 ## Tests / verification

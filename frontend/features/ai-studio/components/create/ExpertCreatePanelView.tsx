@@ -16,13 +16,13 @@ type ExpertCreatePanelViewProps = {
   onCharacterModeEnabledToggle: () => void;
   onCharacterPickerOpen: () => void;
   characterSelectDisabled: boolean;
+  isCharacterSelectionEmpty: boolean;
   selectedCharacterName: string;
   selectedCharacterProfileImageUrl: string | null;
   selectedCharacterInitials: string | null;
   isCharacterPickerOpen: boolean;
-  modelId: string | null;
-  isModelModalOpen: boolean;
-  modelModalAnchor: string | null;
+  isCreateModelPickerOpen: boolean;
+  isModelSelectionEmpty: boolean;
   onCreateModelOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
   effectiveModelLogoSrc?: string;
   useUnoptimizedModelLogo: boolean;
@@ -46,13 +46,13 @@ export function ExpertCreatePanelView({
   onCharacterModeEnabledToggle,
   onCharacterPickerOpen,
   characterSelectDisabled,
+  isCharacterSelectionEmpty,
   selectedCharacterName,
   selectedCharacterProfileImageUrl,
   selectedCharacterInitials,
   isCharacterPickerOpen,
-  modelId,
-  isModelModalOpen,
-  modelModalAnchor,
+  isCreateModelPickerOpen,
+  isModelSelectionEmpty,
   onCreateModelOpen,
   effectiveModelLogoSrc,
   useUnoptimizedModelLogo,
@@ -118,7 +118,7 @@ export function ExpertCreatePanelView({
               <button
                 type="button"
                 className={`model-picker-btn create-expert-picker-control create-expert-character-picker-trigger ${
-                  !selectedCharacterInitials && !selectedCharacterProfileImageUrl ? "is-empty" : ""
+                  isCharacterSelectionEmpty ? "is-empty" : ""
                 } ${isCharacterPickerOpen ? "is-open" : ""}`}
                 aria-haspopup="dialog"
                 aria-expanded={isCharacterPickerOpen}
@@ -148,9 +148,9 @@ export function ExpertCreatePanelView({
             <span className="create-expert-control-label">Model</span>
             <button
               type="button"
-              className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${!modelId ? "is-empty" : ""} ${
-                isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""
-              }`}
+              className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
+                isModelSelectionEmpty ? "is-empty" : ""
+              } ${isCreateModelPickerOpen ? "is-open" : ""}`}
               data-model-anchor="create-model"
               aria-label="Open model picker"
               onClick={onCreateModelOpen}

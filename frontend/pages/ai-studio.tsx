@@ -12,6 +12,7 @@ import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioVie
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
 import { useBeginnerModePreference } from "../features/ai-studio/hooks/useBeginnerModePreference";
 import { normalizePromptText } from "../features/ai-studio/logic/agentPromptOwnership";
+import { shouldDisableAgentOutputGenerate } from "../features/ai-studio/logic/createGenerationGuards";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
@@ -1232,31 +1233,31 @@ export default function AiStudioPage() {
       setVideoReferenceText,
     ]
   );
-  const disableAgentOutputGenerate = useMemo(() => {
-    const isCreatePromptTool = selectedTool === "create" || selectedTool === "text";
-    const missingGenerationTarget = isCreatePromptTool
-      ? (isCharacterModeEnabled && !selectedCharacterId) || !model
-      : false;
-    const isCreatePromptTextMode = isCreatePromptTool && mode === "text";
-    return (
-      isCreatePromptTextMode ||
-      isPromptGenerating ||
-      isGenerateDisabled ||
-      isGenerateClickLocked ||
-      missingGenerationTarget ||
-      !hasSufficientCreditsForPromptReferenceGenerate
-    );
-  }, [
-    hasSufficientCreditsForPromptReferenceGenerate,
-    isCharacterModeEnabled,
-    isGenerateClickLocked,
-    isGenerateDisabled,
-    isPromptGenerating,
-    mode,
-    model,
-    selectedCharacterId,
-    selectedTool,
-  ]);
+  const disableAgentOutputGenerate = useMemo(
+    () =>
+      shouldDisableAgentOutputGenerate({
+        mode,
+        selectedTool,
+        isGenerateDisabled,
+        isGenerateClickLocked,
+        isPromptGenerating,
+        hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
+        modelId: model,
+        characterModeEnabled: isCharacterModeEnabled,
+        selectedCharacterId,
+      }),
+    [
+      hasSufficientCreditsForPromptReferenceGenerate,
+      isCharacterModeEnabled,
+      isGenerateClickLocked,
+      isGenerateDisabled,
+      isPromptGenerating,
+      mode,
+      model,
+      selectedCharacterId,
+      selectedTool,
+    ]
+  );
   const { handleDownloadReference, handleSaveReference, handleGenerateFromPromptReference } =
     useAiStudioReferenceAssetActions({
       findOutputById,

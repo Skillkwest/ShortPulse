@@ -13,6 +13,7 @@ type BeginnerCreatePanelViewProps = {
   onCharacterModeEnabledToggle: () => void;
   onCharacterPickerOpen: () => void;
   characterSelectDisabled: boolean;
+  isCharacterSelectionEmpty: boolean;
   selectedCharacterName: string;
   selectedCharacterProfileImageUrl: string | null;
   selectedCharacterInitials: string | null;
@@ -20,9 +21,8 @@ type BeginnerCreatePanelViewProps = {
   collapsedModel: boolean;
   onToggleModel: () => void;
   onExpandModel: () => void;
-  modelId: string | null;
-  isModelModalOpen: boolean;
-  modelModalAnchor: string | null;
+  isCreateModelPickerOpen: boolean;
+  isModelSelectionEmpty: boolean;
   onCreateModelOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
   effectiveModelLogoSrc?: string;
   useUnoptimizedModelLogo: boolean;
@@ -67,6 +67,7 @@ export function BeginnerCreatePanelView({
   onCharacterModeEnabledToggle,
   onCharacterPickerOpen,
   characterSelectDisabled,
+  isCharacterSelectionEmpty,
   selectedCharacterName,
   selectedCharacterProfileImageUrl,
   selectedCharacterInitials,
@@ -74,9 +75,8 @@ export function BeginnerCreatePanelView({
   collapsedModel,
   onToggleModel,
   onExpandModel,
-  modelId,
-  isModelModalOpen,
-  modelModalAnchor,
+  isCreateModelPickerOpen,
+  isModelSelectionEmpty,
   onCreateModelOpen,
   effectiveModelLogoSrc,
   useUnoptimizedModelLogo,
@@ -137,7 +137,7 @@ export function BeginnerCreatePanelView({
               <button
                 type="button"
                 className={`model-picker-btn character-picker-trigger ${
-                  !selectedCharacterInitials && !selectedCharacterProfileImageUrl ? "is-empty" : ""
+                  isCharacterSelectionEmpty ? "is-empty" : ""
                 } ${isCharacterPickerOpen ? "is-open" : ""}`}
                 aria-haspopup="dialog"
                 aria-expanded={isCharacterPickerOpen}
@@ -200,7 +200,9 @@ export function BeginnerCreatePanelView({
               <label className="input-label">Model</label>
               <button
                 type="button"
-                className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""}`}
+                className={`model-picker-btn ${isModelSelectionEmpty ? "is-empty" : ""} ${
+                  isCreateModelPickerOpen ? "is-open" : ""
+                }`}
                 data-model-anchor="create-model"
                 aria-label="Open model picker"
                 onClick={onCreateModelOpen}

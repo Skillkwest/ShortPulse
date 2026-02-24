@@ -11,11 +11,7 @@ import type { ModelModalContext } from "./ModelModal";
 import { AgentGenerateButton } from "../../../prefabs/agent";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
-import {
-  MODEL_DEFAULT_IMAGE_RESOLUTION,
-  clampImageResolutionForModel,
-  getImageResolutionOptions,
-} from "../logic/imageResolution";
+import { deriveCreateSelectorViewState } from "../logic/createSelectorState";
 import { getModelConfig } from "../logic/modelRegistry";
 import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
 import { ExpertCreatePanelView } from "./create/ExpertCreatePanelView";
@@ -298,6 +294,7 @@ export function CreatePropertiesPanel({
     closeCharacterPicker,
     handleCharacterModeEnabledToggle,
     characterSelectDisabled,
+    isCharacterSelectionEmpty,
     selectedCharacterName,
     selectedCharacterProfileImageUrl,
     selectedCharacterInitials,
@@ -333,23 +330,41 @@ export function CreatePropertiesPanel({
     });
   };
 
-  const imageResolutionOptions = useMemo(() => getImageResolutionOptions(modelId), [modelId]);
-  const imageResolutionValue = useMemo(
-    () => clampImageResolutionForModel(modelId, imageResolution),
-    [imageResolution, modelId]
+  const selectorViewState = useMemo(
+    () =>
+      deriveCreateSelectorViewState({
+        mode,
+        modelId,
+        isModelModalOpen,
+        modelModalAnchor,
+        isGenerateDisabled,
+        isPromptGenerating,
+        hasSufficientCreditsForOutputGenerate,
+        characterModeEnabled,
+        selectedCharacterId,
+        imageResolution,
+      }),
+    [
+      characterModeEnabled,
+      hasSufficientCreditsForOutputGenerate,
+      imageResolution,
+      isGenerateDisabled,
+      isModelModalOpen,
+      isPromptGenerating,
+      mode,
+      modelId,
+      modelModalAnchor,
+      selectedCharacterId,
+    ]
   );
-  const shouldShowImageResolutionCard = useMemo(() => {
-    if (imageResolutionOptions.length !== 1) return true;
-    return imageResolutionOptions[0]?.value !== MODEL_DEFAULT_IMAGE_RESOLUTION;
-  }, [imageResolutionOptions]);
-  const isCreateToolInPromptOnlyMode = mode === "text";
-  const disableOutputGenerate =
-    isCreateToolInPromptOnlyMode ||
-    isGenerateDisabled ||
-    isPromptGenerating ||
-    (characterModeEnabled && !selectedCharacterId) ||
-    !modelId ||
-    !hasSufficientCreditsForOutputGenerate;
+  const {
+    imageResolutionOptions,
+    imageResolutionValue,
+    shouldShowImageResolutionCard,
+    isModelSelectionEmpty,
+    isCreateModelPickerOpen,
+    disableOutputGenerate,
+  } = selectorViewState;
 
   // Auto-clamp invalid image resolution values when switching image models.
   useEffect(() => {
@@ -449,13 +464,13 @@ export function CreatePropertiesPanel({
           onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
           onCharacterPickerOpen={openCharacterPicker}
           characterSelectDisabled={characterSelectDisabled}
+          isCharacterSelectionEmpty={isCharacterSelectionEmpty}
           selectedCharacterName={selectedCharacterName}
           selectedCharacterProfileImageUrl={selectedCharacterProfileImageUrl}
           selectedCharacterInitials={selectedCharacterInitials}
           isCharacterPickerOpen={isCharacterPickerOpen}
-          modelId={modelId}
-          isModelModalOpen={isModelModalOpen}
-          modelModalAnchor={modelModalAnchor}
+          isCreateModelPickerOpen={isCreateModelPickerOpen}
+          isModelSelectionEmpty={isModelSelectionEmpty}
           onCreateModelOpen={handleCreateModelOpen}
           effectiveModelLogoSrc={effectiveModelLogoSrc}
           useUnoptimizedModelLogo={useUnoptimizedModelLogo}
@@ -480,6 +495,7 @@ export function CreatePropertiesPanel({
           onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
           onCharacterPickerOpen={openCharacterPicker}
           characterSelectDisabled={characterSelectDisabled}
+          isCharacterSelectionEmpty={isCharacterSelectionEmpty}
           selectedCharacterName={selectedCharacterName}
           selectedCharacterProfileImageUrl={selectedCharacterProfileImageUrl}
           selectedCharacterInitials={selectedCharacterInitials}
@@ -487,9 +503,8 @@ export function CreatePropertiesPanel({
           collapsedModel={collapsedSteps.model}
           onToggleModel={() => toggleStep("model")}
           onExpandModel={() => expandIfCollapsed("model")}
-          modelId={modelId}
-          isModelModalOpen={isModelModalOpen}
-          modelModalAnchor={modelModalAnchor}
+          isCreateModelPickerOpen={isCreateModelPickerOpen}
+          isModelSelectionEmpty={isModelSelectionEmpty}
           onCreateModelOpen={handleCreateModelOpen}
           effectiveModelLogoSrc={effectiveModelLogoSrc}
           useUnoptimizedModelLogo={useUnoptimizedModelLogo}

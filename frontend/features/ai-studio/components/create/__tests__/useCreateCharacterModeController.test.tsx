@@ -22,9 +22,32 @@ describe("useCreateCharacterModeController", () => {
     const { result } = renderHook(() => useCreateCharacterModeController(createArgs()));
 
     expect(result.current.characterSelectDisabled).toBe(false);
+    expect(result.current.isCharacterSelectionEmpty).toBe(false);
     expect(result.current.selectedCharacterName).toBe("Avery Pulse");
     expect(result.current.selectedCharacterProfileImageUrl).toBe("https://cdn.test/a.png");
     expect(result.current.selectedCharacterInitials).toBe("AP");
+  });
+
+  it("keeps picker closed when selection is disabled", () => {
+    const { result } = renderHook(() =>
+      useCreateCharacterModeController(
+        createArgs({
+          characterModeEnabled: false,
+          characterOptions: [],
+          selectedCharacterId: "",
+          isCharacterOptionsLoading: false,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.openCharacterPicker();
+    });
+
+    expect(result.current.characterSelectDisabled).toBe(true);
+    expect(result.current.isCharacterPickerOpen).toBe(false);
+    expect(result.current.isCharacterSelectionEmpty).toBe(true);
+    expect(result.current.selectedCharacterName).toBe("Character mode is off");
   });
 
   it("closes picker and emits toggle callbacks when turning character mode off", () => {

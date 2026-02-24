@@ -25,6 +25,7 @@ type UseCreateCharacterModeControllerResult = {
   closeCharacterPicker: () => void;
   handleCharacterModeEnabledToggle: () => void;
   characterSelectDisabled: boolean;
+  isCharacterSelectionEmpty: boolean;
   selectedCharacterName: string;
   selectedCharacterProfileImageUrl: string | null;
   selectedCharacterInitials: string | null;
@@ -50,14 +51,17 @@ export const useCreateCharacterModeController = ({
   onStepActionClick,
 }: UseCreateCharacterModeControllerArgs): UseCreateCharacterModeControllerResult => {
   const [isCharacterPickerOpen, setIsCharacterPickerOpen] = React.useState(false);
+  const hasCharacterOptions = characterOptions.length > 0;
+  const characterSelectDisabled =
+    isCharacterOptionsLoading || !hasCharacterOptions || !characterModeEnabled;
 
   const closeCharacterPicker = React.useCallback(() => {
     setIsCharacterPickerOpen(false);
   }, []);
   const openCharacterPicker = React.useCallback(() => {
-    if (!characterModeEnabled) return;
+    if (characterSelectDisabled) return;
     setIsCharacterPickerOpen(true);
-  }, [characterModeEnabled]);
+  }, [characterSelectDisabled]);
 
   const handleCharacterModeEnabledToggle = React.useCallback(() => {
     const nextCharacterModeEnabled = !characterModeEnabled;
@@ -86,9 +90,6 @@ export const useCreateCharacterModeController = ({
     };
   }, [closeCharacterPicker, isCharacterPickerOpen]);
 
-  const hasCharacterOptions = characterOptions.length > 0;
-  const characterSelectDisabled =
-    isCharacterOptionsLoading || !hasCharacterOptions || !characterModeEnabled;
   const characterSelectPlaceholder = !characterModeEnabled
     ? "Character mode is off"
     : isCharacterOptionsLoading
@@ -105,6 +106,7 @@ export const useCreateCharacterModeController = ({
   const selectedCharacterInitials = selectedCharacterOption
     ? getCreateCharacterInitials(selectedCharacterOption.name)
     : null;
+  const isCharacterSelectionEmpty = !selectedCharacterProfileImageUrl && !selectedCharacterInitials;
   const characterStepSubtitle = beginnerMode
     ? "Toggle on character mode then select your character."
     : "Select one of your Character Manager profiles.";
@@ -116,6 +118,7 @@ export const useCreateCharacterModeController = ({
     closeCharacterPicker,
     handleCharacterModeEnabledToggle,
     characterSelectDisabled,
+    isCharacterSelectionEmpty,
     selectedCharacterName,
     selectedCharacterProfileImageUrl,
     selectedCharacterInitials,

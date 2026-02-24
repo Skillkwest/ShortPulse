@@ -4,6 +4,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import {
+  clearDragState,
   extractDragDropPayload,
   extractVideoDragDropPayload,
   isVideoDragTransfer,
@@ -129,6 +130,49 @@ describe("dragDrop payload extraction", () => {
     );
 
     expect(setData).toHaveBeenCalledWith("text/reference-source-surface", "curated");
+  });
+
+  it("removes selected-card action controls from the drag ghost preview", () => {
+    const dragNode = document.createElement("div");
+    dragNode.className = "reference-card is-active";
+    dragNode.innerHTML = `
+      <img class="reference-card-image" src="https://example.com/ref.png" alt="" />
+      <div class="reference-card-actions">
+        <button type="button" class="reference-card-action-btn">Delete</button>
+      </div>
+      <button type="button" class="reference-generate-pill">Generate</button>
+    `;
+
+    const setData = vi.fn();
+    const setDragImage = vi.fn();
+    const event = {
+      dataTransfer: {
+        effectAllowed: "all",
+        setData,
+        setDragImage,
+      },
+      currentTarget: dragNode,
+    } as unknown as Parameters<typeof prepareReferenceDrag>[0];
+
+    prepareReferenceDrag(event, {
+      id: "ref-ghost-1",
+      prompt: "Prompt",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-ghost-1.png",
+    });
+
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement | undefined;
+    expect(ghost).toBeInstanceOf(HTMLElement);
+    expect(ghost?.classList.contains("is-active")).toBe(false);
+    expect(ghost?.querySelector(".reference-card-actions")).toBeNull();
+    expect(ghost?.querySelector(".reference-generate-pill")).toBeNull();
+    expect(ghost?.querySelector("button")).toBeNull();
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });
 
   it("uses storage/full URL fallbacks when previewUrl is missing during internal drags", () => {

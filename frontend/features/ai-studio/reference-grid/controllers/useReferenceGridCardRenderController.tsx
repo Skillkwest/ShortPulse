@@ -50,7 +50,6 @@ type UseReferenceGridCardRenderControllerArgs = {
   onRemoveCuratedReference?: (id: string) => void;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
-  onDescribeImage?: (output: StudioOutput) => void;
   onGeneratePrompt?: (output: StudioOutput) => void;
 };
 
@@ -92,7 +91,6 @@ export const useReferenceGridCardRenderController = ({
   onRemoveCuratedReference,
   onSaveToLibrary,
   onDownload,
-  onDescribeImage,
   onGeneratePrompt,
 }: UseReferenceGridCardRenderControllerArgs): UseReferenceGridCardRenderControllerResult => {
   const renderReferenceCard = useCallback(
@@ -109,7 +107,8 @@ export const useReferenceGridCardRenderController = ({
         (card.item.taskState === "running" ||
           card.item.taskState === "pending" ||
           (card.item.taskState === "success" && !card.cardPreviewUrl && !card.item.previewText));
-      const isCardLoading = loadingCardIdSet.has(card.item.id);
+      // Keep placeholder loading class deterministic even before ancillary loading derivations settle.
+      const isCardLoading = loadingCardIdSet.has(card.item.id) || isLoading;
       const loadingVisual: "none" | "spinner" = isCardLoading ? "spinner" : "none";
       const spinnerAnimated = animatedSpinnerIdSet.has(card.item.id);
       const canAutoplayVideo =
@@ -125,6 +124,7 @@ export const useReferenceGridCardRenderController = ({
           dragSourceSurface={options.surface}
           videoNodeKey={videoNodeKey}
           activeOutputId={activeOutputId}
+          isLoading={isCardLoading}
           loadingVisual={loadingVisual}
           spinnerAnimated={spinnerAnimated}
           cardPreviewUrl={card.cardPreviewUrl}
@@ -179,7 +179,6 @@ export const useReferenceGridCardRenderController = ({
           showCuratedRemoveAction={options.isCuratedSurface}
           onSaveToLibrary={onSaveToLibrary}
           onDownload={onDownload}
-          onDescribeImage={onDescribeImage}
           onGeneratePrompt={onGeneratePrompt}
           hideReferenceActions={options.isCuratedSurface}
         />
@@ -202,7 +201,6 @@ export const useReferenceGridCardRenderController = ({
       onCuratedSectionDragLeave,
       onCuratedSectionDragOver,
       onDeleteOutput,
-      onDescribeImage,
       onDownload,
       onGeneratePrompt,
       onOpenDetails,

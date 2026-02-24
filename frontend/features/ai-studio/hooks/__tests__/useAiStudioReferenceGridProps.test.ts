@@ -31,7 +31,6 @@ const createParams = (
   disableReferencePromptGenerate: false,
   handleSelectOutput: vi.fn(),
   setDetailOutputId: vi.fn(),
-  handleDescribeReference: vi.fn(),
   handleSaveReference: vi.fn(),
   handleDownloadReference: vi.fn(),
   handleGenerateFromPromptReference: vi.fn(),
@@ -49,7 +48,6 @@ const createParams = (
 
 describe("useAiStudioReferenceGridProps", () => {
   it("routes output action callbacks through output id wrappers", () => {
-    const handleDescribeReference = vi.fn();
     const handleSaveReference = vi.fn();
     const handleDownloadReference = vi.fn();
     const handleGenerateFromPromptReference = vi.fn();
@@ -60,7 +58,6 @@ describe("useAiStudioReferenceGridProps", () => {
     const { result } = renderHook(() =>
       useAiStudioReferenceGridProps(
         createParams({
-          handleDescribeReference,
           handleSaveReference,
           handleDownloadReference,
           handleGenerateFromPromptReference,
@@ -71,7 +68,6 @@ describe("useAiStudioReferenceGridProps", () => {
       )
     );
 
-    result.current.onDescribeImage?.(output);
     result.current.onSaveToLibrary?.(output);
     result.current.onDownload?.(output);
     result.current.onGeneratePrompt?.(output);
@@ -82,7 +78,6 @@ describe("useAiStudioReferenceGridProps", () => {
     });
     result.current.onRetryStatus?.(output);
 
-    expect(handleDescribeReference).toHaveBeenCalledWith("out-1");
     expect(handleSaveReference).toHaveBeenCalledWith("out-1");
     expect(handleDownloadReference).toHaveBeenCalledWith("out-1");
     expect(handleGenerateFromPromptReference).toHaveBeenCalledWith("out-1");

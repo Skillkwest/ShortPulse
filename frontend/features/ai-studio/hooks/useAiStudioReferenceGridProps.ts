@@ -18,7 +18,6 @@ export type UseAiStudioReferenceGridPropsParams = {
   disableReferencePromptGenerate: boolean;
   handleSelectOutput: (id: string) => void;
   setDetailOutputId: (id: string | null) => void;
-  handleDescribeReference: (id: string) => void;
   handleSaveReference: (id: string) => void;
   handleDownloadReference: (id: string) => void;
   handleGenerateFromPromptReference: (id: string) => void;
@@ -59,7 +58,6 @@ export const useAiStudioReferenceGridProps = ({
   disableReferencePromptGenerate,
   handleSelectOutput,
   setDetailOutputId,
-  handleDescribeReference,
   handleSaveReference,
   handleDownloadReference,
   handleGenerateFromPromptReference,
@@ -89,7 +87,6 @@ export const useAiStudioReferenceGridProps = ({
       disablePromptGenerate: disableReferencePromptGenerate,
       onSelectOutput: handleSelectOutput,
       onOpenDetails: setDetailOutputId,
-      onDescribeImage: (output) => handleDescribeReference(output.id),
       onSaveToLibrary: (output) => handleSaveReference(output.id),
       onDownload: (output) => handleDownloadReference(output.id),
       onGeneratePrompt: (output) => handleGenerateFromPromptReference(output.id),
@@ -114,7 +111,6 @@ export const useAiStudioReferenceGridProps = ({
       currentCostCredits,
       deleteOutput,
       disableReferencePromptGenerate,
-      handleDescribeReference,
       handleDownloadReference,
       handleGenerateFromPromptReference,
       handlePasteMediaReference,

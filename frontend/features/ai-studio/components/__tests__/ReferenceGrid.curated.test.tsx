@@ -130,6 +130,9 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
+    const pendingCard = container.querySelector(".reference-card");
+    expect(pendingCard?.classList.contains("is-loading")).toBe(true);
+    expect(pendingCard?.getAttribute("aria-busy")).toBe("true");
     expect(container.querySelector(".reference-spinner")).toBeTruthy();
 
     act(() => {
@@ -152,7 +155,7 @@ describe("ReferenceGrid curated split", () => {
       mediaSource: "library",
       previewUrl: "https://example.com/imported.png",
     };
-    const { container } = render(
+    const { container, queryByRole } = render(
       <ReferenceGrid
         {...createProps({
           outputs: [importedOutput],
@@ -161,7 +164,11 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
+    const importedCard = container.querySelector(".reference-card");
+    expect(importedCard?.classList.contains("is-loading")).toBe(true);
+    expect(importedCard?.getAttribute("aria-busy")).toBe("true");
     expect(container.querySelector(".reference-spinner")).toBeTruthy();
+    expect(queryByRole("button", { name: "Describe" })).toBeNull();
     expect(container.querySelector(".reference-loading-placeholder")).toBeNull();
   });
 
@@ -974,7 +981,7 @@ describe("ReferenceGrid curated split", () => {
         toJSON: () => ({}),
       }),
     });
-    expect(divider).toHaveAttribute("aria-valuenow", "35");
+    expect(divider).toHaveAttribute("aria-valuenow", "28");
 
     fireEvent.pointerDown(getByText("Inventory ↓"));
     fireEvent.click(getByText("Inventory ↓"));
@@ -1014,7 +1021,7 @@ describe("ReferenceGrid curated split", () => {
       configurable: true,
       value: 44,
     });
-    expect(divider).toHaveAttribute("aria-valuenow", "35");
+    expect(divider).toHaveAttribute("aria-valuenow", "28");
 
     fireEvent.pointerDown(getByText("All Refs ↑"));
     fireEvent.click(getByText("All Refs ↑"));

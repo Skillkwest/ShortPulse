@@ -25,6 +25,8 @@ const findVideoFile = (files?: FileList) => {
 };
 
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
+const DRAG_GHOST_REMOVED_SELECTOR =
+  ".reference-card-actions, .reference-generate-pill, .reference-status-retry-btn, .reference-save-chip, button";
 
 export type DragDropPayload = {
   imageUrl: string | null;
@@ -400,6 +402,9 @@ export const prepareReferenceDrag = (
     try {
       const rect = dragNode.getBoundingClientRect();
       const ghost = dragNode.cloneNode(true) as HTMLElement;
+      // Drag ghost should present media/prompt content only; strip action controls from selected cards.
+      ghost.querySelectorAll(DRAG_GHOST_REMOVED_SELECTOR).forEach((node) => node.remove());
+      ghost.classList.remove("is-active");
       ghost.style.boxSizing = "border-box";
       const scale = 0.6;
       const scaledWidth = rect.width * scale;

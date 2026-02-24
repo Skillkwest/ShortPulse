@@ -98,7 +98,7 @@ const REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_TELE
 const REFERENCE_GRID_FLAG_TRANSITION_NONURGENT = PERF_FLAG_REFERENCE_GRID_TRANSITION_NONURGENT;
 const REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY =
   PERF_FLAG_REFERENCE_GRID_RENDER_COMMIT_TELEMETRY;
-const DEFAULT_CURATED_SPLIT_TOP_RATIO = 0.35;
+const DEFAULT_CURATED_SPLIT_TOP_RATIO = 0.28;
 
 // Temporary UI experiment: set false to revert selection outline theming to default create-blue.
 const ENABLE_TOOL_THEMED_SELECTION_OUTLINE = true;
@@ -139,7 +139,6 @@ export type ReferenceGridProps = {
   onPasteMediaReference?: (reference: PastedMediaReference) => void;
   onTriggerFileSelect?: () => void;
   onOpenMediaLibrary?: () => void;
-  onDescribeImage?: (output: StudioOutput) => void;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
   onGeneratePrompt?: (output: StudioOutput) => void;
@@ -184,7 +183,6 @@ export function ReferenceGrid({
   onPasteMediaReference,
   onTriggerFileSelect,
   onOpenMediaLibrary,
-  onDescribeImage,
   onSaveToLibrary,
   onDownload,
   onGeneratePrompt,
@@ -762,7 +760,6 @@ export function ReferenceGrid({
     onRemoveCuratedReference,
     onSaveToLibrary,
     onDownload,
-    onDescribeImage,
     onGeneratePrompt,
   });
 

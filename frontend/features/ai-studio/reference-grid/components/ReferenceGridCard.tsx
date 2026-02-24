@@ -12,6 +12,7 @@ export type ReferenceGridCardProps = {
   dragSourceSurface: ReferenceDragSourceSurface;
   videoNodeKey: string;
   activeOutputId: string | null;
+  isLoading: boolean;
   loadingVisual: "none" | "spinner";
   spinnerAnimated: boolean;
   cardPreviewUrl: string | null;
@@ -50,7 +51,6 @@ export type ReferenceGridCardProps = {
   showCuratedRemoveAction?: boolean;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
-  onDescribeImage?: (output: StudioOutput) => void;
   onGeneratePrompt?: (output: StudioOutput) => void;
   hideReferenceActions?: boolean;
 };
@@ -86,6 +86,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   dragSourceSurface,
   videoNodeKey,
   activeOutputId,
+  isLoading,
   loadingVisual,
   spinnerAnimated,
   cardPreviewUrl,
@@ -120,13 +121,11 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   showCuratedRemoveAction = false,
   onSaveToLibrary,
   onDownload,
-  onDescribeImage,
   onGeneratePrompt,
   hideReferenceActions = false,
 }: ReferenceGridCardProps) {
   const isFailing = item.taskState === "fail";
   const isSelected = activeOutputId === item.id;
-  const isLoading = loadingVisual !== "none";
   const saveDisabled = item.saveState === "saving";
   const saveLabel = item.saveState === "failed" ? "Retry save" : "Save to media library";
   const isGeneratedReference =
@@ -333,19 +332,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         </div>
       ) : null}
       {item.previewText ? <div className="reference-card-text">{item.previewText}</div> : null}
-      {isImagePreview && onDescribeImage ? (
-        <button
-          type="button"
-          className="reference-describe-pill reference-generate-pill agent-generate-prefab"
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelectOutput(item.id);
-            onDescribeImage(item);
-          }}
-        >
-          <span className="agent-generate-label">Describe</span>
-        </button>
-      ) : null}
       {isPromptOnly && onGeneratePrompt && isSelected && showPromptGenerate ? (
         <button
           type="button"

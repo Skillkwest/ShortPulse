@@ -156,6 +156,10 @@
   box-shadow: 0 0 0 2px var(--reference-selection-active-outline);
 }
 
+.reference-canvas-panel.is-grid-pressure-mode .reference-card.is-loading.is-active {
+  box-shadow: none;
+}
+
 .reference-canvas-panel.is-grid-pressure-mode .reference-card.is-dragging {
   filter: none;
 }
@@ -297,8 +301,7 @@
   padding: 0;
   cursor: pointer;
   transition: transform 0.2s ease;
-  outline: 2px solid transparent;
-  outline-offset: -2px;
+  outline: none;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -307,17 +310,47 @@
   overflow: hidden;
 }
 
+.reference-card:focus {
+  outline: none;
+}
+
+.reference-card:focus-visible:not(.is-loading) {
+  outline: 2px solid rgba(52, 200, 255, 0.88);
+  outline-offset: 2px;
+}
+
 .reference-card.is-loading {
   background: var(--ai-container-card-bg);
   border: none;
   box-shadow: none;
   outline: none;
   transform: none;
+  filter: none;
+  transition: none;
+  background-clip: padding-box;
 }
 
 .reference-card.is-loading:hover {
   box-shadow: none;
   transform: none;
+}
+
+.reference-card.is-loading:focus,
+.reference-card.is-loading:focus-visible,
+.reference-card.is-loading.is-active,
+.reference-card.is-loading.is-active:hover {
+  border: none;
+  outline: none;
+  box-shadow: none;
+  transform: none;
+  filter: none;
+}
+
+.reference-card.is-loading::before,
+.reference-card.is-loading::after {
+  border: none;
+  outline: none;
+  box-shadow: none;
 }
 
 .reference-card.is-loading .reference-loading {
@@ -356,9 +389,8 @@
 .reference-card.is-loading.is-active {
   background: var(--ai-container-card-bg);
   border: none;
-  box-shadow:
-    0 10px 28px rgba(0, 0, 0, 0.28),
-    0 0 0 2px var(--reference-selection-active-outline);
+  box-shadow: none;
+  transform: none;
 }
 
 .reference-card.is-loading.is-active::after {
@@ -407,27 +439,8 @@
 
 .reference-canvas-panel
   .reference-card
-  .reference-describe-pill.reference-generate-pill.agent-generate-prefab {
-  display: none;
-  border: 0;
-  background: rgba(52, 200, 255, 0.86);
-  box-shadow: none;
-  color: #07151d;
-  bottom: 16px;
-}
-
-.reference-canvas-panel
-  .reference-card
   .reference-prompt-generate-pill.agent-generate-prefab:hover:not(:disabled) {
   box-shadow: 0 6px 14px var(--reference-generate-hover-shadow);
-}
-
-.reference-canvas-panel
-  .reference-card
-  .reference-describe-pill.reference-generate-pill.agent-generate-prefab:hover:not(:disabled) {
-  box-shadow: none;
-  transform: translateX(-50%);
-  background: rgba(52, 200, 255, 0.92);
 }
 
 .reference-canvas-panel .reference-card .reference-prompt-generate-pill .agent-generate-label,

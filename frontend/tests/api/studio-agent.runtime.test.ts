@@ -53,6 +53,19 @@ const createMockResponse = () => {
   return res;
 };
 
+const extractTelemetryPaths = (infoSpy: ReturnType<typeof vi.spyOn>): string[] =>
+  infoSpy.mock.calls
+    .filter((call) => call[0] === "[studio-agent][telemetry]")
+    .map((call) => {
+      try {
+        const payload = JSON.parse(String(call[1])) as { path?: string };
+        return typeof payload.path === "string" ? payload.path : "";
+      } catch {
+        return "";
+      }
+    })
+    .filter(Boolean);
+
 describe("POST /api/ai/studio-agent runtime hardening", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -588,6 +601,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
       new Response("upstream unavailable", { status: 503 })
     );
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
 
     const req = {
       method: "POST",
@@ -606,6 +620,63 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         actions: expect.objectContaining({ applyPrompt: "Enhanced prompt output" }),
+      })
+    );
+    expect(extractTelemetryPaths(infoSpy)).toContain("legacy_v2_fallback");
+    infoSpy.mockRestore();
+  });
+
+  it("uses v2 orchestration path when single-stage rollback lever is enabled", async () => {
+    process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "false";
+    process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "false";
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "refine this cinematic prompt" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(extractTelemetryPaths(infoSpy)).toContain("v2_orchestration");
+    infoSpy.mockRestore();
+  });
+
+  it("does not trigger legacy fallback when single-stage returns safety refusal", async () => {
+    process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response('{"error":{"message":"blocked by safety policy"}}', {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "explicit violent prompt text" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "I cannot describe this.",
+        actions: undefined,
       })
     );
   });

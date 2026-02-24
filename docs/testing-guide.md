@@ -16,6 +16,9 @@ Purpose: outline how to test the ShortPulse app (client UI plus internal API rou
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run perf:ai-studio:release-check`
 - Full local validation:
   - `cd frontend && npm run validate`
+- Full repo sweep (major CI-aligned breakpoints in one run):
+  - `bash scripts/run_repo_sweep.sh`
+  - Optional gates: set `RUN_SQL_LINT=1`, `RUN_E2E=1`, and/or `RUN_AI_STUDIO_PERF_AUDIT=1` as needed.
 
 ## When to test
 

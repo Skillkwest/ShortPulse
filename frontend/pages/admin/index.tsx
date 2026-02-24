@@ -660,7 +660,7 @@ export default function AdminDashboardPage() {
     () => ({
       activeUsers: usersPagination.totalCount,
       openIssues: errorSummary.openCount,
-      pendingCredits: users.filter((row) => row.credits <= 0).length,
+      pendingCredits: users.filter((row) => row.spendableCredits <= 0).length,
     }),
     [errorSummary.openCount, users, usersPagination.totalCount]
   );
@@ -1053,7 +1053,7 @@ export default function AdminDashboardPage() {
                 <div className={styles.adminTableHead}>
                   <span>User</span>
                   <span>Plan</span>
-                  <span>Credits</span>
+                  <span>Spendable</span>
                   <span>Subscription</span>
                   <span>Created</span>
                 </div>
@@ -1078,7 +1078,13 @@ export default function AdminDashboardPage() {
                     <div key={row.id} className={styles.adminTableRow}>
                       <span>{row.email ?? row.id}</span>
                       <span>{planLabel(row.planId)}</span>
-                      <span className="mono">{row.credits.toLocaleString()}</span>
+                      <span className={styles.adminCreditCell}>
+                        <span className="mono">{row.spendableCredits.toLocaleString()}</span>
+                        <span className={styles.adminCreditMeta}>
+                          avail {row.availableCredits.toLocaleString()} · holds{" "}
+                          {row.reservedCredits.toLocaleString()}
+                        </span>
+                      </span>
                       <span className="subdued">{row.subscriptionStatus ?? "inactive"}</span>
                       <span className="subdued">
                         {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "—"}

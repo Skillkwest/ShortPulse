@@ -61,4 +61,88 @@ describe("GET /api/admin/users", () => {
       })
     );
   });
+
+  it("returns spendable credits with reservation hold breakdown", async () => {
+    const listUsers = vi.fn().mockResolvedValue({
+      data: {
+        users: [
+          {
+            id: "user-1",
+            email: "user-1@example.com",
+            created_at: "2026-02-20T00:00:00.000Z",
+          },
+        ],
+        total: 1,
+        nextPage: null,
+      },
+      error: null,
+    });
+
+    const createInQuery = (rows: unknown[]) => ({
+      in: vi.fn().mockResolvedValue({ data: rows, error: null }),
+    });
+
+    const reservationsQuery = {
+      in: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({
+          data: [{ user_id: "user-1", amount_cents: 100 }],
+          error: null,
+        }),
+      }),
+    };
+
+    getSupabaseAdminMock.mockReturnValue({
+      auth: {
+        admin: {
+          listUsers,
+        },
+      },
+      from: vi.fn((table: string) => {
+        if (table === "ai_credit_balance") {
+          return {
+            select: vi
+              .fn()
+              .mockReturnValue(createInQuery([{ user_id: "user-1", balance_cents: 106 }])),
+          };
+        }
+        if (table === "billing_profiles") {
+          return {
+            select: vi
+              .fn()
+              .mockReturnValue(
+                createInQuery([
+                  { user_id: "user-1", plan_id: "free", subscription_status: "active" },
+                ])
+              ),
+          };
+        }
+        if (table === "ai_credit_reservations") {
+          return {
+            select: vi.fn().mockReturnValue(reservationsQuery),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    const req = { method: "GET", query: {} };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        users: [
+          expect.objectContaining({
+            id: "user-1",
+            credits: 6,
+            spendableCredits: 6,
+            availableCredits: 106,
+            reservedCredits: 100,
+          }),
+        ],
+        reservationsSupported: true,
+      })
+    );
+  });
 });

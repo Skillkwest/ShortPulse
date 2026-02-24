@@ -17,6 +17,9 @@ type AdminUserRow = {
   planId: string | null;
   subscriptionStatus: string | null;
   credits: number;
+  availableCredits: number;
+  reservedCredits: number;
+  spendableCredits: number;
   createdAt: string | null;
 };
 
@@ -29,6 +32,11 @@ type BillingProfileRow = {
 type CreditBalanceRow = {
   user_id: string;
   balance_cents: number | string | null;
+};
+
+type CreditReservationRow = {
+  user_id: string;
+  amount_cents: number | string | null;
 };
 
 type AuthUser = {
@@ -51,6 +59,17 @@ const asSingleString = (value: unknown): string => {
 
 const normalizeSearchQuery = (value: unknown): string =>
   asSingleString(value).trim().toLowerCase().slice(0, 80);
+
+const isSchemaCompatibilityError = (message: string) => {
+  const text = message.toLowerCase();
+  return (
+    text.includes("does not exist") ||
+    text.includes("could not find the table") ||
+    text.includes("schema cache") ||
+    text.includes("failed to parse select parameter") ||
+    text.includes("column")
+  );
+};
 
 const listUsersPage = async (
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
@@ -163,7 +182,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const [balancesResult, profilesResult] = await Promise.all([
+    const [balancesResult, profilesResult, reservationsResult] = await Promise.all([
       supabaseAdmin
         .from("ai_credit_balance")
         .select("user_id, balance_cents")
@@ -172,6 +191,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .from("billing_profiles")
         .select("user_id, plan_id, subscription_status")
         .in("user_id", userIds),
+      supabaseAdmin
+        .from("ai_credit_reservations")
+        .select("user_id, amount_cents")
+        .in("user_id", userIds)
+        .eq("status", "reserved"),
     ]);
     if (balancesResult.error || profilesResult.error) {
       const detail = [balancesResult.error?.message, profilesResult.error?.message]
@@ -182,6 +206,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const balances = (balancesResult.data ?? []) as CreditBalanceRow[];
     const profiles = (profilesResult.data ?? []) as BillingProfileRow[];
+    const reservationError = reservationsResult.error?.message ?? null;
+    const reservationsSupported = !reservationError;
+    if (reservationError && !isSchemaCompatibilityError(reservationError)) {
+      return res.status(500).json({ error: reservationError || "Failed to load reservations." });
+    }
+    const reservations = reservationError
+      ? []
+      : ((reservationsResult.data ?? []) as CreditReservationRow[]);
 
     const balanceByUser = new Map<string, number>(
       balances.map((row) => [row.user_id, Number(row.balance_cents ?? 0)])
@@ -189,15 +221,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const profileByUser = new Map<string, BillingProfileRow>(
       profiles.map((row) => [row.user_id, row])
     );
+    const reservedByUser = new Map<string, number>();
+    for (const row of reservations) {
+      const existing = reservedByUser.get(row.user_id) ?? 0;
+      reservedByUser.set(row.user_id, existing + Math.abs(Number(row.amount_cents ?? 0)));
+    }
 
     const rows: AdminUserRow[] = pagedUsers.map((user) => {
       const profile = profileByUser.get(user.id);
+      const availableCredits = balanceByUser.get(user.id) ?? 0;
+      const reservedCredits = reservedByUser.get(user.id) ?? 0;
+      const spendableCredits = Math.max(0, availableCredits - reservedCredits);
       return {
         id: user.id,
         email: user.email ?? null,
         planId: (profile?.plan_id as string | undefined) ?? null,
         subscriptionStatus: (profile?.subscription_status as string | undefined) ?? null,
-        credits: balanceByUser.get(user.id) ?? 0,
+        credits: spendableCredits,
+        availableCredits,
+        reservedCredits,
+        spendableCredits,
         createdAt: user.created_at ?? null,
       };
     });
@@ -216,6 +259,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         value: search || null,
         limited: searchLimited,
       },
+      reservationsSupported,
     });
   } catch (error) {
     await logApiRouteException({

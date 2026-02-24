@@ -100,3 +100,9 @@ Optional AI Studio production perf release check:
 cd frontend
 PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run perf:ai-studio:release-check
 ```
+
+Optional repo sweep (major CI-aligned checks in one pass):
+
+```bash
+bash scripts/run_repo_sweep.sh
+```

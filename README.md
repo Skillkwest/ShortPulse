@@ -77,6 +77,10 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
   cd frontend
   npm run validate
   ```
+- One-pass repo sweep (major CI-aligned breakpoints):
+  ```bash
+  bash scripts/run_repo_sweep.sh
+  ```
 - Dead-code guard rail:
   ```bash
   cd frontend

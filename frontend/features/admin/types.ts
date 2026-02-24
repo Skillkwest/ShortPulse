@@ -8,6 +8,9 @@ export type AdminUserRow = {
   planId: string | null;
   subscriptionStatus: string | null;
   credits: number;
+  availableCredits: number;
+  reservedCredits: number;
+  spendableCredits: number;
   createdAt: string | null;
 };
 

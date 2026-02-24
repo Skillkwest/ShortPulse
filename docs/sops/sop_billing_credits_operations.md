@@ -72,6 +72,7 @@ If role metadata is updated directly in Supabase, sign out/sign in to refresh JW
 Primary path:
 - `/admin` UI -> `/api/admin/credits/adjust`.
 - `/admin` transaction audit -> `/api/admin/credits/ledger?userId=<uuid>&limit=<n>&source=<source>`.
+- `/api/admin/users` reports spendable credits (`available - reserved`) and also returns `availableCredits` / `reservedCredits` for hold visibility.
 
 Request contract:
 - `userId` (uuid), `changeCents` (non-zero int), `reason` (non-empty string).

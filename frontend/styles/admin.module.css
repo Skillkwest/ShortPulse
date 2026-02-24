@@ -198,6 +198,16 @@
   font-size: 13px;
 }
 
+.adminCreditCell {
+  display: grid;
+  gap: 2px;
+}
+
+.adminCreditMeta {
+  font-size: 11px;
+  color: var(--admin-text-faint);
+}
+
 .adminLedgerHead,
 .adminLedgerRow {
   display: grid;

@@ -347,7 +347,8 @@ export function CreatePropertiesPanel({
     isCreateToolInPromptOnlyMode ||
     isGenerateDisabled ||
     isPromptGenerating ||
-    (characterModeEnabled ? !selectedCharacterId : !modelId) ||
+    (characterModeEnabled && !selectedCharacterId) ||
+    !modelId ||
     !hasSufficientCreditsForOutputGenerate;
 
   // Auto-clamp invalid image resolution values when switching image models.

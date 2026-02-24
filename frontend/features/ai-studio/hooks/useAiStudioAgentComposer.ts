@@ -260,9 +260,12 @@ export const useAiStudioAgentComposer = ({
     [agentAttachmentError]
   );
 
-  const resetAgentComposer = useCallback(() => {
+  const resetAgentComposer = useCallback((options?: { preserveInput?: boolean }) => {
+    const preserveInput = options?.preserveInput === true;
     setAgentAttachmentError(null);
-    setAgentInput("");
+    if (!preserveInput) {
+      setAgentInput("");
+    }
     setAgentAttachments([]);
     setIsAgentDropActive(false);
     agentDropDepthRef.current = 0;

@@ -23,14 +23,9 @@ const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAc
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioCharacterModeLifecycle>[0]> = {}
 ): Parameters<typeof useAiStudioCharacterModeLifecycle>[0] => ({
-  isCharacterModeEnabled: false,
-  selectedTool: null,
-  model: null,
-  setModel: asDispatch<string | null>(vi.fn()),
   setUiError: asDispatch<string | null>(vi.fn()),
   setCharacterModeInjectionBundle: asDispatch(vi.fn()),
   setIsCharacterBundleLoading: asDispatch<boolean>(vi.fn()),
-  backgroundModelId: "fal-ai/bytedance/seedream/v4.5/edit",
   ...overrides,
 });
 
@@ -188,80 +183,5 @@ describe("useAiStudioCharacterModeLifecycle", () => {
         sheetReferenceUrls: ["https://example.com/portrait.png", "https://example.com/closeup.png"],
       })
     );
-  });
-
-  it("enforces create model and clears selection when character mode toggles off", async () => {
-    const setModel = vi.fn();
-    listCharacterManagerCharactersMock.mockResolvedValue([]);
-    const base = createParams({
-      setModel: asDispatch<string | null>(setModel),
-      selectedTool: "create",
-    });
-    const { rerender } = renderHook(
-      (props: Parameters<typeof useAiStudioCharacterModeLifecycle>[0]) =>
-        useAiStudioCharacterModeLifecycle(props),
-      {
-        initialProps: {
-          ...base,
-          isCharacterModeEnabled: true,
-          model: "fal-ai/other-model",
-        },
-      }
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    rerender({
-      ...base,
-      isCharacterModeEnabled: false,
-      model: "fal-ai/bytedance/seedream/v4.5/edit",
-    });
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(setModel).toHaveBeenNthCalledWith(1, "fal-ai/bytedance/seedream/v4.5/edit");
-    expect(setModel).toHaveBeenNthCalledWith(2, null);
-  });
-
-  it("does not clear model when character mode is off and a non-forced model is selected", async () => {
-    const setModel = vi.fn();
-    listCharacterManagerCharactersMock.mockResolvedValue([]);
-    const params = createParams({
-      setModel: asDispatch<string | null>(setModel),
-      selectedTool: "create",
-      isCharacterModeEnabled: false,
-      model: "fal-ai/other-model",
-    });
-
-    renderHook(() => useAiStudioCharacterModeLifecycle(params));
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(setModel).not.toHaveBeenCalled();
-  });
-
-  it("clears create model when character mode is already off after restore", async () => {
-    const setModel = vi.fn();
-    listCharacterManagerCharactersMock.mockResolvedValue([]);
-    const params = createParams({
-      setModel: asDispatch<string | null>(setModel),
-      selectedTool: "create",
-      isCharacterModeEnabled: false,
-      model: "fal-ai/bytedance/seedream/v4.5/edit",
-    });
-
-    renderHook(() => useAiStudioCharacterModeLifecycle(params));
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(setModel).toHaveBeenCalledWith(null);
   });
 });

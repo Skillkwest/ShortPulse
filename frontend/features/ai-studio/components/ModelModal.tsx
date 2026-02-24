@@ -280,6 +280,10 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   ],
 };
 
+const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
+  "text-image": ["fal/flux-2", "fal-ai/nano-banana"],
+};
+
 /**
  * Renders the floating model selection modal.
  */
@@ -326,13 +330,21 @@ export function ModelModal({
     return () => window.cancelAnimationFrame(frame);
   }, [isOpen]);
 
+  const contextHiddenModelIds = useMemo(
+    () => new Set(context ? (hiddenModelIdsByContext[context] ?? []) : []),
+    [context]
+  );
+  const visibleOptions = useMemo(
+    () => options.filter((option) => !contextHiddenModelIds.has(option.value)),
+    [contextHiddenModelIds, options]
+  );
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredOptions = useMemo(
     () =>
       normalizedQuery
-        ? options.filter((option) => option.label.toLowerCase().includes(normalizedQuery))
-        : options,
-    [normalizedQuery, options]
+        ? visibleOptions.filter((option) => option.label.toLowerCase().includes(normalizedQuery))
+        : visibleOptions,
+    [normalizedQuery, visibleOptions]
   );
 
   const optionMap = useMemo(

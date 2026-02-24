@@ -1,8 +1,8 @@
 /**
  * Character Mode lifecycle hook for AI Studio page orchestration.
- * Owns character list loading, selected-character bundle loading, and create-model enforcement.
+ * Owns character list loading and selected-character bundle loading.
  */
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
@@ -13,7 +13,6 @@ import {
   resolveCharacterSheetReferenceStoragePaths,
   resolveCharacterSheetReferenceUrls,
 } from "../logic/characterModePayload";
-import type { ToolId } from "../types";
 import type { CharacterModeInjectionBundle } from "./useAiStudioCharacterModeController";
 
 export type CharacterSelectOption = {
@@ -23,33 +22,22 @@ export type CharacterSelectOption = {
 };
 
 type UseAiStudioCharacterModeLifecycleParams = {
-  isCharacterModeEnabled: boolean;
-  selectedTool: ToolId | null;
-  model: string | null;
-  setModel: (value: string | null) => void;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setCharacterModeInjectionBundle: Dispatch<SetStateAction<CharacterModeInjectionBundle | null>>;
   setIsCharacterBundleLoading: Dispatch<SetStateAction<boolean>>;
-  backgroundModelId: string;
 };
 
 /**
- * Returns Character Mode list selection state and keeps bundle/model side effects in sync.
+ * Returns Character Mode list selection state and keeps bundle side effects in sync.
  */
 export const useAiStudioCharacterModeLifecycle = ({
-  isCharacterModeEnabled,
-  selectedTool,
-  model,
-  setModel,
   setUiError,
   setCharacterModeInjectionBundle,
   setIsCharacterBundleLoading,
-  backgroundModelId,
 }: UseAiStudioCharacterModeLifecycleParams) => {
   const [characterOptions, setCharacterOptions] = useState<CharacterSelectOption[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const [isCharacterOptionsLoading, setIsCharacterOptionsLoading] = useState(true);
-  const previousCreateModelBeforeCharacterModeRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -142,37 +130,6 @@ export const useAiStudioCharacterModeLifecycle = ({
       active = false;
     };
   }, [selectedCharacterId, setCharacterModeInjectionBundle, setIsCharacterBundleLoading]);
-
-  useEffect(() => {
-    const isCreateWorkflowTool = selectedTool === "create" || selectedTool === "text";
-    const characterModeAppliesToCreate = isCharacterModeEnabled && isCreateWorkflowTool;
-
-    if (characterModeAppliesToCreate) {
-      if (
-        model &&
-        model !== backgroundModelId &&
-        !previousCreateModelBeforeCharacterModeRef.current
-      ) {
-        previousCreateModelBeforeCharacterModeRef.current = model;
-      }
-      if (model !== backgroundModelId) {
-        setModel(backgroundModelId);
-      }
-      return;
-    }
-
-    if (!isCharacterModeEnabled && isCreateWorkflowTool && model === backgroundModelId) {
-      previousCreateModelBeforeCharacterModeRef.current = null;
-      setModel(null);
-      return;
-    }
-
-    const wasForcedByCharacterMode = previousCreateModelBeforeCharacterModeRef.current != null;
-    previousCreateModelBeforeCharacterModeRef.current = null;
-    if (!isCharacterModeEnabled && model === backgroundModelId && wasForcedByCharacterMode) {
-      setModel(null);
-    }
-  }, [backgroundModelId, isCharacterModeEnabled, model, selectedTool, setModel]);
 
   return {
     characterOptions,

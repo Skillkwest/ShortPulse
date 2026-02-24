@@ -216,4 +216,26 @@ describe("useAiStudioAgentComposer", () => {
       text: "Reference note",
     });
   });
+
+  it("preserves input text when composer reset requests preserveInput", () => {
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentInputChange("Keep this draft message");
+    });
+    act(() => {
+      result.current.resetAgentComposer({ preserveInput: true });
+    });
+
+    expect(result.current.agentInput).toBe("Keep this draft message");
+    expect(result.current.agentAttachments).toEqual([]);
+    expect(result.current.agentAttachmentError).toBeNull();
+  });
 });

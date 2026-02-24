@@ -16,7 +16,7 @@ type UseAiStudioAgentInteractionsParams = {
   latestAgentPrompt: string | null;
   agentActions: AgentActions | undefined;
   resetAgentChat: () => void;
-  resetAgentComposer: () => void;
+  resetAgentComposer: (options?: { preserveInput?: boolean }) => void;
   setAgentActions: Dispatch<SetStateAction<AgentActions | undefined>>;
 };
 
@@ -90,7 +90,7 @@ export const useAiStudioAgentInteractions = ({
 
   const handleClearAgentChat = useCallback(() => {
     resetAgentChat();
-    resetAgentComposer();
+    resetAgentComposer({ preserveInput: true });
     setLatestAgentPrompt(null);
     setPromptOrigin("manual");
     setAgentActions(undefined);

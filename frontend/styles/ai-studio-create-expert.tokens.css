@@ -17,7 +17,9 @@
   position: relative;
   gap: 8px;
   min-height: 420px;
-  --create-expert-selector-width: 184px;
+  --create-expert-selector-width: 175px;
+  --create-expert-model-selector-width: 170px;
+  --create-expert-character-selector-width: 155px;
   --create-expert-resolution-width: 120px;
   --create-expert-selector-gap: 6px;
   --create-expert-selector-height: 40px;

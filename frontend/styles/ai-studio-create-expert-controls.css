@@ -118,8 +118,8 @@
 
 .create-expert-model-control {
   gap: 6px;
-  flex: 0 0 var(--create-expert-selector-width);
-  max-width: var(--create-expert-selector-width);
+  flex: 0 0 var(--create-expert-model-selector-width);
+  max-width: var(--create-expert-model-selector-width);
   min-width: 0;
   overflow: visible;
   opacity: 1;
@@ -225,8 +225,8 @@
 
 .create-expert-panel .create-expert-character-picker-trigger {
   flex: 0 0 auto;
-  width: 170px;
-  max-width: 170px;
+  width: var(--create-expert-character-selector-width);
+  max-width: var(--create-expert-character-selector-width);
   min-height: var(--create-expert-selector-height);
   height: var(--create-expert-selector-height);
   padding: 6px 10px;
@@ -287,9 +287,9 @@
 }
 
 .create-expert-panel .create-expert-model-picker-trigger {
-  width: var(--create-expert-selector-width);
-  min-width: var(--create-expert-selector-width);
-  max-width: var(--create-expert-selector-width);
+  width: var(--create-expert-model-selector-width);
+  min-width: var(--create-expert-model-selector-width);
+  max-width: var(--create-expert-model-selector-width);
   box-sizing: border-box;
   position: relative;
   z-index: 2;

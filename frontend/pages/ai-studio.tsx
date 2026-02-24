@@ -47,7 +47,6 @@ import {
   PERF_FLAG_SELECTOR_CALLBACKS,
 } from "../features/ai-studio/logic/perfProfileFlags";
 
-const CHARACTER_MODE_BACKGROUND_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/edit";
 const CHARACTER_MODE_BUNDLE_STALE_AFTER_MS = 45 * 60 * 1000;
 const AI_STUDIO_EMERGENCY_DISABLE_SELECTOR_STORE = true;
 const FLAG_OUTPUT_SELECTOR_STORE =
@@ -969,14 +968,9 @@ export default function AiStudioPage() {
     setSelectedCharacterId,
     isCharacterOptionsLoading,
   } = useAiStudioCharacterModeLifecycle({
-    isCharacterModeEnabled,
-    selectedTool,
-    model,
-    setModel,
     setUiError,
     setCharacterModeInjectionBundle,
     setIsCharacterBundleLoading,
-    backgroundModelId: CHARACTER_MODE_BACKGROUND_MODEL_ID,
   });
   const {
     refreshCharacterModeInjectionBundleForSubmission,
@@ -1241,9 +1235,7 @@ export default function AiStudioPage() {
   const disableAgentOutputGenerate = useMemo(() => {
     const isCreatePromptTool = selectedTool === "create" || selectedTool === "text";
     const missingGenerationTarget = isCreatePromptTool
-      ? isCharacterModeEnabled
-        ? !selectedCharacterId
-        : !model
+      ? (isCharacterModeEnabled && !selectedCharacterId) || !model
       : false;
     const isCreatePromptTextMode = isCreatePromptTool && mode === "text";
     return (

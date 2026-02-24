@@ -401,6 +401,27 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
   });
 
+  it("disables expert output-generate pills when character mode is on and no model is selected", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      characterModeEnabled: true,
+      selectedCharacterId: "char-1",
+      modelId: null,
+      modelLabel: "Choose Model",
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
+  });
+
   it("disables beginner output-generate pills when primary generate is disabled", () => {
     renderPanel({
       beginnerMode: true,

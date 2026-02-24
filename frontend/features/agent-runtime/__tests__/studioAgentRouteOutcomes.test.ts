@@ -16,6 +16,7 @@ describe("studioAgentRouteOutcomes", () => {
       path: "text_fast_path",
       status: "success",
       model: "gpt-default",
+      outcomeClass: "success_prompt",
       retryUsed: false,
       totalLatencyMs: 120,
       stageLatencyMs: { fast_path_turn: 45 },
@@ -24,7 +25,7 @@ describe("studioAgentRouteOutcomes", () => {
     expect(infoSpy).toHaveBeenCalledTimes(1);
     expect(infoSpy).toHaveBeenCalledWith(
       "[studio-agent][telemetry]",
-      expect.stringContaining('"retry_used":false')
+      expect.stringContaining('"outcome_class":"success_prompt"')
     );
     infoSpy.mockRestore();
   });

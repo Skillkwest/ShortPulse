@@ -1,4 +1,10 @@
 export type StudioAgentTelemetryStatus = "success" | "refuse" | "error";
+export type StudioAgentTelemetryOutcomeClass =
+  | "success_prompt"
+  | "refusal_model"
+  | "refusal_safety"
+  | "upstream_error"
+  | "route_error";
 
 export const STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE = "I cannot describe this.";
 
@@ -7,6 +13,7 @@ export const emitStudioAgentTurnTelemetry = ({
   path,
   status,
   model,
+  outcomeClass,
   retryUsed,
   totalLatencyMs,
   stageLatencyMs,
@@ -15,6 +22,7 @@ export const emitStudioAgentTurnTelemetry = ({
   path: string;
   status: StudioAgentTelemetryStatus;
   model: string;
+  outcomeClass: StudioAgentTelemetryOutcomeClass;
   retryUsed: boolean;
   totalLatencyMs: number;
   stageLatencyMs: Record<string, number>;
@@ -26,6 +34,7 @@ export const emitStudioAgentTurnTelemetry = ({
       path,
       status,
       model,
+      outcome_class: outcomeClass,
       retry_used: retryUsed,
       latency_ms_total: totalLatencyMs,
       latency_ms_stage: stageLatencyMs,

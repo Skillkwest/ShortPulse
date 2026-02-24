@@ -83,8 +83,26 @@ describe("studioAgentRouteOutcomes", () => {
     ).toBe(true);
     expect(
       isStudioAgentSafetyRefusalUpstreamError({
+        status: 422,
+        detail: '{"error":{"message":"moderation flagged: sexual content"}}',
+      })
+    ).toBe(true);
+    expect(
+      isStudioAgentSafetyRefusalUpstreamError({
         status: 503,
         detail: "service unavailable",
+      })
+    ).toBe(false);
+    expect(
+      isStudioAgentSafetyRefusalUpstreamError({
+        status: 401,
+        detail: "invalid api key",
+      })
+    ).toBe(false);
+    expect(
+      isStudioAgentSafetyRefusalUpstreamError({
+        status: 403,
+        detail: "request blocked by organization policy",
       })
     ).toBe(false);
     expect(

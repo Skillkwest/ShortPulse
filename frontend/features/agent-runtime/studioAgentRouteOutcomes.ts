@@ -68,7 +68,7 @@ export const buildStudioAgentRouteFailurePayload = ({
   traceId,
 });
 
-const SAFETY_STATUS_ALLOWLIST = new Set([400, 401, 403, 422]);
+const SAFETY_STATUS_ALLOWLIST = new Set([400, 403, 422]);
 const SAFETY_DETAIL_PATTERNS: RegExp[] = [
   /\bcontent[\s_-]*policy\b/i,
   /\bpolicy[\s_-]*violation\b/i,
@@ -76,8 +76,6 @@ const SAFETY_DETAIL_PATTERNS: RegExp[] = [
   /\bmoderation\b/i,
   /\bdisallowed\b/i,
   /\bunsafe\b/i,
-  /\bblocked\b/i,
-  /\bflagged\b/i,
   /\bviolence\b/i,
   /\bself[\s_-]*harm\b/i,
   /\bhate\b/i,

@@ -490,6 +490,36 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     );
   });
 
+  it("keeps non-safety 401 upstream failures as transport errors in single-stage mode", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response('{"error":{"message":"invalid api key"}}', {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "misty mountain village" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    const payload = res.json.mock.calls.at(-1)?.[0] as
+      | { error?: string; detail?: string; message?: string }
+      | undefined;
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(payload?.error).toBe("Upstream error");
+    expect(payload?.detail).toContain("invalid api key");
+    expect(payload?.message).toBeUndefined();
+  });
+
   it("maps single-stage safety upstream failures to refusal response", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
       new Response('{"error":{"message":"content policy violation"}}', {
@@ -518,6 +548,39 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         canonicalPrompt: null,
       })
     );
+  });
+
+  it("keeps non-safety 401 upstream failures as transport errors in v2 mode", async () => {
+    process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "false";
+    process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "false";
+    runThinkerFormatterTurnMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      stage: "thinker",
+      detail: "invalid api key",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "misty mountain village" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    const payload = res.json.mock.calls.at(-1)?.[0] as
+      | { error?: string; detail?: string; message?: string }
+      | undefined;
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(payload?.error).toBe("Upstream error (thinker)");
+    expect(payload?.detail).toBe("invalid api key");
+    expect(payload?.message).toBeUndefined();
   });
 
   it("uses legacy V2 fallback only when explicitly enabled", async () => {

@@ -127,6 +127,7 @@ Exit validation:
 - [x] Add runtime parity regression guard ensuring single-stage and legacy fallback return the same prompt-only envelope shape (`frontend/tests/api/studio-agent.runtime.test.ts`).
 - [x] Harden upstream safety-refusal classifier to avoid mapping non-safety auth/config failures as refusals (`frontend/features/agent-runtime/studioAgentRouteOutcomes.ts` + runtime/route-outcomes tests).
 - [x] Add rollback-lever verification coverage for telemetry route-paths and safety short-circuit behavior (`legacy_v2_fallback`, `v2_orchestration`, and no-fallback-on-safety tests in `frontend/tests/api/studio-agent.runtime.test.ts`).
+- [x] Add dedicated rollback verification gate script + CI job (`scripts/check_agent_rollback_verification.js`, `.github/workflows/ci.yml`) with warn/enforce mode control (`AGENT_ROLLBACK_VERIFICATION_MODE`).
 - [ ] Production 5% 24h.
 - [ ] Production 25% 24h.
 - [ ] Production 50% 24h.
@@ -162,6 +163,7 @@ Exit validation:
 | `size_budget` | Active | Enforced | Frontend | workflow mode promoted to enforce 2026-02-21 |
 | `agent_contract_tests` | Active | Enforced | AI Platform | workflow mode promoted to enforce 2026-02-21 |
 | `agent_disable_continuity` | Active | Enforced | AI Platform | workflow mode promoted to enforce 2026-02-21 |
+| `agent_rollback_verification` | Active | Config-driven (`warn`/`enforce`) | AI Platform | dedicated rollback-lever regression gate; mode controlled by `AGENT_ROLLBACK_VERIFICATION_MODE` |
 
 ## Rollout Gate Tracker
 | Ring | Start | End | Pass/Fail | p95 | p99 | 5xx | timeout | refusal delta | Decision | Evidence |
@@ -215,3 +217,4 @@ Exit validation:
 | 2026-02-24 | Single-stage vs legacy fallback prompt-envelope parity test added to runtime contract suite | prevent response-shape drift across primary/fallback paths during phased rollback window | AI Platform |
 | 2026-02-24 | Safety refusal classifier narrowed (status/pattern hardening) | avoid false-refusal mapping for non-safety upstream failures such as auth/config errors while preserving policy refusal handling | AI Platform |
 | 2026-02-24 | Rollback lever verification tests added for route-path telemetry and safety short-circuit | provide deterministic pre-ring proof that fallback levers route as intended and safety refusals do not trigger V2 fallback | AI Platform |
+| 2026-02-24 | Dedicated rollback verification CI gate added with mode control | keep rollback-path tests visible as a standalone pre-ring signal without forcing immediate required-check policy change | AI Platform |

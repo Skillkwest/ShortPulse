@@ -83,3 +83,13 @@ Readiness status for Phase 5 ring progression:
 1. Start ring with `STUDIO_AGENT_SINGLE_STAGE_ENABLED=true` and `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=false`.
 2. If latency or semantic quality regresses, enable legacy fallback before disabling single-stage.
 3. Collect ring metrics and attach to the active rollout report and tracker ring table.
+
+## Pre-User MVP Note
+When the product has no external users/live traffic, production canary rings may be deferred under explicit waiver.
+
+Waiver artifact:
+- `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`
+
+Reactivation trigger:
+1. First external-user onboarding or first sustained production traffic cohort.
+2. Resume `5% -> 25% -> 50% -> 100%` ring progression and replace waiver rows with live metrics.

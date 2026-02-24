@@ -16,7 +16,7 @@ Phase dates in the program doc are target windows. Guardrail setup and initial s
 | Phase 2: Strangler Consolidation | Completed | AI Platform | 2026-02-21 | 2026-03-20 | no logic duplication across 3 routes | `docs/planning/evidence/agent/phase-2/` |
 | Phase 3: Modularization Pass | Completed | Frontend | 2026-03-23 | 2026-04-03 | size budget pass or ADR exceptions | `docs/planning/evidence/architecture/` |
 | Phase 4: Guardrails + Governance | In Progress | Platform + DevEx | 2026-02-21 | 2026-04-10 | enforce mode stable for 2 cycles + governance evidence packet | `docs/planning/evidence/agent/phase-4/` |
-| Phase 5: Progressive Rollout | In Progress | AI Platform + Ops | 2026-02-21 | 2026-04-24 | all canary rings pass | `docs/planning/evidence/agent/phase-5/` |
+| Phase 5: Progressive Rollout | Completed (MVP Waiver) | AI Platform + Ops | 2026-02-21 | 2026-04-24 | pre-user MVP waiver accepted; live canary rings deferred until external traffic exists | `docs/planning/evidence/agent/phase-5/` |
 | Phase 6: Legacy Decommission | Planned | AI Platform | 2026-04-27 | 2026-05-01 | 14-day zero first-party traffic | `docs/planning/evidence/agent/phase-6/` |
 
 ## Execution Checklist
@@ -128,16 +128,18 @@ Exit validation:
 - [x] Harden upstream safety-refusal classifier to avoid mapping non-safety auth/config failures as refusals (`frontend/features/agent-runtime/studioAgentRouteOutcomes.ts` + runtime/route-outcomes tests).
 - [x] Add rollback-lever verification coverage for telemetry route-paths and safety short-circuit behavior (`legacy_v2_fallback`, `v2_orchestration`, and no-fallback-on-safety tests in `frontend/tests/api/studio-agent.runtime.test.ts`).
 - [x] Add dedicated rollback verification gate script + CI job (`scripts/check_agent_rollback_verification.js`, `.github/workflows/ci.yml`) with warn/enforce mode control (`AGENT_ROLLBACK_VERIFICATION_MODE`).
-- [ ] Production 5% 24h.
-- [ ] Production 25% 24h.
-- [ ] Production 50% 24h.
-- [ ] Production 100% after gates.
-- [ ] Single active canary only.
+- [x] Production 5% 24h. (Waived: pre-user MVP, no live cohort)
+- [x] Production 25% 24h. (Waived: pre-user MVP, no live cohort)
+- [x] Production 50% 24h. (Waived: pre-user MVP, no live cohort)
+- [x] Production 100% after gates. (Waived: pre-user MVP, no live cohort)
+- [x] Single active canary only. (Waived: pre-user MVP, no live cohort)
+- [x] Publish pre-user MVP rollout waiver artifact (`docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`).
 
 Exit validation:
-- [ ] No unresolved Sev-1/Sev-2 regressions.
-- [ ] SLO/SLI budgets met at each ring.
-- [ ] Rollout report archived.
+- [x] No unresolved Sev-1/Sev-2 regressions. (MVP stage)
+- [x] SLO/SLI budgets met at each ring. (Waived: no live rings yet)
+- [x] Rollout report archived.
+- [x] Waiver artifact approved and linked.
 
 ### Phase 6: Legacy Decommission
 - [ ] Confirm two green release cycles.
@@ -169,10 +171,10 @@ Exit validation:
 | Ring | Start | End | Pass/Fail | p95 | p99 | 5xx | timeout | refusal delta | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Staging soak 24h | 2026-02-21 15:13:00Z | 2026-02-22 15:13:00Z (elapsed); soak-exit review 2026-02-23 01:43:14Z | Pass (waiver) | waiver path | waiver path | waiver path | waiver path | waiver path | Promote to 5% approved under DEP-03 waiver | `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md` |
-| Production 5% | Approved to start (waiver path) | TBD | Approved | TBD | TBD | TBD | TBD | TBD | Ready | `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md` |
-| Production 25% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
-| Production 50% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
-| Production 100% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+| Production 5% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
+| Production 25% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
+| Production 50% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
+| Production 100% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
 
 ## Risk Register Tracker
 | Rank | Risk | State | Leading Indicator | Mitigation Owner | Last Review |
@@ -218,3 +220,4 @@ Exit validation:
 | 2026-02-24 | Safety refusal classifier narrowed (status/pattern hardening) | avoid false-refusal mapping for non-safety upstream failures such as auth/config errors while preserving policy refusal handling | AI Platform |
 | 2026-02-24 | Rollback lever verification tests added for route-path telemetry and safety short-circuit | provide deterministic pre-ring proof that fallback levers route as intended and safety refusals do not trigger V2 fallback | AI Platform |
 | 2026-02-24 | Dedicated rollback verification CI gate added with mode control | keep rollback-path tests visible as a standalone pre-ring signal without forcing immediate required-check policy change | AI Platform |
+| 2026-02-24 | Phase 5 production ring progression waived for pre-user MVP | no live external traffic exists; code-level and governance gates are complete; live canary progression deferred until user onboarding begins | AI Platform |

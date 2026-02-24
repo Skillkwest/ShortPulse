@@ -22,6 +22,9 @@ Purpose: define the operational runbook for Phase 5 progressive rollout of the A
 
 Rule: only one active canary for this subsystem at a time.
 
+Pre-user MVP exception:
+If there is no external production traffic cohort yet, production rings may be formally waived with an evidence artifact. This is a temporary exception and ring progression must resume before/at first user onboarding.
+
 ## Promotion Gates (all required per ring)
 1. p95/p99/5xx/timeout/refusal metrics stay within plan budgets.
 2. No open Sev-1 or Sev-2 defects attributed to agent changes.

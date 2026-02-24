@@ -15,10 +15,10 @@ Phase: 5 (Progressive Rollout)
 | Ring | Start (UTC) | End (UTC) | p95 | p99 | 5xx | timeout | refusal delta | Continuity SLI | Decision | Approver |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Staging soak 24h | 2026-02-21 15:13:00Z | 2026-02-22 15:13:00Z (elapsed); soak-exit review 2026-02-23 01:43:14Z | waiver path | waiver path | waiver path | waiver path | waiver path | waiver path | Pass (waiver-approved for promotion) | @codex |
-| Production 5% | Approved to start (waiver path) | TBD | TBD | TBD | TBD | TBD | TBD | TBD | Ready | TBD |
-| Production 25% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | Hold | TBD |
-| Production 50% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | Hold | TBD |
-| Production 100% | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | Hold | TBD |
+| Production 5% | N/A (pre-user MVP) | N/A | N/A | N/A | N/A | N/A | N/A | N/A | Waived (deferred until external traffic exists) | @codex |
+| Production 25% | N/A (pre-user MVP) | N/A | N/A | N/A | N/A | N/A | N/A | N/A | Waived (deferred until external traffic exists) | @codex |
+| Production 50% | N/A (pre-user MVP) | N/A | N/A | N/A | N/A | N/A | N/A | N/A | Waived (deferred until external traffic exists) | @codex |
+| Production 100% | N/A (pre-user MVP) | N/A | N/A | N/A | N/A | N/A | N/A | N/A | Waived (deferred until external traffic exists) | @codex |
 
 ## Gate Validation
 1. Required CI checks green on active head SHA: Yes (`22289631768` on `95ff8270af15c63102827501694d41713c540790`).
@@ -28,6 +28,7 @@ Phase: 5 (Progressive Rollout)
 5. DEP-03 external dashboard/alert artifacts complete and reviewed: No (waiver active; non-blocking).
 6. DEP-03 waiver active with compensating controls: Yes (`docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`).
 7. Soak-exit decision (UTC 2026-02-23 01:43:14Z): Promote to 5% (waiver-approved)
+8. Pre-user MVP waiver for production rings active: Yes (`docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`).
 
 ## Evidence Links
 - Dashboard/alert readiness: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
@@ -41,6 +42,7 @@ Phase: 5 (Progressive Rollout)
 - CI run (kickoff): `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22258999203`
 - CI run (latest validation): `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22289631768`
 - Ops readiness bootstrap: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-ops-readiness-bootstrap.md`
+- Pre-user MVP ring waiver: `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`
 - Tracker update: `docs/planning/ai-studio-agent-modularization-tracker.md`
 
 ## Notes
@@ -49,3 +51,4 @@ Phase: 5 (Progressive Rollout)
 - Vercel checks are now healthy and pass by expected ignored-build behavior for docs-only/non-frontend commit content.
 - Staging soak target window has elapsed; formal soak-exit review executed at `2026-02-23 01:43:14Z`.
 - DEP-03 is waived as a blocking condition due Vercel plan-tier observability constraints; promotion may proceed with documented compensating controls.
+- Because no external users/live traffic exist yet, production ring execution is explicitly waived for MVP and will be reactivated at user onboarding.

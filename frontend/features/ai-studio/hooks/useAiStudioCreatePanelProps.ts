@@ -53,7 +53,6 @@ type UseAiStudioCreatePanelPropsParams = {
       | "text-video"
       | null
   ) => void;
-  setModel: (value: string | null) => void;
   handleManualPromptChange: (value: string) => void;
   toggleReferenceIndicator: () => void;
   isPromptGenerating: boolean;
@@ -122,7 +121,6 @@ export const useAiStudioCreatePanelProps = ({
   isModelModalOpen,
   modelModalAnchor,
   handleOpenModelModal,
-  setModel,
   handleManualPromptChange,
   toggleReferenceIndicator,
   isPromptGenerating,
@@ -188,7 +186,6 @@ export const useAiStudioCreatePanelProps = ({
       modelModalAnchor,
       onAspectChange: setAspect,
       onModelPickerOpen: handleOpenModelModal,
-      onModelIdChange: setModel,
       onPromptChange: handleManualPromptChange,
       onToggleReferenceIndicator: toggleReferenceIndicator,
       isPromptGenerating: isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
@@ -273,7 +270,6 @@ export const useAiStudioCreatePanelProps = ({
       setAspect,
       setImageResolution,
       setIsCharacterModeEnabled,
-      setModel,
       setSelectedCharacterId,
       stagedAgentPrompt,
       toggleReferenceIndicator,

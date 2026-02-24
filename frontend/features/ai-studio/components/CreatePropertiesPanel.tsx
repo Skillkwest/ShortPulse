@@ -20,9 +20,6 @@ import { getModelConfig } from "../logic/modelRegistry";
 import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
 import { ExpertCreatePanelView } from "./create/ExpertCreatePanelView";
 
-const CHARACTER_MODE_UI_MODEL_LABEL = "Pulse Character";
-const CHARACTER_MODE_UI_MODEL_LOGO = "/tiny-logo.png";
-
 export type CreatePropertiesPanelProps = {
   mode: StudioMode;
   aspect: string;
@@ -50,7 +47,6 @@ export type CreatePropertiesPanelProps = {
     target: HTMLElement,
     context?: ModelModalContext | null
   ) => void;
-  onModelIdChange?: (value: string | null) => void;
   onPromptChange: (value: string) => void;
   onToggleReferenceIndicator: () => void;
   costCredits?: number | null;
@@ -233,7 +229,6 @@ export function CreatePropertiesPanel({
   modelModalAnchor,
   onAspectChange,
   onModelPickerOpen,
-  onModelIdChange,
   onPromptChange,
   costCredits = null,
   agentEnabled = false,
@@ -284,11 +279,9 @@ export function CreatePropertiesPanel({
   const showExpertView = Boolean(expertCreateUiEligible && !beginnerMode);
   const promptStepNumber = beginnerMode ? "2" : "1";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
-  const effectiveModelLabel = characterModeEnabled ? CHARACTER_MODE_UI_MODEL_LABEL : modelLabel;
-  const effectiveModelLogoSrc = characterModeEnabled ? CHARACTER_MODE_UI_MODEL_LOGO : modelLogoSrc;
-  const useUnoptimizedModelLogo =
-    characterModeEnabled && effectiveModelLogoSrc === CHARACTER_MODE_UI_MODEL_LOGO;
-  const isModelPickerLockedByCharacterMode = characterModeEnabled;
+  const effectiveModelLabel = modelLabel;
+  const effectiveModelLogoSrc = modelLogoSrc;
+  const useUnoptimizedModelLogo = false;
   const modelConfig = useMemo(() => (modelId ? getModelConfig(modelId) : null), [modelId]);
   const aspectOptionsForModel: AspectOption[] = useMemo(() => {
     if (modelConfig?.allowedAspects?.length) {
@@ -335,22 +328,12 @@ export function CreatePropertiesPanel({
 
   const handleCharacterModeEnabledToggle = React.useCallback(() => {
     const nextCharacterModeEnabled = !characterModeEnabled;
-    if (showExpertView && characterModeEnabled && !nextCharacterModeEnabled) {
-      onModelIdChange?.(null);
-    }
     if (!nextCharacterModeEnabled) {
       closeCharacterPicker();
     }
     onCharacterModeEnabledChange?.(nextCharacterModeEnabled);
     onStepActionClick?.("character");
-  }, [
-    characterModeEnabled,
-    closeCharacterPicker,
-    onCharacterModeEnabledChange,
-    onModelIdChange,
-    onStepActionClick,
-    showExpertView,
-  ]);
+  }, [characterModeEnabled, closeCharacterPicker, onCharacterModeEnabledChange, onStepActionClick]);
 
   const imageResolutionOptions = useMemo(() => getImageResolutionOptions(modelId), [modelId]);
   const imageResolutionValue = useMemo(
@@ -515,7 +498,6 @@ export function CreatePropertiesPanel({
           modelId={modelId}
           isModelModalOpen={isModelModalOpen}
           modelModalAnchor={modelModalAnchor}
-          isModelPickerLockedByCharacterMode={isModelPickerLockedByCharacterMode}
           onCreateModelOpen={handleCreateModelOpen}
           effectiveModelLogoSrc={effectiveModelLogoSrc}
           useUnoptimizedModelLogo={useUnoptimizedModelLogo}
@@ -550,7 +532,6 @@ export function CreatePropertiesPanel({
           modelId={modelId}
           isModelModalOpen={isModelModalOpen}
           modelModalAnchor={modelModalAnchor}
-          isModelPickerLockedByCharacterMode={isModelPickerLockedByCharacterMode}
           onCreateModelOpen={handleCreateModelOpen}
           effectiveModelLogoSrc={effectiveModelLogoSrc}
           useUnoptimizedModelLogo={useUnoptimizedModelLogo}

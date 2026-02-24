@@ -288,21 +288,21 @@ describe("CreatePropertiesPanel", () => {
     expect(onSelectedCharacterIdChange).toHaveBeenCalledWith("char-2");
   });
 
-  it("hides the expert model selector in character mode and clears model when toggled off", () => {
+  it("keeps the expert model selector visible in character mode and preserves selected model when toggled off", () => {
     const onCharacterModeEnabledChange = vi.fn();
-    const onModelIdChange = vi.fn();
+    const onModelPickerOpen = vi.fn();
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
       characterModeEnabled: true,
       onCharacterModeEnabledChange,
-      onModelIdChange,
+      onModelPickerOpen,
     });
 
-    expect(screen.queryByRole("button", { name: "Open model picker" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open model picker" }));
+    expect(onModelPickerOpen).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Disable character mode" }));
-    expect(onModelIdChange).toHaveBeenCalledWith(null);
     expect(onCharacterModeEnabledChange).toHaveBeenCalledWith(false);
   });
 

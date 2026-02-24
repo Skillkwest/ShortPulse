@@ -63,7 +63,6 @@ export type UseAiStudioPanelPropsParams = {
       | "text-video"
       | null
   ) => void;
-  setModel: (value: string | null) => void;
   handleManualPromptChange: (value: string) => void;
   toggleReferenceIndicator: () => void;
   isPromptGenerating: boolean;
@@ -182,7 +181,6 @@ export const useAiStudioPanelProps = ({
   isModelModalOpen,
   modelModalAnchor,
   handleOpenModelModal,
-  setModel,
   handleManualPromptChange,
   toggleReferenceIndicator,
   isPromptGenerating,
@@ -327,7 +325,6 @@ export const useAiStudioPanelProps = ({
     isModelModalOpen,
     modelModalAnchor,
     handleOpenModelModal,
-    setModel,
     handleManualPromptChange,
     toggleReferenceIndicator,
     isPromptGenerating,

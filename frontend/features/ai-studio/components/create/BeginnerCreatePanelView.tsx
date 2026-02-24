@@ -23,7 +23,6 @@ type BeginnerCreatePanelViewProps = {
   modelId: string | null;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
-  isModelPickerLockedByCharacterMode: boolean;
   onCreateModelOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
   effectiveModelLogoSrc?: string;
   useUnoptimizedModelLogo: boolean;
@@ -78,7 +77,6 @@ export function BeginnerCreatePanelView({
   modelId,
   isModelModalOpen,
   modelModalAnchor,
-  isModelPickerLockedByCharacterMode,
   onCreateModelOpen,
   effectiveModelLogoSrc,
   useUnoptimizedModelLogo,
@@ -202,16 +200,9 @@ export function BeginnerCreatePanelView({
               <label className="input-label">Model</label>
               <button
                 type="button"
-                className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""} ${
-                  isModelPickerLockedByCharacterMode ? "is-locked" : ""
-                }`}
+                className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""}`}
                 data-model-anchor="create-model"
-                disabled={isModelPickerLockedByCharacterMode}
-                aria-label={
-                  isModelPickerLockedByCharacterMode
-                    ? "Model locked while character mode is enabled"
-                    : "Open model picker"
-                }
+                aria-label="Open model picker"
                 onClick={onCreateModelOpen}
               >
                 <div className="model-picker-row">

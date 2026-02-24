@@ -23,7 +23,6 @@ type ExpertCreatePanelViewProps = {
   modelId: string | null;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
-  isModelPickerLockedByCharacterMode: boolean;
   onCreateModelOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
   effectiveModelLogoSrc?: string;
   useUnoptimizedModelLogo: boolean;
@@ -54,7 +53,6 @@ export function ExpertCreatePanelView({
   modelId,
   isModelModalOpen,
   modelModalAnchor,
-  isModelPickerLockedByCharacterMode,
   onCreateModelOpen,
   effectiveModelLogoSrc,
   useUnoptimizedModelLogo,
@@ -67,88 +65,15 @@ export function ExpertCreatePanelView({
   imageResolutionOptions,
   onImageResolutionChange,
 }: ExpertCreatePanelViewProps) {
-  type SelectorMotionState = "hidden" | "pre-enter" | "shown" | "exiting";
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
-  const [characterPickerMotionState, setCharacterPickerMotionState] =
-    React.useState<SelectorMotionState>(characterModeEnabled ? "shown" : "hidden");
-  const [modelControlMotionState, setModelControlMotionState] = React.useState<SelectorMotionState>(
-    characterModeEnabled ? "hidden" : "shown"
-  );
-  const previousCharacterModeEnabledRef = React.useRef(characterModeEnabled);
-  const enterFrameRef = React.useRef<number | null>(null);
   const hasChatHistory = (promptStepProps.agentMessages?.length ?? 0) > 0;
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
     emptyAgentChatSpacerClassName: hasChatHistory ? "" : "create-expert-chat-spacer",
   };
-  const clearSelectorMotionTimers = React.useCallback(() => {
-    if (enterFrameRef.current != null && typeof window !== "undefined") {
-      window.cancelAnimationFrame(enterFrameRef.current);
-      enterFrameRef.current = null;
-    }
-  }, []);
-
-  React.useEffect(() => clearSelectorMotionTimers, [clearSelectorMotionTimers]);
-
-  React.useEffect(() => {
-    const wasCharacterModeEnabled = previousCharacterModeEnabledRef.current;
-    previousCharacterModeEnabledRef.current = characterModeEnabled;
-    if (wasCharacterModeEnabled === characterModeEnabled) return;
-
-    clearSelectorMotionTimers();
-
-    const beginModelEnter = () => {
-      setModelControlMotionState("pre-enter");
-      if (typeof window !== "undefined") {
-        enterFrameRef.current = window.requestAnimationFrame(() => {
-          setModelControlMotionState("shown");
-          enterFrameRef.current = null;
-        });
-      } else {
-        setModelControlMotionState("shown");
-      }
-    };
-
-    const beginCharacterEnter = () => {
-      setCharacterPickerMotionState("pre-enter");
-      if (typeof window !== "undefined") {
-        enterFrameRef.current = window.requestAnimationFrame(() => {
-          setCharacterPickerMotionState("shown");
-          enterFrameRef.current = null;
-        });
-      } else {
-        setCharacterPickerMotionState("shown");
-      }
-    };
-
-    if (!characterModeEnabled) {
-      // Character mode OFF should hide character selector immediately (no exit transition).
-      if (characterPickerMotionState !== "hidden") {
-        setCharacterPickerMotionState("hidden");
-      }
-      beginModelEnter();
-      return;
-    }
-
-    if (modelControlMotionState !== "hidden") {
-      // Character mode ON should hide the model selector immediately (no exit transition).
-      setModelControlMotionState("hidden");
-    }
-    beginCharacterEnter();
-  }, [
-    characterModeEnabled,
-    characterPickerMotionState,
-    clearSelectorMotionTimers,
-    modelControlMotionState,
-  ]);
-
-  const showModelControl = modelControlMotionState !== "hidden";
-  const isModelControlInteractable = modelControlMotionState === "shown";
-  const isCharacterPickerInteractable = characterPickerMotionState === "shown";
-  const isCharacterPickerLayoutOn = characterPickerMotionState !== "hidden";
 
   return (
     <div
@@ -170,7 +95,7 @@ export function ExpertCreatePanelView({
         <div className="create-expert-controls">
           <div
             className={`create-expert-control create-expert-character-mode-control ${
-              isCharacterPickerLayoutOn ? "is-character-mode-on" : "is-character-mode-off"
+              characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
             }`}
           >
             <div className="create-expert-character-mode-meta">
@@ -189,72 +114,61 @@ export function ExpertCreatePanelView({
                 </span>
               </button>
             </div>
-            <button
-              type="button"
-              className={`model-picker-btn create-expert-picker-control create-expert-character-picker-trigger ${
-                !selectedCharacterInitials && !selectedCharacterProfileImageUrl ? "is-empty" : ""
-              } ${isCharacterPickerOpen ? "is-open" : ""} create-expert-character-picker-trigger--${characterPickerMotionState}`}
-              aria-haspopup="dialog"
-              aria-expanded={isCharacterPickerOpen}
-              aria-label="Open character picker"
-              disabled={characterSelectDisabled || !isCharacterPickerInteractable}
-              tabIndex={isCharacterPickerInteractable ? undefined : -1}
-              aria-hidden={isCharacterPickerInteractable ? undefined : true}
-              onClick={onCharacterPickerOpen}
-            >
-              {selectedCharacterProfileImageUrl ? (
-                <Image
-                  src={selectedCharacterProfileImageUrl}
-                  alt={`${selectedCharacterName} profile`}
-                  className="character-picker-trigger-avatar"
-                  width={20}
-                  height={20}
-                  unoptimized
-                />
-              ) : selectedCharacterInitials ? (
-                <span className="character-picker-trigger-avatar character-picker-trigger-avatar--fallback">
-                  {selectedCharacterInitials}
-                </span>
-              ) : null}
-              <span className="model-picker-name">{selectedCharacterName}</span>
-            </button>
-          </div>
-          {showModelControl ? (
-            <div
-              className={`create-expert-control create-expert-model-control create-expert-model-control--${modelControlMotionState}`}
-            >
-              <span className="create-expert-control-label">Model</span>
+            {characterModeEnabled ? (
               <button
                 type="button"
-                className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${!modelId ? "is-empty" : ""} ${
-                  isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""
-                } ${isModelPickerLockedByCharacterMode ? "is-locked" : ""}`}
-                data-model-anchor="create-model"
-                disabled={isModelPickerLockedByCharacterMode || !isModelControlInteractable}
-                tabIndex={isModelControlInteractable ? undefined : -1}
-                aria-hidden={isModelControlInteractable ? undefined : true}
-                aria-label={
-                  isModelPickerLockedByCharacterMode
-                    ? "Model locked while character mode is enabled"
-                    : "Open model picker"
-                }
-                onClick={onCreateModelOpen}
+                className={`model-picker-btn create-expert-picker-control create-expert-character-picker-trigger ${
+                  !selectedCharacterInitials && !selectedCharacterProfileImageUrl ? "is-empty" : ""
+                } ${isCharacterPickerOpen ? "is-open" : ""}`}
+                aria-haspopup="dialog"
+                aria-expanded={isCharacterPickerOpen}
+                aria-label="Open character picker"
+                disabled={characterSelectDisabled}
+                onClick={onCharacterPickerOpen}
               >
-                {effectiveModelLogoSrc ? (
+                {selectedCharacterProfileImageUrl ? (
                   <Image
-                    className="model-chip-logo-img"
-                    src={effectiveModelLogoSrc}
-                    alt=""
-                    aria-hidden
-                    width={modelLogoWidth}
-                    height={modelLogoHeight}
-                    unoptimized={useUnoptimizedModelLogo}
+                    src={selectedCharacterProfileImageUrl}
+                    alt={`${selectedCharacterName} profile`}
+                    className="character-picker-trigger-avatar"
+                    width={20}
+                    height={20}
+                    unoptimized
                   />
+                ) : selectedCharacterInitials ? (
+                  <span className="character-picker-trigger-avatar character-picker-trigger-avatar--fallback">
+                    {selectedCharacterInitials}
+                  </span>
                 ) : null}
-                <span className="model-picker-name">{effectiveModelLabel}</span>
+                <span className="model-picker-name">{selectedCharacterName}</span>
               </button>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
+          <div className="create-expert-control create-expert-model-control">
+            <span className="create-expert-control-label">Model</span>
+            <button
+              type="button"
+              className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${!modelId ? "is-empty" : ""} ${
+                isModelModalOpen && modelModalAnchor === "create-model" ? "is-open" : ""
+              }`}
+              data-model-anchor="create-model"
+              aria-label="Open model picker"
+              onClick={onCreateModelOpen}
+            >
+              {effectiveModelLogoSrc ? (
+                <Image
+                  className="model-chip-logo-img"
+                  src={effectiveModelLogoSrc}
+                  alt=""
+                  aria-hidden
+                  width={modelLogoWidth}
+                  height={modelLogoHeight}
+                  unoptimized={useUnoptimizedModelLogo}
+                />
+              ) : null}
+              <span className="model-picker-name">{effectiveModelLabel}</span>
+            </button>
+          </div>
           <div className="create-expert-control create-expert-aspect-control">
             <span className="create-expert-control-label">Aspect</span>
             <AspectDropdown

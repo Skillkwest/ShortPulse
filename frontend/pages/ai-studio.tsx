@@ -1317,7 +1317,6 @@ export default function AiStudioPage() {
     isModelModalOpen,
     modelModalAnchor,
     handleOpenModelModal,
-    setModel,
     handleManualPromptChange,
     toggleReferenceIndicator,
     isPromptGenerating,

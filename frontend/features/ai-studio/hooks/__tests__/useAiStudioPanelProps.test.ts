@@ -59,7 +59,6 @@ const createParams = (
     isModelModalOpen: false,
     modelModalAnchor: null,
     handleOpenModelModal: vi.fn(),
-    setModel: vi.fn(),
     handleManualPromptChange: vi.fn(),
     toggleReferenceIndicator: vi.fn(),
     isPromptGenerating: false,

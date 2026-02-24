@@ -124,6 +124,7 @@ Exit validation:
 - [x] Classify runtime telemetry outcomes for rollout monitoring (`success_prompt`, `refusal_model`, `refusal_safety`, `upstream_error`, `route_error`) to disambiguate refusal/success/error classes during rings.
 - [x] Trim legacy formatter prompt contract to `apply_prompt`-only action output and add regression guard test (`frontend/lib/__tests__/agentPromptsConfig.test.ts`).
 - [x] Canonicalize legacy `context_type` naming to `agent-output | prompt | image` across orchestration + prompt contract to remove chat terminology drift.
+- [x] Add runtime parity regression guard ensuring single-stage and legacy fallback return the same prompt-only envelope shape (`frontend/tests/api/studio-agent.runtime.test.ts`).
 - [ ] Production 5% 24h.
 - [ ] Production 25% 24h.
 - [ ] Production 50% 24h.
@@ -209,3 +210,4 @@ Exit validation:
 | 2026-02-24 | Outcome-class telemetry promoted for studio-agent route turn metrics | distinguish model refusals from safety refusals and transport/route errors during canary gating | AI Platform |
 | 2026-02-24 | Legacy formatter prompt contract slimmed to apply-prompt-only actions | reduce structured-output surface area while preserving compatibility and UI invariants | AI Platform |
 | 2026-02-24 | Legacy context type canonicalized from `chat` to `agent-output` | align orchestration/prompt terminology with active focused-source contract and reduce semantic drift | AI Platform |
+| 2026-02-24 | Single-stage vs legacy fallback prompt-envelope parity test added to runtime contract suite | prevent response-shape drift across primary/fallback paths during phased rollback window | AI Platform |

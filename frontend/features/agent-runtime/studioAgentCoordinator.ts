@@ -7,9 +7,11 @@ import { writeStudioAgentCanonicalPrompt } from "./studioAgentCanonicalPersisten
 import { formatStudioAgentErrorMessage } from "./studioAgentOpenAiGateway";
 import { executeStudioAgentFastPathTurn } from "./studioAgentFastPathTurn";
 import {
+  buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
   emitStudioAgentTurnTelemetry,
+  isStudioAgentSafetyRefusalUpstreamError,
 } from "./studioAgentRouteOutcomes";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
 import { executeStudioAgentV2Turn } from "./studioAgentV2Turn";
@@ -86,6 +88,8 @@ export const executeStudioAgentCoordinator = async ({
   thinkerPrompt,
   formatterPrompt,
   requestTimeoutMs,
+  singleStageEnabled,
+  legacyV2FallbackEnabled,
   textFastPathEnabled,
   orchestration,
   context,
@@ -111,6 +115,8 @@ export const executeStudioAgentCoordinator = async ({
   thinkerPrompt: string | null;
   formatterPrompt: string | null;
   requestTimeoutMs: number;
+  singleStageEnabled: boolean;
+  legacyV2FallbackEnabled: boolean;
   textFastPathEnabled: boolean;
   orchestration: StudioAgentOrchestration;
   context: AgentContext;
@@ -129,105 +135,242 @@ export const executeStudioAgentCoordinator = async ({
     orchestration,
   });
 
-  const hasV2Prompts = Boolean(thinkerPrompt && formatterPrompt);
-  const useV2Path = hasV2Prompts && !(orchestration.flow === "TEXT_ONLY" && textFastPathEnabled);
-  const path = useV2Path
-    ? "v2_orchestration"
-    : orchestration.flow === "TEXT_ONLY"
-      ? "text_fast_path"
-      : "fallback_fast_path";
+  const canUseV2Path = Boolean(thinkerPrompt && formatterPrompt);
+  const legacyUseV2Path =
+    canUseV2Path && !(orchestration.flow === "TEXT_ONLY" && textFastPathEnabled);
+  let runtimePath = singleStageEnabled
+    ? "single_stage"
+    : legacyUseV2Path
+      ? "v2_orchestration"
+      : orchestration.flow === "TEXT_ONLY"
+        ? "text_fast_path"
+        : "fallback_fast_path";
 
-  try {
-    if (useV2Path && thinkerPrompt && formatterPrompt) {
-      const v2Turn = await executeStudioAgentV2Turn({
-        apiKey,
-        openAiUrl,
-        thinkerModel: openAiThinkerModel,
-        formatterModel: openAiFormatterModel,
-        thinkerPrompt,
-        formatterPrompt,
-        timeoutMs: requestTimeoutMs,
-        orchestration,
-        context,
-        messages,
-        selectedReferences,
-        visionSummaryMap,
-        effectiveCanonical,
+  const finalizeSuccessfulTurn = async ({
+    parsed,
+    refusal,
+    resolvedCanonical,
+    usage,
+    model,
+    retryUsed,
+    path,
+    writeFailureStage,
+  }: {
+    parsed: Record<string, unknown>;
+    refusal: boolean;
+    resolvedCanonical: string | null;
+    usage: Record<string, unknown> | undefined;
+    model: string;
+    retryUsed: boolean;
+    path: string;
+    writeFailureStage:
+      | "canonical_write_v2"
+      | "canonical_write_fast_path"
+      | "canonical_write_single_stage";
+  }): Promise<{ status: number; payload: Record<string, unknown> }> => {
+    if (!refusal) {
+      await writeStudioAgentCanonicalPrompt({
+        req,
+        userId,
+        conversationId: normalizedConversationId,
+        canonicalPrompt: resolvedCanonical,
+        canonicalDbEnabled,
         markStage,
+        writeFailureStage,
+        formatErrorMessage: formatStudioAgentErrorMessage,
       });
+    }
 
-      if (!v2Turn.ok) {
+    emitStudioAgentTurnTelemetry({
+      flow: orchestration.flow,
+      path,
+      status: refusal ? "refuse" : "success",
+      model,
+      retryUsed,
+      totalLatencyMs: Date.now() - requestStartedAt,
+      stageLatencyMs,
+    });
+
+    return {
+      status: 200,
+      payload: {
+        ...parsed,
+        ...(usage ? { usage } : {}),
+        canonicalPrompt: resolvedCanonical,
+        traceId,
+      },
+    };
+  };
+
+  const executeV2Path = async (
+    path: string
+  ): Promise<{ status: number; payload: Record<string, unknown> } | null> => {
+    if (!thinkerPrompt || !formatterPrompt) return null;
+
+    const v2Turn = await executeStudioAgentV2Turn({
+      apiKey,
+      openAiUrl,
+      thinkerModel: openAiThinkerModel,
+      formatterModel: openAiFormatterModel,
+      thinkerPrompt,
+      formatterPrompt,
+      timeoutMs: requestTimeoutMs,
+      orchestration,
+      context,
+      messages,
+      selectedReferences,
+      visionSummaryMap,
+      effectiveCanonical,
+      markStage,
+    });
+
+    if (!v2Turn.ok) {
+      const safetyRefusal = isStudioAgentSafetyRefusalUpstreamError({
+        status: v2Turn.status,
+        detail: v2Turn.detail,
+      });
+      if (safetyRefusal) {
         emitStudioAgentTurnTelemetry({
           flow: orchestration.flow,
           path,
-          status: "error",
+          status: "refuse",
           model: openAiThinkerModel,
           retryUsed: false,
           totalLatencyMs: Date.now() - requestStartedAt,
           stageLatencyMs,
         });
         return {
-          status: v2Turn.status,
+          status: 200,
+          payload: buildStudioAgentSafetyRefusalPayload({
+            traceId,
+            canonicalPrompt: effectiveCanonical,
+          }),
+        };
+      }
+      emitStudioAgentTurnTelemetry({
+        flow: orchestration.flow,
+        path,
+        status: "error",
+        model: openAiThinkerModel,
+        retryUsed: false,
+        totalLatencyMs: Date.now() - requestStartedAt,
+        stageLatencyMs,
+      });
+      return {
+        status: v2Turn.status,
+        payload: buildStudioAgentUpstreamErrorPayload({
+          stage: v2Turn.stage,
+          detail: v2Turn.detail,
+          traceId,
+        }),
+      };
+    }
+
+    let parsed = v2Turn.result.parsed;
+    const nextCanonical = v2Turn.result.nextCanonical;
+    const semanticStatus = v2Turn.result.semanticStatus;
+    const resolvedTurn = resolveStudioAgentTurnResponse({
+      parsed,
+      semanticStatus,
+      nextCanonical,
+      effectiveCanonical,
+      context,
+      messages,
+    });
+    parsed = resolvedTurn.parsed;
+
+    return await finalizeSuccessfulTurn({
+      parsed: parsed as Record<string, unknown>,
+      refusal: resolvedTurn.refusal,
+      resolvedCanonical: resolvedTurn.resolvedCanonical,
+      usage: (v2Turn.result.usage ?? undefined) as Record<string, unknown> | undefined,
+      model: openAiThinkerModel,
+      retryUsed: v2Turn.result.retryUsed,
+      path,
+      writeFailureStage: "canonical_write_v2",
+    });
+  };
+
+  try {
+    if (singleStageEnabled) {
+      runtimePath = "single_stage";
+      const singleStageTurn = await executeStudioAgentFastPathTurn({
+        apiKey,
+        openAiUrl,
+        model: openAiModel,
+        openAiMessages,
+        timeoutMs: requestTimeoutMs,
+        effectiveCanonical,
+        context,
+        messages,
+        markStage,
+      });
+
+      if (!singleStageTurn.ok) {
+        const safetyRefusal = isStudioAgentSafetyRefusalUpstreamError({
+          status: singleStageTurn.status,
+          detail: singleStageTurn.detail,
+        });
+        if (safetyRefusal) {
+          emitStudioAgentTurnTelemetry({
+            flow: orchestration.flow,
+            path: runtimePath,
+            status: "refuse",
+            model: openAiModel,
+            retryUsed: false,
+            totalLatencyMs: Date.now() - requestStartedAt,
+            stageLatencyMs,
+          });
+          return {
+            status: 200,
+            payload: buildStudioAgentSafetyRefusalPayload({
+              traceId,
+              canonicalPrompt: effectiveCanonical,
+            }),
+          };
+        }
+        if (legacyV2FallbackEnabled && canUseV2Path) {
+          runtimePath = "legacy_v2_fallback";
+          const fallbackResult = await executeV2Path(runtimePath);
+          if (fallbackResult) return fallbackResult;
+        }
+        emitStudioAgentTurnTelemetry({
+          flow: orchestration.flow,
+          path: runtimePath,
+          status: "error",
+          model: openAiModel,
+          retryUsed: false,
+          totalLatencyMs: Date.now() - requestStartedAt,
+          stageLatencyMs,
+        });
+        return {
+          status: singleStageTurn.status,
           payload: buildStudioAgentUpstreamErrorPayload({
-            stage: v2Turn.stage,
-            detail: v2Turn.detail,
+            detail: singleStageTurn.detail,
             traceId,
           }),
         };
       }
 
-      let parsed = v2Turn.result.parsed;
-      const nextCanonical = v2Turn.result.nextCanonical;
-      const usage = v2Turn.result.usage;
-      const semanticStatus = v2Turn.result.semanticStatus;
-      const retryUsed = v2Turn.result.retryUsed;
-
-      const resolvedTurn = resolveStudioAgentTurnResponse({
-        parsed,
-        semanticStatus,
-        nextCanonical,
-        effectiveCanonical,
-        context,
-        messages,
+      return await finalizeSuccessfulTurn({
+        parsed: singleStageTurn.result.parsed as Record<string, unknown>,
+        refusal: singleStageTurn.result.refusal,
+        resolvedCanonical: singleStageTurn.result.resolvedCanonical,
+        usage: singleStageTurn.result.usage as Record<string, unknown>,
+        model: openAiModel,
+        retryUsed: false,
+        path: runtimePath,
+        writeFailureStage: "canonical_write_single_stage",
       });
-      parsed = resolvedTurn.parsed;
-      const refusal = resolvedTurn.refusal;
-      const resolvedCanonical = resolvedTurn.resolvedCanonical;
-
-      if (!refusal) {
-        await writeStudioAgentCanonicalPrompt({
-          req,
-          userId,
-          conversationId: normalizedConversationId,
-          canonicalPrompt: resolvedCanonical,
-          canonicalDbEnabled,
-          markStage,
-          writeFailureStage: "canonical_write_v2",
-          formatErrorMessage: formatStudioAgentErrorMessage,
-        });
-      }
-
-      emitStudioAgentTurnTelemetry({
-        flow: orchestration.flow,
-        path,
-        status: refusal ? "refuse" : "success",
-        model: openAiThinkerModel,
-        retryUsed,
-        totalLatencyMs: Date.now() - requestStartedAt,
-        stageLatencyMs,
-      });
-
-      return {
-        status: 200,
-        payload: {
-          ...parsed,
-          usage,
-          canonicalPrompt: resolvedCanonical,
-          traceId,
-        },
-      };
     }
 
+    if (legacyUseV2Path) {
+      runtimePath = "v2_orchestration";
+      const v2Result = await executeV2Path(runtimePath);
+      if (v2Result) return v2Result;
+    }
+
+    runtimePath = orchestration.flow === "TEXT_ONLY" ? "text_fast_path" : "fallback_fast_path";
     const fastPathTurn = await executeStudioAgentFastPathTurn({
       apiKey,
       openAiUrl,
@@ -241,9 +384,31 @@ export const executeStudioAgentCoordinator = async ({
     });
 
     if (!fastPathTurn.ok) {
+      const safetyRefusal = isStudioAgentSafetyRefusalUpstreamError({
+        status: fastPathTurn.status,
+        detail: fastPathTurn.detail,
+      });
+      if (safetyRefusal) {
+        emitStudioAgentTurnTelemetry({
+          flow: orchestration.flow,
+          path: runtimePath,
+          status: "refuse",
+          model: openAiModel,
+          retryUsed: false,
+          totalLatencyMs: Date.now() - requestStartedAt,
+          stageLatencyMs,
+        });
+        return {
+          status: 200,
+          payload: buildStudioAgentSafetyRefusalPayload({
+            traceId,
+            canonicalPrompt: effectiveCanonical,
+          }),
+        };
+      }
       emitStudioAgentTurnTelemetry({
         flow: orchestration.flow,
-        path,
+        path: runtimePath,
         status: "error",
         model: openAiModel,
         retryUsed: false,
@@ -259,47 +424,20 @@ export const executeStudioAgentCoordinator = async ({
       };
     }
 
-    const parsed = fastPathTurn.result.parsed;
-    const refusal = fastPathTurn.result.refusal;
-    const resolvedCanonical = fastPathTurn.result.resolvedCanonical;
-    const usage = fastPathTurn.result.usage;
-
-    if (!refusal) {
-      await writeStudioAgentCanonicalPrompt({
-        req,
-        userId,
-        conversationId: normalizedConversationId,
-        canonicalPrompt: resolvedCanonical,
-        canonicalDbEnabled,
-        markStage,
-        writeFailureStage: "canonical_write_fast_path",
-        formatErrorMessage: formatStudioAgentErrorMessage,
-      });
-    }
-
-    emitStudioAgentTurnTelemetry({
-      flow: orchestration.flow,
-      path,
-      status: refusal ? "refuse" : "success",
+    return await finalizeSuccessfulTurn({
+      parsed: fastPathTurn.result.parsed as Record<string, unknown>,
+      refusal: fastPathTurn.result.refusal,
+      resolvedCanonical: fastPathTurn.result.resolvedCanonical,
+      usage: fastPathTurn.result.usage as Record<string, unknown>,
       model: openAiModel,
       retryUsed: false,
-      totalLatencyMs: Date.now() - requestStartedAt,
-      stageLatencyMs,
+      path: runtimePath,
+      writeFailureStage: "canonical_write_fast_path",
     });
-
-    return {
-      status: 200,
-      payload: {
-        ...parsed,
-        usage,
-        canonicalPrompt: resolvedCanonical,
-        traceId,
-      },
-    };
   } catch (error) {
     emitStudioAgentTurnTelemetry({
       flow: "unknown",
-      path,
+      path: runtimePath,
       status: "error",
       model: openAiModel,
       retryUsed: false,

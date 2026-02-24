@@ -60,6 +60,8 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     process.env.STUDIO_AGENT_ENABLED = "true";
     process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "false";
     process.env.STUDIO_AGENT_SERVER_VISION_ENABLED = "false";
+    process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "true";
+    process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED = "false";
     process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "true";
     process.env.STUDIO_AGENT_TIMEOUT_MS = String(20000);
     process.env.NEXT_PUBLIC_AGENT_V2 = "false";
@@ -88,6 +90,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
   });
 
   it("uses orchestration path for MIXED turns even when NEXT_PUBLIC_AGENT_V2=false", async () => {
+    process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "false";
     const req = {
       method: "POST",
       body: {
@@ -123,6 +126,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
   });
 
   it("falls back to default timeout when STUDIO_AGENT_TIMEOUT_MS is invalid", async () => {
+    process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "false";
     process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "false";
     process.env.STUDIO_AGENT_TIMEOUT_MS = "not-a-number";
 
@@ -146,6 +150,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
   });
 
   it("passes stage-specific thinker/formatter models to orchestration turns", async () => {
+    process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "false";
     process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "false";
     process.env.OPENAI_MODEL = "gpt-default";
     process.env.STUDIO_AGENT_THINKER_MODEL = "gpt-thinker";
@@ -174,6 +179,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
   });
 
   it("does not synthesize applyPrompt on refusal and preserves canonical prompt", async () => {
+    process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "false";
     process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "true";
     process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "false";
     readAgentConversationCanonicalPromptMock.mockResolvedValue("existing canonical prompt");
@@ -181,7 +187,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       ok: true,
       result: {
         parsed: {
-          message: "I cannot help with that request.",
+          message: "I cannot describe this.",
           actions: undefined,
         },
         nextCanonical: null,
@@ -205,7 +211,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: "I cannot help with that request.",
+        message: "I cannot describe this.",
         actions: undefined,
         canonicalPrompt: "existing canonical prompt",
       })
@@ -484,6 +490,63 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     );
   });
 
+  it("maps single-stage safety upstream failures to refusal response", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response('{"error":{"message":"content policy violation"}}', {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "explicit violent prompt text" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "I cannot describe this.",
+        actions: undefined,
+        canonicalPrompt: null,
+      })
+    );
+  });
+
+  it("uses legacy V2 fallback only when explicitly enabled", async () => {
+    process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response("upstream unavailable", { status: 503 })
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "snowy pine forest" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(runThinkerFormatterTurnMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actions: expect.objectContaining({ applyPrompt: "Enhanced prompt output" }),
+      })
+    );
+  });
+
   it("rejects client-provided non-user/assistant roles", async () => {
     const req = {
       method: "POST",
@@ -547,6 +610,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
   it("defaults enabled when both server and public flags are unset", async () => {
     delete process.env.STUDIO_AGENT_ENABLED;
     delete process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT;
+    process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "false";
     process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "false";
 
     const req = {

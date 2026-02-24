@@ -97,6 +97,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const canonicalDbEnabled = process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED !== "false";
   const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
+  const singleStageEnabled = process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED !== "false";
+  const legacyV2FallbackEnabled = process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED === "true";
   const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
   const { openAiUrl, openAiModel, openAiVisionModel, openAiThinkerModel, openAiFormatterModel } =
@@ -187,6 +189,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     thinkerPrompt,
     formatterPrompt,
     requestTimeoutMs,
+    singleStageEnabled,
+    legacyV2FallbackEnabled,
     textFastPathEnabled,
     orchestration,
     context,

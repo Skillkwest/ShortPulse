@@ -64,7 +64,10 @@ export const writeStudioAgentCanonicalPrompt = async ({
   canonicalPrompt: string | null;
   canonicalDbEnabled: boolean;
   markStage: StageMarker;
-  writeFailureStage: "canonical_write_v2" | "canonical_write_fast_path";
+  writeFailureStage:
+    | "canonical_write_v2"
+    | "canonical_write_fast_path"
+    | "canonical_write_single_stage";
   formatErrorMessage: ErrorMessageFormatter;
 }): Promise<void> => {
   if (!(canonicalDbEnabled && conversationId && canonicalPrompt)) return;

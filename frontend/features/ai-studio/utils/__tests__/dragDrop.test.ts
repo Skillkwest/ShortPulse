@@ -175,6 +175,45 @@ describe("dragDrop payload extraction", () => {
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });
 
+  it("keeps drag payload stable when custom drag image API throws", () => {
+    const dragNode = document.createElement("div");
+    dragNode.className = "reference-card is-active";
+    const setData = vi.fn();
+    const setDragImage = vi.fn(() => {
+      throw new Error("drag image not supported");
+    });
+    const event = {
+      dataTransfer: {
+        effectAllowed: "all",
+        setData,
+        setDragImage,
+      },
+      currentTarget: dragNode,
+    } as unknown as Parameters<typeof prepareReferenceDrag>[0];
+
+    expect(() =>
+      prepareReferenceDrag(event, {
+        id: "ref-fallback-1",
+        prompt: "Prompt fallback",
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        previewUrl: "https://example.com/ref-fallback-1.png",
+      })
+    ).not.toThrow();
+
+    expect(setData).toHaveBeenCalledWith("text/reference-id", "ref-fallback-1");
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-url",
+      "https://example.com/ref-fallback-1.png"
+    );
+    expect(dragNode.classList.contains("is-dragging")).toBe(true);
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
   it("uses storage/full URL fallbacks when previewUrl is missing during internal drags", () => {
     const setData = vi.fn();
     const event = {

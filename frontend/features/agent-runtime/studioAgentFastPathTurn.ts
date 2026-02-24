@@ -1,6 +1,9 @@
 import type { AgentContext, AgentMessage, AgentResponse } from "../../prefabs/agent";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
-import { fetchStudioAgentChatCompletion } from "./studioAgentOpenAiGateway";
+import {
+  fetchStudioAgentChatCompletion,
+  formatStudioAgentErrorMessage,
+} from "./studioAgentOpenAiGateway";
 import {
   buildStudioAgentSemanticResponse,
   extractStudioAgentCompletionText,
@@ -32,6 +35,21 @@ type StudioAgentFastPathSuccess = {
 
 export type StudioAgentFastPathTurnResult = StudioAgentFastPathFailure | StudioAgentFastPathSuccess;
 
+const resolveFastPathFailureStatus = (error: unknown): number => {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return 504;
+  }
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    typeof (error as { status?: unknown }).status === "number"
+  ) {
+    return (error as { status: number }).status;
+  }
+  return 503;
+};
+
 export const executeStudioAgentFastPathTurn = async ({
   apiKey,
   openAiUrl,
@@ -54,13 +72,23 @@ export const executeStudioAgentFastPathTurn = async ({
   markStage: StageMarker;
 }): Promise<StudioAgentFastPathTurnResult> => {
   const fastPathStartedAt = Date.now();
-  const response = await fetchStudioAgentChatCompletion({
-    apiKey,
-    openAiUrl,
-    model,
-    messages: openAiMessages,
-    timeoutMs,
-  });
+  let response: Response;
+  try {
+    response = await fetchStudioAgentChatCompletion({
+      apiKey,
+      openAiUrl,
+      model,
+      messages: openAiMessages,
+      timeoutMs,
+    });
+  } catch (error) {
+    markStage("fast_path_turn", fastPathStartedAt);
+    return {
+      ok: false,
+      status: resolveFastPathFailureStatus(error),
+      detail: formatStudioAgentErrorMessage(error),
+    };
+  }
   markStage("fast_path_turn", fastPathStartedAt);
 
   if (!response.ok) {

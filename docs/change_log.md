@@ -1278,3 +1278,23 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated ops docs to reflect the new failure contract:
   - `docs/sops/sop_ai_studio_agent.md`
   - `docs/sops/sop_ai_studio_agent_chat_ops.md`
+
+## 2026-02-24 (AI Studio reliability hardening follow-up)
+- Normalized fast-path transport throws into classified failure objects in `frontend/features/agent-runtime/studioAgentFastPathTurn.ts` so coordinator retries/fallback policy handles throw and non-throw failures consistently.
+- Split runtime timeout budgets in `frontend/features/agent-runtime/studioAgentOpenAiGateway.ts` and `/api/ai/studio-agent` wiring:
+  - added `STUDIO_AGENT_VISION_TIMEOUT_MS`
+  - added `STUDIO_AGENT_TURN_TIMEOUT_MS`
+  - preserved backward compatibility by inheriting `STUDIO_AGENT_TIMEOUT_MS` when split values are unset.
+- Updated coordinator turn execution to use dedicated turn budget (`turnTimeoutMs`) for fast-path and v2 generation lanes (`frontend/features/agent-runtime/studioAgentCoordinator.ts`).
+- Hardened reference-grid optimizer failover in `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridImageHydrationController.ts` by adding session-level source fail cache and failover telemetry counters; emitted through existing telemetry controller path.
+- Replaced drag ghost clone-and-strip with a dedicated ghost builder in `frontend/features/ai-studio/utils/dragDrop.ts` and added defensive dragging CSS suppression for action overlays in `frontend/styles/ai-studio-canvas.css`.
+- Added provider-download timeout/abort handling in `frontend/features/ai-studio/logic/referenceDownload.ts` and kept hook orchestration focused in `frontend/features/ai-studio/hooks/useAiStudioReferenceAssetActions.ts`.
+- Expanded regression coverage:
+  - `frontend/features/agent-runtime/__tests__/studioAgentFastPathTurn.test.ts`
+  - `frontend/features/agent-runtime/__tests__/studioAgentOpenAiGateway.test.ts`
+  - `frontend/tests/api/studio-agent.runtime.test.ts`
+  - `frontend/features/ai-studio/utils/__tests__/dragDrop.test.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceAssetActions.test.ts`
+  - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`
+- Added evidence note:
+  - `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-runtime-timeout-split-and-failover-hardening.md`

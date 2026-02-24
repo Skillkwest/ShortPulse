@@ -80,6 +80,8 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED = "true";
     process.env.STUDIO_AGENT_SAFETY_DEBUG = "false";
     process.env.STUDIO_AGENT_TIMEOUT_MS = String(20000);
+    delete process.env.STUDIO_AGENT_VISION_TIMEOUT_MS;
+    delete process.env.STUDIO_AGENT_TURN_TIMEOUT_MS;
     process.env.NEXT_PUBLIC_AGENT_V2 = "false";
     delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
     delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
@@ -166,6 +168,95 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       expect.objectContaining({ timeoutMs: 20000 })
     );
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("uses split timeout env values for thinker/formatter turns", async () => {
+    process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "false";
+    process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "false";
+    process.env.STUDIO_AGENT_TIMEOUT_MS = "22000";
+    process.env.STUDIO_AGENT_TURN_TIMEOUT_MS = "7000";
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-1",
+        messages: [{ role: "user", content: "enhance this prompt" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(runThinkerFormatterTurnMock).toHaveBeenCalledTimes(1);
+    expect(runThinkerFormatterTurnMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ timeoutMs: 7000 })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("keeps generation lane running when vision timeout budget is exhausted", async () => {
+    process.env.STUDIO_AGENT_SERVER_VISION_ENABLED = "true";
+    process.env.STUDIO_AGENT_VISION_TIMEOUT_MS = "1";
+    process.env.STUDIO_AGENT_TURN_TIMEOUT_MS = "20000";
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(new Response("OpenAI request timed out", { status: 504 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    message: "generation survived vision timeout",
+                    actions: { apply_prompt: "generation survived vision timeout" },
+                  }),
+                },
+              },
+            ],
+            usage: { prompt_tokens: 12, completion_tokens: 8 },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-vision-timeout",
+        messages: [{ role: "user", content: "add cinematic rim lighting" }],
+        context: {
+          media: [
+            {
+              id: "img-1",
+              kind: "image",
+              url: "https://cdn.test/reference-image.png",
+            },
+          ],
+          references: [
+            {
+              id: "img-1",
+              kind: "image",
+              caption: "reference image",
+            },
+          ],
+          selectedReferenceIds: ["img-1"],
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "generation survived vision timeout",
+        actions: expect.objectContaining({ applyPrompt: "generation survived vision timeout" }),
+      })
+    );
   });
 
   it("passes stage-specific thinker/formatter models to orchestration turns", async () => {
@@ -892,7 +983,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     expect(fallbackPayload?.actions).toEqual({ applyPrompt: "parity prompt output" });
   });
 
-  it("returns assistant fallback for route-level runtime exceptions", async () => {
+  it("classifies fast-path thrown transport failures into retry + assistant fallback", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("socket hang up"));
 
     const req = {
@@ -907,6 +998,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
 
     await studioAgentHandler(req as never, res as never);
 
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -914,7 +1006,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         actions: undefined,
       })
     );
-    expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
   it("rejects client-provided non-user/assistant roles", async () => {

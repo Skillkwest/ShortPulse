@@ -20,6 +20,8 @@ type UseReferenceGridTelemetryControllerArgs = {
   previewSwapRatePerMinute: number;
   previewRepaintSpikeCount: number;
   previewLastSwapBurstCount: number;
+  optimizerFailoverBypassCount: number;
+  optimizerFailoverErrorCount: number;
   startIndex: number;
   endIndex: number;
   canvasDropMode: ReferenceGridDropMode;
@@ -44,6 +46,8 @@ export const useReferenceGridTelemetryController = ({
   previewSwapRatePerMinute,
   previewRepaintSpikeCount,
   previewLastSwapBurstCount,
+  optimizerFailoverBypassCount,
+  optimizerFailoverErrorCount,
   startIndex,
   endIndex,
   canvasDropMode,
@@ -71,6 +75,8 @@ export const useReferenceGridTelemetryController = ({
       preview_src_swap_rate_per_minute: previewSwapRatePerMinute,
       preview_repaint_spike_count: previewRepaintSpikeCount,
       preview_last_swap_burst_count: previewLastSwapBurstCount,
+      optimizer_failover_bypass_count: optimizerFailoverBypassCount,
+      optimizer_failover_error_count: optimizerFailoverErrorCount,
       duration_ms: durationMs,
     });
   }, [
@@ -80,6 +86,8 @@ export const useReferenceGridTelemetryController = ({
     isHighDensity,
     lastRenderCommitAtRef,
     outputsLength,
+    optimizerFailoverBypassCount,
+    optimizerFailoverErrorCount,
     perfDegradeLevel,
     previewLastSwapBurstCount,
     previewRepaintSpikeCount,

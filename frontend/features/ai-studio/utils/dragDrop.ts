@@ -25,8 +25,9 @@ const findVideoFile = (files?: FileList) => {
 };
 
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
-const DRAG_GHOST_REMOVED_SELECTOR =
-  ".reference-card-actions, .reference-generate-pill, .reference-status-retry-btn, .reference-save-chip, button";
+const DRAG_GHOST_SCALE = 0.6;
+const DRAG_GHOST_MIN_SIZE_PX = 96;
+const DRAG_GHOST_MAX_SIZE_PX = 220;
 
 export type DragDropPayload = {
   imageUrl: string | null;
@@ -45,6 +46,117 @@ export type VideoDragDropPayload = {
 export type ReferenceDragSourceSurface = "all-refs" | "curated";
 
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
+
+const clampDragGhostSize = (value: number): number =>
+  Math.max(DRAG_GHOST_MIN_SIZE_PX, Math.min(DRAG_GHOST_MAX_SIZE_PX, value));
+
+const trimDragGhostText = (value: string | null, maxLength = 160): string => {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength - 3)}...` : trimmed;
+};
+
+const safeSetDragImage = (
+  transfer: DataTransfer,
+  element: HTMLElement,
+  x: number,
+  y: number
+): void => {
+  try {
+    transfer.setDragImage(element, x, y);
+  } catch {
+    // Some browsers ignore custom drag images for specific node types; preserve drag payload semantics.
+  }
+};
+
+const buildReferenceDragGhost = ({
+  output,
+  width,
+  height,
+}: {
+  output: StudioOutput;
+  width: number;
+  height: number;
+}): HTMLElement => {
+  const ghostWidth = clampDragGhostSize(width * DRAG_GHOST_SCALE);
+  const ghostHeight = clampDragGhostSize(height * DRAG_GHOST_SCALE);
+  const ghost = document.createElement("div");
+  ghost.className = "reference-drag-ghost";
+  ghost.style.width = `${ghostWidth}px`;
+  ghost.style.height = `${ghostHeight}px`;
+  ghost.style.boxSizing = "border-box";
+  ghost.style.position = "absolute";
+  ghost.style.top = "-9999px";
+  ghost.style.left = "-9999px";
+  ghost.style.overflow = "hidden";
+  ghost.style.borderRadius = "12px";
+  ghost.style.border = "1px solid rgba(255,255,255,0.2)";
+  ghost.style.background = "rgba(13, 18, 28, 0.92)";
+  ghost.style.pointerEvents = "none";
+  ghost.style.display = "flex";
+  ghost.style.flexDirection = "column";
+  ghost.style.justifyContent = "space-between";
+  ghost.style.boxShadow = "0 12px 30px rgba(0,0,0,0.45)";
+
+  const imageUrl = resolveReferenceTransferUrl(output, "image");
+  const videoUrl = resolveReferenceTransferUrl(output, "video");
+  const promptText = trimDragGhostText(dedupeText(output.prompt ?? output.previewText) || null);
+
+  if (imageUrl) {
+    const image = document.createElement("img");
+    image.src = imageUrl;
+    image.alt = "";
+    image.style.width = "100%";
+    image.style.height = "100%";
+    image.style.objectFit = "cover";
+    image.style.display = "block";
+    ghost.appendChild(image);
+  } else if (videoUrl) {
+    const videoPlaceholder = document.createElement("div");
+    videoPlaceholder.textContent = "Video reference";
+    videoPlaceholder.style.flex = "1";
+    videoPlaceholder.style.display = "flex";
+    videoPlaceholder.style.alignItems = "center";
+    videoPlaceholder.style.justifyContent = "center";
+    videoPlaceholder.style.fontSize = "12px";
+    videoPlaceholder.style.letterSpacing = "0.04em";
+    videoPlaceholder.style.textTransform = "uppercase";
+    videoPlaceholder.style.color = "rgba(229, 238, 255, 0.9)";
+    ghost.appendChild(videoPlaceholder);
+  } else if (promptText) {
+    const textOnlyBody = document.createElement("div");
+    textOnlyBody.style.flex = "1";
+    textOnlyBody.style.padding = "10px";
+    textOnlyBody.style.fontSize = "11px";
+    textOnlyBody.style.lineHeight = "1.3";
+    textOnlyBody.style.color = "rgba(229, 238, 255, 0.92)";
+    textOnlyBody.style.overflow = "hidden";
+    textOnlyBody.style.display = "-webkit-box";
+    textOnlyBody.style.setProperty("-webkit-line-clamp", "5");
+    textOnlyBody.style.setProperty("-webkit-box-orient", "vertical");
+    textOnlyBody.textContent = promptText;
+    ghost.appendChild(textOnlyBody);
+  }
+
+  if (promptText && (imageUrl || videoUrl)) {
+    const footer = document.createElement("div");
+    footer.style.padding = "8px 10px";
+    footer.style.fontSize = "10px";
+    footer.style.lineHeight = "1.3";
+    footer.style.color = "rgba(229, 238, 255, 0.92)";
+    footer.style.background = "linear-gradient(to top, rgba(6,10,16,0.88), rgba(6,10,16,0.15))";
+    footer.style.maxHeight = "48%";
+    footer.style.overflow = "hidden";
+    footer.style.display = "-webkit-box";
+    footer.style.setProperty("-webkit-line-clamp", "3");
+    footer.style.setProperty("-webkit-box-orient", "vertical");
+    footer.textContent = promptText;
+    ghost.appendChild(footer);
+  }
+
+  return ghost;
+};
 
 const toAbsoluteTransferUrl = (value: string): string => {
   if (!value.startsWith("/")) return value;
@@ -398,32 +510,29 @@ export const prepareReferenceDrag = (
 
   const dragNode = options?.dragImage ?? (event.currentTarget as HTMLElement);
   if (dragNode) {
-    // Shrink ghost to make drag feel lighter; fall back to default if clone fails.
+    // Use a dedicated drag ghost so selected-card controls never leak into drag previews.
     try {
       const rect = dragNode.getBoundingClientRect();
-      const ghost = dragNode.cloneNode(true) as HTMLElement;
-      // Drag ghost should present media/prompt content only; strip action controls from selected cards.
-      ghost.querySelectorAll(DRAG_GHOST_REMOVED_SELECTOR).forEach((node) => node.remove());
-      ghost.classList.remove("is-active");
-      ghost.style.boxSizing = "border-box";
-      const scale = 0.6;
-      const scaledWidth = rect.width * scale;
-      const scaledHeight = rect.height * scale;
-      ghost.style.width = `${scaledWidth}px`;
-      ghost.style.height = `${scaledHeight}px`;
-      ghost.style.transform = `scale(${scale})`;
-      ghost.style.transformOrigin = "center";
-      ghost.style.opacity = "0.9";
-      ghost.style.position = "absolute";
-      ghost.style.top = "-9999px";
-      ghost.style.left = "-9999px";
-      ghost.style.pointerEvents = "none";
-      ghost.style.boxShadow = "0 12px 30px rgba(0,0,0,0.45)";
+      const ghost = buildReferenceDragGhost({
+        output,
+        width: rect.width || dragNode.offsetWidth || DRAG_GHOST_MAX_SIZE_PX,
+        height: rect.height || dragNode.offsetHeight || DRAG_GHOST_MAX_SIZE_PX,
+      });
       document.body.appendChild(ghost);
       dragGhostMap.set(dragNode, ghost);
-      transfer.setDragImage(ghost, scaledWidth / 2, scaledHeight / 2);
+      safeSetDragImage(
+        transfer,
+        ghost,
+        Math.round((rect.width || dragNode.offsetWidth) / 2),
+        Math.round((rect.height || dragNode.offsetHeight) / 2)
+      );
     } catch {
-      transfer.setDragImage(dragNode, dragNode.offsetWidth / 2, dragNode.offsetHeight / 2);
+      safeSetDragImage(
+        transfer,
+        dragNode,
+        Math.round(dragNode.offsetWidth / 2),
+        Math.round(dragNode.offsetHeight / 2)
+      );
     }
     dragNode.classList.add("is-dragging");
   }

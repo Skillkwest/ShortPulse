@@ -109,11 +109,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     openAiVisionModel,
     openAiThinkerModel,
     openAiFormatterModel,
+    visionTimeoutMs,
+    turnTimeoutMs,
     upstreamRetryMaxAttempts,
     upstreamRetryBaseDelayMs,
     upstreamRetryMaxDelayMs,
   } = openAiConfig;
-  const requestTimeoutMs = openAiConfig.requestTimeoutMs;
 
   const storedCanonical = await readStudioAgentCanonicalPrompt({
     req,
@@ -154,7 +155,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         imageDescribePrompt,
         apiKey,
         visionModel: openAiVisionModel,
-        timeoutMs: requestTimeoutMs,
+        timeoutMs: visionTimeoutMs,
       });
       context = applyStudioAgentVisionSummariesToContext(context, visionSummaryMap);
     } catch (error) {
@@ -198,7 +199,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     openAiFormatterModel,
     thinkerPrompt,
     formatterPrompt,
-    requestTimeoutMs,
+    turnTimeoutMs,
     upstreamRetryMaxAttempts,
     upstreamRetryBaseDelayMs,
     upstreamRetryMaxDelayMs,

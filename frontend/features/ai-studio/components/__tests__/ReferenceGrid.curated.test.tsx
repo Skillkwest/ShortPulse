@@ -647,6 +647,20 @@ describe("ReferenceGrid curated split", () => {
     expect(onRemoveCuratedReference).toHaveBeenCalledWith("out-1");
   });
 
+  it("fires the all refs download action for selected media cards", () => {
+    const onDownload = vi.fn();
+    const { getAllByLabelText } = render(
+      <ReferenceGrid
+        {...createProps({
+          onDownload,
+        })}
+      />
+    );
+
+    fireEvent.click(getAllByLabelText("Download reference")[0] as HTMLElement);
+    expect(onDownload).toHaveBeenCalledWith(expect.objectContaining({ id: "out-1" }));
+  });
+
   it("shows only the curated remove action in quick slot card actions", () => {
     const { container } = render(
       <ReferenceGrid

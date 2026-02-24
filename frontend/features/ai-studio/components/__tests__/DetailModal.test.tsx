@@ -76,6 +76,22 @@ describe("DetailModal", () => {
     expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
   });
 
+  it("routes download button clicks through the provided download callback", () => {
+    const onDownloadReference = vi.fn();
+    render(
+      <DetailModal
+        output={baseOutput}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onDownloadReference={onDownloadReference}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    expect(onDownloadReference).toHaveBeenCalledWith("out-1");
+  });
+
   it("keeps image previews fit-to-screen on open and does not zoom in on double-click", () => {
     const { container } = render(
       <DetailModal

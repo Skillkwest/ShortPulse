@@ -390,6 +390,15 @@
   filter: drop-shadow(0 12px 35px rgba(37, 169, 191, 0.35));
 }
 
+.reference-card.is-dragging .reference-card-actions,
+.reference-card.is-dragging .reference-generate-pill,
+.reference-card.is-dragging .reference-status-retry-btn,
+.reference-card.is-dragging .reference-save-chip {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden;
+}
+
 .reference-card.is-active {
   background-color: var(--reference-selection-active-bg);
   box-shadow: 0 0 0 2px var(--reference-selection-active-outline);

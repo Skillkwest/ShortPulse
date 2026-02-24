@@ -653,6 +653,8 @@ export function ReferenceGrid({
     previewSwapRatePerMinute: previewSwapMetrics.swapRatePerMinute,
     previewRepaintSpikeCount: previewSwapMetrics.repaintSpikeCount,
     previewLastSwapBurstCount: previewSwapMetrics.lastSwapBurstCount,
+    optimizerFailoverBypassCount: imageHydrationState.optimizerFailoverBypassCount,
+    optimizerFailoverErrorCount: imageHydrationState.optimizerFailoverErrorCount,
     startIndex,
     endIndex,
     canvasDropMode,
@@ -774,6 +776,8 @@ export function ReferenceGrid({
       data-grid-watchdog-input-stall-ms={perfWatchdog.maxInputStallMs}
       data-grid-adaptive-preview-enabled={REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY}
       data-grid-adaptive-preview-transformed-count={transformedAdaptivePreviewCount}
+      data-grid-optimizer-failover-bypass-count={imageHydrationState.optimizerFailoverBypassCount}
+      data-grid-optimizer-failover-error-count={imageHydrationState.optimizerFailoverErrorCount}
       data-grid-src-swap-rate-per-minute={previewSwapMetrics.swapRatePerMinute}
       data-grid-repaint-spike-count={previewSwapMetrics.repaintSpikeCount}
       data-grid-last-swap-burst-count={previewSwapMetrics.lastSwapBurstCount}

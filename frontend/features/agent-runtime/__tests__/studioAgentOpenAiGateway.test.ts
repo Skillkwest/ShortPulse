@@ -20,6 +20,8 @@ describe("studioAgentOpenAiGateway", () => {
       openAiThinkerModel: "gpt-5-nano",
       openAiFormatterModel: "gpt-5-nano",
       requestTimeoutMs: 20000,
+      visionTimeoutMs: 20000,
+      turnTimeoutMs: 20000,
       upstreamRetryMaxAttempts: 2,
       upstreamRetryBaseDelayMs: 150,
       upstreamRetryMaxDelayMs: 1200,
@@ -47,17 +49,33 @@ describe("studioAgentOpenAiGateway", () => {
     } as unknown as NodeJS.ProcessEnv);
 
     expect(lowTimeout.requestTimeoutMs).toBe(1000);
+    expect(lowTimeout.visionTimeoutMs).toBe(1000);
+    expect(lowTimeout.turnTimeoutMs).toBe(1000);
     expect(lowTimeout.upstreamRetryMaxAttempts).toBe(1);
     expect(lowTimeout.upstreamRetryBaseDelayMs).toBe(0);
     expect(lowTimeout.upstreamRetryMaxDelayMs).toBe(10000);
     expect(lowTimeout.openAiThinkerModel).toBe("gpt-base");
     expect(lowTimeout.openAiFormatterModel).toBe("gpt-formatter");
     expect(highTimeout.requestTimeoutMs).toBe(120000);
+    expect(highTimeout.visionTimeoutMs).toBe(120000);
+    expect(highTimeout.turnTimeoutMs).toBe(120000);
     expect(highTimeout.upstreamRetryMaxAttempts).toBe(5);
     expect(highTimeout.upstreamRetryBaseDelayMs).toBe(5000);
     expect(highTimeout.upstreamRetryMaxDelayMs).toBe(0);
     expect(highTimeout.openAiThinkerModel).toBe("gpt-thinker");
     expect(highTimeout.openAiFormatterModel).toBe("gpt-thinker");
+  });
+
+  it("supports split vision/turn timeout budgets with clamping", () => {
+    const config = resolveStudioAgentOpenAiConfig({
+      STUDIO_AGENT_TIMEOUT_MS: "18000",
+      STUDIO_AGENT_VISION_TIMEOUT_MS: "250",
+      STUDIO_AGENT_TURN_TIMEOUT_MS: "130000",
+    } as unknown as NodeJS.ProcessEnv);
+
+    expect(config.requestTimeoutMs).toBe(18000);
+    expect(config.visionTimeoutMs).toBe(1000);
+    expect(config.turnTimeoutMs).toBe(120000);
   });
 
   it("formats timeout errors deterministically", () => {

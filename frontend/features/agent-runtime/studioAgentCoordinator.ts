@@ -106,7 +106,7 @@ export const executeStudioAgentCoordinator = async ({
   openAiFormatterModel,
   thinkerPrompt,
   formatterPrompt,
-  requestTimeoutMs,
+  turnTimeoutMs,
   upstreamRetryMaxAttempts,
   upstreamRetryBaseDelayMs,
   upstreamRetryMaxDelayMs,
@@ -138,7 +138,7 @@ export const executeStudioAgentCoordinator = async ({
   openAiFormatterModel: string;
   thinkerPrompt: string | null;
   formatterPrompt: string | null;
-  requestTimeoutMs: number;
+  turnTimeoutMs: number;
   upstreamRetryMaxAttempts: number;
   upstreamRetryBaseDelayMs: number;
   upstreamRetryMaxDelayMs: number;
@@ -524,7 +524,7 @@ export const executeStudioAgentCoordinator = async ({
       formatterModel: openAiFormatterModel,
       thinkerPrompt,
       formatterPrompt,
-      timeoutMs: requestTimeoutMs,
+      timeoutMs: turnTimeoutMs,
       orchestration,
       context,
       messages,
@@ -566,7 +566,7 @@ export const executeStudioAgentCoordinator = async ({
         formatterModel: openAiFormatterModel,
         thinkerPrompt,
         formatterPrompt,
-        timeoutMs: requestTimeoutMs,
+        timeoutMs: turnTimeoutMs,
         orchestration,
         context,
         messages,
@@ -626,7 +626,7 @@ export const executeStudioAgentCoordinator = async ({
       openAiUrl,
       model: openAiModel,
       openAiMessages,
-      timeoutMs: requestTimeoutMs,
+      timeoutMs: turnTimeoutMs,
       effectiveCanonical,
       context,
       messages,
@@ -667,7 +667,7 @@ export const executeStudioAgentCoordinator = async ({
         openAiUrl,
         model: openAiModel,
         openAiMessages,
-        timeoutMs: requestTimeoutMs,
+        timeoutMs: turnTimeoutMs,
         effectiveCanonical,
         context,
         messages,

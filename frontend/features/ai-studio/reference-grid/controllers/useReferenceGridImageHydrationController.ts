@@ -13,7 +13,11 @@ import {
   shouldTranscodeLocalAdaptiveImage,
   transcodeLocalImageToObjectUrl,
 } from "../../../../lib/adaptive-media";
-import { hasAdaptiveQueryParams, isNextOptimizerUrl } from "../logic/referenceGridMediaHelpers";
+import {
+  hasAdaptiveQueryParams,
+  isNextOptimizerUrl,
+  resolveOptimizerSourceUrl,
+} from "../logic/referenceGridMediaHelpers";
 
 type HydratedImageEntry = {
   sourceUrl: string;
@@ -24,6 +28,8 @@ type ImageHydrationState = {
   hydratedById: Record<string, HydratedImageEntry>;
   queueSize: number;
   decodeInflight: number;
+  optimizerFailoverBypassCount: number;
+  optimizerFailoverErrorCount: number;
 };
 
 type EnqueueImageHydrationOptions = {
@@ -49,6 +55,8 @@ type UseReferenceGridImageHydrationControllerResult = {
   pruneHydrationQueueToCandidateIds: (candidateIdSet: Set<string>) => void;
 };
 
+const MAX_FAILED_OPTIMIZER_SOURCE_CACHE_SIZE = 256;
+
 export const useReferenceGridImageHydrationController = ({
   decodeBudgetEnabled,
   adaptivePreviewQualityEnabled,
@@ -62,6 +70,8 @@ export const useReferenceGridImageHydrationController = ({
     hydratedById: {},
     queueSize: 0,
     decodeInflight: 0,
+    optimizerFailoverBypassCount: 0,
+    optimizerFailoverErrorCount: 0,
   });
   const hydrationQueueRef = useRef<string[]>([]);
   const hydrationQueuedIdSetRef = useRef<Set<string>>(new Set());
@@ -69,6 +79,8 @@ export const useReferenceGridImageHydrationController = ({
   const hydrationUrlByIdRef = useRef<Record<string, string>>({});
   const hydrationFallbackUrlByIdRef = useRef<Record<string, string>>({});
   const hydrationFailedOptimizedUrlByIdRef = useRef<Record<string, string>>({});
+  const hydrationBypassCountedOptimizedUrlByIdRef = useRef<Record<string, string>>({});
+  const hydrationFailedOptimizerSourceSetRef = useRef<Set<string>>(new Set());
   const hydrationPreviewMetaByIdRef = useRef<
     Record<
       string,
@@ -85,6 +97,36 @@ export const useReferenceGridImageHydrationController = ({
   const hydrationRafFlushRef = useRef<number | null>(null);
   const hydrationPendingLoadedRef = useRef<Record<string, HydratedImageEntry>>({});
   const processHydrationQueueRef = useRef<() => void>(() => {});
+
+  const recordOptimizerFailoverBypass = useCallback(() => {
+    runNonUrgentUpdate(() => {
+      setImageHydrationState((prev) => ({
+        ...prev,
+        optimizerFailoverBypassCount: prev.optimizerFailoverBypassCount + 1,
+      }));
+    });
+  }, [runNonUrgentUpdate]);
+
+  const recordOptimizerFailoverError = useCallback(() => {
+    runNonUrgentUpdate(() => {
+      setImageHydrationState((prev) => ({
+        ...prev,
+        optimizerFailoverErrorCount: prev.optimizerFailoverErrorCount + 1,
+      }));
+    });
+  }, [runNonUrgentUpdate]);
+
+  const rememberFailedOptimizerSource = useCallback((sourceUrl: string) => {
+    const cache = hydrationFailedOptimizerSourceSetRef.current;
+    if (cache.has(sourceUrl)) return;
+    if (cache.size >= MAX_FAILED_OPTIMIZER_SOURCE_CACHE_SIZE) {
+      const oldest = cache.values().next().value;
+      if (typeof oldest === "string") {
+        cache.delete(oldest);
+      }
+    }
+    cache.add(sourceUrl);
+  }, []);
 
   const revokeGeneratedHydrationUrl = useCallback((id: string) => {
     const existing = hydrationGeneratedObjectUrlByIdRef.current[id];
@@ -215,6 +257,7 @@ export const useReferenceGridImageHydrationController = ({
           return prev;
         }
         return {
+          ...prev,
           hydratedById: hydratedChanged ? nextHydratedById : prev.hydratedById,
           queueSize: nextQueueSize,
           decodeInflight: nextInflight,
@@ -279,6 +322,11 @@ export const useReferenceGridImageHydrationController = ({
         const resolvedFallback = fallbackUrl && fallbackUrl !== nextUrl ? fallbackUrl : nextUrl;
         if (isNextOptimizerUrl(nextUrl)) {
           hydrationFailedOptimizedUrlByIdRef.current[nextId] = nextUrl;
+          const optimizerSourceUrl = resolveOptimizerSourceUrl(nextUrl);
+          if (optimizerSourceUrl) {
+            rememberFailedOptimizerSource(optimizerSourceUrl);
+          }
+          recordOptimizerFailoverError();
           if (resolvedFallback !== nextUrl) {
             hydrationUrlByIdRef.current[nextId] = resolvedFallback;
           }
@@ -293,6 +341,8 @@ export const useReferenceGridImageHydrationController = ({
     decodeBudgetEnabled,
     imageDecodeBudget,
     maybeCreateLocalAdaptivePreviewUrl,
+    recordOptimizerFailoverError,
+    rememberFailedOptimizerSource,
     scheduleHydrationFlush,
     syncImageHydrationState,
   ]);
@@ -311,18 +361,43 @@ export const useReferenceGridImageHydrationController = ({
         hydrationFallbackUrlByIdRef.current[id] = options.fallbackUrl;
       }
       const fallbackUrl = hydrationFallbackUrlByIdRef.current[id];
-      const shouldBypassOptimizedUrl =
+      const optimizerSourceUrl = resolveOptimizerSourceUrl(url);
+      const hasFailedOptimizerSource =
+        typeof optimizerSourceUrl === "string" &&
+        hydrationFailedOptimizerSourceSetRef.current.has(optimizerSourceUrl);
+      const shouldBypassBySourceCache =
         isNextOptimizerUrl(url) &&
-        hydrationFailedOptimizedUrlByIdRef.current[id] === url &&
+        hasFailedOptimizerSource &&
         typeof fallbackUrl === "string" &&
-        fallbackUrl.length > 0;
-      const nextHydrationUrl = shouldBypassOptimizedUrl ? fallbackUrl : url;
+        fallbackUrl.length > 0 &&
+        fallbackUrl !== url;
+      const shouldBypassOptimizedUrl =
+        shouldBypassBySourceCache ||
+        (isNextOptimizerUrl(url) &&
+          hydrationFailedOptimizedUrlByIdRef.current[id] === url &&
+          typeof fallbackUrl === "string" &&
+          fallbackUrl.length > 0);
+      if (shouldBypassBySourceCache) {
+        hydrationFailedOptimizedUrlByIdRef.current[id] = url;
+        if (hydrationBypassCountedOptimizedUrlByIdRef.current[id] !== url) {
+          hydrationBypassCountedOptimizedUrlByIdRef.current[id] = url;
+          recordOptimizerFailoverBypass();
+        }
+      }
+      const nextHydrationUrl =
+        shouldBypassOptimizedUrl && typeof fallbackUrl === "string" ? fallbackUrl : url;
       hydrationUrlByIdRef.current[id] = nextHydrationUrl;
       if (
         hydrationFailedOptimizedUrlByIdRef.current[id] &&
         hydrationFailedOptimizedUrlByIdRef.current[id] !== url
       ) {
         delete hydrationFailedOptimizedUrlByIdRef.current[id];
+      }
+      if (
+        hydrationBypassCountedOptimizedUrlByIdRef.current[id] &&
+        hydrationBypassCountedOptimizedUrlByIdRef.current[id] !== url
+      ) {
+        delete hydrationBypassCountedOptimizedUrlByIdRef.current[id];
       }
       if (previousUrl && previousUrl !== nextHydrationUrl) {
         revokeGeneratedHydrationUrl(id);
@@ -357,6 +432,7 @@ export const useReferenceGridImageHydrationController = ({
     [
       decodeBudgetEnabled,
       processHydrationQueue,
+      recordOptimizerFailoverBypass,
       revokeGeneratedHydrationUrl,
       syncImageHydrationState,
     ]
@@ -404,6 +480,10 @@ export const useReferenceGridImageHydrationController = ({
     Object.keys(hydrationFailedOptimizedUrlByIdRef.current).forEach((id) => {
       if (validOutputIds.has(id)) return;
       delete hydrationFailedOptimizedUrlByIdRef.current[id];
+    });
+    Object.keys(hydrationBypassCountedOptimizedUrlByIdRef.current).forEach((id) => {
+      if (validOutputIds.has(id)) return;
+      delete hydrationBypassCountedOptimizedUrlByIdRef.current[id];
     });
 
     const hasStaleHydratedIds = Object.keys(hydrationHydratedByIdRef.current).some(

@@ -16,9 +16,12 @@ const DEFAULT_UPSTREAM_RETRY_MAX_DELAY_MS = 1200;
 const MIN_UPSTREAM_RETRY_MAX_DELAY_MS = 0;
 const MAX_UPSTREAM_RETRY_MAX_DELAY_MS = 10000;
 
-const parseStudioAgentTimeoutMs = (value: string | undefined): number => {
+const parseStudioAgentTimeoutMs = (
+  value: string | undefined,
+  fallback = DEFAULT_TIMEOUT_MS
+): number => {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return DEFAULT_TIMEOUT_MS;
+  if (!Number.isFinite(parsed)) return fallback;
   const rounded = Math.trunc(parsed);
   if (rounded < MIN_TIMEOUT_MS) return MIN_TIMEOUT_MS;
   if (rounded > MAX_TIMEOUT_MS) return MAX_TIMEOUT_MS;
@@ -58,6 +61,8 @@ export const resolveStudioAgentOpenAiConfig = (
   openAiThinkerModel: string;
   openAiFormatterModel: string;
   requestTimeoutMs: number;
+  visionTimeoutMs: number;
+  turnTimeoutMs: number;
   upstreamRetryMaxAttempts: number;
   upstreamRetryBaseDelayMs: number;
   upstreamRetryMaxDelayMs: number;
@@ -71,6 +76,14 @@ export const resolveStudioAgentOpenAiConfig = (
     openAiThinkerModel
   );
   const requestTimeoutMs = parseStudioAgentTimeoutMs(env.STUDIO_AGENT_TIMEOUT_MS);
+  const visionTimeoutMs = parseStudioAgentTimeoutMs(
+    env.STUDIO_AGENT_VISION_TIMEOUT_MS,
+    requestTimeoutMs
+  );
+  const turnTimeoutMs = parseStudioAgentTimeoutMs(
+    env.STUDIO_AGENT_TURN_TIMEOUT_MS,
+    requestTimeoutMs
+  );
   const upstreamRetryMaxAttempts = parseBoundedInt({
     value: env.STUDIO_AGENT_UPSTREAM_MAX_ATTEMPTS,
     fallback: DEFAULT_UPSTREAM_MAX_ATTEMPTS,
@@ -97,6 +110,8 @@ export const resolveStudioAgentOpenAiConfig = (
     openAiThinkerModel,
     openAiFormatterModel,
     requestTimeoutMs,
+    visionTimeoutMs,
+    turnTimeoutMs,
     upstreamRetryMaxAttempts,
     upstreamRetryBaseDelayMs,
     upstreamRetryMaxDelayMs,

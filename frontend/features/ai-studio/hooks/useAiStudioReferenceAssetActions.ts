@@ -5,6 +5,13 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
+import {
+  downloadBlobToFile,
+  downloadReferenceProviderBlob,
+  REFERENCE_PROVIDER_DOWNLOAD_ERROR_MESSAGE,
+  resolveReferenceDownloadFilename,
+  resolveReferenceDownloadTarget,
+} from "../logic/referenceDownload";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type UseAiStudioReferenceAssetActionsParams = {
@@ -52,51 +59,56 @@ export const useAiStudioReferenceAssetActions = ({
       if (!target || typeof window === "undefined") return;
       try {
         const supabase = ensureSupabaseClient();
-        let fileRecord: { storage_path: string; filename: string } | null = null;
+        const resolvedTarget = await resolveReferenceDownloadTarget({
+          output: target,
+          supabase,
+        });
+        const downloadFilename = resolveReferenceDownloadFilename({
+          preferredFilename: resolvedTarget.fileRecord?.filename ?? null,
+          prompt: target.prompt,
+          outputId: target.id,
+          previewUrl: target.previewUrl ?? null,
+        });
 
-        if (target.savedMediaIds?.length) {
-          const { data } = await supabase
-            .from("media_files")
-            .select("storage_path, filename, created_at")
-            .in("id", target.savedMediaIds)
-            .order("created_at", { ascending: false })
-            .limit(1);
-          fileRecord = data?.[0] ?? null;
-        } else if (target.generationId) {
-          const { data } = await supabase
-            .from("media_files")
-            .select("storage_path, filename")
-            .eq("source_ref", target.generationId)
-            .order("created_at", { ascending: false })
-            .limit(1);
-          fileRecord = data?.[0] ?? null;
-        }
-
-        if (fileRecord?.storage_path) {
+        if (resolvedTarget.fileRecord?.storagePath) {
           const { data, error } = await supabase.storage
             .from("media_library")
-            .download(fileRecord.storage_path);
+            .download(resolvedTarget.fileRecord.storagePath);
           if (error) throw error;
+          if (!data) {
+            throw new Error("Unable to download media.");
+          }
           const blob = data as Blob;
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = fileRecord.filename || target.prompt || "reference";
-          link.click();
-          window.URL.revokeObjectURL(url);
+          downloadBlobToFile(blob, downloadFilename);
           return;
         }
 
         if (target.previewUrl) {
+          const isGeneratedReference =
+            target.mediaSource === "generated" || Boolean(target.generationId || target.taskId);
+          if (isGeneratedReference) {
+            const blob = await downloadReferenceProviderBlob({
+              url: target.previewUrl,
+            });
+            downloadBlobToFile(blob, downloadFilename);
+            return;
+          }
+
           const link = document.createElement("a");
           link.href = target.previewUrl;
-          link.target = "_blank";
           link.rel = "noreferrer";
-          link.download = target.prompt || "reference";
+          link.download = downloadFilename;
           link.click();
+          return;
         }
+        throw new Error("No media available to download.");
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to download media.";
+        const message =
+          error instanceof Error
+            ? error.message
+            : target?.mediaSource === "generated"
+              ? REFERENCE_PROVIDER_DOWNLOAD_ERROR_MESSAGE
+              : "Unable to download media.";
         setUiError(message);
       }
     },

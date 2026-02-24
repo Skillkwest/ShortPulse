@@ -41,6 +41,54 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(markStage).toHaveBeenCalledWith("fast_path_turn", expect.any(Number));
   });
 
+  it("normalizes thrown transport errors into retryable failures", async () => {
+    fetchStudioAgentChatCompletionMock.mockRejectedValue(new TypeError("fetch failed"));
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "hello" }],
+      timeoutMs: 20000,
+      effectiveCanonical: "base canonical",
+      context: {},
+      messages: [{ role: "user", content: "hello" }],
+      markStage,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      status: 503,
+      detail: "fetch failed",
+    });
+    expect(markStage).toHaveBeenCalledWith("fast_path_turn", expect.any(Number));
+  });
+
+  it("maps abort errors to timeout-style upstream failures", async () => {
+    fetchStudioAgentChatCompletionMock.mockRejectedValue(new DOMException("aborted", "AbortError"));
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "hello" }],
+      timeoutMs: 20000,
+      effectiveCanonical: "base canonical",
+      context: {},
+      messages: [{ role: "user", content: "hello" }],
+      markStage,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      status: 504,
+      detail: "OpenAI request timed out",
+    });
+    expect(markStage).toHaveBeenCalledWith("fast_path_turn", expect.any(Number));
+  });
+
   it("returns normalized success payload and usage", async () => {
     fetchStudioAgentChatCompletionMock.mockResolvedValue({
       ok: true,

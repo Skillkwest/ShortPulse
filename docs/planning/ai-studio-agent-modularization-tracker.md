@@ -121,6 +121,9 @@ Exit validation:
 - [x] Capture DEP-03 readiness/ops intake updates for waiver path.
 - [x] Staging soak 24h (window elapsed; promotion approved under DEP-03 waiver path).
 - [x] Publish prompt-only single-stage runtime readiness packet with verification matrix and ring flag controls (`docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-prompt-only-single-stage-readiness.md`).
+- [x] Classify runtime telemetry outcomes for rollout monitoring (`success_prompt`, `refusal_model`, `refusal_safety`, `upstream_error`, `route_error`) to disambiguate refusal/success/error classes during rings.
+- [x] Trim legacy formatter prompt contract to `apply_prompt`-only action output and add regression guard test (`frontend/lib/__tests__/agentPromptsConfig.test.ts`).
+- [x] Canonicalize legacy `context_type` naming to `agent-output | prompt | image` across orchestration + prompt contract to remove chat terminology drift.
 - [ ] Production 5% 24h.
 - [ ] Production 25% 24h.
 - [ ] Production 50% 24h.
@@ -203,3 +206,6 @@ Exit validation:
 | 2026-02-23 | Staging soak exit decision = `Promote` (waiver path) | soak target window elapsed with green CI/contract/continuity controls and active DEP-03 waiver | AI Platform + Ops |
 | 2026-02-24 | Prompt-only single-stage runtime promoted as canonical behavior (legacy V2 fallback flag retained) | reduce path complexity and edge-case surface while preserving external contract and UI stability | AI Platform |
 | 2026-02-24 | Prompt-only single-stage rollout readiness packet published for Phase 5 execution | lock operator flag policy, rollback order, and verification evidence before production ring expansion | AI Platform + Ops |
+| 2026-02-24 | Outcome-class telemetry promoted for studio-agent route turn metrics | distinguish model refusals from safety refusals and transport/route errors during canary gating | AI Platform |
+| 2026-02-24 | Legacy formatter prompt contract slimmed to apply-prompt-only actions | reduce structured-output surface area while preserving compatibility and UI invariants | AI Platform |
+| 2026-02-24 | Legacy context type canonicalized from `chat` to `agent-output` | align orchestration/prompt terminology with active focused-source contract and reduce semantic drift | AI Platform |

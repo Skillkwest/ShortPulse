@@ -12,6 +12,12 @@ Scope: prompt-only single-stage runtime cutover readiness packet
   `agent-runtime: promote single-stage canonical path with legacy fallback flag`
 - Commit (phase 3): `babf343d`  
   `agent-runtime: adopt prompt-only system contract and document rollout governance`
+- Commit (phase 4): `e663a61f`  
+  `agent-runtime: classify telemetry outcomes for rollout observability`
+- Commit (phase 5): `79eb1861`  
+  `agent-prompts: trim formatter contract to apply-prompt only`
+- Commit (phase 6): `dc214a1c`  
+  `agent-runtime: canonicalize context type to agent-output`
 
 ## Runtime Flag Plan
 - `STUDIO_AGENT_SINGLE_STAGE_ENABLED=true` (target default for rollout)
@@ -43,6 +49,12 @@ All checks executed on local head after phase commits:
    - Result: pass
 6. Build:
    - Command: `npm run build`
+   - Result: pass
+7. Architecture boundaries:
+   - Command: `node scripts/check_architecture_boundaries.js`
+   - Result: pass
+8. Size budgets:
+   - Command: `node scripts/check_size_budgets.js`
    - Result: pass
 
 ## Promotion Gate Alignment

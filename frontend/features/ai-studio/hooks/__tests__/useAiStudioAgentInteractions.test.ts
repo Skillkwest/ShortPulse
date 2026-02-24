@@ -82,7 +82,10 @@ describe("useAiStudioAgentInteractions", () => {
 
     expect(resetAgentChat).toHaveBeenCalledTimes(1);
     expect(resetAgentComposer).toHaveBeenCalledTimes(1);
-    expect(resetAgentComposer).toHaveBeenCalledWith({ preserveInput: true });
+    expect(resetAgentComposer).toHaveBeenCalledWith({
+      preserveInput: true,
+      preserveAttachments: true,
+    });
     expect(setLatestAgentPrompt).toHaveBeenCalledWith(null);
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
     expect(setAgentActions).toHaveBeenCalledWith(undefined);

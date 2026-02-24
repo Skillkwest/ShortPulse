@@ -238,4 +238,30 @@ describe("useAiStudioAgentComposer", () => {
     expect(result.current.agentAttachments).toEqual([]);
     expect(result.current.agentAttachmentError).toBeNull();
   });
+
+  it("preserves attachments when composer reset requests preserveAttachments", () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: "https://example.com/image.png",
+      promptText: null,
+      referenceId: "out-1",
+      fromFile: false,
+    });
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+    act(() => {
+      result.current.resetAgentComposer({ preserveInput: true, preserveAttachments: true });
+    });
+
+    expect(result.current.agentAttachments).toHaveLength(1);
+  });
 });

@@ -56,6 +56,11 @@ type UseAiStudioAgentComposerParams = {
   resolveOutputPreviewUrlById: (outputId: string) => string | null;
 };
 
+type ResetAgentComposerOptions = {
+  preserveInput?: boolean;
+  preserveAttachments?: boolean;
+};
+
 export const useAiStudioAgentComposer = ({
   agentSessionEnabled,
   ensureAgentSession,
@@ -260,13 +265,16 @@ export const useAiStudioAgentComposer = ({
     [agentAttachmentError]
   );
 
-  const resetAgentComposer = useCallback((options?: { preserveInput?: boolean }) => {
+  const resetAgentComposer = useCallback((options?: ResetAgentComposerOptions) => {
     const preserveInput = options?.preserveInput === true;
+    const preserveAttachments = options?.preserveAttachments === true;
     setAgentAttachmentError(null);
     if (!preserveInput) {
       setAgentInput("");
     }
-    setAgentAttachments([]);
+    if (!preserveAttachments) {
+      setAgentAttachments([]);
+    }
     setIsAgentDropActive(false);
     agentDropDepthRef.current = 0;
   }, []);

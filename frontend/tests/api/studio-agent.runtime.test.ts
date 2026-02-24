@@ -55,8 +55,8 @@ const createMockResponse = () => {
 
 const extractTelemetryPaths = (infoSpy: ReturnType<typeof vi.spyOn>): string[] =>
   infoSpy.mock.calls
-    .filter((call) => call[0] === "[studio-agent][telemetry]")
-    .map((call) => {
+    .filter((call: unknown[]) => call[0] === "[studio-agent][telemetry]")
+    .map((call: unknown[]) => {
       try {
         const payload = JSON.parse(String(call[1])) as { path?: string };
         return typeof payload.path === "string" ? payload.path : "";

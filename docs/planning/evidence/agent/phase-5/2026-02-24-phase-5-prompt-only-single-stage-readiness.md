@@ -1,0 +1,64 @@
+# Phase 5 Evidence: Prompt-Only Single-Stage Runtime Readiness
+
+Date: 2026-02-24  
+Operator: @codex  
+Program: AI Studio Agent Hardening + Modularization  
+Scope: prompt-only single-stage runtime cutover readiness packet
+
+## Release Context
+- Commit (phase 1): `fe8fdab4`  
+  `agent-runtime: normalize safety refusals and enforce prompt-only action shaping`
+- Commit (phase 2): `f089c1c6`  
+  `agent-runtime: promote single-stage canonical path with legacy fallback flag`
+- Commit (phase 3): `babf343d`  
+  `agent-runtime: adopt prompt-only system contract and document rollout governance`
+
+## Runtime Flag Plan
+- `STUDIO_AGENT_SINGLE_STAGE_ENABLED=true` (target default for rollout)
+- `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=false` (target default for rollout)
+- `STUDIO_AGENT_TEXT_FAST_PATH_ENABLED=true` (legacy-path compatibility flag; only relevant when single-stage is disabled)
+
+Rollback posture:
+1. First rollback lever: `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=true`
+2. Second rollback lever: `STUDIO_AGENT_SINGLE_STAGE_ENABLED=false`
+3. Preserve canonical continuity behavior and contract version unchanged while toggling flags.
+
+## Verification Summary
+All checks executed on local head after phase commits:
+
+1. Contract suite:
+   - Command: `npm run test:agent:contract`
+   - Result: pass
+2. Disable/continuity suite:
+   - Command: `npm run test:agent:disable-continuity`
+   - Result: pass
+3. Runtime-focused suites:
+   - Command: `npm run test -- tests/api/studio-agent.runtime.test.ts`
+   - Result: pass
+4. Runtime unit suites:
+   - Command: `npm run test -- features/agent-runtime/__tests__/studioAgentRouteOutcomes.test.ts features/agent-runtime/__tests__/studioAgentTurnResponse.test.ts features/agent-runtime/__tests__/studioAgentResponseNormalization.test.ts`
+   - Result: pass
+5. Lint:
+   - Command: `npm run lint`
+   - Result: pass
+6. Build:
+   - Command: `npm run build`
+   - Result: pass
+
+## Promotion Gate Alignment
+Readiness status for Phase 5 ring progression:
+
+1. Contract/continuity gates: ready
+2. Build/lint integrity: ready
+3. Rollback controls documented: ready
+4. Safety/refusal contract behavior:
+   - Safety-policy upstream failures map to normal refusal turns (`200`) with empty actions.
+   - Refusal copy standardized to `I cannot describe this.`
+5. Compatibility posture:
+   - External contract remains `Agent-Contract-Version: 1`
+   - Canonical prompt persistence behavior unchanged
+
+## Notes For Staging Ring Operator
+1. Start ring with `STUDIO_AGENT_SINGLE_STAGE_ENABLED=true` and `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=false`.
+2. If latency or semantic quality regresses, enable legacy fallback before disabling single-stage.
+3. Collect ring metrics and attach to the active rollout report and tracker ring table.

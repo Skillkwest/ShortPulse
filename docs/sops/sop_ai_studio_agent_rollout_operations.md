@@ -45,6 +45,20 @@ Rule: only one active canary for this subsystem at a time.
 
 Rollback-first posture is mandatory unless explicitly waived by incident command.
 
+## Prompt-Only Runtime Ring Controls
+For the prompt-only single-stage release, ring operators must apply flags in this order:
+
+1. Promotion defaults:
+   - `STUDIO_AGENT_SINGLE_STAGE_ENABLED=true`
+   - `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=false`
+2. First rollback lever (no contract change):
+   - set `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=true`
+3. Second rollback lever:
+   - set `STUDIO_AGENT_SINGLE_STAGE_ENABLED=false`
+4. Preserve external contract:
+   - keep `Agent-Contract-Version: 1`
+   - do not alter response envelope during ring mitigation
+
 ## Required Evidence Per Ring
 1. Rollout report entry with metrics and decision.
 2. Dashboard screenshots/links for latency, error/timeout, refusal delta, continuity.

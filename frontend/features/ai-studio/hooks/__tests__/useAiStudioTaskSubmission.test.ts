@@ -5,6 +5,7 @@ import type { StudioOutput } from "../../types";
 import { resolveModelLabel } from "../../logic/stateParsers";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
+import { AUTH_SESSION_TIMEOUT_CODE } from "../../../../lib/authenticatedFetch";
 import {
   handleDefaultModelSubmission,
   handleImageModelSubmission,
@@ -1385,6 +1386,83 @@ describe("useAiStudioTaskSubmission", () => {
     expect(reportAppErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "fal_submit_not_started",
+      })
+    );
+  });
+
+  it("maps auth-session timeout during submit to an immediate start failure with telemetry", async () => {
+    const setOutputs = vi.fn();
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+    const timeoutError = Object.assign(new Error("Session resolution timed out"), {
+      code: AUTH_SESSION_TIMEOUT_CODE,
+      timeoutMs: 4_000,
+    });
+    vi.mocked(handleImageModelSubmission).mockRejectedValueOnce(timeoutError);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/nano-banana-pro/edit",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "1K",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Character prompt", ["https://cdn.test/char-ref.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+    });
+
+    expect(startPollingTask).not.toHaveBeenCalled();
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      expect.any(String),
+      "Generation failed to start. Please retry.",
+      "Session check timed out before provider submit."
+    );
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "fal_auth_session_timeout",
+        metadata: expect.objectContaining({
+          reason_code: "AUTH_SESSION_TIMEOUT",
+          timeout_ms: 4_000,
+        }),
       })
     );
   });

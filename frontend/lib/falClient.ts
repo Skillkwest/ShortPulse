@@ -210,10 +210,11 @@ export type FalNanoBananaProSubmitRequest = {
 };
 
 const FAL_API_BASE = "/api/fal";
+const SUBMIT_AUTH_TIMEOUT_MS = 4_000;
 
 const fetchWithTimeout = async (
   input: RequestInfo | URL,
-  init?: RequestInit & { timeoutMs?: number }
+  init?: RequestInit & { timeoutMs?: number; shortpulseAuthTimeoutMs?: number }
 ) => {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), init?.timeoutMs ?? 60000);
@@ -460,6 +461,7 @@ const submitFalEndpoint = async <TPayload>(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+    shortpulseAuthTimeoutMs: SUBMIT_AUTH_TIMEOUT_MS,
   });
   const data = await handleJson<{ request_id?: string; requestId?: string }>(response);
   const requestId = readRequestId(data);

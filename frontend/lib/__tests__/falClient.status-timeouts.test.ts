@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchFalSeedreamStatus,
+  submitFalNanoBananaProEdit,
   fetchFalVeoImageToVideoStatus,
   fetchFalVeoStatus,
 } from "../falClient";
@@ -31,6 +32,9 @@ describe("falClient status timeout budgets", () => {
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
     const [, init] = fetchWithAuthMock.mock.calls[0] ?? [];
     expect((init as { timeoutMs?: number } | undefined)?.timeoutMs).toBe(75_000);
+    expect(
+      (init as { shortpulseAuthTimeoutMs?: number } | undefined)?.shortpulseAuthTimeoutMs
+    ).toBe(undefined);
     expect((init as RequestInit | undefined)?.method).toBe("POST");
   });
 
@@ -71,5 +75,21 @@ describe("falClient status timeout budgets", () => {
     await expect(fetchFalSeedreamStatus("req-timeout-error")).rejects.toThrow(
       "[fal-status:seedream] timed out after 75000ms"
     );
+  });
+
+  it("adds a 4s auth-session timeout budget for Fal submit endpoints", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(createJsonResponse({ request_id: "req-submit-1" }));
+
+    await submitFalNanoBananaProEdit({
+      prompt: "Character pose",
+      image_urls: ["https://cdn.test/ref.png"],
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchWithAuthMock.mock.calls[0] ?? [];
+    expect(
+      (init as { shortpulseAuthTimeoutMs?: number } | undefined)?.shortpulseAuthTimeoutMs
+    ).toBe(4_000);
+    expect((init as RequestInit | undefined)?.method).toBe("POST");
   });
 });

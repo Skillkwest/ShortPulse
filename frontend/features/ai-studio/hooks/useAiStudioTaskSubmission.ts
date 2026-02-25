@@ -5,6 +5,7 @@
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { reportAppError } from "../../../lib/appErrorReporter";
+import { isAuthSessionTimeoutError } from "../../../lib/authenticatedFetch";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { buildGenerationSubmissionTraceId, randomId } from "../logic/ids";
 import { getModelConfig } from "../logic/pricing";
@@ -34,6 +35,7 @@ const PREPARE_REFERENCE_TIMEOUT_MS = 10_000;
 const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
+const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
 const submitNotStartedError = (detail: string): SubmissionInvariantError => {
   const error = new Error("Provider task did not start.") as SubmissionInvariantError;
   error.code = "SUBMIT_NOT_STARTED";
@@ -563,6 +565,23 @@ export const useAiStudioTaskSubmission = ({
           }
         } catch (error) {
           const submissionError = error as SubmissionInvariantError;
+          if (isAuthSessionTimeoutError(error)) {
+            notifyGenerationFailure(id, SUBMIT_NOT_STARTED_USER_ERROR, AUTH_SESSION_TIMEOUT_DETAIL);
+            void reportAppError({
+              source: "fal_auth_session_timeout",
+              scope: "generation",
+              severity: "high",
+              message: "Fal generation submit blocked by session timeout.",
+              metadata: {
+                output_id: id,
+                model_id: finalModel,
+                tool: effectiveTool,
+                reason_code: "AUTH_SESSION_TIMEOUT",
+                timeout_ms: error.timeoutMs,
+              },
+            });
+            return;
+          }
           if (submissionError?.code === "SUBMIT_NOT_STARTED") {
             notifyGenerationFailure(
               id,

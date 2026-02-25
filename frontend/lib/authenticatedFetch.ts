@@ -6,9 +6,17 @@ import { ensureSupabaseClient } from "./supabaseClient";
 import { reportAppError } from "./appErrorReporter";
 import { addBreadcrumb, redactUrlForTelemetry } from "./clientBreadcrumbs";
 
-type ShortPulseFetchInit = RequestInit & {
+export type ShortPulseFetchInit = RequestInit & {
   shortpulseLogScope?: "app" | "generation";
   shortpulseSkipErrorLogging?: boolean;
+  shortpulseAuthTimeoutMs?: number;
+};
+
+export const AUTH_SESSION_TIMEOUT_CODE = "AUTH_SESSION_TIMEOUT" as const;
+
+export type AuthSessionTimeoutError = Error & {
+  code: typeof AUTH_SESSION_TIMEOUT_CODE;
+  timeoutMs: number;
 };
 
 const asHeaders = (headers?: HeadersInit): Headers => {
@@ -23,13 +31,51 @@ const buildRequestId = (): string => {
   return `sp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 };
 
-const readAccessToken = async (): Promise<string | null> => {
+const createAuthSessionTimeoutError = (timeoutMs: number): AuthSessionTimeoutError => {
+  const error = new Error(
+    `Timed out resolving auth session after ${Math.max(0, Math.trunc(timeoutMs))}ms.`
+  ) as AuthSessionTimeoutError;
+  error.code = AUTH_SESSION_TIMEOUT_CODE;
+  error.timeoutMs = Math.max(0, Math.trunc(timeoutMs));
+  return error;
+};
+
+export const isAuthSessionTimeoutError = (error: unknown): error is AuthSessionTimeoutError => {
+  if (!error || typeof error !== "object") return false;
+  return (error as { code?: unknown }).code === AUTH_SESSION_TIMEOUT_CODE;
+};
+
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
+  await new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(createAuthSessionTimeoutError(timeoutMs));
+    }, timeoutMs);
+    promise
+      .then((value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+
+const readAccessToken = async (timeoutMs?: number): Promise<string | null> => {
   try {
     const supabase = ensureSupabaseClient();
-    const { data, error } = await supabase.auth.getSession();
+    const sessionPromise = supabase.auth.getSession();
+    const authSession =
+      typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
+        ? await withTimeout(sessionPromise, timeoutMs)
+        : await sessionPromise;
+    const { data, error } = authSession;
     if (error) return null;
     return data.session?.access_token ?? null;
-  } catch {
+  } catch (error) {
+    if (isAuthSessionTimeoutError(error)) {
+      throw error;
+    }
     return null;
   }
 };
@@ -75,7 +121,7 @@ export const fetchWithAuth = async (
   input: RequestInfo | URL,
   init?: ShortPulseFetchInit
 ): Promise<Response> => {
-  const token = await readAccessToken();
+  const token = await readAccessToken(init?.shortpulseAuthTimeoutMs);
   if (!token) {
     throw new Error("You must be signed in to call this endpoint.");
   }
@@ -96,6 +142,7 @@ export const fetchWithAuth = async (
   const requestInit: RequestInit = { ...(init ?? {}) };
   delete (requestInit as ShortPulseFetchInit).shortpulseLogScope;
   delete (requestInit as ShortPulseFetchInit).shortpulseSkipErrorLogging;
+  delete (requestInit as ShortPulseFetchInit).shortpulseAuthTimeoutMs;
   const startedAt = Date.now();
   const method = (requestInit.method ?? "GET").toString().toUpperCase();
   const breadcrumbEndpoint = redactUrlForTelemetry(endpoint);

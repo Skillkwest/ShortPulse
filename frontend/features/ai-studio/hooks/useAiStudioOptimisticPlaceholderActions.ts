@@ -6,12 +6,10 @@ import type { StudioMode, StudioOutput, ToolId } from "../types";
 type UseAiStudioOptimisticPlaceholderActionsArgs = {
   mode: StudioMode;
   selectedTool: ToolId | null;
-  isCharacterModeEnabled: boolean;
   aspect: string;
   model: string | null;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setSaved: Dispatch<SetStateAction<boolean>>;
-  characterModePendingModelLabel: string;
 };
 
 type UseAiStudioOptimisticPlaceholderActionsResult = {
@@ -26,12 +24,10 @@ type UseAiStudioOptimisticPlaceholderActionsResult = {
 export const useAiStudioOptimisticPlaceholderActions = ({
   mode,
   selectedTool,
-  isCharacterModeEnabled,
   aspect,
   model,
   setOutputs,
   setSaved,
-  characterModePendingModelLabel,
 }: UseAiStudioOptimisticPlaceholderActionsArgs): UseAiStudioOptimisticPlaceholderActionsResult => {
   const insertOptimisticGenerationPlaceholder = useCallback(
     ({
@@ -53,17 +49,13 @@ export const useAiStudioOptimisticPlaceholderActions = ({
           : effectiveTool === "image" || effectiveTool === "edit"
             ? "image"
             : effectiveMode;
-      const isCharacterModeCreateRun =
-        isCharacterModeEnabled && (effectiveTool === "create" || effectiveTool === "text");
       const id = `out-${randomId()}`;
       const nextOutput: StudioOutput = {
         id,
         prompt: cleanedPrompt,
         mode: outputMode,
         aspect,
-        model: isCharacterModeCreateRun
-          ? characterModePendingModelLabel
-          : resolveModelLabel(model ?? undefined),
+        model: resolveModelLabel(model ?? undefined),
         modelId: model ?? undefined,
         status: "ready",
         taskState: "pending",
@@ -82,16 +74,7 @@ export const useAiStudioOptimisticPlaceholderActions = ({
       setSaved(false);
       return id;
     },
-    [
-      aspect,
-      characterModePendingModelLabel,
-      isCharacterModeEnabled,
-      mode,
-      model,
-      selectedTool,
-      setOutputs,
-      setSaved,
-    ]
+    [aspect, mode, model, selectedTool, setOutputs, setSaved]
   );
 
   const removeOptimisticGenerationPlaceholder = useCallback(

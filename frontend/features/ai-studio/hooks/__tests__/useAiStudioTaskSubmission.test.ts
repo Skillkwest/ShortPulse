@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
+import { resolveModelLabel } from "../../logic/stateParsers";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import {
@@ -246,7 +247,7 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
-  it("labels create submissions as Pulse Character Model when character mode is enabled", async () => {
+  it("labels create submissions with the selected model when character mode is enabled", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -267,7 +268,6 @@ describe("useAiStudioTaskSubmission", () => {
         mode: "image",
         model: "fal-ai/bytedance/seedream/v4.5/edit",
         prompt: "",
-        isCharacterModeEnabled: true,
         selectedTool: "create",
         imageResolution: "model_default",
         videoDurationSeconds: 8,
@@ -304,7 +304,7 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.model).toBe("Pulse Character Model");
+    expect(outputs[0]?.model).toBe(resolveModelLabel("fal-ai/bytedance/seedream/v4.5/edit"));
     expect(outputs[0]?.modelId).toBe("fal-ai/bytedance/seedream/v4.5/edit");
   });
 
@@ -329,7 +329,6 @@ describe("useAiStudioTaskSubmission", () => {
         mode: "image",
         model: "fal-ai/nano-banana-pro/edit",
         prompt: "",
-        isCharacterModeEnabled: true,
         selectedTool: "create",
         imageResolution: "1K",
         videoDurationSeconds: 8,
@@ -395,7 +394,6 @@ describe("useAiStudioTaskSubmission", () => {
         mode: "image",
         model: "fal-ai/bytedance/seedream/v4.5/edit",
         prompt: "",
-        isCharacterModeEnabled: true,
         selectedTool: "create",
         imageResolution: "auto_4K",
         videoDurationSeconds: 8,

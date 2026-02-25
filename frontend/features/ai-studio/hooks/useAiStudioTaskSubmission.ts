@@ -22,7 +22,6 @@ import {
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type GenerationMetadata = Record<string, unknown>;
-const CHARACTER_MODE_ERROR_LOG_MODEL_LABEL = "Pulse Character Model";
 
 type EnsureGenerationRecordInput = {
   outputId: string;
@@ -38,7 +37,6 @@ type UseAiStudioTaskSubmissionParams = {
   mode: StudioMode;
   model: string | null;
   prompt: string;
-  isCharacterModeEnabled?: boolean;
   selectedTool: ToolId | null;
   imageResolution: string;
   videoDurationSeconds: number;
@@ -85,7 +83,6 @@ export const useAiStudioTaskSubmission = ({
   mode,
   model,
   prompt,
-  isCharacterModeEnabled = false,
   selectedTool,
   imageResolution,
   videoDurationSeconds,
@@ -177,11 +174,7 @@ export const useAiStudioTaskSubmission = ({
       try {
         const id = optimisticOutputId ?? `out-${randomId()}`;
         const submissionTraceId = buildGenerationSubmissionTraceId(id);
-        const isCharacterModeCreateRun =
-          isCharacterModeEnabled && (effectiveTool === "create" || effectiveTool === "text");
-        const modelLabel = isCharacterModeCreateRun
-          ? CHARACTER_MODE_ERROR_LOG_MODEL_LABEL
-          : resolveModelLabel(finalModel);
+        const modelLabel = resolveModelLabel(finalModel);
 
         const isKling3ImageModel = finalModel === "fal-ai/kling-video/v3/pro/image-to-video";
         const isVeoFirstLastFrameModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
@@ -506,7 +499,6 @@ export const useAiStudioTaskSubmission = ({
       getDefaultDurationSeconds,
       model,
       mode,
-      isCharacterModeEnabled,
       notifyGenerationFailure,
       prompt,
       selectedTool,

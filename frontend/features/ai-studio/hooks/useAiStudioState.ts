@@ -29,7 +29,6 @@ import {
 } from "../reference-projections";
 
 const VIDEO_DEFAULT_DURATION_SECONDS = DEFAULT_KLING_DURATION_SECONDS; // current general fallback (10s)
-const CHARACTER_MODE_PENDING_MODEL_LABEL = "Pulse Character Model";
 const DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT = 500;
 const DEFAULT_ARCHIVE_PREVIEW_KEEP_COUNT = 120;
 const REFERENCE_GRID_FLAG_SOFT_ARCHIVE =
@@ -420,7 +419,6 @@ export const useAiStudioState = ({
         mode,
         model,
         prompt,
-        isCharacterModeEnabled,
         selectedTool,
         imageResolution,
         videoDurationSeconds,
@@ -466,12 +464,10 @@ export const useAiStudioState = ({
     useAiStudioOptimisticPlaceholderActions({
       mode,
       selectedTool,
-      isCharacterModeEnabled,
       aspect,
       model,
       setOutputs,
       setSaved,
-      characterModePendingModelLabel: CHARACTER_MODE_PENDING_MODEL_LABEL,
     });
 
   const {

@@ -373,6 +373,91 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     );
   });
 
+  it("keeps prompt-only action envelope when fast path returns semantic ready JSON", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                status: "ready",
+                prompt_text:
+                  "Photorealistic editorial portrait of a woman smiling softly on a sunlit city street, warm side light, shallow depth of field, eye-level framing, textured fabric and warm amber tones.",
+              }),
+            },
+          },
+        ],
+        usage: { prompt_tokens: 14, completion_tokens: 9 },
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-semantic-ready",
+        messages: [{ role: "user", content: "a woman on a city street" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    const payload = res.json.mock.calls.at(-1)?.[0] as
+      | { message?: string; actions?: Record<string, unknown> }
+      | undefined;
+    const promptText =
+      "Photorealistic editorial portrait of a woman smiling softly on a sunlit city street, warm side light, shallow depth of field, eye-level framing, textured fabric and warm amber tones.";
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(payload?.message).toBe(promptText);
+    expect(payload?.actions).toEqual({ applyPrompt: promptText });
+  });
+
+  it("keeps single-stage semantic refusal actionless and preserves canonical prompt", async () => {
+    process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "true";
+    readAgentConversationCanonicalPromptMock.mockResolvedValue("existing canonical prompt");
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                status: "refuse",
+                prompt_text: "cannot comply",
+              }),
+            },
+          },
+        ],
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-semantic-refuse",
+        messages: [{ role: "user", content: "disallowed request" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "I cannot describe this.",
+        actions: undefined,
+        canonicalPrompt: "existing canonical prompt",
+      })
+    );
+    expect(upsertAgentConversationCanonicalPromptMock).not.toHaveBeenCalled();
+  });
+
   it("strips meta recap tails from fast-path apply_prompt output", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,

@@ -1408,3 +1408,22 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/sops/sop_character_manager_operations.md`
   - `docs/sops/sop_image_generation.md`
   - `docs/planning/backlog.md`
+
+## 2026-02-25 (AI Studio prompt output structure tuning for Create Properties)
+- Tuned active prompt policy definitions to enforce data-backed ordering for generation-ready output:
+  - `style+subject -> action/pose -> environment -> lighting -> composition/camera -> texture/color`
+  - default style anchor `photorealistic editorial` when user style is unspecified
+  - concise, cohesive paragraph target (`~40-90 words` unless explicitly requested longer)
+  - explicit ban on label-style fragments and recap/meta phrasing (`Colors:`, `Textures visible:`, `Summary:`, `The prompt now includes...`)
+- Applied policy updates across all active text-producing paths:
+  - `frontend/lib/agentPromptsConfig.ts`
+    - `OPENAI_PROMPT_SYSTEM`
+    - `STUDIO_AGENT_SYSTEM`
+    - `STUDIO_AGENT_THINKER`
+- Added regression assertions for prompt policy integrity and refusal invariants:
+  - `frontend/lib/__tests__/agentPromptsConfig.test.ts`
+- Added runtime contract guards to ensure tuned prompts preserve prompt-only envelope behavior:
+  - `frontend/tests/api/studio-agent.runtime.test.ts`
+    - semantic-ready fast path keeps `message` + `actions.applyPrompt` only
+    - single-stage semantic refusal remains actionless and preserves canonical prompt
+- No API schema/interface changes; refusal text and action contract remain unchanged.

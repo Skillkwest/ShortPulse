@@ -25,6 +25,7 @@ import {
 import { attachProviderRequestToCharge } from "./generationBilling/settlementService";
 import type { ChargeOptions, ChargeResult, JsonObject } from "./generationBilling/types";
 import { GENERATION_BILLING_FAILURE_MESSAGE } from "./generationBilling/types";
+import { resolveGenerationAdmissionTier } from "../../model-runtime/generationAdmissionTiers";
 
 export { resolveProviderRequestOwnership } from "./generationBilling/ownershipResolver";
 export {
@@ -121,13 +122,25 @@ export const chargeGenerationRequest = async ({
   const useReservationMode = isFalModel(modelId);
   if (useReservationMode) {
     const runtimeFlags = readFalRuntimeFlags();
+    const admissionTier = resolveGenerationAdmissionTier(modelId);
     const reserveResult = await reserveGenerationCredits({
       userId: user.id,
       sourceRef,
       modelId,
       amountCents: Math.abs(Math.trunc(breakdown.credits)),
       reason,
-      metadata: chargeMetadata,
+      metadata: {
+        ...chargeMetadata,
+        admission_tier: admissionTier,
+      },
+      admission: {
+        atomicEnabled: runtimeFlags.admissionAtomicEnabled,
+        mode: runtimeFlags.admission.mode,
+        globalMax: runtimeFlags.admission.globalMax,
+        tier: admissionTier,
+        tierMax: runtimeFlags.admission.tierLimits[admissionTier],
+        retryAfterSeconds: runtimeFlags.admission.retryAfterSeconds,
+      },
     });
     if (reserveResult.status === "failed") {
       if (reserveResult.message === "insufficient_credits") {
@@ -182,6 +195,49 @@ export const chargeGenerationRequest = async ({
           message: reserveResult.message ?? null,
         }
       );
+    } else if (reserveResult.status === "admission_limited") {
+      const retryAfterSeconds =
+        reserveResult.admission?.retryAfterSeconds ?? runtimeFlags.admission.retryAfterSeconds;
+      const limits =
+        reserveResult.admission &&
+        typeof reserveResult.admission.tier === "string" &&
+        reserveResult.admission.tier.length > 0
+          ? {
+              globalMax: reserveResult.admission.globalMax,
+              globalActive: reserveResult.admission.globalActive,
+              tier: reserveResult.admission.tier,
+              tierMax: reserveResult.admission.tierMax,
+              tierActive: reserveResult.admission.tierActive,
+            }
+          : null;
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "telemetry.api.fal_submit.admission_limited",
+        message: "Generation admission limit reached.",
+        statusCode: 429,
+        userId: user.id,
+        metadata: {
+          model_id: modelId,
+          mode: runtimeFlags.admission.mode,
+          reason: reserveResult.admission?.reason ?? "admission_limited",
+          global_active: reserveResult.admission?.globalActive ?? null,
+          global_max: reserveResult.admission?.globalMax ?? runtimeFlags.admission.globalMax,
+          tier: reserveResult.admission?.tier ?? admissionTier,
+          tier_active: reserveResult.admission?.tierActive ?? null,
+          tier_max:
+            reserveResult.admission?.tierMax ?? runtimeFlags.admission.tierLimits[admissionTier],
+          admission_source: "atomic_reservation_rpc",
+        },
+      });
+      res.setHeader("Retry-After", String(retryAfterSeconds));
+      res.status(429).json({
+        error: "Too many active generations. Please retry shortly.",
+        code: "GENERATION_ADMISSION_LIMIT",
+        retryAfterSeconds,
+        ...(limits ? { limits } : {}),
+      });
+      return null;
     } else if (
       reserveResult.status === "already_captured" ||
       reserveResult.status === "already_released"
@@ -244,6 +300,7 @@ export const chargeGenerationRequest = async ({
         modelId,
         credits: breakdown.credits,
         sourceRef,
+        billingMode: "reservation",
         markSubmitted,
         refund,
       };
@@ -335,6 +392,7 @@ export const chargeGenerationRequest = async ({
     modelId,
     credits: breakdown.credits,
     sourceRef,
+    billingMode: "direct_debit",
     markSubmitted,
     refund,
   };

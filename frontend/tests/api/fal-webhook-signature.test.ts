@@ -30,6 +30,10 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
     },
     retryAfterSeconds: 20,
   },
+  reservationCleanupEnabled: true,
+  reservationCleanupMinAgeSeconds: 900,
+  reservationCleanupBatchSize: 200,
+  admissionAtomicEnabled: false,
   ...overrides,
 });
 

@@ -117,7 +117,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 29. `sql/migrations/028_harden_ai_agent_conversation_state_security.sql`
 30. `sql/migrations/029_fix_conversation_state_upsert_ambiguity.sql`
 31. `sql/migrations/030_fix_conversation_state_upsert_conflict_target.sql`
-32. Rollback files:
+32. `sql/migrations/031_release_stale_generation_reservations.sql`
+33. `sql/migrations/032_admit_and_reserve_generation_credits.sql`
+34. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -149,6 +151,8 @@ Billing safety note:
 - Migration `028_harden_ai_agent_conversation_state_security.sql` hardens conversation-state RPC grants, bounded TTL/cap policy, deterministic pruning, and cleanup operations.
 - Migration `029_fix_conversation_state_upsert_ambiguity.sql` resolves PL/pgSQL name-collision ambiguity in conversation-state upsert delete path.
 - Migration `030_fix_conversation_state_upsert_conflict_target.sql` resolves PL/pgSQL name-collision ambiguity in upsert `ON CONFLICT` targeting.
+- Migration `031_release_stale_generation_reservations.sql` adds conservative stale reservation cleanup for pre-submit holds.
+- Migration `032_admit_and_reserve_generation_credits.sql` adds flagged atomic admission+reserve evaluation in one DB transaction.
 
 ## Media storage scope verification (post-017)
 

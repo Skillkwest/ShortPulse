@@ -96,6 +96,12 @@ const buildAdmissionLimitPayload = ({
   },
 });
 
+const buildAdmissionUnavailablePayload = (retryAfterSeconds: number) => ({
+  error: "Generation admission is temporarily unavailable. Please retry shortly.",
+  code: "GENERATION_ADMISSION_UNAVAILABLE",
+  retryAfterSeconds,
+});
+
 /**
  * Builds a Next.js API handler that debits credits before forwarding to Fal.
  */
@@ -155,6 +161,27 @@ export const createFalSubmitHandler =
     });
     if (!charge) return;
     const runtimeFlags = readFalRuntimeFlags();
+    if (runtimeFlags.admission.mode === "enforce" && charge.billingMode !== "reservation") {
+      const retryAfterSeconds = runtimeFlags.admission.retryAfterSeconds;
+      await charge.refund("Auto-refund: admission unavailable without reservation mode.", {
+        billing_mode: charge.billingMode,
+      });
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_submit.admission_unavailable",
+        message: "Generation admission unavailable while reservation mode is degraded.",
+        statusCode: 503,
+        userId: charge.userId,
+        metadata: {
+          model_id: modelId,
+          admission_mode: runtimeFlags.admission.mode,
+          billing_mode: charge.billingMode,
+        },
+      });
+      res.setHeader("Retry-After", String(retryAfterSeconds));
+      return res.status(503).json(buildAdmissionUnavailablePayload(retryAfterSeconds));
+    }
 
     try {
       const admissionDecision = await evaluateUserGenerationAdmission({
@@ -167,10 +194,7 @@ export const createFalSubmitHandler =
         await logGenerationFailure({
           req,
           routeLabel,
-          source:
-            admissionDecision.mode === "shadow"
-              ? "telemetry.api.fal_submit.admission_limited"
-              : "api.fal_submit.admission_limited",
+          source: "telemetry.api.fal_submit.admission_limited",
           message: "Generation admission limit reached.",
           statusCode: 429,
           userId: charge.userId,

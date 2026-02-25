@@ -271,11 +271,20 @@ const readGenerationAdmissionErrorMessage = (
   response: Response,
   payload: unknown
 ): string | null => {
-  if (response.status !== 429) return null;
+  if (response.status !== 429 && response.status !== 503) return null;
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
   const data = payload as Record<string, unknown>;
-  if (data.code !== "GENERATION_ADMISSION_LIMIT") return null;
+  const code = typeof data.code === "string" ? data.code : "";
+  if (code !== "GENERATION_ADMISSION_LIMIT" && code !== "GENERATION_ADMISSION_UNAVAILABLE") {
+    return null;
+  }
   const retryAfterSeconds = readAdmissionRetryAfterSeconds(response, payload);
+  if (code === "GENERATION_ADMISSION_UNAVAILABLE") {
+    if (retryAfterSeconds === null) {
+      return "Generation admission is temporarily unavailable. Please retry shortly.";
+    }
+    return `Generation admission is temporarily unavailable. Please retry in ${retryAfterSeconds} seconds.`;
+  }
   if (retryAfterSeconds === null) {
     return "Too many active generations. Please retry shortly.";
   }

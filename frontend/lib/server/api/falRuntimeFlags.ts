@@ -31,6 +31,10 @@ export type FalRuntimeFlags = {
   publicApiBaseUrl: string | null;
   directDebitFallbackEnabled: boolean;
   admission: GenerationAdmissionConfig;
+  reservationCleanupEnabled: boolean;
+  reservationCleanupMinAgeSeconds: number;
+  reservationCleanupBatchSize: number;
+  admissionAtomicEnabled: boolean;
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
@@ -140,6 +144,21 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
       process.env.SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS
     ),
   },
+  reservationCleanupEnabled: parseBoolean(
+    process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED,
+    parseBoolean(process.env.SHORTPULSE_FAL_RECONCILER_ENABLED, false)
+  ),
+  reservationCleanupMinAgeSeconds: parseInteger(
+    process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS,
+    900,
+    0
+  ),
+  reservationCleanupBatchSize: parseInteger(
+    process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE,
+    200,
+    1
+  ),
+  admissionAtomicEnabled: parseBoolean(process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED, false),
 });
 
 export const isFalRuntimeEnabledForModel = (

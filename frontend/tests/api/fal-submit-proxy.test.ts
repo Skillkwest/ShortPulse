@@ -34,9 +34,11 @@ describe("createFalSubmitHandler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-fal-key";
+    delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
       sourceRef: "source-ref-1",
+      billingMode: "reservation",
       markSubmitted: vi.fn().mockResolvedValue(undefined),
       refund: vi.fn().mockResolvedValue(undefined),
     });
@@ -351,6 +353,64 @@ describe("createFalSubmitHandler", () => {
       "Auto-release: generation admission limited.",
       expect.objectContaining({
         reason: "tier_limit",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.api.fal_submit.admission_limited",
+        statusCode: 429,
+      })
+    );
+  });
+
+  it("fails closed with 503 when enforce mode is active but billing fell back to direct debit", async () => {
+    process.env.SHORTPULSE_FAL_ADMISSION_MODE = "enforce";
+    chargeGenerationRequestMock.mockResolvedValueOnce({
+      userId: "user-1",
+      sourceRef: "source-ref-1",
+      billingMode: "direct_debit",
+      markSubmitted: vi.fn().mockResolvedValue(undefined),
+      refund: vi.fn().mockResolvedValue(undefined),
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(evaluateUserGenerationAdmissionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "20");
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Generation admission is temporarily unavailable. Please retry shortly.",
+      code: "GENERATION_ADMISSION_UNAVAILABLE",
+      retryAfterSeconds: 20,
+    });
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-refund: admission unavailable without reservation mode.",
+      expect.objectContaining({
+        billing_mode: "direct_debit",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.admission_unavailable",
+        statusCode: 503,
       })
     );
   });

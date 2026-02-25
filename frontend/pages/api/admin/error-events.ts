@@ -14,10 +14,13 @@ const DEFAULT_GENERATION_15M_THRESHOLD = 20;
 const APP_ERROR_EVENTS_MISSING_REASON =
   "app_error_events is unavailable; apply sql/migrations/015_add_app_error_events.sql.";
 const TELEMETRY_SOURCE_PREFIX = "telemetry.";
+const ADMISSION_LIMITED_TELEMETRY_SOURCE = "telemetry.api.fal_submit.admission_limited";
 const CHARACTER_MODE_TELEMETRY_SOURCE = "telemetry.character_mode";
 const CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT = "character_mode_reference_refresh_empty";
 const CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT =
   "character_mode_injection_fallback.bundle_unavailable";
+const ADMISSION_TIERS = ["video_long", "image_heavy", "image_standard"] as const;
+const ADMISSION_REASONS = ["global_limit", "tier_limit", "global_and_tier_limit"] as const;
 
 type EventQuery = {
   eq: (column: string, value: string) => EventQuery;
@@ -55,6 +58,17 @@ type SignalFilterValue =
   | "character_mode_reference_refresh_empty"
   | "character_mode_bundle_unavailable_fallback";
 type IncidentFilterValue = "all" | "actionable" | "open" | "resolved" | "ignored" | "unlinked";
+type AdmissionDimensionCounts = Record<string, number>;
+type AdmissionWindowSummary = {
+  total: number;
+  byTier: AdmissionDimensionCounts;
+  byReason: AdmissionDimensionCounts;
+};
+type AdmissionSummary = {
+  last15m: AdmissionWindowSummary;
+  lastHour: AdmissionWindowSummary;
+  last24h: AdmissionWindowSummary;
+};
 type ErrorEventsHealth = {
   eventsTableAvailable: boolean;
   degraded: boolean;
@@ -146,6 +160,88 @@ const healthyState = (): ErrorEventsHealth => ({
   reason: null,
 });
 
+const buildAdmissionDimensionSeed = (keys: readonly string[]): AdmissionDimensionCounts => {
+  const seed: AdmissionDimensionCounts = { unknown: 0 };
+  for (const key of keys) {
+    seed[key] = 0;
+  }
+  return seed;
+};
+
+const createAdmissionWindowSummary = (): AdmissionWindowSummary => ({
+  total: 0,
+  byTier: buildAdmissionDimensionSeed(ADMISSION_TIERS),
+  byReason: buildAdmissionDimensionSeed(ADMISSION_REASONS),
+});
+
+const createAdmissionSummary = (): AdmissionSummary => ({
+  last15m: createAdmissionWindowSummary(),
+  lastHour: createAdmissionWindowSummary(),
+  last24h: createAdmissionWindowSummary(),
+});
+
+const asIsoTimeMs = (value: unknown): number | null => {
+  if (typeof value !== "string" || !value.trim().length) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const asMetadataRecord = (value: unknown): Record<string, unknown> | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+};
+
+const asAdmissionDimension = (
+  value: unknown,
+  allowedValues: readonly string[]
+): string | "unknown" => {
+  if (typeof value !== "string") return "unknown";
+  const normalized = value.trim().toLowerCase();
+  return allowedValues.includes(normalized) ? normalized : "unknown";
+};
+
+const incrementAdmissionSummary = (
+  window: AdmissionWindowSummary,
+  tier: string | "unknown",
+  reason: string | "unknown"
+) => {
+  window.total += 1;
+  window.byTier[tier] = (window.byTier[tier] ?? 0) + 1;
+  window.byReason[reason] = (window.byReason[reason] ?? 0) + 1;
+};
+
+const buildAdmissionSummary = ({
+  rows,
+  since15mMs,
+  sinceHourMs,
+  since24hMs,
+}: {
+  rows: unknown[] | null;
+  since15mMs: number;
+  sinceHourMs: number;
+  since24hMs: number;
+}): AdmissionSummary => {
+  const summary = createAdmissionSummary();
+  const entries = Array.isArray(rows) ? rows : [];
+  for (const entry of entries) {
+    const row = asMetadataRecord(entry);
+    if (!row) continue;
+    const occurredAtMs = asIsoTimeMs(row.occurred_at);
+    if (occurredAtMs === null || occurredAtMs < since24hMs) continue;
+    const metadata = asMetadataRecord(row.metadata);
+    const tier = asAdmissionDimension(metadata?.tier, ADMISSION_TIERS);
+    const reason = asAdmissionDimension(metadata?.reason, ADMISSION_REASONS);
+    incrementAdmissionSummary(summary.last24h, tier, reason);
+    if (occurredAtMs >= sinceHourMs) {
+      incrementAdmissionSummary(summary.lastHour, tier, reason);
+    }
+    if (occurredAtMs >= since15mMs) {
+      incrementAdmissionSummary(summary.last15m, tier, reason);
+    }
+  }
+  return summary;
+};
+
 const buildDegradedEventsPayload = (params: {
   perPage: number;
   total15mThreshold: number;
@@ -167,6 +263,7 @@ const buildDegradedEventsPayload = (params: {
     characterModeReferenceRefreshEmptyLast24hCount: 0,
     characterModeBundleUnavailableFallbackLastHourCount: 0,
     characterModeBundleUnavailableFallbackLast24hCount: 0,
+    admissionDeniedTelemetry: createAdmissionSummary(),
     total15mThreshold: params.total15mThreshold,
     high15mThreshold: params.high15mThreshold,
     generation15mThreshold: params.generation15mThreshold,
@@ -377,6 +474,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const since15mIso = new Date(nowMs - 15 * 60 * 1000).toISOString();
     const sinceHourIso = new Date(nowMs - 60 * 60 * 1000).toISOString();
     const since24hIso = new Date(nowMs - 24 * 60 * 60 * 1000).toISOString();
+    const since15mMs = nowMs - 15 * 60 * 1000;
+    const sinceHourMs = nowMs - 60 * 60 * 1000;
+    const since24hMs = nowMs - 24 * 60 * 60 * 1000;
     const total15mThreshold = asThreshold(
       process.env.SHORTPULSE_ADMIN_ALERT_TOTAL_15M,
       DEFAULT_TOTAL_15M_THRESHOLD
@@ -424,6 +524,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       characterModeReferenceRefreshEmptyLast24hCountResult,
       characterModeBundleUnavailableFallbackLastHourCountResult,
       characterModeBundleUnavailableFallbackLast24hCountResult,
+      admissionDeniedTelemetryRowsResult,
     ] = await Promise.all([
       eventsQuery,
       filteredCountQuery,
@@ -524,6 +625,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           "message",
           CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT
         ) as unknown as Promise<CountQueryResult>,
+      supabaseAdmin
+        .from("app_error_events")
+        .select("occurred_at, metadata")
+        .eq("source", ADMISSION_LIMITED_TELEMETRY_SOURCE)
+        .gte("occurred_at", since24hIso) as unknown as Promise<ListQueryResult>,
     ]);
 
     if (eventsResult.error) {
@@ -591,7 +697,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       countErrorMessage(characterModeReferenceRefreshEmptyLast24hCountResult),
       countErrorMessage(characterModeBundleUnavailableFallbackLastHourCountResult),
       countErrorMessage(characterModeBundleUnavailableFallbackLast24hCountResult),
+      admissionDeniedTelemetryRowsResult.error?.message ?? null,
     ].filter((value): value is string => Boolean(value));
+    const admissionDeniedTelemetry = buildAdmissionSummary({
+      rows: admissionDeniedTelemetryRowsResult.data,
+      since15mMs,
+      sinceHourMs,
+      since24hMs,
+    });
 
     const healthReasons: string[] = [];
     if (hasFilteredCountError) {
@@ -634,6 +747,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         characterModeBundleUnavailableFallbackLast24hCount: countOrZero(
           characterModeBundleUnavailableFallbackLast24hCountResult
         ),
+        admissionDeniedTelemetry,
         total15mThreshold,
         high15mThreshold,
         generation15mThreshold,

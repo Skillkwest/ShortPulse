@@ -39,6 +39,17 @@ The near-term goal is overload protection with minimal regression risk while pre
   - Admission counts are reservation-based; tuning may be needed per tier as traffic evolves.
   - Shadow telemetry volume must be monitored to avoid noisy operator channels.
 
+## Follow-Up Hardening (2026-02-25)
+1. Phase 1 shipped:
+   - Enforce-mode fail-closed behavior when billing falls back to direct debit (`503 GENERATION_ADMISSION_UNAVAILABLE` + immediate refund + `Retry-After`).
+   - Conservative stale reservation cleanup (`release_stale_generation_reservations`) integrated into the existing generation-recovery cron path.
+   - Admission deny logs standardized to telemetry source (`telemetry.api.fal_submit.admission_limited`) to keep operator incident queues focused on true failures.
+2. Phase 2 prepared behind flag:
+   - Added atomic RPC `admit_and_reserve_generation_credits` for single-transaction admission+reservation.
+   - App path can call atomic RPC via `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED` with legacy reservation RPC fallback.
+3. Rollout posture:
+   - Keep atomic path disabled by default until parity validation and stress verification are complete.
+
 ## Alternatives considered
 - Server FIFO queue first:
   - Rejected for phase 1 due higher migration risk (queue persistence, workers, cancellation semantics, billing semantics for queued jobs).

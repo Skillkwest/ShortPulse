@@ -276,6 +276,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `status` (text): `reserved` | `captured` | `released`.
 - `reason` (text): Human-readable reservation reason.
 - `metadata` (jsonb): Reservation context and settlement details.
+  - Admission-aware rows include `admission_tier` for tier-scoped concurrency accounting.
 - `created_at` / `updated_at` (timestamptz)
 - `captured_at` / `released_at` (timestamptz, nullable)
 - RLS: users can select only own reservations (`user_id = auth.uid()`); server-side functions handle writes.
@@ -283,10 +284,12 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 ### Reservation lifecycle RPCs
 - `reserve_generation_credits(...)`: creates or idempotently confirms a reservation if funds are available.
+- `admit_and_reserve_generation_credits(...)`: flagged atomic admission+reservation path that can return `admission_limited` with snapshot counters before insert.
 - `mark_generation_reservation_submitted(...)`: attaches provider request id to a reserved row.
 - `capture_generation_reservation_by_provider_request(...)`: writes ledger debit + marks reservation captured.
 - `release_generation_reservation_by_source_ref(...)`: releases reservation by source reference.
 - `release_generation_reservation_by_provider_request(...)`: releases reservation by provider request id.
+- `release_stale_generation_reservations(p_limit, p_min_age_seconds)`: conservative janitor that releases only pre-submit stale rows (`status='reserved'`, `provider_request_id is null`).
 - Used by: `frontend/lib/server/api/generationBilling.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`.
 
 ### stripe_event_log

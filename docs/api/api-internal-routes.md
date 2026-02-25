@@ -30,21 +30,26 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/credits/adjust` | `POST` | Admin bearer | Manual credit adjustments (bounded, audited). | `frontend/pages/api/admin/credits/adjust.ts`, `docs/sops/sop_billing_credits_operations.md` |
 | `/api/admin/credits/ledger` | `GET` | Admin bearer | Fetch recent credit ledger transactions for one user, including generation pricing breakdown metadata (`raw` vs `billed`) when present. Supports optional `source` filter (example: `source=generation_charge`). | `frontend/pages/api/admin/credits/ledger.ts`, `docs/sops/sop_billing_credits_operations.md` |
 | `/api/admin/errors` | `GET` | Admin bearer | Incident feed with filters (status/severity/source/scope/search), summary stats, and pagination. Returns `health.degraded=true` (while still `200`) if non-core summary/pagination count queries fail so the incident list can remain available. | `frontend/pages/api/admin/errors.ts`, `docs/monitoring.md` |
-| `/api/admin/error-events` | `GET` | Admin bearer | Raw per-occurrence event stream with scope/severity/source/search/synthetic plus `signal` filters, pagination, linked incident status enrichment, and 15-minute threshold summaries (computed from real failure traffic; excludes synthetic + `telemetry.*` sources). Includes Character Mode counters (`reference_refresh_empty`, `bundle_unavailable` fallback) and returns `health.degraded=true` when `app_error_events` is unavailable or when non-core summary/enrichment queries fail so the event list can fail soft for operators. | `frontend/pages/api/admin/error-events.ts`, `docs/monitoring.md` |
+| `/api/admin/error-events` | `GET` | Admin bearer | Raw per-occurrence event stream with scope/severity/source/search/synthetic plus `signal` filters, pagination, linked incident status enrichment, and 15-minute threshold summaries (computed from real failure traffic; excludes synthetic + `telemetry.*` sources). Includes Character Mode counters (`reference_refresh_empty`, `bundle_unavailable` fallback) plus non-breach informational admission-deny telemetry (`admissionDeniedTelemetry` by tier/reason for 15m/1h/24h). Returns `health.degraded=true` when `app_error_events` is unavailable or when non-core summary/enrichment queries fail so the event list can fail soft for operators. | `frontend/pages/api/admin/error-events.ts`, `docs/monitoring.md` |
 | `/api/admin/errors-status` | `POST` | Admin bearer | Update status (`open`/`resolved`/`ignored`) for an incident (`errorId`) or promote/link an unlinked event (`eventId`) and apply status with metadata history. | `frontend/pages/api/admin/errors-status.ts` |
 | `/api/admin/errors-test` | `POST` | Admin bearer | Create a synthetic app or generation incident for operator smoke tests of telemetry ingestion/UI. | `frontend/pages/api/admin/errors-test.ts`, `docs/monitoring.md` |
 | `/api/admin/generation-trace` | `GET` | Admin bearer | Return stitched generation timeline by `generationId`, `requestId`, or trace id across `ai_generations`, `media_events`, `media_files`, reservations, ledger entries, and app error events. Intended for operator debugging and S0 traceability baselines. | `frontend/pages/api/admin/generation-trace.ts`, `docs/planning/ai-studio-generation-runtime-stabilization.md` |
 | `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay stalled generation recovery by `generationId` or `requestId` (Fal only) using the shared runtime execution engine (provider probe -> persist -> settle -> transition). | `frontend/pages/api/admin/generation-recovery/replay.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
-| `/api/internal/generation-recovery/run` | `POST` | `x-shortpulse-cron-secret` | Trigger lease-based reconciler claims and execute shared runtime recovery for each claimed generation; returns stage metrics (`claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `duplicates`, `errors`, `skipped`). | `frontend/pages/api/internal/generation-recovery/run.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts`, `docs/sops/sop_provider_incident_response.md` |
+| `/api/internal/generation-recovery/run` | `POST` | `x-shortpulse-cron-secret` | Trigger lease-based reconciler claims and execute shared runtime recovery for each claimed generation; returns stage metrics (`claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `duplicates`, `errors`, `skipped`) plus reservation cleanup metrics (`reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`). | `frontend/pages/api/internal/generation-recovery/run.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts`, `docs/sops/sop_provider_incident_response.md` |
 | `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
 
 ## Shared runtime contracts
 - Credit lifecycle for generation:
   - Submit path: reserve credits (`reserve_generation_credits`).
+    - Optional flagged path: atomic admission+reserve (`admit_and_reserve_generation_credits`).
   - Submit admission control (`off|shadow|enforce`) can reject over-limit starts with `429` + `Retry-After` and payload:
     - `code: GENERATION_ADMISSION_LIMIT`
     - `retryAfterSeconds`
     - `limits: { globalMax, globalActive, tier, tierMax, tierActive }`
+  - In `enforce` mode, if reservation billing mode is unavailable and submit would fall back to direct debit, submit fails closed with:
+    - `503`
+    - `code: GENERATION_ADMISSION_UNAVAILABLE`
+    - `retryAfterSeconds` + `Retry-After` header.
   - Admission deny path immediately releases reservation (`release_generation_reservation_by_source_ref`).
   - Submit proxy sends `X-Fal-Request-Timeout` to queue endpoints to bound pre-start latency at provider edge.
   - Provider request accepted: attach provider request ID to reservation.
@@ -87,6 +92,10 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX`
   - `SHORTPULSE_FAL_ADMISSION_TIER_LIMITS_JSON`
   - `SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS`
+  - `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED`
+  - `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED`
+  - `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS`
+  - `SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE`
 
 ## Maintenance checklist
 1. When adding or renaming an API route, update this file and any impacted SOP/API docs.

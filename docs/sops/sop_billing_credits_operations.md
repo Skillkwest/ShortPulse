@@ -16,6 +16,8 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Reservation/capture migration: `sql/migrations/002_add_generation_credit_reservations.sql`.
 - Reservation RPC ambiguity fix: `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`.
 - Reservation RPC auth/grant hardening: `sql/migrations/014_harden_generation_reservation_rpc_security.sql`.
+- Stale reservation cleanup RPC: `sql/migrations/031_release_stale_generation_reservations.sql`.
+- Atomic admission+reserve RPC (flagged): `sql/migrations/032_admit_and_reserve_generation_credits.sql`.
 - Runtime convergence + idempotency migrations: `sql/migrations/020_generation_runtime_convergence.sql` to `sql/migrations/023_generation_reconciler_claims.sql`.
 - Server debit helper: `frontend/lib/server/api/generationBilling.ts`.
 - Fal status settlement helper: `frontend/lib/server/api/falStatusProxy.ts`.
@@ -38,17 +40,19 @@ The API currently supports both shapes during rollout by falling back to `ref_id
 1. Run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` in Supabase SQL editor.
 2. Run `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql` in Supabase SQL editor.
 3. Run `sql/migrations/014_harden_generation_reservation_rpc_security.sql` in Supabase SQL editor.
-4. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
-5. Confirm relation type for `ai_credit_balance`:
+4. Run `sql/migrations/031_release_stale_generation_reservations.sql` in Supabase SQL editor.
+5. Run `sql/migrations/032_admit_and_reserve_generation_credits.sql` in Supabase SQL editor before enabling `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED`.
+6. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
+7. Confirm relation type for `ai_credit_balance`:
    - Table (`relkind = 'r'`/`'p'`): trigger-based balance sync remains enabled.
    - View (`relkind = 'v'`): migration skips incompatible RLS/trigger steps by design.
-6. Verify admin credit adjustment in `/admin` succeeds.
-7. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
-8. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
+8. Verify admin credit adjustment in `/admin` succeeds.
+9. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
+10. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
    - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character` (with local app server running)
    - Audit safety guardrail: `test:e2e:character` refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and rejects `@example.com` emails.
    - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
-9. Verify reservation RPC hardening checks are present in staged function bodies and grants:
+11. Verify reservation RPC hardening checks are present in staged function bodies and grants:
    - auth binding clause: `auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id`
    - explicit `revoke ... from public, anon, authenticated`
    - explicit `grant execute ... to service_role`
@@ -85,7 +89,12 @@ Safety checks:
 
 ## Charging model behavior
 - Fal generation submit endpoints reserve credits server-side before provider submission.
+- Admission enforcement is authoritative only in reservation billing mode.
 - Submit rejection/transport failure auto-releases reservation (no debit posted).
+- If admission mode is `enforce` and billing falls back to direct debit, submit fails closed with:
+  - `503`
+  - `code: GENERATION_ADMISSION_UNAVAILABLE`
+  - immediate refund and `Retry-After`.
 - Successful submit records `provider_request_id` on the reservation/charge context.
 - KEI submit routes also persist `taskId` as `provider_request_id` on the charge context for ownership checks during status polling.
 - Status polling denies requests unless provider request ownership resolves as `owned` for the caller.
@@ -93,7 +102,16 @@ Safety checks:
   - Success with usable media: capture reservation into `generation_charge` ledger debit.
   - Failed/error/content-policy/malformed output: release reservation (no debit posted).
 - Direct-debit fallback is an emergency-only kill switch (`SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED=false` by default).
+- Atomic admit+reserve is feature flagged (`SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED=false` by default) and should be enabled only after migration `032` is applied.
 - Prompt-refine and describe-image calls currently return usage but are not yet debited.
+
+## Reservation cleanup operations
+- Stale reservation cleanup runs via `/api/internal/generation-recovery/run` when `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED=true`.
+- Phase-1 cleanup criteria are intentionally conservative:
+  - `status='reserved'`
+  - `provider_request_id is null`
+  - row older than `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS` (default `900`).
+- Batch size is controlled by `SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE` (default `200`).
 
 ## User-facing balance snapshot
 - `/api/credits/snapshot` returns authenticated, server-authoritative credit state for UI reassurance:

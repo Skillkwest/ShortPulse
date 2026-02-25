@@ -62,6 +62,10 @@ Mitigation guidance:
 1. Confirm submit path rejects are auto-refunded by checking reservation state transitions (`reserved` -> `released`).
 2. Confirm completed runs capture (`reserved` -> `captured`) and create a ledger debit.
 3. If one model endpoint is degraded, temporarily remove that model from UI selection until provider recovers.
+4. If users receive `GENERATION_ADMISSION_UNAVAILABLE`, treat it as reservation-mode degradation during enforce admission and verify:
+   - reservation RPC health (`reserve_generation_credits` / `admit_and_reserve_generation_credits`),
+   - `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED`,
+   - `SHORTPULSE_FAL_ADMISSION_MODE` (`enforce` fail-closes without reservation mode by design).
 
 Fal reliability rollout controls (when enabled):
 1. Confirm mode and model gating:
@@ -69,6 +73,7 @@ Fal reliability rollout controls (when enabled):
    - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST`
 2. If incident severity requires immediate containment, set mode to `legacy` (global kill switch).
 3. If recovery lag is accumulating, run one protected reconciler pass via `/api/internal/generation-recovery/run` and inspect replay outcomes.
+   - Validate cleanup metrics in response: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
 4. For exhausted/edge cases, use admin replay (`/api/admin/generation-recovery/replay`).
 5. If webhook ingestion is unhealthy, keep polling fallback active and verify `/api/fal/webhook` signature errors before disabling webhook mode.
 
@@ -84,6 +89,12 @@ Failure-code action map (Fal reliability rollout):
 | `payload_drift_detected` | Compare payload against fixtures and update adapter/profile parsing safely. |
 | `circuit_breaker_open` | Keep model paused until failure ratio drops below threshold and smoke tests pass. |
 | `recovery_exhausted` | Use admin replay path and escalate to engineering incident review. |
+
+Admission-control action map:
+| Signal | Primary action |
+| --- | --- |
+| `429 GENERATION_ADMISSION_LIMIT` | Expected limiter behavior under load; monitor tier distribution and user retry friction. |
+| `503 GENERATION_ADMISSION_UNAVAILABLE` | Admission safeguard tripped due reservation-mode unavailability in enforce mode; investigate reservation RPC and fallback settings before changing admission mode. |
 
 ### OpenAI prompt/agent failures
 Primary signals:
@@ -149,6 +160,10 @@ Mitigation guidance:
    - Route: `POST /api/internal/generation-recovery/run`
    - Auth: `x-shortpulse-cron-secret` (matches `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`)
    - Note: reconciler claims are lease-based; validate `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS` to avoid duplicate concurrent execution.
+   - Optional reservation cleanup controls:
+     - `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED`
+     - `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS`
+     - `SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE`
 3. Replay invocation:
    - Route: `POST /api/admin/generation-recovery/replay`
    - Inputs: `generationId` or `requestId`

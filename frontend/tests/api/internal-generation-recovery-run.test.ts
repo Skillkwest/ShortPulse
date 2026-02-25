@@ -17,25 +17,39 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
-const createSupabaseMock = () => {
+type SupabaseMock = {
+  rpc: ReturnType<typeof vi.fn>;
+  from: ReturnType<typeof vi.fn>;
+  updateEq2: ReturnType<typeof vi.fn>;
+};
+
+const createSupabaseMock = (): SupabaseMock => {
   const updateEq2 = vi.fn(async () => ({ error: null }));
   const updateEq1 = vi.fn(() => ({ eq: updateEq2 }));
   const update = vi.fn(() => ({ eq: updateEq1 }));
   const from = vi.fn(() => ({ update }));
-  const rpc = vi.fn(async () => ({
-    data: [
-      {
-        id: "gen-1",
-        user_id: "user-1",
-        request_id: "req-1",
-        model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
-        status: "fail",
-        recovery_state: "recovering",
-        recovery_attempts: 1,
-      },
-    ],
-    error: null,
-  }));
+  const rpc = vi.fn(async (functionName: string) => {
+    if (functionName === "release_stale_generation_reservations") {
+      return {
+        data: [{ scanned_count: 7, released_count: 3, error_count: 0 }],
+        error: null,
+      };
+    }
+    return {
+      data: [
+        {
+          id: "gen-1",
+          user_id: "user-1",
+          request_id: "req-1",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          status: "fail",
+          recovery_state: "recovering",
+          recovery_attempts: 1,
+        },
+      ],
+      error: null,
+    };
+  });
   return { rpc, from, updateEq2 };
 };
 
@@ -82,6 +96,13 @@ describe("POST /api/internal/generation-recovery/run", () => {
     await handler(req as never, res as never);
 
     expect(supabase.rpc).toHaveBeenCalledWith(
+      "release_stale_generation_reservations",
+      expect.objectContaining({
+        p_limit: 200,
+        p_min_age_seconds: 900,
+      })
+    );
+    expect(supabase.rpc).toHaveBeenCalledWith(
       "claim_generation_recovery_batch",
       expect.objectContaining({
         p_limit: 10,
@@ -95,6 +116,56 @@ describe("POST /api/internal/generation-recovery/run", () => {
       expect.objectContaining({
         ok: true,
         claimed: 1,
+        reservationCleanupScanned: 7,
+        reservationCleanupReleased: 3,
+        reservationCleanupErrors: 0,
+      })
+    );
+  });
+
+  it("continues recovery when reservation cleanup RPC fails", async () => {
+    const supabase = createSupabaseMock();
+    supabase.rpc = vi.fn(async (functionName: string) => {
+      if (functionName === "release_stale_generation_reservations") {
+        return {
+          data: null,
+          error: { message: "cleanup unavailable" },
+        };
+      }
+      return {
+        data: [],
+        error: null,
+      };
+    });
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "cron-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reservationCleanupScanned: 0,
+        reservationCleanupReleased: 0,
+        reservationCleanupErrors: 1,
+      })
+    );
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "internal/generation-recovery/run",
+        metadata: expect.objectContaining({
+          stage: "reservation_cleanup",
+        }),
       })
     );
   });

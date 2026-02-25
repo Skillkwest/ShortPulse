@@ -17,14 +17,47 @@ type ClaimedGeneration = {
   recovery_attempts: number | null;
 };
 
+type ReservationCleanupMetrics = {
+  scanned: number;
+  released: number;
+  errors: number;
+};
+
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
 };
 
-const asNumber = (value: unknown): number | null =>
-  typeof value === "number" && Number.isFinite(value) ? value : null;
+const asNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number.parseInt(value.trim(), 10);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+};
+
+const parseCleanupMetrics = (value: unknown): ReservationCleanupMetrics => {
+  const row =
+    Array.isArray(value) && value.length > 0 && value[0] && typeof value[0] === "object"
+      ? (value[0] as JsonObject)
+      : value && typeof value === "object" && !Array.isArray(value)
+        ? (value as JsonObject)
+        : null;
+  if (!row) {
+    return { scanned: 0, released: 0, errors: 0 };
+  }
+
+  const scanned = asNumber(row.scanned_count) ?? asNumber(row.scanned) ?? 0;
+  const released = asNumber(row.released_count) ?? asNumber(row.released) ?? 0;
+  const errors = asNumber(row.error_count) ?? asNumber(row.errors) ?? 0;
+  return {
+    scanned: Math.max(0, Math.trunc(scanned)),
+    released: Math.max(0, Math.trunc(released)),
+    errors: Math.max(0, Math.trunc(errors)),
+  };
+};
 
 const parseClaimedGeneration = (value: unknown): ClaimedGeneration | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -138,6 +171,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
+    let reservationCleanupScanned = 0;
+    let reservationCleanupReleased = 0;
+    let reservationCleanupErrors = 0;
+    if (flags.reservationCleanupEnabled) {
+      const cleanupResponse = await supabaseAdmin.rpc("release_stale_generation_reservations", {
+        p_limit: flags.reservationCleanupBatchSize,
+        p_min_age_seconds: flags.reservationCleanupMinAgeSeconds,
+      });
+      if (cleanupResponse.error) {
+        reservationCleanupErrors = 1;
+        await logApiRouteException({
+          req,
+          error: cleanupResponse.error,
+          routeLabel: "internal/generation-recovery/run",
+          metadata: {
+            stage: "reservation_cleanup",
+          },
+        });
+      } else {
+        const metrics = parseCleanupMetrics(cleanupResponse.data);
+        reservationCleanupScanned = metrics.scanned;
+        reservationCleanupReleased = metrics.released;
+        reservationCleanupErrors = metrics.errors;
+      }
+    }
+
     const claimResponse = await supabaseAdmin.rpc("claim_generation_recovery_batch", {
       p_limit: flags.reconcilerBatchSize,
       p_max_attempts: flags.reconcilerMaxAttempts,
@@ -224,6 +283,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       duplicates,
       errors,
       skipped,
+      reservationCleanupScanned,
+      reservationCleanupReleased,
+      reservationCleanupErrors,
     });
   } catch (error) {
     await logApiRouteException({

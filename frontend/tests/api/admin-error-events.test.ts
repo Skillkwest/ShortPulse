@@ -88,6 +88,7 @@ describe("GET /api/admin/error-events", () => {
   });
 
   it("returns enriched events with threshold summary", async () => {
+    const nowMs = Date.now();
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
         app_error_events: [
@@ -128,6 +129,23 @@ describe("GET /api/admin/error-events", () => {
           { count: 9, error: null },
           { count: 2, error: null },
           { count: 7, error: null },
+          {
+            data: [
+              {
+                occurred_at: new Date(nowMs - 2 * 60 * 1000).toISOString(),
+                metadata: { tier: "video_long", reason: "tier_limit" },
+              },
+              {
+                occurred_at: new Date(nowMs - 30 * 60 * 1000).toISOString(),
+                metadata: { tier: "image_standard", reason: "global_limit" },
+              },
+              {
+                occurred_at: new Date(nowMs - 2 * 60 * 60 * 1000).toISOString(),
+                metadata: { tier: "image_heavy", reason: "global_and_tier_limit" },
+              },
+            ],
+            error: null,
+          },
         ],
         app_error_logs: [
           { data: [{ id: "11111111-1111-4111-8111-111111111111", status: "open" }], error: null },
@@ -157,6 +175,23 @@ describe("GET /api/admin/error-events", () => {
         characterModeReferenceRefreshEmptyLast24hCount: number;
         characterModeBundleUnavailableFallbackLastHourCount: number;
         characterModeBundleUnavailableFallbackLast24hCount: number;
+        admissionDeniedTelemetry: {
+          last15m: {
+            total: number;
+            byTier: Record<string, number>;
+            byReason: Record<string, number>;
+          };
+          lastHour: {
+            total: number;
+            byTier: Record<string, number>;
+            byReason: Record<string, number>;
+          };
+          last24h: {
+            total: number;
+            byTier: Record<string, number>;
+            byReason: Record<string, number>;
+          };
+        };
         total15mBreached: boolean;
         high15mBreached: boolean;
         generation15mBreached: boolean;
@@ -187,6 +222,53 @@ describe("GET /api/admin/error-events", () => {
       high15mBreached: true,
       generation15mBreached: true,
     });
+    expect(payload.summary.admissionDeniedTelemetry).toMatchObject({
+      last15m: {
+        total: 1,
+        byTier: {
+          video_long: 1,
+          image_heavy: 0,
+          image_standard: 0,
+          unknown: 0,
+        },
+        byReason: {
+          tier_limit: 1,
+          global_limit: 0,
+          global_and_tier_limit: 0,
+          unknown: 0,
+        },
+      },
+      lastHour: {
+        total: 2,
+        byTier: {
+          video_long: 1,
+          image_heavy: 0,
+          image_standard: 1,
+          unknown: 0,
+        },
+        byReason: {
+          tier_limit: 1,
+          global_limit: 1,
+          global_and_tier_limit: 0,
+          unknown: 0,
+        },
+      },
+      last24h: {
+        total: 3,
+        byTier: {
+          video_long: 1,
+          image_heavy: 1,
+          image_standard: 1,
+          unknown: 0,
+        },
+        byReason: {
+          tier_limit: 1,
+          global_limit: 1,
+          global_and_tier_limit: 1,
+          unknown: 0,
+        },
+      },
+    });
     expect(payload.health).toMatchObject({
       eventsTableAvailable: true,
       degraded: false,
@@ -214,6 +296,7 @@ describe("GET /api/admin/error-events", () => {
           { count: null, error: { message: missingTableMessage } },
           { count: null, error: { message: missingTableMessage } },
           { count: null, error: { message: missingTableMessage } },
+          { data: null, error: { message: missingTableMessage } },
         ],
         app_error_logs: [],
       })
@@ -304,6 +387,7 @@ describe("GET /api/admin/error-events", () => {
           { count: 0, error: null },
           { count: 0, error: null },
           { count: 0, error: null },
+          { data: [], error: null },
         ],
         app_error_logs: [],
       })
@@ -355,6 +439,7 @@ describe("GET /api/admin/error-events", () => {
           { count: 0, error: null },
           { count: 0, error: null },
           { count: 0, error: null },
+          { data: [], error: null },
         ],
         app_error_logs: [],
       })

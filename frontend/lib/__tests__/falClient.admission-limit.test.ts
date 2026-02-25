@@ -57,4 +57,23 @@ describe("falClient generation admission error handling", () => {
       "Too many active generations. Please retry in 9 seconds."
     );
   });
+
+  it("surfaces deterministic retry guidance for admission unavailable 503 payloads", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse(
+        {
+          error: "Generation admission is temporarily unavailable. Please retry shortly.",
+          code: "GENERATION_ADMISSION_UNAVAILABLE",
+        },
+        503,
+        {
+          "Retry-After": "12",
+        }
+      )
+    );
+
+    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
+      "Generation admission is temporarily unavailable. Please retry in 12 seconds."
+    );
+  });
 });

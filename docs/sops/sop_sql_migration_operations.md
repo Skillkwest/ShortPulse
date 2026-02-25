@@ -61,6 +61,8 @@ Current set:
 - `028_harden_ai_agent_conversation_state_security.sql`
 - `029_fix_conversation_state_upsert_ambiguity.sql`
 - `030_fix_conversation_state_upsert_conflict_target.sql`
+- `031_release_stale_generation_reservations.sql`
+- `032_admit_and_reserve_generation_credits.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

@@ -9,7 +9,7 @@ Track execution of "Default Model First, Reliability Delta Second" with minimal 
 ## Current Status
 1. Workstream A (Default-model foundation): `COMPLETED`
 2. Workstream B (Reliability delta hardening): `COMPLETED`
-3. Workstream C (Safety-policy track): `IN_PROGRESS`
+3. Workstream C (Safety-policy track): `COMPLETED`
 
 ## Completed Baseline (A/B)
 Implemented in commit `61800c15` (`feat(ai-studio): harden default model policy and reliability deltas`).
@@ -42,22 +42,19 @@ Key artifacts:
 7. `docs/sops/sop_ai_studio_agent_chat_ops.md`
 8. `docs/change_log.md`
 
-## Remaining Scope (Workstream C only)
-Safety-policy track remains intentionally separate.
+## Workstream C Closeout (Safety-policy track)
+1. C1 Official-doc verification: `DONE` (see evidence note below).
+2. C2 Runtime safety parameter alignment: `DONE`.
+3. C3 Safety payload regression coverage: `DONE`.
+4. C4 Contract/docs/changelog synchronization: `DONE`.
 
-### C-track execution slices
-1. C1 Official-doc verification for each image model mode (text-to-image and image-to-image).
-2. C2 Runtime safety parameter alignment per model API capability.
-3. C3 Tests to prove unchanged user-lane behavior and model-specific safety handling.
-4. C4 Contract/docs synchronization in catalog, SOP/API docs, and changelog.
-
-### C-track progress (current slice)
-1. Image generation safety payload policy is now centralized in `frontend/features/ai-studio/hooks/taskSubmission/safetyPolicy.ts`.
-2. Image submit paths now resolve minimum-restriction safety payload values through the shared policy.
-3. Regression coverage now asserts per-model safety payload fields in submission matrix tests.
-4. Remaining C-track work:
-   - formal model-by-model verification pass evidence note
-   - full gate pass + final docs/changelog sync closeout for the full C track.
+Closeout artifacts:
+1. `frontend/features/ai-studio/hooks/taskSubmission/safetyPolicy.ts`
+2. `frontend/features/ai-studio/hooks/taskSubmission/__tests__/safetyPolicy.test.ts`
+3. `frontend/features/ai-studio/hooks/taskSubmission/__tests__/submissionPayloadMatrix.test.ts`
+4. `frontend/lib/model-runtime/modelCatalog.ts`
+5. `docs/planning/evidence/agent/phase-5/2026-02-25-phase-5-safety-policy-verification-closeout.md`
+6. `docs/change_log.md`
 
 ## Guardrails
 1. One concern per PR.

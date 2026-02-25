@@ -332,7 +332,7 @@ const catalog: Record<string, ModelCatalogEntry> = {
   "fal-ai/bytedance/seedream/v4.5/text-to-image": {
     modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
     provider: "fal",
-    sourceUrl: "https://fal.ai/models/fal-ai/bytedance/seedream/v4.5/api",
+    sourceUrl: "https://fal.ai/models/fal-ai/bytedance/seedream/v4.5/text-to-image/api",
     verifiedAt: VERIFIED_AT,
     submitAspectField: "image_size",
     defaultAspect: "1:1",

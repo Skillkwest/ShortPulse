@@ -69,6 +69,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - If the feature flag or key is missing, show a single-line banner and render the legacy textarea with no chat.
 - Runtime/provider transient failures (timeouts/network/429/5xx): return assistant fallback text with `200` and keep the previous prompt intact.
 - Fast-path thrown transport errors are normalized into classified failures before routing, so retries/fallback policy stays on the same path as non-throw upstream failures.
+- Fast-path and thinker/formatter parse/body-read exceptions are normalized into typed stage failures (`status` + `detail`) instead of bubbling as route-level exceptions.
 - Explicit auth/config/request failures (missing key, disabled route, invalid payload/auth): keep explicit non-200 errors for debugging.
 - Oversize media payloads: drop images, tell the agent “media omitted due to size” in `context`.
 - Provider refusal/safety: display the refusal and keep the previous prompt intact.

@@ -22,9 +22,17 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - UI model metadata: `frontend/features/ai-studio/logic/modelRegistry.ts` (labels, mediaType, pricing strategy, UI capabilities).
 - Pricing dispatcher: `frontend/features/ai-studio/logic/pricing.ts` (`computeCostForModel`, `buildDefaultPricingParams`).
 - Pricing strategies: `frontend/features/ai-studio/logic/pricingStrategies.ts` (per-MP, per-image, per-duration).
+- Create model-selection policy: `frontend/features/ai-studio/logic/modelSelectionPolicy.ts` (shared option filtering + startup default precedence).
 - UI orchestration: `frontend/features/ai-studio/hooks/useAiStudioState.ts`, `frontend/pages/ai-studio.tsx`.
 - Model picker + cost badges: `frontend/features/ai-studio/components/ModelModal.tsx` (uses registry defaults).
 - Reference Grid performance controls: `frontend/features/ai-studio/components/ReferenceGrid.tsx` (virtualization + autoplay budget gating).
+
+## Create startup model precedence
+- Storage key remains `aiStudioWorkflowSettingsByTool.v1`.
+- On Create workflow restore, startup model resolution is policy-driven:
+  1. Keep saved model when it remains valid for current Create mode.
+  2. For Create + Image when saved model is missing/invalid, default to `fal-ai/bytedance/seedream/v4.5/text-to-image`.
+  3. Return `null` when no valid/default candidate exists for the active mode.
 
 ## Fal reliability rollout notes (v2 architecture)
 - Primary tracker: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`

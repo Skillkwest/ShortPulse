@@ -31,3 +31,10 @@ npm run build
 - For durable architecture decisions, add an ADR under `docs/adr/`.
 - Prefer existing references first: `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.
 - After completing a task, always audit your work to see if you have missed anything. Make any new high value changes you see fit. Then provide high level suggusted next steps upon completion of your task.
+
+## Workspace safety guardrails (mandatory)
+- Never move or rename generated/build artifact directories (for example `frontend/.next`) to another path inside this repository as a backup.
+- If build artifacts must be cleared, either delete them directly or move them outside the repo root (for example under `/tmp`).
+- Before running repo-wide commands (for example `eslint .`, `git status`, broad `rg`), verify no large generated backup/artifact directories exist inside the repo.
+- If unsure about operational approach (cleanup, tool invocation, filesystem-wide commands), pause and verify best practices from authoritative docs first; do not proceed on assumption.
+- If risk remains unclear, ask the user before executing potentially high-impact workspace operations.

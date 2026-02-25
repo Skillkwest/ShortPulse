@@ -55,4 +55,20 @@ describe("useAiStudioPageDerivations", () => {
     expect(params.aspect).toBe("16:9");
     expect(params.durationSeconds).toBe(8);
   });
+
+  it("uses shared create/image model policy and excludes flux-2-pro", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPageDerivations(
+        createParams({
+          mode: "image",
+          selectedTool: "create",
+          videoReferenceMode: "standard",
+        })
+      )
+    );
+
+    const values = new Set(result.current.filteredModelOptions.map((option) => option.value));
+    expect(values.has("fal/flux-2-pro")).toBe(false);
+    expect(values.has("fal-ai/bytedance/seedream/v4.5/text-to-image")).toBe(true);
+  });
 });

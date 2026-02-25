@@ -194,4 +194,67 @@ describe("runThinkerFormatterTurn", () => {
     expect(result.result.parsed.actions?.applyPrompt).toBe("cinematic close-up portrait");
     expect(result.result.usage).toEqual({ inputTokens: 10, outputTokens: 14 });
   });
+
+  it("returns thinker-stage failure when thinker response JSON cannot be parsed", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new Error("bad thinker payload");
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runThinkerFormatterTurn({
+      apiKey: "test-key",
+      openAiUrl: "https://example.com/v1/chat/completions",
+      model: "gpt-5-nano",
+      thinkerMessages: [{ role: "system", content: "think" }],
+      buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
+      parseAgentJson: () => null,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      stage: "thinker",
+      status: 502,
+      detail: "bad thinker payload",
+    });
+  });
+
+  it("returns formatter-stage failure when formatter response JSON cannot be parsed", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: '{"status":"ready","prompt_text":"first prompt"}' } }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new Error("bad formatter payload");
+        },
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runThinkerFormatterTurn({
+      apiKey: "test-key",
+      openAiUrl: "https://example.com/v1/chat/completions",
+      model: "gpt-5-nano",
+      thinkerMessages: [{ role: "system", content: "think" }],
+      buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
+      parseAgentJson: () => null,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      stage: "formatter",
+      status: 502,
+      detail: "bad formatter payload",
+    });
+  });
 });

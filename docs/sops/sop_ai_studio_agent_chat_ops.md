@@ -62,6 +62,7 @@ Prompt ownership rule:
 - Size and source checks: `safeContext` and `buildAgentContext` drop non-https URLs and enforce payload limits before send.
 - Fallbacks: safety refusals and runtime/provider failures now return normal assistant responses (`200`) so prompt-step UI stays in chat lane with no transport-style error banner.
 - Fast-path thrown transport errors are normalized into the same classified retry/fallback lane, reducing route-level exception fallbacks.
+- Parse/body-read failures in fast-path and thinker/formatter stages are normalized into classified stage failures, keeping malformed upstream payloads out of `route_exception` fallback paths.
 - Explicit errors remain for auth/config/invalid-request lanes (feature disabled, missing key, malformed payload, auth denial), and `useAiAgent` surfaces those error strings.
 - Agent disable path: when feature flag is off, chat is hidden/disabled in UI and API returns 503; users continue through non-agent prompt generation paths.
 - No-question policy: questions are removed from prompt contracts, action parsing, and UI chips.

@@ -1298,3 +1298,31 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`
 - Added evidence note:
   - `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-runtime-timeout-split-and-failover-hardening.md`
+
+## 2026-02-24 (AI Studio default-model foundation + reliability delta closeout)
+- Added canonical Create model-selection policy module:
+  - `frontend/features/ai-studio/logic/modelSelectionPolicy.ts`
+  - centralizes Create/Image filtering and startup default precedence.
+- Wired shared policy into AI Studio hooks:
+  - `frontend/features/ai-studio/hooks/useAiStudioAllowedModelOptions.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioPageDerivations.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioWorkflowSettings.ts`
+- Locked Create startup restore precedence:
+  - preserve valid saved model
+  - fallback to `fal-ai/bytedance/seedream/v4.5/text-to-image` when saved model is missing/invalid for Create + Image.
+- Hardened residual parse/body exception paths:
+  - `frontend/features/agent-runtime/studioAgentFastPathTurn.ts`
+  - `frontend/features/ai-agent/logic/studioAgentThinkerFormatter.ts`
+  - parse/body-read failures now normalize to typed stage failures instead of bubbling to route-level exceptions.
+- Expanded regression coverage:
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioWorkflowSettings.test.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPageDerivations.test.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioTaskSubmission.test.ts`
+  - `frontend/features/agent-runtime/__tests__/studioAgentFastPathTurn.test.ts`
+  - `frontend/features/ai-agent/logic/__tests__/studioAgentThinkerFormatter.test.ts`
+  - `frontend/tests/api/studio-agent.runtime.test.ts`
+  - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`
+- Added ADR:
+  - `docs/adr/0025-ai-studio-create-startup-model-precedence.md`
+- Added evidence note:
+  - `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-default-model-foundation-and-reliability-delta-closeout.md`

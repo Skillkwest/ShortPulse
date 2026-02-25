@@ -5,6 +5,7 @@ import { useEffect, type MutableRefObject } from "react";
 import { aspectOptions } from "../constants";
 import { getModelConfig } from "../logic/pricing";
 import { clampImageResolutionForModel } from "../logic/imageResolution";
+import { CREATE_DEFAULT_MODEL_ID } from "../logic/modelSelectionPolicy";
 import { computeModalPosition } from "../logic/stateParsers";
 import { isCreateWorkflow, isVideoWorkflow, resolveWorkflowId } from "../logic/workflowIdentity";
 import type { ToolId } from "../types";
@@ -320,6 +321,10 @@ export const useAiStudioStateEffects = ({
       const isCharacterModeCreateModel =
         isCreateWorkflow(selectedTool) && model === CREATE_CHARACTER_MODE_LOCKED_MODEL_ID;
       if (isCharacterModeCreateModel) {
+        return;
+      }
+      if (isCreateWorkflow(selectedTool) && allowedValues.has(CREATE_DEFAULT_MODEL_ID)) {
+        setModel(CREATE_DEFAULT_MODEL_ID);
         return;
       }
       setModel(null);

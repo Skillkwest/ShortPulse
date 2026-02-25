@@ -81,6 +81,15 @@ const useHarness = (initialTool: ToolId | null) => {
 };
 
 describe("useAiStudioWorkflowSettings", () => {
+  it("defaults create workflow model to Seedream text-to-image when no saved model exists", async () => {
+    window.sessionStorage.clear();
+
+    const { result } = renderHook(() => useHarness("create"));
+
+    await waitFor(() => expect(result.current.mode).toBe("image"));
+    expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image");
+  });
+
   it("restores saved create workflow settings from session storage", async () => {
     window.sessionStorage.clear();
     window.sessionStorage.setItem(
@@ -115,6 +124,40 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe("fal-ai/veo3.1");
     expect(result.current.aspect).toBe("16:9");
     expect(result.current.videoResolution).toBe("4k");
+  });
+
+  it("falls back to Seedream when saved create model is invalid for create image mode", async () => {
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem(
+      WORKFLOW_SETTINGS_SESSION_KEY,
+      JSON.stringify({
+        create: {
+          mode: "image",
+          model: "not-a-real-model-id",
+          aspect: "1:1",
+          imageResolution: "model_default",
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [
+            { id: "el-1", frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" },
+          ],
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useHarness("create"));
+
+    await waitFor(() => expect(result.current.mode).toBe("image"));
+    expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image");
   });
 
   it("persists workflow setting updates under the active tool key", async () => {

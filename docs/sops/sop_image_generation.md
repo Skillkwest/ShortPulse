@@ -29,7 +29,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 ## Image generation workflow (Create → Image)
 
-1. User selects mode “Image” in CreatePropertiesPanel and chooses aspect + model (Fal options filtered by mode).  
+1. User selects mode “Image” in CreatePropertiesPanel and chooses aspect + model (Fal options filtered by shared model-selection policy).  
 2. In advanced mode (`beginnerMode` off), user can choose model-specific image resolution from the dedicated resolution step card (same control style as video settings).
 3. User enters a prompt (optionally informed by previously described prompts).  
 4. Generate CTA shows estimated credits via `computeCostForModel(model, { aspect, resolution })`; disabled until a model is selected or the user lacks sufficient credits.  
@@ -40,6 +40,14 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
    - Task polling updates status; success stores `resultUrls`, sets `previewUrl`, and clears errors. Failures set `errorMessage` and stop polling.  
 6. Reference Grid prepends the new output card; Studio Preview shows the latest image.  
 7. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
+
+## Create startup model default (session restore)
+
+- Source of truth: `frontend/features/ai-studio/logic/modelSelectionPolicy.ts`.
+- Restore precedence in `useAiStudioWorkflowSettings`:
+  1. Preserve saved Create model when it is still valid for current mode.
+  2. For Create + Image with missing/invalid saved model, resolve to `fal-ai/bytedance/seedream/v4.5/text-to-image`.
+  3. Keep `null` only when no valid/default model exists for the current mode.
 
 ## Character Mode (Create workflow)
 

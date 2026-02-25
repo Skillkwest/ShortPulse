@@ -6,7 +6,7 @@ import { useCallback, useMemo } from "react";
 import { modelOptions } from "../constants";
 import { buildDefaultPricingParams, getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
-import { filterModelOptions } from "../logic/stateParsers";
+import { resolveAiStudioAllowedModelOptions } from "../logic/modelSelectionPolicy";
 import type { StudioMode, ToolId } from "../types";
 
 type UseAiStudioPageDerivationsParams = {
@@ -55,19 +55,19 @@ export const useAiStudioPageDerivations = ({
   );
 
   const filteredModelOptions = useMemo(() => {
-    const base = filterModelOptions(mode, selectedTool, modelOptions, getModelConfig);
-    if (selectedTool === "video" && videoReferenceMode === "standard") {
-      return base.filter(
-        (opt) => opt.mediaType === "image-to-video" && !opt.value.includes("kling")
-      );
-    }
-    if (selectedTool === "video" && videoReferenceMode === "keyframes") {
-      return base.filter((opt) => opt.value === "fal-ai/veo3.1/first-last-frame-to-video");
-    }
-    if (selectedTool === "video" && videoReferenceMode === "kling3") {
-      return base.filter((opt) => opt.value === "fal-ai/kling-video/v3/pro/image-to-video");
-    }
-    return base;
+    const normalizedVideoReferenceMode =
+      videoReferenceMode === "keyframes" ||
+      videoReferenceMode === "kling3" ||
+      videoReferenceMode === "motion"
+        ? videoReferenceMode
+        : "standard";
+    return resolveAiStudioAllowedModelOptions({
+      selectedTool,
+      mode,
+      videoReferenceMode: normalizedVideoReferenceMode,
+      options: modelOptions,
+      getModelConfig,
+    });
   }, [mode, selectedTool, videoReferenceMode]);
 
   const resolveDefaultPromptForTool = useCallback(

@@ -58,6 +58,34 @@ const normalizeStatus = (value: unknown): string => {
 const normalizePromptText = (value: unknown): string =>
   typeof value === "string" ? value.trim() : "";
 
+const extractFirstChoiceMessageContent = (data: Record<string, unknown>): unknown => {
+  const choices = data.choices;
+  if (!Array.isArray(choices)) return null;
+  const firstChoice = choices[0];
+  if (!firstChoice || typeof firstChoice !== "object") return null;
+  const message = (firstChoice as Record<string, unknown>).message;
+  if (!message || typeof message !== "object") return null;
+  return (message as Record<string, unknown>).content;
+};
+
+const extractUsageTokens = (
+  data: Record<string, unknown>
+): { inputTokens?: number; outputTokens?: number } => {
+  const usage = data.usage;
+  if (!usage || typeof usage !== "object") {
+    return {};
+  }
+  const usageRecord = usage as Record<string, unknown>;
+  const inputTokens =
+    typeof usageRecord.prompt_tokens === "number" ? usageRecord.prompt_tokens : undefined;
+  const outputTokens =
+    typeof usageRecord.completion_tokens === "number" ? usageRecord.completion_tokens : undefined;
+  return {
+    inputTokens,
+    outputTokens,
+  };
+};
+
 const buildFormatterSemanticPayload = ({
   semantic,
   thinkerRaw,
@@ -96,6 +124,34 @@ const toErrorDetail = (error: unknown): string => {
     return "OpenAI request timed out";
   }
   return error instanceof Error ? error.message : String(error);
+};
+
+const safeReadStageFailureDetail = async (response: Response): Promise<string> => {
+  try {
+    return await response.text();
+  } catch (error) {
+    return toErrorDetail(error);
+  }
+};
+
+const safeParseStageJson = async ({
+  response,
+  stage,
+}: {
+  response: Response;
+  stage: "thinker" | "formatter";
+}): Promise<{ ok: true; data: Record<string, unknown> } | ThinkerFormatterError> => {
+  try {
+    const data = (await response.json()) as Record<string, unknown>;
+    return { ok: true, data };
+  } catch (error) {
+    return {
+      ok: false,
+      stage,
+      status: 502,
+      detail: toErrorDetail(error),
+    };
+  }
 };
 
 const buildFormatterFallback = ({
@@ -185,7 +241,7 @@ export const runThinkerFormatterTurn = async ({
       try {
         const response = await fetchStage({ messages, stageModel });
         if (response.ok) return { ok: true, response };
-        const detail = await response.text();
+        const detail = await safeReadStageFailureDetail(response);
         const canRetry = attempt < attempts && RETRYABLE_STATUSES.has(response.status);
         if (canRetry) {
           await sleep(attempt * 120);
@@ -231,8 +287,15 @@ export const runThinkerFormatterTurn = async ({
   }
 
   const thinkerResp = thinkerStage.response;
-  const thinkerData = await thinkerResp.json();
-  const thinkerRaw = extractCompletionText(thinkerData?.choices?.[0]?.message?.content);
+  const thinkerParsed = await safeParseStageJson({
+    response: thinkerResp,
+    stage: "thinker",
+  });
+  if (!thinkerParsed.ok) {
+    return thinkerParsed;
+  }
+  const thinkerData = thinkerParsed.data;
+  const thinkerRaw = extractCompletionText(extractFirstChoiceMessageContent(thinkerData));
   let semantic: unknown = null;
   let semanticStatus: string | null = null;
   try {
@@ -274,10 +337,7 @@ export const runThinkerFormatterTurn = async ({
           parsed: fallback,
           nextCanonical,
           semanticStatus: semanticStatus ?? formatterSemantic.status,
-          usage: {
-            inputTokens: thinkerData?.usage?.prompt_tokens,
-            outputTokens: thinkerData?.usage?.completion_tokens,
-          },
+          usage: extractUsageTokens(thinkerData),
         },
       };
     }
@@ -285,24 +345,34 @@ export const runThinkerFormatterTurn = async ({
   }
 
   const formatterResp = formatterStage.response;
-  const formatterData = await formatterResp.json();
-  const formatterRaw = extractCompletionText(formatterData?.choices?.[0]?.message?.content);
-  const parsed = parseAgentJson(formatterRaw) ?? {
+  const formatterParsed = await safeParseStageJson({
+    response: formatterResp,
+    stage: "formatter",
+  });
+  if (!formatterParsed.ok) {
+    return formatterParsed;
+  }
+  const formatterData = formatterParsed.data;
+  const formatterRaw = extractCompletionText(extractFirstChoiceMessageContent(formatterData));
+  let parsed: AgentResponse | null = null;
+  try {
+    parsed = parseAgentJson(formatterRaw);
+  } catch {
+    parsed = null;
+  }
+  const safeParsed = parsed ?? {
     message: formatterRaw || "No response",
     actions: undefined,
   };
-  const nextCanonical = parsed?.actions?.applyPrompt ?? parsed?.message ?? null;
+  const nextCanonical = safeParsed.actions?.applyPrompt ?? safeParsed.message ?? null;
 
   return {
     ok: true,
     result: {
-      parsed,
+      parsed: safeParsed,
       nextCanonical,
       semanticStatus,
-      usage: {
-        inputTokens: formatterData?.usage?.prompt_tokens,
-        outputTokens: formatterData?.usage?.completion_tokens,
-      },
+      usage: extractUsageTokens(formatterData),
     },
   };
 };

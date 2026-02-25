@@ -604,6 +604,44 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     );
   });
 
+  it("keeps malformed upstream payload failures in classified fallback lane (not route exception lane)", async () => {
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(
+        new Response("{malformed-json", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response("{still-malformed-json", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-malformed-single-stage",
+        messages: [{ role: "user", content: "refine this prompt" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "I can't process that request right now. Please try again.",
+        actions: undefined,
+      })
+    );
+  });
+
   it("keeps non-safety 401 upstream failures as transport errors in single-stage mode", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
       new Response('{"error":{"message":"invalid api key"}}', {

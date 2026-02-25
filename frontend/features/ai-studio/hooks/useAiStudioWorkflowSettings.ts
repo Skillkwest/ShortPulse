@@ -6,6 +6,8 @@ import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateActio
 import { randomId } from "../logic/ids";
 import type { StudioMode, ToolId } from "../types";
 import { resolveWorkflowId } from "../logic/workflowIdentity";
+import { getModelConfig } from "../logic/pricing";
+import { resolveCreateWorkflowStartupModel } from "../logic/modelSelectionPolicy";
 
 export const WORKFLOW_SETTINGS_SESSION_KEY = "aiStudioWorkflowSettingsByTool.v1";
 
@@ -279,6 +281,18 @@ export const useAiStudioWorkflowSettings = ({
     }
 
     if (activeWorkflowSettingsKey === "create") {
+      const resolvedCreateModel = resolveCreateWorkflowStartupModel({
+        mode: snapshot.mode,
+        savedModelId: snapshot.model,
+        getModelConfig,
+      });
+      if (resolvedCreateModel !== snapshot.model) {
+        snapshot = {
+          ...snapshot,
+          model: resolvedCreateModel,
+        };
+        workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
+      }
       setMode(snapshot.mode);
     }
     setModelState(snapshot.model);

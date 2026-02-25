@@ -89,6 +89,35 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(markStage).toHaveBeenCalledWith("fast_path_turn", expect.any(Number));
   });
 
+  it("normalizes upstream JSON parse failures into typed failures", async () => {
+    fetchStudioAgentChatCompletionMock.mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new Error("invalid upstream json");
+      },
+    });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "hello" }],
+      timeoutMs: 20000,
+      effectiveCanonical: "base canonical",
+      context: {},
+      messages: [{ role: "user", content: "hello" }],
+      markStage,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      status: 502,
+      detail: "invalid upstream json",
+    });
+    expect(markStage).toHaveBeenCalledWith("fast_path_turn", expect.any(Number));
+  });
+
   it("returns normalized success payload and usage", async () => {
     fetchStudioAgentChatCompletionMock.mockResolvedValue({
       ok: true,

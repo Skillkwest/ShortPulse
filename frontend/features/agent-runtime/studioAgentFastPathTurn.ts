@@ -50,6 +50,42 @@ const resolveFastPathFailureStatus = (error: unknown): number => {
   return 503;
 };
 
+const safeReadFastPathErrorDetail = async (response: Response): Promise<string> => {
+  try {
+    return await response.text();
+  } catch (error) {
+    return formatStudioAgentErrorMessage(error);
+  }
+};
+
+const extractFirstChoiceMessageContent = (data: Record<string, unknown>): unknown => {
+  const choices = data.choices;
+  if (!Array.isArray(choices)) return null;
+  const firstChoice = choices[0];
+  if (!firstChoice || typeof firstChoice !== "object") return null;
+  const message = (firstChoice as Record<string, unknown>).message;
+  if (!message || typeof message !== "object") return null;
+  return (message as Record<string, unknown>).content;
+};
+
+const extractUsageTokens = (
+  data: Record<string, unknown>
+): { inputTokens?: number; outputTokens?: number } => {
+  const usage = data.usage;
+  if (!usage || typeof usage !== "object") {
+    return {};
+  }
+  const usageRecord = usage as Record<string, unknown>;
+  const inputTokens =
+    typeof usageRecord.prompt_tokens === "number" ? usageRecord.prompt_tokens : undefined;
+  const outputTokens =
+    typeof usageRecord.completion_tokens === "number" ? usageRecord.completion_tokens : undefined;
+  return {
+    inputTokens,
+    outputTokens,
+  };
+};
+
 export const executeStudioAgentFastPathTurn = async ({
   apiKey,
   openAiUrl,
@@ -92,7 +128,7 @@ export const executeStudioAgentFastPathTurn = async ({
   markStage("fast_path_turn", fastPathStartedAt);
 
   if (!response.ok) {
-    const detail = await response.text();
+    const detail = await safeReadFastPathErrorDetail(response);
     return {
       ok: false,
       status: response.status,
@@ -100,8 +136,17 @@ export const executeStudioAgentFastPathTurn = async ({
     };
   }
 
-  const data = await response.json();
-  const contentText = extractStudioAgentCompletionText(data?.choices?.[0]?.message?.content);
+  let data: Record<string, unknown>;
+  try {
+    data = (await response.json()) as Record<string, unknown>;
+  } catch (error) {
+    return {
+      ok: false,
+      status: 502,
+      detail: formatStudioAgentErrorMessage(error),
+    };
+  }
+  const contentText = extractStudioAgentCompletionText(extractFirstChoiceMessageContent(data));
   const semanticParsed = parseStudioAgentSemanticOutput(contentText);
   const parsedWithStatus = semanticParsed
     ? (() => {
@@ -141,10 +186,7 @@ export const executeStudioAgentFastPathTurn = async ({
       parsed,
       refusal,
       resolvedCanonical,
-      usage: {
-        inputTokens: data?.usage?.prompt_tokens,
-        outputTokens: data?.usage?.completion_tokens,
-      },
+      usage: extractUsageTokens(data),
     },
   };
 };

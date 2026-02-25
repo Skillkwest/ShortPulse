@@ -387,6 +387,97 @@ describe("ReferenceGrid curated split", () => {
     expect(requestedHydrationSources.includes(fallbackUrl)).toBe(false);
   });
 
+  it("bypasses optimizer on same-source cross-card hydration after first optimizer failure", async () => {
+    vi.useFakeTimers();
+    const requestedHydrationSources: string[] = [];
+    class MockHydrationImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      decoding = "async";
+      naturalWidth = 1024;
+      naturalHeight = 1024;
+      #src = "";
+
+      set src(value: string) {
+        this.#src = value;
+        requestedHydrationSources.push(value);
+        const callback = value.startsWith("/_next/image?") ? this.onerror : this.onload;
+        if (!callback) return;
+        setTimeout(() => callback(), 0);
+      }
+
+      get src() {
+        return this.#src;
+      }
+    }
+
+    vi.stubGlobal("Image", MockHydrationImage as unknown as typeof Image);
+
+    const fallbackUrl = "https://cdn.example.com/shared-source.png?token=raw";
+    const generatedOutputOne: StudioOutput = {
+      id: "generated-same-source-1",
+      prompt: "Generated image 1",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      taskState: "success",
+      previewStoragePath: fallbackUrl,
+      fullStoragePath: fallbackUrl,
+      previewUrl: fallbackUrl,
+      resultUrls: [fallbackUrl],
+    };
+    const generatedOutputTwo: StudioOutput = {
+      ...generatedOutputOne,
+      id: "generated-same-source-2",
+      prompt: "Generated image 2",
+    };
+
+    const { container, rerender } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedOutputOne],
+          activeOutputId: generatedOutputOne.id,
+        })}
+      />
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+    });
+
+    rerender(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedOutputTwo],
+          activeOutputId: generatedOutputTwo.id,
+        })}
+      />
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+    });
+
+    const optimizerAttempts = requestedHydrationSources.filter((value) =>
+      value.startsWith("/_next/image?")
+    );
+    expect(optimizerAttempts).toHaveLength(1);
+    expect(
+      requestedHydrationSources.filter((value) => value === fallbackUrl).length
+    ).toBeGreaterThan(0);
+    const telemetryRoot = container.querySelector(
+      "[data-grid-optimizer-failover-bypass-count]"
+    ) as HTMLElement | null;
+    expect(telemetryRoot).toBeTruthy();
+    expect(telemetryRoot?.getAttribute("data-grid-optimizer-failover-error-count")).toBe("1");
+    const bypassCount = Number(
+      telemetryRoot?.getAttribute("data-grid-optimizer-failover-bypass-count") ?? "0"
+    );
+    expect(bypassCount).toBeGreaterThanOrEqual(1);
+  });
+
   it("applies adaptive local compression to uploaded blob image previews", async () => {
     vi.useFakeTimers();
     const requestedHydrationSources: string[] = [];

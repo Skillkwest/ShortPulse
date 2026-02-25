@@ -18,6 +18,7 @@ type UseAiStudioPageDerivationsParams = {
   editReferenceText: string;
   videoReferenceText: string;
   videoReferenceMode: string;
+  isCharacterModeEnabled?: boolean;
 };
 
 /**
@@ -32,6 +33,7 @@ export const useAiStudioPageDerivations = ({
   editReferenceText,
   videoReferenceText,
   videoReferenceMode,
+  isCharacterModeEnabled = false,
 }: UseAiStudioPageDerivationsParams) => {
   const isTemplateView =
     selectedTool === "templates" ||
@@ -65,10 +67,11 @@ export const useAiStudioPageDerivations = ({
       selectedTool,
       mode,
       videoReferenceMode: normalizedVideoReferenceMode,
+      isCharacterModeEnabled,
       options: modelOptions,
       getModelConfig,
     });
-  }, [mode, selectedTool, videoReferenceMode]);
+  }, [isCharacterModeEnabled, mode, selectedTool, videoReferenceMode]);
 
   const resolveDefaultPromptForTool = useCallback(
     (tool: ToolId | null) => {

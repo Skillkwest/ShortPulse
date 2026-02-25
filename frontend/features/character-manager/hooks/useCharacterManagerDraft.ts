@@ -29,6 +29,10 @@ import {
   updateCharacterManagerName,
 } from "../logic/characterManagerPersistence";
 import { validateCharacterReferenceFile } from "../logic/referenceValidation";
+import {
+  persistSelectedCharacterId,
+  readPersistedSelectedCharacterId,
+} from "../logic/selectedCharacterPersistence";
 import type {
   CharacterProfileImageTransform,
   CharacterReferenceSlotKey,
@@ -227,6 +231,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       nextSlots: CharacterSlotFileMap;
     }) => {
       setCharacterId(nextCharacterId);
+      persistSelectedCharacterId(nextCharacterId);
       setCharacterSheetId(nextCharacterSheetId);
       suppressNextNamePersistRef.current = true;
       suppressNextDescriptionPersistRef.current = true;
@@ -258,7 +263,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       setLoading(true);
       setError(null);
       try {
-        const snapshot = await loadOrCreateCharacterManagerDraft();
+        const snapshot = await loadOrCreateCharacterManagerDraft(
+          readPersistedSelectedCharacterId()
+        );
         if (!active) return;
         applySnapshot({
           nextCharacterId: snapshot.characterId,

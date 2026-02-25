@@ -8,6 +8,10 @@ import {
   loadCharacterManagerDraftByCharacterId,
 } from "../../character-manager/logic/characterManagerPersistence";
 import {
+  persistSelectedCharacterId,
+  readPersistedSelectedCharacterId,
+} from "../../character-manager/logic/selectedCharacterPersistence";
+import {
   resolveCharacterSheetPresetReferenceStoragePaths,
   resolveCharacterSheetPresetReferenceUrls,
   resolveCharacterSheetReferenceStoragePaths,
@@ -36,7 +40,9 @@ export const useAiStudioCharacterModeLifecycle = ({
   setIsCharacterBundleLoading,
 }: UseAiStudioCharacterModeLifecycleParams) => {
   const [characterOptions, setCharacterOptions] = useState<CharacterSelectOption[]>([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState("");
+  const [selectedCharacterId, setSelectedCharacterId] = useState(
+    () => readPersistedSelectedCharacterId() ?? ""
+  );
   const [isCharacterOptionsLoading, setIsCharacterOptionsLoading] = useState(true);
 
   useEffect(() => {
@@ -76,6 +82,10 @@ export const useAiStudioCharacterModeLifecycle = ({
       active = false;
     };
   }, [setUiError]);
+
+  useEffect(() => {
+    persistSelectedCharacterId(selectedCharacterId || null);
+  }, [selectedCharacterId]);
 
   useEffect(() => {
     let active = true;

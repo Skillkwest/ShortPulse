@@ -248,41 +248,70 @@ export const listCharacterManagerCharacters = fetchCharacterManagerList;
 /**
  * Loads the latest character draft and its reference slot state. Creates one when missing.
  */
-export const loadOrCreateCharacterManagerDraft =
-  async (): Promise<CharacterManagerDraftSnapshot> => {
-    const { supabase, userId } = await resolveSupabaseContext();
-    const { data, error } = await supabase
+export const loadOrCreateCharacterManagerDraft = async (
+  preferredCharacterId?: string | null
+): Promise<CharacterManagerDraftSnapshot> => {
+  const { supabase, userId } = await resolveSupabaseContext();
+  const normalizedPreferredCharacterId = preferredCharacterId?.trim() || null;
+  if (normalizedPreferredCharacterId) {
+    const { data: preferredCharacterData, error: preferredCharacterError } = await supabase
       .from("characters")
-      .select("id, name, description, metadata")
+      .select("id, name, description, status, metadata")
       .eq("user_id", userId)
-      .neq("status", "archived")
-      .order("updated_at", { ascending: false })
-      .limit(1)
+      .eq("id", normalizedPreferredCharacterId)
       .maybeSingle();
-    if (error) {
-      throw new Error(asErrorMessage(error, "Failed to load characters."));
+    if (preferredCharacterError) {
+      throw new Error(asErrorMessage(preferredCharacterError, "Failed to load characters."));
     }
-
-    const character = (data as {
+    const preferredCharacter = preferredCharacterData as {
       id: string;
       name: string | null;
       description: string | null;
+      status: string;
       metadata: unknown;
-    } | null)
-      ? (data as {
-          id: string;
-          name: string | null;
-          description: string | null;
-          metadata: unknown;
-        })
-      : (await createDraftCharacter(DEFAULT_CHARACTER_NAME)).character;
-    return toCharacterSnapshot({
-      characterId: character.id,
-      characterName: character.name || DEFAULT_CHARACTER_NAME,
-      characterDescription: character.description ?? "",
-      characterMetadata: character.metadata,
-    });
-  };
+    } | null;
+    if (preferredCharacter && preferredCharacter.status !== "archived") {
+      return toCharacterSnapshot({
+        characterId: preferredCharacter.id,
+        characterName: preferredCharacter.name || DEFAULT_CHARACTER_NAME,
+        characterDescription: preferredCharacter.description ?? "",
+        characterMetadata: preferredCharacter.metadata,
+      });
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("characters")
+    .select("id, name, description, metadata")
+    .eq("user_id", userId)
+    .neq("status", "archived")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new Error(asErrorMessage(error, "Failed to load characters."));
+  }
+
+  const character = (data as {
+    id: string;
+    name: string | null;
+    description: string | null;
+    metadata: unknown;
+  } | null)
+    ? (data as {
+        id: string;
+        name: string | null;
+        description: string | null;
+        metadata: unknown;
+      })
+    : (await createDraftCharacter(DEFAULT_CHARACTER_NAME)).character;
+  return toCharacterSnapshot({
+    characterId: character.id,
+    characterName: character.name || DEFAULT_CHARACTER_NAME,
+    characterDescription: character.description ?? "",
+    characterMetadata: character.metadata,
+  });
+};
 
 /**
  * Creates a fresh character draft and empty character sheet.

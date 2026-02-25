@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import { useAiStudioCharacterModeLifecycle } from "../useAiStudioCharacterModeLifecycle";
@@ -104,6 +104,33 @@ const createSnapshotWithPresetReferences = () =>
 describe("useAiStudioCharacterModeLifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
+  });
+
+  it("hydrates selected character id from persisted storage", async () => {
+    window.localStorage.setItem("shortpulse.character_manager.selected_character_id.v1", "char-2");
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
+      createSnapshotWithPresetReferences()
+    );
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+      },
+      {
+        characterId: "char-2",
+        characterName: "Ayla",
+        profileImageUrl: null,
+      },
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
+
+    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(createParams()));
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("char-2");
+      expect(result.current.isCharacterOptionsLoading).toBe(false);
+    });
   });
 
   it("loads character options and clears loading state", async () => {
@@ -117,18 +144,16 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     const params = createParams();
     const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(params));
 
-    await act(async () => {
-      await Promise.resolve();
+    await waitFor(() => {
+      expect(result.current.characterOptions).toEqual([
+        {
+          id: "char-1",
+          name: "Hero",
+          profileImageUrl: "https://example.com/profile.png",
+        },
+      ]);
+      expect(result.current.isCharacterOptionsLoading).toBe(false);
     });
-
-    expect(result.current.characterOptions).toEqual([
-      {
-        id: "char-1",
-        name: "Hero",
-        profileImageUrl: "https://example.com/profile.png",
-      },
-    ]);
-    expect(result.current.isCharacterOptionsLoading).toBe(false);
   });
 
   it("surfaces non-session list errors to UI state", async () => {

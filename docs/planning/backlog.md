@@ -77,7 +77,8 @@ Tooling audit references:
 - [ ] AI Studio: correct local computer import media typing so uploaded images render and behave as images throughout the expanded media modal.
 - [ ] AI Studio: test header title color updates and add a sparkle icon next to the `AI Studio` title.
 - [ ] AI Studio: preload character workflow identities and saved references when entering from Dashboard so character assets are cached across workflow switches.
-- [ ] AI Studio: persist the selected character in the `Character Properties` panel across mode switches, and default back to that selected profile instead of the base default profile.
+- [x] AI Studio: persist the selected character in the `Character Properties` panel across mode switches, and default back to that selected profile instead of the base default profile.
+  Evidence: `frontend/features/character-manager/logic/selectedCharacterPersistence.ts`, `frontend/features/character-manager/hooks/useCharacterManagerDraft.ts`, `frontend/features/ai-studio/hooks/useAiStudioCharacterModeLifecycle.ts`, `frontend/tests/pages/ai-studio.character-mode.test.tsx`
 - [ ] AI Studio: make `CharacterManager` open instantly (no open animation) and tune properties panel sizing.
 - [ ] AI Studio: in Beginner mode, make the `Create Properties` panel resize to its minimum width when `Create Primary` is clicked.
 - [ ] AI Studio: add a `Canvas` button that opens a free-form canvas for dragging/dropping images and text prompts to visually organize ideas.

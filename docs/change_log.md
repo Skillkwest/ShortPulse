@@ -1380,3 +1380,31 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated SOPs to document prompt-card reuse behavior and primary-generate-only workflow:
   - `docs/sops/sop_text_generation.md`
   - `docs/sops/sop_ai_studio_agent_chat_ops.md`
+
+## 2026-02-25 (AI Studio Create Character Mode model picker filtering)
+- Updated the shared create/image model-selection policy so Character Mode hides `FLUX.2 Lite` in the Create model picker while preserving existing startup/default precedence:
+  - `frontend/features/ai-studio/logic/modelSelectionPolicy.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioPageDerivations.ts`
+  - `frontend/pages/ai-studio.tsx`
+- Added regression coverage for policy-level Character Mode filtering and page-level derived model options:
+  - `frontend/features/ai-studio/logic/__tests__/modelSelectionPolicy.test.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPageDerivations.test.ts`
+- Synced Character Mode behavior documentation:
+  - `docs/sops/sop_image_generation.md`
+
+## 2026-02-25 (Character selection persistence across Character Manager and AI Studio)
+- Added shared selected-character persistence helpers with local-storage backing:
+  - `frontend/features/character-manager/logic/selectedCharacterPersistence.ts`
+- Updated Character Manager draft bootstrap to prefer persisted selection and keep persistence current after character switches:
+  - `frontend/features/character-manager/logic/characterManagerPersistence.ts`
+  - `frontend/features/character-manager/hooks/useCharacterManagerDraft.ts`
+- Updated AI Studio Create Character Mode lifecycle to hydrate and persist `selectedCharacterId` using the same shared persistence key:
+  - `frontend/features/ai-studio/hooks/useAiStudioCharacterModeLifecycle.ts`
+- Added/updated regression coverage:
+  - `frontend/features/character-manager/logic/__tests__/selectedCharacterPersistence.test.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioCharacterModeLifecycle.test.ts`
+  - `frontend/tests/pages/ai-studio.character-mode.test.tsx`
+- Updated docs/runbooks:
+  - `docs/sops/sop_character_manager_operations.md`
+  - `docs/sops/sop_image_generation.md`
+  - `docs/planning/backlog.md`

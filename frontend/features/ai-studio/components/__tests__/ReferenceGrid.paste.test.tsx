@@ -557,8 +557,8 @@ describe("ReferenceGrid paste handling", () => {
     expect(onPasteMediaReference).not.toHaveBeenCalled();
   });
 
-  it("does not render a billing guidance note for prompt-reference generation", () => {
-    const { container } = render(
+  it("does not render the deprecated prompt-reference billing note", () => {
+    const { container, queryByRole } = render(
       <ReferenceGrid
         {...baseProps}
         activeOutputId="prompt-ref-1"
@@ -574,10 +574,10 @@ describe("ReferenceGrid paste handling", () => {
             previewText: "cinematic portrait",
           },
         ]}
-        onGeneratePrompt={vi.fn()}
       />
     );
 
     expect(container.querySelector(".reference-prompt-generate-note")).toBeNull();
+    expect(queryByRole("button", { name: "Generate" })).toBeNull();
   });
 });

@@ -132,8 +132,6 @@ export type ReferenceGridProps = {
   onSelectOutput: (id: string) => void;
   onOpenDetails: (id: string) => void;
   selectedTool: ToolId | null;
-  showPromptGenerate?: boolean;
-  disablePromptGenerate?: boolean;
   onDropFiles?: (files: FileList) => void;
   onPasteTextReference?: (text: string) => void;
   onPasteMediaReference?: (reference: PastedMediaReference) => void;
@@ -141,7 +139,6 @@ export type ReferenceGridProps = {
   onOpenMediaLibrary?: () => void;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
-  onGeneratePrompt?: (output: StudioOutput) => void;
   onRetryStatus?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
   onAddCuratedReference?: (id: string) => void;
@@ -153,7 +150,6 @@ export type ReferenceGridProps = {
   ) => void;
   onRestoreArchivedOutput?: (id: string) => void;
   onRestoreAllArchivedOutputs?: () => void;
-  generateCostCredits?: number | null;
 };
 
 /**
@@ -176,8 +172,6 @@ export function ReferenceGrid({
   onSelectOutput,
   onOpenDetails,
   selectedTool,
-  showPromptGenerate = true,
-  disablePromptGenerate = false,
   onDropFiles,
   onPasteTextReference,
   onPasteMediaReference,
@@ -185,7 +179,6 @@ export function ReferenceGrid({
   onOpenMediaLibrary,
   onSaveToLibrary,
   onDownload,
-  onGeneratePrompt,
   onRetryStatus,
   onDeleteOutput,
   onAddCuratedReference,
@@ -193,7 +186,6 @@ export function ReferenceGrid({
   onReorderCuratedReference,
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
-  generateCostCredits,
 }: ReferenceGridProps) {
   const selectorOutputs = useOutputSelector((snapshot) => {
     if (outputsProp) return EMPTY_OUTPUTS;
@@ -730,9 +722,6 @@ export function ReferenceGrid({
   });
   const { curatedCardNodes, allRefsCardNodes } = useReferenceGridCardRenderController({
     activeOutputId,
-    showPromptGenerate,
-    disablePromptGenerate,
-    generateCostCredits,
     autoplayEnabledIdSet,
     linkedPromptReferenceIdSet,
     loadingCardIdSet,
@@ -757,7 +746,6 @@ export function ReferenceGrid({
     onRemoveCuratedReference,
     onSaveToLibrary,
     onDownload,
-    onGeneratePrompt,
   });
 
   return (

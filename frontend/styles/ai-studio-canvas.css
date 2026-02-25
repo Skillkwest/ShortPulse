@@ -391,7 +391,6 @@
 }
 
 .reference-card.is-dragging .reference-card-actions,
-.reference-card.is-dragging .reference-generate-pill,
 .reference-card.is-dragging .reference-status-retry-btn,
 .reference-card.is-dragging .reference-save-chip {
   opacity: 0 !important;
@@ -426,130 +425,6 @@
 .reference-card.is-loading.is-active::after {
   border-color: transparent;
   box-shadow: none;
-}
-
-.reference-card .reference-generate-pill {
-  position: absolute;
-  left: 50%;
-  right: auto;
-  bottom: 12px;
-  width: max-content;
-  max-width: calc(100% - 28px);
-  opacity: 0;
-  transition:
-    opacity 0.16s ease,
-    box-shadow 0.16s ease,
-    transform 0.12s ease;
-  z-index: 3;
-  pointer-events: none;
-}
-
-.reference-card .reference-generate-pill.agent-generate-prefab {
-  width: auto;
-  justify-content: center;
-  padding: 9px 16px;
-  border-radius: 999px;
-  gap: 6px;
-  box-shadow: 0 4px 1px rgba(37, 169, 191, 0.35);
-  transform: translateX(-50%);
-  white-space: nowrap;
-}
-
-.reference-canvas-panel .reference-card .reference-prompt-generate-pill.agent-generate-prefab {
-  bottom: 24px;
-  border: 1px solid var(--reference-generate-border);
-  background: linear-gradient(
-    135deg,
-    var(--reference-generate-start),
-    var(--reference-generate-end)
-  );
-  box-shadow: 0 4px 1px var(--reference-generate-shadow);
-  color: var(--reference-generate-text);
-}
-
-.reference-canvas-panel
-  .reference-card
-  .reference-prompt-generate-pill.agent-generate-prefab:hover:not(:disabled) {
-  box-shadow: 0 6px 14px var(--reference-generate-hover-shadow);
-}
-
-.reference-canvas-panel .reference-card .reference-prompt-generate-pill .agent-generate-label,
-.reference-canvas-panel
-  .reference-card
-  .reference-prompt-generate-pill
-  .generate-pill
-  .model-chip-icon,
-.reference-canvas-panel
-  .reference-card
-  .reference-prompt-generate-pill
-  .generate-pill
-  .model-chip-credits,
-.reference-canvas-panel
-  .reference-card
-  .reference-prompt-generate-pill
-  .generate-pill
-  .model-chip-credits-label {
-  color: var(--reference-generate-text);
-}
-
-.reference-card .reference-prompt-generate-note {
-  position: absolute;
-  left: 50%;
-  bottom: 8px;
-  transform: translateX(-50%);
-  z-index: 3;
-  opacity: 0;
-  pointer-events: none;
-  color: var(--ai-card-text-muted);
-  font-size: 10px;
-  line-height: 1.2;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
-.reference-card .reference-generate-pill.agent-generate-prefab .agent-generate-label {
-  font-size: 12px;
-  flex: 0 1 auto;
-  text-align: center;
-}
-
-.reference-card .reference-generate-pill.agent-generate-prefab .generate-pill {
-  margin-left: 0;
-}
-
-.reference-card .reference-generate-pill.agent-generate-prefab:hover:not(:disabled) {
-  transform: translateX(-50%) translateY(1px);
-}
-
-.reference-card .reference-generate-pill.agent-generate-prefab .generate-pill .model-chip-icon {
-  font-size: 14px;
-}
-
-.reference-card .reference-generate-pill.agent-generate-prefab .generate-pill .model-chip-credits {
-  font-size: 12px;
-  letter-spacing: 0.08em;
-}
-
-.reference-card
-  .reference-generate-pill.agent-generate-prefab
-  .generate-pill
-  .model-chip-credits-label {
-  font-size: 12px;
-  letter-spacing: 0.04em;
-}
-
-.reference-card.is-active .reference-generate-pill {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.reference-card.is-active .reference-prompt-generate-note {
-  opacity: 1;
-}
-
-.reference-card .reference-generate-pill:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.9);
-  outline-offset: 2px;
 }
 
 .reference-card-actions {

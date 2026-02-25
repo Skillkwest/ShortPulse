@@ -1,10 +1,9 @@
 /**
  * Reference asset actions hook for AI Studio.
- * Encapsulates download/save/generate-from-reference handlers used by reference cards and detail modal.
+ * Encapsulates download/save handlers used by reference cards and detail modal.
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
-import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import {
   downloadBlobToFile,
   downloadReferenceProviderBlob,
@@ -12,26 +11,10 @@ import {
   resolveReferenceDownloadFilename,
   resolveReferenceDownloadTarget,
 } from "../logic/referenceDownload";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { StudioOutput } from "../types";
 
 type UseAiStudioReferenceAssetActionsParams = {
   findOutputById: (id: string) => StudioOutput | null;
-  selectedTool: ToolId | null;
-  currentCostCredits: number | null;
-  setVideoReferenceText: (value: string) => void;
-  setEditReferenceText: (value: string) => void;
-  setSharedPrompt: (value: string) => void;
-  setSelectedTool: (tool: ToolId | null) => void;
-  setMode: Dispatch<SetStateAction<StudioMode>>;
-  setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
-  handleGenerate: (
-    promptOverride?: string | null,
-    options?: {
-      modeOverride?: StudioMode;
-      toolOverride?: ToolId | null;
-      costOverrideCredits?: number | null;
-    }
-  ) => Promise<void>;
   saveReferenceToLibrary: (outputId: string) => void;
   setUiError: Dispatch<SetStateAction<string | null>>;
 };
@@ -41,15 +24,6 @@ type UseAiStudioReferenceAssetActionsParams = {
  */
 export const useAiStudioReferenceAssetActions = ({
   findOutputById,
-  selectedTool,
-  currentCostCredits,
-  setVideoReferenceText,
-  setEditReferenceText,
-  setSharedPrompt,
-  setSelectedTool,
-  setMode,
-  setPromptOrigin,
-  handleGenerate,
   saveReferenceToLibrary,
   setUiError,
 }: UseAiStudioReferenceAssetActionsParams) => {
@@ -123,53 +97,8 @@ export const useAiStudioReferenceAssetActions = ({
     [saveReferenceToLibrary]
   );
 
-  const handleGenerateFromPromptReference = useCallback(
-    async (outputId: string) => {
-      const target = findOutputById(outputId);
-      const promptText = target?.prompt ?? target?.previewText ?? "";
-      if (!promptText.trim()) return;
-
-      const isVideoWorkflow = selectedTool === "video" || selectedTool === "kling";
-      const isEditWorkflow = selectedTool === "edit" || selectedTool === "image";
-      const workflowTool: ToolId = isVideoWorkflow ? "video" : isEditWorkflow ? "edit" : "create";
-      const workflowMode: StudioMode = isVideoWorkflow ? "video" : "image";
-
-      if (workflowTool === "video") {
-        setVideoReferenceText(promptText);
-      } else if (workflowTool === "edit") {
-        setEditReferenceText(promptText);
-      } else {
-        setSharedPrompt(promptText);
-        if (selectedTool !== "create" && selectedTool !== "text") {
-          setSelectedTool("create");
-        }
-        setMode("image");
-      }
-
-      setPromptOrigin("reference");
-      await handleGenerate(promptText, {
-        modeOverride: workflowMode,
-        toolOverride: workflowTool,
-        costOverrideCredits: currentCostCredits,
-      });
-    },
-    [
-      currentCostCredits,
-      findOutputById,
-      handleGenerate,
-      selectedTool,
-      setEditReferenceText,
-      setMode,
-      setPromptOrigin,
-      setSelectedTool,
-      setSharedPrompt,
-      setVideoReferenceText,
-    ]
-  );
-
   return {
     handleDownloadReference,
     handleSaveReference,
-    handleGenerateFromPromptReference,
   };
 };

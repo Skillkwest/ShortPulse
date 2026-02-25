@@ -22,9 +22,6 @@ export type ReferenceGridVisibleCard = {
 
 type UseReferenceGridCardRenderControllerArgs = {
   activeOutputId: string | null;
-  showPromptGenerate: boolean;
-  disablePromptGenerate: boolean;
-  generateCostCredits: number | null | undefined;
   autoplayEnabledIdSet: Set<string>;
   linkedPromptReferenceIdSet: Set<string>;
   loadingCardIdSet: Set<string>;
@@ -53,7 +50,6 @@ type UseReferenceGridCardRenderControllerArgs = {
   onRemoveCuratedReference?: (id: string) => void;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
-  onGeneratePrompt?: (output: StudioOutput) => void;
 };
 
 type UseReferenceGridCardRenderControllerResult = {
@@ -66,9 +62,6 @@ type UseReferenceGridCardRenderControllerResult = {
  */
 export const useReferenceGridCardRenderController = ({
   activeOutputId,
-  showPromptGenerate,
-  disablePromptGenerate,
-  generateCostCredits,
   autoplayEnabledIdSet,
   linkedPromptReferenceIdSet,
   loadingCardIdSet,
@@ -93,7 +86,6 @@ export const useReferenceGridCardRenderController = ({
   onRemoveCuratedReference,
   onSaveToLibrary,
   onDownload,
-  onGeneratePrompt,
 }: UseReferenceGridCardRenderControllerArgs): UseReferenceGridCardRenderControllerResult => {
   const renderReferenceCard = useCallback(
     (
@@ -136,9 +128,6 @@ export const useReferenceGridCardRenderController = ({
           isPromptOnly={isPromptOnly}
           isLinkedPromptReference={isLinkedPromptReference}
           canRetryStatus={canRetryStatus}
-          showPromptGenerate={showPromptGenerate}
-          disablePromptGenerate={disablePromptGenerate}
-          generateCostCredits={generateCostCredits}
           imageSrc={card.imageSrc}
           imageLoading={card.isPriorityHydration ? "eager" : "lazy"}
           imageFetchPriority={card.isPriorityHydration ? "high" : "low"}
@@ -181,7 +170,6 @@ export const useReferenceGridCardRenderController = ({
           showCuratedRemoveAction={options.isCuratedSurface}
           onSaveToLibrary={onSaveToLibrary}
           onDownload={onDownload}
-          onGeneratePrompt={onGeneratePrompt}
           hideReferenceActions={options.isCuratedSurface}
         />
       );
@@ -189,8 +177,6 @@ export const useReferenceGridCardRenderController = ({
     [
       activeOutputId,
       autoplayEnabledIdSet,
-      disablePromptGenerate,
-      generateCostCredits,
       linkedPromptReferenceIdSet,
       markLoaded,
       onAutoplayStarted,
@@ -204,7 +190,6 @@ export const useReferenceGridCardRenderController = ({
       onCuratedSectionDragOver,
       onDeleteOutput,
       onDownload,
-      onGeneratePrompt,
       onOpenDetails,
       onRemoveCuratedReference,
       onRetryStatus,
@@ -213,7 +198,6 @@ export const useReferenceGridCardRenderController = ({
       loadingCardIdSet,
       perfDegradeLevel,
       registerVideoNode,
-      showPromptGenerate,
     ]
   );
 

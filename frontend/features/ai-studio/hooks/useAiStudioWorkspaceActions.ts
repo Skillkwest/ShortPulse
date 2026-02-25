@@ -1,25 +1,13 @@
 /**
  * Workspace action and UI policy hook for AI Studio.
- * Centralizes page-level selection handlers and prompt-reference generate gating.
+ * Centralizes page-level selection handlers and workspace file/media actions.
  */
-import {
-  useCallback,
-  useMemo,
-  useState,
-  type ChangeEvent,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useCallback, useState, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
 import type { ModelModalContext } from "../components/ModelModal";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import { isReferencePromptTool } from "../logic/promptTargeting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
-import {
-  isCreateWorkflow,
-  isEditWorkflow,
-  isVideoWorkflow,
-  normalizeToolId,
-} from "../logic/workflowIdentity";
+import { isCreateWorkflow, normalizeToolId } from "../logic/workflowIdentity";
 import type { StudioMode, ToolId } from "../types";
 
 type UseAiStudioWorkspaceActionsParams = {
@@ -41,18 +29,10 @@ type UseAiStudioWorkspaceActionsParams = {
   addCharacterReferences: (files: FileList) => void;
   addOutputsFromFiles: (files: FileList, source?: "filePicker" | "drop") => void;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
-  model: string | null;
-  hasSufficientCreditsForCost: boolean;
-  referenceImageUrl: string | null;
-  extraImageUrls: Array<string | null>;
-  motionReferenceVideoUrl: string | null;
-  editReferenceText: string;
-  videoReferenceText: string;
-  videoReferenceMode: string;
 };
 
 /**
- * Returns stable workspace action handlers and prompt-reference generate visibility flags.
+ * Returns stable workspace action handlers for tool/model/file/media interactions.
  */
 export const useAiStudioWorkspaceActions = ({
   selectedTool,
@@ -69,14 +49,6 @@ export const useAiStudioWorkspaceActions = ({
   addCharacterReferences,
   addOutputsFromFiles,
   setActiveOutputId,
-  model,
-  hasSufficientCreditsForCost,
-  referenceImageUrl,
-  extraImageUrls,
-  motionReferenceVideoUrl,
-  editReferenceText,
-  videoReferenceText,
-  videoReferenceMode,
 }: UseAiStudioWorkspaceActionsParams) => {
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
 
@@ -183,53 +155,6 @@ export const useAiStudioWorkspaceActions = ({
     [setActiveOutputId]
   );
 
-  const showReferencePromptGenerate = useMemo(() => {
-    const isCreateWorkflowSelected = isCreateWorkflow(selectedTool);
-    const isEditWorkflowSelected = isEditWorkflow(selectedTool);
-    const isVideoWorkflowSelected = isVideoWorkflow(selectedTool);
-    const hasModelSelected = Boolean(model);
-    const hasPrimaryReferenceImage = Boolean(referenceImageUrl);
-    const hasFirstLastFrameReferences = Boolean(referenceImageUrl && extraImageUrls[0]);
-    const hasMotionReferences = Boolean(referenceImageUrl && motionReferenceVideoUrl);
-    const hasEditPromptText = Boolean(editReferenceText.trim());
-    const hasVideoPromptText = Boolean(videoReferenceText.trim());
-
-    const canShowCreatePromptReferenceGenerate = hasModelSelected && hasSufficientCreditsForCost;
-    const canShowEditPromptReferenceGenerate =
-      hasModelSelected &&
-      hasSufficientCreditsForCost &&
-      hasPrimaryReferenceImage &&
-      !hasEditPromptText;
-    const videoReferencesReadyForPromptGenerate =
-      videoReferenceMode === "standard"
-        ? hasPrimaryReferenceImage
-        : videoReferenceMode === "keyframes"
-          ? hasFirstLastFrameReferences
-          : videoReferenceMode === "motion"
-            ? hasMotionReferences
-            : hasPrimaryReferenceImage;
-    const canShowVideoPromptReferenceGenerate =
-      hasModelSelected &&
-      hasSufficientCreditsForCost &&
-      !hasVideoPromptText &&
-      videoReferencesReadyForPromptGenerate;
-
-    if (isCreateWorkflowSelected) return canShowCreatePromptReferenceGenerate;
-    if (isEditWorkflowSelected) return canShowEditPromptReferenceGenerate;
-    if (isVideoWorkflowSelected) return canShowVideoPromptReferenceGenerate;
-    return false;
-  }, [
-    editReferenceText,
-    extraImageUrls,
-    hasSufficientCreditsForCost,
-    model,
-    motionReferenceVideoUrl,
-    referenceImageUrl,
-    selectedTool,
-    videoReferenceMode,
-    videoReferenceText,
-  ]);
-
   return {
     isMediaLibraryOpen,
     handleOpenModelModal,
@@ -247,7 +172,5 @@ export const useAiStudioWorkspaceActions = ({
      */
     handleReferenceCanvasFiles: handleReferenceGridFiles,
     handleSelectOutput,
-    showReferencePromptGenerate,
-    disableReferencePromptGenerate: !showReferencePromptGenerate,
   };
 };

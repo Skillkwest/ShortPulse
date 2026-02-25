@@ -139,7 +139,7 @@ export const useAiStudioViewModel = ({
   ]);
 
   const currentCostCredits = currentCost?.credits ?? null;
-  // Cost shown in the model picker (and what we also want on prompt-card Generate pills)
+  // Cost shown in the model picker (also used by agent-output generation affordances).
   const modelPickerCostCredits = useMemo(() => {
     if (!model) return null;
     const breakdown = computeCostForModel(

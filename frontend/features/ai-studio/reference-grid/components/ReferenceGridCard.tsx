@@ -21,9 +21,6 @@ export type ReferenceGridCardProps = {
   isPromptOnly: boolean;
   isLinkedPromptReference: boolean;
   canRetryStatus: boolean;
-  showPromptGenerate: boolean;
-  disablePromptGenerate: boolean;
-  generateCostCredits: number | null | undefined;
   imageSrc: string | undefined;
   imageLoading: "eager" | "lazy";
   imageFetchPriority: "high" | "low";
@@ -50,7 +47,6 @@ export type ReferenceGridCardProps = {
   showCuratedRemoveAction?: boolean;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
-  onGeneratePrompt?: (output: StudioOutput) => void;
   hideReferenceActions?: boolean;
 };
 
@@ -94,9 +90,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   isPromptOnly,
   isLinkedPromptReference,
   canRetryStatus,
-  showPromptGenerate,
-  disablePromptGenerate,
-  generateCostCredits,
   imageSrc,
   imageLoading,
   imageFetchPriority,
@@ -119,7 +112,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   showCuratedRemoveAction = false,
   onSaveToLibrary,
   onDownload,
-  onGeneratePrompt,
   hideReferenceActions = false,
 }: ReferenceGridCardProps) {
   const isFailing = item.taskState === "fail";
@@ -330,31 +322,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         </div>
       ) : null}
       {item.previewText ? <div className="reference-card-text">{item.previewText}</div> : null}
-      {isPromptOnly && onGeneratePrompt && isSelected && showPromptGenerate ? (
-        <button
-          type="button"
-          className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill"
-          disabled={disablePromptGenerate}
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelectOutput(item.id);
-            onGeneratePrompt(item);
-          }}
-          onDoubleClick={(event) => {
-            event.stopPropagation();
-          }}
-        >
-          <span className="agent-generate-label">Generate</span>
-          <span className="model-chip-pill generate-pill">
-            <span aria-hidden="true" className="model-chip-icon">
-              ✦
-            </span>
-            <span className="model-chip-credits">
-              {generateCostCredits != null ? generateCostCredits : "—"}
-            </span>
-          </span>
-        </button>
-      ) : null}
     </div>
   );
 });

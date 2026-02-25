@@ -25,14 +25,6 @@ const createParams = (
   addCharacterReferences: vi.fn(),
   addOutputsFromFiles: vi.fn(),
   setActiveOutputId: asDispatch<string | null>(vi.fn()),
-  model: "fal-ai/seedream",
-  hasSufficientCreditsForCost: true,
-  referenceImageUrl: "",
-  extraImageUrls: [],
-  motionReferenceVideoUrl: "",
-  editReferenceText: "",
-  videoReferenceText: "",
-  videoReferenceMode: "standard",
   ...overrides,
 });
 
@@ -164,56 +156,5 @@ describe("useAiStudioWorkspaceActions", () => {
     });
     expect(addOutputsFromFiles).toHaveBeenCalledTimes(2);
     expect(addOutputsFromFiles).toHaveBeenLastCalledWith(droppedFiles, "drop");
-  });
-
-  it("shows prompt-reference generate only when workflow requirements are met", () => {
-    const { result, rerender } = renderHook(
-      ({
-        selectedTool,
-        referenceImageUrl,
-        editReferenceText,
-        videoReferenceText,
-      }: {
-        selectedTool: ToolId | null;
-        referenceImageUrl: string;
-        editReferenceText: string;
-        videoReferenceText: string;
-      }) =>
-        useAiStudioWorkspaceActions(
-          createParams({
-            selectedTool,
-            referenceImageUrl,
-            editReferenceText,
-            videoReferenceText,
-          })
-        ),
-      {
-        initialProps: {
-          selectedTool: "create" as ToolId,
-          referenceImageUrl: "",
-          editReferenceText: "",
-          videoReferenceText: "",
-        },
-      }
-    );
-
-    expect(result.current.showReferencePromptGenerate).toBe(true);
-    expect(result.current.disableReferencePromptGenerate).toBe(false);
-
-    rerender({
-      selectedTool: "edit",
-      referenceImageUrl: "",
-      editReferenceText: "",
-      videoReferenceText: "",
-    });
-    expect(result.current.showReferencePromptGenerate).toBe(false);
-
-    rerender({
-      selectedTool: "video",
-      referenceImageUrl: "https://example.com/ref.png",
-      editReferenceText: "",
-      videoReferenceText: "already set",
-    });
-    expect(result.current.showReferencePromptGenerate).toBe(false);
   });
 });

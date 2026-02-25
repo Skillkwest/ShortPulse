@@ -1089,7 +1089,6 @@ export default function AiStudioPage() {
   const {
     currentCostCredits,
     promptReferenceGenerateCostCredits,
-    hasSufficientCreditsForCost,
     hasSufficientCreditsForPromptReferenceGenerate,
     isCreditGuardrail,
     generationGuardrail,
@@ -1128,8 +1127,6 @@ export default function AiStudioPage() {
     handleFileBrowserSelection,
     handleReferenceGridFiles,
     handleSelectOutput,
-    showReferencePromptGenerate,
-    disableReferencePromptGenerate,
   } = useAiStudioWorkspaceActions({
     selectedTool,
     setSelectedTool,
@@ -1145,14 +1142,6 @@ export default function AiStudioPage() {
     addCharacterReferences,
     addOutputsFromFiles,
     setActiveOutputId,
-    model,
-    hasSufficientCreditsForCost,
-    referenceImageUrl,
-    extraImageUrls,
-    motionReferenceVideoUrl,
-    editReferenceText,
-    videoReferenceText,
-    videoReferenceMode,
   });
 
   const {
@@ -1257,21 +1246,11 @@ export default function AiStudioPage() {
       selectedTool,
     ]
   );
-  const { handleDownloadReference, handleSaveReference, handleGenerateFromPromptReference } =
-    useAiStudioReferenceAssetActions({
-      findOutputById,
-      selectedTool,
-      currentCostCredits,
-      setVideoReferenceText,
-      setEditReferenceText,
-      setSharedPrompt,
-      setSelectedTool,
-      setMode,
-      setPromptOrigin,
-      handleGenerate,
-      saveReferenceToLibrary,
-      setUiError,
-    });
+  const { handleDownloadReference, handleSaveReference } = useAiStudioReferenceAssetActions({
+    findOutputById,
+    saveReferenceToLibrary,
+    setUiError,
+  });
 
   const { propertiesCreate, propertiesImage, propertiesVideo } = useAiStudioPanelProps({
     mode,
@@ -1384,13 +1363,10 @@ export default function AiStudioPage() {
     removedFromAllRefsIds,
     onReferenceOutputMediaLoaded,
     linkedPromptReferenceIds,
-    showReferencePromptGenerate,
-    disableReferencePromptGenerate,
     handleSelectOutput,
     setDetailOutputId,
     handleSaveReference,
     handleDownloadReference,
-    handleGenerateFromPromptReference,
     handlePasteTextReference: addPastedPromptReference,
     handlePasteMediaReference: addPastedMediaReference,
     retryOutputStatus,
@@ -1400,7 +1376,6 @@ export default function AiStudioPage() {
     reorderCuratedReference,
     restoreArchivedOutput,
     restoreAllArchivedOutputs,
-    currentCostCredits,
     selectedTool,
   });
   const {

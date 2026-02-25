@@ -1346,3 +1346,37 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/api/api-fal-flux-2.md`
   - `docs/api/api-fal-flux-2-klein-9b.md`
   - `docs/api/api-fal-seedream-4-5.md`
+
+## 2026-02-25 (AI Studio safety-policy track closeout verification)
+- Completed Workstream C closeout for Foundational Hardening Program v2 with official fal.ai verification across image models.
+- Added formal verification evidence and full-gate results:
+  - `docs/planning/evidence/agent/phase-5/2026-02-25-phase-5-safety-policy-verification-closeout.md`
+- Corrected Seedream text model catalog doc source to fal canonical endpoint:
+  - `frontend/lib/model-runtime/modelCatalog.ts`
+  - updated from `.../seedream/v4.5/api` to `.../seedream/v4.5/text-to-image/api`
+- Executed full regression gates (all pass):
+  - `npm -C frontend run type-check`
+  - `npm -C frontend run lint`
+  - `npm -C frontend run test`
+  - `npm -C frontend run build`
+
+## 2026-02-25 (AI Studio reference-grid prompt card generation decoupling)
+- Removed the reference-card Generate pill from the Reference Grid prompt cards and deleted its render-path wiring:
+  - `frontend/features/ai-studio/reference-grid/components/ReferenceGridCard.tsx`
+  - `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridCardRenderController.tsx`
+  - `frontend/features/ai-studio/components/ReferenceGrid.tsx`
+- Unwired prompt-card generation plumbing from page orchestration and reference-grid prop composition:
+  - `frontend/features/ai-studio/hooks/useAiStudioReferenceGridProps.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioWorkspaceActions.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioReferenceAssetActions.ts`
+  - `frontend/pages/ai-studio.tsx`
+- Removed dead reference-card generate styling and retained agent-output generate styling on chat surfaces:
+  - `frontend/styles/ai-studio-canvas.css`
+- Updated regression tests for the new contract (no per-card generate callbacks/flags):
+  - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.paste.test.tsx`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceGridProps.test.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioWorkspaceActions.test.ts`
+  - `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceAssetActions.test.ts`
+- Updated SOPs to document prompt-card reuse behavior and primary-generate-only workflow:
+  - `docs/sops/sop_text_generation.md`
+  - `docs/sops/sop_ai_studio_agent_chat_ops.md`

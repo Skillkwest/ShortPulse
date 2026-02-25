@@ -4,6 +4,7 @@ import { createFalSubmitHandler } from "../../lib/server/api/falSubmitProxy";
 const chargeGenerationRequestMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const ensureSubmittedGenerationRecordMock = vi.fn();
+const evaluateUserGenerationAdmissionMock = vi.fn();
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
@@ -18,9 +19,15 @@ vi.mock("../../lib/server/api/generationSubmitPersistence", () => ({
     ensureSubmittedGenerationRecordMock(...args),
 }));
 
+vi.mock("../../lib/server/api/generationAdmission/generationAdmissionService", () => ({
+  evaluateUserGenerationAdmission: (...args: unknown[]) =>
+    evaluateUserGenerationAdmissionMock(...args),
+}));
+
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
+  setHeader: vi.fn().mockReturnThis(),
 });
 
 describe("createFalSubmitHandler", () => {
@@ -36,6 +43,21 @@ describe("createFalSubmitHandler", () => {
     ensureSubmittedGenerationRecordMock.mockResolvedValue({
       ok: true,
       generationId: "gen-1",
+    });
+    evaluateUserGenerationAdmissionMock.mockResolvedValue({
+      mode: "off",
+      allowed: true,
+      enforced: false,
+      wouldLimit: false,
+      reason: null,
+      retryAfterSeconds: 20,
+      snapshot: {
+        globalActive: 0,
+        globalMax: 4,
+        tier: "image_standard",
+        tierActive: 0,
+        tierMax: 4,
+      },
     });
   });
 
@@ -272,5 +294,115 @@ describe("createFalSubmitHandler", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ request_id: "req-fallback-no-retry" });
+  });
+
+  it("returns 429 and releases reservation when admission is enforced", async () => {
+    evaluateUserGenerationAdmissionMock.mockResolvedValueOnce({
+      mode: "enforce",
+      allowed: false,
+      enforced: true,
+      wouldLimit: true,
+      reason: "tier_limit",
+      retryAfterSeconds: 20,
+      snapshot: {
+        globalActive: 5,
+        globalMax: 4,
+        tier: "video_long",
+        tierActive: 3,
+        tierMax: 2,
+      },
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/veo3.1/image-to-video",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/veo3.1/image-to-video" }],
+      routeLabel: "Fal Veo image-to-video",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "animate frame" },
+      headers: {},
+      url: "/api/fal/veo-image-to-video-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "20");
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Too many active generations. Please retry shortly.",
+      code: "GENERATION_ADMISSION_LIMIT",
+      retryAfterSeconds: 20,
+      limits: {
+        globalMax: 4,
+        globalActive: 5,
+        tier: "video_long",
+        tierMax: 2,
+        tierActive: 3,
+      },
+    });
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: generation admission limited.",
+      expect.objectContaining({
+        reason: "tier_limit",
+      })
+    );
+  });
+
+  it("logs telemetry in shadow mode but still submits upstream", async () => {
+    evaluateUserGenerationAdmissionMock.mockResolvedValueOnce({
+      mode: "shadow",
+      allowed: true,
+      enforced: false,
+      wouldLimit: true,
+      reason: "global_limit",
+      retryAfterSeconds: 20,
+      snapshot: {
+        globalActive: 7,
+        globalMax: 4,
+        tier: "image_standard",
+        tierActive: 4,
+        tierMax: 4,
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ request_id: "req-shadow-allowed" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.api.fal_submit.admission_limited",
+        statusCode: 429,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ request_id: "req-shadow-allowed" });
   });
 });

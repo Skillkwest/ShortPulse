@@ -35,6 +35,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 4. On click:  
    - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal video) with aspect-mapped sizing and any reference inputs required by the model.  
    - Fal submit routes reserve credits before provider submission (no immediate debit posted).
+   - Submit admission control may reject over-limit requests with `429` (`code: GENERATION_ADMISSION_LIMIT`) and `Retry-After`; denied requests release reservations immediately.
    - Fal success captures reservation into a debit; failed submit/status outcomes release reservation.
    - Task polling updates status; success stores `resultUrls`, sets `previewUrl` (video URL), and clears errors. Failures set `errorMessage` and stop polling.  
 5. Reference Grid prepends the new output card; Studio Preview shows the latest video thumbnail/preview if available.  
@@ -70,6 +71,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 - Prominent dismissible error banner surfaces API/flow failures (missing reference for reference-required video models, upstream errors).  
 - Reference Grid cards show failure chips for failed tasks; Studio Preview shows status/error text.  
+- Admission-limited submits should render deterministic retry guidance from the Fal client (`Too many active generations...retry in N seconds`).
 - Generate is disabled when required inputs are missing (e.g., model or reference image for reference-required models) or when the credit balance is below the computed cost.
 
 ## Model usage

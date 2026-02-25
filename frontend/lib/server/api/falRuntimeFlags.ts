@@ -2,6 +2,13 @@
  * Centralized Fal runtime rollout flags.
  * Keeps env parsing strict and deterministic for server-side handlers.
  */
+import {
+  parseGenerationAdmissionGlobalMax,
+  parseGenerationAdmissionMode,
+  parseGenerationAdmissionRetryAfterSeconds,
+  parseGenerationAdmissionTierLimits,
+} from "./generationAdmission/generationAdmissionPolicy";
+import type { GenerationAdmissionConfig } from "./generationAdmission/types";
 
 export type FalIntegrationMode = "legacy" | "shadow" | "on";
 export type FalWebhookVerifyMode = "dual" | "fal_only" | "hmac_only";
@@ -23,6 +30,7 @@ export type FalRuntimeFlags = {
   webhookToleranceSeconds: number;
   publicApiBaseUrl: string | null;
   directDebitFallbackEnabled: boolean;
+  admission: GenerationAdmissionConfig;
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
@@ -122,6 +130,16 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     process.env.SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED,
     false
   ),
+  admission: {
+    mode: parseGenerationAdmissionMode(process.env.SHORTPULSE_FAL_ADMISSION_MODE),
+    globalMax: parseGenerationAdmissionGlobalMax(process.env.SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX),
+    tierLimits: parseGenerationAdmissionTierLimits(
+      process.env.SHORTPULSE_FAL_ADMISSION_TIER_LIMITS_JSON
+    ),
+    retryAfterSeconds: parseGenerationAdmissionRetryAfterSeconds(
+      process.env.SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS
+    ),
+  },
 });
 
 export const isFalRuntimeEnabledForModel = (

@@ -122,6 +122,7 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - `docs/planning/ai-studio-fal-reliability-rollout.md` (archived pointer)
 - `docs/planning/ai-studio-generation-runtime-stabilization.md` (archived pointer)
+- `docs/planning/ai-studio-generation-admission-rollout-plan.md`
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`
 - `docs/planning/ai-studio-agent-pipeline-hardening-plan.md`
 - `docs/planning/ai-studio-agent-modularization-program.md`
@@ -173,6 +174,7 @@ Start here for all repository documentation.
 - `docs/adr/0023-ai-studio-naming-canonicalization-and-alias-sunset-policy.md`
 - `docs/adr/0024-ai-studio-agent-prompt-only-single-stage-runtime.md`
 - `docs/adr/0025-ai-studio-create-startup-model-precedence.md`
+- `docs/adr/0026-ai-studio-generation-admission-control.md`
 
 ## Archive
 - `docs/archive/README.md`

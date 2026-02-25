@@ -6,6 +6,7 @@ import { chargeGenerationRequest } from "./generationBilling";
 import { logGenerationFailure } from "./appErrorLogs";
 import { ensureSubmittedGenerationRecord } from "./generationSubmitPersistence";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
+import { evaluateUserGenerationAdmission } from "./generationAdmission/generationAdmissionService";
 import type { SubmitTarget } from "../falIntegration/contracts";
 import { submitWithFallbackTargets } from "../falIntegration/submitEngine";
 
@@ -47,8 +48,9 @@ const appendFalWebhookParam = (targetUrl: string, webhookUrl: string): string =>
   return parsed.toString();
 };
 
-const resolveWebhookCallbackUrl = (): string | null => {
-  const flags = readFalRuntimeFlags();
+const resolveWebhookCallbackUrl = (
+  flags: ReturnType<typeof readFalRuntimeFlags> = readFalRuntimeFlags()
+): string | null => {
   const baseUrl = flags.publicApiBaseUrl;
   if (!flags.webhookEnabled || flags.integrationMode === "legacy" || !baseUrl) return null;
   try {
@@ -68,6 +70,31 @@ const withWebhookTargets = (targets: SubmitTarget[], webhookUrl: string | null):
     };
   });
 };
+
+const buildAdmissionLimitPayload = ({
+  retryAfterSeconds,
+  snapshot,
+}: {
+  retryAfterSeconds: number;
+  snapshot: {
+    globalMax: number;
+    globalActive: number;
+    tier: string;
+    tierMax: number;
+    tierActive: number;
+  };
+}) => ({
+  error: "Too many active generations. Please retry shortly.",
+  code: "GENERATION_ADMISSION_LIMIT",
+  retryAfterSeconds,
+  limits: {
+    globalMax: snapshot.globalMax,
+    globalActive: snapshot.globalActive,
+    tier: snapshot.tier,
+    tierMax: snapshot.tierMax,
+    tierActive: snapshot.tierActive,
+  },
+});
 
 /**
  * Builds a Next.js API handler that debits credits before forwarding to Fal.
@@ -127,6 +154,76 @@ export const createFalSubmitHandler =
       reason: `${routeLabel} generation`,
     });
     if (!charge) return;
+    const runtimeFlags = readFalRuntimeFlags();
+
+    try {
+      const admissionDecision = await evaluateUserGenerationAdmission({
+        userId: charge.userId,
+        modelId,
+        config: runtimeFlags.admission,
+      });
+
+      if (admissionDecision.wouldLimit) {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source:
+            admissionDecision.mode === "shadow"
+              ? "telemetry.api.fal_submit.admission_limited"
+              : "api.fal_submit.admission_limited",
+          message: "Generation admission limit reached.",
+          statusCode: 429,
+          userId: charge.userId,
+          metadata: {
+            model_id: modelId,
+            mode: admissionDecision.mode,
+            reason: admissionDecision.reason,
+            global_active: admissionDecision.snapshot.globalActive,
+            global_max: admissionDecision.snapshot.globalMax,
+            tier: admissionDecision.snapshot.tier,
+            tier_active: admissionDecision.snapshot.tierActive,
+            tier_max: admissionDecision.snapshot.tierMax,
+          },
+        });
+      }
+
+      if (admissionDecision.enforced) {
+        await charge.refund("Auto-release: generation admission limited.", {
+          reason: admissionDecision.reason,
+          global_active: admissionDecision.snapshot.globalActive,
+          global_max: admissionDecision.snapshot.globalMax,
+          tier: admissionDecision.snapshot.tier,
+          tier_active: admissionDecision.snapshot.tierActive,
+          tier_max: admissionDecision.snapshot.tierMax,
+        });
+        res.setHeader("Retry-After", String(admissionDecision.retryAfterSeconds));
+        return res.status(429).json(
+          buildAdmissionLimitPayload({
+            retryAfterSeconds: admissionDecision.retryAfterSeconds,
+            snapshot: {
+              globalMax: admissionDecision.snapshot.globalMax,
+              globalActive: admissionDecision.snapshot.globalActive,
+              tier: admissionDecision.snapshot.tier,
+              tierMax: admissionDecision.snapshot.tierMax,
+              tierActive: admissionDecision.snapshot.tierActive,
+            },
+          })
+        );
+      }
+    } catch (error) {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_submit.admission_check_failed",
+        message: "Generation admission check failed; submit proceeded fail-open.",
+        statusCode: 500,
+        userId: charge.userId,
+        metadata: {
+          model_id: modelId,
+          detail: String(error),
+        },
+      });
+    }
 
     const resolvedSubmitTargets: SubmitTarget[] =
       submitTargets && submitTargets.length ? submitTargets : submitUrl ? [{ submitUrl }] : [];
@@ -141,7 +238,7 @@ export const createFalSubmitHandler =
       });
       return res.status(500).json({ error: "No Fal submit target configured for route" });
     }
-    const webhookCallbackUrl = resolveWebhookCallbackUrl();
+    const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags);
     const resolvedTargetsWithWebhook = withWebhookTargets(
       resolvedSubmitTargets,
       webhookCallbackUrl

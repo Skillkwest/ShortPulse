@@ -130,9 +130,15 @@ export const useAiStudioCharacterModeController = ({
 
   const refreshBundleReferenceUrlsForSubmission = useCallback(
     async (bundle: CharacterModeInjectionBundle): Promise<CharacterModeInjectionBundle | null> => {
+      const fallbackUrls = Array.from(
+        new Set(
+          bundle.sheetReferenceUrls.map((value) => value.trim()).filter((value) => value.length > 0)
+        )
+      );
       if (!bundle.sheetReferenceStoragePaths.length) {
         return {
           ...bundle,
+          sheetReferenceUrls: fallbackUrls,
           loadedAtMs: Date.now(),
         };
       }
@@ -148,12 +154,13 @@ export const useAiStudioCharacterModeController = ({
         const refreshEmptyData = {
           selected_character_id: bundle.characterId,
           storage_path_count: bundle.sheetReferenceStoragePaths.length,
+          fallback_url_count: fallbackUrls.length,
         };
         trackCharacterModeEvent("character_mode_reference_refresh_empty", refreshEmptyData);
         logCharacterModeTelemetry("character_mode_reference_refresh_empty", refreshEmptyData);
         return {
           ...bundle,
-          sheetReferenceUrls: [],
+          sheetReferenceUrls: fallbackUrls,
           loadedAtMs: Date.now(),
         };
       }
@@ -186,10 +193,16 @@ export const useAiStudioCharacterModeController = ({
           await loadCharacterManagerDraftByCharacterId(selectedCharacterId)
         );
         if (!baseBundle || baseBundle.characterId !== selectedCharacterId) {
+          if (currentBundle?.characterId === selectedCharacterId) {
+            return currentBundle;
+          }
           return null;
         }
         const refreshedBundle = await refreshBundleReferenceUrlsForSubmission(baseBundle);
         if (!refreshedBundle) {
+          if (currentBundle?.characterId === selectedCharacterId) {
+            return currentBundle;
+          }
           return null;
         }
         setCharacterModeInjectionBundle(refreshedBundle);
@@ -200,6 +213,9 @@ export const useAiStudioCharacterModeController = ({
           error:
             error instanceof Error && error.message.trim().length ? error.message : "unknown_error",
         });
+        if (currentBundle?.characterId === selectedCharacterId) {
+          return currentBundle;
+        }
         return null;
       } finally {
         setIsCharacterBundleLoading(false);

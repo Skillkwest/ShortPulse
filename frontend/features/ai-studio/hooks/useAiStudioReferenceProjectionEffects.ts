@@ -41,18 +41,27 @@ export const useAiStudioReferenceProjectionEffects = ({
   useEffect(() => {
     const validOutputIds = [...activeOutputOrder, ...archivedOutputOrder];
     // Keep projection ids aligned with output lifecycle transitions (active + archived stores).
-    setReferenceProjectionState((prev) => {
-      const nextQuickSlotIds = pruneCuratedReferenceIds(prev.quickSlotIds, validOutputIds);
-      const withPrunedQuickSlots =
-        nextQuickSlotIds === prev.quickSlotIds
-          ? prev
-          : {
-              ...prev,
-              quickSlotIds: nextQuickSlotIds,
-            };
-      return pruneReferenceProjectionState(withPrunedQuickSlots, validOutputIds);
-    });
-  }, [activeOutputOrder, archivedOutputOrder, setReferenceProjectionState]);
+    // Guard with a deterministic no-op check to prevent render loops from redundant state commits.
+    const nextQuickSlotIds = pruneCuratedReferenceIds(
+      referenceProjectionState.quickSlotIds,
+      validOutputIds
+    );
+    const withPrunedQuickSlots =
+      nextQuickSlotIds === referenceProjectionState.quickSlotIds
+        ? referenceProjectionState
+        : {
+            ...referenceProjectionState,
+            quickSlotIds: nextQuickSlotIds,
+          };
+    const nextProjectionState = pruneReferenceProjectionState(withPrunedQuickSlots, validOutputIds);
+    if (nextProjectionState === referenceProjectionState) return;
+    setReferenceProjectionState(nextProjectionState);
+  }, [
+    activeOutputOrder,
+    archivedOutputOrder,
+    referenceProjectionState,
+    setReferenceProjectionState,
+  ]);
 
   useEffect(() => {
     const syncPinnedState = (

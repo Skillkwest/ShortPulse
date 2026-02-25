@@ -20,3 +20,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0023-ai-studio-naming-canonicalization-and-alias-sunset-policy.md`
 - `docs/adr/0024-ai-studio-agent-prompt-only-single-stage-runtime.md`
 - `docs/adr/0025-ai-studio-create-startup-model-precedence.md`
+- `docs/adr/0026-ai-studio-generation-admission-control.md`

@@ -41,6 +41,11 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 ## Shared runtime contracts
 - Credit lifecycle for generation:
   - Submit path: reserve credits (`reserve_generation_credits`).
+  - Submit admission control (`off|shadow|enforce`) can reject over-limit starts with `429` + `Retry-After` and payload:
+    - `code: GENERATION_ADMISSION_LIMIT`
+    - `retryAfterSeconds`
+    - `limits: { globalMax, globalActive, tier, tierMax, tierActive }`
+  - Admission deny path immediately releases reservation (`release_generation_reservation_by_source_ref`).
   - Submit proxy sends `X-Fal-Request-Timeout` to queue endpoints to bound pre-start latency at provider edge.
   - Provider request accepted: attach provider request ID to reservation.
   - Success path: capture reservation to ledger debit.
@@ -78,6 +83,10 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_ENABLED`
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_THRESHOLD_15M`
+  - `SHORTPULSE_FAL_ADMISSION_MODE` (`off|shadow|enforce`)
+  - `SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX`
+  - `SHORTPULSE_FAL_ADMISSION_TIER_LIMITS_JSON`
+  - `SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS`
 
 ## Maintenance checklist
 1. When adding or renaming an API route, update this file and any impacted SOP/API docs.

@@ -247,7 +247,7 @@ describe("useAiStudioCharacterModeController", () => {
     );
   });
 
-  it("falls back to description-only injection when forced signing returns no usable URLs", async () => {
+  it("reuses existing reference URLs when forced signing returns no usable URLs", async () => {
     const trackCharacterModeEvent = vi.fn();
     const setCharacterModeInjectionBundle = vi.fn();
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
@@ -281,13 +281,13 @@ describe("useAiStudioCharacterModeController", () => {
       expect.objectContaining({
         characterId: "char-1",
         characterDescription: "Base description",
-        sheetReferenceUrls: [],
+        sheetReferenceUrls: ["https://example.com/ref-stale-db.png"],
       })
     );
     expect(setCharacterModeInjectionBundle).toHaveBeenCalledWith(
       expect.objectContaining({
         characterId: "char-1",
-        sheetReferenceUrls: [],
+        sheetReferenceUrls: ["https://example.com/ref-stale-db.png"],
       })
     );
     expect(trackCharacterModeEvent).toHaveBeenCalledWith(
@@ -295,6 +295,7 @@ describe("useAiStudioCharacterModeController", () => {
       expect.objectContaining({
         selected_character_id: "char-1",
         storage_path_count: 1,
+        fallback_url_count: 1,
       })
     );
     expect(reportAppErrorMock).toHaveBeenCalledWith(
@@ -305,7 +306,37 @@ describe("useAiStudioCharacterModeController", () => {
           telemetry_family: "character_mode",
           selected_character_id: "char-1",
           storage_path_count: 1,
+          fallback_url_count: 1,
         }),
+      })
+    );
+  });
+
+  it("reuses current bundle when submit-time snapshot refresh fails", async () => {
+    const trackCharacterModeEvent = vi.fn();
+    const currentBundle: CharacterModeInjectionBundle = {
+      characterId: "char-1",
+      characterDescription: "Cached description",
+      sheetReferenceStoragePaths: ["user/chars/ref.png"],
+      sheetReferenceUrls: ["https://example.com/cached.png"],
+      loadedAtMs: Date.now(),
+    };
+    loadCharacterManagerDraftByCharacterIdMock.mockRejectedValueOnce(new Error("session stalled"));
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      characterModeInjectionBundle: currentBundle,
+      trackCharacterModeEvent,
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const refreshed =
+      await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
+
+    expect(refreshed).toEqual(currentBundle);
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+      "character_mode_bundle_refresh_failed",
+      expect.objectContaining({
+        selected_character_id: "char-1",
       })
     );
   });

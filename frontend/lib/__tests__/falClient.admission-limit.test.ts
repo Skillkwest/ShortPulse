@@ -1,0 +1,60 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { submitFalNanoBanana } from "../falClient";
+import { fetchWithAuth } from "../authenticatedFetch";
+
+vi.mock("../authenticatedFetch", () => ({
+  fetchWithAuth: vi.fn(),
+}));
+
+const fetchWithAuthMock = vi.mocked(fetchWithAuth);
+
+const createJsonResponse = (payload: unknown, status = 200, headers?: Record<string, string>) =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      ...(headers ?? {}),
+    },
+  });
+
+describe("falClient generation admission error handling", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("surfaces deterministic retry guidance for admission-limited 429 payloads", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse(
+        {
+          error: "Too many active generations. Please retry shortly.",
+          code: "GENERATION_ADMISSION_LIMIT",
+          retryAfterSeconds: 20,
+        },
+        429
+      )
+    );
+
+    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
+      "Too many active generations. Please retry in 20 seconds."
+    );
+  });
+
+  it("uses Retry-After header fallback when payload omits retryAfterSeconds", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse(
+        {
+          error: "Too many active generations. Please retry shortly.",
+          code: "GENERATION_ADMISSION_LIMIT",
+        },
+        429,
+        {
+          "Retry-After": "9",
+        }
+      )
+    );
+
+    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
+      "Too many active generations. Please retry in 9 seconds."
+    );
+  });
+});

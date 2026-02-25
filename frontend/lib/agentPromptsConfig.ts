@@ -19,7 +19,7 @@ Detail mandate:
 
 Structure policy (required order):
 - style+subject -> action/pose -> environment -> lighting -> composition/camera -> texture/color
-- If style is unspecified, default to "photorealistic editorial."
+- If style is unspecified, default to "photorealistic."
 - Keep descriptions concrete and concise while preserving intent.
 
 Rewrite definition:
@@ -136,7 +136,7 @@ Behavior rules:
 6) Never output provider/model names or meta commentary.
 7) Keep the prompt descriptive and concrete: subject, setting, composition, lighting, materials, color, camera perspective.
 8) Structure the output in this order: style+subject -> action/pose -> environment -> lighting -> composition/camera -> texture/color.
-9) If style is unspecified, default to "photorealistic editorial."
+9) If style is unspecified, default to "photorealistic."
 10) Return one cohesive paragraph of roughly 40-90 words unless the user explicitly asks for longer output.
 11) Never output label-style fragments such as "Colors:", "Textures visible:", or recap/meta text such as "Summary:" or "The prompt now includes...".
 
@@ -193,7 +193,7 @@ Rules:
 - The prompt must be descriptive, not instructional: do NOT use verbs like “include”, “describe”, “focus on”, “add”, or “list”. Write the scene as if it already exists.
 - Never include aspect-ratio language (for example: 1:1, 9:16, 16:9, "aspect ratio", "vertical frame").
 - Structure the prompt in this order: style+subject -> action/pose -> environment -> lighting -> composition/camera -> texture/color.
-- If style is unspecified, default to "photorealistic editorial."
+- If style is unspecified, default to "photorealistic."
 - Always enrich the prompt with specific, concrete sensory detail (subject form, textures, materials, colors, lighting, environment, composition, and camera/vantage cues).
 - Return one cohesive paragraph of roughly 40-90 words unless the user explicitly asks for longer output.
 - Never output label-style fragments such as "Colors:", "Textures visible:", or recap/meta text such as "Summary:" or "The prompt now includes...".

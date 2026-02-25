@@ -20,6 +20,16 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   webhookToleranceSeconds: 300,
   publicApiBaseUrl: "https://shortpulse.test",
   directDebitFallbackEnabled: false,
+  admission: {
+    mode: "off",
+    globalMax: 4,
+    tierLimits: {
+      video_long: 2,
+      image_heavy: 3,
+      image_standard: 4,
+    },
+    retryAfterSeconds: 20,
+  },
   ...overrides,
 });
 

@@ -36,6 +36,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 5. On click:  
    - `useAiStudioState.submitTask` builds a `StudioOutput` with `taskState: "pending"` and submits to the provider (Fal) with aspect-mapped sizing; no agent prompts are involved.
    - Fal submit routes reserve credits before provider submission (no immediate debit posted).
+   - Submit admission control may reject over-limit requests with `429` (`code: GENERATION_ADMISSION_LIMIT`) and `Retry-After`; denied requests release reservations immediately.
    - Fal success captures reservation into a debit; failed submit/status outcomes release reservation.
    - Task polling updates status; success stores `resultUrls`, sets `previewUrl`, and clears errors. Failures set `errorMessage` and stop polling.  
 6. Reference Grid prepends the new output card; Studio Preview shows the latest image.  
@@ -97,6 +98,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 - Prominent dismissible error banner surfaces API/flow failures (missing reference in describe mode, upstream errors).  
 - Reference Grid cards show failure chips for failed tasks; Studio Preview shows status/error text.  
+- Admission-limited submits should render deterministic retry guidance from the Fal client (`Too many active generations...retry in N seconds`).
 - Generated placeholders without a provider task id now fail fast using submit-start timeout semantics instead of persisting spinner-only cards.
 - Generate is disabled when required inputs are missing (e.g., model not chosen) or the credit balance is lower than the computed cost, so the banner can remind users to top up before retrying.
 

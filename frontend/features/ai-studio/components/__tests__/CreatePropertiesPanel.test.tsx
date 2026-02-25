@@ -501,8 +501,8 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
   });
 
-  it("disables expert output-generate pills while a generate is in flight", () => {
-    renderPanel({
+  it("keeps expert output-generate pills enabled while media generation is in flight", () => {
+    const { container } = renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
       agentEnabled: true,
@@ -518,7 +518,11 @@ describe("CreatePropertiesPanel", () => {
       ],
     });
 
-    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeEnabled();
+    expect(
+      container.querySelector(".agent-messages .agent-message.agent-thinking-message")
+    ).toBeNull();
+    expect(screen.queryByText("Thinking…")).toBeNull();
   });
 
   it("disables expert output-generate pills while create is in prompt-only text mode", () => {

@@ -13,7 +13,6 @@ type CreateSelectionParams = {
 type CreatePanelDisableParams = CreateSelectionParams & {
   mode: StudioMode;
   isGenerateDisabled: boolean;
-  isPromptGenerating: boolean;
   hasSufficientCreditsForOutputGenerate: boolean;
 };
 
@@ -22,7 +21,6 @@ type AgentOutputDisableParams = CreateSelectionParams & {
   selectedTool: ToolId | null;
   isGenerateDisabled: boolean;
   isGenerateClickLocked: boolean;
-  isPromptGenerating: boolean;
   hasSufficientCreditsForOutputGenerate: boolean;
 };
 
@@ -52,7 +50,6 @@ export const hasMissingCreateGenerationTarget = ({
 export const shouldDisableCreatePanelOutputGenerate = ({
   mode,
   isGenerateDisabled,
-  isPromptGenerating,
   hasSufficientCreditsForOutputGenerate,
   modelId,
   characterModeEnabled,
@@ -60,7 +57,6 @@ export const shouldDisableCreatePanelOutputGenerate = ({
 }: CreatePanelDisableParams): boolean =>
   mode === "text" ||
   isGenerateDisabled ||
-  isPromptGenerating ||
   hasMissingCreateGenerationTarget({
     modelId,
     characterModeEnabled,
@@ -76,7 +72,6 @@ export const shouldDisableAgentOutputGenerate = ({
   selectedTool,
   isGenerateDisabled,
   isGenerateClickLocked,
-  isPromptGenerating,
   hasSufficientCreditsForOutputGenerate,
   modelId,
   characterModeEnabled,
@@ -93,7 +88,6 @@ export const shouldDisableAgentOutputGenerate = ({
     : false;
   return (
     isCreatePromptTextMode ||
-    isPromptGenerating ||
     isGenerateDisabled ||
     isGenerateClickLocked ||
     missingGenerationTarget ||

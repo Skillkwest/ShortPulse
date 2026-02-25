@@ -136,4 +136,35 @@ describe("PromptStep agent actions", () => {
     expect(container.querySelector(".agent-thinking--composer-row")).toBeNull();
     expect(screen.getByText("Thinking…")).toBeInTheDocument();
   });
+
+  it("keeps generation-driven history thinking enabled by default for non-create consumers", () => {
+    const { container } = render(
+      <PromptStep
+        {...baseProps}
+        agentMessages={[{ id: "u-1", role: "user", content: "a woman" }]}
+        isGenerating
+      />
+    );
+
+    expect(
+      container.querySelector(".agent-messages .agent-message.agent-thinking-message")
+    ).toBeTruthy();
+    expect(screen.getByText("Thinking…")).toBeInTheDocument();
+  });
+
+  it("does not render history thinking from generation state when chat thinking is agent-only", () => {
+    const { container } = render(
+      <PromptStep
+        {...baseProps}
+        agentMessages={[{ id: "u-1", role: "user", content: "a woman" }]}
+        isGenerating
+        showGenerationThinkingInChat={false}
+      />
+    );
+
+    expect(
+      container.querySelector(".agent-messages .agent-message.agent-thinking-message")
+    ).toBeNull();
+    expect(screen.queryByText("Thinking…")).toBeNull();
+  });
 });

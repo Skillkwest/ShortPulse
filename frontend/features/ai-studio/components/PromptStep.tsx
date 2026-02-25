@@ -47,6 +47,7 @@ export function PromptStep({
   isCollapsed,
   onToggleCollapse,
   isGenerating = false,
+  showGenerationThinkingInChat = true,
   shouldDisableSave = false,
   onDrop,
   onDragOver,
@@ -117,6 +118,9 @@ export function PromptStep({
   // Chat-only mode should not depend on "expanded chat" state now that the expand control is removed.
   const showInlineChat = isChatMode && (!agentChatOpen || chatOnly);
   const promptThinking = Boolean(agentIsSending || isGenerating);
+  const chatThinking = Boolean(
+    agentIsSending || (showGenerationThinkingInChat ? isGenerating : false)
+  );
   const visibleSubtitle = beginnerMode ? beginnerSubtitle : subtitle;
   const canPinAgentInput = agentInput.trim().length > 0;
   const shouldDisableChatPin = chatPromptSaveButtonUnstyled
@@ -226,7 +230,7 @@ export function PromptStep({
                 onClearAgentChat={onClearAgentChat}
                 agentChatOpen={agentChatOpen}
                 canExpandInlineChat={canExpandInlineChat}
-                promptThinking={promptThinking}
+                promptThinking={chatThinking}
                 hideAgentIntroMessage={hideAgentIntroMessage}
                 hideEmptyAgentChatState={hideEmptyAgentChatState}
                 emptyAgentChatSpacerClassName={emptyAgentChatSpacerClassName}

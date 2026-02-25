@@ -47,7 +47,6 @@ describe("createGenerationGuards", () => {
       shouldDisableCreatePanelOutputGenerate({
         mode: "image",
         isGenerateDisabled: false,
-        isPromptGenerating: false,
         hasSufficientCreditsForOutputGenerate: true,
         modelId: "fal-ai/bytedance/seedream/v4.5/edit",
         characterModeEnabled: true,
@@ -58,7 +57,6 @@ describe("createGenerationGuards", () => {
       shouldDisableCreatePanelOutputGenerate({
         mode: "image",
         isGenerateDisabled: false,
-        isPromptGenerating: false,
         hasSufficientCreditsForOutputGenerate: true,
         modelId: "fal-ai/bytedance/seedream/v4.5/edit",
         characterModeEnabled: true,
@@ -74,7 +72,6 @@ describe("createGenerationGuards", () => {
         selectedTool: "create",
         isGenerateDisabled: false,
         isGenerateClickLocked: false,
-        isPromptGenerating: false,
         hasSufficientCreditsForOutputGenerate: true,
         modelId: null,
         characterModeEnabled: false,
@@ -87,12 +84,26 @@ describe("createGenerationGuards", () => {
         selectedTool: "edit",
         isGenerateDisabled: false,
         isGenerateClickLocked: false,
-        isPromptGenerating: false,
         hasSufficientCreditsForOutputGenerate: true,
         modelId: null,
         characterModeEnabled: false,
         selectedCharacterId: "",
       })
     ).toBe(false);
+  });
+
+  it("keeps agent-output generate disabled while click lock is active", () => {
+    expect(
+      shouldDisableAgentOutputGenerate({
+        mode: "image",
+        selectedTool: "create",
+        isGenerateDisabled: false,
+        isGenerateClickLocked: true,
+        hasSufficientCreditsForOutputGenerate: true,
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        characterModeEnabled: false,
+        selectedCharacterId: "",
+      })
+    ).toBe(true);
   });
 });

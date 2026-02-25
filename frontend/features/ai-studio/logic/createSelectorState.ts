@@ -16,7 +16,6 @@ type DeriveCreateSelectorStateParams = {
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
   isGenerateDisabled: boolean;
-  isPromptGenerating: boolean;
   hasSufficientCreditsForOutputGenerate: boolean;
   characterModeEnabled: boolean;
   selectedCharacterId: string;
@@ -41,7 +40,6 @@ export const deriveCreateSelectorViewState = ({
   isModelModalOpen,
   modelModalAnchor,
   isGenerateDisabled,
-  isPromptGenerating,
   hasSufficientCreditsForOutputGenerate,
   characterModeEnabled,
   selectedCharacterId,
@@ -57,7 +55,6 @@ export const deriveCreateSelectorViewState = ({
   const disableOutputGenerate = shouldDisableCreatePanelOutputGenerate({
     mode,
     isGenerateDisabled,
-    isPromptGenerating,
     hasSufficientCreditsForOutputGenerate,
     modelId,
     characterModeEnabled,

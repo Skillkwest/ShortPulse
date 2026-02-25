@@ -44,6 +44,7 @@ export type PromptStepProps = {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   isGenerating?: boolean;
+  showGenerationThinkingInChat?: boolean;
   shouldDisableSave?: boolean;
   // Drag and Drop support
   onDrop?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;

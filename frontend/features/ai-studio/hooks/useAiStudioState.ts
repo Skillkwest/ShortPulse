@@ -278,6 +278,10 @@ export const useAiStudioState = ({
     mode,
     isCharacterModeEnabled,
   });
+  const allowedModelValues = useMemo(
+    () => allowedModelOptions.map((option) => option.value),
+    [allowedModelOptions]
+  );
 
   const setModel = useCallback((value: string | null) => {
     setModelState(value);
@@ -319,7 +323,7 @@ export const useAiStudioState = ({
     hasUserVideoPrefs,
     setHasUserVideoPrefs,
     setVideoGenerateAudio,
-    allowedModelValues: allowedModelOptions.map((option) => option.value),
+    allowedModelValues,
     isCharacterModeEnabled,
     mode,
     isModelModalOpen,

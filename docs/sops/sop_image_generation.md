@@ -73,6 +73,13 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
   - Character Mode ON requires at least one Character Sheet image reference.
   - Missing character references blocks submit with explicit UI error (no description-only fallback submit).
   - A second safety-net invariant in task submission also blocks any selected image-to-image model when references are missing.
+  - Pre-submit stages are deadline-bound:
+    - Character bundle refresh deadline: 10s.
+    - Reference URL preparation deadline: 10s.
+    - On deadline expiry, generation fails fast with: `"Preparation timed out before generation started. Please retry."`
+  - Submit-start invariant:
+    - UI placeholder is only allowed to remain loading if provider submit produces a real `request_id` and polling starts.
+    - If submit route resolves without starting polling, output is marked failed immediately with: `"Generation failed to start. Please retry."`
 
 ## Reference handling
 
@@ -90,6 +97,7 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 
 - Prominent dismissible error banner surfaces API/flow failures (missing reference in describe mode, upstream errors).  
 - Reference Grid cards show failure chips for failed tasks; Studio Preview shows status/error text.  
+- Generated placeholders without a provider task id now fail fast using submit-start timeout semantics instead of persisting spinner-only cards.
 - Generate is disabled when required inputs are missing (e.g., model not chosen) or the credit balance is lower than the computed cost, so the banner can remind users to top up before retrying.
 
 ## Model usage

@@ -75,8 +75,8 @@ export const useAiStudioOutputCollectionState = (): UseAiStudioOutputCollectionS
           ? queueMicrotask
           : (task: () => void) => Promise.resolve().then(task);
       scheduleFlush(() => {
-        if (publishEpoch !== outputStorePublishEpochRef.current) return;
         outputStorePublishQueuedRef.current = false;
+        if (publishEpoch !== outputStorePublishEpochRef.current) return;
         if (outputStorePublisherUnmountedRef.current) return;
         const latestActiveState = activeOutputStateRef.current;
         const latestArchivedState = archivedOutputStateRef.current;

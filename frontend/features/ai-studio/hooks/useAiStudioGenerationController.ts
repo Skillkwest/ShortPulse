@@ -11,6 +11,7 @@ import {
   type SetStateAction,
 } from "react";
 import { resolveCreateCharacterModeSubmitModel } from "../logic/createCharacterModeModelMapping";
+import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type CharacterModeFallbackSummary<TFallbackCode extends string> = {
@@ -38,6 +39,8 @@ type GenerateOptions = {
 
 const CHARACTER_MODE_MISSING_REFERENCES_ERROR =
   "Character Mode requires at least one character image before generating.";
+const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
+const PREFLIGHT_TIMEOUT_MS = 10_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
@@ -314,18 +317,43 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       });
       let characterModeOverrides: CharacterModeSubmissionOverrides<TFallbackCode>;
       try {
-        const characterModeBundleForSubmit =
-          await refreshCharacterModeInjectionBundleForSubmission(effectiveTool);
+        trackCharacterModeEvent?.("generation_preflight_started", {
+          trigger: "generate",
+          tool: effectiveTool,
+          model_id: effectiveModelId,
+          is_character_mode: isCharacterModeEnabled,
+        });
+        const characterModeBundleForSubmit = await withDeadline({
+          timeoutMs: PREFLIGHT_TIMEOUT_MS,
+          timeoutMessage: PREFLIGHT_TIMEOUT_ERROR,
+          run: () => refreshCharacterModeInjectionBundleForSubmission(effectiveTool),
+        });
         characterModeOverrides = resolveCharacterModeSubmissionOverrides(
           promptToUse,
           effectiveTool,
           characterModeBundleForSubmit
         );
       } catch (error) {
+        if (error instanceof DeadlineExceededError) {
+          trackCharacterModeEvent?.("generation_preflight_timeout", {
+            trigger: "generate",
+            tool: effectiveTool,
+            model_id: effectiveModelId,
+            is_character_mode: isCharacterModeEnabled,
+            duration_ms: error.timeoutMs,
+            reason_code: "PREFLIGHT_TIMEOUT",
+          });
+        }
         if (optimisticOutputId) {
           removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
         }
-        setUiError(error instanceof Error ? error.message : "Unable to start generation.");
+        setUiError(
+          error instanceof DeadlineExceededError
+            ? PREFLIGHT_TIMEOUT_ERROR
+            : error instanceof Error
+              ? error.message
+              : "Unable to start generation."
+        );
         return;
       }
       const hasCharacterModeReferences =
@@ -370,6 +398,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       generateOutput,
       handleBlockedGeneration,
       isCreditGuardrail,
+      isCharacterModeEnabled,
       isGenerateDisabled,
       insertOptimisticGenerationPlaceholder,
       mode,
@@ -427,13 +456,44 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
     }
     const promptToUse = resolveDefaultPromptForTool(selectedTool);
-    const characterModeBundleForSubmit =
-      await refreshCharacterModeInjectionBundleForSubmission(selectedTool);
-    const characterModeOverrides = resolveCharacterModeSubmissionOverrides(
-      promptToUse,
-      selectedTool,
-      characterModeBundleForSubmit
-    );
+    let characterModeOverrides: CharacterModeSubmissionOverrides<TFallbackCode>;
+    try {
+      trackCharacterModeEvent?.("generation_preflight_started", {
+        trigger: "regenerate",
+        tool: selectedTool,
+        model_id: model,
+        is_character_mode: isCharacterModeEnabled,
+      });
+      const characterModeBundleForSubmit = await withDeadline({
+        timeoutMs: PREFLIGHT_TIMEOUT_MS,
+        timeoutMessage: PREFLIGHT_TIMEOUT_ERROR,
+        run: () => refreshCharacterModeInjectionBundleForSubmission(selectedTool),
+      });
+      characterModeOverrides = resolveCharacterModeSubmissionOverrides(
+        promptToUse,
+        selectedTool,
+        characterModeBundleForSubmit
+      );
+    } catch (error) {
+      if (error instanceof DeadlineExceededError) {
+        trackCharacterModeEvent?.("generation_preflight_timeout", {
+          trigger: "regenerate",
+          tool: selectedTool,
+          model_id: model,
+          is_character_mode: isCharacterModeEnabled,
+          duration_ms: error.timeoutMs,
+          reason_code: "PREFLIGHT_TIMEOUT",
+        });
+      }
+      setUiError(
+        error instanceof DeadlineExceededError
+          ? PREFLIGHT_TIMEOUT_ERROR
+          : error instanceof Error
+            ? error.message
+            : "Unable to start generation."
+      );
+      return;
+    }
     const hasCharacterModeReferences =
       (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
     if (isCreateTool(selectedTool) && characterModeOverrides && !hasCharacterModeReferences) {
@@ -482,6 +542,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     isCreditGuardrail,
     isGenerateDisabled,
     model,
+    isCharacterModeEnabled,
     refreshCharacterModeInjectionBundleForSubmission,
     regenerateOutput,
     resolveEffectiveSubmitModelId,

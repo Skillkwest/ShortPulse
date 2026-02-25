@@ -4,6 +4,8 @@
  */
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { reportAppError } from "../../../lib/appErrorReporter";
+import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { buildGenerationSubmissionTraceId, randomId } from "../logic/ids";
 import { getModelConfig } from "../logic/pricing";
 import {
@@ -11,6 +13,7 @@ import {
   isModelDefaultImageResolution,
 } from "../logic/imageResolution";
 import { resolveEffectiveAspectForModel } from "../logic/modelApiContracts";
+import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import { prepareImageUrlForSubmission } from "../utils/imageUpload";
 import { Provider, resolveModelLabel } from "../logic/stateParsers";
 import {
@@ -22,6 +25,21 @@ import {
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type GenerationMetadata = Record<string, unknown>;
+type SubmissionInvariantError = Error & {
+  code?: "SUBMIT_NOT_STARTED";
+  detail?: string;
+};
+
+const PREPARE_REFERENCE_TIMEOUT_MS = 10_000;
+const PREPARE_REFERENCE_TIMEOUT_ERROR =
+  "Preparation timed out before generation started. Please retry.";
+const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
+const submitNotStartedError = (detail: string): SubmissionInvariantError => {
+  const error = new Error("Provider task did not start.") as SubmissionInvariantError;
+  error.code = "SUBMIT_NOT_STARTED";
+  error.detail = detail;
+  return error;
+};
 
 type EnsureGenerationRecordInput = {
   outputId: string;
@@ -244,17 +262,51 @@ export const useAiStudioTaskSubmission = ({
 
         let preparedImageInputs: string[] = [];
         try {
+          addBreadcrumb({
+            type: "ui",
+            level: "info",
+            message: "generation_preflight_started",
+            data: {
+              output_id: id,
+              model_id: finalModel,
+              tool: effectiveTool,
+            },
+          });
           preparedImageInputs = (
-            await Promise.all(
-              imageInputs.map(async (url) => {
-                const normalized = await prepareImageUrlForSubmission(url);
-                return normalized ?? null;
-              })
-            )
+            await withDeadline({
+              timeoutMs: PREPARE_REFERENCE_TIMEOUT_MS,
+              timeoutMessage: PREPARE_REFERENCE_TIMEOUT_ERROR,
+              run: async () =>
+                Promise.all(
+                  imageInputs.map(async (url) => {
+                    const normalized = await prepareImageUrlForSubmission(url);
+                    return normalized ?? null;
+                  })
+                ),
+            })
           ).filter((url): url is string => Boolean(url));
         } catch (error) {
-          const detail =
-            error instanceof Error ? error.message : "Unable to prepare reference media.";
+          const isPreflightTimeout = error instanceof DeadlineExceededError;
+          const detail = isPreflightTimeout
+            ? PREPARE_REFERENCE_TIMEOUT_ERROR
+            : error instanceof Error
+              ? error.message
+              : "Unable to prepare reference media.";
+          if (isPreflightTimeout) {
+            void reportAppError({
+              source: "generation_preflight_timeout",
+              scope: "generation",
+              severity: "medium",
+              message: "Generation preflight timed out before submission.",
+              metadata: {
+                output_id: id,
+                model_id: finalModel,
+                tool: effectiveTool,
+                duration_ms: error.timeoutMs,
+                reason_code: "PREFLIGHT_TIMEOUT",
+              },
+            });
+          }
           setOutputs((prev) =>
             prev.map((item) =>
               item.id === id
@@ -264,13 +316,15 @@ export const useAiStudioTaskSubmission = ({
                     status: "ready",
                     timestamp: "Failed",
                     errorMessage: detail,
-                    errorMessageShort: "Reference upload failed.",
+                    errorMessageShort: isPreflightTimeout
+                      ? "Preparation timed out."
+                      : "Reference upload failed.",
                     errorDetail: detail,
                   }
                 : item
             )
           );
-          setUiError(`Reference upload failed: ${detail}`);
+          setUiError(isPreflightTimeout ? detail : `Reference upload failed: ${detail}`);
           return;
         }
         if (
@@ -381,25 +435,35 @@ export const useAiStudioTaskSubmission = ({
         }
 
         try {
+          let taskStarted = false;
+          let startedTaskId: string | null = null;
+          let startedProvider: Provider | null = null;
           const startPollingWithGeneration = (
             taskId: string,
             provider: Provider,
             patch: Partial<StudioOutput> = {}
           ) => {
+            const normalizedTaskId = taskId.trim();
+            if (!normalizedTaskId) {
+              throw new Error("Provider returned an empty request id.");
+            }
+            taskStarted = true;
+            startedTaskId = normalizedTaskId;
+            startedProvider = provider;
             updateOutputById(id, (item) => ({
               ...item,
               ...patch,
-              taskId,
-              generationTraceId: taskId,
+              taskId: normalizedTaskId,
+              generationTraceId: normalizedTaskId,
               taskState: "running",
               timestamp: "Submitted",
               provider: item.provider ?? provider,
             }));
-            startPollingTask(taskId, id, 0, provider);
+            startPollingTask(normalizedTaskId, id, 0, provider);
             void ensureGenerationRecord({
               outputId: id,
               provider,
-              taskId,
+              taskId: normalizedTaskId,
               durationSeconds: requestedDurationSeconds,
               resolution: requestedResolution ?? null,
               metadata: {
@@ -410,7 +474,19 @@ export const useAiStudioTaskSubmission = ({
                 resolution: requestedResolution ?? null,
                 duration_seconds: requestedDurationSeconds,
                 submission_trace_id: submissionTraceId,
-                generation_trace_id: taskId,
+                generation_trace_id: normalizedTaskId,
+              },
+            });
+            addBreadcrumb({
+              type: "ui",
+              level: "info",
+              message: "fal_submit_dispatched",
+              data: {
+                output_id: id,
+                model_id: finalModel,
+                provider,
+                task_id: normalizedTaskId,
+                tool: effectiveTool,
               },
             });
           };
@@ -442,11 +518,8 @@ export const useAiStudioTaskSubmission = ({
               klingMultiPrompts,
               klingElements,
             });
-            return;
-          }
-
-          if (route === "image") {
-            await handleImageModelSubmission({
+          } else if (route === "image") {
+            const handled = await handleImageModelSubmission({
               id,
               finalModel,
               cleanedPrompt: cleanedSubmissionPrompt,
@@ -461,27 +534,58 @@ export const useAiStudioTaskSubmission = ({
               startPollingWithGeneration,
               falReferencePayload,
             });
+            if (!handled) {
+              throw submitNotStartedError(
+                `Image submission route did not handle model '${finalModel}'.`
+              );
+            }
+          } else {
+            await handleDefaultModelSubmission({
+              id,
+              finalModel,
+              cleanedPrompt: cleanedSubmissionPrompt,
+              aspect: effectiveAspect,
+              requestedDurationSeconds,
+              requestedResolution,
+              requestedAudio,
+              preparedImageInputs,
+              modelConfig,
+              notifyGenerationFailure,
+              updateOutputById,
+              startPollingWithGeneration,
+              falReferencePayload,
+            });
+          }
+          if (!taskStarted || !startedTaskId || !startedProvider) {
+            throw submitNotStartedError(
+              "Submit route completed without starting provider polling."
+            );
+          }
+        } catch (error) {
+          const submissionError = error as SubmissionInvariantError;
+          if (submissionError?.code === "SUBMIT_NOT_STARTED") {
+            notifyGenerationFailure(
+              id,
+              SUBMIT_NOT_STARTED_USER_ERROR,
+              submissionError.detail ?? SUBMIT_NOT_STARTED_USER_ERROR
+            );
+            void reportAppError({
+              source: "fal_submit_not_started",
+              scope: "generation",
+              severity: "high",
+              message: "Fal generation did not start.",
+              metadata: {
+                output_id: id,
+                model_id: finalModel,
+                tool: effectiveTool,
+                reason_code: "SUBMIT_NOT_STARTED",
+                detail: submissionError.detail ?? null,
+              },
+            });
             return;
           }
-
-          await handleDefaultModelSubmission({
-            id,
-            finalModel,
-            cleanedPrompt: cleanedSubmissionPrompt,
-            aspect: effectiveAspect,
-            requestedDurationSeconds,
-            requestedResolution,
-            requestedAudio,
-            preparedImageInputs,
-            modelConfig,
-            notifyGenerationFailure,
-            updateOutputById,
-            startPollingWithGeneration,
-            falReferencePayload,
-          });
-        } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to start generation";
-          notifyGenerationFailure(id, message);
+          notifyGenerationFailure(id, message, message);
         }
       } finally {
         setIsPromptGenerating(false);

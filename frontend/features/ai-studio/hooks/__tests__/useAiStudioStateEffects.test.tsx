@@ -89,4 +89,27 @@ describe("useAiStudioStateEffects", () => {
       expect(setModel).toHaveBeenCalledWith("fal-ai/nano-banana-pro");
     });
   });
+
+  it("does not issue redundant setter writes when kling model/mode are already aligned", async () => {
+    const setModel = vi.fn();
+    const setVideoReferenceMode = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          selectedTool: "kling",
+          model: "fal-ai/kling-video/v3/pro/image-to-video",
+          videoReferenceMode: "kling3",
+          allowedModelValues: ["fal-ai/kling-video/v3/pro/image-to-video"],
+          setModel,
+          setVideoReferenceMode,
+          hasPendingWorkflowRestore: false,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).not.toHaveBeenCalled();
+      expect(setVideoReferenceMode).not.toHaveBeenCalled();
+    });
+  });
 });

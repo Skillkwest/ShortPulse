@@ -78,6 +78,8 @@ Failure-code action map (Fal reliability rollout):
 | `status_alias_retryable` / `result_alias_retryable` | Keep polling/retrieval retries active; verify alias sweep behavior for the model profile. |
 | `terminal_success_no_media` | Queue for reconciler retry; replay manually if age exceeds SLA. |
 | `status_poll_error` / `provider_error` | Check provider health and route exceptions; consider temporary model disable. |
+| `SUBMIT_NOT_STARTED` | Inspect submit routing/handler invariants; verify route handled model and `request_id` was returned; treat as fail-fast client-side start failure. |
+| `PREFLIGHT_TIMEOUT` | Inspect pre-submit media prep/signing latency and storage auth path; treat as client preflight timeout before provider submit. |
 | `persist_upload_error` / `persist_insert_error` | Validate storage + DB availability; replay persistence after correction. |
 | `payload_drift_detected` | Compare payload against fixtures and update adapter/profile parsing safely. |
 | `circuit_breaker_open` | Keep model paused until failure ratio drops below threshold and smoke tests pass. |

@@ -176,6 +176,50 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).not.toHaveBeenCalled();
   });
 
+  it("fails fast and removes optimistic placeholder when preflight times out", async () => {
+    vi.useFakeTimers();
+    try {
+      const setUiError = vi.fn();
+      const generateOutput = vi.fn();
+      const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-optimistic");
+      const removeOptimisticGenerationPlaceholder = vi.fn();
+      const trackCharacterModeEvent = vi.fn();
+      const refreshCharacterModeInjectionBundleForSubmission = vi.fn(
+        async () =>
+          await new Promise<null>(() => {
+            // intentionally unresolved to trigger timeout
+          })
+      );
+      const params = createParams({
+        setUiError: asDispatch<string | null>(setUiError),
+        generateOutput,
+        insertOptimisticGenerationPlaceholder,
+        removeOptimisticGenerationPlaceholder,
+        trackCharacterModeEvent,
+        refreshCharacterModeInjectionBundleForSubmission,
+      });
+      const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+      await act(async () => {
+        const pending = result.current.handleGenerate("prompt");
+        await vi.advanceTimersByTimeAsync(10_000);
+        await pending;
+      });
+
+      expect(removeOptimisticGenerationPlaceholder).toHaveBeenCalledWith("out-optimistic");
+      expect(setUiError).toHaveBeenCalledWith(
+        "Preparation timed out before generation started. Please retry."
+      );
+      expect(generateOutput).not.toHaveBeenCalled();
+      expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+        "generation_preflight_timeout",
+        expect.objectContaining({ trigger: "generate", reason_code: "PREFLIGHT_TIMEOUT" })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("fails generate when override cost cannot be covered after refresh", async () => {
     const setUiError = vi.fn();
     const refreshBalance = vi.fn(async () => 1);

@@ -24,7 +24,11 @@ export type StaleOutputCleanupResult = {
   removableIds: string[];
 };
 
-const isGeneratedOutput = (output: StudioOutput): boolean => output.id.startsWith("out-");
+const isGeneratedOutput = (output: StudioOutput): boolean => {
+  if (output.mediaSource === "generated") return true;
+  // Keep legacy fallback for older optimistic ids that predate mediaSource wiring.
+  return output.id.startsWith("out-");
+};
 
 const isLoadingWithoutPreview = (output: StudioOutput): boolean => {
   if (!isGeneratedOutput(output)) return false;

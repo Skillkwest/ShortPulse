@@ -74,6 +74,18 @@ describe("evaluateStaleOutputCleanup", () => {
     expect(result.nextLifecycle).toEqual({});
   });
 
+  it("tracks generated placeholders by mediaSource even when id does not use out-* prefix", () => {
+    const outputs = [makeOutput({ id: "generation-db-1", mediaSource: "generated" })];
+    const lifecycle: OutputLifecycleMap = {
+      "generation-db-1": { pendingSinceMs: BASE_TIME_MS - 12_000 },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toEqual(["generation-db-1"]);
+    expect(result.submitStartTimeoutIds).toEqual(["generation-db-1"]);
+  });
+
   it("keeps pending lifecycle only while output is unresolved", () => {
     const loadingOutput = makeOutput({ id: "out-progress" });
     const resolvedOutput = makeOutput({

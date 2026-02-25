@@ -12,6 +12,12 @@ import {
   resolveSubmissionHandlerRoute,
 } from "../taskSubmissionHandlers";
 
+const reportAppErrorMock = vi.fn();
+
+vi.mock("../../../../lib/appErrorReporter", () => ({
+  reportAppError: (...args: unknown[]) => reportAppErrorMock(...args),
+}));
+
 vi.mock("../taskSubmissionHandlers", () => ({
   handleDefaultModelSubmission: vi.fn(),
   handleImageModelSubmission: vi.fn(),
@@ -41,6 +47,23 @@ describe("useAiStudioTaskSubmission", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     prepareImageUrlForSubmissionMock.mockImplementation(async (url: string | null) => url);
+    vi.mocked(handleVideoModelSubmission).mockImplementation(
+      async ({ startPollingWithGeneration }) => {
+        startPollingWithGeneration("video-req-1", "fal-veo");
+        return true;
+      }
+    );
+    vi.mocked(handleImageModelSubmission).mockImplementation(
+      async ({ startPollingWithGeneration }) => {
+        startPollingWithGeneration("image-req-1", "fal-seedream");
+        return true;
+      }
+    );
+    vi.mocked(handleDefaultModelSubmission).mockImplementation(
+      async ({ startPollingWithGeneration }) => {
+        startPollingWithGeneration("default-req-1", "fal-seedream");
+      }
+    );
   });
 
   it("keeps Veo First/Last strict when references are missing (no text-video fallback)", async () => {
@@ -503,6 +526,86 @@ describe("useAiStudioTaskSubmission", () => {
     expect(outputs[0]?.errorMessageShort).toBe("Reference upload failed.");
     expect(setUiError).toHaveBeenCalledWith("Reference upload failed: Upload failed");
     expect(startPollingTask).not.toHaveBeenCalled();
+  });
+
+  it("fails fast when pre-submit reference preparation exceeds deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      let outputs: StudioOutput[] = [];
+      const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+        outputs = typeof value === "function" ? value(outputs) : value;
+      });
+
+      const setIsPromptGenerating = vi.fn();
+      const setUiError = vi.fn();
+      const setUiNotice = vi.fn();
+      const setSaved = vi.fn();
+      const notifyGenerationFailure = vi.fn();
+      const updateOutputById = vi.fn();
+      const startPollingTask = vi.fn();
+      const ensureGenerationRecord = vi.fn(async () => null);
+
+      prepareImageUrlForSubmissionMock.mockImplementationOnce(
+        async () =>
+          await new Promise<string>(() => {
+            // intentionally unresolved to simulate stalled prep
+          })
+      );
+
+      const { result } = renderHook(() =>
+        useAiStudioTaskSubmission({
+          aspect: "9:16",
+          mode: "image",
+          model: "fal-ai/bytedance/seedream/v4.5/edit",
+          prompt: "",
+          selectedTool: "edit",
+          imageResolution: "model_default",
+          videoDurationSeconds: 8,
+          videoResolution: "720p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur, distort, and low quality",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+          setUiError: asDispatch(setUiError),
+          setUiNotice: asDispatch(setUiNotice),
+          setOutputs: asDispatch(setOutputs),
+          setSaved: asDispatch(setSaved),
+          getDefaultDurationSeconds: () => 8,
+          notifyGenerationFailure,
+          updateOutputById,
+          startPollingTask,
+          ensureGenerationRecord,
+        })
+      );
+
+      await act(async () => {
+        const pending = result.current("edit prompt", ["blob:slow-ref"], {
+          modeOverride: "image",
+          selectedToolOverride: "edit",
+        });
+        await vi.advanceTimersByTimeAsync(10_000);
+        await pending;
+      });
+
+      expect(outputs[0]?.taskState).toBe("fail");
+      expect(outputs[0]?.errorMessageShort).toBe("Preparation timed out.");
+      expect(setUiError).toHaveBeenCalledWith(
+        "Preparation timed out before generation started. Please retry."
+      );
+      expect(startPollingTask).not.toHaveBeenCalled();
+      expect(handleImageModelSubmission).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each(STRICT_EDIT_MODELS)(
@@ -1213,6 +1316,75 @@ describe("useAiStudioTaskSubmission", () => {
     expect(handleDefaultModelSubmission).not.toHaveBeenCalledWith(
       expect.objectContaining({
         finalModel: "fal-ai/nano-banana-pro",
+      })
+    );
+  });
+
+  it("fails immediately when image routing does not start a provider task", async () => {
+    const setOutputs = vi.fn();
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+    vi.mocked(handleImageModelSubmission).mockResolvedValueOnce(false);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/nano-banana-pro/edit",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "1K",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Character prompt", ["https://cdn.test/char-ref.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+    });
+
+    expect(startPollingTask).not.toHaveBeenCalled();
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      expect.any(String),
+      "Generation failed to start. Please retry.",
+      expect.stringContaining("did not handle model")
+    );
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "fal_submit_not_started",
       })
     );
   });

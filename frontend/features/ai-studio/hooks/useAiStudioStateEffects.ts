@@ -1,7 +1,7 @@
 /**
  * Encapsulates lifecycle and synchronization effects for AI Studio state.
  */
-import { useEffect, type MutableRefObject } from "react";
+import { useCallback, useEffect, type MutableRefObject } from "react";
 import { aspectOptions } from "../constants";
 import { getModelConfig } from "../logic/pricing";
 import { clampImageResolutionForModel } from "../logic/imageResolution";
@@ -101,6 +101,22 @@ export const useAiStudioStateEffects = ({
   setModelModalPosition,
   hasPendingWorkflowRestore,
 }: UseAiStudioStateEffectsArgs) => {
+  const setModelIfChanged = useCallback(
+    (nextModel: string | null) => {
+      if (model === nextModel) return;
+      setModel(nextModel);
+    },
+    [model, setModel]
+  );
+
+  const setVideoReferenceModeIfChanged = useCallback(
+    (nextMode: VideoReferenceMode) => {
+      if (videoReferenceMode === nextMode) return;
+      setVideoReferenceMode(nextMode);
+    },
+    [setVideoReferenceMode, videoReferenceMode]
+  );
+
   useEffect(() => {
     promptRef.current?.focus();
   }, [promptRef]);
@@ -210,7 +226,7 @@ export const useAiStudioStateEffects = ({
     if (videoReferenceMode === "kling3") {
       if (model !== "fal-ai/kling-video/v3/pro/image-to-video") {
         lastNonKling3VideoModelRef.current = model;
-        setModel("fal-ai/kling-video/v3/pro/image-to-video");
+        setModelIfChanged("fal-ai/kling-video/v3/pro/image-to-video");
       }
       return;
     }
@@ -218,19 +234,19 @@ export const useAiStudioStateEffects = ({
     if (previousMode === "kling3" && model === "fal-ai/kling-video/v3/pro/image-to-video") {
       const fallback = lastNonKling3VideoModelRef.current;
       if (fallback && fallback !== "fal-ai/kling-video/v3/pro/image-to-video") {
-        setModel(fallback);
+        setModelIfChanged(fallback);
         return;
       }
-      setModel(null);
+      setModelIfChanged(null);
       return;
     }
 
     if (videoReferenceMode === "keyframes") {
       if (model && !KEYFRAME_COMPATIBLE_MODELS.has(model)) {
         lastNonKeyframesVideoModelRef.current = model;
-        setModel("fal-ai/veo3.1/first-last-frame-to-video");
+        setModelIfChanged("fal-ai/veo3.1/first-last-frame-to-video");
       } else if (!model) {
-        setModel("fal-ai/veo3.1/first-last-frame-to-video");
+        setModelIfChanged("fal-ai/veo3.1/first-last-frame-to-video");
       }
       return;
     }
@@ -238,22 +254,22 @@ export const useAiStudioStateEffects = ({
     if (videoReferenceMode === "motion") {
       if (model !== "fal-ai/kling-video/v3/pro/image-to-video") {
         lastNonMotionVideoModelRef.current = model;
-        setModel("fal-ai/kling-video/v3/pro/image-to-video");
+        setModelIfChanged("fal-ai/kling-video/v3/pro/image-to-video");
       } else if (!model) {
-        setModel("fal-ai/kling-video/v3/pro/image-to-video");
+        setModelIfChanged("fal-ai/kling-video/v3/pro/image-to-video");
       }
       return;
     }
 
     if (model === "fal-ai/kling-video/v3/pro/image-to-video" && videoReferenceMode === "standard") {
       const fallback = lastNonMotionVideoModelRef.current ?? "fal-ai/veo3.1/image-to-video";
-      setModel(fallback);
+      setModelIfChanged(fallback);
       return;
     }
 
     if (model === "fal-ai/veo3.1/first-last-frame-to-video" && videoReferenceMode === "standard") {
       const fallback = lastNonKeyframesVideoModelRef.current ?? "fal-ai/veo3.1/image-to-video";
-      setModel(fallback);
+      setModelIfChanged(fallback);
       return;
     }
   }, [
@@ -263,8 +279,7 @@ export const useAiStudioStateEffects = ({
     lastVideoReferenceModeRef,
     model,
     selectedTool,
-    setModel,
-    setVideoReferenceMode,
+    setModelIfChanged,
     videoReferenceMode,
     hasPendingWorkflowRestore,
   ]);
@@ -274,22 +289,22 @@ export const useAiStudioStateEffects = ({
     if (resolveWorkflowId(selectedTool) !== "video" || selectedTool === "kling") return;
     if (videoReferenceMode === "keyframes" || videoReferenceMode === "motion") return;
     if (videoReferenceMode === "kling3") {
-      setVideoReferenceMode("standard");
+      setVideoReferenceModeIfChanged("standard");
     }
     if (model === "fal-ai/kling-video/v3/pro/image-to-video") {
       const fallback = lastNonKling3VideoModelRef.current;
       if (fallback && fallback !== "fal-ai/kling-video/v3/pro/image-to-video") {
-        setModel(fallback);
+        setModelIfChanged(fallback);
       } else {
-        setModel(null);
+        setModelIfChanged(null);
       }
     }
   }, [
     lastNonKling3VideoModelRef,
     model,
     selectedTool,
-    setModel,
-    setVideoReferenceMode,
+    setModelIfChanged,
+    setVideoReferenceModeIfChanged,
     videoReferenceMode,
     hasPendingWorkflowRestore,
   ]);
@@ -298,10 +313,10 @@ export const useAiStudioStateEffects = ({
     if (hasPendingWorkflowRestore) return;
     if (selectedTool !== "kling") return;
     if (videoReferenceMode !== "kling3") {
-      setVideoReferenceMode("kling3");
+      setVideoReferenceModeIfChanged("kling3");
     }
     if (model !== "fal-ai/kling-video/v3/pro/image-to-video") {
-      setModel("fal-ai/kling-video/v3/pro/image-to-video");
+      setModelIfChanged("fal-ai/kling-video/v3/pro/image-to-video");
     }
     if (!showCreateTools) {
       setShowCreateTools(true);
@@ -309,9 +324,9 @@ export const useAiStudioStateEffects = ({
   }, [
     model,
     selectedTool,
-    setModel,
+    setModelIfChanged,
     setShowCreateTools,
-    setVideoReferenceMode,
+    setVideoReferenceModeIfChanged,
     showCreateTools,
     videoReferenceMode,
     hasPendingWorkflowRestore,
@@ -328,15 +343,15 @@ export const useAiStudioStateEffects = ({
           isCharacterModeEnabled,
         });
         if (allowedValues.has(mappedCreateModel)) {
-          setModel(mappedCreateModel);
+          setModelIfChanged(mappedCreateModel);
           return;
         }
         if (!isCharacterModeEnabled && allowedValues.has(CREATE_DEFAULT_MODEL_ID)) {
-          setModel(CREATE_DEFAULT_MODEL_ID);
+          setModelIfChanged(CREATE_DEFAULT_MODEL_ID);
           return;
         }
       }
-      setModel(null);
+      setModelIfChanged(null);
     }
   }, [
     allowedModelValues,
@@ -345,7 +360,7 @@ export const useAiStudioStateEffects = ({
     mode,
     model,
     selectedTool,
-    setModel,
+    setModelIfChanged,
   ]);
 
   useEffect(() => {

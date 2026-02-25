@@ -208,4 +208,43 @@ describe("useAiStudioOutputLifecycle", () => {
       vi.useRealTimers();
     }
   });
+
+  it("fails fast for generated placeholders with non-optimistic ids when task id is missing", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("generation-db-1", {
+              taskState: "pending",
+              previewText: undefined,
+              previewUrl: undefined,
+              mediaSource: "generated",
+              timestamp: "Submitting...",
+            }),
+          ],
+          null
+        )
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(16_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("fail");
+      expect(result.current.outputs[0]?.errorMessage).toBe(
+        "Generation failed to start. Please retry."
+      );
+      expect(reportAppErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "fal_submit_not_started",
+          metadata: expect.objectContaining({
+            output_id: "generation-db-1",
+          }),
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

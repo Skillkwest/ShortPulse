@@ -21,6 +21,22 @@ const makeTransfer = (data: Record<string, string>): DataTransfer =>
     getData: (type: string) => data[type] ?? "",
   }) as unknown as DataTransfer;
 
+const makeDragEvent = () => {
+  const dragNode = document.createElement("div");
+  const setData = vi.fn();
+  const setDragImage = vi.fn();
+  const event = {
+    dataTransfer: {
+      effectAllowed: "all",
+      setData,
+      setDragImage,
+    },
+    currentTarget: dragNode,
+  } as unknown as Parameters<typeof prepareReferenceDrag>[0];
+
+  return { dragNode, setData, setDragImage, event };
+};
+
 describe("dragDrop payload extraction", () => {
   it("prefers text/reference-url for image drags when URI list points at the current page", () => {
     const transfer = makeTransfer({
@@ -104,16 +120,7 @@ describe("dragDrop payload extraction", () => {
   });
 
   it("writes source-surface metadata for internal reference drags", () => {
-    const dragNode = document.createElement("div");
-    const setData = vi.fn();
-    const event = {
-      dataTransfer: {
-        effectAllowed: "all",
-        setData,
-        setDragImage: vi.fn(),
-      },
-      currentTarget: dragNode,
-    } as unknown as Parameters<typeof prepareReferenceDrag>[0];
+    const { event, setData } = makeDragEvent();
     prepareReferenceDrag(
       event,
       {
@@ -130,6 +137,95 @@ describe("dragDrop payload extraction", () => {
     );
 
     expect(setData).toHaveBeenCalledWith("text/reference-source-surface", "curated");
+  });
+
+  it("renders image drag ghosts as media-only without prompt/footer text", () => {
+    const { event, setDragImage } = makeDragEvent();
+
+    prepareReferenceDrag(event, {
+      id: "ref-image-media-only",
+      prompt: "Prompt should not appear in media ghost",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-image-media-only.png",
+    });
+
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement | undefined;
+    expect(ghost).toBeInstanceOf(HTMLElement);
+    expect(ghost?.querySelector("img")).toBeTruthy();
+    expect(ghost?.textContent?.trim()).toBe("");
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("renders video drag ghosts from thumbnail candidates without prompt/footer text", () => {
+    const { event, setDragImage } = makeDragEvent();
+
+    prepareReferenceDrag(event, {
+      id: "ref-video-thumb",
+      prompt: "Camera move prompt should not appear",
+      mode: "video",
+      aspect: "16:9",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-video-thumb.mp4",
+      previewStoragePath: "https://example.com/ref-video-thumb.jpg",
+    });
+
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement | undefined;
+    expect(ghost).toBeInstanceOf(HTMLElement);
+    expect(ghost?.querySelector("img")).toBeTruthy();
+    expect(ghost?.textContent?.trim()).toBe("");
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("renders video drag ghosts without thumbnails as blank media tiles", () => {
+    const { event, setDragImage } = makeDragEvent();
+
+    prepareReferenceDrag(event, {
+      id: "ref-video-blank",
+      prompt: "No text should appear",
+      mode: "video",
+      aspect: "16:9",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-video-blank.mp4",
+    });
+
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement | undefined;
+    expect(ghost).toBeInstanceOf(HTMLElement);
+    expect(ghost?.querySelector("img")).toBeNull();
+    expect(ghost?.children.length).toBeGreaterThan(0);
+    expect(ghost?.textContent?.trim()).toBe("");
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("keeps prompt-only drag ghosts text-based when no media is available", () => {
+    const { event, setDragImage } = makeDragEvent();
+
+    prepareReferenceDrag(event, {
+      id: "ref-prompt-only",
+      prompt: "Prompt-only ghost text",
+      mode: "text",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+    });
+
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement | undefined;
+    expect(ghost).toBeInstanceOf(HTMLElement);
+    expect(ghost?.querySelector("img")).toBeNull();
+    expect(ghost?.textContent).toContain("Prompt-only ghost text");
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });
 
   it("removes selected-card action controls from the drag ghost preview", () => {

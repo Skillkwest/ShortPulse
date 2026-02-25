@@ -102,6 +102,7 @@ const buildReferenceDragGhost = ({
   const imageUrl = resolveReferenceTransferUrl(output, "image");
   const videoUrl = resolveReferenceTransferUrl(output, "video");
   const promptText = trimDragGhostText(dedupeText(output.prompt ?? output.previewText) || null);
+  const isMediaGhost = Boolean(imageUrl || videoUrl);
 
   if (imageUrl) {
     const image = document.createElement("img");
@@ -114,17 +115,13 @@ const buildReferenceDragGhost = ({
     ghost.appendChild(image);
   } else if (videoUrl) {
     const videoPlaceholder = document.createElement("div");
-    videoPlaceholder.textContent = "Video reference";
     videoPlaceholder.style.flex = "1";
-    videoPlaceholder.style.display = "flex";
-    videoPlaceholder.style.alignItems = "center";
-    videoPlaceholder.style.justifyContent = "center";
-    videoPlaceholder.style.fontSize = "12px";
-    videoPlaceholder.style.letterSpacing = "0.04em";
-    videoPlaceholder.style.textTransform = "uppercase";
-    videoPlaceholder.style.color = "rgba(229, 238, 255, 0.9)";
+    videoPlaceholder.style.width = "100%";
+    videoPlaceholder.style.height = "100%";
+    videoPlaceholder.style.background =
+      "linear-gradient(160deg, rgba(24,31,45,0.95), rgba(10,14,22,0.85))";
     ghost.appendChild(videoPlaceholder);
-  } else if (promptText) {
+  } else if (!isMediaGhost && promptText) {
     const textOnlyBody = document.createElement("div");
     textOnlyBody.style.flex = "1";
     textOnlyBody.style.padding = "10px";
@@ -137,22 +134,6 @@ const buildReferenceDragGhost = ({
     textOnlyBody.style.setProperty("-webkit-box-orient", "vertical");
     textOnlyBody.textContent = promptText;
     ghost.appendChild(textOnlyBody);
-  }
-
-  if (promptText && (imageUrl || videoUrl)) {
-    const footer = document.createElement("div");
-    footer.style.padding = "8px 10px";
-    footer.style.fontSize = "10px";
-    footer.style.lineHeight = "1.3";
-    footer.style.color = "rgba(229, 238, 255, 0.92)";
-    footer.style.background = "linear-gradient(to top, rgba(6,10,16,0.88), rgba(6,10,16,0.15))";
-    footer.style.maxHeight = "48%";
-    footer.style.overflow = "hidden";
-    footer.style.display = "-webkit-box";
-    footer.style.setProperty("-webkit-line-clamp", "3");
-    footer.style.setProperty("-webkit-box-orient", "vertical");
-    footer.textContent = promptText;
-    ghost.appendChild(footer);
   }
 
   return ghost;

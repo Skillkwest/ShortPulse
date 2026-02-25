@@ -73,3 +73,21 @@ export const mapCreateModelOnCharacterModeToggle = ({
   }
   return CREATE_DEFAULT_MODEL_ID;
 };
+
+/**
+ * Resolves the effective Create submit model for Character Mode safety.
+ * ON: coerces text-to-image models to paired edit models.
+ * OFF: leaves selected model unchanged.
+ */
+export const resolveCreateCharacterModeSubmitModel = ({
+  currentModelId,
+  isCharacterModeEnabled,
+}: {
+  currentModelId: string | null;
+  isCharacterModeEnabled: boolean;
+}): string | null => {
+  if (!isCharacterModeEnabled) return currentModelId;
+  if (!currentModelId) return CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID;
+  if (isCreateCharacterModeModel(currentModelId)) return currentModelId;
+  return TEXT_TO_EDIT_MODEL_MAP.get(currentModelId) ?? CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID;
+};

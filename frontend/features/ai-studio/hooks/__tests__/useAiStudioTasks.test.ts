@@ -354,6 +354,48 @@ describe("useAiStudioTasks", () => {
     expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(2);
   });
 
+  it("exhausts image no-media retries after the bounded 6-step schedule and fails terminally", async () => {
+    fetchFalSeedreamStatusMock.mockResolvedValue({ status: "done" });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("seedream-task-bounded", "out-1", 0, "fal-seedream");
+    });
+
+    for (let i = 0; i < 8; i += 1) {
+      await vi.advanceTimersByTimeAsync(12_500);
+      await flushQueuedOutputUpdates();
+      if (notifyGenerationFailure.mock.calls.length > 0) break;
+    }
+
+    expect(fetchFalSeedreamStatusMock.mock.calls.length).toBeGreaterThanOrEqual(7);
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Generation finished, but no media URL was returned. Please retry.",
+      "Generation finished, but no media URL was returned. Please retry.",
+      expect.objectContaining({
+        reasonCode: "no_media_after_terminal_success",
+        noMediaAttempt: 6,
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(output.errorMessageShort).toBe("No media returned.");
+  });
+
   it("normalizes provider nonterminal states to running task state", async () => {
     fetchFalStatusMock.mockResolvedValueOnce({ status: "processing" });
 
@@ -665,5 +707,44 @@ describe("useAiStudioTasks", () => {
 
     await vi.advanceTimersByTimeAsync(2_300);
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("caps no-media background recovery to two attempts", async () => {
+    fetchFalStatusMock.mockResolvedValue({ status: "completed" });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-no-media-tail", "out-1", 0, "fal", Date.now(), 20);
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
+    await flushQueuedOutputUpdates();
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
+    await flushQueuedOutputUpdates();
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(3);
+
+    await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+    await flushQueuedOutputUpdates();
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(3);
   });
 });

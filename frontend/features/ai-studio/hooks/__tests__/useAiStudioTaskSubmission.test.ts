@@ -1072,4 +1072,148 @@ describe("useAiStudioTaskSubmission", () => {
     );
     expect(setUiError).not.toHaveBeenCalledWith("Pick a model to generate.");
   });
+
+  it("preserves prepared reference payload for Nano Banana Pro text submissions in create workflow", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("default");
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/nano-banana-pro",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "1K",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Character prompt", ["https://cdn.test/char-ref.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+    });
+
+    expect(outputs[0]?.modelId).toBe("fal-ai/nano-banana-pro");
+    expect(handleDefaultModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: "fal-ai/nano-banana-pro",
+        falReferencePayload: {
+          image_url: "https://cdn.test/char-ref.png",
+          image_urls: ["https://cdn.test/char-ref.png"],
+        },
+      })
+    );
+  });
+
+  it("prioritizes modelIdOverride for create submissions and routes Nano Banana Pro to edit handler", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/nano-banana-pro",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "1K",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Character prompt", ["https://cdn.test/char-ref.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+        modelIdOverride: "fal-ai/nano-banana-pro/edit",
+      });
+    });
+
+    expect(outputs[0]?.modelId).toBe("fal-ai/nano-banana-pro/edit");
+    expect(handleImageModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: "fal-ai/nano-banana-pro/edit",
+      })
+    );
+    expect(handleDefaultModelSubmission).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: "fal-ai/nano-banana-pro",
+      })
+    );
+  });
 });

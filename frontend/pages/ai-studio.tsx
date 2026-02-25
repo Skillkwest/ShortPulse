@@ -1154,6 +1154,9 @@ export default function AiStudioPage() {
   } = useAiStudioGenerationController({
     mode,
     selectedTool,
+    model,
+    setModel,
+    isCharacterModeEnabled,
     prompt,
     agentInput,
     agentBusy,

@@ -394,4 +394,68 @@ describe("useAiStudioTaskOrchestration", () => {
       vi.useRealTimers();
     }
   });
+
+  it("does not auto-retry outputs that already failed with terminal no-media state", () => {
+    vi.useFakeTimers();
+    try {
+      const outputs = [
+        createOutput({
+          id: "out-no-media",
+          taskId: "task-456",
+          provider: "fal",
+          taskState: "fail",
+          errorMessageShort: "No media returned.",
+          previewUrl: undefined,
+          previewText: undefined,
+        }),
+      ];
+
+      renderHook(() =>
+        useAiStudioTaskOrchestration({
+          taskSubmissionConfig: {
+            aspect: "9:16",
+            mode: "image",
+            model: "model-id",
+            prompt: "Prompt",
+            selectedTool: "create",
+            imageResolution: "model_default",
+            videoDurationSeconds: 6,
+            videoResolution: "1080p",
+            videoGenerateAudio: false,
+            videoReferenceMode: "standard",
+            videoReferenceImageUrl: null,
+            motionReferenceVideoUrl: null,
+            videoCameraFixed: false,
+            videoAutoFix: false,
+            klingNegativePrompt: "blur",
+            klingCfgScale: 0.5,
+            klingShotType: "customize",
+            klingVoiceIds: ["", ""],
+            klingMultiPrompts: [],
+            klingElements: [],
+            setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+            setUiError: asDispatch<string | null>(vi.fn()),
+            setUiNotice: asDispatch<string | null>(vi.fn()),
+            setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+            setSaved: asDispatch<boolean>(vi.fn()),
+            getDefaultDurationSeconds: vi.fn(() => 6),
+            notifyGenerationFailure: vi.fn(),
+            updateOutputById: vi.fn(),
+            ensureGenerationRecord: vi.fn(async () => null),
+          },
+          outputs,
+          findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+        })
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(4 * 60 * 1000);
+      });
+
+      expect(clearPollTimer).not.toHaveBeenCalled();
+      expect(startPollingTask).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

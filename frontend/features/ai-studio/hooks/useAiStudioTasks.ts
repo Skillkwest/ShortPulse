@@ -144,12 +144,14 @@ const terminalFailureStates = new Set(["fail", "failed", "error", "cancelled", "
 
 const BACKGROUND_RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
 const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
+const BACKGROUND_RECOVERY_MAX_ATTEMPTS_NO_MEDIA = 2;
 const MAX_CONCURRENT_STATUS_REQUESTS = 3;
 const IMAGE_POLL_MAX_WAIT_MS = 12 * 60 * 1000;
 const VIDEO_POLL_MAX_WAIT_MS = 20 * 60 * 1000;
 const POLL_DELAY_INITIAL_MS = 2_200;
 const POLL_DELAY_BACKOFF_STEP_MS = 800;
 const POLL_DELAY_MAX_MS = 10_000;
+const IMAGE_NO_MEDIA_RETRY_DELAYS_MS = [1500, 2000, 3000, 5000, 8000, 12000];
 const OUTPUT_LOOKUP_MISS_MAX_RETRIES = 10;
 const OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS = 400;
 const OUTPUT_LOOKUP_RECOVERY_RETRY_DELAY_MS = 2_000;
@@ -422,6 +424,10 @@ export function useAiStudioTasks({
         | "output_lookup_missing"
     ) => {
       if (recoveryTimersRef.current[outputId]) return;
+      const maxRecoveryAttempts =
+        reasonCode === "no_media_after_terminal_success"
+          ? BACKGROUND_RECOVERY_MAX_ATTEMPTS_NO_MEDIA
+          : BACKGROUND_RECOVERY_MAX_ATTEMPTS;
 
       addBreadcrumb({
         type: "ui",
@@ -433,6 +439,7 @@ export function useAiStudioTasks({
           output_id: outputId,
           reason_code: reasonCode,
           interval_ms: BACKGROUND_RECOVERY_INTERVAL_MS,
+          max_attempts: maxRecoveryAttempts,
         },
       });
 
@@ -512,7 +519,7 @@ export function useAiStudioTasks({
             // best-effort fallback polling; keep trying until budget is exhausted
           }
 
-          if (attempt >= BACKGROUND_RECOVERY_MAX_ATTEMPTS) {
+          if (attempt >= maxRecoveryAttempts) {
             addBreadcrumb({
               type: "ui",
               level: "warn",
@@ -522,6 +529,7 @@ export function useAiStudioTasks({
                 task_id: taskId,
                 output_id: outputId,
                 attempts: attempt,
+                max_attempts: maxRecoveryAttempts,
               },
             });
             clearRecoveryTimer(outputId);
@@ -829,9 +837,16 @@ export function useAiStudioTasks({
               }
               // Provider may report terminal success before media URLs are materialized.
               // Track a dedicated "no media yet" retry budget instead of using total poll attempts.
-              const maxNoMediaAttempts = longRunningVideoProviders.has(provider) ? 30 : 20;
+              const maxNoMediaAttempts = longRunningVideoProviders.has(provider)
+                ? 30
+                : IMAGE_NO_MEDIA_RETRY_DELAYS_MS.length;
               const shouldRetryForMedia = !hasMedia && noMediaAttempt < maxNoMediaAttempts;
               if (shouldRetryForMedia) {
+                const noMediaRetryDelayMs = longRunningVideoProviders.has(provider)
+                  ? delay
+                  : (IMAGE_NO_MEDIA_RETRY_DELAYS_MS[
+                      Math.min(noMediaAttempt, IMAGE_NO_MEDIA_RETRY_DELAYS_MS.length - 1)
+                    ] ?? delay);
                 if (noMediaAttempt === 0) {
                   addBreadcrumb({
                     type: "ui",
@@ -843,6 +858,7 @@ export function useAiStudioTasks({
                       output_id: outputId,
                       status_state: state,
                       max_no_media_attempts: maxNoMediaAttempts,
+                      retry_delay_ms: noMediaRetryDelayMs,
                     },
                   });
                 }
@@ -870,7 +886,7 @@ export function useAiStudioTasks({
                       noMediaAttempt + 1,
                       activePollSessionId
                     ),
-                  delay
+                  noMediaRetryDelayMs
                 );
                 return;
               }

@@ -22,6 +22,7 @@ const makeOutput = (overrides: Partial<StudioOutput>): StudioOutput => ({
 
 const config = {
   loadingTimeoutMs: 3 * 60 * 1000,
+  submitStartTimeoutMs: 12_000,
   autoFailedRetentionMs: 2 * 60 * 1000,
 };
 
@@ -29,13 +30,26 @@ describe("evaluateStaleOutputCleanup", () => {
   it("flags generated loading outputs as stale after timeout", () => {
     const outputs = [makeOutput({ id: "out-stale" })];
     const lifecycle: OutputLifecycleMap = {
-      "out-stale": { pendingSinceMs: BASE_TIME_MS - 3 * 60 * 1000 },
+      "out-stale": { pendingSinceMs: BASE_TIME_MS - 12_000 },
     };
 
     const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
 
     expect(result.staleLoadingIds).toEqual(["out-stale"]);
-    expect(result.nextLifecycle["out-stale"]?.pendingSinceMs).toBe(BASE_TIME_MS - 3 * 60 * 1000);
+    expect(result.submitStartTimeoutIds).toEqual(["out-stale"]);
+    expect(result.nextLifecycle["out-stale"]?.pendingSinceMs).toBe(BASE_TIME_MS - 12_000);
+  });
+
+  it("does not stale-timeout generated loading outputs before submit-start timeout", () => {
+    const outputs = [makeOutput({ id: "out-pending" })];
+    const lifecycle: OutputLifecycleMap = {
+      "out-pending": { pendingSinceMs: BASE_TIME_MS - 11_000 },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toHaveLength(0);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
   });
 
   it("does not stale-timeout outputs that already have a provider task id", () => {
@@ -47,6 +61,7 @@ describe("evaluateStaleOutputCleanup", () => {
     const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
 
     expect(result.staleLoadingIds).toHaveLength(0);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
     expect(result.nextLifecycle["out-tasked"]).toBeUndefined();
   });
 
@@ -55,6 +70,7 @@ describe("evaluateStaleOutputCleanup", () => {
     const result = evaluateStaleOutputCleanup(outputs, {}, BASE_TIME_MS, config);
 
     expect(result.staleLoadingIds).toHaveLength(0);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
     expect(result.nextLifecycle).toEqual({});
   });
 

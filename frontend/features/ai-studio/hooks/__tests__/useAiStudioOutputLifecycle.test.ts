@@ -172,4 +172,40 @@ describe("useAiStudioOutputLifecycle", () => {
     expect(result.current.outputs[0]?.errorDetail).toBe("Detailed reason");
     expect(result.current.uiError).toContain("failed");
   });
+
+  it("fails fast when a generated placeholder never receives a task id", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("out-1", {
+              taskState: "pending",
+              previewText: undefined,
+              previewUrl: undefined,
+              timestamp: "Submitting...",
+            }),
+          ],
+          null
+        )
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(16_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("fail");
+      expect(result.current.outputs[0]?.timestamp).toBe("Failed to start");
+      expect(result.current.outputs[0]?.errorMessage).toBe(
+        "Generation failed to start. Please retry."
+      );
+      expect(reportAppErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "fal_submit_not_started",
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

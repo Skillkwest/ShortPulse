@@ -30,6 +30,10 @@ const STUCK_SPINNER_RETRY_AGE_MS = 90_000;
 const STUCK_SPINNER_MAX_AUTO_RETRIES = 2;
 
 const isAutoRetryEligible = (output: StudioOutput): boolean => {
+  const hasTerminalNoMediaFailure =
+    output.errorMessageShort === "No media returned." ||
+    /no media url was returned/i.test(output.errorMessage ?? "");
+  if (hasTerminalNoMediaFailure) return false;
   const hasTaskId = typeof output.taskId === "string" && output.taskId.trim().length > 0;
   if (!hasTaskId) return false;
   if (output.previewUrl || output.previewText) return false;

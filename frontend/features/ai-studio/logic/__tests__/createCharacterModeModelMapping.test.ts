@@ -5,6 +5,7 @@ import {
   getCreateCharacterModeAllowedModels,
   isCreateCharacterModeModel,
   mapCreateModelOnCharacterModeToggle,
+  resolveCreateCharacterModeSubmitModel,
 } from "../createCharacterModeModelMapping";
 
 describe("createCharacterModeModelMapping", () => {
@@ -58,5 +59,41 @@ describe("createCharacterModeModelMapping", () => {
         isCharacterModeEnabled: false,
       })
     ).toBe(CREATE_DEFAULT_MODEL_ID);
+  });
+
+  it("coerces create submit model to paired edit model while character mode is enabled", () => {
+    expect(
+      resolveCreateCharacterModeSubmitModel({
+        currentModelId: "fal-ai/nano-banana-pro",
+        isCharacterModeEnabled: true,
+      })
+    ).toBe("fal-ai/nano-banana-pro/edit");
+    expect(
+      resolveCreateCharacterModeSubmitModel({
+        currentModelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        isCharacterModeEnabled: true,
+      })
+    ).toBe("fal-ai/bytedance/seedream/v4.5/edit");
+    expect(
+      resolveCreateCharacterModeSubmitModel({
+        currentModelId: "fal/flux-2",
+        isCharacterModeEnabled: true,
+      })
+    ).toBe("fal-ai/bytedance/seedream/v4.5/edit");
+    expect(
+      resolveCreateCharacterModeSubmitModel({
+        currentModelId: null,
+        isCharacterModeEnabled: true,
+      })
+    ).toBe("fal-ai/bytedance/seedream/v4.5/edit");
+  });
+
+  it("keeps submit model unchanged while character mode is disabled", () => {
+    expect(
+      resolveCreateCharacterModeSubmitModel({
+        currentModelId: "fal-ai/nano-banana-pro",
+        isCharacterModeEnabled: false,
+      })
+    ).toBe("fal-ai/nano-banana-pro");
   });
 });

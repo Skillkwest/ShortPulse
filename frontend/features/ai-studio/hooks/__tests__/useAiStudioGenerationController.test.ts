@@ -12,6 +12,9 @@ const createParams = (
 ): Parameters<typeof useAiStudioGenerationController>[0] => ({
   mode: "image",
   selectedTool: "create",
+  model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+  setModel: vi.fn(),
+  isCharacterModeEnabled: false,
   prompt: "",
   agentInput: "",
   agentBusy: false,
@@ -346,6 +349,7 @@ describe("useAiStudioGenerationController", () => {
     expect(resolveDefaultPromptForTool).toHaveBeenCalledWith("create");
     expect(refreshCharacterModeInjectionBundleForSubmission).toHaveBeenCalledWith("create");
     expect(regenerateOutput).toHaveBeenCalledWith({
+      modelIdOverride: "fal-ai/bytedance/seedream/v4.5/text-to-image",
       submissionPromptOverride: "submission",
       displayPromptOverride: "display",
       referenceInputsOverride: ["https://example.com/ref.png"],
@@ -496,6 +500,47 @@ describe("useAiStudioGenerationController", () => {
     expect(trackCharacterModeEvent).toHaveBeenCalledWith(
       "character_mode_submit_blocked_no_references",
       expect.objectContaining({ fallback_code: "no_references", tool: "create" })
+    );
+  });
+
+  it("coerces create character-mode submissions to paired edit model at submit-time", async () => {
+    const setModel = vi.fn();
+    const generateOutput = vi.fn();
+    const trackCharacterModeEvent = vi.fn();
+    const params = createParams({
+      model: "fal-ai/nano-banana-pro",
+      setModel,
+      isCharacterModeEnabled: true,
+      generateOutput,
+      trackCharacterModeEvent,
+      resolveCharacterModeSubmissionOverrides: vi.fn(() => ({
+        submissionPromptOverride: "character + prompt",
+        displayPromptOverride: "user prompt",
+        referenceInputsOverride: ["https://example.com/char-ref.png"],
+        notice: null,
+        fallbackCode: null,
+        characterReferenceCount: 1,
+        hasCharacterDescription: true,
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("user prompt");
+    });
+
+    expect(setModel).toHaveBeenCalledWith("fal-ai/nano-banana-pro/edit");
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+      "character_mode_submit_invariant_coerced",
+      expect.objectContaining({
+        trigger: "generate",
+        from_model_id: "fal-ai/nano-banana-pro",
+        to_model_id: "fal-ai/nano-banana-pro/edit",
+      })
+    );
+    expect(generateOutput).toHaveBeenCalledWith(
+      "user prompt",
+      expect.objectContaining({ modelIdOverride: "fal-ai/nano-banana-pro/edit" })
     );
   });
 });

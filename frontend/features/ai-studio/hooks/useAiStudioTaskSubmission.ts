@@ -120,6 +120,7 @@ export const useAiStudioTaskSubmission = ({
         displayPromptOverride?: string | null;
         characterContextOverride?: StudioOutput["characterContext"];
         outputIdOverride?: string;
+        modelIdOverride?: string | null;
       }
     ) => {
       setUiError(null);
@@ -149,8 +150,7 @@ export const useAiStudioTaskSubmission = ({
 
       const hasReferenceImages = imageInputs && imageInputs.length > 0;
       const isEditWorkflow = normalizedTool === "image";
-      const finalTool: ToolId | "text" | null = effectiveTool === "edit" ? "image" : effectiveTool;
-      const finalModel = model;
+      const finalModel = options?.modelIdOverride ?? model;
       if (isEditWorkflow && !hasReferenceImages) {
         removeOptimisticPlaceholder();
         setUiError("Add a reference image before generating.");
@@ -295,9 +295,7 @@ export const useAiStudioTaskSubmission = ({
           return;
         }
         const pulseReferenceImageUrl =
-          finalTool === "image" && preparedImageInputs.length > 0
-            ? preparedImageInputs[0]
-            : undefined;
+          preparedImageInputs.length > 0 ? preparedImageInputs[0] : undefined;
         const falReferencePayload = pulseReferenceImageUrl
           ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) }
           : ({} as Record<string, never>);

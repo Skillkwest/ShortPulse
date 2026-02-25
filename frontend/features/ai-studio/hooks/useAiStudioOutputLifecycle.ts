@@ -16,6 +16,7 @@ import { evaluateStaleOutputCleanup, type OutputLifecycleMap } from "../logic/st
 import type { StudioOutput } from "../types";
 
 const STALE_LOADING_TIMEOUT_MS = 3 * 60 * 1000;
+const SUBMIT_START_TIMEOUT_MS = 12_000;
 const AUTO_FAILED_OUTPUT_REMOVAL_MS = 2 * 60 * 1000;
 const STALE_OUTPUT_SWEEP_INTERVAL_MS = 15_000;
 
@@ -101,9 +102,11 @@ export const useAiStudioOutputLifecycle = ({
     const outputsSnapshot = outputsRef.current;
     const cleanup = evaluateStaleOutputCleanup(outputsSnapshot, lifecycle, now, {
       loadingTimeoutMs: STALE_LOADING_TIMEOUT_MS,
+      submitStartTimeoutMs: SUBMIT_START_TIMEOUT_MS,
       autoFailedRetentionMs: AUTO_FAILED_OUTPUT_REMOVAL_MS,
     });
     const staleLoadingSet = new Set(cleanup.staleLoadingIds);
+    const submitStartTimeoutSet = new Set(cleanup.submitStartTimeoutIds);
     const removableSet = new Set(cleanup.removableIds);
 
     staleLoadingSet.forEach((id) => {
@@ -121,11 +124,14 @@ export const useAiStudioOutputLifecycle = ({
 
     for (const staleOutput of outputsSnapshot) {
       if (!staleLoadingSet.has(staleOutput.id)) continue;
+      const isSubmitStartTimeout = submitStartTimeoutSet.has(staleOutput.id);
       void reportAppError({
-        source: "generation.stale_timeout",
+        source: isSubmitStartTimeout ? "fal_submit_not_started" : "generation.stale_timeout",
         scope: "generation",
         severity: "high",
-        message: "Generation timed out before preview was ready.",
+        message: isSubmitStartTimeout
+          ? "Generation failed to start before task initialization."
+          : "Generation timed out before preview was ready.",
         route: currentRoute(),
         metadata: {
           output_id: staleOutput.id,
@@ -150,16 +156,22 @@ export const useAiStudioOutputLifecycle = ({
           next.push(item);
           return;
         }
+        const isSubmitStartTimeout = submitStartTimeoutSet.has(item.id);
         changed = true;
         next.push({
           ...item,
           status: "ready",
           taskState: "fail",
-          timestamp: "Timed out",
-          errorMessage: "Generation timed out before preview was ready.",
-          errorMessageShort: "Generation timed out.",
-          errorDetail:
-            "This preview remained unresolved for several minutes and was marked as failed.",
+          timestamp: isSubmitStartTimeout ? "Failed to start" : "Timed out",
+          errorMessage: isSubmitStartTimeout
+            ? "Generation failed to start. Please retry."
+            : "Generation timed out before preview was ready.",
+          errorMessageShort: isSubmitStartTimeout
+            ? "Generation failed to start."
+            : "Generation timed out.",
+          errorDetail: isSubmitStartTimeout
+            ? "The generation did not receive a provider task id. Please retry."
+            : "This preview remained unresolved for several minutes and was marked as failed.",
         });
       });
 

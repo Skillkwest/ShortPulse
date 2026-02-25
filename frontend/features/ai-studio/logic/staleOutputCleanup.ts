@@ -13,12 +13,14 @@ export type OutputLifecycleMap = Record<string, OutputLifecycleState>;
 
 export type StaleOutputCleanupConfig = {
   loadingTimeoutMs: number;
+  submitStartTimeoutMs: number;
   autoFailedRetentionMs: number;
 };
 
 export type StaleOutputCleanupResult = {
   nextLifecycle: OutputLifecycleMap;
   staleLoadingIds: string[];
+  submitStartTimeoutIds: string[];
   removableIds: string[];
 };
 
@@ -51,6 +53,7 @@ export const evaluateStaleOutputCleanup = (
 ): StaleOutputCleanupResult => {
   const nextLifecycle: OutputLifecycleMap = {};
   const staleLoadingIds: string[] = [];
+  const submitStartTimeoutIds: string[] = [];
   const removableIds: string[] = [];
 
   outputs.forEach((output) => {
@@ -61,7 +64,11 @@ export const evaluateStaleOutputCleanup = (
       if (nextState.pendingSinceMs == null) {
         nextState.pendingSinceMs = now;
       }
-      if (now - nextState.pendingSinceMs >= config.loadingTimeoutMs) {
+      const elapsedMs = now - nextState.pendingSinceMs;
+      if (elapsedMs >= config.submitStartTimeoutMs) {
+        staleLoadingIds.push(output.id);
+        submitStartTimeoutIds.push(output.id);
+      } else if (elapsedMs >= config.loadingTimeoutMs) {
         staleLoadingIds.push(output.id);
       }
     } else {
@@ -87,6 +94,7 @@ export const evaluateStaleOutputCleanup = (
   return {
     nextLifecycle,
     staleLoadingIds,
+    submitStartTimeoutIds,
     removableIds,
   };
 };

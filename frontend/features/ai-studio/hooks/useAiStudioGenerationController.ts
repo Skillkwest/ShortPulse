@@ -10,6 +10,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { resolveCreateCharacterModeSubmitModel } from "../logic/createCharacterModeModelMapping";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type CharacterModeFallbackSummary<TFallbackCode extends string> = {
@@ -42,6 +43,9 @@ const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
   mode: StudioMode;
   selectedTool: ToolId | null;
+  model: string | null;
+  setModel: (value: string | null) => void;
+  isCharacterModeEnabled: boolean;
   prompt: string;
   agentInput: string;
   agentBusy: boolean;
@@ -107,6 +111,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
       referenceInputsOverride?: string[];
       characterContextOverride?: StudioOutput["characterContext"];
       outputIdOverride?: string;
+      modelIdOverride?: string | null;
     }
   ) => void;
   regenerateOutput: (options?: {
@@ -115,6 +120,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     referenceInputsOverride?: string[];
     characterContextOverride?: StudioOutput["characterContext"];
     outputIdOverride?: string;
+    modelIdOverride?: string | null;
   }) => void;
   activeOutputId?: string | null;
 };
@@ -127,6 +133,9 @@ const GENERATE_CLICK_COOLDOWN_MS = 700;
 export const useAiStudioGenerationController = <TBundle, TFallbackCode extends string>({
   mode,
   selectedTool,
+  model,
+  setModel,
+  isCharacterModeEnabled,
   prompt,
   agentInput,
   currentCostCredits,
@@ -231,12 +240,35 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     [setOptimisticDebitEntries]
   );
 
+  const resolveEffectiveSubmitModelId = useCallback(
+    (tool: ToolId | null): string | null => {
+      if (!isCreateTool(tool)) return model;
+      return resolveCreateCharacterModeSubmitModel({
+        currentModelId: model,
+        isCharacterModeEnabled,
+      });
+    },
+    [isCharacterModeEnabled, model]
+  );
+
   const handleGenerate = useCallback(
     async (promptOverride?: string | null, options?: GenerateOptions) => {
       if (!tryAcquireGenerateClickLock()) return;
 
       const effectiveMode = options?.modeOverride ?? mode;
       const effectiveTool = options?.toolOverride ?? selectedTool;
+      const effectiveModelId = resolveEffectiveSubmitModelId(effectiveTool);
+      const wasSubmitModelCoerced =
+        effectiveModelId != null && model != null && effectiveModelId !== model;
+      if (wasSubmitModelCoerced) {
+        setModel(effectiveModelId);
+        trackCharacterModeEvent?.("character_mode_submit_invariant_coerced", {
+          trigger: "generate",
+          tool: effectiveTool,
+          from_model_id: model,
+          to_model_id: effectiveModelId,
+        });
+      }
       const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
       let checkedFreshCredits = false;
 
@@ -317,6 +349,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       generateOutput(promptToUse, {
         modeOverride: effectiveMode,
         selectedToolOverride: effectiveTool,
+        modelIdOverride: effectiveModelId,
         submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
         displayPromptOverride: characterModeOverrides?.displayPromptOverride,
         referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
@@ -340,11 +373,14 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       isGenerateDisabled,
       insertOptimisticGenerationPlaceholder,
       mode,
+      model,
       removeOptimisticGenerationPlaceholder,
       refreshCharacterModeInjectionBundleForSubmission,
+      resolveEffectiveSubmitModelId,
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,
       selectedTool,
+      setModel,
       setUiError,
       setUiNotice,
       trackCharacterModeFallback,
@@ -412,8 +448,21 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       return;
     }
     trackCharacterModeFallback(characterModeOverrides, selectedTool);
+    const effectiveModelId = resolveEffectiveSubmitModelId(selectedTool);
+    const wasSubmitModelCoerced =
+      effectiveModelId != null && model != null && effectiveModelId !== model;
+    if (wasSubmitModelCoerced) {
+      setModel(effectiveModelId);
+      trackCharacterModeEvent?.("character_mode_submit_invariant_coerced", {
+        trigger: "regenerate",
+        tool: selectedTool,
+        from_model_id: model,
+        to_model_id: effectiveModelId,
+      });
+    }
     enqueueOptimisticDebit(currentCostCredits, activeOutputId ?? null);
     regenerateOutput({
+      modelIdOverride: effectiveModelId,
       submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
       displayPromptOverride: characterModeOverrides?.displayPromptOverride,
       referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
@@ -432,11 +481,14 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     handleBlockedGeneration,
     isCreditGuardrail,
     isGenerateDisabled,
+    model,
     refreshCharacterModeInjectionBundleForSubmission,
     regenerateOutput,
+    resolveEffectiveSubmitModelId,
     resolveCharacterModeSubmissionOverrides,
     resolveDefaultPromptForTool,
     selectedTool,
+    setModel,
     setUiError,
     setUiNotice,
     trackCharacterModeFallback,

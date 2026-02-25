@@ -65,6 +65,7 @@ describe("useAiStudioGenerationPromptComposer", () => {
           characterName: "A",
           characterProfileImageUrl: null,
         },
+        modelIdOverride: undefined,
       }
     );
   });
@@ -97,6 +98,7 @@ describe("useAiStudioGenerationPromptComposer", () => {
       selectedToolOverride: undefined,
       displayPromptOverride: "video prompt",
       characterContextOverride: undefined,
+      modelIdOverride: undefined,
     });
   });
 
@@ -178,7 +180,30 @@ describe("useAiStudioGenerationPromptComposer", () => {
       {
         displayPromptOverride: "keep me",
         characterContextOverride: undefined,
+        modelIdOverride: undefined,
       }
+    );
+  });
+
+  it("forwards model override to submission payload", () => {
+    const submitTask = vi.fn();
+    const params = createParams({ submitTask });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput("prompt override", {
+        modelIdOverride: "fal-ai/nano-banana-pro/edit",
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "prompt override",
+      [
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+      ],
+      expect.objectContaining({ modelIdOverride: "fal-ai/nano-banana-pro/edit" })
     );
   });
 });

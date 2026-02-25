@@ -6,12 +6,12 @@ import { aspectOptions } from "../constants";
 import { getModelConfig } from "../logic/pricing";
 import { clampImageResolutionForModel } from "../logic/imageResolution";
 import { CREATE_DEFAULT_MODEL_ID } from "../logic/modelSelectionPolicy";
+import { mapCreateModelOnCharacterModeToggle } from "../logic/createCharacterModeModelMapping";
 import { computeModalPosition } from "../logic/stateParsers";
 import { isCreateWorkflow, isVideoWorkflow, resolveWorkflowId } from "../logic/workflowIdentity";
-import type { ToolId } from "../types";
+import type { StudioMode, ToolId } from "../types";
 
 const KEYFRAME_COMPATIBLE_MODELS = new Set(["fal-ai/veo3.1/first-last-frame-to-video"]);
-const CREATE_CHARACTER_MODE_LOCKED_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/edit";
 const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
 
 type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
@@ -47,6 +47,8 @@ type UseAiStudioStateEffectsArgs = {
   setHasUserVideoPrefs: (value: boolean) => void;
   setVideoGenerateAudio: (value: boolean) => void;
   allowedModelValues: string[];
+  isCharacterModeEnabled: boolean;
+  mode: StudioMode;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
   setDetailOutputId: (value: string | null) => void;
@@ -89,6 +91,8 @@ export const useAiStudioStateEffects = ({
   setHasUserVideoPrefs,
   setVideoGenerateAudio,
   allowedModelValues,
+  isCharacterModeEnabled,
+  mode,
   isModelModalOpen,
   modelModalAnchor,
   setDetailOutputId,
@@ -318,18 +322,31 @@ export const useAiStudioStateEffects = ({
     if (!model) return;
     const allowedValues = new Set(allowedModelValues);
     if (!allowedValues.has(model)) {
-      const isCharacterModeCreateModel =
-        isCreateWorkflow(selectedTool) && model === CREATE_CHARACTER_MODE_LOCKED_MODEL_ID;
-      if (isCharacterModeCreateModel) {
-        return;
-      }
-      if (isCreateWorkflow(selectedTool) && allowedValues.has(CREATE_DEFAULT_MODEL_ID)) {
-        setModel(CREATE_DEFAULT_MODEL_ID);
-        return;
+      if (isCreateWorkflow(selectedTool) && mode === "image") {
+        const mappedCreateModel = mapCreateModelOnCharacterModeToggle({
+          currentModelId: model,
+          isCharacterModeEnabled,
+        });
+        if (allowedValues.has(mappedCreateModel)) {
+          setModel(mappedCreateModel);
+          return;
+        }
+        if (!isCharacterModeEnabled && allowedValues.has(CREATE_DEFAULT_MODEL_ID)) {
+          setModel(CREATE_DEFAULT_MODEL_ID);
+          return;
+        }
       }
       setModel(null);
     }
-  }, [allowedModelValues, hasPendingWorkflowRestore, model, selectedTool, setModel]);
+  }, [
+    allowedModelValues,
+    hasPendingWorkflowRestore,
+    isCharacterModeEnabled,
+    mode,
+    model,
+    selectedTool,
+    setModel,
+  ]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

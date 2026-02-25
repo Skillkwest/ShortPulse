@@ -52,9 +52,14 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 ## Character Mode (Create workflow)
 
 - Scope: applies only to Create workflow when Character Mode is enabled in `CreatePropertiesPanel`.
-- Model/quality lock:
-  - Model is forced to `fal-ai/bytedance/seedream/v4.5/edit`.
-  - Image resolution is forced to highest allowed for that model (`auto_4K` currently via `getHighestImageResolutionForModel`).
+- Model policy:
+  - Create/Image model list is restricted to:
+    - `fal-ai/bytedance/seedream/v4.5/edit`
+    - `fal-ai/nano-banana-pro/edit`
+  - Toggle remap is paired and deterministic:
+    - OFF -> ON maps paired text-to-image models to edit variants (fallback `seedream/edit`).
+    - ON -> OFF maps paired edit variants back to text-to-image (fallback `seedream/text-to-image`).
+  - Image resolution remains user-selectable per selected model (no forced Character Mode resolution override).
 - Hidden prompt composition:
   - Provider-facing prompt prepends character description (when present), then appends user prompt.
   - UI-visible prompt (output cards, modals, saved prompt text) remains the user prompt only.
@@ -63,10 +68,11 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
   - If active preset zones are empty, the client falls back to legacy `character_sheet_assignments` slot mapping.
   - Character draft is refreshed before each Create/Text submit so preset switches and zone updates are applied immediately.
   - Resolved URLs are deduped and capped by provider limits.
-- Fallback behavior (non-blocking):
-  - Missing character description does not block generation (runs with references only when available).
-  - Missing Character Sheet references does not block generation (runs with prompt-only or description+prompt).
-  - Missing selected character does not block generation (runs prompt-only under the locked model).
+  - Selected character id is persisted in browser local storage and restored on reload so Character Mode defaults to the user's latest explicit selection when available.
+- Submission invariants:
+  - Character Mode ON requires at least one Character Sheet image reference.
+  - Missing character references blocks submit with explicit UI error (no description-only fallback submit).
+  - A second safety-net invariant in task submission also blocks any selected image-to-image model when references are missing.
 
 ## Reference handling
 

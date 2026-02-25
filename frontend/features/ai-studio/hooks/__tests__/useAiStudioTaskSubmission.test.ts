@@ -298,7 +298,7 @@ describe("useAiStudioTaskSubmission", () => {
     );
 
     await act(async () => {
-      await result.current("Character prompt", [], {
+      await result.current("Character prompt", ["https://cdn.test/char-ref.png"], {
         modeOverride: "image",
         selectedToolOverride: "create",
       });
@@ -306,6 +306,70 @@ describe("useAiStudioTaskSubmission", () => {
 
     expect(outputs[0]?.model).toBe("Pulse Character Model");
     expect(outputs[0]?.modelId).toBe("fal-ai/bytedance/seedream/v4.5/edit");
+  });
+
+  it("blocks create submissions that target image-to-image models without references", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/nano-banana-pro/edit",
+        prompt: "",
+        isCharacterModeEnabled: true,
+        selectedTool: "create",
+        imageResolution: "1K",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Character prompt", [], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+    });
+
+    expect(outputs).toHaveLength(0);
+    expect(setUiError).toHaveBeenCalledWith("Add a reference image before generating.");
+    expect(handleImageModelSubmission).not.toHaveBeenCalled();
+    expect(resolveSubmissionHandlerRoute).not.toHaveBeenCalled();
   });
 
   it("passes selected aspect and auto_4K resolution through create character-mode Seedream submissions", async () => {

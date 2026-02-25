@@ -35,6 +35,10 @@ type GenerateOptions = {
   costOverrideCredits?: number | null;
 };
 
+const CHARACTER_MODE_MISSING_REFERENCES_ERROR =
+  "Character Mode requires at least one character image before generating.";
+const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
+
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
   mode: StudioMode;
   selectedTool: ToolId | null;
@@ -86,6 +90,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     overrides: CharacterModeFallbackSummary<TFallbackCode>,
     tool: ToolId | null
   ) => void;
+  trackCharacterModeEvent?: (message: string, data?: Record<string, unknown>) => void;
   insertOptimisticGenerationPlaceholder?: (input: {
     prompt: string;
     modeOverride?: StudioMode;
@@ -142,6 +147,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   refreshCharacterModeInjectionBundleForSubmission,
   resolveCharacterModeSubmissionOverrides,
   trackCharacterModeFallback,
+  trackCharacterModeEvent,
   insertOptimisticGenerationPlaceholder,
   removeOptimisticGenerationPlaceholder,
   generateOutput,
@@ -290,6 +296,22 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         setUiError(error instanceof Error ? error.message : "Unable to start generation.");
         return;
       }
+      const hasCharacterModeReferences =
+        (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
+      if (isCreateTool(effectiveTool) && characterModeOverrides && !hasCharacterModeReferences) {
+        trackCharacterModeFallback(characterModeOverrides, effectiveTool);
+        trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
+          tool: effectiveTool,
+          fallback_code: characterModeOverrides.fallbackCode,
+          has_character_description: characterModeOverrides.hasCharacterDescription,
+          character_reference_count: characterModeOverrides.characterReferenceCount,
+        });
+        if (optimisticOutputId) {
+          removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
+        }
+        setUiError(CHARACTER_MODE_MISSING_REFERENCES_ERROR);
+        return;
+      }
       trackCharacterModeFallback(characterModeOverrides, effectiveTool);
       enqueueOptimisticDebit(requiredCredits, optimisticOutputId ?? null);
       generateOutput(promptToUse, {
@@ -326,6 +348,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       setUiError,
       setUiNotice,
       trackCharacterModeFallback,
+      trackCharacterModeEvent,
       tryAcquireGenerateClickLock,
     ]
   );
@@ -375,6 +398,19 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       selectedTool,
       characterModeBundleForSubmit
     );
+    const hasCharacterModeReferences =
+      (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
+    if (isCreateTool(selectedTool) && characterModeOverrides && !hasCharacterModeReferences) {
+      trackCharacterModeFallback(characterModeOverrides, selectedTool);
+      trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
+        tool: selectedTool,
+        fallback_code: characterModeOverrides.fallbackCode,
+        has_character_description: characterModeOverrides.hasCharacterDescription,
+        character_reference_count: characterModeOverrides.characterReferenceCount,
+      });
+      setUiError(CHARACTER_MODE_MISSING_REFERENCES_ERROR);
+      return;
+    }
     trackCharacterModeFallback(characterModeOverrides, selectedTool);
     enqueueOptimisticDebit(currentCostCredits, activeOutputId ?? null);
     regenerateOutput({
@@ -401,8 +437,10 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     resolveCharacterModeSubmissionOverrides,
     resolveDefaultPromptForTool,
     selectedTool,
+    setUiError,
     setUiNotice,
     trackCharacterModeFallback,
+    trackCharacterModeEvent,
     tryAcquireGenerateClickLock,
   ]);
 

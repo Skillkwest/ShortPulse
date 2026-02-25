@@ -1084,6 +1084,7 @@ export default function AiStudioPage() {
     editReferenceText,
     videoReferenceText,
     videoReferenceMode,
+    isCharacterModeEnabled,
   });
 
   const {
@@ -1174,6 +1175,7 @@ export default function AiStudioPage() {
     refreshCharacterModeInjectionBundleForSubmission,
     resolveCharacterModeSubmissionOverrides,
     trackCharacterModeFallback,
+    trackCharacterModeEvent: trackUiEvent,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
     generateOutput,

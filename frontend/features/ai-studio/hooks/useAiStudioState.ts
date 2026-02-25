@@ -277,6 +277,7 @@ export const useAiStudioState = ({
     selectedTool,
     videoReferenceMode,
     mode,
+    isCharacterModeEnabled,
   });
 
   const setModel = useCallback((value: string | null) => {
@@ -320,6 +321,8 @@ export const useAiStudioState = ({
     setHasUserVideoPrefs,
     setVideoGenerateAudio,
     allowedModelValues: allowedModelOptions.map((option) => option.value),
+    isCharacterModeEnabled,
+    mode,
     isModelModalOpen,
     modelModalAnchor,
     setDetailOutputId,

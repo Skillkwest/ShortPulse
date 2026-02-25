@@ -8,12 +8,14 @@ type UseAiStudioAllowedModelOptionsArgs = {
   selectedTool: ToolId | null;
   videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
   mode: StudioMode;
+  isCharacterModeEnabled?: boolean;
 };
 
 export const useAiStudioAllowedModelOptions = ({
   selectedTool,
   videoReferenceMode,
   mode,
+  isCharacterModeEnabled = false,
 }: UseAiStudioAllowedModelOptionsArgs) => {
   return useMemo(
     () =>
@@ -21,9 +23,10 @@ export const useAiStudioAllowedModelOptions = ({
         selectedTool,
         mode,
         videoReferenceMode,
+        isCharacterModeEnabled,
         options: modelOptions,
         getModelConfig,
       }),
-    [mode, selectedTool, videoReferenceMode]
+    [isCharacterModeEnabled, mode, selectedTool, videoReferenceMode]
   );
 };

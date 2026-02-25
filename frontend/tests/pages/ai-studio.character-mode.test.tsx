@@ -414,6 +414,7 @@ const createOutput = (id: string, taskState: StudioOutput["taskState"]): StudioO
 describe("ai-studio page character mode submission", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     nowMs = 1_000_000;
     vi.spyOn(Date, "now").mockImplementation(() => nowMs);
     creditsStateMock.balanceCents = 10_000;
@@ -488,20 +489,18 @@ describe("ai-studio page character mode submission", () => {
     );
   });
 
-  it("emits fallback telemetry when Character Mode is enabled without a selected character", async () => {
+  it("blocks submission when Character Mode is enabled without a selected character", async () => {
     render(<AiStudioPage />);
     fireEvent.click(screen.getByRole("button", { name: "enable-character-mode" }));
 
     fireEvent.click(screen.getByRole("button", { name: "generate" }));
 
-    await waitFor(() => expect(generateOutputMock).toHaveBeenCalledTimes(1));
-    expect(generateOutputMock).toHaveBeenCalledWith("User visible prompt", {
-      modeOverride: "image",
-      selectedToolOverride: "create",
-      submissionPromptOverride: "User visible prompt",
-      displayPromptOverride: "User visible prompt",
-      referenceInputsOverride: [],
-    });
+    await waitFor(() =>
+      expect(aiStudioStateMock.setUiError).toHaveBeenCalledWith(
+        "Character Mode requires at least one character image before generating."
+      )
+    );
+    expect(generateOutputMock).not.toHaveBeenCalled();
     expect(addBreadcrumbMock).toHaveBeenCalledWith(
       expect.objectContaining({
         message: "character_mode_injection_fallback",
@@ -510,9 +509,17 @@ describe("ai-studio page character mode submission", () => {
         }),
       })
     );
+    expect(addBreadcrumbMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "character_mode_submit_blocked_no_references",
+        data: expect.objectContaining({
+          fallback_code: "no_character_selected",
+        }),
+      })
+    );
   });
 
-  it("falls back safely when signed URL refresh returns no references at submit time", async () => {
+  it("blocks submission when signed URL refresh returns no references at submit time", async () => {
     getSignedMediaUrlsBatchMock.mockImplementation(async () => new Map());
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
       createCharacterSnapshot(
@@ -531,26 +538,26 @@ describe("ai-studio page character mode submission", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "generate" }));
 
-    await waitFor(() => expect(generateOutputMock).toHaveBeenCalledTimes(1));
-    expect(generateOutputMock).toHaveBeenCalledWith("User visible prompt", {
-      modeOverride: "image",
-      selectedToolOverride: "create",
-      submissionPromptOverride: "Character description from manager\n\nUser visible prompt",
-      displayPromptOverride: "User visible prompt",
-      referenceInputsOverride: [],
-      characterContextOverride: {
-        applied: true,
-        characterId: "char-1",
-        characterName: "Taylor",
-        characterProfileImageUrl: null,
-      },
-    });
+    await waitFor(() =>
+      expect(aiStudioStateMock.setUiError).toHaveBeenCalledWith(
+        "Character Mode requires at least one character image before generating."
+      )
+    );
+    expect(generateOutputMock).not.toHaveBeenCalled();
     expect(addBreadcrumbMock).toHaveBeenCalledWith(
       expect.objectContaining({
         message: "character_mode_injection_fallback",
         data: expect.objectContaining({
           fallback_code: "no_references",
           selected_character_id: "char-1",
+        }),
+      })
+    );
+    expect(addBreadcrumbMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "character_mode_submit_blocked_no_references",
+        data: expect.objectContaining({
+          fallback_code: "no_references",
         }),
       })
     );

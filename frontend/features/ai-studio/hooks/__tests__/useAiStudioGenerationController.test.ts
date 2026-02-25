@@ -428,4 +428,74 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).not.toHaveBeenCalled();
     expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
   });
+
+  it("blocks create character-mode generate when no character references are available", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const trackCharacterModeEvent = vi.fn();
+    const resolveCharacterModeSubmissionOverrides = vi.fn(() => ({
+      submissionPromptOverride: "character + prompt",
+      displayPromptOverride: "user prompt",
+      referenceInputsOverride: [],
+      notice: null,
+      fallbackCode: "no_references",
+      characterReferenceCount: 0,
+      hasCharacterDescription: true,
+    }));
+    const params = createParams({
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+      trackCharacterModeEvent,
+      resolveCharacterModeSubmissionOverrides,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("user prompt");
+    });
+
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith(
+      "Character Mode requires at least one character image before generating."
+    );
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+      "character_mode_submit_blocked_no_references",
+      expect.objectContaining({ fallback_code: "no_references", tool: "create" })
+    );
+  });
+
+  it("blocks character-mode regenerate when no character references are available", async () => {
+    const setUiError = vi.fn();
+    const regenerateOutput = vi.fn();
+    const trackCharacterModeEvent = vi.fn();
+    const resolveCharacterModeSubmissionOverrides = vi.fn(() => ({
+      submissionPromptOverride: "character + prompt",
+      displayPromptOverride: "user prompt",
+      referenceInputsOverride: [],
+      notice: null,
+      fallbackCode: "no_references",
+      characterReferenceCount: 0,
+      hasCharacterDescription: true,
+    }));
+    const params = createParams({
+      setUiError: asDispatch<string | null>(setUiError),
+      regenerateOutput,
+      trackCharacterModeEvent,
+      resolveCharacterModeSubmissionOverrides,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleRegenerateWithDebit();
+    });
+
+    expect(regenerateOutput).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith(
+      "Character Mode requires at least one character image before generating."
+    );
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+      "character_mode_submit_blocked_no_references",
+      expect.objectContaining({ fallback_code: "no_references", tool: "create" })
+    );
+  });
 });

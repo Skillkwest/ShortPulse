@@ -1,6 +1,6 @@
 # Fal.ai Nano Banana Pro Image API Reference
 
-Documentation for integrating the `fal-ai/nano-banana-pro` queue through our `/api/fal` proxies.
+Documentation for integrating the `fal-ai/nano-banana-pro` and `fal-ai/nano-banana-pro/edit` queues through our `/api/fal` proxies.
 
 ## Authentication
 - Configure `FAL_KEY` in the runtime and keep it on the server.
@@ -33,6 +33,30 @@ Documentation for integrating the `fal-ai/nano-banana-pro` queue through our `/a
 - `sync_mode` (boolean): when true Fal returns data URIs directly instead of relying on the queue history.
 - `limit_generations` (boolean): experimental flag to limit per-round generations to one result.
 - `enable_web_search` (boolean): when true Fal can look up web data; enabling adds a flat surcharge.
+
+## Submit (image-to-image edit)
+### Proxy endpoint
+`POST /api/fal/nano-banana-pro-edit-submit` accepts the edit payload shape we send to Fal.
+
+### Fal.ai queue
+`POST https://queue.fal.run/fal-ai/nano-banana-pro/edit` expects:
+
+```json
+{
+  "prompt": "Preserve identity and update wardrobe styling to modern streetwear.",
+  "num_images": 1,
+  "aspect_ratio": "auto",
+  "output_format": "png",
+  "resolution": "1K",
+  "image_urls": [
+    "https://cdn.shortpulse.test/character/front.png"
+  ]
+}
+```
+
+### Input description
+- `image_urls` (string[]): required for edit route; at least one image is required.
+- `prompt`, `num_images`, `aspect_ratio`, `output_format`, `resolution`, `seed`, `sync_mode`, `limit_generations`, and `enable_web_search` match text-to-image behavior.
 
 ## Status & results
 - Poll `POST /api/fal/nano-banana-pro-status` with `{ "requestId": "..." }`.
@@ -79,4 +103,4 @@ Sample response:
 
 ## Notes
 - Keep requests on the server to protect `FAL_KEY`.
-- Nano Banana Pro is text-to-image only; we do not forward reference images.
+- `fal-ai/nano-banana-pro` is text-to-image; `fal-ai/nano-banana-pro/edit` is image-to-image and requires `image_urls`.

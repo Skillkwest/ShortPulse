@@ -165,6 +165,13 @@ export const useAiStudioTaskSubmission = ({
         setUiError("Pick a model to generate.");
         return;
       }
+      const finalModelConfig = getModelConfig(finalModel);
+      const requiresImageToImageReferences = Boolean(finalModelConfig?.supportsImageToImage);
+      if (requiresImageToImageReferences && !hasReferenceImages) {
+        removeOptimisticPlaceholder();
+        setUiError("Add a reference image before generating.");
+        return;
+      }
 
       setIsPromptGenerating(true);
       try {
@@ -179,7 +186,7 @@ export const useAiStudioTaskSubmission = ({
         const isKling3ImageModel = finalModel === "fal-ai/kling-video/v3/pro/image-to-video";
         const isVeoFirstLastFrameModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
         const isVeoImageToVideoModel = finalModel === "fal-ai/veo3.1/image-to-video";
-        const modelConfig = getModelConfig(finalModel);
+        const modelConfig = finalModelConfig;
         const effectiveAspect = resolveEffectiveAspectForModel(
           finalModel,
           aspect,
@@ -273,7 +280,10 @@ export const useAiStudioTaskSubmission = ({
           setUiError(`Reference upload failed: ${detail}`);
           return;
         }
-        if (isEditWorkflow && preparedImageInputs.length === 0) {
+        if (
+          (isEditWorkflow || requiresImageToImageReferences) &&
+          preparedImageInputs.length === 0
+        ) {
           setOutputs((prev) =>
             prev.map((item) =>
               item.id === id

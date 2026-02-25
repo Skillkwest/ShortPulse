@@ -5,8 +5,12 @@
 import type { ModelOption } from "../constants";
 import { modelOptions } from "../constants";
 import type { StudioMode, ToolId } from "../types";
+import {
+  CREATE_DEFAULT_MODEL_ID,
+  getCreateCharacterModeAllowedModels,
+} from "./createCharacterModeModelMapping";
 
-export const CREATE_DEFAULT_MODEL_ID = "fal-ai/bytedance/seedream/v4.5/text-to-image";
+export { CREATE_DEFAULT_MODEL_ID };
 
 export type ModelSelectionVideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
 
@@ -27,17 +31,20 @@ const isVideoMediaOption = (option: ModelOption): boolean => {
 
 /**
  * Returns the policy-approved model options for the current workflow selector state.
+ * `isCharacterModeEnabled` is a UI-option filter knob for Create/Image model lists.
  */
 export const resolveAiStudioAllowedModelOptions = ({
   selectedTool,
   mode,
   videoReferenceMode,
+  isCharacterModeEnabled = false,
   options = modelOptions,
   getModelConfig,
 }: {
   selectedTool: ToolId | null;
   mode: StudioMode;
   videoReferenceMode: ModelSelectionVideoReferenceMode;
+  isCharacterModeEnabled?: boolean;
   options?: ModelOption[];
   getModelConfig: (id: string) => ModelConfigLike | null;
 }): ModelOption[] => {
@@ -65,6 +72,15 @@ export const resolveAiStudioAllowedModelOptions = ({
   }
 
   if (isCreateTool(selectedTool) && mode === "image") {
+    if (isCharacterModeEnabled) {
+      const allowedCharacterModeModelIds = new Set(getCreateCharacterModeAllowedModels());
+      return options.filter((option) => {
+        if (!allowedCharacterModeModelIds.has(option.value)) return false;
+        if (!isImageMediaOption(option)) return false;
+        const config = getModelConfig(option.value);
+        return Boolean(config?.supportsImageToImage);
+      });
+    }
     return options.filter((option) => {
       if (!isImageMediaOption(option)) return false;
       if (option.value === "fal/flux-2-pro") return false;

@@ -14,6 +14,7 @@ const createParams = (
   editReferenceText: "edit prompt",
   videoReferenceText: "video prompt",
   videoReferenceMode: "standard",
+  isCharacterModeEnabled: false,
   ...overrides,
 });
 
@@ -70,5 +71,22 @@ describe("useAiStudioPageDerivations", () => {
     const values = new Set(result.current.filteredModelOptions.map((option) => option.value));
     expect(values.has("fal/flux-2-pro")).toBe(false);
     expect(values.has("fal-ai/bytedance/seedream/v4.5/text-to-image")).toBe(true);
+  });
+
+  it("hides FLUX.2 Lite in create/image options when character mode is enabled", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPageDerivations(
+        createParams({
+          mode: "image",
+          selectedTool: "create",
+          isCharacterModeEnabled: true,
+        })
+      )
+    );
+
+    const values = new Set(result.current.filteredModelOptions.map((option) => option.value));
+    expect(values).toEqual(
+      new Set(["fal-ai/bytedance/seedream/v4.5/edit", "fal-ai/nano-banana-pro/edit"])
+    );
   });
 });

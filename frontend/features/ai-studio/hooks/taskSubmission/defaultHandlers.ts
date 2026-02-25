@@ -12,6 +12,7 @@ import {
   normalizeAspectForFalNanoBananaPro,
 } from "../../logic/stateParsers";
 import { resolveSeedreamImageSize } from "../../logic/seedreamSizing";
+import { resolveImageSubmissionSafetyPayload } from "./safetyPolicy";
 import type { ImageSubmissionArgs } from "./types";
 
 /**
@@ -34,7 +35,7 @@ export const handleDefaultModelSubmission = async ({
       prompt: cleanedPrompt,
       image_size,
       num_images: 1,
-      enable_safety_checker: false,
+      ...resolveImageSubmissionSafetyPayload(finalModel),
       output_format: "png",
     });
     taskId = response.request_id;

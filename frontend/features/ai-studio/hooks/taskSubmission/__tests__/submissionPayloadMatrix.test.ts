@@ -61,6 +61,8 @@ type CaseConfig = {
   submitName: string;
   requestedResolution?: string;
   expectsAudioField?: boolean;
+  expectedSafetyChecker?: boolean;
+  expectedSafetyTolerance?: "5";
   expectedReferenceField?:
     | "image_urls"
     | "image_url"
@@ -73,26 +75,33 @@ const CASES: Record<string, CaseConfig> = {
   "fal-ai/flux-2/klein/9b": {
     route: "image",
     submitName: "submitFalFlux2Klein",
+    expectedSafetyChecker: false,
     expectedReferenceField: "none",
   },
   "fal/flux-2": {
     route: "image",
     submitName: "submitFalFlux2",
+    expectedSafetyChecker: false,
     expectedReferenceField: "none",
   },
   "fal/flux-2/edit": {
     route: "image",
     submitName: "submitFalFlux2Edit",
+    expectedSafetyChecker: false,
     expectedReferenceField: "image_urls",
   },
   "fal/flux-2-pro": {
     route: "image",
     submitName: "submitFalFlux2Pro",
+    expectedSafetyChecker: false,
+    expectedSafetyTolerance: "5",
     expectedReferenceField: "none",
   },
   "fal/flux-2-pro/edit": {
     route: "image",
     submitName: "submitFalFlux2ProEdit",
+    expectedSafetyChecker: false,
+    expectedSafetyTolerance: "5",
     expectedReferenceField: "image_urls",
   },
   "fal-ai/nano-banana": {
@@ -121,12 +130,14 @@ const CASES: Record<string, CaseConfig> = {
     route: "default",
     submitName: "submitFalSeedream",
     requestedResolution: "auto_4K",
+    expectedSafetyChecker: false,
     expectedReferenceField: "none",
   },
   "fal-ai/bytedance/seedream/v4.5/edit": {
     route: "image",
     submitName: "submitFalSeedreamEdit",
     requestedResolution: "auto_4K",
+    expectedSafetyChecker: false,
     expectedReferenceField: "image_urls",
   },
   "fal-ai/kling-video/v3/pro/text-to-video": {
@@ -342,6 +353,13 @@ describe("task submission payload matrix", () => {
       } else if (config.expectedReferenceField === "first_last_frame_urls") {
         expect(typeof payload.first_frame_url).toBe("string");
         expect(typeof payload.last_frame_url).toBe("string");
+      }
+
+      if (typeof config.expectedSafetyChecker === "boolean") {
+        expect(payload.enable_safety_checker).toBe(config.expectedSafetyChecker);
+      }
+      if (config.expectedSafetyTolerance) {
+        expect(payload.safety_tolerance).toBe(config.expectedSafetyTolerance);
       }
     }
   );

@@ -9,7 +9,7 @@ Use this guide to submit and poll Seedream 4.5 text-to-image jobs via the Fal qu
 ## Submit (Text → Image)
 `POST https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image`
 
-Example (1 image, safety checker on):
+Example (1 image, safety checker off):
 ```bash
 curl --request POST \
   --url https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image \
@@ -19,7 +19,7 @@ curl --request POST \
     "prompt": "A selfie of a cat, twilight at the Eiffel Tower, holding baklava, slight motion blur and overexposed, selfie angle, text 'Seedream 4.5 is on fal' at the top in crisp lettering.",
     "image_size": "landscape_4_3",
     "num_images": 1,
-    "enable_safety_checker": true,
+    "enable_safety_checker": false,
     "output_format": "png"
   }'
 ```
@@ -51,7 +51,7 @@ curl --request POST \
 
 ## Defaults we apply (AI Studio)
 - Aspect: `1:1` default; allowed: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9`.
-- Image size behavior: native enums for `1:1`, `4:3`, `3:4`, `16:9`, `9:16`; exact custom dimensions for `5:4`, `4:5`, `3:2`, `2:3`, `21:9`; output format `png`; safety checker on; `num_images = 1`.
+- Image size behavior: native enums for `1:1`, `4:3`, `3:4`, `16:9`, `9:16`; exact custom dimensions for `5:4`, `4:5`, `3:2`, `2:3`, `21:9`; output format `png`; safety checker off by default; `num_images = 1`.
 - Pricing: `seedream-per-image` base is $0.04; billed credits use 5-credit steps (`rawCredits = ceil(usd/0.01)`, `credits = ceil(rawCredits/5)*5`). Current outcomes: base 5 credits, 4K 10 credits.
 - Proxy routes: `/api/fal/seedream-submit` and `/api/fal/seedream-status`.
 

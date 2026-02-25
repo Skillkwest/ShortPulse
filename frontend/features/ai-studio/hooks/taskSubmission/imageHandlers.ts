@@ -15,6 +15,7 @@ import { falNanoBananaAllowedAspects, falNanoBananaProAllowedAspects } from "../
 import { normalizeNanoBananaProResolution } from "../../logic/imageResolution";
 import { falSizeForAspect } from "../../logic/pricing";
 import { resolveSeedreamImageSize } from "../../logic/seedreamSizing";
+import { resolveImageSubmissionSafetyPayload } from "./safetyPolicy";
 import type { ImageSubmissionArgs } from "./types";
 
 /**
@@ -74,7 +75,7 @@ export const handleImageModelSubmission = async ({
       prompt: cleanedPrompt,
       image_size,
       num_images: 1,
-      enable_safety_checker: false,
+      ...resolveImageSubmissionSafetyPayload(finalModel),
       image_urls: preparedImageInputs.slice(0, 10),
     });
     startPollingWithGeneration(response.request_id, "fal-seedream");
@@ -90,7 +91,7 @@ export const handleImageModelSubmission = async ({
       output_format: "png",
       guidance_scale: 15,
       num_inference_steps: 41,
-      enable_safety_checker: true,
+      ...resolveImageSubmissionSafetyPayload(finalModel),
       ...falReferencePayload,
     });
     startPollingWithGeneration(falResp.request_id, "fal-flux2");
@@ -105,7 +106,7 @@ export const handleImageModelSubmission = async ({
       num_images: 1,
       output_format: "jpeg",
       num_inference_steps: 4,
-      enable_safety_checker: true,
+      ...resolveImageSubmissionSafetyPayload(finalModel),
     });
     startPollingWithGeneration(falResp.request_id, "fal-flux2-klein");
     return true;
@@ -124,7 +125,7 @@ export const handleImageModelSubmission = async ({
       output_format: "png",
       guidance_scale: 2.5,
       num_inference_steps: 28,
-      enable_safety_checker: false,
+      ...resolveImageSubmissionSafetyPayload(finalModel),
       image_urls: preparedImageInputs.slice(0, 4),
     });
     startPollingWithGeneration(falResp.request_id, "fal-flux2-edit");
@@ -144,8 +145,7 @@ export const handleImageModelSubmission = async ({
       output_format: "png",
       guidance_scale: 2.5,
       num_inference_steps: 28,
-      safety_tolerance: "5",
-      enable_safety_checker: false,
+      ...resolveImageSubmissionSafetyPayload(finalModel),
       image_urls: preparedImageInputs.slice(0, 4),
     });
     startPollingWithGeneration(falResp.request_id, "fal-flux2-pro-edit");
@@ -159,8 +159,7 @@ export const handleImageModelSubmission = async ({
       image_size: { width: size.width, height: size.height },
       num_images: 1,
       output_format: "png",
-      safety_tolerance: "5",
-      enable_safety_checker: false,
+      ...resolveImageSubmissionSafetyPayload(finalModel),
       ...falReferencePayload,
     });
     startPollingWithGeneration(falResp.request_id, "fal-flux2-pro");

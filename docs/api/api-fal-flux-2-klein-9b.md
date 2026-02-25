@@ -56,6 +56,7 @@ curl --request GET \
 ## ShortPulse defaults
 - Default aspect: `4:3` (via `image_size`)
 - Allowed aspects: `1:1`, `4:3`, `3:4`, `16:9`, `9:16`
+- Safety checker: off by default (`enable_safety_checker: false`)
 - Timeout budget: 60s
 
 ## Pricing (ShortPulse)

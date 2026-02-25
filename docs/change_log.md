@@ -1326,3 +1326,23 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/adr/0025-ai-studio-create-startup-model-precedence.md`
 - Added evidence note:
   - `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-default-model-foundation-and-reliability-delta-closeout.md`
+
+## 2026-02-25 (AI Studio safety-policy track: image payload minimum-restriction alignment)
+- Centralized image generation safety payload defaults in:
+  - `frontend/features/ai-studio/hooks/taskSubmission/safetyPolicy.ts`
+- Updated image submit handlers to use shared policy-driven safety payloads:
+  - `frontend/features/ai-studio/hooks/taskSubmission/defaultHandlers.ts`
+  - `frontend/features/ai-studio/hooks/taskSubmission/imageHandlers.ts`
+- Aligned runtime defaults to minimum-restriction payload settings for supported image models:
+  - FLUX.2 + FLUX.2 Lite + FLUX.2 Edit: `enable_safety_checker: false`
+  - FLUX.2 Pro + FLUX.2 Pro Edit: `enable_safety_checker: false`, `safety_tolerance: "5"`
+  - Seedream 4.5 text/edit: `enable_safety_checker: false`
+- Expanded regression coverage:
+  - `frontend/features/ai-studio/hooks/taskSubmission/__tests__/safetyPolicy.test.ts`
+  - `frontend/features/ai-studio/hooks/taskSubmission/__tests__/submissionPayloadMatrix.test.ts`
+- Synced docs with runtime behavior:
+  - `docs/sops/sop_ai_studio_index.md`
+  - `docs/sops/sop_image_generation.md`
+  - `docs/api/api-fal-flux-2.md`
+  - `docs/api/api-fal-flux-2-klein-9b.md`
+  - `docs/api/api-fal-seedream-4-5.md`

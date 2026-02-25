@@ -63,7 +63,7 @@ curl --request GET \
 - Inference steps: **41**
 - Output format: **png**
 - Image size: aspect-driven map listed above; default aspect `4:3`
-- Safety checker: enabled
+- Safety checker: off by default (`enable_safety_checker: false`)
 - Images per request: 1
 
 ## Notes

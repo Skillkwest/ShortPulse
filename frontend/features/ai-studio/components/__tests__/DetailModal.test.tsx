@@ -20,7 +20,7 @@ const baseOutput: StudioOutput = {
 };
 
 describe("DetailModal", () => {
-  it("shows character attribution and Pulse Character model when character mode was applied", () => {
+  it("shows character attribution and the actual model used when character mode was applied", () => {
     render(
       <DetailModal
         output={{
@@ -38,7 +38,8 @@ describe("DetailModal", () => {
       />
     );
 
-    expect(screen.getByText("Pulse Character")).toBeInTheDocument();
+    expect(screen.getByText("Seedream 4.5")).toBeInTheDocument();
+    expect(screen.queryByText("Pulse Character")).not.toBeInTheDocument();
     const characterName = screen.getByText("Taylor");
     const promptLabel = screen.getByText("PROMPT");
     expect(characterName).toBeInTheDocument();

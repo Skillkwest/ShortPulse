@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TrashSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
-import { isVideoUrl } from "../logic/stateParsers";
+import { isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
 import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
 import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
 
@@ -384,10 +384,14 @@ export function DetailModal({
     normalizedDraftPrompt === normalizedFilename;
   const uploadedPromptLabel = isUploadedReference && !isVideoOutput ? "(Uploaded Image)" : null;
   const promptBladeValue = uploadedPromptLabel ?? (isUploadedFilenamePrompt ? "" : draftPrompt);
-  const displayModelLabel =
-    !isUploadedReference && hasCharacterContext
-      ? "Pulse Character"
-      : (output?.model ?? output?.modelId);
+  const displayModelLabel = useMemo(() => {
+    if (isUploadedReference) return null;
+    const modelLabelFromId = output?.modelId ? resolveModelLabel(output.modelId) : null;
+    if (hasCharacterContext) {
+      return modelLabelFromId ?? output?.model ?? output?.modelId ?? null;
+    }
+    return output?.model ?? modelLabelFromId ?? output?.modelId ?? null;
+  }, [hasCharacterContext, isUploadedReference, output?.model, output?.modelId]);
 
   const handleSavePrompt = () => {
     if (!trimmedPrompt) return;

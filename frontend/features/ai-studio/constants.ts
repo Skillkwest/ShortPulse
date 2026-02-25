@@ -51,17 +51,17 @@ export const aspectOptions: AspectOption[] = [
 export const modelOptions: ModelOption[] = [
   {
     value: "fal-ai/kling-video/v3/pro/text-to-video",
-    label: "Kling 3.0 (Text to Video)",
+    label: "Kling 3.0",
     mediaType: "video",
   },
   {
     value: "fal-ai/kling-video/v3/pro/image-to-video",
-    label: "Kling 3.0 (Start/End Frame)",
+    label: "Kling 3.0",
     mediaType: "image-to-video",
   },
   {
     value: "fal-ai/veo3.1/first-last-frame-to-video",
-    label: "Veo 3.1 (First/Last Frame)",
+    label: "Veo 3.1",
     mediaType: "keyframes",
   },
   {
@@ -81,16 +81,16 @@ export const modelOptions: ModelOption[] = [
   },
   { value: "fal-ai/veo3.1", label: "Google Veo 3.1", mediaType: "video" },
   { value: "fal-ai/sora-2/text-to-video/pro", label: "Sora 2 Pro", mediaType: "video" },
-  { value: "fal/flux-2-pro/edit", label: "FLUX.2 Pro Edit", mediaType: "image" },
-  { value: "fal/flux-2/edit", label: "FLUX.2 Edit", mediaType: "image" },
+  { value: "fal/flux-2-pro/edit", label: "FLUX.2 Pro", mediaType: "image" },
+  { value: "fal/flux-2/edit", label: "FLUX.2", mediaType: "image" },
   { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
   { value: "fal/flux-2", label: "FLUX.2", mediaType: "image" },
   { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
   { value: "fal-ai/nano-banana", label: "Nano Banana", mediaType: "image" },
-  { value: "fal-ai/nano-banana/edit", label: "Nano Banana Edit", mediaType: "image" },
+  { value: "fal-ai/nano-banana/edit", label: "Nano Banana", mediaType: "image" },
   { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
-  { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro Edit", mediaType: "image" },
-  { value: "fal-ai/bytedance/seedream/v4.5/edit", label: "Seedream 4.5 Edit", mediaType: "image" },
+  { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro", mediaType: "image" },
+  { value: "fal-ai/bytedance/seedream/v4.5/edit", label: "Seedream 4.5", mediaType: "image" },
   {
     value: "fal-ai/bytedance/seedream/v4.5/text-to-image",
     label: "Seedream 4.5",

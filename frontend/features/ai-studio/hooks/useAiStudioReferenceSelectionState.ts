@@ -19,7 +19,7 @@ type UseAiStudioReferenceSelectionStateParams = {
 export const useAiStudioReferenceSelectionState = ({
   activeOutputPreviewUrl,
 }: UseAiStudioReferenceSelectionStateParams) => {
-  const [selectedTool, setSelectedTool] = useState<ToolId | null>(null);
+  const [selectedTool, setSelectedTool] = useState<ToolId | null>("create");
   const [showCreateTools, setShowCreateTools] = useState<boolean>(false);
   const [imageReferenceImageUrl, setImageReferenceImageUrl] = useState<string | null>(null);
   const [imageExtraImageUrls, setImageExtraImageUrls] = useState<

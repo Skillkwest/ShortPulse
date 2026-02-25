@@ -3,6 +3,15 @@ import { describe, expect, it } from "vitest";
 import { useAiStudioReferenceSelectionState } from "../useAiStudioReferenceSelectionState";
 
 describe("useAiStudioReferenceSelectionState", () => {
+  it("defaults to Create workflow selection for new studio sessions", () => {
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null })
+    );
+
+    expect(result.current.selectedTool).toBe("create");
+    expect(result.current.showCreateTools).toBe(false);
+  });
+
   it("routes reference and extra image updates by selected tool", () => {
     const { result } = renderHook(() =>
       useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null })

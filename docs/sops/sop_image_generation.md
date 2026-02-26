@@ -42,6 +42,25 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
 6. Reference Grid prepends the new output card; Studio Preview shows the latest image.  
 7. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
 
+## Reference Grid re-roll (image cards)
+
+- Re-roll is a card-level action in the Reference Grid all-refs surface.
+- Re-roll is shown only when all conditions are true:
+  - card is an image preview,
+  - `mediaSource` is `generated`,
+  - output has a valid `generationReplay` snapshot.
+- Re-roll submits a new generation using output-scoped replay settings:
+  - model id,
+  - display/submission prompt pair,
+  - effective aspect,
+  - effective image resolution intent,
+  - replay reference inputs,
+  - character context metadata.
+- Re-roll does not reuse current panel state and does not replace retry-status behavior:
+  - `Retry status` polls an existing task id.
+  - `Re-roll image` starts a new task.
+- Legacy cards without replay snapshots do not render the reroll action in v1.
+
 ## Create startup model default (session restore)
 
 - Source of truth: `frontend/features/ai-studio/logic/modelSelectionPolicy.ts`.

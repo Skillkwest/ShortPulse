@@ -266,6 +266,19 @@ describe("CreatePropertiesPanel", () => {
     ).toBe(true);
   });
 
+  it("keeps the expert inline generate button bound to onGenerate", () => {
+    const onGenerate = vi.fn();
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      onGenerate,
+      characterModeEnabled: false,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps expert character picker selection wiring intact", () => {
     const onSelectedCharacterIdChange = vi.fn();
     renderPanel({

@@ -18,6 +18,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Reservation RPC auth/grant hardening: `sql/migrations/014_harden_generation_reservation_rpc_security.sql`.
 - Stale reservation cleanup RPC: `sql/migrations/031_release_stale_generation_reservations.sql`.
 - Atomic admission+reserve RPC (flagged): `sql/migrations/032_admit_and_reserve_generation_credits.sql`.
+- Atomic admission ambiguity hotfix: `sql/migrations/033_fix_atomic_admission_rpc_ambiguity.sql`.
 - Runtime convergence + idempotency migrations: `sql/migrations/020_generation_runtime_convergence.sql` to `sql/migrations/023_generation_reconciler_claims.sql`.
 - Server debit helper: `frontend/lib/server/api/generationBilling.ts`.
 - Fal status settlement helper: `frontend/lib/server/api/falStatusProxy.ts`.
@@ -42,17 +43,18 @@ The API currently supports both shapes during rollout by falling back to `ref_id
 3. Run `sql/migrations/014_harden_generation_reservation_rpc_security.sql` in Supabase SQL editor.
 4. Run `sql/migrations/031_release_stale_generation_reservations.sql` in Supabase SQL editor.
 5. Run `sql/migrations/032_admit_and_reserve_generation_credits.sql` in Supabase SQL editor before enabling `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED`.
-6. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
-7. Confirm relation type for `ai_credit_balance`:
+6. Run `sql/migrations/033_fix_atomic_admission_rpc_ambiguity.sql` in Supabase SQL editor if atomic RPC calls fail with `42702` ambiguity.
+7. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
+8. Confirm relation type for `ai_credit_balance`:
    - Table (`relkind = 'r'`/`'p'`): trigger-based balance sync remains enabled.
    - View (`relkind = 'v'`): migration skips incompatible RLS/trigger steps by design.
-8. Verify admin credit adjustment in `/admin` succeeds.
-9. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
-10. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
+9. Verify admin credit adjustment in `/admin` succeeds.
+10. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
+11. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
    - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character` (with local app server running)
    - Audit safety guardrail: `test:e2e:character` refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and rejects `@example.com` emails.
    - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
-11. Verify reservation RPC hardening checks are present in staged function bodies and grants:
+12. Verify reservation RPC hardening checks are present in staged function bodies and grants:
    - auth binding clause: `auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id`
    - explicit `revoke ... from public, anon, authenticated`
    - explicit `grant execute ... to service_role`

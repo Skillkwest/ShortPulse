@@ -391,6 +391,7 @@
 }
 
 .reference-card.is-dragging .reference-card-actions,
+.reference-card.is-dragging .reference-card-reroll-btn,
 .reference-card.is-dragging .reference-status-retry-btn,
 .reference-card.is-dragging .reference-save-chip {
   opacity: 0 !important;
@@ -440,6 +441,21 @@
 }
 
 .reference-card.is-active .reference-card-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.reference-card-reroll-btn {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+  pointer-events: none;
+}
+
+.reference-card.is-active .reference-card-reroll-btn {
   opacity: 1;
   pointer-events: auto;
 }

@@ -915,6 +915,115 @@ describe("ReferenceGrid curated split", () => {
     expect(getByLabelText("Save to media library")).toBeInTheDocument();
   });
 
+  it("shows reroll action for generated image references with replay snapshots", () => {
+    const onRerollOutput = vi.fn();
+    const generatedImage: StudioOutput = {
+      id: "generated-image-reroll-1",
+      prompt: "Generated image",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/generated-image-reroll.png",
+      mediaSource: "generated",
+      generationReplay: {
+        version: 1,
+        mode: "image",
+        submitTool: "create",
+        modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        displayPrompt: "Generated image",
+        submissionPrompt: "Generated image",
+        aspect: "1:1",
+        imageResolution: null,
+        referenceInputs: [],
+        capturedAt: "2026-02-25T00:00:00.000Z",
+      },
+    };
+
+    const { getByLabelText } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedImage],
+          activeOutputId: generatedImage.id,
+          onRerollOutput,
+        })}
+      />
+    );
+
+    fireEvent.click(getByLabelText("Re-roll image"));
+    expect(onRerollOutput).toHaveBeenCalledWith(expect.objectContaining({ id: generatedImage.id }));
+  });
+
+  it("hides reroll action when generated image references do not have replay snapshots", () => {
+    const generatedImage: StudioOutput = {
+      id: "generated-image-no-replay-1",
+      prompt: "Generated image",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/generated-image-no-replay.png",
+      mediaSource: "generated",
+    };
+
+    const { queryByLabelText } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedImage],
+          activeOutputId: generatedImage.id,
+          onRerollOutput: vi.fn(),
+        })}
+      />
+    );
+
+    expect(queryByLabelText("Re-roll image")).toBeNull();
+  });
+
+  it("hides reroll action for curated-only references", () => {
+    const generatedImage: StudioOutput = {
+      id: "generated-image-curated-only-1",
+      prompt: "Generated image",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/generated-image-curated-only.png",
+      mediaSource: "generated",
+      generationReplay: {
+        version: 1,
+        mode: "image",
+        submitTool: "create",
+        modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        displayPrompt: "Generated image",
+        submissionPrompt: "Generated image",
+        aspect: "1:1",
+        imageResolution: null,
+        referenceInputs: [],
+        capturedAt: "2026-02-25T00:00:00.000Z",
+      },
+    };
+
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedImage],
+          curatedReferenceIds: [generatedImage.id],
+          removedFromAllRefsIds: [generatedImage.id],
+          activeOutputId: generatedImage.id,
+          onRerollOutput: vi.fn(),
+        })}
+      />
+    );
+
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const curatedQueries = within(curatedSection);
+    expect(curatedQueries.queryByLabelText("Re-roll image")).toBeNull();
+  });
+
   it("keeps save action for unsaved prompt references", () => {
     const onSaveToLibrary = vi.fn();
     const promptReference: StudioOutput = {

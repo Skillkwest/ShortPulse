@@ -140,6 +140,7 @@ export type ReferenceGridProps = {
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
   onRetryStatus?: (output: StudioOutput) => void;
+  onRerollOutput?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
   onAddCuratedReference?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
@@ -180,6 +181,7 @@ export function ReferenceGrid({
   onSaveToLibrary,
   onDownload,
   onRetryStatus,
+  onRerollOutput,
   onDeleteOutput,
   onAddCuratedReference,
   onRemoveCuratedReference,
@@ -742,6 +744,7 @@ export function ReferenceGrid({
     onAutoplayStarted: handleAutoplayStarted,
     onAutoplayStopped: handleAutoplayStopped,
     onRetryStatus,
+    onRerollOutput,
     onDeleteOutput,
     onRemoveCuratedReference,
     onSaveToLibrary,

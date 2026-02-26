@@ -13,6 +13,7 @@ import {
   clampImageResolutionForModel,
   isModelDefaultImageResolution,
 } from "../logic/imageResolution";
+import { buildGenerationReplayConfigV1 } from "../logic/generationReplay";
 import { resolveEffectiveAspectForModel } from "../logic/modelApiContracts";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import { prepareImageUrlForSubmission } from "../utils/imageUpload";
@@ -141,6 +142,8 @@ export const useAiStudioTaskSubmission = ({
         characterContextOverride?: StudioOutput["characterContext"];
         outputIdOverride?: string;
         modelIdOverride?: string | null;
+        aspectOverride?: string;
+        imageResolutionOverride?: string;
       }
     ) => {
       setUiError(null);
@@ -200,9 +203,10 @@ export const useAiStudioTaskSubmission = ({
         const isVeoFirstLastFrameModel = finalModel === "fal-ai/veo3.1/first-last-frame-to-video";
         const isVeoImageToVideoModel = finalModel === "fal-ai/veo3.1/image-to-video";
         const modelConfig = finalModelConfig;
+        const requestedAspect = options?.aspectOverride ?? aspect;
         const effectiveAspect = resolveEffectiveAspectForModel(
           finalModel,
-          aspect,
+          requestedAspect,
           modelConfig?.defaultAspect ?? "16:9"
         );
         const isVideoGeneration =
@@ -213,7 +217,10 @@ export const useAiStudioTaskSubmission = ({
           ? videoDurationSeconds
           : getDefaultDurationSeconds(finalModel);
         const requestedImageResolution = isImageGeneration
-          ? clampImageResolutionForModel(finalModel, imageResolution)
+          ? clampImageResolutionForModel(
+              finalModel,
+              options?.imageResolutionOverride ?? imageResolution
+            )
           : modelConfig?.defaultResolution;
         const requestedResolution = isVideoGeneration
           ? videoResolution
@@ -230,6 +237,18 @@ export const useAiStudioTaskSubmission = ({
             : effectiveTool === "image" || effectiveTool === "edit"
               ? "image"
               : effectiveMode;
+
+        const generationReplay = buildGenerationReplayConfigV1({
+          mode: outputMode,
+          submitTool: effectiveTool,
+          modelId: finalModel,
+          displayPrompt: cleanedDisplayPrompt,
+          submissionPrompt: cleanedSubmissionPrompt,
+          aspect: effectiveAspect,
+          imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
+          referenceInputs: imageInputs.slice(0, 8),
+          characterContext: options?.characterContextOverride,
+        });
 
         const nextOutput: StudioOutput = {
           id,
@@ -251,6 +270,7 @@ export const useAiStudioTaskSubmission = ({
           saveState: "idle",
           saveError: null,
           characterContext: options?.characterContextOverride,
+          ...(generationReplay ? { generationReplay } : {}),
           submissionTraceId,
         };
 
@@ -471,7 +491,7 @@ export const useAiStudioTaskSubmission = ({
               metadata: {
                 tool: effectiveTool,
                 audio: requestedAudio,
-                requested_aspect: aspect,
+                requested_aspect: requestedAspect,
                 effective_aspect: effectiveAspect,
                 resolution: requestedResolution ?? null,
                 duration_seconds: requestedDurationSeconds,

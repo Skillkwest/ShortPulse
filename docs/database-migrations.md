@@ -119,7 +119,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 31. `sql/migrations/030_fix_conversation_state_upsert_conflict_target.sql`
 32. `sql/migrations/031_release_stale_generation_reservations.sql`
 33. `sql/migrations/032_admit_and_reserve_generation_credits.sql`
-34. Rollback files:
+34. `sql/migrations/033_fix_atomic_admission_rpc_ambiguity.sql`
+35. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -153,6 +154,7 @@ Billing safety note:
 - Migration `030_fix_conversation_state_upsert_conflict_target.sql` resolves PL/pgSQL name-collision ambiguity in upsert `ON CONFLICT` targeting.
 - Migration `031_release_stale_generation_reservations.sql` adds conservative stale reservation cleanup for pre-submit holds.
 - Migration `032_admit_and_reserve_generation_credits.sql` adds flagged atomic admission+reserve evaluation in one DB transaction.
+- Migration `033_fix_atomic_admission_rpc_ambiguity.sql` adds PL/pgSQL conflict-resolution posture (`#variable_conflict use_column`) to the atomic RPC after `42702` ambiguity failures observed in local validation.
 
 ## Media storage scope verification (post-017)
 

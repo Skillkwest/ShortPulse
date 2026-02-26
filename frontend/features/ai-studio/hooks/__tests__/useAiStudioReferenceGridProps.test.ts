@@ -49,6 +49,7 @@ describe("useAiStudioReferenceGridProps", () => {
     const handlePasteTextReference = vi.fn();
     const handlePasteMediaReference = vi.fn();
     const retryOutputStatus = vi.fn();
+    const handleRerollOutput = vi.fn();
 
     const { result } = renderHook(() =>
       useAiStudioReferenceGridProps(
@@ -58,6 +59,7 @@ describe("useAiStudioReferenceGridProps", () => {
           handlePasteTextReference,
           handlePasteMediaReference,
           retryOutputStatus,
+          handleRerollOutput,
         })
       )
     );
@@ -70,6 +72,7 @@ describe("useAiStudioReferenceGridProps", () => {
       mimeType: "image/*",
     });
     result.current.onRetryStatus?.(output);
+    result.current.onRerollOutput?.(output);
 
     expect(handleSaveReference).toHaveBeenCalledWith("out-1");
     expect(handleDownloadReference).toHaveBeenCalledWith("out-1");
@@ -79,6 +82,7 @@ describe("useAiStudioReferenceGridProps", () => {
       mimeType: "image/*",
     });
     expect(retryOutputStatus).toHaveBeenCalledWith("out-1");
+    expect(handleRerollOutput).toHaveBeenCalledWith("out-1");
   });
 
   it("preserves non-action props for canvas rendering state", () => {

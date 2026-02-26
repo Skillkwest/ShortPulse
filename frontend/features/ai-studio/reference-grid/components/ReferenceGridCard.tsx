@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { ArrowClockwise, CheckCircle, DownloadSimple, FloppyDisk, X } from "phosphor-react";
+import { canRerollOutput } from "../../logic/generationReplay";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
 
@@ -42,6 +43,7 @@ export type ReferenceGridCardProps = {
   onAutoplayStarted: (id: string) => void;
   onAutoplayStopped: (id: string) => void;
   onRetryStatus?: (output: StudioOutput) => void;
+  onRerollOutput?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
   showCuratedRemoveAction?: boolean;
@@ -107,6 +109,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   onAutoplayStarted,
   onAutoplayStopped,
   onRetryStatus,
+  onRerollOutput,
   onDeleteOutput,
   onRemoveCuratedReference,
   showCuratedRemoveAction = false,
@@ -124,6 +127,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     onSaveToLibrary &&
     item.saveState !== "saved" &&
     (isPromptOnly || isImagePreview || (isVideoPreview && !isGeneratedReference))
+  );
+  const shouldShowRerollAction = Boolean(onRerollOutput && isImagePreview && canRerollOutput(item));
+  const shouldShowReferenceActionRow = Boolean(
+    shouldShowSaveAction || (onDownload && (isImagePreview || isVideoPreview))
   );
   const saveIcon =
     item.saveState === "failed" ? (
@@ -274,8 +281,21 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           </button>
         </div>
       ) : null}
-      {!hideReferenceActions &&
-      (shouldShowSaveAction || (onDownload && (isImagePreview || isVideoPreview))) ? (
+      {!hideReferenceActions && shouldShowRerollAction ? (
+        <button
+          type="button"
+          className="reference-card-action-btn reference-card-reroll-btn"
+          aria-label="Re-roll image"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelectOutput(item.id);
+            onRerollOutput?.(item);
+          }}
+        >
+          <ArrowClockwise size={16} weight="bold" aria-hidden />
+        </button>
+      ) : null}
+      {!hideReferenceActions && shouldShowReferenceActionRow ? (
         <div className="reference-card-actions" aria-label="Reference actions">
           {shouldShowSaveAction ? (
             <button

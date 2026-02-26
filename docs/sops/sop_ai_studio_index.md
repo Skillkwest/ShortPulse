@@ -26,6 +26,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - UI orchestration: `frontend/features/ai-studio/hooks/useAiStudioState.ts`, `frontend/pages/ai-studio.tsx`.
 - Model picker + cost badges: `frontend/features/ai-studio/components/ModelModal.tsx` (uses registry defaults).
 - Reference Grid performance controls: `frontend/features/ai-studio/components/ReferenceGrid.tsx` (virtualization + autoplay budget gating).
+- Replay snapshot contract + guards: `frontend/features/ai-studio/logic/generationReplay.ts` (card-level re-roll eligibility and validation).
 
 ## Create startup model precedence
 - Storage key remains `aiStudioWorkflowSettingsByTool.v1`.

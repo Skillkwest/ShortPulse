@@ -26,6 +26,24 @@ export type StudioOutputCharacterContext = {
   characterProfileImageUrl?: string | null;
 };
 
+export type GenerationReplaySubmitTool = "create" | "image" | "edit";
+
+export type GenerationReplayConfigV1 = {
+  version: 1;
+  mode: "image";
+  submitTool: GenerationReplaySubmitTool;
+  modelId: string;
+  displayPrompt: string;
+  submissionPrompt: string;
+  aspect: string;
+  imageResolution: string | null;
+  referenceInputs: string[];
+  characterContext?: StudioOutputCharacterContext;
+  capturedAt: string;
+};
+
+export type GenerationReplayConfig = GenerationReplayConfigV1;
+
 export type StudioOutputMediaSource = "upload" | "library" | "generated" | "clipboard" | "prompt";
 
 export type StudioOutputPreviewTier = "thumb" | "poster" | "preview_loop" | "full";
@@ -65,6 +83,7 @@ export type StudioOutput = {
   archivedAt?: string | null;
   archiveReason?: "soft_limit" | "manual" | "cleanup" | null;
   characterContext?: StudioOutputCharacterContext;
+  generationReplay?: GenerationReplayConfig;
 };
 
 export type ToolId =

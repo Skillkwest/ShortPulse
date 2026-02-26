@@ -21,3 +21,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0024-ai-studio-agent-prompt-only-single-stage-runtime.md`
 - `docs/adr/0025-ai-studio-create-startup-model-precedence.md`
 - `docs/adr/0026-ai-studio-generation-admission-control.md`
+- `docs/adr/0027-ai-studio-reference-grid-reroll-replay-snapshot.md`

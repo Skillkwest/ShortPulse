@@ -46,6 +46,7 @@ type UseReferenceGridCardRenderControllerArgs = {
   onAutoplayStarted: (id: string) => void;
   onAutoplayStopped: (id: string) => void;
   onRetryStatus?: (output: StudioOutput) => void;
+  onRerollOutput?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
   onSaveToLibrary?: (output: StudioOutput) => void;
@@ -82,6 +83,7 @@ export const useReferenceGridCardRenderController = ({
   onAutoplayStarted,
   onAutoplayStopped,
   onRetryStatus,
+  onRerollOutput,
   onDeleteOutput,
   onRemoveCuratedReference,
   onSaveToLibrary,
@@ -165,6 +167,7 @@ export const useReferenceGridCardRenderController = ({
           onAutoplayStarted={onAutoplayStarted}
           onAutoplayStopped={onAutoplayStopped}
           onRetryStatus={onRetryStatus}
+          onRerollOutput={options.isCuratedSurface ? undefined : onRerollOutput}
           onDeleteOutput={options.isCuratedSurface ? undefined : onDeleteOutput}
           onRemoveCuratedReference={options.isCuratedSurface ? onRemoveCuratedReference : undefined}
           showCuratedRemoveAction={options.isCuratedSurface}
@@ -192,6 +195,7 @@ export const useReferenceGridCardRenderController = ({
       onDownload,
       onOpenDetails,
       onRemoveCuratedReference,
+      onRerollOutput,
       onRetryStatus,
       onSaveToLibrary,
       onSelectOutput,

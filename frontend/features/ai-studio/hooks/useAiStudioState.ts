@@ -7,6 +7,7 @@ import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput } from "../types";
 import { DEFAULT_KLING_DURATION_SECONDS, getModelConfig } from "../logic/pricing";
 import { resolvePreviewUrlById, resolveModelLabel } from "../logic/stateParsers";
+import { canRerollOutput, isGenerationReplayConfigV1 } from "../logic/generationReplay";
 import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
 import { useAiStudioOutputObjectUrlLifecycle } from "./useAiStudioOutputObjectUrlLifecycle";
@@ -464,6 +465,32 @@ export const useAiStudioState = ({
     submitTask,
     setUiError,
   });
+  const rerollOutputFromReplay = useCallback(
+    (outputId: string) => {
+      const normalizedOutputId = outputId.trim();
+      if (!normalizedOutputId) return;
+      const output = findOutputById(normalizedOutputId);
+      if (!output || !canRerollOutput(output)) {
+        setUiNotice("Re-roll is unavailable because original generation settings are missing.");
+        return;
+      }
+      const replay = output.generationReplay;
+      if (!isGenerationReplayConfigV1(replay)) {
+        setUiNotice("Re-roll is unavailable because original generation settings are missing.");
+        return;
+      }
+      void submitTask(replay.submissionPrompt, replay.referenceInputs, {
+        modeOverride: "image",
+        selectedToolOverride: replay.submitTool,
+        displayPromptOverride: replay.displayPrompt,
+        characterContextOverride: replay.characterContext,
+        modelIdOverride: replay.modelId,
+        aspectOverride: replay.aspect,
+        imageResolutionOverride: replay.imageResolution ?? "model_default",
+      });
+    },
+    [findOutputById, setUiNotice, submitTask]
+  );
   const { insertOptimisticGenerationPlaceholder, removeOptimisticGenerationPlaceholder } =
     useAiStudioOptimisticPlaceholderActions({
       mode,
@@ -591,6 +618,7 @@ export const useAiStudioState = ({
     modelModalPosition,
     generateOutput,
     regenerateOutput,
+    rerollOutputFromReplay,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
     saveActiveOutput,

@@ -21,6 +21,7 @@ export type UseAiStudioReferenceGridPropsParams = {
   handlePasteTextReference: (text: string) => void;
   handlePasteMediaReference: (reference: { url: string; mimeType?: string | null }) => void;
   retryOutputStatus: (id: string) => void;
+  handleRerollOutput?: (id: string) => void;
   deleteOutput: (id: string) => void;
   addCuratedReference?: (id: string) => void;
   removeCuratedReference?: (id: string) => void;
@@ -57,6 +58,7 @@ export const useAiStudioReferenceGridProps = ({
   handlePasteTextReference,
   handlePasteMediaReference,
   retryOutputStatus,
+  handleRerollOutput,
   deleteOutput,
   addCuratedReference,
   removeCuratedReference,
@@ -82,6 +84,11 @@ export const useAiStudioReferenceGridProps = ({
       onPasteTextReference: handlePasteTextReference,
       onPasteMediaReference: handlePasteMediaReference,
       onRetryStatus: (output) => retryOutputStatus(output.id),
+      onRerollOutput: handleRerollOutput
+        ? (output) => {
+            handleRerollOutput(output.id);
+          }
+        : undefined,
       onDeleteOutput: deleteOutput,
       onAddCuratedReference: addCuratedReference,
       onRemoveCuratedReference: removeCuratedReference,
@@ -100,6 +107,7 @@ export const useAiStudioReferenceGridProps = ({
       handleDownloadReference,
       handlePasteMediaReference,
       handlePasteTextReference,
+      handleRerollOutput,
       handleSaveReference,
       handleSelectOutput,
       linkedPromptReferenceIds,

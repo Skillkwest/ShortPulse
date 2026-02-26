@@ -173,6 +173,26 @@ const createProps = (
 });
 
 describe("AiStudioPageContent right column drop router", () => {
+  it("renders high-contrast alert banner variants for error and warning notices", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          uiError: "Top-level error",
+          uiNotice: "Top-level notice",
+          characterError: "Character loading error",
+        })}
+      />
+    );
+
+    const errorBanner = screen.getByText("Top-level error").closest(".ai-alert-banner");
+    const noticeBanner = screen.getByText("Top-level notice").closest(".ai-alert-banner");
+    const characterBanner = screen.getByText("Character loading error").closest(".ai-alert-banner");
+
+    expect(errorBanner).toHaveClass("ai-alert-banner--error");
+    expect(noticeBanner).toHaveClass("ai-alert-banner--warning");
+    expect(characterBanner).toHaveClass("ai-alert-banner--error");
+  });
+
   it("routes primary workflows and aliases to the expected panel surfaces", () => {
     const { rerender } = render(
       <AiStudioPageContent {...createProps({ selectedTool: "create" })} />

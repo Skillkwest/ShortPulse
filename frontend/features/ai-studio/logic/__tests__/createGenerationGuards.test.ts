@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  CHARACTER_LOADING_GENERATION_GUARDRAIL,
   hasMissingCreateGenerationTarget,
   isCreatePromptTool,
+  shouldDisableGenerateWhileCharacterLoading,
   shouldDisableAgentOutputGenerate,
   shouldDisableCreatePanelOutputGenerate,
 } from "../createGenerationGuards";
@@ -105,5 +107,37 @@ describe("createGenerationGuards", () => {
         selectedCharacterId: "",
       })
     ).toBe(true);
+  });
+
+  it("blocks create/text generation while character bundle is still loading", () => {
+    expect(
+      shouldDisableGenerateWhileCharacterLoading({
+        selectedTool: "create",
+        characterModeEnabled: true,
+        isCharacterBundleLoading: true,
+      })
+    ).toBe(true);
+    expect(
+      shouldDisableGenerateWhileCharacterLoading({
+        selectedTool: "text",
+        characterModeEnabled: true,
+        isCharacterBundleLoading: true,
+      })
+    ).toBe(true);
+    expect(
+      shouldDisableGenerateWhileCharacterLoading({
+        selectedTool: "edit",
+        characterModeEnabled: true,
+        isCharacterBundleLoading: true,
+      })
+    ).toBe(false);
+    expect(
+      shouldDisableGenerateWhileCharacterLoading({
+        selectedTool: "create",
+        characterModeEnabled: true,
+        isCharacterBundleLoading: false,
+      })
+    ).toBe(false);
+    expect(CHARACTER_LOADING_GENERATION_GUARDRAIL).toContain("still loading");
   });
 });

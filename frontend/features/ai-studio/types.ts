@@ -65,6 +65,8 @@ export type StudioOutput = {
   status: "ready" | "saved";
   timestamp: string;
   taskId?: string;
+  queueState?: "queued" | "dispatched";
+  queueEnqueuedAtMs?: number;
   submissionTraceId?: string;
   generationTraceId?: string;
   taskState?: "pending" | "running" | "success" | "fail";

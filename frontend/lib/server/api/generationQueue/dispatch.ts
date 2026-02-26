@@ -126,6 +126,19 @@ const resolveBackoffSeconds = ({
 const toIsoAfterSeconds = (seconds: number): string =>
   new Date(Date.now() + seconds * 1000).toISOString();
 
+const parseIsoTimestamp = (value: string | null): number | null => {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+};
+
+const readQueueAgeSeconds = (createdAt: string | null): number | null => {
+  const parsedCreatedAt = parseIsoTimestamp(createdAt);
+  if (parsedCreatedAt === null) return null;
+  return Math.max(0, Math.floor((Date.now() - parsedCreatedAt) / 1000));
+};
+
 const readQueueSubmitTargets = (modelId: string): SubmitTarget[] => {
   const profile = getFalModelProfileByModelId(modelId);
   if (!profile?.submitTargets?.length) {
@@ -207,7 +220,56 @@ const processClaimedQueueItem = async ({
     return metrics;
   }
 
+  const runtimeFlags = readFalRuntimeFlags();
+
   if (await isAtProviderConcurrencyCap({ userId: item.userId, modelId: item.modelId })) {
+    const queueAgeSeconds = readQueueAgeSeconds(item.createdAt);
+    if (queueAgeSeconds !== null && queueAgeSeconds >= runtimeFlags.queueMaxWaitSeconds) {
+      const message = "Queued generation exceeded max wait time without available capacity.";
+      await markQueueItemExhausted({
+        queueId: item.queueId,
+        attempts: item.attempts,
+        lastError: message,
+        lastErrorCode: "QUEUE_WAIT_TIMEOUT",
+      });
+      await releaseGenerationReservationBySourceRef({
+        userId: item.userId,
+        sourceRef: item.sourceRef,
+        reason: "Auto-release: queued submit exceeded max wait time without capacity.",
+        metadata: {
+          queue_id: item.queueId,
+          queue_attempts: item.attempts,
+          queue_age_seconds: queueAgeSeconds,
+          queue_max_wait_seconds: runtimeFlags.queueMaxWaitSeconds,
+        },
+      });
+      await setGenerationFailed({
+        generationId: item.generationId,
+        userId: item.userId,
+        message: "Generation timed out in queue. Please retry.",
+      });
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "telemetry.queue.dispatch.exhausted",
+        statusCode: 408,
+        message,
+        userId: item.userId,
+        metadata: {
+          queue_id: item.queueId,
+          generation_id: item.generationId,
+          source_ref: item.sourceRef,
+          attempts: item.attempts,
+          model_id: item.modelId,
+          error_code: "QUEUE_WAIT_TIMEOUT",
+          queue_age_seconds: queueAgeSeconds,
+          queue_max_wait_seconds: runtimeFlags.queueMaxWaitSeconds,
+        },
+      });
+      metrics.exhausted += 1;
+      return metrics;
+    }
+
     await releaseQueueLeaseBackToQueued({
       queueId: item.queueId,
       nextAttemptAt: toIsoAfterSeconds(Math.max(1, baseBackoffSeconds)),
@@ -259,7 +321,6 @@ const processClaimedQueueItem = async ({
     return metrics;
   }
 
-  const runtimeFlags = readFalRuntimeFlags();
   const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags);
   const submitTargets = withWebhookTargets(
     readQueueSubmitTargets(item.modelId),
@@ -556,6 +617,22 @@ export const dispatchGenerationSubmitQueueBatch = async ({
     limit,
     leaseSeconds: flags.queueLeaseSeconds,
     userId,
+  }).catch(async (error) => {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "telemetry.queue.dispatch.claim_failed",
+      statusCode: 500,
+      message: "Failed to claim queued generation dispatch batch.",
+      userId: userId ?? undefined,
+      metadata: {
+        queue_limit: limit,
+        queue_lease_seconds: flags.queueLeaseSeconds,
+        queue_enabled: flags.queueEnabled,
+        detail: normalizeError(error),
+      },
+    });
+    throw error;
   });
 
   metrics.claimed = claimed.length;

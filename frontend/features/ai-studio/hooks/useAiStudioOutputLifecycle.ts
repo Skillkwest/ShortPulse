@@ -17,6 +17,7 @@ import type { StudioOutput } from "../types";
 
 const STALE_LOADING_TIMEOUT_MS = 3 * 60 * 1000;
 const SUBMIT_START_TIMEOUT_MS = 12_000;
+const QUEUE_WAIT_TIMEOUT_MS = 20 * 60 * 1000;
 const AUTO_FAILED_OUTPUT_REMOVAL_MS = 2 * 60 * 1000;
 const STALE_OUTPUT_SWEEP_INTERVAL_MS = 15_000;
 
@@ -103,10 +104,12 @@ export const useAiStudioOutputLifecycle = ({
     const cleanup = evaluateStaleOutputCleanup(outputsSnapshot, lifecycle, now, {
       loadingTimeoutMs: STALE_LOADING_TIMEOUT_MS,
       submitStartTimeoutMs: SUBMIT_START_TIMEOUT_MS,
+      queueWaitTimeoutMs: QUEUE_WAIT_TIMEOUT_MS,
       autoFailedRetentionMs: AUTO_FAILED_OUTPUT_REMOVAL_MS,
     });
     const staleLoadingSet = new Set(cleanup.staleLoadingIds);
     const submitStartTimeoutSet = new Set(cleanup.submitStartTimeoutIds);
+    const queueWaitTimeoutSet = new Set(cleanup.queueWaitTimeoutIds);
     const removableSet = new Set(cleanup.removableIds);
 
     staleLoadingSet.forEach((id) => {
@@ -125,13 +128,20 @@ export const useAiStudioOutputLifecycle = ({
     for (const staleOutput of outputsSnapshot) {
       if (!staleLoadingSet.has(staleOutput.id)) continue;
       const isSubmitStartTimeout = submitStartTimeoutSet.has(staleOutput.id);
+      const isQueueWaitTimeout = queueWaitTimeoutSet.has(staleOutput.id);
       void reportAppError({
-        source: isSubmitStartTimeout ? "fal_submit_not_started" : "generation.stale_timeout",
+        source: isSubmitStartTimeout
+          ? "fal_submit_not_started"
+          : isQueueWaitTimeout
+            ? "generation.queue_wait_timeout"
+            : "generation.stale_timeout",
         scope: "generation",
         severity: "high",
         message: isSubmitStartTimeout
           ? "Generation failed to start before task initialization."
-          : "Generation timed out before preview was ready.",
+          : isQueueWaitTimeout
+            ? "Generation timed out while waiting in queue."
+            : "Generation timed out before preview was ready.",
         route: currentRoute(),
         metadata: {
           output_id: staleOutput.id,
@@ -139,6 +149,12 @@ export const useAiStudioOutputLifecycle = ({
           model_id: staleOutput.modelId ?? null,
           provider: staleOutput.provider ?? null,
           task_id: staleOutput.taskId ?? null,
+          queue_state: staleOutput.queueState ?? null,
+          failure_reason_code: isSubmitStartTimeout
+            ? "SUBMIT_START_TIMEOUT"
+            : isQueueWaitTimeout
+              ? "QUEUE_WAIT_TIMEOUT"
+              : "STALE_LOADING_TIMEOUT",
         },
       });
     }
@@ -157,21 +173,32 @@ export const useAiStudioOutputLifecycle = ({
           return;
         }
         const isSubmitStartTimeout = submitStartTimeoutSet.has(item.id);
+        const isQueueWaitTimeout = queueWaitTimeoutSet.has(item.id);
         changed = true;
         next.push({
           ...item,
           status: "ready",
           taskState: "fail",
-          timestamp: isSubmitStartTimeout ? "Failed to start" : "Timed out",
+          timestamp: isSubmitStartTimeout
+            ? "Failed to start"
+            : isQueueWaitTimeout
+              ? "Queue timed out"
+              : "Timed out",
           errorMessage: isSubmitStartTimeout
             ? "Generation failed to start. Please retry."
-            : "Generation timed out before preview was ready.",
+            : isQueueWaitTimeout
+              ? "Generation queue timed out. Please retry."
+              : "Generation timed out before preview was ready.",
           errorMessageShort: isSubmitStartTimeout
             ? "Generation failed to start."
-            : "Generation timed out.",
+            : isQueueWaitTimeout
+              ? "Generation queue timed out."
+              : "Generation timed out.",
           errorDetail: isSubmitStartTimeout
             ? "The generation did not receive a provider task id. Please retry."
-            : "This preview remained unresolved for several minutes and was marked as failed.",
+            : isQueueWaitTimeout
+              ? "This generation stayed queued too long before provider dispatch."
+              : "This preview remained unresolved for several minutes and was marked as failed.",
         });
       });
 

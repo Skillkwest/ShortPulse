@@ -57,6 +57,11 @@ The near-term goal is overload protection with minimal regression risk while pre
 4. Added authenticated queue handoff endpoint (`GET /api/fal/queue-status`) for spinner-only client polling until provider request id is assigned.
 5. Extended reconciler route (`/api/internal/generation-recovery/run`) to run queue dispatch batches and return queue metrics alongside recovery/cleanup metrics.
 
+## Follow-Up Queue/Recovery Stabilization (2026-02-26)
+1. Hardened recovery execution so provider-observed `running` generations that exhaust recovery attempts now settle as `fail` in the same pass, preventing indefinite capacity holds.
+2. Added queue max-wait policy (`SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`, default 1200s) so no-capacity requeues cannot persist forever; timed-out queue entries are exhausted, reservation-released, and terminalized.
+3. Extended internal recovery route auth to accept bearer secret in addition to cron header, and enabled minute cadence scheduling in Vercel (`frontend/vercel.json`) to guarantee continuous queue dispatch + recovery processing.
+
 ## Alternatives considered
 - Server FIFO queue first:
   - Rejected for phase 1 due higher migration risk (queue persistence, workers, cancellation semantics, billing semantics for queued jobs).

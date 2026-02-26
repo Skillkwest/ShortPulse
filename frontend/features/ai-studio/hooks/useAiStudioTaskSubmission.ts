@@ -38,7 +38,7 @@ const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
-const QUEUE_STATUS_MAX_POLL_ATTEMPTS = 180;
+const QUEUE_STATUS_MAX_WAIT_MS = 20 * 60 * 1000;
 const clampQueuePollMs = (value: number) => Math.max(500, Math.min(10000, Math.trunc(value)));
 const submitNotStartedError = (detail: string): SubmissionInvariantError => {
   const error = new Error("Provider task did not start.") as SubmissionInvariantError;
@@ -516,6 +516,7 @@ export const useAiStudioTaskSubmission = ({
               const pollSession = (queueStatusSessionRef.current[id] ?? 0) + 1;
               queueStatusSessionRef.current[id] = pollSession;
               const initialDelayMs = clampQueuePollMs(queuedResponse.pollAfterMs);
+              const queueEnqueuedAtMs = Date.now();
 
               updateOutputById(id, (item) => ({
                 ...item,
@@ -524,6 +525,8 @@ export const useAiStudioTaskSubmission = ({
                 taskState: "pending",
                 timestamp: "Submitting...",
                 provider: item.provider ?? provider,
+                queueState: "queued",
+                queueEnqueuedAtMs: item.queueEnqueuedAtMs ?? queueEnqueuedAtMs,
               }));
               addBreadcrumb({
                 type: "ui",
@@ -569,7 +572,7 @@ export const useAiStudioTaskSubmission = ({
                     return;
                   }
 
-                  if (attempt >= QUEUE_STATUS_MAX_POLL_ATTEMPTS) {
+                  if (Date.now() - queueEnqueuedAtMs >= QUEUE_STATUS_MAX_WAIT_MS) {
                     clearQueueStatusPolling(id);
                     notifyGenerationFailure(
                       id,
@@ -587,7 +590,7 @@ export const useAiStudioTaskSubmission = ({
                     void pollQueuedStatus(attempt + 1);
                   }, retryAfterMs);
                 } catch (error) {
-                  if (attempt >= QUEUE_STATUS_MAX_POLL_ATTEMPTS) {
+                  if (Date.now() - queueEnqueuedAtMs >= QUEUE_STATUS_MAX_WAIT_MS) {
                     clearQueueStatusPolling(id);
                     const message =
                       error instanceof Error
@@ -624,6 +627,13 @@ export const useAiStudioTaskSubmission = ({
               taskState: "running",
               timestamp: "Submitted",
               provider: item.provider ?? provider,
+              queueState: item.queueState === "queued" ? "dispatched" : undefined,
+              queueEnqueuedAtMs:
+                item.queueState === "queued"
+                  ? typeof item.queueEnqueuedAtMs === "number"
+                    ? item.queueEnqueuedAtMs
+                    : Date.now()
+                  : undefined,
             }));
             startPollingTask(normalizedTaskId, id, 0, provider);
             void ensureGenerationRecord({

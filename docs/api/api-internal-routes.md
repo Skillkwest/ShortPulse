@@ -35,7 +35,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/errors-test` | `POST` | Admin bearer | Create a synthetic app or generation incident for operator smoke tests of telemetry ingestion/UI. | `frontend/pages/api/admin/errors-test.ts`, `docs/monitoring.md` |
 | `/api/admin/generation-trace` | `GET` | Admin bearer | Return stitched generation timeline by `generationId`, `requestId`, or trace id across `ai_generations`, `media_events`, `media_files`, reservations, ledger entries, and app error events. Intended for operator debugging and S0 traceability baselines. | `frontend/pages/api/admin/generation-trace.ts`, `docs/planning/ai-studio-generation-runtime-stabilization.md` |
 | `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay stalled generation recovery by `generationId` or `requestId` (Fal only) using the shared runtime execution engine (provider probe -> persist -> settle -> transition). | `frontend/pages/api/admin/generation-recovery/replay.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
-| `/api/internal/generation-recovery/run` | `POST` | `x-shortpulse-cron-secret` | Trigger queue dispatch + lease-based reconciler claims and execute shared runtime recovery for each claimed generation; returns recovery stage metrics (`claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `duplicates`, `errors`, `skipped`), reservation cleanup metrics (`reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`), and queue dispatch metrics (`queueClaimed`, `queueSubmitted`, `queueRetried`, `queueRequeuedNoCapacity`, `queueExhausted`, `queueSkipped`, `queueDispatchErrors`). | `frontend/pages/api/internal/generation-recovery/run.ts`, `frontend/lib/server/api/generationQueue/dispatch.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts`, `docs/sops/sop_provider_incident_response.md` |
+| `/api/internal/generation-recovery/run` | `POST`, `GET` | `x-shortpulse-cron-secret` or `Authorization: Bearer <reconciler-secret>` | Trigger queue dispatch + lease-based reconciler claims and execute shared runtime recovery for each claimed generation; returns recovery stage metrics (`claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `duplicates`, `errors`, `skipped`), reservation cleanup metrics (`reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`), and queue dispatch metrics (`queueClaimed`, `queueSubmitted`, `queueRetried`, `queueRequeuedNoCapacity`, `queueExhausted`, `queueSkipped`, `queueDispatchErrors`). | `frontend/pages/api/internal/generation-recovery/run.ts`, `frontend/lib/server/api/generationQueue/dispatch.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts`, `docs/sops/sop_provider_incident_response.md` |
 | `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
 
 ## Shared runtime contracts
@@ -84,6 +84,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_PUBLIC_API_BASE_URL` (or `APP_BASE_URL` fallback for Fal webhook callback registration)
   - `SHORTPULSE_FAL_RECONCILER_ENABLED`
   - `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
+  - `CRON_SECRET` (optional Vercel cron bearer fallback; should match reconciler secret)
   - `SHORTPULSE_FAL_RECONCILER_BATCH_SIZE`
   - `SHORTPULSE_FAL_RECONCILER_MAX_ATTEMPTS`
   - `SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS`
@@ -101,6 +102,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_FAL_QUEUE_LEASE_SECONDS`
   - `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`
   - `SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS`
+  - `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE`

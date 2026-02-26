@@ -4,6 +4,28 @@ const QUEUE_TABLE = "ai_generation_submit_queue";
 
 type JsonObject = Record<string, unknown>;
 
+type RpcErrorLike = {
+  code?: string | null;
+  message?: string | null;
+  details?: string | null;
+  hint?: string | null;
+};
+
+const toRpcErrorMessage = (error: RpcErrorLike): string => {
+  const parts = [
+    typeof error.code === "string" && error.code.trim().length ? `code=${error.code}` : null,
+    typeof error.message === "string" && error.message.trim().length
+      ? `message=${error.message}`
+      : null,
+    typeof error.details === "string" && error.details.trim().length
+      ? `details=${error.details}`
+      : null,
+    typeof error.hint === "string" && error.hint.trim().length ? `hint=${error.hint}` : null,
+  ].filter((value): value is string => Boolean(value));
+  if (!parts.length) return "unknown queue claim error";
+  return parts.join(" ");
+};
+
 export type GenerationQueueEnqueueResult = {
   status: "queued" | "already_queued" | "failed";
   generationId: string | null;
@@ -195,7 +217,12 @@ export const claimGenerationSubmitQueueBatch = async ({
     p_lease_seconds: Math.max(1, Math.trunc(leaseSeconds)),
     p_user_id: userId ?? null,
   });
-  if (error || !Array.isArray(data)) return [];
+  if (error) {
+    throw new Error(`claim_generation_submit_queue_batch failed: ${toRpcErrorMessage(error)}`);
+  }
+  if (!Array.isArray(data)) {
+    throw new Error("claim_generation_submit_queue_batch failed: rpc returned non-array payload");
+  }
   return data
     .map((row) => parseClaimedQueueItem(row))
     .filter((row): row is ClaimedGenerationQueueItem => Boolean(row));

@@ -1,0 +1,222 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { dispatchGenerationSubmitQueueBatch } from "../generationQueue/dispatch";
+
+const getSupabaseAdminMock = vi.fn();
+const logGenerationFailureMock = vi.fn();
+const readFalRuntimeFlagsMock = vi.fn();
+const releaseGenerationReservationBySourceRefMock = vi.fn();
+const markGenerationReservationSubmittedMock = vi.fn();
+const resolveGenerationAdmissionTierMock = vi.fn();
+const getFalModelProfileByModelIdMock = vi.fn();
+const submitWithFallbackTargetsMock = vi.fn();
+const resolveWebhookCallbackUrlMock = vi.fn();
+const readProviderRequestIdMock = vi.fn();
+const withWebhookTargetsMock = vi.fn();
+const claimGenerationSubmitQueueBatchMock = vi.fn();
+const markQueueItemExhaustedMock = vi.fn();
+const releaseQueueLeaseBackToQueuedMock = vi.fn();
+const removeQueueItemMock = vi.fn();
+const updateQueueItemForRetryMock = vi.fn();
+
+vi.mock("../supabaseAdmin", () => ({
+  getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+vi.mock("../appErrorLogs", () => ({
+  logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
+}));
+
+vi.mock("../falRuntimeFlags", () => ({
+  readFalRuntimeFlags: (...args: unknown[]) => readFalRuntimeFlagsMock(...args),
+}));
+
+vi.mock("../generationBilling/reservationRpcAdapter", () => ({
+  markGenerationReservationSubmitted: (...args: unknown[]) =>
+    markGenerationReservationSubmittedMock(...args),
+  releaseGenerationReservationBySourceRef: (...args: unknown[]) =>
+    releaseGenerationReservationBySourceRefMock(...args),
+}));
+
+vi.mock("../../../model-runtime/generationAdmissionTiers", () => ({
+  resolveGenerationAdmissionTier: (...args: unknown[]) =>
+    resolveGenerationAdmissionTierMock(...args),
+}));
+
+vi.mock("../../falIntegration/modelProfiles", () => ({
+  getFalModelProfileByModelId: (...args: unknown[]) => getFalModelProfileByModelIdMock(...args),
+}));
+
+vi.mock("../../falIntegration/submitEngine", () => ({
+  submitWithFallbackTargets: (...args: unknown[]) => submitWithFallbackTargetsMock(...args),
+}));
+
+vi.mock("../falSubmitTargeting", () => ({
+  resolveWebhookCallbackUrl: (...args: unknown[]) => resolveWebhookCallbackUrlMock(...args),
+  readProviderRequestId: (...args: unknown[]) => readProviderRequestIdMock(...args),
+  withWebhookTargets: (...args: unknown[]) => withWebhookTargetsMock(...args),
+}));
+
+vi.mock("../generationQueue/service", () => ({
+  claimGenerationSubmitQueueBatch: (...args: unknown[]) =>
+    claimGenerationSubmitQueueBatchMock(...args),
+  markQueueItemExhausted: (...args: unknown[]) => markQueueItemExhaustedMock(...args),
+  releaseQueueLeaseBackToQueued: (...args: unknown[]) => releaseQueueLeaseBackToQueuedMock(...args),
+  removeQueueItem: (...args: unknown[]) => removeQueueItemMock(...args),
+  updateQueueItemForRetry: (...args: unknown[]) => updateQueueItemForRetryMock(...args),
+}));
+
+const createSupabaseAdminMock = () => {
+  const generationRow = {
+    id: "gen-1",
+    status: "pending",
+    request_id: null,
+    metadata: {},
+  };
+
+  const aiGenerationsTable = {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn(async () => ({ data: generationRow, error: null })),
+        })),
+      })),
+    })),
+    update: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(async () => ({ error: null })),
+      })),
+    })),
+  };
+
+  const reservationsTable = {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          not: vi.fn(async () => ({ data: [{ model_id: "fal-ai/nano-banana-pro" }], error: null })),
+        })),
+      })),
+    })),
+  };
+
+  return {
+    from: vi.fn((tableName: string) => {
+      if (tableName === "ai_generations") return aiGenerationsTable;
+      if (tableName === "ai_credit_reservations") return reservationsTable;
+      throw new Error(`Unexpected table: ${tableName}`);
+    }),
+  };
+};
+
+describe("generationQueue/dispatch no-capacity handling", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock());
+    readFalRuntimeFlagsMock.mockReturnValue({
+      queueEnabled: true,
+      queueLeaseSeconds: 30,
+      queueMaxAttempts: 5,
+      queueBaseBackoffSeconds: 5,
+      queueMaxWaitSeconds: 1200,
+      admission: {
+        globalMax: 1,
+        tierLimits: {
+          video_long: 2,
+          image_heavy: 1,
+          image_standard: 4,
+        },
+      },
+      publicApiBaseUrl: null,
+    });
+    resolveGenerationAdmissionTierMock.mockReturnValue("image_heavy");
+    getFalModelProfileByModelIdMock.mockReturnValue({ submitTargets: [] });
+    resolveWebhookCallbackUrlMock.mockReturnValue(null);
+    withWebhookTargetsMock.mockImplementation((targets: unknown) => targets);
+  });
+
+  it("requeues when capacity is full but queue age is still below max wait", async () => {
+    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
+      {
+        queueId: "queue-1",
+        generationId: "gen-1",
+        userId: "user-1",
+        modelId: "fal-ai/nano-banana-pro",
+        sourceRef: "source-1",
+        submitRoute: "/api/fal/nano-banana-pro-submit",
+        submitPayload: { prompt: "hello" },
+        timeoutMs: 20_000,
+        attempts: 0,
+        status: "dispatching",
+        nextAttemptAt: null,
+        leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+        createdAt: new Date(Date.now() - 60_000).toISOString(),
+      },
+    ]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        requeuedNoCapacity: 1,
+        exhausted: 0,
+      })
+    );
+    expect(releaseQueueLeaseBackToQueuedMock).toHaveBeenCalledTimes(1);
+    expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
+    expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
+    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+  });
+
+  it("exhausts and releases when capacity is full beyond max wait", async () => {
+    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
+      {
+        queueId: "queue-1",
+        generationId: "gen-1",
+        userId: "user-1",
+        modelId: "fal-ai/nano-banana-pro",
+        sourceRef: "source-1",
+        submitRoute: "/api/fal/nano-banana-pro-submit",
+        submitPayload: { prompt: "hello" },
+        timeoutMs: 20_000,
+        attempts: 0,
+        status: "dispatching",
+        nextAttemptAt: null,
+        leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+        createdAt: new Date(Date.now() - 2_000_000).toISOString(),
+      },
+    ]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        requeuedNoCapacity: 0,
+        exhausted: 1,
+      })
+    );
+    expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queueId: "queue-1",
+        lastErrorCode: "QUEUE_WAIT_TIMEOUT",
+      })
+    );
+    expect(releaseGenerationReservationBySourceRefMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceRef: "source-1",
+      })
+    );
+    expect(releaseQueueLeaseBackToQueuedMock).not.toHaveBeenCalled();
+    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+  });
+});

@@ -16,7 +16,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 - Supabase SQL access for read diagnostics.
 - Access to deployment logs for API routes.
 - Current env verification: `FAL_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SHORTPULSE_OPENAI_RESPONSES_ENABLED`, `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED`.
-- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`, `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`.
+- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (Vercel), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`, `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`, `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`.
 
 ## Triage workflow (first 15 minutes)
 1. Confirm incident scope in `/admin`:
@@ -74,6 +74,10 @@ Mitigation guidance:
    - reservation RPC health (`reserve_generation_credits` / `admit_and_reserve_generation_credits`),
    - `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED`,
    - `SHORTPULSE_FAL_ADMISSION_MODE` (`enforce` fail-closes without reservation mode by design).
+6. If queue depth is pinned near `SHORTPULSE_FAL_QUEUE_MAX_PER_USER`, run controlled backlog drain:
+   - ensure reconciler route scheduler is active,
+   - trigger `/api/internal/generation-recovery/run` repeatedly (1-minute cadence) until old provider-attached reservations clear,
+   - verify queue depth drops before resuming stress submits.
 
 Fal reliability rollout controls (when enabled):
 1. Confirm mode and model gating:
@@ -165,8 +169,8 @@ Mitigation guidance:
    - stale `running` beyond model wall-time budget
    - `failed_persist` eligible for retry
 2. Reconciler invocation:
-   - Route: `POST /api/internal/generation-recovery/run`
-   - Auth: `x-shortpulse-cron-secret` (matches `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`)
+   - Route: `POST` or `GET` `/api/internal/generation-recovery/run`
+   - Auth: `x-shortpulse-cron-secret` or `Authorization: Bearer <secret>` (`SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` in Vercel).
    - Note: reconciler claims are lease-based; validate `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS` to avoid duplicate concurrent execution.
    - Queue dispatch also runs in this route; inspect `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, and `queueDispatchErrors`.
    - Optional reservation cleanup controls:

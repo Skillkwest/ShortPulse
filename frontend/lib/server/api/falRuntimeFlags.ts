@@ -41,6 +41,7 @@ export type FalRuntimeFlags = {
   queueLeaseSeconds: number;
   queueMaxAttempts: number;
   queueBaseBackoffSeconds: number;
+  queueMaxWaitSeconds: number;
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
@@ -175,6 +176,7 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     5,
     1
   ),
+  queueMaxWaitSeconds: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS, 1200, 60),
 });
 
 export const isFalRuntimeEnabledForModel = (

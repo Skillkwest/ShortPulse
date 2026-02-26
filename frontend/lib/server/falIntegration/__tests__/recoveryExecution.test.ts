@@ -150,12 +150,19 @@ describe("executeGenerationRecovery", () => {
     expect(scenario.updatePayloads).toHaveLength(1);
     expect(scenario.updatePayloads[0]).toEqual(
       expect.objectContaining({
+        status: "fail",
+        completed_at: expect.any(String),
         recovery_state: "exhausted",
         failure_reason_code: "recovery_exhausted",
         next_recovery_at: null,
       })
     );
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "fail",
+        reason: "Provider remained running after recovery attempts were exhausted.",
+      })
+    );
     expect(persistRecoveryMediaFilesForGenerationMock).not.toHaveBeenCalled();
   });
 

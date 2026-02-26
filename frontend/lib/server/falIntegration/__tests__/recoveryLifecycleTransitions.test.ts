@@ -47,6 +47,11 @@ describe("recoveryLifecycleTransitions", () => {
       recoveryState: "queued" as const,
       nextRecoveryAt: "2026-02-23T12:02:00.000Z",
     };
+    const exhaustedQueuePlan = {
+      isExhausted: true,
+      recoveryState: "exhausted" as const,
+      nextRecoveryAt: null,
+    };
 
     expect(buildMissingRequestUpdate(nowIso)).toEqual({
       recovery_state: "exhausted",
@@ -80,6 +85,20 @@ describe("recoveryLifecycleTransitions", () => {
       failure_reason_code: null,
       last_recovery_at: nowIso,
       next_recovery_at: "2026-02-23T12:02:00.000Z",
+    });
+
+    expect(
+      buildProviderRunningUpdate({
+        nowIso,
+        queuePlan: exhaustedQueuePlan,
+      })
+    ).toEqual({
+      status: "fail",
+      completed_at: nowIso,
+      recovery_state: "exhausted",
+      failure_reason_code: "recovery_exhausted",
+      last_recovery_at: nowIso,
+      next_recovery_at: null,
     });
 
     expect(buildProviderFailedUpdate(nowIso)).toEqual({

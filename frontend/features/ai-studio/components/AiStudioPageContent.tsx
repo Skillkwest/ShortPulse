@@ -275,6 +275,29 @@ type AiStudioAlertsStackProps = {
   onDismissFailure: (id: string) => void;
 };
 
+type AiStudioAlertBannerProps = {
+  message: string;
+  variant: "error" | "warning";
+  role: "alert" | "status";
+  live: "assertive" | "polite";
+  onDismiss: () => void;
+};
+
+const AiStudioAlertBanner = ({
+  message,
+  variant,
+  role,
+  live,
+  onDismiss,
+}: AiStudioAlertBannerProps) => (
+  <div className={`ai-alert-banner ai-alert-banner--${variant}`} role={role} aria-live={live}>
+    <p className="ai-alert-banner__message">{message}</p>
+    <button type="button" className="ai-alert-banner__dismiss" onClick={onDismiss}>
+      Dismiss
+    </button>
+  </div>
+);
+
 const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   uiError,
   uiNotice,
@@ -288,76 +311,31 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   return (
     <>
       {uiError ? (
-        <div
-          className="panel ai-panel"
+        <AiStudioAlertBanner
+          message={uiError}
+          variant="error"
           role="alert"
-          aria-live="assertive"
-          style={{ marginTop: 12, padding: 12 }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 12,
-              alignItems: "center",
-            }}
-          >
-            <p className="tiny" style={{ margin: 0 }}>
-              {uiError}
-            </p>
-            <button type="button" className="ghost-btn mini" onClick={onDismissUiError}>
-              Dismiss
-            </button>
-          </div>
-        </div>
+          live="assertive"
+          onDismiss={onDismissUiError}
+        />
       ) : null}
       {uiNotice ? (
-        <div
-          className="panel ai-panel"
+        <AiStudioAlertBanner
+          message={uiNotice}
+          variant="warning"
           role="status"
-          aria-live="polite"
-          style={{ marginTop: 12, padding: 12 }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 12,
-              alignItems: "center",
-            }}
-          >
-            <p className="tiny" style={{ margin: 0 }}>
-              {uiNotice}
-            </p>
-            <button type="button" className="ghost-btn mini" onClick={onDismissUiNotice}>
-              Dismiss
-            </button>
-          </div>
-        </div>
+          live="polite"
+          onDismiss={onDismissUiNotice}
+        />
       ) : null}
       {characterError ? (
-        <div
-          className="panel ai-panel"
+        <AiStudioAlertBanner
+          message={characterError}
+          variant="error"
           role="alert"
-          aria-live="assertive"
-          style={{ marginTop: 12, padding: 12 }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 12,
-              alignItems: "center",
-            }}
-          >
-            <p className="tiny" style={{ margin: 0 }}>
-              {characterError}
-            </p>
-            <button type="button" className="ghost-btn mini" onClick={onDismissCharacterError}>
-              Dismiss
-            </button>
-          </div>
-        </div>
+          live="assertive"
+          onDismiss={onDismissCharacterError}
+        />
       ) : null}
       {visibleFailures.length ? (
         <div className="ai-error-stack" role="alert" aria-live="polite">

@@ -12,7 +12,11 @@ import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioVie
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
 import { useBeginnerModePreference } from "../features/ai-studio/hooks/useBeginnerModePreference";
 import { normalizePromptText } from "../features/ai-studio/logic/agentPromptOwnership";
-import { shouldDisableAgentOutputGenerate } from "../features/ai-studio/logic/createGenerationGuards";
+import {
+  CHARACTER_LOADING_GENERATION_GUARDRAIL,
+  shouldDisableAgentOutputGenerate,
+  shouldDisableGenerateWhileCharacterLoading,
+} from "../features/ai-studio/logic/createGenerationGuards";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
@@ -1094,7 +1098,6 @@ export default function AiStudioPage() {
     hasSufficientCreditsForPromptReferenceGenerate,
     isCreditGuardrail,
     generationGuardrail,
-    isGenerateDisabled,
     referenceImageWarning,
   } = useAiStudioViewModel({
     mode,
@@ -1116,6 +1119,19 @@ export default function AiStudioPage() {
     balanceCredits: effectiveBalanceCredits,
     costParamsForModel,
   });
+  const isCharacterLoadingGenerateDisabled = useMemo(
+    () =>
+      shouldDisableGenerateWhileCharacterLoading({
+        selectedTool,
+        characterModeEnabled: isCharacterModeEnabled,
+        isCharacterBundleLoading,
+      }),
+    [isCharacterBundleLoading, isCharacterModeEnabled, selectedTool]
+  );
+  const effectiveGenerationGuardrail =
+    generationGuardrail ??
+    (isCharacterLoadingGenerateDisabled ? CHARACTER_LOADING_GENERATION_GUARDRAIL : null);
+  const effectiveIsGenerateDisabled = Boolean(effectiveGenerationGuardrail);
   const {
     isMediaLibraryOpen,
     handleOpenModelModal,
@@ -1162,9 +1178,9 @@ export default function AiStudioPage() {
     agentInput,
     agentBusy,
     currentCostCredits,
-    isGenerateDisabled,
+    isGenerateDisabled: effectiveIsGenerateDisabled,
     isCreditGuardrail,
-    generationGuardrail,
+    generationGuardrail: effectiveGenerationGuardrail,
     effectiveBalanceCredits,
     balanceCredits,
     optimisticUncoveredDebitTotal: optimisticUncoveredDebitCredits,
@@ -1232,7 +1248,7 @@ export default function AiStudioPage() {
       shouldDisableAgentOutputGenerate({
         mode,
         selectedTool,
-        isGenerateDisabled,
+        isGenerateDisabled: effectiveIsGenerateDisabled,
         isGenerateClickLocked,
         hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
         modelId: model,
@@ -1243,7 +1259,7 @@ export default function AiStudioPage() {
       hasSufficientCreditsForPromptReferenceGenerate,
       isCharacterModeEnabled,
       isGenerateClickLocked,
-      isGenerateDisabled,
+      effectiveIsGenerateDisabled,
       mode,
       model,
       selectedCharacterId,
@@ -1300,9 +1316,9 @@ export default function AiStudioPage() {
     currentCostCredits,
     promptReferenceGenerateCostCredits,
     hasSufficientCreditsForPromptReferenceGenerate,
-    isGenerateDisabled,
+    isGenerateDisabled: effectiveIsGenerateDisabled,
     isGenerateClickLocked,
-    generationGuardrail,
+    generationGuardrail: effectiveGenerationGuardrail,
     handleExpandChat,
     handleClearAgentChat,
     isAgentChatOpen,

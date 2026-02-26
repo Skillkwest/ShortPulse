@@ -247,4 +247,85 @@ describe("useAiStudioOutputLifecycle", () => {
       vi.useRealTimers();
     }
   });
+
+  it("does not fail queued placeholders at submit-start timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("generation-db-queued", {
+              taskState: "pending",
+              queueState: "queued",
+              queueEnqueuedAtMs: Date.now(),
+              previewText: undefined,
+              previewUrl: undefined,
+              mediaSource: "generated",
+              timestamp: "Submitting...",
+            }),
+          ],
+          null
+        )
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(16_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("pending");
+      expect(reportAppErrorMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "fal_submit_not_started",
+          metadata: expect.objectContaining({
+            output_id: "generation-db-queued",
+          }),
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fails queued placeholders after queue wait timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("generation-db-queued-timeout", {
+              taskState: "pending",
+              queueState: "queued",
+              queueEnqueuedAtMs: Date.now(),
+              previewText: undefined,
+              previewUrl: undefined,
+              mediaSource: "generated",
+              timestamp: "Submitting...",
+            }),
+          ],
+          null
+        )
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20 * 60 * 1000 + 16_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("fail");
+      expect(result.current.outputs[0]?.timestamp).toBe("Queue timed out");
+      expect(result.current.outputs[0]?.errorMessage).toBe(
+        "Generation queue timed out. Please retry."
+      );
+      expect(reportAppErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "generation.queue_wait_timeout",
+          metadata: expect.objectContaining({
+            output_id: "generation-db-queued-timeout",
+            failure_reason_code: "QUEUE_WAIT_TIMEOUT",
+          }),
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

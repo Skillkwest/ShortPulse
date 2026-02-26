@@ -24,6 +24,7 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_QUEUE_LEASE_SECONDS;
     delete process.env.SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS;
     delete process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS;
+    delete process.env.SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS;
 
     const flags = readFalRuntimeFlags();
     expect(flags.admission).toEqual({
@@ -46,6 +47,7 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.queueLeaseSeconds).toBe(30);
     expect(flags.queueMaxAttempts).toBe(5);
     expect(flags.queueBaseBackoffSeconds).toBe(5);
+    expect(flags.queueMaxWaitSeconds).toBe(1200);
   });
 
   it("parses admission env overrides with per-tier fallback", () => {
@@ -64,6 +66,7 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_QUEUE_LEASE_SECONDS = "45";
     process.env.SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS = "7";
     process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS = "9";
+    process.env.SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS = "1800";
 
     const flags = readFalRuntimeFlags();
     expect(flags.admission).toEqual({
@@ -86,6 +89,7 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.queueLeaseSeconds).toBe(45);
     expect(flags.queueMaxAttempts).toBe(7);
     expect(flags.queueBaseBackoffSeconds).toBe(9);
+    expect(flags.queueMaxWaitSeconds).toBe(1800);
   });
 
   it("enables reservation cleanup by default when reconciler is enabled", () => {

@@ -208,6 +208,21 @@ export const executeGenerationRecovery = async ({
       effectiveMaxAttempts,
       nextDelaySeconds,
     });
+    if (queuePlan.isExhausted) {
+      await settleGenerationOutcome({
+        userId: generation.user_id,
+        providerRequestId: generation.request_id,
+        outcome: "fail",
+        reason: "Provider remained running after recovery attempts were exhausted.",
+        routeLabel,
+        detail: {
+          actor,
+          generation_id: generation.id,
+          recovery_attempts: attempts,
+          recovery_max_attempts: effectiveMaxAttempts,
+        },
+      });
+    }
     await updateGenerationRecoveryState({
       generation,
       updates: buildProviderRunningUpdate({ nowIso, queuePlan }),

@@ -23,6 +23,7 @@ const makeOutput = (overrides: Partial<StudioOutput>): StudioOutput => ({
 const config = {
   loadingTimeoutMs: 3 * 60 * 1000,
   submitStartTimeoutMs: 12_000,
+  queueWaitTimeoutMs: 20 * 60 * 1000,
   autoFailedRetentionMs: 2 * 60 * 1000,
 };
 
@@ -37,6 +38,7 @@ describe("evaluateStaleOutputCleanup", () => {
 
     expect(result.staleLoadingIds).toEqual(["out-stale"]);
     expect(result.submitStartTimeoutIds).toEqual(["out-stale"]);
+    expect(result.queueWaitTimeoutIds).toHaveLength(0);
     expect(result.nextLifecycle["out-stale"]?.pendingSinceMs).toBe(BASE_TIME_MS - 12_000);
   });
 
@@ -50,6 +52,7 @@ describe("evaluateStaleOutputCleanup", () => {
 
     expect(result.staleLoadingIds).toHaveLength(0);
     expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.queueWaitTimeoutIds).toHaveLength(0);
   });
 
   it("does not stale-timeout outputs that already have a provider task id", () => {
@@ -62,6 +65,7 @@ describe("evaluateStaleOutputCleanup", () => {
 
     expect(result.staleLoadingIds).toHaveLength(0);
     expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.queueWaitTimeoutIds).toHaveLength(0);
     expect(result.nextLifecycle["out-tasked"]).toBeUndefined();
   });
 
@@ -71,6 +75,7 @@ describe("evaluateStaleOutputCleanup", () => {
 
     expect(result.staleLoadingIds).toHaveLength(0);
     expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.queueWaitTimeoutIds).toHaveLength(0);
     expect(result.nextLifecycle).toEqual({});
   });
 
@@ -84,6 +89,33 @@ describe("evaluateStaleOutputCleanup", () => {
 
     expect(result.staleLoadingIds).toEqual(["generation-db-1"]);
     expect(result.submitStartTimeoutIds).toEqual(["generation-db-1"]);
+    expect(result.queueWaitTimeoutIds).toHaveLength(0);
+  });
+
+  it("does not submit-start timeout queued outputs while waiting for dispatch", () => {
+    const outputs = [makeOutput({ id: "out-queued", queueState: "queued" })];
+    const lifecycle: OutputLifecycleMap = {
+      "out-queued": { pendingSinceMs: BASE_TIME_MS - 12_000 },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toHaveLength(0);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.queueWaitTimeoutIds).toHaveLength(0);
+  });
+
+  it("fails queued outputs only after queue wait timeout", () => {
+    const outputs = [makeOutput({ id: "out-queued-stale", queueState: "queued" })];
+    const lifecycle: OutputLifecycleMap = {
+      "out-queued-stale": { pendingSinceMs: BASE_TIME_MS - config.queueWaitTimeoutMs },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toEqual(["out-queued-stale"]);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.queueWaitTimeoutIds).toEqual(["out-queued-stale"]);
   });
 
   it("keeps pending lifecycle only while output is unresolved", () => {

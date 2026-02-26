@@ -14,6 +14,7 @@ export type OutputLifecycleMap = Record<string, OutputLifecycleState>;
 export type StaleOutputCleanupConfig = {
   loadingTimeoutMs: number;
   submitStartTimeoutMs: number;
+  queueWaitTimeoutMs: number;
   autoFailedRetentionMs: number;
 };
 
@@ -21,6 +22,7 @@ export type StaleOutputCleanupResult = {
   nextLifecycle: OutputLifecycleMap;
   staleLoadingIds: string[];
   submitStartTimeoutIds: string[];
+  queueWaitTimeoutIds: string[];
   removableIds: string[];
 };
 
@@ -43,6 +45,8 @@ const isLoadingWithoutPreview = (output: StudioOutput): boolean => {
   );
 };
 
+const isQueuedOutput = (output: StudioOutput): boolean => output.queueState === "queued";
+
 const isFailedWithoutPreview = (output: StudioOutput): boolean =>
   output.taskState === "fail" && !output.previewUrl && !output.previewText && !output.taskId;
 
@@ -58,6 +62,7 @@ export const evaluateStaleOutputCleanup = (
   const nextLifecycle: OutputLifecycleMap = {};
   const staleLoadingIds: string[] = [];
   const submitStartTimeoutIds: string[] = [];
+  const queueWaitTimeoutIds: string[] = [];
   const removableIds: string[] = [];
 
   outputs.forEach((output) => {
@@ -66,10 +71,22 @@ export const evaluateStaleOutputCleanup = (
 
     if (isLoadingWithoutPreview(output)) {
       if (nextState.pendingSinceMs == null) {
-        nextState.pendingSinceMs = now;
+        const queuedSinceMs =
+          isQueuedOutput(output) && typeof output.queueEnqueuedAtMs === "number"
+            ? Math.trunc(output.queueEnqueuedAtMs)
+            : null;
+        nextState.pendingSinceMs =
+          queuedSinceMs != null && Number.isFinite(queuedSinceMs)
+            ? Math.min(queuedSinceMs, now)
+            : now;
       }
       const elapsedMs = now - nextState.pendingSinceMs;
-      if (elapsedMs >= config.submitStartTimeoutMs) {
+      if (isQueuedOutput(output)) {
+        if (elapsedMs >= config.queueWaitTimeoutMs) {
+          staleLoadingIds.push(output.id);
+          queueWaitTimeoutIds.push(output.id);
+        }
+      } else if (elapsedMs >= config.submitStartTimeoutMs) {
         staleLoadingIds.push(output.id);
         submitStartTimeoutIds.push(output.id);
       } else if (elapsedMs >= config.loadingTimeoutMs) {
@@ -99,6 +116,7 @@ export const evaluateStaleOutputCleanup = (
     nextLifecycle,
     staleLoadingIds,
     submitStartTimeoutIds,
+    queueWaitTimeoutIds,
     removableIds,
   };
 };

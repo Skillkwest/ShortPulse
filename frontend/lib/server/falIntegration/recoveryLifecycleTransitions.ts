@@ -59,12 +59,25 @@ export const buildProviderRunningUpdate = ({
 }: {
   nowIso: string;
   queuePlan: RecoveryQueuePlan;
-}): Record<string, unknown> => ({
-  recovery_state: queuePlan.recoveryState,
-  failure_reason_code: queuePlan.isExhausted ? "recovery_exhausted" : null,
-  last_recovery_at: nowIso,
-  next_recovery_at: queuePlan.nextRecoveryAt,
-});
+}): Record<string, unknown> => {
+  if (queuePlan.isExhausted) {
+    return {
+      status: "fail",
+      completed_at: nowIso,
+      recovery_state: "exhausted",
+      failure_reason_code: "recovery_exhausted",
+      last_recovery_at: nowIso,
+      next_recovery_at: null,
+    };
+  }
+
+  return {
+    recovery_state: "queued",
+    failure_reason_code: null,
+    last_recovery_at: nowIso,
+    next_recovery_at: queuePlan.nextRecoveryAt,
+  };
+};
 
 export const buildProviderFailedUpdate = (nowIso: string): Record<string, unknown> => ({
   status: "fail",

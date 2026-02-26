@@ -24,6 +24,15 @@ type AgentOutputDisableParams = CreateSelectionParams & {
   hasSufficientCreditsForOutputGenerate: boolean;
 };
 
+type CharacterLoadingDisableParams = {
+  selectedTool: ToolId | null;
+  characterModeEnabled: boolean;
+  isCharacterBundleLoading: boolean;
+};
+
+export const CHARACTER_LOADING_GENERATION_GUARDRAIL =
+  "Character Mode context is still loading. Please wait before generating.";
+
 /**
  * Returns true when tool routing targets create/text workflows.
  */
@@ -94,3 +103,13 @@ export const shouldDisableAgentOutputGenerate = ({
     !hasSufficientCreditsForOutputGenerate
   );
 };
+
+/**
+ * Returns true when Character Mode generation should be blocked until bundle hydration completes.
+ */
+export const shouldDisableGenerateWhileCharacterLoading = ({
+  selectedTool,
+  characterModeEnabled,
+  isCharacterBundleLoading,
+}: CharacterLoadingDisableParams): boolean =>
+  isCreatePromptTool(selectedTool) && characterModeEnabled && isCharacterBundleLoading;

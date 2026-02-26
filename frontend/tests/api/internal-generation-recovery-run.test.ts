@@ -3,6 +3,7 @@ import handler from "../../pages/api/internal/generation-recovery/run";
 
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const dispatchGenerationSubmitQueueBatchMock = vi.fn();
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -10,6 +11,11 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationQueue/dispatch", () => ({
+  dispatchGenerationSubmitQueueBatch: (...args: unknown[]) =>
+    dispatchGenerationSubmitQueueBatchMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -63,6 +69,8 @@ describe("POST /api/internal/generation-recovery/run", () => {
     process.env.SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS = "0";
     process.env.SHORTPULSE_FAL_INTEGRATION_MODE = "on";
     process.env.SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST = "*";
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
+    dispatchGenerationSubmitQueueBatchMock.mockReset();
   });
 
   it("requires the cron secret", async () => {
@@ -76,6 +84,59 @@ describe("POST /api/internal/generation-recovery/run", () => {
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized" });
+  });
+
+  it("accepts bearer token auth and supports GET for cron invocation", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+
+    const req = {
+      method: "GET",
+      headers: {
+        authorization: "Bearer cron-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+      })
+    );
+  });
+
+  it("accepts bearer token auth with CRON_SECRET fallback when route secret is unset", async () => {
+    delete process.env.SHORTPULSE_FAL_RECONCILER_CRON_SECRET;
+    process.env.CRON_SECRET = "vercel-cron-secret";
+
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+
+    const req = {
+      method: "GET",
+      headers: {
+        authorization: "Bearer vercel-cron-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+      })
+    );
   });
 
   it("claims and requeues recovery candidates", async () => {
@@ -165,6 +226,56 @@ describe("POST /api/internal/generation-recovery/run", () => {
         routeLabel: "internal/generation-recovery/run",
         metadata: expect.objectContaining({
           stage: "reservation_cleanup",
+        }),
+      })
+    );
+  });
+
+  it("records queue dispatch errors and continues recovery", async () => {
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
+    dispatchGenerationSubmitQueueBatchMock.mockRejectedValueOnce(new Error("claim failed"));
+
+    const supabase = createSupabaseMock();
+    supabase.rpc = vi.fn(async (functionName: string) => {
+      if (functionName === "release_stale_generation_reservations") {
+        return {
+          data: [{ scanned_count: 1, released_count: 0, error_count: 0 }],
+          error: null,
+        };
+      }
+      if (functionName === "claim_generation_recovery_batch") {
+        return { data: [], error: null };
+      }
+      return { data: [], error: null };
+    });
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "cron-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchGenerationSubmitQueueBatchMock).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+        queueDispatchErrors: 1,
+      })
+    );
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "internal/generation-recovery/run",
+        metadata: expect.objectContaining({
+          stage: "queue_dispatch",
         }),
       })
     );

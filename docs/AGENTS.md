@@ -2,6 +2,8 @@
 
 Scope: `ShortPulse/docs/`.
 
+Inherit the root startup contract in `../AGENTS.md` first, then apply the scoped docs rules below.
+
 ## Keep docs discoverable
 - If you add a new doc, add it to `README.md` (docs index) and the relevant section index (`api/README.md`, `sops/README.md`, etc.) when appropriate.
 - Update `documentation_overview.md` if the documentation taxonomy or governance rules change.

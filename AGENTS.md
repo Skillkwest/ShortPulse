@@ -38,3 +38,37 @@ npm run build
 - Before running repo-wide commands (for example `eslint .`, `git status`, broad `rg`), verify no large generated backup/artifact directories exist inside the repo.
 - If unsure about operational approach (cleanup, tool invocation, filesystem-wide commands), pause and verify best practices from authoritative docs first; do not proceed on assumption.
 - If risk remains unclear, ask the user before executing potentially high-impact workspace operations.
+
+## Session Startup Contract (mandatory)
+Follow this startup sequence at the start of every new task/session in this repo:
+
+1. **Session preflight (always first)**
+- Confirm task mode (`brainstorm/no-edit` vs implementation).
+- Run a workspace safety check before broad/repo-wide commands (artifact/backup guardrails).
+
+2. **Core doc load (always)**
+- Read this root `AGENTS.md`.
+- Read `docs/dev-ground-rules.md`, `docs/conventions.md`, and `docs/agent-playbook.md`.
+- Read `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.
+- Read scoped instructions for touched areas (`frontend/AGENTS.md`, `docs/AGENTS.md`).
+
+3. **Task classification + targeted context load**
+- SQL/migrations: read `docs/sops/sop_sql_migration_operations.md`, `docs/database-migrations.md`, `docs/security-checklist.md`, and impacted files under `sql/migrations/`.
+- Routes/UI behavior: read `README.md`, `docs/routes.md`, and the relevant SOP(s).
+- Pricing/credits changes: run `skills/skill-pricing-audit/SKILL.md`.
+- Docs/index drift: run `skills/skill-doc-index/SKILL.md` or `skills/skill-mvp-docs-sop-governance/SKILL.md`.
+
+4. **Web research policy**
+- Default to local repo sources first.
+- Browse when explicitly requested, when "latest/current" matters, or for high-stakes/temporally unstable facts.
+
+5. **No-edit gate**
+- Do not edit files until core + task-specific context is loaded.
+- In brainstorm/no-edit mode, do not mutate repository files.
+
+6. **Execution/closeout defaults**
+- Keep diffs minimal and scoped to the request.
+- Run relevant validation checks for touched areas.
+- Perform a final self-audit for missed high-value updates and provide suggested next steps.
+
+Use `skills/skill-session-startup-contract/SKILL.md` as the procedural checklist for this contract.

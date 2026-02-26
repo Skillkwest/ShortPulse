@@ -2,6 +2,8 @@
 
 Scope: `ShortPulse/frontend/` (Next.js pages router with client UI and internal server API routes under `pages/api/*`).
 
+Inherit the root startup contract in `../AGENTS.md` first, then apply the scoped frontend rules below.
+
 ## Default expectations
 
 - Prefer the feature module pattern described in `../docs/frontend-architecture.md` (`features/<name>/{types,constants,data,utils,logic,components}`).

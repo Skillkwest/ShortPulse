@@ -202,6 +202,7 @@ Start here for all repository documentation.
 - `docs/brainstorming/README.md`
 
 ## Automation
+- `skills/skill-session-startup-contract/SKILL.md`
 - `skills/skill-pricing-audit/SKILL.md`
 - `skills/skill-doc-index/SKILL.md`
 - `skills/skill-ui-ux-critic/SKILL.md`

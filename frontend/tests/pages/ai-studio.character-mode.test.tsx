@@ -469,19 +469,23 @@ describe("ai-studio page character mode submission", () => {
 
     await waitFor(() => expect(generateOutputMock).toHaveBeenCalledTimes(1));
     expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledTimes(2);
-    expect(generateOutputMock).toHaveBeenCalledWith("User visible prompt", {
-      modeOverride: "image",
-      selectedToolOverride: "create",
-      submissionPromptOverride: "Fresh character description\n\nUser visible prompt",
-      displayPromptOverride: "User visible prompt",
-      referenceInputsOverride: ["https://signed.test/user%2Fchars%2Ffresh.png"],
-      characterContextOverride: {
-        applied: true,
-        characterId: "char-1",
-        characterName: "Taylor",
-        characterProfileImageUrl: null,
-      },
-    });
+    expect(generateOutputMock).toHaveBeenCalledWith(
+      "User visible prompt",
+      expect.objectContaining({
+        modeOverride: "image",
+        selectedToolOverride: "create",
+        modelIdOverride: "fal-ai/bytedance/seedream/v4.5/edit",
+        submissionPromptOverride: "Fresh character description\n\nUser visible prompt",
+        displayPromptOverride: "User visible prompt",
+        referenceInputsOverride: ["https://signed.test/user%2Fchars%2Ffresh.png"],
+        characterContextOverride: {
+          applied: true,
+          characterId: "char-1",
+          characterName: "Taylor",
+          characterProfileImageUrl: null,
+        },
+      })
+    );
     expect(addBreadcrumbMock).toHaveBeenCalledWith(
       expect.objectContaining({
         message: "character_mode_bundle_refresh_before_submit",
@@ -519,7 +523,7 @@ describe("ai-studio page character mode submission", () => {
     );
   });
 
-  it("blocks submission when signed URL refresh returns no references at submit time", async () => {
+  it("falls back to existing references when signed URL refresh returns no signed URLs", async () => {
     getSignedMediaUrlsBatchMock.mockImplementation(async () => new Map());
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
       createCharacterSnapshot(
@@ -538,26 +542,24 @@ describe("ai-studio page character mode submission", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "generate" }));
 
-    await waitFor(() =>
-      expect(aiStudioStateMock.setUiError).toHaveBeenCalledWith(
-        "Character Mode requires at least one character image before generating."
-      )
-    );
-    expect(generateOutputMock).not.toHaveBeenCalled();
-    expect(addBreadcrumbMock).toHaveBeenCalledWith(
+    await waitFor(() => expect(generateOutputMock).toHaveBeenCalledTimes(1));
+    expect(aiStudioStateMock.setUiError).not.toHaveBeenCalled();
+    expect(generateOutputMock).toHaveBeenCalledWith(
+      "User visible prompt",
       expect.objectContaining({
-        message: "character_mode_injection_fallback",
-        data: expect.objectContaining({
-          fallback_code: "no_references",
-          selected_character_id: "char-1",
-        }),
+        modeOverride: "image",
+        selectedToolOverride: "create",
+        modelIdOverride: "fal-ai/bytedance/seedream/v4.5/edit",
+        submissionPromptOverride: "Character description from manager\n\nUser visible prompt",
+        displayPromptOverride: "User visible prompt",
+        referenceInputsOverride: ["https://cdn.test/original.png"],
       })
     );
     expect(addBreadcrumbMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: "character_mode_submit_blocked_no_references",
+        message: "character_mode_reference_refresh_empty",
         data: expect.objectContaining({
-          fallback_code: "no_references",
+          selected_character_id: "char-1",
         }),
       })
     );

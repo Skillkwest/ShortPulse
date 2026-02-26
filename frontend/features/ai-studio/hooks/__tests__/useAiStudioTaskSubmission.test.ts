@@ -525,6 +525,7 @@ describe("useAiStudioTaskSubmission", () => {
 
     expect(outputs[0]?.taskState).toBe("fail");
     expect(outputs[0]?.errorMessageShort).toBe("Reference upload failed.");
+    expect(outputs[0]?.generationReplay).toBeUndefined();
     expect(setUiError).toHaveBeenCalledWith("Reference upload failed: Upload failed");
     expect(startPollingTask).not.toHaveBeenCalled();
   });
@@ -599,6 +600,7 @@ describe("useAiStudioTaskSubmission", () => {
 
       expect(outputs[0]?.taskState).toBe("fail");
       expect(outputs[0]?.errorMessageShort).toBe("Preparation timed out.");
+      expect(outputs[0]?.generationReplay).toBeUndefined();
       expect(setUiError).toHaveBeenCalledWith(
         "Preparation timed out before generation started. Please retry."
       );
@@ -871,21 +873,19 @@ describe("useAiStudioTaskSubmission", () => {
       })
     );
 
+    prepareImageUrlForSubmissionMock.mockResolvedValueOnce("https://cdn.test/prepared-ref.png");
+
     await act(async () => {
-      await result.current(
-        "Hidden character context + Visible user prompt.",
-        ["https://cdn.test/ref.png"],
-        {
-          modeOverride: "image",
-          selectedToolOverride: "edit",
-          displayPromptOverride: "Visible user prompt.",
-          characterContextOverride: {
-            applied: true,
-            characterId: "char-1",
-            characterName: "Nova",
-          },
-        }
-      );
+      await result.current("Hidden character context + Visible user prompt.", ["blob:raw-ref"], {
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+        displayPromptOverride: "Visible user prompt.",
+        characterContextOverride: {
+          applied: true,
+          characterId: "char-1",
+          characterName: "Nova",
+        },
+      });
     });
 
     expect(outputs[0]?.generationReplay).toEqual(
@@ -898,7 +898,7 @@ describe("useAiStudioTaskSubmission", () => {
         submissionPrompt: "Hidden character context + Visible user prompt.",
         aspect: "9:16",
         imageResolution: "auto_4K",
-        referenceInputs: ["https://cdn.test/ref.png"],
+        referenceInputs: ["https://cdn.test/prepared-ref.png"],
         characterContext: {
           applied: true,
           characterId: "char-1",

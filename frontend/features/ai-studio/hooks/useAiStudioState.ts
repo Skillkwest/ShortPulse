@@ -3,6 +3,7 @@
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { randomId } from "../logic/ids";
 import { StudioMode, StudioOutput } from "../types";
 import { DEFAULT_KLING_DURATION_SECONDS, getModelConfig } from "../logic/pricing";
@@ -471,14 +472,61 @@ export const useAiStudioState = ({
       if (!normalizedOutputId) return;
       const output = findOutputById(normalizedOutputId);
       if (!output || !canRerollOutput(output)) {
+        addBreadcrumb({
+          type: "ui",
+          level: "warn",
+          message: "reroll_blocked_missing_or_invalid_replay",
+          data: {
+            output_id: normalizedOutputId,
+            reason: "missing_output_or_replay",
+          },
+        });
         setUiNotice("Re-roll is unavailable because original generation settings are missing.");
         return;
       }
       const replay = output.generationReplay;
       if (!isGenerationReplayConfigV1(replay)) {
+        addBreadcrumb({
+          type: "ui",
+          level: "warn",
+          message: "reroll_blocked_missing_or_invalid_replay",
+          data: {
+            output_id: normalizedOutputId,
+            reason: "invalid_replay_payload",
+          },
+        });
         setUiNotice("Re-roll is unavailable because original generation settings are missing.");
         return;
       }
+      const hasLocalOnlyReplayReference = replay.referenceInputs.some(
+        (input) => /^blob:/i.test(input) || /^data:/i.test(input)
+      );
+      if (hasLocalOnlyReplayReference) {
+        addBreadcrumb({
+          type: "ui",
+          level: "warn",
+          message: "reroll_blocked_missing_or_invalid_replay",
+          data: {
+            output_id: normalizedOutputId,
+            reason: "local_reference",
+          },
+        });
+        setUiNotice(
+          "Re-roll is unavailable because original reference media are no longer accessible."
+        );
+        return;
+      }
+      addBreadcrumb({
+        type: "ui",
+        level: "info",
+        message: "reroll_started",
+        data: {
+          output_id: normalizedOutputId,
+          model_id: replay.modelId,
+          tool: replay.submitTool,
+          reference_count: replay.referenceInputs.length,
+        },
+      });
       void submitTask(replay.submissionPrompt, replay.referenceInputs, {
         modeOverride: "image",
         selectedToolOverride: replay.submitTool,

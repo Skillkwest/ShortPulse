@@ -14,6 +14,7 @@ Without an output-scoped replay snapshot, rerolling from a card can produce mism
 - Introduce an output-scoped replay contract on `StudioOutput`:
   - `generationReplay?: GenerationReplayConfig` (v1 currently includes image-only replay data).
 - Capture replay snapshots at submit-time inside `useAiStudioTaskSubmission`, using resolved effective values used for provider submission.
+- Capture replay `referenceInputs` from preflight-prepared provider-ready URLs (not raw local blob/data inputs).
 - Add a dedicated reroll pathway (`rerollOutputFromReplay`) in `useAiStudioState` that:
   - validates replay payload,
   - submits using replay overrides,

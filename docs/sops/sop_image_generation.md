@@ -54,11 +54,12 @@ See `docs/sops/sop_ai_studio_index.md` for shared primitives, model defaults, an
   - display/submission prompt pair,
   - effective aspect,
   - effective image resolution intent,
-  - replay reference inputs,
+  - replay reference inputs captured from preflight-prepared provider-ready URLs,
   - character context metadata.
 - Re-roll does not reuse current panel state and does not replace retry-status behavior:
   - `Retry status` polls an existing task id.
   - `Re-roll image` starts a new task.
+- Re-roll fails fast when replay settings are missing/invalid or references are local-only (`blob:`/`data:`) and surfaces a deterministic UI notice.
 - Legacy cards without replay snapshots do not render the reroll action in v1.
 
 ## Create startup model default (session restore)

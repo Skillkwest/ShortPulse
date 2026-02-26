@@ -37,6 +37,7 @@ export type GenerationReplayConfigV1 = {
   submissionPrompt: string;
   aspect: string;
   imageResolution: string | null;
+  // Provider-ready reference URLs captured from preflight at submit time.
   referenceInputs: string[];
   characterContext?: StudioOutputCharacterContext;
   capturedAt: string;

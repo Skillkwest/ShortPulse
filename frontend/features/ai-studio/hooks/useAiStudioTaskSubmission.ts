@@ -238,22 +238,22 @@ export const useAiStudioTaskSubmission = ({
               ? "image"
               : effectiveMode;
 
-        const generationReplay = buildGenerationReplayConfigV1({
-          mode: outputMode,
-          submitTool: effectiveTool,
-          modelId: finalModel,
-          displayPrompt: cleanedDisplayPrompt,
-          submissionPrompt: cleanedSubmissionPrompt,
-          aspect: effectiveAspect,
-          imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
-          referenceInputs: imageInputs.slice(0, 8),
-          characterContext: options?.characterContextOverride,
-        });
-
+        const buildReplaySnapshot = (referenceInputs: string[]) =>
+          buildGenerationReplayConfigV1({
+            mode: outputMode,
+            submitTool: effectiveTool,
+            modelId: finalModel,
+            displayPrompt: cleanedDisplayPrompt,
+            submissionPrompt: cleanedSubmissionPrompt,
+            aspect: effectiveAspect,
+            imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
+            referenceInputs,
+            characterContext: options?.characterContextOverride,
+          });
         const nextOutput: StudioOutput = {
+          mode: outputMode,
           id,
           prompt: cleanedDisplayPrompt,
-          mode: outputMode,
           aspect: effectiveAspect,
           model: modelLabel,
           modelId: finalModel,
@@ -270,7 +270,6 @@ export const useAiStudioTaskSubmission = ({
           saveState: "idle",
           saveError: null,
           characterContext: options?.characterContextOverride,
-          ...(generationReplay ? { generationReplay } : {}),
           submissionTraceId,
         };
 
@@ -369,6 +368,19 @@ export const useAiStudioTaskSubmission = ({
             )
           );
           return;
+        }
+        const generationReplay = buildReplaySnapshot(preparedImageInputs.slice(0, 8));
+        if (generationReplay) {
+          setOutputs((prev) =>
+            prev.map((item) =>
+              item.id === id
+                ? {
+                    ...item,
+                    generationReplay,
+                  }
+                : item
+            )
+          );
         }
         const pulseReferenceImageUrl =
           preparedImageInputs.length > 0 ? preparedImageInputs[0] : undefined;

@@ -78,6 +78,7 @@ Mitigation guidance:
    - ensure reconciler route scheduler is active,
    - trigger `/api/internal/generation-recovery/run` repeatedly (1-minute cadence) until old provider-attached reservations clear,
    - verify queue depth drops before resuming stress submits.
+   - use `sql/check_generation_queue_blockers.sql` for read-only blocker triage and guarded cleanup template if backlog remains stuck.
 
 Fal reliability rollout controls (when enabled):
 1. Confirm mode and model gating:
@@ -88,6 +89,20 @@ Fal reliability rollout controls (when enabled):
    - Validate cleanup metrics in response: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
 4. For exhausted/edge cases, use admin replay (`/api/admin/generation-recovery/replay`).
 5. If webhook ingestion is unhealthy, keep polling fallback active and verify `/api/fal/webhook` signature errors before disabling webhook mode.
+
+### Queue backlog triage and guarded cleanup
+When queue dispatch is healthy but users still hit repeated `429` due stale provider-attached holds:
+1. Run `sql/check_generation_queue_blockers.sql`.
+2. Confirm diagnostics first:
+   - provider-attached `reserved` holds by age bucket,
+   - queue depth by `queued/dispatching/exhausted`,
+   - stale `fal%` generations in `queued/recovering`.
+3. Execute at least 3-5 reconciler passes (`/api/internal/generation-recovery/run`) and re-check counts.
+4. Only if blockers remain stale after repeated passes, use the guarded remediation block in the SQL file:
+   - strict age filter (default `>2h`),
+   - explicit states only (`pending/submitted/running` + `queued/recovering`),
+   - no blanket unfiltered updates.
+5. Re-run diagnostics to verify queue depth and provider-attached holds are dropping.
 
 Failure-code action map (Fal reliability rollout):
 | `failure_reason_code` | Primary action |

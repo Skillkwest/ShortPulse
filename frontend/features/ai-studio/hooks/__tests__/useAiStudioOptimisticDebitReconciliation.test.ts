@@ -85,7 +85,7 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     renderHook(() =>
       useAiStudioOptimisticDebitReconciliation({
         outputs: [makeOutput("out-2", "fail", { errorMessage: "Generation failed" })],
-        optimisticDebitEntries: [],
+        optimisticDebitEntries: [{ credits: 5, outputId: "out-2", createdAtMs: Date.now() }],
         setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
         refreshBalance,
         setDetailOutputId: asDispatch<string | null>(vi.fn()),
@@ -209,6 +209,44 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     });
 
     expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
+  });
+
+  it("does not repeatedly reconcile failed optimistic debits on identical rerenders", async () => {
+    const setOptimisticDebitEntries = vi.fn();
+    const stableFailedOutputs = [makeOutput("out-failed-stable", "fail", { errorMessage: "Fail" })];
+    const stableEntries = [
+      { credits: 4, outputId: "out-failed-stable", createdAtMs: Date.now() - 1_000 },
+    ];
+
+    const { rerender } = renderHook(
+      ({ outputs, optimisticEntries }) =>
+        useAiStudioOptimisticDebitReconciliation({
+          outputs,
+          optimisticDebitEntries: optimisticEntries,
+          setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
+          refreshBalance: vi.fn(async () => 10),
+          setDetailOutputId: asDispatch<string | null>(vi.fn()),
+        }),
+      {
+        initialProps: {
+          outputs: stableFailedOutputs,
+          optimisticEntries: stableEntries,
+        },
+      }
+    );
+
+    await waitFor(() => expect(setOptimisticDebitEntries).toHaveBeenCalledTimes(1));
+
+    rerender({
+      outputs: stableFailedOutputs,
+      optimisticEntries: stableEntries,
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(setOptimisticDebitEntries).toHaveBeenCalledTimes(1);
   });
 
   it("does not re-run optimistic debit reconciliation on parent rerenders when outputs are unchanged", async () => {

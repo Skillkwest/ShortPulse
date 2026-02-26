@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
-import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { logApiRouteException, logGenerationFailure } from "../../../lib/server/api/appErrorLogs";
 import { readFalRuntimeFlags } from "../../../lib/server/api/falRuntimeFlags";
 import { dispatchGenerationSubmitQueueBatch } from "../../../lib/server/api/generationQueue/dispatch";
 import { readGenerationQueueStatus } from "../../../lib/server/api/generationQueue/service";
@@ -42,12 +42,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    await dispatchGenerationSubmitQueueBatch({
-      req,
-      routeLabel: "api/fal/queue-status",
-      limit: 1,
-      userId: user.id,
-    });
+    try {
+      await dispatchGenerationSubmitQueueBatch({
+        req,
+        routeLabel: "api/fal/queue-status",
+        limit: 1,
+        userId: user.id,
+      });
+    } catch (error) {
+      await logGenerationFailure({
+        req,
+        routeLabel: "api/fal/queue-status",
+        source: "telemetry.queue.status.kick_failed",
+        message: "Queue status dispatch kick failed; continuing with status read.",
+        statusCode: 500,
+        userId: user.id,
+        userEmail: user.email ?? null,
+        metadata: {
+          source_ref: sourceRef,
+          generation_id: generationId,
+          detail: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
     const status = await readGenerationQueueStatus({
       userId: user.id,
       sourceRef,

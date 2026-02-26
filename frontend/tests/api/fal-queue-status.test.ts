@@ -1,0 +1,120 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import handler from "../../pages/api/fal/queue-status";
+
+const requireApiUserMock = vi.fn();
+const readFalRuntimeFlagsMock = vi.fn();
+const dispatchGenerationSubmitQueueBatchMock = vi.fn();
+const readGenerationQueueStatusMock = vi.fn();
+const logGenerationFailureMock = vi.fn();
+const logApiRouteExceptionMock = vi.fn();
+
+vi.mock("../../lib/server/api/auth", () => ({
+  requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
+}));
+
+vi.mock("../../lib/server/api/falRuntimeFlags", () => ({
+  readFalRuntimeFlags: (...args: unknown[]) => readFalRuntimeFlagsMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationQueue/dispatch", () => ({
+  dispatchGenerationSubmitQueueBatch: (...args: unknown[]) =>
+    dispatchGenerationSubmitQueueBatchMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationQueue/service", () => ({
+  readGenerationQueueStatus: (...args: unknown[]) => readGenerationQueueStatusMock(...args),
+}));
+
+vi.mock("../../lib/server/api/appErrorLogs", () => ({
+  logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
+  logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+}));
+
+const createMockResponse = () => ({
+  status: vi.fn().mockReturnThis(),
+  json: vi.fn().mockReturnThis(),
+  setHeader: vi.fn().mockReturnThis(),
+});
+
+describe("GET /api/fal/queue-status", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireApiUserMock.mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
+    });
+    readFalRuntimeFlagsMock.mockReturnValue({
+      queueEnabled: true,
+    });
+    dispatchGenerationSubmitQueueBatchMock.mockResolvedValue({
+      claimed: 0,
+      submitted: 0,
+      retried: 0,
+      requeuedNoCapacity: 0,
+      exhausted: 0,
+      skipped: 0,
+      errors: 0,
+    });
+    readGenerationQueueStatusMock.mockResolvedValue({
+      status: "queued",
+      generationId: "gen-1",
+      sourceRef: "src-1",
+      retryAfterMs: 2000,
+    });
+  });
+
+  it("returns 200 when dispatch kick fails but queue status read succeeds", async () => {
+    dispatchGenerationSubmitQueueBatchMock.mockRejectedValueOnce(new Error("claim conflict"));
+    const req = {
+      method: "GET",
+      query: { sourceRef: "src-1" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.queue.status.kick_failed",
+        routeLabel: "api/fal/queue-status",
+      })
+    );
+    expect(readGenerationQueueStatusMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        sourceRef: "src-1",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "queued",
+      })
+    );
+  });
+
+  it("returns 500 when queue status read fails", async () => {
+    readGenerationQueueStatusMock.mockRejectedValueOnce(new Error("status read failed"));
+    const req = {
+      method: "GET",
+      query: { generationId: "gen-1" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "api/fal/queue-status",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Unable to resolve queued generation status.",
+      })
+    );
+  });
+});

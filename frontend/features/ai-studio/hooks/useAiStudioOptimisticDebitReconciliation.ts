@@ -99,6 +99,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
   const [dismissedFailureIds, setDismissedFailureIds] = useState<Set<string>>(new Set());
   const settledGenerationSignaturesRef = useRef<Set<string>>(new Set());
   const seenOutputIdsRef = useRef<Set<string>>(new Set());
+  const failedDebitCleanupSignatureRef = useRef<string>("");
 
   const failedOutputs = useMemo(
     () => outputs.filter((item) => item.taskState === "fail" && item.errorMessage),
@@ -215,13 +216,36 @@ export const useAiStudioOptimisticDebitReconciliation = ({
     const failedOutputIds = new Set(
       effectiveOutputLite.filter((item) => item.taskState === "fail").map((item) => item.id)
     );
-    if (!failedOutputIds.size) return;
+    if (!failedOutputIds.size) {
+      failedDebitCleanupSignatureRef.current = "";
+      return;
+    }
+
+    const removableEntryKeys = optimisticDebitEntries
+      .filter((entry) => entry.outputId && failedOutputIds.has(entry.outputId))
+      .map((entry) => `${entry.outputId ?? ""}:${entry.credits}:${entry.createdAtMs ?? 0}`)
+      .sort();
+    if (!removableEntryKeys.length) {
+      failedDebitCleanupSignatureRef.current = "";
+      return;
+    }
+
+    const failedOutputSignature = effectiveOutputLite
+      .filter((item) => failedOutputIds.has(item.id))
+      .map((item) => `${item.id}:${item.taskState}:${item.taskId ?? ""}:${item.errorMessage ?? ""}`)
+      .sort()
+      .join("|");
+    const reconciliationSignature = `${failedOutputSignature}::${removableEntryKeys.join("|")}`;
+    if (failedDebitCleanupSignatureRef.current === reconciliationSignature) {
+      return;
+    }
+    failedDebitCleanupSignatureRef.current = reconciliationSignature;
 
     setOptimisticDebitEntries((prev) => {
       const next = prev.filter((entry) => !(entry.outputId && failedOutputIds.has(entry.outputId)));
       return next.length === prev.length ? prev : next;
     });
-  }, [effectiveOutputLite, setOptimisticDebitEntries]);
+  }, [effectiveOutputLite, optimisticDebitEntries, setOptimisticDebitEntries]);
 
   useEffect(() => {
     const hasInFlightOutput = effectiveOutputLite.some(

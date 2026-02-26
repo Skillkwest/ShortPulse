@@ -2,6 +2,7 @@
  * Video submission handlers for AI Studio task generation.
  */
 import {
+  type FalSubmitResponse,
   submitFalKlingV3ImageToVideo,
   submitFalKlingV3Text,
   submitFalSeedance,
@@ -35,6 +36,35 @@ import {
   resolveVeoResolution,
   resolveVeoTextAspect,
 } from "./videoPayloads";
+
+const handoffSubmitResponse = ({
+  response,
+  pollingProvider,
+  patch,
+  startPollingWithGeneration,
+}: {
+  response: FalSubmitResponse;
+  pollingProvider:
+    | "fal-kling"
+    | "fal-kling-3"
+    | "fal-seedance"
+    | "fal-seedance-i2v"
+    | "fal-sora"
+    | "fal-veo"
+    | "fal-veo-i2v";
+  patch?: Parameters<VideoSubmissionArgs["startPollingWithGeneration"]>[2];
+  startPollingWithGeneration: VideoSubmissionArgs["startPollingWithGeneration"];
+}) => {
+  if ("status" in response && response.status === "queued") {
+    startPollingWithGeneration(undefined, pollingProvider, patch, response);
+    return;
+  }
+  const requestId =
+    "request_id" in response && typeof response.request_id === "string"
+      ? response.request_id
+      : undefined;
+  startPollingWithGeneration(requestId, pollingProvider, patch);
+};
 
 /**
  * Handles video model submissions. Returns true when a matching model is handled.
@@ -126,7 +156,7 @@ export const handleVideoModelSubmission = async ({
       }
 
       const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
-      const { request_id } = await submitFalKlingV3ImageToVideo({
+      const response = await submitFalKlingV3ImageToVideo({
         prompt: finalPrompt,
         start_image_url: characterImageUrl,
         duration: klingDuration,
@@ -137,8 +167,13 @@ export const handleVideoModelSubmission = async ({
         elements: motionElementsPayload,
       });
 
-      startPollingWithGeneration(request_id, "fal-kling-3", {
-        previewUrl: characterImageUrl,
+      handoffSubmitResponse({
+        response,
+        pollingProvider: "fal-kling-3",
+        patch: {
+          previewUrl: characterImageUrl,
+        },
+        startPollingWithGeneration,
       });
       return true;
     }
@@ -174,7 +209,7 @@ export const handleVideoModelSubmission = async ({
       notifyGenerationFailure(id, `Kling element reference preparation failed: ${message}`);
       return true;
     }
-    const { request_id } = await submitFalKlingV3ImageToVideo({
+    const response = await submitFalKlingV3ImageToVideo({
       prompt: cleanedPrompt,
       start_image_url: preparedImageInputs[0],
       end_image_url: endImageUrl,
@@ -188,7 +223,11 @@ export const handleVideoModelSubmission = async ({
       shot_type: resolveKlingShotType(klingShotType),
       elements: elementsPayload,
     });
-    startPollingWithGeneration(request_id, "fal-kling-3");
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-kling-3",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
@@ -196,7 +235,7 @@ export const handleVideoModelSubmission = async ({
     const normalizedAspect = resolveVeoAspect(aspect);
     const duration = resolveVeoDuration(requestedDurationSeconds);
     const resolution = resolveVeoResolution(requestedResolution);
-    const { request_id } = await submitFalVeoImageToVideo({
+    const response = await submitFalVeoImageToVideo({
       prompt: cleanedPrompt,
       image_urls: [preparedImageInputs[0]],
       aspect_ratio: normalizedAspect,
@@ -207,13 +246,17 @@ export const handleVideoModelSubmission = async ({
       safety_tolerance: "5",
       enable_safety_checker: false,
     });
-    startPollingWithGeneration(request_id, "fal-veo-i2v");
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-veo-i2v",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
   if (finalModel === "fal-ai/kling-video/v3/pro/text-to-video") {
     const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
-    const { request_id } = await submitFalKlingV3Text({
+    const response = await submitFalKlingV3Text({
       prompt: cleanedPrompt,
       aspect_ratio: resolveKlingAspectRatio(aspect),
       duration: klingDuration,
@@ -221,14 +264,18 @@ export const handleVideoModelSubmission = async ({
       cfg_scale: 0.5,
       generate_audio: requestedAudio,
     });
-    startPollingWithGeneration(request_id, "fal-kling");
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-kling",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
   if (finalModel === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video") {
     const normalizedAspect = resolveSeedanceTextAspect(aspect, modelConfig);
     const resolution = resolveSeedanceTextResolution(requestedResolution);
-    const { request_id } = await submitFalSeedance({
+    const response = await submitFalSeedance({
       prompt: cleanedPrompt,
       duration: requestedDurationSeconds.toString(),
       aspect_ratio: normalizedAspect,
@@ -238,7 +285,11 @@ export const handleVideoModelSubmission = async ({
       generate_audio: requestedAudio,
       enable_safety_checker: false,
     });
-    startPollingWithGeneration(request_id, "fal-seedance");
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-seedance",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
@@ -251,7 +302,7 @@ export const handleVideoModelSubmission = async ({
     const resolution = resolveSeedanceI2VResolution(requestedResolution);
     const duration = resolveSeedanceI2VDuration(requestedDurationSeconds);
     const endImageUrl = preparedImageInputs.length > 1 ? preparedImageInputs[1] : undefined;
-    const { request_id } = await submitFalSeedanceI2V({
+    const response = await submitFalSeedanceI2V({
       prompt: cleanedPrompt,
       image_url: preparedImageInputs[0],
       end_image_url: endImageUrl,
@@ -262,7 +313,11 @@ export const handleVideoModelSubmission = async ({
       camera_fixed: videoCameraFixed,
       enable_safety_checker: false,
     });
-    startPollingWithGeneration(request_id, "fal-seedance-i2v");
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-seedance-i2v",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
@@ -270,7 +325,7 @@ export const handleVideoModelSubmission = async ({
     const normalizedAspect = resolveVeoAspect(aspect);
     const duration = resolveVeoDuration(requestedDurationSeconds);
     const resolution = resolveVeoResolution(requestedResolution);
-    const { request_id } = await submitFalVeoFirstLast({
+    const response = await submitFalVeoFirstLast({
       prompt: cleanedPrompt,
       first_frame_url: preparedImageInputs[0],
       last_frame_url: preparedImageInputs[1],
@@ -282,7 +337,11 @@ export const handleVideoModelSubmission = async ({
       safety_tolerance: "5",
       enable_safety_checker: false,
     });
-    startPollingWithGeneration(request_id, "fal-veo");
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-veo",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
@@ -290,21 +349,25 @@ export const handleVideoModelSubmission = async ({
     const soraDuration = resolveSoraDuration(requestedDurationSeconds);
     const normalizedAspect = resolveSoraAspect(aspect, modelConfig);
     const resolution = resolveSoraResolution(requestedResolution);
-    const { request_id } = await submitFalSoraPro({
+    const response = await submitFalSoraPro({
       prompt: cleanedPrompt,
       aspect_ratio: normalizedAspect,
       duration: soraDuration,
       resolution,
       delete_video: true,
     });
-    startPollingWithGeneration(request_id, "fal-sora");
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-sora",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
   if (finalModel === "fal-ai/veo3.1") {
     const normalizedAspect = resolveVeoTextAspect(aspect, modelConfig);
     const resolution = resolveVeoResolution(requestedResolution, "1080p");
-    const { request_id } = await submitFalVeo({
+    const response = await submitFalVeo({
       prompt: cleanedPrompt,
       aspect_ratio: normalizedAspect,
       duration: `${Math.max(4, Math.min(8, requestedDurationSeconds))}s`,
@@ -314,7 +377,11 @@ export const handleVideoModelSubmission = async ({
       safety_tolerance: "5",
       enable_safety_checker: false,
     });
-    startPollingWithGeneration(request_id, "fal-veo");
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-veo",
+      startPollingWithGeneration,
+    });
     return true;
   }
 

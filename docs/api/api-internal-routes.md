@@ -19,7 +19,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/media/move` | `POST` | Bearer (proxy + route) | Move a media file between tabs by updating storage path + `media_files` source/path (used by modal move and gallery bulk-move loops). | `frontend/pages/api/media/move.ts` |
 | `/api/media/move-batch` | `POST` | Bearer (proxy + route) | Move multiple media files in one request with per-file success/failure summary. | `frontend/pages/api/media/move-batch.ts` |
 | `/api/media/resolve-previews` | `POST` | Bearer (proxy + route) | Resolve media preview URLs in bulk (signed-url hydration + user-scoped URL fallback for legacy records). | `frontend/pages/api/media/resolve-previews.ts`, `frontend/lib/mediaPreviewPath.ts` |
-| `/api/fal/*` | `POST` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic. | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, model docs in `docs/api/api-fal-*.md` |
+| `/api/fal/*` | `POST`, `GET` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic, including queue handoff polling at `/api/fal/queue-status`. | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, `frontend/lib/server/api/generationQueue/*.ts`, model docs in `docs/api/api-fal-*.md` |
 | `/api/fal/webhook` | `POST` raw body | Fal signature | Webhook-first Fal lifecycle ingestion; verifies Fal webhook signatures (JWKS/Ed25519 with dual-mode fallback), writes durable webhook inbox records, and executes shared recovery/persistence/settlement path idempotently. | `frontend/pages/api/fal/webhook.ts`, `frontend/lib/server/api/falWebhook.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
 | `/api/billing/credit-packages` | `GET` | Bearer (proxy + route) | List active top-up packages for billing UI. | `frontend/pages/api/billing/credit-packages.ts` |
 | `/api/credits/snapshot` | `GET` | Bearer (proxy + route) | Return user credit snapshot (`availableCents`, `reservedCents`, `spendableCents`) for responsive balance/hold UX. | `frontend/pages/api/credits/snapshot.ts`, `docs/sops/sop_billing_credits_operations.md` |
@@ -35,7 +35,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/errors-test` | `POST` | Admin bearer | Create a synthetic app or generation incident for operator smoke tests of telemetry ingestion/UI. | `frontend/pages/api/admin/errors-test.ts`, `docs/monitoring.md` |
 | `/api/admin/generation-trace` | `GET` | Admin bearer | Return stitched generation timeline by `generationId`, `requestId`, or trace id across `ai_generations`, `media_events`, `media_files`, reservations, ledger entries, and app error events. Intended for operator debugging and S0 traceability baselines. | `frontend/pages/api/admin/generation-trace.ts`, `docs/planning/ai-studio-generation-runtime-stabilization.md` |
 | `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay stalled generation recovery by `generationId` or `requestId` (Fal only) using the shared runtime execution engine (provider probe -> persist -> settle -> transition). | `frontend/pages/api/admin/generation-recovery/replay.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
-| `/api/internal/generation-recovery/run` | `POST` | `x-shortpulse-cron-secret` | Trigger lease-based reconciler claims and execute shared runtime recovery for each claimed generation; returns stage metrics (`claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `duplicates`, `errors`, `skipped`) plus reservation cleanup metrics (`reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`). | `frontend/pages/api/internal/generation-recovery/run.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts`, `docs/sops/sop_provider_incident_response.md` |
+| `/api/internal/generation-recovery/run` | `POST` | `x-shortpulse-cron-secret` | Trigger queue dispatch + lease-based reconciler claims and execute shared runtime recovery for each claimed generation; returns recovery stage metrics (`claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `duplicates`, `errors`, `skipped`), reservation cleanup metrics (`reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`), and queue dispatch metrics (`queueClaimed`, `queueSubmitted`, `queueRetried`, `queueRequeuedNoCapacity`, `queueExhausted`, `queueSkipped`, `queueDispatchErrors`). | `frontend/pages/api/internal/generation-recovery/run.ts`, `frontend/lib/server/api/generationQueue/dispatch.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts`, `docs/sops/sop_provider_incident_response.md` |
 | `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
 
 ## Shared runtime contracts
@@ -51,6 +51,8 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
     - `code: GENERATION_ADMISSION_UNAVAILABLE`
     - `retryAfterSeconds` + `Retry-After` header.
   - Admission deny path immediately releases reservation (`release_generation_reservation_by_source_ref`).
+  - Queue-enabled over-cap path accepts submit as queued (`202`, `code: GENERATION_QUEUED`) and defers provider submit to server dispatcher.
+  - Queue handoff polling contract (`GET /api/fal/queue-status`) returns `queued | dispatched | failed | not_found`.
   - Submit proxy sends `X-Fal-Request-Timeout` to queue endpoints to bound pre-start latency at provider edge.
   - Provider request accepted: attach provider request ID to reservation.
   - Success path: capture reservation to ledger debit.
@@ -93,6 +95,12 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_FAL_ADMISSION_TIER_LIMITS_JSON`
   - `SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS`
   - `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED`
+  - `SHORTPULSE_FAL_QUEUE_ENABLED`
+  - `SHORTPULSE_FAL_QUEUE_MAX_PER_USER`
+  - `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`
+  - `SHORTPULSE_FAL_QUEUE_LEASE_SECONDS`
+  - `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`
+  - `SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE`

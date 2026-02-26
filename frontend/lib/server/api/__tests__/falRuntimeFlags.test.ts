@@ -18,6 +18,12 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS;
     delete process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE;
     delete process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED;
+    delete process.env.SHORTPULSE_FAL_QUEUE_ENABLED;
+    delete process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER;
+    delete process.env.SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE;
+    delete process.env.SHORTPULSE_FAL_QUEUE_LEASE_SECONDS;
+    delete process.env.SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS;
+    delete process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS;
 
     const flags = readFalRuntimeFlags();
     expect(flags.admission).toEqual({
@@ -34,6 +40,12 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.reservationCleanupMinAgeSeconds).toBe(900);
     expect(flags.reservationCleanupBatchSize).toBe(200);
     expect(flags.admissionAtomicEnabled).toBe(false);
+    expect(flags.queueEnabled).toBe(false);
+    expect(flags.queueMaxPerUser).toBe(20);
+    expect(flags.queueDispatchBatchSize).toBe(25);
+    expect(flags.queueLeaseSeconds).toBe(30);
+    expect(flags.queueMaxAttempts).toBe(5);
+    expect(flags.queueBaseBackoffSeconds).toBe(5);
   });
 
   it("parses admission env overrides with per-tier fallback", () => {
@@ -46,6 +58,12 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS = "1200";
     process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE = "350";
     process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED = "true";
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
+    process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER = "40";
+    process.env.SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE = "11";
+    process.env.SHORTPULSE_FAL_QUEUE_LEASE_SECONDS = "45";
+    process.env.SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS = "7";
+    process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS = "9";
 
     const flags = readFalRuntimeFlags();
     expect(flags.admission).toEqual({
@@ -62,6 +80,12 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.reservationCleanupMinAgeSeconds).toBe(1200);
     expect(flags.reservationCleanupBatchSize).toBe(350);
     expect(flags.admissionAtomicEnabled).toBe(true);
+    expect(flags.queueEnabled).toBe(true);
+    expect(flags.queueMaxPerUser).toBe(40);
+    expect(flags.queueDispatchBatchSize).toBe(11);
+    expect(flags.queueLeaseSeconds).toBe(45);
+    expect(flags.queueMaxAttempts).toBe(7);
+    expect(flags.queueBaseBackoffSeconds).toBe(9);
   });
 
   it("enables reservation cleanup by default when reconciler is enabled", () => {

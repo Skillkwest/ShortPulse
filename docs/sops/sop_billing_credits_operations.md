@@ -19,6 +19,8 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Stale reservation cleanup RPC: `sql/migrations/031_release_stale_generation_reservations.sql`.
 - Atomic admission+reserve RPC (flagged): `sql/migrations/032_admit_and_reserve_generation_credits.sql`.
 - Atomic admission ambiguity hotfix: `sql/migrations/033_fix_atomic_admission_rpc_ambiguity.sql`.
+- Durable submit queue + lease claim RPCs: `sql/migrations/034_add_generation_submit_queue.sql`.
+- Stale cleanup queue exclusion hardening: `sql/migrations/035_exclude_queued_reservations_from_stale_cleanup.sql`.
 - Runtime convergence + idempotency migrations: `sql/migrations/020_generation_runtime_convergence.sql` to `sql/migrations/023_generation_reconciler_claims.sql`.
 - Server debit helper: `frontend/lib/server/api/generationBilling.ts`.
 - Fal status settlement helper: `frontend/lib/server/api/falStatusProxy.ts`.
@@ -44,17 +46,19 @@ The API currently supports both shapes during rollout by falling back to `ref_id
 4. Run `sql/migrations/031_release_stale_generation_reservations.sql` in Supabase SQL editor.
 5. Run `sql/migrations/032_admit_and_reserve_generation_credits.sql` in Supabase SQL editor before enabling `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED`.
 6. Run `sql/migrations/033_fix_atomic_admission_rpc_ambiguity.sql` in Supabase SQL editor if atomic RPC calls fail with `42702` ambiguity.
-7. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
-8. Confirm relation type for `ai_credit_balance`:
+7. Run `sql/migrations/034_add_generation_submit_queue.sql` before enabling `SHORTPULSE_FAL_QUEUE_ENABLED`.
+8. Run `sql/migrations/035_exclude_queued_reservations_from_stale_cleanup.sql` so stale cleanup does not release active queued holds.
+9. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
+10. Confirm relation type for `ai_credit_balance`:
    - Table (`relkind = 'r'`/`'p'`): trigger-based balance sync remains enabled.
    - View (`relkind = 'v'`): migration skips incompatible RLS/trigger steps by design.
-9. Verify admin credit adjustment in `/admin` succeeds.
-10. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
-11. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
+11. Verify admin credit adjustment in `/admin` succeeds.
+12. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
+13. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
    - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character` (with local app server running)
    - Audit safety guardrail: `test:e2e:character` refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and rejects `@example.com` emails.
    - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
-12. Verify reservation RPC hardening checks are present in staged function bodies and grants:
+14. Verify reservation RPC hardening checks are present in staged function bodies and grants:
    - auth binding clause: `auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id`
    - explicit `revoke ... from public, anon, authenticated`
    - explicit `grant execute ... to service_role`
@@ -92,6 +96,7 @@ Safety checks:
 ## Charging model behavior
 - Fal generation submit endpoints reserve credits server-side before provider submission.
 - Admission enforcement is authoritative only in reservation billing mode.
+- Queue mode (`SHORTPULSE_FAL_QUEUE_ENABLED=true`) accepts over-cap submits as `202 GENERATION_QUEUED` and holds reservations until queue dispatch succeeds or exhausts.
 - Submit rejection/transport failure auto-releases reservation (no debit posted).
 - If admission mode is `enforce` and billing falls back to direct debit, submit fails closed with:
   - `503`
@@ -113,6 +118,7 @@ Safety checks:
   - `status='reserved'`
   - `provider_request_id is null`
   - row older than `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS` (default `900`).
+- Cleanup excludes reservations with active queue rows (`ai_generation_submit_queue.status in ('queued','dispatching')`).
 - Batch size is controlled by `SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE` (default `200`).
 
 ## User-facing balance snapshot

@@ -1,6 +1,7 @@
 /**
  * Shared types for AI Studio task submission handlers.
  */
+import type { FalSubmitResponse } from "../../../../lib/falClient";
 import { getModelConfig } from "../../logic/pricing";
 import { Provider } from "../../logic/stateParsers";
 import { StudioOutput } from "../../types";
@@ -21,7 +22,12 @@ export type BaseSubmissionArgs = {
   modelConfig: SubmissionModelConfig;
   notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
-  startPollingWithGeneration: (taskId: string, provider: Provider, patch?: SubmissionPatch) => void;
+  startPollingWithGeneration: (
+    taskId: string | undefined,
+    provider: Provider,
+    patch?: SubmissionPatch,
+    submitResponse?: FalSubmitResponse
+  ) => void;
 };
 
 export type VideoSubmissionArgs = BaseSubmissionArgs & {

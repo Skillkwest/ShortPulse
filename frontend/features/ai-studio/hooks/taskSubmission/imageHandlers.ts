@@ -2,6 +2,7 @@
  * Image and edit submission handlers for AI Studio task generation.
  */
 import {
+  type FalSubmitResponse,
   submitFalFlux2,
   submitFalFlux2Edit,
   submitFalFlux2Klein,
@@ -17,6 +18,34 @@ import { falSizeForAspect } from "../../logic/pricing";
 import { resolveSeedreamImageSize } from "../../logic/seedreamSizing";
 import { resolveImageSubmissionSafetyPayload } from "./safetyPolicy";
 import type { ImageSubmissionArgs } from "./types";
+
+const handoffSubmitResponse = ({
+  response,
+  pollingProvider,
+  startPollingWithGeneration,
+}: {
+  response: FalSubmitResponse;
+  pollingProvider:
+    | "fal-seedream"
+    | "fal-nano-banana-edit"
+    | "fal-nano-banana-pro-edit"
+    | "fal-flux2"
+    | "fal-flux2-klein"
+    | "fal-flux2-edit"
+    | "fal-flux2-pro"
+    | "fal-flux2-pro-edit";
+  startPollingWithGeneration: ImageSubmissionArgs["startPollingWithGeneration"];
+}) => {
+  if ("status" in response && response.status === "queued") {
+    startPollingWithGeneration(undefined, pollingProvider, undefined, response);
+    return;
+  }
+  const requestId =
+    "request_id" in response && typeof response.request_id === "string"
+      ? response.request_id
+      : undefined;
+  startPollingWithGeneration(requestId, pollingProvider);
+};
 
 /**
  * Handles image/image-edit model submissions. Returns true when a matching model is handled.
@@ -44,7 +73,11 @@ export const handleImageModelSubmission = async ({
       output_format: "png",
       image_urls: preparedImageInputs.slice(0, 8),
     });
-    startPollingWithGeneration(response.request_id, "fal-nano-banana-edit");
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-nano-banana-edit",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
@@ -61,7 +94,11 @@ export const handleImageModelSubmission = async ({
       resolution: normalizeNanoBananaProResolution(requestedResolution, "1K"),
       image_urls: preparedImageInputs.slice(0, 8),
     });
-    startPollingWithGeneration(response.request_id, "fal-nano-banana-pro-edit");
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-nano-banana-pro-edit",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
@@ -78,7 +115,11 @@ export const handleImageModelSubmission = async ({
       ...resolveImageSubmissionSafetyPayload(finalModel),
       image_urls: preparedImageInputs.slice(0, 10),
     });
-    startPollingWithGeneration(response.request_id, "fal-seedream");
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-seedream",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
@@ -94,7 +135,11 @@ export const handleImageModelSubmission = async ({
       ...resolveImageSubmissionSafetyPayload(finalModel),
       ...falReferencePayload,
     });
-    startPollingWithGeneration(falResp.request_id, "fal-flux2");
+    handoffSubmitResponse({
+      response: falResp,
+      pollingProvider: "fal-flux2",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
@@ -108,7 +153,11 @@ export const handleImageModelSubmission = async ({
       num_inference_steps: 4,
       ...resolveImageSubmissionSafetyPayload(finalModel),
     });
-    startPollingWithGeneration(falResp.request_id, "fal-flux2-klein");
+    handoffSubmitResponse({
+      response: falResp,
+      pollingProvider: "fal-flux2-klein",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
@@ -128,7 +177,11 @@ export const handleImageModelSubmission = async ({
       ...resolveImageSubmissionSafetyPayload(finalModel),
       image_urls: preparedImageInputs.slice(0, 4),
     });
-    startPollingWithGeneration(falResp.request_id, "fal-flux2-edit");
+    handoffSubmitResponse({
+      response: falResp,
+      pollingProvider: "fal-flux2-edit",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
@@ -148,7 +201,11 @@ export const handleImageModelSubmission = async ({
       ...resolveImageSubmissionSafetyPayload(finalModel),
       image_urls: preparedImageInputs.slice(0, 4),
     });
-    startPollingWithGeneration(falResp.request_id, "fal-flux2-pro-edit");
+    handoffSubmitResponse({
+      response: falResp,
+      pollingProvider: "fal-flux2-pro-edit",
+      startPollingWithGeneration,
+    });
     return true;
   }
 
@@ -162,7 +219,11 @@ export const handleImageModelSubmission = async ({
       ...resolveImageSubmissionSafetyPayload(finalModel),
       ...falReferencePayload,
     });
-    startPollingWithGeneration(falResp.request_id, "fal-flux2-pro");
+    handoffSubmitResponse({
+      response: falResp,
+      pollingProvider: "fal-flux2-pro",
+      startPollingWithGeneration,
+    });
     return true;
   }
 

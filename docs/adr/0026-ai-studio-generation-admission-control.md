@@ -50,6 +50,13 @@ The near-term goal is overload protection with minimal regression risk while pre
 3. Rollout posture:
    - Keep atomic path disabled by default until parity validation and stress verification are complete.
 
+## Follow-Up Queue Phase (2026-02-26)
+1. Introduced optional server-authoritative submit queue behind `SHORTPULSE_FAL_QUEUE_ENABLED`.
+2. Over-cap submit behavior in enforce mode now admits as queued (`202`, `code=GENERATION_QUEUED`) instead of immediate `429`, while preserving reservation safety and rollback to hard-cap path when queue flag is off.
+3. Added durable queue storage (`ai_generation_submit_queue`) with idempotent enqueue (`user_id + source_ref`) and lease-based dispatch claims (`FOR UPDATE SKIP LOCKED` + per-user dispatch uniqueness).
+4. Added authenticated queue handoff endpoint (`GET /api/fal/queue-status`) for spinner-only client polling until provider request id is assigned.
+5. Extended reconciler route (`/api/internal/generation-recovery/run`) to run queue dispatch batches and return queue metrics alongside recovery/cleanup metrics.
+
 ## Alternatives considered
 - Server FIFO queue first:
   - Rejected for phase 1 due higher migration risk (queue persistence, workers, cancellation semantics, billing semantics for queued jobs).

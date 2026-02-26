@@ -2,11 +2,12 @@
  * Generation submission hook for AI Studio.
  * Orchestrates submission lifecycle while delegating provider-specific calls to handlers.
  */
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { isAuthSessionTimeoutError } from "../../../lib/authenticatedFetch";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
+import { fetchFalQueueStatus, type FalSubmitResponse } from "../../../lib/falClient";
 import { buildGenerationSubmissionTraceId, randomId } from "../logic/ids";
 import { getModelConfig } from "../logic/pricing";
 import {
@@ -37,6 +38,8 @@ const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
+const QUEUE_STATUS_MAX_POLL_ATTEMPTS = 180;
+const clampQueuePollMs = (value: number) => Math.max(500, Math.min(10000, Math.trunc(value)));
 const submitNotStartedError = (detail: string): SubmissionInvariantError => {
   const error = new Error("Provider task did not start.") as SubmissionInvariantError;
   error.code = "SUBMIT_NOT_STARTED";
@@ -131,6 +134,28 @@ export const useAiStudioTaskSubmission = ({
   startPollingTask,
   ensureGenerationRecord,
 }: UseAiStudioTaskSubmissionParams) => {
+  const queueStatusTimersRef = useRef<Record<string, number>>({});
+  const queueStatusSessionRef = useRef<Record<string, number>>({});
+
+  const clearQueueStatusPolling = useCallback((outputId: string) => {
+    queueStatusSessionRef.current[outputId] = (queueStatusSessionRef.current[outputId] ?? 0) + 1;
+    const timeoutId = queueStatusTimersRef.current[outputId];
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+      delete queueStatusTimersRef.current[outputId];
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      for (const timeoutId of Object.values(queueStatusTimersRef.current)) {
+        window.clearTimeout(timeoutId);
+      }
+      queueStatusTimersRef.current = {};
+      queueStatusSessionRef.current = {};
+    };
+  }, []);
+
   return useCallback(
     async (
       promptArg: string | null | undefined,
@@ -196,6 +221,7 @@ export const useAiStudioTaskSubmission = ({
       setIsPromptGenerating(true);
       try {
         const id = optimisticOutputId ?? `out-${randomId()}`;
+        clearQueueStatusPolling(id);
         const submissionTraceId = buildGenerationSubmissionTraceId(id);
         const modelLabel = resolveModelLabel(finalModel);
 
@@ -473,17 +499,123 @@ export const useAiStudioTaskSubmission = ({
           let startedTaskId: string | null = null;
           let startedProvider: Provider | null = null;
           const startPollingWithGeneration = (
-            taskId: string,
+            taskId: string | undefined,
             provider: Provider,
-            patch: Partial<StudioOutput> = {}
+            patch: Partial<StudioOutput> = {},
+            submitResponse?: FalSubmitResponse
           ) => {
-            const normalizedTaskId = taskId.trim();
-            if (!normalizedTaskId) {
-              throw new Error("Provider returned an empty request id.");
+            const queuedResponse =
+              submitResponse && "status" in submitResponse && submitResponse.status === "queued"
+                ? submitResponse
+                : null;
+            if (queuedResponse) {
+              taskStarted = true;
+              startedTaskId = queuedResponse.generationId;
+              startedProvider = provider;
+              clearQueueStatusPolling(id);
+              const pollSession = (queueStatusSessionRef.current[id] ?? 0) + 1;
+              queueStatusSessionRef.current[id] = pollSession;
+              const initialDelayMs = clampQueuePollMs(queuedResponse.pollAfterMs);
+
+              updateOutputById(id, (item) => ({
+                ...item,
+                ...patch,
+                generationId: patch.generationId ?? queuedResponse.generationId,
+                taskState: "pending",
+                timestamp: "Submitting...",
+                provider: item.provider ?? provider,
+              }));
+              addBreadcrumb({
+                type: "ui",
+                level: "info",
+                message: "fal_submit_queued",
+                data: {
+                  output_id: id,
+                  model_id: finalModel,
+                  provider,
+                  source_ref: queuedResponse.sourceRef,
+                  generation_id: queuedResponse.generationId,
+                  tool: effectiveTool,
+                },
+              });
+
+              const pollQueuedStatus = async (attempt: number): Promise<void> => {
+                if ((queueStatusSessionRef.current[id] ?? 0) !== pollSession) {
+                  return;
+                }
+
+                try {
+                  const queueStatus = await fetchFalQueueStatus({
+                    sourceRef: queuedResponse.sourceRef,
+                    generationId: queuedResponse.generationId,
+                  });
+                  if (queueStatus.status === "dispatched") {
+                    clearQueueStatusPolling(id);
+                    startPollingWithGeneration(
+                      queueStatus.requestId,
+                      provider,
+                      {
+                        ...patch,
+                        generationId: queueStatus.generationId || queuedResponse.generationId,
+                      },
+                      undefined
+                    );
+                    return;
+                  }
+
+                  if (queueStatus.status === "failed") {
+                    clearQueueStatusPolling(id);
+                    notifyGenerationFailure(id, queueStatus.message, queueStatus.message);
+                    return;
+                  }
+
+                  if (attempt >= QUEUE_STATUS_MAX_POLL_ATTEMPTS) {
+                    clearQueueStatusPolling(id);
+                    notifyGenerationFailure(
+                      id,
+                      "Generation queue timed out. Please retry.",
+                      "Generation queue timed out while waiting for dispatch."
+                    );
+                    return;
+                  }
+
+                  const retryAfterMs =
+                    queueStatus.status === "queued"
+                      ? clampQueuePollMs(queueStatus.retryAfterMs)
+                      : initialDelayMs;
+                  queueStatusTimersRef.current[id] = window.setTimeout(() => {
+                    void pollQueuedStatus(attempt + 1);
+                  }, retryAfterMs);
+                } catch (error) {
+                  if (attempt >= QUEUE_STATUS_MAX_POLL_ATTEMPTS) {
+                    clearQueueStatusPolling(id);
+                    const message =
+                      error instanceof Error
+                        ? error.message
+                        : "Unable to read queued generation status.";
+                    notifyGenerationFailure(id, message, message);
+                    return;
+                  }
+
+                  const retryAfterMs = clampQueuePollMs(initialDelayMs * Math.min(4, attempt + 1));
+                  queueStatusTimersRef.current[id] = window.setTimeout(() => {
+                    void pollQueuedStatus(attempt + 1);
+                  }, retryAfterMs);
+                }
+              };
+
+              queueStatusTimersRef.current[id] = window.setTimeout(() => {
+                void pollQueuedStatus(0);
+              }, initialDelayMs);
+              return;
             }
+
+            const normalizedTaskId = taskId?.trim();
+            if (!normalizedTaskId) throw new Error("Provider returned an empty request id.");
             taskStarted = true;
             startedTaskId = normalizedTaskId;
             startedProvider = provider;
+            clearQueueStatusPolling(id);
             updateOutputById(id, (item) => ({
               ...item,
               ...patch,
@@ -644,6 +776,7 @@ export const useAiStudioTaskSubmission = ({
     },
     [
       aspect,
+      clearQueueStatusPolling,
       setIsPromptGenerating,
       setOutputs,
       setSaved,

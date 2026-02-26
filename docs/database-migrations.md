@@ -120,7 +120,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 32. `sql/migrations/031_release_stale_generation_reservations.sql`
 33. `sql/migrations/032_admit_and_reserve_generation_credits.sql`
 34. `sql/migrations/033_fix_atomic_admission_rpc_ambiguity.sql`
-35. Rollback files:
+35. `sql/migrations/034_add_generation_submit_queue.sql`
+36. `sql/migrations/035_exclude_queued_reservations_from_stale_cleanup.sql`
+37. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -155,6 +157,8 @@ Billing safety note:
 - Migration `031_release_stale_generation_reservations.sql` adds conservative stale reservation cleanup for pre-submit holds.
 - Migration `032_admit_and_reserve_generation_credits.sql` adds flagged atomic admission+reserve evaluation in one DB transaction.
 - Migration `033_fix_atomic_admission_rpc_ambiguity.sql` adds PL/pgSQL conflict-resolution posture (`#variable_conflict use_column`) to the atomic RPC after `42702` ambiguity failures observed in local validation.
+- Migration `034_add_generation_submit_queue.sql` adds durable submit queue storage plus enqueue/claim RPCs for server-authoritative over-cap admission.
+- Migration `035_exclude_queued_reservations_from_stale_cleanup.sql` hardens stale cleanup so active queued reservations are not auto-released.
 
 ## Media storage scope verification (post-017)
 

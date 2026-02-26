@@ -289,8 +289,33 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `capture_generation_reservation_by_provider_request(...)`: writes ledger debit + marks reservation captured.
 - `release_generation_reservation_by_source_ref(...)`: releases reservation by source reference.
 - `release_generation_reservation_by_provider_request(...)`: releases reservation by provider request id.
-- `release_stale_generation_reservations(p_limit, p_min_age_seconds)`: conservative janitor that releases only pre-submit stale rows (`status='reserved'`, `provider_request_id is null`).
+- `release_stale_generation_reservations(p_limit, p_min_age_seconds)`: conservative janitor that releases only pre-submit stale rows (`status='reserved'`, `provider_request_id is null`) and skips rows with active queue entries.
 - Used by: `frontend/lib/server/api/generationBilling.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`.
+
+### ai_generation_submit_queue
+- `id` (uuid, pk, default `gen_random_uuid()`): Queue row id.
+- `generation_id` (uuid, unique, fk -> `ai_generations.id`): Pending generation row associated with queued submit intent.
+- `user_id` (uuid, fk -> `auth.users.id`): Queue owner for per-user concurrency control.
+- `model_id` (text): Target model id for tier/cap evaluation at dispatch time.
+- `source_ref` (text): Submit idempotency key (`x-shortpulse-request-id` correlation).
+- `submit_route` (text): API route that captured the submit intent.
+- `submit_payload` (jsonb): Provider-ready payload captured server-side for deferred dispatch.
+- `timeout_ms` (int): Dispatch submit timeout budget.
+- `status` (text): `queued` | `dispatching` | `exhausted`.
+- `attempts` (int): Dispatch attempt counter.
+- `next_attempt_at` (timestamptz): Next eligible dispatch time.
+- `lease_until` (timestamptz, nullable): Active dispatcher lease deadline.
+- `last_error` / `last_error_code` (text, nullable): Last dispatch failure detail.
+- `created_at` / `updated_at` (timestamptz).
+- Constraints and indexes:
+  - Unique `(user_id, source_ref)` idempotent enqueue key.
+  - Unique `(generation_id)`.
+  - Dispatch scan index on `(status, next_attempt_at, created_at)`.
+  - Per-user status index on `(user_id, status, created_at)`.
+  - Unique partial index on `(user_id) where status='dispatching'` to keep one active leased dispatch per user.
+- RLS:
+  - Select and write policies scoped to `user_id = auth.uid()`.
+  - Service-role RPCs (`enqueue_generation_submit`, `claim_generation_submit_queue_batch`) are authoritative write paths.
 
 ### stripe_event_log
 - `id` (text, pk): Stripe event ID (`evt_*`).

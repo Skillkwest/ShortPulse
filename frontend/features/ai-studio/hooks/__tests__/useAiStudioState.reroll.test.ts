@@ -8,7 +8,7 @@ import { useAiStudioState } from "../useAiStudioState";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 
 const submitTaskMock = vi.fn();
-const findOutputByIdMock = vi.fn(() => null);
+const findOutputByIdMock = vi.fn<(id: string) => StudioOutput | null>(() => null);
 
 vi.mock("../../../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: vi.fn(),

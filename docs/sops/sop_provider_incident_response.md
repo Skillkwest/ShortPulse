@@ -16,7 +16,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 - Supabase SQL access for read diagnostics.
 - Access to deployment logs for API routes.
 - Current env verification: `FAL_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SHORTPULSE_OPENAI_RESPONSES_ENABLED`, `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED`.
-- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`.
+- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`, `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`.
 
 ## Triage workflow (first 15 minutes)
 1. Confirm incident scope in `/admin`:
@@ -58,11 +58,19 @@ order by newest desc
 limit 100;
 ```
 
+```sql
+select status, count(*) as jobs, min(created_at) as oldest, max(created_at) as newest
+from ai_generation_submit_queue
+group by status
+order by status;
+```
+
 Mitigation guidance:
 1. Confirm submit path rejects are auto-refunded by checking reservation state transitions (`reserved` -> `released`).
 2. Confirm completed runs capture (`reserved` -> `captured`) and create a ledger debit.
 3. If one model endpoint is degraded, temporarily remove that model from UI selection until provider recovers.
-4. If users receive `GENERATION_ADMISSION_UNAVAILABLE`, treat it as reservation-mode degradation during enforce admission and verify:
+4. When queue mode is enabled, confirm `/api/fal/queue-status` moves entries from `queued` to `dispatched` and that queue depth trends downward after provider recovery.
+5. If users receive `GENERATION_ADMISSION_UNAVAILABLE`, treat it as reservation-mode degradation during enforce admission and verify:
    - reservation RPC health (`reserve_generation_credits` / `admit_and_reserve_generation_credits`),
    - `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED`,
    - `SHORTPULSE_FAL_ADMISSION_MODE` (`enforce` fail-closes without reservation mode by design).
@@ -160,6 +168,7 @@ Mitigation guidance:
    - Route: `POST /api/internal/generation-recovery/run`
    - Auth: `x-shortpulse-cron-secret` (matches `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`)
    - Note: reconciler claims are lease-based; validate `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS` to avoid duplicate concurrent execution.
+   - Queue dispatch also runs in this route; inspect `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, and `queueDispatchErrors`.
    - Optional reservation cleanup controls:
      - `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED`
      - `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS`

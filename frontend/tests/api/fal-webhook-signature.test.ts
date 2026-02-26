@@ -34,6 +34,12 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   reservationCleanupMinAgeSeconds: 900,
   reservationCleanupBatchSize: 200,
   admissionAtomicEnabled: false,
+  queueEnabled: false,
+  queueMaxPerUser: 20,
+  queueDispatchBatchSize: 25,
+  queueLeaseSeconds: 30,
+  queueMaxAttempts: 5,
+  queueBaseBackoffSeconds: 5,
   ...overrides,
 });
 

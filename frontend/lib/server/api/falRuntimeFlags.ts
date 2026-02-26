@@ -35,6 +35,12 @@ export type FalRuntimeFlags = {
   reservationCleanupMinAgeSeconds: number;
   reservationCleanupBatchSize: number;
   admissionAtomicEnabled: boolean;
+  queueEnabled: boolean;
+  queueMaxPerUser: number;
+  queueDispatchBatchSize: number;
+  queueLeaseSeconds: number;
+  queueMaxAttempts: number;
+  queueBaseBackoffSeconds: number;
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
@@ -159,6 +165,16 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     1
   ),
   admissionAtomicEnabled: parseBoolean(process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED, false),
+  queueEnabled: parseBoolean(process.env.SHORTPULSE_FAL_QUEUE_ENABLED, false),
+  queueMaxPerUser: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER, 20, 1),
+  queueDispatchBatchSize: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE, 25, 1),
+  queueLeaseSeconds: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_LEASE_SECONDS, 30, 1),
+  queueMaxAttempts: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS, 5, 1),
+  queueBaseBackoffSeconds: parseInteger(
+    process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS,
+    5,
+    1
+  ),
 });
 
 export const isFalRuntimeEnabledForModel = (

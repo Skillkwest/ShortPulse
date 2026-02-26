@@ -76,4 +76,27 @@ describe("falClient generation admission error handling", () => {
       "Generation admission is temporarily unavailable. Please retry in 12 seconds."
     );
   });
+
+  it("returns queued submit payloads without throwing", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse(
+        {
+          status: "queued",
+          code: "GENERATION_QUEUED",
+          sourceRef: "src-1",
+          generationId: "gen-1",
+          pollAfterMs: 1200,
+        },
+        202
+      )
+    );
+
+    await expect(submitFalNanoBanana({ prompt: "portrait" })).resolves.toEqual({
+      status: "queued",
+      code: "GENERATION_QUEUED",
+      sourceRef: "src-1",
+      generationId: "gen-1",
+      pollAfterMs: 1200,
+    });
+  });
 });

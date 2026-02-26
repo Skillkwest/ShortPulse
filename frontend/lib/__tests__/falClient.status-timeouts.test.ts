@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  fetchFalQueueStatus,
   fetchFalSeedreamStatus,
   submitFalNanoBananaProEdit,
   fetchFalVeoImageToVideoStatus,
@@ -91,5 +92,28 @@ describe("falClient status timeout budgets", () => {
       (init as { shortpulseAuthTimeoutMs?: number } | undefined)?.shortpulseAuthTimeoutMs
     ).toBe(4_000);
     expect((init as RequestInit | undefined)?.method).toBe("POST");
+  });
+
+  it("uses GET for queue-status polling and returns queue state", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse({
+        status: "queued",
+        generationId: "gen-1",
+        sourceRef: "src-1",
+        retryAfterMs: 2000,
+      })
+    );
+
+    await expect(fetchFalQueueStatus({ sourceRef: "src-1" })).resolves.toEqual({
+      status: "queued",
+      generationId: "gen-1",
+      sourceRef: "src-1",
+      retryAfterMs: 2000,
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    const [input, init] = fetchWithAuthMock.mock.calls[0] ?? [];
+    expect(String(input)).toContain("/api/fal/queue-status?sourceRef=src-1");
+    expect((init as RequestInit | undefined)?.method).toBe("GET");
   });
 });

@@ -2,6 +2,7 @@ import crypto from "crypto";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { readFalRuntimeFlags } from "../../../../lib/server/api/falRuntimeFlags";
+import { dispatchGenerationSubmitQueueBatch } from "../../../../lib/server/api/generationQueue/dispatch";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { executeGenerationRecovery } from "../../../../lib/server/falIntegration/recoveryExecution";
 
@@ -174,6 +175,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let reservationCleanupScanned = 0;
     let reservationCleanupReleased = 0;
     let reservationCleanupErrors = 0;
+    let queueClaimed = 0;
+    let queueSubmitted = 0;
+    let queueRetried = 0;
+    let queueRequeuedNoCapacity = 0;
+    let queueExhausted = 0;
+    let queueSkipped = 0;
+    let queueDispatchErrors = 0;
+
     if (flags.reservationCleanupEnabled) {
       const cleanupResponse = await supabaseAdmin.rpc("release_stale_generation_reservations", {
         p_limit: flags.reservationCleanupBatchSize,
@@ -194,6 +203,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         reservationCleanupScanned = metrics.scanned;
         reservationCleanupReleased = metrics.released;
         reservationCleanupErrors = metrics.errors;
+      }
+    }
+
+    if (flags.queueEnabled) {
+      try {
+        const queueMetrics = await dispatchGenerationSubmitQueueBatch({
+          req,
+          routeLabel: "internal/generation-recovery/run",
+          limit: flags.queueDispatchBatchSize,
+        });
+        queueClaimed = queueMetrics.claimed;
+        queueSubmitted = queueMetrics.submitted;
+        queueRetried = queueMetrics.retried;
+        queueRequeuedNoCapacity = queueMetrics.requeuedNoCapacity;
+        queueExhausted = queueMetrics.exhausted;
+        queueSkipped = queueMetrics.skipped;
+        queueDispatchErrors = queueMetrics.errors;
+      } catch (error) {
+        queueDispatchErrors += 1;
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: "internal/generation-recovery/run",
+          metadata: {
+            stage: "queue_dispatch",
+          },
+        });
       }
     }
 
@@ -286,6 +322,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       reservationCleanupScanned,
       reservationCleanupReleased,
       reservationCleanupErrors,
+      queueClaimed,
+      queueSubmitted,
+      queueRetried,
+      queueRequeuedNoCapacity,
+      queueExhausted,
+      queueSkipped,
+      queueDispatchErrors,
     });
   } catch (error) {
     await logApiRouteException({

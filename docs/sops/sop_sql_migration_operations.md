@@ -64,6 +64,10 @@ Current set:
 - `031_release_stale_generation_reservations.sql`
 - `032_admit_and_reserve_generation_credits.sql`
 - `033_fix_atomic_admission_rpc_ambiguity.sql`
+- `034_add_generation_submit_queue.sql`
+- `035_exclude_queued_reservations_from_stale_cleanup.sql`
+- `036_fix_queue_claim_locking.sql`
+- `037_expand_recovery_claim_provider_scope.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

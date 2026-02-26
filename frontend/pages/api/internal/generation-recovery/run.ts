@@ -131,7 +131,7 @@ const claimFallback = async ({
   const { data, error } = await supabaseAdmin
     .from("ai_generations")
     .select("id, user_id, request_id, model_id, status, recovery_state, recovery_attempts")
-    .eq("provider", "fal")
+    .ilike("provider", "fal%")
     .in("recovery_state", ["queued", "recovering"])
     .lte("created_at", oldestCreatedAtIso)
     .or(`next_recovery_at.is.null,next_recovery_at.lte.${nowIso}`)

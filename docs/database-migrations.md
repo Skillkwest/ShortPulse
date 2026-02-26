@@ -123,7 +123,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 35. `sql/migrations/034_add_generation_submit_queue.sql`
 36. `sql/migrations/035_exclude_queued_reservations_from_stale_cleanup.sql`
 37. `sql/migrations/036_fix_queue_claim_locking.sql`
-38. Rollback files:
+38. `sql/migrations/037_expand_recovery_claim_provider_scope.sql`
+39. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -161,6 +162,7 @@ Billing safety note:
 - Migration `034_add_generation_submit_queue.sql` adds durable submit queue storage plus enqueue/claim RPCs for server-authoritative over-cap admission.
 - Migration `035_exclude_queued_reservations_from_stale_cleanup.sql` hardens stale cleanup so active queued reservations are not auto-released.
 - Migration `036_fix_queue_claim_locking.sql` rewrites queue claim selection to avoid PostgreSQL `FOR UPDATE` + window-function incompatibility (`0A000`) in dispatch batching.
+- Migration `037_expand_recovery_claim_provider_scope.sql` broadens recovery claim filtering from exact `provider='fal'` to `provider like 'fal%'` so legacy Fal provider aliases are not stranded outside reconciler execution.
 
 ## Media storage scope verification (post-017)
 

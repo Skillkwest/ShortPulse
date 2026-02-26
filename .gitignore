@@ -17,3 +17,4 @@ dist/
 build/
 *.sqlite
 frontend/.env.local
+vercel_staging_env_*.txt

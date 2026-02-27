@@ -1,5 +1,5 @@
 /**
- * Shared Fal generation recovery execution engine.
+ * Shared generation recovery execution engine.
  * Centralizes retrieval, persistence, settlement, and lifecycle transitions.
  */
 import { settleGenerationOutcome } from "../api/generationBilling";
@@ -24,7 +24,7 @@ import {
   persistRecoveryMediaFilesForGeneration,
   readExistingRecoveryMediaRows,
 } from "./recoveryMediaPersistence";
-import { probeProviderResult } from "./recoveryProviderProbe";
+import { probeGenerationProviderResult } from "../providerIntegration/recoveryProviderDispatcher";
 
 type JsonObject = Record<string, unknown>;
 
@@ -88,7 +88,7 @@ const updateGenerationRecoveryState = async ({
 };
 
 /**
- * Execute shared Fal recovery flow for reconciler, admin replay, webhook, and status proxy.
+ * Execute shared recovery flow for reconciler, admin replay, webhook, and status proxy.
  */
 export const executeGenerationRecovery = async ({
   actor,
@@ -189,7 +189,8 @@ export const executeGenerationRecovery = async ({
     if (!apiKey) {
       throw new Error("FAL_KEY is not set on the server.");
     }
-    currentObservation = await probeProviderResult({
+    currentObservation = await probeGenerationProviderResult({
+      provider: generation.provider,
       requestId: generation.request_id,
       modelId: generation.model_id,
       apiKey,

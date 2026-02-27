@@ -6,7 +6,7 @@ const readFalRuntimeFlagsMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
 const readExistingRecoveryMediaRowsMock = vi.fn();
 const persistRecoveryMediaFilesForGenerationMock = vi.fn();
-const probeProviderResultMock = vi.fn();
+const probeGenerationProviderResultMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -26,8 +26,8 @@ vi.mock("../recoveryMediaPersistence", () => ({
     persistRecoveryMediaFilesForGenerationMock(...args),
 }));
 
-vi.mock("../recoveryProviderProbe", () => ({
-  probeProviderResult: (...args: unknown[]) => probeProviderResultMock(...args),
+vi.mock("../../providerIntegration/recoveryProviderDispatcher", () => ({
+  probeGenerationProviderResult: (...args: unknown[]) => probeGenerationProviderResultMock(...args),
 }));
 
 const createAiGenerationsAdmin = (rows: Array<Record<string, unknown>>) => {
@@ -87,7 +87,7 @@ describe("executeGenerationRecovery", () => {
     settleGenerationOutcomeMock.mockResolvedValue(undefined);
     readExistingRecoveryMediaRowsMock.mockResolvedValue([]);
     persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
-    probeProviderResultMock.mockResolvedValue({
+    probeGenerationProviderResultMock.mockResolvedValue({
       state: "running",
       payload: null,
       mediaUrls: [],
@@ -121,7 +121,7 @@ describe("executeGenerationRecovery", () => {
     });
     expect(scenario.updatePayloads).toHaveLength(0);
     expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
-    expect(probeProviderResultMock).not.toHaveBeenCalled();
+    expect(probeGenerationProviderResultMock).not.toHaveBeenCalled();
   });
 
   it("marks running recovery as exhausted when attempts reached max", async () => {

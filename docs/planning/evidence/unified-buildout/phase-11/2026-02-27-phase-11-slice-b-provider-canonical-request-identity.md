@@ -19,13 +19,16 @@ Start the provider-neutral adapter contract work by removing Fal-local request/e
 - `frontend/lib/server/api/falSubmitTargeting.ts`
 3. Rewired Fal webhook parsing to use canonical request/event/status extraction:
 - `frontend/pages/api/fal/webhook.ts`
+4. Added provider-aware recovery probe dispatcher seam:
+- `frontend/lib/server/providerIntegration/recoveryProviderDispatcher.ts`
+- `frontend/lib/server/falIntegration/recoveryExecution.ts` now dispatches probe by `ai_generations.provider` instead of directly binding to Fal probe internals.
 
 ## Validation
 1. Targeted tests:
 ```bash
-npm -C frontend run test -- tests/api/fal-submit-proxy.test.ts tests/api/fal-webhook-route.test.ts lib/server/providerIntegration/__tests__/canonicalProviderPayload.test.ts
+npm -C frontend run test -- tests/api/fal-submit-proxy.test.ts tests/api/fal-webhook-route.test.ts lib/server/providerIntegration/__tests__/canonicalProviderPayload.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts
 ```
-Result: `3 passed`, `18 passed`.
+Result: pass.
 2. Type-check:
 ```bash
 npm -C frontend run type-check
@@ -38,4 +41,4 @@ Result: pass.
 3. This slice is additive to shadow/canary observation work and does not execute provider cutover.
 
 ## Next Step
-1. Continue Slice B with provider adapter boundary extraction for submit/status/recovery calls while keeping current Fal contracts stable.
+1. Continue Slice B with submit/status adapter boundary extraction so `/api/fal/*` handlers can consume a provider-neutral contract in preparation for Kie dark adapter rollout.

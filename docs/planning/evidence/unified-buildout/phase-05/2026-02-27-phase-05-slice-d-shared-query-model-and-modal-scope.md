@@ -46,3 +46,15 @@ Executed and passing:
 ## Follow-ups
 1. Keep full Phase 05 closure gated on Phase 04 canary signoff.
 2. Phase 05 next slice: finalize closure packet (full parity matrix, docs closeout, and phase signoff).
+
+## Post-Slice QA Follow-Up
+Date: 2026-02-27
+
+1. Removed residual `act(...)` warning noise from `MediaLibraryModal` retry-cap tests by wrapping timer waits with `act(...)` in `frontend/features/ai-studio/components/__tests__/MediaLibraryModal.test.tsx`.
+2. Removed unresolved-preview warning noise in selection tests by providing deterministic signed URL batch mocks for:
+   - `passes metadata prompt text when selecting media`,
+   - `prefers canonical storage path when selecting media`.
+3. Validation (passing):
+   - `npm -C frontend run test -- MediaLibraryModal`
+   - `npm -C frontend run lint`
+   - `npm -C frontend run type-check`

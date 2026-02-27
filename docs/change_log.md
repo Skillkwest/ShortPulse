@@ -1575,3 +1575,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/planning/stages/unified-phase-05-media-library-security-first-hardening.md`,
   - `docs/planning/evidence/unified-buildout/phase-05/README.md`,
   - `docs/planning/evidence/unified-buildout/phase-05/2026-02-27-phase-05-slice-d-shared-query-model-and-modal-scope.md`.
+
+## 2026-02-27 (unified buildout phase-05 slice-d qa follow-up)
+- Stabilized `MediaLibraryModal` test harness to remove warning noise while preserving behavior coverage:
+  - wrapped retry-cap timer waits in `act(...)` to prevent React test warnings,
+  - supplied deterministic signed URL batch mocks for media-selection tests to avoid unresolved-preview log spam.
+- Updated Phase 05 Slice D evidence with the QA follow-up validation record.

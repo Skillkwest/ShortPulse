@@ -2,7 +2,7 @@
  * MediaLibraryModal rendering tests.
  * Verifies media cards reserve stable aspect-ratio placeholders before preview URLs are hydrated.
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MediaLibraryModal } from "../MediaLibraryModal";
 
@@ -188,7 +188,9 @@ describe("MediaLibraryModal", () => {
         expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(3);
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 80));
+      });
       expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(3);
     } finally {
       warnSpy.mockRestore();
@@ -311,7 +313,9 @@ describe("MediaLibraryModal", () => {
         expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(3);
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 80));
+      });
       expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(3);
     } finally {
       warnSpy.mockRestore();
@@ -349,6 +353,12 @@ describe("MediaLibraryModal", () => {
       },
     });
     mockResolveMediaSigningStoragePaths.mockImplementation(() => ["user-1/upload/forest.png"]);
+    mockGetSignedMediaUrlsBatch.mockImplementation(
+      async () =>
+        new Map<string, string>([
+          ["user-1/upload/forest.png", "https://signed.example.com/forest.png"],
+        ])
+    );
     mockGetSignedMediaUrl.mockImplementation(async () => "https://signed.example.com/forest.png");
     const onSelectMedia = vi.fn();
 
@@ -395,6 +405,13 @@ describe("MediaLibraryModal", () => {
       "user-1/upload/portrait-thumb.png",
       "user-1/upload/portrait.png",
     ]);
+    mockGetSignedMediaUrlsBatch.mockImplementation(
+      async () =>
+        new Map<string, string>([
+          ["user-1/upload/portrait-thumb.png", "https://signed.example.com/portrait-thumb.png"],
+          ["user-1/upload/portrait.png", "https://signed.example.com/portrait-full.png"],
+        ])
+    );
     mockGetSignedMediaUrl.mockImplementation(async (input: unknown) => {
       const storagePath =
         input && typeof input === "object" && "storagePath" in input

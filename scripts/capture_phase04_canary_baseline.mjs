@@ -10,6 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
+import { loadLocalEnv } from "./lib/load_local_env.mjs";
 
 const DEFAULT_SAMPLES = 25;
 const DEFAULT_WARMUP = 5;
@@ -32,6 +33,11 @@ const PROBES = [
   },
 ];
 
+const LOADED_ENV_FILES = loadLocalEnv({
+  argv: process.argv.slice(2),
+  defaultPaths: [".env.agent.local", "frontend/.env.local"],
+});
+
 const usage = () => {
   console.log(`Usage:
   node scripts/capture_phase04_canary_baseline.mjs [options]
@@ -39,6 +45,8 @@ const usage = () => {
 Options:
   --base-url <url>        Base URL for staging/canary app.
                           Fallback env: SHORTPULSE_STAGING_BASE_URL, APP_BASE_URL
+  --env-file <path>       Optional env file path (repeatable). When omitted, this script
+                          auto-loads ".env.agent.local" and "frontend/.env.local" if present.
   --token <token>         Existing user bearer token for route probes.
                           Fallback env: SHORTPULSE_STAGING_BEARER_TOKEN
   --bootstrap-token-from-supabase
@@ -99,6 +107,11 @@ const parseArgs = (argv) => {
     }
     if (arg === "--base-url") {
       parsed.baseUrl = readArgValue(argv, i, "--base-url").trim();
+      i += 1;
+      continue;
+    }
+    if (arg === "--env-file") {
+      readArgValue(argv, i, "--env-file");
       i += 1;
       continue;
     }
@@ -453,6 +466,9 @@ const main = async () => {
     if (args.help) {
       usage();
       process.exit(0);
+    }
+    if (LOADED_ENV_FILES.length > 0) {
+      console.log(`[phase04-canary-baseline] loaded env files: ${LOADED_ENV_FILES.join(", ")}`);
     }
     ensureRequired(args);
 

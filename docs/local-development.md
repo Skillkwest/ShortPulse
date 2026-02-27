@@ -48,6 +48,8 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
 
 Never commit `.env.local`.
 
+For local script automation, you can optionally create a root-level `.env.agent.local` (gitignored) using `.env.agent.local.example`. Probe helpers auto-load this file.
+
 ## Run the app
 
 From the repo root:

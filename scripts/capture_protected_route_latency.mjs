@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 
 import { performance } from "node:perf_hooks";
+import { loadLocalEnv } from "./lib/load_local_env.mjs";
 
 const DEFAULT_PATH = "/api/billing/credit-packages";
 const DEFAULT_SAMPLES = 30;
 const DEFAULT_WARMUP = 5;
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_TEMP_EMAIL_PREFIX = "latency_probe";
+const LOADED_ENV_FILES = loadLocalEnv({
+  argv: process.argv.slice(2),
+  defaultPaths: [".env.agent.local", "frontend/.env.local"],
+});
 
 const printUsage = () => {
   console.log(`Usage:
@@ -15,6 +20,8 @@ const printUsage = () => {
 Options:
   --base-url <url>        Staging/deployed app base URL.
                           Fallback env: SHORTPULSE_STAGING_BASE_URL, APP_BASE_URL
+  --env-file <path>       Optional env file path (repeatable). When omitted, this script
+                          auto-loads ".env.agent.local" and "frontend/.env.local" if present.
   --token <token>         Bearer token for a real authenticated user.
                           Fallback env: SHORTPULSE_STAGING_BEARER_TOKEN
   --bootstrap-token-from-supabase
@@ -196,6 +203,11 @@ const parseArgs = (argv) => {
       i += 1;
       continue;
     }
+    if (arg === "--env-file") {
+      if (!(argv[i + 1] ?? "").trim()) throw new Error("--env-file requires a value");
+      i += 1;
+      continue;
+    }
     if (arg === "--token") {
       parsed.token = argv[i + 1] ?? "";
       i += 1;
@@ -249,6 +261,9 @@ const main = async () => {
     printUsage();
     return;
   }
+  if (LOADED_ENV_FILES.length > 0) {
+    console.log(`[auth-staging-latency] loaded env files: ${LOADED_ENV_FILES.join(", ")}`);
+  }
 
   const baseUrl = args.baseUrl.replace(/\/+$/, "");
   const defaultBaseUrl = process.env.APP_BASE_URL?.trim() ?? "";
@@ -258,6 +273,11 @@ const main = async () => {
   if (!resolvedBaseUrl) {
     throw new Error(
       "Missing base URL. Provide --base-url or SHORTPULSE_STAGING_BASE_URL or APP_BASE_URL."
+    );
+  }
+  if (resolvedBaseUrl.includes(".supabase.co")) {
+    throw new Error(
+      "Invalid base URL: this probe targets ShortPulse app routes. Use your app deployment URL, not the Supabase API URL."
     );
   }
   if (!token && args.bootstrapTokenFromSupabase) {

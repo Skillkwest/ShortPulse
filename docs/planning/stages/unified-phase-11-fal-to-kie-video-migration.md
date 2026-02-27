@@ -23,6 +23,10 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A in progress:
 - Added Phase 11 shadow/canary readiness + threshold template:
   - `docs/planning/evidence/unified-buildout/phase-11/2026-02-27-phase-11-slice-a-shadow-canary-readiness-and-threshold-template.md`
+- Added read-only SQL metrics packet for baseline/canary windows:
+  - `sql/check_phase11_shadow_canary_metrics.sql`
+- Shadow window 1 execution started (UTC 2026-02-27 18:46:07) with live log:
+  - `docs/planning/evidence/unified-buildout/phase-11/2026-02-27-phase-11-shadow-window-1-live-log.md`
 - Locked observation framing for first Kie migration execution:
   - baseline capture,
   - shadow parity window,

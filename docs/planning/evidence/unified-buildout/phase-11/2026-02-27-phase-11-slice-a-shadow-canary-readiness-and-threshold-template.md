@@ -31,6 +31,11 @@ This template is designed to answer:
 
 ## Baseline Metrics (pre-shadow)
 Capture baseline values before enabling Kie shadow/canary behavior.
+Primary helper:
+```sql
+-- run in Supabase SQL editor
+-- sql/check_phase11_shadow_canary_metrics.sql
+```
 
 1. Duplicate billing settlement count  
 Where: ledger/reconciliation SQL + admin trace checks  
@@ -55,6 +60,12 @@ Threshold: `>= 99%`
 6. Queue depth / dispatch health  
 Where: `ai_generation_submit_queue` status counts + `queueDispatchErrors`  
 Threshold: no sustained regression vs baseline (`<= baseline + 10%` on depth, no sustained dispatch-error growth)
+
+Recommended command packet:
+1. Run `sql/check_phase11_shadow_canary_metrics.sql`.
+2. Copy section `G) One-row gate summary` into this template for baseline and each observation window.
+3. Keep raw section outputs in the same evidence note for audit traceability.
+4. If `recovery_success_sample_size = 0`, treat `recovery_success_pass` as `N/A` (insufficient sample), not a hard failure. Extend the window or gather more candidate rows before final promote decision.
 
 ## Shadow Parity Window (no user-facing cutover)
 1. Window duration:

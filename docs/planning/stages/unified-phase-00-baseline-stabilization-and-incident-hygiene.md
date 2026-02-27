@@ -1,6 +1,6 @@
 # Unified Phase 00: Baseline Stabilization and Incident Hygiene
 
-Status: Planned
+Status: In Progress
 Owner: Engineering
 
 ## Objective
@@ -18,6 +18,13 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A: smallest safe functional increment.
 2. Slice B: test hardening and edge-case completion.
 3. Slice C: docs + evidence + tracker update.
+
+## Current Slice Status
+1. Slice A/B complete:
+- Baseline validation gates and incident hygiene hardening were delivered.
+2. Slice C in progress:
+- Residual operational follow-up remains open for secret/credential rotation evidence closure.
+- Keep phase open until operational closure evidence is attached in phase-00 artifacts.
 
 ## Validation Gates
 1. 
@@ -163,4 +170,3 @@ If this phase touches external contracts/standards, add a short research note wi
 ## Rollback Plan
 1. Revert only the PR slice(s) from this phase.
 2. Keep previous stable phase baseline intact.
-

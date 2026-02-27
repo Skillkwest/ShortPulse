@@ -24,6 +24,18 @@ Branch: `second-foundational-overhaul`
 | 11 | In Progress | Engineering | Phase 10 complete | Kie migration thresholds pass shadow/canary | `evidence/unified-buildout/phase-11/` | Slice A pre-cutover readiness packet added: shadow/canary template with explicit thresholds, observation windows, and promote/hold/rollback decision framing. No provider cutover executed yet. |
 | 12 | Planned | Engineering | Phase 11 complete | Cleanup/decommission complete + two green cycles | `evidence/unified-buildout/phase-12/` |  |
 
+## Prior-Phase Cleanup Queue (Excluding Phase 04 Deferred)
+1. Phase 00:
+- Close operational credential-rotation follow-up with explicit evidence note.
+2. Phase 01:
+- Complete branch-protection mapping verification evidence for CI lane parity.
+3. Phase 05:
+- Promote from pre-entry prep to formal phase execution once sequencing gate allows; attach closeout packet.
+4. Phase 06:
+- Phase-level completion label update after sequencing unblock (`04` deferred hold resolved and `05` closeout complete).
+5. Phase 07:
+- Phase-level completion label update after sequencing unblock (`04`/`05`/`06` closure chain).
+
 ## Mandatory Validation Commands per Phase
 1. `npm -C frontend run lint`
 2. `npm -C frontend run type-check`

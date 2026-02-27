@@ -1,6 +1,6 @@
 # Unified Phase 04: Video Runtime Hardening Residuals
 
-Status: In Progress  
+Status: Deferred  
 Owner: Engineering
 
 ## Objective

@@ -17,6 +17,10 @@ type StripeEvent = {
 };
 
 type JsonObject = Record<string, unknown>;
+type EventClaimResult =
+  | { kind: "claimed" }
+  | { kind: "duplicate" }
+  | { kind: "failed"; message: string };
 
 export const config = {
   api: {
@@ -43,6 +47,31 @@ const asIsoDate = (unixSeconds?: number | null): string | null => {
 
 const toRecord = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
+
+const isDuplicateEventInsertError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  return code === "23505";
+};
+
+const claimStripeEvent = async (event: StripeEvent): Promise<EventClaimResult> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const { error } = await supabaseAdmin.from("stripe_event_log").insert({
+    id: event.id,
+    event_type: event.type,
+    payload: event as unknown as JsonObject,
+  });
+  if (!error) {
+    return { kind: "claimed" };
+  }
+  if (isDuplicateEventInsertError(error)) {
+    return { kind: "duplicate" };
+  }
+  return {
+    kind: "failed",
+    message: error.message || "Stripe event claim insert failed.",
+  };
+};
 
 const resolvePlanIdFromSubscription = async (
   stripePriceId: string | undefined
@@ -189,22 +218,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: "Invalid Stripe event payload." });
     }
 
-    const supabaseAdmin = getSupabaseAdmin();
-
-    const { data: existingEvent } = await supabaseAdmin
-      .from("stripe_event_log")
-      .select("id")
-      .eq("id", event.id)
-      .maybeSingle();
-    if (existingEvent?.id) {
+    const eventClaim = await claimStripeEvent(event);
+    if (eventClaim.kind === "duplicate") {
       return res.status(200).json({ received: true, duplicate: true });
     }
-
-    await supabaseAdmin.from("stripe_event_log").insert({
-      id: event.id,
-      event_type: event.type,
-      payload: event as unknown as JsonObject,
-    });
+    if (eventClaim.kind === "failed") {
+      return res.status(500).json({ error: eventClaim.message });
+    }
 
     const object = event.data?.object ?? {};
     if (event.type === "checkout.session.completed") {

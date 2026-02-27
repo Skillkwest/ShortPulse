@@ -1,6 +1,6 @@
 # Unified Phase 08: Billing and Stripe Correctness Hardening
 
-Status: Planned
+Status: In Progress
 Owner: Engineering
 
 ## Objective
@@ -18,6 +18,15 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A: smallest safe functional increment.
 2. Slice B: test hardening and edge-case completion.
 3. Slice C: docs + evidence + tracker update.
+
+## Current Slice Status
+1. Slice A complete:
+- Stripe webhook event claiming moved to insert-first semantics with explicit duplicate/non-conflict error branches before side effects.
+- Webhook tests expanded for duplicate conflict, claim failure, and claimed happy-path side-effect behavior.
+2. Slice B next:
+- Add replay-safe failed-event recovery coverage and bootstrap-safe billing profile guard scenarios.
+3. Slice C in progress:
+- Evidence packet added under `docs/planning/evidence/unified-buildout/phase-08/`.
 
 ## Validation Gates
 1. 
@@ -147,10 +156,10 @@ Naming canonical drift checks passed.
 
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:
-- 
+- `docs/planning/evidence/unified-buildout/phase-08/2026-02-27-phase-08-slice-a-stripe-event-claim-hardening.md`
 
 ## Required Docs Updates
-1. Update  phase status.
+1. Update phase status.
 2. Add evidence summary in phase-08 folder.
 3. Update impacted SOP/API/ADR/change-log docs.
 
@@ -163,4 +172,3 @@ If this phase touches external contracts/standards, add a short research note wi
 ## Rollback Plan
 1. Revert only the PR slice(s) from this phase.
 2. Keep previous stable phase baseline intact.
-

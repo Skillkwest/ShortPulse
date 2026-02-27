@@ -44,11 +44,23 @@ const createWebhookRequest = (rawBody: string) => {
   return { res, promise };
 };
 
+const createSupabaseAdminForEventClaim = (insertResult: { error: unknown }) => ({
+  from: (table: string) => {
+    if (table !== "stripe_event_log") {
+      throw new Error(`Unexpected table access: ${table}`);
+    }
+    return {
+      insert: async () => insertResult,
+    };
+  },
+});
+
 describe("POST /api/billing/stripe/webhook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
+    insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
   });
 
   it("rejects invalid signatures", async () => {
@@ -61,21 +73,13 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Invalid Stripe signature." });
   });
 
-  it("returns duplicate=true when event already processed", async () => {
+  it("returns duplicate=true when event claim conflicts", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
-    getSupabaseAdminMock.mockReturnValue({
-      from: (table: string) => {
-        if (table !== "stripe_event_log") throw new Error("Unexpected table");
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: async () => ({ data: { id: "evt_1" }, error: null }),
-            }),
-          }),
-          insert: vi.fn(),
-        };
-      },
-    });
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForEventClaim({
+        error: { code: "23505", message: "duplicate key value violates unique constraint" },
+      })
+    );
 
     const { res, promise } = createWebhookRequest(
       JSON.stringify({ id: "evt_1", type: "checkout.session.completed" })
@@ -83,5 +87,62 @@ describe("POST /api/billing/stripe/webhook", () => {
     await promise;
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ received: true, duplicate: true });
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 and skips side effects when event claim fails", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForEventClaim({
+        error: { code: "42501", message: "permission denied for table stripe_event_log" },
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({ id: "evt_claim_fail", type: "checkout.session.completed" })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "permission denied for table stripe_event_log",
+    });
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+  });
+
+  it("applies checkout side effects once after successful event claim", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminForEventClaim({ error: null }));
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_checkout_1",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_1",
+            customer: "cus_123",
+            metadata: {
+              user_id: "user_123",
+              credit_amount_cents: "1500",
+              credit_package_id: "pkg_starter",
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ received: true });
+    expect(insertCreditLedgerEntryMock).toHaveBeenCalledTimes(1);
+    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_123",
+        changeCents: 1500,
+        source: "stripe_checkout",
+        sourceRef: "evt_checkout_1",
+      })
+    );
   });
 });

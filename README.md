@@ -9,7 +9,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - Analytics: In-browser scoring of a demo cohort with user-triggered refresh and filtering controls.
 - AI Studio providers: Next.js API routes under `/api/fal/*` proxy Fal queue requests (server-side `FAL_KEY` required), including the Seedream 4.5 edit proxy at `/api/fal/seedream-edit-submit`.
 - Fal runtime v2 operational routes: `/api/fal/webhook` (signature-verified webhook ingestion), `/api/fal/queue-status` (authenticated queued-submit dispatch/status handoff), and `/api/internal/generation-recovery/run` (cron-secret protected reconciler + queue dispatcher trigger).
-- Vercel deploys schedule `/api/internal/generation-recovery/run` every minute via `frontend/vercel.json` cron config; keep `SHORTPULSE_FAL_RECONCILER_CRON_SECRET` (and optional `CRON_SECRET`) configured for auth.
+- Queue/recovery scheduling is externalized: configure Supabase Cron to call `/api/internal/generation-recovery/run` every minute via `sql/configure_generation_recovery_scheduler_supabase.sql`; keep `SHORTPULSE_FAL_RECONCILER_CRON_SECRET` configured for auth.
 - Local AI Studio media uploads: `/api/upload-image` and `/api/upload-video` store user-scoped files in private storage and return short-lived signed URLs for provider fetches.
 - Media preview signing: `/api/media/sign-batch` signs user-scoped media preview paths in a single authenticated request to reduce list/grid signing overhead.
 - Billing/credits: Supabase-backed plan/profile/credit ledger model with Stripe-ready checkout, portal, webhook routes, and authenticated credit snapshot reads at `/api/credits/snapshot` (available + pending reservation holds).

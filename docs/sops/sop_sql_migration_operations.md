@@ -23,6 +23,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`: ledger compatibility upgrade for legacy billing schemas.
 - `sql/migrate_new_user_plan_default_to_free.sql`: targeted plan-default migration.
 - `sql/update_billing_pricing_catalog_20260210.sql`: catalog price update script.
+- `sql/configure_generation_recovery_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/generation-recovery/run`.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
 - `sql/check_character_sheet_alias_drift.sql`: character alias drift diagnostics (read-only).

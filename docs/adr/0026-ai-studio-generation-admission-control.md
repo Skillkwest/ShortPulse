@@ -60,7 +60,7 @@ The near-term goal is overload protection with minimal regression risk while pre
 ## Follow-Up Queue/Recovery Stabilization (2026-02-26)
 1. Hardened recovery execution so provider-observed `running` generations that exhaust recovery attempts now settle as `fail` in the same pass, preventing indefinite capacity holds.
 2. Added queue max-wait policy (`SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`, default 1200s) so no-capacity requeues cannot persist forever; timed-out queue entries are exhausted, reservation-released, and terminalized.
-3. Extended internal recovery route auth to accept bearer secret in addition to cron header, and enabled minute cadence scheduling in Vercel (`frontend/vercel.json`) to guarantee continuous queue dispatch + recovery processing.
+3. Extended internal recovery route auth to accept bearer secret in addition to cron header, and standardized on external scheduler invocation (Supabase Cron primary) for minute-cadence queue dispatch + recovery processing.
 
 ## Alternatives considered
 - Server FIFO queue first:

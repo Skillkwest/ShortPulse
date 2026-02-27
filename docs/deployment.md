@@ -68,6 +68,7 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_PUBLIC_API_BASE_URL` (or `APP_BASE_URL` fallback) for Fal `fal_webhook` submit registration
   - `SHORTPULSE_FAL_RECONCILER_ENABLED`
   - `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
+  - `CRON_SECRET` (optional manual invocation fallback; keep aligned with reconciler secret when used)
   - `SHORTPULSE_FAL_RECONCILER_BATCH_SIZE`
   - `SHORTPULSE_FAL_RECONCILER_MAX_ATTEMPTS`
   - `SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS`
@@ -96,6 +97,95 @@ To reduce preview deployment churn and avoid quota/rate pressure during document
    - `preview` deployments are skipped when no files changed under `frontend/`.
 4. Verification (from repo root):
    - `cd frontend && bash ./scripts/vercel-ignore-build.sh`
+
+## Recovery scheduler (Supabase Cron)
+
+Use Supabase Cron as the primary scheduler for generation queue dispatch + recovery.
+
+1. Set `SHORTPULSE_FAL_RECONCILER_ENABLED=true`.
+2. Set `SHORTPULSE_FAL_RECONCILER_CRON_SECRET` in Vercel (`Production` and `Preview` as needed).
+3. In Supabase Vault for each environment, create:
+   - `shortpulse_recovery_run_url` = full endpoint URL (for example `https://<deployment-domain>/api/internal/generation-recovery/run`)
+   - `shortpulse_reconciler_cron_secret` = same value as `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
+   - Use idempotent SQL to create-or-update (safe on reruns):
+   ```sql
+   do $$
+   declare
+     v_id uuid;
+   begin
+     select ds.id into v_id
+     from vault.decrypted_secrets ds
+     where ds.name = 'shortpulse_recovery_run_url'
+     order by ds.created_at desc
+     limit 1;
+
+     if v_id is null then
+       perform vault.create_secret(
+         'https://<deployment-domain>/api/internal/generation-recovery/run',
+         'shortpulse_recovery_run_url',
+         'ShortPulse generation recovery endpoint URL'
+       );
+     else
+       perform vault.update_secret(
+         v_id,
+         'https://<deployment-domain>/api/internal/generation-recovery/run',
+         'shortpulse_recovery_run_url',
+         'ShortPulse generation recovery endpoint URL'
+       );
+     end if;
+   end
+   $$;
+
+   do $$
+   declare
+     v_id uuid;
+   begin
+     select ds.id into v_id
+     from vault.decrypted_secrets ds
+     where ds.name = 'shortpulse_reconciler_cron_secret'
+     order by ds.created_at desc
+     limit 1;
+
+     if v_id is null then
+       perform vault.create_secret(
+         '<reconciler-secret>',
+         'shortpulse_reconciler_cron_secret',
+         'ShortPulse generation recovery cron bearer secret'
+       );
+     else
+       perform vault.update_secret(
+         v_id,
+         '<reconciler-secret>',
+         'shortpulse_reconciler_cron_secret',
+         'ShortPulse generation recovery cron bearer secret'
+       );
+     end if;
+   end
+   $$;
+   ```
+4. Run `sql/configure_generation_recovery_scheduler_supabase.sql` in the target Supabase project.
+5. Verify scheduler state:
+   ```sql
+   select jobid, jobname, schedule, command, active
+   from cron.job
+   where jobname = 'shortpulse_generation_recovery_every_minute';
+   ```
+6. Verify recent execution outcomes:
+   ```sql
+   select jobid, status, start_time, end_time, return_message
+   from cron.job_run_details
+   where jobid = (
+     select jobid
+     from cron.job
+     where jobname = 'shortpulse_generation_recovery_every_minute'
+   )
+   order by start_time desc
+   limit 20;
+   ```
+
+Notes:
+- Vercel cron is not required for this route.
+- `CRON_SECRET` remains optional for manual cURL/bearer invocation and non-Supabase fallback workflows.
 
 ## Supabase production configuration
 

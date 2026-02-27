@@ -1427,3 +1427,15 @@ Append new entries at the end of this file; each entry should include date (UTC)
     - semantic-ready fast path keeps `message` + `actions.applyPrompt` only
     - single-stage semantic refusal remains actionless and preserves canonical prompt
 - No API schema/interface changes; refusal text and action contract remain unchanged.
+
+## 2026-02-27 (unified build-out baseline)
+- Fixed a baseline TypeScript blocker in `frontend/tests/api/fal-webhook-signature.test.ts` by setting `queueMaxWaitSeconds` in the `FalRuntimeFlags` test fixture.
+- Added unified build-out planning artifacts:
+  - `docs/planning/shortpulse-unified-buildout-master-plan.md`
+  - `docs/planning/shortpulse-unified-buildout-tracker.md`
+  - `docs/planning/shortpulse-unified-overlap-matrix.md`
+  - `docs/planning/shortpulse-unified-decision-log.md`
+  - `docs/planning/stages/unified-phase-00-...` through `unified-phase-12-...`
+  - `docs/planning/evidence/unified-buildout/` with per-phase evidence placeholders and Phase 00 baseline note.
+- Updated documentation indexes (`docs/README.md`, `docs/planning/README.md`) to include unified build-out artifacts.
+- Added a secret-exposure response control note in `docs/security-checklist.md` to require immediate key rotation/revocation and evidence capture.

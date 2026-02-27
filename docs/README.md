@@ -101,6 +101,10 @@ Start here for all repository documentation.
 ## Planning And History
 - `docs/planning/README.md`
 - `docs/planning/master-rollout-proposal.md`
+- `docs/planning/shortpulse-unified-buildout-master-plan.md`
+- `docs/planning/shortpulse-unified-buildout-tracker.md`
+- `docs/planning/shortpulse-unified-overlap-matrix.md`
+- `docs/planning/shortpulse-unified-decision-log.md`
 - `docs/planning/_inventory.md`
 - `docs/planning/overlap-audit.md`
 - `docs/planning/feasibility-report.md`

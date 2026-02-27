@@ -41,6 +41,7 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   queueMaxAttempts: 5,
   queueBaseBackoffSeconds: 5,
   ...overrides,
+  queueMaxWaitSeconds: overrides.queueMaxWaitSeconds ?? 1200,
 });
 
 const buildFalSignedMessage = ({

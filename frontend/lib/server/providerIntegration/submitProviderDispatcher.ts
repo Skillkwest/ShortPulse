@@ -6,6 +6,7 @@
 import type { SubmitPayload, SubmitTarget } from "../falIntegration/contracts";
 import { submitWithFallbackTargets } from "../falIntegration/submitEngine";
 import { readCanonicalProviderRequestId } from "./canonicalProviderPayload";
+import { isFalProviderKey } from "./providerKey";
 
 export type ProviderSubmitResult = {
   response: Response;
@@ -13,13 +14,6 @@ export type ProviderSubmitResult = {
   targetUrl: string;
   targetIndex: number;
   providerRequestId: string | null;
-};
-
-const normalizeProvider = (value: string): string => value.trim().toLowerCase();
-
-const isFalProvider = (provider: string): boolean => {
-  const normalized = normalizeProvider(provider);
-  return normalized === "fal" || normalized.startsWith("fal");
 };
 
 /**
@@ -42,7 +36,7 @@ export const dispatchProviderSubmit = async ({
   requestStartTimeoutSeconds?: number;
   maxAttemptsPerTarget?: number;
 }): Promise<ProviderSubmitResult> => {
-  if (isFalProvider(provider)) {
+  if (isFalProviderKey(provider)) {
     const result = await submitWithFallbackTargets({
       targets,
       payload,

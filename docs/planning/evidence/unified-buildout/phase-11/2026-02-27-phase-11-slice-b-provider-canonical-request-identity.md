@@ -31,11 +31,28 @@ Start the provider-neutral adapter contract work by removing Fal-local request/e
 7. Aligned queued submit dispatch path to shared provider submit boundary:
 - `frontend/lib/server/api/generationQueue/dispatch.ts`
 - Queue dispatch now consumes `providerRequestId` from provider dispatch contract instead of local alias parsing.
+8. Added provider-aware status/result payload parsing boundary:
+- `frontend/lib/server/providerIntegration/statusProviderPayload.ts`
+- Centralizes provider-scoped parsing for:
+  - lifecycle status,
+  - response URL extraction,
+  - media payload detection,
+  - content-policy message extraction.
+9. Rewired `falStatusProxy` to consume provider payload parsing contract:
+- `frontend/lib/server/api/falStatusProxy.ts`
+- Status/result evaluation now reads payload semantics through `providerIntegration` helpers instead of direct Fal adapter calls.
+10. Consolidated provider-key alias matching across dispatchers:
+- `frontend/lib/server/providerIntegration/providerKey.ts`
+- Applied in submit/status/recovery dispatchers for shared `fal`/`fal*` detection.
 
 ## Validation
 1. Targeted tests:
 ```bash
 npm -C frontend run test -- tests/api/fal-submit-proxy.test.ts tests/api/fal-status-proxy.test.ts tests/api/fal-webhook-route.test.ts lib/server/api/__tests__/generationQueue.dispatch.test.ts lib/server/api/__tests__/generationQueue.dispatch.integrity.test.ts lib/server/providerIntegration/__tests__/canonicalProviderPayload.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts
+```
+Result: pass.
+```bash
+npm -C frontend run test -- tests/api/fal-status-proxy.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/canonicalProviderPayload.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts lib/server/api/__tests__/generationQueue.dispatch.test.ts lib/server/api/__tests__/generationQueue.dispatch.integrity.test.ts
 ```
 Result: pass.
 2. Type-check:
@@ -50,4 +67,4 @@ Result: pass.
 3. This slice is additive to shadow/canary observation work and does not execute provider cutover.
 
 ## Next Step
-1. Continue Slice B with submit/status adapter boundary extraction so `/api/fal/*` handlers can consume a provider-neutral contract in preparation for Kie dark adapter rollout.
+1. Continue Slice B by extracting provider-aware recovery result probing (`recoveryProviderProbe`) so provider polling semantics also flow through `providerIntegration` contracts ahead of Kie dark adapter rollout.

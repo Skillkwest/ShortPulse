@@ -6,14 +6,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
 import { logGenerationFailure } from "./appErrorLogs";
 import { resolveProviderRequestOwnership, settleGenerationOutcome } from "./generationBilling";
-import {
-  asString,
-  extractResponseUrl,
-  findContentPolicyMessage,
-  hasMediaPayload,
-  normalizeStatus,
-  toRecord,
-} from "../falIntegration/falAdapter";
 import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
 import {
   selectBestResultCandidate,
@@ -36,6 +28,13 @@ import {
   dispatchProviderStatusRequest,
   resolveProviderStatusBaseUrls,
 } from "../providerIntegration/statusProviderDispatcher";
+import { asProviderString } from "../providerIntegration/canonicalProviderPayload";
+import {
+  providerPayloadHasMedia,
+  readProviderContentPolicyMessage,
+  readProviderLifecycleStatus,
+  readProviderResponseUrl,
+} from "../providerIntegration/statusProviderPayload";
 
 type FalStatusConfig = {
   queueBaseUrl: string | string[];
@@ -142,7 +141,7 @@ export const createFalStatusHandler = ({
       return res.status(500).json({ error: "FAL_KEY is not set on the server" });
     }
 
-    const requestId = asString(req.body?.requestId);
+    const requestId = asProviderString(req.body?.requestId);
     if (!requestId) {
       await logGenerationFailure({
         req,
@@ -217,8 +216,9 @@ export const createFalStatusHandler = ({
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const providerKey = "fal";
     const queueBaseUrls = resolveProviderStatusBaseUrls({
-      provider: "fal",
+      provider: providerKey,
       configuredBaseUrls: Array.isArray(queueBaseUrl) ? queueBaseUrl : [queueBaseUrl],
     });
     if (!queueBaseUrls.length) {
@@ -303,7 +303,7 @@ export const createFalStatusHandler = ({
 
       for (const [index, baseUrl] of queueBaseUrls.entries()) {
         const response = await dispatchProviderStatusRequest({
-          provider: "fal",
+          provider: providerKey,
           baseUrl,
           requestId,
           apiKey,
@@ -311,7 +311,7 @@ export const createFalStatusHandler = ({
         });
         const data = await readJsonSafe(response);
         const candidateStatus = data.isJson
-          ? (normalizeStatus(data.json.status) ?? normalizeStatus(toRecord(data.json).state))
+          ? readProviderLifecycleStatus({ provider: providerKey, payload: data.json })
           : null;
         const isCandidateCompleted = Boolean(candidateStatus && isCompletedStatus(candidateStatus));
         const isCandidateFailed = Boolean(candidateStatus && isFailedStatus(candidateStatus));
@@ -326,10 +326,16 @@ export const createFalStatusHandler = ({
           isTerminal: isCandidateCompleted || isCandidateFailed,
           isCompleted: isCandidateCompleted,
           isFailed: isCandidateFailed,
-          hasResponseUrl: data.isJson ? Boolean(extractResponseUrl(data.json)) : false,
-          hasMedia: data.isJson ? hasMediaPayload(data.json) : false,
+          hasResponseUrl: data.isJson
+            ? Boolean(readProviderResponseUrl({ provider: providerKey, payload: data.json }))
+            : false,
+          hasMedia: data.isJson
+            ? providerPayloadHasMedia({ provider: providerKey, payload: data.json })
+            : false,
         };
-        const responseUrl = data.isJson ? extractResponseUrl(data.json) : null;
+        const responseUrl = data.isJson
+          ? readProviderResponseUrl({ provider: providerKey, payload: data.json })
+          : null;
         if (responseUrl) {
           statusResponseUrls.add(responseUrl);
         }
@@ -383,7 +389,10 @@ export const createFalStatusHandler = ({
           payload: bestStatusMediaCandidate.data.json,
           payloadStatus: resolveSuccessfulPayloadStatus(
             bestStatusMediaCandidate.probe.status,
-            toRecord(bestStatusMediaCandidate.data.json).state
+            readProviderLifecycleStatus({
+              provider: providerKey,
+              payload: bestStatusMediaCandidate.data.json,
+            })
           ),
         });
       }
@@ -414,7 +423,10 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const contentPolicyMessage = findContentPolicyMessage(statusData.json);
+      const contentPolicyMessage = readProviderContentPolicyMessage({
+        provider: providerKey,
+        payload: statusData.json,
+      });
       if (contentPolicyMessage) {
         await settleFailure({
           userId: user.id,
@@ -437,9 +449,14 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const normalizedStatus =
-        normalizeStatus(statusData.json.status) ?? normalizeStatus(toRecord(statusData.json).state);
-      const preferredResponseUrl = extractResponseUrl(statusData.json);
+      const normalizedStatus = readProviderLifecycleStatus({
+        provider: providerKey,
+        payload: statusData.json,
+      });
+      const preferredResponseUrl = readProviderResponseUrl({
+        provider: providerKey,
+        payload: statusData.json,
+      });
       const orderedResponseUrls = preferredResponseUrl
         ? [
             preferredResponseUrl,
@@ -461,9 +478,9 @@ export const createFalStatusHandler = ({
         return respondErrorWithLogging({
           requestId,
           error:
-            asString(statusData.json.error) ||
-            asString(statusData.json.message) ||
-            asString(toRecord(statusData.json).statusMessage) ||
+            asProviderString(statusData.json.error) ||
+            asProviderString(statusData.json.message) ||
+            asProviderString(statusData.json.statusMessage) ||
             "Generation failed",
           statusCode: 422,
           source: "api.fal_status.status_failed",
@@ -490,8 +507,8 @@ export const createFalStatusHandler = ({
         return respondErrorWithLogging({
           requestId,
           error:
-            asString(statusData.json.error) ||
-            asString(statusData.json.message) ||
+            asProviderString(statusData.json.error) ||
+            asProviderString(statusData.json.message) ||
             `${routeLabel} status request failed`,
           statusCode: statusResp.status,
           source: "api.fal_status.status_upstream_non_ok",
@@ -516,14 +533,18 @@ export const createFalStatusHandler = ({
         // Fal occasionally materializes result payload before status transitions.
         for (const baseUrl of orderedResultBases) {
           const probeResponse = await dispatchProviderResultRequest({
-            provider: "fal",
+            provider: providerKey,
             baseUrl,
             requestId,
             apiKey,
             signal: controller.signal,
           });
           const probeData = await readJsonSafe(probeResponse);
-          if (!probeResponse.ok || !probeData.isJson || !hasMediaPayload(probeData.json)) {
+          if (
+            !probeResponse.ok ||
+            !probeData.isJson ||
+            !providerPayloadHasMedia({ provider: providerKey, payload: probeData.json })
+          ) {
             continue;
           }
           return captureAndRespondSuccess({
@@ -536,7 +557,7 @@ export const createFalStatusHandler = ({
 
       // Some Fal models return terminal status payloads that already include media while
       // follow-up result probes intermittently lag or fail. Treat that payload as authoritative.
-      if (hasMediaPayload(statusData.json)) {
+      if (providerPayloadHasMedia({ provider: providerKey, payload: statusData.json })) {
         return captureAndRespondSuccess({
           payload: statusData.json,
           payloadStatus: resolveSuccessfulPayloadStatus(normalizedStatus),
@@ -567,7 +588,7 @@ export const createFalStatusHandler = ({
 
       for (const [index, baseUrl] of orderedResultBases.entries()) {
         const response = await dispatchProviderResultRequest({
-          provider: "fal",
+          provider: providerKey,
           baseUrl,
           requestId,
           apiKey,
@@ -575,12 +596,12 @@ export const createFalStatusHandler = ({
         });
         const data = await readJsonSafe(response);
         const candidateStatus = data.isJson
-          ? (normalizeStatus(data.json.status) ?? normalizeStatus(toRecord(data.json).state))
+          ? readProviderLifecycleStatus({ provider: providerKey, payload: data.json })
           : null;
         const candidateHasError = data.isJson
           ? candidateStatus === "error" ||
             candidateStatus === "failed" ||
-            Boolean(asString(data.json.error))
+            Boolean(asProviderString(data.json.error))
           : false;
         const probe: ResultProbeCandidate = {
           index,
@@ -591,7 +612,9 @@ export const createFalStatusHandler = ({
           isHttpOk: response.ok,
           status: candidateStatus,
           hasError: candidateHasError,
-          hasMedia: data.isJson ? hasMediaPayload(data.json) : false,
+          hasMedia: data.isJson
+            ? providerPayloadHasMedia({ provider: providerKey, payload: data.json })
+            : false,
         };
         if (probe.isRetryableAlias) {
           retryableResultCandidates.push({ probe, response, data });
@@ -662,7 +685,10 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const resultPolicyMessage = findContentPolicyMessage(resultData.json);
+      const resultPolicyMessage = readProviderContentPolicyMessage({
+        provider: providerKey,
+        payload: resultData.json,
+      });
       if (resultPolicyMessage) {
         await settleFailure({
           userId: user.id,
@@ -703,8 +729,8 @@ export const createFalStatusHandler = ({
         return respondErrorWithLogging({
           requestId,
           error:
-            asString(resultData.json.error) ||
-            asString(resultData.json.message) ||
+            asProviderString(resultData.json.error) ||
+            asProviderString(resultData.json.message) ||
             "Generation failed",
           statusCode: resultResp.status,
           source: "api.fal_status.result_upstream_non_ok",
@@ -713,13 +739,15 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const resultStatus =
-        normalizeStatus(resultData.json.status) ?? normalizeStatus(toRecord(resultData.json).state);
+      const resultStatus = readProviderLifecycleStatus({
+        provider: providerKey,
+        payload: resultData.json,
+      });
       if (
         resultStatus === "error" ||
         resultStatus === "failed" ||
-        asString(resultData.json.error) ||
-        !hasMediaPayload(resultData.json)
+        asProviderString(resultData.json.error) ||
+        !providerPayloadHasMedia({ provider: providerKey, payload: resultData.json })
       ) {
         await settleFailure({
           userId: user.id,
@@ -733,7 +761,8 @@ export const createFalStatusHandler = ({
         });
         return respondErrorWithLogging({
           requestId,
-          error: asString(resultData.json.error) || "Generation failed to produce media output",
+          error:
+            asProviderString(resultData.json.error) || "Generation failed to produce media output",
           statusCode: 502,
           source: "api.fal_status.result_missing_media",
           stage: "result",

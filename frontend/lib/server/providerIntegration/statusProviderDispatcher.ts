@@ -4,13 +4,7 @@
  */
 
 import { filterTrustedFalProviderUrls } from "../falIntegration/providerTrustPolicy";
-
-const normalizeProvider = (value: string): string => value.trim().toLowerCase();
-
-const isFalProvider = (provider: string): boolean => {
-  const normalized = normalizeProvider(provider);
-  return normalized === "fal" || normalized.startsWith("fal");
-};
+import { isFalProviderKey } from "./providerKey";
 
 /**
  * Resolves trusted status base URLs for a provider.
@@ -22,7 +16,7 @@ export const resolveProviderStatusBaseUrls = ({
   provider: string;
   configuredBaseUrls: string[];
 }): string[] => {
-  if (isFalProvider(provider)) {
+  if (isFalProviderKey(provider)) {
     return filterTrustedFalProviderUrls(configuredBaseUrls);
   }
   throw new Error(`Unsupported provider for status base resolution: ${provider}`);
@@ -44,7 +38,7 @@ export const dispatchProviderStatusRequest = async ({
   apiKey: string;
   signal: AbortSignal;
 }): Promise<Response> => {
-  if (isFalProvider(provider)) {
+  if (isFalProviderKey(provider)) {
     return await fetch(`${baseUrl}/${requestId}/status`, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },
@@ -70,7 +64,7 @@ export const dispatchProviderResultRequest = async ({
   apiKey: string;
   signal: AbortSignal;
 }): Promise<Response> => {
-  if (isFalProvider(provider)) {
+  if (isFalProviderKey(provider)) {
     return await fetch(`${baseUrl}/${requestId}`, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },

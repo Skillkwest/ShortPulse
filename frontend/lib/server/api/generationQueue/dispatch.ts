@@ -224,12 +224,60 @@ const processClaimedQueueItem = async ({
     .eq("user_id", item.userId)
     .maybeSingle();
   const generationRow = asObject(generationLookup.data);
+  const attemptNumber = item.attempts + 1;
 
   const existingRequestId = asString(generationRow.request_id);
   if (existingRequestId) {
-    const removeResult = await removeQueueItem(item.queueId);
-    assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
-    metrics.skipped += 1;
+    try {
+      const reservationResult = await markGenerationReservationSubmitted({
+        userId: item.userId,
+        sourceRef: item.sourceRef,
+        providerRequestId: existingRequestId,
+        metadata: {
+          queue_reconcile_at: new Date().toISOString(),
+          queue_id: item.queueId,
+          queue_attempts: attemptNumber,
+          queue_reconcile_reason: "existing_request_id",
+        },
+      });
+      assertReservationSubmissionAccepted({ result: reservationResult });
+
+      const removeResult = await removeQueueItem(item.queueId);
+      assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
+      metrics.skipped += 1;
+    } catch (error) {
+      const message = normalizeError(error);
+      const errorCode = readErrorCode(error);
+      const compensation = decideQueueTransitionCompensation({
+        attemptNumber,
+        maxAttempts,
+        error,
+        submitAccepted: false,
+      });
+      if (compensation === "retry") {
+        const retryResult = await updateQueueItemForRetry({
+          queueId: item.queueId,
+          attempts: attemptNumber,
+          nextAttemptAt: toIsoAfterSeconds(
+            resolveBackoffSeconds({ baseSeconds: baseBackoffSeconds, attempts: attemptNumber })
+          ),
+          lastError: message,
+          lastErrorCode: errorCode,
+        });
+        assertQueueMutationApplied({ result: retryResult, step: "queue_retry" });
+        metrics.retried += 1;
+      } else {
+        const exhaustResult = await markQueueItemExhausted({
+          queueId: item.queueId,
+          attempts: attemptNumber,
+          lastError: message,
+          lastErrorCode: errorCode,
+        });
+        assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
+        metrics.exhausted += 1;
+      }
+      metrics.errors += 1;
+    }
     return metrics;
   }
 
@@ -311,7 +359,6 @@ const processClaimedQueueItem = async ({
     return metrics;
   }
 
-  const attemptNumber = item.attempts + 1;
   if (attemptNumber > maxAttempts) {
     const exhaustResult = await markQueueItemExhausted({
       queueId: item.queueId,

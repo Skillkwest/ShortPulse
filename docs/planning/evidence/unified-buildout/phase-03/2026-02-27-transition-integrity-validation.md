@@ -19,3 +19,4 @@ All listed commands completed successfully on `second-foundational-overhaul`.
 
 ## Notes
 1. No external contract changes were introduced in this slice; targeted web research was not required.
+2. Follow-up slice completed: queue items with pre-existing generation `request_id` now reconcile reservation submission before queue removal and use guarded retry/exhaust compensation on reconciliation failure.

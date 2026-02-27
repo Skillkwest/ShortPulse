@@ -90,7 +90,13 @@ const mutationSuccess = (operation: "retry" | "exhaust" | "release" | "remove") 
   errorMessage: null,
 });
 
-const createSupabaseAdminMock = ({ generationUpdateError }: { generationUpdateError?: string }) => {
+const createSupabaseAdminMock = ({
+  generationUpdateError,
+  existingRequestId,
+}: {
+  generationUpdateError?: string;
+  existingRequestId?: string | null;
+}) => {
   const aiGenerationsTable = {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
@@ -99,7 +105,7 @@ const createSupabaseAdminMock = ({ generationUpdateError }: { generationUpdateEr
             data: {
               id: "gen-1",
               status: "pending",
-              request_id: null,
+              request_id: existingRequestId ?? null,
               metadata: {},
             },
             error: null,
@@ -241,5 +247,68 @@ describe("generationQueue/dispatch transition integrity", () => {
     );
     expect(removeQueueItemMock).not.toHaveBeenCalled();
     expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
+  });
+
+  it("reconciles reservation then removes queue item when generation already has request id", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({ existingRequestId: "req-existing" })
+    );
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        skipped: 1,
+        retried: 0,
+        exhausted: 0,
+      })
+    );
+    expect(markGenerationReservationSubmittedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-existing",
+      })
+    );
+    expect(removeQueueItemMock).toHaveBeenCalledTimes(1);
+    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+  });
+
+  it("retries existing-request reconciliation when reservation submit fails", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({ existingRequestId: "req-existing" })
+    );
+    markGenerationReservationSubmittedMock.mockResolvedValue({
+      status: "failed",
+      sourceRef: "source-1",
+      message: "rpc timeout",
+    });
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        retried: 1,
+        exhausted: 0,
+        errors: 1,
+      })
+    );
+    expect(updateQueueItemForRetryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastErrorCode: "RESERVATION_SUBMIT_FAILED",
+      })
+    );
+    expect(removeQueueItemMock).not.toHaveBeenCalled();
+    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
   });
 });

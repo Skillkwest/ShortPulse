@@ -9,10 +9,10 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
-import type { AiStudioPageContentProps } from "../components/AiStudioPageContent";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput } from "../types";
 import { createWorkflowBeginnerModePolicy } from "../logic/beginnerWorkflowPolicy";
+import type { AiStudioPanelContracts } from "./contracts/pageContentContracts";
 import { useAiStudioCreatePanelProps } from "./useAiStudioCreatePanelProps";
 import { useAiStudioEditPanelProps } from "./useAiStudioEditPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
@@ -247,15 +247,7 @@ export const useAiStudioPanelProps = ({
   setMotionReferenceVideoUrl,
   handleVideoPromptTextChange,
   handleRegenerateWithDebit,
-}: UseAiStudioPanelPropsParams): Pick<
-  AiStudioPageContentProps,
-  "propertiesCreate" | "propertiesImage" | "propertiesVideo"
-> & {
-  /**
-   * @deprecated Use `propertiesCreate`.
-   */
-  propertiesText: AiStudioPageContentProps["propertiesCreate"];
-} => {
+}: UseAiStudioPanelPropsParams): AiStudioPanelContracts => {
   const isDevBuild = process.env.NODE_ENV === "development";
   const explicitExpertCreateUiFlag = process.env.NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI;
   const normalizedExpertCreateUiFlag = explicitExpertCreateUiFlag?.trim().toLowerCase();

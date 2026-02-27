@@ -4,7 +4,7 @@
  */
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { aspectOptions } from "../constants";
-import type { AiStudioPageContentProps } from "../components/AiStudioPageContent";
+import type { AiStudioEditPanelContract } from "./contracts/pageContentContracts";
 
 type UseAiStudioEditPanelPropsParams = {
   aspect: string;
@@ -75,7 +75,7 @@ export const useAiStudioEditPanelProps = ({
   imageResolution,
   setImageResolution,
   beginnerMode,
-}: UseAiStudioEditPanelPropsParams): AiStudioPageContentProps["propertiesImage"] =>
+}: UseAiStudioEditPanelPropsParams): AiStudioEditPanelContract =>
   useMemo(
     () => ({
       aspect,

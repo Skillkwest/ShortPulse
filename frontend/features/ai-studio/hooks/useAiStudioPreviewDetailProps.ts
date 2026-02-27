@@ -3,8 +3,8 @@
  * Centralizes preview text routing and detail action wiring for page orchestration.
  */
 import { useMemo } from "react";
-import type { AiStudioPageContentProps } from "../components/AiStudioPageContent";
 import type { StudioOutput, ToolId } from "../types";
+import type { AiStudioPreviewDetailContracts } from "./contracts/pageContentContracts";
 
 type UseAiStudioPreviewDetailPropsParams = {
   activeOutput: StudioOutput | null;
@@ -43,17 +43,7 @@ export const useAiStudioPreviewDetailProps = ({
   handleDownloadReference,
   savePromptToLibrary,
   handleOpenMediaLibrary,
-}: UseAiStudioPreviewDetailPropsParams): Pick<
-  AiStudioPageContentProps,
-  | "studioPreviewProps"
-  | "detailModalOutput"
-  | "onDetailClose"
-  | "onUpdateOutputPrompt"
-  | "onDeleteOutput"
-  | "onDetailDownload"
-  | "onDetailSavePrompt"
-  | "onOpenMediaLibrary"
-> =>
+}: UseAiStudioPreviewDetailPropsParams): AiStudioPreviewDetailContracts =>
   useMemo(
     () => ({
       studioPreviewProps: {

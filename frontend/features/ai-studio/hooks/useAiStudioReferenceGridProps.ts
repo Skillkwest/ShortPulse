@@ -3,8 +3,8 @@
  * Keeps reference grid action wiring out of the page orchestrator.
  */
 import { useMemo } from "react";
-import type { AiStudioPageContentProps } from "../components/AiStudioPageContent";
 import type { StudioOutput, ToolId } from "../types";
+import type { AiStudioReferenceGridContract } from "./contracts/pageContentContracts";
 
 export type UseAiStudioReferenceGridPropsParams = {
   outputs?: StudioOutput[];
@@ -66,7 +66,7 @@ export const useAiStudioReferenceGridProps = ({
   restoreArchivedOutput,
   restoreAllArchivedOutputs,
   selectedTool,
-}: UseAiStudioReferenceGridPropsParams): AiStudioPageContentProps["referenceGridProps"] =>
+}: UseAiStudioReferenceGridPropsParams): AiStudioReferenceGridContract =>
   useMemo(
     () => ({
       outputs,

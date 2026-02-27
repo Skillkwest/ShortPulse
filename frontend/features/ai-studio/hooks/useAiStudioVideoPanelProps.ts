@@ -4,7 +4,7 @@
  */
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { aspectOptions } from "../constants";
-import type { AiStudioPageContentProps } from "../components/AiStudioPageContent";
+import type { AiStudioVideoPanelContract } from "./contracts/pageContentContracts";
 
 type UseAiStudioVideoPanelPropsParams = {
   aspect: string;
@@ -138,7 +138,7 @@ export const useAiStudioVideoPanelProps = ({
   agentError,
   handleReferencePromptEnhance,
   beginnerMode,
-}: UseAiStudioVideoPanelPropsParams): AiStudioPageContentProps["propertiesVideo"] =>
+}: UseAiStudioVideoPanelPropsParams): AiStudioVideoPanelContract =>
   useMemo(
     () => ({
       aspect,

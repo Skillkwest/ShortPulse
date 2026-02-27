@@ -3,9 +3,9 @@
  * Keeps text/create panel wiring isolated from edit/video workflows.
  */
 import { useMemo, type Dispatch, type DragEvent, type RefObject, type SetStateAction } from "react";
-import type { AiStudioPageContentProps } from "../components/AiStudioPageContent";
 import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
 import type { StudioMode, StudioOutput } from "../types";
+import type { AiStudioCreatePanelContract } from "./contracts/pageContentContracts";
 
 type UseAiStudioCreatePanelPropsParams = {
   mode: StudioMode;
@@ -148,7 +148,7 @@ export const useAiStudioCreatePanelProps = ({
   setImageResolution,
   beginnerMode,
   expertCreateUiEligible,
-}: UseAiStudioCreatePanelPropsParams): AiStudioPageContentProps["propertiesCreate"] =>
+}: UseAiStudioCreatePanelPropsParams): AiStudioCreatePanelContract =>
   useMemo(
     () => ({
       mode,

@@ -32,6 +32,7 @@ import { useAiStudioPageDerivations } from "../features/ai-studio/hooks/useAiStu
 import { useAiStudioPanelProps } from "../features/ai-studio/hooks/useAiStudioPanelProps";
 import { useAiStudioReferenceGridProps } from "../features/ai-studio/hooks/useAiStudioReferenceGridProps";
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
+import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/contracts/pageContentAdapter";
 import { useOutputSelector } from "../features/ai-studio/hooks/aiStudioOutputStore";
 import {
   evaluateReferenceGridAuditGates,
@@ -1272,7 +1273,7 @@ export default function AiStudioPage() {
     setUiError,
   });
 
-  const { propertiesCreate, propertiesImage, propertiesVideo } = useAiStudioPanelProps({
+  const panelProps = useAiStudioPanelProps({
     mode,
     aspect,
     model,
@@ -1375,7 +1376,7 @@ export default function AiStudioPage() {
     handleVideoPromptTextChange,
     handleRegenerateWithDebit,
   });
-  const referenceGridProps = useAiStudioReferenceGridProps({
+  const referenceGridHookProps = useAiStudioReferenceGridProps({
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
     archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
     activeOutputId,
@@ -1399,16 +1400,7 @@ export default function AiStudioPage() {
     restoreAllArchivedOutputs,
     selectedTool,
   });
-  const {
-    studioPreviewProps,
-    detailModalOutput,
-    onDetailClose,
-    onUpdateOutputPrompt,
-    onDeleteOutput,
-    onDetailDownload,
-    onDetailSavePrompt,
-    onOpenMediaLibrary,
-  } = useAiStudioPreviewDetailProps({
+  const previewDetailProps = useAiStudioPreviewDetailProps({
     activeOutput,
     referenceImageUrl,
     selectedTool,
@@ -1424,6 +1416,24 @@ export default function AiStudioPage() {
     handleDownloadReference,
     savePromptToLibrary,
     handleOpenMediaLibrary,
+  });
+  const {
+    propertiesCreate,
+    propertiesImage,
+    propertiesVideo,
+    referenceGridProps,
+    studioPreviewProps,
+    detailModalOutput,
+    onDetailClose,
+    onUpdateOutputPrompt,
+    onDeleteOutput,
+    onDetailDownload,
+    onDetailSavePrompt,
+    onOpenMediaLibrary,
+  } = mapHookContractsToPageContentProps({
+    panelProps,
+    referenceGridProps: referenceGridHookProps,
+    previewDetailProps,
   });
 
   return (

@@ -41,6 +41,22 @@ Remaining:
 1. Slice B: hook contract inversion + targeted hotspot decomposition follow-ups.
 2. Slice C: phase-close docs/evidence signoff once follow-up slices are complete.
 
+## Current Slice B Update (2026-02-27)
+Implemented:
+1. Added hook-owned contracts under `frontend/features/ai-studio/hooks/contracts/` to decouple hook return types from `AiStudioPageContentProps`.
+2. Updated hook return contracts for:
+   - `useAiStudioPanelProps`
+   - `useAiStudioCreatePanelProps`
+   - `useAiStudioEditPanelProps`
+   - `useAiStudioVideoPanelProps`
+   - `useAiStudioReferenceGridProps`
+   - `useAiStudioPreviewDetailProps`
+3. Added a single adapter boundary (`mapHookContractsToPageContentProps`) and routed `pages/ai-studio.tsx` through it before rendering `AiStudioPageContent`.
+
+Remaining:
+1. Slice B decomposition follow-up: extract policy seams from `useAiStudioTaskSubmission` and `useAiStudioTasks`.
+2. Slice C phase-close docs/evidence signoff.
+
 ## Validation Gates
 1. 
 > shortflow@1.0.0 lint

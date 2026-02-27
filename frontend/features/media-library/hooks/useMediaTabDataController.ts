@@ -19,6 +19,7 @@ import {
   mergePageRows,
   normalizeMediaSearchTerm,
   withMediaSearchFilter,
+  withUserScopedPromptQuery,
   withMediaTabFilter,
   type MediaDataTab,
   type MediaTabCache,
@@ -301,12 +302,10 @@ export const useMediaTabDataController = <
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user?.id;
       if (!userId) throw new Error("Not signed in");
-      const promptResponse = await supabase
+      const promptQuery = supabase
         .from("media_prompts")
-        .select("id, title, prompt_text, mode, source, created_at, updated_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .order("id", { ascending: false });
+        .select("id, title, prompt_text, mode, source, created_at, updated_at");
+      const promptResponse = await withUserScopedPromptQuery(promptQuery, userId);
       if (promptResponse.error) throw promptResponse.error;
       setPrompts((promptResponse.data ?? []) as TPrompt[]);
       setPromptsLoaded(true);

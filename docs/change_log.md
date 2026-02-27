@@ -1557,3 +1557,21 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/features/media-library/hooks/__tests__/useMediaUploadController.test.ts` now covers API mode and legacy fallback mode.
 - Added phase evidence artifact:
   - `docs/planning/evidence/unified-buildout/phase-05/2026-02-27-phase-05-slice-c-media-upload-hook-migration.md`.
+
+## 2026-02-27 (unified buildout phase-05 slice-d shared query model + modal prompt scope)
+- Added shared media query model module:
+  - `frontend/features/media-library/logic/mediaQueryModel.ts` centralizes tab filters, search clause building, and user-scoped prompt query construction.
+- Migrated duplicate query logic to the shared model in:
+  - `frontend/features/media-library/logic/mediaLibraryPageHelpers.ts`,
+  - `frontend/features/ai-studio/logic/mediaLibraryModalModel.ts`,
+  - `frontend/features/media-library/hooks/useMediaTabDataController.ts`.
+- Fixed AI Studio media modal prompt scope drift:
+  - `frontend/features/ai-studio/components/MediaLibraryModal.tsx` now applies explicit `.eq('user_id', userId)` via shared query builder.
+- Added/updated tests:
+  - `frontend/features/media-library/logic/__tests__/mediaQueryModel.test.ts`,
+  - `frontend/features/ai-studio/components/__tests__/MediaLibraryModal.test.tsx`.
+- Updated unified phase docs/evidence tracking:
+  - `docs/planning/shortpulse-unified-buildout-tracker.md`,
+  - `docs/planning/stages/unified-phase-05-media-library-security-first-hardening.md`,
+  - `docs/planning/evidence/unified-buildout/phase-05/README.md`,
+  - `docs/planning/evidence/unified-buildout/phase-05/2026-02-27-phase-05-slice-d-shared-query-model-and-modal-scope.md`.

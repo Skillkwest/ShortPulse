@@ -2,6 +2,13 @@ import {
   resolveMediaPreviewSignBudget,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
+import {
+  buildMediaSearchOrClause as buildMediaSearchOrClauseShared,
+  normalizeMediaSearchTerm as normalizeMediaSearchTermShared,
+  withMediaSearchFilter as withMediaSearchFilterShared,
+  withMediaTabFilter as withMediaTabFilterShared,
+  withUserScopedPromptQuery as withUserScopedPromptQueryShared,
+} from "../../media-library/logic/mediaQueryModel";
 
 export type MediaFileRow = {
   id: string;
@@ -179,34 +186,18 @@ export const withMediaTabFilter = <
 >(
   query: T,
   tab: MediaDataTab
-): T => {
-  if (tab === "private") return query.eq("source", PRIVATE_MEDIA_SOURCE);
-  if (tab === "ai_generations") return query.eq("source", "ai_studio");
-  if (tab === "uploaded_videos") return query.eq("source", "upload").ilike("file_type", "video%");
-  return query.eq("source", "upload").ilike("file_type", "image%");
-};
+): T => withMediaTabFilterShared(query, tab, { privateMediaSource: PRIVATE_MEDIA_SOURCE });
 
-export const normalizeMediaSearchTerm = (value: string): string =>
-  value
-    .trim()
-    .replace(/[,%*()]/g, " ")
-    .replace(/\s+/g, " ");
+export const normalizeMediaSearchTerm = normalizeMediaSearchTermShared;
 
-export const buildMediaSearchOrClause = (value: string): string | null => {
-  const normalized = normalizeMediaSearchTerm(value);
-  if (!normalized) return null;
-  const wildcard = `*${normalized}*`;
-  return `filename.ilike.${wildcard},storage_path.ilike.${wildcard}`;
-};
+export const buildMediaSearchOrClause = buildMediaSearchOrClauseShared;
 
 export const withMediaSearchFilter = <T extends { or: (clause: string) => T }>(
   query: T,
   rawSearchTerm: string
-): T => {
-  const clause = buildMediaSearchOrClause(rawSearchTerm);
-  if (!clause) return query;
-  return query.or(clause);
-};
+): T => withMediaSearchFilterShared(query, rawSearchTerm);
+
+export const withUserScopedPromptQuery = withUserScopedPromptQueryShared;
 
 export const buildCursorFromRows = <T extends { id?: string | null; created_at?: string | null }>(
   rows: T[]

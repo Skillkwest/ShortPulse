@@ -6,6 +6,12 @@ import {
   resolveMediaPreviewSignBudget,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
+import {
+  normalizeMediaSearchTerm as normalizeMediaSearchTermShared,
+  withMediaSearchFilter as withMediaSearchFilterShared,
+  withMediaTabFilter as withMediaTabFilterShared,
+  withUserScopedPromptQuery as withUserScopedPromptQueryShared,
+} from "./mediaQueryModel";
 export type { MediaSignBudget } from "../../../lib/mediaPreviewRuntimePolicy";
 
 export const BUCKET = "media_library";
@@ -137,35 +143,16 @@ export const withMediaTabFilter = <
 >(
   query: T,
   tab: MediaDataTab
-): T => {
-  if (tab === "private") return query.eq("source", PRIVATE_MEDIA_SOURCE);
-  if (tab === "ai_generations") return query.eq("source", "ai_studio");
-  if (tab === "uploaded_videos") return query.eq("source", "upload").ilike("file_type", "video%");
-  return query.eq("source", "upload").ilike("file_type", "image%");
-};
+): T => withMediaTabFilterShared(query, tab, { privateMediaSource: PRIVATE_MEDIA_SOURCE });
 
-export const normalizeMediaSearchTerm = (value: string): string =>
-  value
-    .trim()
-    .replace(/[,%*()]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const buildMediaSearchOrClause = (value: string): string | null => {
-  const normalized = normalizeMediaSearchTerm(value);
-  if (!normalized) return null;
-  const wildcard = `*${normalized}*`;
-  return `filename.ilike.${wildcard},storage_path.ilike.${wildcard}`;
-};
+export const normalizeMediaSearchTerm = normalizeMediaSearchTermShared;
 
 export const withMediaSearchFilter = <T extends { or: (clause: string) => T }>(
   query: T,
   rawSearchTerm: string
-): T => {
-  const clause = buildMediaSearchOrClause(rawSearchTerm);
-  if (!clause) return query;
-  return query.or(clause);
-};
+): T => withMediaSearchFilterShared(query, rawSearchTerm);
+
+export const withUserScopedPromptQuery = withUserScopedPromptQueryShared;
 
 export const buildCursorFromRows = <T extends { id?: string | null; created_at?: string | null }>(
   rows: T[]

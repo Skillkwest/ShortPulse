@@ -18,7 +18,15 @@ Owner: Engineering
    - `frontend/features/media-library/hooks/useMediaUploadController.ts`
    - `frontend/features/media-library/hooks/__tests__/useMediaUploadController.test.ts`
    - migration is rollout-gated by `NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED` with legacy direct-upload fallback retained for rollback.
-4. Full Phase 05 entry/closure remains blocked until Phase 04 canary signoff is complete.
+4. Slice D shared query model + modal scope fix landed as pre-entry prep on 2026-02-27:
+   - `frontend/features/media-library/logic/mediaQueryModel.ts`
+   - `frontend/features/media-library/logic/mediaLibraryPageHelpers.ts`
+   - `frontend/features/ai-studio/logic/mediaLibraryModalModel.ts`
+   - `frontend/features/media-library/hooks/useMediaTabDataController.ts`
+   - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+   - `frontend/features/media-library/logic/__tests__/mediaQueryModel.test.ts`
+   - `frontend/features/ai-studio/components/__tests__/MediaLibraryModal.test.tsx`
+5. Full Phase 05 entry/closure remains blocked until Phase 04 canary signoff is complete.
 
 ## Objective
 Harden Media Library upload and preview trust boundaries with server-authoritative persistence, strict direct-preview trust rules, and unified scoped query behavior.

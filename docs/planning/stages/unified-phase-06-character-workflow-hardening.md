@@ -46,6 +46,10 @@ Implemented:
 2. Updated Character Manager Manage tab to use progressive list reveal (`50` default, `+25` expansion, `show all`) for large character libraries.
 3. Added domain tests covering threshold scenarios (`10`, `20`, `30`, `50`, `100`) and selected-item visibility behavior.
 4. Added integration test covering progressive reveal behavior in the Character Manager Manage surface.
+5. Added fail-closed submission refresh guard in Character Mode controller:
+   - if selected character is no longer available (deleted/archived), cached bundle is cleared and not reused for submission,
+   - transient refresh failures can still reuse current bundle for continuity.
+6. Added controller tests for unavailable-character and mismatched-snapshot guard paths.
 
 Remaining:
 1. Slice C full phase-close docs/evidence signoff and rollback finalization.

@@ -38,6 +38,9 @@ Define the operational contract for the `/character` Character Manager surface, 
    - `0-50` characters: full-list smooth rendering target.
    - `51-100` characters: progressive rendering mode (`show 50` by default, `+25` expansion steps, optional `show all`).
    - Selected character remains visible when list is windowed.
+9. Character Mode stale-selection safety:
+   - Submit-time character bundle refresh must fail closed when selected character is no longer available.
+   - Cached bundle reuse is allowed only for transient refresh failures.
 
 ## Architecture Map
 - Shell/UI orchestration: `frontend/features/character-manager/components/CharacterManagerShell.tsx`
@@ -114,6 +117,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Preset uploads do not consume QuickSwap Deck capacity.
 - Creating/switching/deleting characters preserves expected per-character state.
 - Manage Characters list stays smooth through `<=50` entries and supports progressive reveal behavior for larger libraries.
+- If selected character is deleted/archived, Character Mode submit path does not reuse stale cached bundle injection.
 
 ## Change Management Rules
 - Any change to `/character` behavior must update:

@@ -341,6 +341,72 @@ describe("useAiStudioCharacterModeController", () => {
     );
   });
 
+  it("does not reuse stale bundle when selected character is no longer available", async () => {
+    const setCharacterModeInjectionBundle = vi.fn();
+    const trackCharacterModeEvent = vi.fn();
+    const currentBundle: CharacterModeInjectionBundle = {
+      characterId: "char-1",
+      characterDescription: "Cached description",
+      sheetReferenceStoragePaths: ["user/chars/ref.png"],
+      sheetReferenceUrls: ["https://example.com/cached.png"],
+      loadedAtMs: Date.now(),
+    };
+    loadCharacterManagerDraftByCharacterIdMock.mockRejectedValueOnce(
+      new Error("Character is no longer available.")
+    );
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      characterModeInjectionBundle: currentBundle,
+      trackCharacterModeEvent,
+      setCharacterModeInjectionBundle: asDispatch<CharacterModeInjectionBundle | null>(
+        setCharacterModeInjectionBundle
+      ),
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const refreshed =
+      await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
+
+    expect(refreshed).toBeNull();
+    expect(setCharacterModeInjectionBundle).toHaveBeenCalledWith(null);
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+      "character_mode_bundle_refresh_failed",
+      expect.objectContaining({
+        selected_character_id: "char-1",
+        error: "Character is no longer available.",
+      })
+    );
+  });
+
+  it("does not reuse stale bundle when refreshed snapshot id mismatches selected character", async () => {
+    const setCharacterModeInjectionBundle = vi.fn();
+    const currentBundle: CharacterModeInjectionBundle = {
+      characterId: "char-1",
+      characterDescription: "Cached description",
+      sheetReferenceStoragePaths: ["user/chars/ref.png"],
+      sheetReferenceUrls: ["https://example.com/cached.png"],
+      loadedAtMs: Date.now(),
+    };
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValueOnce({
+      ...createSnapshotWithPresetReference(),
+      characterId: "char-2",
+    });
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      characterModeInjectionBundle: currentBundle,
+      setCharacterModeInjectionBundle: asDispatch<CharacterModeInjectionBundle | null>(
+        setCharacterModeInjectionBundle
+      ),
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const refreshed =
+      await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
+
+    expect(refreshed).toBeNull();
+    expect(setCharacterModeInjectionBundle).toHaveBeenCalledWith(null);
+  });
+
   it("treats explicit null bundle override as unavailable (does not reuse cached bundle)", () => {
     const params = createParams({
       selectedCharacterId: "char-1",

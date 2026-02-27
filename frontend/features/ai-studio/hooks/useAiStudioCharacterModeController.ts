@@ -20,6 +20,15 @@ const MEDIA_BUCKET = "media_library";
 const CHARACTER_MODE_TELEMETRY_SOURCE = "telemetry.character_mode";
 const TELEMETRY_FALLBACK_CODES: CharacterModeFallbackCode[] = ["bundle_unavailable"];
 
+const isCharacterUnavailableError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  const normalized = error.message.trim().toLowerCase();
+  return (
+    normalized.includes("character is no longer available") ||
+    normalized.includes("character not found")
+  );
+};
+
 export type CharacterModeInjectionBundle = {
   characterId: string;
   characterDescription: string;
@@ -193,16 +202,12 @@ export const useAiStudioCharacterModeController = ({
           await loadCharacterManagerDraftByCharacterId(selectedCharacterId)
         );
         if (!baseBundle || baseBundle.characterId !== selectedCharacterId) {
-          if (currentBundle?.characterId === selectedCharacterId) {
-            return currentBundle;
-          }
+          setCharacterModeInjectionBundle(null);
           return null;
         }
         const refreshedBundle = await refreshBundleReferenceUrlsForSubmission(baseBundle);
         if (!refreshedBundle) {
-          if (currentBundle?.characterId === selectedCharacterId) {
-            return currentBundle;
-          }
+          setCharacterModeInjectionBundle(null);
           return null;
         }
         setCharacterModeInjectionBundle(refreshedBundle);
@@ -213,6 +218,10 @@ export const useAiStudioCharacterModeController = ({
           error:
             error instanceof Error && error.message.trim().length ? error.message : "unknown_error",
         });
+        if (isCharacterUnavailableError(error)) {
+          setCharacterModeInjectionBundle(null);
+          return null;
+        }
         if (currentBundle?.characterId === selectedCharacterId) {
           return currentBundle;
         }

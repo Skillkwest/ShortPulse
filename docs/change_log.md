@@ -1528,3 +1528,22 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/deployment.md`.
 - Added phase evidence artifact:
   - `docs/planning/evidence/unified-buildout/phase-05/2026-02-27-phase-05-slice-a-media-preview-trust-policy.md`.
+
+## 2026-02-27 (unified buildout phase-05 slice-b media upload service route)
+- Added server-authoritative Media Library upload service `frontend/lib/server/mediaUploadService.ts` with:
+  - multipart/raw parsing,
+  - destination tab validation (`uploaded_images`, `uploaded_videos`, `private`),
+  - magic-byte MIME detection + declared MIME compatibility checks,
+  - destination-specific size/type enforcement,
+  - scoped storage path generation + storage upload + `media_files` insert + signed preview URL response mapping.
+- Added authenticated upload route `POST /api/media/upload` in `frontend/pages/api/media/upload.ts` with rollout flag gate `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED`.
+- Added targeted route coverage in `frontend/tests/api/media-upload.route.test.ts`.
+- Updated documentation for the new route + env controls:
+  - `README.md`,
+  - `docs/api/api-internal-routes.md`,
+  - `docs/security-checklist.md`,
+  - `docs/deployment.md`,
+  - `docs/sops/sop_media_library_ui.md`,
+  - `frontend/.env.example`.
+- Added phase evidence artifact:
+  - `docs/planning/evidence/unified-buildout/phase-05/2026-02-27-phase-05-slice-b-media-upload-service-route.md`.

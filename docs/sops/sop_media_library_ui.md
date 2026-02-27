@@ -56,6 +56,7 @@ Keep the Media Library page visually aligned with Saved Creators and dashboard c
 ## Implementation Pointers
 - Page: `frontend/pages/media-library.tsx` controls header chips and media-panel classes.
 - Styles: `frontend/styles/workspace-media.css` (upload spacing, media-panel, upgrade hover), `frontend/styles/workspace-dashboard.css` (body background override), `frontend/styles/workspace-chrome.css` (header-stat hover).
+- Server-authoritative upload path (Phase 05): `frontend/pages/api/media/upload.ts` + `frontend/lib/server/mediaUploadService.ts` (flagged by `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED`).
 
 ## Performance Behavior Contract
 - Data loading:

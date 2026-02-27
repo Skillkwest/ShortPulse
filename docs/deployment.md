@@ -61,6 +61,8 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (defaults to `false`)
   - `NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (optional client-side trusted direct-preview hosts; keep aligned with server value)
   - `NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (defaults to `false`; keep aligned with server value)
+  - `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; server-authoritative Media Library upload route gate)
+  - `NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; client upload-controller migration gate)
   - `OPENAI_PROMPT_SYSTEM`
   - `SHORTPULSE_FAL_INTEGRATION_MODE` (`legacy|shadow|on`)
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST` (comma-separated model IDs or prefixes like `fal-ai/bytedance/*`)

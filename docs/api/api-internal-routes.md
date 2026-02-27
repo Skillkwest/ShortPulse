@@ -16,6 +16,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/upload-image` | `POST` multipart | Bearer (proxy + route) | Upload images to private `media_library`; return signed URLs. | `frontend/pages/api/upload-image.ts` |
 | `/api/upload-video` | `POST` multipart | Bearer (proxy + route) | Upload motion-control videos to private `media_library`; return signed URLs. | `frontend/pages/api/upload-video.ts` |
 | `/api/media/sign-batch` | `POST` | Bearer (proxy + route) | Batch-sign user-scoped media paths for list/grid previews. | `frontend/pages/api/media/sign-batch.ts` |
+| `/api/media/upload` | `POST` multipart/raw | Bearer (proxy + route) | Server-authoritative Media Library upload path. Validates destination + file signature, stores scoped object, inserts `media_files`, and returns signed preview metadata. | `frontend/pages/api/media/upload.ts`, `frontend/lib/server/mediaUploadService.ts` |
 | `/api/media/move` | `POST` | Bearer (proxy + route) | Move a media file between tabs by updating storage path + `media_files` source/path (used by modal move and gallery bulk-move loops). | `frontend/pages/api/media/move.ts` |
 | `/api/media/move-batch` | `POST` | Bearer (proxy + route) | Move multiple media files in one request with per-file success/failure summary. | `frontend/pages/api/media/move-batch.ts` |
 | `/api/media/resolve-previews` | `POST` | Bearer (proxy + route) | Resolve media preview URLs in bulk (signed-url hydration + trusted-host, user-scoped direct URL fallback for legacy records). | `frontend/pages/api/media/resolve-previews.ts`, `frontend/lib/mediaPreviewPath.ts`, `frontend/lib/mediaPreviewTrustPolicy.ts` |
@@ -76,6 +77,9 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (`false` by default; when `true`, allowlisted external direct preview hosts are allowed)
   - `NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (client-side trusted hosts for optimizer decisions)
   - `NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (`false` by default; mirror server value)
+- Media upload rollout flags:
+  - `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED` (`true` by default; disables `/api/media/upload` when `false`)
+  - `NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED` (client migration gate for `useMediaUploadController` rollout)
 - OpenAI runtime mode flags:
   - `SHORTPULSE_OPENAI_RESPONSES_ENABLED`
   - `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED`

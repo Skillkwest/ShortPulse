@@ -10,7 +10,11 @@ Owner: Engineering
    - `frontend/lib/adaptive-media/resolver.ts`
    - `frontend/features/ai-studio/logic/referenceGridMedia.ts`
    - `frontend/next.config.js`
-2. Full Phase 05 entry/closure remains blocked until Phase 04 canary signoff is complete.
+2. Slice B server-authoritative upload route landed as pre-entry prep on 2026-02-27:
+   - `frontend/lib/server/mediaUploadService.ts`
+   - `frontend/pages/api/media/upload.ts`
+   - `frontend/tests/api/media-upload.route.test.ts`
+3. Full Phase 05 entry/closure remains blocked until Phase 04 canary signoff is complete.
 
 ## Objective
 Harden Media Library upload and preview trust boundaries with server-authoritative persistence, strict direct-preview trust rules, and unified scoped query behavior.

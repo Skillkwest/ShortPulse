@@ -1608,3 +1608,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated:
   - `docs/planning/evidence/unified-buildout/phase-04/2026-02-27-fal-queue-status-read-only-canary-readiness.md`,
   - `docs/planning/evidence/unified-buildout/phase-04/2026-02-27-fal-queue-status-read-only-canary-execution-log-template.md`.
+
+## 2026-02-27 (unified buildout phase-04 canary execution attempt blocked)
+- Attempted to run Phase 04 canary latency capture from current shell and recorded explicit blocker evidence.
+- Blocker: required staging execution env/auth variables were unset (`SHORTPULSE_STAGING_BASE_URL`/`APP_BASE_URL` and related auth inputs).
+- Added evidence artifact:
+  - `docs/planning/evidence/unified-buildout/phase-04/2026-02-27-fal-queue-status-read-only-canary-execution-blocked-missing-env.md`.
+- Updated phase-04 evidence index and tracker note to reflect blocked state and next required action.

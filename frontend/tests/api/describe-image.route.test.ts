@@ -34,7 +34,7 @@ describe("POST /api/ai/describe-image", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://demo.supabase.co";
     delete process.env.OPENAI_VISION_MODEL;
     delete process.env.OPENAI_VISION_FALLBACK_MODEL;
-    delete process.env.OPENAI_DESCRIBE_ALLOWED_HOSTS;
+    process.env.OPENAI_DESCRIBE_ALLOWED_HOSTS = "example.com";
     delete process.env.OPENAI_DESCRIBE_REQUIRE_ALLOWED_HOSTS;
     delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
     delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
@@ -306,6 +306,27 @@ describe("POST /api/ai/describe-image", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         error: "Image URL host is not allowed.",
+      })
+    );
+  });
+
+  it("fails closed for non-allowlisted external hosts when allowlist is empty", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    delete process.env.OPENAI_DESCRIBE_ALLOWED_HOSTS;
+
+    const req = {
+      method: "POST",
+      body: { imageUrl: "https://external.example.net/disallowed.png" },
+    };
+    const res = createMockResponse();
+
+    await describeImageHandler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Image URL host is not in the trusted allowlist.",
       })
     );
   });

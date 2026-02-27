@@ -40,7 +40,7 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 
 1. `OPENAI_API_KEY` must be set at runtime for both endpoints.
 2. `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, and `OPENAI_VISION_FALLBACK_MODEL` default to `gpt-5-nano`.
-3. Optional hardening envs: `OPENAI_DESCRIBE_ALLOWED_HOSTS` and `OPENAI_DESCRIBE_REQUIRE_ALLOWED_HOSTS`.
+3. Trusted-host env: `OPENAI_DESCRIBE_ALLOWED_HOSTS` (comma-separated); non-allowlisted external hosts are fail-closed by default.
 4. Emergency overrides: `OPENAI_PROMPT_SYSTEM` and `OPENAI_PROMPT_IMAGE_DESCRIBE` can be defined in env vars when immediate changes are required without touching source code.
 
 ## Text prompt refinement workflow
@@ -62,7 +62,7 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 1. POST `/api/ai/describe-image` expects `{ imageUrl: string }`.
 2. Handler validates HTTP method and ensures non-empty `imageUrl`.
 3. Loads system prompt via `loadAgentPrompt("OPENAI_PROMPT_IMAGE_DESCRIBE")`.
-4. Preflights the URL server-side (HTTPS required, private-network hosts blocked, DNS private-IP resolution blocked, redirect chain validation, optional host allowlist).
+4. Preflights the URL server-side (HTTPS required, private-network hosts blocked, DNS private-IP resolution blocked, redirect chain validation, and trusted-host allowlist enforcement).
 5. Calls OpenAI chat completion with the `visionModel` (default `gpt-5-nano`) and one user message combining text plus image payload.
 6. On model-capability 400s, retries once with `OPENAI_VISION_FALLBACK_MODEL` when configured/available.
 7. Parses `"choices[0].message.content"` into `description` and returns `{ description, usage }`.
@@ -86,7 +86,7 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 ## Error handling & observability
 
 - Missing API key, undefined system prompt, or empty user prompt triggers a clear HTTP 500/400 with descriptive text so the UI can show a modal or banner explaining what went wrong.
-- Upstream OpenAI failures propagate the raw response text for debugging, and the UI surfaces a winning message (“Text generation failed” or “Image describer failed”) in a visually prominent toast or error panel.
+- Upstream/transport failures are logged server-side; public error payloads avoid leaking internal transport details while the UI still surfaces clear failure messaging.
 - `502` is used when the OpenAI response is technically successful but missing a body, making it easy to differentiate from upstream HTTP errors.
 - Usage tokens (`prompt_tokens`, `completion_tokens`) are recorded to help monitor cost spikes; surface them in logs or the UI as needed so the error state can show “Request used X tokens” if desired.
 
@@ -95,7 +95,7 @@ See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and l
 1. Confirm the system prompt is present by checking `frontend/lib/agentPromptsConfig.ts` or, in emergencies, the env override (`OPENAI_PROMPT_SYSTEM`/`OPENAI_PROMPT_IMAGE_DESCRIBE`); avoid relying on duplicate markdown copies.
 2. Validate request payloads via browser DevTools/network or API tests (verify `prompt` or `imageUrl` is present).
 3. Inspect deploy logs for upstream errors and note the `model` field returned in error responses.
-4. For image describe failures, ensure the URL is HTTPS, reachable, not private-network scoped, and (if configured) present in the allowlist.
+4. For image describe failures, ensure the URL is HTTPS, reachable, not private-network scoped, and explicitly present in `OPENAI_DESCRIBE_ALLOWED_HOSTS` (Supabase host is auto-trusted).
 
 ## Follow-up responsibilities
 

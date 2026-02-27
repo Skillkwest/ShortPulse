@@ -1638,3 +1638,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/tests/api/stripe-webhook.test.ts`,
   - `frontend/tests/api/fal-webhook-route.test.ts`.
 - Updated security/API/phase tracking docs and Phase 10 evidence artifacts.
+
+## 2026-02-27 (unified buildout phase-10 slice-b describe-image fail-closed host trust)
+- Hardened `/api/ai/describe-image` host trust policy to fail closed for non-allowlisted external hosts by default (Supabase host remains auto-trusted).
+- Added explicit route coverage for empty-allowlist fail-closed behavior in `frontend/tests/api/describe-image.route.test.ts`.
+- Tightened describe-image `5xx` error payloads to avoid returning internal transport details to clients while preserving server-side error logging.
+- Updated deployment/API/SOP/security docs and env template to align with the trusted-host contract.

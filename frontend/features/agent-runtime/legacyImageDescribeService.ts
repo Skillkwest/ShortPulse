@@ -265,7 +265,11 @@ export const executeLegacyImageDescribe = async ({
       return {
         ok: false,
         status: describeAttempt.status,
-        payload: { error: "Upstream error", detail, model: modelUsed },
+        payload: {
+          error: "Upstream error",
+          ...(describeAttempt.status < 500 && detail ? { detail } : {}),
+          ...(describeAttempt.status < 500 && modelUsed ? { model: modelUsed } : {}),
+        },
       };
     }
 
@@ -379,7 +383,7 @@ export const executeLegacyImageDescribe = async ({
     return {
       ok: false,
       status: 500,
-      payload: { error: "Image description failed", detail },
+      payload: { error: "Image description failed" },
     };
   }
 };

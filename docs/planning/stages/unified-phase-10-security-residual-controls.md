@@ -27,8 +27,10 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Added explicit `413` responses for oversized webhook payloads.
 - Sanitized webhook `500` responses so internal transport/database errors are not returned to callers.
 - Added focused webhook route tests for size-cap and sanitized-failure behavior.
-2. Slice B next:
-- Expand residual security test coverage around additional high-risk endpoint error-surface contracts.
+2. Slice B complete:
+- Added fail-closed trusted-host behavior for `/api/ai/describe-image` when external hosts are not explicitly allowlisted.
+- Hardened describe-image error payloads to avoid returning transport/internal detail on `5xx` paths.
+- Expanded describe-image route tests with explicit fail-closed external-host coverage.
 3. Slice C in progress:
 - Phase docs/tracker/evidence updates in progress.
 - Awaiting human checkpoint before phase status promotion.
@@ -162,6 +164,7 @@ Naming canonical drift checks passed.
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:
 - `docs/planning/evidence/unified-buildout/phase-10/2026-02-27-phase-10-slice-a-webhook-body-cap-and-safe-errors.md`
+- `docs/planning/evidence/unified-buildout/phase-10/2026-02-27-phase-10-slice-b-describe-image-fail-closed-host-trust.md`
 
 ## Required Docs Updates
 1. Update phase status.

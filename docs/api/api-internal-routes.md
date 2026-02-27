@@ -11,7 +11,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | Route family | Methods | Auth | Purpose | Source of truth |
 | --- | --- | --- | --- | --- |
 | `/api/ai/generate-prompt` | `POST` | Bearer (proxy) | Refine prompts with OpenAI chat completions. | `frontend/pages/api/ai/generate-prompt.ts`, `docs/sops/sop_text_generation.md` |
-| `/api/ai/describe-image` | `POST` | Bearer (proxy) | Describe reference images with OpenAI vision. | `frontend/pages/api/ai/describe-image.ts`, `docs/sops/sop_text_generation.md` |
+| `/api/ai/describe-image` | `POST` | Bearer (proxy) | Describe reference images with OpenAI vision, including fail-closed trusted-host preflight (non-allowlisted external hosts are rejected). | `frontend/pages/api/ai/describe-image.ts`, `docs/sops/sop_text_generation.md` |
 | `/api/ai/studio-agent` | `POST` | Bearer (proxy) | AI Studio chat agent orchestration with flow-aware routing, server vision summaries, and structured actions (`applyPrompt`, `variations`, `describeTargets`, `referenceCard`; no question actions). | `frontend/pages/api/ai/studio-agent.ts`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_agent_chat_ops.md` |
 | `/api/upload-image` | `POST` multipart | Bearer (proxy + route) | Upload images to private `media_library`; return signed URLs. | `frontend/pages/api/upload-image.ts` |
 | `/api/upload-video` | `POST` multipart | Bearer (proxy + route) | Upload motion-control videos to private `media_library`; return signed URLs. | `frontend/pages/api/upload-video.ts` |
@@ -71,7 +71,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 ## Required server environment
 - Supabase: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 - Fal: `FAL_KEY`.
-- OpenAI: `OPENAI_API_KEY`, optional `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_VISION_FALLBACK_MODEL`, `OPENAI_API_BASE`, `OPENAI_DESCRIBE_ALLOWED_HOSTS`, `OPENAI_DESCRIBE_REQUIRE_ALLOWED_HOSTS`.
+- OpenAI: `OPENAI_API_KEY`, optional `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_VISION_FALLBACK_MODEL`, `OPENAI_API_BASE`, `OPENAI_DESCRIBE_ALLOWED_HOSTS` (describe-image trusted-host allowlist; external hosts fail closed by default).
 - Media preview trust policy:
   - `SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (server-side comma-separated trusted hosts)
   - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (`false` by default; when `true`, allowlisted external direct preview hosts are allowed)

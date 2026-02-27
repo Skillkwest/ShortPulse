@@ -42,9 +42,6 @@ const isImageContentType = (value: string | null): boolean => {
   return normalized.includes("image/") || normalized.includes("application/octet-stream");
 };
 
-const parseBooleanEnv = (value: string | undefined): boolean =>
-  /^(1|true|yes|on)$/i.test((value ?? "").trim());
-
 const normalizeHostname = (value: string): string => value.trim().toLowerCase().replace(/\.$/, "");
 
 const parseAllowedHostList = (value: string | undefined): string[] =>
@@ -84,9 +81,9 @@ const buildHostTrustPolicy = (): HostTrustPolicy => {
   const allowedHosts = Array.from(
     new Set([...(supabaseHost ? [supabaseHost] : []), ...configuredHosts])
   );
-  const enforceAllowedHosts =
-    parseBooleanEnv(process.env.OPENAI_DESCRIBE_REQUIRE_ALLOWED_HOSTS) ||
-    configuredHosts.length > 0;
+  // Security default: describe-image runs fail-closed for non-allowlisted hosts.
+  // Supabase host is auto-trusted to preserve signed-media describe flows.
+  const enforceAllowedHosts = true;
   return {
     enforceAllowedHosts,
     allowedHosts,

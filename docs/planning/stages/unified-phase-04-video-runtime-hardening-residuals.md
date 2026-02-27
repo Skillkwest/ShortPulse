@@ -11,17 +11,18 @@ Harden Fal video runtime outbound trust boundaries so provider auth headers are 
 2. Enforce trusted-host checks on submit targets before outbound auth-bearing requests.
 3. Enforce trusted-host checks on status/result/response probe paths.
 4. Enforce trusted queue-base validation in Fal status route orchestration.
-5. Add targeted trust-policy tests and phase evidence updates.
+5. Add queue-status read-only rollout control with explicit rollback flag.
+6. Add targeted trust-policy and queue-status mode tests with phase evidence updates.
 
 ## Out of Scope
-1. Queue-status read-only rollout (separate Phase 04 slice).
-2. Provider migration (Kie) trust policy.
-3. Broad networking/infrastructure changes.
+1. Provider migration (Kie) trust policy.
+2. Broad networking/infrastructure changes.
 
 ## Implementation Slices
 1. Slice A: `providerTrustPolicy` module + integration in submit/probe runtime paths.
 2. Slice B: targeted tests for trusted/untrusted URL behavior.
 3. Slice C: docs/evidence/tracker updates and phase gate validation.
+4. Slice D: `/api/fal/queue-status` read-only rollout flag + tests + docs/runbook updates.
 
 ## Validation Gates
 1. `npm -C frontend run test -- statusProxyRuntime submitEngine providerTrustPolicy recoveryProviderProbe fal-status-proxy fal-status.auth-context fal-status.ownership`
@@ -34,13 +35,15 @@ Harden Fal video runtime outbound trust boundaries so provider auth headers are 
 1. `docs/planning/shortpulse-unified-buildout-tracker.md`
 2. `docs/planning/evidence/unified-buildout/phase-04/*`
 3. `docs/sops/sop_provider_incident_response.md` (trust-policy diagnostics)
-4. `docs/change_log.md`
+4. `docs/api/api-internal-routes.md` and `frontend/.env.example` (queue-status rollout control)
+5. `docs/change_log.md`
 
 ## Exit Criteria
 1. Outbound Fal auth-bearing requests reject untrusted targets.
 2. Status/recovery response probing skips or blocks untrusted URLs by policy.
 3. Fal status route fails closed when queue-base config is untrusted.
-4. Validation gates are green and phase evidence is committed.
+4. Queue-status route supports read-only mode (`SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=false`) without changing response contract.
+5. Validation gates are green and phase evidence is committed.
 
 ## Rollback Plan
 1. Revert the Phase 04 trust-policy slice commit.

@@ -19,6 +19,7 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE;
     delete process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED;
     delete process.env.SHORTPULSE_FAL_QUEUE_ENABLED;
+    delete process.env.SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED;
     delete process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER;
     delete process.env.SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE;
     delete process.env.SHORTPULSE_FAL_QUEUE_LEASE_SECONDS;
@@ -42,6 +43,7 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.reservationCleanupBatchSize).toBe(200);
     expect(flags.admissionAtomicEnabled).toBe(false);
     expect(flags.queueEnabled).toBe(false);
+    expect(flags.queueStatusDispatchKickEnabled).toBe(true);
     expect(flags.queueMaxPerUser).toBe(20);
     expect(flags.queueDispatchBatchSize).toBe(25);
     expect(flags.queueLeaseSeconds).toBe(30);
@@ -61,6 +63,7 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE = "350";
     process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED = "true";
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
+    process.env.SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED = "false";
     process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER = "40";
     process.env.SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE = "11";
     process.env.SHORTPULSE_FAL_QUEUE_LEASE_SECONDS = "45";
@@ -84,6 +87,7 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.reservationCleanupBatchSize).toBe(350);
     expect(flags.admissionAtomicEnabled).toBe(true);
     expect(flags.queueEnabled).toBe(true);
+    expect(flags.queueStatusDispatchKickEnabled).toBe(false);
     expect(flags.queueMaxPerUser).toBe(40);
     expect(flags.queueDispatchBatchSize).toBe(11);
     expect(flags.queueLeaseSeconds).toBe(45);

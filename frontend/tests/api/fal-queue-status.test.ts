@@ -45,6 +45,7 @@ describe("GET /api/fal/queue-status", () => {
     });
     readFalRuntimeFlagsMock.mockReturnValue({
       queueEnabled: true,
+      queueStatusDispatchKickEnabled: true,
     });
     dispatchGenerationSubmitQueueBatchMock.mockResolvedValue({
       claimed: 0,
@@ -80,6 +81,13 @@ describe("GET /api/fal/queue-status", () => {
         routeLabel: "api/fal/queue-status",
       })
     );
+    expect(dispatchGenerationSubmitQueueBatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "api/fal/queue-status",
+        userId: "user-1",
+        limit: 1,
+      })
+    );
     expect(readGenerationQueueStatusMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
@@ -92,6 +100,31 @@ describe("GET /api/fal/queue-status", () => {
         status: "queued",
       })
     );
+  });
+
+  it("returns 200 in read-only mode without dispatch kick side effects", async () => {
+    readFalRuntimeFlagsMock.mockReturnValue({
+      queueEnabled: true,
+      queueStatusDispatchKickEnabled: false,
+    });
+    const req = {
+      method: "GET",
+      query: { sourceRef: "src-1" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).not.toHaveBeenCalled();
+    expect(readGenerationQueueStatusMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        sourceRef: "src-1",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("returns 500 when queue status read fails", async () => {

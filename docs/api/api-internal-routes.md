@@ -19,7 +19,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/media/move` | `POST` | Bearer (proxy + route) | Move a media file between tabs by updating storage path + `media_files` source/path (used by modal move and gallery bulk-move loops). | `frontend/pages/api/media/move.ts` |
 | `/api/media/move-batch` | `POST` | Bearer (proxy + route) | Move multiple media files in one request with per-file success/failure summary. | `frontend/pages/api/media/move-batch.ts` |
 | `/api/media/resolve-previews` | `POST` | Bearer (proxy + route) | Resolve media preview URLs in bulk (signed-url hydration + user-scoped URL fallback for legacy records). | `frontend/pages/api/media/resolve-previews.ts`, `frontend/lib/mediaPreviewPath.ts` |
-| `/api/fal/*` | `POST`, `GET` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic, including queue handoff polling at `/api/fal/queue-status`. | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, `frontend/lib/server/api/generationQueue/*.ts`, model docs in `docs/api/api-fal-*.md` |
+| `/api/fal/*` | `POST`, `GET` | Bearer (proxy; some routes also verify user in handler) | Submit/poll Fal generations with server-side key handling and credit reservation/capture/refund logic, including queue handoff polling at `/api/fal/queue-status` (dispatch-kick optional via rollout flag). | `frontend/pages/api/fal/*.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`, `frontend/lib/server/api/generationQueue/*.ts`, model docs in `docs/api/api-fal-*.md` |
 | `/api/fal/webhook` | `POST` raw body | Fal signature | Webhook-first Fal lifecycle ingestion; verifies Fal webhook signatures (JWKS/Ed25519 with dual-mode fallback), writes durable webhook inbox records, and executes shared recovery/persistence/settlement path idempotently. | `frontend/pages/api/fal/webhook.ts`, `frontend/lib/server/api/falWebhook.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
 | `/api/billing/credit-packages` | `GET` | Bearer (proxy + route) | List active top-up packages for billing UI. | `frontend/pages/api/billing/credit-packages.ts` |
 | `/api/credits/snapshot` | `GET` | Bearer (proxy + route) | Return user credit snapshot (`availableCents`, `reservedCents`, `spendableCents`) for responsive balance/hold UX. | `frontend/pages/api/credits/snapshot.ts`, `docs/sops/sop_billing_credits_operations.md` |
@@ -54,6 +54,9 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - Admission deny path immediately releases reservation (`release_generation_reservation_by_source_ref`).
   - Queue-enabled over-cap path accepts submit as queued (`202`, `code: GENERATION_QUEUED`) and defers provider submit to server dispatcher.
   - Queue handoff polling contract (`GET /api/fal/queue-status`) returns `queued | dispatched | failed | not_found`.
+  - Queue-status dispatch kick is rollout-controlled:
+    - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=true` (legacy side-effect mode).
+    - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=false` (read-only status mode).
   - Submit proxy sends `X-Fal-Request-Timeout` to queue endpoints to bound pre-start latency at provider edge.
   - Provider request accepted: attach provider request ID to reservation.
   - Success path: capture reservation to ledger debit.
@@ -99,6 +102,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS`
   - `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED`
   - `SHORTPULSE_FAL_QUEUE_ENABLED`
+  - `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED`
   - `SHORTPULSE_FAL_QUEUE_MAX_PER_USER`
   - `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`
   - `SHORTPULSE_FAL_QUEUE_LEASE_SECONDS`

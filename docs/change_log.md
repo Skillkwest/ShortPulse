@@ -1482,3 +1482,18 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `statusProxyRuntime.test.ts` (untrusted probe skip),
   - `fal-status-proxy.test.ts` (fail-closed untrusted queue base).
 - Updated unified plan/tracker/stage/evidence docs for Phase 04 Slice A/B and added provider incident SOP diagnostics for trusted outbound URL guard failures.
+
+## 2026-02-27 (unified buildout phase-04 slice-d)
+- Added queue-status read-only rollout control `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED` (default `true` for compatibility).
+- Updated `GET /api/fal/queue-status` to skip dispatch-kick side effects when rollout flag is `false`, while preserving existing response contract and status-read behavior.
+- Added targeted compatibility tests:
+  - `frontend/tests/api/fal-queue-status.test.ts` (read-only mode + legacy kick mode assertions),
+  - `frontend/lib/server/api/__tests__/falRuntimeFlags.test.ts` (new flag default/override parsing),
+  - `frontend/tests/api/fal-webhook-signature.test.ts` fixture update for new runtime flag shape.
+- Updated rollout docs and runbooks:
+  - `frontend/.env.example`,
+  - `docs/api/api-internal-routes.md`,
+  - `docs/sops/sop_provider_incident_response.md`,
+  - `docs/planning/stages/unified-phase-04-video-runtime-hardening-residuals.md`,
+  - `docs/planning/evidence/unified-buildout/phase-04/*`,
+  - `docs/planning/shortpulse-unified-buildout-tracker.md`.

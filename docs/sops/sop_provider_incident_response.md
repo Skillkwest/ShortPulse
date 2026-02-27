@@ -69,7 +69,9 @@ Mitigation guidance:
 1. Confirm submit path rejects are auto-refunded by checking reservation state transitions (`reserved` -> `released`).
 2. Confirm completed runs capture (`reserved` -> `captured`) and create a ledger debit.
 3. If one model endpoint is degraded, temporarily remove that model from UI selection until provider recovers.
-4. When queue mode is enabled, confirm `/api/fal/queue-status` moves entries from `queued` to `dispatched` and that queue depth trends downward after provider recovery.
+4. When queue mode is enabled:
+   - If `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=true`, confirm `/api/fal/queue-status` can move entries from `queued` to `dispatched`.
+   - If `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=false` (read-only mode), rely on reconciler dispatch metrics and queue depth trends instead of route-side kick behavior.
 5. If users receive `GENERATION_ADMISSION_UNAVAILABLE`, treat it as reservation-mode degradation during enforce admission and verify:
    - reservation RPC health (`reserve_generation_credits` / `admit_and_reserve_generation_credits`),
    - `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED`,

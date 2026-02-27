@@ -42,28 +42,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    try {
-      await dispatchGenerationSubmitQueueBatch({
-        req,
-        routeLabel: "api/fal/queue-status",
-        limit: 1,
-        userId: user.id,
-      });
-    } catch (error) {
-      await logGenerationFailure({
-        req,
-        routeLabel: "api/fal/queue-status",
-        source: "telemetry.queue.status.kick_failed",
-        message: "Queue status dispatch kick failed; continuing with status read.",
-        statusCode: 500,
-        userId: user.id,
-        userEmail: user.email ?? null,
-        metadata: {
-          source_ref: sourceRef,
-          generation_id: generationId,
-          detail: error instanceof Error ? error.message : String(error),
-        },
-      });
+    const queueStatusDispatchKickEnabled = flags.queueStatusDispatchKickEnabled ?? true;
+    if (queueStatusDispatchKickEnabled) {
+      try {
+        await dispatchGenerationSubmitQueueBatch({
+          req,
+          routeLabel: "api/fal/queue-status",
+          limit: 1,
+          userId: user.id,
+        });
+      } catch (error) {
+        await logGenerationFailure({
+          req,
+          routeLabel: "api/fal/queue-status",
+          source: "telemetry.queue.status.kick_failed",
+          message: "Queue status dispatch kick failed; continuing with status read.",
+          statusCode: 500,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            source_ref: sourceRef,
+            generation_id: generationId,
+            detail: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
     }
     const status = await readGenerationQueueStatus({
       userId: user.id,

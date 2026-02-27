@@ -60,7 +60,7 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 - `docs/planning/_inventory.md`
 - `docs/planning/overlap-audit.md`
 - Tasks:
-- Catalog Foundational, KEI, Governance, and Modularization plans with Source IDs.
+- Catalog Foundational, KIE, Governance, and Modularization plans with Source IDs.
 - Add risk register with severity, impact, mitigation, owner, due gate.
 - Lock conflict resolutions for TTL/cap, migration ordering, CI naming, route/auth semantics.
 - Validation:

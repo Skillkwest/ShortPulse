@@ -1623,3 +1623,6 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - captures `/api/internal/generation-recovery/run` snapshot,
   - writes a secret-safe markdown artifact under `docs/planning/evidence/unified-buildout/phase-04/`.
 - Updated Phase 04 readiness/stage/evidence docs to include helper usage.
+
+## 2026-02-27 (master rollout proposal terminology alignment)
+- Updated `docs/planning/master-rollout-proposal.md` terminology in Stage 01 inventory task from `KEI` to canonical `KIE` naming for provider/migration plan consistency.

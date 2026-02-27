@@ -7,6 +7,7 @@ import {
   verifyFalWebhookSignature,
   verifyFalWebhookBodyHash,
 } from "../../../lib/server/api/falWebhook";
+import { RequestBodyTooLargeError } from "../../../lib/server/api/requestBody";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import {
   executeGenerationRecovery,
@@ -19,6 +20,7 @@ type JsonObject = Record<string, unknown>;
 const completedStatuses = new Set(["completed", "succeeded", "success", "done", "ok"]);
 const failedStatuses = new Set(["failed", "error", "cancelled", "canceled"]);
 const runningStatuses = new Set(["running", "pending", "queued", "in_progress", "processing"]);
+const FAL_WEBHOOK_MAX_BODY_BYTES = 512 * 1024;
 
 const parseObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
@@ -136,7 +138,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const webhookHeaders = readFalWebhookHeaders(req);
 
   try {
-    const rawBody = await readRawBody(req);
+    const rawBody = await readRawBody(req, { maxBytes: FAL_WEBHOOK_MAX_BODY_BYTES });
     const verification = await verifyFalWebhookSignature({
       rawBody,
       headers: webhookHeaders,
@@ -236,6 +238,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       status: result.state,
     });
   } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return res.status(413).json({ error: "Webhook payload too large." });
+    }
     await logApiRouteException({
       req,
       error,
@@ -245,7 +250,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Webhook processing failed.",
+      error: "Webhook processing failed.",
     });
   }
 }

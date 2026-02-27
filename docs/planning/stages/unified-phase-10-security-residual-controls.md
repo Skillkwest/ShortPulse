@@ -1,6 +1,6 @@
 # Unified Phase 10: Security Residual Controls
 
-Status: Planned
+Status: In Progress
 Owner: Engineering
 
 ## Objective
@@ -18,6 +18,20 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A: smallest safe functional increment.
 2. Slice B: test hardening and edge-case completion.
 3. Slice C: docs + evidence + tracker update.
+
+## Current Slice Status
+1. Slice A complete:
+- Added shared bounded raw-body reader (`requestBody.ts`) and applied explicit webhook caps:
+  - Stripe webhook (`256 KB` max)
+  - Fal webhook (`512 KB` max)
+- Added explicit `413` responses for oversized webhook payloads.
+- Sanitized webhook `500` responses so internal transport/database errors are not returned to callers.
+- Added focused webhook route tests for size-cap and sanitized-failure behavior.
+2. Slice B next:
+- Expand residual security test coverage around additional high-risk endpoint error-surface contracts.
+3. Slice C in progress:
+- Phase docs/tracker/evidence updates in progress.
+- Awaiting human checkpoint before phase status promotion.
 
 ## Validation Gates
 1. 
@@ -147,10 +161,10 @@ Naming canonical drift checks passed.
 
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:
-- 
+- `docs/planning/evidence/unified-buildout/phase-10/2026-02-27-phase-10-slice-a-webhook-body-cap-and-safe-errors.md`
 
 ## Required Docs Updates
-1. Update  phase status.
+1. Update phase status.
 2. Add evidence summary in phase-10 folder.
 3. Update impacted SOP/API/ADR/change-log docs.
 
@@ -163,4 +177,3 @@ If this phase touches external contracts/standards, add a short research note wi
 ## Rollback Plan
 1. Revert only the PR slice(s) from this phase.
 2. Keep previous stable phase baseline intact.
-

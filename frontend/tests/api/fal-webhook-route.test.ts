@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/fal/webhook";
+import { RequestBodyTooLargeError } from "../../lib/server/api/requestBody";
 
 const readRawBodyMock = vi.fn();
 const verifyFalWebhookSignatureMock = vi.fn();
@@ -83,6 +84,23 @@ describe("POST /api/fal/webhook", () => {
     expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
   });
 
+  it("returns 413 when webhook payload exceeds max size", async () => {
+    readRawBodyMock.mockRejectedValue(new RequestBodyTooLargeError(512 * 1024));
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-fal-webhook-signature": "sig",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(413);
+    expect(res.json).toHaveBeenCalledWith({ error: "Webhook payload too large." });
+  });
+
   it("ingests webhook events and delegates terminal processing to shared recovery execution", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
@@ -138,5 +156,39 @@ describe("POST /api/fal/webhook", () => {
         status: "recovered",
       })
     );
+  });
+
+  it("returns sanitized 500 error responses", async () => {
+    readRawBodyMock.mockResolvedValue(JSON.stringify({ request_id: "req-1", status: "OK" }));
+    verifyFalWebhookSignatureMock.mockResolvedValue({
+      ok: true,
+      method: "fal",
+      payloadHash: "hash-1",
+    });
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn(() => ({
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(async () => ({
+              data: null,
+              error: { code: "XX000", message: "db down" },
+            })),
+          })),
+        })),
+      })),
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-fal-webhook-signature": "sig",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Webhook processing failed." });
   });
 });

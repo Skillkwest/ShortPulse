@@ -1626,3 +1626,15 @@ Append new entries at the end of this file; each entry should include date (UTC)
 
 ## 2026-02-27 (master rollout proposal terminology alignment)
 - Updated `docs/planning/master-rollout-proposal.md` terminology in Stage 01 inventory task from `KEI` to canonical `KIE` naming for provider/migration plan consistency.
+
+## 2026-02-27 (unified buildout phase-10 slice-a webhook size caps + safe errors)
+- Added a shared bounded raw-body utility for API routes:
+  - `frontend/lib/server/api/requestBody.ts`.
+- Hardened webhook handlers with explicit size caps and `413` responses:
+  - `POST /api/billing/stripe/webhook` (`256 KB` max),
+  - `POST /api/fal/webhook` (`512 KB` max).
+- Sanitized webhook `500` responses to avoid leaking internal transport/database error details while preserving server-side exception logging.
+- Added focused webhook route coverage for oversized payload and sanitized failure behavior:
+  - `frontend/tests/api/stripe-webhook.test.ts`,
+  - `frontend/tests/api/fal-webhook-route.test.ts`.
+- Updated security/API/phase tracking docs and Phase 10 evidence artifacts.

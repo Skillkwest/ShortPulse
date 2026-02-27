@@ -7,6 +7,10 @@ import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { verifyStripeWebhookSignature } from "../../../../lib/server/api/stripe";
 import { insertCreditLedgerEntry } from "../../../../lib/server/api/creditLedger";
+import {
+  readRawRequestBody,
+  RequestBodyTooLargeError,
+} from "../../../../lib/server/api/requestBody";
 
 type StripeEvent = {
   id: string;
@@ -28,17 +32,7 @@ export const config = {
   },
 };
 
-const readRawBody = async (req: NextApiRequest): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk) => {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    });
-    req.on("end", () => {
-      resolve(Buffer.concat(chunks).toString("utf8"));
-    });
-    req.on("error", reject);
-  });
+const STRIPE_WEBHOOK_MAX_BODY_BYTES = 256 * 1024;
 
 const asIsoDate = (unixSeconds?: number | null): string | null => {
   if (!unixSeconds) return null;
@@ -216,7 +210,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const rawBody = await readRawBody(req);
+    const rawBody = await readRawRequestBody(req, {
+      maxBytes: STRIPE_WEBHOOK_MAX_BODY_BYTES,
+    });
     const signatureHeader = req.headers["stripe-signature"] as string | undefined;
     const verified = verifyStripeWebhookSignature(rawBody, signatureHeader);
     if (!verified) {
@@ -230,7 +226,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const eventClaim = await claimStripeEvent(event);
     if (eventClaim.kind === "failed") {
-      return res.status(500).json({ error: eventClaim.message });
+      await logApiRouteException({
+        req,
+        error: new Error(eventClaim.message),
+        routeLabel: "billing/stripe/webhook",
+        metadata: {
+          stripe_event_signature_present: Boolean(req.headers["stripe-signature"]),
+          stripe_event_id: event.id,
+          stripe_event_type: event.type,
+          claim_failed: true,
+        },
+      });
+      return res.status(500).json({ error: "Webhook processing failed." });
     }
     const duplicateEvent = eventClaim.kind === "duplicate";
 
@@ -254,6 +261,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     return res.status(200).json({ received: true });
   } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return res.status(413).json({ error: "Webhook payload too large." });
+    }
     await logApiRouteException({
       req,
       error,
@@ -263,7 +273,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Webhook processing failed.",
+      error: "Webhook processing failed.",
     });
   }
 }

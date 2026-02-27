@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import type { NextApiRequest } from "next";
 import { readFalRuntimeFlags, type FalRuntimeFlags } from "./falRuntimeFlags";
+import { readRawRequestBody } from "./requestBody";
 
 type JsonObject = Record<string, unknown>;
 
@@ -290,14 +291,12 @@ export const readFalWebhookHeaders = (req: NextApiRequest): FalWebhookHeaders =>
   signature: readHeader(req, "x-fal-webhook-signature") ?? readHeader(req, "x-fal-signature"),
 });
 
-export const readRawBody = async (req: NextApiRequest): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk) => {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    req.on("error", reject);
+export const readRawBody = async (
+  req: NextApiRequest,
+  options?: { maxBytes?: number }
+): Promise<string> =>
+  readRawRequestBody(req, {
+    maxBytes: options?.maxBytes ?? 512 * 1024,
   });
 
 export const getFalWebhookSecret = (): string | null =>

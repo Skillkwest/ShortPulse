@@ -73,6 +73,15 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Invalid Stripe signature." });
   });
 
+  it("returns 413 when webhook payload exceeds max size", async () => {
+    const largePayload = "x".repeat(256 * 1024 + 1);
+    const { res, promise } = createWebhookRequest(largePayload);
+    await promise;
+    expect(res.status).toHaveBeenCalledWith(413);
+    expect(res.json).toHaveBeenCalledWith({ error: "Webhook payload too large." });
+    expect(verifyStripeWebhookSignatureMock).not.toHaveBeenCalled();
+  });
+
   it("returns duplicate=true when event claim conflicts and safely reprocesses", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     getSupabaseAdminMock.mockReturnValue(
@@ -116,7 +125,7 @@ describe("POST /api/billing/stripe/webhook", () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
-      error: "permission denied for table stripe_event_log",
+      error: "Webhook processing failed.",
     });
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
   });

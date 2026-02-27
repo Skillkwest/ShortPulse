@@ -1,14 +1,17 @@
-import {
-  asString,
-  extractResponseUrl,
-  hasMediaPayload,
-  normalizeStatus,
-  toRecord,
-} from "./falAdapter";
+import { asString } from "./falAdapter";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "./contracts";
 import { getFalModelProfileByModelId } from "./modelProfiles";
 import { assertTrustedFalProviderUrl, filterTrustedFalProviderUrls } from "./providerTrustPolicy";
 import { selectBestResultCandidate, selectBestStatusCandidate } from "./retrievalEngine";
+import {
+  dispatchProviderResultRequest,
+  dispatchProviderStatusRequest,
+} from "../providerIntegration/statusProviderDispatcher";
+import {
+  providerPayloadHasMedia,
+  readProviderLifecycleStatus,
+  readProviderResponseUrl,
+} from "../providerIntegration/statusProviderPayload";
 
 type JsonObject = Record<string, unknown>;
 
@@ -135,6 +138,7 @@ export const probeProviderResult = async ({
   modelId: string;
   apiKey: string;
 }): Promise<ProviderProbeObservation> => {
+  const providerKey = "fal";
   const queueBaseUrls = filterTrustedFalProviderUrls(resolveQueueBaseUrlsForModel(modelId));
   if (!queueBaseUrls.length) {
     throw new Error(`No trusted Fal status base URL configured for model: ${modelId}`);
@@ -147,13 +151,16 @@ export const probeProviderResult = async ({
 
   for (const [index, baseUrl] of queueBaseUrls.entries()) {
     assertTrustedFalProviderUrl(baseUrl, `recovery_status_base_${index}`);
-    const statusResponse = await fetch(`${baseUrl}/${requestId}/status`, {
-      method: "GET",
-      headers: { Authorization: `Key ${apiKey}` },
+    const statusResponse = await dispatchProviderStatusRequest({
+      provider: providerKey,
+      baseUrl,
+      requestId,
+      apiKey,
+      signal: new AbortController().signal,
     });
     const statusData = await readJsonSafe(statusResponse);
     const payload = Object.keys(statusData.json).length ? statusData.json : {};
-    const statusValue = normalizeStatus(payload.status) ?? normalizeStatus(toRecord(payload).state);
+    const statusValue = readProviderLifecycleStatus({ provider: providerKey, payload });
     const isCompleted = Boolean(statusValue && completedStatuses.has(statusValue));
     const isFailed = Boolean(statusValue && failedStatuses.has(statusValue));
     statusCandidates.push({
@@ -167,11 +174,11 @@ export const probeProviderResult = async ({
       isTerminal: isCompleted || isFailed,
       isCompleted,
       isFailed,
-      hasResponseUrl: Boolean(extractResponseUrl(payload)),
-      hasMedia: hasMediaPayload(payload),
+      hasResponseUrl: Boolean(readProviderResponseUrl({ provider: providerKey, payload })),
+      hasMedia: providerPayloadHasMedia({ provider: providerKey, payload }),
     });
     payloadByStatusIndex.set(index, payload);
-    const responseUrl = extractResponseUrl(payload);
+    const responseUrl = readProviderResponseUrl({ provider: providerKey, payload });
     if (responseUrl) responseUrlSet.add(responseUrl);
   }
 
@@ -189,7 +196,12 @@ export const probeProviderResult = async ({
       headers: { Authorization: `Key ${apiKey}` },
     });
     const responseData = await readJsonSafe(responseProbe);
-    if (!responseProbe.ok || !hasMediaPayload(responseData.json)) continue;
+    if (
+      !responseProbe.ok ||
+      !providerPayloadHasMedia({ provider: providerKey, payload: responseData.json })
+    ) {
+      continue;
+    }
     return {
       state: "completed",
       payload: responseData.json,
@@ -199,13 +211,16 @@ export const probeProviderResult = async ({
 
   for (const [index, baseUrl] of queueBaseUrls.entries()) {
     assertTrustedFalProviderUrl(baseUrl, `recovery_result_base_${index}`);
-    const resultResponse = await fetch(`${baseUrl}/${requestId}`, {
-      method: "GET",
-      headers: { Authorization: `Key ${apiKey}` },
+    const resultResponse = await dispatchProviderResultRequest({
+      provider: providerKey,
+      baseUrl,
+      requestId,
+      apiKey,
+      signal: new AbortController().signal,
     });
     const resultData = await readJsonSafe(resultResponse);
     const payload = Object.keys(resultData.json).length ? resultData.json : {};
-    const statusValue = normalizeStatus(payload.status) ?? normalizeStatus(toRecord(payload).state);
+    const statusValue = readProviderLifecycleStatus({ provider: providerKey, payload });
     const hasError = Boolean(asString(payload.error)) || Boolean(asString(payload.detail));
     resultCandidates.push({
       index,
@@ -216,7 +231,7 @@ export const probeProviderResult = async ({
       isHttpOk: resultResponse.ok,
       status: statusValue,
       hasError,
-      hasMedia: hasMediaPayload(payload),
+      hasMedia: providerPayloadHasMedia({ provider: providerKey, payload }),
     });
     payloadByResultIndex.set(index, payload);
   }

@@ -44,6 +44,9 @@ Start the provider-neutral adapter contract work by removing Fal-local request/e
 10. Consolidated provider-key alias matching across dispatchers:
 - `frontend/lib/server/providerIntegration/providerKey.ts`
 - Applied in submit/status/recovery dispatchers for shared `fal`/`fal*` detection.
+11. Aligned Fal recovery probing with provider status/payload boundaries:
+- `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
+- Status/result probe execution now uses provider dispatchers and provider payload parsing contracts for status/media/response-url interpretation.
 
 ## Validation
 1. Targeted tests:
@@ -53,6 +56,10 @@ npm -C frontend run test -- tests/api/fal-submit-proxy.test.ts tests/api/fal-sta
 Result: pass.
 ```bash
 npm -C frontend run test -- tests/api/fal-status-proxy.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/canonicalProviderPayload.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts lib/server/api/__tests__/generationQueue.dispatch.test.ts lib/server/api/__tests__/generationQueue.dispatch.integrity.test.ts
+```
+Result: pass.
+```bash
+npm -C frontend run test -- lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts tests/api/fal-status-proxy.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts
 ```
 Result: pass.
 2. Type-check:
@@ -67,4 +74,4 @@ Result: pass.
 3. This slice is additive to shadow/canary observation work and does not execute provider cutover.
 
 ## Next Step
-1. Continue Slice B by extracting provider-aware recovery result probing (`recoveryProviderProbe`) so provider polling semantics also flow through `providerIntegration` contracts ahead of Kie dark adapter rollout.
+1. Continue Slice B by extracting provider-scoped queue-base/profile resolution for recovery/status probes so provider endpoint topology is fully adapter-owned before Kie dark adapter rollout.

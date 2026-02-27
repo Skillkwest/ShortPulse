@@ -61,6 +61,9 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/providerKey.ts`
   - `frontend/lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts`
   - `frontend/lib/server/api/falStatusProxy.ts` now consumes payload status/response/media/policy parsing via provider boundary.
+- Aligned Fal recovery probe internals to provider status/payload boundaries:
+  - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
+  - Probe path now reuses provider status/result dispatch + provider payload parsing contracts.
 - Aligned queued submit dispatch path to shared provider submit boundary:
   - `frontend/lib/server/api/generationQueue/dispatch.ts`
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.test.ts`

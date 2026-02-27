@@ -1439,3 +1439,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/planning/evidence/unified-buildout/` with per-phase evidence placeholders and Phase 00 baseline note.
 - Updated documentation indexes (`docs/README.md`, `docs/planning/README.md`) to include unified build-out artifacts.
 - Added a secret-exposure response control note in `docs/security-checklist.md` to require immediate key rotation/revocation and evidence capture.
+
+## 2026-02-27 (unified buildout phase-01 slice-a-b)
+- Repaired stale guardrail targeting by replacing legacy `ReferenceCanvas.tsx` paths with canonical `ReferenceGrid.tsx` in CI adaptive filters, size-budget checks, and CODEOWNERS critical-path ownership.
+- Tightened naming guard configuration by removing missing-file allowlist entries from `scripts/check_naming_legacy_usage.js` while keeping compatibility-token detection active for live bridge paths.
+- Added dedicated CI `type_check` lane and new `secret_scan` lane (`SECRET_SCAN_MODE=warn|enforce`) in `.github/workflows/ci.yml`.
+- Added repository-level high-confidence secret exposure scanner at `scripts/check_secret_exposure.js` and documented policy updates in `docs/planning/ci-policy-checks.md`.
+- Captured Phase 01 evidence and tracker status updates under `docs/planning/evidence/unified-buildout/phase-01/` and `docs/planning/shortpulse-unified-buildout-tracker.md`.

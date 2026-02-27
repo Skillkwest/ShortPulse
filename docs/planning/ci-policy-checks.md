@@ -1,6 +1,6 @@
 # CI And Policy-As-Code Checks
 
-Date: 2026-02-20
+Date: 2026-02-27
 Authority: Working
 Owner: Engineering
 
@@ -8,6 +8,7 @@ Owner: Engineering
 
 - `deadcode`
 - `frontend`
+- `type_check`
 - `docs_semantic_drift`
 - `migration_parity`
 - `sql_lint`
@@ -18,6 +19,7 @@ Owner: Engineering
 - `agent_disable_continuity`
 - `adaptive_media_gate`
 - `ai_studio_perf_gate`
+- `secret_scan`
 - `security`
 - `conversation_state_hardening_gate` (manual workflow-dispatch; environment-gated)
 - `apply_conversation_state_migration` (manual workflow-dispatch; environment-gated)
@@ -32,6 +34,7 @@ Owner: Engineering
 - `scripts/check_size_budgets.js` (new)
 - `scripts/check_agent_contract_tests.js` (new)
 - `scripts/check_agent_disable_continuity.js` (new)
+- `scripts/check_secret_exposure.js` (new)
 - `scripts/ci_npm_ci_with_retry.sh` (new)
 
 ## Reference-grid foundation guardrail lane
@@ -72,6 +75,13 @@ Mode policy:
 - Advisory command: `npm audit --audit-level=moderate`
 - Policy intent: block production dependency vulnerabilities while preserving visibility into dev/tooling advisories without stalling release-cycle stabilization.
 
+## Secret exposure gate
+
+- Gate job ID: `secret_scan`
+- Command: `node scripts/check_secret_exposure.js`
+- Mode variable: `SECRET_SCAN_MODE=warn|enforce` (defaults to `warn`)
+- Policy intent: block committed high-confidence secret literals while allowing staged rollout in warn mode.
+
 ## Prototype mode policy (MVP)
 
 - During MVP prototype iteration, governance checks may begin in advisory/warn mode.
@@ -107,6 +117,8 @@ Required checks must map to exact CI job IDs. Job ID renames are blocked after b
 
 Current required check names (to be mirrored exactly in GitHub settings):
 - `frontend`
+- `type_check`
+- `secret_scan`
 - `security`
 - `deadcode`
 

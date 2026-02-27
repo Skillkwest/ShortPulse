@@ -53,6 +53,24 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  type_check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
+      - run: npm run type-check
+
   docs_semantic_drift:
     runs-on: ubuntu-latest
     defaults:
@@ -506,7 +524,7 @@ jobs:
           filters: |
             adaptive_media:
               - 'frontend/lib/adaptive-media/**'
-              - 'frontend/features/ai-studio/components/ReferenceCanvas.tsx'
+              - 'frontend/features/ai-studio/components/ReferenceGrid.tsx'
               - 'frontend/features/ai-studio/logic/referenceGridMedia.ts'
               - 'frontend/features/ai-studio/components/MediaLibraryModal.tsx'
               - 'frontend/features/character-manager/components/CharacterManagerShell.tsx'
@@ -669,6 +687,49 @@ jobs:
               echo "AI Studio perf gate skipped." >> "$GITHUB_STEP_SUMMARY"
               ;;
           esac
+
+  secret_scan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run secret exposure checks (warn/enforce)
+        env:
+          SECRET_SCAN_MODE: ${{ vars.SECRET_SCAN_MODE }}
+        run: |
+          set -euo pipefail
+          MODE="${SECRET_SCAN_MODE:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown SECRET_SCAN_MODE='$MODE'. Falling back to 'warn'."
+            MODE="warn"
+          fi
+
+          set +e
+          cd ..
+          node scripts/check_secret_exposure.js
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "secret_scan passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::secret_scan failed in warn mode."
+            echo "secret_scan failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "secret_scan failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
 
   security:
     runs-on: ubuntu-latest

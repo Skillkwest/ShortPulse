@@ -26,11 +26,8 @@ const ALLOWED_FILES = new Set(
   [
     "frontend/features/ai-studio/components/AiStudioPageContent.tsx",
     "frontend/features/ai-studio/components/CreatePropertiesPanel.tsx",
-    "frontend/features/ai-studio/components/ReferenceCanvas.tsx",
     "frontend/features/ai-studio/components/ReferenceGrid.tsx",
-    "frontend/features/ai-studio/components/TextPropertiesPanel.tsx",
     "frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts",
-    "frontend/features/ai-studio/hooks/useAiStudioReferenceCanvasProps.ts",
     "frontend/features/ai-studio/hooks/useAiStudioReferenceGridProps.ts",
     "frontend/features/ai-studio/hooks/useAiStudioWorkspaceActions.ts",
     "frontend/features/ai-studio/reference-grid/components/ReferenceGridArchiveControls.tsx",

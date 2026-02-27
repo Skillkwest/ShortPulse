@@ -5,7 +5,7 @@
  * refund helpers for failed submits and failed status outcomes.
  */
 import { randomUUID } from "crypto";
-import { computeCostForModel, getModelConfig } from "../../../features/ai-studio/logic/pricing";
+import { computeCostForModel, getModelConfig } from "../../model-runtime/pricing";
 import { requireApiUser } from "./auth";
 import { insertCreditLedgerEntry } from "./creditLedger";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";

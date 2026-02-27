@@ -1,4 +1,4 @@
-import { getModelConfig } from "../../../../features/ai-studio/logic/pricing";
+import { getModelConfig } from "../../../model-runtime/pricing";
 
 type JsonObject = Record<string, unknown>;
 

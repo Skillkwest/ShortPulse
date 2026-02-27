@@ -43,6 +43,11 @@ The reference-grid modularization program uses staged guardrail variables:
 - `REFERENCE_GRID_BOUNDARY_MODE` for reference-domain boundary checks inside `architecture_boundary`.
 - `REFERENCE_GRID_SIZE_BUDGET_MODE` for target size budgets inside `size_budget`.
 
+Architecture boundary lane also enforces AI Studio foundation boundaries:
+- `ARCHITECTURE_BOUNDARY_MODE` governs server/runtime checks preventing
+  `frontend/lib/server/**` and `frontend/pages/api/**` imports from
+  `frontend/features/ai-studio/**` (warn -> enforce promotion model).
+
 Mode policy:
 1. `warn` during decomposition phases while legacy hotspots are above final targets.
 2. `enforce` only after phase-6 evidence and two green cycles.

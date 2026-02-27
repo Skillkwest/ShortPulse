@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { computeCostForModel } from "../../features/ai-studio/logic/pricing";
+import { computeCostForModel } from "../../lib/model-runtime/pricing";
 import { chargeGenerationRequest } from "../../lib/server/api/generationBilling";
 import { buildPricingParams } from "../../lib/server/api/generationBilling/pricingParams";
 

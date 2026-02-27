@@ -6,6 +6,8 @@ const path = require("path");
 const REPO_ROOT = process.cwd();
 const FRONTEND_ROOT = path.join(REPO_ROOT, "frontend");
 const AI_STUDIO_ROOT = path.join(FRONTEND_ROOT, "features", "ai-studio");
+const SERVER_RUNTIME_ROOT = path.join(FRONTEND_ROOT, "lib", "server");
+const API_ROUTES_ROOT = path.join(FRONTEND_ROOT, "pages", "api");
 const AGENT_FEATURE_ROOT = path.join(FRONTEND_ROOT, "features", "ai-agent");
 const AGENT_CORE_ROOT = path.join(FRONTEND_ROOT, "features", "agent-core");
 const AGENT_RUNTIME_ROOT = path.join(FRONTEND_ROOT, "features", "agent-runtime");
@@ -70,6 +72,9 @@ function resolveImportPath(fromFile, specifier) {
   if (!specifier) return null;
   if (specifier.startsWith(".")) {
     return path.resolve(path.dirname(fromFile), specifier);
+  }
+  if (specifier.startsWith("@/")) {
+    return path.resolve(FRONTEND_ROOT, specifier.slice(2));
   }
   if (specifier.startsWith("frontend/")) {
     return path.resolve(REPO_ROOT, specifier);
@@ -147,6 +152,26 @@ function collectReferenceFoundationErrors() {
   return errors;
 }
 
+function collectServerAiStudioBoundaryErrors() {
+  const errors = [];
+  const filesToCheck = [...walk(SERVER_RUNTIME_ROOT), ...walk(API_ROUTES_ROOT)];
+
+  for (const filePath of filesToCheck) {
+    const imports = readImports(filePath);
+    for (const specifier of imports) {
+      const resolved = resolveImportPath(filePath, specifier);
+      if (!resolved) continue;
+      if (!isInside(resolved, AI_STUDIO_ROOT)) continue;
+      const relFile = toPosix(path.relative(REPO_ROOT, filePath));
+      errors.push(
+        `${relFile} imports AI Studio feature internals (${specifier}). Move shared logic to frontend/lib/model-runtime/* and keep feature layer UI-owned.`
+      );
+    }
+  }
+
+  return errors;
+}
+
 function printErrors(header, errors) {
   if (!errors.length) return;
   console.error(header);
@@ -157,9 +182,11 @@ function printErrors(header, errors) {
 
 function checkBoundaries() {
   const hardErrors = [];
+  const architectureMode = resolveMode(process.env.ARCHITECTURE_BOUNDARY_MODE, "warn");
   const referenceGridMode = resolveMode(process.env.REFERENCE_GRID_BOUNDARY_MODE, "warn");
   const agentErrors = collectAgentBoundaryErrors();
   const referenceFoundationErrors = collectReferenceFoundationErrors();
+  const serverAiStudioBoundaryErrors = collectServerAiStudioBoundaryErrors();
 
   if (agentErrors.length) {
     printErrors("Architecture boundary checks failed (agent boundaries):", agentErrors);
@@ -176,6 +203,21 @@ function checkBoundaries() {
     } else {
       console.warn("Reference-grid boundary checks failed in warn mode:");
       for (const error of referenceFoundationErrors) {
+        console.warn(`- ${error}`);
+      }
+    }
+  }
+
+  if (serverAiStudioBoundaryErrors.length) {
+    if (architectureMode === "enforce") {
+      printErrors(
+        "Architecture boundary checks failed (server/runtime cannot import AI Studio feature internals):",
+        serverAiStudioBoundaryErrors
+      );
+      hardErrors.push(...serverAiStudioBoundaryErrors);
+    } else {
+      console.warn("Server/runtime AI Studio boundary checks failed in warn mode:");
+      for (const error of serverAiStudioBoundaryErrors) {
         console.warn(`- ${error}`);
       }
     }

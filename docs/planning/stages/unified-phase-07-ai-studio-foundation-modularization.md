@@ -1,6 +1,6 @@
 # Unified Phase 07: AI Studio Foundation Modularization
 
-Status: Planned
+Status: In Progress
 Owner: Engineering
 
 ## Objective
@@ -18,6 +18,28 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A: smallest safe functional increment.
 2. Slice B: test hardening and edge-case completion.
 3. Slice C: docs + evidence + tracker update.
+
+## Current Slice A Update (2026-02-27)
+Implemented:
+1. Relocated pricing/model runtime ownership from feature-owned AI Studio logic to `frontend/lib/model-runtime` for:
+   - `modelApiContracts`
+   - `modelRegistry`
+   - `modelSizes`
+   - `pricing`
+   - `pricingStrategies`
+   - `pricingTypes`
+2. Converted `frontend/features/ai-studio/logic/*` pricing/model files above into compatibility re-export shims to preserve feature-side imports during migration.
+3. Repointed server/runtime imports away from `features/ai-studio` to runtime-owned modules in:
+   - `generationBilling.ts`
+   - `generationSubmitPersistence.ts`
+   - `generationBilling/pricingParams.ts`
+   - `generationQueue/metadata.ts`
+   - `generationAdmissionTiers.ts`
+4. Extended architecture boundary checker to detect `frontend/lib/server/**` and `frontend/pages/api/**` imports from `frontend/features/ai-studio/**`, operating in warn/enforce via `ARCHITECTURE_BOUNDARY_MODE`.
+
+Remaining:
+1. Slice B: hook contract inversion + targeted hotspot decomposition follow-ups.
+2. Slice C: phase-close docs/evidence signoff once follow-up slices are complete.
 
 ## Validation Gates
 1. 
@@ -163,4 +185,3 @@ If this phase touches external contracts/standards, add a short research note wi
 ## Rollback Plan
 1. Revert only the PR slice(s) from this phase.
 2. Keep previous stable phase baseline intact.
-

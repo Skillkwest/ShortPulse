@@ -2,7 +2,7 @@
  * Generation admission tier mapping shared by server admission control.
  * Resolves a model id to a conservative concurrency tier.
  */
-import { getModelConfig } from "../../features/ai-studio/logic/pricing";
+import { getModelConfig } from "./pricing";
 import { getModelCatalogEntry } from "./modelCatalog";
 
 export type GenerationAdmissionTier = "video_long" | "image_heavy" | "image_standard";

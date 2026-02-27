@@ -1,5 +1,5 @@
-import { getModelConfig } from "../../../../features/ai-studio/logic/pricing";
-import type { PricingParams } from "../../../../features/ai-studio/logic/pricingTypes";
+import { getModelConfig } from "../../../model-runtime/pricing";
+import type { PricingParams } from "../../../model-runtime/pricingTypes";
 import { getModelCatalogEntry } from "../../../model-runtime/modelCatalog";
 import type { JsonObject } from "./types";
 import { asBoolean, asNumber, asString } from "./utils";

@@ -67,6 +67,10 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Added explicit Fal route inventory regression gate:
   - `frontend/tests/api/fal-route-inventory-regression.test.ts`
   - Freezes expected `/api/fal/*` route inventory and route-module default exports during Slice B refactors.
+- Added provider-owned status topology resolver and recovery probe integration:
+  - `frontend/lib/server/providerIntegration/statusProviderTopology.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts`
+  - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts` now resolves model status bases via provider topology contract.
 - Aligned queued submit dispatch path to shared provider submit boundary:
   - `frontend/lib/server/api/generationQueue/dispatch.ts`
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.test.ts`

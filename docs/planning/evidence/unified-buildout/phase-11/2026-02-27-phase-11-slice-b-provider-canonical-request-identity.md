@@ -50,6 +50,17 @@ Start the provider-neutral adapter contract work by removing Fal-local request/e
 12. Added explicit Fal route inventory regression gate:
 - `frontend/tests/api/fal-route-inventory-regression.test.ts`
 - Locks expected `/api/fal/*` route file inventory and default exports to prevent accidental removals/renames during Phase 11 internal refactors.
+13. Extracted provider-owned status topology resolution:
+- `frontend/lib/server/providerIntegration/statusProviderTopology.ts`
+- Introduces provider-scoped topology contracts for:
+  - configured status base URL filtering,
+  - model-based status base URL resolution,
+  - model-based status timeout resolution.
+14. Rewired Fal recovery probe topology lookup to provider boundary:
+- `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
+- Recovery probe now resolves model status bases via `providerIntegration` instead of Fal-local profile lookup.
+15. Added topology resolver unit coverage:
+- `frontend/lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts`
 
 ## Validation
 1. Targeted tests:
@@ -67,6 +78,10 @@ npm -C frontend run test -- lib/server/falIntegration/__tests__/recoveryProvider
 Result: pass.
 ```bash
 npm -C frontend run test -- tests/api/fal-route-inventory-regression.test.ts
+```
+Result: pass.
+```bash
+npm -C frontend run test -- lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts tests/api/fal-status-proxy.test.ts tests/api/fal-route-inventory-regression.test.ts tests/api/fal-submit-proxy.test.ts tests/api/fal-webhook-route.test.ts tests/api/fal-webhook-signature.test.ts tests/api/fal-queue-status.test.ts tests/api/model-catalog-route-coverage.test.ts
 ```
 Result: pass.
 2. Type-check:
@@ -90,4 +105,4 @@ Result: pass.
 - retain this Fal regression gate as a mandatory pre/post-change check.
 
 ## Next Step
-1. Continue Slice B by extracting provider-scoped queue-base/profile resolution for recovery/status probes so provider endpoint topology is fully adapter-owned before Kie dark adapter rollout.
+1. Continue Slice B by extracting provider-owned response-url probe dispatch (currently direct Fal fetch inside recovery/status probe helpers) so outbound retrieval execution is fully adapter-owned before Kie dark adapter rollout.

@@ -1,10 +1,10 @@
 /**
  * Provider-aware status/result request dispatcher.
- * Centralizes provider-specific status endpoint patterns behind one contract.
+ * Centralizes provider-specific request patterns behind one contract.
  */
 
-import { filterTrustedFalProviderUrls } from "../falIntegration/providerTrustPolicy";
 import { isFalProviderKey } from "./providerKey";
+import { resolveProviderConfiguredStatusBaseUrls } from "./statusProviderTopology";
 
 /**
  * Resolves trusted status base URLs for a provider.
@@ -15,12 +15,11 @@ export const resolveProviderStatusBaseUrls = ({
 }: {
   provider: string;
   configuredBaseUrls: string[];
-}): string[] => {
-  if (isFalProviderKey(provider)) {
-    return filterTrustedFalProviderUrls(configuredBaseUrls);
-  }
-  throw new Error(`Unsupported provider for status base resolution: ${provider}`);
-};
+}): string[] =>
+  resolveProviderConfiguredStatusBaseUrls({
+    provider,
+    configuredBaseUrls,
+  });
 
 /**
  * Dispatches a status request to a provider endpoint.

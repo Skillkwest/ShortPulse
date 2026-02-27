@@ -1,12 +1,12 @@
 import { asString } from "./falAdapter";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "./contracts";
-import { getFalModelProfileByModelId } from "./modelProfiles";
 import { assertTrustedFalProviderUrl, filterTrustedFalProviderUrls } from "./providerTrustPolicy";
 import { selectBestResultCandidate, selectBestStatusCandidate } from "./retrievalEngine";
 import {
   dispatchProviderResultRequest,
   dispatchProviderStatusRequest,
 } from "../providerIntegration/statusProviderDispatcher";
+import { resolveProviderModelStatusBaseUrls } from "../providerIntegration/statusProviderTopology";
 import {
   providerPayloadHasMedia,
   readProviderLifecycleStatus,
@@ -123,12 +123,6 @@ export const extractRecoveryMediaUrls = (payload: JsonObject): string[] => {
   return [];
 };
 
-const resolveQueueBaseUrlsForModel = (modelId: string): string[] => {
-  const profile = getFalModelProfileByModelId(modelId);
-  if (profile?.statusBases?.length) return profile.statusBases;
-  return [`https://queue.fal.run/${modelId}/requests`];
-};
-
 export const probeProviderResult = async ({
   requestId,
   modelId,
@@ -139,7 +133,10 @@ export const probeProviderResult = async ({
   apiKey: string;
 }): Promise<ProviderProbeObservation> => {
   const providerKey = "fal";
-  const queueBaseUrls = filterTrustedFalProviderUrls(resolveQueueBaseUrlsForModel(modelId));
+  const queueBaseUrls = resolveProviderModelStatusBaseUrls({
+    provider: providerKey,
+    modelId,
+  });
   if (!queueBaseUrls.length) {
     throw new Error(`No trusted Fal status base URL configured for model: ${modelId}`);
   }

@@ -4,7 +4,7 @@
  */
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { CharacterManagerShell } from "../CharacterManagerShell";
 import {
   createDefaultCharacterSheetPresetState,
@@ -76,6 +76,8 @@ const MOCK_SLOT_KEYS: MockCharacterReferenceSlotKey[] = [
   "portrait_close",
   "fullbody_wide",
 ];
+const TEST_SUPABASE_URL = "https://jwmcytzyhcvacjwqtynn.supabase.co";
+const ORIGINAL_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 const buildEmptySlots = (): MockCharacterSlotFileMap =>
   MOCK_SLOT_KEYS.reduce((acc, slotKey) => {
@@ -370,6 +372,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
 
 describe("CharacterManagerShell behavior", () => {
   beforeEach(() => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = TEST_SUPABASE_URL;
     supabaseClientMockState.mediaLookupMaybeSingle.mockReset();
     supabaseClientMockState.mediaLookupMaybeSingle.mockResolvedValue({ data: null, error: null });
     supabaseClientMockState.storageDownload.mockReset();
@@ -377,6 +380,14 @@ describe("CharacterManagerShell behavior", () => {
       data: null,
       error: { message: "not found" },
     });
+  });
+
+  afterAll(() => {
+    if (ORIGINAL_SUPABASE_URL === undefined) {
+      delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      return;
+    }
+    process.env.NEXT_PUBLIC_SUPABASE_URL = ORIGINAL_SUPABASE_URL;
   });
 
   it("replaces an assigned Character Sheet zone when a new reference is dropped", async () => {
@@ -628,13 +639,18 @@ describe("CharacterManagerShell behavior", () => {
 
       const portraitZone = getCharacterSheetZone("Portrait");
       const externalDrag = createDataTransfer();
-      externalDrag.setData("text/reference-url", "https://example.com/reference-grid-image.png");
+      externalDrag.setData(
+        "text/reference-url",
+        `${TEST_SUPABASE_URL}/storage/v1/object/sign/media_library/user-1/reference-grid-image.png?token=abc`
+      );
 
       fireEvent.dragOver(portraitZone, { dataTransfer: externalDrag });
       fireEvent.drop(portraitZone, { dataTransfer: externalDrag });
 
       await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledWith("https://example.com/reference-grid-image.png");
+        expect(fetchMock).toHaveBeenCalledWith(
+          `${TEST_SUPABASE_URL}/storage/v1/object/sign/media_library/user-1/reference-grid-image.png?token=abc`
+        );
         expect(getZoneImageSrc("Portrait")).toBe("https://example.com/preset-1-portrait-1.png");
       });
     } finally {
@@ -659,7 +675,7 @@ describe("CharacterManagerShell behavior", () => {
       const externalDrag = createDataTransfer();
       externalDrag.setData(
         "text/reference-url",
-        "https://example.com/reference-grid-quickswap.png"
+        `${TEST_SUPABASE_URL}/storage/v1/object/sign/media_library/user-1/reference-grid-quickswap.png?token=abc`
       );
 
       fireEvent.dragEnter(quickSwapSection, { dataTransfer: externalDrag });
@@ -667,8 +683,40 @@ describe("CharacterManagerShell behavior", () => {
       fireEvent.drop(quickSwapSection, { dataTransfer: externalDrag });
 
       await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledWith("https://example.com/reference-grid-quickswap.png");
+        expect(fetchMock).toHaveBeenCalledWith(
+          `${TEST_SUPABASE_URL}/storage/v1/object/sign/media_library/user-1/reference-grid-quickswap.png?token=abc`
+        );
         expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("blocks an untrusted external dropped URL from entering the QuickSwap deck", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["top-down"], { type: "image/png" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      render(<CharacterManagerShell />);
+
+      const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
+      if (!quickSwapSection) {
+        throw new Error("Unable to resolve QuickSwap deck section.");
+      }
+      const externalDrag = createDataTransfer();
+      externalDrag.setData("text/reference-url", "https://example.com/untrusted-reference.png");
+
+      fireEvent.dragEnter(quickSwapSection, { dataTransfer: externalDrag });
+      fireEvent.dragOver(quickSwapSection, { dataTransfer: externalDrag });
+      fireEvent.drop(quickSwapSection, { dataTransfer: externalDrag });
+
+      await waitFor(() => {
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(2);
       });
     } finally {
       vi.unstubAllGlobals();
@@ -699,7 +747,10 @@ describe("CharacterManagerShell behavior", () => {
         throw new Error("Unable to resolve QuickSwap deck section.");
       }
       const externalDrag = createDataTransfer();
-      externalDrag.setData("text/reference-url", "https://example.com/expired-signed-url.png");
+      externalDrag.setData(
+        "text/reference-url",
+        `${TEST_SUPABASE_URL}/storage/v1/object/sign/media_library/user-1/expired-signed-url.png?token=expired`
+      );
       externalDrag.setData("text/reference-media-id", "media-file-id-1");
 
       fireEvent.dragEnter(quickSwapSection, { dataTransfer: externalDrag });
@@ -707,7 +758,9 @@ describe("CharacterManagerShell behavior", () => {
       fireEvent.drop(quickSwapSection, { dataTransfer: externalDrag });
 
       await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledWith("https://example.com/expired-signed-url.png");
+        expect(fetchMock).toHaveBeenCalledWith(
+          `${TEST_SUPABASE_URL}/storage/v1/object/sign/media_library/user-1/expired-signed-url.png?token=expired`
+        );
         expect(supabaseClientMockState.mediaLookupMaybeSingle).toHaveBeenCalled();
         expect(supabaseClientMockState.storageDownload).toHaveBeenCalledWith(
           "private/user-1/references/reference-grid-quickswap.png"

@@ -34,6 +34,14 @@ const inFlightSignedUrlRequests = new Map<string, Promise<string | null>>();
 
 const cacheKeyFor = (bucket: string, storagePath: string) => `${bucket}:${storagePath}`;
 
+const chunkStoragePaths = (storagePaths: string[], chunkSize: number): string[][] => {
+  const chunks: string[][] = [];
+  for (let index = 0; index < storagePaths.length; index += chunkSize) {
+    chunks.push(storagePaths.slice(index, index + chunkSize));
+  }
+  return chunks;
+};
+
 const pruneSignedUrlCache = () => {
   while (signedUrlCache.size > MAX_SIGNED_URL_CACHE_ENTRIES) {
     const oldestKey = signedUrlCache.keys().next().value;
@@ -157,9 +165,7 @@ export const getSignedMediaUrlsBatch = async ({
   expiresInSeconds = DEFAULT_SIGNED_URL_TTL_SECONDS,
   forceRefresh = false,
 }: SignedMediaUrlBatchOptions): Promise<Map<string, string | null>> => {
-  const dedupedPaths = Array.from(
-    new Set(storagePaths.map((path) => path.trim()).filter(Boolean))
-  ).slice(0, MAX_BATCH_SIGN_PATHS);
+  const dedupedPaths = Array.from(new Set(storagePaths.map((path) => path.trim()).filter(Boolean)));
   const result = new Map<string, string | null>();
   if (!dedupedPaths.length) return result;
 
@@ -177,33 +183,36 @@ export const getSignedMediaUrlsBatch = async ({
 
   if (!unresolvedPaths.length) return result;
 
-  const apiResults = await signStoragePathsViaApi(bucket, unresolvedPaths, expiresInSeconds);
-  if (apiResults) {
-    for (const path of unresolvedPaths) {
-      const signedUrl = apiResults[path] ?? null;
-      if (signedUrl) {
-        setCachedUrl(bucket, path, signedUrl, expiresInSeconds);
-      } else {
-        signedUrlCache.delete(cacheKeyFor(bucket, path));
+  for (const unresolvedChunk of chunkStoragePaths(unresolvedPaths, MAX_BATCH_SIGN_PATHS)) {
+    const apiResults = await signStoragePathsViaApi(bucket, unresolvedChunk, expiresInSeconds);
+    if (apiResults) {
+      for (const path of unresolvedChunk) {
+        const signedUrl = apiResults[path] ?? null;
+        if (signedUrl) {
+          setCachedUrl(bucket, path, signedUrl, expiresInSeconds);
+        } else {
+          signedUrlCache.delete(cacheKeyFor(bucket, path));
+        }
+        result.set(path, signedUrl);
       }
-      result.set(path, signedUrl);
+      continue;
     }
-    return result;
+
+    const directResults = await Promise.all(
+      unresolvedChunk.map((path) =>
+        getSignedMediaUrl({
+          bucket,
+          storagePath: path,
+          expiresInSeconds,
+          forceRefresh,
+        }).then((signedUrl) => ({ path, signedUrl }))
+      )
+    );
+    for (const { path, signedUrl } of directResults) {
+      result.set(path, signedUrl ?? null);
+    }
   }
 
-  const directResults = await Promise.all(
-    unresolvedPaths.map((path) =>
-      getSignedMediaUrl({
-        bucket,
-        storagePath: path,
-        expiresInSeconds,
-        forceRefresh,
-      }).then((signedUrl) => ({ path, signedUrl }))
-    )
-  );
-  for (const { path, signedUrl } of directResults) {
-    result.set(path, signedUrl ?? null);
-  }
   return result;
 };
 

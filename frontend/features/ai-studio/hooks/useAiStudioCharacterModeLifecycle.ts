@@ -10,6 +10,7 @@ import {
 import {
   persistSelectedCharacterId,
   readPersistedSelectedCharacterId,
+  subscribeToSelectedCharacterId,
 } from "../../character-manager/logic/selectedCharacterPersistence";
 import {
   resolveCharacterSheetPresetReferenceStoragePaths,
@@ -86,6 +87,16 @@ export const useAiStudioCharacterModeLifecycle = ({
   useEffect(() => {
     persistSelectedCharacterId(selectedCharacterId || null);
   }, [selectedCharacterId]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToSelectedCharacterId((nextCharacterId) => {
+      setSelectedCharacterId((current) => {
+        const normalized = nextCharacterId ?? "";
+        return current === normalized ? current : normalized;
+      });
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     let active = true;

@@ -1,6 +1,6 @@
 # Unified Phase 06: Character Workflow Hardening
 
-Status: Planned
+Status: In Progress
 Owner: Engineering
 
 ## Objective
@@ -18,6 +18,20 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A: smallest safe functional increment.
 2. Slice B: test hardening and edge-case completion.
 3. Slice C: docs + evidence + tracker update.
+
+## Current Slice A Update (2026-02-27)
+Implemented:
+1. Character drop trust hardening in `CharacterManagerShell`: arbitrary external dropped URLs are blocked by trust policy, while trusted local/internal/supabase-hosted drops remain allowed.
+2. Added dropped-reference failure/block telemetry for Character Sheet + QuickSwap drop paths (removed silent catch behavior).
+3. Added AI Studio lifecycle subscription to shared selected-character persistence events for cross-surface sync.
+4. Removed signed URL batch truncation behavior by chunking `getSignedMediaUrlsBatch` across all unresolved paths.
+5. Added test coverage for trusted vs untrusted dropped URL behavior.
+6. Added test coverage for cross-surface selected-character sync.
+7. Added test coverage for signed URL batch chunking beyond 60 paths.
+
+Remaining:
+1. Slice B parity/perf hardening for large character sets (100-character responsiveness target) and stale bundle guard edge-cases.
+2. Slice C full phase-close docs/runbook updates and final signoff.
 
 ## Validation Gates
 1. 
@@ -147,10 +161,10 @@ Naming canonical drift checks passed.
 
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:
-- 
+1. Not required for Slice A: all changes are repo-local trust/sync/cache behavior with no new external provider contract dependency.
 
 ## Required Docs Updates
-1. Update  phase status.
+1. Update phase status.
 2. Add evidence summary in phase-06 folder.
 3. Update impacted SOP/API/ADR/change-log docs.
 
@@ -163,4 +177,3 @@ If this phase touches external contracts/standards, add a short research note wi
 ## Rollback Plan
 1. Revert only the PR slice(s) from this phase.
 2. Keep previous stable phase baseline intact.
-

@@ -22,8 +22,10 @@ import {
   resolveAdaptiveMedia,
   resolveAdaptiveSourceKind,
 } from "../../../lib/adaptive-media";
+import { reportAppError } from "../../../lib/appErrorReporter";
 import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "../../billing/catalog";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { isTrustedMediaDirectPreviewUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
@@ -69,6 +71,7 @@ const SUPABASE_STORAGE_OBJECT_URL_PATTERN =
 const DRAG_GHOST_SCALE = 0.74;
 const CHARACTER_MANAGER_BEGINNER_MODE_STORAGE_KEY = "shortpulse.character_manager.beginner_mode";
 const MEDIA_BUCKET = "media_library";
+const DROPPED_REFERENCE_TELEMETRY_SOURCE = "client.character_manager.drop_reference";
 
 const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: PROFILE_ZOOM_MIN,
@@ -149,6 +152,12 @@ const parseDropUrlCandidate = (value: string | null | undefined): string | null 
 const parseDropMediaFileId = (value: string | null | undefined): string | null => {
   const candidate = (value ?? "").trim();
   return candidate.length ? candidate : null;
+};
+
+const isTrustedDroppedImageUrl = (url: string): boolean => {
+  if (/^data:image\//i.test(url)) return true;
+  if (/^blob:/i.test(url)) return true;
+  return isTrustedMediaDirectPreviewUrl(url, { requireUserScope: false });
 };
 
 const extractFirstUriListEntry = (value: string | null | undefined): string | null =>
@@ -310,7 +319,7 @@ const resolveDroppedImageReference = (transfer: DataTransfer | null | undefined)
     parseDropMediaFileId(transfer.getData("text/reference-id"));
 
   const explicitReferenceUrl = parseDropUrlCandidate(transfer.getData("text/reference-url"));
-  if (explicitReferenceUrl) {
+  if (explicitReferenceUrl && isTrustedDroppedImageUrl(explicitReferenceUrl)) {
     return {
       url: explicitReferenceUrl,
       mimeType: inferMimeTypeFromUrl(explicitReferenceUrl),
@@ -322,6 +331,7 @@ const resolveDroppedImageReference = (transfer: DataTransfer | null | undefined)
   const uriListUrl = parseDropUrlCandidate(uriListEntry);
   if (
     uriListUrl &&
+    isTrustedDroppedImageUrl(uriListUrl) &&
     (DROPPED_IMAGE_URL_PATTERN.test(uriListUrl) || /^data:image\//i.test(uriListUrl))
   ) {
     return {
@@ -332,7 +342,7 @@ const resolveDroppedImageReference = (transfer: DataTransfer | null | undefined)
   }
 
   const imageUrl = parseDropUrlCandidate(transfer.getData("image/url"));
-  if (imageUrl) {
+  if (imageUrl && isTrustedDroppedImageUrl(imageUrl)) {
     return {
       url: imageUrl,
       mimeType: inferMimeTypeFromUrl(imageUrl),
@@ -343,6 +353,7 @@ const resolveDroppedImageReference = (transfer: DataTransfer | null | undefined)
   const plainTextUrl = parseDropUrlCandidate(transfer.getData("text/plain"));
   if (
     plainTextUrl &&
+    isTrustedDroppedImageUrl(plainTextUrl) &&
     (DROPPED_IMAGE_URL_PATTERN.test(plainTextUrl) || /^data:image\//i.test(plainTextUrl))
   ) {
     return {
@@ -1020,8 +1031,23 @@ export function CharacterManagerShell({
       try {
         const file = await toDroppedReferenceFile(reference);
         await setCharacterSheetPresetFile(zoneKey, file);
-      } catch {
-        // If the dragged reference cannot be fetched/decoded, silently ignore.
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error && error.message.trim().length
+            ? error.message
+            : "Failed to process dropped Character Sheet reference.";
+        void reportAppError({
+          source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+          scope: "app",
+          severity: "low",
+          message: "character_sheet_drop_reference_failed",
+          metadata: {
+            target: "character_sheet",
+            drop_zone_key: zoneKey,
+            reference_media_file_id: reference.mediaFileId,
+            reason: errorMessage,
+          },
+        });
       }
     },
     [setCharacterSheetPresetFile]
@@ -1032,8 +1058,22 @@ export function CharacterManagerShell({
       try {
         const file = await toDroppedReferenceFile(reference);
         await uploadSimpleFiles([file]);
-      } catch {
-        // If the dragged reference cannot be fetched/decoded, silently ignore.
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error && error.message.trim().length
+            ? error.message
+            : "Failed to process dropped QuickSwap reference.";
+        void reportAppError({
+          source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+          scope: "app",
+          severity: "low",
+          message: "quickswap_drop_reference_failed",
+          metadata: {
+            target: "quickswap",
+            reference_media_file_id: reference.mediaFileId,
+            reason: errorMessage,
+          },
+        });
       }
     },
     [uploadSimpleFiles]
@@ -1206,7 +1246,20 @@ export function CharacterManagerShell({
       }
 
       const droppedReference = resolveDroppedImageReference(event.dataTransfer);
-      if (!droppedReference) return;
+      if (!droppedReference) {
+        void reportAppError({
+          source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+          scope: "app",
+          severity: "low",
+          message: "character_sheet_drop_reference_blocked_by_trust_policy",
+          metadata: {
+            target: "character_sheet",
+            drop_zone_key: characterSheetSlotKey,
+            transfer_types: Array.from(event.dataTransfer.types ?? []),
+          },
+        });
+        return;
+      }
       void setCharacterSheetFileFromDroppedReference(characterSheetSlotKey, droppedReference);
     },
     [
@@ -1674,7 +1727,19 @@ export function CharacterManagerShell({
                     return;
                   }
                   const droppedReference = resolveDroppedImageReference(event.dataTransfer);
-                  if (!droppedReference) return;
+                  if (!droppedReference) {
+                    void reportAppError({
+                      source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+                      scope: "app",
+                      severity: "low",
+                      message: "quickswap_drop_reference_blocked_by_trust_policy",
+                      metadata: {
+                        target: "quickswap",
+                        transfer_types: Array.from(event.dataTransfer.types ?? []),
+                      },
+                    });
+                    return;
+                  }
                   void addDroppedReferenceToQuickSwap(droppedReference);
                 }}
               >

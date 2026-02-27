@@ -22,11 +22,14 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Preset zone uploads are independent of QuickSwap Deck slot usage.
    - Removing a QuickSwap Deck slot does not clear preset zone assignments.
    - No activation gate or completion requirement is enforced in the current UI.
-5. Character selection persistence:
+5. Dropped external reference URLs are trust-scoped:
+   - Trusted local/internal/supabase-hosted image URLs are accepted for Character Sheet and QuickSwap drop flows.
+   - Arbitrary external hosts are blocked from drop ingestion.
+6. Character selection persistence:
    - Selecting a character in Character Manager persists that selection in browser local storage.
    - The persisted selection is used as the preferred default on reload for both `/character` and the AI Studio embedded Character panel.
    - If the persisted character no longer exists, Character Manager falls back to the latest available draft.
-6. AI Studio Create Character Mode consumes Character Manager data at generation time:
+7. AI Studio Create Character Mode consumes Character Manager data at generation time:
    - Selected character description is injected as hidden prompt context when available.
    - Character Mode resolves ordered references from the active preset first (`portrait`, `close_up`, `front_shot`, `back_shot`), then falls back to legacy slot-based assignments when preset zones are empty.
    - Character draft is reloaded before each Create/Text generation submit so newest preset changes are used.
@@ -99,8 +102,10 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Dragging a reference into a Character Sheet zone assigns it.
 - Dropping another reference into that same zone replaces it.
 - Dragging zone-to-zone swaps assignments.
+- Dropped external reference URLs are accepted only from trusted local/internal/supabase-hosted sources.
 - Preset tabs `1..4` render and switch without cross-tab assignment bleed.
 - Character Sheet preset assignments persist after refresh and character switching.
+- Untrusted external dropped URLs are blocked in Character Sheet and QuickSwap drop surfaces.
 - Selected character persists after refresh/re-entry and becomes the preferred default for future sessions.
 - Preset uploads do not consume QuickSwap Deck capacity.
 - Creating/switching/deleting characters preserves expected per-character state.

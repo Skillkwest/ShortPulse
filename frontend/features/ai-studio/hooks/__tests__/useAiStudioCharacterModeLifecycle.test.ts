@@ -6,6 +6,7 @@ import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
 } from "../../../character-manager/logic/characterManagerPersistence";
+import { persistSelectedCharacterId } from "../../../character-manager/logic/selectedCharacterPersistence";
 
 vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
   listCharacterManagerCharacters: vi.fn(),
@@ -208,5 +209,33 @@ describe("useAiStudioCharacterModeLifecycle", () => {
         sheetReferenceUrls: ["https://example.com/portrait.png", "https://example.com/closeup.png"],
       })
     );
+  });
+
+  it("syncs selected character when persistence changes from another surface", async () => {
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+      },
+      {
+        characterId: "char-2",
+        characterName: "Ayla",
+        profileImageUrl: null,
+      },
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
+    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(createParams()));
+
+    await waitFor(() => {
+      expect(result.current.isCharacterOptionsLoading).toBe(false);
+    });
+
+    act(() => {
+      persistSelectedCharacterId("char-2");
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("char-2");
+    });
   });
 });

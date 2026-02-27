@@ -12,11 +12,49 @@ Prepare a deterministic canary procedure for transitioning `/api/fal/queue-statu
    - `SHORTPULSE_FAL_RECONCILER_ENABLED=true`
 
 ## Baseline Capture (before flag flip)
+0. Preflight env setup (example):
+   ```bash
+   export SHORTPULSE_STAGING_BASE_URL="https://<staging-host>"
+   export SHORTPULSE_FAL_RECONCILER_CRON_SECRET="<staging-reconciler-secret>"
+   # Optional if not using --bootstrap-token-from-supabase:
+   export SHORTPULSE_STAGING_BEARER_TOKEN="<user-bearer-token>"
+   ```
 1. Latency probe:
-   - `node scripts/capture_protected_route_latency.mjs --path /api/fal/queue-status --path /api/media/resolve-previews --samples 25 --bootstrap-token-from-supabase`
+   - using Supabase bootstrap token:
+     ```bash
+     node scripts/capture_protected_route_latency.mjs \
+       --base-url "$SHORTPULSE_STAGING_BASE_URL" \
+       --path /api/fal/queue-status \
+       --path /api/media/resolve-previews \
+       --samples 25 \
+       --warmup 5 \
+       --bootstrap-token-from-supabase
+     ```
+   - using existing bearer token:
+     ```bash
+     node scripts/capture_protected_route_latency.mjs \
+       --base-url "$SHORTPULSE_STAGING_BASE_URL" \
+       --token "$SHORTPULSE_STAGING_BEARER_TOKEN" \
+       --path /api/fal/queue-status \
+       --path /api/media/resolve-previews \
+       --samples 25 \
+       --warmup 5
+     ```
 2. Queue/recovery health snapshots:
-   - `GET /api/internal/generation-recovery/run` response metrics (`queue*`, `processed`, `errors`).
-   - Queue depth by status (`queued`, `dispatching`, `exhausted`) from `ai_generation_submit_queue`.
+   - `POST /api/internal/generation-recovery/run` response metrics (`queue*`, `processed`, `errors`):
+     ```bash
+     curl -sS -X POST \
+       "$SHORTPULSE_STAGING_BASE_URL/api/internal/generation-recovery/run" \
+       -H "Authorization: Bearer $SHORTPULSE_FAL_RECONCILER_CRON_SECRET" \
+       -H "Content-Type: application/json"
+     ```
+   - Queue depth by status (`queued`, `dispatching`, `exhausted`) from `ai_generation_submit_queue`:
+     ```sql
+     select status, count(*) as rows
+     from ai_generation_submit_queue
+     group by status
+     order by status;
+     ```
 
 ## Canary Verification Window
 1. Validate no sustained threshold regressions:
@@ -38,3 +76,6 @@ Prepare a deterministic canary procedure for transitioning `/api/fal/queue-statu
 ## Notes
 1. This is an ops readiness packet; no additional code changes are required for the canary itself.
 2. Production rollout should follow a staging pass with the same checklist and evidence format.
+3. Route auth contract for recovery metrics supports either:
+   - `Authorization: Bearer <reconciler-secret>` (primary), or
+   - `x-shortpulse-cron-secret: <reconciler-secret>` (legacy compatibility path).

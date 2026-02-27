@@ -27,12 +27,36 @@ Capture before enabling read-only mode:
 1. Route latency baseline:
    - `/api/fal/queue-status`:
    - `/api/media/resolve-previews`:
+   - command/output reference:
+     ```bash
+     node scripts/capture_protected_route_latency.mjs \
+       --base-url "$SHORTPULSE_STAGING_BASE_URL" \
+       --path /api/fal/queue-status \
+       --path /api/media/resolve-previews \
+       --samples 25 \
+       --warmup 5 \
+       --bootstrap-token-from-supabase
+     ```
 2. Queue depth by status:
    - `queued`:
    - `dispatching`:
    - `exhausted`:
+   - SQL snapshot reference:
+     ```sql
+     select status, count(*) as rows
+     from ai_generation_submit_queue
+     group by status
+     order by status;
+     ```
 3. Recovery backlog:
    - p95 age:
+   - metrics endpoint snapshot reference:
+     ```bash
+     curl -sS -X POST \
+       "$SHORTPULSE_STAGING_BASE_URL/api/internal/generation-recovery/run" \
+       -H "Authorization: Bearer $SHORTPULSE_FAL_RECONCILER_CRON_SECRET" \
+       -H "Content-Type: application/json"
+     ```
 4. Callback verification failure rate:
 5. Billing mismatch count:
 

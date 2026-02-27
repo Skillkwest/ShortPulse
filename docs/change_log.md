@@ -1599,3 +1599,12 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated tracker notes:
   - Phase 04 now references the green regression refresh while remaining blocked on canary execution/signoff.
   - Phase 07 note now tracks an existing warn-mode size-budget target (`useAiStudioState.ts`) as planned modularization work.
+
+## 2026-02-27 (unified buildout phase-04 canary runbook command hardening)
+- Tightened Phase 04 canary execution docs with explicit, executable command references:
+  - added preflight env setup and exact `capture_protected_route_latency.mjs` invocation examples (bootstrap-token and existing-token paths),
+  - added explicit recovery metrics `curl` command with bearer-auth contract,
+  - added queue-depth SQL snapshot query.
+- Updated:
+  - `docs/planning/evidence/unified-buildout/phase-04/2026-02-27-fal-queue-status-read-only-canary-readiness.md`,
+  - `docs/planning/evidence/unified-buildout/phase-04/2026-02-27-fal-queue-status-read-only-canary-execution-log-template.md`.

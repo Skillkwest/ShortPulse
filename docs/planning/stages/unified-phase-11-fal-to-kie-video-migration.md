@@ -1,6 +1,6 @@
 # Unified Phase 11: Fal to Kie Video Migration
 
-Status: Planned
+Status: In Progress
 Owner: Engineering
 
 ## Objective
@@ -18,6 +18,17 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A: smallest safe functional increment.
 2. Slice B: test hardening and edge-case completion.
 3. Slice C: docs + evidence + tracker update.
+
+## Current Slice Status
+1. Slice A in progress:
+- Added Phase 11 shadow/canary readiness + threshold template:
+  - `docs/planning/evidence/unified-buildout/phase-11/2026-02-27-phase-11-slice-a-shadow-canary-readiness-and-threshold-template.md`
+- Locked observation framing for first Kie migration execution:
+  - baseline capture,
+  - shadow parity window,
+  - two canary observation windows,
+  - explicit promote/hold/rollback decision criteria.
+- No provider cutover executed in this slice (planning and evidence scaffold only).
 
 ## Validation Gates
 1. 
@@ -147,7 +158,7 @@ Naming canonical drift checks passed.
 
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:
-- 
+- `docs/planning/evidence/unified-buildout/phase-11/2026-02-27-phase-11-slice-a-shadow-canary-readiness-and-threshold-template.md`
 
 ## Required Docs Updates
 1. Update  phase status.
@@ -159,8 +170,8 @@ If this phase touches external contracts/standards, add a short research note wi
 2. Tracker status updated.
 3. Evidence note committed.
 4. Rollback note documented.
+5. Shadow parity and canary windows pass phase thresholds with explicit signoff packet.
 
 ## Rollback Plan
 1. Revert only the PR slice(s) from this phase.
 2. Keep previous stable phase baseline intact.
-

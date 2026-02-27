@@ -4,7 +4,9 @@ import handler from "../../pages/api/fal/queue-status";
 const requireApiUserMock = vi.fn();
 const readFalRuntimeFlagsMock = vi.fn();
 const dispatchGenerationSubmitQueueBatchMock = vi.fn();
+const claimDueQueueStatusRecoveryMock = vi.fn();
 const readGenerationQueueStatusMock = vi.fn();
+const executeGenerationRecoveryMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 
@@ -21,8 +23,16 @@ vi.mock("../../lib/server/api/generationQueue/dispatch", () => ({
     dispatchGenerationSubmitQueueBatchMock(...args),
 }));
 
+vi.mock("../../lib/server/api/generationQueue/statusRecoveryKick", () => ({
+  claimDueQueueStatusRecovery: (...args: unknown[]) => claimDueQueueStatusRecoveryMock(...args),
+}));
+
 vi.mock("../../lib/server/api/generationQueue/service", () => ({
   readGenerationQueueStatus: (...args: unknown[]) => readGenerationQueueStatusMock(...args),
+}));
+
+vi.mock("../../lib/server/falIntegration/recoveryExecution", () => ({
+  executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
 }));
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
@@ -55,6 +65,22 @@ describe("GET /api/fal/queue-status", () => {
       exhausted: 0,
       skipped: 0,
       errors: 0,
+    });
+    claimDueQueueStatusRecoveryMock.mockResolvedValue({
+      claimed: false,
+      generationId: null,
+      requestId: null,
+      reason: "not_found",
+      errorMessage: null,
+    });
+    executeGenerationRecoveryMock.mockResolvedValue({
+      ok: true,
+      state: "provider_running",
+      generationId: "gen-1",
+      requestId: "req-1",
+      mediaFileIds: [],
+      mediaUrls: [],
+      processed: true,
     });
     readGenerationQueueStatusMock.mockResolvedValue({
       status: "queued",
@@ -102,7 +128,7 @@ describe("GET /api/fal/queue-status", () => {
     );
   });
 
-  it("returns 200 in read-only mode without dispatch kick side effects", async () => {
+  it("returns 200 in read-only dispatch mode without dispatch kick side effects", async () => {
     readFalRuntimeFlagsMock.mockReturnValue({
       queueEnabled: true,
       queueStatusDispatchKickEnabled: false,
@@ -122,6 +148,94 @@ describe("GET /api/fal/queue-status", () => {
       expect.objectContaining({
         userId: "user-1",
         sourceRef: "src-1",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("kicks due recovery before status read when claim succeeds", async () => {
+    claimDueQueueStatusRecoveryMock.mockResolvedValueOnce({
+      claimed: true,
+      generationId: "gen-1",
+      requestId: "req-1",
+      reason: "claimed",
+      errorMessage: null,
+    });
+    const req = {
+      method: "GET",
+      query: { generationId: "gen-1" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(claimDueQueueStatusRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        generationId: "gen-1",
+      })
+    );
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: "status_proxy",
+        routeLabel: "api/fal/queue-status",
+        generationId: "gen-1",
+        requestId: "req-1",
+        userId: "user-1",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("logs recovery claim failures and still returns queue status", async () => {
+    claimDueQueueStatusRecoveryMock.mockResolvedValueOnce({
+      claimed: false,
+      generationId: "gen-1",
+      requestId: "req-1",
+      reason: "db_error",
+      errorMessage: "db unavailable",
+    });
+    const req = {
+      method: "GET",
+      query: { generationId: "gen-1" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.queue.status.recovery_claim_failed",
+        routeLabel: "api/fal/queue-status",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("logs recovery execution errors and still returns queue status", async () => {
+    claimDueQueueStatusRecoveryMock.mockResolvedValueOnce({
+      claimed: true,
+      generationId: "gen-1",
+      requestId: "req-1",
+      reason: "claimed",
+      errorMessage: null,
+    });
+    executeGenerationRecoveryMock.mockRejectedValueOnce(new Error("recovery unavailable"));
+    const req = {
+      method: "GET",
+      query: { generationId: "gen-1" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.queue.status.recovery_kick_failed",
+        routeLabel: "api/fal/queue-status",
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);

@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdminUser } from "../../../lib/server/api/auth";
 import { logApiRouteException, writeAppErrorLog } from "../../../lib/server/api/appErrorLogs";
+import { SYNTHETIC_TEST_SOURCE_PREFIX } from "../../../lib/server/api/errorTelemetryPolicy";
 
 type TriggerScope = "app" | "generation";
 type TriggerSeverity = "low" | "medium" | "high";
@@ -69,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const nowIso = new Date().toISOString();
   const defaultMessage = `Admin synthetic ${scope} incident ${nowIso}`;
   const message = asTrimmedString(body.message, 400) ?? defaultMessage;
-  const source = asTrimmedString(body.source, 80) ?? `admin.synthetic_test.${scope}`;
+  const source = asTrimmedString(body.source, 80) ?? `${SYNTHETIC_TEST_SOURCE_PREFIX}${scope}`;
   const metadata =
     body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata)
       ? body.metadata

@@ -8,6 +8,21 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - API/server-side incidents can be written through `frontend/lib/server/api/appErrorLogs.ts`.
 - Operator review surface: `/admin` incident panels backed by `app_error_logs` (grouped) plus raw event stream from `app_error_events` (per occurrence) via `/api/admin/error-events`.
 
+## Telemetry pipeline topology
+1. Ingestion entrypoints:
+   - Browser/runtime: `POST /api/log/client-error`
+   - Server/API handlers: `logApiRouteException` / `logGenerationFailure` in `frontend/lib/server/api/appErrorLogs.ts`
+2. Normalization + storage:
+   - Shared sanitizer/fingerprint flow in `writeAppErrorLog`
+   - Per-occurrence events stored in `app_error_events` (append-only)
+   - Deduplicated incidents stored in `app_error_logs` (open incident merge by fingerprint)
+3. Telemetry-only source policy:
+   - Sources under `telemetry.*` stay in `app_error_events` only (no grouped incident row)
+   - Shared policy contract lives in `frontend/lib/server/api/errorTelemetryPolicy.ts`
+4. Operator retrieval:
+   - `/api/admin/error-events` = raw stream + enrichment + alert summaries
+   - `/api/admin/errors` = grouped incidents for triage lifecycle
+
 ## Severity model
 - `low`: recoverable UI issues with clear user fallback.
 - `medium`: workflow failures that block a feature but have workaround paths.
@@ -23,6 +38,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 ## Admin triage controls
 - `app_error_events` is append-only telemetry. Do not delete rows during troubleshooting; preserve forensic history.
 - Use incident status transitions (`open` -> `resolved`/`ignored`, with `reopen` when needed) to represent triage state.
+- Admin UI supports single-item and listed-page bulk status transitions for incidents (resolve/ignore) via `/api/admin/errors-status` and `/api/admin/errors-status-bulk`.
 - Use `Copy triage` in the Incidents/Event Stream tables for handoff packets. These payloads are versioned and intentionally compact (key identifiers + normalized triage metadata) to keep troubleshooting reproducible without pasting full raw metadata blobs.
 - Event Stream display controls are operator-local:
   - Incident-state display filter (`Actionable`, `Open`, `Resolved`, `Ignored`, `Unlinked`) trims visible rows for active work.

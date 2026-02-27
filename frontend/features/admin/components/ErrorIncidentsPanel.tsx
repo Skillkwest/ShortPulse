@@ -15,6 +15,15 @@ import type {
   AdminPagination,
   AdminErrorStatus,
 } from "../types";
+import { copyToClipboard } from "../logic/copyToClipboard";
+import {
+  eventIncidentFilterLabel,
+  eventMatchesIncidentFilter,
+  eventSignalFilterLabel,
+  formatDateTime,
+  incidentStatusLabel,
+  sourceLabel,
+} from "../logic/errorIncidentViewUtils";
 import { buildEventTriagePacket, buildIncidentTriagePacket } from "../logic/triagePackets";
 import styles from "../../../styles/admin.module.css";
 
@@ -39,6 +48,8 @@ type ErrorIncidentsPanelProps = {
   errorSearch: string;
   errorPagination: AdminPagination;
   statusUpdatingErrorId: string | null;
+  bulkIncidentStatusUpdating: "resolved" | "ignored" | null;
+  bulkIncidentStatusResult: string | null;
   testIncidentSubmittingScope: "app" | "generation" | null;
   testIncidentResult: string | null;
   onErrorStatusFilterChange: (value: "open" | "all") => void;
@@ -51,106 +62,13 @@ type ErrorIncidentsPanelProps = {
   onErrorSearchChange: (value: string) => void;
   onUpdateErrorStatus: (errorId: string, status: AdminErrorStatus) => Promise<void>;
   onUpdateErrorEventStatus: (eventId: string, status: AdminErrorStatus) => Promise<void>;
+  onBulkUpdateListedErrorStatus: (status: "resolved" | "ignored") => Promise<void>;
   onTriggerTestIncident: (scope: "app" | "generation") => void;
   onPrevPage: () => void;
   onNextPage: () => void;
   onEventPrevPage: () => void;
   onEventNextPage: () => void;
   onRefresh: () => void;
-};
-
-const formatDateTime = (value: string | null): string => {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString();
-};
-
-const sourceLabel = (value: string): string =>
-  value
-    .split(".")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" · ");
-
-const eventSignalFilterLabel = (value: AdminErrorEventSignalFilter): string => {
-  if (value === "character_mode_reference_refresh_empty") {
-    return "Character Mode: reference refresh empty";
-  }
-  if (value === "character_mode_bundle_unavailable_fallback") {
-    return "Character Mode: bundle unavailable fallback";
-  }
-  return "All event signals";
-};
-
-const eventIncidentFilterLabel = (value: AdminErrorEventIncidentFilter): string => {
-  if (value === "actionable") return "Actionable (open + unlinked)";
-  if (value === "open") return "Open incidents only";
-  if (value === "resolved") return "Resolved incidents only";
-  if (value === "ignored") return "Ignored incidents only";
-  if (value === "unlinked") return "Unlinked events only";
-  return "All incident states";
-};
-
-const eventMatchesIncidentFilter = (
-  row: AdminErrorEventRow,
-  filter: AdminErrorEventIncidentFilter
-): boolean => {
-  if (filter === "all") return true;
-  if (filter === "actionable") {
-    return row.incidentStatus === "open" || row.incidentId === null;
-  }
-  if (filter === "unlinked") {
-    return row.incidentId === null;
-  }
-  return row.incidentStatus === filter;
-};
-
-const incidentStatusLabel = (status: AdminErrorStatus | null): string => {
-  if (status === "resolved") return "Resolved";
-  if (status === "ignored") return "Ignored";
-  if (status === "open") return "Open";
-  return "Unlinked";
-};
-
-const copyToClipboard = async (text: string): Promise<boolean> => {
-  if (typeof window === "undefined") return false;
-
-  // Prefer the async Clipboard API when available. This can fail if the browser
-  // blocks clipboard writes (permissions, insecure context, etc).
-  try {
-    if (navigator?.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // Fall through to legacy fallback below.
-  }
-
-  // Fallback for environments where `navigator.clipboard` is unavailable/blocked.
-  // `document.execCommand("copy")` is deprecated but still widely supported.
-  try {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.top = "0";
-    textarea.style.left = "0";
-    textarea.style.opacity = "0";
-    textarea.style.pointerEvents = "none";
-    textarea.style.width = "1px";
-    textarea.style.height = "1px";
-
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    textarea.setSelectionRange(0, textarea.value.length);
-
-    const ok = document.execCommand("copy");
-    document.body.removeChild(textarea);
-    return ok;
-  } catch {
-    return false;
-  }
 };
 
 /**
@@ -177,6 +95,8 @@ export function ErrorIncidentsPanel({
   errorSearch,
   errorPagination,
   statusUpdatingErrorId,
+  bulkIncidentStatusUpdating,
+  bulkIncidentStatusResult,
   testIncidentSubmittingScope,
   testIncidentResult,
   onErrorStatusFilterChange,
@@ -189,6 +109,7 @@ export function ErrorIncidentsPanel({
   onErrorSearchChange,
   onUpdateErrorStatus,
   onUpdateErrorEventStatus,
+  onBulkUpdateListedErrorStatus,
   onTriggerTestIncident,
   onPrevPage,
   onNextPage,
@@ -241,6 +162,10 @@ export function ErrorIncidentsPanel({
   const resultEnd = Math.min(
     errorPagination.page * errorPagination.perPage,
     errorPagination.totalCount
+  );
+  const listedOpenIncidentCount = useMemo(
+    () => errors.filter((row) => row.status === "open").length,
+    [errors]
   );
   const eventResultStart =
     errorEventsPagination.totalCount === 0
@@ -542,6 +467,30 @@ export function ErrorIncidentsPanel({
           <button
             type="button"
             className="ghost-btn mini"
+            onClick={() => {
+              void onBulkUpdateListedErrorStatus("resolved");
+            }}
+            disabled={listedOpenIncidentCount === 0 || bulkIncidentStatusUpdating !== null}
+          >
+            {bulkIncidentStatusUpdating === "resolved"
+              ? "Resolving listed…"
+              : `Resolve listed open (${listedOpenIncidentCount})`}
+          </button>
+          <button
+            type="button"
+            className="ghost-btn mini"
+            onClick={() => {
+              void onBulkUpdateListedErrorStatus("ignored");
+            }}
+            disabled={listedOpenIncidentCount === 0 || bulkIncidentStatusUpdating !== null}
+          >
+            {bulkIncidentStatusUpdating === "ignored"
+              ? "Ignoring listed…"
+              : `Ignore listed open (${listedOpenIncidentCount})`}
+          </button>
+          <button
+            type="button"
+            className="ghost-btn mini"
             onClick={onPrevPage}
             disabled={errorsLoading || !errorPagination.hasPrevPage}
           >
@@ -560,6 +509,7 @@ export function ErrorIncidentsPanel({
           </button>
         </div>
       </div>
+      {bulkIncidentStatusResult ? <p className="tiny subdued">{bulkIncidentStatusResult}</p> : null}
       {testIncidentResult ? <p className="tiny subdued">{testIncidentResult}</p> : null}
 
       <div className={styles.adminTable}>

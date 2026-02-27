@@ -6,6 +6,7 @@ import { createHash } from "crypto";
 import type { NextApiRequest } from "next";
 import type { AuthenticatedApiUser } from "./auth";
 import { getOptionalApiUser } from "./auth";
+import { isTelemetrySource } from "./errorTelemetryPolicy";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type JsonObject = Record<string, unknown>;
@@ -301,8 +302,6 @@ const shouldSkipLog = (params: {
   return false;
 };
 
-const isTelemetryOnlySource = (source: string): boolean => source.startsWith("telemetry.");
-
 const requestHeaderValue = (value: string | string[] | undefined): string | null => {
   if (typeof value === "string") return toTrimmedString(value);
   if (Array.isArray(value) && value[0]) return toTrimmedString(value[0]);
@@ -527,7 +526,7 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
     occurredAt,
   });
 
-  if (isTelemetryOnlySource(source)) {
+  if (isTelemetrySource(source)) {
     return { ok: true, skipped: false, id: null };
   }
 

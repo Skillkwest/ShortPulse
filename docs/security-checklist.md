@@ -36,6 +36,7 @@ Purpose: ensure user isolation and authenticated access across the Next.js app +
 - **Emergency auth fallback**: `SHORTPULSE_TRUST_PROXY_AUTH_HEADERS` may be enabled only for short-lived incident recovery. Default must remain `false` in normal operation.
 - **Admin boundary**: Restrict admin APIs to operator roles from `app_metadata` (`role`/`roles`) or explicit allow-listed admin emails. Do not trust `user_metadata` for admin authorization.
 - **Conversation-state RPC hardening**: Keep `upsert_ai_agent_conversation_state` execute scope service-role-only, enforce bounded TTL/cap in DB logic, and run scheduled cleanup via `prune_ai_agent_conversation_state_expired`.
+- **Runtime SQL RPC hardening audit**: Run `sql/check_runtime_sql_security_audit.sql` after migration/security updates and before release signoff; require `failing_checks = 0`.
 
 ## Validation
 - Periodically test RLS with different users to confirm isolation.
@@ -43,3 +44,4 @@ Purpose: ensure user isolation and authenticated access across the Next.js app +
 - Verify new-signup flow allocates the expected plan and initial credits.
 - Verify Stripe webhook replay does not duplicate credit grants.
 - Verify `/admin` credit adjustments succeed and ledger rows are created with expected attribution fields.
+- Verify runtime SQL audit summary reports `failing_checks = 0` in staging for critical RPCs.

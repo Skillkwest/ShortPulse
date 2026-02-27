@@ -1,6 +1,6 @@
 # Unified Phase 10: Security Residual Controls
 
-Status: In Progress
+Status: Completed
 Owner: Engineering
 
 ## Objective
@@ -31,9 +31,14 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Added fail-closed trusted-host behavior for `/api/ai/describe-image` when external hosts are not explicitly allowlisted.
 - Hardened describe-image error payloads to avoid returning transport/internal detail on `5xx` paths.
 - Expanded describe-image route tests with explicit fail-closed external-host coverage.
-3. Slice C in progress:
-- Phase docs/tracker/evidence updates in progress.
-- Awaiting human checkpoint before phase status promotion.
+3. Slice C complete:
+- Runtime SQL security audit integration landed via `sql/check_runtime_sql_security_audit.sql`.
+- Execute-grant drift remediation landed via `sql/migrations/040_harden_runtime_rpc_execute_grants.sql`.
+- SQL/security runbooks now require runtime RPC security audit pass (`failing_checks = 0`) before signoff.
+- Added telemetry event-only integration guard and completed `/api/admin/error-events` route modularization checkpoint.
+- Evidence packet added:
+  - `docs/planning/evidence/unified-buildout/phase-10/2026-02-27-phase-10-slice-c-runtime-sql-security-audit-integration.md`
+- Staging checkpoint completed with clean audit summary (`total_checks=60`, `passing_checks=60`, `failing_checks=0`).
 
 ## Validation Gates
 1. 
@@ -165,6 +170,7 @@ Naming canonical drift checks passed.
 If this phase touches external contracts/standards, add a short research note with primary-source links under:
 - `docs/planning/evidence/unified-buildout/phase-10/2026-02-27-phase-10-slice-a-webhook-body-cap-and-safe-errors.md`
 - `docs/planning/evidence/unified-buildout/phase-10/2026-02-27-phase-10-slice-b-describe-image-fail-closed-host-trust.md`
+- `docs/planning/evidence/unified-buildout/phase-10/2026-02-27-phase-10-slice-c-runtime-sql-security-audit-integration.md`
 
 ## Required Docs Updates
 1. Update phase status.

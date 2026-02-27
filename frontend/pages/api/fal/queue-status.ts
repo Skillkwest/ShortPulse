@@ -3,7 +3,9 @@ import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException, logGenerationFailure } from "../../../lib/server/api/appErrorLogs";
 import { readFalRuntimeFlags } from "../../../lib/server/api/falRuntimeFlags";
 import { dispatchGenerationSubmitQueueBatch } from "../../../lib/server/api/generationQueue/dispatch";
+import { claimDueQueueStatusRecovery } from "../../../lib/server/api/generationQueue/statusRecoveryKick";
 import { readGenerationQueueStatus } from "../../../lib/server/api/generationQueue/service";
+import { executeGenerationRecovery } from "../../../lib/server/falIntegration/recoveryExecution";
 
 const asQueryString = (value: string | string[] | undefined): string | null => {
   if (typeof value === "string") {
@@ -68,6 +70,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
     }
+
+    const recoveryClaim = await claimDueQueueStatusRecovery({
+      userId: user.id,
+      generationId,
+      sourceRef,
+    });
+    if (recoveryClaim.reason === "db_error") {
+      await logGenerationFailure({
+        req,
+        routeLabel: "api/fal/queue-status",
+        source: "telemetry.queue.status.recovery_claim_failed",
+        message: "Queue status recovery claim failed; continuing with status read.",
+        statusCode: 500,
+        userId: user.id,
+        userEmail: user.email ?? null,
+        metadata: {
+          source_ref: sourceRef,
+          generation_id: generationId,
+          claim_reason: recoveryClaim.reason,
+          detail: recoveryClaim.errorMessage,
+        },
+      });
+    }
+    if (recoveryClaim.claimed && recoveryClaim.generationId) {
+      try {
+        await executeGenerationRecovery({
+          actor: "status_proxy",
+          generationId: recoveryClaim.generationId,
+          requestId: recoveryClaim.requestId,
+          userId: user.id,
+          maxAttempts: flags.reconcilerMaxAttempts,
+          routeLabel: "api/fal/queue-status",
+        });
+      } catch (error) {
+        await logGenerationFailure({
+          req,
+          routeLabel: "api/fal/queue-status",
+          source: "telemetry.queue.status.recovery_kick_failed",
+          message: "Queue status recovery execution failed; continuing with status read.",
+          statusCode: 500,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            source_ref: sourceRef,
+            generation_id: generationId,
+            claimed_generation_id: recoveryClaim.generationId,
+            claim_reason: recoveryClaim.reason,
+            detail: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    }
+
     const status = await readGenerationQueueStatus({
       userId: user.id,
       sourceRef,

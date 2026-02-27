@@ -43,9 +43,9 @@ Program outcomes:
 | 06 | Character Workflow Hardening | In Progress | P1 |
 | 07 | AI Studio Foundation Modularization | In Progress | P1 |
 | 08 | Billing/Stripe Correctness Hardening | Completed | P1 |
-| 09 | Admin Hardening | In Progress | P1 |
-| 10 | Security Residual Controls | In Progress | P1 |
-| 11 | Fal Video -> Kie Video Migration | Planned | P2 |
+| 09 | Admin Hardening | Completed | P1 |
+| 10 | Security Residual Controls | Completed | P1 |
+| 11 | Fal Video -> Kie Video Migration | In Progress | P2 |
 | 12 | Cleanup + Decommission | Planned | P2 |
 
 ## Phase Details

@@ -1,6 +1,6 @@
 # Unified Phase 09: Admin Hardening
 
-Status: In Progress
+Status: Completed
 Owner: Engineering
 
 ## Objective
@@ -18,6 +18,7 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A: smallest safe functional increment.
 2. Slice B: test hardening and edge-case completion.
 3. Slice C: docs + evidence + tracker update.
+4. Slice D: bulk listed-status operator controls + parity coverage.
 
 ## Current Slice Status
 1. Slice A complete:
@@ -31,10 +32,16 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - malformed payload fail-safe (`500`),
   - RPC exception logging path.
 - Updated API route inventory docs to record atomic RPC semantics and timestamp metadata contract (`status_updated_at`, `promoted_event_occurred_at`).
-3. Slice C in progress:
-- Phase evidence/tracker updates in progress.
+3. Slice C complete:
 - Post-validation reliability patch landed for `/api/admin/error-events` actionable filtering to avoid PostgREST relation-logic parse failures (`500`) in operator workflows.
-- Awaiting human phase-exit checkpoint before status promotion.
+- Phase evidence/tracker/API-route docs were updated for actionable filter bounded-merge behavior and degraded guidance.
+4. Slice D complete:
+- Added bulk incident status API route (`/api/admin/errors-status-bulk`) that reuses atomic RPC status updates per incident under bounded concurrency.
+- Wired admin incident panel controls for listed-open incident batch actions:
+  - Resolve listed open incidents.
+  - Ignore listed open incidents.
+- Added focused parity coverage for bulk status API behavior and UI callback wiring.
+- Human phase-exit checkpoint passed on 2026-02-27 (no `500` errors observed; admin status action buttons verified operational).
 
 ## Validation Gates
 1. 
@@ -165,6 +172,7 @@ Naming canonical drift checks passed.
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:
 - `docs/planning/evidence/unified-buildout/phase-09/2026-02-27-phase-09-slice-a-atomic-admin-status-rpc.md`
+- `docs/planning/evidence/unified-buildout/phase-09/2026-02-27-phase-09-slice-d-bulk-listed-status-operations.md`
 
 ## Required Docs Updates
 1. Update phase status.

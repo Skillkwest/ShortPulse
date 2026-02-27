@@ -27,6 +27,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
 - `sql/check_character_sheet_alias_drift.sql`: character alias drift diagnostics (read-only).
+- `sql/check_runtime_sql_security_audit.sql`: runtime RPC security-definer + execute-grant audit (read-only).
 
 ### 2) Ordered migrations (`sql/migrations/`)
 Use these for durable schema evolution across environments.
@@ -69,6 +70,9 @@ Current set:
 - `035_exclude_queued_reservations_from_stale_cleanup.sql`
 - `036_fix_queue_claim_locking.sql`
 - `037_expand_recovery_claim_provider_scope.sql`
+- `038_harden_queue_claim_active_dispatching_guard.sql`
+- `039_admin_error_status_atomic_update.sql`
+- `040_harden_runtime_rpc_execute_grants.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.
@@ -87,7 +91,11 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 4. Re-run hardening after repairs.
 - Expected loop: harden -> diagnose -> repair -> harden -> diagnose.
 
-5. Lint SQL before merge when migrations/functions changed.
+5. Run runtime SQL security audit after migration/security changes.
+- Execute `sql/check_runtime_sql_security_audit.sql` in staging/production.
+- Expect `failing_checks = 0` before phase/deploy signoff.
+
+6. Lint SQL before merge when migrations/functions changed.
 - Run: `supabase db lint --local --schema public --fail-on warning`.
 
 ## Standard Runbooks
@@ -158,6 +166,14 @@ where conname in (
 )
 order by conname;
 ```
+
+### Runtime SQL security posture
+Run:
+- `sql/check_runtime_sql_security_audit.sql`
+
+Expected:
+- Detail query shows `pass = true` for all rows.
+- Summary query returns `failing_checks = 0`.
 
 ### Storage policy presence
 ```sql

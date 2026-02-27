@@ -1,0 +1,53 @@
+/**
+ * Guardrail test for runtime SQL security audit script completeness.
+ * Prevents accidental drift in expected RPC signatures and required checks.
+ */
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+const auditScriptPath = path.resolve(
+  process.cwd(),
+  "..",
+  "sql",
+  "check_runtime_sql_security_audit.sql"
+);
+
+const REQUIRED_SIGNATURES = [
+  "public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text)",
+  "public.reserve_generation_credits(uuid,text,text,integer,text,jsonb)",
+  "public.mark_generation_reservation_submitted(uuid,text,text,jsonb)",
+  "public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)",
+  "public.release_generation_reservation_by_provider_request(uuid,text,text,jsonb)",
+  "public.capture_generation_reservation_by_provider_request(uuid,text,text,jsonb)",
+  "public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)",
+  "public.release_stale_generation_reservations(integer,integer)",
+  "public.upsert_ai_agent_conversation_state(uuid,text,text,interval,integer)",
+  "public.prune_ai_agent_conversation_state_expired(integer)",
+] as const;
+
+describe("check_runtime_sql_security_audit.sql", () => {
+  it("tracks all critical runtime RPC signatures", () => {
+    const sql = fs.readFileSync(auditScriptPath, "utf8");
+    for (const signature of REQUIRED_SIGNATURES) {
+      expect(sql).toContain(signature);
+    }
+  });
+
+  it("includes all required grant/security checks and summary counters", () => {
+    const sql = fs.readFileSync(auditScriptPath, "utf8");
+    expect(sql).toContain("'exists'::text as check_name");
+    expect(sql).toContain("'security_definer'::text as check_name");
+    expect(sql).toContain("'execute_service_role'::text as check_name");
+    expect(sql).toContain("'execute_public'::text as check_name");
+    expect(sql).toContain("'execute_authenticated'::text as check_name");
+    expect(sql).toContain("'execute_anon'::text as check_name");
+    expect(sql).toContain("aclexplode(coalesce(p.proacl, acldefault('f', p.proowner)))");
+    expect(sql).toContain("count(*)::integer as total_checks");
+    expect(sql).toContain("checks(check_pass) as (");
+    expect(sql).toContain("count(*) filter (where checks.check_pass)::integer as passing_checks");
+    expect(sql).toContain(
+      "count(*) filter (where not checks.check_pass)::integer as failing_checks"
+    );
+  });
+});

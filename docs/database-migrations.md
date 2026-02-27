@@ -126,7 +126,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 38. `sql/migrations/037_expand_recovery_claim_provider_scope.sql`
 39. `sql/migrations/038_harden_queue_claim_active_dispatching_guard.sql`
 40. `sql/migrations/039_admin_error_status_atomic_update.sql`
-41. Rollback files:
+41. `sql/migrations/040_harden_runtime_rpc_execute_grants.sql`
+42. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -168,6 +169,7 @@ Billing safety note:
 - Migration `037_expand_recovery_claim_provider_scope.sql` broadens recovery claim filtering from exact `provider='fal'` to `provider like 'fal%'` so legacy Fal provider aliases are not stranded outside reconciler execution.
 - Migration `038_harden_queue_claim_active_dispatching_guard.sql` prevents queue claim conflicts by excluding users that already hold an active unexpired `dispatching` lease, avoiding intermittent queue-status kick-dispatch `500` paths.
 - Migration `039_admin_error_status_atomic_update.sql` adds an atomic admin incident-status RPC so event promotion/linking and status metadata updates cannot partially apply.
+- Migration `040_harden_runtime_rpc_execute_grants.sql` enforces service-role-only execute grants for critical runtime/admin RPCs by revoking residual `anon`/`authenticated`/`public` execute privileges.
 
 ## Media storage scope verification (post-017)
 

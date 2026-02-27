@@ -1,6 +1,6 @@
 // Verifies Event Stream auto-advance behavior when display filters hide the loaded page.
 import type { ComponentProps } from "react";
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ErrorIncidentsPanel } from "../ErrorIncidentsPanel";
 
@@ -70,6 +70,8 @@ const buildBaseProps = (): PanelProps => ({
     hasPrevPage: false,
   },
   statusUpdatingErrorId: null,
+  bulkIncidentStatusUpdating: null,
+  bulkIncidentStatusResult: null,
   testIncidentSubmittingScope: null,
   testIncidentResult: null,
   onErrorStatusFilterChange: vi.fn(),
@@ -82,6 +84,7 @@ const buildBaseProps = (): PanelProps => ({
   onErrorSearchChange: vi.fn(),
   onUpdateErrorStatus: vi.fn(async () => {}),
   onUpdateErrorEventStatus: vi.fn(async () => {}),
+  onBulkUpdateListedErrorStatus: vi.fn(async () => {}),
   onTriggerTestIncident: vi.fn(),
   onPrevPage: vi.fn(),
   onNextPage: vi.fn(),
@@ -154,5 +157,60 @@ describe("ErrorIncidentsPanel event pagination", () => {
     await waitFor(() => {
       expect(props.onEventNextPage).not.toHaveBeenCalled();
     });
+  });
+
+  it("routes listed-open bulk actions through the provided callback", () => {
+    const props = buildBaseProps();
+    props.errors = [
+      {
+        id: "incident-open-1",
+        fingerprint: "fp-1",
+        source: "api.route",
+        scope: "app",
+        severity: "medium",
+        status: "open",
+        message: "Open incident",
+        stack: null,
+        route: "/api/route",
+        endpoint: "/api/route",
+        requestId: null,
+        httpStatus: 500,
+        userId: "user-1",
+        userEmail: "user@example.com",
+        metadata: null,
+        firstSeenAt: "2026-02-20T10:00:00.000Z",
+        lastSeenAt: "2026-02-20T10:00:00.000Z",
+        occurrencesCount: 1,
+      },
+      {
+        id: "incident-resolved-1",
+        fingerprint: "fp-2",
+        source: "api.route",
+        scope: "app",
+        severity: "medium",
+        status: "resolved",
+        message: "Resolved incident",
+        stack: null,
+        route: "/api/route",
+        endpoint: "/api/route",
+        requestId: null,
+        httpStatus: 500,
+        userId: "user-1",
+        userEmail: "user@example.com",
+        metadata: null,
+        firstSeenAt: "2026-02-20T10:00:00.000Z",
+        lastSeenAt: "2026-02-20T10:00:00.000Z",
+        occurrencesCount: 1,
+      },
+    ];
+
+    render(<ErrorIncidentsPanel {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Resolve listed open \(1\)/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Ignore listed open \(1\)/i }));
+
+    expect(props.onBulkUpdateListedErrorStatus).toHaveBeenCalledTimes(2);
+    expect(props.onBulkUpdateListedErrorStatus).toHaveBeenNthCalledWith(1, "resolved");
+    expect(props.onBulkUpdateListedErrorStatus).toHaveBeenNthCalledWith(2, "ignored");
   });
 });

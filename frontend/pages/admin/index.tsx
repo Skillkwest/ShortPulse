@@ -156,6 +156,10 @@ export default function AdminDashboardPage() {
     hasPrevPage: false,
   });
   const [errorStatusUpdatingId, setErrorStatusUpdatingId] = useState<string | null>(null);
+  const [bulkIncidentStatusUpdating, setBulkIncidentStatusUpdating] = useState<
+    "resolved" | "ignored" | null
+  >(null);
+  const [bulkIncidentStatusResult, setBulkIncidentStatusResult] = useState<string | null>(null);
   const [testIncidentSubmittingScope, setTestIncidentSubmittingScope] = useState<
     "app" | "generation" | null
   >(null);
@@ -712,6 +716,67 @@ export default function AdminDashboardPage() {
     [loadErrorEvents, loadErrors]
   );
 
+  const handleBulkUpdateListedErrorStatus = useCallback(
+    async (status: "resolved" | "ignored") => {
+      const openIncidentIds = errors
+        .filter((row) => row.status === "open")
+        .map((row) => row.id)
+        .filter((value, index, source) => source.indexOf(value) === index);
+
+      if (!openIncidentIds.length) {
+        setBulkIncidentStatusResult("No open incidents are listed on this page.");
+        return;
+      }
+
+      setBulkIncidentStatusUpdating(status);
+      setBulkIncidentStatusResult(null);
+      setErrorsError(null);
+      setErrorEventsError(null);
+
+      try {
+        const response = await fetchWithAuth("/api/admin/errors-status-bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ errorIds: openIncidentIds, status }),
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          summary?: {
+            requestedCount?: number;
+            updatedCount?: number;
+            failedCount?: number;
+          };
+        };
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to update listed incidents.");
+        }
+
+        await Promise.all([loadErrors(), loadErrorEvents()]);
+        const updatedCount = Number(data.summary?.updatedCount ?? 0);
+        const failedCount = Number(data.summary?.failedCount ?? 0);
+        const statusLabel = status === "resolved" ? "resolved" : "ignored";
+        if (failedCount > 0) {
+          setBulkIncidentStatusResult(
+            `Bulk update completed with partial success: ${updatedCount} ${statusLabel}, ${failedCount} failed.`
+          );
+          return;
+        }
+        setBulkIncidentStatusResult(
+          `Bulk update complete: ${updatedCount} incident${updatedCount === 1 ? "" : "s"} ${statusLabel}.`
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to update listed incidents.";
+        setErrorsError(message);
+        setErrorEventsError(message);
+        setBulkIncidentStatusResult(message);
+      } finally {
+        setBulkIncidentStatusUpdating((current) => (current === status ? null : current));
+      }
+    },
+    [errors, loadErrorEvents, loadErrors]
+  );
+
   const refreshErrorData = useCallback(async () => {
     await Promise.all([loadErrors(), loadErrorEvents()]);
   }, [loadErrorEvents, loadErrors]);
@@ -1244,6 +1309,8 @@ export default function AdminDashboardPage() {
             errorSearch={errorSearch}
             errorPagination={errorsPagination}
             statusUpdatingErrorId={errorStatusUpdatingId}
+            bulkIncidentStatusUpdating={bulkIncidentStatusUpdating}
+            bulkIncidentStatusResult={bulkIncidentStatusResult}
             testIncidentSubmittingScope={testIncidentSubmittingScope}
             testIncidentResult={testIncidentResult}
             onErrorStatusFilterChange={(value) => {
@@ -1286,6 +1353,7 @@ export default function AdminDashboardPage() {
             }}
             onUpdateErrorStatus={handleUpdateErrorStatus}
             onUpdateErrorEventStatus={handleUpdateErrorEventStatus}
+            onBulkUpdateListedErrorStatus={handleBulkUpdateListedErrorStatus}
             onTriggerTestIncident={handleTriggerTestIncident}
             onPrevPage={() => setErrorsPage((value) => Math.max(1, value - 1))}
             onNextPage={() => setErrorsPage((value) => value + 1)}

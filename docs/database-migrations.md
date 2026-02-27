@@ -125,7 +125,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 37. `sql/migrations/036_fix_queue_claim_locking.sql`
 38. `sql/migrations/037_expand_recovery_claim_provider_scope.sql`
 39. `sql/migrations/038_harden_queue_claim_active_dispatching_guard.sql`
-40. Rollback files:
+40. `sql/migrations/039_admin_error_status_atomic_update.sql`
+41. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -138,6 +139,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/028_harden_ai_agent_conversation_state_security_rollback.sql`
     - `sql/migrations/rollback/029_fix_conversation_state_upsert_ambiguity_rollback.sql`
     - `sql/migrations/rollback/030_fix_conversation_state_upsert_conflict_target_rollback.sql`
+    - `sql/migrations/rollback/039_admin_error_status_atomic_update_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -165,6 +167,7 @@ Billing safety note:
 - Migration `036_fix_queue_claim_locking.sql` rewrites queue claim selection to avoid PostgreSQL `FOR UPDATE` + window-function incompatibility (`0A000`) in dispatch batching.
 - Migration `037_expand_recovery_claim_provider_scope.sql` broadens recovery claim filtering from exact `provider='fal'` to `provider like 'fal%'` so legacy Fal provider aliases are not stranded outside reconciler execution.
 - Migration `038_harden_queue_claim_active_dispatching_guard.sql` prevents queue claim conflicts by excluding users that already hold an active unexpired `dispatching` lease, avoiding intermittent queue-status kick-dispatch `500` paths.
+- Migration `039_admin_error_status_atomic_update.sql` adds an atomic admin incident-status RPC so event promotion/linking and status metadata updates cannot partially apply.
 
 ## Media storage scope verification (post-017)
 

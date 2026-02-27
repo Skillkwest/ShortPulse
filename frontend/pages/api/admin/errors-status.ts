@@ -1,6 +1,7 @@
 /**
  * Admin API: update incident status for app error logs.
- * Supports operator triage workflows (resolve, ignore, reopen) with audit metadata.
+ * Uses a single atomic RPC so incident updates and event promotion/linking
+ * cannot partially succeed.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdminUser } from "../../../lib/server/api/auth";
@@ -16,34 +17,15 @@ type UpdateStatusRequest = {
   note?: string;
 };
 
-type ExistingErrorRow = {
-  id: string;
-  status: ErrorStatus;
-  metadata: Record<string, unknown> | null;
-};
-
-type ExistingEventRow = {
-  id: string;
-  incident_id: string | null;
-  fingerprint: string;
-  source: string;
-  scope: string;
-  severity: string;
-  message: string;
-  stack: string | null;
-  route: string | null;
-  endpoint: string | null;
-  request_id: string | null;
-  http_status: number | null;
-  user_id: string | null;
-  user_email: string | null;
-  metadata: Record<string, unknown> | null;
-  occurred_at: string | null;
+type RpcIncidentPayload = {
+  incident_id?: string;
+  status?: ErrorStatus;
+  updated_at?: string;
+  event_id?: string | null;
 };
 
 const ALLOWED_STATUSES: ErrorStatus[] = ["open", "resolved", "ignored"];
 const MAX_NOTE_LENGTH = 400;
-const MAX_HISTORY_ITEMS = 25;
 
 const asTrimmedString = (value: unknown, maxLength: number): string | null => {
   if (typeof value !== "string") return null;
@@ -58,201 +40,19 @@ const asStatus = (value: unknown): ErrorStatus | null => {
   return ALLOWED_STATUSES.includes(normalized as ErrorStatus) ? (normalized as ErrorStatus) : null;
 };
 
-const asScope = (value: unknown): "app" | "generation" => {
-  return String(value ?? "").toLowerCase() === "generation" ? "generation" : "app";
+const normalizeRpcPayload = (payload: unknown): RpcIncidentPayload | null => {
+  if (Array.isArray(payload)) {
+    const first = payload[0];
+    return first && typeof first === "object" ? (first as RpcIncidentPayload) : null;
+  }
+  return payload && typeof payload === "object" ? (payload as RpcIncidentPayload) : null;
 };
 
-const asSeverity = (value: unknown): "low" | "medium" | "high" => {
-  const normalized = String(value ?? "").toLowerCase();
-  if (normalized === "low" || normalized === "medium" || normalized === "high") {
-    return normalized;
-  }
-  return "medium";
-};
-
-const asHistoryList = (value: unknown): Record<string, unknown>[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((entry) => entry && typeof entry === "object")
-    .slice(0, MAX_HISTORY_ITEMS) as Record<string, unknown>[];
-};
-
-const buildStatusMetadata = (params: {
-  previousMetadata: Record<string, unknown> | null;
-  previousStatus: ErrorStatus;
-  nextStatus: ErrorStatus;
-  note: string | null;
-  adminUserId: string;
-  adminUserEmail: string | null;
-  occurredAtIso: string;
-}): Record<string, unknown> => {
-  const previousMetadata = params.previousMetadata ?? {};
-  const history = asHistoryList(previousMetadata.status_history);
-  const historyEntry: Record<string, unknown> = {
-    from: params.previousStatus,
-    to: params.nextStatus,
-    at: params.occurredAtIso,
-    by: params.adminUserId,
-    by_email: params.adminUserEmail,
-  };
-  if (params.note) {
-    historyEntry.note = params.note;
-  }
-
-  const nextMetadata: Record<string, unknown> = {
-    ...previousMetadata,
-    status_updated_at: params.occurredAtIso,
-    status_updated_by: params.adminUserId,
-    status_updated_email: params.adminUserEmail,
-    status_update_note: params.note,
-    status_history: [...history, historyEntry].slice(-MAX_HISTORY_ITEMS),
-  };
-
-  if (params.nextStatus === "resolved") {
-    nextMetadata.resolved_at = params.occurredAtIso;
-    nextMetadata.resolved_by = params.adminUserId;
-    nextMetadata.resolved_by_email = params.adminUserEmail;
-  }
-  if (params.nextStatus === "ignored") {
-    nextMetadata.ignored_at = params.occurredAtIso;
-    nextMetadata.ignored_by = params.adminUserId;
-    nextMetadata.ignored_by_email = params.adminUserEmail;
-  }
-  if (params.nextStatus === "open") {
-    nextMetadata.reopened_at = params.occurredAtIso;
-    nextMetadata.reopened_by = params.adminUserId;
-    nextMetadata.reopened_by_email = params.adminUserEmail;
-  }
-
-  return nextMetadata;
-};
-
-const updateIncidentStatus = async (params: {
-  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
-  incidentId: string;
-  status: ErrorStatus;
-  note: string | null;
-  adminUserId: string;
-  adminUserEmail: string | null;
-}) => {
-  const { data: existingRaw, error: findError } = await params.supabaseAdmin
-    .from("app_error_logs")
-    .select("id, status, metadata")
-    .eq("id", params.incidentId)
-    .maybeSingle();
-  if (findError) {
-    return { error: findError.message, code: 500 as const };
-  }
-
-  const existing = (existingRaw as ExistingErrorRow | null) ?? null;
-  if (!existing?.id) {
-    return { error: "Incident not found.", code: 404 as const };
-  }
-
-  const nowIso = new Date().toISOString();
-  const metadata = buildStatusMetadata({
-    previousMetadata: existing.metadata ?? null,
-    previousStatus: existing.status,
-    nextStatus: params.status,
-    note: params.note,
-    adminUserId: params.adminUserId,
-    adminUserEmail: params.adminUserEmail,
-    occurredAtIso: nowIso,
-  });
-
-  const { data: updated, error: updateError } = await params.supabaseAdmin
-    .from("app_error_logs")
-    .update({
-      status: params.status,
-      metadata,
-      updated_at: nowIso,
-    })
-    .eq("id", params.incidentId)
-    .select("id, status, updated_at")
-    .maybeSingle();
-  if (updateError) {
-    return { error: updateError.message, code: 500 as const };
-  }
-
-  return {
-    code: 200 as const,
-    incident: updated ?? { id: params.incidentId, status: params.status, updated_at: nowIso },
-  };
-};
-
-const promoteEventToIncidentWithStatus = async (params: {
-  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
-  event: ExistingEventRow;
-  status: ErrorStatus;
-  note: string | null;
-  adminUserId: string;
-  adminUserEmail: string | null;
-}) => {
-  const occurredAtIso = asTrimmedString(params.event.occurred_at, 80) ?? new Date().toISOString();
-  const metadata = buildStatusMetadata({
-    previousMetadata: {
-      ...(params.event.metadata ?? {}),
-      promoted_from_event_id: params.event.id,
-      promoted_from_event_stream: true,
-    },
-    previousStatus: "open",
-    nextStatus: params.status,
-    note: params.note,
-    adminUserId: params.adminUserId,
-    adminUserEmail: params.adminUserEmail,
-    occurredAtIso,
-  });
-
-  const { data: inserted, error: insertError } = await params.supabaseAdmin
-    .from("app_error_logs")
-    .insert({
-      fingerprint: params.event.fingerprint,
-      source: params.event.source,
-      scope: asScope(params.event.scope),
-      severity: asSeverity(params.event.severity),
-      status: params.status,
-      message: params.event.message,
-      stack: params.event.stack,
-      route: params.event.route,
-      endpoint: params.event.endpoint,
-      request_id: params.event.request_id,
-      http_status: params.event.http_status,
-      user_id: params.event.user_id,
-      user_email: params.event.user_email,
-      metadata,
-      first_seen_at: occurredAtIso,
-      last_seen_at: occurredAtIso,
-      occurrences_count: 1,
-    })
-    .select("id, status, updated_at")
-    .maybeSingle();
-  if (insertError) {
-    return { error: insertError.message, code: 500 as const };
-  }
-
-  const incidentId = asTrimmedString((inserted as { id?: unknown } | null)?.id, 120);
-  if (!incidentId) {
-    return { error: "Failed to create incident from event.", code: 500 as const };
-  }
-
-  const { error: linkError } = await params.supabaseAdmin
-    .from("app_error_events")
-    .update({ incident_id: incidentId })
-    .eq("id", params.event.id);
-  if (linkError) {
-    return { error: linkError.message, code: 500 as const };
-  }
-
-  return {
-    code: 200 as const,
-    incident:
-      inserted ??
-      ({
-        id: incidentId,
-        status: params.status,
-        updated_at: occurredAtIso,
-      } as Record<string, unknown>),
-  };
+const mapRpcErrorToStatus = (error: { code?: string; message?: string } | null): number => {
+  const code = String(error?.code ?? "").toUpperCase();
+  if (code === "P0002") return 404;
+  if (code === "22023") return 400;
+  return 500;
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -270,6 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const eventId = asTrimmedString(body.eventId, 120);
   const status = asStatus(body.status);
   const note = asTrimmedString(body.note, MAX_NOTE_LENGTH);
+
   if (!errorId && !eventId) {
     return res.status(400).json({ error: "errorId or eventId is required." });
   }
@@ -279,76 +80,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    if (errorId) {
-      const updateResult = await updateIncidentStatus({
-        supabaseAdmin,
-        incidentId: errorId,
-        status,
-        note,
-        adminUserId: adminUser.id,
-        adminUserEmail: adminUser.email ?? null,
-      });
-      if (updateResult.code !== 200) {
-        return res.status(updateResult.code).json({ error: updateResult.error });
-      }
-
-      return res.status(200).json({
-        ok: true,
-        incident: updateResult.incident,
-      });
-    }
-
-    const { data: eventRaw, error: eventFindError } = await supabaseAdmin
-      .from("app_error_events")
-      .select(
-        "id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at"
-      )
-      .eq("id", eventId)
-      .maybeSingle();
-    if (eventFindError) {
-      return res.status(500).json({ error: eventFindError.message });
-    }
-    const event = (eventRaw as ExistingEventRow | null) ?? null;
-    if (!event?.id) {
-      return res.status(404).json({ error: "Event not found." });
-    }
-
-    if (event.incident_id) {
-      const updateResult = await updateIncidentStatus({
-        supabaseAdmin,
-        incidentId: event.incident_id,
-        status,
-        note,
-        adminUserId: adminUser.id,
-        adminUserEmail: adminUser.email ?? null,
-      });
-      if (updateResult.code !== 200) {
-        return res.status(updateResult.code).json({ error: updateResult.error });
-      }
-
-      return res.status(200).json({
-        ok: true,
-        incident: updateResult.incident,
-        eventId: event.id,
-      });
-    }
-
-    const promotedResult = await promoteEventToIncidentWithStatus({
-      supabaseAdmin,
-      event,
-      status,
-      note,
-      adminUserId: adminUser.id,
-      adminUserEmail: adminUser.email ?? null,
+    const { data, error } = await supabaseAdmin.rpc("admin_update_app_error_status", {
+      p_error_id: errorId,
+      p_event_id: eventId,
+      p_status: status,
+      p_note: note,
+      p_admin_user_id: adminUser.id,
+      p_admin_user_email: adminUser.email ?? null,
     });
-    if (promotedResult.code !== 200) {
-      return res.status(promotedResult.code).json({ error: promotedResult.error });
+
+    if (error) {
+      return res
+        .status(mapRpcErrorToStatus(error))
+        .json({ error: error.message || "Unable to update incident status." });
+    }
+
+    const payload = normalizeRpcPayload(data);
+    const incidentId = asTrimmedString(payload?.incident_id, 120);
+    const incidentStatus = asStatus(payload?.status) ?? status;
+    const updatedAt = asTrimmedString(payload?.updated_at, 80) ?? new Date().toISOString();
+    const resolvedEventId = asTrimmedString(payload?.event_id, 120);
+    if (!incidentId) {
+      return res.status(500).json({ error: "Unable to update incident status." });
     }
 
     return res.status(200).json({
       ok: true,
-      incident: promotedResult.incident,
-      eventId: event.id,
+      incident: {
+        id: incidentId,
+        status: incidentStatus,
+        updated_at: updatedAt,
+      },
+      ...(resolvedEventId ? { eventId: resolvedEventId } : {}),
     });
   } catch (error) {
     await logApiRouteException({

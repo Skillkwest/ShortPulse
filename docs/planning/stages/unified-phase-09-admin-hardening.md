@@ -1,6 +1,6 @@
 # Unified Phase 09: Admin Hardening
 
-Status: Planned
+Status: In Progress
 Owner: Engineering
 
 ## Objective
@@ -18,6 +18,16 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A: smallest safe functional increment.
 2. Slice B: test hardening and edge-case completion.
 3. Slice C: docs + evidence + tracker update.
+
+## Current Slice Status
+1. Slice A complete:
+- Added atomic admin incident status RPC migration (`039_admin_error_status_atomic_update.sql`) with service-role-only execute grants.
+- Refactored `/api/admin/errors-status` to thin validation + RPC call path.
+- Added focused API route tests for RPC happy paths and error mapping.
+2. Slice B next:
+- Expand admin incident lifecycle test coverage for timestamp semantics and promoted-event metadata parity in integration-level assertions.
+3. Slice C in progress:
+- Phase evidence/tracker updates in progress.
 
 ## Validation Gates
 1. 
@@ -147,10 +157,10 @@ Naming canonical drift checks passed.
 
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:
-- 
+- `docs/planning/evidence/unified-buildout/phase-09/2026-02-27-phase-09-slice-a-atomic-admin-status-rpc.md`
 
 ## Required Docs Updates
-1. Update  phase status.
+1. Update phase status.
 2. Add evidence summary in phase-09 folder.
 3. Update impacted SOP/API/ADR/change-log docs.
 
@@ -163,4 +173,3 @@ If this phase touches external contracts/standards, add a short research note wi
 ## Rollback Plan
 1. Revert only the PR slice(s) from this phase.
 2. Keep previous stable phase baseline intact.
-

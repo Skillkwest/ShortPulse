@@ -46,128 +46,74 @@ describe("POST /api/admin/errors-status", () => {
     });
   });
 
-  it("updates an existing incident by errorId", async () => {
-    const incidentSelectMaybeSingle = vi.fn().mockResolvedValue({
-      data: { id: "inc-1", status: "open", metadata: null },
-      error: null,
-    });
-    const incidentUpdateMaybeSingle = vi.fn().mockResolvedValue({
-      data: { id: "inc-1", status: "resolved", updated_at: "2026-02-17T00:00:00.000Z" },
-      error: null,
-    });
-
-    getSupabaseAdminMock.mockReturnValue({
-      from: (table: string) => {
-        if (table !== "app_error_logs") {
-          throw new Error(`Unexpected table: ${table}`);
-        }
-
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: incidentSelectMaybeSingle,
-            }),
-          }),
-          update: () => ({
-            eq: () => ({
-              select: () => ({
-                maybeSingle: incidentUpdateMaybeSingle,
-              }),
-            }),
-          }),
-        };
+  it("updates an existing incident by errorId through rpc", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: {
+        incident_id: "inc-1",
+        status: "resolved",
+        updated_at: "2026-02-17T00:00:00.000Z",
+        event_id: null,
       },
+      error: null,
     });
+
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
     const req = { method: "POST", body: { errorId: "inc-1", status: "resolved" } };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
+    expect(rpcMock).toHaveBeenCalledWith("admin_update_app_error_status", {
+      p_error_id: "inc-1",
+      p_event_id: null,
+      p_status: "resolved",
+      p_note: null,
+      p_admin_user_id: "admin-1",
+      p_admin_user_email: "admin@example.com",
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       ok: true,
       incident: { id: "inc-1", status: "resolved", updated_at: "2026-02-17T00:00:00.000Z" },
     });
-    expect(incidentSelectMaybeSingle).toHaveBeenCalledTimes(1);
-    expect(incidentUpdateMaybeSingle).toHaveBeenCalledTimes(1);
   });
 
-  it("promotes an unlinked event and applies ignored status", async () => {
-    const eventSelectMaybeSingle = vi.fn().mockResolvedValue({
+  it("returns eventId when rpc promotes event to incident", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({
       data: {
-        id: "evt-1",
-        incident_id: null,
-        fingerprint: "fp-1",
-        source: "client.runtime",
-        scope: "app",
-        severity: "high",
-        message: "mode is not defined",
-        stack: "ReferenceError: mode is not defined",
-        route: "/ai-studio",
-        endpoint: null,
-        request_id: "req-1",
-        http_status: null,
-        user_id: "user-1",
-        user_email: "user@example.com",
-        metadata: { host: "localhost:3000" },
-        occurred_at: "2026-02-17T04:19:47.375+00:00",
+        incident_id: "inc-promoted",
+        status: "ignored",
+        updated_at: "2026-02-17T04:20:00.000Z",
+        event_id: "evt-1",
       },
       error: null,
     });
-    const incidentInsertMaybeSingle = vi.fn().mockResolvedValue({
-      data: { id: "inc-promoted", status: "ignored", updated_at: "2026-02-17T04:20:00.000Z" },
-      error: null,
-    });
-    const eventLinkEq = vi.fn().mockResolvedValue({ error: null });
-
-    const incidentInsert = vi.fn(() => ({
-      select: () => ({
-        maybeSingle: incidentInsertMaybeSingle,
-      }),
-    }));
-    const eventUpdate = vi.fn(() => ({
-      eq: eventLinkEq,
-    }));
-
-    getSupabaseAdminMock.mockReturnValue({
-      from: (table: string) => {
-        if (table === "app_error_events") {
-          return {
-            select: () => ({
-              eq: () => ({
-                maybeSingle: eventSelectMaybeSingle,
-              }),
-            }),
-            update: eventUpdate,
-          };
-        }
-        if (table === "app_error_logs") {
-          return {
-            insert: incidentInsert,
-          };
-        }
-        throw new Error(`Unexpected table: ${table}`);
-      },
-    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
     const req = { method: "POST", body: { eventId: "evt-1", status: "ignored" } };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(incidentInsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: "ignored",
-        source: "client.runtime",
-        fingerprint: "fp-1",
-      })
-    );
-    expect(eventUpdate).toHaveBeenCalledWith({ incident_id: "inc-promoted" });
-    expect(eventLinkEq).toHaveBeenCalledWith("id", "evt-1");
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       ok: true,
       incident: { id: "inc-promoted", status: "ignored", updated_at: "2026-02-17T04:20:00.000Z" },
       eventId: "evt-1",
     });
+  });
+
+  it("maps rpc not-found error to 404", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: "P0002", message: "Event not found." },
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = { method: "POST", body: { eventId: "evt-missing", status: "open" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: "Event not found." });
   });
 });

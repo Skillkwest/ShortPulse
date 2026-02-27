@@ -1,5 +1,5 @@
 /**
- * Verifies Fal status polling ownership checks when auth context comes from middleware headers.
+ * Verifies Fal status polling ownership checks with token-first auth.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/fal/status";
@@ -32,6 +32,7 @@ const mockFetchResponse = ({
 }) => ({
   ok: status >= 200 && status < 300,
   status,
+  json: async () => body,
   text: async () => JSON.stringify(body),
 });
 
@@ -39,6 +40,9 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-key";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+    process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "false";
     settleGenerationOutcomeMock.mockResolvedValue({
       settled: true,
       note: "captured",
@@ -48,12 +52,19 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
   it("keeps ownership enforcement with middleware-authenticated user context", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("forbidden");
     const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      mockFetchResponse({
+        status: 200,
+        body: { id: "user-ctx" },
+      })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const req = {
       method: "POST",
       url: "/api/fal/status",
       headers: {
+        authorization: "Bearer valid-token",
         "x-shortpulse-authenticated": "1",
         "x-shortpulse-user-id": "user-ctx",
         "x-shortpulse-user-app-metadata": encodeURIComponent("{}"),
@@ -70,12 +81,18 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
       providerRequestId: "foreign-request-id",
     });
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("still proxies status when middleware-authenticated ownership is confirmed", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
     const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      mockFetchResponse({
+        status: 200,
+        body: { id: "user-ctx" },
+      })
+    );
     fetchMock.mockResolvedValueOnce(
       mockFetchResponse({
         status: 200,
@@ -106,6 +123,7 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
       method: "POST",
       url: "/api/fal/status",
       headers: {
+        authorization: "Bearer valid-token",
         "x-shortpulse-authenticated": "1",
         "x-shortpulse-user-id": "user-ctx",
         "x-shortpulse-user-app-metadata": encodeURIComponent("{}"),
@@ -123,12 +141,18 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ status: "processing" });
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 
   it("treats retryable 405/non-JSON result probes as transient and keeps polling payload", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
     const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      mockFetchResponse({
+        status: 200,
+        body: { id: "user-ctx" },
+      })
+    );
     fetchMock.mockResolvedValueOnce(
       mockFetchResponse({
         status: 200,
@@ -156,6 +180,7 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
       method: "POST",
       url: "/api/fal/status",
       headers: {
+        authorization: "Bearer valid-token",
         "x-shortpulse-authenticated": "1",
         "x-shortpulse-user-id": "user-ctx",
         "x-shortpulse-user-app-metadata": encodeURIComponent("{}"),
@@ -173,6 +198,6 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
       expect.objectContaining({ outcome: "fail" })
     );
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 });

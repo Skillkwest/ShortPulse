@@ -8,6 +8,7 @@ export const PROTECTED_API_PREFIXES = [
   "/api/media/",
   "/api/upload-video",
   "/api/upload-image",
+  "/api/log/",
   "/api/admin/",
   "/api/credits/",
   "/api/billing/credit-packages",

@@ -1,91 +1,29 @@
 /**
- * Server-side helpers for validating Supabase bearer tokens in API routes.
+ * Server-side route-auth orchestration.
+ * Bearer verification is authoritative; proxy headers are advisory metadata only.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { isProtectedApiPath } from "./protectedApiPaths";
+import {
+  mergeVerifiedUserWithProxyContext,
+  readProxyAuthenticatedUser,
+  shouldTrustProxyAuthHeaders,
+} from "./authProxyContext";
+import {
+  parseBearerToken,
+  verifyBearerRequestUser,
+  type AuthenticatedApiUser,
+} from "./authTokenVerifier";
 
-export type AuthenticatedApiUser = {
-  id: string;
-  email?: string;
-  user_metadata?: Record<string, unknown>;
-  app_metadata?: Record<string, unknown>;
-};
+export type { AuthenticatedApiUser } from "./authTokenVerifier";
 
-const parseBearerToken = (authorizationHeader: string | undefined): string | null => {
-  if (!authorizationHeader) return null;
-  const [scheme, value] = authorizationHeader.split(" ");
-  if (!scheme || !value) return null;
-  if (scheme.toLowerCase() !== "bearer") return null;
-  return value.trim() || null;
-};
+const resolveVerifiedApiUser = async (
+  req: NextApiRequest
+): Promise<AuthenticatedApiUser | null> => {
+  const verifiedUser = await verifyBearerRequestUser(req);
+  if (!verifiedUser) return null;
 
-const readRequestHeader = (req: NextApiRequest, name: string): string | null => {
-  const raw = req.headers[name.toLowerCase()];
-  if (Array.isArray(raw)) return raw[0] ?? null;
-  return typeof raw === "string" ? raw : null;
-};
-
-const parsePathname = (url?: string): string | null => {
-  if (!url) return null;
-  try {
-    return new URL(url, "http://localhost").pathname;
-  } catch {
-    return url.split("?")[0] ?? null;
-  }
-};
-
-const parseJsonHeader = (value: string | null): Record<string, unknown> | undefined => {
-  if (!value) return undefined;
-  try {
-    const parsed = JSON.parse(decodeURIComponent(value)) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return undefined;
-    }
-    return parsed as Record<string, unknown>;
-  } catch {
-    return undefined;
-  }
-};
-
-const getProxyAuthenticatedUser = (req: NextApiRequest): AuthenticatedApiUser | null => {
-  const pathname = parsePathname(req.url);
-  if (!pathname || !isProtectedApiPath(pathname)) return null;
-
-  const proxyAuthenticated = readRequestHeader(req, "x-shortpulse-authenticated");
-  if (proxyAuthenticated !== "1") return null;
-
-  const id = readRequestHeader(req, "x-shortpulse-user-id")?.trim();
-  if (!id) return null;
-
-  const email = readRequestHeader(req, "x-shortpulse-user-email")?.trim();
-  const appMetadata = parseJsonHeader(readRequestHeader(req, "x-shortpulse-user-app-metadata"));
-  const userMetadata = parseJsonHeader(readRequestHeader(req, "x-shortpulse-user-user-metadata"));
-
-  return {
-    id,
-    email: email || undefined,
-    app_metadata: appMetadata,
-    user_metadata: userMetadata,
-  };
-};
-
-const fetchSupabaseUser = async (token: string): Promise<AuthenticatedApiUser | null> => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-
-  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    method: "GET",
-    headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) return null;
-  const data = (await response.json()) as AuthenticatedApiUser;
-  if (!data?.id) return null;
-  return data;
+  const proxyUser = readProxyAuthenticatedUser(req);
+  return mergeVerifiedUserWithProxyContext(verifiedUser, proxyUser);
 };
 
 /**
@@ -94,16 +32,14 @@ const fetchSupabaseUser = async (token: string): Promise<AuthenticatedApiUser | 
 export const getOptionalApiUser = async (
   req: NextApiRequest
 ): Promise<AuthenticatedApiUser | null> => {
-  const userFromProxy = getProxyAuthenticatedUser(req);
-  if (userFromProxy) return userFromProxy;
+  const verifiedUser = await resolveVerifiedApiUser(req);
+  if (verifiedUser) return verifiedUser;
 
-  const token = parseBearerToken(req.headers.authorization);
-  if (!token) return null;
-  try {
-    return await fetchSupabaseUser(token);
-  } catch {
-    return null;
+  if (shouldTrustProxyAuthHeaders() && !parseBearerToken(req.headers.authorization)) {
+    return readProxyAuthenticatedUser(req);
   }
+
+  return null;
 };
 
 /**
@@ -113,16 +49,20 @@ export const requireApiUser = async (
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<AuthenticatedApiUser | null> => {
-  const userFromProxy = getProxyAuthenticatedUser(req);
-  if (userFromProxy) return userFromProxy;
-
   const token = parseBearerToken(req.headers.authorization);
   if (!token) {
+    if (shouldTrustProxyAuthHeaders()) {
+      const proxyUser = readProxyAuthenticatedUser(req);
+      if (proxyUser) {
+        return proxyUser;
+      }
+    }
+
     res.status(401).json({ error: "Unauthorized" });
     return null;
   }
 
-  const user = await fetchSupabaseUser(token);
+  const user = await resolveVerifiedApiUser(req);
   if (!user) {
     res.status(401).json({ error: "Unauthorized" });
     return null;

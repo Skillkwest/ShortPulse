@@ -1446,3 +1446,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added dedicated CI `type_check` lane and new `secret_scan` lane (`SECRET_SCAN_MODE=warn|enforce`) in `.github/workflows/ci.yml`.
 - Added repository-level high-confidence secret exposure scanner at `scripts/check_secret_exposure.js` and documented policy updates in `docs/planning/ci-policy-checks.md`.
 - Captured Phase 01 evidence and tracker status updates under `docs/planning/evidence/unified-buildout/phase-01/` and `docs/planning/shortpulse-unified-buildout-tracker.md`.
+
+## 2026-02-27 (unified buildout phase-02 auth slice-a-b)
+- Implemented token-first auth hardening by splitting API auth internals into `authTokenVerifier.ts` (bearer parsing + Supabase `/auth/v1/user` verification) and `authProxyContext.ts` (advisory proxy header extraction/merge only).
+- Reworked `requireApiUser`/`getOptionalApiUser` orchestration in `frontend/lib/server/api/auth.ts` so proxy headers cannot authorize protected routes without bearer verification under normal mode.
+- Added emergency-only proxy fallback switch `SHORTPULSE_TRUST_PROXY_AUTH_HEADERS` (default `false`) and documented it in API/security docs and `.env.example`.
+- Expanded protected API path coverage to include `/api/log/` for middleware-route alignment.
+- Updated auth boundary tests to cover fail-closed behavior, mismatch handling, and emergency override behavior.

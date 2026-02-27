@@ -3,8 +3,8 @@
 Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (auth boundaries, route families, and operational ownership).
 
 ## Auth boundary model
-- Global API auth gate: `frontend/proxy.ts` protects `/api/fal/*`, `/api/ai/*`, `/api/media/*`, uploads, admin APIs, and billing checkout/portal routes by requiring a Supabase bearer token.
-- Route-level auth: several handlers still call `requireApiUser`/`requireAdminUser` in `frontend/lib/server/api/auth.ts` for direct enforcement and user context.
+- Global API auth gate: `frontend/proxy.ts` protects `/api/fal/*`, `/api/ai/*`, `/api/media/*`, `/api/log/*`, uploads, admin APIs, and billing checkout/portal routes by requiring a Supabase bearer token.
+- Route-level auth: handlers call `requireApiUser`/`requireAdminUser` in `frontend/lib/server/api/auth.ts`; route-level auth is token-first and fail-closed (proxy headers are metadata only after verification).
 - Webhook exceptions: `/api/billing/stripe/webhook` and `/api/fal/webhook` are intentionally unauthenticated and protected by provider signature verification.
 
 ## Route families
@@ -36,7 +36,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | `/api/admin/generation-trace` | `GET` | Admin bearer | Return stitched generation timeline by `generationId`, `requestId`, or trace id across `ai_generations`, `media_events`, `media_files`, reservations, ledger entries, and app error events. Intended for operator debugging and S0 traceability baselines. | `frontend/pages/api/admin/generation-trace.ts`, `docs/planning/ai-studio-generation-runtime-stabilization.md` |
 | `/api/admin/generation-recovery/replay` | `POST` | Admin bearer | Replay stalled generation recovery by `generationId` or `requestId` (Fal only) using the shared runtime execution engine (provider probe -> persist -> settle -> transition). | `frontend/pages/api/admin/generation-recovery/replay.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts` |
 | `/api/internal/generation-recovery/run` | `POST`, `GET` | `x-shortpulse-cron-secret` or `Authorization: Bearer <reconciler-secret>` | Trigger queue dispatch + lease-based reconciler claims and execute shared runtime recovery for each claimed generation; returns recovery stage metrics (`claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `duplicates`, `errors`, `skipped`), reservation cleanup metrics (`reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`), and queue dispatch metrics (`queueClaimed`, `queueSubmitted`, `queueRetried`, `queueRequeuedNoCapacity`, `queueExhausted`, `queueSkipped`, `queueDispatchErrors`). Intended for external scheduler invocation (Supabase Cron recommended) and guarded manual replay. | `frontend/pages/api/internal/generation-recovery/run.ts`, `frontend/lib/server/api/generationQueue/dispatch.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts`, `docs/sops/sop_provider_incident_response.md`, `sql/configure_generation_recovery_scheduler_supabase.sql` |
-| `/api/log/client-error` | `POST` | Bearer (route-level) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
+| `/api/log/client-error` | `POST` | Bearer (proxy + route) | Ingest authenticated client/runtime and generation workflow failures into `app_error_logs` and `app_error_events`. | `frontend/pages/api/log/client-error.ts`, `frontend/lib/server/api/appErrorLogs.ts` |
 
 ## Shared runtime contracts
 - Credit lifecycle for generation:
@@ -72,6 +72,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED`
 - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
 - Admin allowlist (optional): `SHORTPULSE_ADMIN_EMAILS`.
+- Emergency auth fallback (default `false`): `SHORTPULSE_TRUST_PROXY_AUTH_HEADERS`.
 - Admin event alert thresholds (optional): `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, `SHORTPULSE_ADMIN_ALERT_GENERATION_15M`.
 - Fal reliability rollout flags (feature-gated):
   - `SHORTPULSE_FAL_INTEGRATION_MODE`

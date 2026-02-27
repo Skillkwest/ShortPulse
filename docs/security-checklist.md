@@ -27,6 +27,8 @@ Purpose: ensure user isolation and authenticated access across the Next.js app +
 - **Network calls**: All Supabase requests already include the user’s JWT; avoid any other unauthenticated calls for user-owned data.
 - **API auth boundary**: Require authenticated bearer tokens for provider proxy routes (`/api/fal/*`, `/api/ai/*`), media routes (`/api/media/*`), upload endpoints, billing routes, and admin routes (enforced in `frontend/proxy.ts`, with additional route-level guards where needed).
 - **Route-level auth checks**: Keep `requireApiUser`/`requireAdminUser` in sensitive API handlers even when `frontend/proxy.ts` already guards the prefix, so auth still fails closed if middleware configuration drifts.
+- **Token-first route auth**: `requireApiUser` must verify bearer identity server-side and must not authorize from `x-shortpulse-*` headers alone. Proxy headers are advisory metadata only after successful token verification.
+- **Emergency auth fallback**: `SHORTPULSE_TRUST_PROXY_AUTH_HEADERS` may be enabled only for short-lived incident recovery. Default must remain `false` in normal operation.
 - **Admin boundary**: Restrict admin APIs to operator roles from `app_metadata` (`role`/`roles`) or explicit allow-listed admin emails. Do not trust `user_metadata` for admin authorization.
 - **Conversation-state RPC hardening**: Keep `upsert_ai_agent_conversation_state` execute scope service-role-only, enforce bounded TTL/cap in DB logic, and run scheduled cleanup via `prune_ai_agent_conversation_state_expired`.
 

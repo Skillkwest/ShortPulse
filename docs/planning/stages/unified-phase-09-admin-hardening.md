@@ -24,10 +24,16 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Added atomic admin incident status RPC migration (`039_admin_error_status_atomic_update.sql`) with service-role-only execute grants.
 - Refactored `/api/admin/errors-status` to thin validation + RPC call path.
 - Added focused API route tests for RPC happy paths and error mapping.
-2. Slice B next:
-- Expand admin incident lifecycle test coverage for timestamp semantics and promoted-event metadata parity in integration-level assertions.
+2. Slice B complete:
+- Expanded route-level lifecycle coverage for RPC edge paths:
+  - `22023` invalid-input mapping (`400`),
+  - array payload normalization,
+  - malformed payload fail-safe (`500`),
+  - RPC exception logging path.
+- Updated API route inventory docs to record atomic RPC semantics and timestamp metadata contract (`status_updated_at`, `promoted_event_occurred_at`).
 3. Slice C in progress:
 - Phase evidence/tracker updates in progress.
+- Awaiting human phase-exit checkpoint before status promotion.
 
 ## Validation Gates
 1. 

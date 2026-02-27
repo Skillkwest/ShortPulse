@@ -116,4 +116,74 @@ describe("POST /api/admin/errors-status", () => {
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({ error: "Event not found." });
   });
+
+  it("maps rpc validation error to 400", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: "22023", message: "status must be one of open, resolved, ignored." },
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = { method: "POST", body: { errorId: "inc-1", status: "open" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "status must be one of open, resolved, ignored.",
+    });
+  });
+
+  it("normalizes array rpc payloads", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: [
+        {
+          incident_id: "inc-array",
+          status: "open",
+          updated_at: "2026-02-27T12:00:00.000Z",
+          event_id: null,
+        },
+      ],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = { method: "POST", body: { errorId: "inc-array", status: "open" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      ok: true,
+      incident: { id: "inc-array", status: "open", updated_at: "2026-02-27T12:00:00.000Z" },
+    });
+  });
+
+  it("fails closed when rpc payload is missing incident_id", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: { status: "resolved", updated_at: "2026-02-27T13:00:00.000Z", event_id: null },
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = { method: "POST", body: { errorId: "inc-missing", status: "resolved" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to update incident status." });
+  });
+
+  it("logs and returns 500 when rpc throws", async () => {
+    const rpcMock = vi.fn().mockRejectedValue(new Error("rpc exploded"));
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = { method: "POST", body: { errorId: "inc-throw", status: "ignored" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledOnce();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "rpc exploded" });
+  });
 });

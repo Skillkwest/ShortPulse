@@ -48,3 +48,18 @@ Harden Fal video runtime outbound trust boundaries so provider auth headers are 
 ## Rollback Plan
 1. Revert the Phase 04 trust-policy slice commit.
 2. Restore previous submit/probe behavior while retaining Phase 03 baseline.
+
+## Canary Execution Checklist
+1. Staging canary:
+   - set `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=false`,
+   - keep `SHORTPULSE_FAL_QUEUE_ENABLED=true` and reconciler enabled,
+   - run latency probe for `/api/fal/queue-status` and `/api/media/resolve-previews` before and after rollout.
+2. Validate runtime behavior:
+   - no increase in queue stuck depth or recovery backlog p95 age beyond phase thresholds,
+   - no sustained increase in `api.fal_status.*` error rates,
+   - no regression in queued generation completion success.
+3. Rollback trigger:
+   - two consecutive failing windows on threshold metrics or clear queue-stall symptoms.
+4. If rollback is needed:
+   - set `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=true` immediately,
+   - capture incident note under phase-04 evidence and `docs/change_log.md`.

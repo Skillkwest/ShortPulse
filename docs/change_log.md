@@ -1497,3 +1497,14 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/planning/stages/unified-phase-04-video-runtime-hardening-residuals.md`,
   - `docs/planning/evidence/unified-buildout/phase-04/*`,
   - `docs/planning/shortpulse-unified-buildout-tracker.md`.
+
+## 2026-02-27 (unified buildout phase-04 canary readiness packet)
+- Added explicit Phase 04 canary-readiness evidence for `/api/fal/queue-status` read-only rollout:
+  - `docs/planning/evidence/unified-buildout/phase-04/2026-02-27-fal-queue-status-read-only-canary-readiness.md`.
+- Updated Phase 04 stage doc with rollout checklist, rollback triggers, and verification criteria:
+  - `docs/planning/stages/unified-phase-04-video-runtime-hardening-residuals.md`.
+- Updated evidence index and tracker notes to reflect canary handoff status:
+  - `docs/planning/evidence/unified-buildout/phase-04/README.md`,
+  - `docs/planning/shortpulse-unified-buildout-tracker.md`.
+- Updated deployment env inventory for Phase 04 controls:
+  - `docs/deployment.md` (`SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED`, `SHORTPULSE_FAL_TRUSTED_HOSTS`, queue/cleanup env set).

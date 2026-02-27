@@ -23,6 +23,13 @@ import {
   updateQueueItemForRetry,
   type ClaimedGenerationQueueItem,
 } from "./service";
+import {
+  QueueTransitionError,
+  assertGenerationMarkedRunning,
+  assertQueueMutationApplied,
+  assertReservationSubmissionAccepted,
+  decideQueueTransitionCompensation,
+} from "./transitionGuard";
 
 type JsonObject = Record<string, unknown>;
 
@@ -67,6 +74,11 @@ const normalizeError = (error: unknown): string => {
   if (error instanceof Error && error.message.trim()) return error.message.trim();
   const asString = String(error ?? "").trim();
   return asString.length ? asString : "queue_dispatch_failed";
+};
+
+const readErrorCode = (error: unknown): string => {
+  if (error instanceof QueueTransitionError) return error.code;
+  return "DISPATCH_EXCEPTION";
 };
 
 const asObject = (value: unknown): JsonObject => {
@@ -215,7 +227,8 @@ const processClaimedQueueItem = async ({
 
   const existingRequestId = asString(generationRow.request_id);
   if (existingRequestId) {
-    await removeQueueItem(item.queueId);
+    const removeResult = await removeQueueItem(item.queueId);
+    assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
     metrics.skipped += 1;
     return metrics;
   }
@@ -226,12 +239,13 @@ const processClaimedQueueItem = async ({
     const queueAgeSeconds = readQueueAgeSeconds(item.createdAt);
     if (queueAgeSeconds !== null && queueAgeSeconds >= runtimeFlags.queueMaxWaitSeconds) {
       const message = "Queued generation exceeded max wait time without available capacity.";
-      await markQueueItemExhausted({
+      const exhaustResult = await markQueueItemExhausted({
         queueId: item.queueId,
         attempts: item.attempts,
         lastError: message,
         lastErrorCode: "QUEUE_WAIT_TIMEOUT",
       });
+      assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
       await releaseGenerationReservationBySourceRef({
         userId: item.userId,
         sourceRef: item.sourceRef,
@@ -270,22 +284,24 @@ const processClaimedQueueItem = async ({
       return metrics;
     }
 
-    await releaseQueueLeaseBackToQueued({
+    const releaseResult = await releaseQueueLeaseBackToQueued({
       queueId: item.queueId,
       nextAttemptAt: toIsoAfterSeconds(Math.max(1, baseBackoffSeconds)),
     });
+    assertQueueMutationApplied({ result: releaseResult, step: "queue_release" });
     metrics.requeuedNoCapacity += 1;
     return metrics;
   }
 
   const apiKey = process.env.FAL_KEY;
   if (!apiKey) {
-    await markQueueItemExhausted({
+    const exhaustResult = await markQueueItemExhausted({
       queueId: item.queueId,
       attempts: item.attempts,
       lastError: "FAL_KEY is not set on the server",
       lastErrorCode: "FAL_KEY_MISSING",
     });
+    assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
     await setGenerationFailed({
       generationId: item.generationId,
       userId: item.userId,
@@ -297,12 +313,13 @@ const processClaimedQueueItem = async ({
 
   const attemptNumber = item.attempts + 1;
   if (attemptNumber > maxAttempts) {
-    await markQueueItemExhausted({
+    const exhaustResult = await markQueueItemExhausted({
       queueId: item.queueId,
       attempts: attemptNumber,
       lastError: "Queue dispatch attempts exhausted before submit.",
       lastErrorCode: "QUEUE_ATTEMPTS_EXHAUSTED",
     });
+    assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
     await releaseGenerationReservationBySourceRef({
       userId: item.userId,
       sourceRef: item.sourceRef,
@@ -327,12 +344,13 @@ const processClaimedQueueItem = async ({
     webhookCallbackUrl
   );
   if (!submitTargets.length) {
-    await markQueueItemExhausted({
+    const exhaustResult = await markQueueItemExhausted({
       queueId: item.queueId,
       attempts: attemptNumber,
       lastError: "No Fal submit target configured for queued model.",
       lastErrorCode: "MISSING_SUBMIT_TARGET",
     });
+    assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
     await releaseGenerationReservationBySourceRef({
       userId: item.userId,
       sourceRef: item.sourceRef,
@@ -354,6 +372,7 @@ const processClaimedQueueItem = async ({
   const controller = new AbortController();
   const timeoutMs = Math.max(1000, item.timeoutMs);
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let submitAccepted = false;
 
   try {
     const submitResult = await submitWithFallbackTargets({
@@ -376,7 +395,7 @@ const processClaimedQueueItem = async ({
         payload: upstreamData,
       });
       if (retryable && attemptNumber < maxAttempts) {
-        await updateQueueItemForRetry({
+        const retryResult = await updateQueueItemForRetry({
           queueId: item.queueId,
           attempts: attemptNumber,
           nextAttemptAt: toIsoAfterSeconds(
@@ -385,6 +404,7 @@ const processClaimedQueueItem = async ({
           lastError: message,
           lastErrorCode: asString(upstreamData.code),
         });
+        assertQueueMutationApplied({ result: retryResult, step: "queue_retry" });
         metrics.retried += 1;
         await logGenerationFailure({
           req,
@@ -404,12 +424,13 @@ const processClaimedQueueItem = async ({
         return metrics;
       }
 
-      await markQueueItemExhausted({
+      const exhaustResult = await markQueueItemExhausted({
         queueId: item.queueId,
         attempts: attemptNumber,
         lastError: message,
         lastErrorCode: asString(upstreamData.code),
       });
+      assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
       await releaseGenerationReservationBySourceRef({
         userId: item.userId,
         sourceRef: item.sourceRef,
@@ -448,7 +469,7 @@ const processClaimedQueueItem = async ({
     if (!providerRequestId) {
       const message = "Queued submit response did not include request_id.";
       if (attemptNumber < maxAttempts) {
-        await updateQueueItemForRetry({
+        const retryResult = await updateQueueItemForRetry({
           queueId: item.queueId,
           attempts: attemptNumber,
           nextAttemptAt: toIsoAfterSeconds(
@@ -457,16 +478,18 @@ const processClaimedQueueItem = async ({
           lastError: message,
           lastErrorCode: "MISSING_REQUEST_ID",
         });
+        assertQueueMutationApplied({ result: retryResult, step: "queue_retry" });
         metrics.retried += 1;
         return metrics;
       }
 
-      await markQueueItemExhausted({
+      const exhaustResult = await markQueueItemExhausted({
         queueId: item.queueId,
         attempts: attemptNumber,
         lastError: message,
         lastErrorCode: "MISSING_REQUEST_ID",
       });
+      assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
       await releaseGenerationReservationBySourceRef({
         userId: item.userId,
         sourceRef: item.sourceRef,
@@ -485,7 +508,8 @@ const processClaimedQueueItem = async ({
       return metrics;
     }
 
-    await markGenerationReservationSubmitted({
+    submitAccepted = true;
+    const reservationResult = await markGenerationReservationSubmitted({
       userId: item.userId,
       sourceRef: item.sourceRef,
       providerRequestId,
@@ -498,9 +522,10 @@ const processClaimedQueueItem = async ({
         upstream_target_index: submitResult.targetIndex,
       },
     });
+    assertReservationSubmissionAccepted({ result: reservationResult });
 
     const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-    await getSupabaseAdmin()
+    const generationUpdate = await getSupabaseAdmin()
       .from("ai_generations")
       .update({
         provider: "fal",
@@ -526,9 +551,15 @@ const processClaimedQueueItem = async ({
         }),
       })
       .eq("id", item.generationId)
-      .eq("user_id", item.userId);
+      .eq("user_id", item.userId)
+      .select("id");
+    assertGenerationMarkedRunning({
+      affectedCount: Array.isArray(generationUpdate.data) ? generationUpdate.data.length : 0,
+      errorMessage: generationUpdate.error?.message ?? null,
+    });
 
-    await removeQueueItem(item.queueId);
+    const removeResult = await removeQueueItem(item.queueId);
+    assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
     metrics.submitted += 1;
     await logGenerationFailure({
       req,
@@ -549,8 +580,8 @@ const processClaimedQueueItem = async ({
     return metrics;
   } catch (error) {
     const message = normalizeError(error);
-    if (isRetryableTransportError(error) && attemptNumber < maxAttempts) {
-      await updateQueueItemForRetry({
+    if (!submitAccepted && isRetryableTransportError(error) && attemptNumber < maxAttempts) {
+      const retryResult = await updateQueueItemForRetry({
         queueId: item.queueId,
         attempts: attemptNumber,
         nextAttemptAt: toIsoAfterSeconds(
@@ -559,32 +590,59 @@ const processClaimedQueueItem = async ({
         lastError: message,
         lastErrorCode: "TRANSPORT_RETRYABLE",
       });
+      assertQueueMutationApplied({ result: retryResult, step: "queue_retry" });
       metrics.retried += 1;
       return metrics;
     }
 
-    await markQueueItemExhausted({
-      queueId: item.queueId,
-      attempts: attemptNumber,
-      lastError: message,
-      lastErrorCode: "DISPATCH_EXCEPTION",
+    const errorCode = readErrorCode(error);
+    const compensation = decideQueueTransitionCompensation({
+      attemptNumber,
+      maxAttempts,
+      error,
+      submitAccepted,
     });
-    await releaseGenerationReservationBySourceRef({
-      userId: item.userId,
-      sourceRef: item.sourceRef,
-      reason: "Auto-release: queue dispatch exception.",
-      metadata: {
-        queue_id: item.queueId,
-        queue_attempts: attemptNumber,
-        error: message,
-      },
-    });
-    await setGenerationFailed({
-      generationId: item.generationId,
-      userId: item.userId,
-      message: "Generation failed while queued. Please retry.",
-    });
-    metrics.exhausted += 1;
+    if (compensation === "retry") {
+      const retryResult = await updateQueueItemForRetry({
+        queueId: item.queueId,
+        attempts: attemptNumber,
+        nextAttemptAt: toIsoAfterSeconds(
+          resolveBackoffSeconds({ baseSeconds: baseBackoffSeconds, attempts: attemptNumber })
+        ),
+        lastError: message,
+        lastErrorCode: errorCode,
+      });
+      assertQueueMutationApplied({ result: retryResult, step: "queue_retry" });
+      metrics.retried += 1;
+    } else {
+      const exhaustResult = await markQueueItemExhausted({
+        queueId: item.queueId,
+        attempts: attemptNumber,
+        lastError: message,
+        lastErrorCode: errorCode,
+      });
+      assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
+      if (!submitAccepted) {
+        await releaseGenerationReservationBySourceRef({
+          userId: item.userId,
+          sourceRef: item.sourceRef,
+          reason: "Auto-release: queue dispatch exception.",
+          metadata: {
+            queue_id: item.queueId,
+            queue_attempts: attemptNumber,
+            error: message,
+            error_code: errorCode,
+          },
+        });
+        await setGenerationFailed({
+          generationId: item.generationId,
+          userId: item.userId,
+          message: "Generation failed while queued. Please retry.",
+        });
+      }
+      metrics.exhausted += 1;
+    }
+
     metrics.errors += 1;
     return metrics;
   } finally {

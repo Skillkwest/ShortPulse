@@ -280,4 +280,113 @@ describe("POST /api/internal/generation-recovery/run", () => {
       })
     );
   });
+
+  it("uses compare-and-set fallback claims when RPC claim fails", async () => {
+    process.env.SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST = "fal-ai/non-match";
+
+    const fallbackRows = [
+      {
+        id: "gen-1",
+        user_id: "user-1",
+        request_id: "req-1",
+        model_id: "fal-ai/model-a",
+        status: "running",
+        recovery_state: "queued",
+        recovery_attempts: 0,
+      },
+      {
+        id: "gen-2",
+        user_id: "user-2",
+        request_id: "req-2",
+        model_id: "fal-ai/model-b",
+        status: "running",
+        recovery_state: "queued",
+        recovery_attempts: null,
+      },
+    ];
+
+    const fallbackSelectBuilder: {
+      ilike: ReturnType<typeof vi.fn>;
+      in: ReturnType<typeof vi.fn>;
+      lte: ReturnType<typeof vi.fn>;
+      or: ReturnType<typeof vi.fn>;
+      lt: ReturnType<typeof vi.fn>;
+      order: ReturnType<typeof vi.fn>;
+      limit: ReturnType<typeof vi.fn>;
+    } = {
+      ilike: vi.fn(),
+      in: vi.fn(),
+      lte: vi.fn(),
+      or: vi.fn(),
+      lt: vi.fn(),
+      order: vi.fn(),
+      limit: vi.fn(),
+    };
+    fallbackSelectBuilder.ilike.mockReturnValue(fallbackSelectBuilder);
+    fallbackSelectBuilder.in.mockReturnValue(fallbackSelectBuilder);
+    fallbackSelectBuilder.lte.mockReturnValue(fallbackSelectBuilder);
+    fallbackSelectBuilder.or.mockReturnValue(fallbackSelectBuilder);
+    fallbackSelectBuilder.lt.mockReturnValue(fallbackSelectBuilder);
+    fallbackSelectBuilder.order.mockReturnValue(fallbackSelectBuilder);
+    fallbackSelectBuilder.limit.mockResolvedValue({
+      data: fallbackRows,
+      error: null,
+    });
+
+    const updateSelectMock = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [{ id: "gen-1" }], error: null })
+      .mockResolvedValueOnce({ data: [], error: null });
+    const recoveryAttemptFilter = {
+      eq: vi.fn(() => ({ select: updateSelectMock })),
+      is: vi.fn(() => ({ select: updateSelectMock })),
+    };
+    const updateEq4 = { eq: vi.fn(() => recoveryAttemptFilter) };
+    const updateEq3 = { eq: vi.fn(() => updateEq4) };
+    const updateEq2 = { eq: vi.fn(() => updateEq3) };
+    const updateEq1 = { eq: vi.fn(() => updateEq2) };
+    const from = vi.fn(() => ({
+      select: vi.fn(() => fallbackSelectBuilder),
+      update: vi.fn(() => updateEq1),
+    }));
+
+    const rpc = vi.fn(async (functionName: string) => {
+      if (functionName === "release_stale_generation_reservations") {
+        return {
+          data: [{ scanned_count: 0, released_count: 0, error_count: 0 }],
+          error: null,
+        };
+      }
+      if (functionName === "claim_generation_recovery_batch") {
+        return {
+          data: null,
+          error: { message: "rpc unavailable" },
+        };
+      }
+      return { data: [], error: null };
+    });
+
+    getSupabaseAdminMock.mockReturnValue({ rpc, from });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "cron-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(updateSelectMock).toHaveBeenCalledTimes(2);
+    expect(recoveryAttemptFilter.eq).toHaveBeenCalledWith("recovery_attempts", 0);
+    expect(recoveryAttemptFilter.is).toHaveBeenCalledWith("recovery_attempts", null);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+        claimed: 1,
+      })
+    );
+  });
 });

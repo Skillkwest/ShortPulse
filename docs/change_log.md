@@ -1460,3 +1460,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added `resolveAdminAccessVia` to auth helpers and retained token-first fail-closed auth semantics from phase-02 slice-a-b.
 - Added API route coverage for `/api/admin/access` in `frontend/tests/api/admin-access.test.ts` and updated auth helper coverage for allowlist access resolution.
 - Updated docs/tracker/evidence for Phase 02 completion (`docs/api/api-internal-routes.md`, `README.md`, unified tracker/stage/evidence artifacts).
+
+## 2026-02-27
+- Phase 03 queue/recovery integrity hardening (in progress): added checked queue mutation result contracts in `generationQueue/service.ts`, added transition-guard enforcement in `generationQueue/dispatch.ts`, and tightened fallback recovery claiming in `/api/internal/generation-recovery/run` with compare-and-set predicates.
+- Added targeted fault-path tests for transition safeguards: `generationQueue.dispatch.integrity.test.ts`, extended `generationQueue.service.test.ts`, and extended `internal-generation-recovery-run.test.ts` fallback-CAS coverage.
+- Updated unified phase docs/tracker/evidence and provider incident SOP with queue transition guard diagnostics.

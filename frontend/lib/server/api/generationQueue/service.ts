@@ -50,6 +50,23 @@ export type ClaimedGenerationQueueItem = {
   createdAt: string | null;
 };
 
+export type QueueMutationOperation = "retry" | "exhaust" | "release" | "remove";
+
+export type QueueMutationReason =
+  | "applied"
+  | "not_found"
+  | "unexpected_affected_count"
+  | "db_error";
+
+export type QueueMutationResult = {
+  ok: boolean;
+  operation: QueueMutationOperation;
+  queueId: string;
+  affectedCount: number;
+  reason: QueueMutationReason;
+  errorMessage: string | null;
+};
+
 export type GenerationQueueStatus =
   | {
       status: "queued";
@@ -100,6 +117,57 @@ const parseQueueStatus = (value: unknown): "queued" | "dispatching" | "exhausted
     return normalized;
   }
   return null;
+};
+
+const toQueueMutationResult = ({
+  operation,
+  queueId,
+  error,
+  affectedCount,
+}: {
+  operation: QueueMutationOperation;
+  queueId: string;
+  error: { message?: string | null } | null;
+  affectedCount: number;
+}): QueueMutationResult => {
+  if (error) {
+    return {
+      ok: false,
+      operation,
+      queueId,
+      affectedCount,
+      reason: "db_error",
+      errorMessage: error.message ?? "queue mutation failed",
+    };
+  }
+  if (affectedCount === 1) {
+    return {
+      ok: true,
+      operation,
+      queueId,
+      affectedCount,
+      reason: "applied",
+      errorMessage: null,
+    };
+  }
+  if (affectedCount === 0) {
+    return {
+      ok: false,
+      operation,
+      queueId,
+      affectedCount,
+      reason: "not_found",
+      errorMessage: "queue row not found",
+    };
+  }
+  return {
+    ok: false,
+    operation,
+    queueId,
+    affectedCount,
+    reason: "unexpected_affected_count",
+    errorMessage: `queue mutation affected ${affectedCount} rows`,
+  };
 };
 
 const parseEnqueueRow = (value: unknown): GenerationQueueEnqueueResult => {
@@ -249,8 +317,8 @@ export const updateQueueItemForRetry = async ({
   nextAttemptAt: string;
   lastError: string;
   lastErrorCode?: string | null;
-}) => {
-  await getSupabaseAdmin()
+}): Promise<QueueMutationResult> => {
+  const { data, error } = await getSupabaseAdmin()
     .from(QUEUE_TABLE)
     .update({
       status: "queued",
@@ -261,7 +329,14 @@ export const updateQueueItemForRetry = async ({
       last_error_code: lastErrorCode ?? null,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", queueId);
+    .eq("id", queueId)
+    .select("id");
+  return toQueueMutationResult({
+    operation: "retry",
+    queueId,
+    error,
+    affectedCount: Array.isArray(data) ? data.length : 0,
+  });
 };
 
 export const markQueueItemExhausted = async ({
@@ -274,8 +349,8 @@ export const markQueueItemExhausted = async ({
   attempts: number;
   lastError: string;
   lastErrorCode?: string | null;
-}) => {
-  await getSupabaseAdmin()
+}): Promise<QueueMutationResult> => {
+  const { data, error } = await getSupabaseAdmin()
     .from(QUEUE_TABLE)
     .update({
       status: "exhausted",
@@ -285,7 +360,14 @@ export const markQueueItemExhausted = async ({
       last_error_code: lastErrorCode ?? null,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", queueId);
+    .eq("id", queueId)
+    .select("id");
+  return toQueueMutationResult({
+    operation: "exhaust",
+    queueId,
+    error,
+    affectedCount: Array.isArray(data) ? data.length : 0,
+  });
 };
 
 export const releaseQueueLeaseBackToQueued = async ({
@@ -294,8 +376,8 @@ export const releaseQueueLeaseBackToQueued = async ({
 }: {
   queueId: string;
   nextAttemptAt: string;
-}) => {
-  await getSupabaseAdmin()
+}): Promise<QueueMutationResult> => {
+  const { data, error } = await getSupabaseAdmin()
     .from(QUEUE_TABLE)
     .update({
       status: "queued",
@@ -303,11 +385,28 @@ export const releaseQueueLeaseBackToQueued = async ({
       lease_until: null,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", queueId);
+    .eq("id", queueId)
+    .select("id");
+  return toQueueMutationResult({
+    operation: "release",
+    queueId,
+    error,
+    affectedCount: Array.isArray(data) ? data.length : 0,
+  });
 };
 
-export const removeQueueItem = async (queueId: string) => {
-  await getSupabaseAdmin().from(QUEUE_TABLE).delete().eq("id", queueId);
+export const removeQueueItem = async (queueId: string): Promise<QueueMutationResult> => {
+  const { data, error } = await getSupabaseAdmin()
+    .from(QUEUE_TABLE)
+    .delete()
+    .eq("id", queueId)
+    .select("id");
+  return toQueueMutationResult({
+    operation: "remove",
+    queueId,
+    error,
+    affectedCount: Array.isArray(data) ? data.length : 0,
+  });
 };
 
 const readSourceRefFromGenerationMetadata = (metadata: unknown): string | null => {

@@ -18,15 +18,6 @@ const releaseQueueLeaseBackToQueuedMock = vi.fn();
 const removeQueueItemMock = vi.fn();
 const updateQueueItemForRetryMock = vi.fn();
 
-const buildMutationSuccess = (operation: "retry" | "exhaust" | "release" | "remove") => ({
-  ok: true,
-  operation,
-  queueId: "queue-1",
-  affectedCount: 1,
-  reason: "applied",
-  errorMessage: null,
-});
-
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
 }));
@@ -74,25 +65,56 @@ vi.mock("../generationQueue/service", () => ({
   updateQueueItemForRetry: (...args: unknown[]) => updateQueueItemForRetryMock(...args),
 }));
 
-const createSupabaseAdminMock = () => {
-  const generationRow = {
-    id: "gen-1",
-    status: "pending",
-    request_id: null,
-    metadata: {},
-  };
+const queueItem = {
+  queueId: "queue-1",
+  generationId: "gen-1",
+  userId: "user-1",
+  modelId: "fal-ai/nano-banana-pro",
+  sourceRef: "source-1",
+  submitRoute: "/api/fal/nano-banana-pro-submit",
+  submitPayload: { prompt: "hello" },
+  timeoutMs: 20_000,
+  attempts: 0,
+  status: "dispatching" as const,
+  nextAttemptAt: null,
+  leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+  createdAt: new Date(Date.now() - 10_000).toISOString(),
+};
 
+const mutationSuccess = (operation: "retry" | "exhaust" | "release" | "remove") => ({
+  ok: true,
+  operation,
+  queueId: "queue-1",
+  affectedCount: 1,
+  reason: "applied",
+  errorMessage: null,
+});
+
+const createSupabaseAdminMock = ({ generationUpdateError }: { generationUpdateError?: string }) => {
   const aiGenerationsTable = {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
         eq: vi.fn(() => ({
-          maybeSingle: vi.fn(async () => ({ data: generationRow, error: null })),
+          maybeSingle: vi.fn(async () => ({
+            data: {
+              id: "gen-1",
+              status: "pending",
+              request_id: null,
+              metadata: {},
+            },
+            error: null,
+          })),
         })),
       })),
     })),
     update: vi.fn(() => ({
       eq: vi.fn(() => ({
-        eq: vi.fn(async () => ({ error: null })),
+        eq: vi.fn(() => ({
+          select: vi.fn(async () => ({
+            data: generationUpdateError ? null : [{ id: "gen-1" }],
+            error: generationUpdateError ? { message: generationUpdateError } : null,
+          })),
+        })),
       })),
     })),
   };
@@ -101,7 +123,7 @@ const createSupabaseAdminMock = () => {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
         eq: vi.fn(() => ({
-          not: vi.fn(async () => ({ data: [{ model_id: "fal-ai/nano-banana-pro" }], error: null })),
+          not: vi.fn(async () => ({ data: [], error: null })),
         })),
       })),
     })),
@@ -116,19 +138,11 @@ const createSupabaseAdminMock = () => {
   };
 };
 
-describe("generationQueue/dispatch no-capacity handling", () => {
+describe("generationQueue/dispatch transition integrity", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock());
-    markQueueItemExhaustedMock.mockResolvedValue(buildMutationSuccess("exhaust"));
-    releaseQueueLeaseBackToQueuedMock.mockResolvedValue(buildMutationSuccess("release"));
-    removeQueueItemMock.mockResolvedValue(buildMutationSuccess("remove"));
-    updateQueueItemForRetryMock.mockResolvedValue(buildMutationSuccess("retry"));
-    markGenerationReservationSubmittedMock.mockResolvedValue({
-      status: "reserved",
-      sourceRef: "source-1",
-      message: null,
-    });
+    process.env.FAL_KEY = "test-fal-key";
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({}));
     readFalRuntimeFlagsMock.mockReturnValue({
       queueEnabled: true,
       queueLeaseSeconds: 30,
@@ -136,82 +150,48 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       queueBaseBackoffSeconds: 5,
       queueMaxWaitSeconds: 1200,
       admission: {
-        globalMax: 1,
+        globalMax: 8,
         tierLimits: {
           video_long: 2,
-          image_heavy: 1,
+          image_heavy: 3,
           image_standard: 4,
         },
       },
       publicApiBaseUrl: null,
     });
-    resolveGenerationAdmissionTierMock.mockReturnValue("image_heavy");
-    getFalModelProfileByModelIdMock.mockReturnValue({ submitTargets: [] });
+    claimGenerationSubmitQueueBatchMock.mockResolvedValue([queueItem]);
+    resolveGenerationAdmissionTierMock.mockReturnValue("image_standard");
+    getFalModelProfileByModelIdMock.mockReturnValue({
+      submitTargets: [{ route: "/api/fal/nano-banana-pro-submit", url: "https://fal.test" }],
+    });
     resolveWebhookCallbackUrlMock.mockReturnValue(null);
     withWebhookTargetsMock.mockImplementation((targets: unknown) => targets);
+    submitWithFallbackTargetsMock.mockResolvedValue({
+      response: { ok: true, status: 200 },
+      data: { request_id: "req-1" },
+      targetUrl: "https://fal.test",
+      targetIndex: 0,
+    });
+    readProviderRequestIdMock.mockReturnValue("req-1");
+    markGenerationReservationSubmittedMock.mockResolvedValue({
+      status: "reserved",
+      sourceRef: "source-1",
+      message: null,
+    });
+    markQueueItemExhaustedMock.mockResolvedValue(mutationSuccess("exhaust"));
+    releaseQueueLeaseBackToQueuedMock.mockResolvedValue(mutationSuccess("release"));
+    removeQueueItemMock.mockResolvedValue(mutationSuccess("remove"));
+    updateQueueItemForRetryMock.mockResolvedValue(mutationSuccess("retry"));
   });
 
-  it("requeues when capacity is full but queue age is still below max wait", async () => {
-    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
-      {
-        queueId: "queue-1",
-        generationId: "gen-1",
-        userId: "user-1",
-        modelId: "fal-ai/nano-banana-pro",
-        sourceRef: "source-1",
-        submitRoute: "/api/fal/nano-banana-pro-submit",
-        submitPayload: { prompt: "hello" },
-        timeoutMs: 20_000,
-        attempts: 0,
-        status: "dispatching",
-        nextAttemptAt: null,
-        leaseUntil: new Date(Date.now() + 30_000).toISOString(),
-        createdAt: new Date(Date.now() - 60_000).toISOString(),
-      },
-    ]);
-
-    const result = await dispatchGenerationSubmitQueueBatch({
-      req: { method: "GET", headers: {} } as never,
-      routeLabel: "test/dispatch",
-      limit: 1,
-      userId: "user-1",
-    });
-
-    expect(result).toEqual(
-      expect.objectContaining({
-        claimed: 1,
-        requeuedNoCapacity: 1,
-        exhausted: 0,
-      })
+  it("exhausts without releasing reservation when generation running update fails post-submit", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({ generationUpdateError: "write failed" })
     );
-    expect(releaseQueueLeaseBackToQueuedMock).toHaveBeenCalledTimes(1);
-    expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
-    expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
-    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
-  });
-
-  it("exhausts and releases when capacity is full beyond max wait", async () => {
-    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
-      {
-        queueId: "queue-1",
-        generationId: "gen-1",
-        userId: "user-1",
-        modelId: "fal-ai/nano-banana-pro",
-        sourceRef: "source-1",
-        submitRoute: "/api/fal/nano-banana-pro-submit",
-        submitPayload: { prompt: "hello" },
-        timeoutMs: 20_000,
-        attempts: 0,
-        status: "dispatching",
-        nextAttemptAt: null,
-        leaseUntil: new Date(Date.now() + 30_000).toISOString(),
-        createdAt: new Date(Date.now() - 2_000_000).toISOString(),
-      },
-    ]);
 
     const result = await dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,
-      routeLabel: "test/dispatch",
+      routeLabel: "test/dispatch-integrity",
       limit: 1,
       userId: "user-1",
     });
@@ -219,22 +199,47 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     expect(result).toEqual(
       expect.objectContaining({
         claimed: 1,
-        requeuedNoCapacity: 0,
         exhausted: 1,
+        errors: 1,
       })
     );
     expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        queueId: "queue-1",
-        lastErrorCode: "QUEUE_WAIT_TIMEOUT",
+        lastErrorCode: "GENERATION_MARK_RUNNING_DB_ERROR",
       })
     );
-    expect(releaseGenerationReservationBySourceRefMock).toHaveBeenCalledWith(
+    expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
+    expect(updateQueueItemForRetryMock).not.toHaveBeenCalled();
+  });
+
+  it("retries queue item when reservation submit returns retryable failure", async () => {
+    markGenerationReservationSubmittedMock.mockResolvedValue({
+      status: "failed",
+      sourceRef: "source-1",
+      message: "rpc timeout",
+    });
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
       expect.objectContaining({
-        sourceRef: "source-1",
+        claimed: 1,
+        retried: 1,
+        exhausted: 0,
+        errors: 1,
       })
     );
-    expect(releaseQueueLeaseBackToQueuedMock).not.toHaveBeenCalled();
-    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+    expect(updateQueueItemForRetryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastErrorCode: "RESERVATION_SUBMIT_FAILED",
+      })
+    );
+    expect(removeQueueItemMock).not.toHaveBeenCalled();
+    expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
   });
 });

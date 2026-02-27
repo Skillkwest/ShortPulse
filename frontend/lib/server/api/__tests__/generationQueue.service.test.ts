@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { claimGenerationSubmitQueueBatch } from "../generationQueue/service";
+import {
+  claimGenerationSubmitQueueBatch,
+  removeQueueItem,
+  updateQueueItemForRetry,
+} from "../generationQueue/service";
 
 const getSupabaseAdminMock = vi.fn();
 
@@ -71,5 +75,64 @@ describe("generationQueue/service.claimGenerationSubmitQueueBatch", () => {
         status: "dispatching",
       }),
     ]);
+  });
+});
+
+describe("generationQueue/service mutation result guards", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns applied result when queue retry update affects one row", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn(() => ({
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(async () => ({
+              data: [{ id: "queue-1" }],
+              error: null,
+            })),
+          })),
+        })),
+      })),
+    });
+
+    await expect(
+      updateQueueItemForRetry({
+        queueId: "queue-1",
+        attempts: 1,
+        nextAttemptAt: "2026-02-27T00:00:00.000Z",
+        lastError: "retry",
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        ok: true,
+        operation: "retry",
+        reason: "applied",
+      })
+    );
+  });
+
+  it("returns db_error result when queue delete fails", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn(() => ({
+        delete: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(async () => ({
+              data: null,
+              error: { message: "db unavailable" },
+            })),
+          })),
+        })),
+      })),
+    });
+
+    await expect(removeQueueItem("queue-1")).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        operation: "remove",
+        reason: "db_error",
+      })
+    );
   });
 });

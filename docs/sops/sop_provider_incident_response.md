@@ -141,6 +141,19 @@ Failure-code action map (Fal reliability rollout):
 | `circuit_breaker_open` | Keep model paused until failure ratio drops below threshold and smoke tests pass. |
 | `recovery_exhausted` | Use admin replay path and escalate to engineering incident review. |
 
+Queue transition guard diagnostics:
+1. Queue transition failures now emit deterministic error codes from guarded steps (`QUEUE_*`, `GENERATION_MARK_RUNNING_*`, `RESERVATION_SUBMIT_*`).
+2. During queue incident triage, filter app errors by:
+   - `source in ('telemetry.queue.dispatch.retry','telemetry.queue.dispatch.exhausted')`
+   - metadata keys: `queue_id`, `generation_id`, `error_code`, `model_id`.
+3. If `GENERATION_MARK_RUNNING_*` appears after provider acceptance:
+   - treat as high-risk duplicate-submit guard activation,
+   - keep queue item exhausted (do not manual requeue blindly),
+   - use admin replay/reconciler path after confirming generation row + reservation state.
+4. If `RESERVATION_SUBMIT_FAILED` repeats with existing `request_id`:
+   - treat as billing-state reconciliation issue,
+   - verify reservation RPC health before changing queue limits.
+
 Admission-control action map:
 | Signal | Primary action |
 | --- | --- |

@@ -146,7 +146,7 @@ const claimFallback = async ({
     const row = parseClaimedGeneration(raw);
     if (!row) continue;
     const nextAttempts = (row.recovery_attempts ?? 0) + 1;
-    const { error: updateError } = await supabaseAdmin
+    let updateQuery = supabaseAdmin
       .from("ai_generations")
       .update({
         recovery_state: "recovering",
@@ -155,8 +155,17 @@ const claimFallback = async ({
         next_recovery_at: leaseUntilIso,
       })
       .eq("id", row.id)
-      .eq("user_id", row.user_id);
-    if (!updateError) {
+      .eq("user_id", row.user_id)
+      .eq("status", row.status)
+      .eq("recovery_state", row.recovery_state ?? "queued");
+    if (row.recovery_attempts === null) {
+      updateQuery = updateQuery.is("recovery_attempts", null);
+    } else {
+      updateQuery = updateQuery.eq("recovery_attempts", row.recovery_attempts);
+    }
+
+    const { data: updateRows, error: updateError } = await updateQuery.select("id");
+    if (!updateError && Array.isArray(updateRows) && updateRows.length === 1) {
       claimed.push({ ...row, recovery_attempts: nextAttempts, recovery_state: "recovering" });
     }
   }

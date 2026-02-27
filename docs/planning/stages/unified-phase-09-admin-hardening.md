@@ -33,6 +33,7 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Updated API route inventory docs to record atomic RPC semantics and timestamp metadata contract (`status_updated_at`, `promoted_event_occurred_at`).
 3. Slice C in progress:
 - Phase evidence/tracker updates in progress.
+- Post-validation reliability patch landed for `/api/admin/error-events` actionable filtering to avoid PostgREST relation-logic parse failures (`500`) in operator workflows.
 - Awaiting human phase-exit checkpoint before status promotion.
 
 ## Validation Gates

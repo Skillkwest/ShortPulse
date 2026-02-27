@@ -276,6 +276,91 @@ describe("GET /api/admin/error-events", () => {
     });
   });
 
+  it("returns actionable events without relation-or parse failures", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        app_error_events: [
+          {
+            data: [
+              {
+                id: "evt-unlinked",
+                incident_id: null,
+                source: "api.alpha",
+                scope: "app",
+                severity: "medium",
+                message: "Unlinked event",
+                occurred_at: "2026-02-27T18:00:00.000Z",
+              },
+              {
+                id: "evt-open",
+                incident_id: "11111111-1111-4111-8111-111111111111",
+                source: "api.beta",
+                scope: "app",
+                severity: "high",
+                message: "Open incident event",
+                occurred_at: "2026-02-27T17:59:00.000Z",
+              },
+              {
+                id: "evt-resolved",
+                incident_id: "22222222-2222-4222-8222-222222222222",
+                source: "api.gamma",
+                scope: "app",
+                severity: "medium",
+                message: "Resolved incident event",
+                occurred_at: "2026-02-27T17:58:00.000Z",
+              },
+            ],
+            error: null,
+          },
+          { count: 3, error: null },
+          { count: 3, error: null },
+          { count: 1, error: null },
+          { count: 0, error: null },
+          { count: 3, error: null },
+          { count: 3, error: null },
+          { count: 3, error: null },
+          { count: 3, error: null },
+          { count: 1, error: null },
+          { count: 1, error: null },
+          { count: 0, error: null },
+          { count: 0, error: null },
+          { data: [], error: null },
+        ],
+        app_error_logs: [
+          {
+            data: [
+              { id: "11111111-1111-4111-8111-111111111111", status: "open" },
+              { id: "22222222-2222-4222-8222-222222222222", status: "resolved" },
+            ],
+            error: null,
+          },
+        ],
+      })
+    );
+
+    const req = {
+      method: "GET",
+      query: { page: "1", limit: "50", synthetic: "exclude", incident: "actionable" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      events: Array<{ id: string }>;
+      health: { degraded: boolean; reason: string | null };
+      pagination: { totalCount: number };
+    };
+
+    expect(payload.events.map((event) => event.id)).toEqual(["evt-unlinked", "evt-open"]);
+    expect(payload.pagination.totalCount).toBe(2);
+    expect(payload.health.degraded).toBe(true);
+    expect(payload.health.reason).toContain(
+      "Actionable incident filtering uses bounded in-memory merge"
+    );
+  });
+
   it("returns degraded mode when app_error_events is unavailable", async () => {
     const missingTableMessage =
       "Could not find the table 'public.app_error_events' in the schema cache";

@@ -8,6 +8,7 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+const ACTIONABLE_PREFETCH_LIMIT = 800;
 const DEFAULT_TOTAL_15M_THRESHOLD = 40;
 const DEFAULT_HIGH_15M_THRESHOLD = 8;
 const DEFAULT_GENERATION_15M_THRESHOLD = 20;
@@ -79,6 +80,14 @@ type EnrichedEventsResult = {
   events: unknown[];
   degraded: boolean;
   reason: string | null;
+};
+
+const isActionableEvent = (value: unknown): boolean => {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  const incidentId = typeof row.incident_id === "string" ? row.incident_id : null;
+  if (!incidentId) return true;
+  return typeof row.incident_status === "string" && row.incident_status.toLowerCase() === "open";
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -350,11 +359,8 @@ const applyEventFilters = (
   })();
 
   if (filters.incident === "actionable") {
-    const actionableClause = "incident_id.is.null,app_error_logs.status.eq.open";
     if (searchClause) {
-      next = next.or(`and(or(${searchClause}),or(${actionableClause}))`);
-    } else {
-      next = next.or(actionableClause);
+      next = next.or(searchClause);
     }
     return next;
   }
@@ -450,6 +456,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       incident: asIncidentFilter(req.query.incident),
       excludeTelemetrySources: false,
     };
+    const isActionableIncidentFilter = filters.incident === "actionable";
+    const listFilters = isActionableIncidentFilter
+      ? { ...filters, incident: "all" as IncidentFilterValue }
+      : filters;
+    const listRangeStart = isActionableIncidentFilter ? 0 : offset;
+    const listRangeEnd = isActionableIncidentFilter
+      ? ACTIONABLE_PREFETCH_LIMIT - 1
+      : offset + limit - 1;
     const summaryFilters: {
       scope: string;
       severity: string;
@@ -497,8 +511,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           "id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at, app_error_logs!left(status)"
         )
         .order("occurred_at", { ascending: false })
-        .range(offset, offset + limit - 1) as unknown as EventQuery,
-      filters
+        .range(listRangeStart, listRangeEnd) as unknown as EventQuery,
+      listFilters
     ) as unknown as Promise<ListQueryResult>;
 
     const filteredCountQuery = applyEventFilters(
@@ -506,7 +520,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         count: "exact",
         head: true,
       }) as unknown as EventQuery,
-      filters
+      listFilters
     ) as unknown as Promise<CountQueryResult>;
 
     const [
@@ -652,7 +666,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let events = eventsResult.data ?? [];
     const eventRowsCount = Array.isArray(events) ? events.length : 0;
     const fallbackLikelyHasNextPage = eventRowsCount === limit;
-    const hasFilteredCountError = Boolean(filteredCountResult.error);
+    const hasFilteredCountError = isActionableIncidentFilter || Boolean(filteredCountResult.error);
     const totalCount = hasFilteredCountError
       ? offset + eventRowsCount + (fallbackLikelyHasNextPage ? 1 : 0)
       : Number(filteredCountResult.count ?? 0);
@@ -716,6 +730,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (enrichedEventsResult.degraded && enrichedEventsResult.reason) {
       healthReasons.push(enrichedEventsResult.reason);
     }
+    let responseEvents = enrichedEventsResult.events;
+    let responsePagination = {
+      page: resolvedPage,
+      perPage: limit,
+      totalCount,
+      totalPages,
+      hasNextPage: hasFilteredCountError ? fallbackLikelyHasNextPage : resolvedPage < totalPages,
+      hasPrevPage: resolvedPage > 1,
+    };
+
+    if (isActionableIncidentFilter) {
+      const actionableEvents = responseEvents.filter(isActionableEvent);
+      const actionableTotalCount = actionableEvents.length;
+      const actionableTotalPages = Math.max(1, Math.ceil(actionableTotalCount / limit));
+      const actionableResolvedPage =
+        actionableTotalCount > 0 ? Math.min(page, actionableTotalPages) : 1;
+      const actionableOffset = (actionableResolvedPage - 1) * limit;
+      responseEvents = actionableEvents.slice(actionableOffset, actionableOffset + limit);
+      responsePagination = {
+        page: actionableResolvedPage,
+        perPage: limit,
+        totalCount: actionableTotalCount,
+        totalPages: actionableTotalPages,
+        hasNextPage: actionableResolvedPage < actionableTotalPages,
+        hasPrevPage: actionableResolvedPage > 1,
+      };
+      healthReasons.push(
+        "Actionable incident filtering uses bounded in-memory merge while relation OR parsing is unavailable."
+      );
+      if (eventRowsCount >= ACTIONABLE_PREFETCH_LIMIT) {
+        healthReasons.push(
+          "Actionable results may be truncated at prefetch limit; narrow filters for complete coverage."
+        );
+      }
+    }
+
     const health = healthReasons.length
       ? {
           eventsTableAvailable: true,
@@ -725,7 +775,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : healthyState();
 
     return res.status(200).json({
-      events: enrichedEventsResult.events,
+      events: responseEvents,
       summary: {
         last15mCount: countOrZero(last15mCountResult),
         high15mCount: countOrZero(high15mCountResult),
@@ -756,14 +806,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         generation15mBreached: countOrZero(generation15mCountResult) >= generation15mThreshold,
       },
       health,
-      pagination: {
-        page: resolvedPage,
-        perPage: limit,
-        totalCount,
-        totalPages,
-        hasNextPage: hasFilteredCountError ? fallbackLikelyHasNextPage : resolvedPage < totalPages,
-        hasPrevPage: resolvedPage > 1,
-      },
+      pagination: responsePagination,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

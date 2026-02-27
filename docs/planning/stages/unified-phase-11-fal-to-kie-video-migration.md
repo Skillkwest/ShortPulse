@@ -48,6 +48,10 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/falIntegration/recoveryExecution.ts`
   - `frontend/lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts`
   - `frontend/lib/server/falIntegration/__tests__/recoveryExecution.test.ts`
+- Added provider-aware submit dispatch seam:
+  - `frontend/lib/server/providerIntegration/submitProviderDispatcher.ts`
+  - `frontend/lib/server/api/falSubmitProxy.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts`
 
 ## Validation Gates
 1. 

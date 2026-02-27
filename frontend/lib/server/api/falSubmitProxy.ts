@@ -9,7 +9,6 @@ import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { evaluateUserGenerationAdmission } from "./generationAdmission/generationAdmissionService";
 import { evaluateGenerationAdmissionDecision } from "./generationAdmission/generationAdmissionPolicy";
 import type { SubmitTarget } from "../falIntegration/contracts";
-import { submitWithFallbackTargets } from "../falIntegration/submitEngine";
 import {
   countUserQueuedGenerationSubmits,
   enqueueGenerationSubmit,
@@ -21,11 +20,8 @@ import {
   resolveGenerationResolutionFromPayload,
   readGenerationDurationSeconds,
 } from "./generationQueue/metadata";
-import {
-  readProviderRequestId,
-  resolveWebhookCallbackUrl,
-  withWebhookTargets,
-} from "./falSubmitTargeting";
+import { resolveWebhookCallbackUrl, withWebhookTargets } from "./falSubmitTargeting";
+import { dispatchProviderSubmit } from "../providerIntegration/submitProviderDispatcher";
 import { resolveGenerationAdmissionTier } from "../../model-runtime/generationAdmissionTiers";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
@@ -412,7 +408,8 @@ export const createFalSubmitHandler =
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const upstreamResult = await submitWithFallbackTargets({
+      const upstreamResult = await dispatchProviderSubmit({
+        provider: "fal",
         targets: resolvedTargetsWithWebhook,
         payload,
         apiKey,
@@ -446,7 +443,7 @@ export const createFalSubmitHandler =
           },
         });
       } else {
-        const providerRequestId = readProviderRequestId(data);
+        const providerRequestId = upstreamResult.providerRequestId;
         if (!providerRequestId) {
           await charge.refund("Auto-refund: Fal submit missing request id.", {
             upstream_status: upstream.status,

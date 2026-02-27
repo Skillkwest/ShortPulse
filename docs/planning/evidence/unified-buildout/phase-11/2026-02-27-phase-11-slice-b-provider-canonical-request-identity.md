@@ -22,11 +22,14 @@ Start the provider-neutral adapter contract work by removing Fal-local request/e
 4. Added provider-aware recovery probe dispatcher seam:
 - `frontend/lib/server/providerIntegration/recoveryProviderDispatcher.ts`
 - `frontend/lib/server/falIntegration/recoveryExecution.ts` now dispatches probe by `ai_generations.provider` instead of directly binding to Fal probe internals.
+5. Added provider-aware submit dispatcher seam:
+- `frontend/lib/server/providerIntegration/submitProviderDispatcher.ts`
+- `frontend/lib/server/api/falSubmitProxy.ts` now dispatches submit through provider boundary and receives canonical `providerRequestId` from the dispatcher contract.
 
 ## Validation
 1. Targeted tests:
 ```bash
-npm -C frontend run test -- tests/api/fal-submit-proxy.test.ts tests/api/fal-webhook-route.test.ts lib/server/providerIntegration/__tests__/canonicalProviderPayload.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts
+npm -C frontend run test -- tests/api/fal-submit-proxy.test.ts tests/api/fal-webhook-route.test.ts lib/server/providerIntegration/__tests__/canonicalProviderPayload.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts
 ```
 Result: pass.
 2. Type-check:

@@ -37,3 +37,7 @@ Last updated: 2026-02-27
 - Decision: Targeted research only when external contracts are authoritative, with evidence note.
 - Effective phases: 01-12.
 
+## Decision 008
+- Topic: Phase sequencing override for runtime canary.
+- Decision: Phase 04 canary/signoff is deferred; downstream implementation phases may continue in parallel with explicit tracker notation, while final program closeout still requires Phase 04 completion.
+- Effective phases: 04-12.

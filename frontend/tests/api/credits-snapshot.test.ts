@@ -224,4 +224,61 @@ describe("GET /api/credits/snapshot", () => {
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
+
+  it("clamps spendable credits to zero when active reservations exceed available balance", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        if (table === "ai_credit_balance") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({
+                  data: { balance_cents: 80, updated_at: "2026-02-17T01:00:00.000Z" },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === "ai_credit_reservations") {
+          const chain = {
+            eq: vi.fn(),
+            order: vi.fn(
+              async () =>
+                ({
+                  data: [
+                    { amount_cents: 60, updated_at: "2026-02-17T01:02:00.000Z" },
+                    { amount_cents: -70, updated_at: "2026-02-17T01:01:00.000Z" },
+                  ],
+                  error: null,
+                }) as SelectResult
+            ),
+          };
+          chain.eq.mockReturnValue(chain);
+          return { select: () => chain };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      userId: "user-1",
+      availableCents: 80,
+      reservedCents: 130,
+      spendableCents: 0,
+      balanceUpdatedAt: "2026-02-17T01:00:00.000Z",
+      reservationsUpdatedAt: "2026-02-17T01:02:00.000Z",
+      updatedAt: "2026-02-17T01:02:00.000Z",
+      reservationsSupported: true,
+      source: "balance_table",
+    });
+  });
 });

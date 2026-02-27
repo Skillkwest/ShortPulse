@@ -142,6 +142,41 @@ Safety checks:
 - Checkout and renewal credits are ledger grants (`change_cents > 0`) via server routes.
 - Stripe event IDs are persisted in `stripe_event_log` to prevent duplicate grants.
 
+## Stripe webhook replay runbook (failed-first recovery)
+Use this when a Stripe webhook was accepted into `stripe_event_log` but side effects (credit grant or subscription state update) may not have completed.
+
+1. Identify impacted event(s) from logs or Stripe Dashboard (`event.id`, `event.type`, `created`).
+2. Verify ingestion and current side effects in Supabase:
+```sql
+-- Event claim existence
+select id, event_type, received_at
+from stripe_event_log
+where id = '<stripe_event_id>';
+
+-- Checkout grant idempotency target
+select user_id, source, source_ref, change_cents, created_at
+from ai_credit_ledger
+where source_ref = '<stripe_event_id>'
+order by created_at desc;
+
+-- Subscription profile state (for subscription/invoice events)
+select user_id, stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, updated_at
+from billing_profiles
+where stripe_customer_id = '<stripe_customer_id>';
+```
+3. Replay the event from Stripe:
+   - Stripe Dashboard: open the event and click `Resend`.
+   - Or Stripe CLI: `stripe events resend <stripe_event_id>`.
+4. Validate post-replay outcome:
+   - Webhook response is `200`.
+   - Duplicate replays are safe (`duplicate: true` can appear) and must not create duplicate ledger rows.
+   - `ai_credit_ledger` remains unique on `(user_id, source, source_ref)`.
+   - Subscription/profile state reflects latest expected status for subscription events.
+5. If replay still fails:
+   - Inspect server logs for route `billing/stripe/webhook`.
+   - Confirm `STRIPE_WEBHOOK_SECRET` and `STRIPE_SECRET_KEY` are correct for the target environment.
+   - Escalate with event IDs + DB snapshots above.
+
 ## Operations checklist
 Before release:
 1. Run migration if environment is legacy (must include reservation migration for Fal capture flow).

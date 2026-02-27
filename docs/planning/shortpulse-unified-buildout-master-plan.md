@@ -38,11 +38,11 @@ Program outcomes:
 | 01 | Guardrail and CI Accuracy Repair | In Progress | P0 |
 | 02 | Auth Boundary Hardening + Admin Access Decoupling | Completed | P0 |
 | 03 | Queue/Recovery Transition Integrity Completion | Completed | P0 |
-| 04 | Video Runtime Hardening Residuals | In Progress | P1 |
+| 04 | Video Runtime Hardening Residuals | Deferred | P1 |
 | 05 | Media Library Security-First Hardening | Planned | P1 |
 | 06 | Character Workflow Hardening | In Progress | P1 |
 | 07 | AI Studio Foundation Modularization | In Progress | P1 |
-| 08 | Billing/Stripe Correctness Hardening | Planned | P1 |
+| 08 | Billing/Stripe Correctness Hardening | Completed | P1 |
 | 09 | Admin Hardening | Planned | P1 |
 | 10 | Security Residual Controls | Planned | P1 |
 | 11 | Fal Video -> Kie Video Migration | Planned | P2 |

@@ -1,6 +1,6 @@
 # Unified Phase 08: Billing and Stripe Correctness Hardening
 
-Status: In Progress
+Status: Completed
 Owner: Engineering
 
 ## Objective
@@ -23,13 +23,14 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A complete:
 - Stripe webhook event claiming moved to insert-first semantics with explicit duplicate/non-conflict error branches before side effects.
 - Webhook tests expanded for duplicate conflict, claim failure, and claimed happy-path side-effect behavior.
-2. Slice B in progress:
+2. Slice B complete:
 - Replay-safe duplicate claim processing implemented (duplicate deliveries continue through side effects).
 - Credit ledger duplicate source-ref conflicts are treated idempotently to prevent double-credit while allowing safe retries.
 - Bootstrap-safe billing profile/customer guard scenarios implemented in checkout/portal via shared Stripe customer helper.
-- Remaining Slice B work: finalize failed-event replay runbook details and add broader billing state parity coverage.
-3. Slice C in progress:
-- Evidence packet added under `docs/planning/evidence/unified-buildout/phase-08/`.
+- Failed-event replay runbook details added to billing SOP.
+- Broader billing state parity coverage expanded (credits snapshot spendable clamp coverage).
+3. Slice C complete:
+- Evidence packet updated under `docs/planning/evidence/unified-buildout/phase-08/`.
 
 ## Validation Gates
 1. 

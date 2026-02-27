@@ -1,9 +1,14 @@
 import { act, renderHook } from "@testing-library/react";
 import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaUploadController } from "../useMediaUploadController";
+import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import { resolveMediaSigningStoragePaths } from "../../../../lib/mediaPreviewPath";
 import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+
+vi.mock("../../../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: vi.fn(),
+}));
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
   resolveMediaSigningStoragePaths: vi.fn(),
@@ -15,6 +20,7 @@ vi.mock("../../../../lib/supabaseClient", () => ({
 
 const resolveMediaSigningStoragePathsMock = vi.mocked(resolveMediaSigningStoragePaths);
 const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const fetchWithAuthMock = vi.mocked(fetchWithAuth);
 
 type Row = {
   id: string;
@@ -89,6 +95,10 @@ describe("useMediaUploadController", () => {
     );
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("rejects private uploads that include non-image files", async () => {
     const supabaseClient = createUploadSupabaseClient({ userId: "user-1" });
     ensureSupabaseClientMock.mockReturnValue(supabaseClient as never);
@@ -142,6 +152,22 @@ describe("useMediaUploadController", () => {
     const refreshStorageUsageBytes = vi.fn(async () => {});
     const logMediaEvent = vi.fn(async () => {});
     const signStoragePath = vi.fn(async () => "https://signed.example/media-123");
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        file: {
+          id: "media-123",
+          filename: "asset.png",
+          storage_path: "user-1/images/media-123.png",
+          preview_storage_path: "user-1/images/media-123.png",
+          file_type: "image",
+          file_size: 123,
+          source: "upload",
+          created_at: "2026-02-14T00:00:00.000Z",
+          signedUrl: "https://signed.example/media-123",
+        },
+      }),
+    } as never);
 
     const { result } = renderHook(() => {
       const [error, setError] = useState<string | null>(null);
@@ -185,17 +211,72 @@ describe("useMediaUploadController", () => {
     });
     expect(markInactiveMediaCachesStale).toHaveBeenCalledWith("uploaded_images");
     expect(refreshStorageUsageBytes).toHaveBeenCalledTimes(1);
-    expect(signStoragePath).toHaveBeenCalledWith("user-1/images/media-123.png", {
-      forceRefresh: true,
-    });
+    expect(signStoragePath).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/upload",
+      expect.objectContaining({ method: "POST" })
+    );
     expect(logMediaEvent).toHaveBeenCalledWith(
       "upload",
       "media_file",
       "media-123",
       expect.objectContaining({
-        storage_path: expect.stringMatching(/^user-1\/images\/.+-asset\.png$/),
+        storage_path: "user-1/images/media-123.png",
       })
     );
+    expect(supabaseClient.storage.from).not.toHaveBeenCalled();
+  });
+
+  it("uses legacy direct upload path when NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED is false", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED", "false");
+    const supabaseClient = createUploadSupabaseClient({
+      userId: "user-1",
+      insertedRow: {
+        id: "media-legacy-1",
+        storage_path: "user-1/images/media-legacy-1.png",
+      },
+    });
+    ensureSupabaseClientMock.mockReturnValue(supabaseClient as never);
+    const signStoragePath = vi.fn(async () => "https://signed.example/media-legacy-1");
+
+    const { result } = renderHook(() => {
+      const [error, setError] = useState<string | null>(null);
+      const [rows, setRows] = useState<Row[]>([]);
+      const upload = useMediaUploadController<Row>({
+        activeMediaTab: "uploaded_images",
+        activeTab: "uploaded_images",
+        currentUserIdRef: { current: null },
+        getErrorMessage: (_error: unknown, fallback: string) => fallback,
+        logMediaEvent: vi.fn(async () => {}),
+        markInactiveMediaCachesStale: vi.fn(),
+        refreshStorageUsageBytes: vi.fn(async () => {}),
+        setError,
+        signStoragePath,
+        updateVisibleRows: (updater) => {
+          setRows((prev) => updater(prev));
+        },
+      });
+      return {
+        error,
+        rows,
+        upload,
+      };
+    });
+
+    const image = new File([new Uint8Array([1, 2, 3])], "asset.png", {
+      type: "image/png",
+    });
+    await act(async () => {
+      await result.current.upload.uploadSelected([image]);
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.rows).toHaveLength(1);
+    expect(signStoragePath).toHaveBeenCalledWith("user-1/images/media-legacy-1.png", {
+      forceRefresh: true,
+    });
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(supabaseClient.storage.from).toHaveBeenCalled();
   });
 
   it("tracks drag-over and drag-leave state", () => {

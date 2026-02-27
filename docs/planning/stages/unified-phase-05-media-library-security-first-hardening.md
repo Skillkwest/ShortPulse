@@ -14,7 +14,11 @@ Owner: Engineering
    - `frontend/lib/server/mediaUploadService.ts`
    - `frontend/pages/api/media/upload.ts`
    - `frontend/tests/api/media-upload.route.test.ts`
-3. Full Phase 05 entry/closure remains blocked until Phase 04 canary signoff is complete.
+3. Slice C hook migration landed as pre-entry prep on 2026-02-27:
+   - `frontend/features/media-library/hooks/useMediaUploadController.ts`
+   - `frontend/features/media-library/hooks/__tests__/useMediaUploadController.test.ts`
+   - migration is rollout-gated by `NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED` with legacy direct-upload fallback retained for rollback.
+4. Full Phase 05 entry/closure remains blocked until Phase 04 canary signoff is complete.
 
 ## Objective
 Harden Media Library upload and preview trust boundaries with server-authoritative persistence, strict direct-preview trust rules, and unified scoped query behavior.

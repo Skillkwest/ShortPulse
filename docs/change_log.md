@@ -1547,3 +1547,13 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/.env.example`.
 - Added phase evidence artifact:
   - `docs/planning/evidence/unified-buildout/phase-05/2026-02-27-phase-05-slice-b-media-upload-service-route.md`.
+
+## 2026-02-27 (unified buildout phase-05 slice-c media upload hook migration)
+- Migrated Media Library upload controller to server-authoritative upload route by default:
+  - updated `frontend/features/media-library/hooks/useMediaUploadController.ts` to call `fetchWithAuth('/api/media/upload')` with per-file destination tab routing.
+- Preserved temporary rollback path:
+  - legacy direct Supabase upload branch retained behind `NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED=false`.
+- Added/updated upload-controller tests:
+  - `frontend/features/media-library/hooks/__tests__/useMediaUploadController.test.ts` now covers API mode and legacy fallback mode.
+- Added phase evidence artifact:
+  - `docs/planning/evidence/unified-buildout/phase-05/2026-02-27-phase-05-slice-c-media-upload-hook-migration.md`.

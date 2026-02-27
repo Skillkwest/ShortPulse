@@ -11,6 +11,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { ensureSupabaseClient } from "../../../lib/supabaseClient";
 import type { MediaTab } from "../logic/mediaMoveRouting";
@@ -24,6 +25,9 @@ import {
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 
 const PRIVATE_MEDIA_FOLDER = "private";
+const MEDIA_UPLOAD_API_ROUTE = "/api/media/upload";
+
+type UploadDestinationTab = "uploaded_images" | "uploaded_videos" | "private";
 
 type UploadMediaRowBase = {
   id: string;
@@ -57,6 +61,61 @@ type UseMediaUploadControllerArgs<TRow extends UploadMediaRowBase> = {
     options?: { forceRefresh?: boolean }
   ) => Promise<string | null>;
   updateVisibleRows: (updater: (prev: TRow[]) => TRow[]) => void;
+};
+
+type ApiUploadResponse = {
+  file?: UploadMediaRowBase;
+  error?: string;
+  details?: string;
+};
+
+const parseBooleanEnv = (value: string | undefined, fallback: boolean): boolean => {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return fallback;
+};
+
+const isMediaUploadApiEnabled = (): boolean =>
+  parseBooleanEnv(process.env.NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED, true);
+
+const resolveUploadDestinationTab = (
+  file: File,
+  isPrivateUpload: boolean
+): UploadDestinationTab => {
+  if (isPrivateUpload) return "private";
+  return file.type.toLowerCase().startsWith("video/") ? "uploaded_videos" : "uploaded_images";
+};
+
+const uploadViaServerApi = async ({
+  file,
+  destinationTab,
+}: {
+  file: File;
+  destinationTab: UploadDestinationTab;
+}): Promise<UploadMediaRowBase> => {
+  const body = new FormData();
+  body.append("file", file);
+  body.append("destinationTab", destinationTab);
+
+  const response = await fetchWithAuth(MEDIA_UPLOAD_API_ROUTE, {
+    method: "POST",
+    body,
+    shortpulseLogScope: "app",
+  });
+
+  const payload = (await response.json().catch(() => null)) as ApiUploadResponse | null;
+  if (!response.ok) {
+    throw new Error(
+      payload?.details ?? payload?.error ?? `Unable to upload media (${response.status})`
+    );
+  }
+
+  if (!payload?.file?.id || !payload.file.storage_path) {
+    throw new Error("Upload API returned an invalid media payload.");
+  }
+
+  return payload.file;
 };
 
 /**
@@ -110,6 +169,7 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
           }
         }
         const uploads: TRow[] = [];
+        const useServerUploadApi = isMediaUploadApiEnabled();
         // Create optimistic placeholders so users see upload activity in the grid immediately.
         const placeholders: TRow[] = filesToProcess.map((file) => ({
           id: crypto.randomUUID(),
@@ -129,51 +189,69 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
           const file = filesToProcess[idx];
           const placeholderId = placeholders[idx]?.id;
           const mimeType = file.type || "application/octet-stream";
-          const typeFolder = fileTypeFromMime(mimeType) === "video" ? "videos" : "images";
-          const extension = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
-          const storedName = `${crypto.randomUUID()}-${sanitizeFileName(file.name.replace(extension, ""))}${extension}`;
-          const path = assertUserScopedMediaStoragePath({
-            path: isPrivateUpload
-              ? `${userId}/${PRIVATE_MEDIA_FOLDER}/images/${storedName}`
-              : `${userId}/${typeFolder}/${storedName}`,
-            userId,
-            label: "Upload storage path",
-          });
+          const destinationTab = resolveUploadDestinationTab(file, isPrivateUpload);
 
-          const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
-            upsert: false,
-            contentType: mimeType,
-          });
-          if (uploadError) {
-            throw uploadError;
+          let inserted: UploadMediaRowBase;
+          let previewStoragePath: string;
+          let signedUrl: string | null;
+
+          if (useServerUploadApi) {
+            inserted = await uploadViaServerApi({
+              file,
+              destinationTab,
+            });
+            previewStoragePath = inserted.preview_storage_path ?? inserted.storage_path;
+            signedUrl = inserted.signedUrl ?? null;
+          } else {
+            const typeFolder = fileTypeFromMime(mimeType) === "video" ? "videos" : "images";
+            const extension = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
+            const storedName = `${crypto.randomUUID()}-${sanitizeFileName(file.name.replace(extension, ""))}${extension}`;
+            const path = assertUserScopedMediaStoragePath({
+              path: isPrivateUpload
+                ? `${userId}/${PRIVATE_MEDIA_FOLDER}/images/${storedName}`
+                : `${userId}/${typeFolder}/${storedName}`,
+              userId,
+              label: "Upload storage path",
+            });
+
+            const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
+              upsert: false,
+              contentType: mimeType,
+            });
+            if (uploadError) {
+              throw uploadError;
+            }
+
+            const { data, error: insertError } = await supabase
+              .from("media_files")
+              .insert({
+                user_id: userId,
+                filename: file.name,
+                storage_path: path,
+                file_type: fileTypeFromMime(mimeType),
+                file_size: file.size,
+                source: isPrivateUpload ? PRIVATE_MEDIA_SOURCE : "upload",
+              })
+              .select("*")
+              .single();
+            if (insertError || !data) {
+              throw insertError ?? new Error("Missing inserted media row.");
+            }
+
+            inserted = data as UploadMediaRowBase;
+            previewStoragePath =
+              resolveMediaSigningStoragePaths(inserted ?? { storage_path: path }, userId)[0] ??
+              path;
+            signedUrl = await signStoragePath(previewStoragePath, { forceRefresh: true });
           }
-
-          const { data: inserted, error: insertError } = await supabase
-            .from("media_files")
-            .insert({
-              user_id: userId,
-              filename: file.name,
-              storage_path: path,
-              file_type: fileTypeFromMime(mimeType),
-              file_size: file.size,
-              source: isPrivateUpload ? PRIVATE_MEDIA_SOURCE : "upload",
-            })
-            .select("*")
-            .single();
-          if (insertError) {
-            throw insertError;
-          }
-
-          const previewStoragePath =
-            resolveMediaSigningStoragePaths(inserted ?? { storage_path: path }, userId)[0] ?? path;
-          const signedUrl = await signStoragePath(previewStoragePath, { forceRefresh: true });
 
           if (inserted?.id) {
             void logMediaEvent("upload", "media_file", inserted.id, {
-              storage_path: path,
-              file_type: fileTypeFromMime(mimeType),
-              file_size: file.size,
-              visibility: isPrivateUpload ? "private" : "standard",
+              storage_path: inserted.storage_path,
+              file_type: inserted.file_type,
+              file_size: inserted.file_size ?? file.size,
+              visibility:
+                (inserted.source ?? "upload") === PRIVATE_MEDIA_SOURCE ? "private" : "standard",
             });
           }
 

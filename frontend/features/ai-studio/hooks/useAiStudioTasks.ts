@@ -31,6 +31,34 @@ import {
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
 import { extractFalMediaUrls, Provider } from "../logic/stateParsers";
 import { StudioOutput } from "../types";
+import {
+  BACKGROUND_RECOVERY_INTERVAL_MS,
+  type BackgroundRecoveryReasonCode,
+  getBackgroundRecoveryMaxAttempts,
+} from "./taskPolling/backgroundRecoveryPolicy";
+import {
+  evaluateOutputLookupMiss,
+  OUTPUT_LOOKUP_MISS_HARD_STOP_MS,
+} from "./taskPolling/outputLookupPolicy";
+import {
+  getPollDelayMs,
+  getPollMaxWaitMs,
+  getStatusConcurrencyRetryDelayMs,
+  isStatusErrorRetryBudgetExhausted,
+  MAX_CONCURRENT_STATUS_REQUESTS,
+  resolveNoMediaRetryPolicy,
+} from "./taskPolling/pollingSchedulePolicy";
+import {
+  classifyProviderSuccess,
+  condenseError,
+  createShortErrorMessage,
+  extractFailureMessageFromDetail,
+  looksLikeFailureMessage,
+  normalizeProviderStateToTaskState,
+  type PollStatus,
+  resolveProviderStatusState,
+  terminalFailureStates,
+} from "./taskPolling/providerStatusPolicy";
 
 type GenerationFailureReason =
   | "no_media_after_terminal_success"
@@ -80,92 +108,9 @@ type TaskCallbacks = {
   onPollingOutputLookupHardStop?: (payload: OutputLookupHardStopPayload) => void;
 };
 
-type PollStatus = {
-  status?: unknown;
-  state?: unknown;
-  data?: { status?: unknown; result?: { status?: unknown } };
-  result?: { status?: unknown };
-  output?: { status?: unknown };
-  resultJson?: unknown;
-  raw?: unknown;
-  error?: unknown;
-  failMsg?: unknown;
-  failCode?: unknown;
-  message?: unknown;
-  statusMessage?: unknown;
-  detail?: unknown;
-};
-
-const longRunningVideoProviders = new Set<Provider>([
-  "fal-kling",
-  "fal-kling-3",
-  "fal-seedance",
-  "fal-seedance-i2v",
-  "fal-sora",
-  "fal-veo",
-  "fal-veo-i2v",
-]);
-
-const imageGenerationProviders = new Set<Provider>([
-  "fal",
-  "fal-flux2",
-  "fal-flux2-klein",
-  "fal-flux2-edit",
-  "fal-flux2-pro",
-  "fal-flux2-pro-edit",
-  "fal-seedream",
-  "fal-nano-banana",
-  "fal-nano-banana-edit",
-  "fal-nano-banana-pro",
-  "fal-nano-banana-pro-edit",
-]);
-
-const nonTerminalStates = new Set([
-  "pending",
-  "queued",
-  "in_queue",
-  "in-progress",
-  "in_progress",
-  "running",
-  "processing",
-  "starting",
-  "submitted",
-  "created",
-]);
-const terminalSuccessStates = new Set([
-  "success",
-  "completed",
-  "succeeded",
-  "done",
-  "complete",
-  "finished",
-]);
-const terminalFailureStates = new Set(["fail", "failed", "error", "cancelled", "canceled"]);
-
-const BACKGROUND_RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
-const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
-const BACKGROUND_RECOVERY_MAX_ATTEMPTS_NO_MEDIA = 2;
-const MAX_CONCURRENT_STATUS_REQUESTS = 3;
-const IMAGE_POLL_MAX_WAIT_MS = 12 * 60 * 1000;
-const VIDEO_POLL_MAX_WAIT_MS = 20 * 60 * 1000;
-const POLL_DELAY_INITIAL_MS = 2_200;
-const POLL_DELAY_BACKOFF_STEP_MS = 800;
-const POLL_DELAY_MAX_MS = 10_000;
-const IMAGE_NO_MEDIA_RETRY_DELAYS_MS = [1500, 2000, 3000, 5000, 8000, 12000];
-const OUTPUT_LOOKUP_MISS_MAX_RETRIES = 10;
-const OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS = 400;
-const OUTPUT_LOOKUP_RECOVERY_RETRY_DELAY_MS = 2_000;
-const OUTPUT_LOOKUP_MISS_HARD_STOP_MS = 5 * 60 * 1000;
 const REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE;
 const AI_STUDIO_FLAG_RAF_STATUS_FLUSH = PERF_FLAG_RAF_STATUS_FLUSH;
 const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
-
-const normalizeProviderStateToTaskState = (state: string): StudioOutput["taskState"] => {
-  if (terminalSuccessStates.has(state)) return "success";
-  if (terminalFailureStates.has(state)) return "fail";
-  if (nonTerminalStates.has(state)) return "running";
-  return "running";
-};
 
 type QueuedOutputUpdate = {
   updater: (item: StudioOutput) => StudioOutput;
@@ -176,74 +121,6 @@ const areStringArraysEqual = (left: string[] | undefined, right: string[]) => {
   if (!left) return right.length === 0;
   if (left.length !== right.length) return false;
   return left.every((value, index) => value === right[index]);
-};
-
-const condenseError = (message: string) => {
-  if (!message) return "";
-  const trimmed = message.trim();
-  if (trimmed.length <= 80) return trimmed;
-  const firstSentenceEnd = trimmed.indexOf(".");
-  if (firstSentenceEnd > 0 && firstSentenceEnd < 80) {
-    return trimmed.slice(0, firstSentenceEnd + 1);
-  }
-  return `${trimmed.slice(0, 77)}…`;
-};
-
-const createShortErrorMessage = (message: string) => {
-  if (!message) return "Generation failed";
-  const lower = message.toLowerCase();
-
-  // Content policy violations
-  if (
-    lower.includes("content") &&
-    (lower.includes("policy") || lower.includes("checker") || lower.includes("flagged"))
-  ) {
-    return "Content not allowed";
-  }
-
-  // Timeout errors
-  if (lower.includes("timeout") || lower.includes("timed out")) {
-    return "Request timed out";
-  }
-
-  // Rate limit errors
-  if (lower.includes("rate limit") || lower.includes("too many")) {
-    return "Rate limit exceeded";
-  }
-
-  // Generic failures
-  if (message.length <= 35) return message;
-  return `${message.slice(0, 32)}…`;
-};
-
-const looksLikeFailureMessage = (value: unknown): boolean => {
-  if (typeof value !== "string") return false;
-  return /error|fail|denied|invalid|timed out|timeout|insufficient|reject|policy|unsafe|nsfw/i.test(
-    value
-  );
-};
-
-const extractFailureMessageFromDetail = (value: unknown, depth = 0): string | null => {
-  if (depth > 3 || value == null) return null;
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length ? trimmed : null;
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const nested = extractFailureMessageFromDetail(item, depth + 1);
-      if (nested) return nested;
-    }
-    return null;
-  }
-  if (typeof value !== "object") return null;
-  const record = value as Record<string, unknown>;
-  const direct =
-    extractFailureMessageFromDetail(record.msg, depth + 1) ??
-    extractFailureMessageFromDetail(record.message, depth + 1) ??
-    extractFailureMessageFromDetail(record.error, depth + 1);
-  if (direct) return direct;
-  return extractFailureMessageFromDetail(record.detail, depth + 1);
 };
 
 const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
@@ -417,17 +294,10 @@ export function useAiStudioTasks({
       taskId: string,
       outputId: string,
       provider: Provider,
-      reasonCode:
-        | "no_media_after_terminal_success"
-        | "poll_timeout"
-        | "status_poll_error"
-        | "output_lookup_missing"
+      reasonCode: BackgroundRecoveryReasonCode
     ) => {
       if (recoveryTimersRef.current[outputId]) return;
-      const maxRecoveryAttempts =
-        reasonCode === "no_media_after_terminal_success"
-          ? BACKGROUND_RECOVERY_MAX_ATTEMPTS_NO_MEDIA
-          : BACKGROUND_RECOVERY_MAX_ATTEMPTS;
+      const maxRecoveryAttempts = getBackgroundRecoveryMaxAttempts(reasonCode);
 
       addBreadcrumb({
         type: "ui",
@@ -604,22 +474,24 @@ export function useAiStudioTasks({
       }
 
       if (findOutputById && !findOutputById(outputId)) {
-        const lookupMisses = (outputLookupMissesRef.current[outputId] ?? 0) + 1;
-        outputLookupMissesRef.current[outputId] = lookupMisses;
-        const missingSince = outputLookupMissingSinceRef.current[outputId] ?? Date.now();
-        outputLookupMissingSinceRef.current[outputId] = missingSince;
-        const missingDurationMs = Date.now() - missingSince;
-        if (missingDurationMs > OUTPUT_LOOKUP_MISS_HARD_STOP_MS) {
+        const lookupPolicy = evaluateOutputLookupMiss({
+          currentMisses: outputLookupMissesRef.current[outputId] ?? 0,
+          missingSinceMs: outputLookupMissingSinceRef.current[outputId],
+          nowMs: Date.now(),
+        });
+        outputLookupMissesRef.current[outputId] = lookupPolicy.lookupMisses;
+        outputLookupMissingSinceRef.current[outputId] = lookupPolicy.missingSinceMs;
+        if (lookupPolicy.shouldHardStop) {
           handleOutputLookupHardStop({
             outputId,
             taskId,
             provider,
-            lookupMisses,
-            missingDurationMs,
+            lookupMisses: lookupPolicy.lookupMisses,
+            missingDurationMs: lookupPolicy.missingDurationMs,
           });
           return;
         }
-        if (lookupMisses === OUTPUT_LOOKUP_MISS_MAX_RETRIES + 1) {
+        if (lookupPolicy.shouldEmitRetryingBreadcrumb) {
           addBreadcrumb({
             type: "ui",
             level: "warn",
@@ -628,16 +500,12 @@ export function useAiStudioTasks({
               provider,
               task_id: taskId,
               output_id: outputId,
-              lookup_misses: lookupMisses,
-              missing_duration_ms: missingDurationMs,
+              lookup_misses: lookupPolicy.lookupMisses,
+              missing_duration_ms: lookupPolicy.missingDurationMs,
               hard_stop_after_ms: OUTPUT_LOOKUP_MISS_HARD_STOP_MS,
             },
           });
         }
-        const retryDelayMs =
-          lookupMisses <= OUTPUT_LOOKUP_MISS_MAX_RETRIES
-            ? OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS
-            : OUTPUT_LOOKUP_RECOVERY_RETRY_DELAY_MS;
         pollTimersRef.current[outputId] = window.setTimeout(
           () =>
             pollTask(
@@ -649,7 +517,7 @@ export function useAiStudioTasks({
               noMediaAttempt,
               activePollSessionId
             ),
-          retryDelayMs
+          lookupPolicy.retryDelayMs
         );
         return;
       }
@@ -667,9 +535,7 @@ export function useAiStudioTasks({
       }
 
       const elapsedMs = Date.now() - startedAt;
-      const maxWaitMs = longRunningVideoProviders.has(provider)
-        ? VIDEO_POLL_MAX_WAIT_MS
-        : IMAGE_POLL_MAX_WAIT_MS;
+      const maxWaitMs = getPollMaxWaitMs(provider);
       if (elapsedMs > maxWaitMs) {
         const timeoutMessage = "Timed out waiting for provider result.";
         addBreadcrumb({
@@ -706,10 +572,7 @@ export function useAiStudioTasks({
         return;
       }
 
-      const delay = Math.min(
-        POLL_DELAY_MAX_MS,
-        POLL_DELAY_INITIAL_MS + attempt * POLL_DELAY_BACKOFF_STEP_MS
-      );
+      const delay = getPollDelayMs(attempt);
       const timeoutId = window.setTimeout(async () => {
         if ((pollSessionsRef.current[outputId] ?? 0) !== activePollSessionId) {
           return;
@@ -726,7 +589,7 @@ export function useAiStudioTasks({
                 noMediaAttempt,
                 activePollSessionId
               ),
-            Math.min(4000, delay + 600)
+            getStatusConcurrencyRetryDelayMs(delay)
           );
           return;
         }
@@ -734,22 +597,24 @@ export function useAiStudioTasks({
         try {
           try {
             if (findOutputById && !findOutputById(outputId)) {
-              const lookupMisses = (outputLookupMissesRef.current[outputId] ?? 0) + 1;
-              outputLookupMissesRef.current[outputId] = lookupMisses;
-              const missingSince = outputLookupMissingSinceRef.current[outputId] ?? Date.now();
-              outputLookupMissingSinceRef.current[outputId] = missingSince;
-              const missingDurationMs = Date.now() - missingSince;
-              if (missingDurationMs > OUTPUT_LOOKUP_MISS_HARD_STOP_MS) {
+              const lookupPolicy = evaluateOutputLookupMiss({
+                currentMisses: outputLookupMissesRef.current[outputId] ?? 0,
+                missingSinceMs: outputLookupMissingSinceRef.current[outputId],
+                nowMs: Date.now(),
+              });
+              outputLookupMissesRef.current[outputId] = lookupPolicy.lookupMisses;
+              outputLookupMissingSinceRef.current[outputId] = lookupPolicy.missingSinceMs;
+              if (lookupPolicy.shouldHardStop) {
                 handleOutputLookupHardStop({
                   outputId,
                   taskId,
                   provider,
-                  lookupMisses,
-                  missingDurationMs,
+                  lookupMisses: lookupPolicy.lookupMisses,
+                  missingDurationMs: lookupPolicy.missingDurationMs,
                 });
                 return;
               }
-              if (lookupMisses === OUTPUT_LOOKUP_MISS_MAX_RETRIES + 1) {
+              if (lookupPolicy.shouldEmitRetryingBreadcrumb) {
                 addBreadcrumb({
                   type: "ui",
                   level: "warn",
@@ -758,16 +623,12 @@ export function useAiStudioTasks({
                     provider,
                     task_id: taskId,
                     output_id: outputId,
-                    lookup_misses: lookupMisses,
-                    missing_duration_ms: missingDurationMs,
+                    lookup_misses: lookupPolicy.lookupMisses,
+                    missing_duration_ms: lookupPolicy.missingDurationMs,
                     hard_stop_after_ms: OUTPUT_LOOKUP_MISS_HARD_STOP_MS,
                   },
                 });
               }
-              const retryDelayMs =
-                lookupMisses <= OUTPUT_LOOKUP_MISS_MAX_RETRIES
-                  ? OUTPUT_LOOKUP_MISS_RETRY_DELAY_MS
-                  : OUTPUT_LOOKUP_RECOVERY_RETRY_DELAY_MS;
               pollTimersRef.current[outputId] = window.setTimeout(
                 () =>
                   pollTask(
@@ -779,7 +640,7 @@ export function useAiStudioTasks({
                     noMediaAttempt,
                     activePollSessionId
                   ),
-                retryDelayMs
+                lookupPolicy.retryDelayMs
               );
               return;
             }
@@ -788,38 +649,16 @@ export function useAiStudioTasks({
             delete outputLookupHardStopNotifiedRef.current[outputId];
 
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
-            const stateRaw =
-              status?.status?.toString().toLowerCase() ??
-              status?.state?.toString().toLowerCase() ??
-              status?.data?.status?.toString().toLowerCase() ??
-              status?.result?.status?.toString().toLowerCase() ??
-              status?.output?.status?.toString().toLowerCase() ??
-              status?.data?.result?.status?.toString().toLowerCase() ??
-              "pending";
-            const state = stateRaw === "succeeded" ? "success" : stateRaw;
-            const hasExplicitState =
-              status?.status != null ||
-              status?.state != null ||
-              status?.data?.status != null ||
-              status?.result?.status != null ||
-              status?.output?.status != null ||
-              status?.data?.result?.status != null;
+            const { state, hasExplicitState } = resolveProviderStatusState(status);
 
             const allUrls = extractMediaByProvider(status);
             const hasMedia = allUrls.length > 0;
-            const isTerminalSuccess = terminalSuccessStates.has(state);
-            // Fal capture/debit happens in status endpoints on terminal states, so avoid
-            // short-circuiting early success when provider explicitly reports in-progress.
-            const canUseMediaShortcut = !hasExplicitState || !nonTerminalStates.has(state);
-            const shouldForceImageMediaSuccess =
-              hasMedia &&
-              imageGenerationProviders.has(provider) &&
-              hasExplicitState &&
-              nonTerminalStates.has(state);
-            const shouldTreatAsSuccess =
-              isTerminalSuccess ||
-              (hasMedia && canUseMediaShortcut) ||
-              shouldForceImageMediaSuccess;
+            const { shouldForceImageMediaSuccess, shouldTreatAsSuccess } = classifyProviderSuccess({
+              provider,
+              state,
+              hasMedia,
+              hasExplicitState,
+            });
 
             if (shouldTreatAsSuccess) {
               if (shouldForceImageMediaSuccess) {
@@ -837,16 +676,16 @@ export function useAiStudioTasks({
               }
               // Provider may report terminal success before media URLs are materialized.
               // Track a dedicated "no media yet" retry budget instead of using total poll attempts.
-              const maxNoMediaAttempts = longRunningVideoProviders.has(provider)
-                ? 30
-                : IMAGE_NO_MEDIA_RETRY_DELAYS_MS.length;
-              const shouldRetryForMedia = !hasMedia && noMediaAttempt < maxNoMediaAttempts;
-              if (shouldRetryForMedia) {
-                const noMediaRetryDelayMs = longRunningVideoProviders.has(provider)
-                  ? delay
-                  : (IMAGE_NO_MEDIA_RETRY_DELAYS_MS[
-                      Math.min(noMediaAttempt, IMAGE_NO_MEDIA_RETRY_DELAYS_MS.length - 1)
-                    ] ?? delay);
+              const {
+                maxNoMediaAttempts,
+                shouldRetryForMedia,
+                retryDelayMs: noMediaRetryDelayMs,
+              } = resolveNoMediaRetryPolicy({
+                provider,
+                noMediaAttempt,
+                fallbackDelayMs: delay,
+              });
+              if (!hasMedia && shouldRetryForMedia) {
                 if (noMediaAttempt === 0) {
                   addBreadcrumb({
                     type: "ui",
@@ -1111,10 +950,7 @@ export function useAiStudioTasks({
             );
           } catch (error) {
             const message = error instanceof Error ? error.message : "Unable to check status";
-            const isNotFound = /404|not found/i.test(message);
-            const notFoundMaxAttempts = 5;
-            const maxAttempts = 30;
-            if ((isNotFound && attempt >= notFoundMaxAttempts) || attempt >= maxAttempts) {
+            if (isStatusErrorRetryBudgetExhausted({ message, attempt })) {
               notifyGenerationFailure(outputId, condenseError(message), message, {
                 reasonCode: "status_poll_error",
                 pollAttempt: attempt,

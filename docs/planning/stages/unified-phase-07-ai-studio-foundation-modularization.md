@@ -68,6 +68,19 @@ Remaining:
 1. Slice B decomposition follow-up: extract policy seams from `useAiStudioTasks`.
 2. Slice C phase-close docs/evidence signoff.
 
+## Current Slice B Polling Decomposition Update (2026-02-27)
+Implemented:
+1. Extracted `useAiStudioTasks` provider status parsing/classification policy into `hooks/taskPolling/providerStatusPolicy.ts`.
+2. Extracted poll cadence and retry-budget policy into `hooks/taskPolling/pollingSchedulePolicy.ts`.
+3. Extracted output-lookup miss/hard-stop policy into `hooks/taskPolling/outputLookupPolicy.ts`.
+4. Extracted background recovery max-attempts policy into `hooks/taskPolling/backgroundRecoveryPolicy.ts`.
+5. Rewired `useAiStudioTasks` to consume the new policy modules without route/API contract drift.
+6. Added focused unit coverage for all four policy modules and reran `useAiStudioTasks` parity tests.
+
+Remaining:
+1. Slice C phase-close docs/evidence signoff.
+2. Optional post-closeout warn-budget follow-up for `useAiStudioState.ts` (warn mode, not phase-blocking).
+
 ## Validation Gates
 1. 
 > shortflow@1.0.0 lint

@@ -1615,3 +1615,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added evidence artifact:
   - `docs/planning/evidence/unified-buildout/phase-04/2026-02-27-fal-queue-status-read-only-canary-execution-blocked-missing-env.md`.
 - Updated phase-04 evidence index and tracker note to reflect blocked state and next required action.
+
+## 2026-02-27 (unified buildout phase-04 baseline capture automation helper)
+- Added `scripts/capture_phase04_canary_baseline.mjs` to automate Phase 04 baseline evidence capture:
+  - validates required staging env/auth inputs,
+  - runs `capture_protected_route_latency.mjs` for `/api/fal/queue-status` and `/api/media/resolve-previews`,
+  - captures `/api/internal/generation-recovery/run` snapshot,
+  - writes a secret-safe markdown artifact under `docs/planning/evidence/unified-buildout/phase-04/`.
+- Updated Phase 04 readiness/stage/evidence docs to include helper usage.

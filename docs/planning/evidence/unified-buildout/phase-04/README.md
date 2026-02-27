@@ -2,6 +2,9 @@
 
 Add run logs, research notes, rollout observations, rollback notes, and signoff references for phase 04.
 
+Automation helper:
+1. `scripts/capture_phase04_canary_baseline.mjs` - env-validated baseline capture for latency probe + recovery snapshot with markdown output.
+
 ## Artifacts
 1. `2026-02-27-fal-provider-trust-policy-validation.md` - Slice A/B validation packet for trusted outbound URL policy enforcement across submit/status/recovery paths.
 2. `2026-02-27-fal-queue-status-read-only-rollout-control.md` - Slice D validation packet for queue-status read-only mode rollout flag and compatibility tests.

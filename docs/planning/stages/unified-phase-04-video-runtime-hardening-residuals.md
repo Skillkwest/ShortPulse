@@ -54,6 +54,8 @@ Harden Fal video runtime outbound trust boundaries so provider auth headers are 
    - set `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=false`,
    - keep `SHORTPULSE_FAL_QUEUE_ENABLED=true` and reconciler enabled,
    - run latency probe for `/api/fal/queue-status` and `/api/media/resolve-previews` before and after rollout.
+   - optional baseline helper:
+     - `node scripts/capture_phase04_canary_baseline.mjs --base-url "$SHORTPULSE_STAGING_BASE_URL" --bootstrap-token-from-supabase --reconciler-secret "$SHORTPULSE_FAL_RECONCILER_CRON_SECRET"`
 2. Validate runtime behavior:
    - no increase in queue stuck depth or recovery backlog p95 age beyond phase thresholds,
    - no sustained increase in `api.fal_status.*` error rates,

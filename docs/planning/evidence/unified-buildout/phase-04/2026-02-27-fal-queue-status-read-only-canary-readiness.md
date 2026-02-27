@@ -79,3 +79,10 @@ Prepare a deterministic canary procedure for transitioning `/api/fal/queue-statu
 3. Route auth contract for recovery metrics supports either:
    - `Authorization: Bearer <reconciler-secret>` (primary), or
    - `x-shortpulse-cron-secret: <reconciler-secret>` (legacy compatibility path).
+4. Optional automation helper for baseline capture:
+   ```bash
+   node scripts/capture_phase04_canary_baseline.mjs \
+     --base-url "$SHORTPULSE_STAGING_BASE_URL" \
+     --bootstrap-token-from-supabase \
+     --reconciler-secret "$SHORTPULSE_FAL_RECONCILER_CRON_SECRET"
+   ```

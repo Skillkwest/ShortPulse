@@ -54,6 +54,13 @@ const isDuplicateEventInsertError = (error: unknown): boolean => {
   return code === "23505";
 };
 
+const isDuplicateLedgerSourceRefError = (error: { message?: string; code?: string } | null) => {
+  if (!error) return false;
+  if (error.code === "23505") return true;
+  const message = String(error.message ?? "");
+  return /duplicate key value violates unique constraint/i.test(message);
+};
+
 const claimStripeEvent = async (event: StripeEvent): Promise<EventClaimResult> => {
   const supabaseAdmin = getSupabaseAdmin();
   const { error } = await supabaseAdmin.from("stripe_event_log").insert({
@@ -102,6 +109,9 @@ const applyCredit = async (params: {
     reason: params.reason,
     metadata: params.metadata ?? {},
   });
+  if (isDuplicateLedgerSourceRefError(error)) {
+    return;
+  }
   if (error) {
     throw new Error(error.message || "Credit ledger insert failed.");
   }
@@ -219,12 +229,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const eventClaim = await claimStripeEvent(event);
-    if (eventClaim.kind === "duplicate") {
-      return res.status(200).json({ received: true, duplicate: true });
-    }
     if (eventClaim.kind === "failed") {
       return res.status(500).json({ error: eventClaim.message });
     }
+    const duplicateEvent = eventClaim.kind === "duplicate";
 
     const object = event.data?.object ?? {};
     if (event.type === "checkout.session.completed") {
@@ -241,6 +249,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await processInvoicePaymentSucceeded(object, event.id);
     }
 
+    if (duplicateEvent) {
+      return res.status(200).json({ received: true, duplicate: true });
+    }
     return res.status(200).json({ received: true });
   } catch (error) {
     await logApiRouteException({

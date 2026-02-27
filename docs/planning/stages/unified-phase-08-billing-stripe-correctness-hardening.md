@@ -23,8 +23,10 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A complete:
 - Stripe webhook event claiming moved to insert-first semantics with explicit duplicate/non-conflict error branches before side effects.
 - Webhook tests expanded for duplicate conflict, claim failure, and claimed happy-path side-effect behavior.
-2. Slice B next:
-- Add replay-safe failed-event recovery coverage and bootstrap-safe billing profile guard scenarios.
+2. Slice B in progress:
+- Replay-safe duplicate claim processing implemented (duplicate deliveries continue through side effects).
+- Credit ledger duplicate source-ref conflicts are treated idempotently to prevent double-credit while allowing safe retries.
+- Remaining Slice B work: bootstrap-safe billing profile/customer guard scenarios in checkout/portal entry routes.
 3. Slice C in progress:
 - Evidence packet added under `docs/planning/evidence/unified-buildout/phase-08/`.
 

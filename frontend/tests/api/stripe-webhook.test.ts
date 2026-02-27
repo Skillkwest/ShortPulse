@@ -73,7 +73,7 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Invalid Stripe signature." });
   });
 
-  it("returns duplicate=true when event claim conflicts", async () => {
+  it("returns duplicate=true when event claim conflicts and safely reprocesses", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminForEventClaim({
@@ -82,12 +82,23 @@ describe("POST /api/billing/stripe/webhook", () => {
     );
 
     const { res, promise } = createWebhookRequest(
-      JSON.stringify({ id: "evt_1", type: "checkout.session.completed" })
+      JSON.stringify({
+        id: "evt_1",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            metadata: {
+              user_id: "user_123",
+              credit_amount_cents: "1500",
+            },
+          },
+        },
+      })
     );
     await promise;
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ received: true, duplicate: true });
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns 500 and skips side effects when event claim fails", async () => {
@@ -144,5 +155,35 @@ describe("POST /api/billing/stripe/webhook", () => {
         sourceRef: "evt_checkout_1",
       })
     );
+  });
+
+  it("treats duplicate ledger source_ref writes as idempotent success", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminForEventClaim({ error: null }));
+    insertCreditLedgerEntryMock.mockResolvedValueOnce({
+      error: {
+        code: "23505",
+        message: "duplicate key value violates unique constraint ux_ai_credit_ledger_source_ref",
+      },
+    });
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_checkout_duplicate_ledger",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            metadata: {
+              user_id: "user_123",
+              credit_amount_cents: "1500",
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ received: true });
   });
 });

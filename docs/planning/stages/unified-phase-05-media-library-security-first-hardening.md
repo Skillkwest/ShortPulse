@@ -7,7 +7,7 @@ Owner: Engineering
 Deliver this phase with no regressions, no duplicated logic, and complete docs/evidence traceability.
 
 ## In Scope
-1. Items defined in  for Phase 05.
+1. Items defined in `docs/planning/shortpulse-unified-buildout-master-plan.md` for Phase 05.
 2. Tests and documentation updates directly required by those items.
 
 ## Out of Scope

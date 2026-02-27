@@ -298,6 +298,47 @@ describe("createFalSubmitHandler", () => {
     expect(res.json).toHaveBeenCalledWith({ request_id: "req-fallback-no-retry" });
   });
 
+  it("accepts provider request-id aliases beyond request_id", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ task_id: "task-alias-1" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/veo3.1/image-to-video",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/veo3.1/image-to-video" }],
+      routeLabel: "Fal Veo image-to-video",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "animate this frame" },
+      headers: {},
+      url: "/api/fal/veo-image-to-video-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ task_id: "task-alias-1" });
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(charge.markSubmitted).toHaveBeenCalledWith(
+      "task-alias-1",
+      expect.objectContaining({
+        upstream_status: 200,
+      })
+    );
+    expect(ensureSubmittedGenerationRecordMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "task-alias-1",
+      })
+    );
+  });
+
   it("returns 429 and releases reservation when admission is enforced", async () => {
     evaluateUserGenerationAdmissionMock.mockResolvedValueOnce({
       mode: "enforce",

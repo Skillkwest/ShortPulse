@@ -1,14 +1,12 @@
 import type { SubmitTarget } from "../falIntegration/contracts";
 import { isTrustedFalProviderUrl } from "../falIntegration/providerTrustPolicy";
+import { readCanonicalProviderRequestId } from "../providerIntegration/canonicalProviderPayload";
 import type { FalRuntimeFlags } from "./falRuntimeFlags";
 
 type JsonValue = Record<string, unknown>;
 
 export const readProviderRequestId = (payload: JsonValue): string | null => {
-  const requestId = payload?.request_id ?? payload?.requestId;
-  if (typeof requestId !== "string") return null;
-  const trimmed = requestId.trim();
-  return trimmed.length ? trimmed : null;
+  return readCanonicalProviderRequestId(payload, { allowGenericId: true });
 };
 
 const isFalQueueUrl = (value: string): boolean => {

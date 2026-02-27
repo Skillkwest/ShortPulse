@@ -158,6 +158,63 @@ describe("POST /api/fal/webhook", () => {
     );
   });
 
+  it("resolves request id from canonical payload aliases when headers omit it", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
+    readFalWebhookHeadersMock.mockReturnValue({
+      requestId: null,
+      userId: "fal-user-1",
+      eventId: null,
+      timestamp: String(Math.floor(Date.now() / 1000)),
+      signature: "sig",
+    });
+    readRawBodyMock.mockResolvedValue(
+      JSON.stringify({
+        id: "event-canonical-1",
+        data: {
+          task_id: "task-canonical-1",
+          status: "completed",
+        },
+      })
+    );
+    verifyFalWebhookSignatureMock.mockResolvedValue({
+      ok: true,
+      method: "fal",
+      payloadHash: "hash-1",
+    });
+    executeGenerationRecoveryMock.mockResolvedValue({
+      ok: true,
+      state: "recovered",
+      requestId: "task-canonical-1",
+      generationId: "gen-1",
+      mediaFileIds: ["media-1"],
+      mediaUrls: ["https://cdn.shortpulse.test/output.png"],
+      processed: true,
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-fal-webhook-signature": "sig",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: "task-canonical-1",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "task-canonical-1",
+      })
+    );
+  });
+
   it("returns sanitized 500 error responses", async () => {
     readRawBodyMock.mockResolvedValue(JSON.stringify({ request_id: "req-1", status: "OK" }));
     verifyFalWebhookSignatureMock.mockResolvedValue({

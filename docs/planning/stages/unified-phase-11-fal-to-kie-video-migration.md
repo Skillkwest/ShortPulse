@@ -33,6 +33,16 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - two canary observation windows,
   - explicit promote/hold/rollback decision criteria.
 - No provider cutover executed in this slice (planning and evidence scaffold only).
+2. Slice B in progress:
+- Added provider-neutral canonical payload identity module:
+  - `frontend/lib/server/providerIntegration/canonicalProviderPayload.ts`
+- Wired canonical request/event/status parsing into current Fal paths:
+  - `frontend/lib/server/api/falSubmitTargeting.ts`
+  - `frontend/pages/api/fal/webhook.ts`
+- Added focused regression coverage for alias compatibility:
+  - `frontend/lib/server/providerIntegration/__tests__/canonicalProviderPayload.test.ts`
+  - `frontend/tests/api/fal-submit-proxy.test.ts`
+  - `frontend/tests/api/fal-webhook-route.test.ts`
 
 ## Validation Gates
 1. 

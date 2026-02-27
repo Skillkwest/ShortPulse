@@ -13,7 +13,13 @@ import {
   executeGenerationRecovery,
   type RecoveryObservation,
 } from "../../../lib/server/falIntegration/recoveryExecution";
-import { asString, normalizeStatus, toRecord } from "../../../lib/server/falIntegration/falAdapter";
+import {
+  asProviderRecord,
+  asProviderString,
+  readCanonicalProviderEventId,
+  readCanonicalProviderRequestId,
+  readCanonicalProviderStatus,
+} from "../../../lib/server/providerIntegration/canonicalProviderPayload";
 
 type JsonObject = Record<string, unknown>;
 
@@ -22,8 +28,7 @@ const failedStatuses = new Set(["failed", "error", "cancelled", "canceled"]);
 const runningStatuses = new Set(["running", "pending", "queued", "in_progress", "processing"]);
 const FAL_WEBHOOK_MAX_BODY_BYTES = 512 * 1024;
 
-const parseObject = (value: unknown): JsonObject =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
+const parseObject = asProviderRecord;
 
 const readHeaderValue = (value: string | string[] | undefined): string | null => {
   if (Array.isArray(value)) return value[0] ?? null;
@@ -31,43 +36,14 @@ const readHeaderValue = (value: string | string[] | undefined): string | null =>
 };
 
 const resolveRequestId = (payload: JsonObject): string | null => {
-  const data = toRecord(payload.data);
-  const result = toRecord(payload.result);
-  const response = toRecord(payload.response);
-  const rootPayload = toRecord(payload.payload);
-  return (
-    asString(payload.request_id) ||
-    asString(payload.requestId) ||
-    asString(data.request_id) ||
-    asString(data.requestId) ||
-    asString(result.request_id) ||
-    asString(response.request_id) ||
-    asString(rootPayload.request_id) ||
-    asString(toRecord(payload.meta).request_id)
-  );
+  return readCanonicalProviderRequestId(payload);
 };
 
 const resolveEventId = (payload: JsonObject): string | null =>
-  asString(payload.event_id) || asString(payload.eventId) || asString(payload.id);
+  readCanonicalProviderEventId(payload);
 
-const resolveNormalizedStatus = (payload: JsonObject): string | null => {
-  const data = toRecord(payload.data);
-  const result = toRecord(payload.result);
-  const response = toRecord(payload.response);
-  const rootPayload = toRecord(payload.payload);
-  return (
-    normalizeStatus(payload.status) ||
-    normalizeStatus(payload.state) ||
-    normalizeStatus(rootPayload.status) ||
-    normalizeStatus(rootPayload.state) ||
-    normalizeStatus(data.status) ||
-    normalizeStatus(data.state) ||
-    normalizeStatus(result.status) ||
-    normalizeStatus(result.state) ||
-    normalizeStatus(response.status) ||
-    normalizeStatus(response.state)
-  );
-};
+const resolveNormalizedStatus = (payload: JsonObject): string | null =>
+  readCanonicalProviderStatus(payload);
 
 const resolveObservationState = (
   normalizedStatus: string | null
@@ -85,14 +61,14 @@ const extractMediaUrls = (payload: JsonObject): string[] => {
     const images = candidate.images;
     if (Array.isArray(images) && images.length) {
       const urls = images
-        .map((item) => (typeof item === "string" ? item : asString(parseObject(item).url)))
+        .map((item) => (typeof item === "string" ? item : asProviderString(parseObject(item).url)))
         .filter((url): url is string => Boolean(url));
       if (urls.length) return urls;
     }
     const videos = candidate.videos;
     if (Array.isArray(videos) && videos.length) {
       const urls = videos
-        .map((item) => (typeof item === "string" ? item : asString(parseObject(item).url)))
+        .map((item) => (typeof item === "string" ? item : asProviderString(parseObject(item).url)))
         .filter((url): url is string => Boolean(url));
       if (urls.length) return urls;
     }

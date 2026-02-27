@@ -1,4 +1,5 @@
 import type { SubmitTarget } from "../falIntegration/contracts";
+import { isTrustedFalProviderUrl } from "../falIntegration/providerTrustPolicy";
 import type { FalRuntimeFlags } from "./falRuntimeFlags";
 
 type JsonValue = Record<string, unknown>;
@@ -12,8 +13,8 @@ export const readProviderRequestId = (payload: JsonValue): string | null => {
 
 const isFalQueueUrl = (value: string): boolean => {
   try {
-    const parsed = new URL(value);
-    return parsed.hostname.endsWith("fal.run") || parsed.hostname.endsWith("fal.ai");
+    new URL(value);
+    return isTrustedFalProviderUrl(value);
   } catch {
     return false;
   }

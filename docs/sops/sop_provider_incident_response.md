@@ -16,7 +16,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 - Supabase SQL access for read diagnostics.
 - Access to deployment logs for API routes.
 - Current env verification: `FAL_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SHORTPULSE_OPENAI_RESPONSES_ENABLED`, `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED`.
-- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual/fallback), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`, `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`, `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`.
+- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual/fallback), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`, `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`, `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`.
 
 ## Triage workflow (first 15 minutes)
 1. Confirm incident scope in `/admin`:
@@ -153,6 +153,13 @@ Queue transition guard diagnostics:
 4. If `RESERVATION_SUBMIT_FAILED` repeats with existing `request_id`:
    - treat as billing-state reconciliation issue,
    - verify reservation RPC health before changing queue limits.
+
+Trusted outbound URL guard diagnostics:
+1. Status route fail-closed guard emits `source='api.fal_status.untrusted_base_url'` when no trusted `queueBaseUrl` remains after filtering.
+2. Submit/recovery guard failures include `Untrusted Fal provider URL blocked` in route exception metadata.
+3. First verify configured status/submit base URLs still target Fal-owned hosts and use `https`.
+4. Then verify `SHORTPULSE_FAL_TRUSTED_HOSTS` (if set) includes required Fal domains and no stale/overly narrow host list.
+5. Do not disable trust guards to recover traffic. Instead, correct host configuration and re-run one generation smoke + one status poll smoke.
 
 Admission-control action map:
 | Signal | Primary action |

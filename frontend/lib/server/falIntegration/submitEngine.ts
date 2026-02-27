@@ -4,6 +4,7 @@
  */
 
 import type { SubmitPayload, SubmitTarget } from "./contracts";
+import { assertTrustedFalProviderUrl } from "./providerTrustPolicy";
 
 export type SubmitResult = {
   response: Response;
@@ -76,6 +77,7 @@ const runSubmitTarget = async ({
   const body = target.transformPayload ? target.transformPayload(payload) : payload;
   for (let attempt = 1; attempt <= maxAttemptsPerTarget; attempt += 1) {
     try {
+      assertTrustedFalProviderUrl(target.submitUrl, `submit_target_${targetIndex}`);
       const response = await fetch(target.submitUrl, {
         method: "POST",
         headers: {

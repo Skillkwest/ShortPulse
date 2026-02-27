@@ -37,8 +37,8 @@ Program outcomes:
 | 00 | Baseline Stabilization + Incident Hygiene | Planned | P0 |
 | 01 | Guardrail and CI Accuracy Repair | Planned | P0 |
 | 02 | Auth Boundary Hardening + Admin Access Decoupling | Planned | P0 |
-| 03 | Queue/Recovery Transition Integrity Completion | In Progress | P0 |
-| 04 | Video Runtime Hardening Residuals | Planned | P1 |
+| 03 | Queue/Recovery Transition Integrity Completion | Completed | P0 |
+| 04 | Video Runtime Hardening Residuals | In Progress | P1 |
 | 05 | Media Library Security-First Hardening | Planned | P1 |
 | 06 | Character Workflow Hardening | Planned | P1 |
 | 07 | AI Studio Foundation Modularization | Planned | P1 |

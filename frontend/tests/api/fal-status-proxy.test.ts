@@ -116,6 +116,35 @@ describe("createFalStatusHandler", () => {
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
+  it("fails closed when queue base URLs are untrusted", async () => {
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://example.com/untrusted",
+      routeLabel: "Fal Untrusted",
+      timeoutMs: 15000,
+    });
+    const req = {
+      method: "POST",
+      body: { requestId: "req-untrusted" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "error",
+        request_id: "req-untrusted",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_status.untrusted_base_url",
+      })
+    );
+  });
+
   it("returns terminal status payload media without depending on result fetch probes", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       new Response(

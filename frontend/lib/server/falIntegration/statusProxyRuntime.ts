@@ -1,4 +1,5 @@
 import { hasMediaPayload, normalizeStatus, toRecord } from "./falAdapter";
+import { filterTrustedFalProviderUrls } from "./providerTrustPolicy";
 
 export type JsonObject = Record<string, unknown>;
 
@@ -85,7 +86,8 @@ export const probeResponseUrlsForMedia = async ({
   apiKey: string;
   signal: AbortSignal;
 }): Promise<{ payload: JsonObject; payloadStatus: string } | null> => {
-  for (const responseUrl of responseUrls) {
+  const trustedResponseUrls = filterTrustedFalProviderUrls(responseUrls);
+  for (const responseUrl of trustedResponseUrls) {
     const responseProbe = await fetch(responseUrl, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },

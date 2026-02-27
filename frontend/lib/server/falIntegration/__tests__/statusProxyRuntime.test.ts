@@ -115,4 +115,40 @@ describe("statusProxyRuntime", () => {
       payloadStatus: "completed",
     });
   });
+
+  it("skips untrusted response probe URLs before fetch", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: "COMPLETED",
+          data: {
+            images: [{ url: "https://cdn.shortpulse.test/image.png" }],
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await probeResponseUrlsForMedia({
+      responseUrls: [
+        "https://localhost/private",
+        "https://example.com/untrusted",
+        "https://queue.fal.run/example/requests/req-2",
+      ],
+      statusHint: "running",
+      apiKey: "test-key",
+      signal: new AbortController().signal,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://queue.fal.run/example/requests/req-2",
+      expect.any(Object)
+    );
+    expect(result?.payloadStatus).toBe("completed");
+  });
 });

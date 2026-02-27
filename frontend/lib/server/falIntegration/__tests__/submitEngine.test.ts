@@ -1,0 +1,46 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { submitWithFallbackTargets } from "../submitEngine";
+
+describe("submitEngine trusted target policy", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.SHORTPULSE_FAL_TRUSTED_HOSTS;
+  });
+
+  it("rejects untrusted submit target URLs before fetch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      submitWithFallbackTargets({
+        targets: [{ submitUrl: "https://example.com/untrusted" }],
+        payload: { prompt: "hello" },
+        apiKey: "test-key",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toThrow("Untrusted Fal provider URL blocked");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("submits successfully to trusted Fal targets", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ request_id: "req-1" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await submitWithFallbackTargets({
+      targets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana-pro" }],
+      payload: { prompt: "hello" },
+      apiKey: "test-key",
+      signal: new AbortController().signal,
+    });
+
+    expect(result.response.ok).toBe(true);
+    expect(result.targetUrl).toBe("https://queue.fal.run/fal-ai/nano-banana-pro");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

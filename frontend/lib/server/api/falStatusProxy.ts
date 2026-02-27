@@ -31,6 +31,7 @@ import {
   type JsonObject,
   type JsonReadResult,
 } from "../falIntegration/statusProxyRuntime";
+import { filterTrustedFalProviderUrls } from "../falIntegration/providerTrustPolicy";
 
 type FalStatusConfig = {
   queueBaseUrl: string | string[];
@@ -212,7 +213,19 @@ export const createFalStatusHandler = ({
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    const queueBaseUrls = Array.isArray(queueBaseUrl) ? queueBaseUrl : [queueBaseUrl];
+    const queueBaseUrls = filterTrustedFalProviderUrls(
+      Array.isArray(queueBaseUrl) ? queueBaseUrl : [queueBaseUrl]
+    );
+    if (!queueBaseUrls.length) {
+      return await respondErrorWithLogging({
+        requestId,
+        error: "No trusted Fal queue base URL configured for this status route.",
+        detail: { queueBaseUrl },
+        statusCode: 500,
+        source: "api.fal_status.untrusted_base_url",
+        stage: "queue_base_url_validation",
+      });
+    }
 
     try {
       let statusResp: Response | null = null;

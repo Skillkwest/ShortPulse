@@ -1466,3 +1466,19 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added targeted fault-path tests for transition safeguards: `generationQueue.dispatch.integrity.test.ts`, extended `generationQueue.service.test.ts`, and extended `internal-generation-recovery-run.test.ts` fallback-CAS coverage.
 - Updated unified phase docs/tracker/evidence and provider incident SOP with queue transition guard diagnostics.
 - Phase 03 follow-up: closed the existing-`request_id` queue reconciliation gap by requiring reservation submit confirmation before queue-row removal, with guarded retry/exhaust fallback and new integrity tests for the branch.
+
+## 2026-02-27 (unified buildout phase-04 slice-a-b)
+- Added `providerTrustPolicy` runtime guard module to centralize trusted Fal outbound URL validation and host allowlisting (`SHORTPULSE_FAL_TRUSTED_HOSTS`).
+- Enforced trusted URL checks in Fal submit/status/recovery paths:
+  - submit target validation in `submitEngine.ts`,
+  - trusted queue-base filtering in `falStatusProxy.ts`,
+  - trusted response probe filtering in `statusProxyRuntime.ts`,
+  - trusted status/result/retry base validation in `recoveryProviderProbe.ts`,
+  - trusted webhook-target augmentation filtering in `falSubmitTargeting.ts`.
+- Added targeted regression coverage for trust-policy behavior:
+  - `providerTrustPolicy.test.ts`,
+  - `submitEngine.test.ts`,
+  - `recoveryProviderProbe.test.ts`,
+  - `statusProxyRuntime.test.ts` (untrusted probe skip),
+  - `fal-status-proxy.test.ts` (fail-closed untrusted queue base).
+- Updated unified plan/tracker/stage/evidence docs for Phase 04 Slice A/B and added provider incident SOP diagnostics for trusted outbound URL guard failures.

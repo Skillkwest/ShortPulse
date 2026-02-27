@@ -7,6 +7,7 @@ import {
 } from "./falAdapter";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "./contracts";
 import { getFalModelProfileByModelId } from "./modelProfiles";
+import { assertTrustedFalProviderUrl, filterTrustedFalProviderUrls } from "./providerTrustPolicy";
 import { selectBestResultCandidate, selectBestStatusCandidate } from "./retrievalEngine";
 
 type JsonObject = Record<string, unknown>;
@@ -134,7 +135,10 @@ export const probeProviderResult = async ({
   modelId: string;
   apiKey: string;
 }): Promise<ProviderProbeObservation> => {
-  const queueBaseUrls = resolveQueueBaseUrlsForModel(modelId);
+  const queueBaseUrls = filterTrustedFalProviderUrls(resolveQueueBaseUrlsForModel(modelId));
+  if (!queueBaseUrls.length) {
+    throw new Error(`No trusted Fal status base URL configured for model: ${modelId}`);
+  }
   const responseUrlSet = new Set<string>();
   const statusCandidates: StatusProbeCandidate[] = [];
   const resultCandidates: ResultProbeCandidate[] = [];
@@ -142,6 +146,7 @@ export const probeProviderResult = async ({
   const payloadByResultIndex = new Map<number, JsonObject>();
 
   for (const [index, baseUrl] of queueBaseUrls.entries()) {
+    assertTrustedFalProviderUrl(baseUrl, `recovery_status_base_${index}`);
     const statusResponse = await fetch(`${baseUrl}/${requestId}/status`, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },
@@ -178,7 +183,7 @@ export const probeProviderResult = async ({
     }
   }
 
-  for (const responseUrl of responseUrlSet) {
+  for (const responseUrl of filterTrustedFalProviderUrls(Array.from(responseUrlSet))) {
     const responseProbe = await fetch(responseUrl, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },
@@ -193,6 +198,7 @@ export const probeProviderResult = async ({
   }
 
   for (const [index, baseUrl] of queueBaseUrls.entries()) {
+    assertTrustedFalProviderUrl(baseUrl, `recovery_result_base_${index}`);
     const resultResponse = await fetch(`${baseUrl}/${requestId}`, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },

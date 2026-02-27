@@ -95,6 +95,20 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_THRESHOLD_15M`
   - `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED` (emergency only)
 
+### Staging env parity check (recommended)
+
+Before deploying from a staged env export file, validate required keys:
+
+```bash
+node scripts/check_vercel_env_file.mjs \
+  --file /tmp/vercel_staging_env_YYYYMMDD_HHMMSS.txt \
+  --profile phase04
+```
+
+Notes:
+- `core` profile validates baseline deploy keys.
+- `phase04` adds queue/reconciler/read-only rollout keys used by current program phase.
+
 ## Vercel setup
 
 1. Import this repository into Vercel.

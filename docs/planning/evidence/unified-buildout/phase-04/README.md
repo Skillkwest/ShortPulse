@@ -12,3 +12,4 @@ Automation helper:
 4. `2026-02-27-fal-queue-status-read-only-canary-execution-log-template.md` - structured canary execution log and go/hold/rollback decision template.
 5. `2026-02-27-phase-04-05-regression-refresh.md` - post-slice regression refresh across Phase 04/05 scopes and gate checks.
 6. `2026-02-27-fal-queue-status-read-only-canary-execution-blocked-missing-env.md` - execution attempt log documenting missing staging env/auth inputs in current shell.
+7. `2026-02-27-fal-queue-status-read-only-canary-deferred-until-predeploy-window.md` - explicit hold-state note documenting deferred canary execution and required runtime toggle posture.

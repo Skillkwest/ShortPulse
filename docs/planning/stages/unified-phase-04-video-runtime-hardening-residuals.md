@@ -72,3 +72,8 @@ Harden Fal video runtime outbound trust boundaries so provider auth headers are 
    - two observation windows,
    - threshold evaluation,
    - explicit promote/hold/rollback decision.
+
+## Current Hold State
+1. Canary execution is intentionally deferred until the pre-deploy window.
+2. While deferred, keep `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=true`.
+3. Phase 04 remains `In Progress` and cannot be closed until the canary signoff artifact is completed.

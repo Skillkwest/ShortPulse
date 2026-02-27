@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/media/resolve-previews";
 
 const requireApiUserMock = vi.fn();
@@ -137,6 +137,10 @@ describe("POST /api/media/resolve-previews", () => {
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("signs scoped media paths for user-owned rows", async () => {
     const row = createRow();
     const { createSignedUrlsMock } = setupSupabaseAdmin({
@@ -228,6 +232,9 @@ describe("POST /api/media/resolve-previews", () => {
   });
 
   it("allows direct URL fallback when it resolves to the caller namespace", async () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
+    vi.stubEnv("SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS", "cdn.example.test");
+
     const directUrl = "https://cdn.example.test/media_library/user-1/private/images/legacy.jpg";
     const row = createRow({
       id: "media-4",

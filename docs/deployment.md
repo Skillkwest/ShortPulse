@@ -57,6 +57,10 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED` (optional; defaults to `true`)
   - `OPENAI_DESCRIBE_ALLOWED_HOSTS` (optional hardening)
   - `OPENAI_DESCRIBE_REQUIRE_ALLOWED_HOSTS` (optional hardening)
+  - `SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (optional server-side trusted direct-preview hosts)
+  - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (defaults to `false`)
+  - `NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (optional client-side trusted direct-preview hosts; keep aligned with server value)
+  - `NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (defaults to `false`; keep aligned with server value)
   - `OPENAI_PROMPT_SYSTEM`
   - `SHORTPULSE_FAL_INTEGRATION_MODE` (`legacy|shadow|on`)
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST` (comma-separated model IDs or prefixes like `fal-ai/bytedance/*`)

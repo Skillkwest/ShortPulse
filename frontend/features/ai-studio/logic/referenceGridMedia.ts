@@ -13,6 +13,7 @@ import {
   logAdaptiveResolveMismatch,
   type AdaptiveSurface,
 } from "../../../lib/adaptive-media";
+import { canUseNextImageOptimizerForUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import type { StudioOutput } from "../types";
 
 type ReferenceMediaCandidate = string | null | undefined;
@@ -26,7 +27,6 @@ const HTTP_PROTOCOL_PATTERN = /^https?:\/\//i;
 const ROOT_RELATIVE_PATTERN = /^\//;
 const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
 const NEXT_IMAGE_ALLOWED_WIDTHS = [384, 448, 512, 576, 640, 750, 828, 1080, 1200];
-const FAL_MEDIA_HOST_SUFFIX = ".fal.media";
 
 /**
  * Returns true when a media candidate is directly renderable by an `<img>`/`<video>` tag.
@@ -106,11 +106,6 @@ const isSupabaseStorageUrl = (parsedUrl: URL): boolean => {
   return configuredSupabaseOrigin != null && parsedUrl.origin === configuredSupabaseOrigin;
 };
 
-const isFalMediaUrl = (parsedUrl: URL): boolean => {
-  const hostname = parsedUrl.hostname.toLowerCase();
-  return hostname === "fal.media" || hostname.endsWith(FAL_MEDIA_HOST_SUFFIX);
-};
-
 const applyAdaptivePreviewTransform = ({
   url,
   targetLongEdgePx,
@@ -150,14 +145,12 @@ const applyAdaptivePreviewTransform = ({
     parsed.searchParams.set("quality", String(resolvePreviewQualityParam(qualityBand)));
     return parsed.toString();
   }
-  if (!HTTP_PROTOCOL_PATTERN.test(url) && !isRelativeInput) {
-    return url;
-  }
-  if (isFalMediaUrl(parsed)) {
+  const nextSourceUrl = isRelativeInput ? `${parsed.pathname}${parsed.search}` : url;
+  if (!canUseNextImageOptimizerForUrl(nextSourceUrl)) {
     return url;
   }
   return toNextImageOptimizedUrl({
-    sourceUrl: isRelativeInput ? `${parsed.pathname}${parsed.search}` : url,
+    sourceUrl: nextSourceUrl,
     targetLongEdgePx,
     qualityBand,
   });

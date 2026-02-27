@@ -1508,3 +1508,23 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/planning/shortpulse-unified-buildout-tracker.md`.
 - Updated deployment env inventory for Phase 04 controls:
   - `docs/deployment.md` (`SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED`, `SHORTPULSE_FAL_TRUSTED_HOSTS`, queue/cleanup env set).
+
+## 2026-02-27 (unified buildout phase-05 slice-a preview trust policy)
+- Added centralized media preview trust policy module `frontend/lib/mediaPreviewTrustPolicy.ts` to enforce trusted-host and user-scope checks for direct preview URLs and Next optimizer eligibility.
+- Integrated preview trust checks into:
+  - `frontend/lib/mediaPreviewPath.ts` (direct fallback filtering),
+  - `frontend/lib/adaptive-media/resolver.ts` (optimizer guard),
+  - `frontend/features/ai-studio/logic/referenceGridMedia.ts` (optimizer guard),
+  - `frontend/next.config.js` (trusted `images.remotePatterns` instead of wildcard hosts).
+- Added/updated targeted tests:
+  - `frontend/lib/__tests__/mediaPreviewTrustPolicy.test.ts`,
+  - `frontend/lib/adaptive-media/__tests__/resolver.test.ts`,
+  - `frontend/features/ai-studio/logic/__tests__/referenceGridMedia.test.ts`,
+  - `frontend/tests/api/media-resolve-previews.test.ts`.
+- Documented new media preview trust env controls in:
+  - `frontend/.env.example`,
+  - `docs/api/api-internal-routes.md`,
+  - `docs/security-checklist.md`,
+  - `docs/deployment.md`.
+- Added phase evidence artifact:
+  - `docs/planning/evidence/unified-buildout/phase-05/2026-02-27-phase-05-slice-a-media-preview-trust-policy.md`.

@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveReferenceCardUrls } from "../referenceGridMedia";
 
 describe("referenceGridMedia", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("falls back to resultUrls when storage and preview URLs are unavailable", () => {
     const resolved = resolveReferenceCardUrls({
       previewStoragePath: null,
@@ -168,6 +172,9 @@ describe("referenceGridMedia", () => {
   });
 
   it("falls back to next image optimizer for non-supabase remote images", () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
+    vi.stubEnv("SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS", "cdn.example.com");
+
     const sourceUrl = "https://cdn.example.com/ref.jpg?token=abc";
     const resolved = resolveReferenceCardUrls(
       {
@@ -230,6 +237,9 @@ describe("referenceGridMedia", () => {
   });
 
   it("ignores root-relative workspace storage key paths and falls back to preview URL", () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
+    vi.stubEnv("SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS", "cdn.example.com");
+
     const invalidStorageKeyPath =
       "/82004e53-a9bd-48c8-85ff-20dbeb658d21/uploads/images/9cccad0b-e38d-4623-96d9-80e70837bc29-0.jpg";
     const signedPreviewUrl = "https://cdn.example.com/media/ref-123.jpg?token=signed";

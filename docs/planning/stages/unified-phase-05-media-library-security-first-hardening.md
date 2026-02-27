@@ -3,6 +3,15 @@
 Status: Planned  
 Owner: Engineering
 
+## Progress Notes
+1. Slice A preview-trust centralization was landed as pre-entry prep on 2026-02-27:
+   - `frontend/lib/mediaPreviewTrustPolicy.ts`
+   - `frontend/lib/mediaPreviewPath.ts`
+   - `frontend/lib/adaptive-media/resolver.ts`
+   - `frontend/features/ai-studio/logic/referenceGridMedia.ts`
+   - `frontend/next.config.js`
+2. Full Phase 05 entry/closure remains blocked until Phase 04 canary signoff is complete.
+
 ## Objective
 Harden Media Library upload and preview trust boundaries with server-authoritative persistence, strict direct-preview trust rules, and unified scoped query behavior.
 

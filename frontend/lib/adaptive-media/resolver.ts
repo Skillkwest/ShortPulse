@@ -6,6 +6,7 @@ import type {
   AdaptiveResolvedMedia,
   AdaptiveSourceKind,
 } from "./types";
+import { canUseNextImageOptimizerForUrl } from "../mediaPreviewTrustPolicy";
 
 const HTTP_LIKE_PATTERN = /^https?:\/\//i;
 const DATA_LIKE_PATTERN = /^data:(image|video)\//i;
@@ -15,7 +16,6 @@ const WORKSPACE_STORAGE_KEY_ROOT_PATH_PATTERN =
 const STORAGE_PATH_LIKE_PATTERN = /\//;
 const STORAGE_PATH_INVALID_PATTERN = /^(?:https?:\/\/|blob:|data:)/i;
 const SUPABASE_HOST_SUFFIX = ".supabase.co";
-const FAL_MEDIA_HOST_SUFFIX = ".fal.media";
 const IMAGE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp|svg)(?:$|[?#])/i;
 const VIDEO_EXTENSION_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
 const HTTP_PROTOCOL_PATTERN = /^https?:\/\//i;
@@ -112,11 +112,6 @@ const isSupabaseStorageUrl = (parsedUrl: URL): boolean => {
   return configuredSupabaseOrigin != null && parsedUrl.origin === configuredSupabaseOrigin;
 };
 
-const isFalMediaUrl = (parsedUrl: URL): boolean => {
-  const hostname = parsedUrl.hostname.toLowerCase();
-  return hostname === "fal.media" || hostname.endsWith(FAL_MEDIA_HOST_SUFFIX);
-};
-
 const inferMediaKind = (url: string, hint: AdaptiveMediaKind): AdaptiveMediaKind => {
   if (hint === "image" || hint === "video") return hint;
   if (VIDEO_EXTENSION_PATTERN.test(url)) return "video";
@@ -172,16 +167,13 @@ const applyAdaptivePreviewTransform = ({
     };
   }
 
-  if (!HTTP_PROTOCOL_PATTERN.test(url) && !isRelativeInput) {
-    return { url, usedOptimizerTransform: false };
-  }
-
-  if (isFalMediaUrl(parsed)) {
+  const nextSourceUrl = isRelativeInput ? `${parsed.pathname}${parsed.search}` : url;
+  if (!canUseNextImageOptimizerForUrl(nextSourceUrl)) {
     return { url, usedOptimizerTransform: false };
   }
 
   const nextUrl = toNextImageOptimizedUrl({
-    sourceUrl: isRelativeInput ? `${parsed.pathname}${parsed.search}` : url,
+    sourceUrl: nextSourceUrl,
     targetLongEdgePx: decision.targetLongEdgePx,
     decision,
   });

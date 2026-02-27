@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { asCanonicalStoragePath, resolveAdaptiveMedia } from "../resolver";
 
 describe("adaptive-media resolver", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("resolves strict preview ladder using URL candidates", () => {
     const result = resolveAdaptiveMedia({
       surface: "reference-grid",
@@ -25,7 +29,27 @@ describe("adaptive-media resolver", () => {
     expect(result.fallbackChain[0]).toBe("https://example.com/full.jpg");
   });
 
-  it("wraps non-supabase image URLs with Next optimizer when adaptive quality is enabled", () => {
+  it("does not wrap untrusted external image URLs with Next optimizer by default", () => {
+    const result = resolveAdaptiveMedia({
+      surface: "reference-grid",
+      mediaKind: "image",
+      source: "remote",
+      urls: {
+        previewUrl: "https://cdn.example.com/image.jpg",
+      },
+      storage: {},
+      strictPreviewLadder: false,
+      adaptivePreviewQuality: true,
+      pressureLevel: 0,
+    });
+
+    expect(result.previewUrl).toBe("https://cdn.example.com/image.jpg");
+  });
+
+  it("wraps allowlisted external image URLs with Next optimizer when enabled", () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
+    vi.stubEnv("SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS", "cdn.example.com");
+
     const result = resolveAdaptiveMedia({
       surface: "reference-grid",
       mediaKind: "image",

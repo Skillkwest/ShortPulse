@@ -2,6 +2,7 @@
  * Resolves the preferred storage path for lightweight media previews.
  * Falls back to canonical `storage_path` when no variant path metadata is available.
  */
+import { filterTrustedMediaDirectPreviewUrls } from "./mediaPreviewTrustPolicy";
 
 type MediaRowLike = {
   storage_path?: string | null;
@@ -40,13 +41,6 @@ const isLikelyStoragePath = (value: string): boolean => {
   if (TRAVERSAL_SEGMENT_REGEX.test(value)) return false;
   if (/^(?:blob:|data:)/i.test(value)) return false;
   return true;
-};
-
-const isUserScopedStoragePath = (value: string, userId: string): boolean => {
-  const normalized = value.trim();
-  if (!normalized) return false;
-  if (!isLikelyStoragePath(normalized)) return false;
-  return normalized.startsWith(`${userId}/`);
 };
 
 const decodePathPart = (value: string): string => {
@@ -240,23 +234,11 @@ export const resolveMediaDirectPreviewUrls = (
         asHttpUrl(row.storage_path),
       ];
 
-  const deduped: string[] = [];
-  const seen = new Set<string>();
-  for (const candidate of candidates) {
-    if (!candidate || seen.has(candidate)) continue;
-    seen.add(candidate);
-    deduped.push(candidate);
-  }
-  if (!userId) return deduped;
-
-  return deduped.filter((candidate) => {
-    const extractedPath = extractPathFromUrl(candidate);
-    if (!extractedPath) return false;
-    const normalizedPath = extractedPath
-      .replace(/^\/+/, "")
-      .replace(/^media_library\//, "")
-      .split("?")[0]
-      .trim();
-    return isUserScopedStoragePath(normalizedPath, userId);
+  const deduped = Array.from(
+    new Set(candidates.filter((candidate): candidate is string => Boolean(candidate)))
+  );
+  return filterTrustedMediaDirectPreviewUrls(deduped, {
+    userId,
+    requireUserScope: Boolean(userId),
   });
 };

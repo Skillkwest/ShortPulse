@@ -47,6 +47,9 @@ Start the provider-neutral adapter contract work by removing Fal-local request/e
 11. Aligned Fal recovery probing with provider status/payload boundaries:
 - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
 - Status/result probe execution now uses provider dispatchers and provider payload parsing contracts for status/media/response-url interpretation.
+12. Added explicit Fal route inventory regression gate:
+- `frontend/tests/api/fal-route-inventory-regression.test.ts`
+- Locks expected `/api/fal/*` route file inventory and default exports to prevent accidental removals/renames during Phase 11 internal refactors.
 
 ## Validation
 1. Targeted tests:
@@ -62,6 +65,10 @@ Result: pass.
 npm -C frontend run test -- lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts tests/api/fal-status-proxy.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts
 ```
 Result: pass.
+```bash
+npm -C frontend run test -- tests/api/fal-route-inventory-regression.test.ts
+```
+Result: pass.
 2. Type-check:
 ```bash
 npm -C frontend run type-check
@@ -72,6 +79,15 @@ Result: pass.
 1. No public API contract changed.
 2. Fal submit/status/webhook routes remain the same; only shared alias parsing internals changed.
 3. This slice is additive to shadow/canary observation work and does not execute provider cutover.
+
+## Deferred Kie Targets (Reference Note)
+1. Planned Kie provider models for a later implementation slice (not active in this slice):
+- Google VEO 3.1 Fast Image-to-Video
+- Kling 3.0
+2. Implementation policy:
+- do not alter Fal route behavior during Kie adapter insertion,
+- complete primary-source Kie API contract review immediately before implementation,
+- retain this Fal regression gate as a mandatory pre/post-change check.
 
 ## Next Step
 1. Continue Slice B by extracting provider-scoped queue-base/profile resolution for recovery/status probes so provider endpoint topology is fully adapter-owned before Kie dark adapter rollout.

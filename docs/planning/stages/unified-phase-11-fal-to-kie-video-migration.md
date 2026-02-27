@@ -64,10 +64,18 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Aligned Fal recovery probe internals to provider status/payload boundaries:
   - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
   - Probe path now reuses provider status/result dispatch + provider payload parsing contracts.
+- Added explicit Fal route inventory regression gate:
+  - `frontend/tests/api/fal-route-inventory-regression.test.ts`
+  - Freezes expected `/api/fal/*` route inventory and route-module default exports during Slice B refactors.
 - Aligned queued submit dispatch path to shared provider submit boundary:
   - `frontend/lib/server/api/generationQueue/dispatch.ts`
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.test.ts`
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.integrity.test.ts`
+
+## Deferred Kie Model Targets (Not Yet Implemented)
+1. Google VEO 3.1 Fast Image-to-Video.
+2. Kling 3.0.
+3. Apply only after primary-source Kie API contract review and with Fal no-regression gates passing before and after adapter insertion.
 
 ## Validation Gates
 1. 

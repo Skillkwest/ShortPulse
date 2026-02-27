@@ -4,7 +4,10 @@
  */
 
 import { isFalProviderKey } from "./providerKey";
-import { resolveProviderConfiguredStatusBaseUrls } from "./statusProviderTopology";
+import {
+  resolveProviderConfiguredStatusBaseUrls,
+  resolveProviderResponseProbeUrls,
+} from "./statusProviderTopology";
 
 /**
  * Resolves trusted status base URLs for a provider.
@@ -19,6 +22,21 @@ export const resolveProviderStatusBaseUrls = ({
   resolveProviderConfiguredStatusBaseUrls({
     provider,
     configuredBaseUrls,
+  });
+
+/**
+ * Resolves trusted response-probe URLs for a provider.
+ */
+export const resolveProviderResponseUrls = ({
+  provider,
+  responseUrls,
+}: {
+  provider: string;
+  responseUrls: string[];
+}): string[] =>
+  resolveProviderResponseProbeUrls({
+    provider,
+    responseUrls,
   });
 
 /**
@@ -71,4 +89,28 @@ export const dispatchProviderResultRequest = async ({
     });
   }
   throw new Error(`Unsupported provider for result dispatch: ${provider}`);
+};
+
+/**
+ * Dispatches a direct response-probe request to a provider URL.
+ */
+export const dispatchProviderResponseProbeRequest = async ({
+  provider,
+  responseUrl,
+  apiKey,
+  signal,
+}: {
+  provider: string;
+  responseUrl: string;
+  apiKey: string;
+  signal: AbortSignal;
+}): Promise<Response> => {
+  if (isFalProviderKey(provider)) {
+    return await fetch(responseUrl, {
+      method: "GET",
+      headers: { Authorization: `Key ${apiKey}` },
+      signal,
+    });
+  }
+  throw new Error(`Unsupported provider for response probe dispatch: ${provider}`);
 };

@@ -7,6 +7,7 @@ import {
   resolveProviderConfiguredStatusBaseUrls,
   resolveProviderModelStatusBaseUrls,
   resolveProviderModelStatusTimeoutMs,
+  resolveProviderResponseProbeUrls,
 } from "../statusProviderTopology";
 
 describe("statusProviderTopology", () => {
@@ -29,6 +30,17 @@ describe("statusProviderTopology", () => {
     });
 
     expect(bases).toEqual(["https://queue.fal.run/fal-ai/nano-banana-pro/requests"]);
+  });
+
+  it("filters Fal response probe URLs with trust policy", () => {
+    const urls = resolveProviderResponseProbeUrls({
+      provider: "fal",
+      responseUrls: [
+        "https://queue.fal.run/fal-ai/model/requests/req-1",
+        "https://malicious.example.com/req-1",
+      ],
+    });
+    expect(urls).toEqual(["https://queue.fal.run/fal-ai/model/requests/req-1"]);
   });
 
   it("falls back to canonical Fal queue base when model profile is absent", () => {
@@ -79,5 +91,12 @@ describe("statusProviderTopology", () => {
         modelId: "kie-ai/veo-3.1-fast-i2v",
       })
     ).toThrow("Unsupported provider for model status timeout resolution");
+
+    expect(() =>
+      resolveProviderResponseProbeUrls({
+        provider: "kie",
+        responseUrls: ["https://queue.kie.ai/v1/requests/1"],
+      })
+    ).toThrow("Unsupported provider for response probe URL resolution");
   });
 });

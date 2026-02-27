@@ -520,6 +520,7 @@ export const createFalStatusHandler = ({
       const isComplete = Boolean(normalizedStatus && isCompletedStatus(normalizedStatus));
       if (!isComplete) {
         const responseUrlProbe = await probeResponseUrlsForMedia({
+          provider: providerKey,
           responseUrls: orderedResponseUrls,
           statusHint: normalizedStatus,
           apiKey,
@@ -577,6 +578,7 @@ export const createFalStatusHandler = ({
         data: JsonReadResult;
       }> = [];
       const responseUrlProbe = await probeResponseUrlsForMedia({
+        provider: providerKey,
         responseUrls: orderedResponseUrls,
         statusHint: normalizedStatus,
         apiKey,

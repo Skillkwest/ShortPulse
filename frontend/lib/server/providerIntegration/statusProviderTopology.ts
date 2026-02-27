@@ -26,6 +26,22 @@ export const resolveProviderConfiguredStatusBaseUrls = ({
 };
 
 /**
+ * Resolves trusted response-probe URLs for provider result polling.
+ */
+export const resolveProviderResponseProbeUrls = ({
+  provider,
+  responseUrls,
+}: {
+  provider: string;
+  responseUrls: string[];
+}): string[] => {
+  if (isFalProviderKey(provider)) {
+    return filterTrustedFalProviderUrls(responseUrls);
+  }
+  throw new Error(`Unsupported provider for response probe URL resolution: ${provider}`);
+};
+
+/**
  * Resolves trusted status base URLs from provider model topology.
  */
 export const resolveProviderModelStatusBaseUrls = ({

@@ -1,9 +1,11 @@
 import { asString } from "./falAdapter";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "./contracts";
-import { assertTrustedFalProviderUrl, filterTrustedFalProviderUrls } from "./providerTrustPolicy";
+import { assertTrustedFalProviderUrl } from "./providerTrustPolicy";
 import { selectBestResultCandidate, selectBestStatusCandidate } from "./retrievalEngine";
 import {
+  dispatchProviderResponseProbeRequest,
   dispatchProviderResultRequest,
+  resolveProviderResponseUrls,
   dispatchProviderStatusRequest,
 } from "../providerIntegration/statusProviderDispatcher";
 import { resolveProviderModelStatusBaseUrls } from "../providerIntegration/statusProviderTopology";
@@ -187,10 +189,15 @@ export const probeProviderResult = async ({
     }
   }
 
-  for (const responseUrl of filterTrustedFalProviderUrls(Array.from(responseUrlSet))) {
-    const responseProbe = await fetch(responseUrl, {
-      method: "GET",
-      headers: { Authorization: `Key ${apiKey}` },
+  for (const responseUrl of resolveProviderResponseUrls({
+    provider: providerKey,
+    responseUrls: Array.from(responseUrlSet),
+  })) {
+    const responseProbe = await dispatchProviderResponseProbeRequest({
+      provider: providerKey,
+      responseUrl,
+      apiKey,
+      signal: new AbortController().signal,
     });
     const responseData = await readJsonSafe(responseProbe);
     if (

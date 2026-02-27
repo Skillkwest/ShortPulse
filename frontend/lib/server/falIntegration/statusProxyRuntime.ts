@@ -1,5 +1,8 @@
 import { hasMediaPayload, normalizeStatus, toRecord } from "./falAdapter";
-import { filterTrustedFalProviderUrls } from "./providerTrustPolicy";
+import {
+  dispatchProviderResponseProbeRequest,
+  resolveProviderResponseUrls,
+} from "../providerIntegration/statusProviderDispatcher";
 
 export type JsonObject = Record<string, unknown>;
 
@@ -76,21 +79,24 @@ export const buildFalStatusErrorPayload = ({
 });
 
 export const probeResponseUrlsForMedia = async ({
+  provider = "fal",
   responseUrls,
   statusHint,
   apiKey,
   signal,
 }: {
+  provider?: string;
   responseUrls: string[];
   statusHint: string | null;
   apiKey: string;
   signal: AbortSignal;
 }): Promise<{ payload: JsonObject; payloadStatus: string } | null> => {
-  const trustedResponseUrls = filterTrustedFalProviderUrls(responseUrls);
+  const trustedResponseUrls = resolveProviderResponseUrls({ provider, responseUrls });
   for (const responseUrl of trustedResponseUrls) {
-    const responseProbe = await fetch(responseUrl, {
-      method: "GET",
-      headers: { Authorization: `Key ${apiKey}` },
+    const responseProbe = await dispatchProviderResponseProbeRequest({
+      provider,
+      responseUrl,
+      apiKey,
       signal,
     });
     const responseProbeData = await readJsonSafe(responseProbe);

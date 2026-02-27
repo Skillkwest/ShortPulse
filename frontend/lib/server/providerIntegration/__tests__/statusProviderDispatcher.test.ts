@@ -4,8 +4,10 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  dispatchProviderResponseProbeRequest,
   dispatchProviderResultRequest,
   dispatchProviderStatusRequest,
+  resolveProviderResponseUrls,
   resolveProviderStatusBaseUrls,
 } from "../statusProviderDispatcher";
 
@@ -29,6 +31,7 @@ describe("statusProviderDispatcher", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ status: "running" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "completed" }), { status: 200 }))
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ status: "completed" }), { status: 200 })
       );
@@ -49,6 +52,12 @@ describe("statusProviderDispatcher", () => {
       apiKey: "test-key",
       signal: controller.signal,
     });
+    await dispatchProviderResponseProbeRequest({
+      provider: "fal",
+      responseUrl: "https://queue.fal.run/fal-ai/model/requests/req-1",
+      apiKey: "test-key",
+      signal: controller.signal,
+    });
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
@@ -64,6 +73,24 @@ describe("statusProviderDispatcher", () => {
         method: "GET",
       })
     );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "https://queue.fal.run/fal-ai/model/requests/req-1",
+      expect.objectContaining({
+        method: "GET",
+      })
+    );
+  });
+
+  it("filters trusted response probe urls for fal provider", () => {
+    const urls = resolveProviderResponseUrls({
+      provider: "fal",
+      responseUrls: [
+        "https://queue.fal.run/fal-ai/model/requests/req-1",
+        "https://evil.example.com/fal/req-1",
+      ],
+    });
+    expect(urls).toEqual(["https://queue.fal.run/fal-ai/model/requests/req-1"]);
   });
 
   it("throws for unsupported providers", async () => {
@@ -83,5 +110,21 @@ describe("statusProviderDispatcher", () => {
         signal: new AbortController().signal,
       })
     ).rejects.toThrow("Unsupported provider for status dispatch");
+
+    expect(() =>
+      resolveProviderResponseUrls({
+        provider: "kie",
+        responseUrls: ["https://queue.kie.ai/v1/requests/req-kie"],
+      })
+    ).toThrow("Unsupported provider for response probe URL resolution");
+
+    await expect(
+      dispatchProviderResponseProbeRequest({
+        provider: "kie",
+        responseUrl: "https://queue.kie.ai/v1/requests/req-kie",
+        apiKey: "test-key",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toThrow("Unsupported provider for response probe dispatch");
   });
 });

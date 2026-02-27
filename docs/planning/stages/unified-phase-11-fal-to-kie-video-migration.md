@@ -71,6 +71,11 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/statusProviderTopology.ts`
   - `frontend/lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts`
   - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts` now resolves model status bases via provider topology contract.
+- Extracted provider-owned response-url probe dispatch and rewired status/recovery probe runtime:
+  - `frontend/lib/server/providerIntegration/statusProviderDispatcher.ts` (`resolveProviderResponseUrls`, `dispatchProviderResponseProbeRequest`)
+  - `frontend/lib/server/falIntegration/statusProxyRuntime.ts`
+  - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
+  - `frontend/lib/server/api/falStatusProxy.ts` now passes provider context into shared response probe runtime.
 - Aligned queued submit dispatch path to shared provider submit boundary:
   - `frontend/lib/server/api/generationQueue/dispatch.ts`
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.test.ts`

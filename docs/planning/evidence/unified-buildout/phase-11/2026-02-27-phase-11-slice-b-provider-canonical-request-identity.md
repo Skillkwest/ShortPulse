@@ -61,6 +61,15 @@ Start the provider-neutral adapter contract work by removing Fal-local request/e
 - Recovery probe now resolves model status bases via `providerIntegration` instead of Fal-local profile lookup.
 15. Added topology resolver unit coverage:
 - `frontend/lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts`
+16. Extracted provider-owned response-url probe dispatch:
+- `frontend/lib/server/providerIntegration/statusProviderDispatcher.ts`
+- Added provider contracts for:
+  - trusted response-probe URL resolution (`resolveProviderResponseUrls`),
+  - direct response-probe dispatch (`dispatchProviderResponseProbeRequest`).
+17. Rewired status and recovery probing to provider response-probe dispatch:
+- `frontend/lib/server/falIntegration/statusProxyRuntime.ts`
+- `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
+- `frontend/lib/server/api/falStatusProxy.ts` now passes provider context into shared response-url probe runtime.
 
 ## Validation
 1. Targeted tests:
@@ -84,6 +93,10 @@ Result: pass.
 npm -C frontend run test -- lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts tests/api/fal-status-proxy.test.ts tests/api/fal-route-inventory-regression.test.ts tests/api/fal-submit-proxy.test.ts tests/api/fal-webhook-route.test.ts tests/api/fal-webhook-signature.test.ts tests/api/fal-queue-status.test.ts tests/api/model-catalog-route-coverage.test.ts
 ```
 Result: pass.
+```bash
+npm -C frontend run test -- tests/api/fal-route-inventory-regression.test.ts tests/api/fal-queue-status.test.ts tests/api/fal-status-proxy.test.ts tests/api/fal-status.auth-context.test.ts tests/api/fal-status.ownership.test.ts tests/api/fal-submit-proxy.test.ts tests/api/fal-webhook-route.test.ts tests/api/fal-webhook-signature.test.ts tests/api/model-catalog-route-coverage.test.ts lib/server/api/__tests__/falRuntimeFlags.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts
+```
+Result: pass.
 2. Type-check:
 ```bash
 npm -C frontend run type-check
@@ -105,4 +118,4 @@ Result: pass.
 - retain this Fal regression gate as a mandatory pre/post-change check.
 
 ## Next Step
-1. Continue Slice B by extracting provider-owned response-url probe dispatch (currently direct Fal fetch inside recovery/status probe helpers) so outbound retrieval execution is fully adapter-owned before Kie dark adapter rollout.
+1. Continue Slice B by extracting provider-owned polling signal/timeout policy (currently ad-hoc `AbortController` usage in recovery probe paths) so execution policy is fully adapter-owned before Kie dark adapter rollout.

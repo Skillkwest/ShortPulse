@@ -4,3 +4,4 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 
 ## Evidence Inventory
 1. `2026-02-27-phase-06-slice-a-character-hardening.md` - Slice A implementation log, validation results, and rollback notes.
+2. `2026-02-27-phase-06-slice-b-character-library-responsiveness.md` - Slice B responsiveness contract implementation, tests, and rollback notes.

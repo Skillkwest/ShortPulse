@@ -34,6 +34,10 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Character Mode resolves ordered references from the active preset first (`portrait`, `close_up`, `front_shot`, `back_shot`), then falls back to legacy slot-based assignments when preset zones are empty.
    - Character draft is reloaded before each Create/Text generation submit so newest preset changes are used.
    - Missing description/references are non-blocking; AI Studio falls back to best-effort injection.
+8. Character Library responsiveness contract:
+   - `0-50` characters: full-list smooth rendering target.
+   - `51-100` characters: progressive rendering mode (`show 50` by default, `+25` expansion steps, optional `show all`).
+   - Selected character remains visible when list is windowed.
 
 ## Architecture Map
 - Shell/UI orchestration: `frontend/features/character-manager/components/CharacterManagerShell.tsx`
@@ -109,6 +113,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Selected character persists after refresh/re-entry and becomes the preferred default for future sessions.
 - Preset uploads do not consume QuickSwap Deck capacity.
 - Creating/switching/deleting characters preserves expected per-character state.
+- Manage Characters list stays smooth through `<=50` entries and supports progressive reveal behavior for larger libraries.
 
 ## Change Management Rules
 - Any change to `/character` behavior must update:

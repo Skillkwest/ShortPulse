@@ -5,7 +5,15 @@
 import type { User } from "@supabase/supabase-js";
 import Image from "next/image";
 import Link from "next/link";
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   CaretDown,
   Plus,
@@ -36,6 +44,11 @@ import {
   createEmptyCharacterSheetPresetAssignments,
 } from "../constants";
 import { useCharacterManagerDraft } from "../hooks/useCharacterManagerDraft";
+import {
+  CHARACTER_LIBRARY_EXPAND_STEP,
+  CHARACTER_LIBRARY_SMOOTH_TARGET,
+  resolveCharacterLibraryWindow,
+} from "../logic/characterLibraryWindow";
 import type {
   CharacterProfileImageTransform,
   CharacterSheetDropZoneKey,
@@ -504,6 +517,9 @@ export function CharacterManagerShell({
     useState<CharacterSheetDropZoneKey | null>(null);
   const [pendingReferenceUploadSlotKey, setPendingReferenceUploadSlotKey] =
     useState<CharacterReferenceSlotKey | null>(null);
+  const [characterLibraryVisibleCount, setCharacterLibraryVisibleCount] = useState(
+    CHARACTER_LIBRARY_SMOOTH_TARGET
+  );
   const [beginnerMode, setBeginnerMode] = useState(resolveInitialBeginnerMode);
   const [user, setUser] = useState<User | null>(null);
   const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
@@ -548,6 +564,31 @@ export function CharacterManagerShell({
   );
   const fallbackPlanMeta = PLAN_MAP[fallbackPlanTier] ?? PLAN_MAP.business;
   const planMeta = resolvedPlan ?? fallbackPlanMeta;
+  const deferredCharacters = useDeferredValue(characters);
+  const characterLibraryRequestedVisibleCount = useMemo(() => {
+    if (characters.length <= CHARACTER_LIBRARY_SMOOTH_TARGET) {
+      return CHARACTER_LIBRARY_SMOOTH_TARGET;
+    }
+    return Math.max(characterLibraryVisibleCount, CHARACTER_LIBRARY_SMOOTH_TARGET);
+  }, [characterLibraryVisibleCount, characters.length]);
+  const selectedCharacterListIndex = useMemo(
+    () =>
+      deferredCharacters.findIndex((character) => character.characterId === selectedCharacterId),
+    [deferredCharacters, selectedCharacterId]
+  );
+  const characterLibraryWindow = useMemo(
+    () =>
+      resolveCharacterLibraryWindow({
+        totalCharacterCount: deferredCharacters.length,
+        selectedCharacterIndex: selectedCharacterListIndex,
+        requestedVisibleCount: characterLibraryRequestedVisibleCount,
+      }),
+    [characterLibraryRequestedVisibleCount, deferredCharacters.length, selectedCharacterListIndex]
+  );
+  const visibleManageCharacters = useMemo(
+    () => deferredCharacters.slice(0, characterLibraryWindow.visibleCount),
+    [characterLibraryWindow.visibleCount, deferredCharacters]
+  );
   const activeProfileImageTransform =
     isProfileAdjusterVisible && profileAdjustDraft ? profileAdjustDraft : profileImageTransform;
   const resolvedCharacterSheetPresetAssignments = useMemo(
@@ -2044,8 +2085,41 @@ export function CharacterManagerShell({
             ) : null}
           </div>
 
+          {characters.length > CHARACTER_LIBRARY_SMOOTH_TARGET ? (
+            <div className="character-manage-window-status">
+              <p className="tiny subdued">
+                Showing {characterLibraryWindow.visibleCount} of {deferredCharacters.length}{" "}
+                characters.
+              </p>
+              {characterLibraryWindow.hiddenCount > 0 ? (
+                <div className="character-manage-window-actions">
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() =>
+                      setCharacterLibraryVisibleCount(
+                        characterLibraryRequestedVisibleCount + CHARACTER_LIBRARY_EXPAND_STEP
+                      )
+                    }
+                  >
+                    Show{" "}
+                    {Math.min(CHARACTER_LIBRARY_EXPAND_STEP, characterLibraryWindow.hiddenCount)}{" "}
+                    more
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => setCharacterLibraryVisibleCount(deferredCharacters.length)}
+                  >
+                    Show all
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="character-manage-list" role="list" aria-label="Character list">
-            {characters.map((character) => {
+            {visibleManageCharacters.map((character) => {
               const isSelected = character.characterId === selectedCharacterId;
               const chipName = character.characterName || "Untitled character";
               const chipInitials = getCharacterInitials(chipName);

@@ -33,6 +33,23 @@ Remaining:
 1. Slice B parity/perf hardening for large character sets (100-character responsiveness target) and stale bundle guard edge-cases.
 2. Slice C full phase-close docs/runbook updates and final signoff.
 
+## Responsiveness Contract (Slice B)
+1. Smooth target tier: `0-50` characters.
+2. Graceful degrade tier: `51-100` characters with progressive list reveal.
+3. Manage-list progressive behavior:
+   - default view shows 50 characters when list size exceeds 50,
+   - users can expand in +25 increments or reveal all.
+
+## Current Slice B Update (2026-02-27)
+Implemented:
+1. Added a dedicated Character Library windowing policy (`resolveCharacterLibraryWindow`) with explicit thresholds and selected-character visibility guarantees.
+2. Updated Character Manager Manage tab to use progressive list reveal (`50` default, `+25` expansion, `show all`) for large character libraries.
+3. Added domain tests covering threshold scenarios (`10`, `20`, `30`, `50`, `100`) and selected-item visibility behavior.
+4. Added integration test covering progressive reveal behavior in the Character Manager Manage surface.
+
+Remaining:
+1. Slice C full phase-close docs/evidence signoff and rollback finalization.
+
 ## Validation Gates
 1. 
 > shortflow@1.0.0 lint

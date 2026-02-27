@@ -3,7 +3,7 @@
  * Verifies Character Sheet drag/drop behavior and 10-reference intake constraints.
  */
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { CharacterManagerShell } from "../CharacterManagerShell";
 import {
@@ -62,6 +62,13 @@ type MockSupabaseMediaLookupResponse = {
 type MockSupabaseStorageDownloadResponse = {
   data: Blob | null;
   error: { message: string } | null;
+};
+
+type MockCharacterListEntry = {
+  characterId: string;
+  characterName: string;
+  profileImageUrl: string | null;
+  profileImageTransform: null;
 };
 
 const MOCK_SLOT_KEYS: MockCharacterReferenceSlotKey[] = [
@@ -150,6 +157,11 @@ const supabaseClientMockState = vi.hoisted(() => ({
       error: { message: "not found" },
     })
   ),
+}));
+
+const characterManagerMockState = vi.hoisted(() => ({
+  characters: [] as MockCharacterListEntry[],
+  selectedCharacterId: "character-1",
 }));
 
 const getReferenceCard = (index: number): HTMLElement => {
@@ -272,8 +284,8 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
       }, [characterSheetPresets]);
 
       return {
-        characters: [],
-        selectedCharacterId: "character-1",
+        characters: characterManagerMockState.characters,
+        selectedCharacterId: characterManagerMockState.selectedCharacterId,
         characterName: "Taylor",
         characterDescription: "",
         characterSheetAssignments,
@@ -361,7 +373,9 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
           return undefined;
         },
         createCharacter: async () => undefined,
-        selectCharacter: async () => undefined,
+        selectCharacter: async (characterId: string) => {
+          characterManagerMockState.selectedCharacterId = characterId;
+        },
         deleteCharacter: async () => true,
         isSlotBusy: () => false,
         clearMessages: () => undefined,
@@ -373,6 +387,8 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
 describe("CharacterManagerShell behavior", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = TEST_SUPABASE_URL;
+    characterManagerMockState.characters = [];
+    characterManagerMockState.selectedCharacterId = "character-1";
     supabaseClientMockState.mediaLookupMaybeSingle.mockReset();
     supabaseClientMockState.mediaLookupMaybeSingle.mockResolvedValue({ data: null, error: null });
     supabaseClientMockState.storageDownload.mockReset();
@@ -870,6 +886,37 @@ describe("CharacterManagerShell behavior", () => {
           name: /Disable beginner mode|Enable beginner mode/i,
         })
       ).not.toBeInTheDocument();
+    });
+  });
+
+  it("progressively reveals large character libraries in Manage mode", async () => {
+    characterManagerMockState.characters = Array.from({ length: 100 }, (_, index) => ({
+      characterId: `character-${index + 1}`,
+      characterName: `Character ${index + 1}`,
+      profileImageUrl: null,
+      profileImageTransform: null,
+    }));
+    characterManagerMockState.selectedCharacterId = "character-1";
+
+    render(<CharacterManagerShell />);
+
+    fireEvent.click(screen.getByRole("tab", { name: /Manage Characters/i }));
+
+    const characterList = screen.getByRole("list", { name: /Character list/i });
+    await waitFor(() => {
+      expect(within(characterList).getAllByRole("listitem")).toHaveLength(50);
+    });
+    expect(screen.getByText("Showing 50 of 100 characters.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Show 25 more/i }));
+    await waitFor(() => {
+      expect(within(characterList).getAllByRole("listitem")).toHaveLength(75);
+    });
+    expect(screen.getByText("Showing 75 of 100 characters.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Show all/i }));
+    await waitFor(() => {
+      expect(within(characterList).getAllByRole("listitem")).toHaveLength(100);
     });
   });
 

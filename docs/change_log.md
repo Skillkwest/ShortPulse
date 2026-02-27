@@ -1591,3 +1591,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added a structured canary execution/signoff template for Phase 04 read-only queue-status rollout:
   - `docs/planning/evidence/unified-buildout/phase-04/2026-02-27-fal-queue-status-read-only-canary-execution-log-template.md`.
 - Updated Phase 04 stage/tracker/evidence index docs to reference the execution template as the required signoff artifact before phase closure.
+
+## 2026-02-27 (unified buildout phase-04/05 regression refresh)
+- Ran a full regression refresh over active Phase 04/05 scope tests and quality gates; results were green.
+- Recorded refresh evidence and outcomes:
+  - `docs/planning/evidence/unified-buildout/phase-04/2026-02-27-phase-04-05-regression-refresh.md`.
+- Updated tracker notes:
+  - Phase 04 now references the green regression refresh while remaining blocked on canary execution/signoff.
+  - Phase 07 note now tracks an existing warn-mode size-budget target (`useAiStudioState.ts`) as planned modularization work.

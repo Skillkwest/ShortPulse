@@ -63,3 +63,10 @@ Harden Fal video runtime outbound trust boundaries so provider auth headers are 
 4. If rollback is needed:
    - set `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=true` immediately,
    - capture incident note under phase-04 evidence and `docs/change_log.md`.
+
+## Canary Signoff Artifact
+1. Use `docs/planning/evidence/unified-buildout/phase-04/2026-02-27-fal-queue-status-read-only-canary-execution-log-template.md` to record:
+   - baseline values,
+   - two observation windows,
+   - threshold evaluation,
+   - explicit promote/hold/rollback decision.

@@ -1586,3 +1586,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added Phase 05 Slice E pre-closeout parity packet:
   - `docs/planning/evidence/unified-buildout/phase-05/2026-02-27-phase-05-slice-e-precloseout-parity-packet.md`.
 - Updated Phase 05 stage/tracker/evidence index notes to reflect that closure prep is complete and Phase 05 remains blocked only on Phase 04 canary signoff.
+
+## 2026-02-27 (unified buildout phase-04 canary execution packet template)
+- Added a structured canary execution/signoff template for Phase 04 read-only queue-status rollout:
+  - `docs/planning/evidence/unified-buildout/phase-04/2026-02-27-fal-queue-status-read-only-canary-execution-log-template.md`.
+- Updated Phase 04 stage/tracker/evidence index docs to reference the execution template as the required signoff artifact before phase closure.

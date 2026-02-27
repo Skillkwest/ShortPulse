@@ -8,9 +8,8 @@ const releaseGenerationReservationBySourceRefMock = vi.fn();
 const markGenerationReservationSubmittedMock = vi.fn();
 const resolveGenerationAdmissionTierMock = vi.fn();
 const getFalModelProfileByModelIdMock = vi.fn();
-const submitWithFallbackTargetsMock = vi.fn();
+const dispatchProviderSubmitMock = vi.fn();
 const resolveWebhookCallbackUrlMock = vi.fn();
-const readProviderRequestIdMock = vi.fn();
 const withWebhookTargetsMock = vi.fn();
 const claimGenerationSubmitQueueBatchMock = vi.fn();
 const markQueueItemExhaustedMock = vi.fn();
@@ -46,13 +45,12 @@ vi.mock("../../falIntegration/modelProfiles", () => ({
   getFalModelProfileByModelId: (...args: unknown[]) => getFalModelProfileByModelIdMock(...args),
 }));
 
-vi.mock("../../falIntegration/submitEngine", () => ({
-  submitWithFallbackTargets: (...args: unknown[]) => submitWithFallbackTargetsMock(...args),
+vi.mock("../../providerIntegration/submitProviderDispatcher", () => ({
+  dispatchProviderSubmit: (...args: unknown[]) => dispatchProviderSubmitMock(...args),
 }));
 
 vi.mock("../falSubmitTargeting", () => ({
   resolveWebhookCallbackUrl: (...args: unknown[]) => resolveWebhookCallbackUrlMock(...args),
-  readProviderRequestId: (...args: unknown[]) => readProviderRequestIdMock(...args),
   withWebhookTargets: (...args: unknown[]) => withWebhookTargetsMock(...args),
 }));
 
@@ -172,13 +170,13 @@ describe("generationQueue/dispatch transition integrity", () => {
     });
     resolveWebhookCallbackUrlMock.mockReturnValue(null);
     withWebhookTargetsMock.mockImplementation((targets: unknown) => targets);
-    submitWithFallbackTargetsMock.mockResolvedValue({
+    dispatchProviderSubmitMock.mockResolvedValue({
       response: { ok: true, status: 200 },
       data: { request_id: "req-1" },
+      providerRequestId: "req-1",
       targetUrl: "https://fal.test",
       targetIndex: 0,
     });
-    readProviderRequestIdMock.mockReturnValue("req-1");
     markGenerationReservationSubmittedMock.mockResolvedValue({
       status: "reserved",
       sourceRef: "source-1",
@@ -275,7 +273,7 @@ describe("generationQueue/dispatch transition integrity", () => {
       })
     );
     expect(removeQueueItemMock).toHaveBeenCalledTimes(1);
-    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });
 
   it("retries existing-request reconciliation when reservation submit fails", async () => {
@@ -309,6 +307,6 @@ describe("generationQueue/dispatch transition integrity", () => {
       })
     );
     expect(removeQueueItemMock).not.toHaveBeenCalled();
-    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });
 });

@@ -8,9 +8,8 @@ const releaseGenerationReservationBySourceRefMock = vi.fn();
 const markGenerationReservationSubmittedMock = vi.fn();
 const resolveGenerationAdmissionTierMock = vi.fn();
 const getFalModelProfileByModelIdMock = vi.fn();
-const submitWithFallbackTargetsMock = vi.fn();
+const dispatchProviderSubmitMock = vi.fn();
 const resolveWebhookCallbackUrlMock = vi.fn();
-const readProviderRequestIdMock = vi.fn();
 const withWebhookTargetsMock = vi.fn();
 const claimGenerationSubmitQueueBatchMock = vi.fn();
 const markQueueItemExhaustedMock = vi.fn();
@@ -55,13 +54,12 @@ vi.mock("../../falIntegration/modelProfiles", () => ({
   getFalModelProfileByModelId: (...args: unknown[]) => getFalModelProfileByModelIdMock(...args),
 }));
 
-vi.mock("../../falIntegration/submitEngine", () => ({
-  submitWithFallbackTargets: (...args: unknown[]) => submitWithFallbackTargetsMock(...args),
+vi.mock("../../providerIntegration/submitProviderDispatcher", () => ({
+  dispatchProviderSubmit: (...args: unknown[]) => dispatchProviderSubmitMock(...args),
 }));
 
 vi.mock("../falSubmitTargeting", () => ({
   resolveWebhookCallbackUrl: (...args: unknown[]) => resolveWebhookCallbackUrlMock(...args),
-  readProviderRequestId: (...args: unknown[]) => readProviderRequestIdMock(...args),
   withWebhookTargets: (...args: unknown[]) => withWebhookTargetsMock(...args),
 }));
 
@@ -187,7 +185,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     expect(releaseQueueLeaseBackToQueuedMock).toHaveBeenCalledTimes(1);
     expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
     expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
-    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });
 
   it("exhausts and releases when capacity is full beyond max wait", async () => {
@@ -235,6 +233,6 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       })
     );
     expect(releaseQueueLeaseBackToQueuedMock).not.toHaveBeenCalled();
-    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });
 });

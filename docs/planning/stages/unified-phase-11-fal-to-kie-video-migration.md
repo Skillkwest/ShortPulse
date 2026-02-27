@@ -52,6 +52,14 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/submitProviderDispatcher.ts`
   - `frontend/lib/server/api/falSubmitProxy.ts`
   - `frontend/lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts`
+- Added provider-aware status/result dispatch seam:
+  - `frontend/lib/server/providerIntegration/statusProviderDispatcher.ts`
+  - `frontend/lib/server/api/falStatusProxy.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts`
+- Aligned queued submit dispatch path to shared provider submit boundary:
+  - `frontend/lib/server/api/generationQueue/dispatch.ts`
+  - `frontend/lib/server/api/__tests__/generationQueue.dispatch.test.ts`
+  - `frontend/lib/server/api/__tests__/generationQueue.dispatch.integrity.test.ts`
 
 ## Validation Gates
 1. 

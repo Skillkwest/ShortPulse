@@ -25,11 +25,17 @@ Start the provider-neutral adapter contract work by removing Fal-local request/e
 5. Added provider-aware submit dispatcher seam:
 - `frontend/lib/server/providerIntegration/submitProviderDispatcher.ts`
 - `frontend/lib/server/api/falSubmitProxy.ts` now dispatches submit through provider boundary and receives canonical `providerRequestId` from the dispatcher contract.
+6. Added provider-aware status/result dispatcher seam:
+- `frontend/lib/server/providerIntegration/statusProviderDispatcher.ts`
+- `frontend/lib/server/api/falStatusProxy.ts` now dispatches provider status/result requests through the provider boundary contract.
+7. Aligned queued submit dispatch path to shared provider submit boundary:
+- `frontend/lib/server/api/generationQueue/dispatch.ts`
+- Queue dispatch now consumes `providerRequestId` from provider dispatch contract instead of local alias parsing.
 
 ## Validation
 1. Targeted tests:
 ```bash
-npm -C frontend run test -- tests/api/fal-submit-proxy.test.ts tests/api/fal-webhook-route.test.ts lib/server/providerIntegration/__tests__/canonicalProviderPayload.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts
+npm -C frontend run test -- tests/api/fal-submit-proxy.test.ts tests/api/fal-status-proxy.test.ts tests/api/fal-webhook-route.test.ts lib/server/api/__tests__/generationQueue.dispatch.test.ts lib/server/api/__tests__/generationQueue.dispatch.integrity.test.ts lib/server/providerIntegration/__tests__/canonicalProviderPayload.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryExecution.test.ts
 ```
 Result: pass.
 2. Type-check:

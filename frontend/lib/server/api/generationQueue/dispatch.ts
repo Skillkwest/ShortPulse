@@ -8,13 +8,9 @@ import {
 } from "../generationBilling/reservationRpcAdapter";
 import { resolveGenerationAdmissionTier } from "../../../model-runtime/generationAdmissionTiers";
 import { getFalModelProfileByModelId } from "../../falIntegration/modelProfiles";
-import { submitWithFallbackTargets } from "../../falIntegration/submitEngine";
 import type { SubmitTarget } from "../../falIntegration/contracts";
-import {
-  resolveWebhookCallbackUrl,
-  readProviderRequestId,
-  withWebhookTargets,
-} from "../falSubmitTargeting";
+import { resolveWebhookCallbackUrl, withWebhookTargets } from "../falSubmitTargeting";
+import { dispatchProviderSubmit } from "../../providerIntegration/submitProviderDispatcher";
 import {
   claimGenerationSubmitQueueBatch,
   markQueueItemExhausted,
@@ -422,7 +418,8 @@ const processClaimedQueueItem = async ({
   let submitAccepted = false;
 
   try {
-    const submitResult = await submitWithFallbackTargets({
+    const submitResult = await dispatchProviderSubmit({
+      provider: "fal",
       targets: submitTargets,
       payload: item.submitPayload,
       apiKey,
@@ -512,7 +509,7 @@ const processClaimedQueueItem = async ({
       return metrics;
     }
 
-    const providerRequestId = readProviderRequestId(upstreamData);
+    const providerRequestId = submitResult.providerRequestId;
     if (!providerRequestId) {
       const message = "Queued submit response did not include request_id.";
       if (attemptNumber < maxAttempts) {

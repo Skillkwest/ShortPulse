@@ -31,7 +31,11 @@ import {
   type JsonObject,
   type JsonReadResult,
 } from "../falIntegration/statusProxyRuntime";
-import { filterTrustedFalProviderUrls } from "../falIntegration/providerTrustPolicy";
+import {
+  dispatchProviderResultRequest,
+  dispatchProviderStatusRequest,
+  resolveProviderStatusBaseUrls,
+} from "../providerIntegration/statusProviderDispatcher";
 
 type FalStatusConfig = {
   queueBaseUrl: string | string[];
@@ -213,9 +217,10 @@ export const createFalStatusHandler = ({
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    const queueBaseUrls = filterTrustedFalProviderUrls(
-      Array.isArray(queueBaseUrl) ? queueBaseUrl : [queueBaseUrl]
-    );
+    const queueBaseUrls = resolveProviderStatusBaseUrls({
+      provider: "fal",
+      configuredBaseUrls: Array.isArray(queueBaseUrl) ? queueBaseUrl : [queueBaseUrl],
+    });
     if (!queueBaseUrls.length) {
       return await respondErrorWithLogging({
         requestId,
@@ -297,9 +302,11 @@ export const createFalStatusHandler = ({
       };
 
       for (const [index, baseUrl] of queueBaseUrls.entries()) {
-        const response = await fetch(`${baseUrl}/${requestId}/status`, {
-          method: "GET",
-          headers: { Authorization: `Key ${apiKey}` },
+        const response = await dispatchProviderStatusRequest({
+          provider: "fal",
+          baseUrl,
+          requestId,
+          apiKey,
           signal: controller.signal,
         });
         const data = await readJsonSafe(response);
@@ -508,9 +515,11 @@ export const createFalStatusHandler = ({
         // Probe direct result endpoints as a fallback when status is lagging.
         // Fal occasionally materializes result payload before status transitions.
         for (const baseUrl of orderedResultBases) {
-          const probeResponse = await fetch(`${baseUrl}/${requestId}`, {
-            method: "GET",
-            headers: { Authorization: `Key ${apiKey}` },
+          const probeResponse = await dispatchProviderResultRequest({
+            provider: "fal",
+            baseUrl,
+            requestId,
+            apiKey,
             signal: controller.signal,
           });
           const probeData = await readJsonSafe(probeResponse);
@@ -557,9 +566,11 @@ export const createFalStatusHandler = ({
       }
 
       for (const [index, baseUrl] of orderedResultBases.entries()) {
-        const response = await fetch(`${baseUrl}/${requestId}`, {
-          method: "GET",
-          headers: { Authorization: `Key ${apiKey}` },
+        const response = await dispatchProviderResultRequest({
+          provider: "fal",
+          baseUrl,
+          requestId,
+          apiKey,
           signal: controller.signal,
         });
         const data = await readJsonSafe(response);

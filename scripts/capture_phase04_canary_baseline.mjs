@@ -17,6 +17,7 @@ const DEFAULT_WARMUP = 5;
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_OUTPUT_DIR = "docs/planning/evidence/unified-buildout/phase-04";
 const DEFAULT_TEMP_EMAIL_PREFIX = "phase04_latency_probe";
+const DEFAULT_QUEUE_SOURCE_REF = "phase04-baseline-probe";
 
 const PROBES = [
   {
@@ -56,6 +57,11 @@ Options:
                           Fallback env: SHORTPULSE_FAL_RECONCILER_CRON_SECRET, CRON_SECRET
   --temp-email-prefix <v> Prefix for temporary bootstrap user email.
                           Default: ${DEFAULT_TEMP_EMAIL_PREFIX}
+  --queue-source-ref <v>  sourceRef used for queue-status probe.
+                          Default: ${DEFAULT_QUEUE_SOURCE_REF}
+  --vercel-bypass-token <v>
+                          Optional Vercel deployment-protection bypass token.
+                          Fallback env: SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN, VERCEL_AUTOMATION_BYPASS_TOKEN
   --samples <n>           Measured request count per route. Default: ${DEFAULT_SAMPLES}
   --warmup <n>            Warmup request count per route. Default: ${DEFAULT_WARMUP}
   --timeout-ms <n>        Per-request timeout. Default: ${DEFAULT_TIMEOUT_MS}
@@ -92,6 +98,11 @@ const parseArgs = (argv) => {
       process.env.CRON_SECRET?.trim() ??
       "",
     tempEmailPrefix: DEFAULT_TEMP_EMAIL_PREFIX,
+    queueSourceRef: DEFAULT_QUEUE_SOURCE_REF,
+    vercelBypassToken:
+      process.env.SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN?.trim() ??
+      process.env.VERCEL_AUTOMATION_BYPASS_TOKEN?.trim() ??
+      "",
     samples: DEFAULT_SAMPLES,
     warmup: DEFAULT_WARMUP,
     timeoutMs: DEFAULT_TIMEOUT_MS,
@@ -134,6 +145,16 @@ const parseArgs = (argv) => {
       i += 1;
       continue;
     }
+    if (arg === "--queue-source-ref") {
+      parsed.queueSourceRef = readArgValue(argv, i, "--queue-source-ref").trim();
+      i += 1;
+      continue;
+    }
+    if (arg === "--vercel-bypass-token") {
+      parsed.vercelBypassToken = readArgValue(argv, i, "--vercel-bypass-token").trim();
+      i += 1;
+      continue;
+    }
     if (arg === "--samples") {
       parsed.samples = parseInteger(readArgValue(argv, i, "--samples"), DEFAULT_SAMPLES, "samples");
       i += 1;
@@ -162,6 +183,7 @@ const parseArgs = (argv) => {
   }
 
   parsed.baseUrl = parsed.baseUrl.replace(/\/+$/, "");
+  parsed.queueSourceRef = parsed.queueSourceRef.trim() || DEFAULT_QUEUE_SOURCE_REF;
   return parsed;
 };
 
@@ -301,12 +323,26 @@ const createBootstrapToken = async ({ emailPrefix }) => {
   };
 };
 
-const requestRoute = async ({ baseUrl, method, routePath, token, body, timeoutMs }) => {
+const requestRoute = async ({
+  baseUrl,
+  method,
+  routePath,
+  token,
+  body,
+  timeoutMs,
+  vercelBypassToken = "",
+}) => {
+  const routeUrl = new URL(`${baseUrl}${routePath}`);
+  const normalizedBypassToken = vercelBypassToken.trim();
+  if (normalizedBypassToken) {
+    routeUrl.searchParams.set("x-vercel-set-bypass-cookie", "true");
+    routeUrl.searchParams.set("x-vercel-protection-bypass", normalizedBypassToken);
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const start = performance.now();
   try {
-    const response = await fetch(`${baseUrl}${routePath}`, {
+    const response = await fetch(routeUrl, {
       method,
       headers: {
         Authorization: `Bearer ${token}`,
@@ -334,7 +370,15 @@ const requestRoute = async ({ baseUrl, method, routePath, token, body, timeoutMs
   }
 };
 
-const runRouteProbe = async ({ baseUrl, probe, token, warmup, samples, timeoutMs }) => {
+const runRouteProbe = async ({
+  baseUrl,
+  probe,
+  token,
+  warmup,
+  samples,
+  timeoutMs,
+  vercelBypassToken,
+}) => {
   for (let index = 0; index < warmup; index += 1) {
     await requestRoute({
       baseUrl,
@@ -343,6 +387,7 @@ const runRouteProbe = async ({ baseUrl, probe, token, warmup, samples, timeoutMs
       token,
       body: probe.body,
       timeoutMs,
+      vercelBypassToken,
     });
   }
 
@@ -357,6 +402,7 @@ const runRouteProbe = async ({ baseUrl, probe, token, warmup, samples, timeoutMs
       token,
       body: probe.body,
       timeoutMs,
+      vercelBypassToken,
     });
     elapsed.push(result.elapsedMs);
     statuses.push(result.status);
@@ -378,9 +424,14 @@ const runRouteProbe = async ({ baseUrl, probe, token, warmup, samples, timeoutMs
   };
 };
 
-const requestRecoverySnapshot = async ({ baseUrl, reconcilerSecret }) => {
+const requestRecoverySnapshot = async ({ baseUrl, reconcilerSecret, vercelBypassToken }) => {
   const attempt = async (method) => {
-    const response = await fetch(`${baseUrl}/api/internal/generation-recovery/run`, {
+    const routeUrl = new URL(`${baseUrl}/api/internal/generation-recovery/run`);
+    if (vercelBypassToken) {
+      routeUrl.searchParams.set("x-vercel-set-bypass-cookie", "true");
+      routeUrl.searchParams.set("x-vercel-protection-bypass", vercelBypassToken);
+    }
+    const response = await fetch(routeUrl, {
       method,
       headers: {
         Authorization: `Bearer ${reconcilerSecret}`,
@@ -437,6 +488,7 @@ const renderMarkdown = ({ args, summaries, recovery }) => {
 Date (UTC): ${isoNow()}
 Base URL: ${safeBaseUrl}
 Mode: ${args.bootstrapTokenFromSupabase ? "bootstrap-token-from-supabase" : "existing-bearer-token"}
+Vercel bypass token: ${args.vercelBypassToken ? "enabled" : "disabled"}
 
 ## Route Probe Summary
 ${summaryLines}
@@ -479,8 +531,17 @@ const main = async () => {
       bootstrapCleanup = bootstrap.cleanup;
     }
 
+    const probes = PROBES.map((probe) =>
+      probe.key === "fal_queue_status"
+        ? {
+            ...probe,
+            path: `/api/fal/queue-status?sourceRef=${encodeURIComponent(args.queueSourceRef)}`,
+          }
+        : probe
+    );
+
     const summaries = [];
-    for (const probe of PROBES) {
+    for (const probe of probes) {
       summaries.push(
         await runRouteProbe({
           baseUrl: args.baseUrl,
@@ -489,14 +550,19 @@ const main = async () => {
           warmup: args.warmup,
           samples: args.samples,
           timeoutMs: args.timeoutMs,
+          vercelBypassToken: args.vercelBypassToken,
         })
       );
     }
 
     for (const summary of summaries) {
       if (summary.successCount === 0) {
+        const likelyVercelProtectionHint =
+          summary.statusesSummary.startsWith("401:") && !args.vercelBypassToken
+            ? " (possible Vercel deployment protection block; provide --vercel-bypass-token)"
+            : "";
         throw new Error(
-          `Probe ${summary.method} ${summary.path} produced zero successful responses. statuses=${summary.statusesSummary}`
+          `Probe ${summary.method} ${summary.path} produced zero successful responses. statuses=${summary.statusesSummary}${likelyVercelProtectionHint}`
         );
       }
     }
@@ -504,6 +570,7 @@ const main = async () => {
     const recovery = await requestRecoverySnapshot({
       baseUrl: args.baseUrl,
       reconcilerSecret: args.reconcilerSecret,
+      vercelBypassToken: args.vercelBypassToken,
     });
     if (!recovery.ok) {
       throw new Error(

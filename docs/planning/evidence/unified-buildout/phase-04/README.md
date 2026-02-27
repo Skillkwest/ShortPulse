@@ -13,3 +13,4 @@ Automation helper:
 5. `2026-02-27-phase-04-05-regression-refresh.md` - post-slice regression refresh across Phase 04/05 scopes and gate checks.
 6. `2026-02-27-fal-queue-status-read-only-canary-execution-blocked-missing-env.md` - execution attempt log documenting missing staging env/auth inputs in current shell.
 7. `2026-02-27-fal-queue-status-read-only-canary-deferred-until-predeploy-window.md` - explicit hold-state note documenting deferred canary execution and required runtime toggle posture.
+8. `2026-02-27-fal-queue-status-read-only-canary-execution-blocked-vercel-protection.md` - execution attempt log documenting Vercel deployment-protection block and bypass-token requirement.

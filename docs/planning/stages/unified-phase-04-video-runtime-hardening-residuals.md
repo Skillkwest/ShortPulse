@@ -55,7 +55,7 @@ Harden Fal video runtime outbound trust boundaries so provider auth headers are 
    - keep `SHORTPULSE_FAL_QUEUE_ENABLED=true` and reconciler enabled,
    - run latency probe for `/api/fal/queue-status` and `/api/media/resolve-previews` before and after rollout.
    - optional baseline helper:
-     - `node scripts/capture_phase04_canary_baseline.mjs --base-url "$SHORTPULSE_STAGING_BASE_URL" --bootstrap-token-from-supabase --reconciler-secret "$SHORTPULSE_FAL_RECONCILER_CRON_SECRET"`
+     - `node scripts/capture_phase04_canary_baseline.mjs --base-url "$SHORTPULSE_STAGING_BASE_URL" --bootstrap-token-from-supabase --reconciler-secret "$SHORTPULSE_FAL_RECONCILER_CRON_SECRET" --vercel-bypass-token "$SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN"`
 2. Validate runtime behavior:
    - no increase in queue stuck depth or recovery backlog p95 age beyond phase thresholds,
    - no sustained increase in `api.fal_status.*` error rates,
@@ -76,4 +76,5 @@ Harden Fal video runtime outbound trust boundaries so provider auth headers are 
 ## Current Hold State
 1. Canary execution is intentionally deferred until the pre-deploy window.
 2. While deferred, keep `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=true`.
-3. Phase 04 remains `In Progress` and cannot be closed until the canary signoff artifact is completed.
+3. If deployment protection is enabled, provide `--vercel-bypass-token` (or `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`) when running baseline capture automation.
+4. Phase 04 remains `In Progress` and cannot be closed until the canary signoff artifact is completed.

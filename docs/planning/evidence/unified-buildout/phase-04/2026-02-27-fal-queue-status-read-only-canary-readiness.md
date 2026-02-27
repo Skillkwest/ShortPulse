@@ -16,30 +16,30 @@ Prepare a deterministic canary procedure for transitioning `/api/fal/queue-statu
    ```bash
    export SHORTPULSE_STAGING_BASE_URL="https://<staging-host>"
    export SHORTPULSE_FAL_RECONCILER_CRON_SECRET="<staging-reconciler-secret>"
+   # Optional for Vercel-protected previews:
+   export SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN="<vercel-bypass-token>"
    # Optional if not using --bootstrap-token-from-supabase:
    export SHORTPULSE_STAGING_BEARER_TOKEN="<user-bearer-token>"
    ```
-1. Latency probe:
+1. Automated latency + recovery baseline capture:
    - using Supabase bootstrap token:
      ```bash
-     node scripts/capture_protected_route_latency.mjs \
+     node scripts/capture_phase04_canary_baseline.mjs \
        --base-url "$SHORTPULSE_STAGING_BASE_URL" \
-       --path /api/fal/queue-status \
-       --path /api/media/resolve-previews \
-       --samples 25 \
-       --warmup 5 \
-       --bootstrap-token-from-supabase
+       --bootstrap-token-from-supabase \
+       --reconciler-secret "$SHORTPULSE_FAL_RECONCILER_CRON_SECRET" \
+       --vercel-bypass-token "$SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN"
      ```
    - using existing bearer token:
      ```bash
-     node scripts/capture_protected_route_latency.mjs \
+     node scripts/capture_phase04_canary_baseline.mjs \
        --base-url "$SHORTPULSE_STAGING_BASE_URL" \
        --token "$SHORTPULSE_STAGING_BEARER_TOKEN" \
-       --path /api/fal/queue-status \
-       --path /api/media/resolve-previews \
-       --samples 25 \
-       --warmup 5
+       --reconciler-secret "$SHORTPULSE_FAL_RECONCILER_CRON_SECRET" \
+       --vercel-bypass-token "$SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN"
      ```
+   - queue-status probe now uses required query shape automatically:
+     - `GET /api/fal/queue-status?sourceRef=phase04-baseline-probe`
 2. Queue/recovery health snapshots:
    - `POST /api/internal/generation-recovery/run` response metrics (`queue*`, `processed`, `errors`):
      ```bash
@@ -84,5 +84,6 @@ Prepare a deterministic canary procedure for transitioning `/api/fal/queue-statu
    node scripts/capture_phase04_canary_baseline.mjs \
      --base-url "$SHORTPULSE_STAGING_BASE_URL" \
      --bootstrap-token-from-supabase \
-     --reconciler-secret "$SHORTPULSE_FAL_RECONCILER_CRON_SECRET"
+     --reconciler-secret "$SHORTPULSE_FAL_RECONCILER_CRON_SECRET" \
+     --vercel-bypass-token "$SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN"
    ```

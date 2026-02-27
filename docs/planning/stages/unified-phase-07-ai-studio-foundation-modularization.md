@@ -57,6 +57,17 @@ Remaining:
 1. Slice B decomposition follow-up: extract policy seams from `useAiStudioTaskSubmission` and `useAiStudioTasks`.
 2. Slice C phase-close docs/evidence signoff.
 
+## Current Slice B Follow-up Update (2026-02-27)
+Implemented:
+1. Decomposed `useAiStudioTaskSubmission` by extracting queue-status polling behavior into `taskSubmission/queueStatusPolling.ts`.
+2. Extracted submit-start invariant helpers into `taskSubmission/submitInvariants.ts`.
+3. Extracted shared output lifecycle patch helpers into `taskSubmission/outputLifecyclePatches.ts`.
+4. Added focused unit coverage for the new submit-invariant and output-patch helpers.
+
+Remaining:
+1. Slice B decomposition follow-up: extract policy seams from `useAiStudioTasks`.
+2. Slice C phase-close docs/evidence signoff.
+
 ## Validation Gates
 1. 
 > shortflow@1.0.0 lint

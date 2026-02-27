@@ -1,0 +1,154 @@
+/**
+ * Queue-status polling helper for queued Fal submissions.
+ * Owns retry/backoff/timeout behavior until provider request id is dispatched.
+ */
+import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
+import {
+  fetchFalQueueStatus,
+  type FalQueuedSubmitResponse,
+  type FalQueueStatusResponse,
+} from "../../../../lib/falClient";
+import type { SubmissionPatch } from "./types";
+import type { Provider } from "../../logic/stateParsers";
+import { applyQueuedSubmissionPatch } from "./outputLifecyclePatches";
+import type { StudioOutput, ToolId } from "../../types";
+
+export const QUEUE_STATUS_MAX_WAIT_MS = 20 * 60 * 1000;
+export const clampQueuePollMs = (value: number) =>
+  Math.max(500, Math.min(10000, Math.trunc(value)));
+
+type NumberMapRef = {
+  current: Record<string, number>;
+};
+
+type StartQueuedStatusPollingParams = {
+  outputId: string;
+  provider: Provider;
+  finalModel: string;
+  effectiveTool: ToolId | null;
+  queuedResponse: FalQueuedSubmitResponse;
+  patch: SubmissionPatch;
+  queueStatusTimersRef: NumberMapRef;
+  queueStatusSessionRef: NumberMapRef;
+  clearQueueStatusPolling: (outputId: string) => void;
+  updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
+  notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
+  onDispatched: (requestId: string, generationId: string) => void;
+};
+
+const queueStatusRetryDelayMs = (
+  queueStatus: FalQueueStatusResponse,
+  initialDelayMs: number,
+  attempt: number
+) =>
+  queueStatus.status === "queued"
+    ? clampQueuePollMs(queueStatus.retryAfterMs)
+    : clampQueuePollMs(initialDelayMs * Math.min(4, attempt + 1));
+
+/**
+ * Starts queue-status polling and dispatch handoff for queued submits.
+ */
+export const startQueuedStatusPolling = ({
+  outputId,
+  provider,
+  finalModel,
+  effectiveTool,
+  queuedResponse,
+  patch,
+  queueStatusTimersRef,
+  queueStatusSessionRef,
+  clearQueueStatusPolling,
+  updateOutputById,
+  notifyGenerationFailure,
+  onDispatched,
+}: StartQueuedStatusPollingParams): void => {
+  clearQueueStatusPolling(outputId);
+  const pollSession = (queueStatusSessionRef.current[outputId] ?? 0) + 1;
+  queueStatusSessionRef.current[outputId] = pollSession;
+  const initialDelayMs = clampQueuePollMs(queuedResponse.pollAfterMs);
+  const queueEnqueuedAtMs = Date.now();
+
+  updateOutputById(outputId, (item) =>
+    applyQueuedSubmissionPatch({
+      item,
+      patch,
+      provider,
+      generationId: queuedResponse.generationId,
+      queueEnqueuedAtMs,
+    })
+  );
+
+  addBreadcrumb({
+    type: "ui",
+    level: "info",
+    message: "fal_submit_queued",
+    data: {
+      output_id: outputId,
+      model_id: finalModel,
+      provider,
+      source_ref: queuedResponse.sourceRef,
+      generation_id: queuedResponse.generationId,
+      tool: effectiveTool,
+    },
+  });
+
+  const pollQueuedStatus = async (attempt: number): Promise<void> => {
+    if ((queueStatusSessionRef.current[outputId] ?? 0) !== pollSession) {
+      return;
+    }
+
+    try {
+      const queueStatus = await fetchFalQueueStatus({
+        sourceRef: queuedResponse.sourceRef,
+        generationId: queuedResponse.generationId,
+      });
+
+      if (queueStatus.status === "dispatched") {
+        clearQueueStatusPolling(outputId);
+        onDispatched(
+          queueStatus.requestId,
+          queueStatus.generationId || queuedResponse.generationId
+        );
+        return;
+      }
+
+      if (queueStatus.status === "failed") {
+        clearQueueStatusPolling(outputId);
+        notifyGenerationFailure(outputId, queueStatus.message, queueStatus.message);
+        return;
+      }
+
+      if (Date.now() - queueEnqueuedAtMs >= QUEUE_STATUS_MAX_WAIT_MS) {
+        clearQueueStatusPolling(outputId);
+        notifyGenerationFailure(
+          outputId,
+          "Generation queue timed out. Please retry.",
+          "Generation queue timed out while waiting for dispatch."
+        );
+        return;
+      }
+
+      const retryAfterMs = queueStatusRetryDelayMs(queueStatus, initialDelayMs, attempt);
+      queueStatusTimersRef.current[outputId] = window.setTimeout(() => {
+        void pollQueuedStatus(attempt + 1);
+      }, retryAfterMs);
+    } catch (error) {
+      if (Date.now() - queueEnqueuedAtMs >= QUEUE_STATUS_MAX_WAIT_MS) {
+        clearQueueStatusPolling(outputId);
+        const message =
+          error instanceof Error ? error.message : "Unable to read queued generation status.";
+        notifyGenerationFailure(outputId, message, message);
+        return;
+      }
+
+      const retryAfterMs = clampQueuePollMs(initialDelayMs * Math.min(4, attempt + 1));
+      queueStatusTimersRef.current[outputId] = window.setTimeout(() => {
+        void pollQueuedStatus(attempt + 1);
+      }, retryAfterMs);
+    }
+  };
+
+  queueStatusTimersRef.current[outputId] = window.setTimeout(() => {
+    void pollQueuedStatus(0);
+  }, initialDelayMs);
+};

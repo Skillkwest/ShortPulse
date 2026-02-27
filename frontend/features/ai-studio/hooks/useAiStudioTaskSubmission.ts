@@ -7,7 +7,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { isAuthSessionTimeoutError } from "../../../lib/authenticatedFetch";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
-import { fetchFalQueueStatus, type FalSubmitResponse } from "../../../lib/falClient";
+import type { FalSubmitResponse } from "../../../lib/falClient";
 import { buildGenerationSubmissionTraceId, randomId } from "../logic/ids";
 import { getModelConfig } from "../logic/pricing";
 import {
@@ -25,6 +25,16 @@ import {
   handleVideoModelSubmission,
   resolveSubmissionHandlerRoute,
 } from "./taskSubmissionHandlers";
+import {
+  applyDispatchedSubmissionPatch,
+  applySubmissionFailureToOutputs,
+} from "./taskSubmission/outputLifecyclePatches";
+import { startQueuedStatusPolling } from "./taskSubmission/queueStatusPolling";
+import {
+  normalizeSubmissionTool,
+  resolveSubmissionStartUiError,
+  shouldSkipTextCreateSubmission,
+} from "./taskSubmission/submitInvariants";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type GenerationMetadata = Record<string, unknown>;
@@ -38,8 +48,6 @@ const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
-const QUEUE_STATUS_MAX_WAIT_MS = 20 * 60 * 1000;
-const clampQueuePollMs = (value: number) => Math.max(500, Math.min(10000, Math.trunc(value)));
 const submitNotStartedError = (detail: string): SubmissionInvariantError => {
   const error = new Error("Provider task did not start.") as SubmissionInvariantError;
   error.code = "SUBMIT_NOT_STARTED";
@@ -180,43 +188,33 @@ export const useAiStudioTaskSubmission = ({
       };
       const effectiveMode = options?.modeOverride ?? mode;
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
-      const normalizedTool =
-        effectiveTool === "kling" ? "video" : effectiveTool === "edit" ? "image" : effectiveTool;
+      const normalizedTool = normalizeSubmissionTool(effectiveTool);
       const cleanedSubmissionPrompt = (promptArg ?? prompt).trim();
       const cleanedDisplayPrompt = (options?.displayPromptOverride ?? promptArg ?? prompt).trim();
 
-      if ((effectiveTool === "create" || effectiveTool === "text") && effectiveMode === "text") {
+      if (shouldSkipTextCreateSubmission(effectiveTool, effectiveMode)) {
         removeOptimisticPlaceholder();
         setIsPromptGenerating(false);
         return;
       }
-      if (!cleanedSubmissionPrompt) {
-        removeOptimisticPlaceholder();
-        setUiError("Add a prompt to start a generation.");
-        return;
-      }
-
       const hasReferenceImages = imageInputs && imageInputs.length > 0;
       const isEditWorkflow = normalizedTool === "image";
       const finalModel = options?.modelIdOverride ?? model;
-      if (isEditWorkflow && !hasReferenceImages) {
-        removeOptimisticPlaceholder();
-        setUiError("Add a reference image before generating.");
-        return;
-      }
-
-      if (!finalModel) {
-        removeOptimisticPlaceholder();
-        setUiError("Pick a model to generate.");
-        return;
-      }
-      const finalModelConfig = getModelConfig(finalModel);
+      const finalModelConfig = finalModel ? getModelConfig(finalModel) : null;
       const requiresImageToImageReferences = Boolean(finalModelConfig?.supportsImageToImage);
-      if (requiresImageToImageReferences && !hasReferenceImages) {
+      const submissionStartUiError = resolveSubmissionStartUiError({
+        cleanedSubmissionPrompt,
+        isEditWorkflow,
+        hasReferenceImages,
+        finalModel,
+        requiresImageToImageReferences,
+      });
+      if (submissionStartUiError) {
         removeOptimisticPlaceholder();
-        setUiError("Add a reference image before generating.");
+        setUiError(submissionStartUiError);
         return;
       }
+      if (!finalModel) return;
 
       setIsPromptGenerating(true);
       try {
@@ -355,21 +353,14 @@ export const useAiStudioTaskSubmission = ({
             });
           }
           setOutputs((prev) =>
-            prev.map((item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    taskState: "fail",
-                    status: "ready",
-                    timestamp: "Failed",
-                    errorMessage: detail,
-                    errorMessageShort: isPreflightTimeout
-                      ? "Preparation timed out."
-                      : "Reference upload failed.",
-                    errorDetail: detail,
-                  }
-                : item
-            )
+            applySubmissionFailureToOutputs(prev, id, {
+              timestamp: "Failed",
+              errorMessage: detail,
+              errorMessageShort: isPreflightTimeout
+                ? "Preparation timed out."
+                : "Reference upload failed.",
+              errorDetail: detail,
+            })
           );
           setUiError(isPreflightTimeout ? detail : `Reference upload failed: ${detail}`);
           return;
@@ -379,19 +370,12 @@ export const useAiStudioTaskSubmission = ({
           preparedImageInputs.length === 0
         ) {
           setOutputs((prev) =>
-            prev.map((item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    taskState: "fail",
-                    status: "ready",
-                    timestamp: "Missing image",
-                    errorMessage: "Edit workflow requires at least one reference image.",
-                    errorMessageShort: "Reference image required.",
-                    errorDetail: "Edit workflow requires at least one reference image.",
-                  }
-                : item
-            )
+            applySubmissionFailureToOutputs(prev, id, {
+              timestamp: "Missing image",
+              errorMessage: "Edit workflow requires at least one reference image.",
+              errorMessageShort: "Reference image required.",
+              errorDetail: "Edit workflow requires at least one reference image.",
+            })
           );
           return;
         }
@@ -417,19 +401,12 @@ export const useAiStudioTaskSubmission = ({
         const isStandardVideoRun = normalizedTool === "video" && videoReferenceMode === "standard";
         if (isStandardVideoRun && preparedImageInputs.length < 1) {
           setOutputs((prev) =>
-            prev.map((item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    taskState: "fail",
-                    status: "ready",
-                    timestamp: "Missing image",
-                    errorMessage: "Standard video generation requires a reference image.",
-                    errorMessageShort: "Reference image required.",
-                    errorDetail: "Standard video generation requires a reference image.",
-                  }
-                : item
-            )
+            applySubmissionFailureToOutputs(prev, id, {
+              timestamp: "Missing image",
+              errorMessage: "Standard video generation requires a reference image.",
+              errorMessageShort: "Reference image required.",
+              errorDetail: "Standard video generation requires a reference image.",
+            })
           );
           return;
         }
@@ -437,59 +414,38 @@ export const useAiStudioTaskSubmission = ({
         const requiresImageReference = isKling3ImageModel || isVeoImageToVideoModel;
         if (requiresImageReference && preparedImageInputs.length === 0) {
           setOutputs((prev) =>
-            prev.map((item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    taskState: "fail",
-                    status: "ready",
-                    timestamp: "Missing image",
-                    errorMessage: "Video generation requires an image URL.",
-                    errorMessageShort: "Image URL required.",
-                    errorDetail: "Video generation requires an image URL.",
-                  }
-                : item
-            )
+            applySubmissionFailureToOutputs(prev, id, {
+              timestamp: "Missing image",
+              errorMessage: "Video generation requires an image URL.",
+              errorMessageShort: "Image URL required.",
+              errorDetail: "Video generation requires an image URL.",
+            })
           );
           return;
         }
 
         if (isVeoFirstLastFrameModel && preparedImageInputs.length < 2) {
           setOutputs((prev) =>
-            prev.map((item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    taskState: "fail",
-                    status: "ready",
-                    timestamp: "Missing frames",
-                    errorMessage:
-                      "First/Last Frame generation requires both a first and last frame image.",
-                    errorMessageShort: "First/Last needs two images.",
-                    errorDetail:
-                      "First/Last Frame generation requires both a first and last frame image.",
-                  }
-                : item
-            )
+            applySubmissionFailureToOutputs(prev, id, {
+              timestamp: "Missing frames",
+              errorMessage:
+                "First/Last Frame generation requires both a first and last frame image.",
+              errorMessageShort: "First/Last needs two images.",
+              errorDetail:
+                "First/Last Frame generation requires both a first and last frame image.",
+            })
           );
           return;
         }
 
         if (isVeoImageToVideoModel && preparedImageInputs.length < 1) {
           setOutputs((prev) =>
-            prev.map((item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    taskState: "fail",
-                    status: "ready",
-                    timestamp: "Missing image",
-                    errorMessage: "Veo image-to-video requires a reference image.",
-                    errorMessageShort: "Reference image required.",
-                    errorDetail: "Veo image-to-video requires a reference image.",
-                  }
-                : item
-            )
+            applySubmissionFailureToOutputs(prev, id, {
+              timestamp: "Missing image",
+              errorMessage: "Veo image-to-video requires a reference image.",
+              errorMessageShort: "Reference image required.",
+              errorDetail: "Veo image-to-video requires a reference image.",
+            })
           );
           return;
         }
@@ -512,104 +468,30 @@ export const useAiStudioTaskSubmission = ({
               taskStarted = true;
               startedTaskId = queuedResponse.generationId;
               startedProvider = provider;
-              clearQueueStatusPolling(id);
-              const pollSession = (queueStatusSessionRef.current[id] ?? 0) + 1;
-              queueStatusSessionRef.current[id] = pollSession;
-              const initialDelayMs = clampQueuePollMs(queuedResponse.pollAfterMs);
-              const queueEnqueuedAtMs = Date.now();
-
-              updateOutputById(id, (item) => ({
-                ...item,
-                ...patch,
-                generationId: patch.generationId ?? queuedResponse.generationId,
-                taskState: "pending",
-                timestamp: "Submitting...",
-                provider: item.provider ?? provider,
-                queueState: "queued",
-                queueEnqueuedAtMs: item.queueEnqueuedAtMs ?? queueEnqueuedAtMs,
-              }));
-              addBreadcrumb({
-                type: "ui",
-                level: "info",
-                message: "fal_submit_queued",
-                data: {
-                  output_id: id,
-                  model_id: finalModel,
-                  provider,
-                  source_ref: queuedResponse.sourceRef,
-                  generation_id: queuedResponse.generationId,
-                  tool: effectiveTool,
+              startQueuedStatusPolling({
+                outputId: id,
+                provider,
+                finalModel,
+                effectiveTool,
+                queuedResponse,
+                patch,
+                queueStatusTimersRef,
+                queueStatusSessionRef,
+                clearQueueStatusPolling,
+                updateOutputById,
+                notifyGenerationFailure,
+                onDispatched: (requestId, generationId) => {
+                  startPollingWithGeneration(
+                    requestId,
+                    provider,
+                    {
+                      ...patch,
+                      generationId,
+                    },
+                    undefined
+                  );
                 },
               });
-
-              const pollQueuedStatus = async (attempt: number): Promise<void> => {
-                if ((queueStatusSessionRef.current[id] ?? 0) !== pollSession) {
-                  return;
-                }
-
-                try {
-                  const queueStatus = await fetchFalQueueStatus({
-                    sourceRef: queuedResponse.sourceRef,
-                    generationId: queuedResponse.generationId,
-                  });
-                  if (queueStatus.status === "dispatched") {
-                    clearQueueStatusPolling(id);
-                    startPollingWithGeneration(
-                      queueStatus.requestId,
-                      provider,
-                      {
-                        ...patch,
-                        generationId: queueStatus.generationId || queuedResponse.generationId,
-                      },
-                      undefined
-                    );
-                    return;
-                  }
-
-                  if (queueStatus.status === "failed") {
-                    clearQueueStatusPolling(id);
-                    notifyGenerationFailure(id, queueStatus.message, queueStatus.message);
-                    return;
-                  }
-
-                  if (Date.now() - queueEnqueuedAtMs >= QUEUE_STATUS_MAX_WAIT_MS) {
-                    clearQueueStatusPolling(id);
-                    notifyGenerationFailure(
-                      id,
-                      "Generation queue timed out. Please retry.",
-                      "Generation queue timed out while waiting for dispatch."
-                    );
-                    return;
-                  }
-
-                  const retryAfterMs =
-                    queueStatus.status === "queued"
-                      ? clampQueuePollMs(queueStatus.retryAfterMs)
-                      : initialDelayMs;
-                  queueStatusTimersRef.current[id] = window.setTimeout(() => {
-                    void pollQueuedStatus(attempt + 1);
-                  }, retryAfterMs);
-                } catch (error) {
-                  if (Date.now() - queueEnqueuedAtMs >= QUEUE_STATUS_MAX_WAIT_MS) {
-                    clearQueueStatusPolling(id);
-                    const message =
-                      error instanceof Error
-                        ? error.message
-                        : "Unable to read queued generation status.";
-                    notifyGenerationFailure(id, message, message);
-                    return;
-                  }
-
-                  const retryAfterMs = clampQueuePollMs(initialDelayMs * Math.min(4, attempt + 1));
-                  queueStatusTimersRef.current[id] = window.setTimeout(() => {
-                    void pollQueuedStatus(attempt + 1);
-                  }, retryAfterMs);
-                }
-              };
-
-              queueStatusTimersRef.current[id] = window.setTimeout(() => {
-                void pollQueuedStatus(0);
-              }, initialDelayMs);
               return;
             }
 
@@ -619,22 +501,14 @@ export const useAiStudioTaskSubmission = ({
             startedTaskId = normalizedTaskId;
             startedProvider = provider;
             clearQueueStatusPolling(id);
-            updateOutputById(id, (item) => ({
-              ...item,
-              ...patch,
-              taskId: normalizedTaskId,
-              generationTraceId: normalizedTaskId,
-              taskState: "running",
-              timestamp: "Submitted",
-              provider: item.provider ?? provider,
-              queueState: item.queueState === "queued" ? "dispatched" : undefined,
-              queueEnqueuedAtMs:
-                item.queueState === "queued"
-                  ? typeof item.queueEnqueuedAtMs === "number"
-                    ? item.queueEnqueuedAtMs
-                    : Date.now()
-                  : undefined,
-            }));
+            updateOutputById(id, (item) =>
+              applyDispatchedSubmissionPatch({
+                item,
+                patch,
+                provider,
+                taskId: normalizedTaskId,
+              })
+            );
             startPollingTask(normalizedTaskId, id, 0, provider);
             void ensureGenerationRecord({
               outputId: id,

@@ -26,7 +26,8 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 2. Slice B in progress:
 - Replay-safe duplicate claim processing implemented (duplicate deliveries continue through side effects).
 - Credit ledger duplicate source-ref conflicts are treated idempotently to prevent double-credit while allowing safe retries.
-- Remaining Slice B work: bootstrap-safe billing profile/customer guard scenarios in checkout/portal entry routes.
+- Bootstrap-safe billing profile/customer guard scenarios implemented in checkout/portal via shared Stripe customer helper.
+- Remaining Slice B work: finalize failed-event replay runbook details and add broader billing state parity coverage.
 3. Slice C in progress:
 - Evidence packet added under `docs/planning/evidence/unified-buildout/phase-08/`.
 

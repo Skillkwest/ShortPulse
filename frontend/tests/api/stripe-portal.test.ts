@@ -3,9 +3,9 @@ import handler from "../../pages/api/billing/stripe/portal";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
-const getSupabaseAdminMock = vi.fn();
 const stripePostFormMock = vi.fn();
 const getCanonicalAppBaseUrlMock = vi.fn();
+const ensureStripeCustomerForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -15,13 +15,13 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
 }));
 
-vi.mock("../../lib/server/api/supabaseAdmin", () => ({
-  getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
-}));
-
 vi.mock("../../lib/server/api/stripe", () => ({
   stripePostForm: (...args: unknown[]) => stripePostFormMock(...args),
   getCanonicalAppBaseUrl: (...args: unknown[]) => getCanonicalAppBaseUrlMock(...args),
+}));
+
+vi.mock("../../lib/server/api/stripeCustomer", () => ({
+  ensureStripeCustomerForUser: (...args: unknown[]) => ensureStripeCustomerForUserMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -35,6 +35,7 @@ describe("POST /api/billing/stripe/portal", () => {
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     getCanonicalAppBaseUrlMock.mockReturnValue("https://app.shortpulse.test");
+    ensureStripeCustomerForUserMock.mockResolvedValue("cus_123");
   });
 
   it("rejects non-POST methods", async () => {
@@ -44,35 +45,21 @@ describe("POST /api/billing/stripe/portal", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
-  it("returns 404 when user has no stripe customer id", async () => {
-    getSupabaseAdminMock.mockReturnValue({
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({ data: { stripe_customer_id: null }, error: null }),
-          }),
-        }),
-      }),
-    });
-
+  it("creates a portal session through bootstrap-safe customer resolution", async () => {
     const req = { method: "POST", body: {} };
     const res = createMockResponse();
+    stripePostFormMock.mockResolvedValue({ id: "bps_1", url: "https://stripe.test/portal_1" });
+
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ error: "No Stripe customer is linked to this user." });
+    expect(ensureStripeCustomerForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      email: "user@example.com",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("uses canonical app base url for return_url", async () => {
-    getSupabaseAdminMock.mockReturnValue({
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({ data: { stripe_customer_id: "cus_123" }, error: null }),
-          }),
-        }),
-      }),
-    });
     stripePostFormMock.mockResolvedValue({ id: "bps_1", url: "https://stripe.test/portal_1" });
 
     const req = { method: "POST", body: {} };
@@ -86,5 +73,16 @@ describe("POST /api/billing/stripe/portal", () => {
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns 500 when stripe customer bootstrap fails", async () => {
+    ensureStripeCustomerForUserMock.mockRejectedValueOnce(new Error("bootstrap failed"));
+    const req = { method: "POST", body: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "bootstrap failed" });
   });
 });

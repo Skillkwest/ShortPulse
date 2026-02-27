@@ -4,8 +4,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
-import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { getCanonicalAppBaseUrl, stripePostForm } from "../../../../lib/server/api/stripe";
+import { ensureStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
 
 type StripePortalSession = { id: string; url: string };
 
@@ -23,22 +23,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("billing_profiles")
-      .select("stripe_customer_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (profileError) {
-      return res.status(500).json({ error: profileError.message });
-    }
-    if (!profile?.stripe_customer_id) {
-      return res.status(404).json({ error: "No Stripe customer is linked to this user." });
-    }
+    const stripeCustomerId = await ensureStripeCustomerForUser({
+      userId: user.id,
+      email: user.email ?? null,
+    });
 
     const session = await stripePostForm<StripePortalSession>("/billing_portal/sessions", {
-      customer: profile.stripe_customer_id,
+      customer: stripeCustomerId,
       return_url: `${getCanonicalAppBaseUrl()}/profile?section=billing`,
     });
 

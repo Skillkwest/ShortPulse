@@ -6,6 +6,7 @@ const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const stripePostFormMock = vi.fn();
 const getCanonicalAppBaseUrlMock = vi.fn();
+const ensureStripeCustomerForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -24,6 +25,10 @@ vi.mock("../../lib/server/api/stripe", () => ({
   getCanonicalAppBaseUrl: (...args: unknown[]) => getCanonicalAppBaseUrlMock(...args),
 }));
 
+vi.mock("../../lib/server/api/stripeCustomer", () => ({
+  ensureStripeCustomerForUser: (...args: unknown[]) => ensureStripeCustomerForUserMock(...args),
+}));
+
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
@@ -35,6 +40,7 @@ describe("POST /api/billing/stripe/checkout", () => {
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     getCanonicalAppBaseUrlMock.mockReturnValue("https://app.shortpulse.test");
+    ensureStripeCustomerForUserMock.mockResolvedValue("cus_existing");
   });
 
   it("rejects non-POST methods", async () => {
@@ -71,23 +77,6 @@ describe("POST /api/billing/stripe/checkout", () => {
           }),
         };
       }
-      if (table === "billing_profiles") {
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: async () => ({
-                data: {
-                  stripe_customer_id: "cus_existing",
-                  plan_id: "free",
-                  subscription_status: "inactive",
-                },
-                error: null,
-              }),
-            }),
-          }),
-          upsert: vi.fn().mockResolvedValue({ error: null }),
-        };
-      }
       throw new Error(`Unexpected table ${table}`);
     });
 
@@ -109,6 +98,39 @@ describe("POST /api/billing/stripe/checkout", () => {
         cancel_url: "https://app.shortpulse.test/profile?section=billing&checkout=cancel",
       })
     );
+    expect(ensureStripeCustomerForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      email: "user@example.com",
+    });
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns 500 when stripe customer bootstrap fails", async () => {
+    ensureStripeCustomerForUserMock.mockRejectedValueOnce(new Error("bootstrap failed"));
+    getSupabaseAdminMock.mockReturnValue({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: {
+                id: "pkg_studio_10000",
+                is_active: true,
+                stripe_price_id: "price_123",
+                credit_amount_cents: 10000,
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+
+    const req = { method: "POST", body: { packageId: "pkg_studio_10000" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "bootstrap failed" });
   });
 });

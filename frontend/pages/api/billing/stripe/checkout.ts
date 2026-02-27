@@ -6,12 +6,12 @@ import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { getCanonicalAppBaseUrl, stripePostForm } from "../../../../lib/server/api/stripe";
+import { ensureStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
 
 type CheckoutRequest = {
   packageId?: string;
 };
 
-type StripeCustomerResponse = { id: string };
 type StripeCheckoutResponse = { id: string; url?: string | null };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -50,30 +50,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .json({ error: `Credit package '${pkg.id}' is missing a Stripe price id.` });
     }
 
-    const { data: profile } = await supabaseAdmin
-      .from("billing_profiles")
-      .select("stripe_customer_id, plan_id, subscription_status")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    let stripeCustomerId = profile?.stripe_customer_id ?? null;
-    if (!stripeCustomerId) {
-      const customer = await stripePostForm<StripeCustomerResponse>("/customers", {
-        email: user.email ?? undefined,
-        "metadata[user_id]": user.id,
-      });
-      stripeCustomerId = customer.id;
-
-      await supabaseAdmin.from("billing_profiles").upsert(
-        {
-          user_id: user.id,
-          plan_id: profile?.plan_id ?? "free",
-          subscription_status: profile?.subscription_status ?? "inactive",
-          stripe_customer_id: stripeCustomerId,
-        },
-        { onConflict: "user_id" }
-      );
-    }
+    const stripeCustomerId = await ensureStripeCustomerForUser({
+      userId: user.id,
+      email: user.email ?? null,
+    });
 
     const baseUrl = getCanonicalAppBaseUrl();
     const session = await stripePostForm<StripeCheckoutResponse>("/checkout/sessions", {

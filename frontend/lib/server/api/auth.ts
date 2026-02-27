@@ -15,6 +15,7 @@ import {
 } from "./authTokenVerifier";
 
 export type { AuthenticatedApiUser } from "./authTokenVerifier";
+export type AdminAccessVia = "role" | "allowlist" | "none";
 
 const resolveVerifiedApiUser = async (
   req: NextApiRequest
@@ -77,12 +78,12 @@ const adminRolesFromAppMetadata = (user: AuthenticatedApiUser): string[] => {
 };
 
 /**
- * Determines if the user is an operator/admin.
+ * Resolves admin access source for a verified user.
  */
-export const isAdminUser = (user: AuthenticatedApiUser): boolean => {
+export const resolveAdminAccessVia = (user: AuthenticatedApiUser): AdminAccessVia => {
   const normalizedRoles = adminRolesFromAppMetadata(user);
   if (normalizedRoles.includes("admin") || normalizedRoles.includes("operator")) {
-    return true;
+    return "role";
   }
 
   const configuredEmails =
@@ -90,7 +91,18 @@ export const isAdminUser = (user: AuthenticatedApiUser): boolean => {
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean) ?? [];
   const userEmail = user.email?.trim().toLowerCase();
-  return Boolean(userEmail && configuredEmails.includes(userEmail));
+  if (userEmail && configuredEmails.includes(userEmail)) {
+    return "allowlist";
+  }
+
+  return "none";
+};
+
+/**
+ * Determines if the user is an operator/admin.
+ */
+export const isAdminUser = (user: AuthenticatedApiUser): boolean => {
+  return resolveAdminAccessVia(user) !== "none";
 };
 
 /**

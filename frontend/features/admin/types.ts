@@ -132,3 +132,21 @@ export type AdminCreditLedgerRow = {
   pricingBreakdown: AdminCreditPricingBreakdown | null;
   createdAt: string | null;
 };
+
+export type AdminAccessVia = "role" | "allowlist" | "none";
+
+export type AdminAccessResponse =
+  | {
+      ok: true;
+      isAdmin: true;
+      accessVia: Exclude<AdminAccessVia, "none">;
+      user: {
+        id: string;
+        email: string | null;
+      };
+    }
+  | {
+      ok: true;
+      isAdmin: false;
+      accessVia: "none";
+    };

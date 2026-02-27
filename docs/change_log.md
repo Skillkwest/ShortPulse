@@ -1453,3 +1453,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added emergency-only proxy fallback switch `SHORTPULSE_TRUST_PROXY_AUTH_HEADERS` (default `false`) and documented it in API/security docs and `.env.example`.
 - Expanded protected API path coverage to include `/api/log/` for middleware-route alignment.
 - Updated auth boundary tests to cover fail-closed behavior, mismatch handling, and emergency override behavior.
+
+## 2026-02-27 (unified buildout phase-02 admin access slice-c-d)
+- Added `GET /api/admin/access` for lightweight server-authoritative admin gating, including explicit `accessVia` source (`role|allowlist|none`) and stable 403 denied payload.
+- Added shared admin gate hook `frontend/features/admin/logic/useAdminAccess.ts` and rewired `/admin` and `/admin/generation-trace` to use it, removing authorization coupling to `/api/admin/users` list-fetch success.
+- Added `resolveAdminAccessVia` to auth helpers and retained token-first fail-closed auth semantics from phase-02 slice-a-b.
+- Added API route coverage for `/api/admin/access` in `frontend/tests/api/admin-access.test.ts` and updated auth helper coverage for allowlist access resolution.
+- Updated docs/tracker/evidence for Phase 02 completion (`docs/api/api-internal-routes.md`, `README.md`, unified tracker/stage/evidence artifacts).

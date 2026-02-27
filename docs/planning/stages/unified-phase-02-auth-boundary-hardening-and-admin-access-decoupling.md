@@ -1,6 +1,6 @@
 # Unified Phase 02: Auth Boundary Hardening and Admin Access Decoupling
 
-Status: In Progress  
+Status: Completed  
 Owner: Engineering
 
 ## Objective
@@ -41,7 +41,8 @@ Enforce token-first fail-closed route authorization and remove proxy-header-only
 ## Exit Criteria
 1. Protected routes do not authorize from `x-shortpulse-*` headers alone.
 2. Verified bearer identity remains authoritative when proxy metadata disagrees.
-3. Auth validation gates are green and phase evidence is committed.
+3. Admin pages gate via dedicated `/api/admin/access` contract rather than `/api/admin/users`.
+4. Auth/admin validation gates are green and phase evidence is committed.
 
 ## Rollback Plan
 1. Revert the phase-02 auth slice commit.

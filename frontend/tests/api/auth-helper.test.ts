@@ -2,7 +2,12 @@
  * Auth helper coverage for token-first route verification and proxy metadata behavior.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getOptionalApiUser, requireAdminUser, requireApiUser } from "../../lib/server/api/auth";
+import {
+  getOptionalApiUser,
+  requireAdminUser,
+  requireApiUser,
+  resolveAdminAccessVia,
+} from "../../lib/server/api/auth";
 
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
@@ -90,6 +95,16 @@ describe("auth helper token-first behavior", () => {
     expect(adminUser?.id).toBe("admin-1");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("resolves allowlist admin access when operator role is absent", () => {
+    const accessVia = resolveAdminAccessVia({
+      id: "user-allowlist",
+      email: "admin@example.com",
+      app_metadata: {},
+      user_metadata: {},
+    });
+    expect(accessVia).toBe("allowlist");
   });
 
   it("allows emergency proxy-header trust only when explicitly enabled and bearer is absent", async () => {

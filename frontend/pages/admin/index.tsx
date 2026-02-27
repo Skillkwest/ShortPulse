@@ -7,6 +7,7 @@ import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { CloudSlash, ShieldCheck, UserCircle } from "phosphor-react";
 import { ErrorIncidentsPanel } from "../../features/admin/components/ErrorIncidentsPanel";
+import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import type {
   AdminCreditLedgerRow,
   AdminErrorEventIncidentFilter,
@@ -23,18 +24,6 @@ import type {
 import { useProtectedRoute } from "../../lib/authGuard";
 import styles from "../../styles/admin.module.css";
 import { fetchWithAuth } from "../../lib/authenticatedFetch";
-
-const isAdminUser = (user: unknown): boolean => {
-  const record = user && typeof user === "object" ? (user as Record<string, unknown>) : {};
-  const appMetadata =
-    record.app_metadata && typeof record.app_metadata === "object"
-      ? (record.app_metadata as Record<string, unknown>)
-      : {};
-  const roles = [appMetadata.role, ...(Array.isArray(appMetadata.roles) ? appMetadata.roles : [])]
-    .filter(Boolean)
-    .map((value) => String(value).toLowerCase());
-  return roles.includes("admin") || roles.includes("operator");
-};
 
 const planLabel = (planId: string | null): string => {
   if (!planId) return "—";
@@ -202,11 +191,15 @@ export default function AdminDashboardPage() {
     hasNextPage: false,
     hasPrevPage: false,
   });
-  const [serverDenied, setServerDenied] = useState(false);
-  const [serverValidated, setServerValidated] = useState(false);
-
-  const roleBasedAdmin = isAdminUser(user);
-  const adminEnabled = roleBasedAdmin || serverValidated;
+  const {
+    status: adminAccessStatus,
+    isLoading: isAdminAccessLoading,
+    isAdmin: adminEnabled,
+    error: adminAccessError,
+    refresh: refreshAdminAccess,
+  } = useAdminAccess({
+    enabled: Boolean(user),
+  });
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -223,22 +216,6 @@ export default function AdminDashboardPage() {
         method: "GET",
       });
       if (!response.ok) {
-        if (response.status === 403) {
-          setServerDenied(true);
-          setServerValidated(false);
-          setUsers([]);
-          setUsersPagination({
-            page: 1,
-            perPage: USERS_PER_PAGE,
-            totalCount: 0,
-            totalPages: 1,
-            hasNextPage: false,
-            hasPrevPage: false,
-          });
-          setUserSearchLimited(false);
-          setUsersError(null);
-          return;
-        }
         const details = await response.json().catch(() => ({}));
         throw new Error(details?.error || "Failed to load users.");
       }
@@ -248,8 +225,6 @@ export default function AdminDashboardPage() {
         search?: { limited?: boolean };
       };
       const resolvedPage = Number(data.pagination?.page ?? usersPage);
-      setServerDenied(false);
-      setServerValidated(true);
       setUsers(data.users ?? []);
       setUsersPagination({
         page: resolvedPage,
@@ -264,7 +239,6 @@ export default function AdminDashboardPage() {
         setUsersPage(resolvedPage);
       }
     } catch (error) {
-      setServerDenied(false);
       setUsersError(error instanceof Error ? error.message : "Failed to load users.");
     } finally {
       setUsersLoading(false);
@@ -366,20 +340,6 @@ export default function AdminDashboardPage() {
           method: "GET",
         });
         if (!response.ok) {
-          if (response.status === 403) {
-            setServerDenied(true);
-            setServerValidated(false);
-            setErrors([]);
-            setErrorsPagination({
-              page: 1,
-              perPage: ERRORS_PER_PAGE,
-              totalCount: 0,
-              totalPages: 1,
-              hasNextPage: false,
-              hasPrevPage: false,
-            });
-            return;
-          }
           const details = await response.json().catch(() => ({}));
           throw new Error(details?.error || "Failed to load error incidents.");
         }
@@ -487,22 +447,6 @@ export default function AdminDashboardPage() {
           method: "GET",
         });
         if (!response.ok) {
-          if (response.status === 403) {
-            setServerDenied(true);
-            setServerValidated(false);
-            setErrorEvents([]);
-            setErrorEventsSummary(DEFAULT_ERROR_EVENTS_SUMMARY);
-            setErrorEventsPagination({
-              page: 1,
-              perPage: ERROR_EVENTS_PER_PAGE,
-              totalCount: 0,
-              totalPages: 1,
-              hasNextPage: false,
-              hasPrevPage: false,
-            });
-            setErrorEventsHealth(DEFAULT_ERROR_EVENTS_HEALTH);
-            return;
-          }
           const details = await response.json().catch(() => ({}));
           throw new Error(details?.error || "Failed to load error events.");
         }
@@ -626,9 +570,9 @@ export default function AdminDashboardPage() {
   }, [errorSearch]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !adminEnabled) return;
     loadUsers();
-  }, [loadUsers, user]);
+  }, [adminEnabled, loadUsers, user]);
 
   useEffect(() => {
     if (!users.length) {
@@ -883,14 +827,14 @@ export default function AdminDashboardPage() {
   }
 
   if (!adminEnabled) {
-    if (roleBasedAdmin === false && !serverDenied && usersLoading) {
+    if (isAdminAccessLoading) {
       return (
         <main className={`page page-wide ${styles.adminPage}`}>
           <p className="subdued">Verifying admin access…</p>
         </main>
       );
     }
-    if (roleBasedAdmin === false && !serverDenied) {
+    if (adminAccessStatus === "error") {
       return (
         <>
           <Head>
@@ -901,16 +845,17 @@ export default function AdminDashboardPage() {
               <p className="eyebrow">Admin</p>
               <h1 className={styles.adminTitle}>Unable to verify access</h1>
               <p className="tiny subdued">
-                {usersError ?? "We could not verify admin access right now. Retry in a moment."}
+                {adminAccessError ??
+                  "We could not verify admin access right now. Retry in a moment."}
               </p>
               <div className={styles.searchRow}>
                 <button
                   type="button"
                   className="ghost-btn mini"
-                  onClick={loadUsers}
-                  disabled={usersLoading}
+                  onClick={refreshAdminAccess}
+                  disabled={isAdminAccessLoading}
                 >
-                  {usersLoading ? "Retrying…" : "Retry access check"}
+                  {isAdminAccessLoading ? "Retrying…" : "Retry access check"}
                 </button>
                 <Link href="/dashboard" className="ghost-btn mini">
                   Back to dashboard

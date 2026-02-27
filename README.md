@@ -14,6 +14,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - Media preview signing: `/api/media/sign-batch` signs user-scoped media preview paths in a single authenticated request to reduce list/grid signing overhead.
 - Billing/credits: Supabase-backed plan/profile/credit ledger model with Stripe-ready checkout, portal, webhook routes, and authenticated credit snapshot reads at `/api/credits/snapshot` (available + pending reservation holds).
 - Ops telemetry: authenticated app/runtime failures can be ingested at `/api/log/client-error`, viewed as grouped incidents via `/api/admin/errors`, and inspected as raw occurrences via `/api/admin/error-events`; admins can smoke-test visibility via `/api/admin/errors-test`.
+- Admin access gating: `/api/admin/access` provides lightweight server-authoritative admin access checks so admin pages do not depend on `/api/admin/users` list fetches for authorization gating.
 - Optional alert tuning: set `SHORTPULSE_ADMIN_ALERT_TOTAL_15M`, `SHORTPULSE_ADMIN_ALERT_HIGH_15M`, and `SHORTPULSE_ADMIN_ALERT_GENERATION_15M` to control Admin event-spike thresholds.
 
 ## Setup

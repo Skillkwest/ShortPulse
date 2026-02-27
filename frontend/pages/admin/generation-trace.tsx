@@ -2,6 +2,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { ShieldCheck } from "phosphor-react";
+import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import { useProtectedRoute } from "../../lib/authGuard";
 import { fetchWithAuth } from "../../lib/authenticatedFetch";
 import styles from "../../styles/admin.module.css";
@@ -39,23 +40,17 @@ type GenerationReplayResponse = {
   details?: string;
 };
 
-const isAdminUser = (user: unknown): boolean => {
-  const record = user && typeof user === "object" ? (user as Record<string, unknown>) : {};
-  const appMetadata =
-    record.app_metadata && typeof record.app_metadata === "object"
-      ? (record.app_metadata as Record<string, unknown>)
-      : {};
-  const roles = [appMetadata.role, ...(Array.isArray(appMetadata.roles) ? appMetadata.roles : [])]
-    .filter(Boolean)
-    .map((value) => String(value).toLowerCase());
-  return roles.includes("admin") || roles.includes("operator");
-};
-
 const pretty = (value: unknown) => JSON.stringify(value, null, 2);
 
 export default function AdminGenerationTracePage() {
   const { loading, user } = useProtectedRoute(true);
-  const roleBasedAdmin = isAdminUser(user);
+  const {
+    status: adminAccessStatus,
+    isLoading: isAdminAccessLoading,
+    isAdmin: hasAdminAccess,
+    error: adminAccessError,
+    refresh: refreshAdminAccess,
+  } = useAdminAccess({ enabled: Boolean(user) });
 
   const [generationId, setGenerationId] = useState("");
   const [requestId, setRequestId] = useState("");
@@ -186,18 +181,45 @@ export default function AdminGenerationTracePage() {
     }
   };
 
-  if (loading) {
+  if (loading || isAdminAccessLoading) {
     return (
       <main className={`page page-wide ${styles.adminPage}`}>
         <section className={styles.adminSection}>
           <p className="eyebrow">Admin</p>
-          <h1 className={styles.adminTitle}>Loading…</h1>
+          <h1 className={styles.adminTitle}>Verifying access…</h1>
         </section>
       </main>
     );
   }
 
-  if (!roleBasedAdmin) {
+  if (!hasAdminAccess) {
+    if (adminAccessStatus === "error") {
+      return (
+        <main className={`page page-wide ${styles.adminPage}`}>
+          <section className={styles.adminSection}>
+            <p className="eyebrow">Admin</p>
+            <h1 className={styles.adminTitle}>Unable to verify access</h1>
+            <p className="tiny subdued">
+              {adminAccessError ?? "We could not verify admin access right now. Retry in a moment."}
+            </p>
+            <div className={styles.searchRow}>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={refreshAdminAccess}
+                disabled={isAdminAccessLoading}
+              >
+                {isAdminAccessLoading ? "Retrying…" : "Retry access check"}
+              </button>
+              <Link href="/dashboard" className="ghost-btn mini">
+                Back to dashboard
+              </Link>
+            </div>
+          </section>
+        </main>
+      );
+    }
+
     return (
       <main className={`page page-wide ${styles.adminPage}`}>
         <section className={styles.adminSection}>

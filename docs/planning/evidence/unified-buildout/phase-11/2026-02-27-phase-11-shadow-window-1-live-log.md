@@ -40,7 +40,11 @@ bash scripts/phase11_shadow_checkpoint_gate.sh --quick
 3. Copy/paste the single `G` row into:
    - this live log (`Latest Gate Summary` section below),
    - `Canary Window 1` pre-checkpoint notes in `2026-02-27-phase-11-slice-a-shadow-canary-readiness-and-threshold-template.md`.
-4. Decision handling for shadow checkpoint:
+4. Optional: evaluate the pasted JSON row into a normalized pass/hold packet:
+```bash
+npm -C frontend run phase11:gate-eval -- --window shadow-1 --file /tmp/phase11-shadow1-gate.json
+```
+5. Decision handling for shadow checkpoint:
    - `duplicate_settlement_pass` must be `true`,
    - `duplicate_media_persistence_pass` must be `true`,
    - `unresolved_no_media_pass` must be `true`,

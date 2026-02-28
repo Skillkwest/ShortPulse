@@ -76,6 +76,10 @@ bash scripts/phase11_shadow_checkpoint_gate.sh --quick
 2. Execute `sql/check_phase11_shadow_canary_metrics.sql` and capture section `G) One-row gate summary`.
 3. Record results for the active window and classify each criterion as `pass/fail/N-A`.
 4. Use `N/A` only for recovery success when sample size is `0`; all duplicate/unresolved gates must still pass.
+5. Optional normalization helper:
+```bash
+npm -C frontend run phase11:gate-eval -- --window shadow-1 --file /tmp/phase11-shadow1-gate.json
+```
 
 ## Shadow Parity Window (no user-facing cutover)
 1. Window duration:

@@ -31,6 +31,8 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `npm -C frontend run test:phase11:fal-regression`
   - `bash scripts/phase11_shadow_checkpoint_gate.sh --quick`
   - section `G) One-row gate summary` from `sql/check_phase11_shadow_canary_metrics.sql`
+- Added gate-summary evaluator utility for deterministic pass/hold packet generation from SQL section `G` output:
+  - `npm -C frontend run phase11:gate-eval -- --window shadow-1 --file <gate-summary.json>`
 - Added pre-created canary live-log templates for consecutive observation windows:
   - `docs/planning/evidence/unified-buildout/phase-11/2026-03-01-phase-11-canary-window-1-live-log.md`
   - `docs/planning/evidence/unified-buildout/phase-11/2026-03-02-phase-11-canary-window-2-live-log.md`

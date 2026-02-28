@@ -14,3 +14,4 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.
 2. `npm -C frontend run test:phase11:fal-regression` - canonical Fal no-regression test gate to run before each shadow/canary checkpoint decision.
 3. `bash scripts/phase11_shadow_checkpoint_gate.sh --quick` - checkpoint helper that runs the no-regression gate and prints the required SQL/evidence handoff steps (`--full` runs full validation).
+4. `npm -C frontend run phase11:gate-eval -- --window shadow-1 --file <gate-summary.json>` - evaluates section `G` output into a deterministic pass/hold packet with `N/A` handling for `recovery_success_sample_size = 0`.

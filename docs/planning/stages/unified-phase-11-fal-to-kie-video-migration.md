@@ -76,6 +76,10 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/falIntegration/statusProxyRuntime.ts`
   - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
   - `frontend/lib/server/api/falStatusProxy.ts` now passes provider context into shared response probe runtime.
+- Extracted provider-owned polling session policy and rewired recovery probing to shared abort lifecycle:
+  - `frontend/lib/server/providerIntegration/statusProviderPolling.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts`
+  - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts` now uses provider/model timeout resolution + one shared abort signal across status/response/result probes.
 - Aligned queued submit dispatch path to shared provider submit boundary:
   - `frontend/lib/server/api/generationQueue/dispatch.ts`
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.test.ts`
@@ -211,6 +215,12 @@ Archive manifest checks passed.
 Model catalog parity checks passed.
 Naming canonical drift checks passed.
 5. Domain-specific suites tied to touched files.
+6. Fresh Fal no-regression + provider polling suites (`2026-02-28`):
+```bash
+npm -C frontend run test -- lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts
+npm -C frontend run test -- tests/api/fal-route-inventory-regression.test.ts tests/api/fal-kling-v3-image-to-video-submit.test.ts tests/api/fal-kling-v3-image-to-video-status.test.ts tests/api/fal-kling-v3-text-submit.test.ts tests/api/fal-kling-v3-text-status.test.ts tests/api/fal-veo3-submit.test.ts tests/api/fal-veo3-status.test.ts tests/api/fal-queue-status.test.ts tests/api/fal-status-proxy.test.ts lib/server/falIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts lib/server/falIntegration/__tests__/runtimeFlags.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts
+```
+Result: pass.
 
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:

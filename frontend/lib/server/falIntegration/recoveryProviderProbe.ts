@@ -9,6 +9,7 @@ import {
   dispatchProviderStatusRequest,
 } from "../providerIntegration/statusProviderDispatcher";
 import { resolveProviderModelStatusBaseUrls } from "../providerIntegration/statusProviderTopology";
+import { startProviderPollingSession } from "../providerIntegration/statusProviderPolling";
 import {
   providerPayloadHasMedia,
   readProviderLifecycleStatus,
@@ -147,109 +148,117 @@ export const probeProviderResult = async ({
   const resultCandidates: ResultProbeCandidate[] = [];
   const payloadByStatusIndex = new Map<number, JsonObject>();
   const payloadByResultIndex = new Map<number, JsonObject>();
-
-  for (const [index, baseUrl] of queueBaseUrls.entries()) {
-    assertTrustedFalProviderUrl(baseUrl, `recovery_status_base_${index}`);
-    const statusResponse = await dispatchProviderStatusRequest({
-      provider: providerKey,
-      baseUrl,
-      requestId,
-      apiKey,
-      signal: new AbortController().signal,
-    });
-    const statusData = await readJsonSafe(statusResponse);
-    const payload = Object.keys(statusData.json).length ? statusData.json : {};
-    const statusValue = readProviderLifecycleStatus({ provider: providerKey, payload });
-    const isCompleted = Boolean(statusValue && completedStatuses.has(statusValue));
-    const isFailed = Boolean(statusValue && failedStatuses.has(statusValue));
-    statusCandidates.push({
-      index,
-      baseUrl,
-      isJson: true,
-      isRetryableAlias: statusResponse.status === 404 || statusResponse.status === 405,
-      httpStatus: statusResponse.status,
-      isHttpOk: statusResponse.ok,
-      status: statusValue,
-      isTerminal: isCompleted || isFailed,
-      isCompleted,
-      isFailed,
-      hasResponseUrl: Boolean(readProviderResponseUrl({ provider: providerKey, payload })),
-      hasMedia: providerPayloadHasMedia({ provider: providerKey, payload }),
-    });
-    payloadByStatusIndex.set(index, payload);
-    const responseUrl = readProviderResponseUrl({ provider: providerKey, payload });
-    if (responseUrl) responseUrlSet.add(responseUrl);
-  }
-
-  const bestStatus = selectBestStatusCandidate(statusCandidates);
-  if (bestStatus?.hasMedia) {
-    const payload = payloadByStatusIndex.get(bestStatus.index) ?? null;
-    if (payload) {
-      return { state: "completed", payload, mediaUrls: extractRecoveryMediaUrls(payload) };
-    }
-  }
-
-  for (const responseUrl of resolveProviderResponseUrls({
+  const pollingSession = startProviderPollingSession({
     provider: providerKey,
-    responseUrls: Array.from(responseUrlSet),
-  })) {
-    const responseProbe = await dispatchProviderResponseProbeRequest({
-      provider: providerKey,
-      responseUrl,
-      apiKey,
-      signal: new AbortController().signal,
-    });
-    const responseData = await readJsonSafe(responseProbe);
-    if (
-      !responseProbe.ok ||
-      !providerPayloadHasMedia({ provider: providerKey, payload: responseData.json })
-    ) {
-      continue;
+    modelId,
+  });
+
+  try {
+    for (const [index, baseUrl] of queueBaseUrls.entries()) {
+      assertTrustedFalProviderUrl(baseUrl, `recovery_status_base_${index}`);
+      const statusResponse = await dispatchProviderStatusRequest({
+        provider: providerKey,
+        baseUrl,
+        requestId,
+        apiKey,
+        signal: pollingSession.signal,
+      });
+      const statusData = await readJsonSafe(statusResponse);
+      const payload = Object.keys(statusData.json).length ? statusData.json : {};
+      const statusValue = readProviderLifecycleStatus({ provider: providerKey, payload });
+      const isCompleted = Boolean(statusValue && completedStatuses.has(statusValue));
+      const isFailed = Boolean(statusValue && failedStatuses.has(statusValue));
+      statusCandidates.push({
+        index,
+        baseUrl,
+        isJson: true,
+        isRetryableAlias: statusResponse.status === 404 || statusResponse.status === 405,
+        httpStatus: statusResponse.status,
+        isHttpOk: statusResponse.ok,
+        status: statusValue,
+        isTerminal: isCompleted || isFailed,
+        isCompleted,
+        isFailed,
+        hasResponseUrl: Boolean(readProviderResponseUrl({ provider: providerKey, payload })),
+        hasMedia: providerPayloadHasMedia({ provider: providerKey, payload }),
+      });
+      payloadByStatusIndex.set(index, payload);
+      const responseUrl = readProviderResponseUrl({ provider: providerKey, payload });
+      if (responseUrl) responseUrlSet.add(responseUrl);
     }
-    return {
-      state: "completed",
-      payload: responseData.json,
-      mediaUrls: extractRecoveryMediaUrls(responseData.json),
-    };
-  }
 
-  for (const [index, baseUrl] of queueBaseUrls.entries()) {
-    assertTrustedFalProviderUrl(baseUrl, `recovery_result_base_${index}`);
-    const resultResponse = await dispatchProviderResultRequest({
-      provider: providerKey,
-      baseUrl,
-      requestId,
-      apiKey,
-      signal: new AbortController().signal,
-    });
-    const resultData = await readJsonSafe(resultResponse);
-    const payload = Object.keys(resultData.json).length ? resultData.json : {};
-    const statusValue = readProviderLifecycleStatus({ provider: providerKey, payload });
-    const hasError = Boolean(asString(payload.error)) || Boolean(asString(payload.detail));
-    resultCandidates.push({
-      index,
-      baseUrl,
-      isJson: true,
-      isRetryableAlias: resultResponse.status === 404 || resultResponse.status === 405,
-      httpStatus: resultResponse.status,
-      isHttpOk: resultResponse.ok,
-      status: statusValue,
-      hasError,
-      hasMedia: providerPayloadHasMedia({ provider: providerKey, payload }),
-    });
-    payloadByResultIndex.set(index, payload);
-  }
-
-  const bestResult = selectBestResultCandidate(resultCandidates);
-  if (bestResult?.hasMedia) {
-    const payload = payloadByResultIndex.get(bestResult.index) ?? null;
-    if (payload) {
-      return { state: "completed", payload, mediaUrls: extractRecoveryMediaUrls(payload) };
+    const bestStatus = selectBestStatusCandidate(statusCandidates);
+    if (bestStatus?.hasMedia) {
+      const payload = payloadByStatusIndex.get(bestStatus.index) ?? null;
+      if (payload) {
+        return { state: "completed", payload, mediaUrls: extractRecoveryMediaUrls(payload) };
+      }
     }
-  }
 
-  if (bestStatus?.isFailed || (bestResult?.status && failedStatuses.has(bestResult.status))) {
-    return { state: "failed", payload: null, mediaUrls: [] };
+    for (const responseUrl of resolveProviderResponseUrls({
+      provider: providerKey,
+      responseUrls: Array.from(responseUrlSet),
+    })) {
+      const responseProbe = await dispatchProviderResponseProbeRequest({
+        provider: providerKey,
+        responseUrl,
+        apiKey,
+        signal: pollingSession.signal,
+      });
+      const responseData = await readJsonSafe(responseProbe);
+      if (
+        !responseProbe.ok ||
+        !providerPayloadHasMedia({ provider: providerKey, payload: responseData.json })
+      ) {
+        continue;
+      }
+      return {
+        state: "completed",
+        payload: responseData.json,
+        mediaUrls: extractRecoveryMediaUrls(responseData.json),
+      };
+    }
+
+    for (const [index, baseUrl] of queueBaseUrls.entries()) {
+      assertTrustedFalProviderUrl(baseUrl, `recovery_result_base_${index}`);
+      const resultResponse = await dispatchProviderResultRequest({
+        provider: providerKey,
+        baseUrl,
+        requestId,
+        apiKey,
+        signal: pollingSession.signal,
+      });
+      const resultData = await readJsonSafe(resultResponse);
+      const payload = Object.keys(resultData.json).length ? resultData.json : {};
+      const statusValue = readProviderLifecycleStatus({ provider: providerKey, payload });
+      const hasError = Boolean(asString(payload.error)) || Boolean(asString(payload.detail));
+      resultCandidates.push({
+        index,
+        baseUrl,
+        isJson: true,
+        isRetryableAlias: resultResponse.status === 404 || resultResponse.status === 405,
+        httpStatus: resultResponse.status,
+        isHttpOk: resultResponse.ok,
+        status: statusValue,
+        hasError,
+        hasMedia: providerPayloadHasMedia({ provider: providerKey, payload }),
+      });
+      payloadByResultIndex.set(index, payload);
+    }
+
+    const bestResult = selectBestResultCandidate(resultCandidates);
+    if (bestResult?.hasMedia) {
+      const payload = payloadByResultIndex.get(bestResult.index) ?? null;
+      if (payload) {
+        return { state: "completed", payload, mediaUrls: extractRecoveryMediaUrls(payload) };
+      }
+    }
+
+    if (bestStatus?.isFailed || (bestResult?.status && failedStatuses.has(bestResult.status))) {
+      return { state: "failed", payload: null, mediaUrls: [] };
+    }
+    return { state: "running", payload: null, mediaUrls: [] };
+  } finally {
+    pollingSession.dispose();
   }
-  return { state: "running", payload: null, mediaUrls: [] };
 };

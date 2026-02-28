@@ -7,10 +7,6 @@ import { requireApiUser } from "./auth";
 import { logGenerationFailure } from "./appErrorLogs";
 import { resolveProviderRequestOwnership, settleGenerationOutcome } from "./generationBilling";
 import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
-import {
-  selectBestResultCandidate,
-  selectBestStatusCandidate,
-} from "../falIntegration/retrievalEngine";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "../falIntegration/contracts";
 import {
   buildFalStatusErrorPayload,
@@ -29,6 +25,10 @@ import {
   resolveProviderStatusBaseUrls,
 } from "../providerIntegration/statusProviderDispatcher";
 import { asProviderString } from "../providerIntegration/canonicalProviderPayload";
+import {
+  selectBestProviderResultCandidate,
+  selectBestProviderStatusCandidate,
+} from "../providerIntegration/statusProviderSelection";
 import {
   providerPayloadHasMedia,
   readProviderContentPolicyMessage,
@@ -347,9 +347,10 @@ export const createFalStatusHandler = ({
       }
 
       if (statusCandidates.length) {
-        const bestStatusProbe = selectBestStatusCandidate(
-          statusCandidates.map((candidate) => candidate.probe)
-        );
+        const bestStatusProbe = selectBestProviderStatusCandidate({
+          provider: providerKey,
+          candidates: statusCandidates.map((candidate) => candidate.probe),
+        });
         const bestStatusCandidate =
           bestStatusProbe &&
           statusCandidates.find((candidate) => candidate.probe.index === bestStatusProbe.index);
@@ -641,9 +642,10 @@ export const createFalStatusHandler = ({
         return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
       }
 
-      const bestResultProbe = selectBestResultCandidate(
-        resultCandidates.map((candidate) => candidate.probe)
-      );
+      const bestResultProbe = selectBestProviderResultCandidate({
+        provider: providerKey,
+        candidates: resultCandidates.map((candidate) => candidate.probe),
+      });
       const bestResultCandidate =
         bestResultProbe &&
         resultCandidates.find((candidate) => candidate.probe.index === bestResultProbe.index);

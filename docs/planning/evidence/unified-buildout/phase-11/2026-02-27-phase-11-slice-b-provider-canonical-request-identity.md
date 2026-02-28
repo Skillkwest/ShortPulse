@@ -77,6 +77,19 @@ Start the provider-neutral adapter contract work by removing Fal-local request/e
 19. Added polling session unit coverage:
 - `frontend/lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts`
 - Verifies profile timeout resolution, explicit timeout overrides, timeout-triggered abort, manual abort, and unsupported-provider guard behavior.
+20. Extracted provider-owned status/result candidate selection policy:
+- `frontend/lib/server/providerIntegration/statusProviderSelection.ts`
+- Centralizes scoring/selection for status and result alias-sweep candidates inside provider boundaries.
+21. Rewired Fal status/recovery callers to provider-owned selection boundary:
+- `frontend/lib/server/api/falStatusProxy.ts`
+- `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
+- Selection now routes through `providerIntegration` with provider key context.
+22. Preserved Fal compatibility wrapper over provider-owned selection:
+- `frontend/lib/server/falIntegration/retrievalEngine.ts`
+- Legacy Fal retrieval exports now delegate to provider-owned selection helper to prevent scoring drift.
+23. Added selection-policy unit coverage:
+- `frontend/lib/server/providerIntegration/__tests__/statusProviderSelection.test.ts`
+- Verifies best-candidate selection behavior, empty-candidate handling, and unsupported-provider fail-closed guard.
 
 ## Validation
 1. Targeted tests:
@@ -112,11 +125,14 @@ Result: pass.
 npm -C frontend run test -- tests/api/fal-route-inventory-regression.test.ts tests/api/fal-kling-v3-image-to-video-submit.test.ts tests/api/fal-kling-v3-image-to-video-status.test.ts tests/api/fal-kling-v3-text-submit.test.ts tests/api/fal-kling-v3-text-status.test.ts tests/api/fal-veo3-submit.test.ts tests/api/fal-veo3-status.test.ts tests/api/fal-queue-status.test.ts tests/api/fal-status-proxy.test.ts lib/server/falIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts lib/server/falIntegration/__tests__/runtimeFlags.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts
 ```
 Result: pass.
+```bash
+npm -C frontend run test -- lib/server/providerIntegration/__tests__/statusProviderSelection.test.ts lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts tests/api/fal-status-proxy.test.ts tests/api/fal-route-inventory-regression.test.ts
+```
+Result: pass.
 3. Full gates:
 ```bash
 npm -C frontend run type-check
 npm -C frontend run lint
-npm -C frontend run docs:check
 npm -C frontend run build
 ```
 Result: pass.
@@ -137,4 +153,4 @@ Result: pass.
 - retain this Fal regression gate as a mandatory pre/post-change check.
 
 ## Next Step
-1. Continue Slice B by extracting provider-owned retry/terminal-resolution policy from Fal-local recovery/runtime selection helpers so provider behavior remains adapter-owned before Kie dark adapter rollout.
+1. Continue Slice B by extracting provider-owned upstream retryability/terminal-policy evaluation currently centered in Fal runtime helpers so failure/poll semantics remain adapter-owned before Kie dark adapter rollout.

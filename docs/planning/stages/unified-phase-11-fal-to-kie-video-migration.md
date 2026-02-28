@@ -80,6 +80,12 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/statusProviderPolling.ts`
   - `frontend/lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts`
   - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts` now uses provider/model timeout resolution + one shared abort signal across status/response/result probes.
+- Extracted provider-owned status/result selection policy and rewired Fal callers:
+  - `frontend/lib/server/providerIntegration/statusProviderSelection.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/statusProviderSelection.test.ts`
+  - `frontend/lib/server/api/falStatusProxy.ts`
+  - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
+  - `frontend/lib/server/falIntegration/retrievalEngine.ts` remains as a compatibility wrapper delegating to provider-owned selection.
 - Aligned queued submit dispatch path to shared provider submit boundary:
   - `frontend/lib/server/api/generationQueue/dispatch.ts`
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.test.ts`
@@ -219,6 +225,14 @@ Naming canonical drift checks passed.
 ```bash
 npm -C frontend run test -- lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts
 npm -C frontend run test -- tests/api/fal-route-inventory-regression.test.ts tests/api/fal-kling-v3-image-to-video-submit.test.ts tests/api/fal-kling-v3-image-to-video-status.test.ts tests/api/fal-kling-v3-text-submit.test.ts tests/api/fal-kling-v3-text-status.test.ts tests/api/fal-veo3-submit.test.ts tests/api/fal-veo3-status.test.ts tests/api/fal-queue-status.test.ts tests/api/fal-status-proxy.test.ts lib/server/falIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts lib/server/falIntegration/__tests__/runtimeFlags.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts
+```
+Result: pass.
+7. Fresh provider-selection no-regression suite (`2026-02-28`):
+```bash
+npm -C frontend run test -- lib/server/providerIntegration/__tests__/statusProviderSelection.test.ts lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts tests/api/fal-status-proxy.test.ts tests/api/fal-route-inventory-regression.test.ts
+npm -C frontend run type-check
+npm -C frontend run lint
+npm -C frontend run build
 ```
 Result: pass.
 

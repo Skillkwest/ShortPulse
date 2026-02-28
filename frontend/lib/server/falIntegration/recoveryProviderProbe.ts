@@ -1,13 +1,16 @@
 import { asString } from "./falAdapter";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "./contracts";
 import { assertTrustedFalProviderUrl } from "./providerTrustPolicy";
-import { selectBestResultCandidate, selectBestStatusCandidate } from "./retrievalEngine";
 import {
   dispatchProviderResponseProbeRequest,
   dispatchProviderResultRequest,
   resolveProviderResponseUrls,
   dispatchProviderStatusRequest,
 } from "../providerIntegration/statusProviderDispatcher";
+import {
+  selectBestProviderResultCandidate,
+  selectBestProviderStatusCandidate,
+} from "../providerIntegration/statusProviderSelection";
 import { resolveProviderModelStatusBaseUrls } from "../providerIntegration/statusProviderTopology";
 import { startProviderPollingSession } from "../providerIntegration/statusProviderPolling";
 import {
@@ -187,7 +190,10 @@ export const probeProviderResult = async ({
       if (responseUrl) responseUrlSet.add(responseUrl);
     }
 
-    const bestStatus = selectBestStatusCandidate(statusCandidates);
+    const bestStatus = selectBestProviderStatusCandidate({
+      provider: providerKey,
+      candidates: statusCandidates,
+    });
     if (bestStatus?.hasMedia) {
       const payload = payloadByStatusIndex.get(bestStatus.index) ?? null;
       if (payload) {
@@ -246,7 +252,10 @@ export const probeProviderResult = async ({
       payloadByResultIndex.set(index, payload);
     }
 
-    const bestResult = selectBestResultCandidate(resultCandidates);
+    const bestResult = selectBestProviderResultCandidate({
+      provider: providerKey,
+      candidates: resultCandidates,
+    });
     if (bestResult?.hasMedia) {
       const payload = payloadByResultIndex.get(bestResult.index) ?? null;
       if (payload) {

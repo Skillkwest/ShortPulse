@@ -253,6 +253,12 @@ npm -C frontend run docs:check
 npm -C frontend run build
 ```
 Result: pass.
+9. Canonical no-regression commands (ongoing gate):
+```bash
+npm -C frontend run test:phase11:fal-regression
+npm -C frontend run validate:phase11:fal-regression
+```
+Use these instead of manually retyping long test command lists for subsequent Phase 11 work.
 
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:

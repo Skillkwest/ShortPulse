@@ -166,6 +166,9 @@ Result: pass.
 3. This slice is additive to shadow/canary observation work and does not execute provider cutover.
 4. Fal route inventory regression gate remains green after this slice increment.
 5. Fal status/recovery retry + terminal policy now flows through provider-owned boundary without changing Fal route contracts.
+6. Canonical repeatable gate commands are now available in `frontend/package.json`:
+- `npm -C frontend run test:phase11:fal-regression`
+- `npm -C frontend run validate:phase11:fal-regression`
 
 ## Deferred Kie Targets (Reference Note)
 1. Planned Kie provider models for a later implementation slice (not active in this slice):

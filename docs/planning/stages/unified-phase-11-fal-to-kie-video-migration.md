@@ -30,6 +30,9 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Added explicit shadow checkpoint run packet (UTC-aware) + canonical no-regression gate command in Slice A evidence docs:
   - `npm -C frontend run test:phase11:fal-regression`
   - section `G) One-row gate summary` from `sql/check_phase11_shadow_canary_metrics.sql`
+- Added pre-created canary live-log templates for consecutive observation windows:
+  - `docs/planning/evidence/unified-buildout/phase-11/2026-03-01-phase-11-canary-window-1-live-log.md`
+  - `docs/planning/evidence/unified-buildout/phase-11/2026-03-02-phase-11-canary-window-2-live-log.md`
 - Locked observation framing for first Kie migration execution:
   - baseline capture,
   - shadow parity window,

@@ -33,6 +33,7 @@ Status: In progress
 1. Confirm no-regression gate:
 ```bash
 npm -C frontend run test:phase11:fal-regression
+bash scripts/phase11_shadow_checkpoint_gate.sh --quick
 ```
 2. Run SQL packet and execute section `G) One-row gate summary`:
    - `sql/check_phase11_shadow_canary_metrics.sql`

@@ -71,6 +71,7 @@ Operational run packet (per checkpoint):
 1. Run no-regression gate before evaluating rollout metrics:
 ```bash
 npm -C frontend run test:phase11:fal-regression
+bash scripts/phase11_shadow_checkpoint_gate.sh --quick
 ```
 2. Execute `sql/check_phase11_shadow_canary_metrics.sql` and capture section `G) One-row gate summary`.
 3. Record results for the active window and classify each criterion as `pass/fail/N-A`.

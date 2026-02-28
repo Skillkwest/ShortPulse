@@ -17,12 +17,14 @@ Status: Pending shadow checkpoint pass
 3. No-regression gate green:
 ```bash
 npm -C frontend run test:phase11:fal-regression
+bash scripts/phase11_shadow_checkpoint_gate.sh --quick
 ```
 
 ## Checkpoint Run Packet
 1. Run:
 ```bash
 npm -C frontend run test:phase11:fal-regression
+bash scripts/phase11_shadow_checkpoint_gate.sh --quick
 ```
 2. Execute section `G) One-row gate summary` from:
    - `sql/check_phase11_shadow_canary_metrics.sql`

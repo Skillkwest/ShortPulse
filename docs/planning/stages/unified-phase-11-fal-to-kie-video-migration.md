@@ -29,6 +29,7 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `docs/planning/evidence/unified-buildout/phase-11/2026-02-27-phase-11-shadow-window-1-live-log.md`
 - Added explicit shadow checkpoint run packet (UTC-aware) + canonical no-regression gate command in Slice A evidence docs:
   - `npm -C frontend run test:phase11:fal-regression`
+  - `bash scripts/phase11_shadow_checkpoint_gate.sh --quick`
   - section `G) One-row gate summary` from `sql/check_phase11_shadow_canary_metrics.sql`
 - Added pre-created canary live-log templates for consecutive observation windows:
   - `docs/planning/evidence/unified-buildout/phase-11/2026-03-01-phase-11-canary-window-1-live-log.md`

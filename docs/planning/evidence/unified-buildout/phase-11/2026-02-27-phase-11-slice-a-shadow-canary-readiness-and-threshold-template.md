@@ -83,7 +83,10 @@ npm -C frontend run phase11:gate-eval -- --window shadow-1 --file /tmp/phase11-s
 
 ## Shadow Parity Window (no user-facing cutover)
 1. Window duration:
+   - Start: `2026-02-27 18:46:07+00`
+   - End: `2026-02-28 18:46:07+00`
 2. Models/rings included:
+   - Existing Fal runtime routes (`/api/fal/*`) with no provider cutover.
 3. Parity checks:
    - request acceptance parity,
    - terminal outcome parity,
@@ -94,11 +97,37 @@ npm -C frontend run phase11:gate-eval -- --window shadow-1 --file /tmp/phase11-s
    - parity mismatch rate `<= 0.5pp`,
    - no sustained telemetry degradation.
 
+Shadow checkpoint gate summary:
+```json
+[
+  {
+    "start_at": "2026-02-27 18:46:07+00",
+    "end_at": "2026-02-28 18:46:07+00",
+    "duplicate_settlement_count": 0,
+    "duplicate_settlement_pass": true,
+    "duplicate_media_persistence_count": 0,
+    "duplicate_media_persistence_pass": true,
+    "recovery_success_sample_size": 0,
+    "unresolved_no_media_percent": "0",
+    "unresolved_no_media_pass": true,
+    "recovery_success_percent": "0",
+    "recovery_success_pass": null
+  }
+]
+```
+
+Shadow checkpoint decision:
+1. Result: `PASS`
+2. Recovery success threshold classification: `N/A` (sample size `0`, allowed).
+3. Action: proceed to Canary Window 1.
+
 ## Canary Windows
 Run two consecutive windows before promotion.
 
 ### Canary Window 1
 1. Start/end (UTC):
+   - Planned start: `2026-03-01 18:46:07 UTC`
+   - Planned checkpoint: `2026-03-02 18:46:07 UTC`
 2. Duplicate settlement count (threshold `0`):
 3. Duplicate persistence count (threshold `0`):
 4. Stuck-running delta vs baseline (threshold `<= +10%`):

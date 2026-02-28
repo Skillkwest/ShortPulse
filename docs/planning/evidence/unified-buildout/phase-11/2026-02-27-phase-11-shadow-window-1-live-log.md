@@ -51,4 +51,53 @@ npm -C frontend run phase11:gate-eval -- --window shadow-1 --file /tmp/phase11-s
    - `recovery_success_pass` can be `null` only when `recovery_success_sample_size = 0` (treat as `N/A`, extend observation for sample).
 
 ## Latest Gate Summary
-Pending (awaiting shadow checkpoint run).
+SQL `G) One-row gate summary` output:
+```json
+[
+  {
+    "start_at": "2026-02-27 18:46:07+00",
+    "end_at": "2026-02-28 18:46:07+00",
+    "duplicate_settlement_count": 0,
+    "duplicate_settlement_pass": true,
+    "duplicate_media_persistence_count": 0,
+    "duplicate_media_persistence_pass": true,
+    "recovery_success_sample_size": 0,
+    "unresolved_no_media_percent": "0",
+    "unresolved_no_media_pass": true,
+    "recovery_success_percent": "0",
+    "recovery_success_pass": null
+  }
+]
+```
+
+Evaluator packet (`npm -C frontend run phase11:gate-eval -- --window shadow-1 --file /tmp/phase11-shadow1-gate.json`):
+```json
+{
+  "evaluated_at_utc": "2026-02-28T18:18:48.410Z",
+  "window": "shadow-1",
+  "start_at": "2026-02-27 18:46:07+00",
+  "end_at": "2026-02-28 18:46:07+00",
+  "duplicate_settlement_count": 0,
+  "duplicate_settlement_pass": true,
+  "duplicate_media_persistence_count": 0,
+  "duplicate_media_persistence_pass": true,
+  "unresolved_no_media_percent": 0,
+  "unresolved_no_media_pass": true,
+  "recovery_success_sample_size": 0,
+  "recovery_success_percent": 0,
+  "recovery_success_pass": null,
+  "recovery_success_evaluation": "N/A (sample size 0)",
+  "decision": "PASS",
+  "threshold_unresolved_percent": 0.1,
+  "threshold_recovery_percent": 99
+}
+```
+
+## Shadow Checkpoint Decision
+1. Result: `PASS`
+2. Notes:
+   - No duplicate settlement or media persistence observed.
+   - Unresolved no-media threshold passed.
+   - Recovery success is `N/A` due to zero sample size (allowed by template rule).
+3. Next action:
+   - Proceed to Canary Window 1 at `2026-03-01 18:46:07 UTC`.

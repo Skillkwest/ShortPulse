@@ -67,6 +67,15 @@ Recommended command packet:
 3. Keep raw section outputs in the same evidence note for audit traceability.
 4. If `recovery_success_sample_size = 0`, treat `recovery_success_pass` as `N/A` (insufficient sample), not a hard failure. Extend the window or gather more candidate rows before final promote decision.
 
+Operational run packet (per checkpoint):
+1. Run no-regression gate before evaluating rollout metrics:
+```bash
+npm -C frontend run test:phase11:fal-regression
+```
+2. Execute `sql/check_phase11_shadow_canary_metrics.sql` and capture section `G) One-row gate summary`.
+3. Record results for the active window and classify each criterion as `pass/fail/N-A`.
+4. Use `N/A` only for recovery success when sample size is `0`; all duplicate/unresolved gates must still pass.
+
 ## Shadow Parity Window (no user-facing cutover)
 1. Window duration:
 2. Models/rings included:

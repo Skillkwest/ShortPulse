@@ -10,12 +10,8 @@ import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "../falIntegration/contracts";
 import {
   buildFalStatusErrorPayload,
-  isCompletedStatus,
-  isFailedStatus,
   probeResponseUrlsForMedia,
-  isRetryableUpstreamResponse,
   readJsonSafe,
-  resolveSuccessfulPayloadStatus,
   type JsonObject,
   type JsonReadResult,
 } from "../falIntegration/statusProxyRuntime";
@@ -29,6 +25,12 @@ import {
   selectBestProviderResultCandidate,
   selectBestProviderStatusCandidate,
 } from "../providerIntegration/statusProviderSelection";
+import {
+  isProviderCompletedStatus,
+  isProviderFailedStatus,
+  isProviderRetryableUpstreamResponse,
+  resolveProviderSuccessfulPayloadStatus,
+} from "../providerIntegration/statusProviderPolicy";
 import {
   providerPayloadHasMedia,
   readProviderContentPolicyMessage,
@@ -313,8 +315,20 @@ export const createFalStatusHandler = ({
         const candidateStatus = data.isJson
           ? readProviderLifecycleStatus({ provider: providerKey, payload: data.json })
           : null;
-        const isCandidateCompleted = Boolean(candidateStatus && isCompletedStatus(candidateStatus));
-        const isCandidateFailed = Boolean(candidateStatus && isFailedStatus(candidateStatus));
+        const isCandidateCompleted = Boolean(
+          candidateStatus &&
+          isProviderCompletedStatus({
+            provider: providerKey,
+            status: candidateStatus,
+          })
+        );
+        const isCandidateFailed = Boolean(
+          candidateStatus &&
+          isProviderFailedStatus({
+            provider: providerKey,
+            status: candidateStatus,
+          })
+        );
         const probe: StatusProbeCandidate = {
           index,
           baseUrl,
@@ -388,13 +402,16 @@ export const createFalStatusHandler = ({
       if (bestStatusMediaCandidate) {
         return captureAndRespondSuccess({
           payload: bestStatusMediaCandidate.data.json,
-          payloadStatus: resolveSuccessfulPayloadStatus(
-            bestStatusMediaCandidate.probe.status,
-            readProviderLifecycleStatus({
-              provider: providerKey,
-              payload: bestStatusMediaCandidate.data.json,
-            })
-          ),
+          payloadStatus: resolveProviderSuccessfulPayloadStatus({
+            provider: providerKey,
+            candidates: [
+              bestStatusMediaCandidate.probe.status,
+              readProviderLifecycleStatus({
+                provider: providerKey,
+                payload: bestStatusMediaCandidate.data.json,
+              }),
+            ],
+          }),
         });
       }
 
@@ -464,7 +481,13 @@ export const createFalStatusHandler = ({
             ...Array.from(statusResponseUrls).filter((url) => url !== preferredResponseUrl),
           ]
         : Array.from(statusResponseUrls);
-      if (normalizedStatus && isFailedStatus(normalizedStatus)) {
+      if (
+        normalizedStatus &&
+        isProviderFailedStatus({
+          provider: providerKey,
+          status: normalizedStatus,
+        })
+      ) {
         await settleFailure({
           userId: user.id,
           requestId,
@@ -491,7 +514,12 @@ export const createFalStatusHandler = ({
       }
 
       if (!statusResp.ok) {
-        if (isRetryableUpstreamResponse(statusResp)) {
+        if (
+          isProviderRetryableUpstreamResponse({
+            provider: providerKey,
+            response: statusResp,
+          })
+        ) {
           return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
         }
         await settleFailure({
@@ -518,7 +546,13 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const isComplete = Boolean(normalizedStatus && isCompletedStatus(normalizedStatus));
+      const isComplete = Boolean(
+        normalizedStatus &&
+        isProviderCompletedStatus({
+          provider: providerKey,
+          status: normalizedStatus,
+        })
+      );
       if (!isComplete) {
         const responseUrlProbe = await probeResponseUrlsForMedia({
           provider: providerKey,
@@ -562,7 +596,10 @@ export const createFalStatusHandler = ({
       if (providerPayloadHasMedia({ provider: providerKey, payload: statusData.json })) {
         return captureAndRespondSuccess({
           payload: statusData.json,
-          payloadStatus: resolveSuccessfulPayloadStatus(normalizedStatus),
+          payloadStatus: resolveProviderSuccessfulPayloadStatus({
+            provider: providerKey,
+            candidates: [normalizedStatus],
+          }),
         });
       }
 
@@ -665,7 +702,12 @@ export const createFalStatusHandler = ({
       }
 
       if (!resultData.isJson) {
-        if (isRetryableUpstreamResponse(resultResp)) {
+        if (
+          isProviderRetryableUpstreamResponse({
+            provider: providerKey,
+            response: resultResp,
+          })
+        ) {
           return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
         }
         await settleFailure({
@@ -716,7 +758,12 @@ export const createFalStatusHandler = ({
       }
 
       if (!resultResp.ok) {
-        if (isRetryableUpstreamResponse(resultResp)) {
+        if (
+          isProviderRetryableUpstreamResponse({
+            provider: providerKey,
+            response: resultResp,
+          })
+        ) {
           return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
         }
         await settleFailure({
@@ -776,7 +823,10 @@ export const createFalStatusHandler = ({
 
       return captureAndRespondSuccess({
         payload: resultData.json,
-        payloadStatus: resolveSuccessfulPayloadStatus(resultStatus, normalizedStatus),
+        payloadStatus: resolveProviderSuccessfulPayloadStatus({
+          provider: providerKey,
+          candidates: [resultStatus, normalizedStatus],
+        }),
       });
     } catch (error) {
       await settleFailure({

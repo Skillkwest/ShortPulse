@@ -11,6 +11,10 @@ import {
   selectBestProviderResultCandidate,
   selectBestProviderStatusCandidate,
 } from "../providerIntegration/statusProviderSelection";
+import {
+  isProviderCompletedStatus,
+  isProviderFailedStatus,
+} from "../providerIntegration/statusProviderPolicy";
 import { resolveProviderModelStatusBaseUrls } from "../providerIntegration/statusProviderTopology";
 import { startProviderPollingSession } from "../providerIntegration/statusProviderPolling";
 import {
@@ -34,9 +38,6 @@ export type ProviderProbeObservation = {
   payload: JsonObject | null;
   mediaUrls: string[];
 };
-
-const completedStatuses = new Set(["completed", "succeeded", "success", "done", "ok"]);
-const failedStatuses = new Set(["failed", "error", "cancelled", "canceled"]);
 
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
@@ -169,8 +170,20 @@ export const probeProviderResult = async ({
       const statusData = await readJsonSafe(statusResponse);
       const payload = Object.keys(statusData.json).length ? statusData.json : {};
       const statusValue = readProviderLifecycleStatus({ provider: providerKey, payload });
-      const isCompleted = Boolean(statusValue && completedStatuses.has(statusValue));
-      const isFailed = Boolean(statusValue && failedStatuses.has(statusValue));
+      const isCompleted = Boolean(
+        statusValue &&
+        isProviderCompletedStatus({
+          provider: providerKey,
+          status: statusValue,
+        })
+      );
+      const isFailed = Boolean(
+        statusValue &&
+        isProviderFailedStatus({
+          provider: providerKey,
+          status: statusValue,
+        })
+      );
       statusCandidates.push({
         index,
         baseUrl,
@@ -263,7 +276,14 @@ export const probeProviderResult = async ({
       }
     }
 
-    if (bestStatus?.isFailed || (bestResult?.status && failedStatuses.has(bestResult.status))) {
+    if (
+      bestStatus?.isFailed ||
+      (bestResult?.status &&
+        isProviderFailedStatus({
+          provider: providerKey,
+          status: bestResult.status,
+        }))
+    ) {
       return { state: "failed", payload: null, mediaUrls: [] };
     }
     return { state: "running", payload: null, mediaUrls: [] };

@@ -1,8 +1,14 @@
-import { hasMediaPayload, normalizeStatus, toRecord } from "./falAdapter";
+import { hasMediaPayload, toRecord } from "./falAdapter";
 import {
   dispatchProviderResponseProbeRequest,
   resolveProviderResponseUrls,
 } from "../providerIntegration/statusProviderDispatcher";
+import {
+  isProviderCompletedStatus,
+  isProviderFailedStatus,
+  isProviderRetryableUpstreamResponse,
+  resolveProviderSuccessfulPayloadStatus,
+} from "../providerIntegration/statusProviderPolicy";
 
 export type JsonObject = Record<string, unknown>;
 
@@ -12,44 +18,42 @@ export type JsonReadResult = {
   isJson: boolean;
 };
 
-const completedStatuses = new Set(["completed", "succeeded", "success", "done"]);
-const failedStatuses = new Set(["failed", "error", "cancelled", "canceled"]);
-const retryableUpstreamStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
-
+/**
+ * Legacy Fal compatibility wrapper for provider completed-status policy.
+ */
 export const isCompletedStatus = (status: string | null): boolean =>
-  Boolean(status && completedStatuses.has(status));
+  isProviderCompletedStatus({
+    provider: "fal",
+    status,
+  });
 
+/**
+ * Legacy Fal compatibility wrapper for provider failed-status policy.
+ */
 export const isFailedStatus = (status: string | null): boolean =>
-  Boolean(status && failedStatuses.has(status));
+  isProviderFailedStatus({
+    provider: "fal",
+    status,
+  });
 
-const parseBooleanHeader = (value: string | null): boolean | null => {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "true") return true;
-  if (normalized === "false") return false;
-  return null;
-};
-
+/**
+ * Legacy Fal compatibility wrapper for provider retryable-response policy.
+ */
 export const isRetryableUpstreamResponse = (response: Response): boolean => {
-  const needsRetry = parseBooleanHeader(response.headers.get("x-fal-needs-retry"));
-  if (needsRetry === false) return false;
-  if (needsRetry === true) return true;
-
-  const retryableHeader = parseBooleanHeader(response.headers.get("x-fal-retryable"));
-  if (retryableHeader === true) return true;
-
-  if (retryableUpstreamStatuses.has(response.status)) return true;
-  return false;
+  return isProviderRetryableUpstreamResponse({
+    provider: "fal",
+    response,
+  });
 };
 
+/**
+ * Legacy Fal compatibility wrapper for provider successful-payload status policy.
+ */
 export const resolveSuccessfulPayloadStatus = (...candidates: unknown[]): string => {
-  for (const candidate of candidates) {
-    const normalized = normalizeStatus(candidate);
-    if (normalized && completedStatuses.has(normalized)) {
-      return normalized;
-    }
-  }
-  return "completed";
+  return resolveProviderSuccessfulPayloadStatus({
+    provider: "fal",
+    candidates,
+  });
 };
 
 export const readJsonSafe = async (response: Response): Promise<JsonReadResult> => {
@@ -107,11 +111,14 @@ export const probeResponseUrlsForMedia = async ({
     ) {
       continue;
     }
-    const probeStatus = resolveSuccessfulPayloadStatus(
-      responseProbeData.json.status,
-      toRecord(responseProbeData.json).state,
-      statusHint
-    );
+    const probeStatus = resolveProviderSuccessfulPayloadStatus({
+      provider,
+      candidates: [
+        responseProbeData.json.status,
+        toRecord(responseProbeData.json).state,
+        statusHint,
+      ],
+    });
     return {
       payload: responseProbeData.json,
       payloadStatus: probeStatus,

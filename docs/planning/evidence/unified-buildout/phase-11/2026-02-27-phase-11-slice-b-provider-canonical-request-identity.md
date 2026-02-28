@@ -90,6 +90,20 @@ Start the provider-neutral adapter contract work by removing Fal-local request/e
 23. Added selection-policy unit coverage:
 - `frontend/lib/server/providerIntegration/__tests__/statusProviderSelection.test.ts`
 - Verifies best-candidate selection behavior, empty-candidate handling, and unsupported-provider fail-closed guard.
+24. Extracted provider-owned lifecycle + retry policy:
+- `frontend/lib/server/providerIntegration/statusProviderPolicy.ts`
+- Centralizes provider-scoped semantics for:
+  - completed status classification,
+  - failed status classification,
+  - successful payload status normalization,
+  - upstream retryability classification.
+25. Rewired Fal status/recovery runtime to provider-owned policy:
+- `frontend/lib/server/api/falStatusProxy.ts`
+- `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
+- `frontend/lib/server/falIntegration/statusProxyRuntime.ts` now serves as a Fal compatibility wrapper while provider-owned policy is canonical.
+26. Added provider policy unit coverage:
+- `frontend/lib/server/providerIntegration/__tests__/statusProviderPolicy.test.ts`
+- Verifies Fal status lifecycle and retry header/status handling and unsupported-provider fail-closed guards.
 
 ## Validation
 1. Targeted tests:
@@ -129,10 +143,19 @@ Result: pass.
 npm -C frontend run test -- lib/server/providerIntegration/__tests__/statusProviderSelection.test.ts lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts tests/api/fal-status-proxy.test.ts tests/api/fal-route-inventory-regression.test.ts
 ```
 Result: pass.
+```bash
+npm -C frontend run test -- lib/server/providerIntegration/__tests__/statusProviderPolicy.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts tests/api/fal-status-proxy.test.ts tests/api/fal-route-inventory-regression.test.ts
+```
+Result: pass.
+```bash
+npm -C frontend run test -- tests/api/fal-route-inventory-regression.test.ts tests/api/fal-kling-v3-image-to-video-submit.test.ts tests/api/fal-kling-v3-image-to-video-status.test.ts tests/api/fal-kling-v3-text-submit.test.ts tests/api/fal-kling-v3-text-status.test.ts tests/api/fal-veo3-submit.test.ts tests/api/fal-veo3-status.test.ts tests/api/fal-queue-status.test.ts tests/api/fal-status-proxy.test.ts lib/server/falIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts lib/server/falIntegration/__tests__/runtimeFlags.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts lib/server/providerIntegration/__tests__/statusProviderSelection.test.ts lib/server/providerIntegration/__tests__/statusProviderPolicy.test.ts
+```
+Result: pass.
 3. Full gates:
 ```bash
 npm -C frontend run type-check
 npm -C frontend run lint
+npm -C frontend run docs:check
 npm -C frontend run build
 ```
 Result: pass.
@@ -142,6 +165,7 @@ Result: pass.
 2. Fal submit/status/webhook routes remain the same; only shared alias parsing internals changed.
 3. This slice is additive to shadow/canary observation work and does not execute provider cutover.
 4. Fal route inventory regression gate remains green after this slice increment.
+5. Fal status/recovery retry + terminal policy now flows through provider-owned boundary without changing Fal route contracts.
 
 ## Deferred Kie Targets (Reference Note)
 1. Planned Kie provider models for a later implementation slice (not active in this slice):
@@ -153,4 +177,4 @@ Result: pass.
 - retain this Fal regression gate as a mandatory pre/post-change check.
 
 ## Next Step
-1. Continue Slice B by extracting provider-owned upstream retryability/terminal-policy evaluation currently centered in Fal runtime helpers so failure/poll semantics remain adapter-owned before Kie dark adapter rollout.
+1. Slice B engineering hardening is complete; proceed with Phase 11 Kie adapter implementation slices behind flags after shadow/canary readiness windows and mandatory Fal no-regression gates.

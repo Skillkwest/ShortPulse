@@ -33,7 +33,7 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - two canary observation windows,
   - explicit promote/hold/rollback decision criteria.
 - No provider cutover executed in this slice (planning and evidence scaffold only).
-2. Slice B in progress:
+2. Slice B complete (engineering hardening):
 - Added provider-neutral canonical payload identity module:
   - `frontend/lib/server/providerIntegration/canonicalProviderPayload.ts`
 - Wired canonical request/event/status parsing into current Fal paths:
@@ -86,10 +86,18 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/api/falStatusProxy.ts`
   - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
   - `frontend/lib/server/falIntegration/retrievalEngine.ts` remains as a compatibility wrapper delegating to provider-owned selection.
+- Extracted provider-owned lifecycle + retry policy and rewired Fal callers:
+  - `frontend/lib/server/providerIntegration/statusProviderPolicy.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/statusProviderPolicy.test.ts`
+  - `frontend/lib/server/api/falStatusProxy.ts`
+  - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
+  - `frontend/lib/server/falIntegration/statusProxyRuntime.ts` remains a Fal compatibility wrapper delegating to provider-owned policy.
 - Aligned queued submit dispatch path to shared provider submit boundary:
   - `frontend/lib/server/api/generationQueue/dispatch.ts`
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.test.ts`
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.integrity.test.ts`
+3. Slice C complete:
+- Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 
 ## Deferred Kie Model Targets (Not Yet Implemented)
 1. Google VEO 3.1 Fast Image-to-Video.
@@ -232,6 +240,16 @@ Result: pass.
 npm -C frontend run test -- lib/server/providerIntegration/__tests__/statusProviderSelection.test.ts lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts tests/api/fal-status-proxy.test.ts tests/api/fal-route-inventory-regression.test.ts
 npm -C frontend run type-check
 npm -C frontend run lint
+npm -C frontend run build
+```
+Result: pass.
+8. Fresh provider-policy no-regression suite (`2026-02-28`):
+```bash
+npm -C frontend run test -- lib/server/providerIntegration/__tests__/statusProviderPolicy.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts tests/api/fal-status-proxy.test.ts tests/api/fal-route-inventory-regression.test.ts
+npm -C frontend run test -- tests/api/fal-route-inventory-regression.test.ts tests/api/fal-kling-v3-image-to-video-submit.test.ts tests/api/fal-kling-v3-image-to-video-status.test.ts tests/api/fal-kling-v3-text-submit.test.ts tests/api/fal-kling-v3-text-status.test.ts tests/api/fal-veo3-submit.test.ts tests/api/fal-veo3-status.test.ts tests/api/fal-queue-status.test.ts tests/api/fal-status-proxy.test.ts lib/server/falIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts lib/server/falIntegration/__tests__/runtimeFlags.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts lib/server/providerIntegration/__tests__/statusProviderSelection.test.ts lib/server/providerIntegration/__tests__/statusProviderPolicy.test.ts
+npm -C frontend run type-check
+npm -C frontend run lint
+npm -C frontend run docs:check
 npm -C frontend run build
 ```
 Result: pass.

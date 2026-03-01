@@ -1,6 +1,6 @@
 # Unified Phase 06: Character Workflow Hardening
 
-Status: In Progress
+Status: In Progress (Engineering Complete; Sequencing Hold)
 Owner: Engineering
 
 ## Objective
@@ -191,10 +191,10 @@ Naming canonical drift checks passed.
 
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:
-1. Not required for Slice A: all changes are repo-local trust/sync/cache behavior with no new external provider contract dependency.
+1. Not required for this phase: changes are repo-local trust/sync/cache behavior with no new external provider contract dependency.
 
 ## Required Docs Updates
-1. Update phase status.
+1. Update Phase 06 stage/tracker status.
 2. Add evidence summary in phase-06 folder.
 3. Update impacted SOP/API/ADR/change-log docs.
 

@@ -1678,3 +1678,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Updated Phase 05 stage/tracker notes to reflect:
   - engineering scope complete,
   - final phase status remains sequencing-gated by Phase 04 signoff policy.
+
+## 2026-03-01 (phase-11 contract anti-bloat drift lock)
+- Reduced Kie contract duplication by updating `frontend/lib/server/providerIntegration/kieModelContracts.ts` to read allowed aspect/duration/resolution constraints from canonical `frontend/lib/model-runtime/modelCatalog.ts` entries.
+- Added fail-closed guards for missing/incomplete Kie model catalog constraints in submit normalization paths.
+- Ran Phase 11 no-regression checks after refactor:
+  - `npm -C frontend run test -- kieModelContracts`
+  - `npm -C frontend run type-check`
+  - `npm -C frontend run test:phase11:fal-regression`

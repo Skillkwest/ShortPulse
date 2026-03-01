@@ -4,11 +4,13 @@
  */
 
 import type { SubmitPayload } from "../falIntegration/contracts";
+import { getModelCatalogEntry } from "../../model-runtime/modelCatalog";
 
 const KIE_VEO_31_FAST_I2V_MODEL_ID = "kie-ai/veo-3.1-fast-i2v";
 const KIE_KLING_30_MODEL_ID = "kie-ai/kling-3.0";
 
 const supportedKieModelIds = new Set([KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID]);
+type SupportedKieModelId = typeof KIE_VEO_31_FAST_I2V_MODEL_ID | typeof KIE_KLING_30_MODEL_ID;
 
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -158,6 +160,38 @@ const normalizeOptionalNumberField = ({
   return resolved;
 };
 
+type KieCatalogContract = {
+  defaultAspect: string;
+  allowedAspects: string[];
+  allowedDurations: number[];
+  allowedResolutions: string[] | null;
+};
+
+const readRequiredKieCatalogContract = ({
+  modelId,
+  modelLabel,
+}: {
+  modelId: SupportedKieModelId;
+  modelLabel: string;
+}): KieCatalogContract => {
+  const entry = getModelCatalogEntry(modelId);
+  if (!entry || entry.provider !== "kie") {
+    throw new Error(`${modelLabel} model catalog contract is missing.`);
+  }
+  if (!entry.allowedAspects?.length) {
+    throw new Error(`${modelLabel} model catalog contract is missing allowed aspects.`);
+  }
+  if (!entry.allowedDurations?.length) {
+    throw new Error(`${modelLabel} model catalog contract is missing allowed durations.`);
+  }
+  return {
+    defaultAspect: entry.defaultAspect,
+    allowedAspects: entry.allowedAspects,
+    allowedDurations: entry.allowedDurations,
+    allowedResolutions: entry.allowedResolutions ?? null,
+  };
+};
+
 const normalizeCommonKieVideoFields = ({
   payload,
   modelLabel,
@@ -207,12 +241,19 @@ const normalizeKieVeoI2vPayload = (payload: Record<string, unknown>): Record<str
   if (!prompt) {
     throw new Error("Kie VEO 3.1 Fast I2V submit requires a prompt.");
   }
+  const contract = readRequiredKieCatalogContract({
+    modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+    modelLabel: "Kie VEO 3.1 Fast I2V",
+  });
+  if (!contract.allowedResolutions?.length) {
+    throw new Error("Kie VEO 3.1 Fast I2V model catalog contract is missing allowed resolutions.");
+  }
   const normalized = normalizeCommonKieVideoFields({
     payload,
     modelLabel: "Kie VEO 3.1 Fast I2V",
-    allowedAspects: ["16:9", "9:16"],
-    defaultAspect: "16:9",
-    allowedDurations: [5, 8],
+    allowedAspects: contract.allowedAspects,
+    defaultAspect: contract.defaultAspect,
+    allowedDurations: contract.allowedDurations,
   });
   const imageUrl = readFirstImageUrl(payload);
   if (!imageUrl) {
@@ -220,7 +261,7 @@ const normalizeKieVeoI2vPayload = (payload: Record<string, unknown>): Record<str
   }
   const resolution = normalizeOptionalResolution({
     payload,
-    allowedValues: ["720p", "1080p"],
+    allowedValues: contract.allowedResolutions,
     modelLabel: "Kie VEO 3.1 Fast I2V",
   });
   normalized.prompt = prompt;
@@ -230,12 +271,16 @@ const normalizeKieVeoI2vPayload = (payload: Record<string, unknown>): Record<str
 };
 
 const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<string, unknown> => {
+  const contract = readRequiredKieCatalogContract({
+    modelId: KIE_KLING_30_MODEL_ID,
+    modelLabel: "Kie Kling 3.0",
+  });
   const normalized = normalizeCommonKieVideoFields({
     payload,
     modelLabel: "Kie Kling 3.0",
-    allowedAspects: ["16:9", "9:16", "1:1"],
-    defaultAspect: "16:9",
-    allowedDurations: [5, 10],
+    allowedAspects: contract.allowedAspects,
+    defaultAspect: contract.defaultAspect,
+    allowedDurations: contract.allowedDurations,
   });
   const prompt = asNonEmptyString(payload.prompt);
   if (!prompt) {

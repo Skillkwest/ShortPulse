@@ -144,6 +144,9 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/__tests__/kieModelContracts.test.ts`
   - `frontend/lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts`
   - Enforces fail-closed unsupported-model rejection and model-specific payload validation before Kie transport dispatch.
+- Added Kie catalog-contract drift lock for submit constraints:
+  - `frontend/lib/server/providerIntegration/kieModelContracts.ts` now reads allowed aspect/duration/resolution constraints from canonical `frontend/lib/model-runtime/modelCatalog.ts` entries instead of duplicate hardcoded arrays.
+  - Fail-closed guards now reject missing/incomplete Kie catalog contract bounds in submit normalization paths.
 - Added Kie status/result contract execution boundary for payload/policy decoupling:
   - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
   - `frontend/lib/server/providerIntegration/statusProviderPayload.ts`

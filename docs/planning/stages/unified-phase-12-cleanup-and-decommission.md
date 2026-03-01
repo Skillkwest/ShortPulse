@@ -30,6 +30,20 @@ Remaining:
 1. Execute cleanup removals only after cutover gates pass.
 2. Complete post-cleanup validation and two green release cycles.
 
+## Current Slice B Update (2026-03-01)
+Implemented:
+1. Added concrete path-level decommission map:
+   - `docs/planning/evidence/unified-buildout/phase-12/2026-03-01-phase-12-slice-b-concrete-decommission-inventory-map.md`
+2. Captured explicit post-signoff disposition for:
+   - transition flags,
+   - Fal compatibility wrapper modules,
+   - deferred-window decisioning artifacts.
+3. Defined deterministic post-signoff removal order and per-slice validation packet.
+
+Remaining:
+1. Run removals only after signoff gates are complete.
+2. Validate each removal slice with full no-regression packet.
+
 ## Validation Gates
 1. 
 > shortflow@1.0.0 lint
@@ -161,7 +175,7 @@ If this phase touches external contracts/standards, add a short research note wi
 - 
 
 ## Required Docs Updates
-1. Update  phase status.
+1. Update Phase 12 stage/tracker status.
 2. Add evidence summary in phase-12 folder.
 3. Update impacted SOP/API/ADR/change-log docs.
 

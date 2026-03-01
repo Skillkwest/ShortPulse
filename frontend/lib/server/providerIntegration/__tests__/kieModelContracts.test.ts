@@ -8,11 +8,12 @@ import {
   isSupportedKieModelId,
   normalizeKieSubmitPayloadForModel,
 } from "../kieModelContracts";
+import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "../kieModelIds";
 
 describe("kieModelContracts", () => {
   it("tracks supported Kie model ids", () => {
-    expect(isSupportedKieModelId("kie-ai/veo-3.1-fast-i2v")).toBe(true);
-    expect(isSupportedKieModelId("kie-ai/kling-3.0")).toBe(true);
+    expect(isSupportedKieModelId(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
+    expect(isSupportedKieModelId(KIE_KLING_30_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId("kie-ai/unknown")).toBe(false);
   });
 
@@ -25,7 +26,7 @@ describe("kieModelContracts", () => {
   it("normalizes VEO i2v payload and enforces required contract fields", () => {
     expect(
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/veo-3.1-fast-i2v",
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
         payload: {
           prompt: "make a short clip",
           image_urls: ["https://example.com/ref.png"],
@@ -45,14 +46,14 @@ describe("kieModelContracts", () => {
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/veo-3.1-fast-i2v",
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
         payload: { image_url: "https://example.com/ref.png" },
       })
     ).toThrow("Kie VEO 3.1 Fast I2V submit requires a prompt.");
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/veo-3.1-fast-i2v",
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
         payload: { prompt: "missing image" },
       })
     ).toThrow("Kie VEO 3.1 Fast I2V submit requires an image URL.");
@@ -61,7 +62,7 @@ describe("kieModelContracts", () => {
   it("normalizes VEO i2v optional fields to valid contract values", () => {
     expect(
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/veo-3.1-fast-i2v",
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
         payload: {
           prompt: "clip",
           image_url: "https://example.com/ref.png",
@@ -75,7 +76,7 @@ describe("kieModelContracts", () => {
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/veo-3.1-fast-i2v",
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
         payload: {
           prompt: "clip",
           image_url: "https://example.com/ref.png",
@@ -86,7 +87,7 @@ describe("kieModelContracts", () => {
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/veo-3.1-fast-i2v",
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
         payload: {
           prompt: "clip",
           image_url: "https://example.com/ref.png",
@@ -97,7 +98,7 @@ describe("kieModelContracts", () => {
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/veo-3.1-fast-i2v",
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
         payload: {
           prompt: "clip",
           image_url: "https://example.com/ref.png",
@@ -108,7 +109,7 @@ describe("kieModelContracts", () => {
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/veo-3.1-fast-i2v",
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
         payload: {
           prompt: "clip",
           image_url: "https://example.com/ref.png",
@@ -121,7 +122,7 @@ describe("kieModelContracts", () => {
   it("normalizes Kling payload and requires prompt", () => {
     expect(
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/kling-3.0",
+        modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "a cinematic pan shot",
           aspect: "9:16",
@@ -141,7 +142,7 @@ describe("kieModelContracts", () => {
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/kling-3.0",
+        modelId: KIE_KLING_30_MODEL_ID,
         payload: { duration: 10 },
       })
     ).toThrow("Kie Kling 3.0 submit requires a prompt.");
@@ -150,7 +151,7 @@ describe("kieModelContracts", () => {
   it("enforces Kling optional field contracts", () => {
     expect(
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/kling-3.0",
+        modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "kling prompt",
           duration: "10",
@@ -168,7 +169,7 @@ describe("kieModelContracts", () => {
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/kling-3.0",
+        modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "kling prompt",
           aspect_ratio: "4:3",
@@ -178,7 +179,7 @@ describe("kieModelContracts", () => {
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/kling-3.0",
+        modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "kling prompt",
           duration: 8,
@@ -188,7 +189,7 @@ describe("kieModelContracts", () => {
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/kling-3.0",
+        modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "kling prompt",
           cfg_scale: "high",
@@ -198,7 +199,7 @@ describe("kieModelContracts", () => {
 
     expect(() =>
       normalizeKieSubmitPayloadForModel({
-        modelId: "kie-ai/kling-3.0",
+        modelId: KIE_KLING_30_MODEL_ID,
         payload: {
           prompt: "kling prompt",
           generate_audio: "yes",

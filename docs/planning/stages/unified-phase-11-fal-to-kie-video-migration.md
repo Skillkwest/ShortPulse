@@ -147,6 +147,11 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Added Kie catalog-contract drift lock for submit constraints:
   - `frontend/lib/server/providerIntegration/kieModelContracts.ts` now reads allowed aspect/duration/resolution constraints from canonical `frontend/lib/model-runtime/modelCatalog.ts` entries instead of duplicate hardcoded arrays.
   - Fail-closed guards now reject missing/incomplete Kie catalog contract bounds in submit normalization paths.
+- Added Kie model-id contract centralization across provider boundaries:
+  - `frontend/lib/server/providerIntegration/kieModelIds.ts`
+  - `frontend/lib/server/providerIntegration/kieModelContracts.ts`
+  - `frontend/lib/server/providerIntegration/kieResultMediaContracts.ts`
+  - Removes duplicate Kie model-id literals across submit/media contract modules and keeps dark-path model identity fail-closed checks aligned.
 - Added Kie status/result contract execution boundary for payload/policy decoupling:
   - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
   - `frontend/lib/server/providerIntegration/statusProviderPayload.ts`

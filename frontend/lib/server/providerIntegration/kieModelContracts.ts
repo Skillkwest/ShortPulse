@@ -5,12 +5,12 @@
 
 import type { SubmitPayload } from "../falIntegration/contracts";
 import { getModelCatalogEntry } from "../../model-runtime/modelCatalog";
-
-const KIE_VEO_31_FAST_I2V_MODEL_ID = "kie-ai/veo-3.1-fast-i2v";
-const KIE_KLING_30_MODEL_ID = "kie-ai/kling-3.0";
-
-const supportedKieModelIds = new Set([KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID]);
-type SupportedKieModelId = typeof KIE_VEO_31_FAST_I2V_MODEL_ID | typeof KIE_KLING_30_MODEL_ID;
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+  isKnownKieModelId,
+  type SupportedKieModelId,
+} from "./kieModelIds";
 
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -302,7 +302,7 @@ const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<stri
  * Returns true when the model id is supported by current Kie submit contracts.
  */
 export const isSupportedKieModelId = (modelId: string): boolean => {
-  return supportedKieModelIds.has(modelId);
+  return isKnownKieModelId(modelId);
 };
 
 /**

@@ -49,7 +49,7 @@ Branch: `second-foundational-overhaul`
 - Chunk 2 (Kie dark adapter foundation): complete.
 - Chunk 3 (dispatcher expansion): complete.
 - Chunk 4 (provider propagation through queue/recovery paths): complete.
-- Chunk 5 (Kie model contract integration): in progress (dark-path model metadata scaffolding landed; submit-contract drift lock now sources Kie constraints from canonical model catalog; primary-source contract capture still required before enablement).
+- Chunk 5 (Kie model contract integration): in progress (dark-path model metadata scaffolding landed; submit-contract drift lock now sources Kie constraints from canonical model catalog; Kie model-id constants are now centralized across provider contract boundaries; primary-source contract capture still required before enablement).
 - Chunk 6 (Phase 05 formal closeout package): complete for engineering scope (execution packet prepared + full closeout validation run green; final status flip remains sequencing-gated by Phase 04 signoff).
 - Chunk 7 (Phase 06/07 completion label resolution): complete (stage/tracker labels explicitly set to engineering-complete sequencing hold semantics).
 - Chunk 8 (Phase 00/01 operator evidence closure): deferred (explicitly postponed to later operator window).

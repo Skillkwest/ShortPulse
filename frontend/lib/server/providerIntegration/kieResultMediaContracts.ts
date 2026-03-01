@@ -4,11 +4,14 @@
  */
 
 import { asProviderRecord, asProviderString } from "./canonicalProviderPayload";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SUPPORTED_MODEL_IDS,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+  isKnownKieModelId,
+} from "./kieModelIds";
 
-const KIE_VEO_31_FAST_I2V_MODEL_ID = "kie-ai/veo-3.1-fast-i2v";
-const KIE_KLING_30_MODEL_ID = "kie-ai/kling-3.0";
-
-const supportedKieMediaModels = new Set([KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID]);
+const supportedKieMediaModels = new Set<string>(KIE_SUPPORTED_MODEL_IDS);
 
 const asUrlList = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
@@ -145,7 +148,7 @@ const collectFallbackCandidates = (payload: Record<string, unknown>) => {
  * Returns true when Kie media extraction contract supports the model id.
  */
 export const isSupportedKieResultMediaModel = (modelId: string): boolean => {
-  return supportedKieMediaModels.has(modelId);
+  return supportedKieMediaModels.has(modelId) && isKnownKieModelId(modelId);
 };
 
 /**

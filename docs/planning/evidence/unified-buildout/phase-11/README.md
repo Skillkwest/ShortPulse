@@ -21,6 +21,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 16. `2026-03-01-phase-11-slice-b-mixed-provider-recovery-convergence-tests.md` - mixed-provider recovery runtime/execution coverage for Kie media convergence and running-state retry queue transitions.
 17. `2026-03-01-phase-11-slice-b-regression-gate-coverage-expansion.md` - expands canonical Phase 11 Fal regression gate script coverage to include queue dispatch integrity and mixed-provider recovery execution/runtime suites.
 18. `2026-03-01-phase-11-slice-b-kie-model-catalog-contract-drift-lock.md` - removes duplicated Kie submit constraints in provider integration and sources them from canonical model catalog contracts with fail-closed guards.
+19. `2026-03-01-phase-11-slice-b-kie-model-id-contract-centralization.md` - centralizes Kie model-id constants across provider-integration contract boundaries to prevent cross-module drift.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

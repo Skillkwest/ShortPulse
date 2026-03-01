@@ -1698,3 +1698,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added npm shortcut:
   - `npm -C frontend run phase12:execution-gate`.
 - Updated Phase 12 stage/tracker/evidence docs to record WS-0.5 helper availability and gate usage contract.
+
+## 2026-03-01 (phase-11 kie model-id contract centralization)
+- Added canonical Kie model-id constants module for provider-integration contracts:
+  - `frontend/lib/server/providerIntegration/kieModelIds.ts`.
+- Rewired Kie submit/media contract boundaries and focused tests to consume shared model ids:
+  - `kieModelContracts.ts`, `kieResultMediaContracts.ts`, and related unit suites.
+- Ran focused Kie contract suites and full `test:phase11:fal-regression` gate with passing results.

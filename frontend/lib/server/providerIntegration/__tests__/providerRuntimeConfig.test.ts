@@ -43,6 +43,17 @@ describe("providerRuntimeConfig", () => {
     ).toThrow("Kie model is not allowlisted");
   });
 
+  it("fails closed when kie enable flag is on without an explicit model allowlist", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    delete process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST;
+
+    expect(() =>
+      assertKieRuntimeEnabledForModel({
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    ).toThrow("Kie model is not allowlisted");
+  });
+
   it("filters untrusted kie hosts", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";

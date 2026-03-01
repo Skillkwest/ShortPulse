@@ -73,6 +73,7 @@ describe("statusProviderPolling", () => {
 
   it("uses kie timeout when dark path is enabled", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
     process.env.SHORTPULSE_KIE_STATUS_TIMEOUT_MS = "41000";
 
     const session = startProviderPollingSession({

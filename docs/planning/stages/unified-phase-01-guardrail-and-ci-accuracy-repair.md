@@ -27,6 +27,7 @@ Eliminate stale guardrail targets and align CI policy lanes to current repositor
 2. Residual closeout item is operator-managed branch-protection mapping evidence.
 3. Operator closeout checklist prepared:
    - `docs/planning/evidence/unified-buildout/phase-01/2026-03-01-phase-01-operator-branch-protection-mapping-closeout-checklist.md`
+4. Operator closeout execution is deferred to a later operator window; not blocking current implementation track.
 
 ## Validation Gates
 1. `node scripts/check_size_budgets.js`

@@ -26,6 +26,8 @@ Purpose: canonical integration references for first-party API routes and externa
 - `docs/api/api-fal-sora-2-pro.md`
 - `docs/api/api-fal-seedance-1-5-pro.md`
 - `docs/api/api-fal-seedance-1-5-pro-i2v.md`
+- `docs/api/api-kie-veo-3-1-fast-image-to-video.md`
+- `docs/api/api-kie-kling-3-0.md`
 - `docs/api/api-fal-flux-2.md`
 - `docs/api/api-fal-flux-2-klein-9b.md`
 - `docs/api/api-fal-flux-2-edit.md`

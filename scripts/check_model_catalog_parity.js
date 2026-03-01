@@ -45,6 +45,8 @@ const MODEL_DOC_MAP = {
   "fal-ai/sora-2/text-to-video/pro": "api-fal-sora-2-pro.md",
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": "api-fal-seedance-1-5-pro.md",
   "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": "api-fal-seedance-1-5-pro-i2v.md",
+  "kie-ai/veo-3.1-fast-i2v": "api-kie-veo-3-1-fast-image-to-video.md",
+  "kie-ai/kling-3.0": "api-kie-kling-3-0.md",
   "gpt-5-nano": "api-responses.md",
 };
 

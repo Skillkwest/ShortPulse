@@ -51,3 +51,8 @@ Last updated: 2026-03-01
 - Topic: Pre-canary acceleration execution track.
 - Decision: Continue non-canary implementation and evidence closure work across downstream phases while canary/signoff windows remain deferred; do not treat deferred windows as engineering blockers, and do not execute early checkpoint decisions.
 - Effective phases: 04-12.
+
+## Decision 011
+- Topic: Operator-managed closure tasks timing.
+- Decision: Phase 00 credential-rotation evidence and Phase 01 branch-protection evidence are explicitly deferred to a later operator window while engineering implementation continues.
+- Effective phases: 00-01.

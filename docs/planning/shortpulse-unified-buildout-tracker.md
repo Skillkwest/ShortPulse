@@ -10,8 +10,8 @@ Branch: `second-foundational-overhaul`
 
 | Phase | Status | Owner | Entry Criteria | Exit Criteria | Evidence Folder | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| 00 | In Progress | Engineering | Current branch baseline available | Baseline checks green + incident hygiene doc updated | `evidence/unified-buildout/phase-00/` | Code baseline fixed; credential rotation is operational follow-up |
-| 01 | In Progress | Engineering | Phase 00 complete | CI/guardrail drift resolved and mapped | `evidence/unified-buildout/phase-01/` | Slice A/B complete; branch-protection mapping verification pending |
+| 00 | In Progress | Engineering | Current branch baseline available | Baseline checks green + incident hygiene doc updated | `evidence/unified-buildout/phase-00/` | Code baseline fixed; credential rotation evidence is deferred to a later operator window. |
+| 01 | In Progress | Engineering | Phase 00 complete | CI/guardrail drift resolved and mapped | `evidence/unified-buildout/phase-01/` | Slice A/B complete; branch-protection mapping evidence is deferred to a later operator window. |
 | 02 | Completed | Engineering | Phase 01 complete | Token-first auth and admin decoupling validated | `evidence/unified-buildout/phase-02/` | Completed: token-first auth + `/api/admin/access` + shared admin access hook rollout |
 | 03 | Completed | Engineering | Phase 02 complete | Queue/recovery transition integrity proven | `evidence/unified-buildout/phase-03/` | Completed: checked queue mutations + transition guard + CAS fallback claim + reconciliation edge hardening |
 | 04 | Deferred | Engineering | Phase 03 complete | Video runtime residual hardening validated | `evidence/unified-buildout/phase-04/` | Slice A/B completed; Slice D added queue-status read-only rollout control (flagged). Deferred by sequencing decision (Decision 008): canary/signoff intentionally postponed until deployment window. Keep `SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED=true` until canary completion. |
@@ -49,10 +49,10 @@ Branch: `second-foundational-overhaul`
 - Chunk 2 (Kie dark adapter foundation): complete.
 - Chunk 3 (dispatcher expansion): complete.
 - Chunk 4 (provider propagation through queue/recovery paths): complete.
-- Chunk 5 (Kie model contract integration): deferred until just-in-time primary-source contract capture.
+- Chunk 5 (Kie model contract integration): in progress (dark-path model metadata scaffolding landed; primary-source contract capture still required before enablement).
 - Chunk 6 (Phase 05 formal closeout package): in progress (execution packet prepared).
 - Chunk 7 (Phase 06/07 completion label resolution): in progress (sequencing-note cleanup pending).
-- Chunk 8 (Phase 00/01 operator evidence closure): in progress (operator checklist packets prepared).
+- Chunk 8 (Phase 00/01 operator evidence closure): deferred (explicitly postponed to later operator window).
 - Chunk 9 (Phase 12 pre-cleanup prep): in progress (inventory + removal checklist prepared, no removals executed).
 
 ## Mandatory Validation Commands per Phase

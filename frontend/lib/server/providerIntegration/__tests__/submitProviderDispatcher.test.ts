@@ -88,6 +88,7 @@ describe("submitProviderDispatcher", () => {
 
   it("dispatches kie submits when dark path is enabled", async () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
     const fetchMock = vi
       .fn()
       .mockResolvedValue(

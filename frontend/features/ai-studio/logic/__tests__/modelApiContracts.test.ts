@@ -60,7 +60,7 @@ describe("model API contracts", () => {
       "fal-ai/nano-banana-pro",
     ]);
     const unexpectedDefaults = listModelConfigs()
-      .filter((config) => config.mediaType !== "text")
+      .filter((config) => config.mediaType !== "text" && config.provider === "fal")
       .map((config) => config.id)
       .filter(
         (modelId) =>

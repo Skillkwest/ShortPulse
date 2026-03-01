@@ -2,7 +2,7 @@
 
 Date: 2026-03-01  
 Owner: Environment Operators + Engineering Review  
-Status: Pending operator execution
+Status: Deferred (operator window pending)
 
 ## Purpose
 Close the remaining Phase 00 operational blocker by collecting concrete credential-rotation evidence.

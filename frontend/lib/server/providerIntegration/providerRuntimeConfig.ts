@@ -146,7 +146,7 @@ export const isKieModelAllowlisted = (
   modelId: string,
   flags: KieRuntimeFlags = readKieRuntimeFlags()
 ): boolean => {
-  if (!flags.modelAllowlist.size) return true;
+  if (!flags.modelAllowlist.size) return false;
   for (const entry of flags.modelAllowlist) {
     if (matchAllowlistEntry(modelId, entry)) return true;
   }

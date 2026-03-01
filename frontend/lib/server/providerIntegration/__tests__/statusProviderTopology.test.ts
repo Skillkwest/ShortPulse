@@ -104,6 +104,7 @@ describe("statusProviderTopology", () => {
 
   it("resolves kie topology when dark path is enabled", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
     process.env.SHORTPULSE_KIE_STATUS_BASE_URLS = "https://queue.kie.ai/v1/requests";
     process.env.SHORTPULSE_KIE_STATUS_TIMEOUT_MS = "45000";
 

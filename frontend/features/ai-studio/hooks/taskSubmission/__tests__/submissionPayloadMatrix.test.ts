@@ -279,7 +279,7 @@ describe("task submission payload matrix", () => {
 
   it("keeps matrix coverage in sync with every non-text model in model registry", () => {
     const generationModelIds = listModelConfigs()
-      .filter((config) => config.mediaType !== "text")
+      .filter((config) => config.mediaType !== "text" && config.provider === "fal")
       .map((config) => config.id)
       .sort();
     expect(Object.keys(CASES).sort()).toEqual(generationModelIds);

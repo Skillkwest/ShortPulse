@@ -27,6 +27,7 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Keep phase open until operational closure evidence is attached in phase-00 artifacts.
 - Operator closeout checklist prepared:
   - `docs/planning/evidence/unified-buildout/phase-00/2026-03-01-phase-00-operator-credential-rotation-closeout-checklist.md`
+- Operator closeout execution is deferred to a later operator window; not blocking current implementation track.
 
 ## Validation Gates
 1. 

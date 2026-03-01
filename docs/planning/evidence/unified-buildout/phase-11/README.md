@@ -9,6 +9,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 4. `2026-03-01-phase-11-canary-window-1-live-log.md` - canary window 1 execution log template with checkpoint packet.
 5. `2026-03-02-phase-11-canary-window-2-live-log.md` - canary window 2 execution log template with checkpoint packet.
 6. `2026-02-27-phase-11-slice-b-provider-canonical-request-identity.md` - provider-neutral payload identity extraction (request/event/status aliases) wired into Fal submit/webhook paths with targeted regression tests.
+7. `2026-03-01-phase-11-slice-b-kie-model-contract-dark-scaffold.md` - dark-path Kie model metadata scaffolding + fail-closed allowlist guard update with no public route/cutover enablement.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

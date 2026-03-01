@@ -128,6 +128,11 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/api/generationSubmitPersistence.ts`
   - `frontend/lib/server/falIntegration/recoveryExecution.ts`
   - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
+- Added dark-path Kie model-contract scaffolding (no user-visible enablement):
+  - `frontend/lib/model-runtime/modelCatalog.ts` (`kie-ai/veo-3.1-fast-i2v`, `kie-ai/kling-3.0`)
+  - `frontend/lib/model-runtime/modelRegistry.ts` (provider=`kie` runtime entries)
+  - strict fail-closed allowlist behavior in `frontend/lib/server/providerIntegration/providerRuntimeConfig.ts`
+  - API traceability docs: `docs/api/api-kie-veo-3-1-fast-image-to-video.md`, `docs/api/api-kie-kling-3-0.md`
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

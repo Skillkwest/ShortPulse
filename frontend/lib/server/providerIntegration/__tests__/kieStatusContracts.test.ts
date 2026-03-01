@@ -12,6 +12,7 @@ import {
   readKieLifecycleStatus,
   readKieResponseUrl,
   resolveKieSuccessfulPayloadStatus,
+  validateKieStatusPayloadForModel,
 } from "../kieStatusContracts";
 
 describe("kieStatusContracts", () => {
@@ -26,9 +27,12 @@ describe("kieStatusContracts", () => {
     expect(readKieResponseUrl({ response_url: "https://queue.kie.ai/v1/requests/1" })).toBe(
       "https://queue.kie.ai/v1/requests/1"
     );
-    expect(kiePayloadHasMedia({ videos: [{ url: "https://cdn.shortpulse.test/video.mp4" }] })).toBe(
-      true
-    );
+    expect(
+      kiePayloadHasMedia({
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: { videos: [{ url: "https://cdn.shortpulse.test/video.mp4" }] },
+      })
+    ).toBe(true);
   });
 
   it("reads content-policy messages from common Kie shapes", () => {
@@ -58,6 +62,64 @@ describe("kieStatusContracts", () => {
       isKieRetryableUpstreamResponse(
         new Response("{}", { status: 500, headers: { "x-kie-needs-retry": "false" } })
       )
+    ).toBe(false);
+  });
+
+  it("fails closed for unsupported model ids when model-aware validation is requested", () => {
+    expect(
+      validateKieStatusPayloadForModel({
+        modelId: "kie-ai/unknown",
+        payload: { status: "completed" },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        code: "KIE_MODEL_UNSUPPORTED",
+      })
+    );
+    expect(
+      kiePayloadHasMedia({
+        modelId: "kie-ai/unknown",
+        payload: { videos: [{ url: "https://cdn.shortpulse.test/video.mp4" }] },
+      })
+    ).toBe(false);
+  });
+
+  it("flags malformed status/result payload field types", () => {
+    expect(readKieLifecycleStatus({ status: { value: "running" } })).toBeNull();
+    expect(
+      readKieResponseUrl({ response_url: { href: "https://queue.kie.ai/v1/requests/1" } })
+    ).toBeNull();
+
+    expect(
+      validateKieStatusPayloadForModel({
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: { status: { value: "running" } },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        code: "KIE_STATUS_FIELD_INVALID",
+      })
+    );
+
+    expect(
+      validateKieStatusPayloadForModel({
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: { response_url: { href: "https://queue.kie.ai/v1/requests/1" } },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        code: "KIE_RESPONSE_URL_FIELD_INVALID",
+      })
+    );
+
+    expect(
+      kiePayloadHasMedia({
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: {
+          status: { value: "completed" },
+          videos: [{ url: "https://cdn.shortpulse.test/video.mp4" }],
+        },
+      })
     ).toBe(false);
   });
 });

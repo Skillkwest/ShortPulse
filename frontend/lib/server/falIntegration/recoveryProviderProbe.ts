@@ -126,7 +126,11 @@ export const probeProviderResult = async ({
       });
       const statusData = await readJsonSafe(statusResponse);
       const payload = Object.keys(statusData.json).length ? statusData.json : {};
-      const statusValue = readProviderLifecycleStatus({ provider: providerKey, payload });
+      const statusValue = readProviderLifecycleStatus({
+        provider: providerKey,
+        modelId,
+        payload,
+      });
       const isCompleted = Boolean(
         statusValue &&
         isProviderCompletedStatus({
@@ -152,11 +156,21 @@ export const probeProviderResult = async ({
         isTerminal: isCompleted || isFailed,
         isCompleted,
         isFailed,
-        hasResponseUrl: Boolean(readProviderResponseUrl({ provider: providerKey, payload })),
+        hasResponseUrl: Boolean(
+          readProviderResponseUrl({
+            provider: providerKey,
+            modelId,
+            payload,
+          })
+        ),
         hasMedia: providerPayloadHasMedia({ provider: providerKey, modelId, payload }),
       });
       payloadByStatusIndex.set(index, payload);
-      const responseUrl = readProviderResponseUrl({ provider: providerKey, payload });
+      const responseUrl = readProviderResponseUrl({
+        provider: providerKey,
+        modelId,
+        payload,
+      });
       if (responseUrl) responseUrlSet.add(responseUrl);
     }
 
@@ -222,7 +236,11 @@ export const probeProviderResult = async ({
       });
       const resultData = await readJsonSafe(resultResponse);
       const payload = Object.keys(resultData.json).length ? resultData.json : {};
-      const statusValue = readProviderLifecycleStatus({ provider: providerKey, payload });
+      const statusValue = readProviderLifecycleStatus({
+        provider: providerKey,
+        modelId,
+        payload,
+      });
       const hasError = Boolean(asString(payload.error)) || Boolean(asString(payload.detail));
       resultCandidates.push({
         index,

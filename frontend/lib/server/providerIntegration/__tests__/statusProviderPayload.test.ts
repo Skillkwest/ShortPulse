@@ -62,6 +62,7 @@ describe("statusProviderPayload", () => {
     expect(
       readProviderLifecycleStatus({
         provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
         payload: { state: "running" },
       })
     ).toBe("running");
@@ -69,6 +70,7 @@ describe("statusProviderPayload", () => {
     expect(
       readProviderResponseUrl({
         provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
         payload: { response_url: "https://queue.kie.ai/v1/requests/1" },
       })
     ).toBe("https://queue.kie.ai/v1/requests/1");
@@ -94,6 +96,39 @@ describe("statusProviderPayload", () => {
         payload: { error_message: "Blocked by moderation." },
       })
     ).toBe("Blocked by moderation.");
+  });
+
+  it("fails closed for malformed or unsupported kie status/result payloads", () => {
+    expect(
+      readProviderLifecycleStatus({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: { status: { value: "running" } },
+      })
+    ).toBeNull();
+
+    expect(
+      readProviderResponseUrl({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: { response_url: { href: "https://queue.kie.ai/v1/requests/1" } },
+      })
+    ).toBeNull();
+
+    expect(
+      providerPayloadHasMedia({
+        provider: "kie",
+        modelId: "kie-ai/unknown",
+        payload: { videos: [{ url: "https://cdn.shortpulse.test/video.mp4" }] },
+      })
+    ).toBe(false);
+    expect(
+      readProviderMediaUrls({
+        provider: "kie",
+        modelId: "kie-ai/unknown",
+        payload: { videos: [{ url: "https://cdn.shortpulse.test/video.mp4" }] },
+      })
+    ).toEqual([]);
   });
 
   it("throws for unsupported providers", () => {

@@ -16,6 +16,7 @@ import {
   readKieContentPolicyMessage,
   readKieLifecycleStatus,
   readKieResponseUrl,
+  validateKieStatusPayloadForModel,
 } from "./kieStatusContracts";
 import { isFalProviderKey, isKieProviderKey } from "./providerKey";
 
@@ -24,15 +25,18 @@ import { isFalProviderKey, isKieProviderKey } from "./providerKey";
  */
 export const readProviderLifecycleStatus = ({
   provider,
+  modelId,
   payload,
 }: {
   provider: string;
+  modelId?: string | null;
   payload: unknown;
 }): string | null => {
   if (isFalProviderKey(provider)) {
     return readCanonicalProviderStatus(payload);
   }
   if (isKieProviderKey(provider)) {
+    if (validateKieStatusPayloadForModel({ modelId, payload })) return null;
     return readKieLifecycleStatus(payload);
   }
   throw new Error(`Unsupported provider for payload status parsing: ${provider}`);
@@ -43,15 +47,18 @@ export const readProviderLifecycleStatus = ({
  */
 export const readProviderResponseUrl = ({
   provider,
+  modelId,
   payload,
 }: {
   provider: string;
+  modelId?: string | null;
   payload: unknown;
 }): string | null => {
   if (isFalProviderKey(provider)) {
     return extractResponseUrl(asProviderRecord(payload));
   }
   if (isKieProviderKey(provider)) {
+    if (validateKieStatusPayloadForModel({ modelId, payload })) return null;
     return readKieResponseUrl(payload);
   }
   throw new Error(`Unsupported provider for response URL parsing: ${provider}`);
@@ -73,8 +80,7 @@ export const providerPayloadHasMedia = ({
     return hasMediaPayload(asProviderRecord(payload));
   }
   if (isKieProviderKey(provider)) {
-    const modelMediaUrls = extractKieResultMediaUrls({ modelId, payload });
-    return modelMediaUrls.length ? true : kiePayloadHasMedia(payload);
+    return kiePayloadHasMedia({ modelId, payload });
   }
   throw new Error(`Unsupported provider for media payload parsing: ${provider}`);
 };
@@ -95,6 +101,7 @@ export const readProviderMediaUrls = ({
     return extractMediaPayloadUrls(asProviderRecord(payload));
   }
   if (isKieProviderKey(provider)) {
+    if (validateKieStatusPayloadForModel({ modelId, payload })) return [];
     return extractKieResultMediaUrls({ modelId, payload });
   }
   throw new Error(`Unsupported provider for media URL parsing: ${provider}`);

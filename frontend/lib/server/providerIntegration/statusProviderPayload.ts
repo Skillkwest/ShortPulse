@@ -4,47 +4,18 @@
  */
 
 import {
-  asString,
   extractResponseUrl,
   findContentPolicyMessage,
   hasMediaPayload,
 } from "../falIntegration/falAdapter";
 import { asProviderRecord, readCanonicalProviderStatus } from "./canonicalProviderPayload";
+import {
+  kiePayloadHasMedia,
+  readKieContentPolicyMessage,
+  readKieLifecycleStatus,
+  readKieResponseUrl,
+} from "./kieStatusContracts";
 import { isFalProviderKey, isKieProviderKey } from "./providerKey";
-
-const readKieContentPolicyMessage = (payload: unknown): string | null => {
-  const root = asProviderRecord(payload);
-  const fallbackMessage =
-    asString(root.content_policy_message) ??
-    asString(root.contentPolicyMessage) ??
-    asString(root.moderation_message) ??
-    asString(root.moderationMessage) ??
-    asString(root.safety_message) ??
-    asString(root.safetyMessage) ??
-    asString(root.error_message) ??
-    asString(root.errorMessage);
-  if (fallbackMessage) return fallbackMessage;
-  const nestedCandidates = [
-    asProviderRecord(root.error),
-    asProviderRecord(root.detail),
-    asProviderRecord(root.data),
-    asProviderRecord(root.result),
-  ];
-  for (const candidate of nestedCandidates) {
-    const message =
-      asString(candidate.content_policy_message) ??
-      asString(candidate.contentPolicyMessage) ??
-      asString(candidate.moderation_message) ??
-      asString(candidate.moderationMessage) ??
-      asString(candidate.safety_message) ??
-      asString(candidate.safetyMessage) ??
-      asString(candidate.error_message) ??
-      asString(candidate.errorMessage) ??
-      asString(candidate.message);
-    if (message) return message;
-  }
-  return null;
-};
 
 /**
  * Reads normalized lifecycle status from a provider payload.
@@ -56,8 +27,11 @@ export const readProviderLifecycleStatus = ({
   provider: string;
   payload: unknown;
 }): string | null => {
-  if (isFalProviderKey(provider) || isKieProviderKey(provider)) {
+  if (isFalProviderKey(provider)) {
     return readCanonicalProviderStatus(payload);
+  }
+  if (isKieProviderKey(provider)) {
+    return readKieLifecycleStatus(payload);
   }
   throw new Error(`Unsupported provider for payload status parsing: ${provider}`);
 };
@@ -72,8 +46,11 @@ export const readProviderResponseUrl = ({
   provider: string;
   payload: unknown;
 }): string | null => {
-  if (isFalProviderKey(provider) || isKieProviderKey(provider)) {
+  if (isFalProviderKey(provider)) {
     return extractResponseUrl(asProviderRecord(payload));
+  }
+  if (isKieProviderKey(provider)) {
+    return readKieResponseUrl(payload);
   }
   throw new Error(`Unsupported provider for response URL parsing: ${provider}`);
 };
@@ -88,8 +65,11 @@ export const providerPayloadHasMedia = ({
   provider: string;
   payload: unknown;
 }): boolean => {
-  if (isFalProviderKey(provider) || isKieProviderKey(provider)) {
+  if (isFalProviderKey(provider)) {
     return hasMediaPayload(asProviderRecord(payload));
+  }
+  if (isKieProviderKey(provider)) {
+    return kiePayloadHasMedia(payload);
   }
   throw new Error(`Unsupported provider for media payload parsing: ${provider}`);
 };

@@ -1,0 +1,138 @@
+/**
+ * Kie status/result contract helpers.
+ * Centralizes Kie payload parsing and lifecycle/retry semantics behind one boundary.
+ */
+
+import { asString, extractResponseUrl, hasMediaPayload } from "../falIntegration/falAdapter";
+import { asProviderRecord, readCanonicalProviderStatus } from "./canonicalProviderPayload";
+
+const kieCompletedStatuses = new Set(["completed", "succeeded", "success", "done", "finished"]);
+const kieFailedStatuses = new Set(["failed", "error", "cancelled", "canceled", "rejected"]);
+const kieRetryableUpstreamStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+
+const normalizeKieStatusAlias = (status: string): string => {
+  const normalized = status.trim().toLowerCase();
+  switch (normalized) {
+    case "in_progress":
+    case "processing":
+      return "running";
+    case "success":
+    case "succeeded":
+    case "done":
+      return "completed";
+    case "cancelled":
+      return "canceled";
+    default:
+      return normalized;
+  }
+};
+
+const parseBooleanHeader = (value: string | null): boolean | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return null;
+};
+
+/**
+ * Reads normalized lifecycle status from Kie payload shapes.
+ */
+export const readKieLifecycleStatus = (payload: unknown): string | null => {
+  const status = readCanonicalProviderStatus(payload);
+  return status ? normalizeKieStatusAlias(status) : null;
+};
+
+/**
+ * Reads provider response URL from Kie payload shapes.
+ */
+export const readKieResponseUrl = (payload: unknown): string | null => {
+  return extractResponseUrl(asProviderRecord(payload));
+};
+
+/**
+ * Returns true when Kie payload includes usable media URLs.
+ */
+export const kiePayloadHasMedia = (payload: unknown): boolean => {
+  return hasMediaPayload(asProviderRecord(payload));
+};
+
+/**
+ * Reads Kie content/safety policy message from common payload fields.
+ */
+export const readKieContentPolicyMessage = (payload: unknown): string | null => {
+  const root = asProviderRecord(payload);
+  const fallbackMessage =
+    asString(root.content_policy_message) ??
+    asString(root.contentPolicyMessage) ??
+    asString(root.moderation_message) ??
+    asString(root.moderationMessage) ??
+    asString(root.safety_message) ??
+    asString(root.safetyMessage) ??
+    asString(root.error_message) ??
+    asString(root.errorMessage);
+  if (fallbackMessage) return fallbackMessage;
+  const nestedCandidates = [
+    asProviderRecord(root.error),
+    asProviderRecord(root.detail),
+    asProviderRecord(root.data),
+    asProviderRecord(root.result),
+  ];
+  for (const candidate of nestedCandidates) {
+    const message =
+      asString(candidate.content_policy_message) ??
+      asString(candidate.contentPolicyMessage) ??
+      asString(candidate.moderation_message) ??
+      asString(candidate.moderationMessage) ??
+      asString(candidate.safety_message) ??
+      asString(candidate.safetyMessage) ??
+      asString(candidate.error_message) ??
+      asString(candidate.errorMessage) ??
+      asString(candidate.message);
+    if (message) return message;
+  }
+  return null;
+};
+
+/**
+ * Returns true when lifecycle status is terminal success for Kie.
+ */
+export const isKieCompletedStatus = (status: string | null): boolean => {
+  return Boolean(status && kieCompletedStatuses.has(normalizeKieStatusAlias(status)));
+};
+
+/**
+ * Returns true when lifecycle status is terminal failure for Kie.
+ */
+export const isKieFailedStatus = (status: string | null): boolean => {
+  return Boolean(status && kieFailedStatuses.has(normalizeKieStatusAlias(status)));
+};
+
+/**
+ * Resolves a normalized successful Kie status from candidate values.
+ */
+export const resolveKieSuccessfulPayloadStatus = (candidates: unknown[]): string => {
+  for (const candidate of candidates) {
+    const status = asString(candidate);
+    if (!status) continue;
+    const normalized = normalizeKieStatusAlias(status);
+    if (kieCompletedStatuses.has(normalized)) {
+      return normalized;
+    }
+  }
+  return "completed";
+};
+
+/**
+ * Returns true when an upstream Kie response should be retried.
+ */
+export const isKieRetryableUpstreamResponse = (response: Response): boolean => {
+  const needsRetry = parseBooleanHeader(response.headers.get("x-kie-needs-retry"));
+  if (needsRetry === false) return false;
+  if (needsRetry === true) return true;
+
+  const retryableHeader = parseBooleanHeader(response.headers.get("x-kie-retryable"));
+  if (retryableHeader === true) return true;
+
+  return kieRetryableUpstreamStatuses.has(response.status);
+};

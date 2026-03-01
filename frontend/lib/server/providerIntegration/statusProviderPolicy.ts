@@ -4,15 +4,17 @@
  */
 
 import { asString } from "../falIntegration/falAdapter";
+import {
+  isKieCompletedStatus,
+  isKieFailedStatus,
+  isKieRetryableUpstreamResponse,
+  resolveKieSuccessfulPayloadStatus,
+} from "./kieStatusContracts";
 import { isFalProviderKey, isKieProviderKey } from "./providerKey";
 
 const falCompletedStatuses = new Set(["completed", "succeeded", "success", "done"]);
 const falFailedStatuses = new Set(["failed", "error", "cancelled", "canceled"]);
 const falRetryableUpstreamStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
-const kieCompletedStatuses = new Set(["completed", "succeeded", "success", "done", "finished"]);
-const kieFailedStatuses = new Set(["failed", "error", "cancelled", "canceled", "rejected"]);
-const kieRetryableUpstreamStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
-
 const normalizeStatus = (value: unknown): string | null => {
   const text = asString(value);
   return text ? text.toLowerCase() : null;
@@ -33,12 +35,6 @@ const resolveStatusPolicy = (provider: string) => {
       failed: falFailedStatuses,
     };
   }
-  if (isKieProviderKey(provider)) {
-    return {
-      completed: kieCompletedStatuses,
-      failed: kieFailedStatuses,
-    };
-  }
   return null;
 };
 
@@ -52,6 +48,9 @@ export const isProviderCompletedStatus = ({
   provider: string;
   status: string | null;
 }): boolean => {
+  if (isKieProviderKey(provider)) {
+    return isKieCompletedStatus(status);
+  }
   const policy = resolveStatusPolicy(provider);
   if (policy) {
     return Boolean(status && policy.completed.has(status));
@@ -69,6 +68,9 @@ export const isProviderFailedStatus = ({
   provider: string;
   status: string | null;
 }): boolean => {
+  if (isKieProviderKey(provider)) {
+    return isKieFailedStatus(status);
+  }
   const policy = resolveStatusPolicy(provider);
   if (policy) {
     return Boolean(status && policy.failed.has(status));
@@ -86,6 +88,9 @@ export const resolveProviderSuccessfulPayloadStatus = ({
   provider: string;
   candidates: unknown[];
 }): string => {
+  if (isKieProviderKey(provider)) {
+    return resolveKieSuccessfulPayloadStatus(candidates);
+  }
   const policy = resolveStatusPolicy(provider);
   if (policy) {
     for (const candidate of candidates) {
@@ -121,15 +126,7 @@ export const isProviderRetryableUpstreamResponse = ({
     return false;
   }
   if (isKieProviderKey(provider)) {
-    const needsRetry = parseBooleanHeader(response.headers.get("x-kie-needs-retry"));
-    if (needsRetry === false) return false;
-    if (needsRetry === true) return true;
-
-    const retryableHeader = parseBooleanHeader(response.headers.get("x-kie-retryable"));
-    if (retryableHeader === true) return true;
-
-    if (kieRetryableUpstreamStatuses.has(response.status)) return true;
-    return false;
+    return isKieRetryableUpstreamResponse(response);
   }
   throw new Error("Unsupported provider for retryable-upstream policy");
 };

@@ -144,6 +144,12 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/__tests__/kieModelContracts.test.ts`
   - `frontend/lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts`
   - Enforces fail-closed unsupported-model rejection and model-specific payload validation before Kie transport dispatch.
+- Added Kie status/result contract execution boundary for payload/policy decoupling:
+  - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
+  - `frontend/lib/server/providerIntegration/statusProviderPayload.ts`
+  - `frontend/lib/server/providerIntegration/statusProviderPolicy.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/kieStatusContracts.test.ts`
+  - Centralizes Kie lifecycle/status/result/retry semantics and removes inline Kie parsing duplication from shared provider payload/policy modules.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

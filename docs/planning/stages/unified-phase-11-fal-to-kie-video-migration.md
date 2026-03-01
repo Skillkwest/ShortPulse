@@ -133,6 +133,11 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/model-runtime/modelRegistry.ts` (provider=`kie` runtime entries)
   - strict fail-closed allowlist behavior in `frontend/lib/server/providerIntegration/providerRuntimeConfig.ts`
   - API traceability docs: `docs/api/api-kie-veo-3-1-fast-image-to-video.md`, `docs/api/api-kie-kling-3-0.md`
+- Added AI Studio model-selection fail-closed guard for Kie dark-path models:
+  - `frontend/features/ai-studio/logic/modelSelectionPolicy.ts`
+  - `frontend/features/ai-studio/logic/__tests__/modelSelectionPolicy.test.ts`
+  - `frontend/features/ai-studio/logic/__tests__/modelOptionsRegistry.test.ts`
+  - Ensures selector options remain Fal-only by default even if Kie model options are introduced later.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

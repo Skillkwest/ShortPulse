@@ -17,6 +17,7 @@ export type ModelSelectionVideoReferenceMode = "standard" | "keyframes" | "kling
 type ModelConfigLike = {
   supportsImageToImage?: boolean;
   supportsTextToImage?: boolean;
+  provider?: string;
 };
 
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
@@ -27,6 +28,17 @@ const isImageMediaOption = (option: ModelOption): boolean => {
 
 const isVideoMediaOption = (option: ModelOption): boolean => {
   return !option.mediaType || option.mediaType === "video" || option.mediaType === "multi";
+};
+
+const isOptionProviderSelectable = ({
+  option,
+  getModelConfig,
+}: {
+  option: ModelOption;
+  getModelConfig: (id: string) => ModelConfigLike | null;
+}): boolean => {
+  const provider = getModelConfig(option.value)?.provider?.trim().toLowerCase();
+  return provider !== "kie";
 };
 
 /**
@@ -48,40 +60,46 @@ export const resolveAiStudioAllowedModelOptions = ({
   options?: ModelOption[];
   getModelConfig: (id: string) => ModelConfigLike | null;
 }): ModelOption[] => {
+  const selectableOptions = options.filter((option) =>
+    isOptionProviderSelectable({ option, getModelConfig })
+  );
+
   if (selectedTool === "video" || selectedTool === "kling") {
     if (videoReferenceMode === "keyframes") {
-      return options.filter((option) => option.value === "fal-ai/veo3.1/first-last-frame-to-video");
+      return selectableOptions.filter(
+        (option) => option.value === "fal-ai/veo3.1/first-last-frame-to-video"
+      );
     }
     if (videoReferenceMode === "motion") {
-      return options.filter(
+      return selectableOptions.filter(
         (option) => option.value === "fal-ai/kling-video/v3/pro/image-to-video"
       );
     }
     if (selectedTool === "kling" || videoReferenceMode === "kling3") {
-      return options.filter(
+      return selectableOptions.filter(
         (option) => option.value === "fal-ai/kling-video/v3/pro/image-to-video"
       );
     }
-    return options.filter(
+    return selectableOptions.filter(
       (option) => option.mediaType === "image-to-video" && !option.value.includes("kling-video")
     );
   }
 
   if (isCreateTool(selectedTool) && mode === "video") {
-    return options.filter((option) => isVideoMediaOption(option));
+    return selectableOptions.filter((option) => isVideoMediaOption(option));
   }
 
   if (isCreateTool(selectedTool) && mode === "image") {
     if (isCharacterModeEnabled) {
       const allowedCharacterModeModelIds = new Set(getCreateCharacterModeAllowedModels());
-      return options.filter((option) => {
+      return selectableOptions.filter((option) => {
         if (!allowedCharacterModeModelIds.has(option.value)) return false;
         if (!isImageMediaOption(option)) return false;
         const config = getModelConfig(option.value);
         return Boolean(config?.supportsImageToImage);
       });
     }
-    return options.filter((option) => {
+    return selectableOptions.filter((option) => {
       if (!isImageMediaOption(option)) return false;
       if (option.value === "fal/flux-2-pro") return false;
       const config = getModelConfig(option.value);
@@ -90,14 +108,14 @@ export const resolveAiStudioAllowedModelOptions = ({
   }
 
   if (selectedTool === "image" || selectedTool === "edit") {
-    return options.filter((option) => {
+    return selectableOptions.filter((option) => {
       if (!isImageMediaOption(option)) return false;
       const config = getModelConfig(option.value);
       return Boolean(config?.supportsImageToImage);
     });
   }
 
-  return options;
+  return selectableOptions;
 };
 
 /**

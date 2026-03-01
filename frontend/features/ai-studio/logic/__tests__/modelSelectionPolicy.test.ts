@@ -20,6 +20,11 @@ const createImageOptions: ModelOption[] = [
     mediaType: "image",
   },
   { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
+  {
+    value: "kie-ai/veo-3.1-fast-i2v",
+    label: "Veo 3.1 Fast I2V (Kie)",
+    mediaType: "image-to-video",
+  },
 ];
 
 const getModelConfig = (id: string) => {
@@ -30,14 +35,23 @@ const getModelConfig = (id: string) => {
     id === "fal/flux-2-pro"
   ) {
     return {
+      provider: "fal",
       supportsTextToImage: true,
       supportsImageToImage: false,
     };
   }
   if (id === "fal-ai/nano-banana-pro/edit" || id === "fal-ai/bytedance/seedream/v4.5/edit") {
     return {
+      provider: "fal",
       supportsTextToImage: false,
       supportsImageToImage: true,
+    };
+  }
+  if (id === "kie-ai/veo-3.1-fast-i2v") {
+    return {
+      provider: "kie",
+      supportsTextToImage: false,
+      supportsImageToImage: false,
     };
   }
 
@@ -78,6 +92,30 @@ describe("modelSelectionPolicy", () => {
     const model = resolveCreateWorkflowStartupModel({
       mode: "image",
       savedModelId: "non-existent-model",
+      getModelConfig,
+    });
+
+    expect(model).toBe(CREATE_DEFAULT_MODEL_ID);
+  });
+
+  it("fails closed for kie provider options in create/image model selection", () => {
+    const values = new Set(
+      resolveAiStudioAllowedModelOptions({
+        selectedTool: "create",
+        mode: "image",
+        videoReferenceMode: "standard",
+        options: createImageOptions,
+        getModelConfig,
+      }).map((option) => option.value)
+    );
+
+    expect(values.has("kie-ai/veo-3.1-fast-i2v")).toBe(false);
+  });
+
+  it("ignores saved kie model ids for startup fallback selection", () => {
+    const model = resolveCreateWorkflowStartupModel({
+      mode: "image",
+      savedModelId: "kie-ai/veo-3.1-fast-i2v",
       getModelConfig,
     });
 

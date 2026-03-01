@@ -4,11 +4,13 @@
  */
 
 import {
+  extractMediaPayloadUrls,
   extractResponseUrl,
   findContentPolicyMessage,
   hasMediaPayload,
 } from "../falIntegration/falAdapter";
 import { asProviderRecord, readCanonicalProviderStatus } from "./canonicalProviderPayload";
+import { extractKieResultMediaUrls } from "./kieResultMediaContracts";
 import {
   kiePayloadHasMedia,
   readKieContentPolicyMessage,
@@ -60,18 +62,42 @@ export const readProviderResponseUrl = ({
  */
 export const providerPayloadHasMedia = ({
   provider,
+  modelId,
   payload,
 }: {
   provider: string;
+  modelId?: string | null;
   payload: unknown;
 }): boolean => {
   if (isFalProviderKey(provider)) {
     return hasMediaPayload(asProviderRecord(payload));
   }
   if (isKieProviderKey(provider)) {
-    return kiePayloadHasMedia(payload);
+    const modelMediaUrls = extractKieResultMediaUrls({ modelId, payload });
+    return modelMediaUrls.length ? true : kiePayloadHasMedia(payload);
   }
   throw new Error(`Unsupported provider for media payload parsing: ${provider}`);
+};
+
+/**
+ * Reads normalized media URLs from provider payloads.
+ */
+export const readProviderMediaUrls = ({
+  provider,
+  modelId,
+  payload,
+}: {
+  provider: string;
+  modelId?: string | null;
+  payload: unknown;
+}): string[] => {
+  if (isFalProviderKey(provider)) {
+    return extractMediaPayloadUrls(asProviderRecord(payload));
+  }
+  if (isKieProviderKey(provider)) {
+    return extractKieResultMediaUrls({ modelId, payload });
+  }
+  throw new Error(`Unsupported provider for media URL parsing: ${provider}`);
 };
 
 /**

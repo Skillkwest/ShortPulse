@@ -13,6 +13,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 8. `2026-03-01-phase-11-slice-b-kie-selector-fail-closed-guard.md` - AI Studio model-selection fail-closed guard that excludes Kie provider options by default, with regression coverage.
 9. `2026-03-01-phase-11-slice-b-kie-model-contract-execution-boundary.md` - provider-integration Kie model-contract payload boundary with fail-closed unsupported-model enforcement and dispatcher wiring.
 10. `2026-03-01-phase-11-slice-b-kie-status-result-contract-boundary.md` - provider-integration Kie status/result contract boundary with shared payload/policy delegation and focused unit coverage.
+11. `2026-03-01-phase-11-slice-b-kie-result-media-normalization-boundary.md` - provider/model-aware media URL normalization boundary for Kie result payloads, reused by recovery and webhook paths.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

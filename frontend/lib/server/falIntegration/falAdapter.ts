@@ -16,19 +16,22 @@ export const toRecord = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
-const hasUrlArray = (value: unknown): boolean =>
-  Array.isArray(value) &&
-  value.some((item) => {
-    if (typeof item === "string") return Boolean(asString(item));
-    const record = toRecord(item);
-    return Boolean(
-      asString(record.url) ||
-      asString(record.download_url) ||
-      asString(record.video_url) ||
-      asString(record.image_url) ||
-      asString(record.file_url)
-    );
-  });
+const extractUrlArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (typeof item === "string") return asString(item);
+      const record = toRecord(item);
+      return (
+        asString(record.url) ||
+        asString(record.download_url) ||
+        asString(record.video_url) ||
+        asString(record.image_url) ||
+        asString(record.file_url)
+      );
+    })
+    .filter((url): url is string => Boolean(url));
+};
 
 export const normalizeStatus = (value: unknown): string | null => {
   const text = asString(value);
@@ -47,6 +50,10 @@ export const findContentPolicyMessage = (payload: JsonObject): string | null => 
 };
 
 export const hasMediaPayload = (payload: JsonObject): boolean => {
+  return extractMediaPayloadUrls(payload).length > 0;
+};
+
+export const extractMediaPayloadUrls = (payload: JsonObject): string[] => {
   const data = toRecord(payload.data);
   const output = toRecord(payload.output);
   const result = toRecord(payload.result);
@@ -62,18 +69,19 @@ export const hasMediaPayload = (payload: JsonObject): boolean => {
     toRecord(response.result),
   ].filter((item) => Object.keys(item).length > 0);
 
+  const urls: string[] = [];
   for (const candidate of candidates) {
-    if (hasUrlArray(candidate.images)) return true;
-    if (hasUrlArray(candidate.videos)) return true;
-    if (hasUrlArray(candidate.outputs)) return true;
-    if (hasUrlArray(candidate.artifacts)) return true;
-    const urls =
+    urls.push(...extractUrlArray(candidate.images));
+    urls.push(...extractUrlArray(candidate.videos));
+    urls.push(...extractUrlArray(candidate.outputs));
+    urls.push(...extractUrlArray(candidate.artifacts));
+    const resultUrlCandidates =
       candidate.resultUrls ??
       candidate.result_urls ??
       candidate.image_urls ??
       candidate.video_urls ??
       toRecord(candidate.info).result_urls;
-    if (hasUrlArray(urls)) return true;
+    urls.push(...extractUrlArray(resultUrlCandidates));
     const mediaUrl =
       asString(candidate.url) ||
       asString(candidate.video) ||
@@ -89,10 +97,9 @@ export const hasMediaPayload = (payload: JsonObject): boolean => {
       asString(candidate.file_url) ||
       asString(candidate.media_url) ||
       asString(candidate.download_url);
-    if (mediaUrl) return true;
+    if (mediaUrl) urls.push(mediaUrl);
   }
-
-  return false;
+  return Array.from(new Set(urls.map((url) => url.trim()).filter((url) => Boolean(url))));
 };
 
 export const extractResponseUrl = (payload: JsonObject): string | null => {

@@ -198,6 +198,8 @@ export const executeGenerationRecovery = async ({
   const recoveredUrls = collectRecoveredUrls({
     mediaUrls: currentObservation.mediaUrls,
     payload: currentObservation.payload,
+    provider: generation.provider,
+    modelId: generation.model_id,
   });
 
   if (currentObservation.state === "running") {

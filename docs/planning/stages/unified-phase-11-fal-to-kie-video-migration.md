@@ -150,6 +150,14 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/statusProviderPolicy.ts`
   - `frontend/lib/server/providerIntegration/__tests__/kieStatusContracts.test.ts`
   - Centralizes Kie lifecycle/status/result/retry semantics and removes inline Kie parsing duplication from shared provider payload/policy modules.
+- Added Kie result media normalization boundary for recovery/status parity:
+  - `frontend/lib/server/providerIntegration/kieResultMediaContracts.ts`
+  - `frontend/lib/server/providerIntegration/statusProviderPayload.ts` (`readProviderMediaUrls`, model-aware Kie media presence)
+  - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
+  - `frontend/lib/server/falIntegration/recoveryExecutionRuntime.ts`
+  - `frontend/lib/server/falIntegration/recoveryExecution.ts`
+  - `frontend/pages/api/fal/webhook.ts`
+  - Consolidates provider/model-aware media URL extraction and removes duplicate parsing logic from recovery/webhook paths.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

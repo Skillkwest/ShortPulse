@@ -15,11 +15,11 @@ import {
 } from "../../../lib/server/falIntegration/recoveryExecution";
 import {
   asProviderRecord,
-  asProviderString,
   readCanonicalProviderEventId,
   readCanonicalProviderRequestId,
   readCanonicalProviderStatus,
 } from "../../../lib/server/providerIntegration/canonicalProviderPayload";
+import { readProviderMediaUrls } from "../../../lib/server/providerIntegration/statusProviderPayload";
 
 type JsonObject = Record<string, unknown>;
 
@@ -55,26 +55,8 @@ const resolveObservationState = (
   return null;
 };
 
-const extractMediaUrls = (payload: JsonObject): string[] => {
-  const candidates = [payload, parseObject(payload.payload), parseObject(payload.data)];
-  for (const candidate of candidates) {
-    const images = candidate.images;
-    if (Array.isArray(images) && images.length) {
-      const urls = images
-        .map((item) => (typeof item === "string" ? item : asProviderString(parseObject(item).url)))
-        .filter((url): url is string => Boolean(url));
-      if (urls.length) return urls;
-    }
-    const videos = candidate.videos;
-    if (Array.isArray(videos) && videos.length) {
-      const urls = videos
-        .map((item) => (typeof item === "string" ? item : asProviderString(parseObject(item).url)))
-        .filter((url): url is string => Boolean(url));
-      if (urls.length) return urls;
-    }
-  }
-  return [];
-};
+const extractMediaUrls = (payload: JsonObject): string[] =>
+  readProviderMediaUrls({ provider: "fal", payload });
 
 const markWebhookEventProcessed = async ({
   eventId,

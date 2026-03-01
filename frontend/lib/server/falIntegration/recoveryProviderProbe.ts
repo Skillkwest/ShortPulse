@@ -1,4 +1,3 @@
-import { asString } from "./falAdapter";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "./contracts";
 import { assertTrustedFalProviderUrl } from "./providerTrustPolicy";
 import {
@@ -19,6 +18,7 @@ import { resolveProviderModelStatusBaseUrls } from "../providerIntegration/statu
 import { startProviderPollingSession } from "../providerIntegration/statusProviderPolling";
 import {
   providerPayloadHasMedia,
+  readProviderMediaUrls,
   readProviderLifecycleStatus,
   readProviderResponseUrl,
 } from "../providerIntegration/statusProviderPayload";
@@ -48,6 +48,12 @@ export type ProviderProbeObservation = {
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
 
+const asString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
 const readJsonSafe = async (response: Response): Promise<JsonReadResult> => {
   const text = await response.text();
   if (!text) return { ok: response.ok, status: response.status, json: {} };
@@ -63,77 +69,13 @@ const readJsonSafe = async (response: Response): Promise<JsonReadResult> => {
   }
 };
 
-const extractUrlObjects = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (typeof item === "string") return asString(item);
-      const record = asObject(item);
-      return (
-        asString(record.url) ||
-        asString(record.download_url) ||
-        asString(record.video_url) ||
-        asString(record.image_url) ||
-        asString(record.file_url)
-      );
-    })
-    .filter((url): url is string => Boolean(url));
-};
-
-const collectCandidates = (payload: JsonObject): JsonObject[] => {
-  const data = asObject(payload.data);
-  const output = asObject(payload.output);
-  const result = asObject(payload.result);
-  const response = asObject(payload.response);
-  const rootPayload = asObject(payload.payload);
-  return [
-    payload,
-    rootPayload,
-    data,
-    output,
-    result,
-    response,
-    asObject(data.result),
-    asObject(result.data),
-    asObject(response.result),
-    asObject(rootPayload.result),
-  ].filter((item) => Object.keys(item).length > 0);
-};
-
-export const extractRecoveryMediaUrls = (payload: JsonObject): string[] => {
-  const candidates = collectCandidates(payload);
-  for (const candidate of candidates) {
-    const fromImages = extractUrlObjects(candidate.images);
-    if (fromImages.length) return fromImages;
-    const fromVideos = extractUrlObjects(candidate.videos);
-    if (fromVideos.length) return fromVideos;
-    const fromOutputs = extractUrlObjects(candidate.outputs);
-    if (fromOutputs.length) return fromOutputs;
-    const fromArtifacts = extractUrlObjects(candidate.artifacts);
-    if (fromArtifacts.length) return fromArtifacts;
-    const fromResultUrls = extractUrlObjects(
-      candidate.result_urls ?? candidate.resultUrls ?? candidate.image_urls ?? candidate.video_urls
-    );
-    if (fromResultUrls.length) return fromResultUrls;
-
-    const mediaUrl =
-      asString(candidate.url) ||
-      asString(candidate.video) ||
-      asString(candidate.image) ||
-      asString(asObject(candidate.video).url) ||
-      asString(asObject(candidate.image).url) ||
-      asString(candidate.video_url) ||
-      asString(candidate.image_url) ||
-      asString(asObject(asObject(candidate.assets).video).url) ||
-      asString(asObject(asObject(candidate.assets).image).url) ||
-      asString(asObject(asObject(candidate.assets).video).download_url) ||
-      asString(asObject(asObject(candidate.assets).image).download_url) ||
-      asString(candidate.file_url) ||
-      asString(candidate.media_url) ||
-      asString(candidate.download_url);
-    if (mediaUrl) return [mediaUrl];
-  }
-  return [];
+export const extractRecoveryMediaUrls = (
+  payload: JsonObject,
+  options?: { provider?: string; modelId?: string | null }
+): string[] => {
+  const providerKey = normalizeProviderKey(options?.provider ?? "fal");
+  const modelId = options?.modelId ?? null;
+  return readProviderMediaUrls({ provider: providerKey, modelId, payload });
 };
 
 export const probeProviderResult = async ({
@@ -211,7 +153,7 @@ export const probeProviderResult = async ({
         isCompleted,
         isFailed,
         hasResponseUrl: Boolean(readProviderResponseUrl({ provider: providerKey, payload })),
-        hasMedia: providerPayloadHasMedia({ provider: providerKey, payload }),
+        hasMedia: providerPayloadHasMedia({ provider: providerKey, modelId, payload }),
       });
       payloadByStatusIndex.set(index, payload);
       const responseUrl = readProviderResponseUrl({ provider: providerKey, payload });
@@ -225,7 +167,11 @@ export const probeProviderResult = async ({
     if (bestStatus?.hasMedia) {
       const payload = payloadByStatusIndex.get(bestStatus.index) ?? null;
       if (payload) {
-        return { state: "completed", payload, mediaUrls: extractRecoveryMediaUrls(payload) };
+        return {
+          state: "completed",
+          payload,
+          mediaUrls: extractRecoveryMediaUrls(payload, { provider: providerKey, modelId }),
+        };
       }
     }
 
@@ -242,14 +188,21 @@ export const probeProviderResult = async ({
       const responseData = await readJsonSafe(responseProbe);
       if (
         !responseProbe.ok ||
-        !providerPayloadHasMedia({ provider: providerKey, payload: responseData.json })
+        !providerPayloadHasMedia({
+          provider: providerKey,
+          modelId,
+          payload: responseData.json,
+        })
       ) {
         continue;
       }
       return {
         state: "completed",
         payload: responseData.json,
-        mediaUrls: extractRecoveryMediaUrls(responseData.json),
+        mediaUrls: extractRecoveryMediaUrls(responseData.json, {
+          provider: providerKey,
+          modelId,
+        }),
       };
     }
 
@@ -279,7 +232,7 @@ export const probeProviderResult = async ({
         isHttpOk: resultResponse.ok,
         status: statusValue,
         hasError,
-        hasMedia: providerPayloadHasMedia({ provider: providerKey, payload }),
+        hasMedia: providerPayloadHasMedia({ provider: providerKey, modelId, payload }),
       });
       payloadByResultIndex.set(index, payload);
     }
@@ -291,7 +244,11 @@ export const probeProviderResult = async ({
     if (bestResult?.hasMedia) {
       const payload = payloadByResultIndex.get(bestResult.index) ?? null;
       if (payload) {
-        return { state: "completed", payload, mediaUrls: extractRecoveryMediaUrls(payload) };
+        return {
+          state: "completed",
+          payload,
+          mediaUrls: extractRecoveryMediaUrls(payload, { provider: providerKey, modelId }),
+        };
       }
     }
 

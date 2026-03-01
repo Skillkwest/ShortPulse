@@ -96,13 +96,17 @@ export const canTransitionToSuccess = ({
 export const collectRecoveredUrls = ({
   mediaUrls,
   payload,
+  provider,
+  modelId,
 }: {
   mediaUrls: string[];
   payload: JsonObject | null;
+  provider?: string;
+  modelId?: string | null;
 }): string[] => {
   return Array.from(
     new Set(
-      [...mediaUrls, ...(payload ? extractRecoveryMediaUrls(payload) : [])]
+      [...mediaUrls, ...(payload ? extractRecoveryMediaUrls(payload, { provider, modelId }) : [])]
         .map((url) => url.trim())
         .filter((url) => Boolean(url))
     )

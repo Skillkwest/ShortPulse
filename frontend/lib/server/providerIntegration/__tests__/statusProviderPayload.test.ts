@@ -7,6 +7,7 @@ import {
   providerPayloadHasMedia,
   readProviderContentPolicyMessage,
   readProviderLifecycleStatus,
+  readProviderMediaUrls,
   readProviderResponseUrl,
 } from "../statusProviderPayload";
 
@@ -75,9 +76,17 @@ describe("statusProviderPayload", () => {
     expect(
       providerPayloadHasMedia({
         provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
         payload: { videos: [{ url: "https://cdn.shortpulse.test/video.mp4" }] },
       })
     ).toBe(true);
+    expect(
+      readProviderMediaUrls({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: { videos: [{ url: "https://cdn.shortpulse.test/video.mp4" }] },
+      })
+    ).toEqual(["https://cdn.shortpulse.test/video.mp4"]);
 
     expect(
       readProviderContentPolicyMessage({
@@ -94,5 +103,11 @@ describe("statusProviderPayload", () => {
         payload: { status: "running" },
       })
     ).toThrow("Unsupported provider for payload status parsing");
+    expect(() =>
+      readProviderMediaUrls({
+        provider: "openai",
+        payload: { videos: [{ url: "https://cdn.shortpulse.test/video.mp4" }] },
+      })
+    ).toThrow("Unsupported provider for media URL parsing");
   });
 });

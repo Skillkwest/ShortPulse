@@ -15,3 +15,16 @@ export const isFalProviderKey = (provider: string): boolean => {
   const normalized = normalizeProviderKey(provider);
   return normalized === "fal" || normalized.startsWith("fal");
 };
+
+/**
+ * Returns true when a provider key maps to the Kie family.
+ */
+export const isKieProviderKey = (provider: string): boolean => {
+  const normalized = normalizeProviderKey(provider);
+  return (
+    normalized === "kie" ||
+    normalized.startsWith("kie/") ||
+    normalized.startsWith("kie-") ||
+    normalized.startsWith("kie_")
+  );
+};

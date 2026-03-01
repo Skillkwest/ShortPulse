@@ -12,6 +12,12 @@ import type { SubmitTarget } from "../../falIntegration/contracts";
 import { resolveWebhookCallbackUrl, withWebhookTargets } from "../falSubmitTargeting";
 import { dispatchProviderSubmit } from "../../providerIntegration/submitProviderDispatcher";
 import {
+  readProviderApiKey,
+  resolveKieSubmitTargetsForModel,
+  resolveProviderFromGenerationContext,
+} from "../../providerIntegration/providerRuntimeConfig";
+import { isFalProviderKey, isKieProviderKey } from "../../providerIntegration/providerKey";
+import {
   claimGenerationSubmitQueueBatch,
   markQueueItemExhausted,
   releaseQueueLeaseBackToQueued,
@@ -147,12 +153,28 @@ const readQueueAgeSeconds = (createdAt: string | null): number | null => {
   return Math.max(0, Math.floor((Date.now() - parsedCreatedAt) / 1000));
 };
 
-const readQueueSubmitTargets = (modelId: string): SubmitTarget[] => {
-  const profile = getFalModelProfileByModelId(modelId);
-  if (!profile?.submitTargets?.length) {
-    return [];
+const readQueueSubmitTargets = ({
+  provider,
+  modelId,
+}: {
+  provider: string;
+  modelId: string;
+}): SubmitTarget[] => {
+  if (isFalProviderKey(provider)) {
+    const profile = getFalModelProfileByModelId(modelId);
+    if (!profile?.submitTargets?.length) {
+      return [];
+    }
+    return profile.submitTargets;
   }
-  return profile.submitTargets;
+  if (isKieProviderKey(provider)) {
+    try {
+      return resolveKieSubmitTargetsForModel(modelId);
+    } catch {
+      return [];
+    }
+  }
+  return [];
 };
 
 const setGenerationFailed = async ({
@@ -215,12 +237,17 @@ const processClaimedQueueItem = async ({
 
   const generationLookup = await getSupabaseAdmin()
     .from("ai_generations")
-    .select("id, status, request_id, metadata")
+    .select("id, status, request_id, provider, metadata")
     .eq("id", item.generationId)
     .eq("user_id", item.userId)
     .maybeSingle();
   const generationRow = asObject(generationLookup.data);
   const attemptNumber = item.attempts + 1;
+  const provider = resolveProviderFromGenerationContext({
+    provider: asString(generationRow.provider),
+    modelId: item.modelId,
+    fallback: "fal",
+  });
 
   const existingRequestId = asString(generationRow.request_id);
   if (existingRequestId) {
@@ -337,13 +364,15 @@ const processClaimedQueueItem = async ({
     return metrics;
   }
 
-  const apiKey = process.env.FAL_KEY;
-  if (!apiKey) {
+  let apiKey: string;
+  try {
+    apiKey = readProviderApiKey(provider);
+  } catch (error) {
     const exhaustResult = await markQueueItemExhausted({
       queueId: item.queueId,
       attempts: item.attempts,
-      lastError: "FAL_KEY is not set on the server",
-      lastErrorCode: "FAL_KEY_MISSING",
+      lastError: normalizeError(error),
+      lastErrorCode: "PROVIDER_KEY_MISSING",
     });
     assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
     await setGenerationFailed({
@@ -382,15 +411,18 @@ const processClaimedQueueItem = async ({
   }
 
   const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags);
-  const submitTargets = withWebhookTargets(
-    readQueueSubmitTargets(item.modelId),
-    webhookCallbackUrl
-  );
+  const providerSubmitTargets = readQueueSubmitTargets({
+    provider,
+    modelId: item.modelId,
+  });
+  const submitTargets = isFalProviderKey(provider)
+    ? withWebhookTargets(providerSubmitTargets, webhookCallbackUrl)
+    : providerSubmitTargets;
   if (!submitTargets.length) {
     const exhaustResult = await markQueueItemExhausted({
       queueId: item.queueId,
       attempts: attemptNumber,
-      lastError: "No Fal submit target configured for queued model.",
+      lastError: `No submit target configured for queued model/provider (${provider}).`,
       lastErrorCode: "MISSING_SUBMIT_TARGET",
     });
     assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
@@ -419,7 +451,8 @@ const processClaimedQueueItem = async ({
 
   try {
     const submitResult = await dispatchProviderSubmit({
-      provider: "fal",
+      provider,
+      modelId: item.modelId,
       targets: submitTargets,
       payload: item.submitPayload,
       apiKey,
@@ -572,7 +605,7 @@ const processClaimedQueueItem = async ({
     const generationUpdate = await getSupabaseAdmin()
       .from("ai_generations")
       .update({
-        provider: "fal",
+        provider,
         request_id: providerRequestId,
         status: "running",
         failure_reason_code: null,
@@ -587,11 +620,14 @@ const processClaimedQueueItem = async ({
           queue_dispatched_at: new Date().toISOString(),
           queue_id: item.queueId,
           queue_attempts: attemptNumber,
+          provider,
           provider_request_id: providerRequestId,
           upstream_target_url: submitResult.targetUrl,
           upstream_target_index: submitResult.targetIndex,
-          submit_webhook_url: webhookCallbackUrl,
-          submit_webhook_registered: Boolean(webhookCallbackUrl),
+          submit_webhook_url: isFalProviderKey(provider) ? webhookCallbackUrl : null,
+          submit_webhook_registered: isFalProviderKey(provider)
+            ? Boolean(webhookCallbackUrl)
+            : false,
         }),
       })
       .eq("id", item.generationId)

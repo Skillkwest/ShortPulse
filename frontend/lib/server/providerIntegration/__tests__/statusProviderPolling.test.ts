@@ -5,9 +5,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { startProviderPollingSession } from "../statusProviderPolling";
 
+const ORIGINAL_ENV = { ...process.env };
+
 describe("statusProviderPolling", () => {
   afterEach(() => {
     vi.useRealTimers();
+    process.env = { ...ORIGINAL_ENV };
   });
 
   it("uses model-profile timeout when not overridden", () => {
@@ -65,6 +68,18 @@ describe("statusProviderPolling", () => {
         provider: "kie",
         modelId: "kie-ai/veo-3.1-fast-i2v",
       })
-    ).toThrow("Unsupported provider for model status timeout resolution");
+    ).toThrow("Kie provider is disabled by runtime flag.");
+  });
+
+  it("uses kie timeout when dark path is enabled", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_STATUS_TIMEOUT_MS = "41000";
+
+    const session = startProviderPollingSession({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+    });
+    expect(session.timeoutMs).toBe(41000);
+    session.dispose();
   });
 });

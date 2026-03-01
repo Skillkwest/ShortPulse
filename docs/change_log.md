@@ -1644,3 +1644,15 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added explicit route coverage for empty-allowlist fail-closed behavior in `frontend/tests/api/describe-image.route.test.ts`.
 - Tightened describe-image `5xx` error payloads to avoid returning internal transport details to clients while preserving server-side error logging.
 - Updated deployment/API/SOP/security docs and env template to align with the trusted-host contract.
+
+## 2026-03-01 (unified rollout pre-canary acceleration track)
+- Advanced Phase 11 pre-canary implementation with Fal-preservation guardrails:
+  - added Kie dark-path runtime configuration surface and trust/allowlist helpers (`providerRuntimeConfig`),
+  - expanded provider dispatch/topology/payload/policy seams to support `provider="kie"` while keeping Fal route contracts unchanged,
+  - propagated provider context through queue/recovery/persistence paths without enabling cutover.
+- Added/updated regression coverage for provider integration seams and queue dispatch fail-closed behavior when Kie runtime targets are unavailable.
+- Codified pre-canary sequencing policy and deferred-window decisioning across master plan/tracker/decision log docs.
+- Added non-canary closeout acceleration artifacts:
+  - Phase 05 closeout execution packet,
+  - Phase 12 pre-cleanup inventory and delayed-execution checklist,
+  - Phase 00/01 operator evidence closeout checklists.

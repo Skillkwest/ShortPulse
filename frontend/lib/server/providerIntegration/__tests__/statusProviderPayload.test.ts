@@ -57,33 +57,42 @@ describe("statusProviderPayload", () => {
     );
   });
 
-  it("throws for unsupported providers", () => {
-    expect(() =>
+  it("supports kie payload parsing", () => {
+    expect(
       readProviderLifecycleStatus({
         provider: "kie",
-        payload: { status: "running" },
+        payload: { state: "running" },
       })
-    ).toThrow("Unsupported provider for payload status parsing");
+    ).toBe("running");
 
-    expect(() =>
+    expect(
       readProviderResponseUrl({
         provider: "kie",
         payload: { response_url: "https://queue.kie.ai/v1/requests/1" },
       })
-    ).toThrow("Unsupported provider for response URL parsing");
+    ).toBe("https://queue.kie.ai/v1/requests/1");
 
-    expect(() =>
+    expect(
       providerPayloadHasMedia({
         provider: "kie",
         payload: { videos: [{ url: "https://cdn.shortpulse.test/video.mp4" }] },
       })
-    ).toThrow("Unsupported provider for media payload parsing");
+    ).toBe(true);
 
-    expect(() =>
+    expect(
       readProviderContentPolicyMessage({
         provider: "kie",
-        payload: {},
+        payload: { error_message: "Blocked by moderation." },
       })
-    ).toThrow("Unsupported provider for content-policy parsing");
+    ).toBe("Blocked by moderation.");
+  });
+
+  it("throws for unsupported providers", () => {
+    expect(() =>
+      readProviderLifecycleStatus({
+        provider: "openai",
+        payload: { status: "running" },
+      })
+    ).toThrow("Unsupported provider for payload status parsing");
   });
 });

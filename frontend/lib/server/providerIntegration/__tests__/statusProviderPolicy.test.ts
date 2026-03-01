@@ -114,28 +114,58 @@ describe("statusProviderPolicy", () => {
     ).toBe(false);
   });
 
+  it("supports kie lifecycle and retry semantics", () => {
+    expect(
+      isProviderCompletedStatus({
+        provider: "kie",
+        status: "finished",
+      })
+    ).toBe(true);
+    expect(
+      isProviderFailedStatus({
+        provider: "kie",
+        status: "rejected",
+      })
+    ).toBe(true);
+    expect(
+      resolveProviderSuccessfulPayloadStatus({
+        provider: "kie",
+        candidates: [null, "processing", "finished"],
+      })
+    ).toBe("finished");
+    expect(
+      isProviderRetryableUpstreamResponse({
+        provider: "kie",
+        response: new Response("{}", {
+          status: 400,
+          headers: { "x-kie-retryable": "true" },
+        }),
+      })
+    ).toBe(true);
+  });
+
   it("fails closed for unsupported providers", () => {
     expect(() =>
       isProviderCompletedStatus({
-        provider: "kie",
+        provider: "openai",
         status: "completed",
       })
     ).toThrow("Unsupported provider for completed-status policy");
     expect(() =>
       isProviderFailedStatus({
-        provider: "kie",
+        provider: "openai",
         status: "failed",
       })
     ).toThrow("Unsupported provider for failed-status policy");
     expect(() =>
       resolveProviderSuccessfulPayloadStatus({
-        provider: "kie",
+        provider: "openai",
         candidates: ["completed"],
       })
     ).toThrow("Unsupported provider for successful-payload status policy");
     expect(() =>
       isProviderRetryableUpstreamResponse({
-        provider: "kie",
+        provider: "openai",
         response: new Response("{}", { status: 503 }),
       })
     ).toThrow("Unsupported provider for retryable-upstream policy");

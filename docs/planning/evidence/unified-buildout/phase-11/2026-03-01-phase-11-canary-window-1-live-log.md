@@ -15,6 +15,7 @@ Status: Scheduled (deferred until checkpoint window)
 1. Do not execute checkpoint SQL/evaluation before `2026-03-02 18:46:07 UTC`.
 2. Any early run (before checkpoint time) is invalid for canary decisioning because the window has not closed.
 3. Resume execution only at/after checkpoint with the canonical run packet below.
+4. Any rolling-window output captured before checkpoint should be recorded as informational only (`non-decisioning`).
 
 ## Entry Preconditions
 1. Shadow window checkpoint recorded and passing.

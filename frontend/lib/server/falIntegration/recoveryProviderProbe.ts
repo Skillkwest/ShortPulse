@@ -22,6 +22,12 @@ import {
   readProviderLifecycleStatus,
   readProviderResponseUrl,
 } from "../providerIntegration/statusProviderPayload";
+import { assertTrustedKieProviderUrl } from "../providerIntegration/providerRuntimeConfig";
+import {
+  isFalProviderKey,
+  isKieProviderKey,
+  normalizeProviderKey,
+} from "../providerIntegration/providerKey";
 
 type JsonObject = Record<string, unknown>;
 
@@ -131,21 +137,26 @@ export const extractRecoveryMediaUrls = (payload: JsonObject): string[] => {
 };
 
 export const probeProviderResult = async ({
+  provider = "fal",
   requestId,
   modelId,
   apiKey,
 }: {
+  provider?: string;
   requestId: string;
   modelId: string;
   apiKey: string;
 }): Promise<ProviderProbeObservation> => {
-  const providerKey = "fal";
+  const providerKey = normalizeProviderKey(provider);
+  if (!isFalProviderKey(providerKey) && !isKieProviderKey(providerKey)) {
+    throw new Error(`Unsupported provider for recovery probe: ${provider}`);
+  }
   const queueBaseUrls = resolveProviderModelStatusBaseUrls({
     provider: providerKey,
     modelId,
   });
   if (!queueBaseUrls.length) {
-    throw new Error(`No trusted Fal status base URL configured for model: ${modelId}`);
+    throw new Error(`No trusted ${providerKey} status base URL configured for model: ${modelId}`);
   }
   const responseUrlSet = new Set<string>();
   const statusCandidates: StatusProbeCandidate[] = [];
@@ -159,7 +170,11 @@ export const probeProviderResult = async ({
 
   try {
     for (const [index, baseUrl] of queueBaseUrls.entries()) {
-      assertTrustedFalProviderUrl(baseUrl, `recovery_status_base_${index}`);
+      if (isFalProviderKey(providerKey)) {
+        assertTrustedFalProviderUrl(baseUrl, `recovery_status_base_${index}`);
+      } else {
+        assertTrustedKieProviderUrl(baseUrl, `recovery_status_base_${index}`);
+      }
       const statusResponse = await dispatchProviderStatusRequest({
         provider: providerKey,
         baseUrl,
@@ -239,7 +254,11 @@ export const probeProviderResult = async ({
     }
 
     for (const [index, baseUrl] of queueBaseUrls.entries()) {
-      assertTrustedFalProviderUrl(baseUrl, `recovery_result_base_${index}`);
+      if (isFalProviderKey(providerKey)) {
+        assertTrustedFalProviderUrl(baseUrl, `recovery_result_base_${index}`);
+      } else {
+        assertTrustedKieProviderUrl(baseUrl, `recovery_result_base_${index}`);
+      }
       const resultResponse = await dispatchProviderResultRequest({
         provider: providerKey,
         baseUrl,

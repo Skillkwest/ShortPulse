@@ -8,6 +8,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - Auth/storage: Supabase client with persisted sessions, `saved_creators` table, and a private `media_library` bucket.
 - Analytics: In-browser scoring of a demo cohort with user-triggered refresh and filtering controls.
 - AI Studio providers: Next.js API routes under `/api/fal/*` proxy Fal queue requests (server-side `FAL_KEY` required), including the Seedream 4.5 edit proxy at `/api/fal/seedream-edit-submit`.
+- Kie provider integration is implemented as a dark path only (disabled by default with `SHORTPULSE_KIE_INTEGRATION_ENABLED=false`), with no public route/cutover enabled in this stage.
 - Fal runtime v2 operational routes: `/api/fal/webhook` (signature-verified webhook ingestion), `/api/fal/queue-status` (authenticated queued-submit status handoff with optional dispatch kick and user-scoped due-recovery kick), and `/api/internal/generation-recovery/run` (cron-secret protected reconciler + queue dispatcher trigger).
 - Queue/recovery scheduling is externalized: configure Supabase Cron to call `/api/internal/generation-recovery/run` every minute via `sql/configure_generation_recovery_scheduler_supabase.sql`; keep `SHORTPULSE_FAL_RECONCILER_CRON_SECRET` configured for auth.
 - Local AI Studio media uploads: `/api/upload-image` and `/api/upload-video` store user-scoped files in private storage and return short-lived signed URLs for provider fetches.
@@ -24,6 +25,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `FAL_KEY`
+   - optional dark-path provider key: `KIE_API_KEY`
 2. Install and run the frontend:
    ```bash
    cd frontend

@@ -96,17 +96,31 @@ describe("statusProviderSelection", () => {
     ).toBeNull();
   });
 
-  it("throws for unsupported providers", () => {
-    expect(() =>
+  it("supports kie provider keys and still rejects unknown providers", () => {
+    expect(
       selectBestProviderStatusCandidate({
         provider: "kie",
+        candidates: [],
+      })
+    ).toBeNull();
+
+    expect(
+      selectBestProviderResultCandidate({
+        provider: "kie",
+        candidates: [],
+      })
+    ).toBeNull();
+
+    expect(() =>
+      selectBestProviderStatusCandidate({
+        provider: "openai",
         candidates: [],
       })
     ).toThrow("Unsupported provider for status candidate selection");
 
     expect(() =>
       selectBestProviderResultCandidate({
-        provider: "kie",
+        provider: "openai",
         candidates: [],
       })
     ).toThrow("Unsupported provider for status candidate selection");

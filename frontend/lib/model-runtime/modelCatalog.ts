@@ -4,7 +4,7 @@
  */
 
 export type ModelAspectSubmitField = "aspect_ratio" | "image_size" | "none";
-export type ModelProvider = "fal" | "openai";
+export type ModelProvider = "fal" | "kie" | "openai";
 
 export type ModelPayloadValidationSpec = {
   requiredStringFields?: string[];

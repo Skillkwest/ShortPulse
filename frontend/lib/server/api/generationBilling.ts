@@ -44,8 +44,9 @@ const resolveSourceRef = (req: ChargeOptions["req"]): string => {
 
 const isFalModel = (modelId: string): boolean => {
   const config = getModelConfig(modelId);
-  if (config?.provider === "fal") return true;
-  return modelId.toLowerCase().startsWith("fal");
+  if (config?.provider === "fal" || config?.provider === "kie") return true;
+  const normalizedModelId = modelId.toLowerCase();
+  return normalizedModelId.startsWith("fal") || normalizedModelId.startsWith("kie");
 };
 
 /**

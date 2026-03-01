@@ -5,7 +5,7 @@
 
 import type { ProviderProbeObservation } from "../falIntegration/recoveryProviderProbe";
 import { probeProviderResult } from "../falIntegration/recoveryProviderProbe";
-import { isFalProviderKey } from "./providerKey";
+import { isFalProviderKey, isKieProviderKey, normalizeProviderKey } from "./providerKey";
 
 /**
  * Dispatches a recovery provider probe by provider key.
@@ -21,8 +21,9 @@ export const probeGenerationProviderResult = async ({
   modelId: string;
   apiKey: string;
 }): Promise<ProviderProbeObservation> => {
-  if (isFalProviderKey(provider)) {
+  if (isFalProviderKey(provider) || isKieProviderKey(provider)) {
     return await probeProviderResult({
+      provider: normalizeProviderKey(provider),
       requestId,
       modelId,
       apiKey,

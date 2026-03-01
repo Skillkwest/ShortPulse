@@ -25,6 +25,7 @@ import {
   readExistingRecoveryMediaRows,
 } from "./recoveryMediaPersistence";
 import { probeGenerationProviderResult } from "../providerIntegration/recoveryProviderDispatcher";
+import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 
 type JsonObject = Record<string, unknown>;
 
@@ -185,10 +186,7 @@ export const executeGenerationRecovery = async ({
 
   let currentObservation = observation ?? null;
   if (!currentObservation) {
-    const apiKey = process.env.FAL_KEY;
-    if (!apiKey) {
-      throw new Error("FAL_KEY is not set on the server.");
-    }
+    const apiKey = readProviderApiKey(generation.provider);
     currentObservation = await probeGenerationProviderResult({
       provider: generation.provider,
       requestId: generation.request_id,

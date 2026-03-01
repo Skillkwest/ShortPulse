@@ -3,7 +3,7 @@
  * Centralizes provider-specific request patterns behind one contract.
  */
 
-import { isFalProviderKey } from "./providerKey";
+import { isFalProviderKey, isKieProviderKey } from "./providerKey";
 import {
   resolveProviderConfiguredStatusBaseUrls,
   resolveProviderResponseProbeUrls,
@@ -62,6 +62,13 @@ export const dispatchProviderStatusRequest = async ({
       signal,
     });
   }
+  if (isKieProviderKey(provider)) {
+    return await fetch(`${baseUrl}/${requestId}/status`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal,
+    });
+  }
   throw new Error(`Unsupported provider for status dispatch: ${provider}`);
 };
 
@@ -88,6 +95,13 @@ export const dispatchProviderResultRequest = async ({
       signal,
     });
   }
+  if (isKieProviderKey(provider)) {
+    return await fetch(`${baseUrl}/${requestId}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal,
+    });
+  }
   throw new Error(`Unsupported provider for result dispatch: ${provider}`);
 };
 
@@ -109,6 +123,13 @@ export const dispatchProviderResponseProbeRequest = async ({
     return await fetch(responseUrl, {
       method: "GET",
       headers: { Authorization: `Key ${apiKey}` },
+      signal,
+    });
+  }
+  if (isKieProviderKey(provider)) {
+    return await fetch(responseUrl, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${apiKey}` },
       signal,
     });
   }

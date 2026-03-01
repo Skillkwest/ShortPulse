@@ -4,11 +4,12 @@
  */
 
 import type { ResultProbeCandidate, StatusProbeCandidate } from "../falIntegration/contracts";
+import { isFalProviderKey, isKieProviderKey } from "./providerKey";
 
 const normalizeProvider = (provider: string): string => provider.trim().toLowerCase();
 
 const assertSupportedProvider = (provider: string): void => {
-  if (provider.startsWith("fal")) return;
+  if (isFalProviderKey(provider) || isKieProviderKey(provider)) return;
   throw new Error("Unsupported provider for status candidate selection");
 };
 

@@ -15,7 +15,7 @@ import {
 export type ModelConfig = {
   id: string;
   label: string;
-  provider: "fal" | "openai" | "other";
+  provider: "fal" | "kie" | "openai" | "other";
   mediaType: "image" | "video" | "image-to-video" | "multi" | "text";
   defaultAspect: string;
   allowedAspects: string[];

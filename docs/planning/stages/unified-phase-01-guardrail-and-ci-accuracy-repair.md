@@ -22,6 +22,12 @@ Eliminate stale guardrail targets and align CI policy lanes to current repositor
 2. Slice B: CI lane additions (`type_check`, `secret_scan`) and script support.
 3. Slice C: docs/tracker/evidence updates and validation closeout.
 
+## Current Slice Status
+1. Slice A/B/C engineering scope is complete and validated.
+2. Residual closeout item is operator-managed branch-protection mapping evidence.
+3. Operator closeout checklist prepared:
+   - `docs/planning/evidence/unified-buildout/phase-01/2026-03-01-phase-01-operator-branch-protection-mapping-closeout-checklist.md`
+
 ## Validation Gates
 1. `node scripts/check_size_budgets.js`
 2. `node scripts/check_naming_legacy_usage.js`

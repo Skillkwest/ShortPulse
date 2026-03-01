@@ -17,3 +17,10 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 4. `bash scripts/phase11_shadow_checkpoint_gate.sh --quick` - checkpoint helper that runs the no-regression gate and prints the required SQL/evidence handoff steps (`--full` runs full validation).
 5. `npm -C frontend run phase11:window-guard -- --window canary-1` - blocks early/invalid checkpoint runs until scheduled UTC checkpoint closure (use `--mode full` for full local validation and `--gate-file` to auto-evaluate SQL output).
 6. `npm -C frontend run phase11:gate-eval -- --window shadow-1 --file <gate-summary.json>` - evaluates section `G` output into a deterministic pass/hold packet with `N/A` handling for `recovery_success_sample_size = 0`.
+
+## Decisioning Rule
+1. Use `sql/check_phase11_shadow_canary_gate_summary_windowed.sql` for checkpoint decisions.
+2. Treat rolling `now() - interval '24 hours'` SQL output as observational only (non-decisioning) during scheduled windows.
+3. Current deferred checkpoints:
+   - Canary 1 decision is valid at/after `2026-03-02 18:46:07 UTC`.
+   - Canary 2 decision is valid at/after `2026-03-03 18:46:07 UTC`.

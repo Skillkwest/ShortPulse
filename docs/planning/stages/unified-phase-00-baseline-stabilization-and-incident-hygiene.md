@@ -25,6 +25,8 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 2. Slice C in progress:
 - Residual operational follow-up remains open for secret/credential rotation evidence closure.
 - Keep phase open until operational closure evidence is attached in phase-00 artifacts.
+- Operator closeout checklist prepared:
+  - `docs/planning/evidence/unified-buildout/phase-00/2026-03-01-phase-00-operator-credential-rotation-closeout-checklist.md`
 
 ## Validation Gates
 1. 

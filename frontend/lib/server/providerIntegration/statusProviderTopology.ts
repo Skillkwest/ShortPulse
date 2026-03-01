@@ -5,7 +5,13 @@
 
 import { getFalModelProfileByModelId } from "../falIntegration/modelProfiles";
 import { filterTrustedFalProviderUrls } from "../falIntegration/providerTrustPolicy";
-import { isFalProviderKey } from "./providerKey";
+import {
+  assertKieRuntimeEnabledForModel,
+  filterTrustedKieProviderUrls,
+  readKieRuntimeFlags,
+  resolveKieStatusBaseUrlsForModel,
+} from "./providerRuntimeConfig";
+import { isFalProviderKey, isKieProviderKey } from "./providerKey";
 
 const DEFAULT_STATUS_TIMEOUT_MS = 60000;
 
@@ -22,6 +28,14 @@ export const resolveProviderConfiguredStatusBaseUrls = ({
   if (isFalProviderKey(provider)) {
     return filterTrustedFalProviderUrls(configuredBaseUrls);
   }
+  if (isKieProviderKey(provider)) {
+    const flags = readKieRuntimeFlags();
+    if (!flags.enabled) {
+      throw new Error("Kie provider is disabled by runtime flag.");
+    }
+    const candidateBaseUrls = configuredBaseUrls.length ? configuredBaseUrls : flags.statusBaseUrls;
+    return filterTrustedKieProviderUrls(candidateBaseUrls, flags);
+  }
   throw new Error(`Unsupported provider for status base resolution: ${provider}`);
 };
 
@@ -37,6 +51,13 @@ export const resolveProviderResponseProbeUrls = ({
 }): string[] => {
   if (isFalProviderKey(provider)) {
     return filterTrustedFalProviderUrls(responseUrls);
+  }
+  if (isKieProviderKey(provider)) {
+    const flags = readKieRuntimeFlags();
+    if (!flags.enabled) {
+      throw new Error("Kie provider is disabled by runtime flag.");
+    }
+    return filterTrustedKieProviderUrls(responseUrls, flags);
   }
   throw new Error(`Unsupported provider for response probe URL resolution: ${provider}`);
 };
@@ -58,6 +79,9 @@ export const resolveProviderModelStatusBaseUrls = ({
       : [`https://queue.fal.run/${modelId}/requests`];
     return filterTrustedFalProviderUrls(baseUrls);
   }
+  if (isKieProviderKey(provider)) {
+    return resolveKieStatusBaseUrlsForModel(modelId);
+  }
   throw new Error(`Unsupported provider for model status base resolution: ${provider}`);
 };
 
@@ -75,6 +99,11 @@ export const resolveProviderModelStatusTimeoutMs = ({
 }): number => {
   if (isFalProviderKey(provider)) {
     return getFalModelProfileByModelId(modelId)?.timeoutMs ?? defaultTimeoutMs;
+  }
+  if (isKieProviderKey(provider)) {
+    const flags = readKieRuntimeFlags();
+    assertKieRuntimeEnabledForModel({ modelId, flags });
+    return flags.statusTimeoutMs || defaultTimeoutMs;
   }
   throw new Error(`Unsupported provider for model status timeout resolution: ${provider}`);
 };

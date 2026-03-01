@@ -1,6 +1,6 @@
 # ShortPulse Unified Decision Log
 
-Last updated: 2026-02-27
+Last updated: 2026-03-01
 
 ## Decision 001
 - Topic: Auth trust boundary.
@@ -40,4 +40,14 @@ Last updated: 2026-02-27
 ## Decision 008
 - Topic: Phase sequencing override for runtime canary.
 - Decision: Phase 04 canary/signoff is deferred; downstream implementation phases may continue in parallel with explicit tracker notation, while final program closeout still requires Phase 04 completion.
+- Effective phases: 04-12.
+
+## Decision 009
+- Topic: Phase 11 windowed checkpoint decisioning.
+- Decision: Shadow/canary promote/hold decisions must use explicit UTC-window SQL (`check_phase11_shadow_canary_gate_summary_windowed.sql`) and UTC guard script gates; rolling 24h SQL output is informational only.
+- Effective phases: 11-12.
+
+## Decision 010
+- Topic: Pre-canary acceleration execution track.
+- Decision: Continue non-canary implementation and evidence closure work across downstream phases while canary/signoff windows remain deferred; do not treat deferred windows as engineering blockers, and do not execute early checkpoint decisions.
 - Effective phases: 04-12.

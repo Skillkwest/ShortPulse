@@ -2,13 +2,15 @@
  * Unit coverage for provider-aware status topology resolution.
  */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   resolveProviderConfiguredStatusBaseUrls,
   resolveProviderModelStatusBaseUrls,
   resolveProviderModelStatusTimeoutMs,
   resolveProviderResponseProbeUrls,
 } from "../statusProviderTopology";
+
+const ORIGINAL_ENV = { ...process.env };
 
 describe("statusProviderTopology", () => {
   it("filters configured Fal base URLs by trust policy", () => {
@@ -70,33 +72,80 @@ describe("statusProviderTopology", () => {
     ).toBe(12345);
   });
 
-  it("throws for unsupported providers", () => {
+  it("fails closed for kie while dark path is disabled", () => {
     expect(() =>
       resolveProviderConfiguredStatusBaseUrls({
         provider: "kie",
         configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
       })
-    ).toThrow("Unsupported provider for status base resolution");
+    ).toThrow("Kie provider is disabled by runtime flag.");
 
     expect(() =>
       resolveProviderModelStatusBaseUrls({
         provider: "kie",
         modelId: "kie-ai/veo-3.1-fast-i2v",
       })
-    ).toThrow("Unsupported provider for model status base resolution");
+    ).toThrow("Kie provider is disabled by runtime flag.");
 
     expect(() =>
       resolveProviderModelStatusTimeoutMs({
         provider: "kie",
         modelId: "kie-ai/veo-3.1-fast-i2v",
       })
-    ).toThrow("Unsupported provider for model status timeout resolution");
+    ).toThrow("Kie provider is disabled by runtime flag.");
 
     expect(() =>
       resolveProviderResponseProbeUrls({
         provider: "kie",
         responseUrls: ["https://queue.kie.ai/v1/requests/1"],
       })
-    ).toThrow("Unsupported provider for response probe URL resolution");
+    ).toThrow("Kie provider is disabled by runtime flag.");
+  });
+
+  it("resolves kie topology when dark path is enabled", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_STATUS_BASE_URLS = "https://queue.kie.ai/v1/requests";
+    process.env.SHORTPULSE_KIE_STATUS_TIMEOUT_MS = "45000";
+
+    expect(
+      resolveProviderConfiguredStatusBaseUrls({
+        provider: "kie",
+        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+      })
+    ).toEqual(["https://queue.kie.ai/v1/requests"]);
+
+    expect(
+      resolveProviderModelStatusBaseUrls({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    ).toEqual(["https://queue.kie.ai/v1/requests"]);
+
+    expect(
+      resolveProviderModelStatusTimeoutMs({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    ).toBe(45000);
+
+    expect(
+      resolveProviderResponseProbeUrls({
+        provider: "kie",
+        responseUrls: ["https://queue.kie.ai/v1/requests/1"],
+      })
+    ).toEqual(["https://queue.kie.ai/v1/requests/1"]);
+  });
+
+  it("throws for unsupported providers", () => {
+    expect(() =>
+      resolveProviderConfiguredStatusBaseUrls({
+        provider: "openai",
+        configuredBaseUrls: ["https://api.openai.com/v1/responses"],
+      })
+    ).toThrow("Unsupported provider for status base resolution");
+  });
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
   });
 });

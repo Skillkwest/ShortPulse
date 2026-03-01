@@ -1,6 +1,6 @@
 # Unified Phase 12: Cleanup and Decommission
 
-Status: Planned
+Status: In Progress (Prep)
 Owner: Engineering
 
 ## Objective
@@ -18,6 +18,17 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 1. Slice A: smallest safe functional increment.
 2. Slice B: test hardening and edge-case completion.
 3. Slice C: docs + evidence + tracker update.
+
+## Current Slice A Update (2026-03-01)
+Implemented:
+1. Added pre-cleanup inventory and execution checklist packet:
+   - `docs/planning/evidence/unified-buildout/phase-12/2026-03-01-phase-12-slice-a-precleanup-inventory-and-execution-checklist.md`
+2. Cataloged cleanup targets now (flags, compatibility shims, provider adapters, docs references) without removing any runtime behavior.
+3. Added explicit guard: no compatibility removals before Phase 04 and Phase 11 canary/cutover signoff.
+
+Remaining:
+1. Execute cleanup removals only after cutover gates pass.
+2. Complete post-cleanup validation and two green release cycles.
 
 ## Validation Gates
 1. 
@@ -163,4 +174,3 @@ If this phase touches external contracts/standards, add a short research note wi
 ## Rollback Plan
 1. Revert only the PR slice(s) from this phase.
 2. Keep previous stable phase baseline intact.
-

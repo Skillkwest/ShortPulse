@@ -109,6 +109,25 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/api/generationQueue/dispatch.ts`
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.test.ts`
   - `frontend/lib/server/api/__tests__/generationQueue.dispatch.integrity.test.ts`
+- Added Kie dark-path runtime guard/config surface (disabled-by-default, allowlist + trusted-host fail-closed checks):
+  - `frontend/lib/server/providerIntegration/providerRuntimeConfig.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts`
+  - `frontend/.env.example`
+- Extended provider integration boundaries to support `provider="kie"` while preserving Fal behavior:
+  - `frontend/lib/server/providerIntegration/providerKey.ts`
+  - `frontend/lib/server/providerIntegration/submitProviderDispatcher.ts`
+  - `frontend/lib/server/providerIntegration/recoveryProviderDispatcher.ts`
+  - `frontend/lib/server/providerIntegration/statusProviderDispatcher.ts`
+  - `frontend/lib/server/providerIntegration/statusProviderTopology.ts`
+  - `frontend/lib/server/providerIntegration/statusProviderPayload.ts`
+  - `frontend/lib/server/providerIntegration/statusProviderPolicy.ts`
+  - `frontend/lib/server/providerIntegration/statusProviderSelection.ts`
+  - corresponding unit suites under `frontend/lib/server/providerIntegration/__tests__/`
+- Completed provider propagation across queue/recovery persistence paths (still Fal-default in production traffic):
+  - `frontend/lib/server/api/generationQueue/dispatch.ts`
+  - `frontend/lib/server/api/generationSubmitPersistence.ts`
+  - `frontend/lib/server/falIntegration/recoveryExecution.ts`
+  - `frontend/lib/server/falIntegration/recoveryProviderProbe.ts`
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

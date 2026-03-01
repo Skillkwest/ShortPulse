@@ -15,6 +15,6 @@ describe("recoveryProviderProbe trusted base policy", () => {
         modelId: "fal-ai/nano-banana-pro",
         apiKey: "test-key",
       })
-    ).rejects.toThrow("No trusted Fal status base URL configured");
+    ).rejects.toThrow("No trusted fal status base URL configured");
   });
 });

@@ -1,5 +1,6 @@
 import { getModelConfig } from "../../model-runtime/pricing";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { resolveProviderFromModelId } from "../providerIntegration/providerRuntimeConfig";
 
 type JsonObject = Record<string, unknown>;
 
@@ -155,6 +156,7 @@ export const ensureSubmittedGenerationRecord = async (
   input: SubmitPersistenceInput
 ): Promise<SubmitPersistenceResult> => {
   try {
+    const provider = resolveProviderFromModelId({ modelId: input.modelId, fallback: "fal" });
     const promptText = resolvePromptText(input.routeLabel, input.payload);
     const mode = resolveMode(input.modelId, input.payload);
     const durationSeconds = readDurationSeconds(input.payload);
@@ -211,7 +213,7 @@ export const ensureSubmittedGenerationRecord = async (
         };
         const updatePayload: JsonObject = {
           mode,
-          provider: "fal",
+          provider,
           model_id: input.modelId,
           request_id: input.providerRequestId,
           status: "running",
@@ -242,7 +244,7 @@ export const ensureSubmittedGenerationRecord = async (
     const insertPayload: JsonObject = {
       user_id: input.userId,
       mode,
-      provider: "fal",
+      provider,
       model_id: input.modelId,
       prompt_text: promptText,
       aspect: aspect ?? null,

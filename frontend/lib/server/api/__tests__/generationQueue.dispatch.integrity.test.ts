@@ -91,9 +91,11 @@ const mutationSuccess = (operation: "retry" | "exhaust" | "release" | "remove") 
 const createSupabaseAdminMock = ({
   generationUpdateError,
   existingRequestId,
+  provider,
 }: {
   generationUpdateError?: string;
   existingRequestId?: string | null;
+  provider?: string | null;
 }) => {
   const aiGenerationsTable = {
     select: vi.fn(() => ({
@@ -104,6 +106,7 @@ const createSupabaseAdminMock = ({
               id: "gen-1",
               status: "pending",
               request_id: existingRequestId ?? null,
+              provider: provider ?? null,
               metadata: {},
             },
             error: null,
@@ -308,5 +311,32 @@ describe("generationQueue/dispatch transition integrity", () => {
     );
     expect(removeQueueItemMock).not.toHaveBeenCalled();
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed without dispatch when queued generation provider is kie but runtime targets are unavailable", async () => {
+    process.env.KIE_API_KEY = "test-kie-key";
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({ provider: "kie" }));
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        exhausted: 1,
+        submitted: 0,
+      })
+    );
+    expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastErrorCode: "MISSING_SUBMIT_TARGET",
+      })
+    );
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+    delete process.env.KIE_API_KEY;
   });
 });

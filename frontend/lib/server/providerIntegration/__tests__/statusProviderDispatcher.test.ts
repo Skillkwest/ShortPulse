@@ -2,7 +2,7 @@
  * Unit coverage for provider-aware status/result request dispatch.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   dispatchProviderResponseProbeRequest,
   dispatchProviderResultRequest,
@@ -11,9 +11,15 @@ import {
   resolveProviderStatusBaseUrls,
 } from "../statusProviderDispatcher";
 
+const ORIGINAL_ENV = { ...process.env };
+
 describe("statusProviderDispatcher", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
   });
 
   it("filters trusted status base URLs for fal provider", () => {
@@ -93,38 +99,71 @@ describe("statusProviderDispatcher", () => {
     expect(urls).toEqual(["https://queue.fal.run/fal-ai/model/requests/req-1"]);
   });
 
-  it("throws for unsupported providers", async () => {
+  it("fails closed for kie while dark path is disabled", async () => {
     expect(() =>
       resolveProviderStatusBaseUrls({
         provider: "kie",
         configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
       })
-    ).toThrow("Unsupported provider for status base resolution");
-
-    await expect(
-      dispatchProviderStatusRequest({
-        provider: "kie",
-        baseUrl: "https://queue.kie.ai/v1/requests",
-        requestId: "req-kie",
-        apiKey: "test-key",
-        signal: new AbortController().signal,
-      })
-    ).rejects.toThrow("Unsupported provider for status dispatch");
+    ).toThrow("Kie provider is disabled by runtime flag.");
 
     expect(() =>
       resolveProviderResponseUrls({
         provider: "kie",
         responseUrls: ["https://queue.kie.ai/v1/requests/req-kie"],
       })
-    ).toThrow("Unsupported provider for response probe URL resolution");
+    ).toThrow("Kie provider is disabled by runtime flag.");
+  });
 
-    await expect(
-      dispatchProviderResponseProbeRequest({
-        provider: "kie",
-        responseUrl: "https://queue.kie.ai/v1/requests/req-kie",
-        apiKey: "test-key",
-        signal: new AbortController().signal,
+  it("dispatches kie requests when dark path is enabled", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_STATUS_BASE_URLS = "https://queue.kie.ai/v1/requests";
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "running" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "completed" }), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "completed" }), { status: 200 })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await dispatchProviderStatusRequest({
+      provider: "kie",
+      baseUrl: "https://queue.kie.ai/v1/requests",
+      requestId: "req-kie",
+      apiKey: "test-key",
+      signal: new AbortController().signal,
+    });
+    await dispatchProviderResultRequest({
+      provider: "kie",
+      baseUrl: "https://queue.kie.ai/v1/requests",
+      requestId: "req-kie",
+      apiKey: "test-key",
+      signal: new AbortController().signal,
+    });
+    await dispatchProviderResponseProbeRequest({
+      provider: "kie",
+      responseUrl: "https://queue.kie.ai/v1/requests/req-kie",
+      apiKey: "test-key",
+      signal: new AbortController().signal,
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://queue.kie.ai/v1/requests/req-kie/status",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer test-key" }),
       })
-    ).rejects.toThrow("Unsupported provider for response probe dispatch");
+    );
+  });
+
+  it("throws for unsupported providers", () => {
+    expect(() =>
+      resolveProviderStatusBaseUrls({
+        provider: "openai",
+        configuredBaseUrls: ["https://api.openai.com/v1/responses"],
+      })
+    ).toThrow("Unsupported provider for status base resolution");
   });
 });

@@ -1,6 +1,6 @@
 # ShortPulse Unified Build-Out Master Plan
 
-Last updated: 2026-02-27  
+Last updated: 2026-03-01  
 Authority: Working  
 Owner: Engineering
 
@@ -31,6 +31,12 @@ Program outcomes:
 4. One canary risk surface at a time.
 5. Rollback is phase-slice based, not program-wide rollback.
 
+## Pre-Canary Execution Policy
+1. Continue implementation work before canary windows complete when sequencing override is active (Decision 008).
+2. Keep canary/signoff checkpoint decisions bound to scheduled UTC windows only.
+3. Mark deferred windows explicitly as deferred by schedule, not blocked by engineering readiness.
+4. Preserve Fal public/API contracts and keep Kie cutover disabled by default until checkpoint gates pass.
+
 ## Phase Sequence
 | Phase | Title | Status | Priority |
 | --- | --- | --- | --- |
@@ -39,14 +45,14 @@ Program outcomes:
 | 02 | Auth Boundary Hardening + Admin Access Decoupling | Completed | P0 |
 | 03 | Queue/Recovery Transition Integrity Completion | Completed | P0 |
 | 04 | Video Runtime Hardening Residuals | Deferred | P1 |
-| 05 | Media Library Security-First Hardening | Planned | P1 |
+| 05 | Media Library Security-First Hardening | In Progress | P1 |
 | 06 | Character Workflow Hardening | In Progress | P1 |
 | 07 | AI Studio Foundation Modularization | In Progress | P1 |
 | 08 | Billing/Stripe Correctness Hardening | Completed | P1 |
 | 09 | Admin Hardening | Completed | P1 |
 | 10 | Security Residual Controls | Completed | P1 |
 | 11 | Fal Video -> Kie Video Migration | In Progress | P2 |
-| 12 | Cleanup + Decommission | Planned | P2 |
+| 12 | Cleanup + Decommission | In Progress (Prep) | P2 |
 
 ## Phase Details
 Detailed execution checklists live in:

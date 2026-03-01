@@ -410,6 +410,7 @@ export const createFalSubmitHandler =
     try {
       const upstreamResult = await dispatchProviderSubmit({
         provider: "fal",
+        modelId,
         targets: resolvedTargetsWithWebhook,
         payload,
         apiKey,

@@ -19,3 +19,4 @@ build/
 frontend/.env.local
 .env.agent.local
 vercel_staging_env_*.txt
+.vercel

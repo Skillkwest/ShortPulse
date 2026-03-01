@@ -1656,3 +1656,12 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - Phase 05 closeout execution packet,
   - Phase 12 pre-cleanup inventory and delayed-execution checklist,
   - Phase 00/01 operator evidence closeout checklists.
+
+## 2026-03-01 (phase-04 protected deployment baseline unblocked)
+- Extended `scripts/capture_phase04_canary_baseline.mjs` with optional Vercel CLI transport using `VERCEL_API_TOKEN` / `SHORTPULSE_VERCEL_API_TOKEN`:
+  - route probes and recovery snapshot now run through `vercel curl` when token is provided,
+  - script captures deterministic `http_code` + `time_total` metadata for baseline output,
+  - direct-fetch mode remains available when Vercel token is not configured.
+- Updated Phase 04 readiness/stage docs to include `--vercel-api-token` usage for protected deployments.
+- Captured a fresh Phase 04 staging baseline artifact:
+  - `docs/planning/evidence/unified-buildout/phase-04/2026-03-01-phase-04-canary-baseline-capture.md`.

@@ -16,6 +16,8 @@ Prepare a deterministic canary procedure for transitioning `/api/fal/queue-statu
    ```bash
    export SHORTPULSE_STAGING_BASE_URL="https://<staging-host>"
    export SHORTPULSE_FAL_RECONCILER_CRON_SECRET="<staging-reconciler-secret>"
+   # Preferred for protected deployments:
+   export VERCEL_API_TOKEN="<vercel-api-token>"
    # Optional for Vercel-protected previews:
    export SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN="<vercel-bypass-token>"
    # Optional if not using --bootstrap-token-from-supabase:
@@ -28,6 +30,7 @@ Prepare a deterministic canary procedure for transitioning `/api/fal/queue-statu
        --base-url "$SHORTPULSE_STAGING_BASE_URL" \
        --bootstrap-token-from-supabase \
        --reconciler-secret "$SHORTPULSE_FAL_RECONCILER_CRON_SECRET" \
+       --vercel-api-token "$VERCEL_API_TOKEN" \
        --vercel-bypass-token "$SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN"
      ```
    - using existing bearer token:
@@ -36,6 +39,7 @@ Prepare a deterministic canary procedure for transitioning `/api/fal/queue-statu
        --base-url "$SHORTPULSE_STAGING_BASE_URL" \
        --token "$SHORTPULSE_STAGING_BEARER_TOKEN" \
        --reconciler-secret "$SHORTPULSE_FAL_RECONCILER_CRON_SECRET" \
+       --vercel-api-token "$VERCEL_API_TOKEN" \
        --vercel-bypass-token "$SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN"
      ```
    - queue-status probe now uses required query shape automatically:
@@ -85,5 +89,6 @@ Prepare a deterministic canary procedure for transitioning `/api/fal/queue-statu
      --base-url "$SHORTPULSE_STAGING_BASE_URL" \
      --bootstrap-token-from-supabase \
      --reconciler-secret "$SHORTPULSE_FAL_RECONCILER_CRON_SECRET" \
+     --vercel-api-token "$VERCEL_API_TOKEN" \
      --vercel-bypass-token "$SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN"
    ```

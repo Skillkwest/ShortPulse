@@ -10,6 +10,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { loadLocalEnv } from "./lib/load_local_env.mjs";
 
 const DEFAULT_SAMPLES = 25;
@@ -18,6 +20,8 @@ const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_OUTPUT_DIR = "docs/planning/evidence/unified-buildout/phase-04";
 const DEFAULT_TEMP_EMAIL_PREFIX = "phase04_latency_probe";
 const DEFAULT_QUEUE_SOURCE_REF = "phase04-baseline-probe";
+const CURL_METADATA_SENTINEL = "__SP_META__:";
+const execFileAsync = promisify(execFile);
 
 const PROBES = [
   {
@@ -62,6 +66,9 @@ Options:
   --vercel-bypass-token <v>
                           Optional Vercel deployment-protection bypass token.
                           Fallback env: SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN, VERCEL_AUTOMATION_BYPASS_TOKEN
+  --vercel-api-token <v>  Optional Vercel API token. When provided, route probes and
+                          recovery snapshot use "vercel curl" transport (works for protected deployments).
+                          Fallback env: SHORTPULSE_VERCEL_API_TOKEN, VERCEL_API_TOKEN
   --samples <n>           Measured request count per route. Default: ${DEFAULT_SAMPLES}
   --warmup <n>            Warmup request count per route. Default: ${DEFAULT_WARMUP}
   --timeout-ms <n>        Per-request timeout. Default: ${DEFAULT_TIMEOUT_MS}
@@ -102,6 +109,10 @@ const parseArgs = (argv) => {
     vercelBypassToken:
       process.env.SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN?.trim() ??
       process.env.VERCEL_AUTOMATION_BYPASS_TOKEN?.trim() ??
+      "",
+    vercelApiToken:
+      process.env.SHORTPULSE_VERCEL_API_TOKEN?.trim() ??
+      process.env.VERCEL_API_TOKEN?.trim() ??
       "",
     samples: DEFAULT_SAMPLES,
     warmup: DEFAULT_WARMUP,
@@ -152,6 +163,11 @@ const parseArgs = (argv) => {
     }
     if (arg === "--vercel-bypass-token") {
       parsed.vercelBypassToken = readArgValue(argv, i, "--vercel-bypass-token").trim();
+      i += 1;
+      continue;
+    }
+    if (arg === "--vercel-api-token") {
+      parsed.vercelApiToken = readArgValue(argv, i, "--vercel-api-token").trim();
       i += 1;
       continue;
     }
@@ -370,6 +386,104 @@ const requestRoute = async ({
   }
 };
 
+const parseVercelCurlOutput = ({ stdout, stderr }) => {
+  const markerIndex = stdout.lastIndexOf(CURL_METADATA_SENTINEL);
+  if (markerIndex < 0) {
+    throw new Error(
+      `Unable to parse vercel curl metadata marker. stderr=${(stderr ?? "").slice(0, 240)}`
+    );
+  }
+  const beforeMarker = stdout.slice(0, markerIndex).trim();
+  const metaLine = stdout
+    .slice(markerIndex + CURL_METADATA_SENTINEL.length)
+    .trim()
+    .split(/\s+/)[0];
+  const [statusRaw, elapsedRaw] = metaLine.split("|");
+  const status = Number.parseInt(statusRaw ?? "", 10);
+  const elapsedSeconds = Number.parseFloat(elapsedRaw ?? "");
+  if (!Number.isFinite(status) || !Number.isFinite(elapsedSeconds)) {
+    throw new Error(
+      `Invalid vercel curl metadata. status=${statusRaw ?? ""} elapsed=${elapsedRaw ?? ""}`
+    );
+  }
+  return {
+    rawBody: beforeMarker,
+    status,
+    elapsedMs: elapsedSeconds * 1000,
+    ok: status >= 200 && status < 300,
+  };
+};
+
+const requestRouteViaVercelCli = async ({
+  baseUrl,
+  method,
+  routePath,
+  token,
+  body,
+  timeoutMs,
+  vercelBypassToken = "",
+  vercelApiToken,
+}) => {
+  try {
+    const normalizedPath = (() => {
+      const parsed = new URL(routePath, baseUrl);
+      return `${parsed.pathname}${parsed.search}`;
+    })();
+
+    const args = [
+      "curl",
+      normalizedPath,
+      "--deployment",
+      baseUrl,
+      "--token",
+      vercelApiToken,
+      "--yes",
+    ];
+    if (vercelBypassToken.trim()) {
+      args.push("--protection-bypass", vercelBypassToken.trim());
+    }
+    args.push(
+      "--",
+      "--silent",
+      "--show-error",
+      "--request",
+      method,
+      "--header",
+      `Authorization: Bearer ${token}`,
+      "--header",
+      "Content-Type: application/json"
+    );
+    if (body !== null) {
+      args.push("--data", JSON.stringify(body));
+    }
+    args.push("--write-out", `\n${CURL_METADATA_SENTINEL}%{http_code}|%{time_total}\n`);
+
+    const { stdout, stderr } = await execFileAsync("vercel", args, {
+      timeout: timeoutMs + 4000,
+      maxBuffer: 5 * 1024 * 1024,
+      cwd: process.cwd(),
+      env: process.env,
+    });
+    return parseVercelCurlOutput({ stdout, stderr });
+  } catch (error) {
+    const stdout = typeof error?.stdout === "string" ? error.stdout : "";
+    const stderr = typeof error?.stderr === "string" ? error.stderr : "";
+    if (stdout.includes(CURL_METADATA_SENTINEL)) {
+      try {
+        return parseVercelCurlOutput({ stdout, stderr });
+      } catch {
+        // Fall through to generic failure shape.
+      }
+    }
+    return {
+      elapsedMs: timeoutMs,
+      status: 0,
+      ok: false,
+      rawBody: "",
+    };
+  }
+};
+
 const runRouteProbe = async ({
   baseUrl,
   probe,
@@ -378,32 +492,57 @@ const runRouteProbe = async ({
   samples,
   timeoutMs,
   vercelBypassToken,
+  vercelApiToken,
 }) => {
   for (let index = 0; index < warmup; index += 1) {
-    await requestRoute({
-      baseUrl,
-      method: probe.method,
-      routePath: probe.path,
-      token,
-      body: probe.body,
-      timeoutMs,
-      vercelBypassToken,
-    });
+    if (vercelApiToken) {
+      await requestRouteViaVercelCli({
+        baseUrl,
+        method: probe.method,
+        routePath: probe.path,
+        token,
+        body: probe.body,
+        timeoutMs,
+        vercelBypassToken,
+        vercelApiToken,
+      });
+    } else {
+      await requestRoute({
+        baseUrl,
+        method: probe.method,
+        routePath: probe.path,
+        token,
+        body: probe.body,
+        timeoutMs,
+        vercelBypassToken,
+      });
+    }
   }
 
   const elapsed = [];
   const statuses = [];
   let successCount = 0;
   for (let index = 0; index < samples; index += 1) {
-    const result = await requestRoute({
-      baseUrl,
-      method: probe.method,
-      routePath: probe.path,
-      token,
-      body: probe.body,
-      timeoutMs,
-      vercelBypassToken,
-    });
+    const result = vercelApiToken
+      ? await requestRouteViaVercelCli({
+          baseUrl,
+          method: probe.method,
+          routePath: probe.path,
+          token,
+          body: probe.body,
+          timeoutMs,
+          vercelBypassToken,
+          vercelApiToken,
+        })
+      : await requestRoute({
+          baseUrl,
+          method: probe.method,
+          routePath: probe.path,
+          token,
+          body: probe.body,
+          timeoutMs,
+          vercelBypassToken,
+        });
     elapsed.push(result.elapsedMs);
     statuses.push(result.status);
     if (result.ok) successCount += 1;
@@ -424,7 +563,46 @@ const runRouteProbe = async ({
   };
 };
 
-const requestRecoverySnapshot = async ({ baseUrl, reconcilerSecret, vercelBypassToken }) => {
+const requestRecoverySnapshot = async ({
+  baseUrl,
+  reconcilerSecret,
+  vercelBypassToken,
+  vercelApiToken,
+}) => {
+  if (vercelApiToken) {
+    const attemptViaVercel = async (method) => {
+      const response = await requestRouteViaVercelCli({
+        baseUrl,
+        method,
+        routePath: "/api/internal/generation-recovery/run",
+        token: reconcilerSecret,
+        body: null,
+        timeoutMs: DEFAULT_TIMEOUT_MS,
+        vercelBypassToken,
+        vercelApiToken,
+      });
+      let parsedBody = null;
+      try {
+        parsedBody = response.rawBody ? JSON.parse(response.rawBody) : null;
+      } catch {
+        parsedBody = null;
+      }
+      return {
+        ok: response.ok,
+        status: response.status,
+        method,
+        rawBody: response.rawBody ?? "",
+        parsedBody,
+      };
+    };
+
+    const post = await attemptViaVercel("POST");
+    if (post.status === 405) {
+      return attemptViaVercel("GET");
+    }
+    return post;
+  }
+
   const attempt = async (method) => {
     const routeUrl = new URL(`${baseUrl}/api/internal/generation-recovery/run`);
     if (vercelBypassToken) {
@@ -489,6 +667,7 @@ Date (UTC): ${isoNow()}
 Base URL: ${safeBaseUrl}
 Mode: ${args.bootstrapTokenFromSupabase ? "bootstrap-token-from-supabase" : "existing-bearer-token"}
 Vercel bypass token: ${args.vercelBypassToken ? "enabled" : "disabled"}
+Transport: ${args.vercelApiToken ? "vercel-cli" : "direct-fetch"}
 
 ## Route Probe Summary
 ${summaryLines}
@@ -551,6 +730,7 @@ const main = async () => {
           samples: args.samples,
           timeoutMs: args.timeoutMs,
           vercelBypassToken: args.vercelBypassToken,
+          vercelApiToken: args.vercelApiToken,
         })
       );
     }
@@ -571,6 +751,7 @@ const main = async () => {
       baseUrl: args.baseUrl,
       reconcilerSecret: args.reconcilerSecret,
       vercelBypassToken: args.vercelBypassToken,
+      vercelApiToken: args.vercelApiToken,
     });
     if (!recovery.ok) {
       throw new Error(

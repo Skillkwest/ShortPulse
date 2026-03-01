@@ -1,6 +1,6 @@
 # Unified Phase 12: Cleanup and Decommission
 
-Status: In Progress (Prep)
+Status: In Progress (Execution Locked; Awaiting Signoff Gates)
 Owner: Engineering
 
 ## Objective
@@ -43,6 +43,17 @@ Implemented:
 Remaining:
 1. Run removals only after signoff gates are complete.
 2. Validate each removal slice with full no-regression packet.
+
+## Current WS-0 Update (2026-03-01)
+Implemented:
+1. Recorded a single Phase 12 execution-start lock entry with UTC timestamp:
+   - `docs/planning/evidence/unified-buildout/phase-12/2026-03-01-phase-12-ws0-execution-readiness-lock.md`
+2. Linked prerequisite signoff references for Phase 04 and Phase 11 in the execution lock packet.
+3. Captured gate-status snapshot (`met` vs `blocked`) and froze cleanup scope for post-signoff slices.
+
+Remaining:
+1. Do not start WS-1 through WS-6 until signoff gates are satisfied.
+2. Begin WS-1 immediately after gates clear, using the conservative slice order already documented.
 
 ## Validation Gates
 1. 
@@ -172,7 +183,7 @@ Naming canonical drift checks passed.
 
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:
-- 
+1. Not required for current pre-signoff cleanup prep; Phase 12 work is repo-local and governance-driven.
 
 ## Required Docs Updates
 1. Update Phase 12 stage/tracker status.

@@ -18,6 +18,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 13. `2026-03-01-phase-11-slice-b-kie-submit-contract-constraint-enforcement.md` - stricter Kie submit contract enforcement for allowed aspect/duration/resolution fields and optional field typing with focused constraint coverage.
 14. `2026-03-01-phase-11-slice-b-kie-status-result-shape-validation.md` - model-aware Kie status/result payload shape validation with fail-closed malformed-field and unsupported-model handling.
 15. `2026-03-01-phase-11-slice-b-kie-retry-policy-payload-aware-mapping.md` - payload-aware Kie transient retry mapping in shared status policy with strict no-retry header precedence.
+16. `2026-03-01-phase-11-slice-b-mixed-provider-recovery-convergence-tests.md` - mixed-provider recovery runtime/execution coverage for Kie media convergence and running-state retry queue transitions.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

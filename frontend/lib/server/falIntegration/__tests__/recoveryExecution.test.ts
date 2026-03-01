@@ -457,4 +457,111 @@ describe("executeGenerationRecovery", () => {
       next_recovery_at: null,
     });
   });
+
+  it("hydrates kie observation via provider probe when observation is omitted", async () => {
+    process.env.KIE_API_KEY = "kie-test-key";
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        provider: "kie",
+        model_id: "kie-ai/kling-3.0",
+        recovery_attempts: 1,
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    probeGenerationProviderResultMock.mockResolvedValue({
+      state: "running",
+      payload: null,
+      mediaUrls: [],
+    });
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      maxAttempts: 5,
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "provider_running",
+        processed: true,
+      })
+    );
+    expect(probeGenerationProviderResultMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "kie",
+        modelId: "kie-ai/kling-3.0",
+        requestId: "req-1",
+        apiKey: "kie-test-key",
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        recovery_state: "queued",
+        failure_reason_code: null,
+        next_recovery_at: expect.any(String),
+      })
+    );
+    delete process.env.KIE_API_KEY;
+  });
+
+  it("recovers kie generation using model-aware payload media urls", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        provider: "kie",
+        model_id: "kie-ai/veo-3.1-fast-i2v",
+        status: "running",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["kie-media-1"]);
+
+    const result = await executeGenerationRecovery({
+      actor: "webhook",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: {
+          videos: [{ url: "https://cdn.shortpulse.test/kie-output.mp4" }],
+        },
+        mediaUrls: [],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "recovered",
+        processed: true,
+        mediaFileIds: ["kie-media-1"],
+        mediaUrls: ["https://cdn.shortpulse.test/kie-output.mp4"],
+      })
+    );
+    expect(persistRecoveryMediaFilesForGenerationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation: expect.objectContaining({
+          provider: "kie",
+          model_id: "kie-ai/veo-3.1-fast-i2v",
+        }),
+        mediaUrls: ["https://cdn.shortpulse.test/kie-output.mp4"],
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "success",
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        status: "success",
+        recovery_state: "recovered",
+      })
+    );
+  });
 });

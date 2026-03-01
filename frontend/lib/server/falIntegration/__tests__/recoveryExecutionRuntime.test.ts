@@ -57,6 +57,20 @@ describe("recoveryExecutionRuntime", () => {
     ]);
   });
 
+  it("collects recovered urls from kie model-aware payloads", () => {
+    const urls = collectRecoveredUrls({
+      provider: "kie",
+      modelId: "kie-ai/kling-3.0",
+      mediaUrls: [],
+      payload: {
+        result: {
+          outputs: [{ video_url: "https://cdn.shortpulse.test/kie-video.mp4" }],
+        },
+      },
+    });
+    expect(urls).toEqual(["https://cdn.shortpulse.test/kie-video.mp4"]);
+  });
+
   it("resolves media type and extension from content type and url fallback", () => {
     expect(resolveFileType("video/mp4", "https://cdn.shortpulse.test/image.png")).toBe("video");
     expect(resolveFileType(null, "https://cdn.shortpulse.test/clip.webm?sig=1")).toBe("video");

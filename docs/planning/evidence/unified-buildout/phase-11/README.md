@@ -19,6 +19,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 14. `2026-03-01-phase-11-slice-b-kie-status-result-shape-validation.md` - model-aware Kie status/result payload shape validation with fail-closed malformed-field and unsupported-model handling.
 15. `2026-03-01-phase-11-slice-b-kie-retry-policy-payload-aware-mapping.md` - payload-aware Kie transient retry mapping in shared status policy with strict no-retry header precedence.
 16. `2026-03-01-phase-11-slice-b-mixed-provider-recovery-convergence-tests.md` - mixed-provider recovery runtime/execution coverage for Kie media convergence and running-state retry queue transitions.
+17. `2026-03-01-phase-11-slice-b-regression-gate-coverage-expansion.md` - expands canonical Phase 11 Fal regression gate script coverage to include queue dispatch integrity and mixed-provider recovery execution/runtime suites.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

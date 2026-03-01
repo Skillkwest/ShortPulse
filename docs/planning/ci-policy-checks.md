@@ -8,6 +8,7 @@ Owner: Engineering
 
 - `deadcode`
 - `frontend`
+- `phase11_fal_regression`
 - `type_check`
 - `docs_semantic_drift`
 - `migration_parity`
@@ -36,6 +37,7 @@ Owner: Engineering
 - `scripts/check_agent_disable_continuity.js` (new)
 - `scripts/check_secret_exposure.js` (new)
 - `scripts/ci_npm_ci_with_retry.sh` (new)
+- `scripts/phase11_checkpoint_window_guard.mjs` (new)
 
 ## Reference-grid foundation guardrail lane
 
@@ -60,6 +62,16 @@ Mode policy:
 - `fal-status.auth-context`
 - `fal-status.ownership`
 - `auth-latency-benchmark`
+
+## Phase 11 Fal no-regression lane
+
+- Gate job ID: `phase11_fal_regression`
+- Command: `npm run test:phase11:fal-regression`
+- Trigger policy:
+  - Always on non-PR runs (`push`, `workflow_dispatch`)
+  - PR runs only when Phase 11 Fal/provider-impacting files change
+- Mode variable: `PHASE11_FAL_REGRESSION_MODE=warn|enforce` (defaults to `enforce`)
+- Policy intent: preserve `/api/fal/*` contract parity and provider-boundary no-regression during Phase 11 work while Kie rollout remains off-path.
 
 ## SQL lint gate
 

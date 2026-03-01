@@ -12,6 +12,8 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.
-2. `npm -C frontend run test:phase11:fal-regression` - canonical Fal no-regression test gate to run before each shadow/canary checkpoint decision.
-3. `bash scripts/phase11_shadow_checkpoint_gate.sh --quick` - checkpoint helper that runs the no-regression gate and prints the required SQL/evidence handoff steps (`--full` runs full validation).
-4. `npm -C frontend run phase11:gate-eval -- --window shadow-1 --file <gate-summary.json>` - evaluates section `G` output into a deterministic pass/hold packet with `N/A` handling for `recovery_success_sample_size = 0`.
+2. `sql/check_phase11_shadow_canary_gate_summary_windowed.sql` - explicit UTC windowed one-row gate query for checkpoint runs (avoid accidental rolling-window samples).
+3. `npm -C frontend run test:phase11:fal-regression` - canonical Fal no-regression test gate to run before each shadow/canary checkpoint decision.
+4. `bash scripts/phase11_shadow_checkpoint_gate.sh --quick` - checkpoint helper that runs the no-regression gate and prints the required SQL/evidence handoff steps (`--full` runs full validation).
+5. `npm -C frontend run phase11:window-guard -- --window canary-1` - blocks early/invalid checkpoint runs until scheduled UTC checkpoint closure (use `--mode full` for full local validation and `--gate-file` to auto-evaluate SQL output).
+6. `npm -C frontend run phase11:gate-eval -- --window shadow-1 --file <gate-summary.json>` - evaluates section `G` output into a deterministic pass/hold packet with `N/A` handling for `recovery_success_sample_size = 0`.

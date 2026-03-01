@@ -33,6 +33,10 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - section `G) One-row gate summary` from `sql/check_phase11_shadow_canary_metrics.sql`
 - Added gate-summary evaluator utility for deterministic pass/hold packet generation from SQL section `G` output:
   - `npm -C frontend run phase11:gate-eval -- --window shadow-1 --file <gate-summary.json>`
+- Added UTC checkpoint window guard to prevent invalid early canary/shadow checkpoint runs:
+  - `npm -C frontend run phase11:window-guard -- --window <shadow-1|canary-1|canary-2>`
+- Added explicit windowed one-row gate SQL helper for deterministic checkpoint ranges:
+  - `sql/check_phase11_shadow_canary_gate_summary_windowed.sql`
 - Added pre-created canary live-log templates for consecutive observation windows:
   - `docs/planning/evidence/unified-buildout/phase-11/2026-03-01-phase-11-canary-window-1-live-log.md`
   - `docs/planning/evidence/unified-buildout/phase-11/2026-03-02-phase-11-canary-window-2-live-log.md`
@@ -268,6 +272,7 @@ npm -C frontend run test:phase11:fal-regression
 npm -C frontend run validate:phase11:fal-regression
 ```
 Use these instead of manually retyping long test command lists for subsequent Phase 11 work.
+10. CI now includes a dedicated `phase11_fal_regression` lane (file-change aware on PRs, enforce/warn mode support) to keep Fal route/model regression checks explicit during ongoing Phase 11 changes.
 
 ## Targeted Research Checkpoint
 If this phase touches external contracts/standards, add a short research note with primary-source links under:

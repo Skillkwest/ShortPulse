@@ -53,6 +53,93 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  phase11_fal_regression:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect Phase 11 Fal/provider-impacting changes
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            phase11_fal:
+              - 'frontend/lib/server/falIntegration/**'
+              - 'frontend/lib/server/providerIntegration/**'
+              - 'frontend/lib/server/api/fal*.ts'
+              - 'frontend/pages/api/fal/**'
+              - 'frontend/tests/api/fal-*.test.ts'
+              - 'frontend/tests/api/model-catalog-route-coverage.test.ts'
+              - 'frontend/package.json'
+              - 'scripts/phase11_*'
+              - 'sql/check_phase11_shadow_canary*.sql'
+              - 'docs/planning/evidence/unified-buildout/phase-11/**'
+              - '.github/workflows/ci.yml'
+      - name: Decide whether to run Phase 11 Fal regression gate
+        id: should_run
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=run_all_non_pr" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ steps.changes.outputs.phase11_fal || 'false' }}" = "true" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=changed_files" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "reason=no_phase11_fal_changes" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        if: ${{ steps.should_run.outputs.run == 'true' }}
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies (npm ci with transient retry)
+        if: ${{ steps.should_run.outputs.run == 'true' }}
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
+      - name: Run Phase 11 Fal no-regression gate (warn/enforce)
+        if: ${{ steps.should_run.outputs.run == 'true' }}
+        env:
+          PHASE11_FAL_REGRESSION_MODE: ${{ vars.PHASE11_FAL_REGRESSION_MODE }}
+        run: |
+          set -euo pipefail
+          MODE="${PHASE11_FAL_REGRESSION_MODE:-enforce}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown PHASE11_FAL_REGRESSION_MODE='$MODE'. Falling back to 'enforce'."
+            MODE="enforce"
+          fi
+
+          set +e
+          npm run test:phase11:fal-regression
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "phase11_fal_regression passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::phase11_fal_regression failed in warn mode."
+            echo "phase11_fal_regression failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "phase11_fal_regression failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+      - name: Phase 11 Fal no-regression gate skipped
+        if: ${{ steps.should_run.outputs.run != 'true' }}
+        run: |
+          echo "Phase 11 Fal no-regression gate skipped because no Phase 11 Fal-impacting files changed." >> "$GITHUB_STEP_SUMMARY"
+
   type_check:
     runs-on: ubuntu-latest
     defaults:

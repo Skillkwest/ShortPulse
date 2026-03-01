@@ -3,13 +3,18 @@
 Date opened: 2026-03-01  
 Owner: Engineering  
 Phase: 11 (Fal -> Kie video migration)  
-Status: Pending shadow checkpoint pass
+Status: Scheduled (deferred until checkpoint window)
 
 ## Window Schedule (UTC)
 1. Canary window 1 start target:
    - 2026-03-01 18:46:07 UTC
 2. Canary window 1 checkpoint target:
    - 2026-03-02 18:46:07 UTC
+
+## Deferral Note
+1. Do not execute checkpoint SQL/evaluation before `2026-03-02 18:46:07 UTC`.
+2. Any early run (before checkpoint time) is invalid for canary decisioning because the window has not closed.
+3. Resume execution only at/after checkpoint with the canonical run packet below.
 
 ## Entry Preconditions
 1. Shadow window checkpoint recorded and passing.
@@ -23,11 +28,11 @@ bash scripts/phase11_shadow_checkpoint_gate.sh --quick
 ## Checkpoint Run Packet
 1. Run:
 ```bash
-npm -C frontend run test:phase11:fal-regression
-bash scripts/phase11_shadow_checkpoint_gate.sh --quick
+npm -C frontend run phase11:window-guard -- --window canary-1
 ```
-2. Execute section `G) One-row gate summary` from:
-   - `sql/check_phase11_shadow_canary_metrics.sql`
+2. Execute one-row gate summary from:
+   - `sql/check_phase11_shadow_canary_gate_summary_windowed.sql`
+   - set params window to `start_at='2026-03-01 18:46:07+00'` and `end_at='2026-03-02 18:46:07+00'`
 3. Paste the row in this file and in:
    - `docs/planning/evidence/unified-buildout/phase-11/2026-02-27-phase-11-slice-a-shadow-canary-readiness-and-threshold-template.md`
 

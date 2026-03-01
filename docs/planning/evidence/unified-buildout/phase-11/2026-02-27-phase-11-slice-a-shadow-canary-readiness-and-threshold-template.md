@@ -68,12 +68,11 @@ Recommended command packet:
 4. If `recovery_success_sample_size = 0`, treat `recovery_success_pass` as `N/A` (insufficient sample), not a hard failure. Extend the window or gather more candidate rows before final promote decision.
 
 Operational run packet (per checkpoint):
-1. Run no-regression gate before evaluating rollout metrics:
+1. Run UTC checkpoint guard + no-regression gate before evaluating rollout metrics:
 ```bash
-npm -C frontend run test:phase11:fal-regression
-bash scripts/phase11_shadow_checkpoint_gate.sh --quick
+npm -C frontend run phase11:window-guard -- --window canary-1
 ```
-2. Execute `sql/check_phase11_shadow_canary_metrics.sql` and capture section `G) One-row gate summary`.
+2. Execute `sql/check_phase11_shadow_canary_gate_summary_windowed.sql` and set explicit `start_at`/`end_at` for the active window.
 3. Record results for the active window and classify each criterion as `pass/fail/N-A`.
 4. Use `N/A` only for recovery success when sample size is `0`; all duplicate/unresolved gates must still pass.
 5. Optional normalization helper:
@@ -128,6 +127,7 @@ Run two consecutive windows before promotion.
 1. Start/end (UTC):
    - Planned start: `2026-03-01 18:46:07 UTC`
    - Planned checkpoint: `2026-03-02 18:46:07 UTC`
+   - Execution rule: do not run checkpoint SQL before planned checkpoint time.
 2. Duplicate settlement count (threshold `0`):
 3. Duplicate persistence count (threshold `0`):
 4. Stuck-running delta vs baseline (threshold `<= +10%`):
@@ -138,6 +138,9 @@ Run two consecutive windows before promotion.
 
 ### Canary Window 2
 1. Start/end (UTC):
+   - Planned start: `2026-03-02 18:46:07 UTC`
+   - Planned checkpoint: `2026-03-03 18:46:07 UTC`
+   - Execution rule: do not run checkpoint SQL before planned checkpoint time.
 2. Duplicate settlement count (threshold `0`):
 3. Duplicate persistence count (threshold `0`):
 4. Stuck-running delta vs baseline (threshold `<= +10%`):

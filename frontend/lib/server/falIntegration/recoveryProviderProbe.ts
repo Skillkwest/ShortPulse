@@ -178,6 +178,7 @@ export const probeProviderResult = async ({
     for (const responseUrl of resolveProviderResponseUrls({
       provider: providerKey,
       responseUrls: Array.from(responseUrlSet),
+      modelId,
     })) {
       const responseProbe = await dispatchProviderResponseProbeRequest({
         provider: providerKey,

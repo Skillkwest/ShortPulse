@@ -333,10 +333,53 @@ describe("generationQueue/dispatch transition integrity", () => {
     );
     expect(markQueueItemExhaustedMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        lastErrorCode: "MISSING_SUBMIT_TARGET",
+        lastErrorCode: "KIE_RUNTIME_DISABLED",
       })
     );
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
     delete process.env.KIE_API_KEY;
+  });
+
+  it("dispatches queued kie generation when runtime allowlist and submit targets are configured", async () => {
+    process.env.KIE_API_KEY = "test-kie-key";
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_SUBMIT_URLS = "https://queue.kie.ai/v1/jobs";
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({ provider: "kie" }));
+    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
+      {
+        ...queueItem,
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      },
+    ]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        submitted: 1,
+        exhausted: 0,
+      })
+    );
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
+      })
+    );
+    expect(withWebhookTargetsMock).not.toHaveBeenCalled();
+    expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
+
+    delete process.env.KIE_API_KEY;
+    delete process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED;
+    delete process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST;
+    delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
   });
 });

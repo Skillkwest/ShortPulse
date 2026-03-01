@@ -104,6 +104,7 @@ describe("statusProviderDispatcher", () => {
       resolveProviderStatusBaseUrls({
         provider: "kie",
         configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        modelId: "kie-ai/veo-3.1-fast-i2v",
       })
     ).toThrow("Kie provider is disabled by runtime flag.");
 
@@ -111,6 +112,7 @@ describe("statusProviderDispatcher", () => {
       resolveProviderResponseUrls({
         provider: "kie",
         responseUrls: ["https://queue.kie.ai/v1/requests/req-kie"],
+        modelId: "kie-ai/veo-3.1-fast-i2v",
       })
     ).toThrow("Kie provider is disabled by runtime flag.");
   });
@@ -119,6 +121,21 @@ describe("statusProviderDispatcher", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
     process.env.SHORTPULSE_KIE_STATUS_BASE_URLS = "https://queue.kie.ai/v1/requests";
+
+    expect(
+      resolveProviderStatusBaseUrls({
+        provider: "kie",
+        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    ).toEqual(["https://queue.kie.ai/v1/requests"]);
+    expect(
+      resolveProviderResponseUrls({
+        provider: "kie",
+        responseUrls: ["https://queue.kie.ai/v1/requests/req-kie"],
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    ).toEqual(["https://queue.kie.ai/v1/requests/req-kie"]);
 
     const fetchMock = vi
       .fn()
@@ -157,6 +174,25 @@ describe("statusProviderDispatcher", () => {
         headers: expect.objectContaining({ Authorization: "Bearer test-key" }),
       })
     );
+  });
+
+  it("fails closed for kie status topology when model id is missing", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+
+    expect(() =>
+      resolveProviderStatusBaseUrls({
+        provider: "kie",
+        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+      })
+    ).toThrow("Kie status base resolution requires modelId.");
+
+    expect(() =>
+      resolveProviderResponseUrls({
+        provider: "kie",
+        responseUrls: ["https://queue.kie.ai/v1/requests/req-kie"],
+      })
+    ).toThrow("Kie response probe URL resolution requires modelId.");
   });
 
   it("throws for unsupported providers", () => {

@@ -21,9 +21,11 @@ const DEFAULT_STATUS_TIMEOUT_MS = 60000;
 export const resolveProviderConfiguredStatusBaseUrls = ({
   provider,
   configuredBaseUrls,
+  modelId,
 }: {
   provider: string;
   configuredBaseUrls: string[];
+  modelId?: string | null;
 }): string[] => {
   if (isFalProviderKey(provider)) {
     return filterTrustedFalProviderUrls(configuredBaseUrls);
@@ -33,6 +35,11 @@ export const resolveProviderConfiguredStatusBaseUrls = ({
     if (!flags.enabled) {
       throw new Error("Kie provider is disabled by runtime flag.");
     }
+    const normalizedModelId = modelId?.trim();
+    if (!normalizedModelId) {
+      throw new Error("Kie status base resolution requires modelId.");
+    }
+    assertKieRuntimeEnabledForModel({ modelId: normalizedModelId, flags });
     const candidateBaseUrls = configuredBaseUrls.length ? configuredBaseUrls : flags.statusBaseUrls;
     return filterTrustedKieProviderUrls(candidateBaseUrls, flags);
   }
@@ -45,9 +52,11 @@ export const resolveProviderConfiguredStatusBaseUrls = ({
 export const resolveProviderResponseProbeUrls = ({
   provider,
   responseUrls,
+  modelId,
 }: {
   provider: string;
   responseUrls: string[];
+  modelId?: string | null;
 }): string[] => {
   if (isFalProviderKey(provider)) {
     return filterTrustedFalProviderUrls(responseUrls);
@@ -57,6 +66,11 @@ export const resolveProviderResponseProbeUrls = ({
     if (!flags.enabled) {
       throw new Error("Kie provider is disabled by runtime flag.");
     }
+    const normalizedModelId = modelId?.trim();
+    if (!normalizedModelId) {
+      throw new Error("Kie response probe URL resolution requires modelId.");
+    }
+    assertKieRuntimeEnabledForModel({ modelId: normalizedModelId, flags });
     return filterTrustedKieProviderUrls(responseUrls, flags);
   }
   throw new Error(`Unsupported provider for response probe URL resolution: ${provider}`);

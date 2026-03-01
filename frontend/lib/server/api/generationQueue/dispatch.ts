@@ -159,22 +159,53 @@ const readQueueSubmitTargets = ({
 }: {
   provider: string;
   modelId: string;
-}): SubmitTarget[] => {
+}): {
+  targets: SubmitTarget[];
+  resolutionErrorCode: string | null;
+  resolutionErrorMessage: string | null;
+} => {
   if (isFalProviderKey(provider)) {
     const profile = getFalModelProfileByModelId(modelId);
     if (!profile?.submitTargets?.length) {
-      return [];
+      return {
+        targets: [],
+        resolutionErrorCode: null,
+        resolutionErrorMessage: null,
+      };
     }
-    return profile.submitTargets;
+    return {
+      targets: profile.submitTargets,
+      resolutionErrorCode: null,
+      resolutionErrorMessage: null,
+    };
   }
   if (isKieProviderKey(provider)) {
     try {
-      return resolveKieSubmitTargetsForModel(modelId);
-    } catch {
-      return [];
+      return {
+        targets: resolveKieSubmitTargetsForModel(modelId),
+        resolutionErrorCode: null,
+        resolutionErrorMessage: null,
+      };
+    } catch (error) {
+      const message = normalizeError(error);
+      const lowerMessage = message.toLowerCase();
+      const errorCode = lowerMessage.includes("disabled by runtime flag")
+        ? "KIE_RUNTIME_DISABLED"
+        : lowerMessage.includes("not allowlisted")
+          ? "KIE_MODEL_NOT_ALLOWLISTED"
+          : "KIE_SUBMIT_TARGET_RESOLUTION_FAILED";
+      return {
+        targets: [],
+        resolutionErrorCode: errorCode,
+        resolutionErrorMessage: message,
+      };
     }
   }
-  return [];
+  return {
+    targets: [],
+    resolutionErrorCode: null,
+    resolutionErrorMessage: null,
+  };
 };
 
 const setGenerationFailed = async ({
@@ -411,19 +442,26 @@ const processClaimedQueueItem = async ({
   }
 
   const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags);
-  const providerSubmitTargets = readQueueSubmitTargets({
+  const providerSubmitTargetResolution = readQueueSubmitTargets({
     provider,
     modelId: item.modelId,
   });
+  const providerSubmitTargets = providerSubmitTargetResolution.targets;
   const submitTargets = isFalProviderKey(provider)
     ? withWebhookTargets(providerSubmitTargets, webhookCallbackUrl)
     : providerSubmitTargets;
   if (!submitTargets.length) {
+    const resolutionErrorCode = providerSubmitTargetResolution.resolutionErrorCode;
+    const resolutionErrorMessage = providerSubmitTargetResolution.resolutionErrorMessage;
+    const missingTargetMessage =
+      resolutionErrorMessage && resolutionErrorMessage !== "queue_dispatch_failed"
+        ? `No submit target configured for queued model/provider (${provider}): ${resolutionErrorMessage}`
+        : `No submit target configured for queued model/provider (${provider}).`;
     const exhaustResult = await markQueueItemExhausted({
       queueId: item.queueId,
       attempts: attemptNumber,
-      lastError: `No submit target configured for queued model/provider (${provider}).`,
-      lastErrorCode: "MISSING_SUBMIT_TARGET",
+      lastError: missingTargetMessage,
+      lastErrorCode: resolutionErrorCode ?? "MISSING_SUBMIT_TARGET",
     });
     assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
     await releaseGenerationReservationBySourceRef({
@@ -433,6 +471,8 @@ const processClaimedQueueItem = async ({
       metadata: {
         queue_id: item.queueId,
         model_id: item.modelId,
+        provider_target_resolution_error_code: resolutionErrorCode,
+        provider_target_resolution_error_message: resolutionErrorMessage,
       },
     });
     await setGenerationFailed({

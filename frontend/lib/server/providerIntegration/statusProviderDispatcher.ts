@@ -15,13 +15,16 @@ import {
 export const resolveProviderStatusBaseUrls = ({
   provider,
   configuredBaseUrls,
+  modelId,
 }: {
   provider: string;
   configuredBaseUrls: string[];
+  modelId?: string | null;
 }): string[] =>
   resolveProviderConfiguredStatusBaseUrls({
     provider,
     configuredBaseUrls,
+    modelId,
   });
 
 /**
@@ -30,13 +33,16 @@ export const resolveProviderStatusBaseUrls = ({
 export const resolveProviderResponseUrls = ({
   provider,
   responseUrls,
+  modelId,
 }: {
   provider: string;
   responseUrls: string[];
+  modelId?: string | null;
 }): string[] =>
   resolveProviderResponseProbeUrls({
     provider,
     responseUrls,
+    modelId,
   });
 
 /**

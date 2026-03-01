@@ -77,6 +77,7 @@ describe("statusProviderTopology", () => {
       resolveProviderConfiguredStatusBaseUrls({
         provider: "kie",
         configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        modelId: "kie-ai/veo-3.1-fast-i2v",
       })
     ).toThrow("Kie provider is disabled by runtime flag.");
 
@@ -98,6 +99,7 @@ describe("statusProviderTopology", () => {
       resolveProviderResponseProbeUrls({
         provider: "kie",
         responseUrls: ["https://queue.kie.ai/v1/requests/1"],
+        modelId: "kie-ai/veo-3.1-fast-i2v",
       })
     ).toThrow("Kie provider is disabled by runtime flag.");
   });
@@ -112,6 +114,7 @@ describe("statusProviderTopology", () => {
       resolveProviderConfiguredStatusBaseUrls({
         provider: "kie",
         configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        modelId: "kie-ai/veo-3.1-fast-i2v",
       })
     ).toEqual(["https://queue.kie.ai/v1/requests"]);
 
@@ -133,8 +136,49 @@ describe("statusProviderTopology", () => {
       resolveProviderResponseProbeUrls({
         provider: "kie",
         responseUrls: ["https://queue.kie.ai/v1/requests/1"],
+        modelId: "kie-ai/veo-3.1-fast-i2v",
       })
     ).toEqual(["https://queue.kie.ai/v1/requests/1"]);
+  });
+
+  it("fails closed for kie status topology when model id is missing", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+
+    expect(() =>
+      resolveProviderConfiguredStatusBaseUrls({
+        provider: "kie",
+        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+      })
+    ).toThrow("Kie status base resolution requires modelId.");
+
+    expect(() =>
+      resolveProviderResponseProbeUrls({
+        provider: "kie",
+        responseUrls: ["https://queue.kie.ai/v1/requests/1"],
+      })
+    ).toThrow("Kie response probe URL resolution requires modelId.");
+  });
+
+  it("fails closed for kie status topology when model is not allowlisted", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+
+    expect(() =>
+      resolveProviderConfiguredStatusBaseUrls({
+        provider: "kie",
+        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        modelId: "kie-ai/kling-3.0",
+      })
+    ).toThrow("Kie model is not allowlisted");
+
+    expect(() =>
+      resolveProviderResponseProbeUrls({
+        provider: "kie",
+        responseUrls: ["https://queue.kie.ai/v1/requests/1"],
+        modelId: "kie-ai/kling-3.0",
+      })
+    ).toThrow("Kie model is not allowlisted");
   });
 
   it("throws for unsupported providers", () => {

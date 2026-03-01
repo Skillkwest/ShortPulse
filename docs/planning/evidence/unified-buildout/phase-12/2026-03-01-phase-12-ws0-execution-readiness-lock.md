@@ -37,4 +37,6 @@ Record a single execution-start checkpoint for Phase 12 and lock cleanup executi
 3. Cleanup execution scope is frozen until gates clear: `pass`.
 
 ## Next Action After Gates Clear
-1. Begin WS-1 conservative removal slice (`SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED` transition branch retirement) with full validation packet.
+1. Run preflight gate helper:
+   - `npm -C frontend run phase12:execution-gate -- --phase04-signoff true --phase11-decision <promote|hold>`
+2. Begin WS-1 conservative removal slice (`SHORTPULSE_FAL_QUEUE_STATUS_DISPATCH_KICK_ENABLED` transition branch retirement) with full validation packet.

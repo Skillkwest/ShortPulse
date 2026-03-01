@@ -1691,3 +1691,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Corrected Phase 11 stage wording so Kie VEO/Kling are described as implemented dark-path contracts (runtime-off), not "not yet implemented."
 - Replaced bulky pasted command output in Phase 11 stage validation section with canonical gate commands and current pass-state summary.
 - No runtime code changes in this cleanup slice.
+
+## 2026-03-01 (phase-12 ws0.5 execution gate helper)
+- Added deterministic Phase 12 cleanup execution preflight helper:
+  - `scripts/phase12_execution_gate.mjs`.
+- Added npm shortcut:
+  - `npm -C frontend run phase12:execution-gate`.
+- Updated Phase 12 stage/tracker/evidence docs to record WS-0.5 helper availability and gate usage contract.

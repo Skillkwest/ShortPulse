@@ -55,6 +55,19 @@ Remaining:
 1. Do not start WS-1 through WS-6 until signoff gates are satisfied.
 2. Begin WS-1 immediately after gates clear, using the conservative slice order already documented.
 
+## Current WS-0.5 Update (2026-03-01)
+Implemented:
+1. Added deterministic execution gate helper:
+   - `scripts/phase12_execution_gate.mjs`
+2. Added shortcut command:
+   - `npm -C frontend run phase12:execution-gate`
+3. Added evidence packet:
+   - `docs/planning/evidence/unified-buildout/phase-12/2026-03-01-phase-12-ws0-execution-gate-helper.md`
+
+Remaining:
+1. Continue using WS gate helper as preflight check before every Phase 12 removal slice.
+2. Keep WS-1..WS-6 blocked until helper indicates prerequisites are satisfied.
+
 ## Validation Gates
 1. 
 > shortflow@1.0.0 lint

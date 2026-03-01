@@ -14,6 +14,7 @@
     "validate:phase11:fal-regression": "npm run test:phase11:fal-regression && npm run type-check && npm run lint && npm run docs:check && npm run build",
     "phase11:gate-eval": "cd .. && node scripts/phase11_evaluate_gate_summary.mjs",
     "phase11:window-guard": "cd .. && node scripts/phase11_checkpoint_window_guard.mjs",
+    "phase12:execution-gate": "cd .. && node scripts/phase12_execution_gate.mjs",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:adaptive-v2-gate": "npm run lint && npm run type-check && npm run test -- ReferenceGrid.curated.test.tsx referenceGridMedia.test.ts referenceGridMedia.parity.test.ts MediaLibraryModal.test.tsx CharacterManagerShell.behavior.test.tsx lib/adaptive-media/__tests__/policy.test.ts",

@@ -6,6 +6,7 @@
 import type { SubmitPayload, SubmitTarget } from "../falIntegration/contracts";
 import { submitWithFallbackTargets } from "../falIntegration/submitEngine";
 import { readCanonicalProviderRequestId } from "./canonicalProviderPayload";
+import { normalizeKieSubmitPayloadForModel } from "./kieModelContracts";
 import {
   assertKieRuntimeEnabledForModel,
   isTrustedKieProviderUrl,
@@ -217,6 +218,7 @@ export const dispatchProviderSubmit = async ({
   if (isKieProviderKey(provider)) {
     const kieFlags = readKieRuntimeFlags();
     assertKieRuntimeEnabledForModel({ modelId, flags: kieFlags });
+    const normalizedPayload = normalizeKieSubmitPayloadForModel({ modelId, payload });
     const configuredTargets = targets.length
       ? targets
       : resolveKieSubmitTargetsForModel(modelId, kieFlags);
@@ -228,7 +230,7 @@ export const dispatchProviderSubmit = async ({
     }
     const result = await submitKieWithFallbackTargets({
       targets: trustedTargets,
-      payload,
+      payload: normalizedPayload,
       apiKey,
       signal,
       requestStartTimeoutSeconds,

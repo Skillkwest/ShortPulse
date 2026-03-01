@@ -11,6 +11,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 6. `2026-02-27-phase-11-slice-b-provider-canonical-request-identity.md` - provider-neutral payload identity extraction (request/event/status aliases) wired into Fal submit/webhook paths with targeted regression tests.
 7. `2026-03-01-phase-11-slice-b-kie-model-contract-dark-scaffold.md` - dark-path Kie model metadata scaffolding + fail-closed allowlist guard update with no public route/cutover enablement.
 8. `2026-03-01-phase-11-slice-b-kie-selector-fail-closed-guard.md` - AI Studio model-selection fail-closed guard that excludes Kie provider options by default, with regression coverage.
+9. `2026-03-01-phase-11-slice-b-kie-model-contract-execution-boundary.md` - provider-integration Kie model-contract payload boundary with fail-closed unsupported-model enforcement and dispatcher wiring.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

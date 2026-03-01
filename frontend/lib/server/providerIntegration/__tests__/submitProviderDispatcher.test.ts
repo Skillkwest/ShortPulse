@@ -100,7 +100,7 @@ describe("submitProviderDispatcher", () => {
       provider: "kie",
       modelId: "kie-ai/veo-3.1-fast-i2v",
       targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
-      payload: { prompt: "hello" },
+      payload: { prompt: "hello", image_url: "https://example.com/ref.png" },
       apiKey: "key",
       signal: new AbortController().signal,
     });
@@ -116,6 +116,21 @@ describe("submitProviderDispatcher", () => {
         }),
       })
     );
+  });
+
+  it("fails closed for unsupported Kie model contracts", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/unknown";
+    await expect(
+      dispatchProviderSubmit({
+        provider: "kie",
+        modelId: "kie-ai/unknown",
+        targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
+        payload: { prompt: "hello", image_url: "https://example.com/ref.png" },
+        apiKey: "key",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toThrow("Unsupported Kie model contract: kie-ai/unknown");
   });
 
   it("throws for unsupported non-kie providers", async () => {

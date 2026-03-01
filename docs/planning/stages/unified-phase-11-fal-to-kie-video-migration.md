@@ -138,6 +138,12 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/features/ai-studio/logic/__tests__/modelSelectionPolicy.test.ts`
   - `frontend/features/ai-studio/logic/__tests__/modelOptionsRegistry.test.ts`
   - Ensures selector options remain Fal-only by default even if Kie model options are introduced later.
+- Added Kie model-contract execution boundary for submit path decoupling:
+  - `frontend/lib/server/providerIntegration/kieModelContracts.ts`
+  - `frontend/lib/server/providerIntegration/submitProviderDispatcher.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/kieModelContracts.test.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts`
+  - Enforces fail-closed unsupported-model rejection and model-specific payload validation before Kie transport dispatch.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

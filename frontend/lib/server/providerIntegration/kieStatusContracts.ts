@@ -5,8 +5,9 @@
 
 import { asString, extractResponseUrl, hasMediaPayload } from "../falIntegration/falAdapter";
 import { asProviderRecord, readCanonicalProviderStatus } from "./canonicalProviderPayload";
-import { isSupportedKieModelId } from "./kieModelContracts";
+import { isKnownKieModelId } from "./kieModelIds";
 import { extractKieResultMediaUrls } from "./kieResultMediaContracts";
+import { parseBooleanHeader } from "./providerHeaderUtils";
 
 const kieCompletedStatuses = new Set(["completed", "succeeded", "success", "done", "finished"]);
 const kieFailedStatuses = new Set(["failed", "error", "cancelled", "canceled", "rejected"]);
@@ -39,14 +40,6 @@ const normalizeKieStatusAlias = (status: string): string => {
     default:
       return normalized;
   }
-};
-
-const parseBooleanHeader = (value: string | null): boolean | null => {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "true") return true;
-  if (normalized === "false") return false;
-  return null;
 };
 
 const collectKiePayloadCandidates = (payload: unknown): Record<string, unknown>[] => {
@@ -98,7 +91,7 @@ export const validateKieStatusPayloadForModel = ({
   modelId?: string | null;
   payload: unknown;
 }): KieStatusPayloadValidationIssue | null => {
-  if (modelId?.trim() && !isSupportedKieModelId(modelId)) {
+  if (modelId?.trim() && !isKnownKieModelId(modelId)) {
     return {
       code: "KIE_MODEL_UNSUPPORTED",
       message: `Unsupported Kie status/result contract model: ${modelId}`,

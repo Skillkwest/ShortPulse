@@ -152,6 +152,11 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/kieModelContracts.ts`
   - `frontend/lib/server/providerIntegration/kieResultMediaContracts.ts`
   - Removes duplicate Kie model-id literals across submit/media contract modules and keeps dark-path model identity fail-closed checks aligned.
+- Added provider header-contract centralization and status-contract decoupling:
+  - `frontend/lib/server/providerIntegration/providerHeaderUtils.ts`
+  - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
+  - `frontend/lib/server/providerIntegration/statusProviderPolicy.ts`
+  - Removes duplicated boolean-header parsing logic and decouples Kie status model-support checks from submit-contract module exports.
 - Added Kie status/result contract execution boundary for payload/policy decoupling:
   - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
   - `frontend/lib/server/providerIntegration/statusProviderPayload.ts`

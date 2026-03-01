@@ -1705,3 +1705,9 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Rewired Kie submit/media contract boundaries and focused tests to consume shared model ids:
   - `kieModelContracts.ts`, `kieResultMediaContracts.ts`, and related unit suites.
 - Ran focused Kie contract suites and full `test:phase11:fal-regression` gate with passing results.
+
+## 2026-03-01 (phase-11 provider-header contract centralization)
+- Added shared provider header parsing helper:
+  - `frontend/lib/server/providerIntegration/providerHeaderUtils.ts`.
+- Rewired `kieStatusContracts.ts` and `statusProviderPolicy.ts` to shared header parsing and decoupled Kie status model-support checks from submit-contract module exports.
+- Added focused helper coverage and reran full `test:phase11:fal-regression` gate with passing results.

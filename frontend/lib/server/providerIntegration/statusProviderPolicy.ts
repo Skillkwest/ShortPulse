@@ -12,6 +12,7 @@ import {
   resolveKieSuccessfulPayloadStatus,
 } from "./kieStatusContracts";
 import { isFalProviderKey, isKieProviderKey } from "./providerKey";
+import { parseBooleanHeader } from "./providerHeaderUtils";
 
 const falCompletedStatuses = new Set(["completed", "succeeded", "success", "done"]);
 const falFailedStatuses = new Set(["failed", "error", "cancelled", "canceled"]);
@@ -19,14 +20,6 @@ const falRetryableUpstreamStatuses = new Set([408, 409, 425, 429, 500, 502, 503,
 const normalizeStatus = (value: unknown): string | null => {
   const text = asString(value);
   return text ? text.toLowerCase() : null;
-};
-
-const parseBooleanHeader = (value: string | null): boolean | null => {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "true") return true;
-  if (normalized === "false") return false;
-  return null;
 };
 
 const resolveStatusPolicy = (provider: string) => {

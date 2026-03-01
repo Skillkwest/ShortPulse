@@ -1686,3 +1686,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `npm -C frontend run test -- kieModelContracts`
   - `npm -C frontend run type-check`
   - `npm -C frontend run test:phase11:fal-regression`
+
+## 2026-03-01 (phase-11 stage doc audit cleanup)
+- Corrected Phase 11 stage wording so Kie VEO/Kling are described as implemented dark-path contracts (runtime-off), not "not yet implemented."
+- Replaced bulky pasted command output in Phase 11 stage validation section with canonical gate commands and current pass-state summary.
+- No runtime code changes in this cleanup slice.

@@ -22,7 +22,7 @@ describe("kieModelContracts", () => {
     );
   });
 
-  it("normalizes VEO i2v payload and requires image url", () => {
+  it("normalizes VEO i2v payload and enforces required contract fields", () => {
     expect(
       normalizeKieSubmitPayloadForModel({
         modelId: "kie-ai/veo-3.1-fast-i2v",
@@ -35,8 +35,10 @@ describe("kieModelContracts", () => {
       })
     ).toEqual(
       expect.objectContaining({
+        prompt: "make a short clip",
         image_url: "https://example.com/ref.png",
         aspect_ratio: "16:9",
+        duration: 5,
         duration_seconds: 5,
       })
     );
@@ -44,9 +46,76 @@ describe("kieModelContracts", () => {
     expect(() =>
       normalizeKieSubmitPayloadForModel({
         modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: { image_url: "https://example.com/ref.png" },
+      })
+    ).toThrow("Kie VEO 3.1 Fast I2V submit requires a prompt.");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: "kie-ai/veo-3.1-fast-i2v",
         payload: { prompt: "missing image" },
       })
     ).toThrow("Kie VEO 3.1 Fast I2V submit requires an image URL.");
+  });
+
+  it("normalizes VEO i2v optional fields to valid contract values", () => {
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: {
+          prompt: "clip",
+          image_url: "https://example.com/ref.png",
+        },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        aspect_ratio: "16:9",
+      })
+    );
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: {
+          prompt: "clip",
+          image_url: "https://example.com/ref.png",
+          aspect_ratio: "1:1",
+        },
+      })
+    ).toThrow("Kie VEO 3.1 Fast I2V submit uses unsupported aspect ratio");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: {
+          prompt: "clip",
+          image_url: "https://example.com/ref.png",
+          duration: 10,
+        },
+      })
+    ).toThrow("Kie VEO 3.1 Fast I2V submit uses unsupported duration");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: {
+          prompt: "clip",
+          image_url: "https://example.com/ref.png",
+          resolution: "4k",
+        },
+      })
+    ).toThrow("Kie VEO 3.1 Fast I2V submit uses unsupported resolution");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        payload: {
+          prompt: "clip",
+          image_url: "https://example.com/ref.png",
+          generate_audio: "yes",
+        } as unknown as Record<string, unknown>,
+      })
+    ).toThrow('Kie VEO 3.1 Fast I2V submit field "generate_audio" must be boolean');
   });
 
   it("normalizes Kling payload and requires prompt", () => {
@@ -64,6 +133,7 @@ describe("kieModelContracts", () => {
       expect.objectContaining({
         prompt: "a cinematic pan shot",
         aspect_ratio: "9:16",
+        duration: 10,
         duration_seconds: 10,
         resolution: "1080p",
       })
@@ -75,5 +145,65 @@ describe("kieModelContracts", () => {
         payload: { duration: 10 },
       })
     ).toThrow("Kie Kling 3.0 submit requires a prompt.");
+  });
+
+  it("enforces Kling optional field contracts", () => {
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: "kie-ai/kling-3.0",
+        payload: {
+          prompt: "kling prompt",
+          duration: "10",
+          cfg_scale: "0.6",
+        },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        aspect_ratio: "16:9",
+        duration: 10,
+        duration_seconds: 10,
+        cfg_scale: 0.6,
+      })
+    );
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: "kie-ai/kling-3.0",
+        payload: {
+          prompt: "kling prompt",
+          aspect_ratio: "4:3",
+        },
+      })
+    ).toThrow("Kie Kling 3.0 submit uses unsupported aspect ratio");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: "kie-ai/kling-3.0",
+        payload: {
+          prompt: "kling prompt",
+          duration: 8,
+        },
+      })
+    ).toThrow("Kie Kling 3.0 submit uses unsupported duration");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: "kie-ai/kling-3.0",
+        payload: {
+          prompt: "kling prompt",
+          cfg_scale: "high",
+        },
+      })
+    ).toThrow('Kie Kling 3.0 submit field "cfg_scale" must be numeric');
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: "kie-ai/kling-3.0",
+        payload: {
+          prompt: "kling prompt",
+          generate_audio: "yes",
+        } as unknown as Record<string, unknown>,
+      })
+    ).toThrow('Kie Kling 3.0 submit field "generate_audio" must be boolean');
   });
 });

@@ -15,6 +15,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 10. `2026-03-01-phase-11-slice-b-kie-status-result-contract-boundary.md` - provider-integration Kie status/result contract boundary with shared payload/policy delegation and focused unit coverage.
 11. `2026-03-01-phase-11-slice-b-kie-result-media-normalization-boundary.md` - provider/model-aware media URL normalization boundary for Kie result payloads, reused by recovery and webhook paths.
 12. `2026-03-01-phase-11-slice-b-kie-topology-model-gating-and-queue-resolution.md` - model-aware Kie status/response topology fail-closed enforcement and deterministic queued submit target-resolution error classification with mixed-provider queue coverage.
+13. `2026-03-01-phase-11-slice-b-kie-submit-contract-constraint-enforcement.md` - stricter Kie submit contract enforcement for allowed aspect/duration/resolution fields and optional field typing with focused constraint coverage.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

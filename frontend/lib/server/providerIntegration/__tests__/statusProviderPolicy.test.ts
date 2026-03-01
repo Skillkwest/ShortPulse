@@ -142,6 +142,23 @@ describe("statusProviderPolicy", () => {
         }),
       })
     ).toBe(true);
+    expect(
+      isProviderRetryableUpstreamResponse({
+        provider: "kie",
+        response: new Response("{}", { status: 400 }),
+        payload: { code: "rate_limit" },
+      })
+    ).toBe(true);
+    expect(
+      isProviderRetryableUpstreamResponse({
+        provider: "kie",
+        response: new Response("{}", {
+          status: 400,
+          headers: { "x-kie-needs-retry": "false" },
+        }),
+        payload: { code: "rate_limit" },
+      })
+    ).toBe(false);
   });
 
   it("fails closed for unsupported providers", () => {

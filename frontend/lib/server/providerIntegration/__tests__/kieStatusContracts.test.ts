@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isKieCompletedStatus,
+  isKieRetryableUpstreamPayload,
   isKieFailedStatus,
   isKieRetryableUpstreamResponse,
   kiePayloadHasMedia,
@@ -63,6 +64,15 @@ describe("kieStatusContracts", () => {
         new Response("{}", { status: 500, headers: { "x-kie-needs-retry": "false" } })
       )
     ).toBe(false);
+  });
+
+  it("classifies retryable upstream payload codes", () => {
+    expect(isKieRetryableUpstreamPayload({ code: "rate_limit" })).toBe(true);
+    expect(isKieRetryableUpstreamPayload({ error: { code: "temporarily_unavailable" } })).toBe(
+      true
+    );
+    expect(isKieRetryableUpstreamPayload({ detail: { error_code: "timed_out" } })).toBe(true);
+    expect(isKieRetryableUpstreamPayload({ code: "validation_error" })).toBe(false);
   });
 
   it("fails closed for unsupported model ids when model-aware validation is requested", () => {

@@ -518,6 +518,7 @@ export const createFalStatusHandler = ({
           isProviderRetryableUpstreamResponse({
             provider: providerKey,
             response: statusResp,
+            payload: statusData.json,
           })
         ) {
           return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
@@ -706,6 +707,7 @@ export const createFalStatusHandler = ({
           isProviderRetryableUpstreamResponse({
             provider: providerKey,
             response: resultResp,
+            payload: resultData.json,
           })
         ) {
           return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
@@ -762,6 +764,7 @@ export const createFalStatusHandler = ({
           isProviderRetryableUpstreamResponse({
             provider: providerKey,
             response: resultResp,
+            payload: resultData.json,
           })
         ) {
           return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);

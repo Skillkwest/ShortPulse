@@ -11,6 +11,16 @@ import { extractKieResultMediaUrls } from "./kieResultMediaContracts";
 const kieCompletedStatuses = new Set(["completed", "succeeded", "success", "done", "finished"]);
 const kieFailedStatuses = new Set(["failed", "error", "cancelled", "canceled", "rejected"]);
 const kieRetryableUpstreamStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+const kieRetryablePayloadCodes = new Set([
+  "rate_limit",
+  "rate_limited",
+  "overloaded",
+  "service_unavailable",
+  "temporarily_unavailable",
+  "try_again",
+  "timeout",
+  "timed_out",
+]);
 const kieStatusFieldKeys = ["status", "state"] as const;
 const kieResponseUrlFieldKeys = ["response_url", "responseUrl"] as const;
 
@@ -222,4 +232,24 @@ export const isKieRetryableUpstreamResponse = (response: Response): boolean => {
   if (retryableHeader === true) return true;
 
   return kieRetryableUpstreamStatuses.has(response.status);
+};
+
+/**
+ * Returns true when a Kie payload encodes a retryable upstream failure.
+ */
+export const isKieRetryableUpstreamPayload = (payload: unknown): boolean => {
+  const candidates = collectKiePayloadCandidates(payload);
+  for (const candidate of candidates) {
+    const code =
+      asString(candidate.code) ??
+      asString(candidate.error_code) ??
+      asString(asProviderRecord(candidate.error).code) ??
+      asString(asProviderRecord(candidate.error).error_code) ??
+      asString(asProviderRecord(candidate.detail).code) ??
+      asString(asProviderRecord(candidate.detail).error_code);
+    if (code && kieRetryablePayloadCodes.has(code.trim().toLowerCase())) {
+      return true;
+    }
+  }
+  return false;
 };

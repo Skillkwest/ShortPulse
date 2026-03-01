@@ -6,6 +6,7 @@
 import { asString } from "../falIntegration/falAdapter";
 import {
   isKieCompletedStatus,
+  isKieRetryableUpstreamPayload,
   isKieFailedStatus,
   isKieRetryableUpstreamResponse,
   resolveKieSuccessfulPayloadStatus,
@@ -110,9 +111,11 @@ export const resolveProviderSuccessfulPayloadStatus = ({
 export const isProviderRetryableUpstreamResponse = ({
   provider,
   response,
+  payload,
 }: {
   provider: string;
   response: Response;
+  payload?: unknown;
 }): boolean => {
   if (isFalProviderKey(provider)) {
     const needsRetry = parseBooleanHeader(response.headers.get("x-fal-needs-retry"));
@@ -126,7 +129,14 @@ export const isProviderRetryableUpstreamResponse = ({
     return false;
   }
   if (isKieProviderKey(provider)) {
-    return isKieRetryableUpstreamResponse(response);
+    const retryableByResponse = isKieRetryableUpstreamResponse(response);
+    if (retryableByResponse) return true;
+    const needsRetry = parseBooleanHeader(response.headers.get("x-kie-needs-retry"));
+    if (needsRetry === false) return false;
+    if (payload !== undefined) {
+      return isKieRetryableUpstreamPayload(payload);
+    }
+    return false;
   }
   throw new Error("Unsupported provider for retryable-upstream policy");
 };

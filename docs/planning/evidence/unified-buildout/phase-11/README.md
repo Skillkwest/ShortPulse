@@ -26,6 +26,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 21. `2026-03-01-phase-11-slice-b-kie-model-id-runtime-canonicalization.md` - promotes Kie model ids into model-runtime canonical constants and rewires catalog/registry + provider-integration re-exports to remove cross-layer literal drift.
 22. `2026-03-01-phase-11-slice-b-kie-canonical-id-parity-guard.md` - enforces canonical Kie model-id parity across runtime constants, model catalog provider classification, and API-doc mapping checks.
 23. `2026-03-01-phase-11-slice-b-kie-registry-canonical-id-parity-guard.md` - extends canonical Kie model-id parity checks to model registry entries so runtime catalog/registry/docs stay in lockstep.
+24. `2026-03-01-phase-11-slice-b-runtime-model-surface-parity-guard.md` - enforces full runtime model surface parity between catalog and registry (model presence + provider classification) for all providers.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

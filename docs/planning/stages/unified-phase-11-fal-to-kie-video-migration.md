@@ -169,6 +169,9 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Extended canonical Kie model-id parity guard to runtime registry:
   - `scripts/check_model_catalog_parity.js`
   - Enforces parity between `KIE_SUPPORTED_MODEL_IDS` and `modelRegistry` Kie provider entries.
+- Extended runtime model-surface parity governance for all providers:
+  - `scripts/check_model_catalog_parity.js`
+  - Enforces full catalog↔registry model presence parity and provider classification parity across runtime model surfaces.
 - Added Kie status/result contract execution boundary for payload/policy decoupling:
   - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
   - `frontend/lib/server/providerIntegration/statusProviderPayload.ts`

@@ -1727,3 +1727,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2026-03-01 (phase-11 kie registry canonical-id parity guard)
 - Extended `scripts/check_model_catalog_parity.js` to enforce canonical Kie ID parity with runtime model registry entries (`listModelConfigs()`).
 - Added Phase 11 evidence/stage/tracker updates so Chunk 5 reflects runtime/catalog/registry/docs parity enforcement.
+
+## 2026-03-01 (phase-11 runtime model-surface parity guard)
+- Extended `scripts/check_model_catalog_parity.js` with full model-surface parity checks:
+  - catalog model presence in runtime registry,
+  - runtime registry model presence in catalog,
+  - provider classification parity by model id.
+- Added Phase 11 evidence/stage/tracker updates to record all-provider runtime model-surface drift enforcement.

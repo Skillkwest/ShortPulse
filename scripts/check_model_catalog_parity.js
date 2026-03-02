@@ -210,6 +210,9 @@ function run() {
   }
 
   const seenIds = new Set();
+  const registryById = new Map(
+    registryEntries.map((entry) => [String(entry.id || "").trim(), entry]),
+  );
   for (const entry of entries) {
     const modelId = String(entry.modelId || "").trim();
     if (!modelId) {
@@ -220,6 +223,15 @@ function run() {
       errors.push(`Duplicate modelId in catalog: ${modelId}`);
     }
     seenIds.add(modelId);
+
+    const registryEntry = registryById.get(modelId);
+    if (!registryEntry) {
+      errors.push(`Catalog model missing from runtime model registry: ${modelId}`);
+    } else if (String(registryEntry.provider || "").trim() !== String(entry.provider || "").trim()) {
+      errors.push(
+        `Provider mismatch between catalog and registry for ${modelId}: catalog='${entry.provider}' registry='${registryEntry.provider}'`,
+      );
+    }
 
     const sourceUrl = String(entry.sourceUrl || "").trim();
     if (!/^https?:\/\//i.test(sourceUrl)) {
@@ -293,6 +305,17 @@ function run() {
   for (const modelId of falCatalogModelIds) {
     if (!falSubmitModelIds.has(modelId)) {
       errors.push(`Catalog Fal model missing submit route coverage: ${modelId}`);
+    }
+  }
+
+  for (const registryEntry of registryEntries) {
+    const modelId = String(registryEntry.id || "").trim();
+    if (!modelId) {
+      errors.push("Encountered runtime model registry entry without id.");
+      continue;
+    }
+    if (!seenIds.has(modelId)) {
+      errors.push(`Runtime model registry model missing from catalog: ${modelId}`);
     }
   }
 

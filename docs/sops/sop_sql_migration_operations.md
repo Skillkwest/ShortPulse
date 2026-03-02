@@ -84,6 +84,9 @@ Current set:
 - `047_add_agent_safety_policy_control_plane.sql`
 - `048_harden_agent_safety_policy_control_plane_grants.sql`
 - `049_enforce_expert_default_beginner_mode.sql`
+- `050_add_media_list_search_cursor_indexes.sql`
+- `051_add_agent_safety_policy_version_rpc.sql`
+- `052_extend_queue_recovery_provider_scope_to_kie.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

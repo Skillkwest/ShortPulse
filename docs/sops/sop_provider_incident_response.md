@@ -126,7 +126,7 @@ When queue dispatch is healthy but users still hit repeated `429` due stale prov
 2. Confirm diagnostics first:
    - provider-attached `reserved` holds by age bucket,
    - queue depth by `queued/dispatching/exhausted`,
-   - stale `fal%` generations in `queued/recovering`.
+   - stale `fal%` or `kie%` generations in `queued/recovering`.
 3. Execute at least 3-5 reconciler passes (`/api/internal/generation-recovery/run`) and re-check counts.
 4. Only if blockers remain stale after repeated passes, use the guarded remediation block in the SQL file:
    - strict age filter (default `>2h`),

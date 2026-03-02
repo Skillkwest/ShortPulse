@@ -12,7 +12,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 | --- | --- | --- | --- | --- |
 | `/api/ai/generate-prompt` | `POST` | Bearer (proxy) | Refine prompts with OpenAI chat completions. | `frontend/pages/api/ai/generate-prompt.ts`, `docs/sops/sop_text_generation.md` |
 | `/api/ai/describe-image` | `POST` | Bearer (proxy) | Describe reference images with OpenAI vision, including fail-closed trusted-host preflight (non-allowlisted external hosts are rejected). | `frontend/pages/api/ai/describe-image.ts`, `docs/sops/sop_text_generation.md` |
-| `/api/ai/studio-agent` | `POST` | Bearer (proxy) | AI Studio chat agent orchestration with flow-aware routing, server vision summaries, and structured actions (`applyPrompt`, `variations`, `describeTargets`, `referenceCard`; no question actions). | `frontend/pages/api/ai/studio-agent.ts`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_agent_chat_ops.md` |
+| `/api/ai/studio-agent` | `POST` | Bearer (proxy) | AI Studio chat agent orchestration with flow-aware routing, server vision summaries, and structured actions (`applyPrompt`, `variations`, `describeTargets`, `referenceCard`; no question actions). Includes server-authoritative input safety precheck before provider calls (rewrite/refuse) plus output post-process defense-in-depth. | `frontend/pages/api/ai/studio-agent.ts`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_agent_chat_ops.md` |
 | `/api/ai/sessions/save` | `POST` | Bearer (proxy + route) | Save one AI Studio session snapshot (`sid` + schema-versioned payload) for the authenticated user. | `frontend/pages/api/ai/sessions/save.ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
 | `/api/ai/sessions/:sid` | `GET` | Bearer (proxy + route) | Return one persisted AI Studio session snapshot by `sid` for the authenticated user. | `frontend/pages/api/ai/sessions/[sid].ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
 | `/api/ai/sessions` | `GET` | Bearer (proxy + route) | List persisted AI Studio sessions with `limit` + `cursor` pagination for the authenticated user. | `frontend/pages/api/ai/sessions/index.ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
@@ -82,12 +82,14 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 - OpenAI: `OPENAI_API_KEY`, optional `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_VISION_FALLBACK_MODEL`, `OPENAI_API_BASE`, `OPENAI_DESCRIBE_ALLOWED_HOSTS` (describe-image trusted-host allowlist; external hosts fail closed by default).
 - AI Studio safety control-plane runtime flags:
   - `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (`prod_safe_v1` default).
+  - `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (`true` default; server pre-provider safety gate for `/api/ai/studio-agent`).
   - `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` (`false` default; non-production-only bypass control).
   - `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE` (`production_normalized` default; optional `development_verbatim`).
   - `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` (`false` default; enables production hard-floor incident policy rollback path).
   - `STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS` (`24` default; bounded `1..168` for rollback cooldown lock).
   - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED` (`true` default; when `true`, runtime profile selection prefers control-plane active profile and falls back to env/default).
   - `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS` (`5000` default; bounded `1000..60000` for runtime active-policy cache TTL).
+  - `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (`true` default; client pre-send mirror gate in studio-agent chat path).
 - AI Studio sessions API flag:
   - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` (`true` by default; disables `/api/ai/sessions/*` when `false`).
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (`false` by default; when `true`, client write-shadow also mirrors snapshots to `/api/ai/sessions/save` in fail-soft shadow mode).

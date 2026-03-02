@@ -85,6 +85,19 @@ const extractTelemetryPayloads = (
       }
     });
 
+const extractInputPrecheckTelemetryPayloads = (
+  infoSpy: ReturnType<typeof vi.spyOn>
+): Array<Record<string, unknown>> =>
+  infoSpy.mock.calls
+    .filter((call: unknown[]) => call[0] === "[studio-agent][safety-input-precheck]")
+    .map((call: unknown[]) => {
+      try {
+        return JSON.parse(String(call[1])) as Record<string, unknown>;
+      } catch {
+        return {};
+      }
+    });
+
 describe("POST /api/ai/studio-agent runtime hardening", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -103,6 +116,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     process.env.NEXT_PUBLIC_AGENT_V2 = "false";
     delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
     delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
+    delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED;
 
     requireApiUserMock.mockImplementation(async () => {
       apiUserCounter += 1;
@@ -167,6 +181,129 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         actions: expect.objectContaining({ applyPrompt: "Enhanced prompt output" }),
       })
     );
+  });
+
+  it("short-circuits explicit sexual input before OpenAI call", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-precheck-refusal",
+        messages: [{ role: "user", content: "graphic sexual intercourse with explicit anatomy" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "I cannot describe this.",
+        actions: undefined,
+      })
+    );
+    const precheckTelemetry = extractInputPrecheckTelemetryPayloads(infoSpy)[0];
+    expect(precheckTelemetry).toEqual(
+      expect.objectContaining({
+        safety_stage: "input_precheck",
+        safety_outcome: "refusal",
+        provider_call_skipped: true,
+        decision_action: "refuse",
+      })
+    );
+    infoSpy.mockRestore();
+  });
+
+  it("rewrites suggestive input before OpenAI call", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message: "safe rewrite pass",
+                  actions: { apply_prompt: "safe rewrite pass" },
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-precheck-rewrite",
+        messages: [{ role: "user", content: "a sexy topless model in lingerie" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const bodyText = String(requestInit?.body ?? "");
+    expect(bodyText.toLowerCase()).not.toContain("topless");
+    expect(bodyText.toLowerCase()).not.toContain("lingerie");
+    expect(bodyText.toLowerCase()).toContain("fully clothed");
+    const precheckTelemetry = extractInputPrecheckTelemetryPayloads(infoSpy)[0];
+    expect(precheckTelemetry).toEqual(
+      expect.objectContaining({
+        safety_stage: "input_precheck",
+        safety_outcome: "rewritten",
+        provider_call_skipped: false,
+      })
+    );
+    infoSpy.mockRestore();
+  });
+
+  it("bypasses input precheck when disabled and proceeds to OpenAI call", async () => {
+    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED = "false";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message: "provider path reached",
+                  actions: { apply_prompt: "provider path reached" },
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-precheck-disabled",
+        messages: [{ role: "user", content: "graphic sexual intercourse with explicit anatomy" }],
+        context: {},
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    const precheckLogs = extractInputPrecheckTelemetryPayloads(infoSpy);
+    expect(precheckLogs).toHaveLength(0);
+    infoSpy.mockRestore();
   });
 
   it("emits telemetry with control-plane policy version when provided by runtime profile resolution", async () => {

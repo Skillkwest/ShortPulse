@@ -3,17 +3,38 @@
 Purpose: operational guide for safety profile tuning, activation, rollback, cooldown handling, and validation for AI Studio agent safety behavior.
 
 ## Scope
-- In scope: safety policy profile selection, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions.
+- In scope: safety policy profile selection, pre-provider input gating for `/api/ai/studio-agent`, client pre-send gating for studio-agent chat UX, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions.
 - Out of scope: model prompt authoring, provider onboarding, and non-agent route behavior.
 
 ## Control Surface Summary
-The safety control surface has three layers:
+The safety control surface has six layers:
 
 1. Runtime policy engine (pure logic).
 - Files: `frontend/features/agent-runtime/safetyPolicy/*`
 - Decides `allow | rewrite | refuse` per modality and category.
 
-2. Admin control plane (state and mutations).
+2. Runtime input precheck (server-authoritative, pre-provider).
+- Files:
+  - `frontend/features/agent-runtime/studioAgentSafetyInputPrecheck.ts`
+  - `frontend/pages/api/ai/studio-agent.ts`
+- Evaluates provider-bound request text before any OpenAI call.
+- Actions:
+  - `allow`: continue unchanged
+  - `rewrite`: deterministic sanitize, then continue
+  - `refuse`: return canonical refusal payload with `200` and skip provider call
+
+3. Client pre-send precheck (UX mirror, server-authoritative fallback still applies).
+- File: `frontend/features/ai-agent/useAiAgent.ts`
+- Uses the same runtime evaluator/rewrite logic before transport.
+- `rewrite`: sends sanitized payload.
+- `refuse`: appends refusal locally and skips network call.
+
+4. Runtime output post-process (defense-in-depth).
+- File: `frontend/features/agent-runtime/studioAgentSafetyPostProcess.ts`
+- Enforces the same policy on provider/model outputs.
+- Remains enabled as a backstop even when input precheck is on.
+
+5. Admin control plane (state and mutations).
 - Routes:
   - `GET /api/admin/agent-safety-policy/active`
   - `POST /api/admin/agent-safety-policy/activate`
@@ -22,14 +43,18 @@ The safety control surface has three layers:
   - `sql/migrations/047_add_agent_safety_policy_control_plane.sql`
   - `sql/migrations/048_harden_agent_safety_policy_control_plane_grants.sql`
 
-3. Incident auto-rollback path.
+6. Incident auto-rollback path.
 - File: `frontend/features/agent-runtime/safetyPolicy/incidentAutoRollback.ts`
 - Triggered only when production hard-floor violations occur and auto-rollback is enabled.
 
 Current runtime-binding note:
-- Runtime enforcement currently reads `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` from environment in:
+- Runtime profile selection reads `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (with optional control-plane sync) in:
   - `frontend/pages/api/ai/studio-agent.ts`
   - `frontend/features/agent-runtime/legacyImageDescribeService.ts`
+- `/api/ai/studio-agent` now enforces input safety before vision/coordinator provider calls when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
+- Studio-agent client chat path (`useAiAgent`) now runs a pre-send mirror gate when `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
+- Server remains the source of truth for enforcement decisions.
+- Output post-process remains active as defense-in-depth (`STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED=true` default).
 - Runtime can sync profile selection from control-plane active state when
   `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED=true` (default).
 - Admin control-plane state remains the operational/audit store for activation, rollback, and cooldown events.
@@ -54,6 +79,7 @@ Primary knobs:
 | Knob | Default | Effect | Safe usage |
 | --- | --- | --- | --- |
 | `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` | `prod_safe_v1` | Selects active profile for policy decisions. | Use `prod_safe_v1` in production unless explicitly running controlled canary/incident procedure. |
+| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables server pre-provider safety gate on `/api/ai/studio-agent`. | Keep `true` in production. Disable only as emergency rollback while keeping output post-process enabled. |
 | `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` | `false` | In non-production only, forces allow behavior (`absolute_zero` source). | Keep `false` in production always. Use only in dev for debugging classifier/rewrite paths. |
 | `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE` | `production_normalized` | Controls provider error detail normalization (`production_normalized` or `development_verbatim`). | Keep normalized in production; verbatim only in development debugging windows. |
 | `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` | `false` | Enables policy-only rollback on hard-floor incidents. | Enable only when rollback playbook and monitoring are ready. |
@@ -65,6 +91,7 @@ Supporting knobs:
 
 | Knob | Default | Effect |
 | --- | --- | --- |
+| `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables client pre-send safety gate in studio-agent chat path (`useAiAgent`). |
 | `STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED` | `true` | Enables runtime safety post-process gate. |
 | `STUDIO_AGENT_SAFETY_DEBUG` | `false` | Emits debug reasons with telemetry paths. |
 
@@ -122,6 +149,8 @@ Run after safety-control migration/apply operations:
 
 ## Runtime Telemetry Fields
 Expected structured fields in runtime telemetry:
+- `safety_stage` (`input_precheck` or `output_postprocess`)
+- `provider_call_skipped`
 - `policy_version`
 - `profile_id`
 - `modality`
@@ -133,6 +162,7 @@ Expected structured fields in runtime telemetry:
 - `rollback_triggered`
 
 Primary runtime files:
+- `frontend/features/agent-runtime/studioAgentSafetyInputPrecheck.ts`
 - `frontend/features/agent-runtime/studioAgentCoordinator.ts`
 - `frontend/features/agent-runtime/legacyImageDescribeService.ts`
 - `frontend/features/agent-runtime/studioAgentRouteOutcomes.ts`

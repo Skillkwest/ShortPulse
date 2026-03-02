@@ -13,8 +13,16 @@ import {
   resolveStudioAgentOpenAiConfig,
 } from "../../../features/agent-runtime/studioAgentOpenAiGateway";
 import { executeStudioAgentCoordinator } from "../../../features/agent-runtime/studioAgentCoordinator";
-import { resolveSafetyEnvironment } from "../../../features/agent-runtime/safetyPolicy/decisionEngine";
+import { runStudioAgentSafetyInputPrecheck } from "../../../features/agent-runtime/studioAgentSafetyInputPrecheck";
+import {
+  resolveSafetyEnvironment,
+  resolveSafetyModality,
+} from "../../../features/agent-runtime/safetyPolicy/decisionEngine";
 import { resolveProviderErrorNormalizationMode } from "../../../features/agent-runtime/safetyPolicy/providerErrorPolicy";
+import {
+  buildStudioAgentSafetyRefusalPayload,
+  emitStudioAgentInputPrecheckTelemetry,
+} from "../../../features/agent-runtime/studioAgentRouteOutcomes";
 import {
   isStudioAgentFeatureEnabled,
   parseStudioAgentRequestEnvelope,
@@ -94,7 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const normalizedConversationId = requestEnvelope.value.clientSessionKey;
-  const messages = requestEnvelope.value.messages;
+  let messages = requestEnvelope.value.messages;
   let context = requestEnvelope.value.context;
   const incomingCanonical = requestEnvelope.value.incomingCanonical;
 
@@ -104,6 +112,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const legacyV2FallbackEnabled = process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED === "true";
   const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
   const safetyPostProcessEnabled = process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED !== "false";
+  const safetyInputPrecheckEnabled =
+    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED !== "false";
   const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
   const safetyProfile = await resolveRuntimeSafetyProfile({
     envProfileId: process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null,
@@ -144,7 +154,60 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     incomingCanonical ??
     sanitizeGenerationPromptText(context.lastAssistantMessage) ??
     null;
-  const effectiveCanonical = clampCanonicalPrompt(canonicalPrompt);
+  let effectiveCanonical = clampCanonicalPrompt(canonicalPrompt);
+
+  const selectedReferencesBeforePrecheck = pickSelectedReferencesForThinker(context);
+  const orchestrationBeforePrecheck = buildStudioAgentOrchestration({
+    context,
+    messages,
+    selectedReferences: selectedReferencesBeforePrecheck,
+    effectiveCanonical,
+  });
+  const precheckResult = runStudioAgentSafetyInputPrecheck({
+    enabled: safetyInputPrecheckEnabled,
+    messages,
+    context,
+    canonicalPrompt: effectiveCanonical,
+    modality: resolveSafetyModality({
+      route: "studio-agent",
+      flow: orchestrationBeforePrecheck.flow,
+    }),
+    profileId: safetyProfileId,
+    environment: safetyEnvironment,
+    devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
+  });
+  const safetyTelemetryProfileId =
+    safetyProfileId === "prod_safe_v1" ||
+    safetyProfileId === "staging_lenient" ||
+    safetyProfileId === "dev_absolute_zero"
+      ? safetyProfileId
+      : null;
+  if (precheckResult.outcome !== "pass") {
+    emitStudioAgentInputPrecheckTelemetry({
+      flow: orchestrationBeforePrecheck.flow,
+      outcome: precheckResult.outcome,
+      rewrittenFieldCount: precheckResult.rewrittenFieldCount,
+      providerCallSkipped: precheckResult.providerCallSkipped,
+      policyVersion: safetyProfile.policyVersion,
+      profileId: safetyTelemetryProfileId,
+      modality: precheckResult.decision?.modality ?? "text",
+      category: precheckResult.decision?.category ?? null,
+      decisionAction: precheckResult.decision?.action ?? null,
+      decisionSource: precheckResult.decision?.source ?? null,
+      hardFloorViolation: precheckResult.decision?.hardFloorViolation ?? false,
+    });
+  }
+  if (precheckResult.outcome === "refusal") {
+    return res.status(200).json(
+      buildStudioAgentSafetyRefusalPayload({
+        traceId,
+        canonicalPrompt: precheckResult.canonicalPrompt,
+      })
+    );
+  }
+  messages = precheckResult.messages;
+  context = precheckResult.context;
+  effectiveCanonical = precheckResult.canonicalPrompt;
 
   const selectedReferencesBeforeVision = pickSelectedReferencesForThinker(context);
   const orchestrationBeforeVision = buildStudioAgentOrchestration({

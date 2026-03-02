@@ -13,6 +13,9 @@ describe("useAiAgent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
+    delete process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED;
+    delete process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_PROFILE_ACTIVE;
+    delete process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED;
   });
 
   it("allows image-context-only turns without injecting describe text", async () => {
@@ -60,6 +63,70 @@ describe("useAiAgent", () => {
     });
 
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses explicit input in client precheck without transport call", async () => {
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "graphic sexual intercourse with explicit anatomy",
+        payloadText: "graphic sexual intercourse with explicit anatomy",
+      });
+    });
+
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "I cannot describe this.",
+      })
+    );
+  });
+
+  it("rewrites suggestive input before transport call", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "safe rewrite pass" }),
+    } as Response);
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "a sexy topless model in lingerie",
+        payloadText: "a sexy topless model in lingerie",
+      });
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
+    const bodyText = String(requestInit?.body ?? "");
+    expect(bodyText.toLowerCase()).not.toContain("topless");
+    expect(bodyText.toLowerCase()).not.toContain("lingerie");
+    expect(bodyText.toLowerCase()).toContain("fully clothed");
+  });
+
+  it("skips client precheck when disabled and sends original payload", async () => {
+    process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED = "false";
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "ok" }),
+    } as Response);
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "a sexy topless model in lingerie",
+        payloadText: "a sexy topless model in lingerie",
+      });
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
+    const bodyText = String(requestInit?.body ?? "");
+    expect(bodyText.toLowerCase()).toContain("topless");
+    expect(bodyText.toLowerCase()).toContain("lingerie");
   });
 
   it("reuses stored clientSessionKey across hook remounts and rotates on reset", async () => {

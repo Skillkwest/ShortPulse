@@ -5,12 +5,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AgentActions,
+  AgentApiContext,
   AgentApiRequest,
   AgentContext,
   AgentMessage,
   AgentResponse,
 } from "../../prefabs/agent";
 import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agent-core/promptText";
+import { runStudioAgentSafetyInputPrecheck } from "../agent-runtime/studioAgentSafetyInputPrecheck";
+import { resolveSafetyEnvironment } from "../agent-runtime/safetyPolicy/decisionEngine";
+import type { SafetyModality } from "../agent-runtime/safetyPolicy/types";
 import { buildAgentContext } from "./logic/contextBuilder";
 import { normalizeErrorText } from "../../lib/errorText";
 import { normalizeActions } from "./client/actionNormalizer";
@@ -54,6 +58,22 @@ const resolveSafetyRefusalText = (value: unknown): typeof SAFETY_REFUSAL_MESSAGE
   if (raw === SAFETY_REFUSAL_MESSAGE) return SAFETY_REFUSAL_MESSAGE;
   return null;
 };
+
+const resolveClientSafetyModality = (context: AgentApiContext | undefined): SafetyModality => {
+  if (context?.mode === "video") return "video";
+  if (context?.mode === "image") return "image";
+  if ((context?.media?.length ?? 0) > 0) return "image";
+  return "text";
+};
+
+const isClientInputPrecheckEnabled = (): boolean =>
+  process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED !== "false";
+
+const resolveClientSafetyProfileId = (): string | null =>
+  process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null;
+
+const isClientDevAbsoluteZeroEnabled = (): boolean =>
+  process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
 
 export const useAiAgent = ({
   initialMessages = EMPTY_MESSAGES,
@@ -147,14 +167,49 @@ export const useAiAgent = ({
         const clientSessionKey =
           clientSessionKeyRef.current ?? ensureSessionKey(sessionNamespace, conversationId);
         clientSessionKeyRef.current = clientSessionKey;
+        const safeContext = context ? buildAgentContext(context) : undefined;
+        const precheckContext: AgentApiContext = safeContext ?? {};
+        const inputPrecheckResult = runStudioAgentSafetyInputPrecheck({
+          enabled: isClientInputPrecheckEnabled(),
+          messages: apiMessages,
+          context: precheckContext,
+          canonicalPrompt: canonicalPromptRef.current,
+          modality: resolveClientSafetyModality(safeContext),
+          profileId: resolveClientSafetyProfileId(),
+          environment: resolveSafetyEnvironment(process.env.NODE_ENV),
+          devAbsoluteZeroEnabled: isClientDevAbsoluteZeroEnabled(),
+        });
+        if (inputPrecheckResult.outcome === "refusal") {
+          const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
+            id: createAgentMessageId("assistant"),
+            content: SAFETY_REFUSAL_MESSAGE,
+          });
+          setMessages(nextAssistantMessages);
+          messagesRef.current = nextAssistantMessages;
+          return {
+            response: { message: SAFETY_REFUSAL_MESSAGE, actions: undefined },
+            actions: undefined,
+          };
+        }
+        const precheckedApiMessages = inputPrecheckResult.messages.map((message) => {
+          const role: "user" | "assistant" = message.role === "assistant" ? "assistant" : "user";
+          return {
+            role,
+            content: message.content,
+          };
+        });
+        const precheckedContext =
+          Object.keys(inputPrecheckResult.context).length > 0
+            ? inputPrecheckResult.context
+            : undefined;
 
         const body: AgentApiRequest = {
-          messages: apiMessages,
-          context: context ? buildAgentContext(context) : undefined,
+          messages: precheckedApiMessages,
+          context: precheckedContext,
           clientSessionKey,
           conversationId: clientSessionKey,
           traceId: `agent-${randomId()}`,
-          canonicalPrompt: canonicalPromptRef.current,
+          canonicalPrompt: inputPrecheckResult.canonicalPrompt,
         };
         const transportResult = await sendStudioAgentTurn(body);
         if (!transportResult.ok) {

@@ -17,6 +17,7 @@ export type StudioAgentTelemetryOutcomeClass =
 export type StudioAgentSafetyTelemetryOutcome = "pass" | "rewritten" | "refusal";
 export type StudioAgentSafetyTelemetrySource = "model_output" | "describe_output";
 export type StudioAgentSafetyDecisionSource = "profile" | "hard_floor" | "absolute_zero";
+export type StudioAgentSafetyStage = "input_precheck" | "output_postprocess";
 
 export type StudioAgentSafetyTelemetryFields = {
   policyVersion?: number | null;
@@ -95,6 +96,50 @@ export const emitStudioAgentTurnTelemetry = ({
       ...(safetyDebugEnabled && safetyDebugReason
         ? { safety_debug_reason: safetyDebugReason }
         : {}),
+    })
+  );
+};
+
+export const emitStudioAgentInputPrecheckTelemetry = ({
+  flow,
+  outcome,
+  rewrittenFieldCount,
+  providerCallSkipped,
+  policyVersion,
+  profileId,
+  modality,
+  category,
+  decisionAction,
+  decisionSource,
+  hardFloorViolation,
+}: {
+  flow: string;
+  outcome: "pass" | "rewritten" | "refusal";
+  rewrittenFieldCount: number;
+  providerCallSkipped: boolean;
+  policyVersion: number | null;
+  profileId: SafetyProfileId | null;
+  modality: SafetyModality;
+  category: SafetyCategoryId | null;
+  decisionAction: SafetyPolicyAction | null;
+  decisionSource: StudioAgentSafetyDecisionSource | null;
+  hardFloorViolation: boolean;
+}) => {
+  console.info(
+    "[studio-agent][safety-input-precheck]",
+    JSON.stringify({
+      flow,
+      safety_stage: "input_precheck" satisfies StudioAgentSafetyStage,
+      safety_outcome: outcome,
+      rewritten_field_count: rewrittenFieldCount,
+      provider_call_skipped: providerCallSkipped,
+      policy_version: policyVersion,
+      profile_id: profileId,
+      modality,
+      category,
+      decision_action: decisionAction,
+      decision_source: decisionSource,
+      hard_floor_violation: hardFloorViolation,
     })
   );
 };

@@ -11,6 +11,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 | --- | --- |
 | `frontend/lib/agentPromptsConfig.ts` | Source of truth for `STUDIO_AGENT_SYSTEM` prompt (do not duplicate here); loaded via `loadAgentPrompt`. |
 | `frontend/pages/api/ai/studio-agent.ts` | API route that brokers chat completions with vision; applies request guards and returns structured actions. |
+| `frontend/features/agent-runtime/studioAgentSafetyInputPrecheck.ts` | Shared input safety precheck used to classify/rewrite/refuse provider-bound text before execution. |
 | `frontend/features/ai-agent/{logic,useAiAgent.ts}` | Feature module: manages chat state, context assembly, media downscaling, and action parsing. |
 | `frontend/prefabs/agent/{types.ts,buttons,inputs,panels}` | Prefab UI kit + shared agent types used by UI and API. |
 | `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Supplies prompt/model/reference state to the agent and receives applied prompts. |
@@ -21,7 +22,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (default `gpt-5-nano`), optional `OPENAI_VISION_MODEL`, optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `OPENAI_API_BASE`.
 - Timeouts: `STUDIO_AGENT_TIMEOUT_MS` (shared default), optional `STUDIO_AGENT_VISION_TIMEOUT_MS` (vision summary budget), optional `STUDIO_AGENT_TURN_TIMEOUT_MS` (generation turn budget). If split values are unset, both inherit `STUDIO_AGENT_TIMEOUT_MS`.
 - Runtime flags: `STUDIO_AGENT_SINGLE_STAGE_ENABLED` (default on), `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED` (default off, rollback aid), `STUDIO_AGENT_TEXT_FAST_PATH_ENABLED` (legacy path control when single-stage is disabled).
-- Safety policy flags: `STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED` (default on), `STUDIO_AGENT_SAFETY_DEBUG` (default off), `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (default `prod_safe_v1`), `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` (default off, non-production override), `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE` (default `production_normalized`, optional `development_verbatim`), `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` (default off), `STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS` (default `24`, bounded `1..168`), `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED` (default on), and `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS` (default `5000`, bounded `1000..60000`).
+- Safety policy flags: `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on, server pre-provider gate), `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on, client pre-send gate), `STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED` (default on), `STUDIO_AGENT_SAFETY_DEBUG` (default off), `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (default `prod_safe_v1`), `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` (default off, non-production override), `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE` (default `production_normalized`, optional `development_verbatim`), `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED` (default off), `STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS` (default `24`, bounded `1..168`), `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED` (default on), and `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_CACHE_TTL_MS` (default `5000`, bounded `1000..60000`).
 - Admin control-plane routes: `/api/admin/agent-safety-policy/active`, `/api/admin/agent-safety-policy/activate`, and `/api/admin/agent-safety-policy/rollback` (admin bearer required, service-role RPC backed).
 - Feature flags: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` controls UI behavior (`undefined` or `true` = enabled, `false` = disabled). `STUDIO_AGENT_ENABLED` is a server override (`true|false`); if unset, server follows `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`, and if both are unset defaults enabled.
 - Size guardrails: body size cap 512 KB (text) / 1.5 MB (mixed/image) plus Next API parser cap (`2mb`).
@@ -57,19 +58,25 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 1. User types or pastes in the chat UI (embedded where prompt textarea used to be). Messages persist per session/tool.
 2. `useAiAgent` gathers context: active prompt/model/mode, reference grid summaries, and safe `https://` previews for up to 3 images. Video references contribute text metadata only.
 3. If the user drags references into the chat surface, staged attachments are merged into context before send (prompt refs + image refs/media), then cleared on success.
-4. Client calls `/api/ai/studio-agent`; the route verifies feature flag, key, payload size, and model support.
-5. Route classifies turn type (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`) and builds orchestration metadata.
-6. For image/mixed turns, route can run server-owned vision summaries and inject them into orchestration context. Vision summaries use `STUDIO_AGENT_VISION_TIMEOUT_MS`; generation turns keep `STUDIO_AGENT_TURN_TIMEOUT_MS`.
-7. Provider execution path:
+4. `useAiAgent` runs client pre-send safety precheck (when enabled) over outgoing messages/context/canonical prompt:
+   - `rewrite`: sends sanitized payload
+   - `refuse`: appends canonical refusal and skips network call
+5. Client calls `/api/ai/studio-agent`; the route verifies feature flag, key, payload size, and model support.
+6. Route classifies turn type (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`) and runs server-authoritative pre-provider safety precheck:
+   - `rewrite`: mutates in-memory request payload before downstream orchestration
+   - `refuse`: returns canonical refusal payload with `200` and skips provider call
+7. For image/mixed turns, route can run server-owned vision summaries and inject them into orchestration context. Vision summaries use `STUDIO_AGENT_VISION_TIMEOUT_MS`; generation turns keep `STUDIO_AGENT_TURN_TIMEOUT_MS`.
+8. Provider execution path:
    - Canonical: single-stage call for `TEXT_ONLY`, `IMAGE_ONLY`, and `MIXED`.
    - Optional rollback: legacy thinker/formatter fallback when `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=true`.
-8. Response returns normalized prompt output (`message` + `actions.applyPrompt` on success) and canonical prompt continuity.
-9. On Apply: prompt state in `useAiStudioState` updates; the textarea mirrors the applied text (for manual editing), and the next Generate uses it.
-10. Manual reference describe actions remain available through the existing describe flows; canonical prompt-agent turns do not depend on `describeTargets`.
+9. Response returns normalized prompt output (`message` + `actions.applyPrompt` on success) and canonical prompt continuity.
+10. On Apply: prompt state in `useAiStudioState` updates; the textarea mirrors the applied text (for manual editing), and the next Generate uses it.
+11. Manual reference describe actions remain available through the existing describe flows; canonical prompt-agent turns do not depend on `describeTargets`.
 
 ## Error handling & fallbacks
 - If the feature flag or key is missing, show a single-line banner and render the legacy textarea with no chat.
 - Runtime/provider transient failures (timeouts/network/429/5xx): return assistant fallback text with `200` and keep the previous prompt intact.
+- Server input precheck refusal lane: return canonical refusal (`I cannot describe this.`) with `200` and empty actions before any provider call.
 - Fast-path thrown transport errors are normalized into classified failures before routing, so retries/fallback policy stays on the same path as non-throw upstream failures.
 - Fast-path and thinker/formatter parse/body-read exceptions are normalized into typed stage failures (`status` + `detail`) instead of bubbling as route-level exceptions.
 - Explicit auth/config/request failures (missing key, disabled route, invalid payload/auth): keep explicit non-200 errors for debugging.
@@ -82,6 +89,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Never send raw file blobs to the LLM route; convert local previews to signed/public `https://` URLs first.
 - No transcript storage in Supabase; chats live in memory while `clientSessionKey` persists in `sessionStorage` for reload continuity.
 - Canonical prompt continuity is persisted in Supabase (`ai_agent_conversation_state`) through a service-role RPC with DB-enforced retention bounds (TTL `1..90 days`, cap `1..200`, defaults `30 days` + `200`) and deterministic pruning.
+- Provider-bound studio-agent text is safety-gated before execution by the same shared evaluator used by output post-process; server precheck is authoritative.
 - Strip EXIF when downscaling; videos send only a single poster frame.
 - Agent must refuse PII extraction and harmful requests (covered in `STUDIO_AGENT_SYSTEM` prompt).
 

@@ -1,25 +1,17 @@
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
-import { resolveSafetyDecision, resolveSafetyModality } from "./safetyPolicy/decisionEngine";
-import type {
-  SafetyCategoryId,
-  SafetyEnvironment,
-  SafetyModality,
-  SafetyPolicyAction,
-  SafetyProfileId,
-} from "./safetyPolicy/types";
+import { resolveSafetyModality } from "./safetyPolicy/decisionEngine";
+import type { SafetyEnvironment, SafetyModality } from "./safetyPolicy/types";
+import {
+  evaluateStudioAgentSafetyText,
+  normalizeStudioAgentSafetyText,
+  rewriteStudioAgentSafetyTextDeterministic,
+  type StudioAgentSafetyDecisionMeta,
+} from "./safetyPolicy/textSafetyEvaluator";
 
-type StudioAgentSafetyClassification = "safe" | "needs_rewrite" | "refuse";
+export type { StudioAgentSafetyDecisionMeta } from "./safetyPolicy/textSafetyEvaluator";
 
 export type StudioAgentSafetyPostProcessOutcome = "pass" | "rewritten" | "refusal";
 export type StudioAgentSafetyPostProcessSource = "model_output" | "describe_output";
-export type StudioAgentSafetyDecisionMeta = {
-  profileId: SafetyProfileId;
-  modality: SafetyModality;
-  category: SafetyCategoryId;
-  action: SafetyPolicyAction;
-  source: "profile" | "hard_floor" | "absolute_zero";
-  hardFloorViolation: boolean;
-};
 
 export type StudioAgentSafetyPostProcessResult = {
   outcome: StudioAgentSafetyPostProcessOutcome;
@@ -29,60 +21,7 @@ export type StudioAgentSafetyPostProcessResult = {
   decision?: StudioAgentSafetyDecisionMeta;
 };
 
-const MAX_TEXT_LENGTH = 4000;
 const DEFAULT_REWRITE_TIMEOUT_MS = 1200;
-
-const EXPLICIT_REFUSAL_PATTERNS: RegExp[] = [
-  /\b(?:porn|pornographic)\b/i,
-  /\b(?:sexual\s+(?:intercourse|act|acts|activity|activities))\b/i,
-  /\b(?:graphic\s+sexual)\b/i,
-  /\b(?:explicit\s+sexual)\b/i,
-  /\b(?:genitals?|penis|vagina)\b/i,
-  /\b(?:ejaculat(?:e|ed|ing)|orgasm|masturbat(?:e|ed|ing))\b/i,
-  /\b(?:child\s+sexual|minor\s+sexual)\b/i,
-];
-
-const EXPLICIT_REWRITE_PATTERNS: RegExp[] = [
-  /\b(?:nsfw)\b/i,
-  /\b(?:nude|naked|topless)\b/i,
-  /\b(?:lingerie|cleavage)\b/i,
-  /\b(?:sexy|sexualized|sensual|seductive|provocative|erotic)\b/i,
-  /\b(?:scantily\s+clad|revealing\s+outfit)\b/i,
-];
-
-const SFW_REPLACEMENTS: Array<[RegExp, string]> = [
-  [/\bnsfw\b/gi, "safe-for-work"],
-  [/\b(?:nude|naked|topless)\b/gi, "fully clothed"],
-  [/\blingerie\b/gi, "outfit"],
-  [/\bcleavage\b/gi, "neckline"],
-  [/\b(?:sexy|sexualized|sensual|seductive|provocative|erotic)\b/gi, "stylized"],
-  [/\bscantily clad\b/gi, "fully dressed"],
-  [/\brevealing outfit\b/gi, "outfit"],
-];
-
-const collapseWhitespace = (value: string): string =>
-  value.replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_LENGTH);
-
-const classifyStudioAgentSafetyText = (value: string): StudioAgentSafetyClassification => {
-  const normalized = value.trim();
-  if (!normalized.length) return "safe";
-  if (normalized === STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE) return "safe";
-  if (EXPLICIT_REFUSAL_PATTERNS.some((pattern) => pattern.test(normalized))) {
-    return "refuse";
-  }
-  if (EXPLICIT_REWRITE_PATTERNS.some((pattern) => pattern.test(normalized))) {
-    return "needs_rewrite";
-  }
-  return "safe";
-};
-
-const deterministicRewrite = (value: string): string => {
-  let rewritten = value;
-  for (const [pattern, replacement] of SFW_REPLACEMENTS) {
-    rewritten = rewritten.replace(pattern, replacement);
-  }
-  return collapseWhitespace(rewritten);
-};
 
 const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
   await new Promise<T>((resolve, reject) => {
@@ -129,7 +68,7 @@ const maybeExternalRewrite = async ({
       timeoutMs ?? DEFAULT_REWRITE_TIMEOUT_MS
     );
     if (typeof rewritten !== "string") return null;
-    const normalized = collapseWhitespace(rewritten);
+    const normalized = normalizeStudioAgentSafetyText(rewritten);
     return normalized.length ? normalized : null;
   } catch {
     return null;
@@ -171,7 +110,7 @@ export const postProcessStudioAgentSafetyText = async ({
   devAbsoluteZeroEnabled?: boolean;
   modality?: SafetyModality;
 }): Promise<StudioAgentSafetyPostProcessResult> => {
-  const normalized = collapseWhitespace(typeof text === "string" ? text : "");
+  const normalized = normalizeStudioAgentSafetyText(typeof text === "string" ? text : "");
   if (!enabled || !normalized.length) {
     return { outcome: "pass", text: normalized, fallbackUsed: false };
   }
@@ -179,23 +118,16 @@ export const postProcessStudioAgentSafetyText = async ({
     environment ?? (process.env.NODE_ENV === "production" ? "production" : "development");
   const resolvedModality = modality ?? resolveSafetyModality({ route, flow });
 
-  const initialClassification = classifyStudioAgentSafetyText(normalized);
-  const initialDecision = resolveSafetyDecision({
-    classification: initialClassification,
+  const initialEvaluation = evaluateStudioAgentSafetyText({
+    text: normalized,
     modality: resolvedModality,
-    environment: resolvedEnvironment,
     profileId,
+    environment: resolvedEnvironment,
     devAbsoluteZeroEnabled,
+    refusalMessage: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
   });
-  const initialDecisionMeta: StudioAgentSafetyDecisionMeta = {
-    profileId: initialDecision.profileId,
-    modality: initialDecision.modality,
-    category: initialDecision.category,
-    action: initialDecision.action,
-    source: initialDecision.source,
-    hardFloorViolation: initialDecision.source === "hard_floor",
-  };
-  if (initialDecision.action === "allow") {
+  const initialDecisionMeta = initialEvaluation.decision;
+  if (initialDecisionMeta.action === "allow") {
     return {
       outcome: "pass",
       text: normalized,
@@ -203,7 +135,7 @@ export const postProcessStudioAgentSafetyText = async ({
       decision: initialDecisionMeta,
     };
   }
-  if (initialDecision.action === "refuse") {
+  if (initialDecisionMeta.action === "refuse") {
     return {
       outcome: "refusal",
       text: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
@@ -225,27 +157,20 @@ export const postProcessStudioAgentSafetyText = async ({
   let fallbackUsed = false;
   let rewritten = externalRewrite;
   if (!rewritten) {
-    rewritten = deterministicRewrite(normalized);
+    rewritten = rewriteStudioAgentSafetyTextDeterministic(normalized);
     fallbackUsed = true;
   }
 
-  const rewrittenClassification = classifyStudioAgentSafetyText(rewritten);
-  const rewrittenDecision = resolveSafetyDecision({
-    classification: rewrittenClassification,
+  const rewrittenEvaluation = evaluateStudioAgentSafetyText({
+    text: rewritten,
     modality: resolvedModality,
-    environment: resolvedEnvironment,
     profileId,
+    environment: resolvedEnvironment,
     devAbsoluteZeroEnabled,
+    refusalMessage: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
   });
-  const rewrittenDecisionMeta: StudioAgentSafetyDecisionMeta = {
-    profileId: rewrittenDecision.profileId,
-    modality: rewrittenDecision.modality,
-    category: rewrittenDecision.category,
-    action: rewrittenDecision.action,
-    source: rewrittenDecision.source,
-    hardFloorViolation: rewrittenDecision.source === "hard_floor",
-  };
-  if (rewrittenDecision.action === "allow") {
+  const rewrittenDecisionMeta = rewrittenEvaluation.decision;
+  if (rewrittenDecisionMeta.action === "allow") {
     return {
       outcome: "rewritten",
       text: rewritten,
@@ -255,26 +180,19 @@ export const postProcessStudioAgentSafetyText = async ({
     };
   }
 
-  if (rewrittenDecision.action === "rewrite") {
-    const secondPass = deterministicRewrite(rewritten);
+  if (rewrittenDecisionMeta.action === "rewrite") {
+    const secondPass = rewriteStudioAgentSafetyTextDeterministic(rewritten);
     fallbackUsed = true;
-    const secondClassification = classifyStudioAgentSafetyText(secondPass);
-    const secondDecision = resolveSafetyDecision({
-      classification: secondClassification,
+    const secondEvaluation = evaluateStudioAgentSafetyText({
+      text: secondPass,
       modality: resolvedModality,
-      environment: resolvedEnvironment,
       profileId,
+      environment: resolvedEnvironment,
       devAbsoluteZeroEnabled,
+      refusalMessage: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
     });
-    const secondDecisionMeta: StudioAgentSafetyDecisionMeta = {
-      profileId: secondDecision.profileId,
-      modality: secondDecision.modality,
-      category: secondDecision.category,
-      action: secondDecision.action,
-      source: secondDecision.source,
-      hardFloorViolation: secondDecision.source === "hard_floor",
-    };
-    if (secondDecision.action === "allow") {
+    const secondDecisionMeta = secondEvaluation.decision;
+    if (secondDecisionMeta.action === "allow") {
       return {
         outcome: "rewritten",
         text: secondPass,

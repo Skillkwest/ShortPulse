@@ -27,6 +27,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Model picker + cost badges: `frontend/features/ai-studio/components/ModelModal.tsx` (uses registry defaults).
 - Reference Grid performance controls: `frontend/features/ai-studio/components/ReferenceGrid.tsx` (virtualization + autoplay budget gating).
 - Replay snapshot contract + guards: `frontend/features/ai-studio/logic/generationReplay.ts` (card-level re-roll eligibility and validation).
+- Character panel layout parity: `frontend/features/ai-studio/components/CharacterPanel.tsx` mounts `CharacterManagerShell` with `surface=\"panel\"` and follows the same create-workspace section order contract as `/character` (see `docs/sops/sop_character_manager_operations.md`).
 
 ## Create startup model precedence
 - Storage key remains `aiStudioWorkflowSettingsByTool.v1`.

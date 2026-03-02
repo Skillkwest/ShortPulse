@@ -337,7 +337,7 @@ body.character-manager-body {
   padding: 8px;
 }
 
-.character-mode-row {
+.character-manager-page .character-mode-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -534,7 +534,7 @@ body.character-manager-body {
 
 .character-section--references {
   align-content: start;
-  justify-self: end;
+  justify-self: start;
   width: 100%;
   max-width: 520px;
 }
@@ -1669,7 +1669,7 @@ body.character-manager-body {
   gap: 8px;
 }
 
-.character-list-card {
+.character-manager-page .character-list-card {
   position: relative;
   text-align: left;
   width: 100%;
@@ -1690,7 +1690,7 @@ body.character-manager-body {
   box-shadow: var(--character-shadow-md);
 }
 
-.character-list-card:hover {
+.character-manager-page .character-list-card:hover {
   border-color: rgba(43, 232, 121, 0.28);
   cursor: pointer;
   box-shadow:
@@ -1698,22 +1698,22 @@ body.character-manager-body {
     0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.character-list-card.is-active {
+.character-manager-page .character-list-card.is-active {
   border-color: rgba(18, 249, 74, 0.58);
   box-shadow: var(--character-shadow-md);
 }
 
-.character-list-card.is-active .character-list-name {
+.character-manager-page .character-list-card.is-active .character-list-name {
   color: var(--character-neon-text);
 }
 
-.character-list-card.is-disabled {
+.character-manager-page .character-list-card.is-disabled {
   cursor: wait;
   opacity: 0.78;
   transform: none;
 }
 
-.character-list-select-btn {
+.character-manager-page .character-list-select-btn {
   width: 100%;
   min-width: 0;
   border: none;
@@ -1727,11 +1727,11 @@ body.character-manager-body {
   cursor: pointer;
 }
 
-.character-list-select-btn:disabled {
+.character-manager-page .character-list-select-btn:disabled {
   cursor: wait;
 }
 
-.character-list-main {
+.character-manager-page .character-list-main {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1739,7 +1739,7 @@ body.character-manager-body {
   width: 100%;
 }
 
-.character-list-avatar {
+.character-manager-page .character-list-avatar {
   width: 44px;
   height: 44px;
   border-radius: 999px;
@@ -1751,26 +1751,26 @@ body.character-manager-body {
   flex-shrink: 0;
 }
 
-.character-list-avatar-image {
+.character-manager-page .character-list-avatar-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.character-list-avatar-initials {
+.character-manager-page .character-list-avatar-initials {
   font-size: 16px;
   font-weight: 800;
   letter-spacing: 0.02em;
   color: #ecf7ff;
 }
 
-.character-list-copy {
+.character-manager-page .character-list-copy {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.character-list-name {
+.character-manager-page .character-list-name {
   margin: 0;
   font-size: clamp(1.06rem, 1.01rem + 0.22vw, 1.2rem);
   line-height: 1.2;
@@ -1781,7 +1781,7 @@ body.character-manager-body {
   text-overflow: ellipsis;
 }
 
-.character-list-delete-btn {
+.character-manager-page .character-list-delete-btn {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -1805,7 +1805,7 @@ body.character-manager-body {
     box-shadow 0.18s ease;
 }
 
-.character-list-delete-btn:hover {
+.character-manager-page .character-list-delete-btn:hover {
   border-color: rgba(255, 140, 140, 0.92);
   background: rgba(138, 28, 28, 0.48);
   color: #ffe5e5;
@@ -1813,57 +1813,69 @@ body.character-manager-body {
   transform: translateY(-1px);
 }
 
-.character-list-delete-btn:focus-visible {
+.character-manager-page .character-list-delete-btn:focus-visible {
   outline: 2px solid rgba(255, 128, 128, 0.82);
   outline-offset: 2px;
 }
 
-.character-list-delete-btn:disabled {
+.character-manager-page .character-list-delete-btn:disabled {
   opacity: 0.6;
   cursor: wait;
   transform: none;
   box-shadow: none;
 }
 
-.character-reference-delete-btn {
+.character-manager-page .character-reference-delete-btn {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-2px) scale(0.96);
 }
 
-.character-reference-delete-btn:disabled {
+.character-manager-page .character-reference-delete-btn:disabled {
   opacity: 0;
 }
 
-.character-reference-upload-card:hover .character-reference-delete-btn,
-.character-reference-upload-card:focus-within .character-reference-delete-btn,
-.character-reference-delete-btn:focus-visible {
+.character-manager-page .character-reference-upload-card:hover .character-reference-delete-btn,
+.character-manager-page
+  .character-reference-upload-card:focus-within
+  .character-reference-delete-btn,
+.character-manager-page .character-reference-delete-btn:focus-visible {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0) scale(1);
 }
 
-.character-reference-upload-card:hover .character-reference-delete-btn:disabled,
-.character-reference-upload-card:focus-within .character-reference-delete-btn:disabled {
+.character-manager-page
+  .character-reference-upload-card:hover
+  .character-reference-delete-btn:disabled,
+.character-manager-page
+  .character-reference-upload-card:focus-within
+  .character-reference-delete-btn:disabled {
   opacity: 0.6;
 }
 
-.character-character-sheet-delete-btn {
+.character-manager-page .character-character-sheet-delete-btn {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-2px) scale(0.96);
 }
 
-.character-character-sheet-card:hover .character-character-sheet-delete-btn,
-.character-character-sheet-card:focus-within .character-character-sheet-delete-btn,
-.character-character-sheet-delete-btn:focus-visible {
+.character-manager-page .character-character-sheet-card:hover .character-character-sheet-delete-btn,
+.character-manager-page
+  .character-character-sheet-card:focus-within
+  .character-character-sheet-delete-btn,
+.character-manager-page .character-character-sheet-delete-btn:focus-visible {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0) scale(1);
 }
 
-.character-character-sheet-card:hover .character-character-sheet-delete-btn:disabled,
-.character-character-sheet-card:focus-within .character-character-sheet-delete-btn:disabled {
+.character-manager-page
+  .character-character-sheet-card:hover
+  .character-character-sheet-delete-btn:disabled,
+.character-manager-page
+  .character-character-sheet-card:focus-within
+  .character-character-sheet-delete-btn:disabled {
   opacity: 0.6;
 }
 
@@ -2170,7 +2182,7 @@ body.character-manager-body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .character-mode-row {
+  .character-manager-page .character-mode-row {
     flex-direction: column;
     align-items: stretch;
   }

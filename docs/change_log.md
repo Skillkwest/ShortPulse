@@ -2304,3 +2304,33 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added migration `sql/migrations/049_enforce_expert_default_beginner_mode.sql` and rollback `sql/migrations/rollback/049_enforce_expert_default_beginner_mode_rollback.sql`; forward migration sets `user_preferences.beginner_mode` default to `false` and backfills existing rows, rollback restores default `true` for new rows only.
 - Updated bootstrap/data/docs parity for the temporary lockdown policy (`sql/create_user_preferences_table.sql`, `frontend/.env.example`, `README.md`, `docs/routes.md`, `docs/data-dictionary.md`, `docs/database-migrations.md`, `docs/sops/sop_sql_migration_operations.md`, `docs/sops/sop_image_generation.md`, `docs/troubleshooting.md`, `docs/planning/migration-number-reservation-map.md`).
 - Added/updated tests for runtime policy parsing, wrapper-hook behavior, toolbar/shell toggle suppression, and AI Studio page hook mocking.
+
+## 2026-03-02 (Character UI unification: layout swap + class decoupling)
+- Implemented Pass 1 create-workspace layout swap with a dedicated presentational wrapper:
+  - added `frontend/features/character-manager/components/CharacterCreateWorkspaceLayout.tsx`
+  - refactored `frontend/features/character-manager/components/CharacterManagerShell.tsx` to enforce create-region DOM order `Identity -> QuickSwap -> Character Sheet` for both page and panel surfaces.
+- Updated Character Manager layout CSS for swapped desktop placement and deterministic mobile stacking:
+  - `frontend/styles/character-manager.css` now defines `.character-create-workspace-layout` plus region classes and roots shared selectors under `.character-manager-page` to reduce cross-surface style bleed.
+- Implemented Pass 2 AI Studio character-control decoupling:
+  - added `frontend/styles/ai-studio-character-controls.css`
+  - imported it in `frontend/styles/globals.css`
+  - migrated AI Studio create/picker/chat components to `ai-character-*` and `ai-chat-*` class namespaces:
+    - `frontend/features/ai-studio/components/create/BeginnerCreatePanelView.tsx`
+    - `frontend/features/ai-studio/components/create/ExpertCreatePanelView.tsx`
+    - `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx`
+    - `frontend/features/ai-studio/components/promptStep/PromptStepChatSurface.tsx`
+  - removed overlapping generic character-control block from `frontend/styles/ai-studio-properties.css`.
+- Added layout regression coverage:
+  - `frontend/features/character-manager/components/__tests__/CharacterManagerShell.layout.test.tsx`
+  - `frontend/features/ai-studio/components/__tests__/CharacterPanel.layout.test.tsx`.
+- Updated SOP contracts:
+  - `docs/sops/sop_character_manager_operations.md` (create-workspace layout order contract).
+  - `docs/sops/sop_ai_studio_index.md` (AI Studio Character panel parity note).
+- Validation evidence:
+  - targeted suites passed:
+    - `cd frontend && npm run test -- features/character-manager/components/__tests__/CharacterManagerShell.layout.test.tsx features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx features/character-manager/components/__tests__/CharacterManagerShell.copy.test.tsx features/ai-studio/components/__tests__/CharacterPanel.layout.test.tsx features/ai-studio/components/__tests__/CreatePropertiesPanel.test.tsx features/ai-studio/components/__tests__/PromptStep.actions.test.tsx tests/pages/ai-studio.character-mode.test.tsx`
+  - `cd frontend && npm run lint` passed.
+  - `cd frontend && npm run build` passed.
+  - `cd frontend && npm run test` reported 3 unrelated pre-existing failures in Fal recovery server tests:
+    - `lib/server/falIntegration/__tests__/recoveryGenerationLookup.test.ts` (2 assertions)
+    - `lib/server/falIntegration/__tests__/recoveryLifecycleTransitions.test.ts` (1 assertion).

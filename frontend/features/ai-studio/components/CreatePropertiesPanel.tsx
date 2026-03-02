@@ -139,9 +139,9 @@ const CharacterPickerModal = ({
 
   return (
     <>
-      <div className="model-modal-backdrop character-picker-backdrop" onClick={onClose} />
+      <div className="model-modal-backdrop ai-character-picker-backdrop" onClick={onClose} />
       <div
-        className="model-modal character-picker-modal"
+        className="model-modal ai-character-picker-modal"
         role="dialog"
         aria-modal="true"
         aria-label="Choose character"
@@ -164,44 +164,46 @@ const CharacterPickerModal = ({
         </div>
         <div className="model-modal-scroll">
           {characterOptions.length > 0 ? (
-            <div className="character-picker-grid" role="list" aria-label="Character options">
+            <div className="ai-character-picker-grid" role="list" aria-label="Character options">
               {characterOptions.map((option) => {
                 const isActive = option.id === selectedCharacterId;
                 return (
                   <article
                     key={option.id}
                     role="listitem"
-                    className={`character-list-card character-picker-card ${isActive ? "is-active" : ""}`}
+                    className={`ai-character-list-card ai-character-picker-card ${
+                      isActive ? "is-active" : ""
+                    }`}
                   >
                     <button
                       type="button"
-                      className="character-list-select-btn"
+                      className="ai-character-list-select-btn"
                       aria-pressed={isActive}
                       onClick={() => {
                         onSelectedCharacterIdChange?.(option.id);
                         onClose();
                       }}
                     >
-                      <div className="character-list-main">
-                        <span className="character-list-avatar" aria-hidden="true">
+                      <div className="ai-character-list-main">
+                        <span className="ai-character-list-avatar" aria-hidden="true">
                           {option.profileImageUrl ? (
                             <Image
                               src={option.profileImageUrl}
                               alt=""
-                              className="character-list-avatar-image"
+                              className="ai-character-list-avatar-image"
                               width={44}
                               height={44}
                               unoptimized
                             />
                           ) : (
-                            <span className="character-list-avatar-initials">
+                            <span className="ai-character-list-avatar-initials">
                               {getCreateCharacterInitials(option.name)}
                             </span>
                           )}
                         </span>
-                        <div className="character-list-copy">
+                        <div className="ai-character-list-copy">
                           <p className="metric-label tiny">{isActive ? "Selected" : "Character"}</p>
-                          <p className="character-list-name">{option.name}</p>
+                          <p className="ai-character-list-name">{option.name}</p>
                         </div>
                       </div>
                     </button>
@@ -210,7 +212,9 @@ const CharacterPickerModal = ({
               })}
             </div>
           ) : (
-            <p className="tiny subdued character-picker-empty">No character profiles available.</p>
+            <p className="tiny subdued ai-character-picker-empty">
+              No character profiles available.
+            </p>
           )}
         </div>
       </div>

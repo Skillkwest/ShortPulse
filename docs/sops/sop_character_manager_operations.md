@@ -43,9 +43,14 @@ Define the operational contract for the `/character` Character Manager surface, 
 9. Character Mode stale-selection safety:
    - Submit-time character bundle refresh must fail closed when selected character is no longer available.
    - Cached bundle reuse is allowed only for transient refresh failures.
+10. Create-workspace layout order contract:
+   - Desktop (`>1100px`): Identity renders on the left, QuickSwap Deck renders on the right, and Character Sheet renders below Identity.
+   - Tablet/mobile (`<=1100px`): sections stack in order `Identity -> QuickSwap Deck -> Character Sheet`.
+   - DOM order must match visual order to preserve accessibility and deterministic layout-test assertions.
 
 ## Architecture Map
 - Shell/UI orchestration: `frontend/features/character-manager/components/CharacterManagerShell.tsx`
+- Create layout wrapper: `frontend/features/character-manager/components/CharacterCreateWorkspaceLayout.tsx`
 - Draft state + persistence orchestration: `frontend/features/character-manager/hooks/useCharacterManagerDraft.ts`
 - Supabase persistence primitives: `frontend/features/character-manager/logic/characterManagerPersistence.ts`
 - QuickSwap persistence primitives: `frontend/features/character-manager/logic/characterQuickSwapPersistence.ts`

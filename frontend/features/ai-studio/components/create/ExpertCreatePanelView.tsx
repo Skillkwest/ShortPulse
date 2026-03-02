@@ -102,7 +102,7 @@ export function ExpertCreatePanelView({
               <p className="create-expert-character-mode-title">Character</p>
               <button
                 type="button"
-                className={`audio-toggle character-mode-toggle create-expert-toggle-control ${characterModeEnabled ? "is-active" : ""}`}
+                className={`audio-toggle ai-character-mode-toggle create-expert-toggle-control ${characterModeEnabled ? "is-active" : ""}`}
                 aria-pressed={characterModeEnabled}
                 aria-label={
                   characterModeEnabled ? "Disable character mode" : "Enable character mode"
@@ -130,13 +130,13 @@ export function ExpertCreatePanelView({
                   <Image
                     src={selectedCharacterProfileImageUrl}
                     alt={`${selectedCharacterName} profile`}
-                    className="character-picker-trigger-avatar"
+                    className="ai-character-picker-trigger-avatar"
                     width={20}
                     height={20}
                     unoptimized
                   />
                 ) : selectedCharacterInitials ? (
-                  <span className="character-picker-trigger-avatar character-picker-trigger-avatar--fallback">
+                  <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">
                     {selectedCharacterInitials}
                   </span>
                 ) : null}

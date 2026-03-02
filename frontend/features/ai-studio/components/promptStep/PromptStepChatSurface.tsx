@@ -369,13 +369,13 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
               </span>
             </button>
           ) : null}
-          <div className="character-mode-row agent-chat-mode-row agent-chat-mode-toggle-shell">
+          <div className="ai-chat-mode-row-shell agent-chat-mode-row agent-chat-mode-toggle-shell">
             <div className="agent-chat-mode-toggle-copy">
               <span className="agent-chat-mode-label">Chat Mode</span>
             </div>
             <button
               type="button"
-              className={`audio-toggle character-mode-toggle agent-chat-mode-toggle ${chatModeEnabled ? "is-active" : ""}`}
+              className={`audio-toggle ai-chat-mode-toggle agent-chat-mode-toggle ${chatModeEnabled ? "is-active" : ""}`}
               aria-pressed={chatModeEnabled}
               aria-label={chatModeEnabled ? "Disable chat mode" : "Enable chat mode"}
               disabled={!onChatModeEnabledChange}

@@ -95,7 +95,7 @@ export function BeginnerCreatePanelView({
         <p className="eyebrow">Create</p>
       </div>
       <div
-        className={`step-card character-step-card ${beginnerMode ? "character-step-card--beginner" : ""}`}
+        className={`step-card ai-character-step-card ${beginnerMode ? "ai-character-step-card--beginner" : ""}`}
         role="group"
         aria-label="Character mode section"
       >
@@ -111,14 +111,14 @@ export function BeginnerCreatePanelView({
             <span className="step-subtitle tiny helper-text">{characterStepSubtitle}</span>
           </div>
           <div
-            className={`step-header-actions character-header-actions ${
-              !characterModeEnabled ? "character-header-actions--mode-off" : ""
+            className={`step-header-actions ai-character-header-actions ${
+              !characterModeEnabled ? "ai-character-header-actions--mode-off" : ""
             }`}
           >
-            <div className="character-mode-row">
+            <div className="ai-character-mode-row">
               <button
                 type="button"
-                className={`audio-toggle character-mode-toggle ${characterModeEnabled ? "is-active" : ""}`}
+                className={`audio-toggle ai-character-mode-toggle ${characterModeEnabled ? "is-active" : ""}`}
                 aria-pressed={characterModeEnabled}
                 aria-label={
                   characterModeEnabled ? "Disable character mode" : "Enable character mode"
@@ -131,12 +131,12 @@ export function BeginnerCreatePanelView({
               </button>
             </div>
             <div
-              className={`character-picker-row ${characterModeEnabled ? "is-visible" : "is-hidden"}`}
+              className={`ai-character-picker-row ${characterModeEnabled ? "is-visible" : "is-hidden"}`}
               aria-hidden={!characterModeEnabled}
             >
               <button
                 type="button"
-                className={`model-picker-btn character-picker-trigger ${
+                className={`model-picker-btn ai-character-picker-trigger ${
                   isCharacterSelectionEmpty ? "is-empty" : ""
                 } ${isCharacterPickerOpen ? "is-open" : ""}`}
                 aria-haspopup="dialog"
@@ -146,18 +146,18 @@ export function BeginnerCreatePanelView({
                 onClick={onCharacterPickerOpen}
               >
                 <div className="model-picker-row">
-                  <span className="character-picker-trigger-value">
+                  <span className="ai-character-picker-trigger-value">
                     {selectedCharacterProfileImageUrl ? (
                       <Image
                         src={selectedCharacterProfileImageUrl}
                         alt={`${selectedCharacterName} profile`}
-                        className="character-picker-trigger-avatar"
+                        className="ai-character-picker-trigger-avatar"
                         width={24}
                         height={24}
                         unoptimized
                       />
                     ) : selectedCharacterInitials ? (
-                      <span className="character-picker-trigger-avatar character-picker-trigger-avatar--fallback">
+                      <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">
                         {selectedCharacterInitials}
                       </span>
                     ) : null}

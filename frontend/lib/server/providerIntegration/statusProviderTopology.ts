@@ -10,6 +10,7 @@ import {
   filterTrustedKieProviderUrls,
   readKieRuntimeFlags,
   resolveKieStatusBaseUrlsForModel,
+  resolveKieStatusTimeoutMsForModel,
 } from "./providerRuntimeConfig";
 import { isFalProviderKey, isKieProviderKey } from "./providerKey";
 
@@ -117,7 +118,7 @@ export const resolveProviderModelStatusTimeoutMs = ({
   if (isKieProviderKey(provider)) {
     const flags = readKieRuntimeFlags();
     assertKieRuntimeEnabledForModel({ modelId, flags });
-    return flags.statusTimeoutMs || defaultTimeoutMs;
+    return resolveKieStatusTimeoutMsForModel(modelId, flags) || defaultTimeoutMs;
   }
   throw new Error(`Unsupported provider for model status timeout resolution: ${provider}`);
 };

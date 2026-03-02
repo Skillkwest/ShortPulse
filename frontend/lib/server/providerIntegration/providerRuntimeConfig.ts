@@ -3,6 +3,11 @@
  * Keeps provider enablement, key lookup, and trust policy centralized.
  */
 
+import {
+  getKieStatusBaseUrlsByModelId,
+  getKieSubmitUrlByModelId,
+  getKieTimeoutMsByModelId,
+} from "../../model-runtime/modelCatalog";
 import { getModelConfig } from "../../model-runtime/pricing";
 import { KIE_SUPPORTED_MODEL_IDS, isKnownKieModelId } from "../../model-runtime/providerModelIds";
 import type { SubmitTarget } from "../falIntegration/contracts";
@@ -314,7 +319,13 @@ export const resolveKieSubmitTargetsForModel = (
   flags: KieRuntimeFlags = readKieRuntimeFlags()
 ): SubmitTarget[] => {
   assertKieRuntimeEnabledForModel({ modelId, flags });
-  return filterTrustedKieProviderUrls(flags.submitUrls, flags)
+  const catalogSubmitUrl = getKieSubmitUrlByModelId(modelId);
+  const submitCandidates = flags.submitUrls.length
+    ? flags.submitUrls
+    : catalogSubmitUrl
+      ? [catalogSubmitUrl]
+      : [];
+  return filterTrustedKieProviderUrls(submitCandidates, flags)
     .filter((submitUrl) => !submitUrl.includes(REQUEST_ID_TEMPLATE_TOKEN))
     .map((submitUrl) => ({
       submitUrl,
@@ -329,6 +340,39 @@ export const resolveKieStatusBaseUrlsForModel = (
   flags: KieRuntimeFlags = readKieRuntimeFlags()
 ): string[] => {
   assertKieRuntimeEnabledForModel({ modelId, flags });
-  const baseCandidates = flags.statusBaseUrls.length ? flags.statusBaseUrls : flags.submitUrls;
+  const catalogStatusBaseUrls = getKieStatusBaseUrlsByModelId(modelId);
+  const catalogSubmitUrl = getKieSubmitUrlByModelId(modelId);
+  const baseCandidates = flags.statusBaseUrls.length
+    ? flags.statusBaseUrls
+    : catalogStatusBaseUrls.length
+      ? catalogStatusBaseUrls
+      : flags.submitUrls.length
+        ? flags.submitUrls
+        : catalogSubmitUrl
+          ? [catalogSubmitUrl]
+          : [];
   return filterTrustedKieProviderUrls(baseCandidates, flags);
+};
+
+/**
+ * Resolves Kie status timeout for a model (env override first, then model contract).
+ */
+export const resolveKieStatusTimeoutMsForModel = (
+  modelId: string,
+  flags: KieRuntimeFlags = readKieRuntimeFlags()
+): number => {
+  assertKieRuntimeEnabledForModel({ modelId, flags });
+  const configuredValue = process.env.SHORTPULSE_KIE_STATUS_TIMEOUT_MS;
+  if (configuredValue && configuredValue.trim().length) {
+    return flags.statusTimeoutMs;
+  }
+  const catalogTimeout = getKieTimeoutMsByModelId(modelId);
+  if (
+    typeof catalogTimeout === "number" &&
+    Number.isFinite(catalogTimeout) &&
+    catalogTimeout >= 1000
+  ) {
+    return Math.trunc(catalogTimeout);
+  }
+  return DEFAULT_KIE_STATUS_TIMEOUT_MS;
 };

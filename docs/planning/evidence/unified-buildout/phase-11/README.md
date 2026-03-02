@@ -34,6 +34,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 29. `2026-03-01-phase-11-slice-b-kie-callback-code-and-aspect-alias-alignment.md` - aligns remaining Kie doc-shape deltas (`aspectRatio` submit alias and callback `code` lifecycle fallback mapping).
 30. `2026-03-01-phase-11-slice-b-kie-primary-source-fixture-regression-lock.md` - adds shared primary-source-shaped Veo/Kling fixtures and fixture-backed contract tests to lock request/callback behavior against drift.
 31. `2026-03-01-phase-11-slice-b-kie-status-url-template-dispatch.md` - adds `{requestId}` query-template support for Kie status/detail polling URLs while preserving Fal dispatch behavior and trusted-host fail-closed checks.
+32. `2026-03-01-phase-11-slice-b-kie-model-catalog-topology-defaults.md` - moves Kie submit/status topology defaults into model-catalog contracts (env remains override), with parity checks and mixed-provider regression coverage.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

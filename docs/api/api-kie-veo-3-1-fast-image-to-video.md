@@ -12,6 +12,7 @@ This document tracks the internal ShortPulse dark-path contract for `kie-ai/veo-
 ## Current Runtime Contract (Pre-Cutover)
 - Endpoint: `POST /api/v1/veo/generate`
 - Status/details polling:
+  - default model-contract endpoint: `https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}`
   - configured via `SHORTPULSE_KIE_STATUS_BASE_URLS`
   - supports optional `{requestId}` template token for query-style endpoints (for example `.../record-info?taskId={requestId}`)
   - falls back to legacy `/{requestId}/status` probing when template is not used

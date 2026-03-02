@@ -141,6 +141,33 @@ describe("statusProviderTopology", () => {
     ).toEqual(["https://queue.kie.ai/v1/requests/1"]);
   });
 
+  it("falls back to model-catalog kie topology when env urls are not configured", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v,kie-ai/kling-3.0";
+    delete process.env.SHORTPULSE_KIE_STATUS_BASE_URLS;
+    delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
+    delete process.env.SHORTPULSE_KIE_STATUS_TIMEOUT_MS;
+
+    expect(
+      resolveProviderModelStatusBaseUrls({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    ).toEqual(["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"]);
+    expect(
+      resolveProviderModelStatusBaseUrls({
+        provider: "kie",
+        modelId: "kie-ai/kling-3.0",
+      })
+    ).toEqual(["https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}"]);
+    expect(
+      resolveProviderModelStatusTimeoutMs({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    ).toBe(60000);
+  });
+
   it("resolves kie status base templates with {requestId} tokens", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";

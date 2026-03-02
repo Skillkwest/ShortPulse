@@ -8,6 +8,8 @@ import {
   filterTrustedKieProviderUrls,
   readKieRuntimeFlags,
   readProviderApiKey,
+  resolveKieStatusBaseUrlsForModel,
+  resolveKieStatusTimeoutMsForModel,
   resolveKieSubmitTargetsForModel,
   resolveProviderFromGenerationContext,
   resolveProviderFromModelId,
@@ -114,6 +116,34 @@ describe("providerRuntimeConfig", () => {
 
     const targets = resolveKieSubmitTargetsForModel("kie-ai/veo-3.1-fast-i2v");
     expect(targets).toEqual([{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }]);
+  });
+
+  it("falls back to model-catalog submit/status topology when env urls are unset", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v,kie-ai/kling-3.0";
+    delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
+    delete process.env.SHORTPULSE_KIE_STATUS_BASE_URLS;
+
+    expect(resolveKieSubmitTargetsForModel("kie-ai/veo-3.1-fast-i2v")).toEqual([
+      { submitUrl: "https://api.kie.ai/api/v1/veo/generate" },
+    ]);
+    expect(resolveKieStatusBaseUrlsForModel("kie-ai/veo-3.1-fast-i2v")).toEqual([
+      "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+    ]);
+    expect(resolveKieSubmitTargetsForModel("kie-ai/kling-3.0")).toEqual([
+      { submitUrl: "https://api.kie.ai/api/v1/jobs/createTask" },
+    ]);
+    expect(resolveKieStatusBaseUrlsForModel("kie-ai/kling-3.0")).toEqual([
+      "https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}",
+    ]);
+  });
+
+  it("uses model-catalog timeout when status timeout env override is unset", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    delete process.env.SHORTPULSE_KIE_STATUS_TIMEOUT_MS;
+
+    expect(resolveKieStatusTimeoutMsForModel("kie-ai/veo-3.1-fast-i2v")).toBe(60000);
   });
 
   it("resolves provider keys from model and generation context", () => {

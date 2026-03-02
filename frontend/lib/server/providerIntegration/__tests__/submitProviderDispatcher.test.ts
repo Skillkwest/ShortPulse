@@ -118,9 +118,42 @@ describe("submitProviderDispatcher", () => {
     );
   });
 
+  it("falls back to model-catalog kie submit target when env submit urls are unset", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ request_id: "kie-req-2" }), { status: 200 })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await dispatchProviderSubmit({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      targets: [],
+      payload: { prompt: "hello", image_url: "https://example.com/ref.png" },
+      apiKey: "key",
+      signal: new AbortController().signal,
+    });
+
+    expect(result.providerRequestId).toBe("kie-req-2");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.kie.ai/api/v1/veo/generate",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer key",
+        }),
+      })
+    );
+  });
+
   it("fails closed for unsupported Kie model contracts", async () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
-    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/unknown";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "*";
     await expect(
       dispatchProviderSubmit({
         provider: "kie",

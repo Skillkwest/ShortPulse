@@ -1794,3 +1794,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Added template-safe Kie status/details URL dispatch support with optional `{requestId}` token substitution so query-style Kie polling endpoints can be configured without changing Fal routing behavior.
 - Hardened Kie runtime URL parsing/trust checks to accept `{requestId}` only in path/query and fail closed when token usage appears in authority/hostname.
 - Added regression coverage for Kie template dispatch and runtime config parsing, then re-ran Phase 11 Fal no-regression and docs parity checks.
+
+## 2026-03-01 (Phase 11 Kie topology contract defaults)
+- Added model-catalog-owned Kie submit/status topology metadata (`kieSubmitUrl`, `kieStatusBaseUrls`, `kieTimeoutMs`) for Veo 3.1 Fast I2V and Kling 3.0.
+- Updated provider runtime resolution to use env overrides when present and model-catalog defaults when unset, keeping Kie dark-path guards and Fal behavior unchanged.
+- Extended model-catalog parity checks to require Kie topology fields and added regression coverage for catalog fallback behavior in submit/status dispatch paths.

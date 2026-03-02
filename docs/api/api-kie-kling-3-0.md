@@ -12,6 +12,7 @@ This document tracks the internal ShortPulse dark-path contract for `kie-ai/klin
 ## Current Runtime Contract (Pre-Cutover)
 - Endpoint: `POST /api/v1/jobs/createTask`
 - Status/details polling:
+  - default model-contract endpoint: `https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}`
   - configured via `SHORTPULSE_KIE_STATUS_BASE_URLS`
   - supports optional `{requestId}` template token for query-style endpoints (for example `.../recordInfo?taskId={requestId}`)
   - falls back to legacy `/{requestId}/status` probing when template is not used

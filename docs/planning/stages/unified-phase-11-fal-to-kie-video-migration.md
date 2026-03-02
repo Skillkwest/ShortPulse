@@ -217,6 +217,15 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts`
   - `frontend/.env.example`
   - Kie status base URLs now accept optional `{requestId}` token templates (for query-param endpoints) while preserving legacy `/{requestId}/status` probing and Fal dispatch behavior.
+- Added model-catalog-owned Kie topology defaults (env override still supported):
+  - `frontend/lib/model-runtime/modelCatalog.ts`
+  - `frontend/lib/server/providerIntegration/providerRuntimeConfig.ts`
+  - `frontend/lib/server/providerIntegration/statusProviderTopology.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts`
+  - `scripts/check_model_catalog_parity.js`
+  - Kie submit/status endpoints now default from canonical model contracts per model id (`veo` + `kling`) when env URL overrides are unset, with parity checks enforcing presence.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

@@ -32,6 +32,9 @@ export type ModelCatalogEntry = {
   falSubmitUrl?: string;
   falStatusBaseUrls?: string[];
   falTimeoutMs?: number;
+  kieSubmitUrl?: string;
+  kieStatusBaseUrls?: string[];
+  kieTimeoutMs?: number;
   pricingParamAliases?: {
     webSearch?: string[];
   };
@@ -623,6 +626,9 @@ const catalog: Record<string, ModelCatalogEntry> = {
     allowedDurations: [5, 8],
     defaultResolution: "720p",
     allowedResolutions: ["720p", "1080p"],
+    kieSubmitUrl: "https://api.kie.ai/api/v1/veo/generate",
+    kieStatusBaseUrls: ["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"],
+    kieTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
       requiredAnyOfStringFields: ["image_url"],
@@ -645,6 +651,9 @@ const catalog: Record<string, ModelCatalogEntry> = {
     allowedAspects: ["16:9", "9:16", "1:1"],
     defaultDurationSeconds: 10,
     allowedDurations: [5, 10],
+    kieSubmitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+    kieStatusBaseUrls: ["https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}"],
+    kieTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
       enumFields: {
@@ -680,6 +689,15 @@ export const getFalStatusBaseUrlsByModelId = (modelId: string): string[] =>
 
 export const getFalTimeoutMsByModelId = (modelId: string): number | null =>
   getModelCatalogEntry(modelId)?.falTimeoutMs ?? null;
+
+export const getKieSubmitUrlByModelId = (modelId: string): string | null =>
+  getModelCatalogEntry(modelId)?.kieSubmitUrl ?? null;
+
+export const getKieStatusBaseUrlsByModelId = (modelId: string): string[] =>
+  getModelCatalogEntry(modelId)?.kieStatusBaseUrls ?? [];
+
+export const getKieTimeoutMsByModelId = (modelId: string): number | null =>
+  getModelCatalogEntry(modelId)?.kieTimeoutMs ?? null;
 
 export const getModelPayloadValidationSpec = (modelId: string): ModelPayloadValidationSpec | null =>
   getModelCatalogEntry(modelId)?.payloadValidation ?? null;

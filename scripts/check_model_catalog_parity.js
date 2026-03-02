@@ -331,6 +331,12 @@ function run() {
       if (!allowedDurations.length) {
         errors.push(`allowedDurations missing for Kie model ${modelId}`);
       }
+      if (!String(entry.kieSubmitUrl || "").trim()) {
+        errors.push(`kieSubmitUrl missing for Kie model ${modelId}`);
+      }
+      if (!Array.isArray(entry.kieStatusBaseUrls) || entry.kieStatusBaseUrls.length === 0) {
+        errors.push(`kieStatusBaseUrls missing for Kie model ${modelId}`);
+      }
     }
 
     const mappedDoc = MODEL_DOC_MAP[modelId];

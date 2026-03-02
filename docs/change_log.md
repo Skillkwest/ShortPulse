@@ -1753,3 +1753,10 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts`.
 - Clarified Kie allowlist env contract in `frontend/.env.example`.
 - Added Phase 11 evidence/stage/tracker updates for this anti-drift runtime-config slice.
+
+## 2026-03-01 (phase-11 model contract completeness parity guard)
+- Extended `scripts/check_model_catalog_parity.js` with model-contract completeness checks:
+  - default aspect membership in allowed aspects for non-text submit surfaces,
+  - default duration consistency when allowed durations are configured,
+  - required Kie contract fields (`payloadValidation`, `allowedDurations`).
+- Added Phase 11 evidence/stage/tracker updates for this anti-drift governance slice.

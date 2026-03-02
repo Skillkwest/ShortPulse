@@ -293,6 +293,26 @@ function run() {
       }
     }
 
+    const defaultAspect = String(entry.defaultAspect || "").trim();
+    const allowedAspects = Array.isArray(entry.allowedAspects) ? entry.allowedAspects : [];
+    if (entry.submitAspectField !== "none") {
+      if (!allowedAspects.length) {
+        errors.push(`allowedAspects missing for ${modelId}`);
+      } else if (!allowedAspects.includes(defaultAspect)) {
+        errors.push(`defaultAspect is not included in allowedAspects for ${modelId}`);
+      }
+    }
+
+    const allowedDurations = Array.isArray(entry.allowedDurations) ? entry.allowedDurations : [];
+    if (allowedDurations.length) {
+      const defaultDuration = Number(entry.defaultDurationSeconds);
+      if (!Number.isFinite(defaultDuration)) {
+        errors.push(`defaultDurationSeconds missing/invalid when allowedDurations is set for ${modelId}`);
+      } else if (!allowedDurations.includes(defaultDuration)) {
+        errors.push(`defaultDurationSeconds must be present in allowedDurations for ${modelId}`);
+      }
+    }
+
     if (entry.provider === "fal") {
       if (!String(entry.falSubmitUrl || "").trim()) {
         errors.push(`falSubmitUrl missing for Fal model ${modelId}`);
@@ -302,6 +322,14 @@ function run() {
       }
       if (!entry.payloadValidation) {
         errors.push(`payloadValidation missing for Fal model ${modelId}`);
+      }
+    }
+    if (entry.provider === "kie") {
+      if (!entry.payloadValidation) {
+        errors.push(`payloadValidation missing for Kie model ${modelId}`);
+      }
+      if (!allowedDurations.length) {
+        errors.push(`allowedDurations missing for Kie model ${modelId}`);
       }
     }
 

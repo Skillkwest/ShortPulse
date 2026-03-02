@@ -24,7 +24,9 @@ import {
   type BillingPlanRecord,
   type CreditPackageRecord,
 } from "../features/billing/catalog";
+import { ProfilePreferenceToggleCard } from "../features/profile/components/ProfilePreferenceToggleCard";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
+import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { useProtectedRoute } from "../lib/authGuard";
 import { ensureSupabaseClient } from "../lib/supabaseClient";
@@ -100,6 +102,13 @@ export default function ProfilePage() {
   const router = useRouter();
   const { loading, user } = useProtectedRoute(true);
   const { balanceCents, balanceUpdatedAt, balanceLoading, refreshBalance } = useCredits();
+  const {
+    mediaAutosaveEnabled,
+    loading: mediaAutosaveLoading,
+    syncState: mediaAutosaveSyncState,
+    error: mediaAutosaveError,
+    setMediaAutosaveEnabled,
+  } = useMediaAutosavePreference();
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -274,6 +283,8 @@ export default function ProfilePage() {
         : "Not scheduled";
 
   const packageCards = useMemo(() => annotateCreditPackages(creditPackages), [creditPackages]);
+  const mediaAutosaveSaving = mediaAutosaveSyncState === "saving";
+  const mediaAutosaveDisabled = mediaAutosaveLoading || mediaAutosaveSaving;
 
   const handleSignOut = async () => {
     try {
@@ -579,6 +590,17 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 </div>
+                <ProfilePreferenceToggleCard
+                  title="AI Studio autosave"
+                  description="Control whether eligible generated and reference media are automatically saved to your Media Library."
+                  enabled={mediaAutosaveEnabled}
+                  disabled={mediaAutosaveDisabled}
+                  saving={mediaAutosaveSaving}
+                  error={mediaAutosaveError}
+                  onToggle={setMediaAutosaveEnabled}
+                  enabledHelperText="Autosave is ON. New eligible AI Studio media will save automatically."
+                  disabledHelperText="Autosave is OFF. You can still save media manually from AI Studio."
+                />
               </div>
             ) : null}
 

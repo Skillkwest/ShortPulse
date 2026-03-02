@@ -2503,3 +2503,16 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
   - `docs/planning/shortpulse-unified-buildout-tracker.md`
   - `docs/planning/shortpulse-unified-decision-log.md` (Decision 040)
+
+## 2026-03-02 (Profile account autosave toggle UI)
+- Added a reusable profile preference toggle card for account settings:
+  - `frontend/features/profile/components/ProfilePreferenceToggleCard.tsx`
+- Wired `/profile?section=account` to existing autosave preference state:
+  - `frontend/pages/profile.tsx` now reads/writes `user_preferences.media_autosave_enabled` through `useMediaAutosavePreference`.
+- Added focused coverage for the reusable card and profile page wiring:
+  - `frontend/features/profile/components/__tests__/ProfilePreferenceToggleCard.test.tsx`
+  - `frontend/tests/pages/profile.account-settings.test.tsx`
+- Updated route/surface docs and backlog evidence for the new account setting:
+  - `README.md`
+  - `docs/routes.md`
+  - `docs/planning/backlog.md`

@@ -339,6 +339,56 @@
   margin: 0 0 6px;
 }
 
+.profile-preference-card {
+  gap: 10px;
+}
+
+.profile-preference-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.profile-preference-copy {
+  min-width: 0;
+}
+
+.profile-preference-copy .subdued {
+  margin: 0;
+}
+
+.profile-preference-helper {
+  margin: 0;
+}
+
+.profile-preference-toggle.reference-toggle {
+  flex-shrink: 0;
+}
+
+.profile-preference-toggle.reference-toggle:hover:not(:disabled) {
+  border-color: rgba(37, 169, 191, 0.72);
+}
+
+.profile-preference-toggle.reference-toggle.is-active {
+  background: linear-gradient(135deg, rgba(37, 169, 191, 0.96), rgba(21, 102, 126, 0.9));
+  border-color: rgba(37, 169, 191, 0.88);
+  box-shadow: 0 6px 18px rgba(37, 169, 191, 0.28);
+}
+
+.profile-preference-toggle.reference-toggle.is-active .reference-toggle-dot {
+  background: #071a18;
+}
+
+.profile-preference-status {
+  margin: 0;
+  color: #9dd8ff;
+}
+
+.profile-preference-status-error {
+  color: #ff9f9f;
+}
+
 .profile-card-rowed {
   gap: 12px;
 }

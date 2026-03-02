@@ -60,7 +60,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 - **Performance Placeholder (`/performance-soon`)**: Temporary landing page that explains the analytics workspace is still under construction.
 - **Saved Creators (`/saved-creators`)**: Post‑MVP (Coming Soon); per-user handle list.
 - **Media Library (`/media-library`)**: Upload/download/delete/rename/move files across media tabs in a private Supabase bucket, including a Private image tab (`<auth.uid()>/private/images/...`).
-- **Profile (`/profile`)**: Profile/account/billing UI with plan badges, Stripe billing actions, and credit purchase entry points.
+- **Profile (`/profile`)**: Profile/account/billing UI with plan badges, Stripe billing actions, credit purchase entry points, and an AI Studio media autosave account setting.
 - **AI Studio (`/ai-studio`)**: Creative canvas for prompt systems, model/aspect selection, previewing, and saving image/video outputs. Session identity uses `?sid=<uuid>`; plain `/ai-studio` creates a new session id. Beginner mode is temporarily force-disabled and toggle controls are hidden by runtime policy flags.
 - **Character Manager (`/character`)**: Character creation and management workspace with persisted reference intake and persisted character-sheet assignments. Beginner toggle controls are temporarily hidden by the same runtime policy used by AI Studio.
 - **Character Placeholder (`/character-soon`)**: Legacy fallback landing page retained during Character Manager rollout.

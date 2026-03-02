@@ -14,7 +14,7 @@ Reference for pages, auth expectations, and ownership.
 | `/ai-studio` | Yes | Creative canvas (prompt/image/video) | `/creator-studio` forwards here. Session identity contract uses `?sid=<uuid>`; plain `/ai-studio` starts a new session id via shallow replace. Beginner mode is temporarily force-disabled and toggle controls are hidden by runtime policy flags. |
 | `/character` | Yes | Character Manager (reference intake + character management) | Upload and persist unlimited QuickSwap references per character (500 active, overflow archived), then arrange and persist character-sheet assignments for downstream generation wiring. Beginner toggle controls are temporarily hidden by runtime policy flags. |
 | `/character-soon` | Yes | Legacy placeholder route for Character | Kept as fallback while Character Manager rollout stabilizes. |
-| `/profile` | Yes | Profile/account/billing UI | Logout modal; plan badges. |
+| `/profile` | Yes | Profile/account/billing UI | Logout modal; plan badges; account-level AI Studio media autosave toggle. |
 | `/admin` | Yes | Internal admin dashboard | Operator-only surface (`app_metadata` role or admin allowlist); not part of MVP. |
 | `/admin/generation-trace` | Yes | Admin generation trace page | Operator-only debugging route for stitched generation timelines. |
 | `/onboarding` | No | Lightweight onboarding shell | Links to dashboard/features. |

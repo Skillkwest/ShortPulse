@@ -88,7 +88,8 @@ Tooling audit references:
 ## Profile Page
 - [ ] Add targeted automated tests for saved creators critical flows (auth + media library coverage already exists).
 - [ ] Add account setting: "Show Beginner Mode Toggle" (control visibility of the beginner toggle card, not just mode state).
-- [ ] Add account setting: "Auto-save generated media to Media Library" toggle so users can disable automatic saves and reduce media-library bloat.
+- [x] Add account setting: "Auto-save generated media to Media Library" toggle so users can disable automatic saves and reduce media-library bloat.
+  Evidence: `frontend/features/profile/components/ProfilePreferenceToggleCard.tsx`, `frontend/pages/profile.tsx`, `frontend/tests/pages/profile.account-settings.test.tsx`
 - [ ] Add CSV import/export for saved creators.
 
 ## Stripe and Payment Pipelines

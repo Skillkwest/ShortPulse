@@ -156,7 +156,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
   });
 
-  it("shows input-bar attachment guidance in expert mode once chat history exists", () => {
+  it("hides input-bar attachment guidance in expert mode once chat history exists", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -173,7 +173,7 @@ describe("CreatePropertiesPanel", () => {
       stagedPrompt: null,
     });
 
-    expect(screen.getByText("References attach from the message bar.")).toBeInTheDocument();
+    expect(screen.queryByText("References attach from the message bar.")).not.toBeInTheDocument();
     expect(
       screen.queryByText("Drag & drop reference cards here to attach context.")
     ).not.toBeInTheDocument();

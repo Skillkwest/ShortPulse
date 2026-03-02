@@ -476,6 +476,7 @@ export function CreatePropertiesPanel({
     embedSendButtonInInput: true,
     hideAgentIntroMessage: true,
     agentAttachmentDropTarget: "input",
+    hideInputDropHint: true,
     highlightLatestAssistantOnly: true,
     agentInputMaxHeightPx: 132,
   };

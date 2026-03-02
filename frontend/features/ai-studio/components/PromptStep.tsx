@@ -73,6 +73,7 @@ export function PromptStep({
   embedSendButtonInInput = false,
   hideAgentIntroMessage = false,
   agentAttachmentDropTarget = "history",
+  hideInputDropHint = false,
   hideEmptyAgentChatState = false,
   emptyAgentChatSpacerClassName = "",
   highlightLatestAssistantOnly = false,
@@ -246,6 +247,7 @@ export function PromptStep({
                 assistantBubbleMedia={assistantBubbleMedia}
                 stagedAttachments={stagedAttachments}
                 dropToInputComposer={dropToInputComposer}
+                hideInputDropHint={hideInputDropHint}
                 agentDropActive={agentDropActive}
                 historyDropHandlers={historyDropHandlers}
                 inputDropHandlers={inputDropHandlers}

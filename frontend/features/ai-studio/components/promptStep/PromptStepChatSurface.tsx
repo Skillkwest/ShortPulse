@@ -42,6 +42,7 @@ type PromptStepChatSurfaceProps = {
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments: AgentAttachment[];
   dropToInputComposer: boolean;
+  hideInputDropHint: boolean;
   agentDropActive: boolean;
   historyDropHandlers: {
     onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -118,6 +119,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   assistantBubbleMedia,
   stagedAttachments,
   dropToInputComposer,
+  hideInputDropHint,
   agentDropActive,
   historyDropHandlers,
   inputDropHandlers,
@@ -252,7 +254,11 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
             isDropActive={!dropToInputComposer && agentDropActive}
             showInput={false}
             dropHintText={
-              dropToInputComposer ? "References attach from the message bar." : undefined
+              dropToInputComposer
+                ? hideInputDropHint
+                  ? ""
+                  : "References attach from the message bar."
+                : undefined
             }
             emptyStateText={dropToInputComposer ? "Send your next instruction." : undefined}
             {...historyDropHandlers}

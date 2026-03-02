@@ -84,6 +84,7 @@ export type PromptStepProps = {
   embedSendButtonInInput?: boolean;
   hideAgentIntroMessage?: boolean;
   agentAttachmentDropTarget?: "history" | "input";
+  hideInputDropHint?: boolean;
   hideEmptyAgentChatState?: boolean;
   emptyAgentChatSpacerClassName?: string;
   highlightLatestAssistantOnly?: boolean;

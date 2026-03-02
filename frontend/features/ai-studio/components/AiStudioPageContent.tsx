@@ -222,13 +222,13 @@ const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColumnDropP
   if (droppedFiles && droppedFiles.length > 0) {
     return { kind: "files", files: droppedFiles };
   }
-  const droppedMedia = getDroppedMediaReference(transfer);
-  if (droppedMedia) {
-    return { kind: "media", reference: droppedMedia };
-  }
   const droppedPromptText = normalizeDroppedPromptText(transfer);
   if (droppedPromptText) {
     return { kind: "text", text: droppedPromptText };
+  }
+  const droppedMedia = getDroppedMediaReference(transfer);
+  if (droppedMedia) {
+    return { kind: "media", reference: droppedMedia };
   }
   return { kind: "none" };
 };

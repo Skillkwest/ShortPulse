@@ -373,6 +373,37 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(onPasteTextReference).not.toHaveBeenCalled();
   });
 
+  it("prefers prompt text over media URL hints for mixed drop payloads", () => {
+    const onPasteMediaReference = vi.fn();
+    const onPasteTextReference = vi.fn();
+    const props = createProps({
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onPasteMediaReference,
+        onPasteTextReference,
+      },
+    });
+    const { container } = render(<AiStudioPageContent {...props} />);
+    const rightColumn = container.querySelector(".ai-shell-right");
+    expect(rightColumn).toBeTruthy();
+    const dataTransfer = {
+      types: ["text/prompt", "text/plain", "text/reference-url", "text/uri-list"],
+      files: makeEmptyFileList(),
+      getData: (type: string) => {
+        if (type === "text/prompt") return "  Use this prompt text  ";
+        if (type === "text/plain") return "https://cdn.example.com/reference-image.png";
+        if (type === "text/reference-url") return "https://cdn.example.com/reference-image.png";
+        if (type === "text/uri-list") return "https://cdn.example.com/reference-image.png";
+        return "";
+      },
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
+
+    expect(onPasteTextReference).toHaveBeenCalledWith("Use this prompt text");
+    expect(onPasteMediaReference).not.toHaveBeenCalled();
+  });
+
   it("pre-warms right-column dragover for text drags when browser omits drag types", () => {
     const props = createProps();
     const { container } = render(<AiStudioPageContent {...props} />);

@@ -263,6 +263,80 @@ describe("AgentChatPanel prompt actions", () => {
     expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
   });
 
+  it("keeps assistant bubble draggable from text area when output preview media exists", () => {
+    render(
+      <AgentChatPanel
+        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        input=""
+        assistantBubbleMedia={{
+          "a-1": {
+            outputId: "out-ready",
+            thumbnailUrl: "https://example.com/ready.png",
+            state: "ready",
+          },
+        }}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const messageText = screen.getByText("Assistant output one.");
+    const draggableMessage = messageText.closest(".agent-message") as HTMLElement;
+    expect(draggableMessage).toBeTruthy();
+
+    const setData = vi.fn();
+    const setDragImage = vi.fn();
+    const dataTransfer = {
+      setData,
+      setDragImage,
+      effectAllowed: "none",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(messageText, { dataTransfer });
+    expect(setData).toHaveBeenCalledWith("text/prompt", "Assistant output one.");
+    expect(draggableMessage.classList.contains("is-dragging")).toBe(true);
+
+    fireEvent.dragEnd(draggableMessage);
+    expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
+  });
+
+  it("blocks drag start from inline output preview media", () => {
+    render(
+      <AgentChatPanel
+        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        input=""
+        assistantBubbleMedia={{
+          "a-1": {
+            outputId: "out-ready",
+            thumbnailUrl: "https://example.com/ready.png",
+            state: "ready",
+          },
+        }}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const previewImage = screen.getByAltText("Generated output preview");
+    const draggableMessage = previewImage.closest(".agent-message") as HTMLElement;
+    expect(draggableMessage).toBeTruthy();
+
+    const setData = vi.fn();
+    const setDragImage = vi.fn();
+    const dataTransfer = {
+      setData,
+      setDragImage,
+      effectAllowed: "none",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(previewImage, { dataTransfer });
+
+    expect(setData).not.toHaveBeenCalled();
+    expect(setDragImage).not.toHaveBeenCalled();
+    expect(document.querySelector(".agent-message-drag-ghost")).toBeNull();
+    expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
+  });
+
   it("omits inline output preview controls from drag ghosts", () => {
     render(
       <AgentChatPanel

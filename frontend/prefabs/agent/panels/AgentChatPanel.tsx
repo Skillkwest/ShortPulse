@@ -231,6 +231,11 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
 
   const handlePromptDragStart = useCallback(
     (event: React.DragEvent<HTMLDivElement>, promptText: string) => {
+      const dragTarget = event.target;
+      if (dragTarget instanceof Element && dragTarget.closest(".agent-output-bubble-media")) {
+        event.preventDefault();
+        return;
+      }
       const normalizedPrompt = promptText.trim();
       if (!normalizedPrompt) {
         event.preventDefault();
@@ -257,6 +262,11 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     const source = event.currentTarget;
     source.classList.remove("is-dragging");
     clearPromptDragGhost(source);
+  }, []);
+
+  const handleOutputBubbleMediaDragStart = useCallback((event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
   }, []);
 
   const handleOutputGenerateClick = useCallback(
@@ -327,38 +337,53 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     [assistantBubbleMedia]
   );
 
-  const renderOutputBubbleMedia = useCallback((mediaState: AgentOutputBubbleMediaState | null) => {
-    if (!mediaState || mediaState.state === "idle") return null;
-    if (mediaState.thumbnailUrl) {
-      return (
-        <div className="agent-output-bubble-media" data-state={mediaState.state}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={mediaState.thumbnailUrl} alt="Generated output preview" loading="lazy" />
-        </div>
-      );
-    }
-    if (mediaState.state === "pending") {
-      return (
-        <div
-          className="agent-output-bubble-media agent-output-bubble-media--status"
-          data-state="pending"
-        >
-          <span className="tiny">Generating preview…</span>
-        </div>
-      );
-    }
-    if (mediaState.state === "failed") {
-      return (
-        <div
-          className="agent-output-bubble-media agent-output-bubble-media--status"
-          data-state="failed"
-        >
-          <span className="tiny">Generation failed</span>
-        </div>
-      );
-    }
-    return null;
-  }, []);
+  const renderOutputBubbleMedia = useCallback(
+    (mediaState: AgentOutputBubbleMediaState | null) => {
+      if (!mediaState || mediaState.state === "idle") return null;
+      if (mediaState.thumbnailUrl) {
+        return (
+          <div
+            className="agent-output-bubble-media"
+            data-state={mediaState.state}
+            onDragStart={handleOutputBubbleMediaDragStart}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={mediaState.thumbnailUrl}
+              alt="Generated output preview"
+              loading="lazy"
+              draggable={false}
+              onDragStart={handleOutputBubbleMediaDragStart}
+            />
+          </div>
+        );
+      }
+      if (mediaState.state === "pending") {
+        return (
+          <div
+            className="agent-output-bubble-media agent-output-bubble-media--status"
+            data-state="pending"
+            onDragStart={handleOutputBubbleMediaDragStart}
+          >
+            <span className="tiny">Generating preview…</span>
+          </div>
+        );
+      }
+      if (mediaState.state === "failed") {
+        return (
+          <div
+            className="agent-output-bubble-media agent-output-bubble-media--status"
+            data-state="failed"
+            onDragStart={handleOutputBubbleMediaDragStart}
+          >
+            <span className="tiny">Generation failed</span>
+          </div>
+        );
+      }
+      return null;
+    },
+    [handleOutputBubbleMediaDragStart]
+  );
 
   return (
     <div

@@ -70,7 +70,10 @@ select
     min(g.created_at) as oldest_created_at,
     max(g.created_at) as newest_created_at
 from public.ai_generations g
-where lower(coalesce(g.provider, '')) like 'fal%'
+where (
+    lower(coalesce(g.provider, '')) like 'fal%'
+    or lower(coalesce(g.provider, '')) like 'kie%'
+)
 group by g.recovery_state, g.status
 order by rows desc;
 
@@ -88,7 +91,10 @@ select
     g.created_at,
     g.next_recovery_at
 from public.ai_generations g
-where lower(coalesce(g.provider, '')) like 'fal%'
+where (
+    lower(coalesce(g.provider, '')) like 'fal%'
+    or lower(coalesce(g.provider, '')) like 'kie%'
+)
   and g.request_id is not null
   and g.status in ('pending', 'submitted', 'running', 'fail')
   and coalesce(g.recovery_state, 'none') in ('queued', 'recovering')
@@ -109,7 +115,10 @@ limit 200;
 -- with stale_candidates as (
 --     select g.id, g.user_id, g.request_id
 --     from public.ai_generations g
---     where lower(coalesce(g.provider, '')) like 'fal%'
+--     where (
+--         lower(coalesce(g.provider, '')) like 'fal%'
+--         or lower(coalesce(g.provider, '')) like 'kie%'
+--     )
 --       and g.request_id is not null
 --       and g.status in ('pending', 'submitted', 'running')
 --       and coalesce(g.recovery_state, 'none') in ('queued', 'recovering')

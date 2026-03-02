@@ -597,7 +597,11 @@ describe("CreatePropertiesPanel", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Generate from this agent output" }));
-    expect(onGenerateFromAgentOutputPrompt).toHaveBeenCalledWith("Here is a revised prompt.");
+    expect(onGenerateFromAgentOutputPrompt).toHaveBeenCalledWith({
+      messageId: "assistant-1",
+      prompt: "Here is a revised prompt.",
+      source: "history",
+    });
   });
 
   it("shows generate as step four in beginner mode", () => {

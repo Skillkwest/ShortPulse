@@ -7,6 +7,16 @@ export type AgentApiMessageRole = "user" | "assistant";
 
 export type AgentAttachmentDeliveryStatus = "pending" | "preparing" | "ready" | "failed";
 
+export type AgentOutputPromptSource = "history" | "staged";
+
+export type AgentOutputGenerateRequest = {
+  messageId: string;
+  prompt: string;
+  source: AgentOutputPromptSource;
+};
+
+export type AgentOutputGenerateInput = AgentOutputGenerateRequest | string;
+
 export type AgentMessage = {
   id?: string;
   role: AgentMessageRole;

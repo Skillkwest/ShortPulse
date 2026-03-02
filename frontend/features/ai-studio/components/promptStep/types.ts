@@ -2,7 +2,12 @@
  * Shared PromptStep component types.
  * Keeps the main component and split subcomponents aligned on one contract.
  */
-import type { AgentActions, AgentAttachment, AgentMessage } from "../../../../prefabs/agent";
+import type {
+  AgentActions,
+  AgentAttachment,
+  AgentMessage,
+  AgentOutputGenerateInput,
+} from "../../../../prefabs/agent";
 
 export type PromptStepProps = {
   stepNumber: string | number;
@@ -37,7 +42,7 @@ export type PromptStepProps = {
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
-  onGenerateOutputPrompt?: (prompt: string) => void;
+  onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   // Actions
   onSavePrompt: (customPrompt?: string) => void;
   // State / UI

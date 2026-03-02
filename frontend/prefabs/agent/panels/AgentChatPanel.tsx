@@ -6,11 +6,17 @@ import React, { useCallback, useEffect, useRef } from "react";
 import { AgentSendButton } from "../buttons/AgentSendButton";
 import { AgentInputBar } from "../inputs/AgentInputBar";
 import { AgentPromptActions } from "../components/AgentPromptActions";
-import type { AgentActions, AgentAttachment, AgentMessage } from "../types";
+import type {
+  AgentActions,
+  AgentAttachment,
+  AgentMessage,
+  AgentOutputGenerateRequest,
+} from "../types";
 
 const PROMPT_DRAG_GHOST_MIN_WIDTH_PX = 220;
 const PROMPT_DRAG_GHOST_MAX_WIDTH_PX = 360;
 const PROMPT_DRAG_GHOST_MAX_HEIGHT_PX = 220;
+const STAGED_AGENT_OUTPUT_MESSAGE_ID = "staged-agent-output";
 const promptDragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
 
 const clearPromptDragGhost = (source: HTMLElement) => {
@@ -76,7 +82,7 @@ type AgentChatPanelProps = {
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
-  onGenerateOutputPrompt?: (prompt: string) => void;
+  onGenerateOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -228,12 +234,15 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   }, []);
 
   const handleOutputGenerateClick = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>, promptText: string) => {
+    (event: React.MouseEvent<HTMLButtonElement>, request: AgentOutputGenerateRequest) => {
       event.stopPropagation();
       if (disableOutputGenerate) return;
-      const normalizedPrompt = promptText.trim();
+      const normalizedPrompt = request.prompt.trim();
       if (!normalizedPrompt) return;
-      onGenerateOutputPrompt?.(normalizedPrompt);
+      onGenerateOutputPrompt?.({
+        ...request,
+        prompt: normalizedPrompt,
+      });
     },
     [disableOutputGenerate, onGenerateOutputPrompt]
   );
@@ -291,7 +300,13 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   <button
                     type="button"
                     className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill"
-                    onClick={(event) => handleOutputGenerateClick(event, stagedPrompt)}
+                    onClick={(event) =>
+                      handleOutputGenerateClick(event, {
+                        messageId: STAGED_AGENT_OUTPUT_MESSAGE_ID,
+                        prompt: stagedPrompt,
+                        source: "staged",
+                      })
+                    }
                     onDoubleClick={(event) => {
                       event.stopPropagation();
                     }}
@@ -347,7 +362,13 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                       <button
                         type="button"
                         className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill"
-                        onClick={(event) => handleOutputGenerateClick(event, message.content)}
+                        onClick={(event) =>
+                          handleOutputGenerateClick(event, {
+                            messageId: message.id?.trim() || `history-agent-output-${index}`,
+                            prompt: message.content,
+                            source: "history",
+                          })
+                        }
                         onDoubleClick={(event) => {
                           event.stopPropagation();
                         }}

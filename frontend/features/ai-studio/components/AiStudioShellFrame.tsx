@@ -4,7 +4,12 @@
  */
 import React from "react";
 import { AgentChatPanel } from "../../../prefabs/agent";
-import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
+import type {
+  AgentActions,
+  AgentAttachment,
+  AgentMessage,
+  AgentOutputGenerateInput,
+} from "../../ai-agent/types";
 import type { ToolId } from "../types";
 import type { ReferenceGridProps } from "./ReferenceGrid";
 import { AiStudioPropertiesRail } from "./AiStudioPropertiesRail";
@@ -37,7 +42,7 @@ type AgentChatProps = {
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
-  onGenerateFromOutputPrompt?: (prompt: string) => void;
+  onGenerateFromOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   outputGenerateCostCredits?: number | null;
   disableOutputGenerate?: boolean;
 };

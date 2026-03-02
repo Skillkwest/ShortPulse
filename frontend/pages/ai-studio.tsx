@@ -42,6 +42,10 @@ import {
   type ReferenceGridScenario,
   type StudioShellScenario,
 } from "../features/ai-studio/logic/perfAuditGates";
+import type {
+  AgentOutputGenerateInput,
+  AgentOutputGenerateRequest,
+} from "../features/ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import {
   getAiStudioShellSectionRenderCounters,
@@ -1220,21 +1224,43 @@ export default function AiStudioPage() {
     regenerateOutput,
     activeOutputId,
   });
+  const resolveAgentOutputGenerateRequest = useCallback(
+    (input: AgentOutputGenerateInput): AgentOutputGenerateRequest | null => {
+      if (typeof input === "string") {
+        const legacyPrompt = normalizePromptText(input);
+        if (!legacyPrompt) return null;
+        return {
+          messageId: "legacy-agent-output",
+          prompt: legacyPrompt,
+          source: "history",
+        };
+      }
+      const normalizedPrompt = normalizePromptText(input.prompt);
+      const messageId = input.messageId?.trim();
+      if (!normalizedPrompt || !messageId) return null;
+      return {
+        messageId,
+        prompt: normalizedPrompt,
+        source: input.source,
+      };
+    },
+    []
+  );
   const handleGenerateFromAgentOutputPrompt = useCallback(
-    (promptText: string) => {
-      const normalizedPrompt = normalizePromptText(promptText);
-      if (!normalizedPrompt) return;
+    (input: AgentOutputGenerateInput) => {
+      const request = resolveAgentOutputGenerateRequest(input);
+      if (!request) return;
       const isVideoWorkflow = selectedTool === "video" || selectedTool === "kling";
       const isEditWorkflow = selectedTool === "edit" || selectedTool === "image";
       const workflowTool: ToolId = isVideoWorkflow ? "video" : isEditWorkflow ? "edit" : "create";
       const workflowMode: StudioMode = isVideoWorkflow ? "video" : "image";
 
       if (workflowTool === "video") {
-        setVideoReferenceText(normalizedPrompt);
+        setVideoReferenceText(request.prompt);
       } else if (workflowTool === "edit") {
-        setEditReferenceText(normalizedPrompt);
+        setEditReferenceText(request.prompt);
       } else {
-        setSharedPrompt(normalizedPrompt);
+        setSharedPrompt(request.prompt);
         if (selectedTool !== "create" && selectedTool !== "text") {
           setSelectedTool("create");
         }
@@ -1242,7 +1268,7 @@ export default function AiStudioPage() {
       }
 
       setPromptOrigin("agent");
-      void handleGenerate(normalizedPrompt, {
+      void handleGenerate(request.prompt, {
         modeOverride: workflowMode,
         toolOverride: workflowTool,
         costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
@@ -1252,6 +1278,7 @@ export default function AiStudioPage() {
       currentCostCredits,
       handleGenerate,
       promptReferenceGenerateCostCredits,
+      resolveAgentOutputGenerateRequest,
       selectedTool,
       setEditReferenceText,
       setMode,

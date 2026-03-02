@@ -14,6 +14,9 @@ export type {
   AgentMediaPreview,
   AgentMessage,
   AgentMessageRole,
+  AgentOutputGenerateInput,
+  AgentOutputGenerateRequest,
+  AgentOutputPromptSource,
   AgentReferenceSummary,
   AgentResponse,
 } from "../../prefabs/agent";

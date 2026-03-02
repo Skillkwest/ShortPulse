@@ -9,7 +9,12 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
-import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
+import type {
+  AgentActions,
+  AgentAttachment,
+  AgentMessage,
+  AgentOutputGenerateInput,
+} from "../../ai-agent/types";
 import type { StudioMode, StudioOutput } from "../types";
 import { createWorkflowBeginnerModePolicy } from "../logic/beginnerWorkflowPolicy";
 import type { AiStudioPanelContracts } from "./contracts/pageContentContracts";
@@ -47,7 +52,7 @@ export type UseAiStudioPanelPropsParams = {
   handleAgentApplyPrompt: (promptText: string) => void;
   handleAgentSelectVariation: (promptText: string) => void;
   handleAgentDescribeTargets: (targets: string[]) => void;
-  handleGenerateFromAgentOutputPrompt: (promptText: string) => void;
+  handleGenerateFromAgentOutputPrompt: (request: AgentOutputGenerateInput) => void;
   useReferenceImageIndicator: boolean;
   activeOutput: StudioOutput | null;
   isModelModalOpen: boolean;

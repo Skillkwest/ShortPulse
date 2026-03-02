@@ -9,7 +9,12 @@ import type { AspectOption, StudioMode } from "../types";
 import { aspectOptions, modelLogos } from "../constants";
 import type { ModelModalContext } from "./ModelModal";
 import { AgentGenerateButton } from "../../../prefabs/agent";
-import type { AgentActions, AgentAttachment, AgentMessage } from "../../../prefabs/agent";
+import type {
+  AgentActions,
+  AgentAttachment,
+  AgentMessage,
+  AgentOutputGenerateInput,
+} from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
 import { deriveCreateSelectorViewState } from "../logic/createSelectorState";
 import { getModelConfig } from "../logic/modelRegistry";
@@ -73,7 +78,7 @@ export type CreatePropertiesPanelProps = {
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
-  onGenerateFromAgentOutputPrompt?: (prompt: string) => void;
+  onGenerateFromAgentOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   onGenerate: () => void;
   onSavePrompt: (customPrompt?: string) => void;
   shouldDisableSave?: boolean;

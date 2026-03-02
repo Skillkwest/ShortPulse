@@ -19,7 +19,12 @@ import { CharacterPanel } from "./CharacterPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
-import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
+import type {
+  AgentActions,
+  AgentAttachment,
+  AgentMessage,
+  AgentOutputGenerateInput,
+} from "../../ai-agent/types";
 import type { StudioOutput, ToolId } from "../types";
 import type { ReferenceGridProps } from "./ReferenceGrid";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
@@ -259,7 +264,7 @@ type AgentChatProps = {
   onAgentApplyPrompt?: (prompt: string) => void;
   onAgentSelectVariation?: (prompt: string) => void;
   onAgentDescribeTargets?: (targets: string[]) => void;
-  onGenerateFromOutputPrompt?: (prompt: string) => void;
+  onGenerateFromOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   outputGenerateCostCredits?: number | null;
   disableOutputGenerate?: boolean;
 };

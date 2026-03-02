@@ -3,7 +3,12 @@
  * Keeps text/create panel wiring isolated from edit/video workflows.
  */
 import { useMemo, type Dispatch, type DragEvent, type RefObject, type SetStateAction } from "react";
-import type { AgentActions, AgentAttachment, AgentMessage } from "../../ai-agent/types";
+import type {
+  AgentActions,
+  AgentAttachment,
+  AgentMessage,
+  AgentOutputGenerateInput,
+} from "../../ai-agent/types";
 import type { StudioMode, StudioOutput } from "../types";
 import type { AiStudioCreatePanelContract } from "./contracts/pageContentContracts";
 
@@ -37,7 +42,7 @@ type UseAiStudioCreatePanelPropsParams = {
   handleAgentApplyPrompt: (promptText: string) => void;
   handleAgentSelectVariation: (promptText: string) => void;
   handleAgentDescribeTargets: (targets: string[]) => void;
-  handleGenerateFromAgentOutputPrompt: (promptText: string) => void;
+  handleGenerateFromAgentOutputPrompt: (request: AgentOutputGenerateInput) => void;
   useReferenceImageIndicator: boolean;
   activeOutput: StudioOutput | null;
   isModelModalOpen: boolean;

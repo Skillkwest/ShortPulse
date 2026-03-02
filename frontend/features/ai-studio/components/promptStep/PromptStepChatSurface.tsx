@@ -11,7 +11,12 @@ import {
   AgentSaveButton,
   AgentSendButton,
 } from "../../../../prefabs/agent";
-import type { AgentActions, AgentAttachment, AgentMessage } from "../../../../prefabs/agent";
+import type {
+  AgentActions,
+  AgentAttachment,
+  AgentMessage,
+  AgentOutputGenerateInput,
+} from "../../../../prefabs/agent";
 
 type PromptStepChatSurfaceProps = {
   beginnerMode: boolean;
@@ -50,7 +55,7 @@ type PromptStepChatSurfaceProps = {
   onClearAgentAttachments?: () => void;
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
-  onGenerateOutputPrompt?: (prompt: string) => void;
+  onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   highlightLatestAssistantOnly: boolean;
   disableOutputGenerate: boolean;
   outputGenerateCostCredits: number | null;

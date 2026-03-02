@@ -116,8 +116,16 @@ describe("AgentChatPanel prompt actions", () => {
     expect(screen.getAllByText("35")).toHaveLength(2);
     fireEvent.click(generateButtons[0]);
     fireEvent.click(generateButtons[1]);
-    expect(onGenerateOutputPrompt).toHaveBeenNthCalledWith(1, "Assistant staged prompt.");
-    expect(onGenerateOutputPrompt).toHaveBeenNthCalledWith(2, "Assistant output one.");
+    expect(onGenerateOutputPrompt).toHaveBeenNthCalledWith(1, {
+      messageId: "staged-agent-output",
+      prompt: "Assistant staged prompt.",
+      source: "staged",
+    });
+    expect(onGenerateOutputPrompt).toHaveBeenNthCalledWith(2, {
+      messageId: "a-1",
+      prompt: "Assistant output one.",
+      source: "history",
+    });
     expect(onMessageClick).not.toHaveBeenCalled();
   });
 

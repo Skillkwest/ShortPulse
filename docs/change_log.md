@@ -1718,3 +1718,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Rewired model catalog/registry Kie entries and provider-integration Kie model-id exports to consume the same canonical runtime ids.
 - Hardened `scripts/check_model_catalog_parity.js` TypeScript loader to resolve relative module imports so docs parity checks remain stable with modularized runtime constants.
 - Added focused model-id coverage and reran full `test:phase11:fal-regression` gate with passing results.
+
+## 2026-03-01 (phase-11 kie canonical-id parity guard)
+- Hardened `scripts/check_model_catalog_parity.js` with canonical Kie ID drift enforcement:
+  - validates parity between `KIE_SUPPORTED_MODEL_IDS`, model catalog Kie provider entries, and Kie API doc mappings.
+- Added Phase 11 evidence/stage/tracker updates for the new canonical-id guardrails.

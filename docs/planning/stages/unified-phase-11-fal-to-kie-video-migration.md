@@ -163,6 +163,9 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/model-runtime/modelRegistry.ts`
   - `frontend/lib/server/providerIntegration/kieModelIds.ts`
   - Removes remaining cross-layer duplicated Kie model-id literals by promoting one canonical runtime source.
+- Added canonical Kie model-id parity guard in model-catalog governance checks:
+  - `scripts/check_model_catalog_parity.js`
+  - Enforces parity between `KIE_SUPPORTED_MODEL_IDS`, model catalog `provider="kie"` entries, and Kie API doc map coverage.
 - Added Kie status/result contract execution boundary for payload/policy decoupling:
   - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
   - `frontend/lib/server/providerIntegration/statusProviderPayload.ts`

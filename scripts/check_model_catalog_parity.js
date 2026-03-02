@@ -15,6 +15,12 @@ const MODEL_CATALOG_PATH = path.join(
   "model-runtime",
   "modelCatalog.ts",
 );
+const PROVIDER_MODEL_IDS_PATH = path.join(
+  FRONTEND_ROOT,
+  "lib",
+  "model-runtime",
+  "providerModelIds.ts",
+);
 const FAL_ROUTES_DIR = path.join(FRONTEND_ROOT, "pages", "api", "fal");
 const DOCS_API_DIR = path.join(REPO_ROOT, "docs", "api");
 const DOCS_API_INDEX = path.join(DOCS_API_DIR, "README.md");
@@ -171,9 +177,16 @@ function run() {
   }
 
   const modelCatalogModule = loadTsModule(MODEL_CATALOG_PATH);
+  const providerModelIdsModule = loadTsModule(PROVIDER_MODEL_IDS_PATH);
   const listModelCatalogEntries = modelCatalogModule.listModelCatalogEntries;
   if (typeof listModelCatalogEntries !== "function") {
     throw new Error("listModelCatalogEntries export missing from modelCatalog.ts");
+  }
+  const kieSupportedModelIds = Array.isArray(providerModelIdsModule.KIE_SUPPORTED_MODEL_IDS)
+    ? providerModelIdsModule.KIE_SUPPORTED_MODEL_IDS
+    : null;
+  if (!kieSupportedModelIds || !kieSupportedModelIds.length) {
+    throw new Error("KIE_SUPPORTED_MODEL_IDS export missing from providerModelIds.ts");
   }
 
   const entries = listModelCatalogEntries();
@@ -265,6 +278,36 @@ function run() {
   for (const modelId of falCatalogModelIds) {
     if (!falSubmitModelIds.has(modelId)) {
       errors.push(`Catalog Fal model missing submit route coverage: ${modelId}`);
+    }
+  }
+
+  const kieModelIdSet = new Set(kieSupportedModelIds.map((modelId) => String(modelId)));
+  const kieCatalogEntries = entries.filter((entry) => entry.provider === "kie");
+  const kieCatalogModelIds = new Set(kieCatalogEntries.map((entry) => String(entry.modelId || "")));
+
+  for (const modelId of kieModelIdSet) {
+    if (!seenIds.has(modelId)) {
+      errors.push(`Canonical Kie model id missing from model catalog: ${modelId}`);
+      continue;
+    }
+    if (!kieCatalogModelIds.has(modelId)) {
+      errors.push(`Canonical Kie model id is not marked provider='kie' in catalog: ${modelId}`);
+    }
+    if (!MODEL_DOC_MAP[modelId]) {
+      errors.push(`Canonical Kie model id missing MODEL_DOC_MAP entry: ${modelId}`);
+    }
+  }
+
+  for (const modelId of kieCatalogModelIds) {
+    if (!kieModelIdSet.has(modelId)) {
+      errors.push(`Catalog Kie model id missing from canonical KIE_SUPPORTED_MODEL_IDS: ${modelId}`);
+    }
+  }
+
+  for (const modelId of Object.keys(MODEL_DOC_MAP)) {
+    if (!modelId.startsWith("kie-ai/")) continue;
+    if (!kieModelIdSet.has(modelId)) {
+      errors.push(`Kie MODEL_DOC_MAP entry missing canonical KIE_SUPPORTED_MODEL_IDS mapping: ${modelId}`);
     }
   }
 

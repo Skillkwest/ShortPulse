@@ -211,6 +211,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 ### user_preferences
 - `user_id` (uuid, pk, references `auth.users(id)`): Profile owner.
 - `beginner_mode` (boolean, default `true`): AI Studio beginner mode toggle.
+- `media_autosave_enabled` (boolean, default `true`): AI Studio autosave policy toggle used by client autosave orchestration and server recovery enforcement.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now, maintained by trigger)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
@@ -277,6 +278,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `reason` (text): Human-readable reservation reason.
 - `metadata` (jsonb): Reservation context and settlement details.
   - Admission-aware rows include `admission_tier` for tier-scoped concurrency accounting.
+  - Release paths persist `release_finality` (`conditional` default, `waived` explicit) for downstream success-settlement recapture policy.
 - `created_at` / `updated_at` (timestamptz)
 - `captured_at` / `released_at` (timestamptz, nullable)
 - RLS: users can select only own reservations (`user_id = auth.uid()`); server-side functions handle writes.

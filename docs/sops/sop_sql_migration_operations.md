@@ -28,6 +28,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
 - `sql/check_character_sheet_alias_drift.sql`: character alias drift diagnostics (read-only).
 - `sql/check_runtime_sql_security_audit.sql`: runtime RPC security-definer + execute-grant audit (read-only).
+- `sql/check_generation_settlement_integrity.sql`: released-success settlement leakage diagnostics (read-only).
 
 ### 2) Ordered migrations (`sql/migrations/`)
 Use these for durable schema evolution across environments.
@@ -73,6 +74,9 @@ Current set:
 - `038_harden_queue_claim_active_dispatching_guard.sql`
 - `039_admin_error_status_atomic_update.sql`
 - `040_harden_runtime_rpc_execute_grants.sql`
+- `041_harden_released_reservation_recapture_semantics.sql`
+- `042_harden_queue_recovery_rpc_execute_grants.sql`
+- `043_add_user_preferences_media_autosave_enabled.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

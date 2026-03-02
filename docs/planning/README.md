@@ -7,10 +7,11 @@ Purpose: active planning artifacts and current execution backlogs.
 - `overlap-audit.md`: conflict/risk register with severity and resolution mapping across plan sources.
 - `feasibility-report.md`: rollout critical path, blockers, and dependency gating analysis.
 - `master-rollout-proposal.md`: canonical staged rollout contract (`STG-00` through `STG-08`).
-- `shortpulse-unified-buildout-master-plan.md`: unified multi-track execution plan (`Phase 00` through `Phase 12`) covering security, runtime hardening, modularization, billing/admin, and provider migration.
+- `shortpulse-unified-buildout-master-plan.md`: unified multi-track execution plan (`Phase 00` through `Phase 13`) covering security, runtime hardening, modularization, billing/admin, provider migration, and cross-plan consolidation.
 - `shortpulse-unified-buildout-tracker.md`: authoritative status tracker for unified phase progression and exit gates.
 - `shortpulse-unified-overlap-matrix.md`: cross-plan overlap register and anti-duplication resolution map.
 - `shortpulse-unified-decision-log.md`: locked execution decisions and sequencing constraints.
+- `migration-number-reservation-map.md`: centralized migration-number reservation and collision-prevention map for concurrent plan streams.
 - `implementation-tracker.md`: stage-by-stage status, ownership, and compliance evidence tracking.
 - `ci-policy-checks.md`: CI job inventory, governance checks, and branch-protection mapping.
 - `final-validation-summary.md`: closeout validation matrix and signoff checklist.
@@ -50,8 +51,10 @@ Purpose: active planning artifacts and current execution backlogs.
 - `expert-workflow-hardening-css-reorg-plan.md`: execution tracker for expert workflow hardening and expert CSS reorganization.
 - `tooling-audit-2026-02-16.md`: comprehensive tooling and framework audit with prioritized recommendations for masonry layout, image optimization, DnD, toasts, lightbox, date formatting, state management, and schema validation.
 - `stages/stage-00-governance-contract-lock.md` through `stages/stage-08-final-validation-signoff.md`: decision-complete stage execution docs.
-- `stages/unified-phase-00-baseline-stabilization-and-incident-hygiene.md` through `stages/unified-phase-12-cleanup-and-decommission.md`: decision-complete execution docs for the unified build-out program.
+- `stages/unified-phase-00-baseline-stabilization-and-incident-hygiene.md` through `stages/unified-phase-13-cross-plan-master-rollout.md`: decision-complete execution docs for the unified build-out program.
 - `evidence/unified-buildout/README.md`: canonical evidence index for unified phase validation and targeted research notes.
+- `evidence/unified-buildout/phase-13/README.md`: phase-13 evidence index for wave-by-wave validation and rollback records.
+- `evidence/unified-buildout/phase-13/research-checkpoints.md`: required targeted research checkpoints before externally coupled implementation slices.
 - `archive/original-plans/manifest.json`: machine-checkable inventory for verbatim source-plan preservation.
 - `archive/original-plans/shortpulse-governance-realignment-master-rollout-plan-2026-02-20.md`: verbatim archived source copy of the master rollout plan text.
 - `archive/original-plans/plan-01-foundational-cleanup.md`: verbatim source-plan archive copy.

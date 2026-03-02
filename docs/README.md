@@ -107,6 +107,7 @@ Start here for all repository documentation.
 - `docs/planning/shortpulse-unified-buildout-tracker.md`
 - `docs/planning/shortpulse-unified-overlap-matrix.md`
 - `docs/planning/shortpulse-unified-decision-log.md`
+- `docs/planning/migration-number-reservation-map.md`
 - `docs/planning/_inventory.md`
 - `docs/planning/overlap-audit.md`
 - `docs/planning/feasibility-report.md`
@@ -148,9 +149,12 @@ Start here for all repository documentation.
 - `docs/planning/media-optimization-phase0-measurement-spec.md`
 - `docs/planning/media-optimization-schema-and-migration-spec.md`
 - `docs/planning/tooling-audit-2026-02-16.md`
+- `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
 - `docs/planning/evidence/reference-grid-modularization/README.md`
 - `docs/planning/evidence/reference-grid-modularization/phase-report-template.md`
 - `docs/planning/evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`
+- `docs/planning/evidence/unified-buildout/phase-13/README.md`
+- `docs/planning/evidence/unified-buildout/phase-13/research-checkpoints.md`
 - `docs/change_log.md`
 
 ## ADRs

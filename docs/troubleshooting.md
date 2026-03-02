@@ -209,6 +209,28 @@ Checklist:
 - RLS is enabled and policies enforce `user_id = auth.uid()` on those tables.
 - The client is using the anon key only (no service-role key in the browser).
 
+## AI Studio autosave ON/OFF behavior looks wrong
+Checklist:
+- Ensure migration `sql/migrations/043_add_user_preferences_media_autosave_enabled.sql` is applied.
+- Verify current user preference:
+  ```sql
+  select user_id, media_autosave_enabled, updated_at
+  from user_preferences
+  where user_id = auth.uid();
+  ```
+- Expected behavior:
+  - `media_autosave_enabled = true`: eligible generated/uploaded/pasted media can auto-persist.
+  - `media_autosave_enabled = false`: recovery path settles generation success but skips background `media_files` insert; manual save remains available.
+- Verify recovery decision events:
+  ```sql
+  select event_type, entity_id, metadata, created_at
+  from media_events
+  where event_type = 'generation_autosave_decision'
+  order by created_at desc
+  limit 50;
+  ```
+- If autosave OFF still persists in recovery, confirm server runtime is on latest recovery executor code (`frontend/lib/server/falIntegration/recoveryExecution.ts`) and no stale deployment is serving older behavior.
+
 ## Admin credit adjustments fail with missing ledger columns
 Symptoms:
 - Errors like `Could not find the 'created_by' column of 'ai_credit_ledger' in the schema cache`.

@@ -1826,3 +1826,115 @@ Append new entries at the end of this file; each entry should include date (UTC)
 ## 2026-03-01 (Phase 11 engineering freeze and complete-state mark)
 - Marked Phase 11 as engineering-complete and frozen for additional anti-drift coding unless a concrete defect appears.
 - Updated stage/tracker/evidence docs to reflect decision-window-pending state and explicit freeze policy.
+
+## 2026-03-02 (Phase 13 governance lock + adaptive gate stabilization kickoff)
+- Added cross-plan governance artifacts for unified execution:
+  - `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
+  - `docs/planning/migration-number-reservation-map.md`
+  - `docs/planning/evidence/unified-buildout/phase-13/README.md`
+  - `docs/planning/evidence/unified-buildout/phase-13/research-checkpoints.md`
+- Updated canonical unified planning docs (master plan, tracker, overlap matrix, decision log) to include Phase 13 cross-plan locks, migration reservation policy, and anti-duplication constraints.
+- Updated docs indexes (`docs/README.md`, `docs/planning/README.md`) to include the new Phase 13 docs and evidence paths.
+- Started Wave B adaptive stabilization by aligning failing `ReferenceGrid.curated` fixtures to trusted Supabase-style URLs in:
+  - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`.
+- Implemented Wave C Pass 1 settlement-hardening foundation:
+  - Added migration `sql/migrations/041_harden_released_reservation_recapture_semantics.sql` to persist `release_finality` metadata and allow success-path recapture from released-conditional reservations.
+  - Added `frontend/lib/server/api/generationBilling/settlementPolicy.ts` and wired `settlementService.ts` through policy evaluation for capture-result handling.
+  - Added settlement integrity diagnostics script: `sql/check_generation_settlement_integrity.sql`.
+  - Added unit coverage: `frontend/lib/server/api/__tests__/generationBilling.settlementPolicy.test.ts`.
+- Updated migration/security docs for new migration and check script:
+  - `docs/database-migrations.md`
+  - `docs/sops/sop_sql_migration_operations.md`
+  - `docs/data-dictionary.md`.
+
+## 2026-03-02 (Phase 13 Wave C Pass 2/3 runtime hardening + SQL audit parity)
+- Added runtime hardening flags to Fal runtime config:
+  - `recovery_probe_timeout_ms` (`SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS`, default `15000`)
+  - `running_exhaust_min_age_seconds` (`SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS`, default `7200`)
+- Added timeout-aware probe transport wrapper:
+  - `frontend/lib/server/falIntegration/recoveryFetchWithTimeout.ts`
+  - wired into `recoveryProviderProbe.ts` so timeout/abort transport failures degrade to retry-safe running outcomes instead of bubbling route-level exceptions.
+- Hardened running exhaustion policy in recovery execution:
+  - running-state exhaustion now requires attempts + min-age threshold,
+  - deferred-exhaustion path preserves retry eligibility when attempt budget is reached before age floor.
+- Added migration `sql/migrations/042_harden_queue_recovery_rpc_execute_grants.sql` to enforce service-role-only execute grants for:
+  - `enqueue_generation_submit(...)`
+  - `claim_generation_submit_queue_batch(...)`
+  - `claim_generation_recovery_batch(...)`
+- Expanded SQL runtime security audit expected-function coverage for queue/recovery enqueue/claim RPCs:
+  - `sql/check_runtime_sql_security_audit.sql`.
+- Tightened Phase 11 metrics packet queue-dispatch telemetry:
+  - replaced wildcard source match with explicit error-source counters (`claim_failed`, `retry`, `exhausted`) in `sql/check_phase11_shadow_canary_metrics.sql`.
+- Added/updated focused runtime tests:
+  - `frontend/lib/server/falIntegration/__tests__/recoveryFetchWithTimeout.test.ts`
+  - `frontend/lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts`
+  - `frontend/lib/server/falIntegration/__tests__/recoveryExecution.test.ts`
+  - `frontend/lib/server/falIntegration/__tests__/recoveryLifecycleTransitions.test.ts`
+  - `frontend/lib/server/api/__tests__/falRuntimeFlags.test.ts`
+- Recorded Wave C Pass 2/3 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-c-pass-2-3-runtime-hardening-and-audit-parity.md`.
+
+## 2026-03-02 (Phase 13 Wave C Pass 4 controlled webhook canary controls)
+- Added controlled webhook canary cohort gating in Fal runtime flags and submit-targeting:
+  - `SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST`
+  - `SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST`
+- Webhook callback URL registration now checks canary eligibility per `(userId, modelId)` in:
+  - `frontend/lib/server/api/falSubmitTargeting.ts`
+  - `frontend/lib/server/api/falSubmitProxy.ts`
+  - `frontend/lib/server/api/generationQueue/dispatch.ts`
+- Preserved route topology and safety path behavior:
+  - no new webhook routes,
+  - `/api/fal/webhook` remains canonical ingress,
+  - polling/reconciler fallback remains active for non-canary traffic.
+- Added targeting and runtime-flag coverage:
+  - `frontend/lib/server/api/__tests__/falSubmitTargeting.test.ts`
+  - updates to `falRuntimeFlags` and webhook-signature fixture typing.
+- Updated incident SOP with canary-env and rollout guidance:
+  - `docs/sops/sop_provider_incident_response.md`.
+- Recorded Wave C Pass 4 control-evidence note:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-c-pass-4-webhook-canary-controls.md`.
+
+## 2026-03-02 (Phase 13 Wave D autosave policy foundation)
+- Added shared autosave policy module for client/server decision parity:
+  - `frontend/lib/mediaAutosavePolicy.ts`
+  - `frontend/lib/__tests__/mediaAutosavePolicy.test.ts`
+- Added AI Studio autosave preference + orchestration hooks and integrated page/state wiring:
+  - `frontend/features/ai-studio/hooks/useMediaAutosavePreference.ts`
+  - `frontend/features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator.ts`
+  - `frontend/pages/ai-studio.tsx`
+  - `frontend/features/ai-studio/hooks/useAiStudioState.ts`
+- Hardened recovery execution to enforce autosave preference at completion-time:
+  - autosave OFF skips background persistence but still settles generation success,
+  - metadata + media decision events include autosave decision fields.
+- Added recovery autosave enforcement tests:
+  - `frontend/lib/server/falIntegration/__tests__/recoveryExecution.test.ts`
+- Added duplicate-save idempotency handling for AI Studio manual save path and tests:
+  - `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts`
+  - `frontend/features/ai-studio/logic/__tests__/mediaLibraryPersistence.test.ts`
+- Added generated-video manual save action parity in reference cards and updated curated tests.
+- Added migration `043_add_user_preferences_media_autosave_enabled.sql` (+ rollback pair) and updated bootstrap parity in `sql/create_user_preferences_table.sql`.
+- Updated migration/governance docs and Wave D evidence:
+  - `docs/database-migrations.md`
+  - `docs/sops/sop_sql_migration_operations.md`
+  - `docs/data-dictionary.md`
+  - `docs/security-checklist.md`
+  - `docs/planning/migration-number-reservation-map.md`
+  - `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
+  - `docs/planning/shortpulse-unified-buildout-tracker.md`
+  - `docs/planning/shortpulse-unified-decision-log.md`
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-d-autosave-policy-foundation.md`
+
+## 2026-03-02 (Phase 13 Wave E Pass 1 agent message identity foundation)
+- Added stable hook-generated message identity in `useAiAgent`:
+  - user messages now receive `agent-user-*` IDs,
+  - assistant messages now receive `agent-assistant-*` IDs.
+- Added targeted message-update seam in agent state layer:
+  - `updateMessageById(messageId, updater)` from `useAiAgent`.
+- Updated message-store helper contracts and tests:
+  - `appendAssistantMessage` now takes `{ id, content }`.
+  - `updateUiMessageById` added with no-op behavior when message ID is not found.
+- Added focused regression coverage:
+  - `frontend/features/ai-agent/client/__tests__/messageStore.test.ts`
+  - `frontend/features/ai-agent/__tests__/useAiAgent.test.ts`
+- Recorded Wave E Pass 1 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-1-agent-message-identity-foundation.md`.

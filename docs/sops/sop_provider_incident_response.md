@@ -16,7 +16,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 - Supabase SQL access for read diagnostics.
 - Access to deployment logs for API routes.
 - Current env verification: `FAL_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SHORTPULSE_OPENAI_RESPONSES_ENABLED`, `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED`.
-- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual/fallback), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`, `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`, `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`.
+- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST`, `SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST`, `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual/fallback), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`, `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`, `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`.
 
 ## Triage workflow (first 15 minutes)
 1. Confirm incident scope in `/admin`:
@@ -115,6 +115,10 @@ Fal reliability rollout controls (when enabled):
    - Validate cleanup metrics in response: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
 4. For exhausted/edge cases, use admin replay (`/api/admin/generation-recovery/replay`).
 5. If webhook ingestion is unhealthy, keep polling fallback active and verify `/api/fal/webhook` signature errors before disabling webhook mode.
+6. For controlled webhook canary:
+   - keep `SHORTPULSE_FAL_WEBHOOK_ENABLED=true`,
+   - scope callback registration with `SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST` and/or `SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST`,
+   - keep allowlists empty for full cohort only after canary windows are green.
 
 ### Queue backlog triage and guarded cleanup
 When queue dispatch is healthy but users still hit repeated `429` due stale provider-attached holds:

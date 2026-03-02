@@ -1,6 +1,6 @@
 # ShortPulse Unified Overlap Matrix
 
-Last updated: 2026-02-27
+Last updated: 2026-03-02
 
 ## Purpose
 Map overlapping plan tracks to one execution surface so work is not duplicated.
@@ -16,6 +16,10 @@ Map overlapping plan tracks to one execution surface so work is not duplicated.
 | Character hardening plans | DnD trust + cross-surface sync | Preserve local/internal flows, block arbitrary external payloads | 06 |
 | CI/reliability plans | Guardrail drift + enforcement policy | Fix stale references then enforce with exact required checks | 01 |
 | Fal->Kie migration plans | Provider abstraction and rollout | Start only after prior hardening phases are green | 11 |
+| Runtime + autosave plans | `recoveryExecution.ts` policy enforcement | One shared policy seam for timeout/exhaustion/autosave decisions | 13 |
+| UX + autosave plans | `ReferenceGridCard.tsx` card actions | Single consolidated card-action contract rollout | 13 |
+| Prompt-adjacency + session plans | Assistant message identity and linkage | Message-ID foundation lands before thumbnail/session restore features | 13 |
+| Multi-stream SQL plans | Migration numbering (`041`-`046`) | Central reservation map required before migration PRs | 13 |
 
 ## Active Hotspots
 1. `frontend/lib/server/api/auth.ts`
@@ -26,10 +30,14 @@ Map overlapping plan tracks to one execution surface so work is not duplicated.
 6. `frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts`
 7. `frontend/features/ai-studio/hooks/useAiStudioTasks.ts`
 8. `frontend/pages/api/billing/stripe/webhook.ts`
+9. `frontend/lib/server/falIntegration/recoveryExecution.ts`
+10. `frontend/features/ai-studio/reference-grid/components/ReferenceGridCard.tsx`
+11. `frontend/features/ai-agent/useAiAgent.ts`
 
 ## Duplication Ban List
 1. Do not create parallel auth verification paths.
 2. Do not add second queue/recovery lifecycle implementation.
 3. Do not duplicate pricing/model contract logic in both `features` and `lib/model-runtime`.
 4. Do not keep temporary compatibility aliases past Phase 12.
-
+5. Do not create parallel unified trackers or overlap matrices.
+6. Do not assign migration numbers without reservation-map entry.

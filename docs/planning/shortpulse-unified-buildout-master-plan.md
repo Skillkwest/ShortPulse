@@ -1,6 +1,6 @@
 # ShortPulse Unified Build-Out Master Plan
 
-Last updated: 2026-03-01  
+Last updated: 2026-03-02  
 Authority: Working  
 Owner: Engineering
 
@@ -53,6 +53,7 @@ Program outcomes:
 | 10 | Security Residual Controls | Completed | P1 |
 | 11 | Fal Video -> Kie Video Migration | In Progress | P2 |
 | 12 | Cleanup + Decommission | In Progress (Prep) | P2 |
+| 13 | Cross-Plan Master Rollout | In Progress | P0 |
 
 ## Phase Details
 Detailed execution checklists live in:
@@ -69,6 +70,7 @@ Detailed execution checklists live in:
 11. `docs/planning/stages/unified-phase-10-security-residual-controls.md`
 12. `docs/planning/stages/unified-phase-11-fal-to-kie-video-migration.md`
 13. `docs/planning/stages/unified-phase-12-cleanup-and-decommission.md`
+14. `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
 
 ### Phase 00: Baseline Stabilization and Incident Hygiene
 Scope:
@@ -219,6 +221,21 @@ Deliverables:
 Exit gate:
 1. No stale compatibility paths remain.
 2. Two consecutive green release cycles post-cleanup.
+
+### Phase 13: Cross-Plan Master Rollout
+Scope:
+1. Consolidate incoming multi-domain plans into one no-overlap execution stream.
+2. Lock migration number reservations (`041`-`046`) and sequencing before coding.
+3. Enforce high-value-only scope filters and explicit wave gates (A-H).
+4. Require targeted research checkpoints before externally coupled slices.
+Deliverables:
+1. Phase 13 stage doc and evidence index.
+2. Migration reservation map and tracker/decision-log updates.
+3. Wave-by-wave evidence notes with rollback and validation records.
+Exit gate:
+1. Wave A-H evidence complete with all hard gates passing.
+2. No duplicate implementation tracks and no migration-number collisions.
+3. Required docs/SOP/API/schema references updated at pass gates.
 
 ## Important Public API and Interface Changes
 1. Existing `/api/fal/*` and `/api/ai/*` contracts remain stable until Phase 11 cutover.

@@ -113,6 +113,10 @@ Completed:
    - updated write-shadow hook to forward `keepalive` intent on lifecycle-triggered flushes,
    - wired page write-shadow persistence through transport seam without changing restore behavior,
    - added focused client transport and hook regression tests.
+16. Wave E Pass 8 runtime SQL security gate execution:
+   - executed `sql/check_runtime_sql_security_audit.sql` post-rollout remediation,
+   - confirmed audit summary `total_checks=102`, `passing_checks=102`, `failing_checks=0`,
+   - recorded operational execution evidence in phase-13 packet.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.

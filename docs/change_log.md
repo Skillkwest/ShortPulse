@@ -2104,3 +2104,12 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/troubleshooting.md`.
 - Recorded Wave E Pass 9 evidence:
   - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-9-session-remote-shadow-write-through.md`.
+
+## 2026-03-02 (Phase 13 Wave E Pass 8 runtime SQL security audit execution)
+- Executed runtime SQL security audit after queue/recovery grant remediation and session SQL/API rollout.
+- Confirmed summary counters:
+  - `total_checks = 102`
+  - `passing_checks = 102`
+  - `failing_checks = 0`.
+- Recorded execution evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-8-runtime-sql-audit-green.md`.

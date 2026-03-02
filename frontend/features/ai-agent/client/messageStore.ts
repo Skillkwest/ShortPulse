@@ -18,8 +18,29 @@ export const appendUiMessage = (messages: AgentMessage[], message: AgentMessage)
  */
 export const appendAssistantMessage = (
   messages: AgentMessage[],
-  content: string
-): AgentMessage[] => [...messages.slice(-(MAX_UI_MESSAGES - 1)), { role: "assistant", content }];
+  message: { id: string; content: string }
+): AgentMessage[] => [
+  ...messages.slice(-(MAX_UI_MESSAGES - 1)),
+  { id: message.id, role: "assistant", content: message.content },
+];
+
+/**
+ * Update one message in the UI history by id.
+ * Returns the original array when no matching message is found.
+ */
+export const updateUiMessageById = (
+  messages: AgentMessage[],
+  messageId: string,
+  updater: (message: AgentMessage) => AgentMessage
+): AgentMessage[] => {
+  let didUpdate = false;
+  const next = messages.map((message) => {
+    if (message.id !== messageId) return message;
+    didUpdate = true;
+    return updater(message);
+  });
+  return didUpdate ? next : messages;
+};
 
 /**
  * Build API message history for the next turn from current local history.

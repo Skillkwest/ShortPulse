@@ -18,6 +18,7 @@ import {
   appendAssistantMessage,
   appendUiMessage,
   buildApiMessagesForTurn,
+  updateUiMessageById,
 } from "./client/messageStore";
 import { ensureSessionKey, persistSessionKey, randomId } from "./client/sessionController";
 import { sendStudioAgentTurn } from "./client/studioAgentTransport";
@@ -46,6 +47,7 @@ type SendResult = {
 // Stable default to prevent Fast Refresh issues
 const EMPTY_MESSAGES: AgentMessage[] = [];
 const SAFETY_REFUSAL_MESSAGE = "I cannot describe this.";
+const createAgentMessageId = (role: "user" | "assistant") => `agent-${role}-${randomId()}`;
 
 const resolveSafetyRefusalText = (value: unknown): typeof SAFETY_REFUSAL_MESSAGE | null => {
   const raw = normalizeErrorText(value, { fallback: "", maxLength: 120 });
@@ -80,7 +82,7 @@ export const useAiAgent = ({
   const appendUserMessage = useCallback((text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return null;
-    const userMessageId = `agent-user-${randomId()}`;
+    const userMessageId = createAgentMessageId("user");
     const uiUserMessage: AgentMessage = {
       id: userMessageId,
       role: "user",
@@ -116,7 +118,11 @@ export const useAiAgent = ({
       const previousMessages = messagesRef.current;
       if (!skipUserEcho && !allowContextOnlyTurn) {
         // UI-visible history (keep the user's raw text)
-        const uiUserMessage: AgentMessage = { role: "user", content: trimmed };
+        const uiUserMessage: AgentMessage = {
+          id: createAgentMessageId("user"),
+          role: "user",
+          content: trimmed,
+        };
         const nextUiMessages = appendUiMessage(previousMessages, uiUserMessage);
         setMessages(nextUiMessages);
         messagesRef.current = nextUiMessages;
@@ -156,7 +162,10 @@ export const useAiAgent = ({
             transportResult.parsedError ?? transportResult.detail
           );
           if (refusalText) {
-            const nextAssistantMessages = appendAssistantMessage(messagesRef.current, refusalText);
+            const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
+              id: createAgentMessageId("assistant"),
+              content: refusalText,
+            });
             setMessages(nextAssistantMessages);
             messagesRef.current = nextAssistantMessages;
             return {
@@ -193,10 +202,10 @@ export const useAiAgent = ({
         const assistantContent = applyPromptText || messageText;
 
         if (assistantContent) {
-          const nextAssistantMessages = appendAssistantMessage(
-            messagesRef.current,
-            assistantContent
-          );
+          const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
+            id: createAgentMessageId("assistant"),
+            content: assistantContent,
+          });
           setMessages(nextAssistantMessages);
           messagesRef.current = nextAssistantMessages;
         }
@@ -234,5 +243,16 @@ export const useAiAgent = ({
     setError(null);
   }, [sessionNamespace]);
 
-  return { ...state, send, reset, appendUserMessage };
+  const updateMessageById = useCallback(
+    (messageId: string, updater: (message: AgentMessage) => AgentMessage) => {
+      const nextMessages = updateUiMessageById(messagesRef.current, messageId, updater);
+      if (nextMessages === messagesRef.current) return false;
+      setMessages(nextMessages);
+      messagesRef.current = nextMessages;
+      return true;
+    },
+    []
+  );
+
+  return { ...state, send, reset, appendUserMessage, updateMessageById };
 };

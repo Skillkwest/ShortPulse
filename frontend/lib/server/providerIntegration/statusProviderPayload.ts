@@ -10,6 +10,7 @@ import {
   hasMediaPayload,
 } from "../falIntegration/falAdapter";
 import { asProviderRecord, readCanonicalProviderStatus } from "./canonicalProviderPayload";
+import { normalizeKieEnvelopePayload } from "./kieEnvelopeNormalizer";
 import { extractKieResultMediaUrls } from "./kieResultMediaContracts";
 import {
   kiePayloadHasMedia,
@@ -36,8 +37,9 @@ export const readProviderLifecycleStatus = ({
     return readCanonicalProviderStatus(payload);
   }
   if (isKieProviderKey(provider)) {
-    if (validateKieStatusPayloadForModel({ modelId, payload })) return null;
-    return readKieLifecycleStatus(payload);
+    const normalizedPayload = normalizeKieEnvelopePayload(payload);
+    if (validateKieStatusPayloadForModel({ modelId, payload: normalizedPayload })) return null;
+    return readKieLifecycleStatus(normalizedPayload);
   }
   throw new Error(`Unsupported provider for payload status parsing: ${provider}`);
 };
@@ -58,8 +60,9 @@ export const readProviderResponseUrl = ({
     return extractResponseUrl(asProviderRecord(payload));
   }
   if (isKieProviderKey(provider)) {
-    if (validateKieStatusPayloadForModel({ modelId, payload })) return null;
-    return readKieResponseUrl(payload);
+    const normalizedPayload = normalizeKieEnvelopePayload(payload);
+    if (validateKieStatusPayloadForModel({ modelId, payload: normalizedPayload })) return null;
+    return readKieResponseUrl(normalizedPayload);
   }
   throw new Error(`Unsupported provider for response URL parsing: ${provider}`);
 };
@@ -80,7 +83,7 @@ export const providerPayloadHasMedia = ({
     return hasMediaPayload(asProviderRecord(payload));
   }
   if (isKieProviderKey(provider)) {
-    return kiePayloadHasMedia({ modelId, payload });
+    return kiePayloadHasMedia({ modelId, payload: normalizeKieEnvelopePayload(payload) });
   }
   throw new Error(`Unsupported provider for media payload parsing: ${provider}`);
 };
@@ -101,8 +104,9 @@ export const readProviderMediaUrls = ({
     return extractMediaPayloadUrls(asProviderRecord(payload));
   }
   if (isKieProviderKey(provider)) {
-    if (validateKieStatusPayloadForModel({ modelId, payload })) return [];
-    return extractKieResultMediaUrls({ modelId, payload });
+    const normalizedPayload = normalizeKieEnvelopePayload(payload);
+    if (validateKieStatusPayloadForModel({ modelId, payload: normalizedPayload })) return [];
+    return extractKieResultMediaUrls({ modelId, payload: normalizedPayload });
   }
   throw new Error(`Unsupported provider for media URL parsing: ${provider}`);
 };
@@ -121,7 +125,7 @@ export const readProviderContentPolicyMessage = ({
     return findContentPolicyMessage(asProviderRecord(payload));
   }
   if (isKieProviderKey(provider)) {
-    return readKieContentPolicyMessage(payload);
+    return readKieContentPolicyMessage(normalizeKieEnvelopePayload(payload));
   }
   throw new Error(`Unsupported provider for content-policy parsing: ${provider}`);
 };

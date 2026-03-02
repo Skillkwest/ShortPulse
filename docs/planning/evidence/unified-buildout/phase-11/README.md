@@ -36,6 +36,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 31. `2026-03-01-phase-11-slice-b-kie-status-url-template-dispatch.md` - adds `{requestId}` query-template support for Kie status/detail polling URLs while preserving Fal dispatch behavior and trusted-host fail-closed checks.
 32. `2026-03-01-phase-11-slice-b-kie-model-catalog-topology-defaults.md` - moves Kie submit/status topology defaults into model-catalog contracts (env remains override), with parity checks and mixed-provider regression coverage.
 33. `2026-03-01-phase-11-slice-b-kie-record-info-envelope-regression-lock.md` - extends Kie status/result parsing coverage for nested record-info envelope shapes and locks fixture-backed behavior for lifecycle, response URL, retry-code, and media URL extraction.
+34. `2026-03-01-phase-11-slice-b-kie-envelope-normalizer-canonicalization.md` - adds a shared Kie envelope normalizer so status/recovery parsing consumes canonical lifecycle/response/result shape before validation and policy decisions.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

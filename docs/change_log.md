@@ -1804,3 +1804,8 @@ Append new entries at the end of this file; each entry should include date (UTC)
 - Expanded Kie status/result contract parsing to include nested envelope candidates (`data.result`, `result.data`, `response.result`, etc.) for lifecycle and retry classification.
 - Expanded Kie media extraction to support nested record-info result envelopes and parsed-object `resultJson` payloads in addition to JSON-string `resultJson`.
 - Added primary-source-style Veo/Kling record-info fixtures and regression tests to lock lifecycle, response URL, retry-code, and media extraction behavior.
+
+## 2026-03-01 (Phase 11 Kie envelope canonicalization)
+- Added a shared Kie envelope normalizer to canonicalize nested `record-info` payloads before lifecycle/media/content-policy decisions.
+- Updated provider payload parsing to normalize Kie envelopes first, then validate/parse, preventing false fail-closed outcomes when malformed top-level aliases coexist with valid nested values.
+- Added targeted tests for malformed-top-level + valid-nested envelope cases and re-ran full Phase 11 Fal regression + docs parity checks.

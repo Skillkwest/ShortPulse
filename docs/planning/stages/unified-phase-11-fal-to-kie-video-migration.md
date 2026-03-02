@@ -234,6 +234,12 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/__tests__/kieStatusContracts.test.ts`
   - `frontend/lib/server/providerIntegration/__tests__/kieResultMediaContracts.test.ts`
   - Extends fixture-backed coverage to nested `data.result`/`result.data` envelope fields and parsed-object `resultJson` shapes for lifecycle, response URL, retry classification, and media extraction.
+- Added shared Kie envelope canonicalization before provider payload decisions:
+  - `frontend/lib/server/providerIntegration/kieEnvelopeNormalizer.ts`
+  - `frontend/lib/server/providerIntegration/statusProviderPayload.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/kieEnvelopeNormalizer.test.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/statusProviderPayload.test.ts`
+  - Normalizes/sanitizes malformed top-level `status`/`response_url` fields using nested envelope values so status/recovery pipelines consume one canonical payload shape before validation/policy/media checks.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

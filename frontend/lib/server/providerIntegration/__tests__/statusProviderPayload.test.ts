@@ -98,6 +98,51 @@ describe("statusProviderPayload", () => {
     ).toBe("Blocked by moderation.");
   });
 
+  it("normalizes nested kie record-info envelopes before lifecycle/media decisions", () => {
+    const payload = {
+      status: { malformed: true },
+      response_url: { malformed: true },
+      data: {
+        result: {
+          status: "success",
+          responseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=task_123",
+          resultJson: {
+            resultUrls: ["https://cdn.shortpulse.test/kie-envelope.mp4"],
+          },
+        },
+      },
+    };
+
+    expect(
+      readProviderLifecycleStatus({
+        provider: "kie",
+        modelId: "kie-ai/kling-3.0",
+        payload,
+      })
+    ).toBe("completed");
+    expect(
+      readProviderResponseUrl({
+        provider: "kie",
+        modelId: "kie-ai/kling-3.0",
+        payload,
+      })
+    ).toBe("https://api.kie.ai/api/v1/jobs/recordInfo?taskId=task_123");
+    expect(
+      providerPayloadHasMedia({
+        provider: "kie",
+        modelId: "kie-ai/kling-3.0",
+        payload,
+      })
+    ).toBe(true);
+    expect(
+      readProviderMediaUrls({
+        provider: "kie",
+        modelId: "kie-ai/kling-3.0",
+        payload,
+      })
+    ).toEqual(["https://cdn.shortpulse.test/kie-envelope.mp4"]);
+  });
+
   it("fails closed for malformed or unsupported kie status/result payloads", () => {
     expect(
       readProviderLifecycleStatus({

@@ -172,6 +172,9 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
 - Extended runtime model-surface parity governance for all providers:
   - `scripts/check_model_catalog_parity.js`
   - Enforces full catalog↔registry model presence parity and provider classification parity across runtime model surfaces.
+- Extended provider source-provenance governance for model catalog entries:
+  - `scripts/check_model_catalog_parity.js`
+  - Enforces provider-aligned `sourceUrl` host allowlist parity (`fal.ai`, `docs.kie.ai`/`kie.ai`, `platform.openai.com`/`openai.com`) to catch contract provenance drift before enablement.
 - Added Kie status/result contract execution boundary for payload/policy decoupling:
   - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
   - `frontend/lib/server/providerIntegration/statusProviderPayload.ts`

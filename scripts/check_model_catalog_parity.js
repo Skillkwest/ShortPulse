@@ -36,6 +36,11 @@ const STALE_MODE_RAW = String(process.env.SHORTPULSE_MODEL_CATALOG_STALE_MODE ||
   .trim()
   .toLowerCase();
 const STALE_MODE = STALE_MODE_RAW === "enforce" ? "enforce" : "warn";
+const PROVIDER_SOURCE_HOST_ALLOWLIST = {
+  fal: ["fal.ai"],
+  kie: ["docs.kie.ai", "kie.ai"],
+  openai: ["platform.openai.com", "openai.com"],
+};
 
 const MODEL_DOC_MAP = {
   "fal-ai/flux-2/klein/9b": "api-fal-flux-2-klein-9b.md",
@@ -132,6 +137,22 @@ function loadTsModule(filePath) {
 function daysBetween(startIso, endIso) {
   const ms = endIso.getTime() - startIso.getTime();
   return Math.floor(ms / (1000 * 60 * 60 * 24));
+}
+
+function parseSourceHost(sourceUrl) {
+  try {
+    const parsed = new URL(sourceUrl);
+    return String(parsed.hostname || "").toLowerCase().trim();
+  } catch {
+    return null;
+  }
+}
+
+function hostMatchesAllowlist(hostname, allowedHosts) {
+  return allowedHosts.some((allowedHost) => {
+    const normalizedHost = String(allowedHost || "").toLowerCase().trim();
+    return hostname === normalizedHost || hostname.endsWith(`.${normalizedHost}`);
+  });
 }
 
 function listFalSubmitRouteModelIds() {
@@ -236,6 +257,20 @@ function run() {
     const sourceUrl = String(entry.sourceUrl || "").trim();
     if (!/^https?:\/\//i.test(sourceUrl)) {
       errors.push(`Catalog sourceUrl missing/invalid for ${modelId}`);
+    } else {
+      const sourceHost = parseSourceHost(sourceUrl);
+      if (!sourceHost) {
+        errors.push(`Catalog sourceUrl hostname is invalid for ${modelId}: ${sourceUrl}`);
+      } else {
+        const allowedHosts = PROVIDER_SOURCE_HOST_ALLOWLIST[entry.provider];
+        if (Array.isArray(allowedHosts) && allowedHosts.length > 0) {
+          if (!hostMatchesAllowlist(sourceHost, allowedHosts)) {
+            errors.push(
+              `Catalog sourceUrl host mismatch for ${modelId}: provider='${entry.provider}' host='${sourceHost}' allowed='${allowedHosts.join(", ")}'`,
+            );
+          }
+        }
+      }
     }
 
     const verifiedAt = String(entry.verifiedAt || "").trim();

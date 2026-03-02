@@ -1734,3 +1734,11 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - runtime registry model presence in catalog,
   - provider classification parity by model id.
 - Added Phase 11 evidence/stage/tracker updates to record all-provider runtime model-surface drift enforcement.
+
+## 2026-03-01 (phase-11 provider source provenance parity guard)
+- Extended `scripts/check_model_catalog_parity.js` to enforce provider-aligned source-url provenance checks by host allowlist:
+  - `fal` -> `fal.ai`,
+  - `kie` -> `docs.kie.ai` / `kie.ai`,
+  - `openai` -> `platform.openai.com` / `openai.com`.
+- Added URL host parsing + allowlist checks to fail fast on source provenance drift in the canonical model catalog.
+- Added Phase 11 evidence/stage/tracker updates for this anti-drift governance slice.

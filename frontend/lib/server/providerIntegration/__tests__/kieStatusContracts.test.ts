@@ -15,6 +15,10 @@ import {
   resolveKieSuccessfulPayloadStatus,
   validateKieStatusPayloadForModel,
 } from "../kieStatusContracts";
+import {
+  kieKlingCallbackFailureFixture,
+  kieKlingCallbackSuccessFixture,
+} from "./fixtures/kieContractFixtures";
 
 describe("kieStatusContracts", () => {
   it("normalizes lifecycle status aliases from Kie payloads", () => {
@@ -24,6 +28,11 @@ describe("kieStatusContracts", () => {
     expect(readKieLifecycleStatus({ status: "cancelled" })).toBe("canceled");
     expect(readKieLifecycleStatus({ code: 200 })).toBe("completed");
     expect(readKieLifecycleStatus({ code: 501 })).toBe("failed");
+  });
+
+  it("maps callback fixtures to terminal lifecycle statuses", () => {
+    expect(readKieLifecycleStatus(kieKlingCallbackSuccessFixture)).toBe("completed");
+    expect(readKieLifecycleStatus(kieKlingCallbackFailureFixture)).toBe("failed");
   });
 
   it("reads response urls and media payload presence", () => {

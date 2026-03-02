@@ -1780,3 +1780,12 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `501` -> `failed`
 - Added numeric retryable-code handling in Kie upstream retry classification.
 - Added focused Kie contract test coverage and updated Phase 11 evidence/stage/tracker notes.
+
+## 2026-03-01 (phase-11 kie primary-source fixture regression lock)
+- Added primary-source-shaped Kie fixtures for Veo and Kling contracts:
+  - `frontend/lib/server/providerIntegration/__tests__/fixtures/kieContractFixtures.ts`.
+- Extended Kie contract suites to assert normalized behavior against fixture payloads:
+  - submit contract normalization,
+  - callback lifecycle convergence,
+  - callback `resultJson` media extraction.
+- Locked canonical callback failure normalization (`state=fail` -> `failed`) with fixture-backed coverage.

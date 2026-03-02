@@ -39,6 +39,8 @@ const normalizeKieStatusAlias = (status: string): string => {
       return "completed";
     case "cancelled":
       return "canceled";
+    case "fail":
+      return "failed";
     default:
       return normalized;
   }

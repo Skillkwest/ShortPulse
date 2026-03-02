@@ -32,6 +32,7 @@ Add run logs, research notes, rollout observations, rollback notes, and signoff 
 27. `2026-03-01-phase-11-slice-b-model-contract-completeness-parity-guard.md` - enforces model-contract completeness checks (aspect/duration defaults + required Kie contract fields) in model-catalog governance.
 28. `2026-03-01-phase-11-slice-b-kie-primary-source-contract-capture-and-alignment.md` - captures Veo/Kling primary-source contract details and aligns Kie dark-path submit/status/media adapters with documented request/callback shapes.
 29. `2026-03-01-phase-11-slice-b-kie-callback-code-and-aspect-alias-alignment.md` - aligns remaining Kie doc-shape deltas (`aspectRatio` submit alias and callback `code` lifecycle fallback mapping).
+30. `2026-03-01-phase-11-slice-b-kie-primary-source-fixture-regression-lock.md` - adds shared primary-source-shaped Veo/Kling fixtures and fixture-backed contract tests to lock request/callback behavior against drift.
 
 ## Supporting Command Packets
 1. `sql/check_phase11_shadow_canary_metrics.sql` - read-only baseline/canary metrics capture queries that map directly to the Phase 11 evidence template.

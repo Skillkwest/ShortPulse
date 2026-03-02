@@ -9,6 +9,10 @@ import {
   normalizeKieSubmitPayloadForModel,
 } from "../kieModelContracts";
 import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "../kieModelIds";
+import {
+  kieKlingCreateTaskRequestFixture,
+  kieVeoGenerateRequestFixture,
+} from "./fixtures/kieContractFixtures";
 
 describe("kieModelContracts", () => {
   it("tracks supported Kie model ids", () => {
@@ -186,6 +190,45 @@ describe("kieModelContracts", () => {
         payload: { duration: 10, image_url: "https://example.com/ref.png" },
       })
     ).toThrow("Kie Kling 3.0 submit requires a prompt.");
+  });
+
+  it("normalizes primary-source fixture payloads for Veo and Kling docs shapes", () => {
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        payload: kieVeoGenerateRequestFixture,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        prompt: "A dog playing in a park",
+        imageUrls: ["https://example.com/image1.jpg", "https://example.com/image2.jpg"],
+        model: "veo3_fast",
+        generationType: "REFERENCE_2_VIDEO",
+        aspect_ratio: "16:9",
+        seeds: 12345,
+      })
+    );
+
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_KLING_30_MODEL_ID,
+        payload: kieKlingCreateTaskRequestFixture,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        model: "kling-3.0/video",
+        callBackUrl: "https://example.com/callback/kling",
+        input: expect.objectContaining({
+          mode: "pro",
+          image_urls: ["https://example.com/first-frame.png"],
+          prompt: "In a bright rehearsal room, sunlight streams through the window@element_dog",
+          duration: "5",
+          aspect_ratio: "16:9",
+          multi_shots: false,
+          sound: true,
+        }),
+      })
+    );
   });
 
   it("enforces Kling optional field contracts", () => {

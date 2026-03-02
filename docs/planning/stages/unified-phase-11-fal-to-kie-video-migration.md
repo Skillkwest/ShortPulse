@@ -204,6 +204,12 @@ Deliver this phase with no regressions, no duplicated logic, and complete docs/e
   - `frontend/lib/server/providerIntegration/kieModelContracts.ts`
   - `frontend/lib/server/providerIntegration/kieStatusContracts.ts`
   - Added `aspectRatio` submit alias handling and lifecycle fallback mapping from callback numeric `code` values (`200` completed, `501` failed) when `status/state` is absent.
+- Added fixture-backed primary-source regression locks for Veo/Kling contracts:
+  - `frontend/lib/server/providerIntegration/__tests__/fixtures/kieContractFixtures.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/kieModelContracts.test.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/kieStatusContracts.test.ts`
+  - `frontend/lib/server/providerIntegration/__tests__/kieResultMediaContracts.test.ts`
+  - Includes callback success/failure fixture coverage and canonical `state=fail -> failed` normalization lock.
 3. Slice C complete:
 - Phase-11 evidence, stage, and tracker docs updated for each Slice B increment with validation logs and rollback-safe notes.
 

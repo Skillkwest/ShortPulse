@@ -8,6 +8,7 @@ import {
   isSupportedKieResultMediaModel,
 } from "../kieResultMediaContracts";
 import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "../kieModelIds";
+import { kieKlingCallbackSuccessFixture } from "./fixtures/kieContractFixtures";
 
 describe("kieResultMediaContracts", () => {
   it("tracks supported Kie media models", () => {
@@ -52,6 +53,14 @@ describe("kieResultMediaContracts", () => {
       },
     });
     expect(urls).toEqual(["https://cdn.shortpulse.test/kling-callback.mp4"]);
+  });
+
+  it("extracts media URLs from primary-source callback fixture resultJson", () => {
+    const urls = extractKieResultMediaUrls({
+      modelId: KIE_KLING_30_MODEL_ID,
+      payload: kieKlingCallbackSuccessFixture,
+    });
+    expect(urls).toEqual(["https://example.com/generated-video.mp4"]);
   });
 
   it("fails closed to empty list for unsupported models", () => {

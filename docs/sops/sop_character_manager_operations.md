@@ -38,6 +38,10 @@ Define the operational contract for the `/character` Character Manager surface, 
 5. Dropped external reference URLs are trust-scoped:
    - Trusted local/internal/supabase-hosted image URLs are accepted for Character Sheet and QuickSwap drop flows.
    - Arbitrary external hosts are blocked from drop ingestion.
+   - Internal AI Studio Reference Grid drags are accepted when payload origin is `ai_studio_reference_grid`.
+   - Internal drops resolve to trusted `mediaId` first; URL host allowlist checks apply only to non-internal drops.
+   - If an internal drop references unsaved generated output, drop flow auto-saves first, then applies assignment by resolved `mediaId`.
+   - Internal payload parse/resolve/autosave failures fail closed (no partial quickswap/sheet mutation).
 6. Character selection persistence:
    - Selecting a character in Character Manager persists that selection in browser local storage.
    - The persisted selection is used as the preferred default on reload for both `/character` and the AI Studio embedded Character panel.
@@ -58,6 +62,11 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Desktop (`>1100px`): Identity renders on the left, QuickSwap Deck renders on the right, and Character Sheet renders below Identity.
    - Tablet/mobile (`<=1100px`): sections stack in order `Identity -> QuickSwap Deck -> Character Sheet`.
    - DOM order must match visual order to preserve accessibility and deterministic layout-test assertions.
+11. Internal drag observability contract:
+   - Emit `character_drop_attempt` for every internal drop parsed at target boundary.
+   - Emit `character_drop_resolved` when resolver returns a valid `mediaId` and assignment succeeds.
+   - Emit `character_drop_rejected` on malformed payloads, unsupported targets, or policy rejection.
+   - Emit `character_drop_failed_autosave` when unsaved-output autosave path fails.
 
 ## Architecture Map
 - Shell/UI orchestration: `frontend/features/character-manager/components/CharacterManagerShell.tsx`
@@ -71,6 +80,8 @@ Define the operational contract for the `/character` Character Manager surface, 
 - File validation rules: `frontend/features/character-manager/logic/referenceValidation.ts`
 - Character Manager route shell: `frontend/pages/character.tsx`
 - AI Studio Create integration: `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/logic/characterModePayload.ts`
+- AI Studio internal drag payload + parser: `frontend/features/ai-studio/utils/dragDrop.ts`
+- AI Studio drop resolver seam: `frontend/features/ai-studio/components/AiStudioPageContent.tsx`
 - Compatibility drift SQL: `sql/check_character_sheet_alias_drift.sql`
 
 ## Operational Flow
@@ -89,6 +100,7 @@ Define the operational contract for the `/character` Character Manager surface, 
 - Keep per-character preset state in Character Manager draft state.
 - Persist active tab id, visible tab ids, tab labels, and active-tab drop-zone assignments to Supabase character metadata.
 - Keep DnD behavior stable (assign/replace/swap) without activation gating.
+- For internal Reference Grid drags, resolve to `mediaId` first (existing media -> resolver lookup -> auto-save fallback), then mutate target slot/deck atomically.
 - Keep preset media lifecycle independent from QuickSwap Deck entries.
 
 4. Character lifecycle
@@ -133,6 +145,10 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 - Dropping another reference into that same zone replaces it.
 - Dragging zone-to-zone swaps assignments.
 - Dropped external reference URLs are accepted only from trusted local/internal/supabase-hosted sources.
+- Dragging from AI Studio Reference Grid to QuickSwap empty slot fills it.
+- Dragging from AI Studio Reference Grid to occupied QuickSwap slot replaces it.
+- Dragging from AI Studio Reference Grid to Character Sheet slot replaces the targeted slot.
+- Internal drag payload failures show user-visible error and do not mutate quickswap/sheet state.
 - QuickSwap deck is scrollable and remains interactive at high active counts.
 - Uploading beyond 500 active references archives oldest active references.
 - Archived references can be restored back into active deck.

@@ -23,6 +23,7 @@ import {
   resolveAdaptiveSourceKind,
 } from "../../../lib/adaptive-media";
 import { reportAppError } from "../../../lib/appErrorReporter";
+import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "../../billing/catalog";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { isTrustedMediaDirectPreviewUrl } from "../../../lib/mediaPreviewTrustPolicy";
@@ -43,6 +44,11 @@ import {
 import { CharacterCreateWorkspaceLayout } from "./CharacterCreateWorkspaceLayout";
 import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import { CharacterQuickSwapDeckSection } from "./CharacterQuickSwapDeckSection";
+import {
+  extractInternalReferenceDragPayload,
+  type InternalReferenceDragPayload,
+  type ReferenceDragSourceSurface,
+} from "../../ai-studio/utils/dragDrop";
 import type {
   CharacterQuickSwapItem,
   CharacterProfileImageTransform,
@@ -53,10 +59,22 @@ import type {
 
 type CharacterWorkflowTab = "create" | "manage";
 type CharacterManagerShellSurface = "page" | "panel";
+export type ResolvedCharacterDropReference = {
+  mediaId: string;
+  previewUrl?: string | null;
+  storagePath?: string | null;
+  outputId?: string | null;
+  imageIndex?: number;
+  sourceSurface?: ReferenceDragSourceSurface | null;
+};
+export type ResolveCharacterDropReference = (
+  payload: InternalReferenceDragPayload
+) => Promise<ResolvedCharacterDropReference | null>;
 type CharacterManagerShellProps = {
   surface?: CharacterManagerShellSurface;
   beginnerModeOverride?: boolean;
   showBeginnerModeToggle?: boolean;
+  resolveCharacterDropReference?: ResolveCharacterDropReference;
 };
 const PROFILE_ZOOM_MIN = 1;
 const PROFILE_ZOOM_MAX = 2.4;
@@ -449,6 +467,7 @@ export function CharacterManagerShell({
   surface = "page",
   beginnerModeOverride,
   showBeginnerModeToggle = true,
+  resolveCharacterDropReference,
 }: CharacterManagerShellProps) {
   const {
     characters,
@@ -513,6 +532,11 @@ export function CharacterManagerShell({
   } | null>(null);
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
+  const [pendingDropTarget, setPendingDropTarget] = useState<
+    | { target: "quickswap" }
+    | { target: "character_sheet"; zoneKey: CharacterSheetDropZoneKey }
+    | null
+  >(null);
   const [characterLibraryVisibleCount, setCharacterLibraryVisibleCount] = useState(
     CHARACTER_LIBRARY_SMOOTH_TARGET
   );
@@ -526,6 +550,10 @@ export function CharacterManagerShell({
   const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
   const characterSheetFileInputRef = useRef<HTMLInputElement | null>(null);
   const dragGhostMapRef = useRef(new Map<HTMLElement, HTMLElement>());
+  const mediaReferenceCacheRef = useRef(
+    new Map<string, { storagePath: string; previewUrl: string | null }>()
+  );
+  const pendingQuickSwapMediaIdsRef = useRef<Set<string>>(new Set());
   const fileDragDepthRef = useRef(0);
   const pageBusy =
     loading ||
@@ -533,6 +561,7 @@ export function CharacterManagerShell({
     isCreatingCharacter ||
     isDeletingCharacter ||
     isSavingProfileImage;
+  const isDropResolutionBusy = pendingDropTarget !== null;
 
   const {
     activeItems: quickSwapItems,
@@ -544,6 +573,7 @@ export function CharacterManagerShell({
     mutating: quickSwapMutating,
     error: quickSwapError,
     appendFiles: appendQuickSwapFilesFromHook,
+    appendExistingMediaReference: appendExistingQuickSwapMediaFromHook,
     removeItem: removeQuickSwapItem,
     restoreItem: restoreQuickSwapItem,
     loadMoreArchived: loadMoreQuickSwapArchived,
@@ -684,6 +714,131 @@ export function CharacterManagerShell({
     clearMessages();
     clearQuickSwapError();
   }, [clearMessages, clearQuickSwapError]);
+  const resolveMediaReferenceById = useCallback(async (mediaId: string) => {
+    const normalizedMediaId = mediaId.trim();
+    if (!normalizedMediaId) return null;
+    const cached = mediaReferenceCacheRef.current.get(normalizedMediaId) ?? null;
+    if (cached) return cached;
+    try {
+      const supabase = ensureSupabaseClient();
+      const { data, error } = await supabase
+        .from("media_files")
+        .select("storage_path")
+        .eq("id", normalizedMediaId)
+        .maybeSingle();
+      if (error) return null;
+      const storagePath = (
+        (data as { storage_path?: string | null } | null)?.storage_path ?? ""
+      ).trim();
+      if (!storagePath) return null;
+      const signedUrl = await getSignedMediaUrl({
+        bucket: MEDIA_BUCKET,
+        storagePath,
+        expiresInSeconds: 3600,
+      });
+      const resolved = {
+        storagePath,
+        previewUrl: signedUrl ?? null,
+      };
+      mediaReferenceCacheRef.current.set(normalizedMediaId, resolved);
+      return resolved;
+    } catch {
+      return null;
+    }
+  }, []);
+  const logCharacterDropBreadcrumb = useCallback(
+    (
+      message:
+        | "character_drop_attempt"
+        | "character_drop_resolved"
+        | "character_drop_rejected"
+        | "character_drop_failed_autosave",
+      data: Record<string, unknown>
+    ) => {
+      addBreadcrumb({
+        type: "ui",
+        level: message === "character_drop_rejected" ? "warn" : "info",
+        message,
+        data,
+      });
+    },
+    []
+  );
+  const resolveInternalCharacterDrop = useCallback(
+    async ({
+      transfer,
+      target,
+      zoneKey,
+    }: {
+      transfer: DataTransfer;
+      target: "quickswap" | "character_sheet";
+      zoneKey?: CharacterSheetDropZoneKey;
+    }): Promise<ResolvedCharacterDropReference | null> => {
+      const payload = extractInternalReferenceDragPayload(transfer);
+      if (!payload) return null;
+      logCharacterDropBreadcrumb("character_drop_attempt", {
+        target,
+        zone_key: zoneKey ?? null,
+        origin: payload.origin,
+        source_surface: payload.sourceSurface ?? null,
+        output_id: payload.outputId ?? null,
+        image_index: payload.imageIndex,
+      });
+      if (!resolveCharacterDropReference) {
+        logCharacterDropBreadcrumb("character_drop_rejected", {
+          target,
+          zone_key: zoneKey ?? null,
+          reason: "resolver_unavailable",
+          origin: payload.origin,
+        });
+        return null;
+      }
+      try {
+        const resolved = await resolveCharacterDropReference(payload);
+        const mediaId = resolved?.mediaId?.trim() ?? "";
+        if (!mediaId) {
+          logCharacterDropBreadcrumb("character_drop_rejected", {
+            target,
+            zone_key: zoneKey ?? null,
+            reason: "missing_media_id",
+            origin: payload.origin,
+            output_id: payload.outputId ?? null,
+            image_index: payload.imageIndex,
+          });
+          return null;
+        }
+        logCharacterDropBreadcrumb("character_drop_resolved", {
+          target,
+          zone_key: zoneKey ?? null,
+          origin: payload.origin,
+          source_surface: resolved?.sourceSurface ?? payload.sourceSurface ?? null,
+          output_id: resolved?.outputId ?? payload.outputId ?? null,
+          image_index: resolved?.imageIndex ?? payload.imageIndex,
+          media_id: mediaId,
+        });
+        return {
+          ...resolved,
+          mediaId,
+          outputId: resolved?.outputId ?? payload.outputId,
+          imageIndex: resolved?.imageIndex ?? payload.imageIndex,
+          sourceSurface: resolved?.sourceSurface ?? payload.sourceSurface ?? null,
+        };
+      } catch (error) {
+        const reason =
+          error instanceof Error && error.message.trim().length ? error.message : "resolver_failed";
+        logCharacterDropBreadcrumb("character_drop_failed_autosave", {
+          target,
+          zone_key: zoneKey ?? null,
+          origin: payload.origin,
+          output_id: payload.outputId ?? null,
+          image_index: payload.imageIndex,
+          reason,
+        });
+        return null;
+      }
+    },
+    [logCharacterDropBreadcrumb, resolveCharacterDropReference]
+  );
 
   useVisibleErrorTelemetry({
     source: "client.character_manager.error_banner",
@@ -847,11 +1002,17 @@ export function CharacterManagerShell({
   const uploadSimpleFiles = useCallback(
     async (incomingFiles: FileList | File[]) => {
       const files = Array.from(incomingFiles);
-      if (!files.length || pageBusy || quickSwapMutating) return;
+      if (!files.length || pageBusy || quickSwapMutating || isDropResolutionBusy) return;
       clearAllMessages();
       await appendQuickSwapFilesFromHook(files);
     },
-    [appendQuickSwapFilesFromHook, clearAllMessages, pageBusy, quickSwapMutating]
+    [
+      appendQuickSwapFilesFromHook,
+      clearAllMessages,
+      isDropResolutionBusy,
+      pageBusy,
+      quickSwapMutating,
+    ]
   );
 
   const isFileDragEvent = useCallback((event: React.DragEvent<HTMLElement>) => {
@@ -865,6 +1026,7 @@ export function CharacterManagerShell({
   }, []);
 
   const isDroppedImageReferenceEvent = useCallback((event: React.DragEvent<HTMLElement>) => {
+    if (extractInternalReferenceDragPayload(event.dataTransfer)) return true;
     return hasDroppedImageReferenceTransfer(event.dataTransfer);
   }, []);
 
@@ -880,12 +1042,12 @@ export function CharacterManagerShell({
 
   const openCharacterSheetPicker = useCallback(
     (dropZoneKey: CharacterSheetDropZoneKey) => {
-      if (pageBusy) return;
+      if (pageBusy || isDropResolutionBusy) return;
       clearAllMessages();
       setPendingCharacterSheetUploadZoneKey(dropZoneKey);
       characterSheetFileInputRef.current?.click();
     },
-    [clearAllMessages, pageBusy]
+    [clearAllMessages, isDropResolutionBusy, pageBusy]
   );
 
   const openProfilePicker = useCallback(() => {
@@ -906,10 +1068,10 @@ export function CharacterManagerShell({
   ]);
 
   const openQuickSwapUploadPicker = useCallback(() => {
-    if (pageBusy || quickSwapMutating) return;
+    if (pageBusy || quickSwapMutating || isDropResolutionBusy) return;
     clearAllMessages();
     simpleFileInputRef.current?.click();
-  }, [clearAllMessages, pageBusy, quickSwapMutating]);
+  }, [clearAllMessages, isDropResolutionBusy, pageBusy, quickSwapMutating]);
 
   const handleProfileSelection = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1054,6 +1216,45 @@ export function CharacterManagerShell({
       selectedCharacterId,
     ]
   );
+  const assignResolvedReferenceToCharacterSheetSlot = useCallback(
+    async (
+      characterSheetSlotKey: CharacterSheetDropZoneKey,
+      resolvedReference: ResolvedCharacterDropReference
+    ): Promise<boolean> => {
+      if (!selectedCharacterId) return false;
+      const mediaId = resolvedReference.mediaId.trim();
+      if (!mediaId) return false;
+      const quickSwapItem = quickSwapItemByMediaFileId.get(mediaId) ?? null;
+      let storagePath =
+        resolvedReference.storagePath?.trim() ?? quickSwapItem?.storagePath?.trim() ?? "";
+      let previewUrl = resolvedReference.previewUrl ?? quickSwapItem?.previewUrl ?? null;
+      if (!storagePath || !previewUrl) {
+        const mediaReference = await resolveMediaReferenceById(mediaId);
+        if (mediaReference) {
+          if (!storagePath) storagePath = mediaReference.storagePath;
+          if (!previewUrl) previewUrl = mediaReference.previewUrl;
+        }
+      }
+      if (!storagePath) return false;
+      const nextAssignments = {
+        ...resolvedCharacterSheetPresetAssignments,
+        [characterSheetSlotKey]: {
+          mediaFileId: mediaId,
+          storagePath,
+          previewUrl,
+        },
+      };
+      persistCharacterSheetPresetAssignments(nextAssignments);
+      return true;
+    },
+    [
+      persistCharacterSheetPresetAssignments,
+      quickSwapItemByMediaFileId,
+      resolveMediaReferenceById,
+      resolvedCharacterSheetPresetAssignments,
+      selectedCharacterId,
+    ]
+  );
 
   const handleCharacterSheetFileSelection = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1096,26 +1297,30 @@ export function CharacterManagerShell({
   );
 
   const addDroppedReferenceToQuickSwap = useCallback(
-    async (reference: DroppedImageReference) => {
+    async (reference: DroppedImageReference, options?: { suppressErrorTelemetry?: boolean }) => {
       try {
         const file = await toDroppedReferenceFile(reference);
         await uploadSimpleFiles([file]);
+        return true;
       } catch (error) {
         const errorMessage =
           error instanceof Error && error.message.trim().length
             ? error.message
             : "Failed to process dropped QuickSwap reference.";
-        void reportAppError({
-          source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-          scope: "app",
-          severity: "low",
-          message: "quickswap_drop_reference_failed",
-          metadata: {
-            target: "quickswap",
-            reference_media_file_id: reference.mediaFileId,
-            reason: errorMessage,
-          },
-        });
+        if (!options?.suppressErrorTelemetry) {
+          void reportAppError({
+            source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+            scope: "app",
+            severity: "low",
+            message: "quickswap_drop_reference_failed",
+            metadata: {
+              target: "quickswap",
+              reference_media_file_id: reference.mediaFileId,
+              reason: errorMessage,
+            },
+          });
+        }
+        return false;
       }
     },
     [uploadSimpleFiles]
@@ -1190,7 +1395,7 @@ export function CharacterManagerShell({
 
   const handleReferenceDragStart = useCallback(
     (item: CharacterQuickSwapItem) => (event: React.DragEvent<HTMLElement>) => {
-      if (pageBusy || quickSwapMutating) {
+      if (pageBusy || quickSwapMutating || isDropResolutionBusy) {
         event.preventDefault();
         return;
       }
@@ -1210,12 +1415,12 @@ export function CharacterManagerShell({
       setDraggedCharacterSheetZoneKey(null);
       applyDragGhost(event);
     },
-    [applyDragGhost, pageBusy, quickSwapMutating]
+    [applyDragGhost, isDropResolutionBusy, pageBusy, quickSwapMutating]
   );
 
   const handleCharacterSheetDragStart = useCallback(
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: React.DragEvent<HTMLElement>) => {
-      if (pageBusy) {
+      if (pageBusy || isDropResolutionBusy) {
         event.preventDefault();
         return;
       }
@@ -1232,7 +1437,7 @@ export function CharacterManagerShell({
       setDraggedQuickSwapItemId(null);
       applyDragGhost(event);
     },
-    [applyDragGhost, pageBusy, resolvedCharacterSheetPresetAssignments]
+    [applyDragGhost, isDropResolutionBusy, pageBusy, resolvedCharacterSheetPresetAssignments]
   );
 
   const handleReferenceDragEnd = useCallback((event: React.DragEvent<HTMLElement>) => {
@@ -1250,24 +1455,41 @@ export function CharacterManagerShell({
 
   const handleCharacterSheetDragOver = useCallback(
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: React.DragEvent<HTMLElement>) => {
-      if (pageBusy) return;
+      if (pageBusy || isDropResolutionBusy) return;
       const sourceCharacterSheetZoneKey =
         (event.dataTransfer.getData(DND_CHARACTER_SHEET_ZONE_KEY) as
           | CharacterSheetDropZoneKey
           | "") || draggedCharacterSheetZoneKey;
       const quickSwapItem = resolveDraggedQuickSwapItem(event.dataTransfer);
+      const internalReferenceGridPayload = extractInternalReferenceDragPayload(event.dataTransfer);
       const hasExternalImageReference = hasDroppedImageReferenceTransfer(event.dataTransfer);
       const isInternalSheetDrag =
         Boolean(sourceCharacterSheetZoneKey) &&
         CHARACTER_SHEET_DROP_ZONES.some((slot) => slot.key === sourceCharacterSheetZoneKey);
       const isInternalReferenceDrag = Boolean(quickSwapItem);
-      if (!isInternalSheetDrag && !isInternalReferenceDrag && !hasExternalImageReference) return;
+      const isInternalReferenceGridDrag = Boolean(
+        internalReferenceGridPayload && resolveCharacterDropReference
+      );
+      if (
+        !isInternalSheetDrag &&
+        !isInternalReferenceDrag &&
+        !isInternalReferenceGridDrag &&
+        !hasExternalImageReference
+      ) {
+        return;
+      }
       event.preventDefault();
       event.dataTransfer.dropEffect =
         isInternalSheetDrag || isInternalReferenceDrag ? "move" : "copy";
       setActiveCharacterSheetDropZone(characterSheetSlotKey);
     },
-    [draggedCharacterSheetZoneKey, pageBusy, resolveDraggedQuickSwapItem]
+    [
+      draggedCharacterSheetZoneKey,
+      isDropResolutionBusy,
+      pageBusy,
+      resolveCharacterDropReference,
+      resolveDraggedQuickSwapItem,
+    ]
   );
 
   const clearCharacterSheetAssignment = useCallback(
@@ -1292,7 +1514,7 @@ export function CharacterManagerShell({
     (characterSheetSlotKey: CharacterSheetDropZoneKey) => (event: React.DragEvent<HTMLElement>) => {
       event.preventDefault();
       setActiveCharacterSheetDropZone(null);
-      if (pageBusy) return;
+      if (pageBusy || isDropResolutionBusy) return;
       const sourceCharacterSheetZoneKey =
         (event.dataTransfer.getData(DND_CHARACTER_SHEET_ZONE_KEY) as
           | CharacterSheetDropZoneKey
@@ -1321,6 +1543,60 @@ export function CharacterManagerShell({
         return;
       }
 
+      const internalReference = extractInternalReferenceDragPayload(event.dataTransfer);
+      if (internalReference && resolveCharacterDropReference) {
+        const transfer = event.dataTransfer;
+        setPendingDropTarget({
+          target: "character_sheet",
+          zoneKey: characterSheetSlotKey,
+        });
+        setActiveCharacterSheetDropZone(characterSheetSlotKey);
+        void (async () => {
+          try {
+            const resolvedReference = await resolveInternalCharacterDrop({
+              transfer,
+              target: "character_sheet",
+              zoneKey: characterSheetSlotKey,
+            });
+            if (!resolvedReference) {
+              return;
+            }
+            const assigned = await assignResolvedReferenceToCharacterSheetSlot(
+              characterSheetSlotKey,
+              resolvedReference
+            );
+            if (assigned) return;
+            void reportAppError({
+              source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+              scope: "app",
+              severity: "low",
+              message: "character_sheet_drop_reference_failed_to_assign_media",
+              metadata: {
+                target: "character_sheet",
+                drop_zone_key: characterSheetSlotKey,
+                media_id: resolvedReference.mediaId,
+              },
+            });
+            logCharacterDropBreadcrumb("character_drop_rejected", {
+              target: "character_sheet",
+              zone_key: characterSheetSlotKey,
+              reason: "media_metadata_unavailable",
+              media_id: resolvedReference.mediaId,
+            });
+          } finally {
+            setPendingDropTarget((current) =>
+              current?.target === "character_sheet" && current.zoneKey === characterSheetSlotKey
+                ? null
+                : current
+            );
+            setActiveCharacterSheetDropZone((current) =>
+              current === characterSheetSlotKey ? null : current
+            );
+          }
+        })();
+        return;
+      }
+
       const droppedReference = resolveDroppedImageReference(event.dataTransfer);
       if (!droppedReference) {
         void reportAppError({
@@ -1339,10 +1615,15 @@ export function CharacterManagerShell({
       void setCharacterSheetFileFromDroppedReference(characterSheetSlotKey, droppedReference);
     },
     [
+      assignResolvedReferenceToCharacterSheetSlot,
       assignReferenceToCharacterSheetSlot,
       draggedCharacterSheetZoneKey,
+      isDropResolutionBusy,
+      logCharacterDropBreadcrumb,
       pageBusy,
       persistCharacterSheetPresetAssignments,
+      resolveCharacterDropReference,
+      resolveInternalCharacterDrop,
       resolveDraggedQuickSwapItem,
       resolvedCharacterSheetPresetAssignments,
       setCharacterSheetFileFromDroppedReference,
@@ -1351,12 +1632,17 @@ export function CharacterManagerShell({
 
   const handleCharacterSheetCardClick = useCallback(
     (dropZoneKey: CharacterSheetDropZoneKey) => () => {
-      if (pageBusy) return;
+      if (pageBusy || isDropResolutionBusy) return;
       const assignedReference = resolvedCharacterSheetPresetAssignments[dropZoneKey];
       if (assignedReference) return;
       openCharacterSheetPicker(dropZoneKey);
     },
-    [openCharacterSheetPicker, pageBusy, resolvedCharacterSheetPresetAssignments]
+    [
+      isDropResolutionBusy,
+      openCharacterSheetPicker,
+      pageBusy,
+      resolvedCharacterSheetPresetAssignments,
+    ]
   );
 
   useEffect(() => {
@@ -1763,8 +2049,13 @@ export function CharacterManagerShell({
                 beginnerMode={effectiveBeginnerMode}
                 isCollapsed={isQuickSwapCollapsed}
                 contentId={quickSwapContentId}
-                pageBusy={pageBusy || quickSwapMutating || quickSwapLoading}
-                isDropActive={isDropActive}
+                pageBusy={
+                  pageBusy ||
+                  quickSwapMutating ||
+                  quickSwapLoading ||
+                  pendingDropTarget?.target === "quickswap"
+                }
+                isDropActive={isDropActive || pendingDropTarget?.target === "quickswap"}
                 remainingCapacityHint={quickSwapRemainingActiveCapacity}
                 activeItems={quickSwapActiveItems}
                 archivedItems={quickSwapArchivedItems}
@@ -1794,7 +2085,7 @@ export function CharacterManagerShell({
                   if (isQuickSwapCollapsed) return;
                   if (!isFileDragEvent(event) && !isDroppedImageReferenceEvent(event)) return;
                   event.preventDefault();
-                  if (pageBusy || quickSwapMutating) return;
+                  if (pageBusy || quickSwapMutating || isDropResolutionBusy) return;
                   fileDragDepthRef.current += 1;
                   setIsDropActive(true);
                 }}
@@ -1802,7 +2093,7 @@ export function CharacterManagerShell({
                   if (isQuickSwapCollapsed) return;
                   if (!isFileDragEvent(event) && !isDroppedImageReferenceEvent(event)) return;
                   event.preventDefault();
-                  if (pageBusy || quickSwapMutating) {
+                  if (pageBusy || quickSwapMutating || isDropResolutionBusy) {
                     event.dataTransfer.dropEffect = "none";
                     return;
                   }
@@ -1812,7 +2103,7 @@ export function CharacterManagerShell({
                 onDragLeave={(event) => {
                   if (isQuickSwapCollapsed) return;
                   if (!isFileDragEvent(event) && !isDroppedImageReferenceEvent(event)) return;
-                  if (pageBusy || quickSwapMutating) return;
+                  if (pageBusy || quickSwapMutating || isDropResolutionBusy) return;
                   fileDragDepthRef.current = Math.max(0, fileDragDepthRef.current - 1);
                   if (fileDragDepthRef.current === 0) {
                     setIsDropActive(false);
@@ -1824,7 +2115,98 @@ export function CharacterManagerShell({
                   event.preventDefault();
                   fileDragDepthRef.current = 0;
                   setIsDropActive(false);
-                  if (pageBusy || quickSwapMutating) return;
+                  if (pageBusy || quickSwapMutating || isDropResolutionBusy) return;
+                  const internalReference = extractInternalReferenceDragPayload(event.dataTransfer);
+                  if (internalReference && resolveCharacterDropReference) {
+                    const transfer = event.dataTransfer;
+                    setPendingDropTarget({ target: "quickswap" });
+                    setIsDropActive(true);
+                    void (async () => {
+                      let pendingMediaId: string | null = null;
+                      try {
+                        const resolvedReference = await resolveInternalCharacterDrop({
+                          transfer,
+                          target: "quickswap",
+                        });
+                        if (!resolvedReference) return;
+                        const mediaId = resolvedReference.mediaId.trim();
+                        if (!mediaId) return;
+                        if (quickSwapItemByMediaFileId.has(mediaId)) return;
+                        if (pendingQuickSwapMediaIdsRef.current.has(mediaId)) return;
+                        pendingMediaId = mediaId;
+                        pendingQuickSwapMediaIdsRef.current.add(mediaId);
+                        const attached = await appendExistingQuickSwapMediaFromHook(mediaId);
+                        if (attached) return;
+                        const previewUrl = resolvedReference.previewUrl?.trim();
+                        let nextDroppedReference: DroppedImageReference | null = previewUrl
+                          ? {
+                              url: previewUrl,
+                              mimeType: null,
+                              mediaFileId: mediaId,
+                            }
+                          : null;
+                        if (!nextDroppedReference) {
+                          const mediaReference = await resolveMediaReferenceById(mediaId);
+                          if (mediaReference?.previewUrl) {
+                            nextDroppedReference = {
+                              url: mediaReference.previewUrl,
+                              mimeType: null,
+                              mediaFileId: mediaId,
+                            };
+                          }
+                        }
+                        if (!nextDroppedReference) {
+                          void reportAppError({
+                            source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+                            scope: "app",
+                            severity: "low",
+                            message: "quickswap_drop_reference_missing_preview_url",
+                            metadata: {
+                              target: "quickswap",
+                              media_id: mediaId,
+                            },
+                          });
+                          logCharacterDropBreadcrumb("character_drop_rejected", {
+                            target: "quickswap",
+                            reason: "missing_preview_url",
+                            media_id: mediaId,
+                          });
+                          return;
+                        }
+                        const uploaded = await addDroppedReferenceToQuickSwap(
+                          nextDroppedReference,
+                          {
+                            suppressErrorTelemetry: true,
+                          }
+                        );
+                        if (uploaded) return;
+                        void reportAppError({
+                          source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+                          scope: "app",
+                          severity: "low",
+                          message: "quickswap_drop_reference_failed_after_internal_resolve",
+                          metadata: {
+                            target: "quickswap",
+                            media_id: mediaId,
+                          },
+                        });
+                        logCharacterDropBreadcrumb("character_drop_rejected", {
+                          target: "quickswap",
+                          reason: "quickswap_upload_failed",
+                          media_id: mediaId,
+                        });
+                      } finally {
+                        if (pendingMediaId) {
+                          pendingQuickSwapMediaIdsRef.current.delete(pendingMediaId);
+                        }
+                        setPendingDropTarget((current) =>
+                          current?.target === "quickswap" ? null : current
+                        );
+                        setIsDropActive(false);
+                      }
+                    })();
+                    return;
+                  }
                   const files = event.dataTransfer?.files;
                   if (files?.length) {
                     void uploadSimpleFiles(files);
@@ -1903,6 +2285,9 @@ export function CharacterManagerShell({
                       const assignedReference =
                         resolvedCharacterSheetPresetAssignments[dropZone.key];
                       const isDropActive = activeCharacterSheetDropZone === dropZone.key;
+                      const isDropPending =
+                        pendingDropTarget?.target === "character_sheet" &&
+                        pendingDropTarget.zoneKey === dropZone.key;
                       const isRequiredSlot = dropZone.key === "portrait";
                       const slotRequirementCopy = isRequiredSlot ? "(Required)" : "(Optional)";
                       return (
@@ -1912,8 +2297,10 @@ export function CharacterManagerShell({
                             assignedReference ? "is-filled" : "is-empty"
                           } ${isDropActive ? "is-drop-active" : ""} ${
                             draggedCharacterSheetZoneKey === dropZone.key ? "is-dragging" : ""
+                          } ${isDropPending ? "is-drop-pending" : ""} ${
+                            pendingDropTarget?.target === "quickswap" ? "is-drop-blocked" : ""
                           }`}
-                          draggable={!pageBusy && Boolean(assignedReference)}
+                          draggable={!pageBusy && !isDropPending && Boolean(assignedReference)}
                           onClick={handleCharacterSheetCardClick(dropZone.key)}
                           onDragStart={handleCharacterSheetDragStart(dropZone.key)}
                           onDragEnd={handleReferenceDragEnd}
@@ -1970,6 +2357,11 @@ export function CharacterManagerShell({
                                 >
                                   {slotRequirementCopy}
                                 </span>
+                                {isDropPending ? (
+                                  <span className="character-character-sheet-drop-pending tiny">
+                                    Assigning...
+                                  </span>
+                                ) : null}
                               </span>
                             )}
                           </div>

@@ -80,7 +80,7 @@ Mitigation guidance:
    - ensure reconciler route scheduler is active,
    - trigger `/api/internal/generation-recovery/run` repeatedly (1-minute cadence) until old provider-attached reservations clear,
    - verify queue depth drops before resuming stress submits.
-   - use `sql/check_generation_queue_blockers.sql` for read-only blocker triage and guarded cleanup template if backlog remains stuck.
+   - use `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical disconnect/queue/recovery runbook (including `sql/check_generation_queue_blockers.sql` guarded cleanup flow) if backlog remains stuck.
 
 Scheduler health checks (Supabase Cron standard):
 ```sql
@@ -121,18 +121,11 @@ Fal reliability rollout controls (when enabled):
    - keep allowlists empty for full cohort only after canary windows are green.
 
 ### Queue backlog triage and guarded cleanup
-When queue dispatch is healthy but users still hit repeated `429` due stale provider-attached holds:
-1. Run `sql/check_generation_queue_blockers.sql`.
-2. Confirm diagnostics first:
-   - provider-attached `reserved` holds by age bucket,
-   - queue depth by `queued/dispatching/exhausted`,
-   - stale `fal%` or `kie%` generations in `queued/recovering`.
-3. Execute at least 3-5 reconciler passes (`/api/internal/generation-recovery/run`) and re-check counts.
-4. Only if blockers remain stale after repeated passes, use the guarded remediation block in the SQL file:
-   - strict age filter (default `>2h`),
-   - explicit states only (`pending/submitted/running` + `queued/recovering`),
-   - no blanket unfiltered updates.
-5. Re-run diagnostics to verify queue depth and provider-attached holds are dropping.
+When queue dispatch is healthy but users still hit repeated `429` due stale provider-attached holds, follow `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical workflow.
+1. Run `sql/check_generation_queue_blockers.sql` diagnostics.
+2. Run repeated scheduler/recovery drain passes (`/api/internal/generation-recovery/run`) and re-check counts.
+3. Only after stable stale confirmation, run guarded manual remediation using strict age/state filters.
+4. Re-run settlement/security diagnostics before closing incident response.
 
 Failure-code action map (Fal reliability rollout):
 | `failure_reason_code` | Primary action |

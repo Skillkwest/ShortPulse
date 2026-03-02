@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   appendQuickSwapFiles,
+  appendQuickSwapExistingMediaReference,
   countQuickSwapArchived,
   listQuickSwapActive,
   listQuickSwapArchived,
@@ -29,6 +30,7 @@ type UseCharacterQuickSwapDeckResult = {
   error: string | null;
   hasMoreArchived: boolean;
   appendFiles: (files: File[]) => Promise<boolean>;
+  appendExistingMediaReference: (mediaFileId: string) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;
   restoreItem: (itemId: string) => Promise<boolean>;
   loadMoreArchived: () => Promise<void>;
@@ -109,6 +111,29 @@ export const useCharacterQuickSwapDeck = ({
         return true;
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to add files to QuickSwap deck."));
+        return false;
+      } finally {
+        setMutating(false);
+      }
+    },
+    [characterId, disabled, refresh]
+  );
+
+  const appendExistingMediaReference = useCallback(
+    async (mediaFileId: string) => {
+      const trimmedCharacterId = characterId?.trim() ?? "";
+      const trimmedMediaFileId = mediaFileId.trim();
+      if (disabled || !trimmedCharacterId || !trimmedMediaFileId) return false;
+      setMutating(true);
+      try {
+        await appendQuickSwapExistingMediaReference({
+          characterId: trimmedCharacterId,
+          mediaFileId: trimmedMediaFileId,
+        });
+        await refresh();
+        return true;
+      } catch (nextError) {
+        setError(toErrorMessage(nextError, "Failed to add dropped media to QuickSwap deck."));
         return false;
       } finally {
         setMutating(false);
@@ -210,6 +235,7 @@ export const useCharacterQuickSwapDeck = ({
     error,
     hasMoreArchived,
     appendFiles,
+    appendExistingMediaReference,
     removeItem,
     restoreItem,
     loadMoreArchived,

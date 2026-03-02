@@ -5,8 +5,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   clearDragState,
+  extractInternalReferenceDragPayload,
   extractDragDropPayload,
   extractVideoDragDropPayload,
+  INTERNAL_REFERENCE_DRAG_ORIGIN,
   isVideoDragTransfer,
   looksLikeImageUrl,
   prepareReferenceDrag,
@@ -137,7 +139,52 @@ describe("dragDrop payload extraction", () => {
       { sourceSurface: "curated" }
     );
 
+    expect(setData).toHaveBeenCalledWith("text/reference-origin", INTERNAL_REFERENCE_DRAG_ORIGIN);
+    expect(setData).toHaveBeenCalledWith("text/reference-version", "1");
+    expect(setData).toHaveBeenCalledWith("text/reference-output-id", "ref-1");
+    expect(setData).toHaveBeenCalledWith("text/reference-image-index", "0");
     expect(setData).toHaveBeenCalledWith("text/reference-source-surface", "curated");
+  });
+
+  it("extracts versioned internal reference payload metadata", () => {
+    const transfer = makeTransfer({
+      "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+      "text/reference-version": "1",
+      "text/reference-id": "out-123",
+      "text/reference-output-id": "out-123",
+      "text/reference-image-index": "2",
+      "text/reference-media-id": "media-123",
+      "text/reference-source-surface": "all-refs",
+      "text/reference-url": "https://cdn.example.com/out-123.png",
+    });
+
+    const payload = extractInternalReferenceDragPayload(transfer);
+
+    expect(payload).toEqual({
+      version: 1,
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      referenceId: "out-123",
+      outputId: "out-123",
+      imageIndex: 2,
+      mediaId: "media-123",
+      referenceUrl: "https://cdn.example.com/out-123.png",
+      sourceSurface: "all-refs",
+    });
+  });
+
+  it("supports legacy internal payloads without explicit origin metadata", () => {
+    const transfer = makeTransfer({
+      "text/reference-id": "legacy-1",
+      "text/reference-source-surface": "curated",
+      "text/reference-url": "https://cdn.example.com/legacy-1.png",
+    });
+
+    const payload = extractInternalReferenceDragPayload(transfer);
+
+    expect(payload?.origin).toBe(INTERNAL_REFERENCE_DRAG_ORIGIN);
+    expect(payload?.outputId).toBe("legacy-1");
+    expect(payload?.referenceId).toBe("legacy-1");
+    expect(payload?.sourceSurface).toBe("curated");
   });
 
   it("accepts relative image-like paths", () => {

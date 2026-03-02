@@ -491,6 +491,78 @@ export const appendQuickSwapFiles = async ({
 };
 
 /**
+ * Attaches an existing user-owned image media row to the quick swap deck idempotently.
+ * Existing archived items are restored to active; existing active items remain stable.
+ */
+export const appendQuickSwapExistingMediaReference = async ({
+  characterId,
+  mediaFileId,
+}: {
+  characterId: string;
+  mediaFileId: string;
+}): Promise<void> => {
+  const trimmedCharacterId = characterId.trim();
+  const trimmedMediaFileId = mediaFileId.trim();
+  if (!trimmedCharacterId || !trimmedMediaFileId) return;
+
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { data: mediaRow, error: mediaError } = await supabase
+    .from("media_files")
+    .select("id, storage_path, file_type")
+    .eq("user_id", userId)
+    .eq("id", trimmedMediaFileId)
+    .maybeSingle();
+  if (mediaError) {
+    throw new Error(asErrorMessage(mediaError, "Failed to load dropped media reference."));
+  }
+  const typedMediaRow = mediaRow as {
+    id: string;
+    storage_path: string | null;
+    file_type: string | null;
+  } | null;
+  if (!typedMediaRow?.id) {
+    throw new Error("Dropped media reference is unavailable.");
+  }
+  const mediaFileType = (typedMediaRow.file_type ?? "").trim().toLowerCase();
+  if (!mediaFileType.startsWith("image")) {
+    throw new Error("Dropped media reference is not an image.");
+  }
+  const rawStoragePath = (typedMediaRow.storage_path ?? "").trim();
+  if (!rawStoragePath) {
+    throw new Error("Dropped media reference is missing storage metadata.");
+  }
+  const storagePath = assertUserScopedMediaStoragePath({
+    path: rawStoragePath,
+    userId,
+    label: "Dropped quick swap media storage path",
+  });
+
+  const { error: quickSwapError } = await supabase.from("character_quick_swap_items").upsert(
+    {
+      user_id: userId,
+      character_id: trimmedCharacterId,
+      media_file_id: typedMediaRow.id,
+      storage_path: storagePath,
+      status: "active",
+      archived_at: null,
+    },
+    {
+      onConflict: "character_id,media_file_id",
+    }
+  );
+  if (quickSwapError) {
+    if (isMissingRelationError(quickSwapError)) {
+      throw new Error(
+        "QuickSwap Deck migration is missing in this environment. Apply migration 045 and retry."
+      );
+    }
+    throw new Error(asErrorMessage(quickSwapError, "Failed to append quick swap image."));
+  }
+
+  await archiveOverflowForCharacter(trimmedCharacterId, CHARACTER_QUICK_SWAP_ACTIVE_LIMIT);
+};
+
+/**
  * Removes a quick swap item and cleans orphaned media when no longer referenced.
  */
 export const removeQuickSwapItem = async ({

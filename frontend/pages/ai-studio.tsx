@@ -54,6 +54,8 @@ import type {
   AgentOutputGenerateInput,
 } from "../features/ai-agent/types";
 import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
+import type { InternalReferenceDragPayload } from "../features/ai-studio/utils/dragDrop";
+import type { ResolveCharacterDropReference } from "../features/character-manager/components/CharacterManagerShell";
 import {
   getAiStudioShellSectionRenderCounters,
   resetAiStudioShellSectionRenderCounters,
@@ -324,6 +326,81 @@ export default function AiStudioPage() {
   } = useAiStudioState({
     isCharacterModeEnabled,
   });
+  const inFlightCharacterDropResolvesRef = useRef(
+    new Map<string, Promise<{ mediaId: string; previewUrl: string | null } | null>>()
+  );
+  const resolveSavedMediaIdFromOutput = useCallback(
+    (output: StudioOutput | null, imageIndex: number) => {
+      if (!output?.savedMediaIds?.length) return null;
+      const safeIndex = Math.max(0, Math.floor(imageIndex));
+      const candidate = output.savedMediaIds[safeIndex] ?? output.savedMediaIds[0];
+      const normalized = candidate?.trim() ?? "";
+      return normalized.length ? normalized : null;
+    },
+    []
+  );
+  const waitForOutputMediaId = useCallback(
+    async (outputId: string, imageIndex: number) => {
+      const safeIndex = Math.max(0, Math.floor(imageIndex));
+      const dedupeKey = `${outputId}:${safeIndex}`;
+      const inFlight = inFlightCharacterDropResolvesRef.current.get(dedupeKey);
+      if (inFlight) return inFlight;
+      const pending = (async () => {
+        const timeoutAt = Date.now() + 12_000;
+        saveReferenceToLibrary(outputId);
+        while (Date.now() < timeoutAt) {
+          const latestOutput = getOutputById(outputId);
+          const mediaId = resolveSavedMediaIdFromOutput(latestOutput, safeIndex);
+          if (mediaId) {
+            return {
+              mediaId,
+              previewUrl: latestOutput?.previewUrl ?? null,
+            };
+          }
+          if (latestOutput?.saveState === "failed") {
+            return null;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 120));
+        }
+        return null;
+      })().finally(() => {
+        inFlightCharacterDropResolvesRef.current.delete(dedupeKey);
+      });
+      inFlightCharacterDropResolvesRef.current.set(dedupeKey, pending);
+      return pending;
+    },
+    [getOutputById, resolveSavedMediaIdFromOutput, saveReferenceToLibrary]
+  );
+  const resolveCharacterDropReference = useCallback<ResolveCharacterDropReference>(
+    async (payload: InternalReferenceDragPayload) => {
+      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
+      const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
+      const payloadMediaId = payload.mediaId?.trim() || null;
+      const output = outputId ? getOutputById(outputId) : null;
+      const existingMediaId = resolveSavedMediaIdFromOutput(output, imageIndex);
+      const resolvedMediaId = payloadMediaId ?? existingMediaId;
+      if (resolvedMediaId) {
+        return {
+          mediaId: resolvedMediaId,
+          previewUrl: output?.previewUrl ?? payload.referenceUrl ?? null,
+          outputId: outputId || null,
+          imageIndex,
+          sourceSurface: payload.sourceSurface ?? null,
+        };
+      }
+      if (!outputId) return null;
+      const persisted = await waitForOutputMediaId(outputId, imageIndex);
+      if (!persisted?.mediaId) return null;
+      return {
+        mediaId: persisted.mediaId,
+        previewUrl: persisted.previewUrl ?? payload.referenceUrl ?? null,
+        outputId,
+        imageIndex,
+        sourceSurface: payload.sourceSurface ?? null,
+      };
+    },
+    [getOutputById, resolveSavedMediaIdFromOutput, waitForOutputMediaId]
+  );
   useAiStudioMediaAutosaveOrchestrator({
     outputs,
     mediaAutosaveEnabled,
@@ -1676,6 +1753,7 @@ export default function AiStudioPage() {
         }}
         handleReferenceGridFiles={handleReferenceGridFiles}
         triggerFilePicker={triggerFilePicker}
+        resolveCharacterDropReference={resolveCharacterDropReference}
       />
       <MediaLibraryModal
         isOpen={isMediaLibraryOpen}

@@ -38,10 +38,14 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 
 ### Fal drain cycle monitoring
 - Use `scripts/run_generation_drain_cycle.mjs` to run controlled all-user drain loops via `/api/internal/generation-recovery/run`.
-- Treat these fields as hard health signals during drain:
-  - `claimed`, `requeued`, `queueClaimed` (workload still active)
-  - `errors`, `queueDispatchErrors` (execution faults)
-- Convergence target: zero execution faults and no sustained active workload for the configured consecutive-run window.
+- Use `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical drain/remediation sequence.
+- Treat these response fields as hard health signals during drain:
+  - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
+  - queue dispatch: `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, `queueDispatchErrors`
+  - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`
+- Convergence target:
+  - no sustained active workload (`claimed`, `requeued`, `queueClaimed` no longer persistently elevated),
+  - `errors = 0` and `queueDispatchErrors = 0` across the configured convergence window.
 
 ## Admin triage controls
 - `app_error_events` is append-only telemetry. Do not delete rows during troubleshooting; preserve forensic history.

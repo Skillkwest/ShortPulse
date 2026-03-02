@@ -57,8 +57,79 @@ export type VideoDragDropPayload = {
 };
 
 export type ReferenceDragSourceSurface = "all-refs" | "curated";
+export const INTERNAL_REFERENCE_DRAG_ORIGIN = "ai-studio-reference-grid" as const;
+
+const INTERNAL_REFERENCE_DRAG_VERSION = 1;
+const REFERENCE_TRANSFER_ORIGIN_TYPE = "text/reference-origin";
+const REFERENCE_TRANSFER_VERSION_TYPE = "text/reference-version";
+const REFERENCE_TRANSFER_OUTPUT_ID_TYPE = "text/reference-output-id";
+const REFERENCE_TRANSFER_IMAGE_INDEX_TYPE = "text/reference-image-index";
+const REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE = "text/reference-source-surface";
+const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
+
+export type InternalReferenceDragPayload = {
+  version: number;
+  origin: typeof INTERNAL_REFERENCE_DRAG_ORIGIN;
+  referenceId: string | null;
+  outputId: string | null;
+  imageIndex: number;
+  mediaId: string | null;
+  referenceUrl: string | null;
+  sourceSurface: ReferenceDragSourceSurface | null;
+};
 
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
+
+const parseReferenceDragSourceSurface = (
+  value: string | null | undefined
+): ReferenceDragSourceSurface | null => {
+  const candidate = (value ?? "").trim().toLowerCase();
+  if (candidate === "all-refs" || candidate === "curated") return candidate;
+  return null;
+};
+
+const parseReferenceImageIndex = (value: string | null | undefined): number => {
+  const parsed = Number.parseInt((value ?? "").trim(), 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return parsed;
+};
+
+const normalizeReferenceTransferId = (value: string | null | undefined): string | null => {
+  const candidate = (value ?? "").trim();
+  return candidate.length ? candidate : null;
+};
+
+export const extractInternalReferenceDragPayload = (
+  transfer: DataTransfer | null | undefined
+): InternalReferenceDragPayload | null => {
+  if (!transfer) return null;
+  const originRaw = transfer.getData(REFERENCE_TRANSFER_ORIGIN_TYPE).trim().toLowerCase();
+  const sourceSurface = parseReferenceDragSourceSurface(
+    transfer.getData(REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE)
+  );
+  const referenceId = normalizeReferenceTransferId(transfer.getData("text/reference-id"));
+  const outputId =
+    normalizeReferenceTransferId(transfer.getData(REFERENCE_TRANSFER_OUTPUT_ID_TYPE)) ??
+    referenceId;
+  const mediaId = normalizeReferenceTransferId(transfer.getData(REFERENCE_TRANSFER_MEDIA_ID_TYPE));
+  const referenceUrl = normalizeReferenceTransferUrlCandidate(
+    transfer.getData("text/reference-url")
+  );
+  const hasLegacyInternalHints = Boolean(referenceId && sourceSurface);
+  if (!originRaw && !hasLegacyInternalHints) return null;
+  if (originRaw && originRaw !== INTERNAL_REFERENCE_DRAG_ORIGIN) return null;
+  if (!outputId && !referenceId && !mediaId && !referenceUrl) return null;
+  return {
+    version: Number.parseInt(transfer.getData(REFERENCE_TRANSFER_VERSION_TYPE), 10) || 1,
+    origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+    referenceId,
+    outputId,
+    imageIndex: parseReferenceImageIndex(transfer.getData(REFERENCE_TRANSFER_IMAGE_INDEX_TYPE)),
+    mediaId,
+    referenceUrl,
+    sourceSurface,
+  };
+};
 
 const clampDragGhostSize = (value: number): number =>
   Math.max(DRAG_GHOST_MIN_SIZE_PX, Math.min(DRAG_GHOST_MAX_SIZE_PX, value));
@@ -596,15 +667,21 @@ export const isVideoDragTransfer = (transfer: DataTransfer) => {
 export const prepareReferenceDrag = (
   event: React.DragEvent<HTMLElement>,
   output: StudioOutput,
-  options?: { dragImage?: HTMLElement; sourceSurface?: ReferenceDragSourceSurface }
+  options?: {
+    dragImage?: HTMLElement;
+    sourceSurface?: ReferenceDragSourceSurface;
+    imageIndex?: number;
+  }
 ) => {
   const transfer = event.dataTransfer;
   transfer.effectAllowed = "copy";
   const sourceSurface = options?.sourceSurface ?? "all-refs";
+  const imageIndex = Math.max(0, Math.floor(options?.imageIndex ?? 0));
   const promptText = dedupeText(output.prompt ?? output.previewText);
   const previewUrl = resolveReferenceTransferUrl(output, "any");
   const imagePreviewUrl = resolveReferenceTransferUrl(output, "image");
-  const referenceMediaId = output.savedMediaIds?.[0]?.trim();
+  const referenceMediaId =
+    output.savedMediaIds?.[imageIndex]?.trim() ?? output.savedMediaIds?.[0]?.trim();
   if (previewUrl) {
     transfer.setData("text/uri-list", previewUrl);
     transfer.setData("text/reference-url", previewUrl);
@@ -614,10 +691,14 @@ export const prepareReferenceDrag = (
   }
   if (output.id) {
     transfer.setData("text/reference-id", output.id);
+    transfer.setData(REFERENCE_TRANSFER_OUTPUT_ID_TYPE, output.id);
   }
-  transfer.setData("text/reference-source-surface", sourceSurface);
+  transfer.setData(REFERENCE_TRANSFER_ORIGIN_TYPE, INTERNAL_REFERENCE_DRAG_ORIGIN);
+  transfer.setData(REFERENCE_TRANSFER_VERSION_TYPE, String(INTERNAL_REFERENCE_DRAG_VERSION));
+  transfer.setData(REFERENCE_TRANSFER_IMAGE_INDEX_TYPE, String(imageIndex));
+  transfer.setData(REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE, sourceSurface);
   if (referenceMediaId) {
-    transfer.setData("text/reference-media-id", referenceMediaId);
+    transfer.setData(REFERENCE_TRANSFER_MEDIA_ID_TYPE, referenceMediaId);
   }
   if (promptText) {
     transfer.setData("text/plain", promptText);

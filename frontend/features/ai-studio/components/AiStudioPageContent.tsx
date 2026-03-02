@@ -19,6 +19,7 @@ import { CharacterPanel } from "./CharacterPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
+import type { ResolveCharacterDropReference } from "../../character-manager/components/CharacterManagerShell";
 import type {
   AgentActions,
   AgentAssistantMessageEditRequest,
@@ -449,6 +450,7 @@ export type AiStudioPageContentProps = {
    */
   handleReferenceCanvasFiles?: (files: FileList) => void;
   triggerFilePicker: () => void;
+  resolveCharacterDropReference?: ResolveCharacterDropReference;
 };
 
 export function AiStudioPageContent({
@@ -492,6 +494,7 @@ export function AiStudioPageContent({
   handleReferenceGridFiles,
   handleReferenceCanvasFiles,
   triggerFilePicker,
+  resolveCharacterDropReference,
 }: AiStudioPageContentProps) {
   const resolvedReferenceGridFileInputRef =
     referenceGridFileInputRef ?? referenceCanvasFileInputRef;
@@ -619,7 +622,12 @@ export function AiStudioPageContent({
       ),
       edit: <EditPropertiesPanel {...propertiesImage} />,
       video: <VideoPropertiesPanel {...propertiesVideo} />,
-      character: <CharacterPanel beginnerMode={beginnerMode} />,
+      character: (
+        <CharacterPanel
+          beginnerMode={beginnerMode}
+          resolveCharacterDropReference={resolveCharacterDropReference}
+        />
+      ),
       none: null,
     }),
     [
@@ -627,6 +635,7 @@ export function AiStudioPageContent({
       beginnerMode,
       propertiesImage,
       resolvedCreateProperties,
+      resolveCharacterDropReference,
       propertiesVideo,
       showExpertCreatePanel,
     ]

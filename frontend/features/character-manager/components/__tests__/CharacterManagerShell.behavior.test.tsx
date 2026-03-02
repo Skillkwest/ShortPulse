@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { CharacterManagerShell } from "../CharacterManagerShell";
+import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../../ai-studio/utils/dragDrop";
 import {
   CHARACTER_SHEET_PRESET_IDS,
   createDefaultCharacterSheetPresetState,
@@ -181,6 +182,31 @@ const createDataTransfer = (files: File[] = []) => {
     },
     getData: (type: string) => dataStore.get(type) ?? "",
   };
+};
+
+const addInternalReferenceDragPayload = (
+  transfer: ReturnType<typeof createDataTransfer>,
+  options?: {
+    outputId?: string;
+    mediaId?: string;
+    imageIndex?: number;
+    sourceSurface?: "all-refs" | "curated";
+    referenceUrl?: string;
+  }
+) => {
+  const outputId = options?.outputId ?? "output-internal-1";
+  transfer.setData("text/reference-origin", INTERNAL_REFERENCE_DRAG_ORIGIN);
+  transfer.setData("text/reference-version", "1");
+  transfer.setData("text/reference-id", outputId);
+  transfer.setData("text/reference-output-id", outputId);
+  transfer.setData("text/reference-image-index", String(options?.imageIndex ?? 0));
+  transfer.setData("text/reference-source-surface", options?.sourceSurface ?? "all-refs");
+  if (options?.mediaId) {
+    transfer.setData("text/reference-media-id", options.mediaId);
+  }
+  if (options?.referenceUrl) {
+    transfer.setData("text/reference-url", options.referenceUrl);
+  }
 };
 
 const supabaseClientMockState = vi.hoisted(() => ({
@@ -525,6 +551,30 @@ vi.mock("../../hooks/useCharacterQuickSwapDeck", async () => {
               legacySlotKey: null,
             })),
           ]);
+          return true;
+        },
+        appendExistingMediaReference: async (mediaFileId: string) => {
+          const trimmedMediaFileId = mediaFileId.trim();
+          if (!trimmedMediaFileId) return false;
+          setActiveItems((previous) => {
+            if (previous.some((item) => item.mediaFileId === trimmedMediaFileId)) {
+              return previous;
+            }
+            const nextIndex = previous.length + 1;
+            return [
+              ...previous,
+              {
+                id: `qs-existing-${nextIndex}`,
+                mediaFileId: trimmedMediaFileId,
+                storagePath: `quick/existing-${nextIndex}.png`,
+                previewUrl: `https://example.com/existing-${nextIndex}.png`,
+                status: "active" as const,
+                createdAt: new Date().toISOString(),
+                archivedAt: null,
+                legacySlotKey: null,
+              },
+            ];
+          });
           return true;
         },
         removeItem: async (itemId: string) => {
@@ -996,6 +1046,52 @@ describe("CharacterManagerShell behavior", () => {
     }
   });
 
+  it("accepts an internal reference-grid drop into a Character Sheet zone from an unallowlisted host", async () => {
+    const resolveCharacterDropReference = vi.fn(async () => ({
+      mediaId: "media-internal-portrait-1",
+      previewUrl: "https://example.com/unallowlisted-character-sheet.png",
+      outputId: "output-internal-portrait-1",
+      imageIndex: 0,
+      sourceSurface: "all-refs" as const,
+    }));
+    supabaseClientMockState.mediaLookupMaybeSingle.mockResolvedValueOnce({
+      data: {
+        storage_path: "user-1/library/internal-portrait.png",
+      },
+      error: null,
+    });
+
+    render(
+      <CharacterManagerShell
+        resolveCharacterDropReference={resolveCharacterDropReference}
+        surface="panel"
+      />
+    );
+
+    const portraitZone = getCharacterSheetZone("Portrait");
+    const internalDrag = createDataTransfer();
+    addInternalReferenceDragPayload(internalDrag, {
+      outputId: "output-internal-portrait-1",
+      mediaId: "media-internal-portrait-1",
+      sourceSurface: "all-refs",
+      referenceUrl: "https://example.com/unallowlisted-character-sheet.png",
+    });
+    internalDrag.setData(
+      "text/reference-url",
+      "https://example.com/unallowlisted-character-sheet.png"
+    );
+
+    fireEvent.dragOver(portraitZone, { dataTransfer: internalDrag });
+    fireEvent.drop(portraitZone, { dataTransfer: internalDrag });
+
+    await waitFor(() => {
+      expect(resolveCharacterDropReference).toHaveBeenCalled();
+      expect(getZoneImageSrc("Portrait")).toBe(
+        "https://example.com/unallowlisted-character-sheet.png"
+      );
+    });
+  });
+
   it("accepts a dragged reference-grid image into the QuickSwap deck", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -1025,6 +1121,93 @@ describe("CharacterManagerShell behavior", () => {
           `${TEST_SUPABASE_URL}/storage/v1/object/sign/media_library/user-1/reference-grid-quickswap.png?token=abc`
         );
         expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("accepts an internal reference-grid drop into QuickSwap even when URL host is unallowlisted", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["internal"], { type: "image/png" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const resolveCharacterDropReference = vi.fn(async () => ({
+      mediaId: "media-internal-quickswap-1",
+      previewUrl: "https://example.com/unallowlisted-quickswap.png",
+      outputId: "output-internal-quickswap-1",
+      imageIndex: 0,
+      sourceSurface: "all-refs" as const,
+    }));
+
+    try {
+      render(
+        <CharacterManagerShell
+          resolveCharacterDropReference={resolveCharacterDropReference}
+          surface="panel"
+        />
+      );
+
+      const quickSwapSection = screen.getByText("QuickSwap Deck").closest("section");
+      if (!quickSwapSection) {
+        throw new Error("Unable to resolve QuickSwap deck section.");
+      }
+      const internalDrag = createDataTransfer();
+      addInternalReferenceDragPayload(internalDrag, {
+        outputId: "output-internal-quickswap-1",
+        mediaId: "media-internal-quickswap-1",
+        sourceSurface: "all-refs",
+        referenceUrl: "https://example.com/unallowlisted-quickswap.png",
+      });
+      internalDrag.setData("text/reference-url", "https://example.com/unallowlisted-quickswap.png");
+
+      fireEvent.dragEnter(quickSwapSection, { dataTransfer: internalDrag });
+      fireEvent.dragOver(quickSwapSection, { dataTransfer: internalDrag });
+      fireEvent.drop(quickSwapSection, { dataTransfer: internalDrag });
+
+      await waitFor(() => {
+        expect(resolveCharacterDropReference).toHaveBeenCalled();
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("fails closed when internal reference-grid drop resolution cannot produce a media id", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["internal"], { type: "image/png" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const resolveCharacterDropReference = vi.fn(async () => null);
+
+    try {
+      render(
+        <CharacterManagerShell
+          resolveCharacterDropReference={resolveCharacterDropReference}
+          surface="panel"
+        />
+      );
+
+      const portraitZone = getCharacterSheetZone("Portrait");
+      const internalDrag = createDataTransfer();
+      addInternalReferenceDragPayload(internalDrag, {
+        outputId: "output-internal-rejected-1",
+        sourceSurface: "all-refs",
+        referenceUrl: "https://example.com/unallowlisted-rejected.png",
+      });
+      internalDrag.setData("text/reference-url", "https://example.com/unallowlisted-rejected.png");
+
+      fireEvent.dragOver(portraitZone, { dataTransfer: internalDrag });
+      fireEvent.drop(portraitZone, { dataTransfer: internalDrag });
+
+      await waitFor(() => {
+        expect(resolveCharacterDropReference).toHaveBeenCalled();
+        expect(getZoneImageSrc("Portrait")).toBeNull();
+        expect(fetchMock).not.toHaveBeenCalled();
       });
     } finally {
       vi.unstubAllGlobals();

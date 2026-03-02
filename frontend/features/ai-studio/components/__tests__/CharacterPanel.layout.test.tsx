@@ -93,6 +93,7 @@ vi.mock("../../../character-manager/hooks/useCharacterQuickSwapDeck", () => ({
     error: null,
     hasMoreArchived: false,
     appendFiles: async () => true,
+    appendExistingMediaReference: async () => true,
     removeItem: async () => true,
     restoreItem: async () => true,
     loadMoreArchived: async () => undefined,

@@ -588,12 +588,14 @@ body.character-manager-body {
 }
 
 .character-sheet-preset-tablist {
+  grid-row: 2;
   display: flex;
   align-items: flex-end;
   gap: 0;
 }
 
 .character-sheet-preset-delete-row {
+  grid-row: 1;
   display: flex;
   align-items: flex-end;
   gap: 0;

@@ -406,15 +406,24 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
           if (presetId === "1") {
             return false;
           }
+          const deletedPresetIndex = visibleCharacterSheetPresetIds.indexOf(presetId);
           const nextVisiblePresetIds = visibleCharacterSheetPresetIds.filter(
             (visiblePresetId) => visiblePresetId !== presetId
           );
           if (!nextVisiblePresetIds.length) {
             return false;
           }
+          const nearestLeftPresetId =
+            deletedPresetIndex > 0
+              ? (visibleCharacterSheetPresetIds[deletedPresetIndex - 1] ?? null)
+              : null;
+          const nearestRightPresetId =
+            deletedPresetIndex >= 0
+              ? (visibleCharacterSheetPresetIds[deletedPresetIndex + 1] ?? null)
+              : null;
           const nextActivePresetId =
             activePresetRef.current === presetId
-              ? (nextVisiblePresetIds[0] ?? "1")
+              ? (nearestLeftPresetId ?? nearestRightPresetId ?? nextVisiblePresetIds[0] ?? "1")
               : activePresetRef.current;
           const nextPresetMap = {
             ...presetMapRef.current,
@@ -656,7 +665,7 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.getByRole("tab", { name: "Hero Look" })).toBeInTheDocument();
   });
 
-  it("confirms before deleting a preset tab and deletes on Yes", async () => {
+  it("shows delete confirmation with target preset label and respects No cancel", async () => {
     render(<CharacterManagerShell />);
     const addButton = screen.getByRole("button", { name: "Add character sheet preset tab" });
     fireEvent.click(addButton);
@@ -665,18 +674,41 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.queryByRole("button", { name: "Delete preset 1" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
 
-    expect(screen.getByText("Delete this preset tab?")).toBeInTheDocument();
+    expect(screen.getByText("Delete preset “2”?")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "This will delete your saved character sheet references. Do you wish to continue?"
+        "This removes saved references from this preset tab. Do you wish to continue?"
       )
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "No" }));
     await waitFor(() => {
-      expect(screen.queryByText("Delete this preset tab?")).not.toBeInTheDocument();
+      expect(screen.queryByText("Delete preset “2”?")).not.toBeInTheDocument();
     });
     expect(screen.getByRole("tab", { name: "2" })).toBeInTheDocument();
+  });
+
+  it("deletes active tab with nearest-left fallback and preserves active tab on non-active delete", async () => {
+    render(<CharacterManagerShell />);
+    const addButton = screen.getByRole("button", { name: "Add character sheet preset tab" });
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
+
+    fireEvent.click(screen.getByRole("tab", { name: "2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
+    });
+    const tabPanelAfterActiveDelete = screen.getByRole("tabpanel");
+    const tabOne = screen.getByRole("tab", { name: "1" });
+    expect(tabOne).toHaveAttribute("aria-selected", "true");
+    expect(tabPanelAfterActiveDelete).toHaveAttribute("aria-labelledby", tabOne.id);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add character sheet preset tab" }));
+    fireEvent.click(screen.getByRole("tab", { name: "3" }));
+    expect(screen.getByRole("tab", { name: "3" })).toHaveAttribute("aria-selected", "true");
 
     fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes" }));
@@ -684,6 +716,14 @@ describe("CharacterManagerShell behavior", () => {
     await waitFor(() => {
       expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
     });
+    const tabThreeAfterNonActiveDelete = screen.getByRole("tab", { name: "3" });
+    const tabPanelAfterNonActiveDelete = screen.getByRole("tabpanel");
+    expect(tabThreeAfterNonActiveDelete).toHaveAttribute("aria-selected", "true");
+    expect(tabPanelAfterNonActiveDelete).toHaveAttribute(
+      "aria-labelledby",
+      tabThreeAfterNonActiveDelete.id
+    );
+
     expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "3" })).toBeInTheDocument();
   });

@@ -3,8 +3,8 @@
  * Verifies ARIA semantics, roving tabindex, add-tab flow, rename behavior, and tab deletion affordances.
  */
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { CHARACTER_SHEET_PRESET_IDS } from "../../constants";
 import type { CharacterSheetPresetId } from "../../types";
 import { getNextCharacterSheetPresetId } from "../../logic/characterSheetPresetTabs";
@@ -57,8 +57,14 @@ function PresetTabsHarness({
         }}
         onDeletePreset={(presetId) => {
           setPresetIds((previous) => {
+            const deletedIndex = previous.indexOf(presetId);
             const nextIds = previous.filter((id) => id !== presetId);
-            const nextActiveId = activePresetId === presetId ? (nextIds[0] ?? "1") : activePresetId;
+            const nearestLeftId = deletedIndex > 0 ? (previous[deletedIndex - 1] ?? null) : null;
+            const nearestRightId = deletedIndex >= 0 ? (previous[deletedIndex + 1] ?? null) : null;
+            const nextActiveId =
+              activePresetId === presetId
+                ? (nearestLeftId ?? nearestRightId ?? nextIds[0] ?? "1")
+                : activePresetId;
             setActivePresetId(nextActiveId);
             return nextIds;
           });
@@ -194,5 +200,44 @@ describe("CharacterSheetPresetTabs accessibility", () => {
     expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "1" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "3" })).toBeInTheDocument();
+  });
+
+  it("keeps add/delete controls outside tablist semantics and dispatches delete for the matching preset", () => {
+    const onDeletePreset = vi.fn();
+    render(
+      <CharacterSheetPresetTabs
+        presetIds={["1", "2", "3"]}
+        activePresetId="1"
+        presetLabels={{
+          "1": "1",
+          "2": "2",
+          "3": "3",
+          "4": "4",
+          "5": "5",
+          "6": "6",
+          "7": "7",
+          "8": "8",
+          "9": "9",
+          "10": "10",
+        }}
+        onSelectPreset={() => undefined}
+        onAddPreset={() => undefined}
+        onDeletePreset={onDeletePreset}
+        panelId="panel-id"
+      />
+    );
+
+    const tablist = screen.getByRole("tablist", { name: "Character sheet style presets" });
+    expect(within(tablist).getAllByRole("tab")).toHaveLength(3);
+    expect(
+      within(tablist).queryByRole("button", { name: "Delete preset 2" })
+    ).not.toBeInTheDocument();
+    expect(
+      within(tablist).queryByRole("button", { name: "Add character sheet preset tab" })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete preset 3" }));
+    expect(onDeletePreset).toHaveBeenCalledWith("3");
+    expect(onDeletePreset).toHaveBeenCalledTimes(1);
   });
 });

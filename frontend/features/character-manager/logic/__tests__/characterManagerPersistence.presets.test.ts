@@ -243,4 +243,121 @@ describe("characterManagerPersistence preset preview hydration", () => {
     expect(result.tabLabels["2"]).toBe("2");
     expect(result.presets["2"].portrait).toBeNull();
   });
+
+  it("uses nearest-left fallback when deleting the active preset tab", async () => {
+    const metadata = {
+      character_sheet_presets_v1: {
+        active_preset_id: "3",
+        tab_order: ["1", "2", "3", "4"],
+        tab_labels: { "1": "1", "2": "2", "3": "Look 3", "4": "4" },
+        presets: {
+          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "3": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "4": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+        },
+      },
+    };
+
+    const selectQuery = {
+      eq: vi.fn(),
+      maybeSingle: vi.fn(async () => ({ data: { metadata }, error: null })),
+    };
+    selectQuery.eq.mockImplementation(() => selectQuery);
+
+    const updateSecondEq = vi.fn(async () => ({ error: null }));
+    const updateFirstEq = { eq: updateSecondEq };
+    const updateQuery = {
+      eq: vi.fn(() => updateFirstEq),
+    };
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        })),
+      },
+      from: vi.fn(() => ({
+        select: vi.fn(() => selectQuery),
+        update: vi.fn(() => updateQuery),
+      })),
+    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+
+    const result = await deleteCharacterManagerCharacterSheetPreset({
+      characterId: "char-1",
+      presetId: "3",
+      nextTabOrder: ["1", "2", "4"],
+      nextActivePresetId: "3",
+    });
+
+    expect(result.activePresetId).toBe("2");
+    expect(result.tabOrder).toEqual(["1", "2", "4"]);
+  });
+
+  it("deletes preset references without invoking media cleanup side effects", async () => {
+    const metadata = {
+      character_sheet_presets_v1: {
+        active_preset_id: "2",
+        tab_order: ["1", "2"],
+        tab_labels: { "1": "1", "2": "Look 2" },
+        presets: {
+          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "2": {
+            portrait: {
+              media_file_id: "media-delete-me",
+              storage_path: "user/chars/presets/delete-me.png",
+            },
+            close_up: null,
+            front_shot: null,
+            back_shot: null,
+          },
+        },
+      },
+    };
+
+    const selectQuery = {
+      eq: vi.fn(),
+      maybeSingle: vi.fn(async () => ({ data: { metadata }, error: null })),
+    };
+    selectQuery.eq.mockImplementation(() => selectQuery);
+
+    const updateSecondEq = vi.fn(async () => ({ error: null }));
+    const updateFirstEq = { eq: updateSecondEq };
+    const updateQuery = {
+      eq: vi.fn(() => updateFirstEq),
+    };
+
+    const fromMock = vi.fn((table: string) => {
+      if (table !== "characters") {
+        throw new Error(`Unexpected table access: ${table}`);
+      }
+      return {
+        select: vi.fn(() => selectQuery),
+        update: vi.fn(() => updateQuery),
+      };
+    });
+
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: { session: { user: { id: "user-1" } } },
+          error: null,
+        })),
+      },
+      from: fromMock,
+    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+
+    const result = await deleteCharacterManagerCharacterSheetPreset({
+      characterId: "char-1",
+      presetId: "2",
+      nextTabOrder: ["1"],
+      nextActivePresetId: "1",
+    });
+
+    expect(result.tabOrder).toEqual(["1"]);
+    expect(result.presets["2"].portrait).toBeNull();
+    expect(fromMock).toHaveBeenCalledWith("characters");
+    expect(fromMock.mock.calls).toHaveLength(2);
+  });
 });

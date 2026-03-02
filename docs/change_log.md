@@ -2577,3 +2577,12 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `docs/sops/sop_media_performance_operations.md`
   - `docs/sops/sop_media_library_ui.md`
   - `docs/troubleshooting.md`
+
+## 2026-03-02 (AI Studio agent inline preview drag/drop guard)
+- Blocked drag initiation from inline assistant output preview media/status tiles so they cannot create reference-grid drops.
+- Preserved assistant bubble text drag behavior for prompt-card creation and changed right-column mixed-drop routing to prefer prompt text over media URL hints.
+- Added focused regression coverage for agent bubble drag behavior and right-column mixed-payload drop routing:
+  - `frontend/prefabs/agent/panels/__tests__/AgentChatPanel.actions.test.tsx`
+  - `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`
+- Updated AI Studio agent chat ops SOP to reflect the new drag-source guard and prompt-first drop precedence:
+  - `docs/sops/sop_ai_studio_agent_chat_ops.md`

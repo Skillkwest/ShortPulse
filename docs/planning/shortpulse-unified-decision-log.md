@@ -96,3 +96,8 @@ Last updated: 2026-03-02
 - Topic: Agent bubble media-linking contract.
 - Decision: Bubble thumbnail/status UI is linked by assistant `messageId -> optimisticOutputId` mapping, with generation-controller return payload `{ accepted, optimisticOutputId }` as the only orchestration seam; no server/API route contract changes are introduced for this linkage.
 - Effective phase: 13.
+
+## Decision 020
+- Topic: Inline assistant bubble edit authority and rollout gate.
+- Decision: Assistant bubble edits are local-only mutations applied via `useAiAgent.updateMessageById` with normalization/no-op rejection in a shared helper seam; rollout is fail-closed unless `NEXT_PUBLIC_ENABLE_AGENT_BUBBLE_INLINE_EDIT=true`.
+- Effective phase: 13.

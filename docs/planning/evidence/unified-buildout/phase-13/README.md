@@ -35,3 +35,4 @@ Example:
 6. `2026-03-02-phase-13-wave-e-pass-1-agent-message-identity-foundation.md`
 7. `2026-03-02-phase-13-wave-e-pass-2-structured-generate-callback.md`
 8. `2026-03-02-phase-13-wave-e-pass-3-bubble-thumbnail-linking.md`
+9. `2026-03-02-phase-13-wave-e-pass-4-inline-assistant-edit.md`

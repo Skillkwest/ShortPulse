@@ -1973,3 +1973,24 @@ Append new entries at the end of this file; each entry should include date (UTC)
   - `frontend/prefabs/agent/panels/__tests__/AgentChatPanel.actions.test.tsx`.
 - Recorded Wave E Pass 3 evidence:
   - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-3-bubble-thumbnail-linking.md`.
+
+## 2026-03-02 (Phase 13 Wave E Pass 4 inline assistant bubble edit wiring)
+- Added local-only assistant message edit helper seam:
+  - `frontend/features/ai-agent/client/messageEditing.ts`
+  - `frontend/features/ai-agent/client/__tests__/messageEditing.test.ts`.
+- Added assistant edit request contract:
+  - `AgentAssistantMessageEditRequest` in `frontend/prefabs/agent/types.ts`.
+- Wired bridge-level assistant edit handler through existing message identity foundation (`updateMessageById`) with no-op/empty edit rejection:
+  - `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts`.
+- Threaded `onAssistantMessageEdit` callback contracts through create/inline/expanded AI Studio chat surfaces.
+- Implemented double-click inline edit UX in `AgentChatPanel`:
+  - Enter/blur commits,
+  - Escape cancels,
+  - empty/no-op edits revert,
+  - drag is disabled while editing.
+- Added page-level rollout gate:
+  - `NEXT_PUBLIC_ENABLE_AGENT_BUBBLE_INLINE_EDIT` (default off unless explicitly enabled).
+- Updated panel regression coverage:
+  - `frontend/prefabs/agent/panels/__tests__/AgentChatPanel.actions.test.tsx`.
+- Recorded Wave E Pass 4 evidence:
+  - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-e-pass-4-inline-assistant-edit.md`.

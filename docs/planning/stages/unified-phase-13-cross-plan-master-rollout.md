@@ -79,11 +79,17 @@ Completed:
    - `handleGenerate` now returns `{ accepted, optimisticOutputId }` so page orchestration can register post-submit message-output links without route contract changes,
    - threaded `assistantBubbleMedia` through inline and expanded chat surfaces and rendered thumbnail/status UI above generate pills,
    - added focused hook, generation-controller, and agent-panel regression coverage.
+10. Wave E Pass 4 inline assistant edit wiring:
+   - added local-only assistant edit callback contracts (`onAssistantMessageEdit`) through create/inline/expanded chat surfaces,
+   - introduced `messageEditing.ts` helper seam for normalization + no-op commit rejection,
+   - wired bridge-level edit commits via existing `useAiAgent.updateMessageById` with targeted telemetry,
+   - implemented double-click inline edit UX in `AgentChatPanel` (Enter/blur commit, Escape cancel, drag disabled while editing),
+   - gated behavior by `NEXT_PUBLIC_ENABLE_AGENT_BUBBLE_INLINE_EDIT` at page orchestration for default-safe rollout.
 
 Pending:
 1. Wave C Pass 4 observation windows (2 consecutive green windows) and go/no-go decision evidence.
 2. Wave D staging behavior matrix closeout (`ON/OFF x generated/upload/paste x image/video`) and promote/hold decision evidence.
-3. Wave E remaining passes (inline assistant edit wiring, raw prompt mode, session persistence write-shadow/restore).
+3. Wave E remaining passes (raw prompt mode, session persistence write-shadow/restore).
 4. Waves F through H.
 
 ## Surgical Research Checkpoints (Required)

@@ -90,6 +90,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_ai_studio_agent_safety_control_plane.md`
 - `docs/sops/sop_billing_credits_operations.md`
 - `docs/sops/sop_provider_incident_response.md`
+- `docs/sops/sop_generation_recovery_diagnostics.md`
 - `docs/sops/sop_new_model_ingestion.md`
 - `docs/sops/sop_text_generation.md`
 - `docs/sops/sop_image_generation.md`
